@@ -3,16 +3,19 @@ from typing import List, Tuple, Callable, Optional, Generator, Any
 from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
 from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
+from Py4GWCoreLib.enums_src.IO_enums import Key
+from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
+from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Py4GWCoreLib.routines_src import Checks
 
-from PyAgent import AttributeClass
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
 
 from ..enums_src.Model_enums import ModelID
 from ..enums_src.UI_enums import ControlAction
+from .BehaviourTrees import BT
 
-
+import functools
 import importlib
 
 class _RProxy:
@@ -22,6 +25,25 @@ class _RProxy:
 
 Routines = _RProxy()
 
+def _run_bt_tree(tree, return_bool: bool=False, throttle_ms: int = 100):
+    """
+    Drives a BT tree until SUCCESS / FAILURE, yielding periodically.
+    If return_bool is True -> returns True/False.
+    If return_bool is False -> just exits.
+    """
+    while True:
+        state = tree.tick()
+
+        if state == BT.NodeState.SUCCESS:
+            if return_bool:
+                return True
+            break
+        elif state == BT.NodeState.FAILURE:
+            if return_bool:
+                return False
+            break
+
+        yield from Yield.wait(throttle_ms)
 
 
 
@@ -36,54 +58,83 @@ class Yield:
 #region Player
     class Player:
         @staticmethod
-        def InteractAgent(agent_id:int):
-            GLOBAL_CACHE.Player.Interact(agent_id, False)
-            yield from Yield.wait(100)
+        def InteractAgent(agent_id:int, log:bool=False):
+            """
+            Purpose: Interact with the specified agent.
+            Args:
+                agent_id (int): The ID of the agent to interact with.
+                log (bool) Optional: Whether to log the action. Default is False.
+            """
+            tree = BT.Player.InteractAgent(agent_id=agent_id, log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
+        @staticmethod
+        def InteractTarget(log:bool=False):
+            """
+            Purpose: Interact with the currently selected target.
+            Args:
+                log (bool) Optional: Whether to log the action. Default is False.
+            """
+            tree = BT.Player.InteractTarget(log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
             
         @staticmethod
-        def InteractTarget():
-            
-            target_id = GLOBAL_CACHE.Player.GetTargetID()
-            if target_id != 0:
-                yield from Yield.Player.InteractAgent(target_id)
+        def ChangeTarget(agent_id:int, log:bool=False):
+            """
+            Purpose: Change the player's target to the specified agent ID.
+            Args:
+                agent_id (int): The ID of the agent to target.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.ChangeTarget(agent_id, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=250)
 
         @staticmethod
-        def SendDialog(dialog_id:str):
-            
-            GLOBAL_CACHE.Player.SendDialog(int(dialog_id, 16))
-            yield from Yield.wait(300)
+        def SendDialog(dialog_id:str, log:bool=False):
+            """
+            Purpose: Send a dialog to the specified dialog ID.
+            Args:
+                dialog_id (str): The ID of the dialog to send.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SendDialog(dialog_id, log=log)
+            yield from _run_bt_tree(tree,throttle_ms=300)
 
         @staticmethod
-        def SetTitle(title_id:int, log=False):
-            
-
-            GLOBAL_CACHE.Player.SetActiveTitle(title_id)
-            yield from Yield.wait(300)   
-            if log:
-                ConsoleLog("SetTitle", f"Setting title to {title_id}", Console.MessageType.Info) 
+        def SetTitle(title_id:int, log:bool=False):
+            """
+            Purpose: Set the player's title to the specified title ID.
+            Args:
+                title_id (int): The ID of the title to set.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SetTitle(title_id, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=300)
 
         @staticmethod
         def SendChatCommand(command:str, log=False):
-            
-
-            GLOBAL_CACHE.Player.SendChatCommand(command)
-            yield from Yield.wait(300)
-            if log:
-                ConsoleLog("SendChatCommand", f"Sending chat command {command}", Console.MessageType.Info)
-
-        @staticmethod
-        def Move(x:float, y:float, log=False):
-            
-
-            GLOBAL_CACHE.Player.Move(x, y)
-            yield from Yield.wait(100)
-            if log:
-                ConsoleLog("MoveTo", f"Moving to {x}, {y}", Console.MessageType.Info)
+            """
+            Purpose: Send a chat command.
+            Args:
+                command (str): The chat command to send.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SendChatCommand(command, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=300)
 
         @staticmethod
-        def Resign():
-            GLOBAL_CACHE.Player.SendChatCommand("resign")
-            yield from Yield.wait(250)
+        def Resign(log:bool=False):
+            """
+            Purpose: Resign from the current map.
+            Args:
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.SendChatCommand("resign", log=log)
+            yield from _run_bt_tree(tree, throttle_ms=250)
             
         @staticmethod
         def SendChatMessage(channel:str, message:str, log=False):
@@ -95,50 +146,250 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is True.
             Returns: None
             """
-            
-            GLOBAL_CACHE.Player.SendChat(channel, message)
-            yield from Yield.wait(300)
+            tree = BT.Player.SendChatMessage(channel, message, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=300)
             
         @staticmethod
-        def PrintMessageToConsole(source:str, message: str):
+        def PrintMessageToConsole(source:str, message: str, message_type: int = Console.MessageType.Info):
             """
             Purpose: Print a message to the console.
             Args:
                 message (str): The message to print.
             Returns: None
             """
-            ConsoleLog(source, message, Console.MessageType.Info)
-            yield from Yield.wait(100)
+            tree = BT.Player.PrintMessageToConsole(source, message, message_type)
+            yield from _run_bt_tree(tree , throttle_ms=100)
+
+
+        @staticmethod
+        def Move(x:float, y:float, log=False):
+            """
+            Purpose: Move the player to the specified coordinates.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.Move(x, y, log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
+
+        @staticmethod
+        def MoveXYZ(x:float, y:float, zplane:int, log=False):
+            """
+            Purpose: Move the player to the specified coordinates and z-plane.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                zplane (int): The z-plane.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.MoveXYZ(x, y, zplane, log=log)
+            yield from _run_bt_tree(tree , throttle_ms=100)
+
+#region Skills
+    class Skills:
+        @staticmethod
+        def GenerateSkillbarTemplate():
+            """
+            Purpose: Generate template code for player's skillbar
+            Args: None
+            Returns: str: The current skillbar template.
+            """
+            skillbar_template = Utils.GenerateSkillbarTemplate()
+            yield
+            return skillbar_template
+
+        @staticmethod
+        def ParseSkillbarTemplate(template:str):
+            '''
+            Purpose: Parse a skillbar template into its components.
+            Args:
+                template (str): The skillbar template to parse.
+            Returns:
+                prof_primary (int): The primary profession ID.
+                prof_secondary (int): The secondary profession ID.
+                attributes (dict): A dictionary of attribute IDs and levels.
+                skills (list): A list of skill IDs.
+            '''
+
+            result = Utils.ParseSkillbarTemplate(template)
+            yield
+            return result
+
+        @staticmethod
+        def LoadSkillbar(skill_template:str, log=False):
+            """
+            Purpose: Load the specified skillbar.
+            Args:
+                skill_template (str): The name of the skill template to load.
+                log (bool) Optional: Whether to log the action. Default is True.
+            Returns: None
+            """
+            tree = BT.Skills.LoadSkillbar(skill_template, log)
+            yield from _run_bt_tree(tree, throttle_ms=500)
+
+        @staticmethod
+        def LoadHeroSkillbar(hero_index:int, skill_template:str, log=False):
+            """
+            Purpose: Load the specified hero skillbar.
+            Args:
+                hero_index (int): The index of the hero (1-4).
+                skill_template (str): The name of the skill template to load.
+                log (bool) Optional: Whether to log the action. Default is True.
+            Returns: None
+            """
+            tree = BT.Skills.LoadHeroSkillbar(hero_index, skill_template, log)
+            yield from _run_bt_tree(tree, throttle_ms=500)
+
+
+        @staticmethod
+        def IsSkillIDUsable(skill_id: int):
+            """
+            Purpose: Check if a skill by its ID is usable using a Behavior Tree.
+            Args:
+                skill_id (int): The ID of the skill to check.
+            Returns: bool: True if the skill is usable, False otherwise.
+            """
+            tree = BT.Skills.IsSkillIDUsable(skill_id)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=0)
+            return result
+
+
+        @staticmethod
+        def IsSkillSlotUsable(skill_slot: int):
+            """
+            Purpose: Check if a skill in a specific slot is usable using a Behavior Tree.
+            Args:
+                skill_slot (int): The slot number of the skill to check.
+            Returns: A Behavior Tree that checks if the skill in the slot is usable.
+            """
+            tree = BT.Skills.IsSkillSlotUsable(skill_slot)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=0)
+            return result
+
+        @staticmethod
+        def CastSkillID (skill_id:int,target_agent_id:int =0, extra_condition=True, aftercast_delay=0,  log=False):
+            """
+            Purpose: Cast a skill by its ID using a coroutine.
+            Args:
+                skill_id (int): The ID of the skill to cast.
+                target_agent_id (int) Optional: The ID of the target agent. Default is 0.
+                extra_condition (bool) Optional: An extra condition to check before casting. Default is True.
+                aftercast_delay (int) Optional: Delay in milliseconds after casting the skill. Default is 0.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: bool: True if the skill was cast successfully, False otherwise.
+            """
+            tree = BT.Skills.CastSkillID(skill_id, target_agent_id, extra_condition, aftercast_delay, log)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=aftercast_delay)
+            return result
+
+
+        @staticmethod
+        def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
+            """
+            purpose: Cast a skill in a specific slot using a coroutine.
+
+            Args:
+                slot (int): The slot number of the skill to cast.
+                extra_condition (bool) Optional: An extra condition to check before casting. Default is True.
+                aftercast_delay (int) Optional: Delay in milliseconds after casting the skill. Default is 0.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: bool: True if the skill was cast successfully, False otherwise.
+            """
+            tree = BT.Skills.CastSkillSlot(slot=slot, extra_condition=extra_condition, aftercast_delay=aftercast_delay, log=log)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=aftercast_delay)
+            return result
+
+#region Map
+    class Map:
+        @staticmethod
+        def SetHardMode(hard_mode=True, log=False):
+            """
+            Purpose: Set the map to hard mode.
+            Args: None
+            Returns: None
+            """
+            tree = BT.Map.SetHardMode(hard_mode, log)
+            yield from _run_bt_tree(tree, return_bool=False, throttle_ms=100)
+
+        @staticmethod
+        def TravelToOutpost(outpost_id, log=False, timeout:int=10000):
+            """
+            Purpose: Positions yourself safely on the outpost.
+            Args:
+                outpost_id (int): The ID of the outpost to travel to.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+
+            tree = BT.Map.TravelToOutpost(outpost_id, log, timeout)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
+            return result
+
+
+        @staticmethod
+        def TravelToRegion(outpost_id, region, district, language=0, log=False):
+            """
+            Purpose: Positions yourself safely on the outpost.
+            Args:
+                outpost_id (int): The ID of the outpost to travel to.
+                region (int): The region ID to travel to.
+                district (int): The district ID to travel to.
+                language (int): The language ID to travel to. Default is 0.
+                log (bool) Optional: Whether to log the action. Default is True.
+            Returns: None
+            """
+
+            tree = BT.Map.TravelToRegion(outpost_id, region, district, language, log)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
+            return result
+
+
+        @staticmethod
+        def WaitforMapLoad(map_id, log=False, timeout: int = 10000, map_name: str =""):
+            """
+            Purpose: Wait for the map to load completely.
+            Args:
+                map_id (int): The ID of the map to wait for.
+                log (bool) Optional: Whether to log the action. Default is False.
+                timeout (int) Optional: Timeout in milliseconds. Default is 10000.
+                map_name (str) Optional: The name of the map to wait for. Default is "".
+            Returns: bool: True if the map loaded successfully, False if timed out.
+            """
+
+            tree = BT.Map.WaitforMapLoad(map_id, log, timeout, map_name)
+            result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=500)
+            return result
 
 #region Movement
     class Movement:
         @staticmethod
-        def StopMovement():
-            yield from Yield.Movement.WalkBackwards(125)
+        def StopMovement(log=False):
+            yield from Yield.Movement.WalkBackwards(125, log=log)
 
         @staticmethod   
-        def WalkBackwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
+        def WalkBackwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms, log=log)
 
         @staticmethod
-        def WalkForwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
+        def WalkForwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms, log=log)
+        @staticmethod
+        def StrafeLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms, log=log)
 
         @staticmethod
-        def StrafeLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
+        def StrafeRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms, log=log)
+        @staticmethod
+        def TurnLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms, log=log)
 
         @staticmethod
-        def StrafeRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
-
-        @staticmethod
-        def TurnLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
-
-        @staticmethod
-        def TurnRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
+        def TurnRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms, log=log)
         
         #region FollowPath
         @staticmethod
@@ -304,521 +555,17 @@ class Yield:
             return True
     
 
-#region Skills
-    class Skills:
-            
-        @staticmethod
-        def GenerateSkillbarTemplate() -> str:
-            """
-            Purpose: Generate template code for player's skillbar
-            Args: None
-            Returns: str: The current skillbar template.
-            """
-            
-            def encode_skill_template(prof_primary, prof_secondary, attributes, skills):
-                """Encode skill template data into template string"""
-                binary_data = ''
 
-                # Template type (4 bits) - 14 for skill template
-                binary_data += Utils.dec_to_bin64(14, 4)
-
-                # Version number (4 bits) - 0
-                binary_data += Utils.dec_to_bin64(0, 4)
-
-                # Determine profession bits needed
-                max_prof = max(prof_primary, prof_secondary)
-                if max_prof <= 15:  # 4 bits
-                    prof_bits_code = 0
-                    prof_bits = 4
-                elif max_prof <= 63:  # 6 bits
-                    prof_bits_code = 1
-                    prof_bits = 6
-                elif max_prof <= 255:  # 8 bits
-                    prof_bits_code = 2
-                    prof_bits = 8
-                else:  # 10 bits
-                    prof_bits_code = 3
-                    prof_bits = 10
-
-                # Profession bits code (2 bits)
-                binary_data += Utils.dec_to_bin64(prof_bits_code, 2)
-
-                # Primary profession
-                binary_data += Utils.dec_to_bin64(prof_primary, prof_bits)
-
-                # Secondary profession
-                binary_data += Utils.dec_to_bin64(prof_secondary, prof_bits)
-
-                # Attributes count (4 bits)
-                binary_data += Utils.dec_to_bin64(len(attributes), 4)
-
-                # Determine attribute bits needed
-                max_attr = max(attributes.keys()) if attributes else 0
-                if max_attr <= 15:  # 4 bits
-                    attr_bits_code = 0
-                    attr_bits = 4
-                elif max_attr <= 31:  # 5 bits
-                    attr_bits_code = 1
-                    attr_bits = 5
-                elif max_attr <= 63:  # 6 bits
-                    attr_bits_code = 2
-                    attr_bits = 6
-                elif max_attr <= 127:  # 7 bits
-                    attr_bits_code = 3
-                    attr_bits = 7
-                elif max_attr <= 255:  # 8 bits
-                    attr_bits_code = 4
-                    attr_bits = 8
-                else:  # More bits as needed
-                    attr_bits_code = min(15, max_attr.bit_length() - 4)
-                    attr_bits = attr_bits_code + 4
-
-                # Attribute bits code (4 bits)
-                binary_data += Utils.dec_to_bin64(attr_bits_code, 4)
-
-                # Attributes
-                for attr_id, attr_value in attributes.items():
-                    binary_data += Utils.dec_to_bin64(attr_id, attr_bits)
-                    binary_data += Utils.dec_to_bin64(attr_value, 4)
-
-                # Determine skill bits needed
-                max_skill = max(skills) if skills else 0
-                if max_skill <= 255:  # 8 bits
-                    skill_bits_code = 0
-                    skill_bits = 8
-                elif max_skill <= 511:  # 9 bits
-                    skill_bits_code = 1
-                    skill_bits = 9
-                elif max_skill <= 1023:  # 10 bits
-                    skill_bits_code = 2
-                    skill_bits = 10
-                elif max_skill <= 2047:  # 11 bits
-                    skill_bits_code = 3
-                    skill_bits = 11
-                elif max_skill <= 4095:  # 12 bits
-                    skill_bits_code = 4
-                    skill_bits = 12
-                else:  # More bits as needed
-                    skill_bits_code = min(15, max_skill.bit_length() - 8)
-                    skill_bits = skill_bits_code + 8
-
-                # Skill bits code (4 bits)
-                binary_data += Utils.dec_to_bin64(skill_bits_code, 4)
-
-                # Skills (8 skills)
-                for skill in skills:
-                    binary_data += Utils.dec_to_bin64(skill, skill_bits)
-
-                # Tail (1 bit) - always 0
-                binary_data += '0'
-
-                # Convert binary to base64
-                return Utils.bin64_to_base64(binary_data)
-
-            try:
-                # Get skill IDs for all 8 slots
-                skills = []
-                for slot in range(1, 9):  # Slots 1-8
-                    skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
-                    skills.append(skill_id if skill_id else 0)
-
-                # Get profession IDs
-                prof_primary, prof_secondary = GLOBAL_CACHE.Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
-
-                # Get attributes
-                attributes_raw:list[AttributeClass] = GLOBAL_CACHE.Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
-                attributes = {}
-
-                # Convert attributes to dictionary format
-                for attr in attributes_raw:
-                    attr_id = int(attr.attribute_id)  # Convert enum to integer
-                    attr_level = attr.level_base  # Get attribute level
-                    if attr_level > 0:  # Only include attributes with points
-                        attributes[attr_id] = attr_level
-
-                # Encode template
-                template = encode_skill_template(prof_primary, prof_secondary, attributes, skills)
-                return template
-
-            except Exception as e:
-                # Return empty string if encoding fails
-                print(f"Failed to encode skillbar template: {e}")
-                return ""
-
-        @staticmethod
-        def ParseSkillbarTemplate(template:str) -> tuple[int, int, dict, list]:
-            '''
-            Purpose: Parse a skillbar template into its components.
-            Args:
-                template (str): The skillbar template to parse.
-            Returns:
-                prof_primary (int): The primary profession ID.
-                prof_secondary (int): The secondary profession ID.
-                attributes (dict): A dictionary of attribute IDs and levels.
-                skills (list): A list of skill IDs.
-            '''
-
-            
-            enc_template = ''
-
-            for char in template:
-                enc_template = f'{enc_template}{Utils.base64_to_bin64(char)}'
-        
-            template_type = Utils.bin64_to_dec(enc_template[:4])
-            # if template_type != 14:
-            #     return (None, None, None, None)
-            enc_template = enc_template[4:]
-
-            version_number = Utils.bin64_to_dec(enc_template[:4])
-            enc_template = enc_template[4:]
-
-            prof_bits = Utils.bin64_to_dec(enc_template[:2]) * 2 + 4
-            enc_template = enc_template[2:]
-
-            prof_primary = Utils.bin64_to_dec(enc_template[:prof_bits])
-            enc_template = enc_template[prof_bits:]
-
-            prof_secondary = Utils.bin64_to_dec(enc_template[:prof_bits])
-            enc_template = enc_template[prof_bits:]
-
-            attributes_count = Utils.bin64_to_dec(enc_template[:4])
-            enc_template = enc_template[4:]
-
-            attributes_bits = Utils.bin64_to_dec(enc_template[:4]) + 4
-            enc_template = enc_template[4:]
-            
-            attributes = {}
-            for i in range(attributes_count):
-                attr = Utils.bin64_to_dec(enc_template[:attributes_bits])
-                enc_template = enc_template[attributes_bits:]
-                value = Utils.bin64_to_dec(enc_template[:4])
-                enc_template = enc_template[4:]
-                attributes[attr] = value
-            
-            skill_bits = Utils.bin64_to_dec(enc_template[:4]) + 8
-            enc_template = enc_template[4:]
-
-            skills = []
-            for i in range(8):
-                skill = Utils.bin64_to_dec(enc_template[:skill_bits])
-                enc_template = enc_template[skill_bits:]
-                skills.append(skill)
-
-            return (prof_primary, prof_secondary, attributes, skills)
-
-        @staticmethod
-        def LoadSkillbar(skill_template:str, log=False):
-            """
-            Purpose: Load the specified skillbar.
-            Args:
-                skill_template (str): The name of the skill template to load.
-                log (bool) Optional: Whether to log the action. Default is True.
-            Returns: None
-            """
-            
-
-            GLOBAL_CACHE.SkillBar.LoadSkillTemplate(skill_template)
-            ConsoleLog("LoadSkillbar", f"Loading skill Template {skill_template}", log=log)
-            yield from Yield.wait(500)
-            
-        @staticmethod
-        def LoadHeroSkillbar(hero_index:int, skill_template:str, log=False):
-            """
-            Purpose: Load the specified hero skillbar by party position.
-            Args:
-                hero_index (int): The 1-based party position of the hero (1 = first hero, 2 = second, etc.).
-                skill_template (str): The skill template code to load.
-                log (bool) Optional: Whether to log the action. Default is False.
-            Returns: None
-            """
-            
-
-            GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(hero_index, skill_template)
-            ConsoleLog("LoadHeroSkillbar", f"Loading hero at party position {hero_index} with template {skill_template}", log=log)
-            yield from Yield.wait(500)
-        
-        @staticmethod    
-        def CastSkillID (skill_id:int,extra_condition=True, aftercast_delay=0,  log=False):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
-
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
-            
-            if not(enough_energy and skill_ready and extra_condition):
-                yield
-                return False
-            slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
-            if slot <= 0 or slot > 8:
-                yield
-                return False
-            
-            GLOBAL_CACHE.SkillBar.UseSkill(GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id), aftercast_delay=aftercast_delay)
-            if log:
-                ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
-            
-            if aftercast_delay > 0:
-                yield from Yield.wait(aftercast_delay)
-            return True
-        
-        @staticmethod
-        def IsSkillIDUsable(skill_id: int):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
-
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
-            yield
-            return enough_energy and skill_ready
-        
-        @staticmethod
-        def IsSkillSlotUsable(skill_slot: int):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
-
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id, skill.id)
-            skill_ready = Checks.Skills.IsSkillSlotReady(skill_slot)
-            yield
-            return enough_energy and skill_ready
-
-        @staticmethod
-        def CastSkillSlot(slot:int,extra_condition=True, aftercast_delay=0, log=False):
-            from .Checks import Checks
-            if not Checks.Map.IsExplorable():
-                return False
-            
-            if slot <= 0 or slot > 8:
-                yield
-                return False
-            
-            skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
-            skill_ready = Checks.Skills.IsSkillSlotReady(slot)
-            
-            if not(enough_energy and skill_ready and extra_condition):
-                yield
-                return False
-
-            GLOBAL_CACHE.SkillBar.UseSkill(slot, aftercast_delay=aftercast_delay)
-            if log:
-                ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
-            
-            yield from Yield.wait(aftercast_delay)
-            return True
-      
-#region Map      
-    class Map:  
-        @staticmethod
-        def SetHardMode(hard_mode=True, log=False):
-            """
-            Purpose: Set the map to hard mode.
-            Args: None
-            Returns: None
-            """
-            if not hard_mode:
-                GLOBAL_CACHE.Party.SetNormalMode()
-            else:
-                GLOBAL_CACHE.Party.SetHardMode()
-            yield from Yield.wait(500)
-            ConsoleLog("SetHardMode", "Hard mode set.", Console.MessageType.Info, log=log)
-
-        @staticmethod
-        def TravelToOutpost(outpost_id, log=False, timeout:int=10000):
-            """
-            Purpose: Positions yourself safely on the outpost.
-            Args:
-                outpost_id (int): The ID of the outpost to travel to.
-                log (bool) Optional: Whether to log the action. Default is True.
-            Returns: None
-            """
-            
-            from ..Py4GWcorelib import ConsoleLog, Utils
-            start_time = Utils.GetBaseTimestamp()
-            if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
-                ConsoleLog("TravelToOutpost", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-                GLOBAL_CACHE.Map.Travel(outpost_id)
-                yield from Yield.wait(3000)
-                waiting_for_map_load = True
-                while waiting_for_map_load:
-                    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
-                        waiting_for_map_load = False
-                        break
-                    delta = Utils.GetBaseTimestamp() - start_time
-                    if delta > timeout and timeout > 0:
-                        ConsoleLog("TravelToOutpost", "Timeout reached, stopping waiting for map load.", log=log)
-                        return False
-                    yield from Yield.wait(1000)
-                yield from Yield.wait(1000)
-            
-            ConsoleLog("TravelToOutpost", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-            return True
-
-        @staticmethod
-        def TravelToRegion(outpost_id, region, district, language=0, log=False):
-            """
-            Purpose: Positions yourself safely on the outpost.
-            Args:
-                outpost_id (int): The ID of the outpost to travel to.
-                region (int): The region ID to travel to.
-                district (int): The district ID to travel to.
-                language (int): The language ID to travel to. Default is 0.
-                log (bool) Optional: Whether to log the action. Default is True.
-            Returns: None
-            """
-            
-            from ..Py4GWcorelib import ConsoleLog
-            
-            if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
-                ConsoleLog("TravelToRegion", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-                GLOBAL_CACHE.Map.TravelToRegion(outpost_id, region, district, language)
-                yield from Yield.wait(2000)
-                waiting_for_map_load = True
-                while waiting_for_map_load:
-                    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
-                        waiting_for_map_load = False
-                        break
-                    yield from Yield.wait(1000)
-                yield from Yield.wait(1000)
-            
-            ConsoleLog("TravelToRegion", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-
-
-        @staticmethod
-        def WaitforMapLoad(map_id, log=False, timeout: int = 10000, map_name: str =""):
-            from .Checks import Checks
-            from ..Py4GWcorelib import ConsoleLog, Utils
-            
-            yield from Yield.wait(500) #dirty fix for unknown, hard to test cases, allows for fast loading screens to hit first check
-            
-            if map_name:
-                map_id = GLOBAL_CACHE.Map.GetMapIDByName(map_name)
-                
-            start_time = Utils.GetBaseTimestamp()
-            
-            current_map = GLOBAL_CACHE.Map.GetMapID() if not Checks.Map.IsLoading() else 0 
-
-            minimum_instance_uptime = 3000
-            
-            # --- Case 1: We are already in the map ---
-            if current_map == map_id:
-                # --- Subcase: Map is already valid ---
-                if current_map == map_id:
-                    if not GLOBAL_CACHE.Map.IsMapLoading() and Checks.Map.MapValid():
-                        # enforce instance uptime requirement
-                        while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
-                            yield from Yield.wait(200)
-                        ConsoleLog("WaitforMapLoad", f"Already in {GLOBAL_CACHE.Map.GetMapName(current_map)}", log=log)
-                        yield from Yield.wait(100)
-                        return True
-                
-                # --- Subcase: Map is not yet valid and we are not loading anymore ---
-                while not GLOBAL_CACHE.Map.IsMapLoading() and not Checks.Map.MapValid():
-                    base_timestamp = Utils.GetBaseTimestamp()
-                    if ((timeout > 0) and (base_timestamp - start_time) > timeout):
-                        ConsoleLog("WaitforMapLoad", f"Timeout: Map not getting valid within {timeout} ms",message_type=Console.MessageType.Error, log=True)
-                        return False
-                    
-                    ConsoleLog("WaitforMapLoad", "Waiting for map to become valid...", log=log)
-                    yield from Yield.wait(200)  # poll quickly
-                    
-                    # --- Map is now loading or valid, proceed to case 3 ---
-                    if Checks.Map.MapValid():
-                        # enforce instance uptime requirement
-                        while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
-                            yield from Yield.wait(200)
-                        ConsoleLog("WaitforMapLoad", f"We were already in {GLOBAL_CACHE.Map.GetMapName(current_map)} but had to wait for the map to load.", log=log)
-                        yield from Yield.wait(100)
-                        return True
-                
-            # --- Case 2: wait for load phase to actually begin ---
-            while not GLOBAL_CACHE.Map.IsMapLoading():
-                base_timestamp = Utils.GetBaseTimestamp()
-
-                #detect that map became valid without showing loading state
-                if Checks.Map.MapValid() and GLOBAL_CACHE.Map.GetMapID() == map_id:
-                    ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)} (fast load)", log=True)
-                    yield from Yield.wait(100)
-                    return True
-
-                if ((timeout > 0) and (base_timestamp - start_time) > timeout):
-                    ConsoleLog("WaitforMapLoad", "Timeout: loading never started", message_type=Console.MessageType.Error, log=True)
-                    return False
-
-                yield from Yield.wait(200)
-                
-                
-            # --- Case 3: wait for loading phase to complete ---   
-            while GLOBAL_CACHE.Map.IsMapLoading() or not Checks.Map.MapValid():
-                delta = Utils.GetBaseTimestamp() - start_time
-                if delta > timeout and timeout > 0:
-                    ConsoleLog("WaitforMapLoad", "Timeout reached during loading phase.", message_type=Console.MessageType.Error, log=True)
-                    return False
-                yield from Yield.wait(500)
-                
-            current_map = GLOBAL_CACHE.Map.GetMapID()
-            if current_map != map_id:
-                ConsoleLog("WaitforMapLoad", f"We arrived to {GLOBAL_CACHE.Map.GetMapName(current_map)}, when we should be in {GLOBAL_CACHE.Map.GetMapName(map_id)}. exiting...", log=True)
-                yield from Yield.wait(1000)
-                return False
-            
-            while GLOBAL_CACHE.Map.GetInstanceUptime() < minimum_instance_uptime:
-                yield from Yield.wait(200)
-    
-            ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
-            yield from Yield.wait(100)
-            return True
-            
-
-#region Agents        
+#region Agents
     class Agents:
         @staticmethod
         def GetAgentIDByName(agent_name):
-            
-            agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
-            agent_names = {}
+            tree = BT.Agents.GetAgentIDByName(agent_name)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+            agent = tree.blackboard.get("result", 0)
+            return agent
 
-            # Request all names
-            for agent_id in agent_ids:
-                GLOBAL_CACHE.Agent.RequestName(agent_id)
 
-            # Wait until all names are ready (with timeout safeguard)
-            timeout = 2.0  # seconds
-            poll_interval = 0.1
-            elapsed = 0.0
-
-            while elapsed < timeout:
-                all_ready = True
-                for agent_id in agent_ids:
-                    if not GLOBAL_CACHE.Agent.IsNameReady(agent_id):
-                        all_ready = False
-                        break  # no need to check further
-
-                if all_ready:
-                    break  # exit early, all names ready
-
-                yield from Yield.wait(int(poll_interval) * 1000)
-                elapsed += poll_interval
-
-            # Populate agent_names dictionary
-            for agent_id in agent_ids:
-                if GLOBAL_CACHE.Agent.IsNameReady(agent_id):
-                    agent_names[agent_id] = GLOBAL_CACHE.Agent.GetName(agent_id)
-
-            # Partial, case-insensitive match
-            search_lower = agent_name.lower()
-            for agent_id, name in agent_names.items():
-                if search_lower in name.lower():
-                    return agent_id
-
-            return 0  # Not found
 
         @staticmethod
         def GetAgentIDByModelID(model_id:int):
@@ -828,81 +575,127 @@ class Yield:
                 model_id (int): The model ID of the agent.
             Returns: int: The agent ID or 0 if not found.
             """
-            
-            agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
-            for agent_id in agent_ids:
-                if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
-                    return agent_id
-            return 0
+            tree = BT.Agents.GetAgentIDByModelID(model_id)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+            agent = tree.blackboard.get("result", 0)
+            return agent
 
         @staticmethod
-        def ChangeTarget(agent_id):
-            if agent_id != 0: 
-                GLOBAL_CACHE.Player.ChangeTarget(agent_id)
-                yield from Yield.wait(250)   
-                
-        @staticmethod
-        def InteractAgent(agent_id:int):
-            
-            if agent_id != 0:
-                GLOBAL_CACHE.Player.Interact(agent_id, False)
-                yield from Yield.wait(100) 
-            
-        @staticmethod
-        def TargetAgentByName(agent_name:str):
-            agent_id =  yield from Yield.Agents.GetAgentIDByName(agent_name)
-            if agent_id != 0:
-                yield from Yield.Agents.ChangeTarget(agent_id)
+        def ChangeTarget(agent_id, log=False):
+            """
+            Purpose: Change the player's target to the specified agent ID.
+            Args:
+                agent_id (int): The ID of the agent to target.
+            Returns: None
+            """
+            yield from Yield.Player.ChangeTarget(agent_id, log=log)
 
         @staticmethod
-        def TargetNearestNPC(distance:float = 4500.0):
-            from .Agents import Agents
-            nearest_npc = Agents.GetNearestNPC(distance)
-            if nearest_npc != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_npc)
+        def InteractAgent(agent_id:int, log:bool=False):
+            """
+            Purpose: Interact with the specified agent.
+            Args:
+                agent_id (int): The ID of the agent to interact with.
+                log (bool) Optional: Whether to log the action. Default is False.
+            """
+            yield from Yield.Player.InteractAgent(agent_id, log=log)
 
         @staticmethod
-        def TargetNearestNPCXY(x,y,distance):
-            from .Agents import Agents
-            nearest_npc = Agents.GetNearestNPCXY(x,y, distance)
-            if nearest_npc != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_npc)
-                
-        @staticmethod
-        def TargetNearestGadgetXY(x,y,distance):
-            from .Agents import Agents
-            nearest_gadget = Agents.GetNearestGadgetXY(x,y, distance)
-            if nearest_gadget != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_gadget)
-                
-        @staticmethod
-        def TargetNearestItemXY(x,y,distance):
-            from .Agents import Agents
-            nearest_item = Agents.GetNearestItemXY(x,y, distance)
-            if nearest_item != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_item)
+        def TargetAgentByName(agent_name:str, log:bool=False):
+            """
+            Purpose: Target an agent by name.
+            Args:
+                agent_name (str): The name of the agent to target.
+            Returns: None
+            """
+            tree = BT.Agents.TargetAgentByName(agent_name, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
 
         @staticmethod
-        def TargetNearestEnemy(distance):
-            from .Agents import Agents
-            nearest_enemy = Agents.GetNearestEnemy(distance)
-            if nearest_enemy != 0: 
-                yield from Yield.Agents.ChangeTarget(nearest_enemy)
-        
+        def TargetNearestNPC(distance:float = 4500.0, log:bool=False):
+            """
+            Purpose: Target the nearest NPC within a specified distance.
+            Args:
+                distance (float) Optional: The maximum distance to search for an NPC. Default is 4500.0.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestNPC(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
         @staticmethod
-        def TargetNearestItem(distance):
-            from .Agents import Agents
-            nearest_item = Agents.GetNearestItem(distance)
-            if nearest_item != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_item)
-                
+        def TargetNearestNPCXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest NPC to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for an NPC.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestNPCXY(x,y,distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
+
         @staticmethod
-        def TargetNearestChest(distance):
-            from .Agents import Agents
-            nearest_chest = Agents.GetNearestChest(distance)
-            if nearest_chest != 0:
-                yield from Yield.Agents.ChangeTarget(nearest_chest)
-                
+        def TargetNearestGadgetXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest gadget to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for a gadget.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestGadgetXY(x,y,distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
+        @staticmethod
+        def TargetNearestItemXY(x,y,distance, log:bool=False):
+            """
+            Purpose: Target the nearest item to specified coordinates within a certain distance.
+            Args:
+                x (float): The x coordinate.
+                y (float): The y coordinate.
+                distance (float): The maximum distance to search for an item.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestItemXY(x,y,distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
+        @staticmethod
+        def TargetNearestEnemy(distance, log:bool=False):
+            """
+            Purpose: Target the nearest enemy within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for an enemy.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestEnemy(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
+        @staticmethod
+        def TargetNearestItem(distance, log:bool=False):
+            """
+            Purpose: Target the nearest item within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for an item.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestItem(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
+        @staticmethod
+        def TargetNearestChest(distance, log:bool=False):
+            """
+            Purpose: Target the nearest chest within a specified distance.
+            Args:
+                distance (float): The maximum distance to search for a chest.
+            Returns: None
+            """
+            tree = BT.Agents.TargetNearestChest(distance, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+
         @staticmethod
         def InteractWithNearestChest():
             """Target and interact with chest and items."""
@@ -1407,6 +1200,7 @@ class Yield:
                 if progress_callback and total_items > 0:
                     progress_callback(1 - len(item_array) / total_items)
                         
+
             return True
 
         @staticmethod
@@ -1609,7 +1403,7 @@ class Yield:
         def SpawnBonusItems():
             GLOBAL_CACHE.Player.SendChatCommand("bonus")
             yield from Yield.wait(250)
-                
+
 
 #region Upkeepers
     class Upkeepers:
@@ -1896,282 +1690,276 @@ class Yield:
 #region Keybinds
     class Keybinds:
         @staticmethod
-        def PressKeybind(keybind_index:int, duration_ms:int=125):
-            from ..UIManager import UIManager
-            UIManager.Keydown(keybind_index, 0)
-            yield from Yield.wait(duration_ms)
-            UIManager.Keyup(keybind_index, 0)
-            yield from Yield.wait(125)
-            
+        def PressKeybind(keybind_index:int, duration_ms:int=125, log=False):
+            tree = BT.Keybinds.PressKeybind(keybind_index, duration_ms, log)
+            yield from _run_bt_tree(tree)
+
         @staticmethod
-        def TakeScreenshot():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Screenshot.value, 125)
+        def TakeScreenshot(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Screenshot.value, 75, log=log)
            
         #Panels
         @staticmethod
-        def CloseAllPanels():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CloseAllPanels.value, 125)
+        def CloseAllPanels(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CloseAllPanels.value, 75, log=log)
             
         @staticmethod
-        def ToggleInventory():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleInventoryWindow.value, 125)
+        def ToggleInventory(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleInventoryWindow.value, 75, log=log)
                 
         @staticmethod
-        def OpenScoreChart():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenScoreChart.value, 125)
+        def OpenScoreChart(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenScoreChart.value, 75, log=log)
             
         @staticmethod
-        def OpenTemplateManager():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenTemplateManager.value, 125)
+        def OpenTemplateManager(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenTemplateManager.value, 75, log=log)
             
         @staticmethod
-        def OpenSaveEquipmentTemplate():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveEquipmentTemplate.value, 125)
+        def OpenSaveEquipmentTemplate(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveEquipmentTemplate.value, 75, log=log)
             
         @staticmethod
-        def OpenSaveSkillTemplate():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveSkillTemplate.value, 125)
+        def OpenSaveSkillTemplate(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSaveSkillTemplate.value, 75, log=log)
             
         @staticmethod
-        def OpenParty():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenParty.value, 125)
+        def OpenParty(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenParty.value, 75, log=log)
             
         @staticmethod
-        def OpenGuild():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenGuild.value, 125)
+        def OpenGuild(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenGuild.value, 75, log=log)
             
         @staticmethod
-        def OpenFriends():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenFriends.value, 125)
+        def OpenFriends(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenFriends.value, 75, log=log)
             
         @staticmethod
-        def ToggleAllBags():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleAllBags.value, 125)
+        def ToggleAllBags(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ToggleAllBags.value, 75, log=log)
             
         @staticmethod
-        def OpenMissionMap():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenMissionMap.value, 125)
+        def OpenMissionMap(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenMissionMap.value, 75, log=log)
             
         @staticmethod
-        def OpenBag2():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag2.value, 125)
+        def OpenBag2(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag2.value, 75, log=log)
             
         @staticmethod
-        def OpenBag1():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag1.value, 125)
+        def OpenBag1(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBag1.value, 75, log=log)
             
         @staticmethod
-        def OpenBelt():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBelt.value, 125)
+        def OpenBelt(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBelt.value, 75, log=log)
             
         @staticmethod
-        def OpenBackpack():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBackpack.value, 125)
+        def OpenBackpack(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenBackpack.value, 75, log=log)
             
         @staticmethod
-        def OpenSkillsAndAttributes():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSkillsAndAttributes.value, 125)
+        def OpenSkillsAndAttributes(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenSkillsAndAttributes.value, 75, log=log)
             
         @staticmethod
-        def OpenQuestLog():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenQuestLog.value, 125)
+        def OpenQuestLog(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenQuestLog.value, 75, log=log)
             
         @staticmethod
-        def OpenWorldMap():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenWorldMap.value, 125)
+        def OpenWorldMap(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenWorldMap.value, 75, log=log)
             
         @staticmethod
-        def OpenHeroPanel():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero.value, 125)    
-
+        def OpenHeroPanel(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero.value, 75, log=log)
         #weapon sets
         @staticmethod
-        def CycleEquipment():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CycleEquipment, 125)
+        def CycleEquipment(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CycleEquipment, 75, log=log)
             
         @staticmethod
-        def ActivateWeaponSet(index:int):
+        def ActivateWeaponSet(index:int, log=False):
             if index < 1 or index > 4:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ActivateWeaponSet1.value + (index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ActivateWeaponSet1.value + (index - 1), 75, log=log)
 
         @staticmethod
-        def DropBundle():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_DropItem, 125)
+        def DropBundle(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_DropItem, 75, log=log)
             
         @staticmethod
-        def OpenChat():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenChat, 125)
+        def OpenChat(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenChat, 75, log=log)
             
         @staticmethod
-        def ReplyToChat():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ChatReply, 125)
+        def ReplyToChat(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ChatReply, 75, log=log)
             
         @staticmethod
-        def OpenAlliance():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenAlliance, 125)
+        def OpenAlliance(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenAlliance, 75, log=log)
             
         #movement 
         @staticmethod   
-        def MoveBackwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms)
+        def MoveBackwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveBackward.value, duration_ms, log=log)
 
         @staticmethod
-        def MoveForwards(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms)
+        def MoveForwards(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_MoveForward.value, duration_ms, log=log)
 
         @staticmethod
-        def StrafeLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms)
+        def StrafeLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeLeft.value, duration_ms, log=log)
+        @staticmethod
+        def StrafeRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms, log=log)
 
         @staticmethod
-        def StrafeRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_StrafeRight.value, duration_ms)
-
+        def TurnLeft(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms, log=log)
         @staticmethod
-        def TurnLeft(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnLeft.value, duration_ms)
-
-        @staticmethod
-        def TurnRight(duration_ms:int):
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms)
+        def TurnRight(duration_ms:int, log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TurnRight.value, duration_ms, log=log)
             
         @staticmethod
-        def ReverseCamera():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseCamera.value, 125)
+        def ReverseCamera(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseCamera.value, 75, log=log)
             
         @staticmethod
-        def CancelAction():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CancelAction.value, 125)
+        def CancelAction(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CancelAction.value, 75, log=log)
             
         @staticmethod
-        def Interact():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Interact.value, 125)
+        def Interact(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Interact.value, 75, log=log)
             
         @staticmethod
-        def ReverseDirection():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseDirection.value, 125)
+        def ReverseDirection(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ReverseDirection.value, 75, log=log)
             
         @staticmethod
-        def AutoRun():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Autorun.value, 125)
+        def AutoRun(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Autorun.value, 75, log=log)
             
         @staticmethod
-        def Follow():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Follow.value, 125)
+        def Follow(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Follow.value, 75, log=log)
             
         #targeting     
         @staticmethod
-        def TargetPartyMember(index:int):
+        def TargetPartyMember(index:int, log=False):
             if index < 1 or index > 12:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMember1.value + (index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMember1.value + (index - 1), 75, log=log)
         
         @staticmethod
-        def TargetNearestItem():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestItem.value, 125)
+        def TargetNearestItem(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestItem.value, 75, log=log)
             
         @staticmethod
-        def TargetNextItem():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextItem.value, 125)
+        def TargetNextItem(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextItem.value, 75, log=log)
             
         @staticmethod
-        def TargetPreviousItem():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousItem.value, 125)
+        def TargetPreviousItem(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousItem.value, 75, log=log)
             
         @staticmethod
-        def TargetPartyMemberNext():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberNext.value, 125)
+        def TargetPartyMemberNext(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberNext.value, 75, log=log)
             
         @staticmethod
-        def TargetPartyMemberPrevious():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberPrevious.value, 125)
+        def TargetPartyMemberPrevious(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPartyMemberPrevious.value, 75, log=log)
             
         @staticmethod
-        def TargetAllyNearest():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetAllyNearest.value, 125)
+        def TargetAllyNearest(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetAllyNearest.value, 75, log=log)
             
         @staticmethod
-        def ClearTarget():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearTarget.value, 125)
+        def ClearTarget(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearTarget.value, 75, log=log)
             
         @staticmethod
-        def TargetSelf():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetSelf.value, 125)
+        def TargetSelf(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetSelf.value, 75, log=log)
             
         @staticmethod
-        def TargetPriorityTarget():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPriorityTarget.value, 125)
+        def TargetPriorityTarget(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPriorityTarget.value, 75, log=log)
             
         @staticmethod
-        def TargetNearestEnemy():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestEnemy.value, 125)
+        def TargetNearestEnemy(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNearestEnemy.value, 75, log=log)
             
         @staticmethod
-        def TargetNextEnemy():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextEnemy.value, 125)
+        def TargetNextEnemy(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetNextEnemy.value, 75, log=log)
             
         @staticmethod
-        def TargetPreviousEnemy():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousEnemy.value, 125)
+        def TargetPreviousEnemy(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_TargetPreviousEnemy.value, 75, log=log)
             
         @staticmethod
-        def ShowOthers():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowOthers.value, 125)
+        def ShowOthers(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowOthers.value, 75, log=log)
             
         @staticmethod
-        def ShowTargets():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowTargets.value, 125)
+        def ShowTargets(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ShowTargets.value, 75, log=log)
             
         @staticmethod
-        def CameraZoomIn():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomIn.value, 125)
+        def CameraZoomIn(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomIn.value, 75, log=log)
             
         @staticmethod
-        def CameraZoomOut():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomOut.value, 125)
+        def CameraZoomOut(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CameraZoomOut.value, 75, log=log)
             
         # Party / Hero commands
         @staticmethod
-        def ClearPartyCommands():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearPartyCommands.value, 125)
+        def ClearPartyCommands(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_ClearPartyCommands.value, 75, log=log)
             
         @staticmethod
-        def CommandParty():
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandParty.value, 125)
+        def CommandParty(log=False):
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandParty.value, 75, log=log)
             
         @staticmethod
-        def CommandHero(hero_index:int):
+        def CommandHero(hero_index:int, log=False):
             if hero_index < 1 or hero_index > 7:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandHero1.value + (hero_index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_CommandHero1.value + (hero_index - 1), 75, log=log)
         
             
         @staticmethod
-        def OpenHeroPetCommander(hero_index:int):
+        def OpenHeroPetCommander(hero_index:int, log=False):
             if hero_index < 1 or hero_index > 7:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero1PetCommander.value + (hero_index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHero1PetCommander.value + (hero_index - 1), 75, log=log)
 
         @staticmethod
-        def OpenHeroCommander(hero_index:int):
+        def OpenHeroCommander(hero_index:int, log=False):
             if hero_index < 1 or hero_index > 7:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHeroCommander1.value + (hero_index - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_OpenHeroCommander1.value + (hero_index - 1), 75, log=log)
             
         @staticmethod
-        def HeroSkill(hero_index:int, skill_slot:int):
+        def HeroSkill(hero_index:int, skill_slot:int, log=False):
             if hero_index < 1 or hero_index > 4:
                 return
             if skill_slot < 1 or skill_slot > 8:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Hero1Skill1.value + (hero_index - 1) * 8 + (skill_slot - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Hero1Skill1.value + (hero_index - 1) * 8 + (skill_slot - 1), 75, log=log)
             
         @staticmethod
-        def UseSkill(slot:int):
+        def UseSkill(slot:int, log=False):
             if slot < 1 or slot > 8:
                 return
-            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_UseSkill1.value + (slot - 1), 125)
+            yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_UseSkill1.value + (slot - 1), 75, log=log)
 
 #region Character Reroll
     class RerollCharacter:
@@ -2259,4 +2047,4 @@ class Yield:
                 return
                 
             ConsoleLog("Reroll", f"Successfully logged in as '{target_character_name}'.", Console.MessageType.Info)
-            return                    
+            return

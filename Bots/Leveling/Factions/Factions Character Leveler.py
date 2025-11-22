@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import List, Tuple, Generator, Any
+import PyImGui
 import os
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
@@ -46,6 +47,7 @@ def create_bot_routine(bot: Botting) -> None:
     AdvanceToMarketplace(bot) 
     AdvanceToKainengCenter(bot)
     AdvanceToLA(bot)
+    AdvanceToTempleOfAges(bot)
     AdvanceToKamadan(bot)
     AdvanceToConsulateDocks(bot)
     UnlockOlias(bot)
@@ -158,6 +160,27 @@ def AddHenchmen():
     else:
         henchmen_list.extend([2,3,5,6,7,9,10])
         
+    for henchman_id in henchmen_list:
+        yield from _add_henchman(henchman_id)
+
+def AddHenchmenLA():
+    def _add_henchman(henchman_id: int):
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
+        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
+        yield from Routines.Yield.wait(250)
+        
+    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+
+    henchmen_list = []
+    if party_size <= 4:
+        henchmen_list.extend([2, 3, 1]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Lions Arch"):
+        henchmen_list.extend([7, 2, 5, 3, 1]) 
+    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Ascalon City"):
+        henchmen_list.extend([2, 3, 1])
+    else:
+        henchmen_list.extend([2,8,6,7,3,5,1])
+
     for henchman_id in henchmen_list:
         yield from _add_henchman(henchman_id)
 
@@ -756,6 +779,137 @@ def AdvanceToLA(bot: Botting):
     bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
     bot.Map.Travel(target_map_id=55)  # lions_arch_id)
 
+def AdvanceToTempleOfAges(bot: Botting):
+    bot.States.AddHeader("Advance To Temple of the Ages")
+    bot.Map.Travel(target_map_id=55)  # Lion's Arch
+    bot.Party.LeaveParty()
+    PrepareForBattle(bot)
+    bot.States.AddCustomState(AddHenchmenLA, "Add Henchmen")
+    
+    # Exit Lion's Arch towards D'Alessio Seaboard
+    bot.Move.XY(1219, 7222)
+    bot.Move.XY(1021, 10651)
+    bot.Move.XY(250, 12350)
+    bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
+    
+    # Path to D'Alessio Seaboard outpost
+    bot.Move.XY(5116.0, -17415.0)
+    bot.Move.XY(2346.0, -17307.0)
+    bot.Move.XY(757.0, -16768.0)
+    bot.Move.XY(-1521.0, -16726.0)
+    bot.Move.XY(-3246.0, -16407.0)
+    bot.Move.XY(-6042.0, -16126.0)
+    bot.Move.XY(-7706.0, -17248.0)
+    bot.Move.XY(-8910.0, -17561.0)
+    bot.Move.XY(-9893.0, -17625.0)
+    bot.Move.XY(-11325.0, -18358.0)
+    bot.Move.XY(-11553.0, -19246.0)
+    bot.Move.XY(-11600.0, -19500.0)
+    bot.Move.XY(-11708, -19957)
+    bot.Wait.ForMapLoad(target_map_id=15)  # D'Alessio Seaboard outpost
+    
+    # Exit D'Alessio Seaboard towards Bergen Hot Springs
+    bot.Move.XY(16000, 17080)
+    bot.Move.XY(16030, 17200)
+    bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
+    
+    # Path through North Kryta Province to Nebo Terrace
+    bot.Move.XY(-11453.0, -18065.0)
+    bot.Move.XY(-10991.0, -16776.0)
+    bot.Move.XY(-10791.0, -15737.0)
+    bot.Move.XY(-10130.0, -14138.0)
+    bot.Move.XY(-10106.0, -13005.0)
+    bot.Move.XY(-10558.0, -9708.0)
+    bot.Move.XY(-10319.0, -7888.0)
+    bot.Move.XY(-10798.0, -5941.0)
+    bot.Move.XY(-10958.0, -1009.0)
+    bot.Move.XY(-10572.0, 2332.0)
+    bot.Move.XY(-10784.0, 3710.0)
+    bot.Move.XY(-11125.0, 4650.0)
+    bot.Move.XY(-11690.0, 5496.0)
+    bot.Move.XY(-12931.0, 6726.0)
+    bot.Move.XY(-13340.0, 7971.0)
+    bot.Move.XY(-13932.0, 9091.0)
+    bot.Move.XY(-13937.0, 11521.0)
+    bot.Move.XY(-14639.0, 13496.0)
+    bot.Move.XY(-15090.0, 14734.0)
+    bot.Move.XY(-16653.0, 16226.0)
+    bot.Move.XY(-18944.0, 14799.0)
+    bot.Move.XY(-19468.0, 15449.0)
+    bot.Move.XY(-19550.0, 15625.0)
+    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    
+    # Path through Nebo Terrace
+    bot.Move.XY(19271.0, 5207.0)
+    bot.Move.XY(18307.0, 5369.0)
+    bot.Move.XY(17704.0, 4786.0)
+    bot.Move.XY(17801.0, 2710.0)
+    bot.Move.XY(18221.0, 506.0)
+    bot.Move.XY(18133.0, -1406.0)
+    bot.Move.XY(16546.0, -4102.0)
+    bot.Move.XY(15434.0, -6217.0)
+    bot.Move.XY(14927.0, -8731.0)
+    bot.Move.XY(14297.0, -10366.0)
+    bot.Move.XY(14347.0, -12097.0)
+    bot.Move.XY(15373.0, -14769.0)
+    bot.Move.XY(15425.0, -15035.0)
+    bot.Wait.ForMapLoad(target_map_id=57)  # Bergen Hot Springs
+    
+    # Exit Bergen Hot Springs
+    bot.Move.XY(15521, -15378)
+    bot.Move.XY(15450, -15050)
+    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    bot.Party.AddHenchmanList([5, 7])
+    bot.Move.XY(15378, -14794)
+    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    
+    # Path through Nebo Terrace to Cursed Lands
+    bot.Move.XY(13276.0, -14317.0)
+    bot.Move.XY(10761.0, -14522.0)
+    bot.Move.XY(8660.0, -12109.0)
+    bot.Move.XY(6637.0, -9216.0)
+    bot.Move.XY(4995.0, -7951.0)
+    bot.Move.XY(1522.0, -7990.0)
+    bot.Move.XY(-924.0, -10670.0)
+    bot.Move.XY(-3489.0, -11607.0)
+    bot.Move.XY(-4086.0, -11692.0)
+    bot.Move.XY(-4290.0, -11599.0)
+    bot.Wait.ForMapLoad(target_map_id=56)  # Cursed Lands
+    
+    # Path through Cursed Lands to The Black Curtain
+    bot.Move.XY(-4523.0, -9755.0)
+    bot.Move.XY(-4067.0, -8786.0)
+    bot.Move.XY(-4207.0, -7806.0)
+    bot.Move.XY(-5497.0, -6137.0)
+    bot.Move.XY(-7331.0, -6178.0)
+    bot.Move.XY(-8784.0, -4598.0)
+    bot.Move.XY(-9053.0, -2929.0)
+    bot.Move.XY(-9610.0, -2136.0)
+    bot.Move.XY(-10879.0, -1685.0)
+    bot.Move.XY(-10731.0, -760.0)
+    bot.Move.XY(-12517.0, 5459.0)
+    bot.Move.XY(-15510.0, 7154.0)
+    bot.Move.XY(-18010.0, 7033.0)
+    bot.Move.XY(-18717.0, 7537.0)
+    bot.Move.XY(-19896.0, 8964.0)
+    bot.Move.XY(-20100.0, 9025.0)
+    bot.Wait.ForMapLoad(target_map_id=18)  # The Black Curtain
+    
+    # Path through The Black Curtain to Temple of the Ages
+    bot.Move.XY(8716.0, 18587.0)
+    bot.Move.XY(5616.0, 17732.0)
+    bot.Move.XY(3795.0, 17750.0)
+    bot.Move.XY(1938.0, 16994.0)
+    bot.Move.XY(592.0, 16243.0)
+    bot.Move.XY(-686.0, 14967.0)
+    bot.Move.XY(-1968.0, 14407.0)
+    bot.Move.XY(-3398.0, 14730.0)
+    bot.Move.XY(-4340.0, 14938.0)
+    bot.Move.XY(-5004.0, 15424.0)
+    bot.Move.XY(-5207.0, 15882.0)
+    bot.Move.XY(-5180.0, 16000.0)
+    bot.Wait.ForMapLoad(target_map_id=138)  # Temple of the Ages
+
 def AdvanceToKamadan(bot: Botting):
     bot.States.AddHeader("Advance To Kamadan")
     bot.Map.Travel(target_map_id=194) #kaineng_center_id
@@ -799,6 +953,8 @@ def AdvanceToKamadan(bot: Botting):
 
 def AdvanceToConsulateDocks(bot: Botting):
     bot.States.AddHeader("Advance To Consulate Docks")
+    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+    bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8075.89, 14592.47)
     bot.Move.XY(-6743.29, 16663.21)
@@ -806,27 +962,6 @@ def AdvanceToConsulateDocks(bot: Botting):
     bot.Wait.ForMapLoad(target_map_id=429)
     bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
     bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
-
-def AddHenchmenLA():
-    def _add_henchman(henchman_id: int):
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
-        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
-        yield from Routines.Yield.wait(250)
-        
-    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
-
-    henchmen_list = []
-    if party_size <= 4:
-        henchmen_list.extend([2, 3, 1]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Lions Arch"):
-        henchmen_list.extend([7, 2, 5, 3, 1]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Ascalon City"):
-        henchmen_list.extend([2, 3, 1])
-    else:
-        henchmen_list.extend([2,8,6,7,3,5,1])
-
-    for henchman_id in henchmen_list:
-        yield from _add_henchman(henchman_id)
 
 def UnlockOlias(bot:Botting):
     bot.States.AddHeader("Unlock Olias")
@@ -887,12 +1022,11 @@ def TraverseToEOTNOutpost(bot: Botting):
     auto_path_list = [(3743.31, -15862.36), (3607.21, -6937.32),(2557.23, -275.97)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XY(-641.25, 2069.27)
-    bot.Wait.ForMapLoad(target_map_id=642)
+    bot.Wait.ForMapToChange(target_map_id=642)
 
 def UnlockEotnPool(bot: Botting):
     bot.States.AddHeader("Unlock EOTN Pool")
     bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
-    #bot.Wait.ForMapLoad(target_map_id=642)  # hall of monuments id
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
@@ -942,6 +1076,7 @@ def UnlockKillroy(bot: Botting):
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)  # killroy_map_id
     bot.Items.Equip(24897) #brass_knuckles_item_id
+    bot.Wait.ForTime(3000)
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
@@ -1125,28 +1260,7 @@ def UnlockMercenaryHeroes(bot: Botting) -> None:
     bot.Move.XY(-4231.87, -8965.95)
     bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes
     
-#region Events
-def _on_death(bot: "Botting"):
-    slot = 8 # slot 8 is the default "revive" skill
-    while True:
-        if not GLOBAL_CACHE.Map.GetMapID() == 703: # only use in killroy
-            break
-        
-        if not GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-            break
-        
-        energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
-        while energy < 1.0:
-            yield from Routines.Yield.Skills.CastSkillSlot(slot, aftercast_delay=20)
-            energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
-
-        if energy >= 1.0:
-            break
-            
-    
-def OnDeath(bot: "Botting"):
-    bot.States.AddManagedCoroutine("OnDeath_OPD", lambda: _on_death(bot))
-    
+#region event handlers
 
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     # optional but typical for wipe flow:
@@ -1157,6 +1271,34 @@ def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     fsm.jump_to_state_by_name(target_name)  # jump while still paused
     fsm.resume()                            # <— important: unpause so next tick runs the target state
     yield                                    # keep coroutine semantics
+
+
+class WaypointData:
+    def __init__(self, label: str, MapID: int,step_name: str):
+        self.step_name = step_name
+        self.MapID = MapID
+        self.label = label
+        
+WAYPOINTS: dict[int, WaypointData] = {
+    # step_name: WaypointData(step_name, MapID, step_num, label, description)
+    19: WaypointData(label="Unlock Secondary Mission", MapID=242, step_name="[H]Unlock Secondary Profession_3"),
+    27: WaypointData(label="Unlock Xunlai Storage", MapID=242, step_name="[H]Unlock Xunlai Storage_4"),
+    32: WaypointData(label="Capture Pet", MapID=242, step_name="[H]Capture Pet_5"),
+    67: WaypointData(label="Enter Minister Cho Mission", MapID=214, step_name="[H]Enter Minister Cho Mission_10"),
+    103: WaypointData(label="First Attribute Mission", MapID=251, step_name="[H]Attibute Point Quest 1_12"),
+    130: WaypointData(label="Warning the Tengu Quest", MapID=251, step_name="[H]Take 'Warning the Tengu' Quest_13"),
+    203: WaypointData(label="The Threat Grows", MapID=249, step_name="[H]Exit to Panjiang Peninsula_17"),
+    249: WaypointData(label="Traverse Shaoshang Trail", MapID=242, step_name="[H]Exit To Courtyard_19"),
+    271: WaypointData(label="Take reward and Craft Armor", MapID=250, step_name="[H]Take Reward And Craft Armor_22"),
+    298: WaypointData(label="Go to Zen Daijun", MapID=250, step_name="[H]Go To Zen Daijun_23"),
+    303: WaypointData(label="Enter Zen Daijun Mission", MapID=213, step_name="[H]Enter Zen Daijun Mission_24"),
+    348: WaypointData(label="Second Attribute Mission", MapID=250, step_name="[H]Attribute Point Quest 2_27"),
+    465: WaypointData(label="Advance to Marketplace", MapID=250, step_name="[H]Advance To Marketplace_28"),
+    472: WaypointData(label="Advance to Kaineng Center", MapID=303, step_name="[H]Advance To Kaineng Center_29"),
+    494: WaypointData(label="Advance to LA", MapID=303, step_name="[H]Advance To Lion's Arch_30"),
+    505: WaypointData(label="Advance to Kamadan", MapID=303, step_name="[H]Advance To Kamadan_31"),
+    550: WaypointData(label="Advance to Consulate Docks", MapID=303, step_name="[H]Advance To Consulate Docks_32"),
+}
 
 
 def on_party_wipe(bot: "Botting"):
@@ -1172,52 +1314,30 @@ def on_party_wipe(bot: "Botting"):
     fsm = bot.config.FSM
     current_step = fsm.get_current_state_number()
 
-    # Your distinct waypoints (as given)
-    ENTER_MINISTER_CHO_MISSION = 100
-    FIRST_ATTRIBUTE_MISSION = 148
-    TAKE_WARNING_THE_TENGU_QUEST = 189
-    EXIT_TO_PANJIANG_PENINSULA = 286
-    ADVANCE_SHAOSHANG_TRAIL = 357
-    RESTART_FROM_SEITUNG_HARBOR = 422
-    ENTER_ZEN_DAIJUN_MISSION = 433
-    SECOND_ATTRIBUTE_MISSION = 494
-    ADVANCE_TO_KAINENG_CENTER = 735
-    ADVANCE_TO_LA =768
-    ADVANCE_TO_KAMADAN = 814
-    
-    ADVANCE_TO_EOTN = 901
-    EXIT_BOREAL_STATION = 727
-    UNLOCK_KILLROY = 1133
 
-    waypoints = [
-        ENTER_MINISTER_CHO_MISSION,
-        FIRST_ATTRIBUTE_MISSION,
-        TAKE_WARNING_THE_TENGU_QUEST,
-        EXIT_TO_PANJIANG_PENINSULA,
-        ADVANCE_SHAOSHANG_TRAIL,
-        RESTART_FROM_SEITUNG_HARBOR,
-        ENTER_ZEN_DAIJUN_MISSION,
-        SECOND_ATTRIBUTE_MISSION,
-        ADVANCE_TO_KAINENG_CENTER,
-        ADVANCE_TO_LA,
-        ADVANCE_TO_KAMADAN,
-        ADVANCE_TO_EOTN,
-        EXIT_BOREAL_STATION,
-        UNLOCK_KILLROY
-    ]
+    # --- 1) Find all waypoint step numbers <= current ---
+    lower_or_equal_steps = [step for step in WAYPOINTS.keys() if step <= current_step]
 
-    # nearest <= current; if none, bail (or pick the first—your call)
-    lower_or_equal = [w for w in waypoints if w <= current_step]
-    if not lower_or_equal:
-        return   # or: target_step = waypoints[0] to always jump somewhere
+    if not lower_or_equal_steps:
+        return  # Nothing to jump to
 
-    target_step = max(lower_or_equal)
+    # --- 2) Pick the nearest lower step ---
+    target_step = max(lower_or_equal_steps)
+
+    # --- 3) Convert step number → FSM state name ---
     target_name = fsm.get_state_name_by_number(target_step)
     if not target_name:
-        return 
+        # The waypoint exists, but the FSM doesn’t have a state for it
+        return
 
+    # --- 4) Perform jump using your existing coroutine system ---
     fsm.pause()
-    fsm.AddManagedCoroutine(f"{fsm.get_state_name_by_number(current_step)}_OPD", on_party_wipe_coroutine(bot, target_name))
+    fsm.AddManagedCoroutine(
+        f"{fsm.get_state_name_by_number(current_step)}_OPD",
+        on_party_wipe_coroutine(bot, target_name)
+    )
+
+    return True
 
 
 #region MAIN
@@ -1324,10 +1444,40 @@ def configure():
     
 def main():
     global bot
-
+    main_child_dimensions: Tuple[int, int] = (350, 275)
     try:
         bot.Update()
         bot.UI.draw_window()
+        if PyImGui.begin(bot.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
+            if PyImGui.begin_tab_bar(bot.config.bot_name + "_tabs"):
+                if PyImGui.begin_tab_item("Main"):
+                    PyImGui.dummy(*main_child_dimensions)
+                    if PyImGui.collapsing_header("Direct Navigation"):
+                        for step_num, waypoint in WAYPOINTS.items():
+
+                            map_name = GLOBAL_CACHE.Map.GetMapName(waypoint.MapID)
+
+                            # Tree node: visible label is waypoint.label, ID is unique
+                            if PyImGui.tree_node(f"{waypoint.label}##wp_{step_num}"):
+
+                                # Travel button
+                                if PyImGui.button(f"Travel##travel_{step_num}"):
+                                    GLOBAL_CACHE.Map.Travel(waypoint.MapID)
+
+                                PyImGui.same_line(0,-1)
+
+                                # Jump to FSM step button
+                                if PyImGui.button(f"Go to Step##step_{step_num}"):
+               
+                                    bot.config.fsm_running = True
+                                    bot.config.FSM.reset()
+                                    bot.config.FSM.jump_to_state_by_name(waypoint.step_name)
+
+                                PyImGui.tree_pop()
+                    PyImGui.end_tab_item()
+                PyImGui.end_tab_bar()
+        PyImGui.end()
+        
 
     except Exception as e:
         Py4GW.Console.Log(bot.config.bot_name, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)

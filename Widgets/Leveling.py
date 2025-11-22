@@ -1,4 +1,5 @@
 from Py4GWCoreLib import ImGui, Color, ColorPalette
+from Py4GW_widget_manager import get_widget_handler
 import PyImGui, Py4GW
 import os
 
@@ -17,6 +18,10 @@ KILLROY_SCRIPTS_PATH = os.path.join(LEVELING_SCRIPTS_PATH, "KillroyStoneskin", "
 def configure():
     pass
 
+def RunAndClose(script_path: str, delay_ms: int = 500):
+    Py4GW.Console.defer_stop_load_and_run(script_path, delay_ms=delay_ms)
+    handler = get_widget_handler()
+    handler.disable_widget("Leveling")
     
 def Draw_Window():
     def image_with_caption(
@@ -85,7 +90,7 @@ def Draw_Window():
                 font_size=24,
                 font_style="Bold"
             ):
-                Py4GW.Console.defer_stop_load_and_run(PROPHECIES_SCRIPTS_PATH, delay_ms=500)
+                RunAndClose(PROPHECIES_SCRIPTS_PATH, delay_ms=250)
             PyImGui.table_next_column()
             if image_with_caption(
                 label="Factions (Quick Leveler)",
@@ -99,7 +104,7 @@ def Draw_Window():
                 font_size=24,
                 font_style="Bold"
             ):
-                Py4GW.Console.defer_stop_load_and_run(FACTIONS_SCRIPTS_PATH, delay_ms=500)
+                RunAndClose(FACTIONS_SCRIPTS_PATH, delay_ms=250)
             PyImGui.table_next_column()
             if image_with_caption(
                 label="Nightfall Leveler",
@@ -113,7 +118,7 @@ def Draw_Window():
                 font_size=24,
                 font_style="Bold"
             ):
-                Py4GW.Console.defer_stop_load_and_run(NIGHTFALL_SCRIPTS_PATH, delay_ms=500)
+                RunAndClose(NIGHTFALL_SCRIPTS_PATH, delay_ms=250)
             PyImGui.end_table()
         if PyImGui.begin_table("##killroyTable", 1, PyImGui.TableFlags.NoFlag):
             PyImGui.table_next_column()
@@ -129,7 +134,7 @@ def Draw_Window():
                 font_size=24,
                 font_style="Bold"
             ):
-                Py4GW.Console.defer_stop_load_and_run(KILLROY_SCRIPTS_PATH, delay_ms=500)
+                RunAndClose(KILLROY_SCRIPTS_PATH, delay_ms=250)
             PyImGui.end_table()
     PyImGui.end()
 

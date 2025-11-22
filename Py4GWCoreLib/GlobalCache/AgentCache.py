@@ -2,6 +2,8 @@ import PyAgent
 from Py4GWCoreLib.AgentArray import RawAgentArray
 import time
 
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+
 class AgentCache:
     def __init__(self, raw_agent_array):
         self.raw_agent_array:RawAgentArray = raw_agent_array
@@ -63,6 +65,20 @@ class AgentCache:
     def GetAttributes(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.attributes
+
+    def GetAttributesDict(self, agent_id):    
+        # Get attributes
+        attributes_raw:list[PyAgent.AttributeClass] = self.GetAttributes(agent_id)
+        attributes = {}
+
+        # Convert attributes to dictionary format
+        for attr in attributes_raw:
+            attr_id = int(attr.attribute_id)  # Convert enum to integer
+            attr_level = attr.level_base  # Get attribute level
+            if attr_level > 0:  # Only include attributes with points
+                attributes[attr_id] = attr_level
+                
+        return attributes
 
     def GetModelID(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
@@ -213,8 +229,7 @@ class AgentCache:
     
     def GetEnergyPips(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
-        pips = 3.0 / 0.99 * agent.living_agent.energy_regen * agent.living_agent.max_energy
-        return int(pips) if pips > 0 else 0
+        return Utils.calculate_energy_pips(agent.living_agent.max_energy, agent.living_agent.energy_regen)
     
     def GetHealth(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
@@ -227,6 +242,10 @@ class AgentCache:
     def GetHealthRegen(self, agent_id):
         agent = self.raw_agent_array.get_agent(agent_id)
         return agent.living_agent.hp_regen
+    
+    def GetHealthPips(self, agent_id):
+        agent = self.raw_agent_array.get_agent(agent_id)
+        return Utils.calculate_health_pips(agent.living_agent.max_hp, agent.living_agent.hp_regen)
     
     def IsMoving(self, agent_id):
         model_state = self.GetModelState(agent_id)
