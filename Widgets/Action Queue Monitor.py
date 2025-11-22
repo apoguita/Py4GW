@@ -17,6 +17,7 @@ def main():
             "SALVAGE",
             "IDENTIFY", 
             "FAST", 
+            "TRANSITION",
         }
     
     if not Routines.Checks.Map.MapValid():
@@ -32,7 +33,7 @@ def main():
                     else:
                         PyImGui.text(f"No actions in {queue_name}.")
                      
-                    if PyImGui.begin_child("InfoCurrentActions", size=(400, 100),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+                    if PyImGui.begin_child("InfoCurrentActions", size=(0, 100),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
                         for action in action_queue:
                             PyImGui.text(f"Action: {action}")
                         PyImGui.end_child()
@@ -53,7 +54,7 @@ def main():
                     if PyImGui.button("Copy to Clipboard"):
                         PyImGui.set_clipboard_text("\n".join(action_history))
                         
-                    if PyImGui.begin_child("InfoHistoryActions", size=(400, 300),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+                    if PyImGui.begin_child("InfoHistoryActions", size=(0, 300),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
                         for action in reversed(action_history):
                             PyImGui.text(f"Action: {action}")
                         PyImGui.end_child()

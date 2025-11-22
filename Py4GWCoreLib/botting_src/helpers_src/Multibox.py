@@ -51,7 +51,7 @@ class _Multibox:
             self.PlayerIsTicked = account_data.PlayerIsTicked
             self.PartyID = account_data.PartyID
             self.PartyPosition = account_data.PartyPosition
-            self.PatyIsPartyLeader = account_data.PatyIsPartyLeader
+            self.PlayerIsPartyLeader = account_data.PlayerIsPartyLeader
             self.PlayerBuffs = list(account_data.PlayerBuffs)
             self.LastUpdated = account_data.LastUpdated
 

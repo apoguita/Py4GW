@@ -1,5 +1,7 @@
 import PyAgent
 
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+
 from .model_data import ModelData
 
 class ItemOwnerCache:
@@ -171,7 +173,7 @@ class Agent:
 
         agent = Agent.agent_instance(agent_id)
         return agent.attributes
-
+    
     @staticmethod
     def GetNPCSkillbar(agent_id):
         """
@@ -507,8 +509,8 @@ class Agent:
         Args: agent_id (int): The ID of the agent.
         Returns: int
         """
-        pips = 3.0 / 0.99 * Agent.agent_instance(agent_id).living_agent.energy_regen * Agent.agent_instance(agent_id).living_agent.max_energy
-        return int(pips) if pips > 0 else 0
+        agent = Agent.agent_instance(agent_id).living_agent
+        return Utils.calculate_energy_pips(agent.max_energy, agent.energy_regen)
 
     @staticmethod
     def GetHealth(agent_id):
@@ -536,6 +538,16 @@ class Agent:
         Returns: float
         """
         return Agent.agent_instance(agent_id).living_agent.hp_regen
+    
+    @staticmethod
+    def GetHealthPips(agent_id):
+        """
+        Purpose: Retrieve the health pips of the agent.
+        Args: agent_id (int): The ID of the agent.
+        Returns: int
+        """
+        agent = Agent.agent_instance(agent_id).living_agent
+        return Utils.calculate_health_pips(agent.max_hp, agent.hp_regen)
 
     @staticmethod
     def IsMoving(agent_id):
@@ -827,7 +839,6 @@ class AgentName:
                     
         return self.name
             
-
 
 
 

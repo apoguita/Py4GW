@@ -23,6 +23,7 @@ class WidgetConfig:
         
         self.throttle_raw_agent_array = ThrottledTimer(50)
         self.throttle_action_queue = ThrottledTimer(50)
+        self.throttle_transition_queue = ThrottledTimer(50)
         self.throttle_loot_queue = ThrottledTimer(1250)
         self.throttle_merchant_queue = ThrottledTimer(750)
         self.throttle_salvage_queue = ThrottledTimer(325)
@@ -35,11 +36,13 @@ def reset_on_load():
     global widget_config
     widget_config.throttle_raw_agent_array.Reset()
     widget_config.throttle_action_queue.Reset()
+    widget_config.throttle_transition_queue.Reset()
     widget_config.throttle_loot_queue.Reset()
     widget_config.throttle_merchant_queue.Reset()
     widget_config.throttle_salvage_queue.Reset()
     widget_config.throttle_identify_queue.Reset()
     widget_config.throttle_fast_queue.Reset()
+    
     #Resetting all queues
     widget_config.action_queue_manager.ResetAllQueues()
     widget_config.raw_agent_array.reset()
@@ -68,7 +71,9 @@ def main():
             GLOBAL_CACHE.Coroutines.remove(routine)
     
     if GLOBAL_CACHE.Map.IsMapLoading() or GLOBAL_CACHE.Map.IsInCinematic():
-        widget_config.action_queue_manager.ResetAllQueues()
+        if widget_config.throttle_transition_queue.IsExpired():
+            widget_config.action_queue_manager.ProcessQueue("TRANSITION")
+            widget_config.throttle_transition_queue.Reset()
         return
     
     if widget_config.throttle_raw_agent_array.IsExpired():

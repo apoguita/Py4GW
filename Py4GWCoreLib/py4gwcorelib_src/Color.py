@@ -191,6 +191,10 @@ class Color:
 
         return Color(new_r, new_g, new_b, new_a)
     
+    def Negate(self) -> "Color":
+        """Returns a new Color instance that is the negative of this color."""
+        return Color(255 - self.r, 255 - self.g, 255 - self.b, self.a)
+    
     @classmethod
     def _make(cls, r: int, g: int, b: int, a: int = 255) -> "Color":
         return cls(r, g, b, a)
