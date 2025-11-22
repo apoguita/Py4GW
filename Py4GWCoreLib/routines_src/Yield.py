@@ -524,17 +524,17 @@ class Yield:
         @staticmethod
         def LoadHeroSkillbar(hero_index:int, skill_template:str, log=False):
             """
-            Purpose: Load the specified hero skillbar.
+            Purpose: Load the specified hero skillbar by party position.
             Args:
-                hero_index (int): The index of the hero (1-4).
-                skill_template (str): The name of the skill template to load.
-                log (bool) Optional: Whether to log the action. Default is True.
+                hero_index (int): The 1-based party position of the hero (1 = first hero, 2 = second, etc.).
+                skill_template (str): The skill template code to load.
+                log (bool) Optional: Whether to log the action. Default is False.
             Returns: None
             """
             
 
             GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(hero_index, skill_template)
-            ConsoleLog("LoadHeroSkillbar", f"Loading hero {hero_index} skill Template {skill_template}", log=log)
+            ConsoleLog("LoadHeroSkillbar", f"Loading hero at party position {hero_index} with template {skill_template}", log=log)
             yield from Yield.wait(500)
         
         @staticmethod    
