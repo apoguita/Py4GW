@@ -47,7 +47,7 @@ from Py4GWCoreLib import Utils
 
 MODULE_NAME = "HeroAI"
 
-FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
+FOLLOW_COMBAT_DISTANCE = 150.0  # if body blocked, we get close enough.
 LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE = Range.Touch.value * 1.1
 LOOT_THROTTLE_CHECK = ThrottledTimer(250)
 

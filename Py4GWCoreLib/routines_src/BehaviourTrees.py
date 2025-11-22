@@ -522,6 +522,52 @@ class BT:
             
             return tree
 
+    class Items:
+        @staticmethod
+        def GetItemNameByItemID(item_id: int) -> BehaviorTree:
+            def _request_item_name(node):
+                GLOBAL_CACHE.Item.RequestName(item_id)
+                return BehaviorTree.NodeState.SUCCESS
+
+            def _check_item_name_ready(node):
+                if not GLOBAL_CACHE.Item.IsNameReady(item_id):
+                    return BehaviorTree.NodeState.FAILURE
+                return BehaviorTree.NodeState.SUCCESS
+
+            def _get_item_name(node):
+                name = ''
+                if GLOBAL_CACHE.Item.IsNameReady(item_id):
+                    name = GLOBAL_CACHE.Item.GetName(item_id)
+
+                node.blackboard["result"] = name
+                return BehaviorTree.NodeState.SUCCESS if name else BehaviorTree.NodeState.FAILURE
+
+            tree = BehaviorTree.SequenceNode(
+                name="GetItemNameByItemIDRoot",
+                children=[
+                    BehaviorTree.ActionNode(name="RequestItemName", action_fn=_request_item_name),
+                    BehaviorTree.RepeaterUntilSuccessNode(
+                        name="WaitUntilItemNameReadyRepeater",
+                        timeout_ms=2000,
+                        child=BehaviorTree.SelectorNode(
+                            name="WaitUntilItemNameReadySelector",
+                            children=[
+                                BehaviorTree.ConditionNode(name="CheckItemNameReady", condition_fn=_check_item_name_ready),
+                                BehaviorTree.SequenceNode(
+                                    name="WaitForThrottle",
+                                    children=[
+                                        BehaviorTree.WaitForTimeNode(name="Throttle100ms", duration_ms=100),
+                                        BehaviorTree.FailureNode(name="FailToRepeat")
+                                    ]
+                                ),
+                            ]
+                        )
+                    ),
+                    BehaviorTree.ActionNode(name="GetItemName", action_fn=_get_item_name)
+                ]
+            )
+            return BehaviorTree(tree)
+
     #region Agents        
     class Agents:
         agent_ids = None

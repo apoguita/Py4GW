@@ -4,7 +4,7 @@ from typing import Tuple
 
 import Py4GW
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
-from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
+from Bots.marks_coding_corner.utils.loot_utils import get_valid_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.loot_utils import set_autoloot_options_for_custom_bots
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
@@ -236,7 +236,7 @@ def jaga_moraine_farm_routine(bot: Botting) -> None:
 
 def loot_items():
     global item_id_blacklist
-    filtered_agent_ids = get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT)
+    filtered_agent_ids = get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=False)
     yield from Routines.Yield.wait(500)  # Wait for a second before starting to loot
     ConsoleLog(VAETTIR_FARM_BY_MARK, 'Looting items...')
     failed_items_id = yield from Routines.Yield.Items.LootItemsWithMaxAttempts(filtered_agent_ids, log=True)
@@ -498,6 +498,18 @@ def handle_stuck_jaga_moraine(bot: Botting):
 
         build: BuildMgr = bot.config.build_handler
 
+        instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
+        if instance_time > 7 * 60:  # 7 minutes in seconds
+            ConsoleLog("HandleStuck", "Instance time exceeded 7 minutes, force resigning.", Py4GW.Console.MessageType.Debug, True)
+            stuck_counter = 0
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                build.SetStuckSignal(stuck_counter)
+
+            GLOBAL_CACHE.Player.SendChatCommand("resign")
+
+            yield from Routines.Yield.wait(500)
+            return
+
         # Waiting routine check
         if in_waiting_routine:
             ConsoleLog(
@@ -597,7 +609,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
                 stuck_counter = 0
                 if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                     build.SetStuckSignal(stuck_counter)
-                bot.States.JumpToStepName("[H]Town Routines_1")
+                GLOBAL_CACHE.Player.SendChatCommand("resign")
                 continue
         else:
             ConsoleLog("Stuck Detection", "Not in Jaga Moraine", Py4GW.Console.MessageType.Info, False)
