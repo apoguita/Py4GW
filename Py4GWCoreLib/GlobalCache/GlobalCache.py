@@ -50,6 +50,7 @@ class GlobalCache:
         self.SkillBar = SkillbarCache(self._ActionQueueManager)
         self.ShMem = Py4GWSharedMemoryManager()
         self.Coroutines: List[Generator] = []
+        self._was_map_loading = False
         
       
     def _reset(self):
@@ -61,7 +62,14 @@ class GlobalCache:
         
     def _update_cache(self):
         self.Map._update_cache()
-        if self.Map.IsMapLoading() or self.Map.IsInCinematic():
+        
+        # Track map loading state to detect transitions
+        is_map_loading = self.Map.IsMapLoading()
+        is_in_cinematic = self.Map.IsInCinematic()
+        map_just_finished_loading = self._was_map_loading and not is_map_loading
+        
+        # Update critical caches during map loading, cinematics, or immediately after map finishes loading
+        if is_map_loading or is_in_cinematic or map_just_finished_loading:
             self.Party._update_cache()
             self.Player._update_cache()
             self._RawItemCache.update()
@@ -70,6 +78,9 @@ class GlobalCache:
             self.Agent._update_cache()
             self.AgentArray._update_cache()
             self.SkillBar._update_cache()
+        
+        # Update the tracking variable for next iteration
+        self._was_map_loading = is_map_loading
                
         if self._TrottleTimers._75ms.IsExpired():
             self._TrottleTimers._75ms.Reset()
