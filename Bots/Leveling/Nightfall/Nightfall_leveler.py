@@ -524,6 +524,42 @@ def ConfigureFirstBattle(bot: Botting):
     Equip_Weapon()
     bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
 
+    
+def ConfigureFirstBattle_yield(bot: Botting):
+    bot.States.AddHeader("Preparation: First Battle Setup")
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
+    def Equip_Weapon():
+        global bot
+        profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        if profession == "Dervish":
+            bot.Items.Equip(15591)  # starter scythe
+        elif profession == "Paragon":
+            bot.Items.Equip(15593) #Starter Spear
+            bot.Items.Equip(6514) #Bonus Shield
+        elif profession == "Elementalist":
+            bot.Items.Equip(6508) #Luminescent Scepter
+            bot.Wait.ForTime(1000)
+            bot.Items.Equip(6514)
+        elif profession == "Mesmer":
+            bot.Items.Equip(6508) #Luminescent Scepter
+            bot.Wait.ForTime(1000)
+            bot.Items.Equip(6514)
+        elif profession == "Necromancer":
+            bot.Items.Equip(6515) #Soul Shrieker   
+        elif profession == "Ranger":
+            bot.Items.Equip(5831) #Nevermore Flatbow 
+        elif profession == "Warrior":
+            bot.Items.Equip(3) #Starter Sword  
+            bot.Items.Equip(6514) #Bonus Shield  
+        elif profession == "Monk":
+            bot.Items.Equip(6508) #Luminescent Scepter 
+            bot.Wait.ForTime(1000)
+            bot.Items.Equip(6514)   
+        yield
+    bot.States.AddCustomState(Equip_Weapon, "Equip Starter Weapon")
+    Equip_Weapon()
+    bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
+
 def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Mission: Chahbek Village")
     bot.Dialogs.AtXY(3485, -5246, 0x81)
