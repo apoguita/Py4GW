@@ -18,3 +18,8 @@ class _Player:
     def set_title(self, title: int) -> Generator[Any, Any, None]:
         from ...Routines import Routines
         yield from Routines.Yield.Player.SetTitle(title, False)
+        
+    @_yield_step(label="CallTarget", counter_key="CALL_TARGET")
+    def call_target(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Keybinds.CallTarget(False)

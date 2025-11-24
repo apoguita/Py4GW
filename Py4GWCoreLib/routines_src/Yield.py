@@ -1697,6 +1697,11 @@ class Yield:
         @staticmethod
         def TakeScreenshot(log=False):
             yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Screenshot.value, 75, log=log)
+        
+        @staticmethod
+        def CallTarget(log=False):
+            ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+            yield from Yield.wait(100)
            
         #Panels
         @staticmethod

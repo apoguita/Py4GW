@@ -13,3 +13,6 @@ class _PLAYER:
 
     def SetTitle(self, title_id: int):
         self._helpers.Player.set_title(title_id)
+        
+    def CallTarget(self):
+        self._helpers.Player.call_target()
