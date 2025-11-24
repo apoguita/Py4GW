@@ -533,7 +533,7 @@ class Yield:
                         stuck_count = 0  # reset stuck count if making progress
                         ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
 
-
+                    #common
                     previous_distance = current_distance
 
                     if current_distance <= tolerance:

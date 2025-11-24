@@ -490,32 +490,21 @@ class BT:
                 
                 if map_name:
                     map_id = GLOBAL_CACHE.Map.GetMapIDByName(map_name)
-                
-                
+
                 if (GLOBAL_CACHE.Map.IsMapReady() and
                     GLOBAL_CACHE.Party.IsPartyLoaded() and
                     GLOBAL_CACHE.Map.GetMapID() == map_id and
                     GLOBAL_CACHE.Map.GetInstanceUptime() >= 2000):
                     ConsoleLog("WaitforMapLoad", f"Map {GLOBAL_CACHE.Map.GetMapName(map_id)} loaded successfully.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                return BehaviorTree.NodeState.FAILURE
+                return BehaviorTree.NodeState.RUNNING
 
             tree = BehaviorTree.SequenceNode(name="WaitforMapLoadRoot",
                         children=[
-                            BehaviorTree.RepeaterUntilSuccessNode(name="WaitForMapLoadLoop",timeout_ms=timeout,
-                                child=
-                                    BehaviorTree.SelectorNode(name="WaitForMapLoad",
-                                        children=[
-                                            BehaviorTree.ConditionNode(name="MapArrivalCheck",condition_fn=_map_arrival_check),
-                                            BehaviorTree.SequenceNode(name="WaitForThrottle",
-                                                children=[
-                                                    BehaviorTree.WaitForTimeNode(500), 
-                                                    BehaviorTree.FailureNode("FailToRepeat")
-                                                ]
-                                            )     
-                                        ]
-                                    )
-                                ),
+                            BehaviorTree.WaitUntilNode(name="WaitForMapLoadUntil",
+                                condition_fn=lambda node: _map_arrival_check(node),
+                                throttle_interval_ms=500,
+                                timeout_ms=timeout),
                             BehaviorTree.WaitForTimeNode(name="PostArrivalWait", duration_ms=1000)
                         ]
                     )
@@ -568,7 +557,7 @@ class BT:
                                 BehaviorTree.SequenceNode(name="WaitForThrottle",
                                     children=[
                                         BehaviorTree.WaitForTimeNode(name="Throttle100ms",duration_ms=100),
-                                        BehaviorTree.FailureNode(name="FailToRepeat")
+                                        BehaviorTree.FailerNode(name="FailToRepeat")
                                     ]
                                 ),
                             ]

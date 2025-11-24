@@ -816,221 +816,6 @@ class BehaviorTree:
             return BehaviorTree.NodeState.RUNNING
         
     # --------------------------------------------------------
-    #region ForEachNode
-    # -------------------------------------------------------- 
-    class ForEachNode(Node):
-        """
-        ForEachNode:
-            - Iterates over a list stored in blackboard[list_key].
-            - For each item:
-                • Sets blackboard['current_item'] to that value.
-                • Ticks the child node once for that item.
-            - REQUIREMENT:
-                You MUST set blackboard[list_key] = [...] before the first tick().
-            - Behavior:
-                • If the child returns RUNNING → ForEach returns RUNNING and resumes on the same item.
-                • If the child returns FAILURE → ForEach returns FAILURE immediately.
-                • If the child returns SUCCESS → move to the next item.
-            - When all items have succeeded → ForEach returns SUCCESS.
-        """
-
-
-        def __init__(self, child: "BehaviorTree.Node", list_key: str, name: str = "ForEach"):
-            super().__init__(name=name, node_type="ForEach", 
-                             icon=IconsFontAwesome5.ICON_LIST_OL,
-                             color= ColorPalette.GetColor("light_cyan"))
-            self.child = child
-            self.list_key = list_key
-            self.current_index: int = 0
-
-
-        def get_children(self) -> List["BehaviorTree.Node"]:
-            return [self.child]
-        
-        def reset(self) -> None:
-            super().reset()
-            self.current_index = 0
-
-        def _tick_impl(self) -> BehaviorTree.NodeState:
-            # Retrieve the list from blackboard
-            items = self.blackboard.get(self.list_key, [])
-            total_items = len(items)
-
-            while self.current_index < total_items:
-                # Set current item in blackboard for the child to use
-                self.blackboard['current_item'] = items[self.current_index]
-
-                # ----- BLACKBOARD -----
-                self.child.blackboard = self.blackboard
-                # -----------------------
-
-                result = self.child.tick()
-
-                if result is None:
-                    ConsoleLog(
-                        "BT",
-                        f"ERROR: Node '{self.child.name}' returned None!",
-                        Console.MessageType.Error
-                    )
-                    self.current_index = 0
-                    return BehaviorTree.NodeState.FAILURE
-
-                if result == BehaviorTree.NodeState.RUNNING:
-                    return BehaviorTree.NodeState.RUNNING
-
-                if result == BehaviorTree.NodeState.FAILURE:
-                    self.current_index = 0
-                    return BehaviorTree.NodeState.FAILURE
-
-                # SUCCESS → continue to next item
-                self.current_index += 1
-
-            # Completed all items
-            self.current_index = 0
-            return BehaviorTree.NodeState.SUCCESS
-        
-    # --------------------------------------------------------
-    #region IteratorNode
-    # -------------------------------------------------------- 
-    class IteratorNode(Node):
-        """
-        IteratorNode:
-            - Iterates over a list stored in blackboard[list_key].
-            - On each tick:
-                • Sets blackboard['current_item'] to the list item at current_index.
-                • Ticks the child once for that item.
-            - Behavior:
-                • If the child returns RUNNING → Iterator returns RUNNING and stays on the same item.
-                • If the child returns FAILURE → Iterator returns FAILURE immediately.
-                • If the child returns SUCCESS → advance to the next item.
-            - Completion:
-                • When all items have been processed → Iterator returns SUCCESS.
-            - REQUIREMENT:
-                You MUST set blackboard[list_key] = [...] before ticking this node.
-        """
-
-        def __init__(self, child: "BehaviorTree.Node", list_key: str, name: str = "Iterator"):
-            super().__init__(name=name, node_type="Iterator", 
-                             icon=IconsFontAwesome5.ICON_LIST_UL,
-                             color= ColorPalette.GetColor("light_orange"))
-            self.child = child
-            self.list_key = list_key
-            self.current_index: int = 0
-
-        def get_children(self) -> List["BehaviorTree.Node"]:
-            return [self.child]
-        
-        def reset(self) -> None:
-            super().reset()
-            self.current_index = 0
-
-        def _tick_impl(self) -> BehaviorTree.NodeState:
-            # Retrieve the list from blackboard
-            items = self.blackboard.get(self.list_key, [])
-            total_items = len(items)
-
-            if self.current_index >= total_items:
-                # All items processed
-                self.current_index = 0
-                return BehaviorTree.NodeState.SUCCESS
-
-            # Set current item in blackboard for the child to use
-            self.blackboard['current_item'] = items[self.current_index]
-
-            # ----- BLACKBOARD -----
-            self.child.blackboard = self.blackboard
-            # -----------------------
-
-            result = self.child.tick()
-
-            if result is None:
-                ConsoleLog(
-                    "BT",
-                    f"ERROR: Node '{self.child.name}' returned None!",
-                    Console.MessageType.Error
-                )
-                self.current_index = 0
-                return BehaviorTree.NodeState.FAILURE
-
-            if result == BehaviorTree.NodeState.RUNNING:
-                return BehaviorTree.NodeState.RUNNING
-
-            if result == BehaviorTree.NodeState.FAILURE:
-                self.current_index = 0
-                return BehaviorTree.NodeState.FAILURE
-
-            # SUCCESS → move to next item
-            self.current_index += 1
-            return BehaviorTree.NodeState.RUNNING
-        
-    # --------------------------------------------------------
-    #region IndexedLoopNode
-    # -------------------------------------------------------- 
-    class IndexedLoopNode(Node):
-        """
-        IndexedLoopNode:
-            - Executes the child once for each index from 0 to count-1.
-            - On each iteration:
-                • Sets blackboard['current_index'] to the current index.
-                • Ticks the child for that index.
-            - Behavior:
-                • If the child returns RUNNING → IndexedLoop returns RUNNING and resumes at the same index.
-                • If the child returns FAILURE → IndexedLoop returns FAILURE immediately.
-                • If the child returns SUCCESS → advance to the next index.
-            - Completion:
-                • When all indices have succeeded → IndexedLoop returns SUCCESS.
-        """
-
-        def __init__(self, child: "BehaviorTree.Node", count: int, name: str = "IndexedLoop"):
-            super().__init__(name=name, node_type="IndexedLoop", 
-                             icon=IconsFontAwesome5.ICON_REPEAT,
-                             color= ColorPalette.GetColor("light_gray"))
-            self.child = child
-            self.count = count
-            self.current_index: int = 0
-
-        def get_children(self) -> List["BehaviorTree.Node"]:
-            return [self.child]
-        
-        def reset(self) -> None:
-            super().reset()
-            self.current_index = 0
-
-        def _tick_impl(self) -> BehaviorTree.NodeState:
-            while self.current_index < self.count:
-                # Set current index in blackboard for the child to use
-                self.blackboard['current_index'] = self.current_index
-
-                # ----- BLACKBOARD -----
-                self.child.blackboard = self.blackboard
-                # -----------------------
-
-                result = self.child.tick()
-
-                if result is None:
-                    ConsoleLog(
-                        "BT",
-                        f"ERROR: Node '{self.child.name}' returned None!",
-                        Console.MessageType.Error
-                    )
-                    self.current_index = 0
-                    return BehaviorTree.NodeState.FAILURE
-
-                if result == BehaviorTree.NodeState.RUNNING:
-                    return BehaviorTree.NodeState.RUNNING
-
-                if result == BehaviorTree.NodeState.FAILURE:
-                    self.current_index = 0
-                    return BehaviorTree.NodeState.FAILURE
-
-                # SUCCESS → continue to next index
-                self.current_index += 1
-
-            # Completed all iterations
-            self.current_index = 0
-            return BehaviorTree.NodeState.SUCCESS
-
-    # --------------------------------------------------------
     #region ParallelNode
     # --------------------------------------------------------
     
@@ -1223,6 +1008,7 @@ class BehaviorTree:
             - If check_fn returns RUNNING → WaitNode stays RUNNING.
             - If timeout_ms = 0 → no timeout (wait indefinitely).
             - check_fn must return a NodeState (SUCCESS / FAILURE / RUNNING).
+            - THIS NODE IS NOT THROTTLED: check_fn is called every tick.
         """
 
         def __init__(self, check_fn, timeout_ms: int = 0, name: str = "Wait"):
@@ -1267,6 +1053,350 @@ class BehaviorTree:
 
             # continue waiting
             return BehaviorTree.NodeState.RUNNING
+     
+    # --------------------------------------------------------
+    #region WaitUntilNode
+    # --------------------------------------------------------   
+    class WaitUntilNode(Node):
+        """
+        WaitUntilNode:
+            - Periodically evaluates condition_fn.
+            - The condition_fn may return:
+                • bool      → True = SUCCESS, False = FAILURE
+                • NodeState → direct meaning
+            - Supports condition_fn() or condition_fn(node).
+            - SUCCESS  → stop waiting
+            - FAILURE  → stop waiting
+            - RUNNING  → keep waiting
+            - Evaluates at most once every interval_ms.
+            - If timeout_ms > 0 and exceeded → FAILURE.
+            - THIS NODE IS THROTTLED: condition_fn is called at most once every interval_ms.
+        """
+
+        def __init__(self, condition_fn,
+                    throttle_interval_ms: int = 100,
+                    timeout_ms: int = 0,
+                    name: str = "WaitUntil"):
+
+            super().__init__(
+                name=name,
+                node_type="WaitUntil",
+                icon=IconsFontAwesome5.ICON_CLOCK,
+                color=ColorPalette.GetColor("light_green")
+            )
+
+            self.condition_fn = condition_fn
+            self.interval_ms = throttle_interval_ms
+            self.timeout_ms = timeout_ms
+
+            try:
+                sig = inspect.signature(condition_fn)
+                self._accepts_node = (len(sig.parameters) >= 1)
+            except (TypeError, ValueError):
+                self._accepts_node = False
+
+            self.start_time = None
+            self.last_check_time = None
+
+        def _tick_impl(self) -> BehaviorTree.NodeState:
+            now = Utils.GetBaseTimestamp()
+
+            # --- INIT ---
+            if self.start_time is None:
+                self.start_time = now
+                self.last_check_time = 0
+                #ConsoleLog("WaitUntilNode", f"[{self.name}] Init start_time={self.start_time}", log=True)
+
+            # --- TIMEOUT ---
+            if self.timeout_ms > 0 and (now - self.start_time) >= self.timeout_ms:
+                #ConsoleLog("WaitUntilNode",f"[{self.name}] TIMEOUT exceeded ({now - self.start_time} ms >= {self.timeout_ms})",log=True)
+                self.start_time = None
+                self.last_check_time = None
+                return BehaviorTree.NodeState.FAILURE
+
+            # --- THROTTLE ---
+            if self.last_check_time and ((now - self.last_check_time) < self.interval_ms):
+                #ConsoleLog("WaitUntilNode",f"[{self.name}] Throttled ({now - self.last_check_time} < {self.interval_ms})",log=True)
+                return BehaviorTree.NodeState.RUNNING
+
+            self.last_check_time = now
+
+            # --- CALL CONDITION ---
+            #ConsoleLog("WaitUntilNode",f"[{self.name}] Calling condition_fn (_accepts_node={self._accepts_node})",log=True)
+
+            try:
+                if getattr(self, "_accepts_node", False):
+                    result = self.condition_fn(self)
+                else:
+                    result = self.condition_fn()
+            except Exception as e:
+                ConsoleLog("WaitUntilNode",f"[{self.name}] ERROR evaluating condition_fn: {repr(e)}",log=True)
+                raise
+
+            #ConsoleLog("WaitUntilNode",f"[{self.name}] condition_fn returned: {result} (type={type(result).__name__})",log=True)
+
+            # --- NodeState ---
+            if isinstance(result, BehaviorTree.NodeState):
+                #ConsoleLog("WaitUntilNode", f"[{self.name}] Returning NodeState: {result}",log=True)
+                
+                # FIX: reset state so next tick does not throttle
+                self.start_time = None
+                self.last_check_time = None
+                
+                return result
+
+            # --- BOOL ---
+            if isinstance(result, bool):
+                state = (BehaviorTree.NodeState.SUCCESS if result
+                        else BehaviorTree.NodeState.FAILURE)
+
+                #ConsoleLog("WaitUntilNode",f"[{self.name}] Converted bool → {state}",log=True)
+                self.start_time = None
+                self.last_check_time = None
+                return state
+
+
+            # --- INVALID ---
+            #ConsoleLog("WaitUntilNode",
+            #        f"[{self.name}] INVALID return type from condition_fn: {type(result).__name__}",
+            #        log=True)
+
+            raise TypeError(
+                f"WaitUntilNode expected bool or NodeState, got: {type(result).__name__}"
+            )
+
+
+    # --------------------------------------------------------
+    #region WaitUntilSuccessNode
+    # --------------------------------------------------------  
+    class WaitUntilSuccessNode(Node):
+        """
+        WaitUntilSuccessNode:
+            - Periodically evaluates condition_fn.
+            - The condition_fn may return:
+                • bool        → True = SUCCESS, False = FAILURE(retry)
+                • NodeState   → SUCCESS = success, FAILURE/RUNNING = retry
+            - Repeats until SUCCESS.
+            - Timeout → FAILURE.
+            - Supports condition_fn() or condition_fn(node).
+            - EXACT same behavior style as WaitUntilNode (logging + validation).
+        """
+
+        def __init__(self, condition_fn,
+                    throttle_interval_ms: int = 100,
+                    timeout_ms: int = 0,
+                    name: str = "WaitUntilSuccess"):
+
+            super().__init__(
+                name=name,
+                node_type="WaitUntilSuccess",
+                icon=IconsFontAwesome5.ICON_HOURGLASS_HALF,
+                color=ColorPalette.GetColor("yellow")
+            )
+
+            self.condition_fn = condition_fn
+            self.interval_ms = throttle_interval_ms
+            self.timeout_ms = timeout_ms
+
+            try:
+                sig = inspect.signature(condition_fn)
+                self._accepts_node = (len(sig.parameters) >= 1)
+            except (TypeError, ValueError):
+                self._accepts_node = False
+
+            self.start_time = None
+            self.last_check_time = None
+
+        def _tick_impl(self) -> BehaviorTree.NodeState:
+            now = Utils.GetBaseTimestamp()
+
+            # --- INIT ---
+            if self.start_time is None:
+                self.start_time = now
+                self.last_check_time = now
+                ConsoleLog("WaitUntilSuccessNode",
+                    f"[{self.name}] Init start_time={self.start_time}", log=True)
+
+            # --- TIMEOUT ---
+            if self.timeout_ms > 0 and (now - self.start_time) >= self.timeout_ms:
+                ConsoleLog("WaitUntilSuccessNode",
+                    f"[{self.name}] TIMEOUT ({now - self.start_time} >= {self.timeout_ms})",
+                    log=True)
+                self.start_time = None
+                self.last_check_time = None
+                return BehaviorTree.NodeState.FAILURE
+
+            # --- THROTTLE ---
+            if self.last_check_time and ((now - self.last_check_time) < self.interval_ms):
+                ConsoleLog("WaitUntilSuccessNode",
+                    f"[{self.name}] Throttled ({now - self.last_check_time} < {self.interval_ms})",
+                    log=True)
+                return BehaviorTree.NodeState.RUNNING
+
+            self.last_check_time = now
+
+            # --- CALL CONDITION ---
+            ConsoleLog("WaitUntilSuccessNode",
+                f"[{self.name}] Calling condition_fn (_accepts_node={self._accepts_node})",
+                log=True)
+
+            try:
+                if getattr(self, "_accepts_node", False):
+                    result = self.condition_fn(self)
+                else:
+                    result = self.condition_fn()
+            except Exception as e:
+                ConsoleLog("WaitUntilSuccessNode",
+                    f"[{self.name}] ERROR evaluating condition_fn: {repr(e)}",
+                    log=True)
+                raise
+
+            ConsoleLog("WaitUntilSuccessNode",
+                f"[{self.name}] condition_fn returned: {result} (type={type(result).__name__})",
+                log=True)
+
+            # --- Normalize bool ---
+            if isinstance(result, bool):
+                result = (BehaviorTree.NodeState.SUCCESS if result
+                        else BehaviorTree.NodeState.FAILURE)
+
+            # --- SUCCESS → done ---
+            if result == BehaviorTree.NodeState.SUCCESS:
+                ConsoleLog("WaitUntilSuccessNode",
+                    f"[{self.name}] Returning SUCCESS",
+                    log=True)
+                self.start_time = None
+                self.last_check_time = None
+                return BehaviorTree.NodeState.SUCCESS
+
+            # --- FAILURE or RUNNING → retry ---
+            if result in (BehaviorTree.NodeState.FAILURE, BehaviorTree.NodeState.RUNNING):
+                ConsoleLog("WaitUntilSuccessNode",
+                    f"[{self.name}] Retry (result={result})",
+                    log=True)
+                return BehaviorTree.NodeState.RUNNING
+
+            # --- INVALID ---
+            ConsoleLog("WaitUntilSuccessNode",
+                f"[{self.name}] INVALID return type: {type(result).__name__}",
+                log=True)
+
+            raise TypeError(
+                f"WaitUntilSuccessNode expected bool or NodeState, got: {type(result).__name__}"
+            )
+
+
+
+    # --------------------------------------------------------
+    #region WaitUntilFailureNode
+    # --------------------------------------------------------   
+    class WaitUntilFailureNode(Node):
+        """
+        WaitUntilFailureNode:
+            - Periodically evaluates condition_fn.
+            - The condition_fn may return:
+                • bool        → False = SUCCESS (condition failed), True = retry
+                • NodeState   → FAILURE = SUCCESS, SUCCESS/RUNNING = retry
+            - Repeats until FAILURE.
+            - Timeout → FAILURE.
+            - EXACT same behavior style as WaitUntilNode.
+        """
+
+        def __init__(self, condition_fn,
+                    throttle_interval_ms: int = 100,
+                    timeout_ms: int = 0,
+                    name: str = "WaitUntilFailure"):
+
+            super().__init__(
+                name=name,
+                node_type="WaitUntilFailure",
+                icon=IconsFontAwesome5.ICON_HOURGLASS_END,
+                color=ColorPalette.GetColor("light_red")
+            )
+
+            self.condition_fn = condition_fn
+            self.interval_ms = throttle_interval_ms
+            self.timeout_ms = timeout_ms
+
+            try:
+                sig = inspect.signature(condition_fn)
+                self._accepts_node = (len(sig.parameters) >= 1)
+            except (TypeError, ValueError):
+                self._accepts_node = False
+
+            self.start_time = None
+            self.last_check_time = None
+
+        def _tick_impl(self) -> BehaviorTree.NodeState:
+            now = Utils.GetBaseTimestamp()
+
+            # --- INIT ---
+            if self.start_time is None:
+                self.start_time = now
+                self.last_check_time = now
+                ConsoleLog("WaitUntilFailureNode",
+                    f"[{self.name}] Init start_time={self.start_time}", log=True)
+
+            # --- TIMEOUT ---
+            if self.timeout_ms > 0 and (now - self.start_time) >= self.timeout_ms:
+                ConsoleLog("WaitUntilFailureNode",
+                    f"[{self.name}] TIMEOUT ({now - self.start_time} >= {self.timeout_ms})",
+                    log=True)
+                self.start_time = None
+                self.last_check_time = None
+                return BehaviorTree.NodeState.FAILURE
+
+            # --- THROTTLE ---
+            if self.last_check_time and ((now - self.last_check_time) < self.interval_ms):
+                ConsoleLog("WaitUntilFailureNode",
+                    f"[{self.name}] Throttled ({now - self.last_check_time} < {self.interval_ms})",
+                    log=True)
+                return BehaviorTree.NodeState.RUNNING
+
+            self.last_check_time = now
+
+            # --- CALL CONDITION ---
+            ConsoleLog("WaitUntilFailureNode",
+                f"[{self.name}] Calling condition_fn (_accepts_node={self._accepts_node})",
+                log=True)
+
+            try:
+                if getattr(self, "_accepts_node", False):
+                    result = self.condition_fn(self)
+                else:
+                    result = self.condition_fn()
+            except Exception as e:
+                ConsoleLog("WaitUntilFailureNode",
+                    f"[{self.name}] ERROR evaluating condition_fn: {repr(e)}",
+                    log=True)
+                raise
+
+            ConsoleLog("WaitUntilFailureNode",
+                f"[{self.name}] condition_fn returned: {result} (type={type(result).__name__})",
+                log=True)
+
+            # --- Normalize bool ---
+            if isinstance(result, bool):
+                result = (BehaviorTree.NodeState.SUCCESS if result
+                        else BehaviorTree.NodeState.FAILURE)
+
+            # --- FAILURE → this node SUCCESS ---
+            if result == BehaviorTree.NodeState.FAILURE:
+                ConsoleLog("WaitUntilFailureNode",
+                    f"[{self.name}] Returning SUCCESS (condition FAILED)",
+                    log=True)
+                self.start_time = None
+                self.last_check_time = None
+                return BehaviorTree.NodeState.SUCCESS
+
+            # --- Otherwise retry (SUCCESS or RUNNING) ---
+            ConsoleLog("WaitUntilFailureNode",
+                f"[{self.name}] Retry (result={result})",
+                log=True)
+
+            return BehaviorTree.NodeState.RUNNING
+
+
 
     # --------------------------------------------------------
     #region WaitForTimeNode
@@ -1305,20 +1435,20 @@ class BehaviorTree:
             return BehaviorTree.NodeState.RUNNING
     
     # --------------------------------------------------------
-    #region SuccessNode
+    #region SucceederNode
     # --------------------------------------------------------
-    class SuccessNode(Node):
+    class SucceederNode(Node):
         """
-        SuccessNode:
+        SucceederNode:
             - A simple leaf node that always returns SUCCESS.
             - Useful as a fallback or default branch inside Selector or Choice nodes.
             - Has no children and performs no action.
-    """
+        """
 
-        def __init__(self, name: str = "Success"):
+        def __init__(self, name: str = "Succeeder"):
             super().__init__(
                 name=name,
-                node_type="Success",
+                node_type="Succeeder",
                 icon=IconsFontAwesome5.ICON_CHECK,
                 color=ColorPalette.GetColor("green")
             )
@@ -1333,18 +1463,18 @@ class BehaviorTree:
     #region FailureNode
     # --------------------------------------------------------
         
-    class FailureNode(Node):
+    class FailerNode(Node):
         """
-        FailureNode:
+        FailerNode:
             - A simple leaf node that always returns FAILURE.
             - Useful for explicitly forcing a failure branch inside Selector or Choice nodes.
             - Has no children and performs no action.
         """
 
-        def __init__(self, name: str = "Failure"):
+        def __init__(self, name: str = "Failer"):
             super().__init__(
                 name=name,
-                node_type="Failure",
+                node_type="Failer",
                 icon=IconsFontAwesome5.ICON_TIMES,
                 color=ColorPalette.GetColor("red")
             )

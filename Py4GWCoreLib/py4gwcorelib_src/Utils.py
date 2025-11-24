@@ -174,6 +174,38 @@ class Utils:
         skill_points += extra_levels + (1 if remainder > 0 else 0)
 
         return pct
+    
+    @staticmethod
+    def StripMarkup(text: str) -> str:
+        """
+        Remove all markup tags and return plain visible text only.
+        This matches the same tags used by TokenizeMarkupText.
+        """
+
+        if not text:
+            return ""
+
+        # 1. Remove protected color blocks but KEEP their inner text
+        #    example: <c=@gold>Hello</c> → Hello
+        text = re.sub(r"<c=@[^>]+>(.*?)</c>", r"\1", text, flags=re.IGNORECASE)
+
+        # 2. Remove standalone bullet codes {s} and {sc}
+        text = re.sub(r"\{s\}", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\{sc\}", "", text, flags=re.IGNORECASE)
+
+        # 3. Replace known break/paragraph tags with newlines
+        text = re.sub(r"<brx?>/?", "\n", text, flags=re.IGNORECASE)
+        text = re.sub(r"</?p>", "\n", text, flags=re.IGNORECASE)
+
+        # 4. Remove ANY REMAINING <...> or {...} tags
+        text = re.sub(r"<[^>]+>", "", text)
+        text = re.sub(r"\{[^}]+\}", "", text)
+
+        # 5. Collapse duplicated whitespace
+        text = re.sub(r"[ \t]+", " ", text)
+        text = re.sub(r"\n\s+", "\n", text)
+
+        return text.strip()
 
     @staticmethod
     def TokenizeMarkupText(text: str, max_width: float):
