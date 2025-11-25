@@ -705,7 +705,7 @@ def CompleteHeroCommandQuest(bot):
     bot.Move.XYAndDialog(-7874, 9799, 0x82C801)
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
     bot.Move.XY(-4383, -2078)
-    bot.Move.XYAndDialog(-7525, 6288, 0x81, step_name="Churrhir Fields")
+    bot.Move.XYAndDialog(-7525, 6288, 0x81, step_name="Churrhir Fields") 
     bot.Dialogs.AtXY(-7525, 6288, 0x84, step_name="We are ready")
     bot.Wait.ForMapToChange(target_map_id=456)
     bot.Move.XYAndDialog(-2000, -2825,0x8B) #Command Training
