@@ -1,17 +1,16 @@
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Routines
-from Py4GWCoreLib import BuildMgr
-from Py4GWCoreLib.Builds import AutoCombat
-
 from Py4GWCoreLib import ActionQueueManager
-from Py4GWCoreLib import Keystroke
-from Py4GWCoreLib import Key
-
-from Py4GWCoreLib import Range
-from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Agent
-
+from Py4GWCoreLib import BuildMgr
+from Py4GWCoreLib import Key
+from Py4GWCoreLib import Keystroke
+from Py4GWCoreLib import Player
+from Py4GWCoreLib import Profession
+from Py4GWCoreLib import Range
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import Weapon
+from Py4GWCoreLib.Builds import AutoCombat
 
 DUNGEON_MODEL_IDS = {
     6493: "Stone Summit Dominator",  # 6
@@ -37,6 +36,7 @@ DUNGEON_MODEL_IDS = {
 class BuildStatus:
     Kill = 'kill'
     Wait = 'wait'
+    Pull = 'pull'
 
 
 class AssassinShadowTheftDaggerSpammer(BuildMgr):
@@ -184,6 +184,21 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             self.priority_target = target_id
             return
 
+    def swap_to_bow(self):
+        if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Bow:
+            Keystroke.PressAndRelease(Key.F3.value)
+            # yield from Routines.Yield.Keybinds.ActivateWeaponSet(3)
+
+    def swap_to_shield_set(self):
+        if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Spear:
+            Keystroke.PressAndRelease(Key.F2.value)
+            # yield from Routines.Yield.Keybinds.ActivateWeaponSet(2)
+
+    def swap_to_dagger(self):
+        if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Daggers:
+            Keystroke.PressAndRelease(Key.F1.value)
+            # yield from Routines.Yield.Keybinds.ActivateWeaponSet(1)
+
     def ProcessSkillCasting(self):
         if not Routines.Checks.Map.IsExplorable():
             ActionQueueManager().ResetAllQueues()
@@ -191,11 +206,26 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             return
 
         if self.status == BuildStatus.Wait:
+            self.swap_to_shield_set()
             yield from Routines.Yield.wait(100)
             self.priority_target = None
             return
 
+        if self.status == BuildStatus.Pull:
+            self.swap_to_bow()
+            yield from self.update_priority_target_if_needed()
+
+            elapsed = 0
+            player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+            while not Routines.Agents.GetFilteredEnemyArray(player_x, player_y, Range.Area.value) and elapsed < 40:
+                yield from Routines.Yield.wait(100)
+                elapsed += 1
+
+            self.status = BuildStatus.Kill
+            return
+
         if self.status == BuildStatus.Kill:
+            self.swap_to_dagger()
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             has_critical_eye = Routines.Checks.Effects.HasBuff(player_agent_id, self.critical_eye)
             has_i_am_unstoppable = Routines.Checks.Effects.HasBuff(player_agent_id, self.i_am_unstoppable)
@@ -254,7 +284,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                     ):
                         asura_scan_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.asuran_scan)
                         yield from Routines.Yield.Keybinds.UseSkill(asura_scan_slot)
-                        yield from Routines.Yield.wait(250)
+                        yield from Routines.Yield.wait(200)
 
                         # Reset throttle after casting
                         self.asuran_scan_throttle.Reset()
