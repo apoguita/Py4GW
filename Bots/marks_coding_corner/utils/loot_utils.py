@@ -29,7 +29,7 @@ VIABLE_LOOT = {
     ModelID.Bottle_Of_Vabbian_Wine,
     ModelID.Dwarven_Ale,
     ModelID.Eggnog,
-    ModelID.Hard_Apple_Cider,
+    # ModelID.Hard_Apple_Cider,
     ModelID.Hunters_Ale,
     ModelID.Shamrock_Ale,
     ModelID.Witchs_Brew,
@@ -45,50 +45,32 @@ VIABLE_LOOT = {
     ModelID.Monstrous_Eye,
     # Lockpick
     ModelID.Lockpick,
+    # Halloween
+    ModelID.Candy_Apple,
+    ModelID.Pumpkin_Cookie,
+    ModelID.Candy_Corn,
+    ModelID.Squash_Serum,
+    ModelID.Trick_Or_Treat_Bag,
+    ModelID.Vial_Of_Absinthe,
+    ModelID.Witchs_Brew,
+    # Sweet Treat
+    ModelID.Slice_Of_Pumpkin_Pie,
 }
 
 
-def get_valid_loot_array(viable_loot=VIABLE_LOOT):
+def is_valid_item(item_id):
+    if not Agent.IsValid(item_id):
+        return False
+    player_agent_id = Player.GetAgentID()
+    owner_id = Agent.GetItemAgentOwnerID(item_id)
+    if (owner_id == player_agent_id) or (owner_id == 0):
+        return True
+    return False
+
+
+def get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=False):
     loot_array = AgentArray.GetItemArray()
     loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 3.00)
-
-    def is_valid_item(item_id):
-        if not Agent.IsValid(item_id):
-            return False
-        player_agent_id = Player.GetAgentID()
-        owner_id = Agent.GetItemAgentOwnerID(item_id)
-        if (owner_id == player_agent_id) or (owner_id == 0):
-            return True
-        return False
-
-    filtered_agent_ids = []
-    for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-        item_data = Agent.GetItemAgent(agent_id)
-        item_id = item_data.item_id
-        model_id = Item.GetModelID(item_id)
-        if model_id in viable_loot and is_valid_item(agent_id):
-            # Black and White Dyes
-            if (
-                model_id == ModelID.Vial_Of_Dye
-                and (GLOBAL_CACHE.Item.GetDyeColor(item_id) == 10 or GLOBAL_CACHE.Item.GetDyeColor(item_id) == 12)
-                or model_id != ModelID.Vial_Of_Dye
-            ):
-                filtered_agent_ids.append(agent_id)
-    return filtered_agent_ids
-
-
-def get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT):
-    loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 2.00)
-
-    def is_valid_item(item_id):
-        if not Agent.IsValid(item_id):
-            return False
-        player_agent_id = Player.GetAgentID()
-        owner_id = Agent.GetItemAgentOwnerID(item_id)
-        if (owner_id == player_agent_id) or (owner_id == 0):
-            return True
-        return False
 
     agent_array = AgentArray.GetItemArray()
 
@@ -97,9 +79,10 @@ def get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT):
     )
 
     item_array_salv = []
-    item_array_salv = AgentArray.Filter.ByCondition(
-        agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id)
-    )
+    if loot_salvagables:
+        item_array_salv = AgentArray.Filter.ByCondition(
+            agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id)
+        )
 
     item_array = list(set(item_array_model + item_array_salv))
     item_array = AgentArray.Sort.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY())

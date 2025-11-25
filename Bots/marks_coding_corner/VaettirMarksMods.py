@@ -4,7 +4,7 @@ from typing import Tuple
 
 import Py4GW
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
-from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
+from Bots.marks_coding_corner.utils.loot_utils import get_valid_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.loot_utils import set_autoloot_options_for_custom_bots
 from Bots.marks_coding_corner.utils.merch_utils import sell_non_essential_mats
@@ -165,19 +165,32 @@ def traverse_bjora_marches(bot: Botting) -> None:
 
 
 def jaga_moraine_farm_routine(bot: Botting) -> None:
+    def _follow_and_wait(path_points: List[Tuple[float, float]], wait_state_name: str, cycle_timeout: int = 150):
+        bot.Move.FollowPath(path_points)
+        bot.States.AddCustomState(
+            lambda: wait_for_ball(bot, wait_state_name, cycle_timeout), f"Wait for {wait_state_name}"
+        )
+
     bot.States.AddHeader("Jaga Moraine Farm Routine")
     initialize_bot(bot)
     bot.States.AddCustomState(lambda: assign_build(bot), "Assign Build")
     bot.Move.XY(13372.44, -20758.50)
     bot.Dialogs.AtXY(13367, -20771, 0x84)
     bot.States.AddManagedCoroutine(HANDLE_STUCK_JAGA_MORAINE, lambda: handle_stuck_jaga_moraine(bot))
-    path_points_to_farming_route1: List[Tuple[float, float]] = [
+    path: List[Tuple[float, float]] = [
+        (13367, -20771),
         (11375, -22761),
         (10925, -23466),
         (10917, -24311),
         (10280, -24620),
+        (10280, -24620),
         (9640, -23175),
         (7815, -23200),
+        (6626.51, -23167.24),
+    ]
+    _follow_and_wait(path, "Inner Packs", cycle_timeout=75)
+
+    path: List[Tuple[float, float]] = [
         (7765, -22940),
         (8213, -22829),
         (8740, -22475),
@@ -185,17 +198,24 @@ def jaga_moraine_farm_routine(bot: Botting) -> None:
         (8684, -20833),
         (8982, -20576),
     ]
-    bot.Move.FollowPath(path_points_to_farming_route1)
     bot.States.AddHeader("Wait for Left Aggro Ball")
-    bot.States.AddCustomState(lambda: wait_for_left_aggro_ball(bot), "Wait for Left Aggro Ball")
-    path_points_to_farming_route2: List[Tuple[float, float]] = [
+    _follow_and_wait(path, "Left Aggro Ball")
+
+    path: List[Tuple[float, float]] = [
         (10196, -20124),
         (10123, -19529),
         (10049, -18933),
+    ]
+    _follow_and_wait(path, "log side packs", cycle_timeout=75)
+    path: List[Tuple[float, float]] = [
         (9976, -18338),
         (11316, -18056),
         (10392, -17512),
         (10114, -16948),
+    ]
+    _follow_and_wait(path, "Big Pack")
+
+    path = [
         (10729, -16273),
         (10505, -14750),
         (10815, -14790),
@@ -206,9 +226,8 @@ def jaga_moraine_farm_routine(bot: Botting) -> None:
         (12725, -14850),
         (12476, -16157),
     ]
-    bot.Move.FollowPath(path_points_to_farming_route2)
-    bot.States.AddHeader("Wait for Right Aggro Ball")
-    bot.States.AddCustomState(lambda: wait_for_right_aggro_ball(bot), "Wait for Right Aggro Ball")
+    _follow_and_wait(path, "Right Aggro Ball")
+
     bot.Properties.Set("movement_tolerance", value=25)
     bot.Move.XY(13070, -16911, "Start Killing ball")
     bot.States.AddCustomState(
@@ -220,6 +239,7 @@ def jaga_moraine_farm_routine(bot: Botting) -> None:
         (12747, -17220),
         (12703, -17239),
         (12684, -17184),
+        (12485.18, -17260.41),
     ]
     bot.Move.FollowPath(path_points_to_killing_spot)
     bot.Properties.ResetTodefault("movement_tolerance")
@@ -236,7 +256,7 @@ def jaga_moraine_farm_routine(bot: Botting) -> None:
 
 def loot_items():
     global item_id_blacklist
-    filtered_agent_ids = get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT)
+    filtered_agent_ids = get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=False)
     yield from Routines.Yield.wait(500)  # Wait for a second before starting to loot
     ConsoleLog(VAETTIR_FARM_BY_MARK, 'Looting items...')
     failed_items_id = yield from Routines.Yield.Items.LootItemsWithMaxAttempts(filtered_agent_ids, log=True)
@@ -350,48 +370,75 @@ def handle_inventory(bot: Botting) -> None:
     bot.Items.Restock.BirthdayCupcake()  # restock birthday cupcake
 
 
-def wait_for_left_aggro_ball(bot: Botting):
+def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150):
+    """
+    Shared logic for waiting until enemies have balled up.
+    side_label is just used for logging ("Left" / "Right").
+    """
     global in_waiting_routine
-    ConsoleLog("Waiting for Left Aggro Ball", "Waiting for enemies to ball up.", Py4GW.Console.MessageType.Info)
+    ConsoleLog(
+        f"Waiting for {side_label} Aggro Ball", "Waiting for enemies to ball up.", Py4GW.Console.MessageType.Info
+    )
+
     in_waiting_routine = True
-
-    start_time = 0
-
+    elapsed = 0
     build = bot.config.build_handler
 
-    while start_time < 150:  # 150 * 100ms = 15 seconds
-        # Wait 100 ms
-        yield from Routines.Yield.wait(100)
-        start_time += 1
+    try:
+        while elapsed < cycle_timeout:  # 150 * 100ms = 15s max
+            yield from Routines.Yield.wait(100)
+            elapsed += 1
 
-        # Get current player position
-        player_pos = GLOBAL_CACHE.Player.GetXY()
-        px, py = player_pos[0], player_pos[1]
+            # hard exit if player dies
+            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                ConsoleLog(
+                    f"{side_label} Aggro Ball Wait", "Player is dead, exiting wait.", Py4GW.Console.MessageType.Warning
+                )
+                yield
+                return
 
-        # Get nearby enemies
-        enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
+            # Get player position
+            px, py = GLOBAL_CACHE.Player.GetXY()
 
-        # Check if ALL enemies are within Adjacent range
-        all_in_adjacent = True
-        for enemy_id in enemies_ids:
-            enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
-            if enemy is None:
-                continue
-            ex, ey = enemy.x, enemy.y
-            dx, dy = ex - px, ey - py
-            dist_sq = dx * dx + dy * dy
-            if dist_sq > (Range.Adjacent.value**2):
-                all_in_adjacent = False
-                break
+            # Get enemies within earshot
+            enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
 
-        if all_in_adjacent:
-            break  # exit early if all enemies are balled up
+            # Check if all enemies are within Adjacent range
+            all_in_adjacent = True
+            for enemy_id in enemies_ids:
+                enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+                if enemy is None:
+                    continue
+                dx, dy = enemy.x - px, enemy.y - py
+                if dx * dx + dy * dy > (Range.Adjacent.value**2):
+                    all_in_adjacent = False
+                    break
 
-    in_waiting_routine = False
+            if all_in_adjacent:
+                ConsoleLog(
+                    f"{side_label} Aggro Ball Wait", "Enemies balled up successfully.", Py4GW.Console.MessageType.Info
+                )
+                break  # exit early
 
-    # Resume build
-    if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
-        yield from build.CastHeartOfShadow()
+        else:
+            # ← executes only if loop ran full timeout
+            ConsoleLog(
+                f"{side_label} Aggro Ball Wait",
+                f"Timeout reached {cycle_timeout * 100}ms, exiting without ball.",
+                Py4GW.Console.MessageType.Warning,
+            )
+
+    finally:
+        # Always reset, no matter why we exited
+        in_waiting_routine = False
+
+        # Resume build if applicable
+        if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+            yield from build.CastHeartOfShadow()
+
+
+def wait_for_ball(bot: Botting, side_label: str, cycle_timeout: int = 150):
+    yield from _wait_for_aggro_ball(bot, side_label, cycle_timeout)
 
 
 def wait_for_right_aggro_ball(bot: Botting, use_hos_after=True):
@@ -498,6 +545,23 @@ def handle_stuck_jaga_moraine(bot: Botting):
 
         build: BuildMgr = bot.config.build_handler
 
+        instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
+        if instance_time > 7 * 60:  # 7 minutes in seconds
+            ConsoleLog(
+                "HandleStuck",
+                "Instance time exceeded 7 minutes, force resigning.",
+                Py4GW.Console.MessageType.Debug,
+                True,
+            )
+            stuck_counter = 0
+            if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
+                build.SetStuckSignal(stuck_counter)
+
+            GLOBAL_CACHE.Player.SendChatCommand("resign")
+
+            yield from Routines.Yield.wait(500)
+            return
+
         # Waiting routine check
         if in_waiting_routine:
             ConsoleLog(
@@ -597,7 +661,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
                 stuck_counter = 0
                 if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                     build.SetStuckSignal(stuck_counter)
-                bot.States.JumpToStepName("[H]Town Routines_1")
+                GLOBAL_CACHE.Player.SendChatCommand("resign")
                 continue
         else:
             ConsoleLog("Stuck Detection", "Not in Jaga Moraine", Py4GW.Console.MessageType.Info, False)
