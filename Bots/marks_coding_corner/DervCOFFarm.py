@@ -1,5 +1,5 @@
 from Bots.marks_coding_corner.utils.loot_utils import VIABLE_LOOT
-from Bots.marks_coding_corner.utils.loot_utils import get_valid_salvagable_loot_array
+from Bots.marks_coding_corner.utils.loot_utils import get_valid_loot_array
 from Bots.marks_coding_corner.utils.loot_utils import identify_and_salvage_items
 from Bots.marks_coding_corner.utils.loot_utils import move_all_crafting_materials_to_storage
 from Bots.marks_coding_corner.utils.loot_utils import set_autoloot_options_for_custom_bots
@@ -98,7 +98,7 @@ def farm(bot):
 
 def loot_items():
     global item_id_blacklist
-    filtered_agent_ids = get_valid_salvagable_loot_array(viable_loot=VIABLE_LOOT)
+    filtered_agent_ids = get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=True)
     yield from Routines.Yield.wait(500)  # Wait for a second before starting to loot
     ConsoleLog(COF_FARMER, 'Looting items...')
     failed_items_id = yield from Routines.Yield.Items.LootItemsWithMaxAttempts(filtered_agent_ids, log=True)
