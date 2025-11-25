@@ -28,7 +28,7 @@ def create_bot_routine(bot: Botting) -> None:
     ExtendInventorySpace(bot)                  # Buy bags to extend inventory
     CompleteHeroCommandQuest(bot)              # Hero command quest
     CompleteArmoredTransportQuest(bot)         # Armored transport quest
-    #CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
+    CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
     TakeInitialQuests(bot)                     # Take initial quest set
     FarmQuestRequirements(bot)                 # Farm materials/items for quests
     CompleteSunspearGreatHallQuests(bot)       # SSGH (Sunspear Great Hall) quests
@@ -684,7 +684,7 @@ def CompleteArmoredTransportQuest(bot):
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-11202, 9346,0x825F07)
 
-def IdentityTheft(bot):
+def CompleteIdentityTheftQuest(bot):
     bot.States.AddHeader("Quest: Identity Theft")
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10461, 15229, 0x827201) #take quest
@@ -693,9 +693,9 @@ def IdentityTheft(bot):
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,6,7])
     bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
     bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
+    bot.Items.AddModelToLootWhitelist(15850)
     bot.Move.XY(14429, 10337) #kill boss
-    bot.Interact.WithModel(15850)#not working so comment out this quest for now
-    bot.Wait.ForTime(4000)
+    bot.Items.LootItems()
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
 
