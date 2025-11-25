@@ -1540,6 +1540,7 @@ class ModelID(IntEnum):
     Undead_Bone = 27974
     Unnatural_Seed = 428
     Unseen_Tonic = 31172
+    Urn_of_Saint_Viktor = 801
     Vabbian_Key = 15558
     Vaettir_Essence = 27071
     Varesh_Ossa_Mini = 21069
