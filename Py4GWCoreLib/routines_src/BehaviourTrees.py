@@ -546,7 +546,7 @@ class BT:
                                     name="WaitForThrottle",
                                     children=[
                                         BehaviorTree.WaitForTimeNode(name="Throttle100ms", duration_ms=100),
-                                        BehaviorTree.FailureNode(name="FailToRepeat")
+                                        BehaviorTree.FailerNode(name="FailToRepeat")
                                     ]
                                 ),
                             ]
