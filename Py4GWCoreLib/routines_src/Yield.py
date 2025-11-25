@@ -995,6 +995,13 @@ class Yield:
 #region Items
     class Items:
         @staticmethod
+        def GetItemNameByItemID(item_id):
+            tree = BT.Items.GetItemNameByItemID(item_id)
+            yield from _run_bt_tree(tree, throttle_ms=100)
+            item_name = tree.blackboard.get("result", '')
+            return item_name
+
+        @staticmethod
         def _wait_for_salvage_materials_window():
             from ..UIManager import UIManager
             yield from Yield.wait(150)
