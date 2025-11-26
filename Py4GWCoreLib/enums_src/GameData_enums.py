@@ -80,6 +80,12 @@ class FactionAllegiance(IntEnum):
     Kurzick = 0
     Luxon = 1
 
+#FactionType
+class FactionType(IntEnum):
+    Kurzick = 0
+    Luxon = 1
+    Imperial = 2
+    Balthazar = 3
 
 # endregion
 # region Mod structs

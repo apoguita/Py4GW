@@ -52,7 +52,7 @@ class TitleID(IntEnum):
     TreasureHunter = 45
     Wisdom = 46
     Codex = 47
-    None_ = 0xFF  # Use 'None_' to avoid using the reserved keyword 'None'
+    _None = 0xFF  # Use 'None_' to avoid using the reserved keyword 'None'
 
 
 TITLE_NAME: dict[int, str] = {
@@ -104,7 +104,7 @@ TITLE_NAME: dict[int, str] = {
     TitleID.TreasureHunter: "Treasure Hunter",
     TitleID.Wisdom: "Wisdom",
     TitleID.Codex: "Codex",
-    TitleID.None_: "None",  # Use 'None_' to avoid Python reserved keyword
+    TitleID._None: "None",  # Use 'None_' to avoid Python reserved keyword
 }
 
 #region Title Tiers

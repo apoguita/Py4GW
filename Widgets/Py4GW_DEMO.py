@@ -1487,7 +1487,10 @@ def ShowPlayerWindow():
             if PyImGui.collapsing_header("Titles"):
                 current_title = GLOBAL_CACHE.Player.GetActiveTitleID()
                 title_data = GLOBAL_CACHE.Player.GetTitle(current_title)
-                
+                if title_data is None:
+                    PyImGui.text("No active title")
+                    PyImGui.end()
+                    return
                 headers = ["Info", "Value"]
                 
                 props = title_data.props
