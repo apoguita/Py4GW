@@ -250,6 +250,13 @@ global_widget_defaults = {
         "icon": "ICON_PEOPLE_CARRY",
         "quickdock": "True",
     },
+    "TeamInventoryViewer": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
+        "icon": "ICON_BRAIN",
+        "quickdock": "True",
+    },
     # TODO: Register your Widget here
 }
 
@@ -511,6 +518,13 @@ account_widget_defaults = {
         "enabled": "False",
         "category": "Bots",
         "subcategory": "Helpers",
+        "icon": "ICON_BRAIN",
+        "quickdock": "True",
+    },
+    "TeamInventoryViewer": {
+        "enabled": "False",
+        "category": "Gameplay",
+        "subcategory": "Utilities",
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },

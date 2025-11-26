@@ -9,6 +9,9 @@ AlcoholProc.ini
 alcohol_procs.json
 Widgets/Config/Travel.ini
 Widgets/Config/*
+Widgets/Data/Inventory/**
+Widgets/Data/InventoryModelIds/**
+Widgets/Data/InventoryModHash/**
 Bots/marks_coding_corner/alcohol_procs.ini
 Bots/marks_coding_corner/**.json
 
