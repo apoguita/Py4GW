@@ -695,7 +695,9 @@ def CompleteIdentityTheftQuest(bot):
     bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
     bot.Items.AddModelToLootWhitelist(15850)
     bot.Move.XY(14429, 10337) #kill boss
+    bot.Wait.UntilOutOfCombat()
     bot.Items.LootItems()
+    bot.Wait.ForTime(1000)
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
 
