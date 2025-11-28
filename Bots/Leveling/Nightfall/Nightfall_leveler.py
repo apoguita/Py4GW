@@ -28,12 +28,12 @@ def create_bot_routine(bot: Botting) -> None:
     ExtendInventorySpace(bot)                  # Buy bags to extend inventory
     CompleteHeroCommandQuest(bot)              # Hero command quest
     CompleteArmoredTransportQuest(bot)         # Armored transport quest
-    CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
     TakeInitialQuests(bot)                     # Take initial quest set
     FarmQuestRequirements(bot)                 # Farm materials/items for quests
     CompleteSunspearGreatHallQuests(bot)       # SSGH (Sunspear Great Hall) quests
     CompleteMissingShipmentQuest(bot)          # Level 5+ Missing Shipment quest
     ContinueQuestProgression(bot)              # Continue with quest chain
+    CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
     
     # === PHASE 3: PROFESSION AND CHARACTER DEVELOPMENT ===
     UnlockSecondProfession(bot)                # Unlock second profession
