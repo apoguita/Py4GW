@@ -111,6 +111,8 @@ class CombatClass:
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
         self.leave_junundu = GLOBAL_CACHE.Skill.GetID("Leave_Junundu")
         self.junundu_tunnel = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
+        #Nundu Bay
+        self.Vial_of_Purified_Water = GLOBAL_CACHE.Skill.GetID("Vial_of_Purified_Water")
         
     def Update(self, cached_data):
         self.in_aggro = cached_data.in_aggro
@@ -499,6 +501,31 @@ class CombatClass:
 
         return result
 
+    def SpamVialOnHarbinger(self):
+        vial_skill_id = GLOBAL_CACHE.Skill.GetID("Vial_of_Purified_Water")
+        vial_slot = 0
+        for slot in range(1, 9):
+            if GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot) == vial_skill_id:
+                vial_slot = slot
+                break
+
+        enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+        for agent_id in enemy_array:
+            model_id = GLOBAL_CACHE.Agent.GetModelID(agent_id)
+            if model_id in [5408] and GLOBAL_CACHE.Agent.IsAlive(agent_id):
+                if vial_slot > 0:
+                    while GLOBAL_CACHE.Agent.IsAlive(agent_id):
+                        skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(vial_slot)
+                        if skill_data.recharge == 0:
+                            yield from Routines.Yield.Agents.ChangeTarget(agent_id)
+                            yield from Routines.Yield.wait(100)
+                            GLOBAL_CACHE.SkillBar.UseSkill(vial_slot, agent_id)
+                            yield from Routines.Yield.wait(250)
+                        else:
+                            yield from Routines.Yield.wait(100)
+                        yield
+                return
+        yield
 
     def AreCastConditionsMet(self, slot, vTarget):
         number_of_features = 0
@@ -633,7 +660,15 @@ class CombatClass:
                 (self.skills[slot].skill_id == self.leave_junundu)
                 ):
                 return False
-
+            
+            if (self.skills[slot].skill_id == self.Vial_of_Purified_Water):
+                # Only allow casting if Harbinger (model 5408) is present
+                enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+                for agent_id in enemy_array:
+                    model_id = GLOBAL_CACHE.Agent.GetModelID(agent_id)
+                    if model_id in [5408] and GLOBAL_CACHE.Agent.IsAlive(agent_id):
+                        return True
+                return False
 
             return True  # if no unique property is configured, return True for all UniqueProperty
         
@@ -1162,6 +1197,12 @@ class CombatClass:
 
         if not GLOBAL_CACHE.Agent.IsLiving(target_agent_id):
             return False
+        
+        # Special handling for Vial of Purified Water - spam on Harbinger
+        if skill_id == self.Vial_of_Purified_Water:
+            yield from self.SpamVialOnHarbinger()
+            self.ResetSkillPointer()
+            return True
             
         self.in_casting_routine = True
 

@@ -937,3 +937,12 @@ class PVESkills:
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
+
+    #Nundu Bay
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Vial of Purified Water")
+        skill.SkillType = SkillType.Hex.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.UniqueProperty = True
+        skill_data[skill.SkillID] = skill
