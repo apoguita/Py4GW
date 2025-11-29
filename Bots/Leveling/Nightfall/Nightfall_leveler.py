@@ -494,6 +494,7 @@ def CompleteRecruitQuiz(bot: Botting):
 def ConfigureFirstBattle(bot: Botting):
     bot.States.AddHeader("Preparation: First Battle Setup")
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
+    
     def Equip_Weapon():
         global bot
         profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -562,6 +563,7 @@ def ConfigureFirstBattle_yield(bot: Botting):
 
 def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Mission: Chahbek Village")
+    bot.SkillBar.LoadHeroSkillBar(1, "OQMU4iYQjaQXF8E9FTiTNBAWfCAA") #Koss
     bot.Dialogs.AtXY(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
