@@ -393,6 +393,7 @@ class MesmerSkills:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsCasting = False
         skill_data[skill.SkillID] = skill
 
         #region ILLUSION_MAGIC
