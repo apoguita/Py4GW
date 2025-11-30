@@ -260,6 +260,22 @@ class AgentDataStruct(Structure):
         ("ZPlane", c_int),
         ("RotationAngle", c_float),
         ("VelocityVector", c_float * 2),
+        ("Is_Bleeding", c_bool),
+        ("Is_Conditioned", c_bool),
+        ("Is_Crippled", c_bool),
+        ("Is_Dead", c_bool),
+        ("Is_DeepWounded", c_bool),
+        ("Is_Poisoned", c_bool),
+        ("Is_Enchanted", c_bool),
+        ("Is_DegenHexed", c_bool),
+        ("Is_Hexed", c_bool),
+        ("Is_WeaponSpelled", c_bool),
+        ("Is_InCombatStance", c_bool),
+        ('Is_Moving', c_bool),
+        ("Is_Attacking", c_bool),
+        ("Is_Casting", c_bool),
+        ("Is_Idle", c_bool),
+        ("Is_Alive", c_bool),
         
     ]
     
@@ -295,6 +311,22 @@ class AgentDataStruct(Structure):
     ZPlane: int
     RotationAngle: float
     VelocityVector: list[float]
+    Is_Bleeding: bool
+    Is_Conditioned: bool
+    Is_Crippled: bool
+    Is_Dead: bool
+    Is_DeepWounded: bool
+    Is_Poisoned: bool
+    Is_Enchanted: bool
+    Is_DegenHexed: bool
+    Is_Hexed: bool
+    Is_WeaponSpelled: bool
+    Is_InCombatStance: bool
+    Is_Moving: bool
+    Is_Attacking: bool
+    Is_Casting: bool
+    Is_Idle: bool
+    Is_Alive: bool
     
 class AvailableCharacterStruct(Structure):
     _pack_ = 1
@@ -700,6 +732,23 @@ class Py4GWSharedMemoryManager:
             agent_data.RotationAngle = 0.0
             for i in range(2):
                 agent_data.VelocityVector[i] = 0.0
+                
+            agent_data.Is_Bleeding = False
+            agent_data.Is_Conditioned = False
+            agent_data.Is_Crippled = False
+            agent_data.Is_Dead = False
+            agent_data.Is_DeepWounded = False
+            agent_data.Is_Poisoned = False
+            agent_data.Is_Enchanted = False
+            agent_data.Is_DegenHexed = False
+            agent_data.Is_Hexed = False
+            agent_data.Is_WeaponSpelled = False
+            agent_data.Is_InCombatStance = False
+            agent_data.Is_Moving = False
+            agent_data.Is_Attacking = False
+            agent_data.Is_Casting = False
+            agent_data.Is_Idle = False
+            agent_data.Is_Alive = False
                 
         def _reset_available_characters_data(index):
             player : AccountData = self.GetStruct().AccountData[index]
@@ -1177,6 +1226,22 @@ class Py4GWSharedMemoryManager:
             agent_data.RotationAngle = self.agent_instance.rotation_angle
             agent_data.VelocityVector[0] = self.agent_instance.velocity_x
             agent_data.VelocityVector[1] = self.agent_instance.velocity_y
+            agent_data.Is_Bleeding = self.agent_instance.living_agent.is_bleeding
+            agent_data.Is_Conditioned = self.agent_instance.living_agent.is_conditioned
+            agent_data.Is_Crippled = self.agent_instance.living_agent.is_crippled
+            agent_data.Is_Dead = self.agent_instance.living_agent.is_dead
+            agent_data.Is_DeepWounded = self.agent_instance.living_agent.is_deep_wounded
+            agent_data.Is_Poisoned = self.agent_instance.living_agent.is_poisoned
+            agent_data.Is_Enchanted = self.agent_instance.living_agent.is_enchanted
+            agent_data.Is_DegenHexed = self.agent_instance.living_agent.is_degen_hexed
+            agent_data.Is_Hexed = self.agent_instance.living_agent.is_hexed
+            agent_data.Is_WeaponSpelled = self.agent_instance.living_agent.is_weapon_spelled
+            agent_data.Is_InCombatStance = self.agent_instance.living_agent.in_combat_stance
+            agent_data.Is_Moving = self.agent_instance.living_agent.is_moving
+            agent_data.Is_Attacking = self.agent_instance.living_agent.is_attacking
+            agent_data.Is_Casting = self.agent_instance.living_agent.is_casting
+            agent_data.Is_Idle = self.agent_instance.living_agent.is_idle
+            agent_data.Is_Alive = self.agent_instance.living_agent.is_alive
             
         def _set_available_characters_data(index):
             player : AccountData = self.GetStruct().AccountData[index]
@@ -1360,6 +1425,22 @@ class Py4GWSharedMemoryManager:
             agent_data.RotationAngle = self.agent_instance.rotation_angle
             agent_data.VelocityVector[0] = self.agent_instance.velocity_x
             agent_data.VelocityVector[1] = self.agent_instance.velocity_y
+            agent_data.Is_Bleeding = self.agent_instance.living_agent.is_bleeding
+            agent_data.Is_Conditioned = self.agent_instance.living_agent.is_conditioned
+            agent_data.Is_Crippled = self.agent_instance.living_agent.is_crippled
+            agent_data.Is_Dead = self.agent_instance.living_agent.is_dead
+            agent_data.Is_DeepWounded = self.agent_instance.living_agent.is_deep_wounded
+            agent_data.Is_Poisoned = self.agent_instance.living_agent.is_poisoned
+            agent_data.Is_Enchanted = self.agent_instance.living_agent.is_enchanted
+            agent_data.Is_DegenHexed = self.agent_instance.living_agent.is_degen_hexed
+            agent_data.Is_Hexed = self.agent_instance.living_agent.is_hexed
+            agent_data.Is_WeaponSpelled = self.agent_instance.living_agent.is_weapon_spelled
+            agent_data.Is_InCombatStance = self.agent_instance.living_agent.in_combat_stance
+            agent_data.Is_Moving = self.agent_instance.living_agent.is_moving
+            agent_data.Is_Attacking = self.agent_instance.living_agent.is_attacking
+            agent_data.Is_Casting = self.agent_instance.living_agent.is_casting
+            agent_data.Is_Idle = self.agent_instance.living_agent.is_idle
+            agent_data.Is_Alive = self.agent_instance.living_agent.is_alive
                 
         index = self.GetHeroSlot(hero_data)
         if index != -1:
@@ -1526,6 +1607,22 @@ class Py4GWSharedMemoryManager:
             agent_data.RotationAngle = self.agent_instance.rotation_angle
             agent_data.VelocityVector[0] = self.agent_instance.velocity_x
             agent_data.VelocityVector[1] = self.agent_instance.velocity_y
+            agent_data.Is_Bleeding = self.agent_instance.living_agent.is_bleeding
+            agent_data.Is_Conditioned = self.agent_instance.living_agent.is_conditioned
+            agent_data.Is_Crippled = self.agent_instance.living_agent.is_crippled
+            agent_data.Is_Dead = self.agent_instance.living_agent.is_dead
+            agent_data.Is_DeepWounded = self.agent_instance.living_agent.is_deep_wounded
+            agent_data.Is_Poisoned = self.agent_instance.living_agent.is_poisoned
+            agent_data.Is_Enchanted = self.agent_instance.living_agent.is_enchanted
+            agent_data.Is_DegenHexed = self.agent_instance.living_agent.is_degen_hexed
+            agent_data.Is_Hexed = self.agent_instance.living_agent.is_hexed
+            agent_data.Is_WeaponSpelled = self.agent_instance.living_agent.is_weapon_spelled
+            agent_data.Is_InCombatStance = self.agent_instance.living_agent.in_combat_stance
+            agent_data.Is_Moving = self.agent_instance.living_agent.is_moving
+            agent_data.Is_Attacking = self.agent_instance.living_agent.is_attacking
+            agent_data.Is_Casting = self.agent_instance.living_agent.is_casting
+            agent_data.Is_Idle = self.agent_instance.living_agent.is_idle
+            agent_data.Is_Alive = self.agent_instance.living_agent.is_alive
                 
                 
         owner_agent_id = self.player_instance.id if self.player_instance else 0
