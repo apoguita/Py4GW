@@ -198,6 +198,7 @@ class PlayerData:
             expanded_flags = []  # list of (map_id, completed)
             bits_per_entry = 32
 
+            PyImGui.text(f"entries:{len(self.missions_completed)} -{len(self.missions_completed) * bits_per_entry} total missions tracked.")
             for i, mission_status in enumerate(self.missions_completed):
                 base_map_id = i * bits_per_entry
                 # explode bits
@@ -228,6 +229,7 @@ class PlayerData:
 
             expanded_flags = []
             bits_per_entry = 32
+            PyImGui.text(f"entries:{len(self.missions_bonus)} -{len(self.missions_bonus) * bits_per_entry} total missions tracked.")
             for i, mission_status in enumerate(self.missions_bonus):
                 base_map_id = i * bits_per_entry
                 for bit in range(bits_per_entry):
@@ -254,6 +256,7 @@ class PlayerData:
 
             expanded_flags = []
             bits_per_entry = 32
+            PyImGui.text(f"entries:{len(self.missions_completed_hm)} -{len(self.missions_completed_hm) * bits_per_entry} total missions tracked.")
             for i, mission_status in enumerate(self.missions_completed_hm):
                 base_map_id = i * bits_per_entry
                 for bit in range(bits_per_entry):
@@ -278,6 +281,7 @@ class PlayerData:
             
             expanded_flags = []
             bits_per_entry = 32
+            PyImGui.text(f"entries:{len(self.missions_bonus_hm)} -{len(self.missions_bonus_hm) * bits_per_entry} total missions tracked.")
             for i, mission_status in enumerate(self.missions_bonus_hm):
                 base_map_id = i * bits_per_entry
                 for bit in range(bits_per_entry):
@@ -312,7 +316,7 @@ class PlayerData:
             bits_per_entry = 32
             expanded_flags = []
             show_locked = self.show_details["show_locked_skills"]
-
+            PyImGui.text(f"entries:{len(self.unlocked_character_skills)} -{len(self.unlocked_character_skills) * bits_per_entry} total skills tracked.")
             for i, skill_mask in enumerate(self.unlocked_character_skills):
                 base_skill_id = i * bits_per_entry
                 for bit in range(bits_per_entry):
