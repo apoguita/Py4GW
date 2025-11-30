@@ -11,7 +11,8 @@ MODULE_NAME = "Py4GW Shared Memory Manager Monitor"
   
 SMM = GLOBAL_CACHE.ShMem    
 BASE_PATH = Py4GW.Console.get_projects_path()
-TEXTURE_BASE_PATH = BASE_PATH + "\\Textures\\Faction_Icons\\"
+FACTIONS_TEXTURE_BASE_PATH = BASE_PATH + "\\Textures\\Faction_Icons\\"
+GAME_UI_TEXTURE_BASE_PATH = BASE_PATH + "\\Textures\\Game UI\\"
 
 active_players :list[AccountData] = []
 
@@ -165,10 +166,10 @@ def draw_rank_info(player: AccountData):
 #region Faction Data
 class FactionNode:
     TEXTURE_PATHS = {
-        "Balthazar": TEXTURE_BASE_PATH + "Faction_(Balthazar).jpg",
-        "Kurzick":   TEXTURE_BASE_PATH + "Faction_(Kurzick).jpg",
-        "Luxon":     TEXTURE_BASE_PATH + "Faction_(Luxon).jpg",
-        "Imperial":  TEXTURE_BASE_PATH + "Faction_(Imperial).jpg",
+        "Balthazar": FACTIONS_TEXTURE_BASE_PATH + "Faction_(Balthazar).jpg",
+        "Kurzick":   FACTIONS_TEXTURE_BASE_PATH + "Faction_(Kurzick).jpg",
+        "Luxon":     FACTIONS_TEXTURE_BASE_PATH + "Faction_(Luxon).jpg",
+        "Imperial":  FACTIONS_TEXTURE_BASE_PATH + "Faction_(Imperial).jpg",
     }
 
     def __init__(self, name: str, current: int, total_earned: int, max: int):
@@ -662,8 +663,216 @@ class PlayerData:
             if PyImGui.button("copy to clipboard##unlocked_skills"):
                 done = [sid for sid, flag in expanded if flag]
                 PyImGui.set_clipboard_text(", ".join(map(str, done)))
+                
+#region Experience Data
+class ExperienceData:
+    def __init__(self, player: AccountData):
+        self.level = player.PlayerData.ExperienceData.Level
+        self.experience = player.PlayerData.ExperienceData.Experience
+        self.progress_pct = player.PlayerData.ExperienceData.ProgressPct
+        self.current_skill_points = player.PlayerData.ExperienceData.CurrentSkillPoints
+        self.total_earned_skill_points = player.PlayerData.ExperienceData.TotalEarnedSkillPoints
 
 
+    def draw_content(self):
+        # Outer table: 1 column, 2 rows
+        if PyImGui.begin_table("ExperienceOuter", 1, PyImGui.TableFlags.SizingStretchProp):
+
+            # Row 1 → nested 3-column table
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+
+            if PyImGui.begin_table(
+                "ExperienceHeader", 3,
+                PyImGui.TableFlags.SizingStretchProp
+            ):
+                # Column setup: left/right auto, middle stretch
+                PyImGui.table_setup_column("LevelCol",  PyImGui.TableColumnFlags.WidthFixed, 0)
+                PyImGui.table_setup_column("SpacerCol", PyImGui.TableColumnFlags.WidthStretch, 1)
+                PyImGui.table_setup_column("SkillCol",  PyImGui.TableColumnFlags.WidthFixed, 0)
+
+                PyImGui.table_next_row()
+
+                # Col 1: Level (sticks left)
+                PyImGui.table_next_column()
+                PyImGui.text(f"Level: {self.level}")
+
+                # Col 2: Spacer (auto stretches, left empty)
+                PyImGui.table_next_column()
+
+                # Col 3: Skill points (sticks right)
+                PyImGui.table_next_column()
+                PyImGui.text(f"Skill Points: {self.current_skill_points}/{self.total_earned_skill_points}")
+
+                PyImGui.end_table()
+            
+
+            # Row 2 → progress bar
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            avail_width = PyImGui.get_content_region_avail()[0]
+            PyImGui.push_style_color(PyImGui.ImGuiCol.PlotHistogram, ColorPalette.GetColor("dark_green").to_tuple_normalized())
+            PyImGui.progress_bar(self.progress_pct / 100.0, avail_width, f"{self.experience:,} xp")
+            PyImGui.pop_style_color(1)
+            
+            PyImGui.end_table()     
+            
+#region Health Data
+class HealthData:
+    def __init__(self, player: AccountData):
+        self.Health = player.PlayerData.AgentData.Health      # 0.0 - 1.0
+        self.MaxHealth = player.PlayerData.AgentData.MaxHealth
+        self.HealthPips = player.PlayerData.AgentData.HealthPips
+        self.player = player
+
+    def draw_content(self):
+
+        if PyImGui.begin_table("ExperienceOuter", 1, PyImGui.TableFlags.SizingStretchProp):
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+
+            # --- Compute current HP ---
+            current_hp = int(self.Health * self.MaxHealth)
+
+            # --- Build pips string ---
+            if self.HealthPips > 0:
+                pips_str = ">" * self.HealthPips
+            elif self.HealthPips < 0:
+                pips_str = "<" * abs(self.HealthPips)
+            else:
+                pips_str = ""
+
+            # --- Caption ---
+            caption = f"{current_hp} {pips_str}"
+
+            # --- Draw progress bar using normalized health ---
+            def _get_health_color():
+                #default 
+                color = ColorPalette.GetColor("firebrick").to_tuple_normalized()
+                if self.player.PlayerData.AgentData.Is_DegenHexed:
+                    color = ColorPalette.GetColor("dark_magenta").to_tuple_normalized()
+            
+                if self.player.PlayerData.AgentData.Is_Poisoned:
+                      color = ColorPalette.GetColor("olive").to_tuple_normalized()
+                      
+                if self.player.PlayerData.AgentData.Is_Bleeding:
+                      color = ColorPalette.GetColor("light_coral").to_tuple_normalized()
+                    
+                return color
+            
+
+            bar_start_pos = PyImGui.get_cursor_pos() 
+            avail_width = PyImGui.get_content_region_avail()[0] 
+            PyImGui.push_style_color( PyImGui.ImGuiCol.PlotHistogram, _get_health_color() ) 
+            PyImGui.progress_bar(self.Health, avail_width, caption) 
+            PyImGui.pop_style_color(1)
+            bar_height = 20
+            cur_x, cur_y = bar_start_pos
+            icon_y = cur_y + (bar_height - 16) * 0.5
+
+            # start drawing 4px inside the bar
+            x = cur_x + 4
+
+            # -----------------------------------------
+            #  ICON: HEXED  (down arrow)
+            # -----------------------------------------
+            if self.player.PlayerData.AgentData.Is_Hexed:
+                PyImGui.set_cursor_pos(x, icon_y)
+                ImGui.DrawTextureExtended(
+                    texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
+                    size=(16, 16),
+                    uv0=(0.125, 0.5),
+                    uv1=(0.25, 0.75),
+                    tint=(255,255,255,255),
+                    border_color=(255,255,255,0)
+                )
+                x += 18   # spacing to next icon
+
+            # -----------------------------------------
+            #  ICON: CONDITIONED  (faded down arrow)
+            # -----------------------------------------
+            if self.player.PlayerData.AgentData.Is_Conditioned:
+                PyImGui.set_cursor_pos(x, icon_y)
+                ImGui.DrawTextureExtended(
+                    texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
+                    size=(16, 16),
+                    uv0=(0.125, 0.5),
+                    uv1=(0.25, 0.75),
+                    tint=(255,255,255,125),
+                    border_color=(255,255,255,0)
+                )
+                x += 18
+
+            # -----------------------------------------
+            #  ICON: ENCHANTED  (up arrow)
+            # -----------------------------------------
+            if self.player.PlayerData.AgentData.Is_Enchanted:
+                PyImGui.set_cursor_pos(x, icon_y)
+                ImGui.DrawTextureExtended(
+                    texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
+                    size=(16, 16),
+                    uv0=(0.625, 0.0),
+                    uv1=(0.75, 0.25),
+                    tint=(255,255,255,255),
+                    border_color=(255,255,255,0)
+                )
+                x += 18
+
+            # -----------------------------------------
+            #  ICON: WEAPON SPELLED  (weapon spell icon)
+            # -----------------------------------------
+            if self.player.PlayerData.AgentData.Is_WeaponSpelled:
+                PyImGui.set_cursor_pos(x, icon_y - 2)
+                ImGui.DrawTextureExtended(
+                    texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
+                    size=(20, 20),
+                    uv0=(0.35, 0.5),
+                    uv1=(0.5, 0.8),
+                    tint=(255,255,255,255),
+                    border_color=(255,255,255,0)
+                )
+                x += 22
+
+
+
+            PyImGui.end_table()
+ 
+
+#region Agent Data
+class AgentData:
+    def __init__(self, player: AccountData):
+        agent_data = player.PlayerData.AgentData
+        self.UUID: list[int] = agent_data.UUID
+        self.AgentID: int = agent_data.AgentID
+        self.OwnerID: int = agent_data.OwnerID
+        self.TargetID: int = agent_data.TargetID
+        self.ObservingID: int = agent_data.ObservingID
+        self.PlayerNumber: int = agent_data.PlayerNumber
+        self.Profession: list[int] = agent_data.Profession
+        self.Level: int = agent_data.Level
+        self.Energy: float = agent_data.Energy
+        self.MaxEnergy: float = agent_data.MaxEnergy
+        self.EnergyPips: int = agent_data.EnergyPips
+        self.Health: float = agent_data.Health
+        self.MaxHealth: float = agent_data.MaxHealth
+        self.HealthPips: int = agent_data.HealthPips
+        self.LoginNumber: int = agent_data.LoginNumber
+        self.DaggerStatus: int = agent_data.DaggerStatus
+        self.WeaponType: int = agent_data.WeaponType
+        self.WeaponItemType: int = agent_data.WeaponItemType
+        self.OffhandItemType: int = agent_data.OffhandItemType
+        self.Overcast: float = agent_data.Overcast
+        self.WeaponAttackSpeed: float = agent_data.WeaponAttackSpeed
+        self.AttackSpeedModifier: float = agent_data.AttackSpeedModifier
+        self.VisualEffectsMask: int = agent_data.VisualEffectsMask
+        self.ModelState: int = agent_data.ModelState
+        self.AnimationSpeed: float = agent_data.AnimationSpeed
+        self.AnimationCode: int = agent_data.AnimationCode
+        self.AnimationID: int = agent_data.AnimationID
+        self.XYZ: list[float] = agent_data.XYZ
+        self.ZPlane: int = agent_data.ZPlane
+        self.RotationAngle: float = agent_data.RotationAngle
+        self.VelocityVector: list[float] = agent_data.VelocityVector
 
 #region main
 def main():
@@ -728,9 +937,16 @@ def main():
                                     PyImGui.end_child()
                                 PyImGui.end_tab_item()
                             #Player Data Tab
-                            if PyImGui.begin_tab_item("Player Data"):
+                            if PyImGui.begin_tab_item("Player"):
                                 if PyImGui.begin_child("PlayerDataChild", (0, 0), False, PyImGui.WindowFlags.NoFlag):
                                     PlayerData(player).draw_content()
+                                    PyImGui.end_child()
+                                PyImGui.end_tab_item()
+                            #Experience Data Tab
+                            if PyImGui.begin_tab_item("Agent"):
+                                if PyImGui.begin_child("ExperienceDataChild", (0, 0), False, PyImGui.WindowFlags.NoFlag):
+                                    ExperienceData(player).draw_content()
+                                    HealthData(player).draw_content()
                                     PyImGui.end_child()
                                 PyImGui.end_tab_item()
                             PyImGui.end_tab_bar()
