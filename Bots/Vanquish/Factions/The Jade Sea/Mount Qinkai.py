@@ -4,41 +4,54 @@ import os
 BOT_NAME = "VQ Mount Qinkai"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "VQ_Helmet.png")
 OUTPOST_TO_TRAVEL = 389 # Mount Qinkai outpost
-HZH= 193 # Cavalon for faction donation
+CAVALON= 193 # Cavalon for faction donation
 
 Vanquish_Path:list[tuple[float, float]] = [
-        (-8394, -9801),    # First waypoint - get blessing here
-        (-13046, -9347),   # Continue path
-        (-17348, -9895), 
-        (-17929, -10300),
-        (-14702, -6671), 
-        (-11080, -6126), 
-        (-13426, -2344), 
-        (-15055, -3226),
-        (-9448, -283), 
-        (-9918, 2826), 
-        (-8721, 7682), 
-        (-3749, 8053),
-        (-7474, -1144), 
-        (-9666, 2625), 
-        (-5895, -3959), 
-        (-3509, -8000),
-        (-195, -9095), 
-        (6298, -8707), 
-        (3981, -3295), 
-        (496, -2581),
-        (2069, 1127), 
-        (5859, 1599), 
-        (6412, 6572), 
-        (10507, 8140),
-        (14403, 6938), 
-        (18080, 3127), 
-        (13518, -35), 
-        (13450, -6084),
-        (13764, -4816), 
-        (13450, -6084), 
-        (15390, -8892), 
-        (13764, -4816)  # Final waypoint
+      (-13384.42, -9866.60), #snake yetis  
+      (-17490.23, -10193.84), #tendril
+      (-13498.94, -4763.97),
+      (-11674.48, -4599.29), #wallow patrol
+      (-14406.66, -2555.92), #hole
+      (-13735.23, -1511.41), #exit hole
+      (-10319.44, 2159.07), #cave entrance
+      (-7937.16, 3062.79), #wallow patrol
+      (-9173.34, 7675.70),
+      (-8041.39, 8370.92),
+      (-4787.85, 6801.43), #clear
+      (-3314.36, 7860.74),
+      (-2001.17, 9037.19),
+      (-6694.74, 2240.26), #out of cave
+      (-9176.05, -13.35),
+      (-6789.09, 189.53), #just in case
+      (-6890.70, -3249.73), #lower wallows
+      (-8307.69, -5465.48),
+      (-5021.97, -3830.00),
+      (-2310.74, -8512.54),
+      (1983.03, -8555.85), #lower oxix
+      (6484.80, 1017.07), #wallow patrol
+      (6212.15, -8736.39), #beach onis
+      (11368.18, -7458.21), #beach patrol
+      (14728.93, -9258.35),
+      (14774.19, -4493.75),
+      (11622.91, -4078.38),
+      (13287.39, 296.37),
+      (16030.41, 6932.02),
+      (11591.91, 7965.41), #water
+      (10822.86, 9232.65),
+      (7920.46, 5972.42),
+      (6274.33, 7410.21), #hill
+      (5824.00, 5289.97),
+      (4266.50, 5832.48),
+      
+      (1506.29, 1406.74), #last aptrols
+      (1737.57, 1202.17),
+      (4450.66, 1146.03), #just in case
+      (700.20, -398.73),
+      (-273.59, -2516.34),
+      (-1687.58, -3565.68),
+
+      
+      
     ]
 
 bot = Botting(BOT_NAME,
@@ -66,15 +79,14 @@ def bot_routine(bot: Botting) -> None:
     
     bot.Move.FollowAutoPath(Vanquish_Path, "Kill Route")
     bot.Wait.UntilOutOfCombat()
-    #bot.States.AddCustomState(lambda: _reverse_path(), "Reverse Path") #if not VQ we reverse path
-    #bot.Move.FollowAutoPath(Vanquish_Path, "Return Route")
-    #bot.Wait.UntilOutOfCombat()
-    
+
     bot.Multibox.ResignParty()
     bot.Wait.UntilOnOutpost()
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=CAVALON)
     bot.Multibox.DonateFaction()
     bot.Wait.ForTime(20000)
     bot.States.JumpToStepName("[H]VQ Mount Qinkai_1")
+    
     
 def _upkeep_multibox_consumables(bot :"Botting"):
     while True:
