@@ -1819,7 +1819,7 @@ class Py4GWSharedMemoryManager:
         player = self.GetAccountDataFromEmail(account_email)
         if player:
             for buff in player.PlayerData.BuffData:
-                if buff == effect_id:
+                if buff.SkillId == effect_id:
                     return True
         return False
     

@@ -98,7 +98,8 @@ class _Multibox:
             current_options.Looting = value if option == "Looting" else current_options.Looting
             current_options.Targeting = value if option == "Targeting" else current_options.Targeting
             current_options.Combat = value if option == "Combat" else current_options.Combat
-            current_options.Skills[skill_index] = value if option == "Skills" and skill_index >=1 and skill_index < 8 else current_options.Skills
+            current_options.Skills
+            current_options.Skills[skill_index] = bool(value if ((option == "Skills") and (skill_index >=1) and (skill_index < 8)) else current_options.Skills[skill_index])
             current_options.IsFlagged = value if option == "IsFlagged" else current_options.IsFlagged
             current_options.FlagPosX = value if option == "FlagPosX" else current_options.FlagPosX
             current_options.FlagPosY = value if option == "FlagPosY" else current_options.FlagPosY
