@@ -48,6 +48,7 @@ Vanquish_Path:list[tuple[float, float]] = [
       (4450.66, 1146.03), #just in case
       (700.20, -398.73),
       (-273.59, -2516.34),
+      (95.02, -3131.64),
       (-1687.58, -3565.68),
 
       
@@ -84,7 +85,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.UntilOnOutpost()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=CAVALON)
     bot.Multibox.DonateFaction()
-    bot.Wait.ForTime(20000)
+    bot.Wait.ForTime(30000)
     bot.States.JumpToStepName("[H]VQ Mount Qinkai_1")
     
     

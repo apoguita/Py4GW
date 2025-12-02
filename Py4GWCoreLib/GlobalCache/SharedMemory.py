@@ -18,7 +18,7 @@ from Py4GWCoreLib.enums_src.GameData_enums import Attribute
 from Py4GWCoreLib.py4gwcorelib_src import Utils
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
-SHMEM_MAX_NUM_PLAYERS = 16
+SHMEM_MAX_NUM_PLAYERS = 64
 SHMEM_MAX_EMAIL_LEN = 64
 SHMEM_MAX_CHAR_LEN = 30
 SHMEM_MAX_AVAILABLE_CHARS = 20
@@ -916,7 +916,7 @@ class Py4GWSharedMemoryManager:
             
             base_timestamp = self.GetBaseTimestamp()
             if ( not self.GetStruct().AccountData[i].IsSlotActive or 
-                (slot_active and (base_timestamp - last_updated) >= SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS)):
+                (slot_active and (base_timestamp - last_updated) > SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS)):
                 return i
         return -1
     
@@ -1748,7 +1748,7 @@ class Py4GWSharedMemoryManager:
         players = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if player.IsSlotActive and player.IsAccount:
+            if self._is_slot_active(i) and player.IsAccount:
                 players.append(player)
         return players
     
@@ -1774,7 +1774,7 @@ class Py4GWSharedMemoryManager:
         players = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if player.IsSlotActive and player.IsAccount:
+            if self._is_slot_active(i) and player.IsAccount:
                 players.append(player)
 
         # Sort by PartyID, then PartyPosition, then PlayerLoginNumber, then CharacterName
@@ -1806,7 +1806,7 @@ class Py4GWSharedMemoryManager:
         """Get player data for the account with the given party number."""
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if player.IsSlotActive and player.PartyPosition == party_number:
+            if self._is_slot_active(i) and player.PartyPosition == party_number:
                 return player
         ConsoleLog(SMM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error)
         return None
@@ -1828,7 +1828,7 @@ class Py4GWSharedMemoryManager:
         options = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if player.IsSlotActive and player.IsAccount:
+            if self._is_slot_active(i) and player.IsAccount:
                 options.append(self.GetStruct().HeroAIOptions[i])
         return options
         
@@ -1847,7 +1847,7 @@ class Py4GWSharedMemoryManager:
         """Get HeroAI options for the account with the given party number."""
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if player.IsSlotActive and player.PartyPosition == party_number:
+            if self._is_slot_active(i) and player.PartyPosition == party_number:
                 return self.GetStruct().HeroAIOptions[i]
         return None    
         
@@ -1890,7 +1890,7 @@ class Py4GWSharedMemoryManager:
         maps = set()
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if player.IsSlotActive and player.IsAccount:
+            if self._is_slot_active(i) and player.IsAccount:
                 maps.add((player.MapID, player.MapRegion, player.MapDistrict, player.MapLanguage))
         return list(maps)
     
@@ -1901,7 +1901,7 @@ class Py4GWSharedMemoryManager:
         parties = set()
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if (player.IsSlotActive and player.IsAccount and
+            if (self._is_slot_active(i) and player.IsAccount and
                 player.MapID == map_id and
                 player.MapRegion == map_region and
                 player.MapDistrict == map_district and
@@ -1915,7 +1915,7 @@ class Py4GWSharedMemoryManager:
         players = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if (player.IsSlotActive and player.IsAccount and
+            if (self._is_slot_active(i) and player.IsAccount and
                 player.MapID == map_id and
                 player.MapRegion == map_region and
                 player.MapDistrict == map_district and
@@ -1929,7 +1929,7 @@ class Py4GWSharedMemoryManager:
         heroes = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if (player.IsSlotActive and player.IsHero and
+            if (self._is_slot_active(i) and player.IsHero and
                 player.OwnerPlayerID == owner_player_id):
                 heroes.append(player)
         return heroes
@@ -1943,7 +1943,7 @@ class Py4GWSharedMemoryManager:
         pets = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
-            if (player.IsSlotActive and player.IsPet and
+            if (self._is_slot_active(i) and player.IsPet and
                 player.OwnerPlayerID == owner_agent_id):
                 pets.append(player)
         return pets
@@ -1953,6 +1953,7 @@ class Py4GWSharedMemoryManager:
         return self.GetPetsFromPlayers(owner_agent_id).__len__()
     
     def UpdateTimeouts(self):
+        return
         current_time = self.GetBaseTimestamp()
 
         for index in range(self.max_num_players):
