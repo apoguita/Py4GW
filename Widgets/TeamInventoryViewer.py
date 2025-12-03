@@ -61,6 +61,7 @@ name_request_timer = ThrottledTimer(1000)
 # String consts
 MODULE_NAME = "TeamInventoryViewer"  # Change this Module name
 COLLAPSED = "collapsed"
+AUTO_SAVE = "autosave"
 X_POS = "x"
 Y_POS = "y"
 
@@ -68,6 +69,7 @@ Y_POS = "y"
 window_x = ini_window.read_int(MODULE_NAME, X_POS, 1512)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 0)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, True)
+autosave_enabled = ini_window.read_bool(MODULE_NAME, AUTO_SAVE, True)
 
 # View data
 first_run = True
@@ -575,7 +577,7 @@ class AccountJSONStore:
         return data
 
     def save_bag(self, char_name=None, storage_name=None, bag_name=None, bag_items={}):
-        data = self._read()
+        data = self.load()
         changed = False
 
         if char_name:
@@ -1051,6 +1053,7 @@ def draw_widget():
     global multi_store
     global inventory_model_ids_store
     global inventory_mod_hash_store
+    global autosave_enabled
 
     if on_first_load:
         PyImGui.set_next_window_size(1000, 1250)
@@ -1068,11 +1071,11 @@ def draw_widget():
     end_pos = PyImGui.get_window_pos()
 
     # This triggers a reload of and save of bag data
-    if inventory_write_timer.IsExpired() and Routines.Checks.Map.IsOutpost():
+    if inventory_write_timer.IsExpired() and Routines.Checks.Map.IsOutpost() and autosave_enabled:
         GLOBAL_CACHE.Coroutines.append(record_account_data())
         inventory_write_timer.Reset()
 
-    if inventory_read_timer.IsExpired() and Routines.Checks.Map.IsOutpost():
+    if inventory_read_timer.IsExpired() and Routines.Checks.Map.IsOutpost() and autosave_enabled:
         TEAM_INVENTORY_CACHE = multi_store.load_all()
         inventory_read_timer.Reset()
 
@@ -1082,7 +1085,7 @@ def draw_widget():
 
         # === SCROLLABLE AREA START ===
         # Compute space for footer
-        available_height = PyImGui.get_window_height() - 190  # leave room for buttons + footer
+        available_height = PyImGui.get_window_height() - 200  # leave room for buttons + footer
         PyImGui.begin_child("ScrollableContent", (0.0, float(available_height)), True, 1)
 
         # === TABS BY ACCOUNT ===
@@ -1367,9 +1370,22 @@ def draw_widget():
         current_character = f'Current Character: {current_character_name}'
         PyImGui.text(f"{"Waiting for ..." if not current_character_name else current_character}")
         if PyImGui.collapsing_header("Advanced Clearing", True):
-            PyImGui.text(
-                f'Save timer: {(inventory_write_timer.GetTimeRemaining() / 1000):.1f}(s), Read timer: {(inventory_read_timer.GetTimeRemaining() / 1000):.1f}(s)'
-            )
+            new_autosave_value = PyImGui.checkbox("Auto Save/Read  |", autosave_enabled)
+            if new_autosave_value != autosave_enabled:
+                ini_window.write_key(MODULE_NAME, AUTO_SAVE, new_autosave_value)
+                autosave_enabled = new_autosave_value
+            PyImGui.same_line(0, -1)
+            if autosave_enabled:
+                PyImGui.text(
+                    f'Save timer: {(inventory_write_timer.GetTimeRemaining() / 1000):.1f}(s), Read timer: {(inventory_read_timer.GetTimeRemaining() / 1000):.1f}(s)'
+                )
+            else:
+                if PyImGui.button("Manual Record"):
+                    GLOBAL_CACHE.Coroutines.append(record_account_data())
+                PyImGui.same_line(0, -1)
+                if PyImGui.button("Manual Refresh"):
+                    TEAM_INVENTORY_CACHE = multi_store.load_all()
+
             if PyImGui.begin_table("clear_buttons_table", 3, PyImGui.TableFlags.BordersInnerV):
                 # Define colors
                 orange_color = Color(255, 165, 0, 255).to_tuple_normalized()  # orange
