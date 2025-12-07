@@ -1095,7 +1095,7 @@ class Py4GWSharedMemoryManager:
                 player.PlayerData.SkillbarData.Skills[slot].Adrenaline = skill.adrenaline_a if skill.id.id != 0 else 0.0  
                         
             #casting_skill = Agent.GetCastingSkill(agent_id)
-            casting_skill = self.agent_instance.living_agent.casting_skill_id if self.agent_instance and not self.agent_instance.living_agent.is_casting else 0
+            casting_skill = self.agent_instance.living_agent.casting_skill_id if self.agent_instance and self.agent_instance.living_agent.is_casting else 0
             player.PlayerData.SkillbarData.CastingSkillID = casting_skill if casting_skill in [skill.Id for skill in player.PlayerData.SkillbarData.Skills] else 0
         
         def _set_rank_data(index):
