@@ -62,6 +62,7 @@ class Skill:
     target_overhead_animation_id: int
     projectile_animation1_id: int
     projectile_animation2_id: int
+    icon_file_hi_res_id: int
     icon_file_id: int
     icon_file2_id: int
     name_id: int
