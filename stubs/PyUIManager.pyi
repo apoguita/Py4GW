@@ -55,6 +55,7 @@ class UIFrame:
     frame_id: int
     parent_id: int
     frame_hash: int
+    frame_layout: int
     visibility_flags: int
     type: int
     template_type: int
@@ -68,11 +69,13 @@ class UIFrame:
     # All extra fields
     field1_0x0: int
     field2_0x4: int
-    frame_layout: int
+    
     field3_0xc: int
     field4_0x10: int
     field5_0x14: int
+
     field7_0x1c: int
+    
     field10_0x28: int
     field11_0x2c: int
     field12_0x30: int
@@ -88,54 +91,65 @@ class UIFrame:
     field22_0x58: int
     field23_0x5c: int
     field24_0x60: int
-    field25_0x64: int
-    field26_0x68: int
-    field27_0x6c: int
-    field28_0x70: int
-    field29_0x74: int
-    field30_0x78: int
-    field31_0x7c: List[int]
-    field32_0x8c: int
-    field33_0x90: int
-    field34_0x94: int
-    field35_0x98: int
-    field36_0x9c: int
-    field40_0xb8: int
-    field41_0xbc: int
-    field42_0xc0: int
-    field43_0xc4: int
-    field44_0xc8: int
-    field45_0xcc: int
-    field63_0x114: int
-    field64_0x118: int
-    field65_0x11c: int
-    field73_0x13c: int
-    field74_0x140: int
-    field75_0x144: int
-    field76_0x148: int
-    field77_0x14c: int
-    field78_0x150: int
-    field79_0x154: int
-    field80_0x158: int
-    field81_0x15c: int
-    field82_0x160: int
-    field83_0x164: int
-    field84_0x168: int
-    field85_0x16c: int
-    field86_0x170: int
-    field87_0x174: int
-    field88_0x178: int
-    field89_0x17c: int
-    field90_0x180: int
-    field91_0x184: int
-    field92_0x188: int
-    field93_0x18c: int
-    field94_0x190: int
-    field95_0x194: int
-    field96_0x198: int
-    field97_0x19c: int
-    field98_0x1a0: int
-    field100_0x1a8: int
+    field24a_0x64: int
+    field24b_0x68: int
+    field25_0x6c: int
+    field26_0x70: int
+    field27_0x74: int
+    field28_0x78: int
+    field29_0x7c: int
+    field30_0x80: int
+    field31_0x84: list[int]
+    field32_0x94: int
+    field33_0x98: int
+    field34_0x9c: int
+    field35_0xa0: int
+    field36_0xa4: int
+    
+    field40_0xc0: int
+    field41_0xc4: int
+    field42_0xc8: int
+    field43_0xcc: int
+    field44_0xd0: int
+    field45_0xd4: int
+
+    field63_0x11c: int
+    field64_0x120: int
+    field65_0x124: int
+
+    field73_0x144: int
+    field74_0x148: int
+    field75_0x14c: int
+    field76_0x150: int
+    field77_0x154: int
+    field78_0x158: int
+    field79_0x15c: int
+    field80_0x160: int
+    field81_0x164: int
+    field82_0x168: int
+    field83_0x16c: int
+    field84_0x170: int
+    field85_0x174: int
+    field86_0x178: int
+    field87_0x17c: int
+    field88_0x180: int
+    field89_0x184: int
+    field90_0x188: int
+
+    field92_0x190: int
+    field93_0x194: int
+    field94_0x198: int
+    field95_0x19c: int
+    field96_0x1a0: int
+    field97_0x1a4: int
+    field98_0x1a8: int
+
+    field100_0x1b0: int
+    field101_0x1b4: int
+    field102_0x1b8: int
+    field103_0x1bc: int
+    field104_0x1c0: int
+    field105_0x1c4: int
 
     def get_context(self) -> None: ...
     
