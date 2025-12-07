@@ -200,6 +200,30 @@ class ImGui:
         return min_, max_, (width, height)
 
     @staticmethod
+    def trim_text_to_width(text: str, max_width: float, ellipsis: str = "..."):
+        """
+        Safe incremental version, trimming character-by-character from the end
+        until the string fits.
+        """
+
+        # Need at least 1 character + ellipsis
+        if len(text) == 0:
+            return ""
+
+        w, _ = PyImGui.calc_text_size(text)
+        if w <= max_width:
+            return text
+
+        trimmed = text
+        while len(trimmed) > 1:
+            w, _ = PyImGui.calc_text_size(trimmed + ellipsis)
+            if w <= max_width:
+                return trimmed + ellipsis
+            trimmed = trimmed[:-1]
+
+        return trimmed or ""
+    
+    @staticmethod
     def _is_textured_theme() -> bool: return ImGui.get_style().Theme in ImGui.Textured_Themes
     
     @staticmethod
@@ -2440,7 +2464,7 @@ class ImGui:
     @staticmethod
     def end_tab_bar():
         PyImGui.end_tab_bar()
-        
+            
     @staticmethod
     def begin_tab_item(label: str, popen: bool | None = None, flags:int = 0) -> bool:
         style = ImGui.get_style()
@@ -2459,46 +2483,7 @@ class ImGui:
             ImGui.push_style_color(PyImGui.ImGuiCol.TabHovered, (0, 0, 0, 0))
             ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
             open = PyImGui.begin_tab_item(label)
-            ImGui.pop_style_color(4)
-
-
-            item_rect_min, item_rect_max, item_rect_size = ImGui.get_item_rect()
-            display_label = label.split("##")[0]
-
-            tab_texture_rect = (item_rect_min[0] - 5, item_rect_min[1], item_rect_size[0] + 10, item_rect_size[1] - 1)
-            item_rect = (*item_rect_min, *item_rect_size)
-            
-            PyImGui.push_clip_rect(
-                *tab_texture_rect,
-                True
-            )
-            
-            (ThemeTextures.Tab_Active if open else ThemeTextures.Tab_Inactive).value.get_texture().draw_in_drawlist(
-                tab_texture_rect[:2],
-                tab_texture_rect[2:],
-            )
-            
-            PyImGui.pop_clip_rect()
-
-            display_label = label.split("##")[0]
-            text_size = PyImGui.calc_text_size(display_label)
-            text_x = item_rect[0] + (item_rect[2] - text_size[0] + 2) / 2
-            text_y = item_rect[1] + (item_rect[3] - text_size[1] + (5 if open else 7)) / 2
-            text_rect = (text_x, text_y, item_rect_size[0], item_rect_size[1])
-
-            PyImGui.push_clip_rect(
-                *text_rect,
-                True
-            )
-            
-            PyImGui.draw_list_add_text(
-                text_x,
-                text_y,
-                style.Text.color_int,
-                display_label,
-            )
-
-            PyImGui.pop_clip_rect()                    
+            ImGui.pop_style_color(4)            
             
         else:
             ImGui.push_style_color(PyImGui.ImGuiCol.Tab, (0, 0, 0, 0))
@@ -2509,25 +2494,45 @@ class ImGui:
             open = PyImGui.begin_tab_item(label, popen, flags)
 
             ImGui.pop_style_color(4)
+        
 
-            item_rect_min = PyImGui.get_item_rect_min()
-            item_rect_max = PyImGui.get_item_rect_max()
-            
-            width = item_rect_max[0] - item_rect_min[0]
-            height = item_rect_max[1] - item_rect_min[1]
-            item_rect = (item_rect_min[0], item_rect_min[1], width, height)
-            
-            (ThemeTextures.Tab_Active if open else ThemeTextures.Tab_Inactive).value.get_texture().draw_in_drawlist(
-                (item_rect[0] + 4, item_rect[1] + 4),
-                (item_rect[2] - 8, item_rect[3] - 8),
-            )
+        item_rect_min, item_rect_max, item_rect_size = ImGui.get_item_rect()
+        tab_texture_rect = (item_rect_min[0] - 5, item_rect_min[1], item_rect_size[0] + 10, item_rect_size[1] - 1)
+        item_rect = (*item_rect_min, *item_rect_size)
+        
+        PyImGui.push_clip_rect(
+            *tab_texture_rect,
+            True
+        )
+        
+        (ThemeTextures.Tab_Active if open else ThemeTextures.Tab_Inactive).value.get_texture().draw_in_drawlist(
+            tab_texture_rect[:2],
+            tab_texture_rect[2:],
+        )
+        
+        PyImGui.pop_clip_rect()
 
-            PyImGui.draw_list_add_text(
-                item_rect[0] + 4,
-                item_rect[1] + 4,
-                style.Text.color_int,
-                label,
-            )
+        display_label = ImGui.trim_text_to_width(label.split("##")[0], item_rect_size[0] - 2)        
+        final_size = PyImGui.calc_text_size(display_label)
+        final_w, final_h = final_size
+
+        text_x = item_rect[0] + (item_rect[2] - final_w) / 2
+        text_y = item_rect[1] + (item_rect[3] - final_h + (5 if open else 7)) / 2
+        text_rect = (text_x, text_y, item_rect_size[0], item_rect_size[1])
+
+        PyImGui.push_clip_rect(
+            *text_rect,
+            True
+        )
+
+        PyImGui.draw_list_add_text(
+            text_x,
+            text_y,
+            style.Text.color_int,
+            display_label,
+        )
+
+        PyImGui.pop_clip_rect()  
                     
         return open
     
