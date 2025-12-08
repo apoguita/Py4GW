@@ -1005,7 +1005,8 @@ class Yield:
         def _wait_for_salvage_materials_window():
             from ..UIManager import UIManager
             yield from Yield.wait(150)
-            salvage_materials_frame = UIManager.GetChildFrameID(140452905, [6, 100, 6])
+            salvage_materials_frame = UIManager.GetChildFrameID(140452905, [6, 109, 6])
+
             retries = 0
             while ((not UIManager.FrameExists(salvage_materials_frame)) and (retries < 20)):
                 yield from Yield.wait(50)
