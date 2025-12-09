@@ -275,6 +275,7 @@ class FlagPreference(IntEnum):
     ChannelLocal = 0x8
     ChannelGroup = 0x9
     ChannelTrade = 0xA
+    GamepadInputGuide = 0xE
 
     ShowTextInSkillFloaters = 0x11
     ShowKRGBRatingsInGame = 0x12
@@ -331,50 +332,52 @@ class WindowID(IntEnum):
     WindowID_InGameClock = 0x6
     WindowID_Compass = 0x7
     WindowID_DamageMonitor = 0x8
+    WindowID_DistrictList = 0xA
     WindowID_PerformanceMonitor = 0xB
     WindowID_EffectsMonitor = 0xC
     WindowID_Hints = 0xD
-    WindowID_MissionProgress = 0xE
+    #0xE?
+    WindowID_MissionProgress = 0xF #0xE
     WindowID_MissionStatusAndScoreDisplay = 0xF
-    WindowID_Notifications = 0x11
-    WindowID_Skillbar = 0x14
-    WindowID_SkillMonitor = 0x15
-    WindowID_UpkeepMonitor = 0x17
-    WindowID_SkillWarmup = 0x18
-    WindowID_Menu = 0x1A
-    WindowID_EnergyBar = 0x1C
-    WindowID_ExperienceBar = 0x1D
-    WindowID_HealthBar = 0x1E
-    WindowID_TargetDisplay = 0x1F
-    WindowID_TradeButton = 0x21
-    WindowID_WeaponBar = 0x22
+    WindowID_Notifications = 0x12
+    WindowID_Skillbar = 0x16
+    WindowID_SkillMonitor = 0x17
+    WindowID_UpkeepMonitor = 0x19
+    WindowID_SkillWarmup = 0x1A
+    #WindowID_Menu = 0x1A
+    WindowID_EnergyBar = 0x1E
+    WindowID_ExperienceBar = 0x1F
+    WindowID_HealthBar = 0x20
+    WindowID_TargetDisplay = 0x21
+    WindowID_Task_Tracker = 0x23
+    WindowID_TradeButton = 0x24
+    WindowID_WeaponBar = 0x25
 
-    WindowID_Hero1 = 0x33
-    WindowID_Hero2 = 0x34
-    WindowID_Hero3 = 0x35
-    WindowID_Hero = 0x36
+    WindowID_Hero1 = 0x36
+    WindowID_Hero2 = 0x37
+    WindowID_Hero3 = 0x38
+    WindowID_Hero = 0x39
 
-    WindowID_SkillsAndAttributes = 0x38
-    WindowID_Friends = 0x3A
-    WindowID_Guild = 0x3B
-    WindowID_Help = 0x3D
-    WindowID_Inventory = 0x3E
-    WindowID_VaultBox = 0x3F
-    WindowID_InventoryBags = 0x40
-    WindowID_MissionMap = 0x42
-    WindowID_Observe = 0x44
+    WindowID_SkillsAndAttributes = 0x3B #0x38
+    WindowID_Friends = 0x3D #0x3A
+    WindowID_Guild = 0x3E #0x3B
+    WindowID_Help = 0x40 #0x3D
+    WindowID_Inventory = 0x41 #0x3E
+    #WindowID_VaultBox = 0x3B #0x3F # Deprecated
+    WindowID_InventoryBags = 0x43 #old 0x40
+    WindowID_MissionMap = 0x45
+    WindowID_Observe = 0x47
     WindowID_Options = 0x45
-    WindowID_PartyWindow = 0x48  # state flag ignored, position is valid
-    WindowID_PartySearch = 0x49
-    WindowID_QuestLog = 0x4F
-    WindowID_Merchant = 0x5C
-    WindowID_Hero4 = 0x5E
-    WindowID_Hero5 = 0x5F
-    WindowID_Hero6 = 0x60
-    WindowID_Hero7 = 0x61
+    WindowID_PartyWindow = 0x4B #0x48  # state flag ignored, position is valid
+    WindowID_PartySearch = 0x4C #0x49
+    WindowID_QuestLog = 0x52 #0x4F
+    #WindowID_Merchant = 0x5F #0x5C # Deprecated
+    WindowID_Hero4 = 0x61 #0x5E
+    WindowID_Hero5 = 0x62 #0x5F
+    WindowID_Hero6 = 0x63 #0x60
+    WindowID_Hero7 = 0x64 #0x61
 
-    WindowID_Count = 0x66  # Used for bounds checking
-
+    WindowID_Count = 0x69  # Used for bounds checking
 
 class ControlAction(IntEnum):
     ControlAction_None = 0x00
