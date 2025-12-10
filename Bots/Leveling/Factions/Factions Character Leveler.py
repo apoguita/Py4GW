@@ -714,13 +714,67 @@ def withdraw_gold_weapon(target_gold=500, deposit_all=True):
         yield from Routines.Yield.wait(250)
 
 def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
-    #Starter armor pieces to destroy
-    starter_armor = [7251,  # Head
-                    7249,  # Chest
-                    7250,  # Gloves
-                    7252,  # Pants
-                    7248   # Boots
-                    ]
+    """Destroy starter armor pieces based on profession and useless items."""
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    
+    # Profession-specific starter armor model IDs
+    if primary == "Assassin":
+        starter_armor = [7251,  # Head
+                        7249,  # Chest
+                        7250,  # Gloves
+                        7252,  # Pants
+                        7248   # Boots
+                        ]
+    elif primary == "Ritualist":
+        starter_armor = [11332,  # Head
+                        11330,  # Chest
+                        11331,  # Gloves
+                        11333,  # Pants
+                        11329   # Boots
+                        ]
+    elif primary == "Warrior":
+        starter_armor = [10174,  # Head
+                        10172,  # Chest
+                        10173,  # Gloves
+                        10175,  # Pants
+                        10171   # Boots
+                        ]
+    elif primary == "Ranger":
+        starter_armor = [10623,  # Head
+                        10621,  # Chest
+                        10622,  # Gloves
+                        10624,  # Pants
+                        10620   # Boots
+                        ]
+    elif primary == "Monk":
+        starter_armor = [9725,  # Head
+                        9723,  # Chest
+                        9724,  # Gloves
+                        9726,  # Pants
+                        9722   # Boots
+                        ]
+    elif primary == "Elementalist":
+        starter_armor = [9324,  # Head
+                        9322,  # Chest
+                        9323,  # Gloves
+                        9325,  # Pants
+                        9321   # Boots
+                        ]
+    elif primary == "Mesmer":
+        starter_armor = [8026,  # Head
+                        8024,  # Chest
+                        8025,  # Gloves
+                        8054,  # Pants
+                        8023   # Boots
+                        ]
+    elif primary == "Necromancer":
+        starter_armor = [8863,  # Head
+                        8861,  # Chest
+                        8862,  # Gloves
+                        8864,  # Pants
+                        8860   # Boots
+                        ]
+    
     useless_items = [5819,  # Monastery Credit
                      6387   # Starter Daggers
                     ]
@@ -732,14 +786,27 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
         result = yield from Routines.Yield.Items.DestroyItem(model)
 
 def destroy_seitung_armor() -> Generator[Any, Any, None]:
-    #Seitung armor pieces to destroy
-    seitung_armor = [7126,  # Head
-                    7193,  # Chest
-                    7194,  # Gloves
-                    7195,  # Pants
-                    7192   # Boots
-                    ]
+    """Destroy Seitung armor pieces based on profession."""
+    primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     
+    # Profession-specific Seitung armor model IDs
+    if primary == "Warrior":
+        seitung_armor = [10046, 10164, 10165, 10166, 10163]  # Head, Chest, Gloves, Pants, Boots
+    elif primary == "Ranger":
+        seitung_armor = [10483, 10613, 10614, 10615, 10612]
+    elif primary == "Monk":
+        seitung_armor = [9600, 9619, 9620, 9621, 9618]
+    elif primary == "Assassin":
+        seitung_armor = [7126, 7193, 7194, 7195, 7192]
+    elif primary == "Mesmer":
+        seitung_armor = [7528, 7546, 7547, 7548, 7545]
+    elif primary == "Necromancer":
+        seitung_armor = [8741, 8757, 8758, 8759, 8756]
+    elif primary == "Ritualist":
+        seitung_armor = [11203, 11320, 11321, 11323, 11319]
+    elif primary == "Elementalist":
+        seitung_armor = [9183, 9202, 9203, 9204, 9201]
+
     for model in seitung_armor:
         result = yield from Routines.Yield.Items.DestroyItem(model)
 
@@ -751,7 +818,6 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("auto_combat","active", False)
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Acquire Kieran's Bow_4") 
     fsm.resume()                           
     yield  
     
