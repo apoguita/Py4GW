@@ -688,6 +688,7 @@ def CompleteArmoredTransportQuest(bot):
 def CompleteIdentityTheftQuest(bot):
     bot.States.AddHeader("Quest: Identity Theft")
     bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XY(-7519.91, 14468.26)
     bot.Move.XYAndDialog(-10461, 15229, 0x827201) #take quest
     bot.Map.Travel(target_map_id=479) #Champions Dawn
     bot.Move.XYAndDialog(25345, 8604, 0x827204)
@@ -700,6 +701,7 @@ def CompleteIdentityTheftQuest(bot):
     bot.Items.LootItems()
     bot.Wait.ForTime(1000)
     bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XY(-7519.91, 14468.26)
     bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
 
 def CompleteHeroCommandQuest(bot):
