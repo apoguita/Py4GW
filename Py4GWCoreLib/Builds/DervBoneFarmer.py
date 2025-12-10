@@ -180,8 +180,6 @@ class DervBoneFarmer(BuildMgr):
                     if self.has_enough_adrenaline(self.reap_impurities_slot):
                         yield from Routines.Yield.Skills.CastSkillID(self.reap_impurities, aftercast_delay=100)
                         return
-                yield
-                return
         yield
         return
 
