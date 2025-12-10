@@ -776,7 +776,8 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                         ]
     
     useless_items = [5819,  # Monastery Credit
-                     6387   # Starter Daggers
+                     6387,  # Starter Daggers
+                     477    # Starter Bow
                     ]
     
     for model in starter_armor:
@@ -1516,7 +1517,7 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Party.LeaveParty()
     #PrepareForBattle(bot)
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([7, 2])
+    bot.Party.AddHenchmanList([1, 3])
     
     # Exit Lion's Arch towards D'Alessio Seaboard
     bot.Move.XY(1219, 7222)
@@ -1587,14 +1588,14 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Move.XY(15373.0, -14769.0)
     bot.Move.XY(15425.0, -15035.0)
     bot.Wait.ForMapLoad(target_map_id=57)  # Bergen Hot Springs
+    bot.Party.LeaveParty()
+    bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
+    bot.Party.AddHenchmanList([1, 3])
     
     # Exit Bergen Hot Springs
     bot.Move.XY(15521, -15378)
     bot.Move.XY(15450, -15050)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
-    bot.Party.LeaveParty()
-    bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([5, 7])
     bot.Move.XY(15378, -14794)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
     
