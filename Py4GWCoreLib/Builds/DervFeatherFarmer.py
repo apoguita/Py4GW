@@ -58,6 +58,7 @@ class DervFeatherFarmer(BuildMgr):
         self.status = DervBuildFarmStatus.Move
         self.spiked = False
         self.spiking = False
+        self.current_sensali_count = 0
 
     def swap_to_scythe(self):
         if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
@@ -95,10 +96,12 @@ class DervFeatherFarmer(BuildMgr):
             return
 
         if self.status == DervBuildFarmStatus.Loot or self.status == DervBuildFarmStatus.Wait:
+            self.current_sensali_count = 0
             yield from Routines.Yield.wait(100)
             return
 
         if self.status == DervBuildFarmStatus.Setup:
+            self.current_sensali_count = 0
             yield from self.swap_to_shield_set()
             self.spiked = False
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and GLOBAL_CACHE.Agent.IsMoving(
@@ -162,6 +165,10 @@ class DervFeatherFarmer(BuildMgr):
                 player_agent_id
             )
             if self.spiking or (not self.spiked and target_sensali):
+                remaining_enemies = Routines.Agents.GetFilteredEnemyArray(
+                    player_pos[0], player_pos[1], Range.Spellcast.value
+                )
+                self.current_sensali_count = len(remaining_enemies)
                 self.spiking = True
                 has_sand_shards = Routines.Checks.Effects.HasBuff(player_agent_id, self.sand_shards)
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
@@ -201,9 +208,10 @@ class DervFeatherFarmer(BuildMgr):
                 remaining_enemies = Routines.Agents.GetFilteredEnemyArray(
                     player_pos[0], player_pos[1], Range.Spellcast.value
                 )
+                self.current_sensali_count = len(remaining_enemies)
                 next_sensali = self.get_sensali_target(remaining_enemies)
                 if next_sensali:
-                    GLOBAL_CACHE.Player.Interact(next_sensali, False)
+                    yield from Routines.Yield.Agents.InteractAgent(next_sensali)
                     has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
                     has_sand_shards = Routines.Checks.Effects.HasBuff(player_agent_id, self.sand_shards)
                     if (
@@ -240,6 +248,8 @@ class DervFeatherFarmer(BuildMgr):
 
                     yield
                     return
+        yield
+        return
 
 
 # =================== BUILD END ========================

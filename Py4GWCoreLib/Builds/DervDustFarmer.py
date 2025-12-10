@@ -250,6 +250,8 @@ class DervDustFarmer(BuildMgr):
 
                 yield
                 return
+        yield
+        return
 
 
 # =================== BUILD END ========================
