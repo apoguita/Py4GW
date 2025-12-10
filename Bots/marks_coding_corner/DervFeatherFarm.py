@@ -268,7 +268,7 @@ def is_inventory_ready():
     return True
 
 
-def is_within_tolerance(pos1, pos2, tolerance=100):
+def is_within_tolerance(pos1, pos2, tolerance=50):
     dx = pos1[0] - pos2[0]
     dy = pos1[1] - pos2[1]
     distance = math.hypot(dx, dy)  # sqrt(dx^2 + dy^2)
