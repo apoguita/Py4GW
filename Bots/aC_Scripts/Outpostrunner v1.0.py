@@ -748,7 +748,7 @@ def log_path():
         ConsoleLog("Logger", f"Started new segment in: {state['current_segment_name']}", Console.MessageType.Info)
         return
 
-    threshold = 1000 if state["mode"] == "outpost" else 2000
+    threshold = 100  # record more frequent points (denser sampling for better path fidelity)
     if (x, y) != (0, 0):
         if state["last_pos"] is None or Utils.Distance((x, y), state["last_pos"]) >= threshold:
             state["prev_last_pos"] = state.get("last_pos")
