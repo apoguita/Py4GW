@@ -215,7 +215,7 @@ class DervDustFarmer(BuildMgr):
                         GLOBAL_CACHE.Player.Move(final_x, final_y)
                         yield from Routines.Yield.wait(2000)  # allow move to finish
 
-                GLOBAL_CACHE.Player.Interact(next_target, False)
+                yield from Routines.Yield.Agents.InteractAgent(next_target)
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
                 has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
                 if (
@@ -247,9 +247,10 @@ class DervDustFarmer(BuildMgr):
                     if has_staggering_force and player_current_energy >= 10:
                         yield from Routines.Yield.Skills.CastSkillID(self.eremites_attack, aftercast_delay=250)
                         return
-
                 yield
                 return
+        yield
+        return
 
 
 # =================== BUILD END ========================

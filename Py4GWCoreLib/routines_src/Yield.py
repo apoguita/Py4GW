@@ -1249,9 +1249,16 @@ class Yield:
 
                 # Try to walk to item
                 item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
-                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
+                item_reached = yield from Yield.Movement.FollowPath(
+                    [(item_x, item_y)], timeout=pickup_timeout, tolerance=144  # Touch Range
+                )
                 if not item_reached:
-                    ConsoleLog("LootItems", f"Failed to reach item {item_id}, skipping.", Console.MessageType.Warning)
+                    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+                    dx = item_x - player_x
+                    dy = item_y - player_y
+                    distance = int((dx * dx + dy * dy) ** 0.5)
+                    ConsoleLog("LootItems", f"Failed to reach item {item_id} - {distance}, skipping.", Console.MessageType.Warning)
+                    ActionQueueManager().ResetAllQueues()
                     failed_items.append(item_id)
                     continue
 
