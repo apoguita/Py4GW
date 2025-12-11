@@ -382,7 +382,7 @@ def GetMaxArmorCommonMaterial() -> int:
     if primary == "Warrior":
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Ranger":
-        return ModelID.Tanned_Hide_Square.value
+        return ModelID.Bolt_Of_Cloth.value
     elif primary == "Monk":
         return ModelID.Bolt_Of_Cloth.value
     elif primary == "Assassin":
@@ -405,7 +405,7 @@ def GetMaxArmorRareMaterial() -> int | None:
     if primary == "Warrior":
         return ModelID.Steel_Ingot.value
     elif primary == "Ranger":
-        return ModelID.Leather_Square.value
+        return ModelID.Fur_Square.value
     elif primary == "Monk":
         return ModelID.Roll_Of_Parchment.value  # Also needs Bolt_Of_Linen (handled separately)
     elif primary == "Assassin":
@@ -427,7 +427,7 @@ def GetArmorCrafterCoords() -> tuple[float, float]:
     if primary == "Warrior":
         return (-891.00, -5382.00) #Suki armor npc
     elif primary == "Ranger":
-        return (-891.00, -5382.00)  #Suki armor npc
+        return (-700.00, -5156.00) #Kakumei armor npc
     elif primary == "Monk":
         return (-891.00, -5382.00)  #Suki armor npc
     elif primary == "Assassin":
@@ -453,11 +453,11 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
         PANTS = 23396
         BOOTS = 23393
     elif primary == "Ranger":
-        HEAD = 23268    # Canthan
-        CHEST = 23416
-        GLOVES = 23417
-        PANTS = 23418
-        BOOTS = 23415
+        HEAD = 23794    # Canthan
+        CHEST = 23797
+        GLOVES = 23798
+        PANTS = 23799
+        BOOTS = 23796
     elif primary == "Monk":
         HEAD = 23201    # Ascalon
         CHEST = 23377
@@ -487,7 +487,7 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
         CHEST = 23941
         GLOVES = 23942
         PANTS = 23943
-        BOOTS = 23943
+        BOOTS = 23940
     elif primary == "Elementalist":
         HEAD = 23643    # Shinjea
         CHEST = 23670
@@ -515,12 +515,9 @@ def BuyMaxArmorMaterials(material_type: str = "common"):
             yield from Routines.Yield.wait(500)  # Wait between material types
             for _ in range(1):  # Buy 10 feathers (1 purchase x 10 per unit = 10)
                 yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Feather.value)
-        # Ranger needs two common materials: Tanned Hide and Bolt of Cloth
+        # Ranger needs only bolt of cloth as common material
         elif primary == "Ranger":
-            for _ in range(18):  # Buy 180 tanned hide (18 purchases x 10 per unit = 180)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Tanned_Hide_Square.value)
-            yield from Routines.Yield.wait(500)  # Wait between material types
-            for _ in range(3):  # Buy 30 bolt of cloth (3 purchases x 10 per unit = 30)
+            for _ in range(20):  # Buy 200 bolt of cloth (20 purchases x 10 per unit = 200)
                 yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Cloth.value)
         # Elementalist needs two common materials: Bolt of Cloth and Pile of Glittering Dust
         elif primary == "Elementalist":
@@ -529,6 +526,10 @@ def BuyMaxArmorMaterials(material_type: str = "common"):
             yield from Routines.Yield.wait(500)  # Wait between material types
             for _ in range(3):  # Buy 30 pile of glittering dust (3 purchases x 10 per unit = 30)
                 yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Pile_Of_Glittering_Dust.value)
+        # Ritualist needs standard 200 + additional 30 bolt of cloth
+        elif primary == "Ritualist":
+            for _ in range(23):  # Buy 230 bolt of cloth (23 purchases x 10 per unit = 230)
+                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Cloth.value)
         else:
             for _ in range(20):  # Buy 200 common materials (20 purchases x 10 per unit = 200)
                 yield from Routines.Yield.Merchant.BuyMaterial(GetMaxArmorCommonMaterial())
@@ -546,13 +547,10 @@ def BuyMaxArmorMaterials(material_type: str = "common"):
             yield from Routines.Yield.wait(500)  # Wait between material types
             for _ in range(28):  # Buy 28 Bolt of Linen
                 yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Linen.value)
-        # Ranger needs two rare materials: Leather Square and Bolt of Linen
+        # Ranger needs only fur square as rare material
         elif primary == "Ranger":
-            for _ in range(28):  # Buy 28 Leather Square
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Leather_Square.value)
-            yield from Routines.Yield.wait(500)  # Wait between material types
-            for _ in range(4):  # Buy 4 Bolt of Linen
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Linen.value)
+            for _ in range(32):  # Buy 32 Fur Square
+                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Fur_Square.value)
         # Elementalist needs two rare materials: Bolt of Silk and Tempered Glass Vial
         elif primary == "Elementalist":
             for _ in range(28):  # Buy 28 Bolt of Silk
@@ -560,6 +558,10 @@ def BuyMaxArmorMaterials(material_type: str = "common"):
             yield from Routines.Yield.wait(500)  # Wait between material types
             for _ in range(4):  # Buy 4 Tempered Glass Vial
                 yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Tempered_Glass_Vial.value)
+        # Ritualist needs standard 32 + additional 4 leather square
+        elif primary == "Ritualist":
+            for _ in range(36):  # Buy 36 Leather Square (32 + 4)
+                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Leather_Square.value)
         else:
             rare_material = GetMaxArmorRareMaterial()
             if rare_material is not None:
@@ -592,14 +594,14 @@ def DoCraftMaxArmor(bot: Botting):
                 (CHEST, [ModelID.Bolt_Of_Cloth.value, ModelID.Feather.value, ModelID.Roll_Of_Parchment.value, ModelID.Bolt_Of_Linen.value], [70, 2, 5, 8]),
                 (HEAD, [ModelID.Bolt_Of_Cloth.value, ModelID.Feather.value, ModelID.Roll_Of_Parchment.value, ModelID.Bolt_Of_Linen.value], [25, 2, 5, 4]),
             ]
-        # Ranger has unique materials: 180 tanned hide + 30 bolt of cloth + 28 leather square + 4 bolt of linen
+        # Ranger has standard materials: 200 bolt of cloth + 32 fur square (uses default case)
         elif primary == "Ranger":
             armor_pieces = [
-                (GLOVES, [ModelID.Tanned_Hide_Square.value, ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value, ModelID.Bolt_Of_Linen.value], [20, 3, 4, 0]),
-                (BOOTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value, ModelID.Bolt_Of_Linen.value], [20, 3, 4, 1]),
-                (PANTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value, ModelID.Bolt_Of_Linen.value], [45, 8, 8, 1]),
-                (CHEST, [ModelID.Tanned_Hide_Square.value, ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value, ModelID.Bolt_Of_Linen.value], [70, 11, 8, 1]),
-                (HEAD, [ModelID.Tanned_Hide_Square.value, ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value, ModelID.Bolt_Of_Linen.value], [25, 5, 4, 1]),
+                (GLOVES, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25, 4]),
+                (BOOTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25, 4]),
+                (PANTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [50, 8]),
+                (CHEST, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [75, 12]),
+                (HEAD, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25, 4]),
             ]
         # Elementalist has unique materials: 180 bolt of cloth + 30 glittering dust + 28 bolt of silk + 4 glass vial
         elif primary == "Elementalist":
