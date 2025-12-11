@@ -1,8 +1,6 @@
-from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
-
 # 1) IDs
 _2_gunnars_to_longeyes_ids = {
-    "outpost_id": outpost_name_to_id["Gunnar's Hold"],   # Teleport into Gunnar’s Hold (644)
+    "outpost_id": 644,  # outpost_name_to_id["Gunnar's Hold"]
 }
 
 # 2) Outpost exit path (in map 644)
@@ -15,7 +13,7 @@ _2_gunnars_to_longeyes_outpost_path = [
 _2_gunnars_to_longeyes_segments = [
     {
         # Norrhart Domains
-        "map_id": explorable_name_to_id["Norrhart Domains"],
+        "map_id": 548,  # explorable_name_to_id["Norrhart Domains"],
         "path": [
             (14233.820312, -3638.702636),
             (14944.690429,  1197.740966),
@@ -30,7 +28,7 @@ _2_gunnars_to_longeyes_segments = [
     },
     {
         # Bjora Marches
-        "map_id": explorable_name_to_id["Bjora Marches"],
+        "map_id": 482,  # explorable_name_to_id["Bjora Marches"],
         "path": [
             (-11232.550781, -16722.859375),
             (-7655.780273 , -13250.316406),
@@ -44,12 +42,12 @@ _2_gunnars_to_longeyes_segments = [
             (12984.513671 , -15341.864257),
             (17305.523437 , -17686.404296),
             (19048.208984 , -18813.695312),
-            (019634.173828, -19118.777343),
+            (19634.173828, -19118.777343),
         ],
     },
     {
         # Longeyes Ledge (outpost 650)
-        "map_id": outpost_name_to_id["Longeyes Ledge"],
+        "map_id": 650,  # outpost_name_to_id["Longeyes Ledge"],
         "path": [],  # no further walking once you arrive
     },
 ]
