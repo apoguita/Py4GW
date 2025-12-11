@@ -1,20 +1,19 @@
-from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
-
 # 1) IDs
 _7_umbral_grotto_to_vlox_ids = {
-    "outpost_id": outpost_name_to_id["Umbral Grotto"],
+    "outpost_id": 639,  # Umbral Grotto
 }
 
-
 _7_umbral_grotto_to_vlox_outpost_path = [
-    (-24463.523437, 11560.543945),
-    (-26128.982421, 10676.186523),  
+    (-22642, 10693),
+    (-24541, 11572),   # move toward Vloxen portal
+    (-26044, 10600),   # approach portal to Vloxen Excavations
 ]
 
 _7_umbral_grotto_to_vlox_segments = [
     {
-        "map_id": explorable_name_to_id["Vloxen Excavations (level 1)"],
+        "map_id": 604,  # explorable_name_to_id["Vloxen Excavations (level 1)"]
         "path": [
+            (-13779.4, 18459.7),
             (-13807.781250, 16442.718750),
             (-14953.253906, 13218.502929),
             (-17230.427734,  9955.362304),
@@ -31,7 +30,7 @@ _7_umbral_grotto_to_vlox_segments = [
         ],
     },
     {
-        "map_id": outpost_name_to_id["Vlox's Falls"],
-        "path": [],  
+        "map_id": 624,  # outpost_name_to_id["Vlox's Falls"]
+        "path": [],
     },
 ]

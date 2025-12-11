@@ -1,45 +1,46 @@
 # maps/EOTN/_10_tarnished_to_rata.py
 
-from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
-
 # 1) IDs
 _10_tarnished_to_rata_ids = {
-    "outpost_id": outpost_name_to_id["Tarnished Haven"],  # 641
+    "outpost_id": 641,  # outpost_name_to_id["Tarnished Haven"]
 }
 
 # 2) Exit path from Tarnished Haven (map 641)
 _10_tarnished_to_rata_outpost_path = [
-    (18132.033203, -7464.680175),   # first _Run
-    (17079.275390, -2616.100097),   # Move into Alcazia Tangle
+    (22425, -12046),  # move toward Alcazia entrance
+    (19089, -10621),  # closer to segment start
 ]
 
 # 3) Explorable segments
 _10_tarnished_to_rata_segments = [
     {
         # Alcazia Tangle
-        "map_id": explorable_name_to_id["Alcazia Tangle"],
+        "map_id": 572,  # explorable_name_to_id["Alcazia Tangle"]
         "path": [
             (18184.322265, -7412.855957),
             (17944.570312, -5153.674316),
-            (17909.607421, -2014.430664),
+            (16707, -3236),
             (19498.818359,     7.423645),
+            (20078, 1566),
             (20919.000000,  7807.995117),
             (18432.478515,  7579.394531),
-            (16303.985351,  8577.814453),
-            (12488.981445,  9278.306640),
-            ( 9015.265625, 10940.495117),
-            ( 4707.063964, 12058.528320),
-            ( 1914.881225, 13594.415039),
-            (  410.270294, 13274.137695),
-            (-1868.005126, 12807.320312),
-            (-3186.585937, 14853.175781),
+            (16062, 8801),
+            (14848, 8332),
+            (12101, 9560),
+            (9699, 10557),
+            (7245, 11574),
+            (4707.063964, 12058.528320),
+            (1914.881225, 13594.415039),
+            (410.270294, 13274.137695),
+            (-2543, 14793),
+            (-3755, 15789),
             (-4056.763671, 16237.483398),
             (-3986.755126, 16859.513671), # Move into Riven Earth
         ],
     },
     {
         # Riven Earth
-        "map_id": explorable_name_to_id["Riven Earth"],
+        "map_id": 501,  # explorable_name_to_id["Riven Earth"]
         "path": [
             (-11733.154296, -11176.163085),
             (-16270.063476,  -9512.484375),
@@ -51,7 +52,7 @@ _10_tarnished_to_rata_segments = [
     },
     {
         # Rata Sum (final outpost, ID 640)
-        "map_id": outpost_name_to_id["Rata Sum"],
+        "map_id": 640,  # outpost_name_to_id["Rata Sum"]
         "path": [],
     },
 ]
