@@ -1249,7 +1249,7 @@ class Yield:
 
                 # Try to walk to item
                 item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
-                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
+                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout, tolerance=25)
                 if not item_reached:
                     ConsoleLog("LootItems", f"Failed to reach item {item_id}, skipping.", Console.MessageType.Warning)
                     failed_items.append(item_id)
