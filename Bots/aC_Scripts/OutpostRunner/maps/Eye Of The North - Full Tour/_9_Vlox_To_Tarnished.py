@@ -1,35 +1,37 @@
 # maps/EOTN/_9_vlox_to_tarnished.py
 
-from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
-
 # 1) IDs
 _9_vlox_to_tarnished_ids = {
-    "outpost_id": outpost_name_to_id["Vlox's Falls"],  # 624
+    "outpost_id": 624,  # outpost_name_to_id["Vlox's Falls"]
 }
 
-# 2) Exit‐outpost path from Vlox’s Falls (map 624)
+# 2) Exit‐outpost path from Vlox's Falls (map 624)
 _9_vlox_to_tarnished_outpost_path = [
-    (16021.786132, 14000.079101),  # initial _Run
-    (15519.092773, 12572.936523),  # into Arbor Bay
+    (16356, 14638),
+    (15737, 13131),  # move toward Arbor Bay entrance
+    (15471, 12385),  # closer to segment start
 ]
 
 # 3) Explorable segments
 _9_vlox_to_tarnished_segments = [
     {
         # Arbor Bay (ID 485)
-        "map_id": explorable_name_to_id["Arbor Bay"],
+        "map_id": 485,  # explorable_name_to_id["Arbor Bay"]
         "path": [
             (13331.803710, 10848.732421),
-            ( 9207.168945,  7158.782226),
-            ( 5715.663574,  3649.900390),
-            ( 2385.320800,  1828.722900),
-            ( -719.137451, -1148.595825),
+            (9207.168945,  7158.782226),
+            (5715.663574,  3649.900390),
+            (2479, 1444),
+            (970, -157),
+            (-719.137451, -1148.595825),
+            (-2633, -2353),
             (-3010.732421, -4905.047363),
             (-4796.903320, -6259.326171),
             (-7677.546386, -6762.379394),
             (-10550.049804,-7143.164062),
             (-12772.930664,-9579.868164),
             (-15232.251953,-12602.846679),
+            (-16008, -14516),
             (-17456.839843,-14899.894531),
             (-17390.365234,-18139.921875),
             (-19796.037109,-19468.126953),
@@ -37,7 +39,7 @@ _9_vlox_to_tarnished_segments = [
         ],
     },
     {
-        "map_id": explorable_name_to_id["Alcazia Tangle"],
+        "map_id": 572,  # explorable_name_to_id["Alcazia Tangle"]
         "path": [
             (23025.226562, 13777.048828),
             (21148.154296, 14763.507812),
@@ -45,7 +47,8 @@ _9_vlox_to_tarnished_segments = [
             (13929.705078, 11236.818359),
             (13920.853515,  8353.000976),
             (16721.199218,  8154.790039),
-            (19755.736328,  8212.900390),
+            (17776, 7048),
+            (19784, 8485),
             (21026.087890,  7582.662109),
             (20336.568359,  3354.434082),
             (19155.373046,  -393.969360),
@@ -57,7 +60,7 @@ _9_vlox_to_tarnished_segments = [
     },
     {
         # Tarnished Haven (final outpost, ID 641)
-        "map_id": outpost_name_to_id["Tarnished Haven"],
+        "map_id": 641,  # outpost_name_to_id["Tarnished Haven"]
         "path": [],  # arrival, no walking needed
     },
 ]

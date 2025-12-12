@@ -1,10 +1,8 @@
 # maps/EOTN/_5_sifhalla_to_olafstead.py
 
-from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
-
 # 1) IDs
 _5_sifhalla_to_olafstead_ids = {
-    "outpost_id": outpost_name_to_id["Sifhalla"],  # 643
+    "outpost_id": 643,  # outpost_name_to_id["Sifhalla"]
 }
 
 # 2) Exit path from Sifhalla (map 643)
@@ -17,19 +15,22 @@ _5_sifhalla_to_olafstead_outpost_path = [
 _5_sifhalla_to_olafstead_segments = [
     {
         # Drakkar Lake (ID 513)
-        "map_id": explorable_name_to_id["Drakkar Lake"],
+        "map_id": 513,  # explorable_name_to_id["Drakkar Lake"]
         "path": [
             (13946.335937, 14286.607421),
+            (14388, 10508),
+            (14100, 8500),
             (13599.999023,  6967.771484),
             (13396.375000,  4099.683105),
             (10782.618164,  3919.063720),
             ( 5936.016113,  3485.744873),
             ( 3749.377929,  3285.844482),
-            (  -12.388924,  -244.892211),
-            ( -2623.909912, -3307.028076),
-            ( -5624.512207, -4308.001953),
-            ( -7885.518554, -9186.645507),
-            ( -9944.139648,-13188.315429),
+            (-12.388924,  -244.892211),
+            (-2623.909912, -3307.028076),
+            (-3937, -3302),
+            (-5991.19, -4153.14),
+            (-7885.518554, -9186.645507),
+            (-9944.139648,-13188.315429),
             (-10946.782226,-16388.703125),
             (-11847.703125,-19820.244140),
             (-11442.958984,-22719.455078),
@@ -39,22 +40,25 @@ _5_sifhalla_to_olafstead_segments = [
     },
     {
         # Varajar Fells (ID 553)
-        "map_id": explorable_name_to_id["Varajar Fells"],
+        "map_id": 553,  # explorable_name_to_id["Varajar Fells"] returns 708 due to enum duplication, use correct ID directly
         "path": [
-            ( -1605.245239, 12837.257812),
-            ( -2047.884399,  8718.327148),
-            ( -2288.647216,  4162.530273),
-            ( -3639.192138,  1637.482666),
-            ( -4178.047851, -2814.842773),
-            ( -4118.485107, -4432.247070),
-            ( -3315.862060, -1716.598754),
-            ( -1648.331054,  1095.387329),
-            ( -1196.614624,  1241.174560),  # portal to Olafstead
+            (-997, 15641),
+            (-1723, 11580),
+            (-2496, 7633),
+            (-1901, 4041),
+            (-3998, 972),
+            (-4223, -2591),
+            (-4013.81, -4620.70),
+            (-2980, -2797),
+            (-2889, 134),
+            (-1891, 1086),
+            (-1350, 1236),
+            (-371, 1440),
         ],
     },
     {
         # Olafstead (final outpost, ID 645)
-        "map_id": outpost_name_to_id["Olafstead"],
+        "map_id": 645,  # outpost_name_to_id["Olafstead"]
         "path": [],  # end of run
     },
 ]
