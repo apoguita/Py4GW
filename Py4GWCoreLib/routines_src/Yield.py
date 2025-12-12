@@ -2,7 +2,7 @@ from typing import List, Tuple, Callable, Optional, Generator, Any
 
 from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
-from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
+from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer, ThrottledTimer
 from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
 from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
@@ -1977,78 +1977,255 @@ class Yield:
 #region Character Reroll
     class RerollCharacter:
         @staticmethod
-        def Reroll(target_character_name: str, timeout_ms: int = 10000, log: bool = False) -> Generator[Any, Any, None]:            
-            ActionQueueManager().ResetAllQueues()
-            
-            timer = Timer()
-            timer.Start()
+        def DeleteCharacter(character_name_to_delete: str, timeout_ms: int = 10000, log: bool = False) -> Generator[Any, Any, bool]:
+            import PyImGui
+            from ..UIManager import WindowFrames
+            def _failed() -> bool:
+                return timeout_timer.IsExpired() or not GLOBAL_CACHE.Player.InCharacterSelectScreen()
             
             def _timeout_reached() -> bool:
-                return timer.GetElapsedTime() >= timeout_ms
-            
-            def _is_char_select_context_ready() -> bool:
-                """Checks if character select is active and context is available."""
-                if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
-                    return False
-                pregame = GLOBAL_CACHE.Player.GetPreGameContext()
-                return pregame is not None and pregame.chars is not None
-            
-            def _failed() -> bool:
-                return _timeout_reached() or not _is_char_select_context_ready()
+                return timeout_timer.IsExpired()
             
             character_names = [char.player_name for char in GLOBAL_CACHE.Player.GetLoginCharacters()]
+            if character_name_to_delete not in character_names:
+                ConsoleLog("Reroll", f"Character '{character_name_to_delete}' not found among login characters.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
+                return False
             
-            if target_character_name not in character_names:
-                ConsoleLog("Reroll", f"Character '{target_character_name}' not found among login characters.", Console.MessageType.Error)
-                return
-            
-            if GLOBAL_CACHE.Player.GetName() == target_character_name and not GLOBAL_CACHE.Player.InCharacterSelectScreen():
-                ConsoleLog("Reroll", f"Already logged in as '{target_character_name}'. No reroll needed.", Console.MessageType.Info)
-                return
-            
+            timeout_timer = ThrottledTimer(timeout_ms)
+            ActionQueueManager().ResetAllQueues()
+
             if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
-                ConsoleLog("Reroll", "Logging out to character select screen.", Console.MessageType.Info)
-                GLOBAL_CACHE.Player.LogoutToCharacterSelect()                        
-                        
-        
-            # Wait until we reach character select screen
-            while not _is_char_select_context_ready() and not _timeout_reached():
-                yield from Yield.wait(250)
+                ConsoleLog("Reroll", "Logging out to character select screen...", Console.MessageType.Info, log)
+                GLOBAL_CACHE.Player.LogoutToCharacterSelect() 
+                while not GLOBAL_CACHE.Player.InCharacterSelectScreen() and not timeout_timer.IsExpired():
+                    yield from Yield.wait(250)
+                    
+            if _timeout_reached():
+                ConsoleLog("Reroll", "Timeout while waiting to reach character select screen.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
+                return False
                 
-            if _failed():
-                if _timeout_reached():
-                    ConsoleLog("Reroll", "Timeout reached while waiting for character select screen.", Console.MessageType.Error)
-                return
-                        
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
-            character_index = pregame.chars.index(target_character_name) if target_character_name in pregame.chars else -1
+            character_index = pregame.chars.index(character_name_to_delete) if character_name_to_delete in pregame.chars else -1
             last_known_index = pregame.index_1
             
             if character_index == -1:
-                ConsoleLog("Reroll", f"Character '{target_character_name}' not found in character list.", Console.MessageType.Error)
-                return
-                
-            while last_known_index != character_index and not _failed():    
+                ConsoleLog("Reroll", f"Character '{character_name_to_delete}' not found in character list.", Console.MessageType.Error)
+                yield from Yield.wait(100)
+                return False
+            
+            while last_known_index != character_index and not _failed(): 
                 distance = character_index - last_known_index
                 
                 if distance != 0:
                     key = Key.RightArrow.value if distance > 0 else Key.LeftArrow.value
                     ConsoleLog("Reroll", f"Navigating {'Right' if distance > 0 else 'Left'} (Current: {last_known_index}, Target: {character_index})", Console.MessageType.Debug, log)
                     Keystroke.PressAndRelease(key)
-                    yield from Yield.wait(50)
+                    yield from Yield.wait(250)
                     pregame = GLOBAL_CACHE.Player.GetPreGameContext()
                     last_known_index = pregame.index_1
-
-            if _failed():
-                if _timeout_reached():
-                    ConsoleLog("Reroll", "Timeout reached while navigating to target character.", Console.MessageType.Error)
                     
-                elif not _is_char_select_context_ready():
-                    ConsoleLog("Reroll", "Character select context lost while navigating to target character.", Console.MessageType.Error)
+            if _failed():
+                ConsoleLog("Reroll", "Timeout while navigating to target character.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
+                return False
+            
+            WindowFrames["DeleteCharacterButton"].FrameClick()
+            yield from Yield.wait(500)
+            PyImGui.set_clipboard_text(character_name_to_delete)
+            Keystroke.PressAndReleaseCombo([Key.Ctrl.value, Key.V.value])
+            yield from Yield.wait(500)
+            WindowFrames["FinalDeleteCharacterButton"].FrameClick()
+            yield from Yield.wait(500)
+            
+            return True
+        
+        @staticmethod
+        def CreateCharacter(character_name: str,campaign_name: str, profession_name: str, timeout_ms: int = 15000, log: bool = False) -> Generator[Any, Any, None]:
+            import PyImGui
+            from ..UIManager import WindowFrames
+            def _failed() -> bool:
+                return timeout_timer.IsExpired() or not GLOBAL_CACHE.Player.InCharacterSelectScreen()
+            
+            def _timeout_reached() -> bool:
+                return timeout_timer.IsExpired()
+            
+            def _select_character_type(character_type: str) -> Generator[Any, Any, None]:
+                if character_type == "PvE":
+                    # Default, do nothing
+                    yield from Yield.wait(100)
+                    return
+                
+                Keystroke.PressAndRelease(Key.RightArrow.value)
+                yield from Yield.wait(100)
+            
+            def _select_campaign(campaign_name: str) -> Generator[Any, Any, None]:
+                repeats = 0
+                if campaign_name == "Prophecies":
+                    repeats = 1
+                elif campaign_name == "Factions":
+                    repeats = 2
+                elif campaign_name == "Nightfall":
+                    repeats = 0
+                
+                for _ in range(repeats):
+                    Keystroke.PressAndRelease(Key.RightArrow.value)
+                    yield from Yield.wait(100)
+                yield from Yield.wait(100)
+                
+            def _select_profession(profession_name: str) -> Generator[Any, Any, None]:
+                profession_map = {
+                    "Warrior": 0,
+                    "Ranger": 1,
+                    "Monk": 2,
+                    "Necromancer": 3,
+                    "Mesmer": 4,
+                    "Elementalist": 5,
+                    "Assassin": 6,
+                    "Ritualist": 7,
+                    "Paragon": 6,
+                    "Dervish": 7
+                }
+                
+                target_index = profession_map.get(profession_name, -1)
+                if target_index == -1:
+                    ConsoleLog("Reroll", f"Unknown profession '{profession_name}'.", Console.MessageType.Error, log)
+                    yield from Yield.wait(100)
+                    return
+                
+                for _ in range(target_index):
+                    Keystroke.PressAndRelease(Key.RightArrow.value)
+                    yield from Yield.wait(100)
+                yield from Yield.wait(100)
+            
+            character_names = [char.player_name for char in GLOBAL_CACHE.Player.GetLoginCharacters()]
+            if character_name in character_names:
+                ConsoleLog("Reroll", f"Character '{character_name}' already exists among login characters.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
+                return  
+            
+            timeout_timer = ThrottledTimer(timeout_ms)
+            ActionQueueManager().ResetAllQueues()
 
+            if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+                ConsoleLog("Reroll", "Logging out to character select screen...", Console.MessageType.Info, log)
+                GLOBAL_CACHE.Player.LogoutToCharacterSelect() 
+                while not GLOBAL_CACHE.Player.InCharacterSelectScreen() and not timeout_timer.IsExpired():
+                    yield from Yield.wait(250)
+                    
+            if _timeout_reached():
+                ConsoleLog("Reroll", "Timeout while waiting to reach character select screen.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
                 return
+                
+            ConsoleLog("Reroll", "Creating new character...", Console.MessageType.Info, log)
+            WindowFrames["CreateCharacterButton1"].FrameClick()
+            yield from Yield.wait(250)
+            WindowFrames["CreateCharacterButton2"].FrameClick()
+            yield from Yield.wait(1000)
+            # Select character type
+            yield from _select_character_type("PvE")
+            yield from Yield.wait(250)
+            WindowFrames["CreateCharacterTypeNextButton"].FrameClick()
+            yield from Yield.wait(1000)
+            # Select campaign
+            yield from _select_campaign(campaign_name)
+            yield from Yield.wait(500)
 
-            ConsoleLog("Reroll", f"Selecting character '{target_character_name}'.", Console.MessageType.Info)
+            WindowFrames["CreateCharacterNextButtonGeneric"].FrameClick()
+            yield from Yield.wait(1000)
+            # Select profession
+            yield from _select_profession(profession_name)
+            yield from Yield.wait(500)
+            WindowFrames["CreateCharacterNextButtonGeneric"].FrameClick()
+            yield from Yield.wait(1000)
+            #Selct Gender (default)
+            WindowFrames["CreateCharacterNextButtonGeneric"].FrameClick()
+            yield from Yield.wait(1000)
+            #select Appearance (default)
+            WindowFrames["CreateCharacterNextButtonGeneric"].FrameClick()
+            yield from Yield.wait(1000)
+            #sxelect Body (default)
+            WindowFrames["CreateCharacterNextButtonGeneric"].FrameClick()
+            yield from Yield.wait(1000)
+            # Enter name and finalize     
+            PyImGui.set_clipboard_text(character_name)
+            Keystroke.PressAndReleaseCombo([Key.Ctrl.value, Key.V.value])    
+            yield from Yield.wait(1000)
+            WindowFrames["FinalCreateCharacterButton"].FrameClick()
+            yield from Yield.wait(1000)
+            
+        @staticmethod
+        def DeleteAndCreateCharacter(character_name_to_delete: str, new_character_name: str,
+                             campaign_name: str, profession_name: str,
+                             timeout_ms: int = 25000, log: bool = False) -> Generator[Any, Any, None]:
+            result = yield from Yield.RerollCharacter.DeleteCharacter(character_name_to_delete, timeout_ms=timeout_ms//2, log=log)
+            if not result:
+                return
+            yield from Yield.RerollCharacter.CreateCharacter(new_character_name, campaign_name, profession_name, timeout_ms=timeout_ms//2, log=log)    
+
+
+                    
+        @staticmethod
+        def Reroll(target_character_name: str, timeout_ms: int = 10000, log: bool = False) -> Generator[Any, Any, None]:
+            def _failed() -> bool:
+                return timeout_timer.IsExpired() or not GLOBAL_CACHE.Player.InCharacterSelectScreen()
+            
+            def _timeout_reached() -> bool:
+                return timeout_timer.IsExpired()
+            
+            character_names = [char.player_name for char in GLOBAL_CACHE.Player.GetLoginCharacters()]
+            if target_character_name not in character_names:
+                ConsoleLog("Reroll", f"Character '{target_character_name}' not found among login characters.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
+                return  
+            
+            if GLOBAL_CACHE.Player.GetName() == target_character_name and not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+                ConsoleLog("Reroll", f"Already logged in as '{target_character_name}'. No reroll needed.", Console.MessageType.Info, log)
+                yield from Yield.wait(100)
+                return
+            
+            timeout_timer = ThrottledTimer(timeout_ms)
+            ActionQueueManager().ResetAllQueues()
+
+            if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+                ConsoleLog("Reroll", "Logging out to character select screen...", Console.MessageType.Info, log)
+                GLOBAL_CACHE.Player.LogoutToCharacterSelect() 
+                while not GLOBAL_CACHE.Player.InCharacterSelectScreen() and not timeout_timer.IsExpired():
+                    yield from Yield.wait(250)
+                    
+            if _timeout_reached():
+                ConsoleLog("Reroll", "Timeout while waiting to reach character select screen.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
+                return
+                
+            pregame = GLOBAL_CACHE.Player.GetPreGameContext()
+            character_index = pregame.chars.index(target_character_name) if target_character_name in pregame.chars else -1
+            last_known_index = pregame.index_1
+            
+            if character_index == -1:
+                ConsoleLog("Reroll", f"Character '{target_character_name}' not found in character list.", Console.MessageType.Error)
+                yield from Yield.wait(100)
+                return
+            
+            while last_known_index != character_index and not _failed(): 
+                distance = character_index - last_known_index
+                
+                if distance != 0:
+                    key = Key.RightArrow.value if distance > 0 else Key.LeftArrow.value
+                    ConsoleLog("Reroll", f"Navigating {'Right' if distance > 0 else 'Left'} (Current: {last_known_index}, Target: {character_index})", Console.MessageType.Debug, log)
+                    Keystroke.PressAndRelease(key)
+                    yield from Yield.wait(250)
+                    pregame = GLOBAL_CACHE.Player.GetPreGameContext()
+                    last_known_index = pregame.index_1
+                    
+            if _failed():
+                ConsoleLog("Reroll", "Timeout while navigating to target character.", Console.MessageType.Error, log)
+                yield from Yield.wait(100)
+                return
+            
+            ConsoleLog("Reroll", f"Selecting character '{target_character_name}'.", Console.MessageType.Info, log)
             Keystroke.PressAndRelease(Key.P.value)
             yield from Yield.wait(50)
             
@@ -2058,6 +2235,6 @@ class Yield:
             if _timeout_reached():
                 ConsoleLog("Reroll", "Timeout reached while waiting for map to load.", Console.MessageType.Error)
                 return
-                
-            ConsoleLog("Reroll", f"Successfully logged in as '{target_character_name}'.", Console.MessageType.Info)
-            return                    
+            
+            ConsoleLog("Reroll", f"Successfully logged in as '{target_character_name}'.", Console.MessageType.Info, log)
+            yield                  

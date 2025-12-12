@@ -487,7 +487,7 @@ class InfoWindow:
                 self.MonitorCallbacks()
                 
             PyImGui.separator()
-            if PyImGui.begin_child("FrameTreeChild",size=(800,600),border=True,flags=PyImGui.WindowFlags.HorizontalScrollbar):
+            if PyImGui.begin_child("FrameTreeChild",size=(1000,800),border=True,flags=PyImGui.WindowFlags.HorizontalScrollbar):
                 if PyImGui.begin_tab_bar(f"FrameDebuggerIndividualTabBar##{self.frame.frame_id}"):
                     if PyImGui.begin_tab_item(f"Frame Tree##{self.frame.frame_id}"):
                         PyImGui.text(f"Frame ID: {self.frame.frame_id}")
@@ -754,7 +754,7 @@ def DrawMainWindow():
                 
                 PyImGui.separator()
                 
-                if PyImGui.begin_child("FrameTreeChild",size=(500,600),border=True,flags=PyImGui.WindowFlags.HorizontalScrollbar):                                        
+                if PyImGui.begin_child("FrameTreeChild",size=(900,800),border=True,flags=PyImGui.WindowFlags.HorizontalScrollbar):                                        
                     if frame_array:
                         full_tree.draw()
                         
