@@ -1,54 +1,9 @@
-from Py4GWCoreLib import Color, WindowID, UIManager, Bags, ItemArray, Item, MouseButton, ColorPalette, ModelID
+from Py4GWCoreLib import (Color, WindowID, UIManager, Bags, ItemArray, Item, MouseButton, ColorPalette, ModelID,
+                        FrameInfo)
 import PyImGui
 import PyPlayer
 from dataclasses import dataclass, field
 
-@dataclass
-class FrameInfo:
-    WindowID: int = 0
-    WindowName: str = ""
-    WindowLabel: str = ""
-    FrameHash: int = 0
-    ParentFrameHash: int = 0
-    ChildOffsets: list = field(default_factory=list)
-    FrameID: int = 0
-    BlackBoard : dict = field(default_factory=dict)
-    
-    def update_frame_id(self):
-        if self.WindowLabel:
-            self.FrameID = UIManager.GetFrameIDByLabel(self.WindowLabel)
-            return
-
-        if self.FrameHash != 0:
-            self.FrameID = UIManager.GetFrameIDByHash(self.FrameHash)
-        else:
-            self.FrameID = UIManager.GetChildFrameID(self.ParentFrameHash, self.ChildOffsets)
-            
-    def FrameExists(self):
-        self.update_frame_id()
-        return UIManager.FrameExists(self.FrameID)
-    
-    def DrawFrame(self, color):
-        if self.FrameExists():
-            UIManager().DrawFrame(self.FrameID, color)
-            
-    def DrawFrameOutline(self, color):
-        if self.FrameExists():
-            UIManager().DrawFrameOutline(self.FrameID, color)
-            
-    def FrameClick(self):
-        if self.FrameExists():
-            UIManager().FrameClick(self.FrameID)
-            
-    def GetCoords(self):
-        if self.FrameExists():
-            return UIManager.GetFrameCoords(self.FrameID)
-        return (0,0,0,0)
-    
-    def IsMouseOver(self, mouse_x:float, mouse_y:float):
-        left, top, right, bottom = self.GetCoords()
-        return left <= mouse_x <= right and top <= mouse_y <= bottom
-            
 
 WindowFrames:dict[str, FrameInfo] = {}
 

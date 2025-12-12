@@ -23,3 +23,23 @@ class _Player:
     def call_target(self) -> Generator[Any, Any, None]:
         from ...Routines import Routines
         yield from Routines.Yield.Keybinds.CallTarget(False)
+        
+    @_yield_step(label="DeleteCharacter", counter_key="DELETE_CHARACTER")
+    def delete_character(self, character_name: str, timeout_ms: int = 15000, log: bool = True) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.RerollCharacter.DeleteCharacter(character_name, timeout_ms, log)
+    
+    @_yield_step(label="CreateCharacter", counter_key="CREATE_CHARACTER")
+    def create_character(self, character_name: str, faction: str, class_name: str, timeout_ms: int = 15000, log: bool = True) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.RerollCharacter.CreateCharacter(character_name, faction, class_name, timeout_ms, log)
+        
+    @_yield_step(label="DeleteAndCreateCharacter", counter_key="DELETE_CREATE_CHARACTER")
+    def delete_and_create_character(self, character_name: str, target_character_name: str, faction: str, class_name: str, timeout_ms: int = 15000, log: bool = True) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.RerollCharacter.DeleteAndCreateCharacter(character_name, target_character_name, faction, class_name, timeout_ms, log)
+        
+    @_yield_step(label="RerollCharacter", counter_key="REROLL_CHARACTER")
+    def reroll_character(self,target_character_name: str, timeout_ms: int = 15000, log: bool = True) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.RerollCharacter.Reroll(target_character_name, timeout_ms, log)

@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 import math
 import random
+import ctypes
 
 module_name = "Chahbek Village ZM farm"
 
