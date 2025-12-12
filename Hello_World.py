@@ -1,23 +1,20 @@
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import (ActionQueueManager, GLOBAL_CACHE, Console, ConsoleLog, Routines, ThrottledTimer,
+                          Keystroke, Key, FrameInfo, CHAR_MAP
+                          )
 import PyImGui
-import PyPlayer
+from typing import Generator, Any
+import ctypes
 
 
-dialog = 0x000AA
 
 def draw_window():
-    global dialog
-    
-    if PyImGui.begin("dialog tester"):
-
-        if PyImGui.button("dialog trough GLOBAL_CACHE"):
-            GLOBAL_CACHE.Player.SendDialog(dialog)
+    if PyImGui.begin("Adress tester"):
+        if PyImGui.button("Execute call instruction"):
+            GLOBAL_CACHE.Coroutines.append(Routines.Yield.RerollCharacter.DeleteAndCreateCharacter("Dialoguer Test","Dialoguer Main","Nightfall","Dervish",timeout_ms=25000,log=True))
             
-        if PyImGui.button("dialog directly"):
-            player_instance = PyPlayer.PyPlayer()
-            player_instance.SendDialog(dialog)
-            
-
+        if PyImGui.button("Create Character"):
+            GLOBAL_CACHE.Coroutines.append(Routines.Yield.RerollCharacter.CreateCharacter("Dialoguer Test","Nightfall","Dervish",timeout_ms=25000,log=True))
+        
     PyImGui.end()
 
 

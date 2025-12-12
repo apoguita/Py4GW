@@ -214,3 +214,49 @@ class Key(Enum):
     VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT = 0xDA; GamepadRThumbLeft = VK_GAMEPAD_RIGHT_THUMBSTICK_LEFT
     
     Unmapped = 0xFFFF; Unused = Unmapped; Unmappable = Unmapped
+    
+# Maps a character to (Key, shift_required)
+CHAR_MAP = {
+    # lowercase letters
+    **{chr(c): (getattr(Key, chr(c).upper()), False) for c in range(ord('a'), ord('z')+1)},
+    # uppercase letters
+    **{chr(c): (getattr(Key, chr(c)), True) for c in range(ord('A'), ord('Z')+1)},
+
+    # digits
+    "0": (Key.VK_0, False),
+    "1": (Key.VK_1, False),
+    "2": (Key.VK_2, False),
+    "3": (Key.VK_3, False),
+    "4": (Key.VK_4, False),
+    "5": (Key.VK_5, False),
+    "6": (Key.VK_6, False),
+    "7": (Key.VK_7, False),
+    "8": (Key.VK_8, False),
+    "9": (Key.VK_9, False),
+
+    # space & enter
+    " ": (Key.Space, False),
+    "\n": (Key.Enter, False),
+
+    # simple punctuation
+    ".": (Key.Period, False),
+    ",": (Key.Comma, False),
+    "-": (Key.Minus, False),
+    "_": (Key.Minus, True),
+    "=": (Key.Equal, False),
+    "+": (Key.Equal, True),
+    ";": (Key.Semicolon, False),
+    ":": (Key.Semicolon, True),
+    "'": (Key.Apostrophe, False),
+    '"': (Key.Apostrophe, True),
+    "/": (Key.Slash, False),
+    "?": (Key.Slash, True),
+    "\\": (Key.Backslash, False),
+    "|": (Key.Backslash, True),
+    "[": (Key.LeftBrace, False),
+    "{": (Key.LeftBrace, True),
+    "]": (Key.RightBrace, False),
+    "}": (Key.RightBrace, True),
+    "`": (Key.Grave, False),
+    "~": (Key.Grave, True),
+}

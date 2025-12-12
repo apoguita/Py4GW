@@ -1,13 +1,20 @@
 from Py4GWCoreLib import GLOBAL_CACHE, TitleID, UIManager, EnumPreference, FrameLimiter
 import PyImGui
 import PyScanner
+import Py4GW
 import ctypes
+from enum import IntEnum
+
+class ScannerSection(IntEnum):
+    TEXT = 0
+    RDATA = 1
+    DATA = 2
 
 Scanner = PyScanner.PyScanner
 
 pattern = b"\x83\x3B\x00\x0F\x85\x00\x00\x00\x00\xFF\x70\x20"
 mask    = "xxxxx????xxx"
-call_instruction_addr = Scanner.Find(pattern, mask, 0x0C, 0) # section 0 = TEXT
+call_instruction_addr = Scanner.Find(pattern, mask, 0x0C, ScannerSection.TEXT)
 SetDifficulty_Func = None
 
 if not call_instruction_addr:
@@ -44,7 +51,7 @@ def SetHardMode(flag: bool):
 def draw_window():
     if PyImGui.begin("Adress tester"):
         if PyImGui.button("Execute call instruction"):
-            SetHardMode(not GLOBAL_CACHE.Party.IsHardMode())
+            Py4GW.Game.enqueue(lambda: SetHardMode(not GLOBAL_CACHE.Party.IsHardMode()))
         
     PyImGui.end()
 

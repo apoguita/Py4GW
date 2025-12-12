@@ -1,4 +1,4 @@
-from typing import Optional, List, Any
+from typing import Callable, Any
 
 
 class Console:
@@ -116,3 +116,38 @@ class PingHandler:
     def GetAveragePing(self) -> int: ...
     def GetMinPing(self) -> int: ...
     def GetMaxPing(self) -> int: ...
+
+# py4gw_game.pyi – stubs for Py4GW.Game module
+
+class Game:
+    """
+    Submodule for game functions.
+    All functions run inside the Guild Wars game thread when appropriate.
+    """
+
+    @staticmethod
+    def enqueue(callback: Callable[[], Any]) -> None:
+        """
+        Enqueue a Python callable to execute on the Guild Wars game thread.
+
+        The callback is executed exactly once, the next time the internal
+        game-thread hook fires.
+
+        NOTE:
+            - `callback` MUST be a zero-argument function or lambda.
+              If arguments are needed, bind them using a lambda:
+
+                Game.enqueue(lambda: func(arg1, arg2))
+
+            - The callback runs with the Python GIL acquired.
+
+        Parameters
+        ----------
+        callback : Callable[[], Any]
+            A zero-argument Python function or lambda to run on the game thread.
+
+        Returns
+        -------
+        None
+        """
+        ...

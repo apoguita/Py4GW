@@ -5,6 +5,7 @@ import json
 import PyOverlay
 from collections import deque, defaultdict
 from .Py4GWcorelib import ConsoleLog, Console
+from dataclasses import dataclass, field
 
 # —— Constants ——————————————————
 NPC_DIALOG_HASH    = 3856160816
@@ -695,3 +696,97 @@ class UIManager:
             )
 
         return count
+    
+#region frameInfo
+@dataclass
+class FrameInfo:
+    WindowID: int = 0
+    WindowName: str = ""
+    WindowLabel: str = ""
+    FrameHash: int = 0
+    ParentFrameHash: int = 0
+    ChildOffsets: list = field(default_factory=list)
+    FrameID: int = 0
+    BlackBoard : dict = field(default_factory=dict)
+    
+    def update_frame_id(self):
+        if self.WindowLabel:
+            self.FrameID = UIManager.GetFrameIDByLabel(self.WindowLabel)
+            return
+
+        if self.FrameHash != 0:
+            self.FrameID = UIManager.GetFrameIDByHash(self.FrameHash)
+        else:
+            self.FrameID = UIManager.GetChildFrameID(self.ParentFrameHash, self.ChildOffsets)
+            
+    def FrameExists(self):
+        self.update_frame_id()
+        return UIManager.FrameExists(self.FrameID)
+    
+    def DrawFrame(self, color):
+        if self.FrameExists():
+            UIManager().DrawFrame(self.FrameID, color)
+            
+    def DrawFrameOutline(self, color):
+        if self.FrameExists():
+            UIManager().DrawFrameOutline(self.FrameID, color)
+            
+    def FrameClick(self):
+        if self.FrameExists():
+            UIManager().FrameClick(self.FrameID)
+            
+    def GetCoords(self):
+        if self.FrameExists():
+            return UIManager.GetFrameCoords(self.FrameID)
+        return (0,0,0,0)
+    
+    def IsMouseOver(self, mouse_x:float, mouse_y:float):
+        left, top, right, bottom = self.GetCoords()
+        return left <= mouse_x <= right and top <= mouse_y <= bottom
+            
+#region WindowFrames
+WindowFrames:dict[str, FrameInfo] = {}
+
+DeleteButtonFrame = FrameInfo(
+    WindowName="DeleteCharacterButton",
+    FrameHash=3379687503
+)
+
+FinalDeleteButtonFrame = FrameInfo(
+    WindowName="FinalDeleteCharacterButton",
+    ParentFrameHash=140452905,
+    ChildOffsets=[5,1,15,2]
+)
+
+CreateCharacterButtonFrame1 = FrameInfo(
+    WindowName="CreateCharacterButton1",
+    FrameHash=3372446797
+)
+
+CreateCharacterButtonFrame2 = FrameInfo(
+    WindowName="CreateCharacterButton2",
+    FrameHash=3973689736,
+)
+
+CreateCharacterTypeNextButtonFrame = FrameInfo(
+    WindowName="CreateCharacterTypeNextButton",
+    FrameHash=3110341991
+)
+
+CreateCharacterNextButtonGenericFrame = FrameInfo(
+    WindowName="CreateCharacterNextButtonGeneric",
+    FrameHash=1102119410
+)
+
+FinalCreateCharacterButtonFrame = FrameInfo(
+    WindowName="FinalCreateCharacterButton",
+    FrameHash=3856299307
+)
+
+WindowFrames["DeleteCharacterButton"] = DeleteButtonFrame
+WindowFrames["FinalDeleteCharacterButton"] = FinalDeleteButtonFrame
+WindowFrames["CreateCharacterButton1"] = CreateCharacterButtonFrame1
+WindowFrames["CreateCharacterButton2"] = CreateCharacterButtonFrame2
+WindowFrames["CreateCharacterTypeNextButton"] = CreateCharacterTypeNextButtonFrame
+WindowFrames["CreateCharacterNextButtonGeneric"] = CreateCharacterNextButtonGenericFrame
+WindowFrames["FinalCreateCharacterButton"] = FinalCreateCharacterButtonFrame
