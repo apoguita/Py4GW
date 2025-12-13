@@ -28,12 +28,12 @@ def create_bot_routine(bot: Botting) -> None:
     ExtendInventorySpace(bot)                  # Buy bags to extend inventory
     CompleteHeroCommandQuest(bot)              # Hero command quest
     CompleteArmoredTransportQuest(bot)         # Armored transport quest
-    CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
     TakeInitialQuests(bot)                     # Take initial quest set
     FarmQuestRequirements(bot)                 # Farm materials/items for quests
     CompleteSunspearGreatHallQuests(bot)       # SSGH (Sunspear Great Hall) quests
     CompleteMissingShipmentQuest(bot)          # Level 5+ Missing Shipment quest
     ContinueQuestProgression(bot)              # Continue with quest chain
+    CompleteIdentityTheftQuest(bot)           # Identity theft quest (not working yet)
     
     # === PHASE 3: PROFESSION AND CHARACTER DEVELOPMENT ===
     UnlockSecondProfession(bot)                # Unlock second profession
@@ -695,7 +695,9 @@ def CompleteIdentityTheftQuest(bot):
     bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
     bot.Items.AddModelToLootWhitelist(15850)
     bot.Move.XY(14429, 10337) #kill boss
+    bot.Wait.UntilOutOfCombat()
     bot.Items.LootItems()
+    bot.Wait.ForTime(1000)
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
 
@@ -953,10 +955,10 @@ def TakeWeaponRewardAndCraft(bot: Botting):
 
 def LoopFarmInJokanurDiggings(bot):
     bot.States.AddHeader("Farming: Experience Loop")
+    bot.Party.LeaveParty()
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
     for _ in range (16):
         bot.Map.Travel(target_map_id=491) #Jokanur Diggings
-        bot.Party.LeaveParty()
-        PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
         bot.Move.FollowPath([
         (1268, -311),
         (-1618, -783),
