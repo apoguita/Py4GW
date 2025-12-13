@@ -955,10 +955,10 @@ def TakeWeaponRewardAndCraft(bot: Botting):
 
 def LoopFarmInJokanurDiggings(bot):
     bot.States.AddHeader("Farming: Experience Loop")
+    bot.Party.LeaveParty()
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
     for _ in range (16):
         bot.Map.Travel(target_map_id=491) #Jokanur Diggings
-        bot.Party.LeaveParty()
-        PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
         bot.Move.FollowPath([
         (1268, -311),
         (-1618, -783),
