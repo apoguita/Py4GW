@@ -10,7 +10,7 @@ def main(args):
 
     proc, = GetProcesses(args.proc)
     scanner = ProcessScanner(proc)
-    frame_create_addr = scanner.find(b'\x33\xd2\x89\x45\x08\xb9\xac\x01\x00\x00', -0x27)
+    frame_create_addr = scanner.find(b'\x33\xd2\x89\x45\x08\xb9', -0x27)
     print(f'frame_create_addr = 0x{frame_create_addr:08X}')
 
     running = True
@@ -42,3 +42,6 @@ if __name__ == '__main__':
         help="Process name of the target Guild Wars instance.")
     args = parser.parse_args()
     main(args)
+
+
+

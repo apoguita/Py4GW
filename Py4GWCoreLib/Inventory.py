@@ -334,7 +334,7 @@ class Inventory:
         from .UIManager import UIManager
 
         parent_hash = 140452905
-        yes_button_offsets = [6,100,6]
+        yes_button_offsets = [6,109,6]
         
         salvage_material_window = UIManager.GetChildFrameID(parent_hash, yes_button_offsets)
         UIManager.FrameClick(salvage_material_window)
@@ -378,7 +378,7 @@ class Inventory:
             quantity (int, optional): The quantity of the item to drop.
         Returns: None
         """
-        Inventory.inventory_instance().DropItem(item_id, quantity)
+        return Inventory.inventory_instance().DropItem(item_id, quantity)
 
     @staticmethod
     def EquipItem(item_id, agent_id):

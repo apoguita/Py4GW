@@ -143,7 +143,7 @@ class Item:
         
         class Rarity:
             @staticmethod
-            def GetRarity(item_id):
+            def GetRarity(item_id) -> tuple[int, str]:
                 """Purpose: Retrieve the rarity of an item by its ID."""
                 return Item.item_instance(item_id).rarity.value, Item.item_instance(item_id).rarity.name
 

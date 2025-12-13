@@ -1,4 +1,5 @@
-from Py4GWCoreLib import (Routines, Range,ModelID, Botting,ActionQueueManager)
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
+                          AutoPathing, ImGui, ActionQueueManager)
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 import Py4GW
@@ -10,9 +11,9 @@ bot = Botting("Auspicious Beginnings",
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)
     GoToEOTN(bot)
-    GetBonusBow(bot)
+    #GetBonusBow(bot)
     ExitToHOM(bot)
-    AcquireKieransBow(bot)
+    AcquireKeiransBow(bot)
     EnterQuest(bot)
     AuspiciousBeginnings(bot)
 
@@ -23,7 +24,7 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("auto_combat","active", False)
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Acquire Kieran's Bow_4") 
+    fsm.jump_to_state_by_name("[H]Acquire Keiran's Bow_3") 
     fsm.resume()                           
     yield  
     
@@ -33,12 +34,18 @@ def on_death(bot: "Botting"):
     fsm = bot.config.FSM
     fsm.pause()
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
-    
+
+def _EnableCombat(bot: Botting) -> None:
+        bot.OverrideBuild(KeiranThackerayEOTN())
+        bot.Templates.Aggressive(enable_imp=False)
+ 
+def _DisableCombat(bot: Botting) -> None:
+        bot.Templates.Pacifist()
+
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
 
-    
 def GoToEOTN(bot: Botting) -> None:
     bot.States.AddHeader("Go to EOTN")
     bot.Map.Travel(target_map_id=642) #eye of the north outpost
@@ -54,53 +61,58 @@ def GetBonusBow(bot: Botting):
 
     bot.States.AddCustomState(lambda: _get_bonus_bow(bot), "GetBonusBow")
     
-
 def ExitToHOM(bot: Botting) -> None:
     bot.States.AddHeader("Exit to HOM")
     bot.Move.XYAndExitMap(x=-4873.00, y=5284.00, target_map_id=646, step_name="Exit to HOM")
 
-def AcquireKieransBow(bot: Botting) -> None:
-    KIERANS_BOW = 35829
-    bot.States.AddHeader("Acquire Kieran's Bow")
+def AcquireKeiransBow(bot: Botting) -> None:
+    KEIRANS_BOW = 35829
+    bot.States.AddHeader("Acquire Keiran's Bow")
     bot.Wait.ForMapLoad(target_map_id=646)
 
     def _acquire_keirans_bow(bot: Botting):
-        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(KIERANS_BOW):
+        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(KEIRANS_BOW):
             # Direct coroutine: interact with Gwen to take the bow
             yield from bot.Move._coro_xy_and_dialog(-6583.00, 6672.00, dialog_id=0x0000008A)
-        if not Routines.Checks.Inventory.IsModelEquipped(KIERANS_BOW):
-            yield from bot.helpers.Items._equip(KIERANS_BOW)
+        if not Routines.Checks.Inventory.IsModelEquipped(KEIRANS_BOW):
+            yield from bot.helpers.Items._equip(KEIRANS_BOW)
 
-    bot.States.AddCustomState(lambda: _acquire_keirans_bow(bot), "AcquireKieransBow")
+    bot.States.AddCustomState(lambda: _acquire_keirans_bow(bot), "AcquireKeiransBow")
 
-        
+def deposit_gold(bot: Botting):
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    # Deposit all gold if character has 90k or more
+    if gold_on_char >= 90000:
+        bot.Map.Travel(target_map_id=642)
+        bot.Wait.ForMapLoad(target_map_id=642)
+        yield from Routines.Yield.wait(500)
+        GLOBAL_CACHE.Inventory.DepositGold(gold_on_char)
+        yield from Routines.Yield.wait(500)
+        bot.Move.XYAndExitMap(-4873.00, 5284.00, target_map_id=646)
+        bot.Wait.ForMapLoad(target_map_id=646)
+        yield
+
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
     bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63E) #enter quest with pool
     bot.Wait.ForMapLoad(target_map_id=849)
     
-def AuspiciousBeginnings(bot: Botting) -> None:
-    def _EnableCombat(bot: Botting) -> None:
-        bot.OverrideBuild(KeiranThackerayEOTN())
-        bot.Templates.Aggressive(enable_imp=False)
- 
-    def _DisableCombat(bot: Botting) -> None:
-        bot.Templates.Pacifist()
-        
+def AuspiciousBeginnings(bot: Botting) -> None:    
     bot.States.AddHeader("Auspicious Beginnings")
     _EnableCombat(bot)
-    bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
+    #bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)
     bot.Move.XY(11864.74, -4899.19)
     #bot.Properties.Enable("war_supplies")
     bot.Wait.UntilOnCombat(Range.Spirit)
     #bot.Properties.Disable("war_supplies")
     bot.Move.XY(10165.07, -6181.43, step_name="First Spawn")
-    bot.Wait.UntilOutOfCombat()
+    #bot.Wait.UntilOutOfCombat()
     bot.Properties.Disable("pause_on_danger")
     path = [(8859.57, -7388.68), (9012.46, -9027.44)]
     bot.Move.FollowAutoPath(path, step_name="To corner")
     bot.Properties.Enable("pause_on_danger")
-    bot.Wait.UntilOutOfCombat()
+    #bot.Wait.UntilOutOfCombat()
 
     bot.Move.XY(4518.81, -9504.34, step_name="To safe spot 0")
     bot.Wait.ForTime(4000)
@@ -118,9 +130,9 @@ def AuspiciousBeginnings(bot: Botting) -> None:
     bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapToChange(target_map_id=646)
     _DisableCombat(bot)
-    bot.States.JumpToStepName("[H]Acquire Kieran's Bow_4")
+    #bot.States.AddCustomState(lambda: deposit_gold(bot), "DepositGoldIfNeeded")
+    bot.States.JumpToStepName("[H]Acquire Keiran's Bow_3")
     
-
 bot.SetMainRoutine(create_bot_routine)
 
 def main():

@@ -25,6 +25,28 @@ class Utils:
         return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
     
     @staticmethod
+    def format_bytes(num_bytes: int) -> str:
+            """
+            Convert a byte count to a human-readable string using
+            the closest magnitude: bytes, KB, MB, GB, TB.
+            """
+            units = ("bytes", "KB", "MB", "GB", "TB")
+            size = float(num_bytes)
+            unit_idx = 0
+
+            # Find the most appropriate unit
+            while size >= 1024.0 and unit_idx < len(units) - 1:
+                size /= 1024.0
+                unit_idx += 1
+
+            # For plain bytes, keep it as integer
+            if unit_idx == 0:
+                return f"{num_bytes} bytes"
+
+            # For KB and above, show 2 decimals
+            return f"{size:.2f} {units[unit_idx]}"
+    
+    @staticmethod
     def RGBToNormal(r, g, b, a):
         """return a normalized RGBA tuple from 0-255 values"""
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0

@@ -19,7 +19,7 @@ from .enums_src.GameData_enums import (
     EXPERIENCE_PROGRESSION,
 )
 from .enums_src.Hero_enums import HeroType, PetBehavior
-from .enums_src.IO_enums import Key, MouseButton
+from .enums_src.IO_enums import Key, MouseButton, CHAR_MAP
 from .enums_src.Item_enums import Bags, IdentifyAllType, ItemType, Rarity, SalvageAllType
 from .enums_src.Map_enums import (
     explorable_name_to_id,
@@ -97,6 +97,7 @@ __all__ = [
     # IO_enums
     "Key",
     "MouseButton",
+    "CHAR_MAP",
 
     # Item_enums
     "Bags",

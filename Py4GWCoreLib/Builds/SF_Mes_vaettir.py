@@ -295,7 +295,9 @@ class SF_Mes_vaettir(BuildMgr):
             is_wastrels_slot_ready = Routines.Checks.Skills.IsSkillSlotReady(self.wastrels_demise_slot)
             is_arcane_echo_slot_ready = Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot)
             target = GetNotHexedEnemy()
-            if target and shadow_form_buff_time_remaining >= 4000:
+            px, py = GLOBAL_CACHE.Player.GetXY()
+            num_enemies = len(Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value))
+            if target and shadow_form_buff_time_remaining >= 4000 and num_enemies >= 3:
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
                 GLOBAL_CACHE.Player.ChangeTarget(target)
                 if is_wastrels_slot_ready and is_arcane_echo_slot_ready:

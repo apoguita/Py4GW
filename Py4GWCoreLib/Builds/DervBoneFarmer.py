@@ -172,7 +172,7 @@ class DervBoneFarmer(BuildMgr):
                     )
                 ):
                     yield from self.swap_to_scythe()
-                    GLOBAL_CACHE.Player.Interact(nearest_enemy, False)
+                    yield from Routines.Yield.Agents.InteractAgent(nearest_enemy)
                     if self.has_enough_adrenaline(self.crippling_victory_slot):
                         yield from Routines.Yield.Skills.CastSkillID(self.crippling_victory, aftercast_delay=100)
                         return
@@ -180,6 +180,8 @@ class DervBoneFarmer(BuildMgr):
                     if self.has_enough_adrenaline(self.reap_impurities_slot):
                         yield from Routines.Yield.Skills.CastSkillID(self.reap_impurities, aftercast_delay=100)
                         return
+        yield
+        return
 
 
 # =================== BUILD END ========================

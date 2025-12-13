@@ -648,6 +648,7 @@ def CompleteStorageQuests(bot: Botting):
 
 def ExtendInventorySpace(bot: Botting):
     bot.States.AddHeader("Preparation: Extending Inventory Space")
+    bot.Map.Travel(target_map_name="Kamadan")
     bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
     bot.helpers.UI.open_all_bags()
     bot.Move.XYAndInteractNPC(-10597.11, 8742.66) # Merchant NPC in Kamadan

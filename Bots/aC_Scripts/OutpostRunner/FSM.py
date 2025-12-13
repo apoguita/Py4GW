@@ -48,6 +48,11 @@ class OutpostRunnerFSM:
         """
         data = self.helpers.load_map_script(run_info.id)
         outpost_id = data["ids"]["outpost_id"]
+        
+        # CRITICAL: Capture map data for this specific run
+        # to avoid issues when self.current_map_data gets overwritten by subsequent runs
+        captured_map_data = data
+        segments = data.get("segments", [])
 
          # Mark start
         self.fsm.AddState(f"[{idx}] MarkStarted", lambda ri=run_info: ri.mark_started())
@@ -57,22 +62,31 @@ class OutpostRunnerFSM:
         # 2) Wait for outpost map load
         self.fsm.AddYieldRoutineStep(f"[{idx}] WaitForOutpost",lambda oid=outpost_id: self.helpers.wait_for_map_load(oid))
         # 3) Exit outpost
-        self.fsm.AddYieldRoutineStep(f"[{idx}] LeaveOutpostPath",lambda op=data["outpost_path"]: self.helpers.follow_path(op))
+        self.fsm.AddYieldRoutineStep(f"[{idx}] LeaveOutpostPath",lambda op=data["outpost_path"], mdata=captured_map_data: self._follow_path_with_map(op, mdata))
         # 4) Start build manager
         self.fsm.AddState(f"[{idx}] StartSkillCasting", self._start_skill_casting)
         # 5) Explorable segments: wait+walk each one in order
-        segments = data.get("segments", [])
         for seg_i, seg in enumerate(segments):
             mid  = seg["map_id"]
             path = seg["path"]
-            # 5a) Wait for this segment’s map
-            self.fsm.AddYieldRoutineStep(f"[{idx}.{seg_i}] WaitMap_{mid}",lambda m=mid: self.helpers.wait_for_map_load(m))
-            # 5b) Walk it
-            self.fsm.AddYieldRoutineStep(f"[{idx}.{seg_i}] Walk_{mid}",lambda p=path: self.helpers.follow_path(p))
+            # 5a) Wait for this segment's map ONLY IF PATH IS NOT EMPTY
+            # (Empty path = final destination, wait happens during follow_path detection)
+            if path:
+                self.fsm.AddYieldRoutineStep(f"[{idx}.{seg_i}] WaitMap_{mid}",lambda m=mid: self.helpers.wait_for_map_load(m))
+            # 5b) Walk it (empty path is OK - just confirms arrival)
+            self.fsm.AddYieldRoutineStep(f"[{idx}.{seg_i}] Walk_{mid}",lambda p=path, mdata=captured_map_data: self._follow_path_with_map(p, mdata))
         # 6) Stop buffs at the very end
         self.fsm.AddState(f"[{idx}] StopSkillCasting", self._stop_skill_casting)
         # 7) Mark finish
         self.fsm.AddState(f"[{idx}] MarkFinished", lambda ri=run_info: ri.mark_finished())
+
+    def _follow_path_with_map(self, path_coords, map_data):
+        """
+        Wrapper that ensures the correct map_data is set before calling follow_path()
+        This prevents issues when multiple runs in a chain overwrite self.current_map_data
+        """
+        self.helpers.current_map_data = map_data
+        yield from self.helpers.follow_path(path_coords)
 
     def _start_skill_casting(self):
         """

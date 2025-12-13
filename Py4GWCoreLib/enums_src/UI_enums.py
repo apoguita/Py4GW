@@ -60,15 +60,23 @@ class ChatChannel(IntEnum):
 # region UIManager
 class UIMessage(IntEnum):
     kNone = 0x0
+    kResize = 0x8
     kInitFrame = 0x9
     kDestroyFrame = 0xB
-    kKeyDown = 0x1E  # wparam = UIPacket::kKeyAction*
-    kKeyUp = 0x20  # wparam = UIPacket::kKeyAction*
-    kMouseClick = 0x22  # wparam = UIPacket::kMouseClick*
-    kMouseClick2 = 0x2E  # wparam = UIPacket::kMouseAction*
-    kMouseAction = 0x2F  # wparam = UIPacket::kMouseAction*
+    kKeyDown = 0x20  # wparam = UIPacket::kKeyAction*
+    kSetFocus = 0x21
+    kKeyUp = 0x22  # wparam = UIPacket::kKeyAction*
+    kMouseClick = 0x24  # wparam = UIPacket::kMouseClick*
+    kMouseCoordsClick = 0x26
+    kMouseUp = 0x28  # wparam = UIPacket::kMouseClick*
+    kMouseClick2 = 0x31  # wparam = UIPacket::kMouseAction*
+    kMouseAction = 0x32  # wparam = UIPacket::kMouseAction*
+    kSetLayout = 0x37
+    kMeasureContent = 0x38
+    kRefreshContent = 0x3A
     kUpdateAgentEffects = 0x10000009
     kRerenderAgentModel = 0x10000007  # wparam = uint32_t agent_id
+    kAgentSpeechBubble = 0x10000017
     kShowAgentNameTag = 0x10000019  # wparam = AgentNameTagInfo*
     kHideAgentNameTag = 0x1000001A
     kSetAgentNameTagAttribs = 0x1000001B  # wparam = AgentNameTagInfo*
@@ -86,13 +94,17 @@ class UIMessage(IntEnum):
     kEffectAdd = 0x10000055  # wparam = {agent_id, GW::Effect*}
     kEffectRenew = 0x10000056  # wparam = GW::Effect*
     kEffectRemove = 0x10000057  # wparam = effect id
-    kUpdateSkillbar = 0x1000005E  # wparam = { uint32_t agent_id , ... }
     kSkillActivated = 0x1000005B  # wparam = { uint32_t agent_id , uint32_t skill_id }
+    kUpdateSkillbar = 0x1000005E  # wparam = { uint32_t agent_id , ... }
+    kUpdateSkillsAvailable = 0x1000005F  # wparam = { uint32_t agent_id , ... }
+    kPlayerTitleChanged = 0x10000064  # wparam = title id
     kTitleProgressUpdated = 0x10000065  # wparam = title_id
     kExperienceGained = 0x10000066  # wparam = experience amount
     kWriteToChatLog = 0x1000007E  # wparam = UIPacket::kWriteToChatLog*
     kWriteToChatLogWithSender = 0x1000007F  # wparam = UIPacket::kWriteToChatLogWithSender*
+    kAllyOrGuildMessage = 0x10000080 
     kPlayerChatMessage = 0x10000081  # wparam = UIPacket::kPlayerChatMessage*
+    kFloatingWindowMoved = 0x10000083  # wparam = { uint32_t window_id, int32_t pos_x, int32_t pos_y }
     kFriendUpdated = 0x10000089  # wparam = { GW::Friend*, ... }
     kMapLoaded = 0x1000008A
     kOpenWhisper = 0x10000090  # wparam = wchar* name
@@ -104,11 +116,16 @@ class UIMessage(IntEnum):
     kTargetNPCPartyMember = 0x100000B1  # wparam = { uint32_t unk, uint32_t agent_id }
     kTargetPlayerPartyMember = 0x100000B2  # wparam = { uint32_t unk, uint32_t player_number }
     kInitMerchantList = 0x100000B3  # wparam = { uint32_t merchant_tab_type, uint32_t unk, uint32_t merchant_agent_id, uint32_t is_pending }
+    kVendorItems = 0x100000B7  # wparam = UIPacket::kVendorItemsResponse*
+    kVendorTransComplete = 0x100000B9
     kQuotedItemPrice = 0x100000BB  # wparam = { uint32_t item_id, uint32_t price }
     kStartMapLoad = 0x100000C0  # wparam = { uint32_t map_id, ... }
     kWorldMapUpdated = 0x100000C5
     kGuildMemberUpdated = 0x100000D8  # wparam = { GuildPlayer::name_ptr }
     kShowHint = 0x100000DF  # wparam = { uint32_t icon_type, wchar_t* message_enc }
+    kWeaponSetSwapComplete = 0x100000E7
+    kWeaponSetSwapCancel = 0x100000E8
+    kWeaponSetUpdated = 0x100000E9  # wparam = UIPacket::kWeaponSetUpdated* 
     kUpdateGoldCharacter = 0x100000EA  # wparam = { uint32_t unk, uint32_t gold_character }
     kUpdateGoldStorage = 0x100000EB  # wparam = { uint32_t unk, uint32_t gold_storage }
     kInventorySlotUpdated = 0x100000EC  # Triggered when an item is moved into a slot
@@ -117,11 +134,63 @@ class UIMessage(IntEnum):
     kEquipmentSlotCleared = 0x100000F0  # Triggered when an item is removed from a slot
     kPvPWindowContent = 0x100000F8
     kPreStartSalvage = 0x10000100  # { uint32_t item_id, uint32_t kit_id }
+    kTomeSkillSelection = 0x10000101  # wparam = UIPacket::kTomeSkillSelection*
     kTradePlayerUpdated = 0x10000103  # wparam = GW::TraderPlayer*
     kItemUpdated = 0x10000104  # wparam = UIPacket::kItemUpdated*
     kMapChange = 0x1000010F  # wparam = map id
     kCalledTargetChange = 0x10000113  # wparam = { player_number, target_id }
     kErrorMessage = 0x10000117  # wparam = { int error_index, wchar_t* error_encoded_string }
+    kPartyHardModeChanged = 0x10000118
+    kPartyAddHenchman = 0x10000119  # wparam = { uint32_t henchman_id, ... }
+    kPartyRemoveHenchman = 0x1000011A  # wparam = { uint32_t henchman_id, ... }
+    kPartyAddHero = 0x1000011c  # wparam = { uint32_t hero_id, ... }
+    kPartyRemoveHero = 0x1000011D  # wparam = { uint32_t hero_id, ... }
+    kPartyAddPlayer = 0x10000122
+    kPartyRemovePlayer = 0x10000124
+    kDisableEnterMissionBtn = 0x10000128
+    kShowCancelEnterMissionBtn = 0x1000012B
+    kPartyDefeated = 0x1000012D
+    kPartySearchInviteReceived = 0x10000135
+    kPartySearchInviteSent = 0x10000137
+    kPartyShowConfirmDialog = 0x10000138
+    kPreferenceEnumChanged = 0x1000013E
+    kPreferenceFlagChanged = 0x1000013F
+    kPreferenceValueChanged = 0x10000140
+    kUIPositionChanged = 0x10000141  # wparam = { uint32_t pref_id, ... }
+    kPreBuildLoginScene = 0x10000142
+    kQuestDetailsChanged = 0x1000014A  # wparam = uint32_t quest_id
+    kQuestRemoved = 0x1000014B  # wparam = uint32_t quest_id
+    kClientActiveQuestChanged = 0x1000014C  # wparam = uint32_t quest_id
+    kServerActiveQuestChanged = 0x1000014E
+    kUnknownQuestRelated = 0x1000014F  # wparam = uint32_t quest_id
+    kDungeonCompleted = 0x10000151
+    kMissionCompleted = 0x10000152
+    kVanquishComplete = 0x10000154
+    kObjectiveAdd = 0x10000155  # wparam = uint32_t objective_id
+    kObjectiveComplete = 0x10000156  # wparam = uint32_t objective_id
+    kObjectiveUpdated = 0x10000157  # wparam = uint32_t objective_id
+    kTradeSessionStart = 0x10000160
+    kTradeSessionUpdated = 0x10000166
+    kTriggerLogoutPrompt = 0x1000016C
+    kToggleOptionsWindow = 0x1000016D
+    kCheckUIState = 0x10000170
+    kRedrawItem = 0x10000172  # wparam = uint32_t item_id
+    kCloseSettings = 0x10000174
+    kChangeSettingsTab = 0x10000175  # wparam = uint32_t tab_id
+    kGuildHall = 0x10000177
+    kLeaveGuildHall = 0x10000179
+    kTravel = 0x1000017A
+    kOpenWikiUrl = 0x1000017B  # wparam = wchar_t* url
+    kAppendMessageToChat = 0x10000189  # wparam = wchar_t* message
+    kHideHeroPanel = 0x10000197
+    kShowHeroPanel = 0x10000198
+    kGetInventoryAgentId = 0x1000019C
+    kEquipItem = 0x1000019D  # wparam = uint32_t item_id
+    kMoveItem = 0x1000019E  # wparam = UIPacket::kMoveItem*
+    kInitiateTrade = 0x100001A0
+    kInventoryAgentChanged = 0x100001B0
+    kOpenTemplate= 0x100001B9
+    
     kSendEnterMission = 0x30000002  # wparam = uint32_t arena_id
     kSendLoadSkillbar = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
     kSendPingWeaponSet = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*
@@ -151,6 +220,8 @@ class UIMessage(IntEnum):
     kRecvWhisper = 0x3000001E  # wparam = UIPacket::kRecvWhisper*
     kPrintChatMessage = 0x3000001F  # wparam = UIPacket::kPrintChatMessage*  # Triggered when a message wants to be added to the in-game chat window
     kSendWorldAction = 0x30000020  # wparam = UIPacket::kSendWorldAction*
+    kSetRendererValue = 0x30000021 #| 0x21, // wparam = UIPacket::kSetRendererValue
+    kIdentifyItem = 0x30000022 #| 0x22  // wparam = UIPacket::kIdentifyItem
 
 
 class EnumPreference(IntEnum):
@@ -275,6 +346,7 @@ class FlagPreference(IntEnum):
     ChannelLocal = 0x8
     ChannelGroup = 0x9
     ChannelTrade = 0xA
+    GamepadInputGuide = 0xE
 
     ShowTextInSkillFloaters = 0x11
     ShowKRGBRatingsInGame = 0x12
@@ -331,50 +403,52 @@ class WindowID(IntEnum):
     WindowID_InGameClock = 0x6
     WindowID_Compass = 0x7
     WindowID_DamageMonitor = 0x8
+    WindowID_DistrictList = 0xA
     WindowID_PerformanceMonitor = 0xB
     WindowID_EffectsMonitor = 0xC
     WindowID_Hints = 0xD
-    WindowID_MissionProgress = 0xE
+    #0xE?
+    WindowID_MissionProgress = 0xF #0xE
     WindowID_MissionStatusAndScoreDisplay = 0xF
-    WindowID_Notifications = 0x11
-    WindowID_Skillbar = 0x14
-    WindowID_SkillMonitor = 0x15
-    WindowID_UpkeepMonitor = 0x17
-    WindowID_SkillWarmup = 0x18
-    WindowID_Menu = 0x1A
-    WindowID_EnergyBar = 0x1C
-    WindowID_ExperienceBar = 0x1D
-    WindowID_HealthBar = 0x1E
-    WindowID_TargetDisplay = 0x1F
-    WindowID_TradeButton = 0x21
-    WindowID_WeaponBar = 0x22
+    WindowID_Notifications = 0x12
+    WindowID_Skillbar = 0x16
+    WindowID_SkillMonitor = 0x17
+    WindowID_UpkeepMonitor = 0x19
+    WindowID_SkillWarmup = 0x1A
+    #WindowID_Menu = 0x1A
+    WindowID_EnergyBar = 0x1E
+    WindowID_ExperienceBar = 0x1F
+    WindowID_HealthBar = 0x20
+    WindowID_TargetDisplay = 0x21
+    WindowID_Task_Tracker = 0x23
+    WindowID_TradeButton = 0x24
+    WindowID_WeaponBar = 0x25
 
-    WindowID_Hero1 = 0x33
-    WindowID_Hero2 = 0x34
-    WindowID_Hero3 = 0x35
-    WindowID_Hero = 0x36
+    WindowID_Hero1 = 0x36
+    WindowID_Hero2 = 0x37
+    WindowID_Hero3 = 0x38
+    WindowID_Hero = 0x39
 
-    WindowID_SkillsAndAttributes = 0x38
-    WindowID_Friends = 0x3A
-    WindowID_Guild = 0x3B
-    WindowID_Help = 0x3D
-    WindowID_Inventory = 0x3E
-    WindowID_VaultBox = 0x3F
-    WindowID_InventoryBags = 0x40
-    WindowID_MissionMap = 0x42
-    WindowID_Observe = 0x44
+    WindowID_SkillsAndAttributes = 0x3B #0x38
+    WindowID_Friends = 0x3D #0x3A
+    WindowID_Guild = 0x3E #0x3B
+    WindowID_Help = 0x40 #0x3D
+    WindowID_Inventory = 0x41 #0x3E
+    #WindowID_VaultBox = 0x3B #0x3F # Deprecated
+    WindowID_InventoryBags = 0x43 #old 0x40
+    WindowID_MissionMap = 0x45
+    WindowID_Observe = 0x47
     WindowID_Options = 0x45
-    WindowID_PartyWindow = 0x48  # state flag ignored, position is valid
-    WindowID_PartySearch = 0x49
-    WindowID_QuestLog = 0x4F
-    WindowID_Merchant = 0x5C
-    WindowID_Hero4 = 0x5E
-    WindowID_Hero5 = 0x5F
-    WindowID_Hero6 = 0x60
-    WindowID_Hero7 = 0x61
+    WindowID_PartyWindow = 0x4B #0x48  # state flag ignored, position is valid
+    WindowID_PartySearch = 0x4C #0x49
+    WindowID_QuestLog = 0x52 #0x4F
+    #WindowID_Merchant = 0x5F #0x5C # Deprecated
+    WindowID_Hero4 = 0x61 #0x5E
+    WindowID_Hero5 = 0x62 #0x5F
+    WindowID_Hero6 = 0x63 #0x60
+    WindowID_Hero7 = 0x64 #0x61
 
-    WindowID_Count = 0x66  # Used for bounds checking
-
+    WindowID_Count = 0x69  # Used for bounds checking
 
 class ControlAction(IntEnum):
     ControlAction_None = 0x00
