@@ -258,17 +258,17 @@ def EquipSkillBar():
         elif level == 5:
             yield from Routines.Yield.Skills.LoadSkillbar("OwEU0I39iaQtEoEZE8DVEcF5gxEA")    
         elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwoT0MXCHqlAlIjgfoiQ8KHMmAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
         elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwoT0MXCHqlAlIjgfoiQ8KHMmAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
         elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwoT0MXCHqlAlIjgfoiQ8KHMmAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
         elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwoT0MXCHqlAlIjgfoiQ8KHMmAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
         elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwoT0MXCHqlAlIjgfoiQ8KHMmAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwoT0MXCHqlAlIjgfoiQ8KHMmAA")      
+            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")      
 
 def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
