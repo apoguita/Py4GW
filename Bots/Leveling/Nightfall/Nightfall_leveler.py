@@ -680,6 +680,7 @@ def ConfigureFirstBattle_yield(bot: Botting):
 
 def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Mission: Chahbek Village")
+    bot.SkillBar.LoadHeroSkillBar(1, "OQMU4iYQjaQXF8E9FTiTNBAWfCAA") #Koss
     bot.Dialogs.AtXY(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
@@ -811,6 +812,7 @@ def CompleteArmoredTransportQuest(bot):
 def IdentityTheftQuest(bot):
     bot.States.AddHeader("Quest: Identity Theft")
     bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XY(-7519.91, 14468.26)
     bot.Move.XYAndDialog(-10461, 15229, 0x827201) #take quest
     bot.Map.Travel(target_map_id=479) #Champions Dawn
     bot.Move.XYAndDialog(25345, 8604, 0x827204)
@@ -825,6 +827,7 @@ def IdentityTheftQuest(bot):
     bot.Items.LootItems()
     bot.Wait.ForTime(1000)
     bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XY(-7519.91, 14468.26)
     bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
 
 def CompleteHeroCommandQuest(bot):
