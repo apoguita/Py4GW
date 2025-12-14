@@ -26,7 +26,7 @@ def create_bot_routine(bot: Botting) -> None:
     # === PHASE 2: INITIAL QUESTS AND PROGRESSION ===
     CompleteStorageQuests(bot)                 # Storage quests   
     ExtendInventorySpace(bot)                  # Buy bags to extend inventory
-    CompleteHeroCommandQuest(bot)              # Hero command quest
+    
     CompleteArmoredTransportQuest(bot)         # Armored transport quest
     TakeInitialQuests(bot)                     # Take initial quest set
     MaterialGirlAndMapTravel(bot)                 # Just 2 quests
@@ -40,6 +40,7 @@ def create_bot_routine(bot: Botting) -> None:
     # === PHASE 3: PROFESSION AND CHARACTER DEVELOPMENT ===
     UnlockSecondProfession(bot)                # Unlock second profession
     ConfigureAfterSecondProfession(bot)     # Configure bot after second profession
+    CompleteHeroCommandQuest(bot)              # Hero command quest
     LeavingALegacy(bot) 
     
     # === PHASE 4: EQUIPMENT CRAFTING ===
@@ -268,12 +269,34 @@ def EquipSkillBar():
         elif level == 10:
             yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")      
+            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")   
+
+    elif profession == "Warrior":    
+        if level == 2:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQARErprIUAABAuCGHAAAA")    
+        elif level == 3:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQARErprIUAABAuCGHAAAA")    
+        elif level == 4:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQARErprIUAABAuCGHAAAA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
+        elif level == 5:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQARErprIUAABAuCGHAAAA")    
+        elif level == 6:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpF1VIU8fNgxVEAsDixBA")    
+        elif level == 7:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQojEZVSqRdFCF/XDYcFBA7gYcA")    
+        elif level == 8:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")    
+        elif level == 9:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")    
+        elif level == 10:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")    
+        else:
+            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")            
 
 def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary == "Warrior":
-        return ModelID.Bolt_Of_Cloth.value
+        return ModelID.Iron_Ingot.value
     elif primary == "Ranger":
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Monk":
@@ -335,11 +358,11 @@ def GetArmorPiecesByProfession(bot: Botting):
     HEAD,CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
 
     if primary == "Warrior": 
-        HEAD = 10046
-        CHEST = 10164
-        GLOVES = 10165
-        PANTS = 10166
-        BOOTS = 10163
+        HEAD = 17525 #Need Strength
+        CHEST = 17531
+        GLOVES = 17532
+        PANTS = 17533
+        BOOTS = 17530
     elif primary == "Dervish":
         HEAD = 17705
         CHEST = 17676
@@ -351,12 +374,11 @@ def GetArmorPiecesByProfession(bot: Botting):
 
 def GetWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    SCYTHE = SPEAR = SHIELDWAR = SWORD = BOW = SHIELDPARA = FIRESTAFF = DOMSTAFF = MONKSTAFF = 0
+    SCYTHE = SPEAR = BOW = SHIELDPARA = FIRESTAFF = DOMSTAFF = MONKSTAFF = 0
 
     if primary == "Warrior":
-        SWORD = 18927
-        SHIELDWAR = 18911
-        return SWORD, SHIELDWAR
+        SCYTHE = 18910
+        return SCYTHE,
     elif primary == "Ranger":
         BOW = 18907
         return BOW,
@@ -380,11 +402,11 @@ def GetWeaponByProfession(bot: Botting):
 
 def GetFirstWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    SCYTHE = SPEAR = SWORD = BOW = FIRESTAFF = DOMSTAFF = MONKSTAFF = NECROSTAFF = 0
+    SCYTHE = SPEAR = BOW = FIRESTAFF = DOMSTAFF = MONKSTAFF = NECROSTAFF = 0
     
     if primary == "Warrior":
-        SWORD = 18902 
-        return SWORD,
+        SCYTHE = 16227
+        return SCYTHE,
     elif primary == "Ranger":
         BOW = 16191 #Longbow
         return BOW,
@@ -641,42 +663,6 @@ def ConfigureFirstBattle(bot: Botting):
     Equip_Weapon()
     bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
 
-    
-def ConfigureFirstBattle_yield(bot: Botting):
-    bot.States.AddHeader("Preparation: First Battle Setup")
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
-    bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
-    def Equip_Weapon():
-        global bot
-        profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-        if profession == "Dervish":
-            bot.Items.Equip(15591)  # starter scythe
-        elif profession == "Paragon":
-            bot.Items.Equip(15593) #Starter Spear
-            bot.Items.Equip(6514) #Bonus Shield
-        elif profession == "Elementalist":
-            bot.Items.Equip(6508) #Luminescent Scepter
-            bot.Wait.ForTime(1000)
-            bot.Items.Equip(6514)
-        elif profession == "Mesmer":
-            bot.Items.Equip(6508) #Luminescent Scepter
-            bot.Wait.ForTime(1000)
-            bot.Items.Equip(6514)
-        elif profession == "Necromancer":
-            bot.Items.Equip(6515) #Soul Shrieker   
-        elif profession == "Ranger":
-            bot.Items.Equip(5831) #Nevermore Flatbow 
-        elif profession == "Warrior":
-            bot.Items.Equip(3) #Starter Sword  
-            bot.Items.Equip(6514) #Bonus Shield  
-        elif profession == "Monk":
-            bot.Items.Equip(6508) #Luminescent Scepter 
-            bot.Wait.ForTime(1000)
-            bot.Items.Equip(6514)   
-        yield
-    bot.States.AddCustomState(Equip_Weapon, "Equip Starter Weapon")
-    Equip_Weapon()
-    bot.Dialogs.AtXY(3433, -5900, 0x82C707, step_name="Accept")
 
 def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Mission: Chahbek Village")
@@ -877,12 +863,10 @@ def MaterialGirlAndMapTravel(bot: Botting):
     bot.Move.XYAndDialog(9292, -1220, 0x826104, step_name="Material Girl")
     bot.Move.XYAndDialog(-1782, 2790, 0x828801, step_name="Map Travel")
     bot.Move.XY(-3145, 2412)
-    bot.Move.XYAndExitMap(-3236, 4503, target_map_id=431) #Sunspear Great Hall
-    #bot.Wait.ForMapToChange(target_map_id=431) #don't need these anymore? the bot is wait for this 
+    bot.Move.XYAndExitMap(-3236, 4503, target_map_id=431) #Sunspear Great Hall 
     bot.States.AddHeader("Quest Turn-in: Kamadan")
     bot.Wait.ForTime(2000)
     bot.Map.Travel(target_map_id=449) #Kamadan
-    #bot.Wait.ForMapToChange(target_map_id=449)
     bot.Move.XYAndDialog(-10024, 8590, 0x828804, step_name="Map Travel Inventor")
     bot.Dialogs.AtXY(-10024, 8590, 0x828807)
     bot.Move.XYAndDialog(-11356, 9066, 0x826107, step_name="accept reward")
@@ -930,12 +914,10 @@ def CompleteMissingShipmentQuest(bot):
     bot.Interact.WithGadgetID(7458)
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10235, 16557, 0x827507) # +500xp +30 health rune
-    #bot.Items.Equip(898) #didn't work
             
 def ContinueQuestProgression(bot: Botting): 
-    bot.States.AddHeader("Main Storyline: Quest Progression")
+    bot.States.AddHeader("Progression: Champions Dawn")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    #bot.Wait.ForMapToChange(target_map_id=431)
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     ConfigureAggressiveEnv(bot)
@@ -1011,9 +993,16 @@ def UnlockSecondProfession(bot: Botting):
     ConfigurePacifistEnv(bot)
     bot.Move.XYAndDialog(-6557.00, 1837, 0x7F, step_name="Closest Trainer Possible") #this is fine, need minimal skill bar for level 4 to avoid skill equip window
     bot.Move.XYAndDialog(-7161, 4808, 0x825907, step_name="Secondary Training complete")
-    bot.Dialogs.AtXY(-7161, 4808, 0x88, step_name="Warrior 2nd Profession") #change to Warrior
-    bot.Dialogs.AtXY(-7161, 4808, 0x825407, step_name="Accept")
-    bot.Dialogs.AtXY(-7161, 4808, 0x827801, step_name="Right Away")
+    
+    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if profession == "Warrior":
+        bot.Move.XYAndDialog(-7161, 4808, 0x8A, step_name="Dervish 2nd Profession")
+        bot.Dialogs.AtXY(-7161, 4808, 0x825407, step_name="Accept")
+        bot.Dialogs.AtXY(-7161, 4808, 0x827801, step_name="Right Away")
+    else:   
+        bot.Dialogs.AtXY(-7161, 4808, 0x88, step_name="Warrior 2nd Profession") #change to Warrior
+        bot.Dialogs.AtXY(-7161, 4808, 0x825407, step_name="Accept")
+        bot.Dialogs.AtXY(-7161, 4808, 0x827801, step_name="Right Away")
 
 def ConfigureAfterSecondProfession(bot: Botting):    
     bot.States.AddHeader("Progression: 15 Attribute Points")
@@ -1033,7 +1022,10 @@ def ConfigureAfterSecondProfession(bot: Botting):
     elif profession == "Mesmer":
         bot.Move.XYAndDialog(-3317, 7053, 0x883603, step_name="Learn Cry of Frustration")
     elif profession == "Monk":
-        bot.Move.XYAndDialog(-3317, 7053, 0x883903, step_name="Learn Seed of Life")    
+        bot.Move.XYAndDialog(-3317, 7053, 0x883903, step_name="Learn Seed of Life")  
+    if profession == "Warrior":
+        bot.Move.XYAndDialog(-3317, 7053, 0x883B03, step_name="Learn Whirlwind Attack")
+        bot.Dialogs.AtXY(-3317, 7053, 0x86E302, step_name="Learn Zealous Renewal")      
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC03, step_name='Rising to 1st Spear')
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01, step_name="Sounds good to me")
@@ -1123,11 +1115,11 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                         11329   # Boots
                         ]
     elif primary == "Warrior":
-        starter_armor = [10174,  # Head
-                        10172,  # Chest
-                        10173,  # Gloves
-                        10175,  # Pants
-                        10171   # Boots
+        starter_armor = [15702,  # Head
+                        15700,  # Chest
+                        15701,  # Gloves
+                        15703,  # Pants
+                        15699   # Boots
                         ]
     elif primary == "Ranger":
         starter_armor = [10623,  # Head
@@ -1176,6 +1168,7 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                      15591,  #Starter Scythe
                      15593,  #Starter Spear
                      18901,  #Monk 1st Staff
+                     16227,   #1st Scythe Warrior and Dervish
                      
                     ]
     
