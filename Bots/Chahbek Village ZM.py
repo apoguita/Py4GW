@@ -55,7 +55,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Items.SpawnBonusItems()
        
-def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
+def PrepareForBattle(bot: Botting, Hero_List = [6], Henchman_List = [1,2]) -> None:
     ConfigureAggressiveEnv(bot)
     bot.Party.LeaveParty()
     bot.Party.AddHeroList(Hero_List)
@@ -125,7 +125,6 @@ def Equip_Weapon():
 
 def ConfigureFirstBattle(bot: Botting):
     bot.States.AddHeader("Battle Setup")
-    bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
     bot.Wait.ForTime(1000)
     Equip_Weapon()
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
