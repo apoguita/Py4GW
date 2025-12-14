@@ -132,7 +132,7 @@ def ConfigureFirstBattle(bot: Botting):
 
 def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Chahbek Village")
-    ot.Dialogs.AtXY(3485, -5246, 0x81)
+    bot.Dialogs.AtXY(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
     bot.Wait.UntilOnExplorable()
