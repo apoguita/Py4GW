@@ -93,6 +93,7 @@ class CustomBehaviorParty:
 
         match message.Command:
             case SharedCommandType.CustomBehaviors:
+                
                 pass
 
     #---
