@@ -7,7 +7,6 @@ from Py4GWCoreLib import Key, Keystroke, Map
 from AccountData import MODULE_NAME
 from Py4GWCoreLib import (GLOBAL_CACHE, Inventory, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager,)
-
 LAST_CHARACTER_NAME: str = ""
 LAST_PRIMARY_PROF: str = ""
 LAST_CAMPAIGN: str = "Nightfall"
@@ -20,7 +19,6 @@ bot = Botting("Chahbek Village ZM",
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
  
-
 def create_bot_routine(bot: Botting) -> None:
     global LAST_CHARACTER_NAME, LAST_PRIMARY_PROF, LAST_CAMPAIGN
     # capture tôt tant qu'on est bien en jeu
@@ -36,8 +34,8 @@ def create_bot_routine(bot: Botting) -> None:
     UnlockGtob(bot)
     TakeZM(bot)                                #Take ZM
     TravelToChabbek(bot)                       # Go to chabbek village
-    Meeting_First_Spear_Jahdugar(bot)          # Meeting First Spear Jahdugar
     ConfigureFirstBattle(bot)                  # Configure first battle setup
+    Meeting_First_Spear_Jahdugar(bot)          # Meeting First Spear Jahdugar
     EnterChahbekMission(bot)                   # Enter Chahbek mission
     TravelToGtob(bot)                         # Travel to EB
     TakeReward(bot)                            # Take Reward 
@@ -89,8 +87,8 @@ def TravelToChabbek(bot: Botting) -> None:
     
 def Meeting_First_Spear_Jahdugar(bot: Botting):
     bot.States.AddHeader("Meeting First Spear Jahdugar")
-    bot.Move.XYAndDialog(3482, -5167, 0x82A507, step_name="Talk to First Spear Jahdugar")
-    bot.Move.XYAndDialog(3482, -5167, 0x83A801, step_name="You can count on me")
+    bot.Move.XYAndDialog(3482, -5167, 0x82A507)
+    bot.Move.XYAndDialog(3482, -5167, 0x83A801)
 
 def Equip_Weapon():
         global bot
@@ -126,14 +124,15 @@ def Equip_Weapon():
             #bot.Items.Equip(6514)  
 
 def ConfigureFirstBattle(bot: Botting):
-    bot.States.AddHeader("Preparation: First Battle Setup")
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
+    bot.States.AddHeader("Battle Setup")
     bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
     bot.Wait.ForTime(1000)
     Equip_Weapon()
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
 
 def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Chahbek Village")
+    ot.Dialogs.AtXY(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
     bot.Wait.UntilOnExplorable()
@@ -162,13 +161,13 @@ def EnterChahbekMission(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=456)
 
 def TravelToGtob(bot: Botting) -> None:
-    bot.States.AddHeader("Travel to Beach")
+    bot.States.AddHeader("To GTOB")
 
     def _state():
         # 7=EU, 8=EU+INT, 11=ALL (incl. Asia)
         yield from RndTravelState(248, use_districts=8)
 
-    bot.States.AddCustomState(_state, "RndTravel -> Embark Beach")
+    bot.States.AddCustomState(_state, "RndTravel -> Great Temple of Balthazar")
 
 def TakeReward(bot: Botting):
     bot.States.AddHeader("Take Reward")
