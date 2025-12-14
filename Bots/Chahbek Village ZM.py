@@ -11,13 +11,7 @@ LAST_CHARACTER_NAME: str = ""
 LAST_PRIMARY_PROF: str = ""
 LAST_CAMPAIGN: str = "Nightfall"
 
-bot = Botting("Chahbek Village ZM",
-              upkeep_birthday_cupcake_restock=10,
-              upkeep_honeycomb_restock=20,
-              upkeep_war_supplies_restock=2,
-              upkeep_auto_inventory_management_active=False,
-              upkeep_auto_combat_active=False,
-              upkeep_auto_loot_active=True)
+bot = Botting("Chahbek Village ZM")
  
 def create_bot_routine(bot: Botting) -> None:
     global LAST_CHARACTER_NAME, LAST_PRIMARY_PROF, LAST_CAMPAIGN
@@ -31,13 +25,11 @@ def create_bot_routine(bot: Botting) -> None:
         pass
 
     SkipTutorialDialog(bot)                    # Skip opening tutorial
-    UnlockGtob(bot)
     TakeZM(bot)                                #Take ZM
     TravelToChabbek(bot)                       # Go to chabbek village
     Meeting_First_Spear_Jahdugar(bot)          # Meeting First Spear Jahdugar
     ConfigureFirstBattle(bot)                  # Configure first battle setup
     EnterChahbekMission(bot)                   # Enter Chahbek mission
-    TravelToGtob(bot)                         # Travel to EB
     TakeReward(bot)                            # Take Reward 
     UnlockXunlai(bot)                          # Unlock Storage
     DepositReward(bot)
@@ -65,21 +57,18 @@ def SkipTutorialDialog(bot: Botting) -> None:
     bot.States.AddHeader("Skip Tutorial")
     bot.Dialogs.AtXY(10289, 6405, 0x82A501)  
     bot.Map.TravelGH()
-    bot.Wait.ForTime(500)
+    bot.Wait.ForTime(2000)
     bot.Map.LeaveGH()
     bot.Wait.ForTime(5000)
 
-def UnlockGtob(bot: Botting):
-    bot.States.AddHeader("To Gtob")
+def TakeZM(bot: Botting):
+    bot.States.AddHeader("Take ZM")
     def _state():
         yield from RndTravelState(796, use_districts=8)
     bot.States.AddCustomState(_state, "RndTravel -> Codex Arena")
     def _state2():
         yield from RndTravelState(248, use_districts=8)
     bot.States.AddCustomState(_state2, "RndTravel -> Great Temple of Balthazar")
-
-def TakeZM(bot: Botting):
-    bot.States.AddHeader("Take ZM")
     bot.Move.XYAndDialog(-5065.00, -5211.00, 0x83D201)
 
 def TravelToChabbek(bot: Botting) -> None:
@@ -163,17 +152,12 @@ def EnterChahbekMission(bot: Botting):
     bot.Move.XY(-3938, -6315) #Boss
     bot.Wait.ForMapToChange(target_map_id=456)
 
-def TravelToGtob(bot: Botting) -> None:
-    bot.States.AddHeader("To GTOB")
-
+def TakeReward(bot: Botting):
+    bot.States.AddHeader("Take Reward")
     def _state():
         # 7=EU, 8=EU+INT, 11=ALL (incl. Asia)
         yield from RndTravelState(248, use_districts=8)
-
     bot.States.AddCustomState(_state, "RndTravel -> Great Temple of Balthazar")
-
-def TakeReward(bot: Botting):
-    bot.States.AddHeader("Take Reward")
     bot.Move.XY(-5159.01, -5548.32)
     bot.Dialogs.WithModel(1192,0x83D207)
 
@@ -298,7 +282,7 @@ def LogoutAndDeleteState():
             log=True
         )
 
-    yield from Routines.Yield.wait(3000)
+    yield from Routines.Yield.wait(5000)
 
     # ------------------------------------------------------------
     # 4) Decide name immediately (no long wait)
@@ -329,7 +313,7 @@ def LogoutAndDeleteState():
         log=True
     )
 
-    yield from Routines.Yield.wait(4000)
+    yield from Routines.Yield.wait(5000)
 
     # ------------------------------------------------------------
     # 6) Select character (si dispo)
@@ -345,7 +329,7 @@ def LogoutAndDeleteState():
     # ------------------------------------------------------------
     ConsoleLog("Reroll", "Reroll finished. Restarting routine.", Console.MessageType.Success)
 
-    yield from Routines.Yield.wait(1000)
+    yield from Routines.Yield.wait(5000)
 
     ActionQueueManager().ResetAllQueues()
     bot.SetMainRoutine(create_bot_routine)
@@ -472,9 +456,10 @@ def RndTravelState(map_id: int, use_districts: int = 8):
       11 = EU + International + Asie
     """
 
-    # Ordre: eu-en, eu-fr, eu-ge, eu-it, eu-sp, eu-po, eu-ru, int, asia-ko, asia-ch, asia-ja
-    region   = [2, 2, 2, 2, 2, 2, 2, -2, 1, 3, 4]
-    language = [0, 2, 3, 4, 5, 9, 10, 0, 0, 0, 0]
+    # Ordre: eu-en, eu-it, eu-sp, eu-po, eu-ru, int, asia-ko, asia-ch, asia-ja
+    # (German and French districts removed)
+    region   = [2, 2, 2, 2, 2, -2, 1, 3, 4]
+    language = [0, 4, 5, 9, 10, 0, 0, 0, 0]
 
     if use_districts < 1:
         use_districts = 1
@@ -485,7 +470,7 @@ def RndTravelState(map_id: int, use_districts: int = 8):
     if use_districts > 1:
         idx = random.randint(1, use_districts - 1)
     else:
-        idx = 1  # Default to eu-fr if only 1 district requested
+        idx = 1  # Default to eu-it if only 1 district requested
 
     reg = region[idx]
     lang = language[idx]
