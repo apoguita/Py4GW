@@ -34,8 +34,8 @@ def create_bot_routine(bot: Botting) -> None:
     UnlockGtob(bot)
     TakeZM(bot)                                #Take ZM
     TravelToChabbek(bot)                       # Go to chabbek village
-    ConfigureFirstBattle(bot)                  # Configure first battle setup
     Meeting_First_Spear_Jahdugar(bot)          # Meeting First Spear Jahdugar
+    ConfigureFirstBattle(bot)                  # Configure first battle setup
     EnterChahbekMission(bot)                   # Enter Chahbek mission
     TravelToGtob(bot)                         # Travel to EB
     TakeReward(bot)                            # Take Reward 
@@ -476,7 +476,8 @@ def RndTravelState(map_id: int, use_districts: int = 8):
     if use_districts > len(region):
         use_districts = len(region)
 
-    idx = random.randint(0, use_districts - 1)
+    # Exclude Europe English (index 0), start from index 1
+    idx = random.randint(1, use_districts - 1)
 
     reg = region[idx]
     lang = language[idx]
