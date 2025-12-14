@@ -71,8 +71,12 @@ def SkipTutorialDialog(bot: Botting) -> None:
 
 def UnlockGtob(bot: Botting):
     bot.States.AddHeader("To Gtob")
-    bot.Map.Travel(target_map_id=796)
-    bot.Map.Travel(target_map_id=248)
+    def _state():
+        yield from RndTravelState(796, use_districts=8)
+    bot.States.AddCustomState(_state, "RndTravel -> Kamadan")
+    def _state2():
+        yield from RndTravelState(248, use_districts=8)
+    bot.States.AddCustomState(_state2, "RndTravel -> Embark Beach")
 
 def TakeZM(bot: Botting):
     bot.States.AddHeader("Take ZM")
@@ -477,7 +481,10 @@ def RndTravelState(map_id: int, use_districts: int = 8):
         use_districts = len(region)
 
     # Exclude Europe English (index 0), start from index 1
-    idx = random.randint(1, use_districts - 1)
+    if use_districts > 1:
+        idx = random.randint(1, use_districts - 1)
+    else:
+        idx = 1  # Default to eu-fr if only 1 district requested
 
     reg = region[idx]
     lang = language[idx]
