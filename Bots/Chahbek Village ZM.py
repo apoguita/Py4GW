@@ -86,16 +86,13 @@ def TravelToChabbek(bot: Botting) -> None:
         # 7=EU, 8=EU+INT, 11=ALL (incl. Asia)
         yield from RndTravelState(544, use_districts=8)
     bot.States.AddCustomState(_state, "RndTravel -> Chahbek")
+    
 def Meeting_First_Spear_Jahdugar(bot: Botting):
     bot.States.AddHeader("Meeting First Spear Jahdugar")
     bot.Move.XYAndDialog(3482, -5167, 0x82A507, step_name="Talk to First Spear Jahdugar")
     bot.Move.XYAndDialog(3482, -5167, 0x83A801, step_name="You can count on me")
 
-def ConfigureFirstBattle(bot: Botting):
-    bot.States.AddHeader("Preparation: First Battle Setup")
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
-    bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
-    def Equip_Weapon():
+def Equip_Weapon():
         global bot
         profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if profession == "Dervish":
@@ -126,15 +123,21 @@ def ConfigureFirstBattle(bot: Botting):
             #bot.Items.Equip(6508) #Luminescent Scepter 
             bot.Items.Equip(2787) #Starter Holy Rod
             #bot.Wait.ForTime(1000)
-            #bot.Items.Equip(6514)   
+            #bot.Items.Equip(6514)  
+
+def ConfigureFirstBattle(bot: Botting):
+    bot.States.AddHeader("Preparation: First Battle Setup")
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
+    bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
+    bot.Wait.ForTime(1000)
     Equip_Weapon()
 
 def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Chahbek Village")
-    bot.Dialogs.AtXY(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
     bot.Wait.UntilOnExplorable()
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(2240, -3535)
     bot.Move.XY(227, -5658)
     bot.Move.XY(-1144, -4378)
