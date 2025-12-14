@@ -73,10 +73,10 @@ def UnlockGtob(bot: Botting):
     bot.States.AddHeader("To Gtob")
     def _state():
         yield from RndTravelState(796, use_districts=8)
-    bot.States.AddCustomState(_state, "RndTravel -> Kamadan")
+    bot.States.AddCustomState(_state, "RndTravel -> Codex Arena")
     def _state2():
         yield from RndTravelState(248, use_districts=8)
-    bot.States.AddCustomState(_state2, "RndTravel -> Embark Beach")
+    bot.States.AddCustomState(_state2, "RndTravel -> Great Temple of Balthazar")
 
 def TakeZM(bot: Botting):
     bot.States.AddHeader("Take ZM")
