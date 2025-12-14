@@ -57,7 +57,6 @@ def gui():
     global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
     window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 0), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
-    shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
         widget_window_size = PyImGui.get_window_size()

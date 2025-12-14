@@ -1238,6 +1238,24 @@ def SkipCutscene(index, message):
     ConsoleLog(MODULE_NAME, "SkipCutscene message processed and finished.", Console.MessageType.Info, False)
 # endregion
 
+#region TravelToGuildHall
+def TravelToGuildHall(index, message):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    if GLOBAL_CACHE.Map.IsGuildHall():
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    GLOBAL_CACHE.Map.TravelGH()
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "TravelToGuildHall message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
 # region ProcessMessages
 def ProcessMessages():
     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
@@ -1323,6 +1341,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(LoadSkillTemplate(index, message))
         case SharedCommandType.SkipCutscene:
             GLOBAL_CACHE.Coroutines.append(SkipCutscene(index, message))
+        case SharedCommandType.TravelToGuildHall:
+            GLOBAL_CACHE.Coroutines.append(TravelToGuildHall(index, message))
         case SharedCommandType.UseSkillCombatPrep:
             GLOBAL_CACHE.Coroutines.append(UseSkillCombatPrep(index, message))
         case SharedCommandType.LootEx:
