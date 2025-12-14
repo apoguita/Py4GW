@@ -174,7 +174,8 @@ def TravelToGtob(bot: Botting) -> None:
 
 def TakeReward(bot: Botting):
     bot.States.AddHeader("Take Reward")
-    bot.Move.XYAndDialog(-5019.00, -5496.00, 0x83D207)
+    bot.Move.XY(-5159.01, -5548.32)
+    bot.Dialogs.WithModel(1192,0x83D207)
 
 def UnlockXunlai(bot : Botting) :
     bot.States.AddHeader("Unlock Xunlai Storage")
