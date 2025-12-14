@@ -224,6 +224,58 @@ class PartyFlaggingManager:
                 return i
         return None
 
+    def are_flags_defined(self) -> bool:
+        """Check if any flags are defined (has both email assignment AND valid position)"""
+        config = self._memory_manager.GetFlaggingConfig()
+        for i in range(12):
+            email = self._get_c_wchar_array_as_str(config.FlagAccountEmails[i])
+            if email:
+                x = config.FlagPositionsX[i]
+                y = config.FlagPositionsY[i]
+                if x != 0.0 or y != 0.0:
+                    return True
+        return False
+
+
+    def auto_assign_emails_if_none_assigned(self) -> bool:
+        """
+        Auto-assign party members' emails to grid flags (1..12) if none are assigned yet.
+        Returns True if an assignment was performed, False otherwise.
+        """
+        config = self._memory_manager.GetFlaggingConfig()
+        # If any email is already assigned, do nothing
+        for i in range(12):
+            if self._get_c_wchar_array_as_str(config.FlagAccountEmails[i]):
+                return False
+
+        # Determine leader and party members in same map
+        my_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(my_email)
+        if my_account is None:
+            return False
+
+        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        assigned = 0
+        for account in all_accounts:
+            if account.AccountEmail == my_email:
+                continue  # skip leader
+            is_in_map = (
+                my_account.MapID == account.MapID and
+                my_account.MapRegion == account.MapRegion and
+                my_account.MapDistrict == account.MapDistrict
+            )
+            if not is_in_map:
+                continue
+            if assigned < 12:
+                self._set_c_wchar_array(config.FlagAccountEmails[assigned], account.AccountEmail)
+                assigned += 1
+            else:
+                break
+
+        self._memory_manager.SetFlaggingConfig(config)
+        return assigned > 0
+
+
     def is_flag_defined(self, my_account_email: str) -> bool:
         """
         Check if a flag is defined for this account (has both email assignment AND valid position).
@@ -375,7 +427,16 @@ class PartyFlaggingManager:
             leader_angle: Leader's facing angle in radians
             formation_type: Type of formation ("preset_1" or custom offsets can be added)
         """
-        if formation_type != "preset_1":
+        if formation_type == "preset_2":
+            config = self._memory_manager.GetFlaggingConfig()
+            for i in range(12):
+                email = self._get_c_wchar_array_as_str(config.FlagAccountEmails[i])
+                if email:
+                    config.FlagPositionsX[i] = leader_x
+                    config.FlagPositionsY[i] = leader_y
+            self._memory_manager.SetFlaggingConfig(config)
+            return
+        elif formation_type != "preset_1":
             raise ValueError(f"Unknown formation type: {formation_type}")
 
         # Get spacing from configuration

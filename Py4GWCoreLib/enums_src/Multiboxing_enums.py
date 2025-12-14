@@ -41,6 +41,7 @@ class SharedCommandType(IntEnum):
     LoadSkillTemplate = 36
     SkipCutscene = 37
     SendDialog = 38
+    TravelToGuildHall = 39
 
     MultiBoxing = 990 # privately Handled Command, by Frenkey
     CustomBehaviors = 997 # privately Handled Command, used in CustomBehaviors widget
