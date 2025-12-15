@@ -434,43 +434,22 @@ def TravelToRegion(map_id: int, server_region: int, district_number: int = 0, la
     """
     Map.map_instance().Travel(map_id, server_region, district_number, language)
 
-def RndTravelState(map_id: int, use_districts: int = 8):
-    """
-    Random travel AutoIt style.
-    use_districts:
-      7 = EU only
-      8 = EU + International
-      11 = EU + International + Asia
-    """
-
-    # Order: eu-en, eu-it, eu-sp, eu-po, eu-ru, int, asia-ko, asia-ch, asia-ja
-    # (German and French districts removed)
-    region   = [2, 2, 2, 2, 2, -2, 1, 3, 4]
-    language = [0, 4, 5, 9, 10, 0, 0, 0, 0]
-
+def RndTravelState(map_id: int, use_districts: int = 4):
+    region   = [2, 2, 2, 2] 
+    language = [4, 5, 9, 10]
     if use_districts < 1:
         use_districts = 1
     if use_districts > len(region):
         use_districts = len(region)
-
-    # Exclude Europe English (index 0), start from index 1
-    if use_districts > 1:
-        idx = random.randint(1, use_districts - 1)
-    else:
-        idx = 1  # Default to eu-it if only 1 district requested
-
+    idx = random.randint(0, use_districts - 1)
     reg = region[idx]
     lang = language[idx]
-
     ConsoleLog("RndTravel", f"MoveMap(map_id={map_id}, region={reg}, district=0, language={lang})", Console.MessageType.Info)
-
     # Direct low-level call (equivalent to MoveMap/Map_MoveMap)
     Map.map_instance().Travel(map_id, reg, 0, lang)
-
     # Wait for loading (equivalent to Map_WaitMapLoading)
     yield from Routines.Yield.wait(6500)
     yield from Routines.Yield.wait(1000)
-
 selected_step = 0
 filter_header_steps = True
 
