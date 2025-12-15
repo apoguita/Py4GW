@@ -132,6 +132,7 @@ def EnterChahbekMission(bot: Botting):
     bot.Move.XY(-2058, -3494)
     bot.Move.XY(-4725, -1830)
     bot.Interact.WithGadgetAtXY(-4725, -1830) #Oil 1
+    bot.Wait.ForTime(2000)
     bot.Party.FlagAllHeroes(-1779.57, 480.88)
     bot.Move.XY(-1725, -2551)
     bot.Wait.ForTime(1500)
@@ -145,7 +146,7 @@ def EnterChahbekMission(bot: Botting):
     bot.Wait.ForTime(2000)
     bot.Interact.WithGadgetAtXY(-1731, -4138) #Cata 2 fire
     #bot.Move.XY(-2331, -419)
-    bot.Wait.ForTime(5000)
+    bot.Wait.ForTime(7000)
     bot.Party.UnflagAllHeroes()
     #bot.Move.XY(-1685, 1459)
     bot.Move.XY(-2895, -6247)
@@ -237,12 +238,18 @@ def type_text_keystroke(text: str, delay_ms: int = 50):
     Type text using individual keystrokes instead of clipboard.
     This avoids clipboard conflicts when running multiple instances in parallel.
     """
-    Routines.Yield.wait(1000)
+    yield from Routines.Yield.wait(1000)
     for char in text:
         if char in CHAR_MAP:
             key, needs_shift = CHAR_MAP[char]
+            if needs_shift:
+                Keystroke.Press(Key.LeftShift.value)
+                yield from Routines.Yield.wait(50)
             Keystroke.PressAndRelease(key.value)
-            Routines.Yield.wait(100)
+            yield from Routines.Yield.wait(delay_ms)
+            if needs_shift:
+                Keystroke.Release(Key.LeftShift.value)
+                yield from Routines.Yield.wait(50)
         else:
             # Skip unmapped characters
             ConsoleLog("TextInput", f"Skipping unmapped character: '{char}'", Console.MessageType.Warning)
@@ -262,7 +269,7 @@ def custom_delete_character(character_name: str, timeout_ms: int = 45000):
             yield from Routines.Yield.wait(2000)
 
             # Type character name using keystrokes instead of clipboard
-            type_text_keystroke(character_name)
+            yield from type_text_keystroke(character_name)
 
             yield from Routines.Yield.wait(2000)
 
@@ -295,7 +302,7 @@ def custom_create_character(character_name: str, campaign_name: str, profession_
             yield from Routines.Yield.wait(3000)
 
             # Enter name using keystrokes instead of clipboard
-            type_text_keystroke(character_name)
+            yield from type_text_keystroke(character_name)
             yield from Routines.Yield.wait(2000)
 
             # Click final create button
