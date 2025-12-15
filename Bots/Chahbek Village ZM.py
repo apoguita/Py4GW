@@ -15,7 +15,7 @@ bot = Botting("Chahbek Village ZM")
  
 def create_bot_routine(bot: Botting) -> None:
     global LAST_CHARACTER_NAME, LAST_PRIMARY_PROF, LAST_CAMPAIGN
-    # capture tôt tant qu'on est bien en jeu
+    # capture early while still in game
     LAST_CHARACTER_NAME = GLOBAL_CACHE.Player.GetName() or LAST_CHARACTER_NAME
     try:
         p, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -57,9 +57,8 @@ def SkipTutorialDialog(bot: Botting) -> None:
     bot.States.AddHeader("Skip Tutorial")
     bot.Dialogs.AtXY(10289, 6405, 0x82A501)  
     bot.Map.TravelGH()
-    bot.Wait.ForTime(2000)
     bot.Map.LeaveGH()
-    bot.Wait.ForTime(5000)
+    bot.Wait.ForMapToChange(target_map_id=544)
 
 def TakeZM(bot: Botting):
     bot.States.AddHeader("Take ZM")
@@ -126,9 +125,7 @@ def EnterChahbekMission(bot: Botting):
     bot.States.AddHeader("Chahbek Village")
     bot.Dialogs.AtXY(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
-    bot.Wait.ForTime(2000)
-    bot.Wait.UntilOnExplorable()
-    ConfigureAggressiveEnv(bot)
+    bot.Wait.ForMapToChange(target_map_id=544)
     bot.Move.XY(2240, -3535)
     bot.Move.XY(227, -5658)
     bot.Move.XY(-1144, -4378)
@@ -185,17 +182,17 @@ def DepositGold(bot : Botting) :
 def _resolve_character_name():
     global LAST_CHARACTER_NAME
 
-    # 1) En jeu
+    # 1) In game
     login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(GLOBAL_CACHE.Player.GetAgentID())
     name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
     if name:
         LAST_CHARACTER_NAME = name
-        yield
+        yield from Routines.Yield.wait(100)
         return name
     
     print (f"name (beginning) = {LAST_CHARACTER_NAME}")
 
-    # 2) Écran de sélection
+    # 2) Character selection screen
     try:
         if GLOBAL_CACHE.Player.InCharacterSelectScreen():
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
@@ -205,15 +202,15 @@ def _resolve_character_name():
                     name = str(pregame.chars[idx])
                     if name:
                         LAST_CHARACTER_NAME = name
-                        yield
+                        yield from Routines.Yield.wait(100)
                         return name
     except Exception:
         pass
 
     print (f"name (beginning) = {LAST_CHARACTER_NAME}")
     #add this to make it a generator
-    yield 
-    # 3) Dernier nom connu
+    yield from Routines.Yield.wait(100)
+    # 3) Last known name
     return LAST_CHARACTER_NAME
 
 
@@ -224,7 +221,7 @@ def _has(obj, name: str) -> bool:
         return False
 
 def _pregame_character_list() -> list[str]:
-    """Best-effort: retourne la liste des persos vus en écran de sélection."""
+    """Best-effort: returns the list of characters seen in selection screen."""
     try:
         pregame = GLOBAL_CACHE.Player.GetPreGameContext()
         if pregame and hasattr(pregame, "chars"):
@@ -261,10 +258,10 @@ def LogoutAndDeleteState():
     )
 
     # ------------------------------------------------------------
-    # 2) LOGOUT — MÉTHODE OFFICIELLE ET STABLE
+    # 2) LOGOUT — OFFICIAL AND STABLE METHOD
     # ------------------------------------------------------------
     GLOBAL_CACHE.Player.LogoutToCharacterSelect()
-    yield from Routines.Yield.wait(5000)
+    yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
     # 3) Delete character
@@ -313,23 +310,15 @@ def LogoutAndDeleteState():
         log=True
     )
 
-    yield from Routines.Yield.wait(5000)
+    # After create, character is already in game - wait for full load
+    yield from Routines.Yield.wait(8000)
 
     # ------------------------------------------------------------
-    # 6) Select character (si dispo)
-    # ------------------------------------------------------------
-    if hasattr(RC, "SelectCharacter"):
-        try:
-            yield from RC.SelectCharacter(character_name=final_name, timeout_ms=45000, log=True)
-        except TypeError:
-            yield from RC.SelectCharacter(character_name_to_select=final_name, timeout_ms=45000, log=True)
-
-    # ------------------------------------------------------------
-    # 7) Restart routine SAFELY
+    # 6) Restart routine SAFELY
     # ------------------------------------------------------------
     ConsoleLog("Reroll", "Reroll finished. Restarting routine.", Console.MessageType.Success)
 
-    yield from Routines.Yield.wait(5000)
+    yield from Routines.Yield.wait(3000)
 
     ActionQueueManager().ResetAllQueues()
     bot.SetMainRoutine(create_bot_routine)
@@ -339,9 +328,9 @@ import random
 
 def _generate_fallback_name(current_name: str) -> str:
     """
-    Génère un nom Guild Wars valide sans chiffres.
-    Nettoie, supprime tout suffixe existant et le remplace.
-    Ne stack JAMAIS les suffixes.
+    Generates a valid Guild Wars name without numbers.
+    Cleans, removes any existing suffix and replaces it.
+    NEVER stacks suffixes.
     """
 
     suffixes = [
@@ -350,13 +339,13 @@ def _generate_fallback_name(current_name: str) -> str:
     ]
 
     # ------------------------------------------------------------
-    # 1) Nettoyage strict : lettres + espaces uniquement
+    # 1) Strict cleanup: letters + spaces only
     # ------------------------------------------------------------
     cleaned = "".join(
         ch for ch in (current_name or "")
         if ch.isalpha() or ch == " "
     )
-    cleaned = " ".join(cleaned.split())  # normalise espaces
+    cleaned = " ".join(cleaned.split())  # normalize spaces
 
     if not cleaned:
         return "Fallback Alt"
@@ -364,14 +353,14 @@ def _generate_fallback_name(current_name: str) -> str:
     parts = cleaned.split()
 
     # ------------------------------------------------------------
-    # 2) Détection du suffixe actuel (s'il existe)
+    # 2) Current suffix detection (if exists)
     # ------------------------------------------------------------
     current_suffix = None
     if parts and parts[-1] in suffixes:
         current_suffix = parts[-1]
 
     # ------------------------------------------------------------
-    # 3) Suppression de TOUS les suffixes connus à la fin
+    # 3) Remove ALL known suffixes at the end
     # ------------------------------------------------------------
     while parts and parts[-1] in suffixes:
         parts.pop()
@@ -381,7 +370,7 @@ def _generate_fallback_name(current_name: str) -> str:
         base_name = "Fallback"
 
     # ------------------------------------------------------------
-    # 4) Choix du suffixe (rotation)
+    # 4) Suffix choice (rotation)
     # ------------------------------------------------------------
     if current_suffix in suffixes:
         idx = suffixes.index(current_suffix)
@@ -391,15 +380,12 @@ def _generate_fallback_name(current_name: str) -> str:
 
     return f"{base_name} {suffix}"
 
-
-
-
-# Exemple de mapping (à adapter à TES IDs réels)
+# Example mapping (adapt to YOUR real IDs)
 REGION_EU = 4
 REGION_NA = 1
 REGION_INT = 0
 
-# Exemple de langues EU (IDs à adapter à ta lib)
+# Example of EU languages (IDs to adapt to your lib)
 LANG_EN = 0
 LANG_FR = 1
 LANG_DE = 2
@@ -416,13 +402,13 @@ def pick_random_region_language(allow_international=True):
 
     region = random.choice(regions)
 
-    # NA = English only (selon ton besoin)
+    # NA = English only (according to your needs)
     if region == REGION_NA:
         return region, LANG_EN
 
-    # INT = “pas de langue par défaut”
+    # INT = "no default language"
     if region == REGION_INT:
-        return region, 0  # ou None si ton API l’accepte (souvent non)
+        return region, 0  # or None if your API accepts it (often not)
 
     # EU = random among EU langs
     return region, random.choice(EU_LANGS)
@@ -449,14 +435,14 @@ def TravelToRegion(map_id: int, server_region: int, district_number: int = 0, la
 
 def RndTravelState(map_id: int, use_districts: int = 8):
     """
-    Travel aléatoire style AutoIt.
+    Random travel AutoIt style.
     use_districts:
-      7 = EU seulement
+      7 = EU only
       8 = EU + International
-      11 = EU + International + Asie
+      11 = EU + International + Asia
     """
 
-    # Ordre: eu-en, eu-it, eu-sp, eu-po, eu-ru, int, asia-ko, asia-ch, asia-ja
+    # Order: eu-en, eu-it, eu-sp, eu-po, eu-ru, int, asia-ko, asia-ch, asia-ja
     # (German and French districts removed)
     region   = [2, 2, 2, 2, 2, -2, 1, 3, 4]
     language = [0, 4, 5, 9, 10, 0, 0, 0, 0]
@@ -477,10 +463,10 @@ def RndTravelState(map_id: int, use_districts: int = 8):
 
     ConsoleLog("RndTravel", f"MoveMap(map_id={map_id}, region={reg}, district=0, language={lang})", Console.MessageType.Info)
 
-    # Appel bas niveau direct (équivalent du MoveMap/Map_MoveMap)
+    # Direct low-level call (equivalent to MoveMap/Map_MoveMap)
     Map.map_instance().Travel(map_id, reg, 0, lang)
 
-    # Attendre le chargement (équivalent Map_WaitMapLoading)
+    # Wait for loading (equivalent to Map_WaitMapLoading)
     yield from Routines.Yield.wait(6500)
     yield from Routines.Yield.wait(1000)
 
@@ -551,7 +537,7 @@ bot.UI.override_draw_texture(_draw_texture)
 bot.UI.override_draw_config(lambda: _draw_settings(bot))
 
 # ---------------------------------------------------------------------------
-#  BOUCLE PRINCIPALE DU SCRIPT
+#  MAIN SCRIPT LOOP
 # ---------------------------------------------------------------------------
 
 def main():
@@ -563,22 +549,22 @@ if __name__ == "__main__":
     main()
 
 # ---------------------------------------------------------------------------
-#  LOOP CONTROLLER: planifie un nouveau run après le reroll
+#  LOOP CONTROLLER: schedules a new run after reroll
 # ---------------------------------------------------------------------------
 
 def ScheduleNextRun():
-    """State: attend d'être en jeu, puis re-ajoute toute la routine (boucle infinie)."""
-    # Si on vient de reroll, on peut être en écran de sélection quelques secondes.
+    """State: waits to be in game, then re-adds the entire routine (infinite loop)."""
+    # If we just rerolled, we might be in character selection screen for a few seconds.
     for _ in range(200):  # ~20s max
         if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
-            # on est soit en chargement, soit en jeu
+            # we're either loading or in game
             break
         yield from Routines.Yield.wait(100)
 
-    # Petite pause de stabilité
+    # Small stability pause
     yield from Routines.Yield.wait(1000)
 
-    # On re-empile une nouvelle fois tous les steps
+    # Re-stack all the steps again
     create_bot_routine(bot)
 
 bot.SetMainRoutine(create_bot_routine)
