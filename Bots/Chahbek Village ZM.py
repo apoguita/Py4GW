@@ -426,7 +426,7 @@ def _generate_fallback_name(current_name: str) -> str:
 
     suffixes = [
         "A", "B", "C", "D", "E",
-        "F", "G", "H", "I", "J",
+        "F", "K", "H", "I", "J",
     ]
 
     # ------------------------------------------------------------
