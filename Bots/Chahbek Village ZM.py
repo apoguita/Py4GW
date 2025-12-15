@@ -132,6 +132,7 @@ def EnterChahbekMission(bot: Botting):
     bot.Move.XY(-2058, -3494)
     bot.Move.XY(-4725, -1830)
     bot.Interact.WithGadgetAtXY(-4725, -1830) #Oil 1
+    bot.Party.FlagAllHeroes(-1779.57, 480.88)
     bot.Move.XY(-1725, -2551)
     bot.Wait.ForTime(1500)
     bot.Interact.WithGadgetAtXY(-1725, -2550) #Cata load
@@ -143,8 +144,10 @@ def EnterChahbekMission(bot: Botting):
     bot.Interact.WithGadgetAtXY(-1731, -4138) #Cata 2 load
     bot.Wait.ForTime(2000)
     bot.Interact.WithGadgetAtXY(-1731, -4138) #Cata 2 fire
-    bot.Move.XY(-2331, -419)
-    bot.Move.XY(-1685, 1459)
+    #bot.Move.XY(-2331, -419)
+    bot.Wait.ForTime(5000)
+    bot.Party.UnflagAllHeroes()
+    #bot.Move.XY(-1685, 1459)
     bot.Move.XY(-2895, -6247)
     bot.Move.XY(-3938, -6315) #Boss
     bot.Wait.ForMapToChange(target_map_id=456)
