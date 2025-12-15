@@ -3,7 +3,7 @@ from typing import List, Tuple, Generator, Any
 import os
 from Py4GW import Console
 import PyImGui
-from Py4GWCoreLib import Key, Keystroke, Map
+from Py4GWCoreLib import Key, Keystroke, Map, CHAR_MAP
 from AccountData import MODULE_NAME
 from Py4GWCoreLib import (GLOBAL_CACHE, Inventory, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager,)
@@ -231,6 +231,82 @@ def _pregame_character_list() -> list[str]:
         pass
     return []
 
+def type_text_keystroke(text: str, delay_ms: int = 50):
+    """
+    Type text using individual keystrokes instead of clipboard.
+    This avoids clipboard conflicts when running multiple instances in parallel.
+    """
+    Routines.Yield.wait(1000)
+    for char in text:
+        if char in CHAR_MAP:
+            key, needs_shift = CHAR_MAP[char]
+            Keystroke.PressAndRelease(key.value)
+            Routines.Yield.wait(100)
+        else:
+            # Skip unmapped characters
+            ConsoleLog("TextInput", f"Skipping unmapped character: '{char}'", Console.MessageType.Warning)
+
+def custom_delete_character(character_name: str, timeout_ms: int = 45000):
+    """
+    Custom character deletion that uses keystrokes instead of clipboard.
+    This prevents conflicts when running multiple instances in parallel.
+    """
+    from Py4GWCoreLib.routines_src.Yield import Yield
+
+    # Click delete character button
+    try:
+        WindowFrames = getattr(Yield, "WindowFrames", None)
+        if WindowFrames and hasattr(WindowFrames, "DeleteCharacterButton"):
+            WindowFrames.DeleteCharacterButton.FrameClick()
+            yield from Routines.Yield.wait(2000)
+
+            # Type character name using keystrokes instead of clipboard
+            type_text_keystroke(character_name)
+
+            yield from Routines.Yield.wait(2000)
+
+            # Click final delete button
+            if hasattr(WindowFrames, "FinalDeleteCharacterButton"):
+                WindowFrames.FinalDeleteCharacterButton.FrameClick()
+                yield from Routines.Yield.wait(5000)
+
+            return True
+    except Exception as e:
+        ConsoleLog("CustomDelete", f"Error in custom delete: {e}", Console.MessageType.Error)
+        return False
+
+def custom_create_character(character_name: str, campaign_name: str, profession_name: str, timeout_ms: int = 60000):
+    """
+    Custom character creation that uses keystrokes instead of clipboard.
+    This prevents conflicts when running multiple instances in parallel.
+    """
+    from Py4GWCoreLib.routines_src.Yield import Yield
+
+    try:
+        WindowFrames = getattr(Yield, "WindowFrames", None)
+        if not WindowFrames:
+            return False
+
+        # Navigate through character creation screens
+        # Select body (default)
+        if hasattr(WindowFrames, "CreateCharacterNextButtonGeneric"):
+            WindowFrames.CreateCharacterNextButtonGeneric.FrameClick()
+            yield from Routines.Yield.wait(3000)
+
+            # Enter name using keystrokes instead of clipboard
+            type_text_keystroke(character_name)
+            yield from Routines.Yield.wait(2000)
+
+            # Click final create button
+            if hasattr(WindowFrames, "FinalCreateCharacterButton"):
+                WindowFrames.FinalCreateCharacterButton.FrameClick()
+                yield from Routines.Yield.wait(1000)
+
+            return True
+    except Exception as e:
+        ConsoleLog("CustomCreate", f"Error in custom create: {e}", Console.MessageType.Error)
+        return False
+
 def LogoutAndDeleteState():
     """State final: logout -> delete -> recreate -> restart routine"""
 
@@ -259,28 +335,31 @@ def LogoutAndDeleteState():
     )
 
     # ------------------------------------------------------------
-    # 2) LOGOUT — OFFICIAL AND STABLE METHOD
+    # 2) LOGOUT
     # ------------------------------------------------------------
     GLOBAL_CACHE.Player.LogoutToCharacterSelect()
     yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
-    # 3) Delete character
+    # 3) Delete character (using custom keystroke-based method to avoid clipboard conflicts)
     # ------------------------------------------------------------
-    try:
-        yield from RC.DeleteCharacter(
-            character_name_to_delete=char_name,
-            timeout_ms=45000,
-            log=True
-        )
-    except TypeError:
-        yield from RC.DeleteCharacter(
-            character_name=char_name,
-            timeout_ms=45000,
-            log=True
-        )
+    success = yield from custom_delete_character(char_name)
+    if not success:
+        ConsoleLog("Reroll", "Custom character deletion failed, falling back to framework method", Console.MessageType.Warning)
+        try:
+            yield from RC.DeleteCharacter(
+                character_name_to_delete=char_name,
+                timeout_ms=45000,
+                log=True
+            )
+        except TypeError:
+            yield from RC.DeleteCharacter(
+                character_name=char_name,
+                timeout_ms=45000,
+                log=True
+            )
 
-    yield from Routines.Yield.wait(5000)
+    yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
     # 4) Decide name immediately (no long wait)
@@ -301,21 +380,23 @@ def LogoutAndDeleteState():
         final_name = char_name
 
     # ------------------------------------------------------------
-    # 5) Create character
+    # 5) Create character (using custom keystroke-based method to avoid clipboard conflicts)
     # ------------------------------------------------------------
-    yield from RC.CreateCharacter(
-        character_name=final_name,
-        campaign_name=campaign_name,
-        profession_name=primary_prof,
-        timeout_ms=60000,
-        log=True
-    )
+    success = yield from custom_create_character(final_name, campaign_name, primary_prof)
+    if not success:
+        ConsoleLog("Reroll", "Custom character creation failed, falling back to framework method", Console.MessageType.Warning)
+        yield from RC.CreateCharacter(
+            character_name=final_name,
+            campaign_name=campaign_name,
+            profession_name=primary_prof,
+            timeout_ms=60000,
+            log=True
+        )
 
-    # After create, character is already in game - wait for full load
-    yield from Routines.Yield.wait(8000)
+    yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
-    # 6) Restart routine SAFELY
+    # 6) Select character (si dispo)
     # ------------------------------------------------------------
     ConsoleLog("Reroll", "Reroll finished. Restarting routine.", Console.MessageType.Success)
 
