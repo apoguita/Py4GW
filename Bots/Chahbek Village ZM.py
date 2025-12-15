@@ -73,7 +73,6 @@ def TakeZM(bot: Botting):
 def TravelToChabbek(bot: Botting) -> None:
     bot.States.AddHeader("To Chahbek Village")
     def _state():
-        # 7=EU, 8=EU+INT, 11=ALL (incl. Asia)
         yield from RndTravelState(544, use_districts=8)
     bot.States.AddCustomState(_state, "RndTravel -> Chahbek")
     
@@ -462,12 +461,12 @@ def _generate_fallback_name(current_name: str) -> str:
 
     return f"{base_name} {suffix}"
 
-# Example mapping (adapt to YOUR real IDs)
+
 REGION_EU = 4
 REGION_NA = 1
 REGION_INT = 0
 
-# Example of EU languages (IDs to adapt to your lib)
+
 LANG_EN = 0
 LANG_FR = 1
 LANG_DE = 2
