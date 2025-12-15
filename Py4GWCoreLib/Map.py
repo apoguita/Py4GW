@@ -444,46 +444,44 @@ class Map:
         max_y = boundaries[4]
 
         return min_x, min_y, max_x, max_y
-
     class Pathing:
         @staticmethod
         def GetPathingMaps() -> List[PyPathing.PathingMap]:
             return PyPathing.get_pathing_maps()
 
         @staticmethod
-        def WorldToScreen(x,y,z=0.0):
+        def WorldToScreen(x, y, z=0.0):
             if z == 0.0:
                 z = Overlay.FindZ(x, y)
 
             screen_pos = PyOverlay.Overlay().WorldToScreen(x, y, z)
             return screen_pos.x, screen_pos.y
-        
+
         class Quad:
-            def __init__(self, trapezoid : PyPathing.PathingTrapezoid):
+            def __init__(self, trapezoid: PyPathing.PathingTrapezoid):
                 self.trapezoid = trapezoid
-                
-                self.top_left:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTL), int(trapezoid.YT))
-                self.top_right:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTR), int(trapezoid.YT))
-                self.bottom_left:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBL), int(trapezoid.YB))
-                self.bottom_right:PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBR), int(trapezoid.YB))
-                
-                
+
+                self.top_left: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTL), int(trapezoid.YT))
+                self.top_right: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTR), int(trapezoid.YT))
+                self.bottom_left: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBL), int(trapezoid.YB))
+                self.bottom_right: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XBR), int(trapezoid.YB))
+
                 screen_TL = Map.MissionMap.MapProjection.GameMapToScreen(self.top_left.x, self.top_left.y)
                 screen_TR = Map.MissionMap.MapProjection.GameMapToScreen(self.top_right.x, self.top_right.y)
                 screen_BL = Map.MissionMap.MapProjection.GameMapToScreen(self.bottom_left.x, self.bottom_left.y)
                 screen_BR = Map.MissionMap.MapProjection.GameMapToScreen(self.bottom_right.x, self.bottom_right.y)
-                
-                self.screen_top_left:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TL[0]), int(screen_TL[1]))
-                self.screen_top_right:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TR[0]), int(screen_TR[1]))
-                self.screen_bottom_left:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BL[0]), int(screen_BL[1]))
-                self.screen_bottom_right:PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BR[0]), int(screen_BR[1]))
-                
+
+                self.screen_top_left: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TL[0]), int(screen_TL[1]))
+                self.screen_top_right: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_TR[0]), int(screen_TR[1]))
+                self.screen_bottom_left: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BL[0]), int(screen_BL[1]))
+                self.screen_bottom_right: PyOverlay.Point2D = PyOverlay.Point2D(int(screen_BR[0]), int(screen_BR[1]))
+
             def GetPoints(self) -> List[PyOverlay.Point2D]:
                 return [self.top_left, self.top_right, self.bottom_left, self.bottom_right]
-            
+
             def GetScreenPoints(self) -> List[PyOverlay.Point2D]:
                 return [self.screen_top_left, self.screen_top_right, self.screen_bottom_left, self.screen_bottom_right]
-            
+
             def GetShiftedPoints(self, origin_x: float, origin_y: float) -> List[PyOverlay.Point2D]:
                 return [
                     PyOverlay.Point2D(int(self.top_left.x - origin_x), int(self.top_left.y - origin_y)),
@@ -504,26 +502,25 @@ class Map:
                     PyOverlay.Point2D(int(shifted_bl[0]), int(shifted_bl[1])),
                     PyOverlay.Point2D(int(shifted_br[0]), int(shifted_br[1])),
                 ]
-                
+
         @staticmethod
         def GetComputedGeometry() -> List[List[PyOverlay.Point2D]]:
-            pathintg_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps = Map.Pathing.GetPathingMaps()
             geometry = []
-            for layer in pathintg_maps:
+            for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:
                     geometry.append(Map.Pathing.Quad(trapezoid).GetPoints())
             return geometry
-                    
-                
+
         @staticmethod
         def GetScreenComputedGeometry() -> List[List[PyOverlay.Point2D]]:
-            pathintg_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps = Map.Pathing.GetPathingMaps()
             geometry = []
-            for layer in pathintg_maps:
+            for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:
                     geometry.append(Map.Pathing.Quad(trapezoid).GetScreenPoints())
             return geometry
-            
+
         @staticmethod
         def GetShiftedComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Point2D]]:
             pathing_maps = Map.Pathing.GetPathingMaps()
@@ -543,7 +540,67 @@ class Map:
                     quad = Map.Pathing.Quad(trapezoid)
                     geometry.append(quad.GetShiftedScreenPoints(origin_x, origin_y))
             return geometry
-    
+
+        @staticmethod
+        def _point_in_quad(px: float, py: float, quad: 'Map.Pathing.Quad') -> bool:
+            p = [quad.top_left, quad.top_right, quad.bottom_right, quad.bottom_left]
+
+            def sign(x1, y1, x2, y2, x3, y3):
+                return (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3)
+
+            b1 = sign(px, py, p[0].x, p[0].y, p[1].x, p[1].y) < 0.0
+            b2 = sign(px, py, p[1].x, p[1].y, p[2].x, p[2].y) < 0.0
+            b3 = sign(px, py, p[2].x, p[2].y, p[3].x, p[3].y) < 0.0
+            b4 = sign(px, py, p[3].x, p[3].y, p[0].x, p[0].y) < 0.0
+
+            return (b1 == b2 == b3 == b4)
+
+        @staticmethod
+        def GetMapQuads():
+            pathing_maps = Map.Pathing.GetPathingMaps()
+            quads = []
+            
+            for layer in pathing_maps:
+                for trapezoid in layer.trapezoids:
+                    quad = Map.Pathing.Quad(trapezoid)
+                    quads.append(quad)
+
+            return quads
+
+        @staticmethod
+        def IsPointInPathing(px: float, py: float) -> bool:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+
+            for layer in pathing_maps:
+                for trapezoid in layer.trapezoids:
+                    quad = Map.Pathing.Quad(trapezoid)
+                    if Map.Pathing._point_in_quad(px, py, quad):
+                        return True
+
+            return False
+
+        @staticmethod
+        def IsScreenPointInPathing(screen_x: float, screen_y: float) -> bool:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+
+            for layer in pathing_maps:
+                for trapezoid in layer.trapezoids:
+                    quad = Map.Pathing.Quad(trapezoid)
+                    pts = quad.GetScreenPoints()
+
+                    def sign(x1, y1, x2, y2, x3, y3):
+                        return (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3)
+
+                    b1 = sign(screen_x, screen_y, pts[0].x, pts[0].y, pts[1].x, pts[1].y) < 0.0
+                    b2 = sign(screen_x, screen_y, pts[1].x, pts[1].y, pts[2].x, pts[2].y) < 0.0
+                    b3 = sign(screen_x, screen_y, pts[2].x, pts[2].y, pts[3].x, pts[3].y) < 0.0
+                    b4 = sign(screen_x, screen_y, pts[3].x, pts[3].y, pts[0].x, pts[0].y) < 0.0
+
+                    if b1 == b2 == b3 == b4:
+                        return True
+
+            return False
+
     class MissionMap:
         @staticmethod
         def _mission_map_instance():
