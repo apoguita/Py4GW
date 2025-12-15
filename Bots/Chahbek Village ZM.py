@@ -216,7 +216,6 @@ def _resolve_character_name():
     # 3) Last known name
     return LAST_CHARACTER_NAME
 
-
 def _has(obj, name: str) -> bool:
     try:
         return hasattr(obj, name) and callable(getattr(obj, name))
@@ -464,11 +463,9 @@ def _generate_fallback_name(current_name: str) -> str:
 
     return f"{base_name} {suffix}"
 
-
 REGION_EU = 4
 REGION_NA = 1
 REGION_INT = 0
-
 
 LANG_EN = 0
 LANG_FR = 1
@@ -496,7 +493,6 @@ def pick_random_region_language(allow_international=True):
 
     # EU = random among EU langs
     return region, random.choice(EU_LANGS)
-
 
 def withdraw_gold(target_gold=5000, deposit_all=True):
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
@@ -606,7 +602,6 @@ bot.UI.override_draw_config(lambda: _draw_settings(bot))
 def main():
     bot.Update()
     bot.UI.draw_window()
-
 
 if __name__ == "__main__":
     main()
