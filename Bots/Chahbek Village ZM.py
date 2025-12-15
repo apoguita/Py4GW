@@ -133,7 +133,7 @@ def EnterChahbekMission(bot: Botting):
     bot.Move.XY(-4725, -1830)
     bot.Interact.WithGadgetAtXY(-4725, -1830) #Oil 1
     bot.Wait.ForTime(2000)
-    bot.Party.FlagAllHeroes(-1779.57, 480.88)
+    bot.Party.FlagAllHeroes(-1479.55, 1312.54)
     bot.Move.XY(-1725, -2551)
     bot.Wait.ForTime(1500)
     bot.Interact.WithGadgetAtXY(-1725, -2550) #Cata load
@@ -148,6 +148,7 @@ def EnterChahbekMission(bot: Botting):
     #bot.Move.XY(-2331, -419)
     bot.Wait.ForTime(7000)
     bot.Party.UnflagAllHeroes()
+    bot.Move.XY(-276.01, -1219.04)
     #bot.Move.XY(-1685, 1459)
     bot.Move.XY(-2895, -6247)
     bot.Move.XY(-3938, -6315) #Boss
@@ -424,8 +425,8 @@ def _generate_fallback_name(current_name: str) -> str:
     """
 
     suffixes = [
-        "Alt", "Tmp", "New", "Bis", "Prime",
-        "Echo", "Nova", "Void", "Flux", "Core",
+        "A", "B", "C", "D", "E",
+        "F", "G", "H", "I", "J",
     ]
 
     # ------------------------------------------------------------
@@ -438,7 +439,7 @@ def _generate_fallback_name(current_name: str) -> str:
     cleaned = " ".join(cleaned.split())  # normalize spaces
 
     if not cleaned:
-        return "Fallback Alt"
+        return "Fallback A"
 
     parts = cleaned.split()
 
@@ -466,7 +467,7 @@ def _generate_fallback_name(current_name: str) -> str:
         idx = suffixes.index(current_suffix)
         suffix = suffixes[(idx + 1) % len(suffixes)]
     else:
-        suffix = suffixes[0]  # Alt
+        suffix = suffixes[0]  # A
 
     return f"{base_name} {suffix}"
 
