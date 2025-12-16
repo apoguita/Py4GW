@@ -55,29 +55,32 @@ def IsHeroFlagged(cached_data:CacheData,index):
 
 
 def DrawFlagAll(pos_x, pos_y):
-    pos_z = Overlay().FindZ(pos_x, pos_y)
+    overlay = Overlay()
+    pos_z = overlay.FindZ(pos_x, pos_y)
 
-    Overlay().BeginDraw()
-    Overlay().DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, Utils.RGBToColor(0, 255, 0, 255), 3)
-    Overlay().DrawTriangleFilled3D(
+    overlay.BeginDraw()
+    overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, Utils.RGBToColor(0, 255, 0, 255), 3)    
+    overlay.DrawTriangleFilled3D(
         pos_x, pos_y, pos_z - 150,               # Base point
         pos_x, pos_y, pos_z - 120,               # 30 units up
         pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
         Utils.RGBToColor(0, 255, 0, 255)
     )
 
-    Overlay().EndDraw()
-
+    overlay.EndDraw()
 
 def DrawHeroFlag(pos_x, pos_y):
-    pos_z = Overlay().FindZ(pos_x, pos_y)
+    overlay = Overlay()
+    
+    pos_z = overlay.FindZ(pos_x, pos_y)
 
-    Overlay().BeginDraw()
-    Overlay().DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, Utils.RGBToColor(0, 255, 0, 255), 3)
-    Overlay().DrawTriangleFilled3D(
+    overlay.BeginDraw()
+    overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, Utils.RGBToColor(0, 255, 0, 255), 3)
+    overlay.DrawTriangleFilled3D(
         pos_x + 25, pos_y, pos_z - 150,          # Right base
         pos_x - 25, pos_y, pos_z - 150,          # Left base
         pos_x, pos_y, pos_z - 100,               # 50 units up
         Utils.RGBToColor(0, 255, 0, 255)
     )
-    Overlay().EndDraw()
+        
+    overlay.EndDraw()
