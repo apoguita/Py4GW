@@ -165,9 +165,6 @@ class AutoInventoryHandler():
                 
             item_instance = PyItem.PyItem(item_id)
             is_identified = item_instance.is_identified
-            item_model = item_instance.model_id
-            if item_model in self.id_model_blacklist:
-                continue
                 
             if is_identified:
                 continue
@@ -178,7 +175,13 @@ class AutoInventoryHandler():
                 (rarity == "Green" and self.id_greens) or
                 (rarity == "Purple" and self.id_purples) or
                 (rarity == "Gold" and self.id_golds)):
-                yield from Routines.Yield.Items.IdentifyItems([item_id], first_id_kit)
+                ActionQueueManager().AddAction("ACTION", Inventory.IdentifyItem,item_id, first_id_kit)
+                identified_items += 1
+                while True:
+                    yield from Routines.Yield.wait(50)
+                    item_instance.GetContext()
+                    if item_instance.is_identified:
+                        break
                     
         if identified_items > 0 and log:
             ConsoleLog(self.module_name, f"Identified {identified_items} items", Console.MessageType.Success)
@@ -259,11 +262,35 @@ class AutoInventoryHandler():
                     Console.Log("AutoSalvage", "No Salvage Kit found in inventory.", Console.MessageType.Warning)
                     return
 
-                yield from Routines.Yield.Items.SalvageItems([item_id], salvage_kit)
+                ActionQueueManager().AddAction("ACTION", Inventory.SalvageItem, item_id, salvage_kit)
+                if require_materials_confirmation:
+                    yield from Routines.Yield.wait(150)
+                    yield from Routines.Yield.Items._wait_for_salvage_materials_window()
+                    for i in range(3):
+                        ActionQueueManager().AddAction("ACTION", Inventory.AcceptSalvageMaterialsWindow)
+                        yield from Routines.Yield.wait(50)
+
+                while True:
+                    yield from Routines.Yield.wait(50)
+
+                    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+                    item_array = ItemArray.GetItemArray(bag_list)
+
+                    if item_id not in item_array:
+                        salvaged_items += 1
+                        break  # Fully consumed
+
+                    item_instance.GetContext()
+                    if item_instance.quantity < quantity:
+                        salvaged_items += 1
+                        break  # Successfully salvaged one item
+
+                yield from Routines.Yield.wait(50)
 
         if salvaged_items > 0 and log:
             ConsoleLog(self.module_name, f"Salvaged {salvaged_items} items", Console.MessageType.Success)
 
+            
             
     def DepositItemsAuto(self):
         from ..enums import Bags, ModelID
