@@ -5,6 +5,7 @@ import json
 import PyOverlay
 from collections import deque, defaultdict
 from .Py4GWcorelib import ConsoleLog, Console
+from .enums_src.UI_enums import WindowID
 from dataclasses import dataclass, field
 
 # —— Constants ——————————————————
@@ -131,6 +132,14 @@ class UIManager:
         return 0  # No matching frame found
 
 
+    @staticmethod
+    def GetFrameLogs() -> List[tuple[int, int, str]]:
+        """
+        Get the frame logs.
+
+        :return: list of tuples: Each tuple contains (timestamp, frame_id, frame_label).
+        """
+        return PyUIManager.UIManager.get_frame_logs()
     
     @staticmethod
     def GetFrameIDByLabel(label):
@@ -723,11 +732,11 @@ class FrameInfo:
         self.update_frame_id()
         return UIManager.FrameExists(self.FrameID)
     
-    def DrawFrame(self, color):
+    def DrawFrame(self, color:int):
         if self.FrameExists():
             UIManager().DrawFrame(self.FrameID, color)
             
-    def DrawFrameOutline(self, color):
+    def DrawFrameOutline(self, color:int):
         if self.FrameExists():
             UIManager().DrawFrameOutline(self.FrameID, color)
             
@@ -746,6 +755,13 @@ class FrameInfo:
             
 #region WindowFrames
 WindowFrames:dict[str, FrameInfo] = {}
+
+InventoryBags = FrameInfo(
+    WindowID = WindowID.WindowID_InventoryBags,
+    WindowName = "Inventory Bags",
+    WindowLabel = "InvAggregate",
+    FrameHash = 291586130
+)
 
 DeleteButtonFrame = FrameInfo(
     WindowName="DeleteCharacterButton",
@@ -783,6 +799,8 @@ FinalCreateCharacterButtonFrame = FrameInfo(
     FrameHash=3856299307
 )
 
+   
+WindowFrames["Inventory Bags"] = InventoryBags
 WindowFrames["DeleteCharacterButton"] = DeleteButtonFrame
 WindowFrames["FinalDeleteCharacterButton"] = FinalDeleteButtonFrame
 WindowFrames["CreateCharacterButton1"] = CreateCharacterButtonFrame1

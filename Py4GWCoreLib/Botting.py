@@ -215,7 +215,7 @@ class BottingClass:
     def _start_coroutines(self):
         # add all upkeep coroutines once
         H = self.helpers.Upkeepers
-
+        return
         self.config.FSM.AddManagedCoroutine("keep_alcohol",        H.upkeep_alcohol())
         self.config.FSM.AddManagedCoroutine("keep_city_speed",     H.upkeep_city_speed())
         self.config.FSM.AddManagedCoroutine("keep_morale",         H.upkeep_morale())
