@@ -304,10 +304,10 @@ def _fail_rate():
     return f"{BotSettings.FAILED_RUNS / BotSettings.TOTAL_RUNS * 100:.2f}%"
 
 def war_supplies_obtained():
-    return BotSettings.TOTAL_RUNS * 5 # 5 war supplies per run
+    return 5 * BotSettings.SUCCESSFUL_RUNS # 5 war supplies per run
 
 def gold_obtained():
-    return BotSettings.TOTAL_RUNS * 1000 # 1000 gold per run
+    return 1000 * BotSettings.SUCCESSFUL_RUNS # 1000 gold per run
 
 def _draw_settings(bot: Botting):
     PyImGui.text("Bot Settings")
