@@ -710,6 +710,12 @@ class UIManager:
         
     @staticmethod
     def GetDialogButtonFrames(debug: bool = False) -> list[tuple[int, tuple[int, int, int, int]]]:
+        '''
+        Returns a list of tuples containing the frame ID and its coordinates
+        for all visible dialog button frames (template_type == 1), sorted by their vertical position.
+        Each tuple is in the format: (frame_id, (left, top, right, bottom))
+        '''
+        
         if DIALOG_CHILD_OFFSET == DEFAULT_OFFSET:
             UIManager.FindDialogOffset()
 
@@ -840,6 +846,9 @@ class UIManager:
     
     @staticmethod
     def ConfirmMaxAmountDialog():
+        '''
+        Confirm the max amount dialog such as those from Trading and Dropping items by clicking the relevant buttons.
+        '''
         max_amount = UIManager.GetFrameIDByHash(4008686776)
         drop_offer_confirm = UIManager.GetFrameIDByHash(4014954629)
         

@@ -543,6 +543,7 @@ class Map:
 
         @staticmethod
         def _point_in_quad(px: float, py: float, quad: 'Map.Pathing.Quad') -> bool:
+            '''Check if a given x,y-point is inside a quadrilateral.'''
             p = [quad.top_left, quad.top_right, quad.bottom_right, quad.bottom_left]
 
             def sign(x1, y1, x2, y2, x3, y3):
@@ -557,6 +558,7 @@ class Map:
 
         @staticmethod
         def GetMapQuads():
+            '''Retrieve all pathing quads in the current map.'''
             pathing_maps = Map.Pathing.GetPathingMaps()
             quads = []
             
@@ -569,6 +571,7 @@ class Map:
 
         @staticmethod
         def IsPointInPathing(px: float, py: float) -> bool:
+            '''Check if a given x,y-point is inside any pathing area.'''
             pathing_maps = Map.Pathing.GetPathingMaps()
 
             for layer in pathing_maps:
@@ -581,6 +584,7 @@ class Map:
 
         @staticmethod
         def IsScreenPointInPathing(screen_x: float, screen_y: float) -> bool:
+            '''Check if a given screen x,y-point is inside any pathing area.'''
             pathing_maps = Map.Pathing.GetPathingMaps()
 
             for layer in pathing_maps:
