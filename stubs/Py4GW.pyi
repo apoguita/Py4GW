@@ -151,3 +151,15 @@ class Game:
         None
         """
         ...
+        
+    @staticmethod
+    def get_tick_count64() -> int:
+        """
+        Get the current GetTickCount64 value from the game.
+
+        Returns
+        -------
+        int
+            The current tick count in milliseconds since system boot.
+        """
+        ...

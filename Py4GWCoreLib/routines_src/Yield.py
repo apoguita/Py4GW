@@ -1020,15 +1020,59 @@ class Yield:
                 yield from Yield.wait(50)
             
         @staticmethod
-        def _salvage_item(item_id):
-            from ..Inventory import Inventory
+        def _salvage_item(item_id) ->Generator[None, None, bool]:
+            from ..Item import Item
+            from ..ItemArray import ItemArray
+            from ..enums_src.Item_enums import Bags
             
-
             salvage_kit = GLOBAL_CACHE.Inventory.GetFirstSalvageKit()
             if salvage_kit == 0:
                 ConsoleLog("SalvageItems", "No salvage kits found.", Console.MessageType.Warning)
-                return
-            Inventory.SalvageItem(item_id, salvage_kit)
+                return False
+            item_instance = Item.item_instance(item_id)
+            if not item_instance:
+                ConsoleLog("IdentifyItems", f"Item ID {item_id} is not valid.", Console.MessageType.Warning)
+                return False
+            
+            quantity = item_instance.quantity
+            if quantity <= 0:
+                ConsoleLog("SalvageItems", f"Item ID {item_id} has zero quantity.", Console.MessageType.Warning)
+                return False
+            
+            if item_instance.is_customized:
+                return True  # Skip customized items
+            
+            rarity = item_instance.rarity.name
+            require_materials_confirmation = True if rarity in ["Purple", "Gold"] else False
+                
+            GLOBAL_CACHE.Inventory.SalvageItem(item_id, salvage_kit)
+            
+            if require_materials_confirmation:
+                yield from Yield.wait(150)
+                yield from Yield.Items._wait_for_salvage_materials_window()
+                for i in range(3):
+                    GLOBAL_CACHE.Inventory.AcceptSalvageMaterialsWindow()
+                    yield from Yield.wait(50)
+                 
+            salvage_timeout = ThrottledTimer(500)   
+            while True:
+                yield from Yield.wait(50)
+                bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+                item_array = ItemArray.GetItemArray(bag_list)
+                
+                if item_id not in item_array:
+                    break  # Fully consumed
+                
+                item_instance.GetContext()
+                if item_instance.quantity < quantity:
+                    break  # Partially consumed
+                
+                if salvage_timeout.IsExpired():
+                    ConsoleLog("SalvageItems", f"Timeout salvaging item ID {item_id}.", Console.MessageType.Warning)
+                    return False    
+                
+            yield from Yield.wait(50)
+            return True
             
         @staticmethod
         def SalvageItems(item_array:list[int], log=False):
@@ -1040,48 +1084,64 @@ class Yield:
                 return
             
             for item_id in item_array:
-                _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
-                is_purple = rarity == "Purple"
-                is_gold = rarity == "Gold"
-                ActionQueueManager().AddAction("SALVAGE", Yield.Items._salvage_item, item_id)
-                yield from Yield.Items._wait_for_empty_queue("SALVAGE")
-                
-                if (is_purple or is_gold):
-                    yield from Yield.Items._wait_for_salvage_materials_window()
-                    ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
-                    yield from Yield.Items._wait_for_empty_queue("SALVAGE")
-                    
-                yield from Yield.wait(100)
+                result = yield from Yield.Items._salvage_item(item_id)
+                if not result:
+                    ConsoleLog("SalvageItems", f"Failed to salvage item ID {item_id}.", Console.MessageType.Warning)
+                    return
                 
             if log and len(item_array) > 0:
-                ConsoleLog("SalvageItems", f"Salvaged {len(item_array)} items.", Console.MessageType.Info)
+                ConsoleLog("SalvageItems", f"Salvaged {len(item_array)} items.", Console.MessageType.Info)      
                 
         @staticmethod
-        def _identify_item(item_id):
+        def _identify_item(item_id) ->Generator[None, None, bool]:
             from ..Inventory import Inventory
+            from ..Item import Item
+            from ..py4gwcorelib_src.Timer import ThrottledTimer
+            first_id_kit = Inventory.GetFirstIDKit()
+            if first_id_kit == 0:
+                ConsoleLog("IdentifyItems", "No ID Kit found in inventory.", Console.MessageType.Warning)
+                return False
             
+            item_instance = Item.item_instance(item_id)
+            if not item_instance:
+                ConsoleLog("IdentifyItems", f"Item ID {item_id} is not valid.", Console.MessageType.Warning)
+                return False
+            
+            if item_instance.is_identified:
+                return True
+            
+            GLOBAL_CACHE.Inventory.IdentifyItem(item_id, first_id_kit)
+            timeout_timer = ThrottledTimer(500)
+            timeout_timer.Start()
+            
+            while True:
+                yield from Yield.wait(50)
+                item_instance.GetContext()
+                if item_instance.is_identified:
+                    break
+                if timeout_timer.IsExpired():
+                    ConsoleLog("IdentifyItems", f"Timeout identifying item ID {item_id}.", Console.MessageType.Warning)
+                    return False
+            
+            yield from Yield.wait(50)
+            return True
 
-            id_kit = GLOBAL_CACHE.Inventory.GetFirstIDKit()
-            if id_kit == 0:
-                ConsoleLog("IdentifyItems", "No ID kits found.", Console.MessageType.Warning)
-                return
-            Inventory.IdentifyItem(item_id, id_kit)
-            
         @staticmethod
         def IdentifyItems(item_array:list[int], log=False):
-            from ..Py4GWcorelib import ActionQueueManager, ConsoleLog, Console
+            from ..Py4GWcorelib import ConsoleLog, Console
             if len(item_array) == 0:
-                ActionQueueManager().ResetQueue("IDENTIFY")
+                ActionQueueManager().ResetQueue("ACTION")
                 return
             
             for item_id in item_array:
-                ActionQueueManager().AddAction("IDENTIFY",Yield.Items._identify_item, item_id)
-                
-            while not ActionQueueManager().IsEmpty("IDENTIFY"):
-                yield from Yield.wait(350)
+                result = yield from Yield.Items._identify_item(item_id)
+                if not result:
+                    ConsoleLog("IdentifyItems", f"Failed to identify item ID {item_id}.", Console.MessageType.Warning)
+                    return
                 
             if log and len(item_array) > 0:
                 ConsoleLog("IdentifyItems", f"Identified {len(item_array)} items.", Console.MessageType.Info)
+                
                 
         @staticmethod
         def DepositItems(item_array:list[int], log=False):
@@ -1249,16 +1309,9 @@ class Yield:
 
                 # Try to walk to item
                 item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
-                item_reached = yield from Yield.Movement.FollowPath(
-                    [(item_x, item_y)], timeout=pickup_timeout, tolerance=144  # Touch Range
-                )
+                item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
                 if not item_reached:
-                    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-                    dx = item_x - player_x
-                    dy = item_y - player_y
-                    distance = int((dx * dx + dy * dy) ** 0.5)
-                    ConsoleLog("LootItems", f"Failed to reach item {item_id} - {distance}, skipping.", Console.MessageType.Warning)
-                    ActionQueueManager().ResetAllQueues()
+                    ConsoleLog("LootItems", f"Failed to reach item {item_id}, skipping.", Console.MessageType.Warning)
                     failed_items.append(item_id)
                     continue
 
@@ -1993,11 +2046,14 @@ class Yield:
             def _timeout_reached() -> bool:
                 return timeout_timer.IsExpired()
             
+            #A new character is not reported here until next login, so we skip this check
+            """
             character_names = [char.player_name for char in GLOBAL_CACHE.Player.GetLoginCharacters()]
             if character_name_to_delete not in character_names:
                 ConsoleLog("Reroll", f"Character '{character_name_to_delete}' not found among login characters.", Console.MessageType.Error, log)
                 yield from Yield.wait(100)
                 return False
+            """
             
             timeout_timer = ThrottledTimer(timeout_ms)
             ActionQueueManager().ResetAllQueues()
@@ -2013,11 +2069,12 @@ class Yield:
                 yield from Yield.wait(100)
                 return False
                 
+            yield from Yield.wait(1000)
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
             character_index = pregame.chars.index(character_name_to_delete) if character_name_to_delete in pregame.chars else -1
             last_known_index = pregame.index_1
             
-            if character_index == -1:
+            """if character_index == -1:
                 ConsoleLog("Reroll", f"Character '{character_name_to_delete}' not found in character list.", Console.MessageType.Error)
                 yield from Yield.wait(100)
                 return False
@@ -2036,15 +2093,15 @@ class Yield:
             if _failed():
                 ConsoleLog("Reroll", "Timeout while navigating to target character.", Console.MessageType.Error, log)
                 yield from Yield.wait(100)
-                return False
+                return False"""
             
             WindowFrames["DeleteCharacterButton"].FrameClick()
-            yield from Yield.wait(500)
+            yield from Yield.wait(750)
             PyImGui.set_clipboard_text(character_name_to_delete)
             Keystroke.PressAndReleaseCombo([Key.Ctrl.value, Key.V.value])
-            yield from Yield.wait(500)
+            yield from Yield.wait(750)
             WindowFrames["FinalDeleteCharacterButton"].FrameClick()
-            yield from Yield.wait(500)
+            yield from Yield.wait(750)
             
             return True
         
@@ -2106,12 +2163,13 @@ class Yield:
                     yield from Yield.wait(100)
                 yield from Yield.wait(100)
             
-            character_names = [char.player_name for char in GLOBAL_CACHE.Player.GetLoginCharacters()]
+            """character_names = [char.player_name for char in GLOBAL_CACHE.Player.GetLoginCharacters()]
             if character_name in character_names:
                 ConsoleLog("Reroll", f"Character '{character_name}' already exists among login characters.", Console.MessageType.Error, log)
                 yield from Yield.wait(100)
-                return  
+                return  """
             
+            yield from Yield.wait(1000)
             timeout_timer = ThrottledTimer(timeout_ms)
             ActionQueueManager().ResetAllQueues()
 
@@ -2128,12 +2186,12 @@ class Yield:
                 
             ConsoleLog("Reroll", "Creating new character...", Console.MessageType.Info, log)
             WindowFrames["CreateCharacterButton1"].FrameClick()
-            yield from Yield.wait(250)
+            yield from Yield.wait(500)
             WindowFrames["CreateCharacterButton2"].FrameClick()
             yield from Yield.wait(1000)
             # Select character type
             yield from _select_character_type("PvE")
-            yield from Yield.wait(250)
+            yield from Yield.wait(500)
             WindowFrames["CreateCharacterTypeNextButton"].FrameClick()
             yield from Yield.wait(1000)
             # Select campaign
@@ -2161,7 +2219,7 @@ class Yield:
             Keystroke.PressAndReleaseCombo([Key.Ctrl.value, Key.V.value])    
             yield from Yield.wait(1000)
             WindowFrames["FinalCreateCharacterButton"].FrameClick()
-            yield from Yield.wait(1000)
+            yield from Yield.wait(3000)
             
         @staticmethod
         def DeleteAndCreateCharacter(character_name_to_delete: str, new_character_name: str,
@@ -2170,6 +2228,7 @@ class Yield:
             result = yield from Yield.RerollCharacter.DeleteCharacter(character_name_to_delete, timeout_ms=timeout_ms//2, log=log)
             if not result:
                 return
+            yield from Yield.wait(1000)  # brief wait before creating new character
             yield from Yield.RerollCharacter.CreateCharacter(new_character_name, campaign_name, profession_name, timeout_ms=timeout_ms//2, log=log)    
 
 

@@ -35,7 +35,6 @@ def InitializeBot(bot: Botting) -> None:
     bot.Properties.Enable("identify_kits")
     bot.Properties.Enable("salvage_kits")
     
-    
 def TownRoutines(bot: Botting) -> None:
     bot.States.AddHeader("Town Routines")
     bot.Map.Travel(target_map_id=650) #target_map_name="Longeyes Ledge")

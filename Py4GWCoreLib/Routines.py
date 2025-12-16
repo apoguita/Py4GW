@@ -3,6 +3,7 @@ from .GlobalCache import GLOBAL_CACHE
 #need to adress circular import issues, for the time being we will just import everything here
 
 from .routines_src.Agents import Agents as AgentRoutines
+from .routines_src.Items import Items as Items
 from .routines_src.Party import Party as PartyRoutines
 from .routines_src.Checks import Checks as Checks
 from .routines_src.Movement import Movement as MovementRoutines
@@ -16,6 +17,7 @@ from .routines_src.BehaviourTrees import BT
 class Routines:
     BT = BT
     Agents = AgentRoutines
+    Items = Items
     Party = PartyRoutines
     Checks = Checks
     Movement = MovementRoutines
