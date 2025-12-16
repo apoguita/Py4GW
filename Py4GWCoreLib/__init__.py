@@ -8,6 +8,7 @@ import sys
 from dataclasses import dataclass, field
 
 import Py4GW
+import PyScanner
 import PyImGui
 import PyMap
 import PyMissionMap
@@ -46,6 +47,7 @@ from .Effect import *
 from .Merchant import *
 from .Quest import *
 from .Camera import *
+from .Scanner import *
 
 from .Py4GWcorelib import *
 from .Overlay import *
@@ -69,6 +71,8 @@ field = field
 
 Py4Gw = Py4GW
 Py4GW = Py4GW
+PyKeystroke = PyKeystroke
+PyScanner = PyScanner
 PyImGui = PyImGui
 PyMap = PyMap
 PyMissionMap = PyMissionMap
