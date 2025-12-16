@@ -303,6 +303,12 @@ def _fail_rate():
         return "0.00%"
     return f"{BotSettings.FAILED_RUNS / BotSettings.TOTAL_RUNS * 100:.2f}%"
 
+def war_supplies_obtained():
+    return BotSettings.TOTAL_RUNS * 5 # 5 war supplies per run
+
+def gold_obtained():
+    return BotSettings.TOTAL_RUNS * 1000 # 1000 gold per run
+
 def _draw_settings(bot: Botting):
     PyImGui.text("Bot Settings")
 
@@ -360,8 +366,8 @@ def main():
                         PyImGui.pop_style_color(1)
 
                     if PyImGui.collapsing_header("Items/Gold obtained"):
-                        PyImGui.LabelTextV("Gold", "%s", [str(BotSettings.TOTAL_RUNS)])    	
-                        PyImGui.LabelTextV("War Supplies", "%s", [str(BotSettings.TOTAL_RUNS)])    	
+                        PyImGui.LabelTextV("Gold", "%s", [str(gold_obtained())])    	
+                        PyImGui.LabelTextV("War Supplies", "%s", [str(war_supplies_obtained())])    	
                     
                 PyImGui.end_tab_item()
             PyImGui.end_tab_bar()
