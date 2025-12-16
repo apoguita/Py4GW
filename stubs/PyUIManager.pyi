@@ -168,6 +168,33 @@ class UIManager:
     @staticmethod
     def get_frame_coords_by_hash(frame_hash: int) -> List[Tuple[int, int]]: ...
     @staticmethod
+    def SendUIMessage(
+        msgid: int,
+        wparam: int,
+        lparam: int = 0,
+        skip_hooks: bool = False
+    ) -> bool:
+        """
+        Low-level UI message dispatcher.
+
+        Parameters:
+            msgid (int):
+                UI message ID.
+
+            wparam (int):
+                Pointer to payload (ctypes.addressof(...) or 0).
+
+            lparam (int):
+                Optional pointer to secondary payload.
+
+            skip_hooks (bool):
+                If True, bypass UI hooks.
+
+        Returns:
+            bool: True if the message was processed.
+        """
+        ...
+    @staticmethod
     def button_click(frame_id: int) -> None: ...
     @staticmethod
     def test_mouse_action(frame_id: int, current_state: int, wparam_value:int, lparam:int) -> None: ...

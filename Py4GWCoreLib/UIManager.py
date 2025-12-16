@@ -200,6 +200,19 @@ class UIManager:
         return PyUIManager.UIManager.get_frame_array()
     
     @staticmethod
+    def SendUIMessage(msgid, wparam, lparam=0, skip_hooks=False):
+        """
+        Send a UI message.
+
+        :param msgid: The message ID.
+        :param wparam: Pointer to payload (ctypes.addressof(...) or 0).
+        :param lparam: Optional pointer to secondary payload.
+        :param skip_hooks: If True, bypass UI hooks.
+        :returns bool: True if the message was processed.
+        """
+        return PyUIManager.UIManager.SendUIMessage(msgid, wparam, lparam, skip_hooks)
+    
+    @staticmethod
     def FrameClick(frame_id):
         """
         Click a frame on the UI.
