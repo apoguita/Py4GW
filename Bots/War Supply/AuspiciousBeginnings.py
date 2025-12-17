@@ -22,6 +22,9 @@ class BotSettings:
     TOTAL_RUNS: int = 0
     SUCCESSFUL_RUNS: int = 0
     FAILED_RUNS: int = 0
+    
+    # Material purchases
+    ECTOS_BOUGHT: int = 0
 
     # Misc
     DEBUG: bool = False
@@ -116,15 +119,13 @@ def CheckAndDepositGold(bot: Botting) -> None:
     def _check_and_deposit_gold(bot: Botting):
         current_map = GLOBAL_CACHE.Map.GetMapID()
         gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+        gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
 
         if BotSettings.DEBUG:   
-            print(f"[DEBUG] CheckAndDepositGold: current_map={current_map}, gold={gold_on_char}")
+            print(f"[DEBUG] CheckAndDepositGold: current_map={current_map}, gold={gold_on_char}, storage={gold_in_storage}")
         
-        # Check if deposit is needed
+        # Travel to EOTN if character has 90k+ gold
         if gold_on_char > BotSettings.GOLD_THRESHOLD_DEPOSIT:
-            if BotSettings.DEBUG:   
-                print(f"Gold ({gold_on_char}) exceeds threshold ({BotSettings.GOLD_THRESHOLD_DEPOSIT}), depositing...")
-            
             # Ensure we're in EOTN outpost
             if current_map != BotSettings.EOTN_OUTPOST_ID:
                 if BotSettings.DEBUG:   
@@ -135,15 +136,23 @@ def CheckAndDepositGold(bot: Botting) -> None:
                 yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID)
                 current_map = BotSettings.EOTN_OUTPOST_ID
 
-            # Deposit the gold
-            if BotSettings.DEBUG:   
-                print(f"Depositing {gold_on_char} gold in bank")
-            GLOBAL_CACHE.Inventory.DepositGold(gold_on_char)
-            yield from Routines.Yield.wait(1000)
+            # Deposit gold only if storage hasn't reached 800k
+            if gold_in_storage < 800000:
+                if BotSettings.DEBUG:   
+                    print(f"Depositing {gold_on_char} gold in bank")
+                GLOBAL_CACHE.Inventory.DepositGold(gold_on_char)
+                yield from Routines.Yield.wait(1000)
+            else:
+                if BotSettings.DEBUG:   
+                    print(f"Storage ({gold_in_storage}) has reached 800k+, keeping gold on character for ecto purchases")
         else:
             if BotSettings.DEBUG:   
-                print(f"Gold ({gold_on_char}) below threshold ({BotSettings.GOLD_THRESHOLD_DEPOSIT}), skipping deposit")
+                print(f"Gold ({gold_on_char}) below threshold ({BotSettings.GOLD_THRESHOLD_DEPOSIT}), skipping travel and deposit")
         
+        # After deposit check, try to buy ectos if in EOTN outpost
+        current_map = GLOBAL_CACHE.Map.GetMapID()
+        if current_map == BotSettings.EOTN_OUTPOST_ID:
+            yield from BuyMaterials(bot)
 
         if BotSettings.DEBUG:   
             print(f"[DEBUG] After gold check: current_map={current_map}, HOM={BotSettings.HOM_OUTPOST_ID}")
@@ -211,6 +220,27 @@ def deposit_gold(bot: Botting):
         bot.Move.XYAndExitMap(-4873.00, 5284.00, target_map_id=646)
         bot.Wait.ForMapLoad(target_map_id=646)
         yield
+
+def BuyMaterials(bot: Botting):
+    """Buy Glob of Ectoplasm if gold conditions are met."""
+    # Check gold conditions for buying Glob of Ectoplasm
+    gold_in_inventory = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+    gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+    
+    if gold_in_inventory >= 90000 and gold_in_storage >= 800000:
+        # Move to and speak with rare material trader
+        yield from bot.Move._coro_xy_and_dialog(-2079.00, 1046.00, dialog_id=0x00000001)
+        
+        # Buy Glob of Ectoplasm until inventory gold drops below 2k
+        for _ in range(100):  # Max 100 Globs of Ectoplasm
+            current_gold = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+            if current_gold < 2000:  # Stop buying if gold is below 2k
+                if BotSettings.DEBUG:
+                    print(f"[DEBUG] Stopping ecto purchases - gold ({current_gold}) below 2k")
+                break
+            yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Glob_Of_Ectoplasm.value)
+            BotSettings.ECTOS_BOUGHT += 1  # Increment ecto counter
+            yield from Routines.Yield.wait(100)  # Small delay between purchases
 
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
@@ -367,7 +397,8 @@ def main():
 
                     if PyImGui.collapsing_header("Items/Gold obtained"):
                         PyImGui.LabelTextV("Gold", "%s", [str(gold_obtained())])    	
-                        PyImGui.LabelTextV("War Supplies", "%s", [str(war_supplies_obtained())])    	
+                        PyImGui.LabelTextV("War Supplies", "%s", [str(war_supplies_obtained())])
+                        PyImGui.LabelTextV("Glob of Ectoplasm", "%s", [str(BotSettings.ECTOS_BOUGHT)])    	
                     
                 PyImGui.end_tab_item()
             PyImGui.end_tab_bar()
