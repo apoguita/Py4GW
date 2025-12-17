@@ -1338,11 +1338,11 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                         15709   # Boots
                         ]
     elif primary == "Paragon":
-        starter_armor = [11332,  # Head
-                        11330,  # Chest
-                        11331,  # Gloves
-                        11333,  # Pants
-                        11329   # Boots
+        starter_armor = [15717,  # Head
+                        15715,  # Chest
+                        15716,  # Gloves
+                        15718,  # Pants
+                        15714   # Boots
                         ]
     elif primary == "Warrior":
         starter_armor = [15702,  # Head
@@ -1366,25 +1366,25 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                         15694   # Boots
                         ]
     elif primary == "Elementalist":
-        starter_armor = [9324,  # Head
-                        9322,  # Chest
-                        9323,  # Gloves
-                        9325,  # Pants
-                        9321   # Boots
+        starter_armor = [15692,  # Head
+                        15690,  # Chest
+                        15691,  # Gloves
+                        15693,  # Pants
+                        15689   # Boots
                         ]
     elif primary == "Mesmer":
-        starter_armor = [8026,  # Head
-                        8024,  # Chest
-                        8025,  # Gloves
-                        8054,  # Pants
-                        8023   # Boots
+        starter_armor = [15682,  # Head
+                        15680,  # Chest
+                        15681,  # Gloves
+                        15683,  # Pants
+                        15679   # Boots
                         ]
     elif primary == "Necromancer":
-        starter_armor = [8863,  # Head
-                        8861,  # Chest
-                        8862,  # Gloves
-                        8864,  # Pants
-                        8860   # Boots
+        starter_armor = [15687,  # Head
+                        15685,  # Chest
+                        15686,  # Gloves
+                        15688,  # Pants
+                        15684   # Boots
                         ]
     
     useless_items = [17081,  # Battle Commendation
