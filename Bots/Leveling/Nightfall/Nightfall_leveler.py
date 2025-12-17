@@ -504,18 +504,18 @@ def DoCraftArmorWithDoubleMats(bot: Botting):
     # Professions that need primary material + dust (both common)
     if primary in ["Paragon", "Monk", "Elementalist", "Necromancer"]:
         armor_pieces = [
-            (HEAD, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [2, 1]),
-            (GLOVES, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [2, 1]),
-            (CHEST, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [6, 1]),
-            (PANTS, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [4, 1]),
-            (BOOTS, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [2, 1]),
+            (HEAD, [ModelID.Pile_Of_Glittering_Dust.value], [2]),
+            (CHEST, [GetArmorMaterialPerProfession()], [6]),
+            (GLOVES, [GetArmorMaterialPerProfession()], [2]),
+            (PANTS, [GetArmorMaterialPerProfession()], [4]),
+            (BOOTS, [GetArmorMaterialPerProfession()], [2]),
         ]
     else:
         # Fallback to single material for other professions
         armor_pieces = [
             (HEAD, [GetArmorMaterialPerProfession()], [2]),
-            (GLOVES, [GetArmorMaterialPerProfession()], [2]),
             (CHEST, [GetArmorMaterialPerProfession()], [6]),
+            (GLOVES, [GetArmorMaterialPerProfession()], [2]),
             (PANTS, [GetArmorMaterialPerProfession()], [4]),
             (BOOTS, [GetArmorMaterialPerProfession()], [2]),
         ]
@@ -547,7 +547,7 @@ def CraftArmorWithDoubleMats(bot: Botting):
     bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
     
     # Buy common materials
-    bot.Move.XY(3839.00, 1618.00)
+    bot.Move.XY(3495.80, 2050.97)
     bot.Move.XYAndInteractNPC(3839.00, 1618.00)  # Material trader
     exec_fn_common = lambda: BuyDoubleMaterials("common")
     bot.States.AddCustomState(exec_fn_common, "Buy Common Materials")
@@ -610,13 +610,13 @@ def GetArmorPiecesByProfession(bot: Botting):
         PANTS = 17352
         BOOTS = 17349
     elif primary == "Monk":
-        HEAD = 17434
+        HEAD = 17402
         CHEST = 17406
-        GLOVES = 17439
-        PANTS = 17440
-        BOOTS = 17437
+        GLOVES = 17407
+        PANTS = 17408
+        BOOTS = 17405
     elif primary == "Necromancer":
-        HEAD = 17246
+        HEAD = 17249
         CHEST = 17251
         GLOVES = 17252
         PANTS = 17253
@@ -1304,15 +1304,6 @@ def Leaving_A_Legacy(bot: Botting):
 def Craft_Player_Armor(bot: Botting):
     bot.States.AddHeader("Craft Player Armor")
     bot.Map.Travel(target_map_id=491)
-    bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
-    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
-    bot.Move.XYAndInteractNPC(3891.62, 2329.84)  # Armor crafter
-    bot.Wait.ForTime(1000)  # small delay to let the window open
-    exec_fn = lambda: CraftArmor(bot)
-    bot.States.AddCustomState(exec_fn, "Craft Armor")
-
-def Craft_No_Head_Armor(bot: Botting):
-    bot.States.AddHeader("Craft No Head Armor")
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
     bot.Move.XYAndInteractNPC(3891.62, 2329.84)  # Armor crafter
