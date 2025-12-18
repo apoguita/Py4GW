@@ -980,6 +980,348 @@ class ThemeTextures(Enum):
     )),
     )
     
+    HealthBarBleedingFill = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_bleeding.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_bleeding.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    )
+    
+    HealthBarBleedingCursor = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_bleeding.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "Progressbar", "ui_progress_health_bleeding.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    )
+    
+    HealthBarBleedingEmpty = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_bleeding.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_bleeding.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),    
+    )
+    
+    HealthBarPoisonedFill = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_poisoned.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_poisoned.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    )
+    
+    HealthBarPoisonedCursor = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_poisoned.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "Progressbar", "ui_progress_health_poisoned.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    )
+    
+    HealthBarPoisonedEmpty = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_poisoned.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_poisoned.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),    
+    )
+    
+    HealthBarDeepWound = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_health_deep_wound.png"),
+        texture_size=(16, 16),
+        element_size=(10, 16),
+        state_map = {
+            TextureState.Normal: (6, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_health_deep_wound.png"),
+        texture_size=(16, 16),
+        element_size=(10, 16),
+        state_map = {
+            TextureState.Normal: (6, 0),
+        }
+    )),
+    )
+    
+    HealthBarDeepWoundCursor = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_health_deep_wound.png"),
+        texture_size=(16, 16),
+        element_size=(1, 16),
+        state_map = {
+            TextureState.Normal: (5, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_health_deep_wound.png"),
+        texture_size=(16, 16),
+        element_size=(1, 16),
+        state_map = {
+            TextureState.Normal: (5, 0),
+        }
+    )),
+    )
+    
+    HealthBarHexedFill = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_hexed.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_hexed.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    )
+    
+    HealthBarHexedCursor = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_hexed.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "Progressbar", "ui_progress_health_hexed.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    )
+    
+    HealthBarHexedEmpty = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_hexed.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_hexed.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),
+    )
+    
+    HealthBarDisconnectedFill = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_disconnected.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_disconnected.png"),
+        texture_size=(16, 16),
+        element_size=(3, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    )
+    
+    HealthBarDisconnectedCursor = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_disconnected.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "Progressbar", "ui_progress_health_disconnected.png"),
+        texture_size=(16, 16),
+        element_size=(4, 16),
+        state_map = {
+            TextureState.Normal: (3, 0),
+        }
+    )),
+    )
+    
+    HealthBarDisconnectedEmpty = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_health_disconnected.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER,"Progressbar", "ui_progress_health_disconnected.png"),
+        texture_size=(16, 16),
+        element_size=(9, 16),
+        state_map = {
+            TextureState.Normal: (7, 0),
+        }
+    )),
+    )
+    
+    HealthIdenticator_Enchanted = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (0, 0),
+        }
+    )),
+    )
+    
+    HealthIdenticator_Conditioned = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (16, 0),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (16, 0),
+        }
+    )),
+    )
+    
+    HealthIdenticator_Hexed = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (0, 16),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (0, 16),
+        }
+    )),
+    )
+    
+    HealthIdenticator_WeaponSpell = ThemeTexture(
+    (StyleTheme.Minimalus,  GameTexture(
+        texture=os.path.join(MINIMALUS_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (16, 16),
+        }
+    )),
+    (StyleTheme.Guild_Wars,  GameTexture(
+        texture=os.path.join(TEXTURE_FOLDER, "ui_health_identicator.png"),
+        texture_size=(32, 32),
+        element_size=(16, 16),
+        state_map = {
+            TextureState.Normal: (16, 16),
+        }
+    )),
+    )
+    
     EnergyBarFill = ThemeTexture(
     (StyleTheme.Minimalus,  GameTexture(
         texture=os.path.join(MINIMALUS_FOLDER,"Progressbar", "ui_progress_energy.png"),
