@@ -697,14 +697,14 @@ class Yield:
             yield from _run_bt_tree(tree, throttle_ms=100)
             
         @staticmethod
-        def InteractWithNearestChest():
+        def InteractWithNearestChest(max_distance:int = 2500):
             """Target and interact with chest and items."""
             from .Agents import Agents
             
             from ..Py4GWcorelib import LootConfig, Utils
             from ..enums_src.GameData_enums import Range
 
-            nearest_chest = Agents.GetNearestChest(2500)
+            nearest_chest = Agents.GetNearestChest(max_distance)
             chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(nearest_chest)
 
 
