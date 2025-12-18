@@ -1012,67 +1012,23 @@ class Yield:
                 yield from Yield.wait(50)
                 retries += 1
             yield from Yield.wait(50)
-        
+            
         @staticmethod
         def _wait_for_empty_queue(queue_name:str):
             from ..Py4GWcorelib import ActionQueueManager
             while not ActionQueueManager().IsEmpty(queue_name):
                 yield from Yield.wait(50)
-            
+        
         @staticmethod
-        def _salvage_item(item_id) ->Generator[None, None, bool]:
-            from ..Item import Item
-            from ..ItemArray import ItemArray
-            from ..enums_src.Item_enums import Bags
+        def _salvage_item(item_id):
+            from ..Inventory import Inventory
             
+
             salvage_kit = GLOBAL_CACHE.Inventory.GetFirstSalvageKit()
             if salvage_kit == 0:
                 ConsoleLog("SalvageItems", "No salvage kits found.", Console.MessageType.Warning)
-                return False
-            item_instance = Item.item_instance(item_id)
-            if not item_instance:
-                ConsoleLog("IdentifyItems", f"Item ID {item_id} is not valid.", Console.MessageType.Warning)
-                return False
-            
-            quantity = item_instance.quantity
-            if quantity <= 0:
-                ConsoleLog("SalvageItems", f"Item ID {item_id} has zero quantity.", Console.MessageType.Warning)
-                return False
-            
-            if item_instance.is_customized:
-                return True  # Skip customized items
-            
-            rarity = item_instance.rarity.name
-            require_materials_confirmation = True if rarity in ["Purple", "Gold"] else False
-                
-            GLOBAL_CACHE.Inventory.SalvageItem(item_id, salvage_kit)
-            
-            if require_materials_confirmation:
-                yield from Yield.wait(150)
-                yield from Yield.Items._wait_for_salvage_materials_window()
-                for i in range(3):
-                    GLOBAL_CACHE.Inventory.AcceptSalvageMaterialsWindow()
-                    yield from Yield.wait(50)
-                 
-            salvage_timeout = ThrottledTimer(500)   
-            while True:
-                yield from Yield.wait(50)
-                bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
-                item_array = ItemArray.GetItemArray(bag_list)
-                
-                if item_id not in item_array:
-                    break  # Fully consumed
-                
-                item_instance.GetContext()
-                if item_instance.quantity < quantity:
-                    break  # Partially consumed
-                
-                if salvage_timeout.IsExpired():
-                    ConsoleLog("SalvageItems", f"Timeout salvaging item ID {item_id}.", Console.MessageType.Warning)
-                    return False    
-                
-            yield from Yield.wait(50)
-            return True
+                return
+            Inventory.SalvageItem(item_id, salvage_kit)
             
         @staticmethod
         def SalvageItems(item_array:list[int], log=False):
@@ -1084,60 +1040,45 @@ class Yield:
                 return
             
             for item_id in item_array:
-                result = yield from Yield.Items._salvage_item(item_id)
-                if not result:
-                    ConsoleLog("SalvageItems", f"Failed to salvage item ID {item_id}.", Console.MessageType.Warning)
-                    return
+                _,rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+                is_purple = rarity == "Purple"
+                is_gold = rarity == "Gold"
+                ActionQueueManager().AddAction("SALVAGE", Yield.Items._salvage_item, item_id)
+                yield from Yield.Items._wait_for_empty_queue("SALVAGE")
+                
+                if (is_purple or is_gold):
+                    yield from Yield.Items._wait_for_salvage_materials_window()
+                    ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
+                    yield from Yield.Items._wait_for_empty_queue("SALVAGE")
+                    
+                yield from Yield.wait(100)
                 
             if log and len(item_array) > 0:
-                ConsoleLog("SalvageItems", f"Salvaged {len(item_array)} items.", Console.MessageType.Info)      
+                ConsoleLog("SalvageItems", f"Salvaged {len(item_array)} items.", Console.MessageType.Info)     
                 
         @staticmethod
-        def _identify_item(item_id) ->Generator[None, None, bool]:
+        def _identify_item(item_id):
             from ..Inventory import Inventory
-            from ..Item import Item
-            from ..py4gwcorelib_src.Timer import ThrottledTimer
-            first_id_kit = Inventory.GetFirstIDKit()
-            if first_id_kit == 0:
-                ConsoleLog("IdentifyItems", "No ID Kit found in inventory.", Console.MessageType.Warning)
-                return False
             
-            item_instance = Item.item_instance(item_id)
-            if not item_instance:
-                ConsoleLog("IdentifyItems", f"Item ID {item_id} is not valid.", Console.MessageType.Warning)
-                return False
-            
-            if item_instance.is_identified:
-                return True
-            
-            GLOBAL_CACHE.Inventory.IdentifyItem(item_id, first_id_kit)
-            timeout_timer = ThrottledTimer(500)
-            timeout_timer.Start()
-            
-            while True:
-                yield from Yield.wait(50)
-                item_instance.GetContext()
-                if item_instance.is_identified:
-                    break
-                if timeout_timer.IsExpired():
-                    ConsoleLog("IdentifyItems", f"Timeout identifying item ID {item_id}.", Console.MessageType.Warning)
-                    return False
-            
-            yield from Yield.wait(50)
-            return True
+
+            id_kit = GLOBAL_CACHE.Inventory.GetFirstIDKit()
+            if id_kit == 0:
+                ConsoleLog("IdentifyItems", "No ID kits found.", Console.MessageType.Warning)
+                return
+            Inventory.IdentifyItem(item_id, id_kit)
 
         @staticmethod
         def IdentifyItems(item_array:list[int], log=False):
-            from ..Py4GWcorelib import ConsoleLog, Console
+            from ..Py4GWcorelib import ActionQueueManager, ConsoleLog, Console
             if len(item_array) == 0:
-                ActionQueueManager().ResetQueue("ACTION")
+                ActionQueueManager().ResetQueue("IDENTIFY")
                 return
             
             for item_id in item_array:
-                result = yield from Yield.Items._identify_item(item_id)
-                if not result:
-                    ConsoleLog("IdentifyItems", f"Failed to identify item ID {item_id}.", Console.MessageType.Warning)
-                    return
+                ActionQueueManager().AddAction("IDENTIFY",Yield.Items._identify_item, item_id)
+                
+            while not ActionQueueManager().IsEmpty("IDENTIFY"):
+                yield from Yield.wait(350)
                 
             if log and len(item_array) > 0:
                 ConsoleLog("IdentifyItems", f"Identified {len(item_array)} items.", Console.MessageType.Info)

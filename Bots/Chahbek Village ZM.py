@@ -3,7 +3,7 @@ from typing import List, Tuple, Generator, Any
 import os
 from Py4GW import Console
 import PyImGui
-from Py4GWCoreLib import Key, Keystroke, Map
+from Py4GWCoreLib import Key, Keystroke, Map, CHAR_MAP
 from AccountData import MODULE_NAME
 from Py4GWCoreLib import (GLOBAL_CACHE, Inventory, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager,)
@@ -11,17 +11,11 @@ LAST_CHARACTER_NAME: str = ""
 LAST_PRIMARY_PROF: str = ""
 LAST_CAMPAIGN: str = "Nightfall"
 
-bot = Botting("Chahbek Village ZM",
-              upkeep_birthday_cupcake_restock=10,
-              upkeep_honeycomb_restock=20,
-              upkeep_war_supplies_restock=2,
-              upkeep_auto_inventory_management_active=False,
-              upkeep_auto_combat_active=False,
-              upkeep_auto_loot_active=True)
+bot = Botting("Chahbek Village ZM")
  
 def create_bot_routine(bot: Botting) -> None:
     global LAST_CHARACTER_NAME, LAST_PRIMARY_PROF, LAST_CAMPAIGN
-    # capture tôt tant qu'on est bien en jeu
+    # capture early while still in game
     LAST_CHARACTER_NAME = GLOBAL_CACHE.Player.GetName() or LAST_CHARACTER_NAME
     try:
         p, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
@@ -31,13 +25,11 @@ def create_bot_routine(bot: Botting) -> None:
         pass
 
     SkipTutorialDialog(bot)                    # Skip opening tutorial
-    UnlockGtob(bot)
     TakeZM(bot)                                #Take ZM
     TravelToChabbek(bot)                       # Go to chabbek village
-    ConfigureFirstBattle(bot)                  # Configure first battle setup
     Meeting_First_Spear_Jahdugar(bot)          # Meeting First Spear Jahdugar
+    ConfigureFirstBattle(bot)                  # Configure first battle setup
     EnterChahbekMission(bot)                   # Enter Chahbek mission
-    TravelToGtob(bot)                         # Travel to EB
     TakeReward(bot)                            # Take Reward 
     UnlockXunlai(bot)                          # Unlock Storage
     DepositReward(bot)
@@ -55,7 +47,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Items.SpawnBonusItems()
        
-def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
+def PrepareForBattle(bot: Botting, Hero_List = [6], Henchman_List = [1,2]) -> None:
     ConfigureAggressiveEnv(bot)
     bot.Party.LeaveParty()
     bot.Party.AddHeroList(Hero_List)
@@ -65,23 +57,22 @@ def SkipTutorialDialog(bot: Botting) -> None:
     bot.States.AddHeader("Skip Tutorial")
     bot.Dialogs.AtXY(10289, 6405, 0x82A501)  
     bot.Map.TravelGH()
-    bot.Wait.ForTime(500)
     bot.Map.LeaveGH()
-    bot.Wait.ForTime(5000)
-
-def UnlockGtob(bot: Botting):
-    bot.States.AddHeader("To Gtob")
-    bot.Map.Travel(target_map_id=796)
-    bot.Map.Travel(target_map_id=248)
+    bot.Wait.ForMapToChange(target_map_id=544)
 
 def TakeZM(bot: Botting):
     bot.States.AddHeader("Take ZM")
+    def _state():
+        yield from RndTravelState(796, use_districts=8)
+    bot.States.AddCustomState(_state, "RndTravel -> Codex Arena")
+    def _state2():
+        yield from RndTravelState(248, use_districts=8)
+    bot.States.AddCustomState(_state2, "RndTravel -> Great Temple of Balthazar")
     bot.Move.XYAndDialog(-5065.00, -5211.00, 0x83D201)
 
 def TravelToChabbek(bot: Botting) -> None:
     bot.States.AddHeader("To Chahbek Village")
     def _state():
-        # 7=EU, 8=EU+INT, 11=ALL (incl. Asia)
         yield from RndTravelState(544, use_districts=8)
     bot.States.AddCustomState(_state, "RndTravel -> Chahbek")
     
@@ -125,7 +116,6 @@ def Equip_Weapon():
 
 def ConfigureFirstBattle(bot: Botting):
     bot.States.AddHeader("Battle Setup")
-    bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
     bot.Wait.ForTime(1000)
     Equip_Weapon()
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
@@ -136,13 +126,14 @@ def EnterChahbekMission(bot: Botting):
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
     bot.Wait.UntilOnExplorable()
-    ConfigureAggressiveEnv(bot)
     bot.Move.XY(2240, -3535)
     bot.Move.XY(227, -5658)
     bot.Move.XY(-1144, -4378)
     bot.Move.XY(-2058, -3494)
     bot.Move.XY(-4725, -1830)
     bot.Interact.WithGadgetAtXY(-4725, -1830) #Oil 1
+    bot.Wait.ForTime(2000)
+    bot.Party.FlagAllHeroes(-1422.47, 1810.77)
     bot.Move.XY(-1725, -2551)
     bot.Wait.ForTime(1500)
     bot.Interact.WithGadgetAtXY(-1725, -2550) #Cata load
@@ -154,24 +145,23 @@ def EnterChahbekMission(bot: Botting):
     bot.Interact.WithGadgetAtXY(-1731, -4138) #Cata 2 load
     bot.Wait.ForTime(2000)
     bot.Interact.WithGadgetAtXY(-1731, -4138) #Cata 2 fire
-    bot.Move.XY(-2331, -419)
-    bot.Move.XY(-1685, 1459)
+    #bot.Move.XY(-2331, -419)
+    bot.Wait.ForTime(10000)
+    bot.Party.UnflagAllHeroes()
+    bot.Move.XY(-276.01, -1219.04)
+    #bot.Move.XY(-1685, 1459)
     bot.Move.XY(-2895, -6247)
     bot.Move.XY(-3938, -6315) #Boss
     bot.Wait.ForMapToChange(target_map_id=456)
 
-def TravelToGtob(bot: Botting) -> None:
-    bot.States.AddHeader("To GTOB")
-
+def TakeReward(bot: Botting):
+    bot.States.AddHeader("Take Reward")
     def _state():
         # 7=EU, 8=EU+INT, 11=ALL (incl. Asia)
         yield from RndTravelState(248, use_districts=8)
-
     bot.States.AddCustomState(_state, "RndTravel -> Great Temple of Balthazar")
-
-def TakeReward(bot: Botting):
-    bot.States.AddHeader("Take Reward")
-    bot.Move.XYAndDialog(-5019.00, -5496.00, 0x83D207)
+    bot.Move.XY(-5159.01, -5548.32)
+    bot.Dialogs.WithModel(1192,0x83D207)
 
 def UnlockXunlai(bot : Botting) :
     bot.States.AddHeader("Unlock Xunlai Storage")
@@ -197,17 +187,17 @@ def DepositGold(bot : Botting) :
 def _resolve_character_name():
     global LAST_CHARACTER_NAME
 
-    # 1) En jeu
+    # 1) In game
     login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(GLOBAL_CACHE.Player.GetAgentID())
     name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
     if name:
         LAST_CHARACTER_NAME = name
-        yield
+        yield from Routines.Yield.wait(100)
         return name
     
     print (f"name (beginning) = {LAST_CHARACTER_NAME}")
 
-    # 2) Écran de sélection
+    # 2) Character selection screen
     try:
         if GLOBAL_CACHE.Player.InCharacterSelectScreen():
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
@@ -217,17 +207,16 @@ def _resolve_character_name():
                     name = str(pregame.chars[idx])
                     if name:
                         LAST_CHARACTER_NAME = name
-                        yield
+                        yield from Routines.Yield.wait(100)
                         return name
     except Exception:
         pass
 
     print (f"name (beginning) = {LAST_CHARACTER_NAME}")
     #add this to make it a generator
-    yield 
-    # 3) Dernier nom connu
+    yield from Routines.Yield.wait(100)
+    # 3) Last known name
     return LAST_CHARACTER_NAME
-
 
 def _has(obj, name: str) -> bool:
     try:
@@ -236,7 +225,7 @@ def _has(obj, name: str) -> bool:
         return False
 
 def _pregame_character_list() -> list[str]:
-    """Best-effort: retourne la liste des persos vus en écran de sélection."""
+    """Best-effort: returns the list of characters seen in selection screen."""
     try:
         pregame = GLOBAL_CACHE.Player.GetPreGameContext()
         if pregame and hasattr(pregame, "chars"):
@@ -244,6 +233,88 @@ def _pregame_character_list() -> list[str]:
     except Exception:
         pass
     return []
+
+def type_text_keystroke(text: str, delay_ms: int = 50):
+    """
+    Type text using individual keystrokes instead of clipboard.
+    This avoids clipboard conflicts when running multiple instances in parallel.
+    """
+    yield from Routines.Yield.wait(1000)
+    for char in text:
+        if char in CHAR_MAP:
+            key, needs_shift = CHAR_MAP[char]
+            if needs_shift:
+                Keystroke.Press(Key.LeftShift.value)
+                yield from Routines.Yield.wait(50)
+            Keystroke.PressAndRelease(key.value)
+            yield from Routines.Yield.wait(delay_ms)
+            if needs_shift:
+                Keystroke.Release(Key.LeftShift.value)
+                yield from Routines.Yield.wait(50)
+        else:
+            # Skip unmapped characters
+            ConsoleLog("TextInput", f"Skipping unmapped character: '{char}'", Console.MessageType.Warning)
+
+def custom_delete_character(character_name: str, timeout_ms: int = 45000):
+    """
+    Custom character deletion that uses keystrokes instead of clipboard.
+    This prevents conflicts when running multiple instances in parallel.
+    """
+    from Py4GWCoreLib.routines_src.Yield import Yield
+
+    # Click delete character button
+    try:
+        WindowFrames = getattr(Yield, "WindowFrames", None)
+        if WindowFrames and hasattr(WindowFrames, "DeleteCharacterButton"):
+            WindowFrames.DeleteCharacterButton.FrameClick()
+            yield from Routines.Yield.wait(2000)
+
+            # Type character name using keystrokes instead of clipboard
+            yield from type_text_keystroke(character_name)
+
+            yield from Routines.Yield.wait(2000)
+
+            # Click final delete button
+            if hasattr(WindowFrames, "FinalDeleteCharacterButton"):
+                WindowFrames.FinalDeleteCharacterButton.FrameClick()
+                yield from Routines.Yield.wait(5000)
+
+            return True
+    except Exception as e:
+        ConsoleLog("CustomDelete", f"Error in custom delete: {e}", Console.MessageType.Error)
+        return False
+
+def custom_create_character(character_name: str, campaign_name: str, profession_name: str, timeout_ms: int = 60000):
+    """
+    Custom character creation that uses keystrokes instead of clipboard.
+    This prevents conflicts when running multiple instances in parallel.
+    """
+    from Py4GWCoreLib.routines_src.Yield import Yield
+
+    try:
+        WindowFrames = getattr(Yield, "WindowFrames", None)
+        if not WindowFrames:
+            return False
+
+        # Navigate through character creation screens
+        # Select body (default)
+        if hasattr(WindowFrames, "CreateCharacterNextButtonGeneric"):
+            WindowFrames.CreateCharacterNextButtonGeneric.FrameClick()
+            yield from Routines.Yield.wait(3000)
+
+            # Enter name using keystrokes instead of clipboard
+            yield from type_text_keystroke(character_name)
+            yield from Routines.Yield.wait(2000)
+
+            # Click final create button
+            if hasattr(WindowFrames, "FinalCreateCharacterButton"):
+                WindowFrames.FinalCreateCharacterButton.FrameClick()
+                yield from Routines.Yield.wait(1000)
+
+            return True
+    except Exception as e:
+        ConsoleLog("CustomCreate", f"Error in custom create: {e}", Console.MessageType.Error)
+        return False
 
 def LogoutAndDeleteState():
     """State final: logout -> delete -> recreate -> restart routine"""
@@ -273,28 +344,31 @@ def LogoutAndDeleteState():
     )
 
     # ------------------------------------------------------------
-    # 2) LOGOUT — MÉTHODE OFFICIELLE ET STABLE
+    # 2) LOGOUT
     # ------------------------------------------------------------
     GLOBAL_CACHE.Player.LogoutToCharacterSelect()
-    yield from Routines.Yield.wait(5000)
+    yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
-    # 3) Delete character
+    # 3) Delete character (using custom keystroke-based method to avoid clipboard conflicts)
     # ------------------------------------------------------------
-    try:
-        yield from RC.DeleteCharacter(
-            character_name_to_delete=char_name,
-            timeout_ms=45000,
-            log=True
-        )
-    except TypeError:
-        yield from RC.DeleteCharacter(
-            character_name=char_name,
-            timeout_ms=45000,
-            log=True
-        )
+    success = yield from custom_delete_character(char_name)
+    if not success:
+        ConsoleLog("Reroll", "Custom character deletion failed, falling back to framework method", Console.MessageType.Warning)
+        try:
+            yield from RC.DeleteCharacter(
+                character_name_to_delete=char_name,
+                timeout_ms=45000,
+                log=True
+            )
+        except TypeError:
+            yield from RC.DeleteCharacter(
+                character_name=char_name,
+                timeout_ms=45000,
+                log=True
+            )
 
-    yield from Routines.Yield.wait(3000)
+    yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
     # 4) Decide name immediately (no long wait)
@@ -315,33 +389,27 @@ def LogoutAndDeleteState():
         final_name = char_name
 
     # ------------------------------------------------------------
-    # 5) Create character
+    # 5) Create character (using custom keystroke-based method to avoid clipboard conflicts)
     # ------------------------------------------------------------
-    yield from RC.CreateCharacter(
-        character_name=final_name,
-        campaign_name=campaign_name,
-        profession_name=primary_prof,
-        timeout_ms=60000,
-        log=True
-    )
+    success = yield from custom_create_character(final_name, campaign_name, primary_prof)
+    if not success:
+        ConsoleLog("Reroll", "Custom character creation failed, falling back to framework method", Console.MessageType.Warning)
+        yield from RC.CreateCharacter(
+            character_name=final_name,
+            campaign_name=campaign_name,
+            profession_name=primary_prof,
+            timeout_ms=60000,
+            log=True
+        )
 
-    yield from Routines.Yield.wait(4000)
+    yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
     # 6) Select character (si dispo)
     # ------------------------------------------------------------
-    if hasattr(RC, "SelectCharacter"):
-        try:
-            yield from RC.SelectCharacter(character_name=final_name, timeout_ms=45000, log=True)
-        except TypeError:
-            yield from RC.SelectCharacter(character_name_to_select=final_name, timeout_ms=45000, log=True)
-
-    # ------------------------------------------------------------
-    # 7) Restart routine SAFELY
-    # ------------------------------------------------------------
     ConsoleLog("Reroll", "Reroll finished. Restarting routine.", Console.MessageType.Success)
 
-    yield from Routines.Yield.wait(1000)
+    yield from Routines.Yield.wait(3000)
 
     ActionQueueManager().ResetAllQueues()
     bot.SetMainRoutine(create_bot_routine)
@@ -351,39 +419,39 @@ import random
 
 def _generate_fallback_name(current_name: str) -> str:
     """
-    Génère un nom Guild Wars valide sans chiffres.
-    Nettoie, supprime tout suffixe existant et le remplace.
-    Ne stack JAMAIS les suffixes.
+    Generates a valid Guild Wars name without numbers.
+    Cleans, removes any existing suffix and replaces it.
+    NEVER stacks suffixes.
     """
 
     suffixes = [
-        "Alt", "Tmp", "New", "Bis", "Prime",
-        "Echo", "Nova", "Void", "Flux", "Core",
+        "A", "B", "C", "D", "E",
+        "F", "K", "H", "I", "J",
     ]
 
     # ------------------------------------------------------------
-    # 1) Nettoyage strict : lettres + espaces uniquement
+    # 1) Strict cleanup: letters + spaces only
     # ------------------------------------------------------------
     cleaned = "".join(
         ch for ch in (current_name or "")
         if ch.isalpha() or ch == " "
     )
-    cleaned = " ".join(cleaned.split())  # normalise espaces
+    cleaned = " ".join(cleaned.split())  # normalize spaces
 
     if not cleaned:
-        return "Fallback Alt"
+        return "Fallback A"
 
     parts = cleaned.split()
 
     # ------------------------------------------------------------
-    # 2) Détection du suffixe actuel (s'il existe)
+    # 2) Current suffix detection (if exists)
     # ------------------------------------------------------------
     current_suffix = None
     if parts and parts[-1] in suffixes:
         current_suffix = parts[-1]
 
     # ------------------------------------------------------------
-    # 3) Suppression de TOUS les suffixes connus à la fin
+    # 3) Remove ALL known suffixes at the end
     # ------------------------------------------------------------
     while parts and parts[-1] in suffixes:
         parts.pop()
@@ -393,25 +461,20 @@ def _generate_fallback_name(current_name: str) -> str:
         base_name = "Fallback"
 
     # ------------------------------------------------------------
-    # 4) Choix du suffixe (rotation)
+    # 4) Suffix choice (rotation)
     # ------------------------------------------------------------
     if current_suffix in suffixes:
         idx = suffixes.index(current_suffix)
         suffix = suffixes[(idx + 1) % len(suffixes)]
     else:
-        suffix = suffixes[0]  # Alt
+        suffix = suffixes[0]  # A
 
     return f"{base_name} {suffix}"
 
-
-
-
-# Exemple de mapping (à adapter à TES IDs réels)
 REGION_EU = 4
 REGION_NA = 1
 REGION_INT = 0
 
-# Exemple de langues EU (IDs à adapter à ta lib)
 LANG_EN = 0
 LANG_FR = 1
 LANG_DE = 2
@@ -428,17 +491,16 @@ def pick_random_region_language(allow_international=True):
 
     region = random.choice(regions)
 
-    # NA = English only (selon ton besoin)
+    # NA = English only (according to your needs)
     if region == REGION_NA:
         return region, LANG_EN
 
-    # INT = “pas de langue par défaut”
+    # INT = "no default language"
     if region == REGION_INT:
-        return region, 0  # ou None si ton API l’accepte (souvent non)
+        return region, 0  # or None if your API accepts it (often not)
 
     # EU = random among EU langs
     return region, random.choice(EU_LANGS)
-
 
 def withdraw_gold(target_gold=5000, deposit_all=True):
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
@@ -459,38 +521,22 @@ def TravelToRegion(map_id: int, server_region: int, district_number: int = 0, la
     """
     Map.map_instance().Travel(map_id, server_region, district_number, language)
 
-def RndTravelState(map_id: int, use_districts: int = 8):
-    """
-    Travel aléatoire style AutoIt.
-    use_districts:
-      7 = EU seulement
-      8 = EU + International
-      11 = EU + International + Asie
-    """
-
-    # Ordre: eu-en, eu-fr, eu-ge, eu-it, eu-sp, eu-po, eu-ru, int, asia-ko, asia-ch, asia-ja
-    region   = [2, 2, 2, 2, 2, 2, 2, -2, 1, 3, 4]
-    language = [0, 2, 3, 4, 5, 9, 10, 0, 0, 0, 0]
-
+def RndTravelState(map_id: int, use_districts: int = 4):
+    region   = [2, 2, 2, 2] 
+    language = [4, 5, 9, 10]
     if use_districts < 1:
         use_districts = 1
     if use_districts > len(region):
         use_districts = len(region)
-
     idx = random.randint(0, use_districts - 1)
-
     reg = region[idx]
     lang = language[idx]
-
     ConsoleLog("RndTravel", f"MoveMap(map_id={map_id}, region={reg}, district=0, language={lang})", Console.MessageType.Info)
-
-    # Appel bas niveau direct (équivalent du MoveMap/Map_MoveMap)
+    # Direct low-level call (equivalent to MoveMap/Map_MoveMap)
     Map.map_instance().Travel(map_id, reg, 0, lang)
-
-    # Attendre le chargement (équivalent Map_WaitMapLoading)
+    # Wait for loading (equivalent to Map_WaitMapLoading)
     yield from Routines.Yield.wait(6500)
     yield from Routines.Yield.wait(1000)
-
 selected_step = 0
 filter_header_steps = True
 
@@ -558,34 +604,33 @@ bot.UI.override_draw_texture(_draw_texture)
 bot.UI.override_draw_config(lambda: _draw_settings(bot))
 
 # ---------------------------------------------------------------------------
-#  BOUCLE PRINCIPALE DU SCRIPT
+#  MAIN SCRIPT LOOP
 # ---------------------------------------------------------------------------
 
 def main():
     bot.Update()
     bot.UI.draw_window()
 
-
 if __name__ == "__main__":
     main()
 
 # ---------------------------------------------------------------------------
-#  LOOP CONTROLLER: planifie un nouveau run après le reroll
+#  LOOP CONTROLLER: schedules a new run after reroll
 # ---------------------------------------------------------------------------
 
 def ScheduleNextRun():
-    """State: attend d'être en jeu, puis re-ajoute toute la routine (boucle infinie)."""
-    # Si on vient de reroll, on peut être en écran de sélection quelques secondes.
+    """State: waits to be in game, then re-adds the entire routine (infinite loop)."""
+    # If we just rerolled, we might be in character selection screen for a few seconds.
     for _ in range(200):  # ~20s max
         if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
-            # on est soit en chargement, soit en jeu
+            # we're either loading or in game
             break
         yield from Routines.Yield.wait(100)
 
-    # Petite pause de stabilité
+    # Small stability pause
     yield from Routines.Yield.wait(1000)
 
-    # On re-empile une nouvelle fois tous les steps
+    # Re-stack all the steps again
     create_bot_routine(bot)
 
 bot.SetMainRoutine(create_bot_routine)
