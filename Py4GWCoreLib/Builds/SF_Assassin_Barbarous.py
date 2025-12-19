@@ -47,7 +47,7 @@ class SF_Assassin_Barbarous(BuildMgr):
             ],
         )
         
-        
+        # Skill IDs
         self.glyph_of_swiftness = GLOBAL_CACHE.Skill.GetID("Glyph_of_Swiftness")
         self.shroud_of_distress = GLOBAL_CACHE.Skill.GetID("Shroud_of_Distress")
         self.shadow_form = GLOBAL_CACHE.Skill.GetID("Shadow_Form")
@@ -57,32 +57,17 @@ class SF_Assassin_Barbarous(BuildMgr):
         self.shadow_sanctuary = GLOBAL_CACHE.Skill.GetID("Shadow_Sanctuary_kurzick")
         self.i_am_unstoppable = GLOBAL_CACHE.Skill.GetID("I_Am_Unstoppable")
 
-        ConsoleLog(self.build_name, f"Checking HoS ---- {self.heart_of_shadow}", Py4GW.Console.MessageType.Info, True)
-
+        # States
         self.is_looting = False
-        self.in_killing_routine = False
         self.routine_finished = False
 
-        self.stuck_signal = False
-        self.waypoint = (0,0)
-
         self.build_danger_helper = build_danger_helper
-        
-    def SetKillingRoutine(self, in_killing_routine: bool):
-        self.in_killing_routine = in_killing_routine
-        
+
     def SetRoutineFinished(self, routine_finished: bool):
         self.routine_finished = routine_finished
 
     def SetLootingSignal(self, is_looting: bool):
         self.is_looting = is_looting
-
-    def SetStuckSignal(self, stuck_counter: int):
-        #self.stuck_counter = stuck_counter
-        self.stuck_signal = stuck_counter > 0
-
-    def GetStuckSignal(self) -> bool:
-        return self.stuck_signal
 
 
     def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
@@ -95,6 +80,7 @@ class SF_Assassin_Barbarous(BuildMgr):
         return result
                 
 
+    # Shroud of Distress watcher
     def ShroudOfDistressWatcher(self):
         # Initial vars
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
@@ -110,7 +96,8 @@ class SF_Assassin_Barbarous(BuildMgr):
             # ** Cast Shroud of Distress **
             yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1350)
 
-    # Uncomment when swapping from DS to HoS
+
+    # Taken from YAVB HoS logic, casts an optimal Heart of Shadow target
     def CastHeartOfShadow(self):
         center_point1 = (10980, -21532)
         center_point2 = (11461, -17282)
@@ -128,6 +115,7 @@ class SF_Assassin_Barbarous(BuildMgr):
         
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
         
+        # Find enemy most opposite to goal direction
         for enemy in enemy_array:
             if GLOBAL_CACHE.Agent.IsDead(enemy):
                 continue
@@ -142,9 +130,8 @@ class SF_Assassin_Barbarous(BuildMgr):
         else:
             yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
         
-        ConsoleLog(self.build_name, f"Forced HoS", Py4GW.Console.MessageType.Info, log=False)
-        if (yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)):
-            self.stuck_signal = False
+
+        yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=350)
     
 
     def ShadowFormWatcher(self):
@@ -181,11 +168,12 @@ class SF_Assassin_Barbarous(BuildMgr):
 
         # Refresh dwarven stability if it's about to expire
         if (not has_stability or remaining_stability_duration <= 2000) and Routines.Checks.Skills.IsSkillIDReady(self.dwarven_stability): 
-            yield from self._CastSkillID(self.dwarven_stability, log=False, aftercast_delay=500)
+            yield from self._CastSkillID(self.dwarven_stability, log=False, aftercast_delay=200)
 
         # Refresh stance if it's about to expire
         if not has_stance or remaining_stance_duration <= 2000:
             yield from self._CastSkillID(self.dark_escape, log=False, aftercast_delay=200)
+
 
     def IAUWatcher(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
@@ -198,23 +186,30 @@ class SF_Assassin_Barbarous(BuildMgr):
             if is_iau_ready and not has_iau:
                 yield from Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, aftercast_delay=200)
 
-    def ShadowSanctuaryWatcher(self):
+
+    def DefensiveWatcher(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         is_ss_ready = Routines.Checks.Skills.IsSkillIDReady(self.shadow_sanctuary)
+        is_hos_ready = Routines.Checks.Skills.IsSkillIDReady(self.heart_of_shadow)
         is_poisoned = GLOBAL_CACHE.Agent.IsPoisoned(player_agent_id)
-        is_low_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.4
-        is_extreme_low_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.25
+        is_low_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.49
+        is_extreme_low_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.35
+        is_emergency_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.2
 
         # Some checks to ensure Shadow Sanctuary is used optimally
         if is_ss_ready and ((is_poisoned and is_low_health) or is_extreme_low_health):
             yield from self._CastSkillID(self.shadow_sanctuary, log=False, aftercast_delay=500)
 
+        if is_emergency_health and is_hos_ready:
+            yield from self.CastHeartOfShadow()
+
+
     def BlockedEscapeWatcher(self):
-        is_stuck = self.build_danger_helper.body_block_detection(seconds=2.5)
+        is_stuck = self.build_danger_helper.body_block_detection(seconds=4)
         is_hos_ready = Routines.Checks.Skills.IsSkillIDReady(self.heart_of_shadow)
 
         if is_stuck and is_hos_ready:
-            yield from self._CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=1000)
+            yield from self.CastHeartOfShadow()
 
 
     def ProcessSkillCasting(self):
@@ -244,6 +239,9 @@ class SF_Assassin_Barbarous(BuildMgr):
                 yield from Routines.Yield.wait(1000)
                 continue
 
+            if self.is_looting:
+                yield from Routines.Yield.wait(1000)
+                continue
 
             # === Skill Watchers ===
 
@@ -260,7 +258,7 @@ class SF_Assassin_Barbarous(BuildMgr):
             yield from self.IAUWatcher()
 
             # Shadow Sanctuary watcher
-            yield from self.ShadowSanctuaryWatcher()
+            yield from self.DefensiveWatcher()
 
             # Blocked Escape watcher
             yield from self.BlockedEscapeWatcher()

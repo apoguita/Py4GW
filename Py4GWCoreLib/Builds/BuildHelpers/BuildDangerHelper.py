@@ -24,11 +24,16 @@ class BuildDangerHelper:
         scan_throttle_ms: float = 0.1,
         danger_check_cooldown: float = 0.1,
         spell_caster_check_cooldown: float = 1.0,
-        extreme_kd_danger: List[str] | None = None
+        extreme_kd_danger: List[str] | None = None,
+        log_enabled: bool = False
     ):
+        self.name = "BuildDangerHelper"
+        self.log_enabled = log_enabled
+
         # tables provided by caller (tuples of (list_of_ids, name))
         self.cripple_kd_table: DangerTable = cripple_kd_table
         self.spellcast_table: DangerTable = spellcast_table
+        self.extreme_kd_danger = extreme_kd_danger
 
         # timing / throttle configuration
         self.scan_throttle_ms = scan_throttle_ms
@@ -66,7 +71,7 @@ class BuildDangerHelper:
             # New behavior: callers can provide self.extreme_kd_danger (List[str]) containing
             # substrings to match against category names (case-insensitive). Models from
             # matching categories are collected into self.extreme_kd_range_models.
-            terms = getattr(self, "extreme_kd_danger", None)
+            terms = getattr(self, "extreme_kd_danger_list", None)
             if terms:
                 norm_terms = [str(t).lower() for t in terms]
                 lname = category.lower()
@@ -75,15 +80,12 @@ class BuildDangerHelper:
 
         for agent_id in self.cripple_kd_models:
             model_id = GLOBAL_CACHE.Agent.GetModelID(agent_id)
-            ConsoleLog("BuildDangerHelper", f"Added agent ID {agent_id} with Model ID {model_id} to cripple/kd models.", Py4GW.Console.MessageType.Debug)
 
         # build spellcaster id set from the spellcast table
         self.spellcaster_models = set()
         for model_ids, category in self.spellcast_table:
             self.spellcaster_models.update(model_ids)
 
-
-        ConsoleLog("BuildDangerHelper", f"Rebuilt caches: {len(self.cripple_kd_models)} cripple/kd models, {len(self.extreme_kd_range_models)} extreme-range models, {len(self.spellcaster_models)} spellcaster models.", Py4GW.Console.MessageType.Debug)
 
     def enemy_category_from_model_id(self, model_id: int) -> str:
         """
