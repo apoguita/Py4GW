@@ -697,7 +697,7 @@ class Yield:
             yield from _run_bt_tree(tree, throttle_ms=100)
             
         @staticmethod
-        def InteractWithNearestChest(max_distance:int = 2500):
+        def InteractWithNearestChest(max_distance:int = 2500, before_interact_fn = lambda: None, after_interact_fn = lambda: None):
             """Target and interact with chest and items."""
             from .Agents import Agents
             
@@ -710,17 +710,22 @@ class Yield:
 
             yield from Yield.Movement.FollowPath([(chest_x, chest_y)])
             yield from Yield.wait(500)
-        
+
+            before_interact_fn()
+
             yield from Yield.Player.InteractAgent(nearest_chest)
             yield from Yield.wait(500)
             GLOBAL_CACHE.Player.SendDialog(2)
-            yield from Yield.wait(1000)
+            yield from Yield.wait(500)
 
             yield from Yield.Agents.TargetNearestItem(distance=300)
             filtered_loot = LootConfig().GetfilteredLootArray(Range.Area.value, multibox_loot= True)
             item = Utils.GetFirstFromArray(filtered_loot)
             yield from Yield.Agents.ChangeTarget(item)
             yield from Yield.Player.InteractTarget()
+
+            after_interact_fn()
+            
             yield from Yield.wait(1000)
             
         @staticmethod
