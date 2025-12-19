@@ -22,6 +22,7 @@ def get_unidentified_items(rarities: list[str], slot_blacklist: list[tuple[int,i
                 continue
             if not item_instance.is_identified:
                 unidentified_items.append(item_id)
+
     return unidentified_items
 
 def filter_valuable_loot(item_id: int) -> bool:

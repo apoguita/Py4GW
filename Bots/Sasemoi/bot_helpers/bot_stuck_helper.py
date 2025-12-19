@@ -46,7 +46,7 @@ class BotStuckHelper:
 
         # state
         self.prev_pos = (0, 0)
-        self.movement_stuck_counter = 0
+        self.movement_stuck_time = 0
         self.is_active = True
 
         # Timers
@@ -58,78 +58,98 @@ class BotStuckHelper:
     def __name__(self) -> str:
         return "BotStuckHelper"
 
+    # Private handlers for top-level checks (each is a generator so we can `yield from` them)
+    def _check_map_valid(self):
+        if not Routines.Checks.Map.MapValid():
+            ConsoleLog(self.name, "Map is not valid, halting...", Py4GW.Console.MessageType.Debug, self.log_enabled)
+            yield from Routines.Yield.wait(1000)
 
-    def Run(self):
-        ConsoleLog(self.name, "Starting BotStuckHelper...", Py4GW.Console.MessageType.Debug, self.log_enabled)
-        
-        while self.is_active:
-            # Generic map state valid check
-            if not Routines.Checks.Map.MapValid():
-                ConsoleLog(self.name, "Map is not valid, halting...", Py4GW.Console.MessageType.Debug, self.log_enabled)
-                yield from Routines.Yield.wait(1000)
-                return
+        # If map is valid this generator simply completes without yielding.
+        return None
 
-            # Player dead check
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-                ConsoleLog(self.name, "Player is dead, waiting...", Py4GW.Console.MessageType.Debug, self.log_enabled)
-                yield from Routines.Yield.wait(1000)
-                return
-        
-            if self.movement_stuck_counter >= self.MOVEMENT_TIMEOUT:
-                ConsoleLog(self.name, "Movement timeout exceeded, executing movement timeout handler...", Py4GW.Console.MessageType.Debug, self.log_enabled)
-                result = self.movement_timeout_handler()
+    def _check_player_dead(self):
+        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            ConsoleLog(self.name, "Player is dead, waiting...", Py4GW.Console.MessageType.Debug, self.log_enabled)
+            yield from Routines.Yield.wait(1000)
+        # Generator completes (returns None) when player is alive
+        return None
 
-                # If result is an iterable (but not a string/bytes), yield from it.
+    def _handle_movement_timeout(self):
+        if self.movement_stuck_time >= self.MOVEMENT_TIMEOUT:
+            ConsoleLog(self.name, "Movement timeout exceeded, executing movement timeout handler...", Py4GW.Console.MessageType.Debug, self.log_enabled)
+            result = self.movement_timeout_handler()
+
+            # If result is an iterable (but not a string/bytes), yield from it.
+            if isinstance(result, Iterable):
+                yield from result
+
+            else:
+                yield
+
+            self.movement_stuck_time = 0  # Reset counter after handling
+            self.is_active = False  # Optionally stop the helper after timeout handling
+
+
+    def _scheduled_stuck_command(self):
+        if self.stuck_timer.IsExpired():
+            ConsoleLog(self.name, "Stuck timer expired, issuing scheduled stuck command...", Py4GW.Console.MessageType.Debug, self.log_enabled)
+            GLOBAL_CACHE.Player.SendChatCommand("stuck")
+            self.stuck_timer.Reset()
+
+        yield None
+
+    def _scheduled_movement_check(self):
+        if self.movement_timer.IsExpired():
+            current_player_pos = GLOBAL_CACHE.Player.GetXY()
+            ConsoleLog(self.name, f"Checking movement. Old pos: {self.prev_pos}, Current pos: {current_player_pos}", Py4GW.Console.MessageType.Debug, self.log_enabled)
+
+            # Check if player has not moved significantly
+            if Utils.Distance(current_player_pos, self.prev_pos) < self.MOVEMENT_NOT_MOVED_DISTANCE:
+                self.movement_stuck_time += self.MOVEMENT_INTERVAL
+                ConsoleLog(self.name, f"No significant movement detected. Bot has been stuck for: {self.movement_stuck_time}ms", Py4GW.Console.MessageType.Debug, self.log_enabled)
+            else:
+                self.movement_stuck_time = 0  # Reset counter if moved
+                ConsoleLog(self.name, "Significant movement detected, resetting stuck counter.", Py4GW.Console.MessageType.Debug, self.log_enabled)
+
+            self.prev_pos = current_player_pos
+            self.movement_timer.Reset()
+
+        yield None
+
+    def _handle_custom_scenarios(self):
+        for (handler_name, condition_fn, handler) in self.custom_scenarios:
+            if condition_fn():
+                ConsoleLog(self.name, f"Executing stuck handler: {handler_name}", Py4GW.Console.MessageType.Debug, self.log_enabled)
+                result = handler()
+
+                # if handler returns a generator/iterable, yield from it; otherwise yield the result
                 if isinstance(result, Iterable):
                     yield from result
 
                 else:
-                    yield
+                    yield None
 
-                self.movement_stuck_counter = 0  # Reset counter after handling
+                # Break after handling one scenario to avoid multiple handlers in one cycle
                 self.is_active = False  # Optionally stop the helper after timeout handling
+                break
+        yield None
 
 
-            # Scheduled stuck command
-            if self.stuck_timer.IsExpired():
-                ConsoleLog(self.name, "Stuck timer expired, issuing scheduled stuck command...", Py4GW.Console.MessageType.Debug, self.log_enabled)
-                GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                self.stuck_timer.Reset()
+    def Run(self):
+        ConsoleLog(self.name, "Starting BotStuckHelper...", Py4GW.Console.MessageType.Debug, self.log_enabled)
+        
+        # Main lop which checks for stuck conditions in order of priority
+        # Assuming the custom scenarios have priority over the base checks
+        while self.is_active:
+            yield from self._check_map_valid()
+            yield from self._check_player_dead()
+            yield from self._handle_custom_scenarios()
+            yield from self._handle_movement_timeout()
+            yield from self._scheduled_stuck_command()
+            yield from self._scheduled_movement_check()
+            yield  # Yield to allow other routines to run in case none of the above yielded anything
 
 
-            # Scheduled movement check
-            if self.movement_timer.IsExpired():
-                current_player_pos = GLOBAL_CACHE.Player.GetXY()
-                ConsoleLog(self.name, f"Checking movement. Old pos: {self.prev_pos}, Current pos: {current_player_pos}", Py4GW.Console.MessageType.Debug, self.log_enabled)
-
-                # Check if player has not moved significantly
-                if Utils.Distance(current_player_pos, self.prev_pos) < self.MOVEMENT_NOT_MOVED_DISTANCE:
-                    self.movement_stuck_counter += self.MOVEMENT_INTERVAL
-                    ConsoleLog(self.name, f"No significant movement detected. Stuck counter now at: {self.movement_stuck_counter}", Py4GW.Console.MessageType.Debug, self.log_enabled)
-                
-                else:
-                    self.movement_stuck_counter = 0  # Reset counter if moved
-                    ConsoleLog(self.name, "Significant movement detected, resetting stuck counter.", Py4GW.Console.MessageType.Debug, self.log_enabled)
-
-                self.prev_pos = current_player_pos
-                self.movement_timer.Reset()
-            
-            # Update previous position
-            for (handler_name, condition_fn, handler) in self.custom_scenarios:
-                if condition_fn():
-                    ConsoleLog(self.name, f"Executing stuck handler: {handler_name}", Py4GW.Console.MessageType.Debug, self.log_enabled)
-                    result = handler()
-                    
-                    # if handler returns a generator/iterable, yield from it; otherwise yield the result
-                    if isinstance(result, Iterable):
-                        yield from result
-
-                    else:
-                        yield
-
-                    # Break after handling one scenario to avoid multiple handlers in one cycle
-                    self.is_active = False  # Optionally stop the helper after timeout handling
-                    break
-
-
-            yield
+    def Activate(self):
+        self.is_active = True
+        ConsoleLog(self.name, "BotStuckHelper activated.", Py4GW.Console.MessageType.Debug, self.log_enabled)
