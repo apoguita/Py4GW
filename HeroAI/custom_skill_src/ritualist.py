@@ -337,7 +337,8 @@ class RitualistSkills:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.RequiresSpiritInEarshot = True
+        skill.Conditions.SpiritsInRange = 1
+        skill.Conditions.SpiritsInRangeArea = Range.Earshot.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -382,7 +383,8 @@ class RitualistSkills:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.EnergyBuff.value
         skill.Conditions.LessEnergy = 0.5
-        skill.Conditions.RequiresSpiritInEarshot = True
+        skill.Conditions.SpiritsInRange = 1
+        skill.Conditions.SpiritsInRangeArea = Range.Earshot.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
