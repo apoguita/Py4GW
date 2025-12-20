@@ -15,7 +15,7 @@ class GadgetModelID(IntEnum):
     CHEST_HIDDEN_STASH = 9 #ID for Hidden Stash (Pre-Searing)
     CHEST_ASCALONIAN = 69 #ID for Ascalonian Chest
     CHEST_SHING_JEA = 4579 #ID for Shing Jea Chest
-    CHEST_KOURNAN = 6064 #ID for Kournan Chest
+    CHEST_KOURNAN = 6064 + 51 #ID for Kournan Chest
     CHEST_GENERIC = 8141 #ID for generic chest (used in many places)
     
     CHEST_DUNGEON_SECRET_LAIR_OF_THE_SNOWMAN = 9274 #ID for Secret Lair of the Snowman

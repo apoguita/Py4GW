@@ -150,6 +150,6 @@ class BotStuckHelper:
             yield  # Yield to allow other routines to run in case none of the above yielded anything
 
 
-    def Activate(self):
-        self.is_active = True
-        ConsoleLog(self.name, "BotStuckHelper activated.", Py4GW.Console.MessageType.Debug, self.log_enabled)
+    def Toggle(self, enable: bool) -> None:
+        self.is_active = enable
+        ConsoleLog(self.name, f"BotStuckHelper {'activated' if enable else 'deactivated'}.", Py4GW.Console.MessageType.Debug, self.log_enabled)
