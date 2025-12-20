@@ -1,4 +1,4 @@
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Sequence, Any
 
 class UIInteractionCallback:
     def __init__(self) -> None:
@@ -170,30 +170,18 @@ class UIManager:
     @staticmethod
     def SendUIMessage(
         msgid: int,
-        wparam: int,
-        lparam: int = 0,
+        values: list[int],
         skip_hooks: bool = False
-    ) -> bool:
-        """
-        Low-level UI message dispatcher.
-
-        Parameters:
-            msgid (int):
-                UI message ID.
-
-            wparam (int):
-                Pointer to payload (ctypes.addressof(...) or 0).
-
-            lparam (int):
-                Optional pointer to secondary payload.
-
-            skip_hooks (bool):
-                If True, bypass UI hooks.
-
-        Returns:
-            bool: True if the message was processed.
-        """
-        ...
+    ) -> bool: ...
+    
+    @staticmethod
+    def SendUIMessageRaw(
+        msgid: int,
+        wparam: int,
+        lparam: int,
+        skip_hooks: bool = False
+    ) -> bool: ...
+    
     @staticmethod
     def button_click(frame_id: int) -> None: ...
     @staticmethod
