@@ -93,10 +93,9 @@ BARB_SHORE_RUNNER = "Barbarous Shore Chestrun"
 
 # Danger Tables
 barbarous_cripple_kd_table: DangerTable = (
-    ([5048, 5059, 5043, 5051, 5050, 5029, 5032, 5030], "Corsair"),
-    ([4904], "Mesa")
+    ([5048 + 51, 5059 + 51, 5043 + 51, 5051 + 51, 5050 + 51, 5029 + 51, 5032 + 51, 5030 + 51], "Corsair"),
+    ([4904 + 51], "Mesa")
 )
-# barbarous_cripple_kd_model_table: DangerTable = (([5379, 26, 5395, 5362, 221, 221, 5398], "Corsair"),)
 barbarous_spellcast_table: DangerTable = () # Not using spellcaster detection because the script permanently keeps Shadow Form up
 
 # Script states
@@ -118,7 +117,7 @@ bot = Botting(
 # Would like to move this to Botting
 stuck_helper = BotStuckHelper(
     config={
-        "log_enabled": True,
+        "log_enabled": False,
         "movement_timeout_handler": lambda: HandleStuck()
     }
 )
@@ -284,6 +283,9 @@ def ManageInventory(bot: Botting):
 
 
 def DetectChestAndOpen(bot: Botting, max_distance=4000):
+    # Log
+    coord = GLOBAL_CACHE.Player.GetXY()
+    ConsoleLog(BARB_SHORE_RUNNER, f"Arrived at point coordinates ::: {coord}", Py4GW.Console.MessageType.Info)
     # Checker for inventory
     nearby_chest_id = Routines.Agents.GetNearestChest(max_distance)
 
@@ -321,6 +323,7 @@ def DetectChestAndOpen(bot: Botting, max_distance=4000):
 # Initial travel to Barbarous Shore and setup runner build
 def InitialTravelAndSetup(bot: Botting) -> None:
     bot.States.AddHeader("Travel and Setup")
+    bot.Map.Travel(CAMP_HOJANU)
     bot.States.AddCustomState(lambda: EquipSkillBar(bot), "Equip SkillBar")
     bot.States.AddCustomState(lambda: SetupDangerTables(), "Setup Danger Tables for Barbarous Shore")
 
@@ -345,7 +348,8 @@ def SetupResign(bot: Botting):
 def ChestRunRoutine(bot: Botting) -> None:
     bot.States.AddHeader("Barbarous Shore Running")
     bot.Move.XYAndExitMap(-12636, 16906, target_map_id=BARBAROUS_SHORE) # target_map_name="Barbarous Shore"
-    bot.States.AddManagedCoroutine("Stuck Handler", lambda: RunStuckHelper())
+    bot.States.AddCustomState(lambda: stuck_helper.Toggle(True), "Activate Stuck Helper")
+    bot.States.AddManagedCoroutine("Run Stuck Handler", lambda: RunStuckHelper())
     bot.Properties.Enable("auto_combat")
     bot.Properties.Enable("alcohol")
     
@@ -373,6 +377,7 @@ def ChestRunRoutine(bot: Botting) -> None:
         (-511, 201),
         
         (1347, 581), # Corsair bay
+        (826, 888),
 
         # Dunno what this is but it's on the way
         (3540, -6390),
@@ -417,7 +422,8 @@ def ChestRunRoutine(bot: Botting) -> None:
 def ResetFarmLoop(bot: Botting):
     bot.States.AddHeader("Reset Farm Loop")
     bot.Properties.Disable("auto_combat")
-    bot.States.RemoveManagedCoroutine("Stuck Handler")
+    bot.States.AddCustomState(lambda: stuck_helper.Toggle(False), "Deactivate Stuck Helper")
+    bot.States.RemoveManagedCoroutine("Run Stuck Handler")
     bot.Party.Resign()
     bot.States.AddCustomState(lambda: AssessLootManagement(), "Loot management check")
     bot.Wait.ForTime(10000)
