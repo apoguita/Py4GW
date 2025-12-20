@@ -33,7 +33,8 @@ def Snowman(bot: Botting):
     bot.Wait.ForTime(1000)
     bot.Move.XY(-19769, 5046)
     bot.Move.XY(-16697.96, 1302.89)
-    bot.Move.XY(-14673.79, 2621.35)
+    # bot.Move.XY(-14673.79, 2621.35) # Default
+    bot.Move.XY(-15090.34, 2057.10) # Updated to avoid agroing both corridor and bridge groups
     bot.Move.XYAndInteractNPC(-12482.00, 3924.00)
     bot.Multibox.SendDialogToTarget(0x84)
     bot.Move.XY(-13824.00, 924.00)
