@@ -125,6 +125,7 @@ class Game:
     All functions run inside the Guild Wars game thread when appropriate.
     """
 
+    # --- Functions ---
     @staticmethod
     def enqueue(callback: Callable[[], Any]) -> None:
         """
@@ -161,5 +162,75 @@ class Game:
         -------
         int
             The current tick count in milliseconds since system boot.
+        """
+        ...
+
+    # ----------------------------
+    # Per-frame callbacks
+    # ----------------------------
+
+    @staticmethod
+    def register_callback(name: str, callback: Callable[[], Any]) -> int:
+        """
+        Register a named Python callable to be executed every frame.
+
+        Registration is idempotent by name:
+        - If a callback with the same name already exists, it is NOT duplicated.
+        - The existing callback id is returned.
+
+        Parameters
+        ----------
+        name : str
+            Unique identifier for the callback.
+        callback : Callable[[], Any]
+            Zero-argument Python callable.
+
+        Returns
+        -------
+        int
+            Callback id.
+        """
+        ...
+
+    @staticmethod
+    def remove_callback(name: str) -> bool:
+        """
+        Remove a per-frame callback by name.
+
+        Parameters
+        ----------
+        name : str
+            Callback name.
+
+        Returns
+        -------
+        bool
+            True if a callback was removed, False otherwise.
+        """
+        ...
+
+    @staticmethod
+    def remove_callback_by_id(callback_id: int) -> bool:
+        """
+        Remove a per-frame callback by id.
+
+        Parameters
+        ----------
+        callback_id : int
+            Callback id returned by register_callback().
+
+        Returns
+        -------
+        bool
+            True if a callback was removed, False otherwise.
+        """
+        ...
+
+    @staticmethod
+    def clear_callbacks() -> None:
+        """
+        Remove all registered per-frame callbacks.
+
+        Typically called on script reload or shutdown.
         """
         ...
