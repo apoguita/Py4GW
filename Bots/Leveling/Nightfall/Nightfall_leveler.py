@@ -68,7 +68,7 @@ def create_bot_routine(bot: Botting) -> None:
     # === FACTIONS CONTENT ===
     To_Consulate_Docks(bot)
     To_Kaineng_Center(bot)
-    To_Vizunah_Square_Foreign_Quarter(bot)
+    #To_Vizunah_Square_Foreign_Quarter(bot)
     To_Marketplace_Outpost(bot)
     To_Seitung_Harbor(bot)
     To_Shinjea_Monastery(bot)
@@ -194,19 +194,9 @@ def EquipSkillBar():
         elif level == 4:
             yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp74dADAAAAABAA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession
         elif level == 5:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")    
-        elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirBbQiXSX7gDYjbaFYcCAA")    
-        elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirB7QiXSX7gDYjbaFYcCAA")    
-        elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirCbRiXSX7gDYjbXFYcCAA")    
-        elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkirCbRiXSX7gDYjbXFYcCAA")    
-        elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkyrM7QiXSX7gDYAAAAYcCAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgCjkOrCbMiXp74dADAAAAABAA")    
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkyrM7QiXSX7gDYAAAAYcCAA")
+            yield from Routines.Yield.Skills.LoadSkillbar("OgGjkyrDLTiXSX7gDYPXfXjbYcA")
 
     elif profession == "Paragon":
         if level == 2:
@@ -216,19 +206,9 @@ def EquipSkillBar():
         elif level == 4:
             yield from Routines.Yield.Skills.LoadSkillbar("OQCjUWmCaNw4HMQuCDAAAYcBAA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
         elif level == 5:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGkUemyZgKEM2DmDGQ2VBQoAAGH")    
-        elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUFlnpcGoDBj9g5gBkdVAEKAgxB")    
-        elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGkUemzZgSEM2DmDGQ2VBQoAAGH")    
-        elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
-        elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
-        elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGkUemyZgKEM2DmDGQ2VBQoAAGH")        
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQGlUJlnpcGoEBj9g5gBkdVAEKAgxB")  
+            yield from Routines.Yield.Skills.LoadSkillbar("OQGjUymDKTwYPYOYAZLYXFAhYcA")  
 
     elif profession == "Elementalist":
         if level == 2:
@@ -236,43 +216,23 @@ def EquipSkillBar():
         elif level == 3:
             yield from Routines.Yield.Skills.LoadSkillbar("OgBDozGsAGTrwFbNAAIA")    
         elif level == 4:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwAD0jPfEtElZkfVEAAImA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
+            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMNGDahwoYYNAAAAMO") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
         elif level == 5:
             yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMNGDahwoYYNAAAAMO")    
-        elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MnVFqlAlIjgfoigrIHMmAA")    
-        elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MnVFqlAlIjgfoigrIHMmAA")    
-        elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
-        elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
-        elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")    
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OgBDo2OMRGD0CCDFDWD4ggVYcA")  
+            yield from Routines.Yield.Skills.LoadSkillbar("OgVDErwsN0COwFAoeTzzgVMO")  
 
     elif profession == "Monk":    
         if level == 2:
             yield from Routines.Yield.Skills.LoadSkillbar("OwAU0C38CYEZEltkf5cmAImA")    
         elif level == 3:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwAU0C38CYEtElZkf5siAImA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OwAU0CH9CoEtElZkf5EAAImA")    
         elif level == 4:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwAU0C38CYEtElZkf5siAImA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
+            yield from Routines.Yield.Skills.LoadSkillbar("OwAU0CH9CoEtElZkf5EAAImA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
         elif level == 5:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwEU0I39iaQtEoEZE8DVEcF5gxEA")    
-        elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
-        elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
-        elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
-        elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
-        elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OwAU0CH9CoEtElZkf5EAAImA")    
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OwET0MXWHqlAlIjgfoigrIHMmAA")   
+            yield from Routines.Yield.Skills.LoadSkillbar("OwUEEqwD6ywBuA308cPAKgSiJA")   
 
     elif profession == "Warrior":    
         if level == 2:
@@ -282,19 +242,9 @@ def EquipSkillBar():
         elif level == 4:
             yield from Routines.Yield.Skills.LoadSkillbar("OQARErprIUAABAuCGHAAAA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
         elif level == 5:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQARErprIUAABAuCGHAAAA")    
-        elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpF1VIU8fNgxVEAsDixBA")    
-        elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQojEZVSqRdFCF/XDYcFBA7gYcA")    
-        elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")    
-        elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")    
-        elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQARErprIUAABAuCGHAAAA")      
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQoiEZpM1VIU8fNgxVEAsDixBA")            
+            yield from Routines.Yield.Skills.LoadSkillbar("OQojExVTKTdFCF/XDYcFBA7gYcA")            
     elif profession == "Necromancer":
         if level == 2:
             yield from Routines.Yield.Skills.LoadSkillbar("OABDQRJWAplpAAAAAAAA")  
@@ -303,19 +253,9 @@ def EquipSkillBar():
         elif level == 4:
             yield from Routines.Yield.Skills.LoadSkillbar("OABDQTNmMphMRboK8IAAAAMO") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
         elif level == 5:
-            yield from Routines.Yield.Skills.LoadSkillbar("OAVDIXN2McgqwFAo2DgCCAMO")    
-        elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OAVDIXN2McgqwFAo2DgCCAMO")    
-        elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OAVEI3E1Y0wBqCXAgaPAKIAw4A")    
-        elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OAVEI3E1Y0wBqCXAgaPAKIAw4A")    
-        elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OAVEI3E1Y0wBqCXAgaPAKIAw4A")    
-        elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OAVEI3E1Y0wBqCXAgaPAKIAw4A")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OAVDIXN2McgqwFAo2DgCCAMO")      
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OAVEI3E1Y0wBqCXAgaPAKIAw4A") 
+            yield from Routines.Yield.Skills.LoadSkillbar("OAVEEqwFZ3wBqCXAgaPAKknx4A") 
     elif profession == "Mesmer":
         if level == 2:
             yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhITAoohAAAAAAAA")  
@@ -324,19 +264,20 @@ def EquipSkillBar():
         elif level == 4:
             yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTAooBHEBFAAIA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
         elif level == 5:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")    
-        elif level == 6:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")    
-        elif level == 7:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")    
-        elif level == 8:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")    
-        elif level == 9:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")    
-        elif level == 10:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")    
+            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")      
         else:
-            yield from Routines.Yield.Skills.LoadSkillbar("OQBDAhgTMogLAHgIAF6BAVBA")         
+            yield from Routines.Yield.Skills.LoadSkillbar("OQBEAaYCP2gCuAcg8MUoHAUx4A")        
+    elif profession == "Ranger":
+        if level == 2:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgATcDskjQx+WAAAAAAAAAA")  
+        elif level == 3:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgATcDsknQx++4xGAAAACAA")    
+        elif level == 4:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgAScLsMAAfzxZ5gxBAAABA") #leave 2 holes in the skill bar to avoid the pop up for 2nd profession   
+        elif level == 5:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgESIpLNdFfDUBAAA4KXFMO")     
+        else:
+            yield from Routines.Yield.Skills.LoadSkillbar("OgETI5LjHqrw3AqYHkqQvC1AjDA")              
 
 
 def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
@@ -365,7 +306,7 @@ def GetWeaponMaterialPerProfession(bot: Botting):
     if primary == "Warrior":
         return [ModelID.Iron_Ingot.value]
     elif primary == "Ranger":
-        return [ModelID.Wood_Plank.value]
+        return [ModelID.Iron_Ingot.value]
     elif primary == "Dervish":
         return [ModelID.Iron_Ingot.value]
     elif primary == "Paragon":
@@ -483,24 +424,24 @@ def DoCraftArmorWithDoubleMats(bot: Botting):
     # Professions that need primary material + dust (both common)
     if primary in ["Paragon", "Monk", "Elementalist", "Necromancer"]:
         armor_pieces = [
-            (HEAD, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [2, 1]),
-            (GLOVES, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [2, 1]),
-            (CHEST, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [6, 1]),
-            (PANTS, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [4, 1]),
-            (BOOTS, [GetArmorMaterialPerProfession(), ModelID.Pile_Of_Glittering_Dust.value], [2, 1]),
+            (HEAD, [ModelID.Pile_Of_Glittering_Dust.value], [2]),
+            (CHEST, [GetArmorMaterialPerProfession()], [6]),
+            (GLOVES, [GetArmorMaterialPerProfession()], [2]),
+            (PANTS, [GetArmorMaterialPerProfession()], [4]),
+            (BOOTS, [GetArmorMaterialPerProfession()], [2]),
         ]
     else:
         # Fallback to single material for other professions
         armor_pieces = [
             (HEAD, [GetArmorMaterialPerProfession()], [2]),
-            (GLOVES, [GetArmorMaterialPerProfession()], [2]),
             (CHEST, [GetArmorMaterialPerProfession()], [6]),
+            (GLOVES, [GetArmorMaterialPerProfession()], [2]),
             (PANTS, [GetArmorMaterialPerProfession()], [4]),
             (BOOTS, [GetArmorMaterialPerProfession()], [2]),
         ]
 
     for item_id, mats, qtys in armor_pieces:
-        result = yield from Routines.Yield.Items.CraftItem(item_id, 1000, mats, qtys)
+        result = yield from Routines.Yield.Items.CraftItem(item_id, 75, mats, qtys)
         if not result:
             ConsoleLog("CraftArmorWithDoubleMats", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
@@ -526,7 +467,7 @@ def CraftArmorWithDoubleMats(bot: Botting):
     bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
     
     # Buy common materials
-    bot.Move.XY(3839.00, 1618.00)
+    bot.Move.XY(3495.80, 2050.97)
     bot.Move.XYAndInteractNPC(3839.00, 1618.00)  # Material trader
     exec_fn_common = lambda: BuyDoubleMaterials("common")
     bot.States.AddCustomState(exec_fn_common, "Buy Common Materials")
@@ -589,13 +530,13 @@ def GetArmorPiecesByProfession(bot: Botting):
         PANTS = 17352
         BOOTS = 17349
     elif primary == "Monk":
-        HEAD = 17434
+        HEAD = 17402
         CHEST = 17406
-        GLOVES = 17439
-        PANTS = 17440
-        BOOTS = 17437
+        GLOVES = 17407
+        PANTS = 17408
+        BOOTS = 17405
     elif primary == "Necromancer":
-        HEAD = 17246
+        HEAD = 17249
         CHEST = 17251
         GLOVES = 17252
         PANTS = 17253
@@ -605,14 +546,15 @@ def GetArmorPiecesByProfession(bot: Botting):
 
 def GetWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    SCYTHE = SPEAR = BOW = SHIELDPARA = FIRESTAFF = DOMSTAFF = MONKSTAFF = NECROSTAFF = 0
+    SCYTHE = SPEAR = AXE = SHIELD = SHIELDPARA = FIRESTAFF = DOMSTAFF = MONKSTAFF = NECROSTAFF = 0
 
     if primary == "Warrior":
         SCYTHE = 18910
         return SCYTHE,
     elif primary == "Ranger":
-        BOW = 18907
-        return BOW,
+        AXE = 18903
+        SHIELD = 18912
+        return AXE, SHIELD
     elif primary == "Paragon":
         SPEAR = 18913
         SHIELDPARA = 18856
@@ -636,14 +578,14 @@ def GetWeaponByProfession(bot: Botting):
 
 def GetFirstWeaponByProfession(bot: Botting):
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    SCYTHE = SPEAR = BOW = FIRESTAFF = DOMSTAFF = MONKSTAFF = NECROSTAFF = 0
+    SCYTHE = SPEAR = AXE = FIRESTAFF = DOMSTAFF = MONKSTAFF = NECROSTAFF = 0
     
     if primary == "Warrior":
         SCYTHE = 16227
         return SCYTHE,
     elif primary == "Ranger":
-        BOW = 16191 #Longbow
-        return BOW,
+        AXE =  15777 #Winged Axe
+        return AXE,
     elif primary == "Paragon":
         SPEAR = 18711
         return SPEAR,
@@ -669,7 +611,7 @@ def GetFirstWeaponMaterialPerProfession(bot: Botting):
     if primary == "Warrior":
         return [ModelID.Iron_Ingot.value]
     elif primary == "Ranger":
-        return [ModelID.Wood_Plank.value]
+        return [ModelID.Iron_Ingot.value]
     elif primary == "Dervish":
         return [ModelID.Iron_Ingot.value]
     elif primary == "Paragon":
@@ -842,7 +784,7 @@ def Configure_First_Battle(bot: Botting):
 def Chahbek_Village_Mission(bot: Botting):
     bot.States.AddHeader("Chahbek Village Mission")
     bot.Map.Travel(target_map_id=544)
-    bot.SkillBar.LoadHeroSkillBar(1, "OQMU4iYQjaQXF8E9FTiTNBAWfCAA") #Koss
+    bot.SkillBar.LoadHeroSkillBar(1, "OQASEF6EC1vcNABWAAAA") #Koss
     bot.Dialogs.AtXY(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
@@ -1202,7 +1144,16 @@ def Configure_Player_Build(bot: Botting):
         bot.Dialogs.AtXY(-11385, 16140, 0x867902) #Signet of Clumsiness  
         bot.Move.XYAndDialog(-11385, 16140, 0x85) #Buy a hero point
         bot.Dialogs.AtXY(-11385, 16140, 0x883603) #Cry of Pain
-    
+    elif profession == "Ranger":
+        bot.Move.XYAndDialog(-11385, 16140, 0x85) #Buy a hero point
+        bot.Dialogs.AtXY(-11385, 16140, 0x857A02) # Critical Chop
+        bot.Move.XYAndDialog(-11385, 16140, 0x85) #Buy a hero point
+        bot.Dialogs.AtXY(-11385, 16140, 0x815402) #Disrupting Chop
+        bot.Move.XYAndDialog(-11385, 16140, 0x85) #Buy a hero point
+        bot.Dialogs.AtXY(-11385, 16140, 0x81A802) #Throw Dirt
+    elif profession == "Paragon":
+        bot.Move.XYAndDialog(-11385, 16140, 0x860B02) #Mighty Throw
+
     # Second: Travel to Sunspear Great Hall and get profession-specific skills
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Wait.ForMapToChange(target_map_id=431)
@@ -1211,12 +1162,17 @@ def Configure_Player_Build(bot: Botting):
     if profession == "Dervish":
         bot.Move.XYAndDialog(-3317, 7053, 0x883B03) #Whirlwind Attack"
         bot.Dialogs.AtXY(-3317, 7053, 0x86E302) #Zealous Renewal
+        bot.Dialogs.AtXY(-3317, 7031, 0x85CF02) #Twin Moon Sweep
+        bot.Dialogs.AtXY(-3317, 7053, 0x85) #Buy hero point
+        bot.Dialogs.AtXY(-3317, 7031, 0x85DF02) #Mystic Vigor
     elif profession == "Paragon":
         bot.Move.XYAndDialog(-3317, 7053, 0x884003) #There's Nothing to Fear
         bot.Dialogs.AtXY(-3317, 7053, 0x860E02) #Unblockable Throw"
     elif profession == "Elementalist":
-        bot.Move.XYAndDialog(-3317, 7053, 0x883803) #Intensity
-        bot.Dialogs.AtXY(-3317, 7053, 0x856002) #Glyph of Restoration
+        bot.Move.XYAndDialog(-3317, 7053, 0x803D02) #Leech Signet
+        bot.Dialogs.AtXY(-3317, 7053, 0x854002) #Web of Disruption
+        bot.Dialogs.AtXY(-3317, 7053, 0x85) #Buy hero point
+        bot.Dialogs.AtXY(-3317, 7053, 0x801702) #Power Spike"
     elif profession == "Mesmer":
         bot.Move.XYAndDialog(-3317, 7053, 0x803D02) #Leech Signet
         bot.Dialogs.AtXY(-3317, 7053, 0x854002) #Web of Disruption
@@ -1228,11 +1184,17 @@ def Configure_Player_Build(bot: Botting):
         bot.Dialogs.AtXY(-3317, 7053, 0x85) #Buy hero point
         bot.Dialogs.AtXY(-3317, 7053, 0x801702) #Power Spike
     elif profession == "Monk":
-        bot.Move.XYAndDialog(-3317, 7053, 0x883903) #Seed of Life"
+        bot.Move.XYAndDialog(-3317, 7053, 0x803D02) #Leech Signet
+        bot.Dialogs.AtXY(-3317, 7053, 0x854002) #Web of Disruption
+        bot.Dialogs.AtXY(-3317, 7053, 0x85) #Buy hero point
+        bot.Dialogs.AtXY(-3317, 7053, 0x801702) #Power Spike
     elif profession == "Warrior":
         bot.Move.XYAndDialog(-3317, 7053, 0x883B03) #Whirlwind Attack"
         bot.Dialogs.AtXY(-3317, 7053, 0x86E302) #Zealous Renewal
-    
+    elif profession == "Ranger":
+        bot.Move.XYAndDialog(-3317, 7053, 0x883B03) #Whirlwind Attack"
+        
+
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC03)
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01)
@@ -1280,15 +1242,6 @@ def Craft_Player_Armor(bot: Botting):
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
 
-def Craft_No_Head_Armor(bot: Botting):
-    bot.States.AddHeader("Craft No Head Armor")
-    bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
-    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
-    bot.Move.XYAndInteractNPC(3891.62, 2329.84)  # Armor crafter
-    bot.Wait.ForTime(1000)  # small delay to let the window open
-    exec_fn = lambda: CraftArmor(bot)
-    bot.States.AddCustomState(exec_fn, "Craft Armor")
-
 def Craft_Player_Weapon(bot: Botting):
     bot.States.AddHeader("Craft Weapon")
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
@@ -1309,18 +1262,18 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     
     # Profession-specific starter armor model IDs
     if primary == "Dervish":
-        starter_armor = [7251,  # Head
-                        7249,  # Chest
-                        7250,  # Gloves
-                        7252,  # Pants
-                        7248   # Boots
+        starter_armor = [15712,  # Head
+                        15710,  # Chest
+                        15711,  # Gloves
+                        15713,  # Pants
+                        15709   # Boots
                         ]
     elif primary == "Paragon":
-        starter_armor = [11332,  # Head
-                        11330,  # Chest
-                        11331,  # Gloves
-                        11333,  # Pants
-                        11329   # Boots
+        starter_armor = [15717,  # Head
+                        15715,  # Chest
+                        15716,  # Gloves
+                        15718,  # Pants
+                        15714   # Boots
                         ]
     elif primary == "Warrior":
         starter_armor = [15702,  # Head
@@ -1330,11 +1283,11 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                         15699   # Boots
                         ]
     elif primary == "Ranger":
-        starter_armor = [10623,  # Head
-                        10621,  # Chest
-                        10622,  # Gloves
-                        10624,  # Pants
-                        10620   # Boots
+        starter_armor = [15707,  # Head
+                        15705,  # Chest
+                        15706,  # Gloves
+                        15708,  # Pants
+                        15704   # Boots
                         ]
     elif primary == "Monk":
         starter_armor = [15697,  # Head
@@ -1344,29 +1297,28 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                         15694   # Boots
                         ]
     elif primary == "Elementalist":
-        starter_armor = [9324,  # Head
-                        9322,  # Chest
-                        9323,  # Gloves
-                        9325,  # Pants
-                        9321   # Boots
+        starter_armor = [15692,  # Head
+                        15690,  # Chest
+                        15691,  # Gloves
+                        15693,  # Pants
+                        15689   # Boots
                         ]
     elif primary == "Mesmer":
-        starter_armor = [8026,  # Head
-                        8024,  # Chest
-                        8025,  # Gloves
-                        8054,  # Pants
-                        8023   # Boots
+        starter_armor = [15682,  # Head
+                        15680,  # Chest
+                        15681,  # Gloves
+                        15683,  # Pants
+                        15679   # Boots
                         ]
     elif primary == "Necromancer":
-        starter_armor = [8863,  # Head
-                        8861,  # Chest
-                        8862,  # Gloves
-                        8864,  # Pants
-                        8860   # Boots
+        starter_armor = [15687,  # Head
+                        15685,  # Chest
+                        15686,  # Gloves
+                        15688,  # Pants
+                        15684   # Boots
                         ]
     
-    useless_items = [5819,  # Monastery Credit
-                     6387,  # Starter Daggers
+    useless_items = [17081,  # Battle Commendation
                      477,    # Starter Bow
                      2787,   # Starter Holy Rod
                      2652,   # Starter Cane
@@ -1377,7 +1329,7 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                      15593,  #Starter Spear
                      18901,  #Monk 1st Staff
                      16227,   #1st Scythe Warrior and Dervish
-                     
+                     30853, #MOX Manual
                     ]
     
     for model in starter_armor:
@@ -1392,7 +1344,8 @@ def Farm_Until_Level_10(bot):
     bot.Map.Travel(target_map_id=491) #Jokanur Diggings
     bot.Party.LeaveParty()
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,7])
-    for _ in range (16):
+    for _ in range (17):
+        bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
         bot.Move.FollowPath([
         (1268, -311),
         (-1618, -783),
@@ -1546,18 +1499,20 @@ def To_Boreal_Station(bot: Botting):
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndDialog(-8739, 14200,0x833601) # Bendah
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
-    bot.Move.XYAndDialog(18191, 167, 0x85) # get Mox
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndDialog(18191, 167, 0x85) #get Mox
     bot.Move.XY(15407, 209)
-    bot.Move.XYAndDialog(13761, -13108, 0x86) # Explore The Fissure
+    #bot.Move.XYAndDialog(13761, -13108, 0x86) # Explore The Fissure
     bot.Move.XYAndDialog(13761, -13108, 0x84) # Yes
-    bot.Wait.ForTime(5000) # load time
+    bot.Wait.ForMapToChange(target_map_id=693)
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-5475, 8166)
     bot.Move.XY(-454, 10163)
     bot.Move.XY(4450, 10950)
     bot.Move.XY(8435, 14378)
     bot.Move.XY(10134,16742)
     bot.Wait.ForTime(3000) # skip movie
-    ConfigurePacifistEnv(bot)
+    ConfigurePacifistEnv(bot) 
     bot.Move.XY(4523.25, 15448.03)
     bot.Move.XY(-43.80, 18365.45)
     bot.Move.XY(-10234.92, 16691.96)
@@ -1571,6 +1526,7 @@ def To_Eye_Of_The_North_Outpost(bot: Botting):
     bot.Map.Travel(target_map_id=675)  # Boreal Station
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(3579.07, -22007.27)
     bot.Wait.ForTime(15000)
     bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
@@ -1603,12 +1559,11 @@ def To_Gunnars_Hold(bot: Botting):
     bot.States.AddHeader("To Gunnars Hold")
     bot.Map.Travel(target_map_id=642) # eotn_outpost_id
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
-    # Follow outpost exit path
     path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
             (1522.0, 464.0)]
     bot.Move.FollowPath(path)
     bot.Wait.ForMapLoad(target_map_id=499)  # Ice Cliff Chasms
-    # Traverse through Ice Cliff Chasms
+    ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(2825, -481, 0x832801)  # Talk to Jora
     path = [(2548.84, 7266.08),
             (1233.76, 13803.42),
@@ -1616,7 +1571,7 @@ def To_Gunnars_Hold(bot: Botting):
             (-4031.0, 27872.0),]
     bot.Move.FollowAutoPath(path)
     bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
-    # Traverse through Norrhart Domains
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(14546.0, -6043.0)
     bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
     bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
@@ -1652,11 +1607,10 @@ def To_Longeye_Edge(bot: Botting):
     bot.States.AddHeader("To Longeye Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
-    # Exit Gunnar's Hold outpost
     bot.Move.XY(15886.204101, -6687.815917)
     bot.Move.XY(15183.199218, -6381.958984)
     bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
-    # Traverse through Norrhart Domains to Bjora Marches
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(14233.820312, -3638.702636)
     bot.Move.XY(14944.690429,  1197.740966)
     bot.Move.XY(14855.548828,  4450.144531)
@@ -1667,7 +1621,7 @@ def To_Longeye_Edge(bot: Botting):
     bot.Move.XY(16294.676757, 16369.736328)
     bot.Move.XY(16392.476562, 16768.855468)
     bot.Wait.ForMapLoad(target_map_id=482)  # Bjora Marches
-    # Traverse through Bjora Marches to Longeyes Ledge
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-11232.550781, -16722.859375)
     bot.Move.XY(-7655.780273 , -13250.316406)
     bot.Move.XY(-6672.132324 , -13080.853515)
@@ -1688,6 +1642,7 @@ def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
     bot.Map.Travel(target_map_id=650)  # longeyes_ledge_id
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     bot.Move.XYAndExitMap(-26375, 16180, target_map_name="Bjora Marches")
+    ConfigureAggressiveEnv(bot)
     path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
     (17810, -17649),(17516, -17270),(17166, -16813),(16862, -16324),(16472, -15934),
     (15929, -15731),(15387, -15521),(14849, -15312),(14311, -15101),(13776, -14882),
@@ -1718,11 +1673,10 @@ def To_Doomlore(bot: Botting):
     bot.States.AddHeader("To Doomlore")
     bot.Map.Travel(target_map_id=650) # Longeyes Ledge
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
-    # Exit Longeyes Ledge outpost
     bot.Move.XY(-22469.261718, 13327.513671)
     bot.Move.XY(-21791.328125, 12595.533203)
     bot.Wait.ForMapLoad(target_map_id=649)  # Grothmar Wardowns
-    # Traverse through Grothmar Wardowns to Dalada Uplands
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-18582.023437, 10399.527343)
     bot.Move.XY(-13987.378906, 10078.552734)
     bot.Move.XY(-10700.551757,  9980.495117)
@@ -1739,7 +1693,7 @@ def To_Doomlore(bot: Botting):
     bot.Move.XY( 24355.289062, 15175.175781)
     bot.Move.XY( 25188.230468, 15229.357421)
     bot.Wait.ForMapLoad(target_map_id=647)  # Dalada Uplands
-    # Traverse through Dalada Uplands to Doomlore Shrine
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-16292.620117,  -715.887329)
     bot.Move.XY(-13617.916992,   405.243469)
     bot.Move.XY(-13256.524414,  2634.142089)
@@ -1754,11 +1708,10 @@ def To_Sifhalla(bot: Botting):
     bot.States.AddHeader("To Sifhalla")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
-    # Exit Gunnar's Hold outpost
     bot.Move.XY(16003.853515, -6544.087402)
     bot.Move.XY(15193.037109, -6387.140625)
     bot.Wait.ForMapLoad(target_map_name="Norrhart Domains")
-    # Traverse through Norrhart Domains to Drakkar Lake
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(13337.167968, -3869.252929)
     bot.Move.XY( 9826.771484,   416.337768)
     bot.Move.XY( 6321.207031,  2398.933349)
@@ -1773,7 +1726,7 @@ def To_Sifhalla(bot: Botting):
     bot.Move.XY(-25531.134765, 10925.241210)
     bot.Move.XY(-26333.171875, 11242.023437)
     bot.Wait.ForMapLoad(target_map_name="Drakkar Lake")
-    # Traverse through Drakkar Lake to Sifhalla
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(14399.201171, -16963.455078)
     bot.Move.XY(12510.431640, -13414.477539)
     bot.Move.XY(12011.655273,  -9633.283203)
@@ -1791,17 +1744,16 @@ def To_Olafstead(bot: Botting):
     bot.States.AddHeader("To Olafstead")
     bot.Map.Travel(target_map_id=643) # Sifhalla
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
-    # Exit Sifhalla outpost
     bot.Move.XY(13510.718750, 19647.238281)
     bot.Move.XY(13596.396484, 19212.427734)
     bot.Wait.ForMapLoad(target_map_name="Drakkar Lake")
-    # Traverse through Drakkar Lake to Varajar Fells
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(13946, 14286)
     bot.Move.XY(13950, 2646)
     bot.Move.XY(10394, -3824)
     bot.Move.XY(-11019,-26164)
     bot.Wait.ForMapLoad(target_map_id=553)  # Varajar Fells
-    # Traverse through Varajar Fells to Olafstead
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY( -1605.245239, 12837.257812)
     bot.Move.XY( -2047.884399,  8718.327148)
     bot.Move.XY( -2288.647216,  4162.530273)
@@ -1817,11 +1769,10 @@ def To_Umbral_Grotto(bot: Botting):
     bot.States.AddHeader("To Umbral Grotto")
     bot.Map.Travel(target_map_id=645) # Olafstead
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
-    # Exit Olafstead outpost
     bot.Move.XY(-883.285644, 1212.171020)
     bot.Move.XY(-1452.154785, 1177.976684)
     bot.Wait.ForMapLoad(target_map_id=553)
-    # Traverse through Varajar Fells to Verdant Cascades
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3127.843261, -2462.838867)
     bot.Move.XY(-4055.151855, -4363.498046)
     bot.Move.XY(-6962.863769, -3716.343017)
@@ -1832,7 +1783,7 @@ def To_Umbral_Grotto(bot: Botting):
     bot.Move.XY(-24810.935546,-12084.257812)
     bot.Move.XY(-25980.177734,-13108.872070)
     bot.Wait.ForMapLoad(target_map_name="Verdant Cascades")  
-    # Traverse through Verdant Cascades to Umbral Grotto
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(22595.748046, 12731.708984)
     bot.Move.XY(18976.330078, 11093.851562)
     bot.Move.XY(15406.838867,  7549.499023)
@@ -1864,6 +1815,7 @@ def To_Consulate_Docks(bot: Botting):
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Wait.ForMapLoad(target_map_id=449)  # Kamadan
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Move.XY(-8075.89, 14592.47)
     bot.Move.XY(-6743.29, 16663.21)
     bot.Move.XY(-5271.00, 16740.00)
@@ -1887,13 +1839,15 @@ def To_Vizunah_Square_Foreign_Quarter(bot: Botting):
     bot.Map.Travel(target_map_id=194)
     PrepareForBattle(bot)
     bot.Party.LeaveParty()
-    bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
+    bot.Party.AddHenchmanList([2, 9, 10, 12])
     bot.Move.XY(3045, -1575)
     bot.Move.XY(3007, -2609)
     bot.Move.XY(2909, -3629)
     bot.Move.XY(3145, -4643)
     bot.Move.XY(3372, -5617)
     bot.Wait.ForMapLoad(target_map_id=240)
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-6748, 19737)
     bot.Move.XY(-5917, 17893)
     bot.Move.XY(-4466, 16485)
@@ -1927,13 +1881,14 @@ def To_Marketplace_Outpost(bot: Botting):
     bot.Map.Travel(target_map_id=194)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Move.XY(3045, -1575)
     bot.Move.XY(3007, -2609)
     bot.Move.XY(2909, -3629)
     bot.Move.XY(3145, -4643)
     bot.Move.XY(3372, -5617)
     bot.Wait.ForMapLoad(target_map_id=240)
-    bot.Properties.Enable("birthday_cupcake")
+    ConfigureAggressiveEnv(bot)
     auto_path_list = [(-9467.0,14207.0), (-10965.0,9309.0), (-10332.0,1442.0), (-10254.0,-1759.0)]
     bot.Move.FollowAutoPath(auto_path_list)
     path_to_marketplace = [
@@ -1983,6 +1938,7 @@ def To_Tsumei_Village(bot: Botting):
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    ConfigurePacifistEnv(bot)
     bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #tsumei_village_map_id
 
 def To_Minister_Cho(bot: Botting):
@@ -1992,8 +1948,8 @@ def To_Minister_Cho(bot: Botting):
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    ConfigurePacifistEnv(bot)
     bot.Move.XY(6611.58, 15847.51)
-    #bot.Move.XY(6892, 17079)
     bot.Move.FollowPath([(6874, 16391)])
     bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
 
@@ -2015,6 +1971,7 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Map.Travel(target_map_id=55)  # Lion's Arch
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.AddHenchmanList([1, 3])
     # Exit Lion's Arch towards D'Alessio Seaboard
     bot.Move.XY(1219, 7222)
@@ -2042,7 +1999,7 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(16000, 17080)
     bot.Move.XY(16030, 17200)
     bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
-    
+    ConfigureAggressiveEnv(bot)
     # Path through North Kryta Province to Nebo Terrace
     bot.Move.XY(-11453.0, -18065.0)
     bot.Move.XY(-10991.0, -16776.0)
@@ -2068,6 +2025,7 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(-19468.0, 15449.0)
     bot.Move.XY(-19550.0, 15625.0)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    ConfigureAggressiveEnv(bot)
     # Path through Nebo Terrace
     bot.Move.XY(19271.0, 5207.0)
     bot.Move.XY(18307.0, 5369.0)
@@ -2086,12 +2044,14 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([1, 3])
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     # Exit Bergen Hot Springs
     bot.Move.XY(15521, -15378)
     bot.Move.XY(15450, -15050)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
     bot.Move.XY(15378, -14794)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    ConfigureAggressiveEnv(bot)
     # Path through Nebo Terrace to Cursed Lands
     bot.Move.XY(13276.0, -14317.0)
     bot.Move.XY(10761.0, -14522.0)
@@ -2104,6 +2064,7 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(-4086.0, -11692.0)
     bot.Move.XY(-4290.0, -11599.0)
     bot.Wait.ForMapLoad(target_map_id=56)  # Cursed Lands
+    ConfigureAggressiveEnv(bot)
     # Path through Cursed Lands to The Black Curtain
     bot.Move.XY(-4523.0, -9755.0)
     bot.Move.XY(-4067.0, -8786.0)
@@ -2122,6 +2083,7 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(-19896.0, 8964.0)
     bot.Move.XY(-20100.0, 9025.0)
     bot.Wait.ForMapLoad(target_map_id=18)  # The Black Curtain 
+    ConfigureAggressiveEnv(bot)
     # Path through The Black Curtain to Temple of the Ages
     bot.Move.XY(8716.0, 18587.0)
     bot.Move.XY(5616.0, 17732.0)
