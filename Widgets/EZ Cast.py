@@ -276,16 +276,19 @@ def UseGenericSkills(energy, player_id, player_ag : GW.PyAgent.PyAgent, now):
             if cache.combat_skill[i - 1] and not cache.combat: continue
             if not GW.Routines.Checks.Skills.IsSkillSlotReady(i): continue
             skill_id = GW.SkillBar.GetSkillData(i).id.id
-            skill_instance : GW.PySkill.Skill = GW.PySkill.Skill(skill_id)
+            skill_data : GW.PySkill.Skill = GW.PySkill.Skill(skill_id)
+            skill_instance: GW.PySkillbar.SkillbarSkill = GW.SkillBar.GetSkillData(i)
             if GW.Skill.Data.GetEnergyCost(skill_id) + cache.generic_energy_buffer > energy: continue
-            if skill_instance.adrenaline_a != skill_instance.adrenaline != 0: continue
+            # GW.Console.Log("", f"Skill adr {skill_instance.adrenaline}, adr_a {skill_instance.adrenaline_b}")
+            if skill_instance.adrenaline_a < skill_data.adrenaline != 0: continue
+
             effect = GW.Effects.GetEffectTimeRemaining(player_id, skill_id)
             effect_valid = False
             if n == 0 and effect == 0: effect_valid = True
-            if n == 1 and effect / 1000.0 < skill_instance.activation + cache.generic_skill_use_buffer: effect_valid = True
+            if n == 1 and effect / 1000.0 < skill_data.activation + cache.generic_skill_use_buffer: effect_valid = True
             if n == 2: effect_valid = True
             if effect_valid:
-                cast_delay = skill_instance.activation + skill_instance.aftercast
+                cast_delay = skill_data.activation + skill_data.aftercast
                 if cast_delay > 0:
                     cache.busy_timer = cast_delay + cache.ping_buffer
                 else:
