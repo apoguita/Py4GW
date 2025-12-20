@@ -316,7 +316,7 @@ bot.SetMainRoutine(bot_routine)
 
 def main():
     bot.Update()
-    bot.UI.draw_window()
+    bot.UI.draw_window(icon_path="Reforged_Icon.png")
 
 if __name__ == "__main__":
     main()

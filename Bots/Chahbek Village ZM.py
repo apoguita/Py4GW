@@ -502,7 +502,7 @@ def pick_random_region_language(allow_international=True):
     # EU = random among EU langs
     return region, random.choice(EU_LANGS)
 
-def withdraw_gold(target_gold=5000, deposit_all=True):
+def withdraw_gold(target_gold=50, deposit_all=True):
     gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
 
     if gold_on_char > target_gold and deposit_all:
