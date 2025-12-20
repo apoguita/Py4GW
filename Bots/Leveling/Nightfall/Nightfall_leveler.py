@@ -285,7 +285,7 @@ def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     if primary == "Warrior":
         return ModelID.Iron_Ingot.value
     elif primary == "Ranger":
-        return ModelID.Tanned_Hide_Square.value
+        return ModelID.Bolt_Of_Cloth.value
     elif primary == "Monk":
         return ModelID.Bolt_Of_Cloth.value
     elif primary == "Dervish":
