@@ -71,7 +71,6 @@ field = field
 
 Py4Gw = Py4GW
 Py4GW = Py4GW
-PyKeystroke = PyKeystroke
 PyScanner = PyScanner
 PyImGui = PyImGui
 PyMap = PyMap
