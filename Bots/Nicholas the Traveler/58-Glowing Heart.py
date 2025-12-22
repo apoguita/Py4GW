@@ -1,4 +1,5 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
+import PyImGui
 
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Glowing Heart Farm"
@@ -23,6 +24,11 @@ KILLING_PATH = [(-11726.47, -17031.03),
                 (2840.75, -17477.89),
                 ]
 
+NICK_OUTPOST = 137 #Fishermen's Haven
+COORDS_TO_EXIT_OUTPOST = (1952.72, 11387.74)
+EXPLORABLE_AREA = 63 #Stingray Strand
+NICK_COORDS = [(1246.03, 9108.46),] #Nicholas the Traveler Location
+
 bot = Botting(BOT_NAME)
                 
 def bot_routine(bot: Botting) -> None:
@@ -37,13 +43,29 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForTime(1000)
     bot.Wait.UntilOnOutpost()
     bot.States.JumpToStepName(f"[H]{BOT_NAME}_loop_3")
+    bot.States.AddHeader(f"Path_to_Nicholas")
+    bot.Templates.Multibox_Aggressive()
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=NICK_OUTPOST)
+    bot.Move.XYAndExitMap(*COORDS_TO_EXIT_OUTPOST, EXPLORABLE_AREA)
+    bot.Move.FollowAutoPath(NICK_COORDS, step_name="Nicholas_the_Traveler_Location")
+    bot.Wait.UntilOnOutpost()
 
 bot.SetMainRoutine(bot_routine)
+
+def nicks_window():
+    if PyImGui.begin("Nicholas the Traveler", True):
+        PyImGui.text(BOT_NAME)
+        PyImGui.separator()
+        PyImGui.text("Travel to Nicholas the Traveler location")
+        
+        if PyImGui.button("Start"):
+            bot.StartAtStep("[H]Path_to_Nicholas_4")
 
 def main():
     bot.Update()
     texture = get_texture_for_model(model_id=MODEL_ID_TO_FARM)
     bot.UI.draw_window(icon_path=texture)
+    nicks_window()
 
 if __name__ == "__main__":
     main()
