@@ -3,21 +3,21 @@ import PyPlayer
 import struct
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from Py4GWCoreLib.native_src.internals.gw_array import GW_Array_View, GW_Array
-from Py4GWCoreLib.native_src.context.GameplayContext import (
+from Py4GWCoreLib.native_src.context.Gameplay import (
     GameplayContextStruct,
     GameplayContext,
 )
-from Py4GWCoreLib.native_src.context.WorldMapContext import (
+from Py4GWCoreLib.native_src.context.WorldMap import (
     WorldMapContext,
     WorldMapContextStruct,
 )
-from Py4GWCoreLib.native_src.context.MissionMapContext import (
+from Py4GWCoreLib.native_src.context.MissionMap import (
     MissionMapContext,
     MissionMapContextStruct,
     MissionMapSubContext,
 )
 
-from Py4GWCoreLib.native_src.context.PreGameContext import (
+from Py4GWCoreLib.native_src.context.PreGame import (
     PreGameContext,
     PreGameContextStruct,
     LoginCharacter,
