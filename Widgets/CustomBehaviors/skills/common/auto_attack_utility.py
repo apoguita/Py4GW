@@ -72,6 +72,37 @@ class AutoAttackUtility(CustomSkillUtilityBase):
         target_agent_id: int = self.__get_target_agent_id()
         if target_agent_id == 0: return BehaviorResult.ACTION_SKIPPED
 
-        result = yield from custom_behavior_helpers.Actions.auto_attack(target_id=target_agent_id)
+        current_target_agent_id = GLOBAL_CACHE.Player.GetTargetID()
+        if current_target_agent_id != target_agent_id:
+            yield from Routines.Yield.Keybinds.ClearTarget()
+            GLOBAL_CACHE.Player.ChangeTarget(target_agent_id)
+            yield from custom_behavior_helpers.Helpers.wait_for(300)
+            GLOBAL_CACHE.Player.Interact(target_agent_id, False)
+            yield from custom_behavior_helpers.Helpers.wait_for(300)
+        else:
+            if not GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
+                GLOBAL_CACHE.Player.Interact(target_agent_id, False)
+                yield from custom_behavior_helpers.Helpers.wait_for(300)
+
         self.throttle_timer.Reset()
-        return result
+        return BehaviorResult.ACTION_PERFORMED
+
+        # if GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
+        #     if target_agent_id == 0: return BehaviorResult.ACTION_SKIPPED
+        #     yield
+        #     return BehaviorResult.ACTION_SKIPPED
+
+        # if target_id is None:
+        #     target_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority(Range.Spellcast.value, should_prioritize_party_target=True)
+
+        # if not GLOBAL_CACHE.Agent.IsValid(target_id):
+        #     return None
+
+        # GLOBAL_CACHE.Player.ChangeTarget(target_id)
+        # yield from Helpers.wait_for(100) 
+        # GLOBAL_CACHE.Player.Interact(target_id, False)
+        # yield from Helpers.wait_for(100)
+        # return BehaviorResult.ACTION_PERFORMED
+
+        # result = yield from custom_behavior_helpers.Actions.auto_attack(target_id=target_agent_id)
+        # return result
