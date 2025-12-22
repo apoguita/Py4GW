@@ -1,6 +1,7 @@
 from typing import List, Any, Generator, Callable, override
 import time
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.scores.score_combot_definition import ScoreCombotDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -19,6 +20,7 @@ from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
 from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
 from Widgets.CustomBehaviors.skills.generic.raw_aoe_attack_utility import RawAoeAttackUtility
+from Widgets.CustomBehaviors.skills.generic.raw_combot_attack_utility import RawCombotAttackUtility
 from Widgets.CustomBehaviors.skills.generic.raw_simple_attack_utility import RawSimpleAttackUtility
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Widgets.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
@@ -45,9 +47,9 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.triple_shot_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Triple_Shot_luxon"), current_build=in_game_build, mana_required_to_cast=10, score_definition=ScoreStaticDefinition(70))
         self.sundering_attack_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Sundering_Attack"), current_build=in_game_build, mana_required_to_cast=10, score_definition=ScoreStaticDefinition(60))
 
-        self.jagged_strike_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
-        self.fox_fangs_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
-        self.death_blossom_utility: CustomSkillUtilityBase = HeroAiUtility(event_bus=self.event_bus, skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
+        self.jagged_strike_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40))
+        self.fox_fangs_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40))
+        self.death_blossom_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40))
 
         #common
         self.ebon_battle_standard_of_honor_utility: CustomSkillUtilityBase = EbonBattleStandardOfHonorUtility(event_bus=self.event_bus, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 68 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 25), current_build=in_game_build,  mana_required_to_cast=15)
