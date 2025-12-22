@@ -207,8 +207,8 @@ class Settings:
         if hotbar_id in self.CommandHotBars:
             del self.CommandHotBars[hotbar_id]
             
-            if self.account_ini_handler is not None:
-                self.account_ini_handler.delete_key("CommandHotBars", hotbar_id)
+            if self.ini_handler is not None:
+                self.ini_handler.delete_key("CommandHotBars", hotbar_id)
     
     def write_settings(self):               
         if not self.save_requested:
