@@ -1959,8 +1959,8 @@ def To_Lions_Arch(bot: Botting):
     bot.Wait.ForMapLoad(target_map_id=493)
     bot.Move.XYAndDialog(-2546.09, 16203.26, 0x89)
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
-    bot.Move.XY(-1181, 1038) 
-    bot.Dialogs.WithModel(2012, 0x85)  # Neiro dialog model id 2012 Dec New ID
+    bot.Move.XY(-1181, 1038)
+    bot.Dialogs.WithModel(2011, 0x85)  # Neiro dialog model id 1961
     bot.Move.XY(-1856.86, 1434.14)
     bot.Move.FollowPath([(-2144, 1450)])
     bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
