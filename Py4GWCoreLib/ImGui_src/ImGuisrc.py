@@ -3,7 +3,7 @@ from ..Overlay import Overlay
 from ..enums import get_texture_for_model, ImguiFonts
 from ..Py4GWcorelib import Color, ColorPalette, ConsoleLog, Utils
 from typing import Tuple, TypeAlias, Optional, overload
-from .types import Alignment, ImGuiStyleVar, StyleTheme, ControlAppearance, TextDecorator
+from .types import Alignment, HorizontalAlignment, ImGuiStyleVar, StyleTheme, ControlAppearance, TextDecorator, VerticalAlignment
 from .types import ImGuiStyleVar, StyleTheme, ControlAppearance, TextDecorator
 from .Style import Style
 from .Textures import TextureSliceMode, ThemeTextures, TextureState
@@ -93,6 +93,55 @@ class ImGui:
 
     @staticmethod
     def pop_style_color(count: int = 1): PyImGui.pop_style_color(count)
+
+    @staticmethod
+    def get_x_position_aligned(alignment: Alignment, parent_pos: tuple[float, float], parent_size: tuple[float, float], child_size: tuple[float, float], offset: tuple[float, float]=(0,0)) -> float: 
+        '''Get X position aligned within/in relation to a parent rectangle.'''
+        
+        match alignment.horizontal:
+            case HorizontalAlignment.LeftOf:
+                return parent_pos[0] - child_size[0] + offset[0]
+            
+            case HorizontalAlignment.Left:
+                return parent_pos[0] + offset[0]
+            
+            case HorizontalAlignment.Center:
+                return parent_pos[0] + (parent_size[0] - child_size[0]) // 2 + offset[0]
+            
+            case HorizontalAlignment.Right:
+                return parent_pos[0] + parent_size[0] - child_size[0] + offset[0]
+            
+            case HorizontalAlignment.RightOf:
+                return parent_pos[0] + parent_size[0] + offset[0]
+        
+    @staticmethod
+    def get_y_position_aligned(alignment: Alignment, parent_pos: tuple[float, float], parent_size: tuple[float, float], child_size: tuple[float, float], offset: tuple[float, float]=(0,0)) -> float: 
+        '''Get Y position aligned within/in relation to a parent rectangle.'''
+        
+        match alignment.vertical:
+            case VerticalAlignment.Above:
+                return parent_pos[1] - child_size[1] + offset[1]
+            
+            case VerticalAlignment.Top:
+                return parent_pos[1] + offset[1]
+            
+            case VerticalAlignment.Middle:
+                return parent_pos[1] + (parent_size[1] - child_size[1]) // 2 + offset[1]
+            
+            case VerticalAlignment.Bottom:
+                return parent_pos[1] + parent_size[1] - child_size[1] + offset[1]
+            
+            case VerticalAlignment.Below:
+                return parent_pos[1] + parent_size[1] + offset[1]
+            
+    @staticmethod
+    def get_position_aligned(alignment: Alignment, parent_pos: tuple[float, float], parent_size: tuple[float, float], child_size: tuple[float, float], offset: tuple[float, float]=(0,0)) -> tuple[float, float]:  
+        '''Get position (x,y) aligned within/in relation to a parent rectangle.'''  
+                       
+        x = ImGui.get_x_position_aligned(alignment, parent_pos, parent_size, child_size, offset)
+        y = ImGui.get_y_position_aligned(alignment, parent_pos, parent_size, child_size, offset)
+        
+        return x, y
 
     @staticmethod
     def is_mouse_in_rect(rect: tuple[float, float, float, float], mouse_pos: Optional[tuple[float, float]] = None) -> bool:
@@ -373,26 +422,26 @@ class ImGui:
             text_w, text_h = PyImGui.calc_text_size(text)
             x, y = PyImGui.get_cursor_pos()
 
-            horiz = alignment % 3
-            vert = alignment // 3
+            horiz = alignment.horizontal
+            vert = alignment.vertical
 
-            if horiz == 1:  # center
+            if horiz == HorizontalAlignment.Center:  # center
                 x += (width - text_w) * 0.5
                 
-            elif horiz == 2:  # right
+            elif horiz == HorizontalAlignment.Right:  # right
                 x += width - text_w
 
-            if vert == 1:  # middle
+            if vert == VerticalAlignment.Middle:  # middle
                 y += (height - text_h) * 0.5
                 
-            elif vert == 2:  # bottom
+            elif vert == VerticalAlignment.Bottom:  # bottom
                 y += height - text_h
 
             x0, y0 = PyImGui.get_cursor_pos()
             
             PyImGui.set_cursor_pos(x, y)
             PyImGui.text(text)
-            item_rect_min, item_rect_max, item_rect_size = ImGui.get_item_rect()
+            _, _, item_rect_size = ImGui.get_item_rect()
             
             #Restore cursor position
             PyImGui.set_cursor_pos(x0, y0)
