@@ -8,17 +8,41 @@ from ..internals.gw_array import GW_Array
 class LoginCharacter(Structure):
     _pack_ = 1
     _fields_ = [
-        ("unk0", c_uint32  * 0x13),     # unknown / flags / padding
+        ("Unk00", c_uint32),     # unknown / flags / padding
+        ("pvp_or_campaign", c_uint32), # possibly indicates pvp or campaign character
+        ("UnkPvPData01", c_uint32),
+        ("UnkPvPData02", c_uint32),
+        ("UnkPvPData03", c_uint32),
+        ("UnkPvPData04", c_uint32),
+        ("Unk01", c_uint32  * 0x4),
+        ("Level", c_uint32),
+        ("current_map_id", c_uint32),
+        ("Unk02", c_uint32  * 0x7),     # unknown / flags / padding
         ("character_name", c_wchar * 20),
     ]
 
 class PreGameContextStruct(Structure):
     _pack_ = 1
     _fields_ = [
-        ("frame_id", c_uint32),            
-        ("h0004", c_uint32 * 52),             
+        ("frame_id", c_uint32), 
+        ("Unk01", c_uint32 * 20),  
+        ("h0054", c_float), #20
+        ("h0058", c_float), #21
+        ("Unk02", c_uint32 * 2),
+        ("h0060", c_float), #24
+        ("Unk03", c_uint32 * 2),
+        ("h0068", c_float), #27
+        ("Unk04", c_uint32),
+        ("h0070", c_float), #29
+        ("Unk05", c_uint32),
+        ("h0078", c_float), #31
+        ("Unk06", c_uint32 * 8),
+        ("h00a0", c_float), #40
+        ("h00a4", c_float), #41
+        ("h00a8", c_float), #42
+        ("Unk07", c_uint32 * 9),             
         ("chosen_character_index", c_uint32),
-        ("UNK01", c_uint32),              
+        ("Unk08", c_uint32),              
         ("chars", GW_Array),  # (GW::Array<LoginCharacter>)
     ]
 

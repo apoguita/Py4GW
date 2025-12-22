@@ -1,5 +1,6 @@
 import PyImGui
 import PyPlayer
+import struct
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from Py4GWCoreLib.native_src.internals.gw_array import GW_Array_View, GW_Array
 from Py4GWCoreLib.native_src.context.GameplayContext import (
@@ -22,7 +23,7 @@ from Py4GWCoreLib.native_src.context.PreGameContext import (
     LoginCharacter,
 )
 
-
+#region draw_kv_table
 def draw_kv_table(table_id: str, rows: list[tuple[str, str | int | float]]):
     flags = (
         PyImGui.TableFlags.BordersInnerV
@@ -44,6 +45,7 @@ def draw_kv_table(table_id: str, rows: list[tuple[str, str | int | float]]):
 
         PyImGui.end_table()
 
+#region draw_world_map_context_tab
 def draw_world_map_context_tab(world_map_ptr: WorldMapContextStruct):
     rows: list[tuple[str, str | int | float]] = [
         ("frame_id", world_map_ptr.frame_id),
@@ -77,6 +79,7 @@ def draw_world_map_context_tab(world_map_ptr: WorldMapContextStruct):
 
     draw_kv_table("WorldMapTable", rows)
     
+#region draw_mission_map_context_tab
 def draw_mission_map_context_tab(mission_map_ptr: MissionMapContextStruct):
     rows: list[tuple[str, str | int | float]] = [
         ("size", f"{mission_map_ptr.size.x} x {mission_map_ptr.size.y}"),
@@ -149,6 +152,7 @@ def draw_mission_map_context_tab(mission_map_ptr: MissionMapContextStruct):
 
         draw_kv_table("MissionMapSubContext2", sub2_rows)
         
+#region draw_gameplay_context_tab
 def draw_gameplay_context_tab(gameplay_ctx: GameplayContextStruct):
     rows: list[tuple[str, str | int | float]] = []
 
@@ -162,9 +166,7 @@ def draw_gameplay_context_tab(gameplay_ctx: GameplayContextStruct):
 
     draw_kv_table("GameplayTable", rows)
  
-import struct
-
-
+#region draw_dword_probe_table
 def draw_dword_probe_table(table_id: str, label: str, values):
     flags = (
         PyImGui.TableFlags.BordersInnerV
@@ -240,111 +242,26 @@ def draw_dword_probe_table(table_id: str, label: str, values):
 
     PyImGui.end_table()
 
-def scan_for_gw_array(base_ptr: int, size: int):
-    for off in range(0, size - 0x10, 4):  # DWORD aligned
-        try:
-            arr = cast(base_ptr + off, POINTER(GW_Array)).contents
-
-            # Basic sanity checks
-            if not arr.m_buffer:
-                continue
-            if arr.m_size == 0 or arr.m_size > arr.m_capacity:
-                continue
-            if arr.m_capacity > 64:
-                continue
-
-            print(
-                f"[+0x{off:04X}] GW_Array?"
-                f" buffer={hex(arr.m_buffer)}"
-                f" size={arr.m_size}"
-                f" cap={arr.m_capacity}"
-            )
-
-        except Exception:
-            pass
-        
-        
-LOGINCHAR_SIZE = 0x2C  # 44 bytes
-
-def probe_login_character(ptr: int):
-    unk0 = cast(ptr, POINTER(c_uint32)).contents.value
-    name_buf = cast(ptr + 4, POINTER(c_wchar * 40)).contents
-    name = "".join(name_buf).rstrip("\x00")
-    return unk0, name
-
-
-from ctypes import cast, POINTER, c_wchar
-import PyImGui
-
-
-def probe_login_character_offsets(
-    base_ptr: int,
-    index: int,
-    stride: int,
-    max_offset: int = 0x40,
-):
-    """
-    Manually probe wchar offsets for ONE element.
-    You visually inspect the output and decide the correct offset.
-
-    base_ptr : arr.m_buffer
-    index    : which character index to probe (pick one with a visible name)
-    stride   : your current best guess (ex: 0x2C)
-    """
-
-    elem_ptr = base_ptr + index * stride
-
-    PyImGui.separator()
-    PyImGui.text(f"Probing element {index} @ {hex(elem_ptr)}")
-
-    for off in range(0, max_offset, 2):
-        try:
-            buf = cast(
-                elem_ptr + off,
-                POINTER(c_wchar * 20)
-            ).contents
-
-            raw = "".join(buf).split("\x00", 1)[0]
-
-            if raw:
-                # sanitize for imgui
-                safe = (
-                    raw.encode("utf-8", errors="replace")
-                       .decode("utf-8", errors="replace")
-                       .replace("\x00", "")
-                )
-                PyImGui.text(f"+0x{off:02X}: {safe}")
-        except Exception:
-            pass
-
-    
+#region draw_pregame_context_tab
 def draw_pregame_context_tab(pregame_ctx: PreGameContextStruct):
     # ---- Main PreGameContext fields ----
     rows: list[tuple[str, str | int | float]] = [
         ("frame_id", pregame_ctx.frame_id),
         ("chosen_character_index", pregame_ctx.chosen_character_index),
-        ("UNK01", pregame_ctx.UNK01),
-        #("index_2", pregame_ctx.index_2),
+        ("h0054", pregame_ctx.h0054),
+        ("h0058", pregame_ctx.h0058),
+        ("h0060", pregame_ctx.h0060),
+        ("h0068", pregame_ctx.h0068),
+        ("h0070", pregame_ctx.h0070),
+        ("h0078", pregame_ctx.h0078),
+        ("h00a0", pregame_ctx.h00a0),
+        ("h00a4", pregame_ctx.h00a4),
+        ("h00a8", pregame_ctx.h00a8),
     ]
 
     draw_kv_table("PreGameContextTable", rows)
     PyImGui.separator()
-    if PyImGui.collapsing_header("h0004 Probe Table"):
-        draw_dword_probe_table(
-            "PreGame_unk00_probe",
-            "h0004",
-            pregame_ctx.h0004
-        )
-    """
-    PyImGui.separator()
-    draw_dword_probe_table(
-        "PreGame_unk00_probe",
-        "unk00",
-        pregame_ctx.unk00
-    )
-    """
-        
-    
+
     # ---- Characters array (GW::Array<LoginCharacter>) ----
     chars = pregame_ctx.chars
 
@@ -370,16 +287,80 @@ def draw_pregame_context_tab(pregame_ctx: PreGameContextStruct):
             .rstrip("\x00")
         )
 
-        # Uncomment if you want unk0 shown later
-        # char_rows.append((f"Char[{i}] unk0", ch.unk0))
-        char_rows.append((f"Char[{i}] name", name))
+        if PyImGui.collapsing_header(f"[{name}] details"):
+            rows: list[tuple[str, str | int | float]] = [
+                ("character_name", name),
+                ("Unk00", ch.Unk00),
+                ("pvp_or_campaign", ch.pvp_or_campaign),
+                ("level", ch.Level),
+                ("current_map_id", ch.current_map_id),
+                ("UnkPvPData01", ch.UnkPvPData01),
+                ("UnkPvPData02", ch.UnkPvPData02),
+                ("UnkPvPData03", ch.UnkPvPData03),
+                ("UnkPvPData04", ch.UnkPvPData04),
+            ]
+            draw_kv_table(f"LoginCharacter[{i}]", rows)
+            
+            for i in range(0, len(ch.Unk01)):
+                PyImGui.text(f"Unk01[{i}]: {ch.Unk01[i]}")
+                
+            for i in range(0, len(ch.Unk02)):
+                PyImGui.text(f"Unk02[{i}]: {ch.Unk02[i]}")
 
     draw_kv_table(f"LoginCharacters ({chars.m_size})", char_rows)
     
+    if PyImGui.collapsing_header("unknown arrays dump"):
+        # ---- Dump unknown arrays ----
+        draw_dword_probe_table(
+            "Unk01_probe",
+            "Unk01",
+            pregame_ctx.Unk01
+        )
+        
+        PyImGui.separator()
+        
+        draw_dword_probe_table(
+            "Unk02_probe",
+            "Unk02",
+            pregame_ctx.Unk02
+        )
+        
+        PyImGui.separator()
+        
+        draw_dword_probe_table(
+            "Unk03_probe",
+            "Unk03",
+            pregame_ctx.Unk03
+        )
+        
+        PyImGui.separator()
+        
+        PyImGui.text(f"Unk04: {pregame_ctx.Unk04}")
+        PyImGui.text(f"Unk05: {pregame_ctx.Unk05}")
+        
+        PyImGui.separator()
+        
+        draw_dword_probe_table(
+            "Unk06_probe",
+            "Unk06",
+            pregame_ctx.Unk06
+        )
+        
+        PyImGui.separator()
+        
+        draw_dword_probe_table(
+            "Unk07_probe",
+            "Unk07",
+            pregame_ctx.Unk07
+        )
+        
+        PyImGui.separator()
+        
+        PyImGui.text(f"Unk08: {pregame_ctx.Unk08}")
+
+#region draw_window
     
-pad = 0
 def draw_window():
-    global pad
     if PyImGui.begin("Native Map Tester", True, PyImGui.WindowFlags.AlwaysAutoResize):
 
         if PyImGui.begin_tab_bar("NativeMapTabs"):
@@ -427,82 +408,9 @@ def draw_window():
                 pregame_ctx: PreGameContextStruct | None = PreGameContext.get_context()
                 if not pregame_ctx:
                     PyImGui.text("PreGameContext not available.")
-                    pregame = PyPlayer.PyPlayer().GetPreGameContext()
-                    if not pregame:
-                        PyImGui.text("PyPreGameContext not available.")
-                    else:
-                        PyImGui.text(f"frame_id: {pregame.frame_id}")
                 else:
                     draw_pregame_context_tab(pregame_ctx)
                     
-                if PyImGui.button("Scan for GW_Array in PreGameContext"):
-                    base_ptr = PreGameContext.get_ptr()
-                    if base_ptr:
-                        scan_for_gw_array(base_ptr, 0x400)
-                    else:
-                        PyImGui.text("PreGameContext pointer not available.")
-                        
-                PyImGui.separator()
-                base_ptr = PreGameContext.get_ptr()
-                arr = cast(base_ptr + 0x00DC, POINTER(GW_Array)).contents
-                
-                def safe_imgui_text(s: str) -> str:
-                    """
-                    Make a string safe for ImGui by:
-                    - removing nulls
-                    - replacing invalid unicode
-                    - keeping printable content only
-                    """
-                    return (
-                        s
-                        .encode("utf-8", errors="replace")
-                        .decode("utf-8", errors="replace")
-                        .replace("\x00", "")
-                    )
-
-
-                PyImGui.text("GW_Array<LoginCharacter>")
-                PyImGui.text(safe_imgui_text(f"buffer = {hex(arr.m_buffer)}"))
-                PyImGui.text(safe_imgui_text(f"size   = {arr.m_size}"))
-                PyImGui.text(safe_imgui_text(f"cap    = {arr.m_capacity}"))
-
-                PyImGui.separator()
-                if PyImGui.collapsing_header("Probe LoginCharacter Entries"):
-                    PyImGui.text("Probing LoginCharacter entries:")
-                    LOGINCHAR_SIZE = 0x2C
-                    pad = PyImGui.input_int("Padding before entries", pad)
-                    for i in range(max(arr.m_size, 28)):
-                        unk0, name = probe_login_character(arr.m_buffer +pad  + i  * LOGINCHAR_SIZE)
-                        PyImGui.text(safe_imgui_text(f"{i}: unk0={unk0}, name={name}"))
-                        
-                    if PyImGui.button("print offsets"):
-                        for i in range(max(arr.m_size, 28)):
-                            unk0, name = probe_login_character(arr.m_buffer + i * LOGINCHAR_SIZE)
-                            print(safe_imgui_text(f"{i}: unk0={unk0}, name={name}"))
-                        
-    
-                    PyImGui.separator()
-                    PyImGui.text("Probing LoginCharacter entries (with dupe offset):")
-                        
-                    LOGINCHAR_SIZE = 0x30   # ← example, YOU pick the correct one
-                    NAME_OFF = 0x0
-
-                    for i in range(min(arr.m_size, 14)):
-                        unk0, name = probe_login_character(
-                            arr.m_buffer + i * LOGINCHAR_SIZE + NAME_OFF
-                        )
-                        PyImGui.text(
-                            safe_imgui_text(f"{i}: unk0={unk0}, name={name}")
-                        )
-                    # Pick an index that clearly showed a name before (example: 4)
-                    """probe_login_character_offsets(
-                        base_ptr=arr.m_buffer,
-                        index=4,
-                        stride=0x2C,   # keep your current guess
-                        max_offset=0x40
-                    )
-                    """     
-
 
                 PyImGui.end_tab_item()
 

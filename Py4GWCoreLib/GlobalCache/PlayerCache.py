@@ -204,3 +204,6 @@ class PlayerCache:
     
     def GetPreGameContext(self):
         return self._player_instance.GetPreGameContext()
+    
+    def GetPreGameContextPtr(self):
+        return self._player_instance.GetPreGameContextPtr()
