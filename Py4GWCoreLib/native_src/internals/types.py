@@ -6,3 +6,11 @@ class Vec2f(Structure):
         ("x", c_float),
         ("y", c_float),
     ]
+
+class GamePos(Structure):
+    _fields_ = [
+        ("x", c_float),
+        ("y", c_float),
+        ("zplane", c_uint32),
+    ]
+    

@@ -4,7 +4,7 @@ import struct
 from Py4GWCoreLib.native_src.internals.prototypes import Prototypes
 from Py4GWCoreLib.native_src.internals.native_function import NativeFunction, ScannerSection
 from Py4GWCoreLib.native_src.internals.gw_array import GW_Array_View, GW_Array
-from Py4GWCoreLib.native_src.context.PreGameContext import (
+from Py4GWCoreLib.native_src.context.PreGame import (
     PreGameContext,
     PreGameContextStruct,
     LoginCharacter,
