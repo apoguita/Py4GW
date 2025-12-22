@@ -1,7 +1,15 @@
 from Py4GWCoreLib import GLOBAL_CACHE, Console, ConsoleLog, UIManager, UIMessage
 import PyImGui
+import struct
 from Py4GWCoreLib.native_src.internals.prototypes import Prototypes
 from Py4GWCoreLib.native_src.internals.native_function import NativeFunction, ScannerSection
+from Py4GWCoreLib.native_src.internals.gw_array import GW_Array_View, GW_Array
+from Py4GWCoreLib.native_src.context.PreGameContext import (
+    PreGameContext,
+    PreGameContextStruct,
+    LoginCharacter,
+)
+
 import ctypes
 from ctypes import sizeof
 import PyMap
@@ -112,8 +120,172 @@ class WorldMapContext(Structure):
 
 assert sizeof(WorldMapContext) == 0x224
 
+#region memory location helpers
+def scan_for_gw_array(base_ptr: int, size: int):
+    for off in range(0, size - 0x10, 4):  # DWORD aligned
+        try:
+            arr = cast(base_ptr + off, POINTER(GW_Array)).contents
+
+            # Basic sanity checks
+            if not arr.m_buffer:
+                continue
+            if arr.m_size == 0 or arr.m_size > arr.m_capacity:
+                continue
+            if arr.m_capacity > 64:
+                continue
+
+            print(
+                f"[+0x{off:04X}] GW_Array?"
+                f" buffer={hex(arr.m_buffer)}"
+                f" size={arr.m_size}"
+                f" cap={arr.m_capacity}"
+            )
+
+        except Exception:
+            pass
+        
+        
+LOGINCHAR_SIZE = 0x2C  # 44 bytes
+
+def probe_login_character(ptr: int):
+    unk0 = cast(ptr, POINTER(c_uint32)).contents.value
+    name_buf = cast(ptr + 4, POINTER(c_wchar * 40)).contents
+    name = "".join(name_buf).rstrip("\x00")
+    return unk0, name
+
+
+from ctypes import cast, POINTER, c_wchar
+import PyImGui
+
+
+def probe_login_character_offsets(
+    base_ptr: int,
+    index: int,
+    stride: int,
+    max_offset: int = 0x40,
+):
+    """
+    Manually probe wchar offsets for ONE element.
+    You visually inspect the output and decide the correct offset.
+
+    base_ptr : arr.m_buffer
+    index    : which character index to probe (pick one with a visible name)
+    stride   : your current best guess (ex: 0x2C)
+    """
+
+    elem_ptr = base_ptr + index * stride
+
+    PyImGui.separator()
+    PyImGui.text(f"Probing element {index} @ {hex(elem_ptr)}")
+
+    for off in range(0, max_offset, 2):
+        try:
+            buf = cast(
+                elem_ptr + off,
+                POINTER(c_wchar * 20)
+            ).contents
+
+            raw = "".join(buf).split("\x00", 1)[0]
+
+            if raw:
+                # sanitize for imgui
+                safe = (
+                    raw.encode("utf-8", errors="replace")
+                       .decode("utf-8", errors="replace")
+                       .replace("\x00", "")
+                )
+                PyImGui.text(f"+0x{off:02X}: {safe}")
+        except Exception:
+            pass
+        
+LOGINCHAR_SIZE = 0x2C  # 44 bytes
+
+def probe_field_ptr(ptr: int):
+    unk0 = cast(ptr, POINTER(c_uint32)).contents.value
+    name_buf = cast(ptr + 4, POINTER(c_wchar * 40)).contents
+    name = "".join(name_buf).rstrip("\x00")
+    return unk0, name
+
+
+def draw_dword_probe_table(table_id: str, label: str, values):
+    flags = (
+        PyImGui.TableFlags.BordersInnerV
+        | PyImGui.TableFlags.RowBg
+        | PyImGui.TableFlags.SizingStretchProp
+    )
+
+    if not PyImGui.begin_table(table_id, 8, flags):
+        return
+
+    PyImGui.table_setup_column("Index", PyImGui.TableColumnFlags.WidthFixed, 60)
+    PyImGui.table_setup_column("Dec", PyImGui.TableColumnFlags.WidthFixed, 90)
+    PyImGui.table_setup_column("Hex", PyImGui.TableColumnFlags.WidthFixed, 90)
+    PyImGui.table_setup_column("Bytes", PyImGui.TableColumnFlags.WidthFixed, 110)
+    PyImGui.table_setup_column("ASCII", PyImGui.TableColumnFlags.WidthFixed, 50)
+    PyImGui.table_setup_column("WChar", PyImGui.TableColumnFlags.WidthFixed, 60)
+    PyImGui.table_setup_column("Float", PyImGui.TableColumnFlags.WidthFixed, 90)
+    PyImGui.table_setup_column("Hints", PyImGui.TableColumnFlags.WidthStretch)
+
+    PyImGui.table_headers_row()
+
+    for i, val in enumerate(values):
+        # ---- float reinterpretation ----
+        try:
+            fval = struct.unpack("<f", struct.pack("<I", val))[0]
+            float_str = f"{fval:.3f}" if -1e6 < fval < 1e6 else "—"
+        except Exception:
+            float_str = "—"
+
+        # ---- pointer heuristic ----
+        is_ptr = 0x10000 <= val <= 0x7FFFFFFF
+        hints = "PTR" if is_ptr else ""
+
+        # ---- ASCII (low byte) ----
+        ascii_char = chr(val) if 32 <= val <= 126 else "."
+
+        # ---- UTF-16 (low word) hint ----
+        low_wchar = val & 0xFFFF
+        wchar_char = chr(low_wchar) if 32 <= low_wchar <= 0xD7FF else "."
+
+        # ---- byte breakdown ----
+        b0 = val & 0xFF
+        b1 = (val >> 8) & 0xFF
+        b2 = (val >> 16) & 0xFF
+        b3 = (val >> 24) & 0xFF
+        bytes_str = f"{b0:02X} {b1:02X} {b2:02X} {b3:02X}"
+
+        PyImGui.table_next_row()
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(f"{label}[{i}]")
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(str(val))
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(f"{val:08X}")
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(bytes_str)
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(ascii_char)
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(wchar_char)
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(float_str)
+
+        PyImGui.table_next_column()
+        PyImGui.text_unformatted(hints)
+
+    PyImGui.end_table()
+
+
+pad = 0
 def draw_window():
-    global world_map_ptr
+    global world_map_ptr, pad
     if PyImGui.begin("Adress tester"):
         if PyImGui.button("Execute call instruction"):
             SetHardMode(not GLOBAL_CACHE.Party.IsHardMode())
@@ -140,6 +312,75 @@ def draw_window():
             world_map_context = ctypes.cast(world_map_ptr, ctypes.POINTER(WorldMapContext)).contents
             PyImGui.text(f"WorldMapContext zoom: {world_map_context.zoom}")
         PyImGui.text(f"WorldMapContext ptr: {hex(world_map_ptr)}")
+        
+        if PyImGui.button("Scan for GW_Array in PreGameContext"):
+            base_ptr = PreGameContext.get_ptr()
+            if base_ptr:
+                scan_for_gw_array(base_ptr, 0x400)
+            else:
+                PyImGui.text("PreGameContext pointer not available.")
+                
+        PyImGui.separator()
+        base_ptr = PreGameContext.get_ptr()
+        arr = cast(base_ptr + 0x00DC, POINTER(GW_Array)).contents
+        
+        def safe_imgui_text(s: str) -> str:
+            """
+            Make a string safe for ImGui by:
+            - removing nulls
+            - replacing invalid unicode
+            - keeping printable content only
+            """
+            return (
+                s
+                .encode("utf-8", errors="replace")
+                .decode("utf-8", errors="replace")
+                .replace("\x00", "")
+            )
+
+
+        PyImGui.text("GW_Array<LoginCharacter>")
+        PyImGui.text(safe_imgui_text(f"buffer = {hex(arr.m_buffer)}"))
+        PyImGui.text(safe_imgui_text(f"size   = {arr.m_size}"))
+        PyImGui.text(safe_imgui_text(f"cap    = {arr.m_capacity}"))
+
+        PyImGui.separator()
+        if PyImGui.collapsing_header("Probe LoginCharacter Entries"):
+            PyImGui.text("Probing LoginCharacter entries:")
+            LOGINCHAR_SIZE = 0x2C
+            pad = PyImGui.input_int("Padding before entries", pad)
+            for i in range(max(arr.m_size, 28)):
+                unk0, name = probe_field_ptr(arr.m_buffer +pad  + i  * LOGINCHAR_SIZE)
+                PyImGui.text(safe_imgui_text(f"{i}: unk0={unk0}, name={name}"))
+                
+            if PyImGui.button("print offsets"):
+                for i in range(max(arr.m_size, 28)):
+                    unk0, name = probe_field_ptr(arr.m_buffer + i * LOGINCHAR_SIZE)
+                    print(safe_imgui_text(f"{i}: unk0={unk0}, name={name}"))
+                
+
+            PyImGui.separator()
+            PyImGui.text("Probing LoginCharacter entries (with dupe offset):")
+                
+            LOGINCHAR_SIZE = 0x30   # ← example, YOU pick the correct one
+            NAME_OFF = 0x0
+
+            for i in range(min(arr.m_size, 14)):
+                unk0, name = probe_field_ptr(
+                    arr.m_buffer + i * LOGINCHAR_SIZE + NAME_OFF
+                )
+                PyImGui.text(
+                    safe_imgui_text(f"{i}: unk0={unk0}, name={name}")
+                )
+            # Pick an index that clearly showed a name before (example: 4)
+            """probe_login_character_offsets(
+                base_ptr=arr.m_buffer,
+                index=4,
+                stride=0x2C,   # keep your current guess
+                max_offset=0x40
+            )
+            """     
+
 
         
     PyImGui.end()

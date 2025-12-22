@@ -2013,7 +2013,7 @@ class Yield:
             yield from Yield.wait(1000)
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
             character_index = pregame.chars.index(character_name_to_delete) if character_name_to_delete in pregame.chars else -1
-            last_known_index = pregame.index_1
+            last_known_index = pregame.chosen_character_index
             
             """if character_index == -1:
                 ConsoleLog("Reroll", f"Character '{character_name_to_delete}' not found in character list.", Console.MessageType.Error)
@@ -2209,7 +2209,7 @@ class Yield:
                 
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
             character_index = pregame.chars.index(target_character_name) if target_character_name in pregame.chars else -1
-            last_known_index = pregame.index_1
+            last_known_index = pregame.chosen_character_index
             
             if character_index == -1:
                 ConsoleLog("Reroll", f"Character '{target_character_name}' not found in character list.", Console.MessageType.Error)
@@ -2225,7 +2225,7 @@ class Yield:
                     Keystroke.PressAndRelease(key)
                     yield from Yield.wait(250)
                     pregame = GLOBAL_CACHE.Player.GetPreGameContext()
-                    last_known_index = pregame.index_1
+                    last_known_index = pregame.chosen_character_index
                     
             if _failed():
                 ConsoleLog("Reroll", "Timeout while navigating to target character.", Console.MessageType.Error, log)

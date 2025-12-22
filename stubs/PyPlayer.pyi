@@ -15,14 +15,22 @@ class LoginCharacterInfo:
     level : int
     is_pvp: bool
     
+class PregameLoginCharacterInfo:
+    unk0: int
+    pvp_or_campaign: int
+    UnkPvPData01: int
+    UnkPvPData02: int
+    UnkPvPData03: int
+    UnkPvPData04: int
+    level: int
+    current_map_id: int
+    character_name: str
+    
+    
 class PyPreGameContext:
     frame_id: int
     chosen_character_index: int
-    index_1: int
-    index_2: int
-    chars : list[str]
-    h0004 : list[int]
-    h0128 : list[int]
+    chars: List[PregameLoginCharacterInfo]
     
     
 # Class PyPlayer
