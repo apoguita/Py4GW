@@ -1,5 +1,5 @@
 from ctypes import Structure, c_int, c_float, c_bool
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, auto
 from .constants import (
     MAX_NUM_PLAYERS,
     NUMBER_OF_SKILLS,
@@ -214,3 +214,8 @@ class SkillType (Enum):
     EchoRefrain = 28
     Disguise = 29
     
+
+class Docked (IntEnum):
+    Freely = 0
+    PartyWindow = auto()
+    Skillbar = auto()    
