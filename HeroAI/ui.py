@@ -10,9 +10,9 @@ import PyImGui
 from HeroAI import windows
 from HeroAI.cache_data import CacheData
 from HeroAI.commands import HeroAICommands
-from HeroAI.constants import NUMBER_OF_SKILLS
+from HeroAI.constants import NUMBER_OF_SKILLS, PARTY_WINDOW_HASH, SKILLBAR_WINDOW_HASH
 from HeroAI.settings import Settings
-from HeroAI.types import GameOptionStruct
+from HeroAI.types import Docked, GameOptionStruct
 from HeroAI.utils import IsHeroFlagged
 from HeroAI.windows import CompareAndSubmitGameOptions
 from Py4GWCoreLib import ImGui
@@ -21,18 +21,19 @@ from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, SharedMessage
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.ImGui_src.Textures import GameTexture, GameTexture, TextureState, ThemeTexture, ThemeTextures
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
-from Py4GWCoreLib.ImGui_src.types import Alignment, ImGuiStyleVar, StyleTheme
+from Py4GWCoreLib.ImGui_src.types import Alignment, HorizontalAlignment, ImGuiStyleVar, StyleTheme, VerticalAlignment
 from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.enums_src.GameData_enums import Allegiance, Profession, ProfessionShort, Range
+from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
+from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer, Timer
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GW_widget_manager import WidgetHandler
-
 
 class CachedSkillInfo:
     def __init__(self, skill_id: int):
@@ -593,11 +594,11 @@ def draw_skill_bar(height: float, account_data: AccountData, cached_data: CacheD
         item_rect_min = PyImGui.get_item_rect_min()
         casting_skill = account_data.PlayerData.SkillbarData.CastingSkillID
         
-        if skill_recharge > 0:
+        if skill_recharge > 0 and skill.recharge_time > 0:
                 DrawSquareCooldownEx(
                     (item_rect_min[0], item_rect_min[1]),
                     height,
-                    skill_recharge/(skill.recharge_time * 1000.0),
+                    skill_recharge / (skill.recharge_time * 1000.0),
                     tint=0.6
                 )
 
@@ -1673,14 +1674,151 @@ hotbars : dict[str, WindowModule] = {}
 configure_hotbar = None
 assign_command_slot = None
 
+# Offsets for different UI themes and hotbar positions
+hotbar_offsets : dict[StyleTheme, dict[str, dict]] = {
+    StyleTheme.Guild_Wars: {
+        "PartyWindow": {
+            HorizontalAlignment.LeftOf.name: -8,
+            HorizontalAlignment.Left.name: 0,
+            HorizontalAlignment.Center.name: 2,
+            HorizontalAlignment.Right.name: 0,
+            HorizontalAlignment.RightOf.name: 10,
+            
+            VerticalAlignment.Above.name: -4,
+            VerticalAlignment.Below.name: 2,
+            },
+        "Skillbar": {
+            HorizontalAlignment.LeftOf.name: -17,
+            HorizontalAlignment.Left.name: -6,
+            HorizontalAlignment.Center.name: 2,
+            HorizontalAlignment.Right.name: 11,
+            HorizontalAlignment.RightOf.name: 19,
+            
+            VerticalAlignment.Above.name: 5,
+            VerticalAlignment.Top.name: 0,
+            VerticalAlignment.Bottom.name: 8,
+            VerticalAlignment.Below.name: 8,
+            },
+    },
+    StyleTheme.ImGui: {
+        "PartyWindow": {
+            HorizontalAlignment.LeftOf.name: -8,
+            HorizontalAlignment.Left.name: 0,
+            HorizontalAlignment.Center.name: 2,
+            HorizontalAlignment.Right.name: 0,
+            HorizontalAlignment.RightOf.name: 10,
+            
+            VerticalAlignment.Above.name: -4,
+            VerticalAlignment.Below.name: 2,
+            },
+        "Skillbar": {
+            HorizontalAlignment.LeftOf.name: -17,
+            HorizontalAlignment.Left.name: -6,
+            HorizontalAlignment.Center.name: 2,
+            HorizontalAlignment.Right.name: 11,
+            HorizontalAlignment.RightOf.name: 19,
+            
+            VerticalAlignment.Above.name: 5,
+            VerticalAlignment.Top.name: 0,
+            VerticalAlignment.Bottom.name: 8,
+            VerticalAlignment.Below.name: 8,
+            },
+    },
+    StyleTheme.Minimalus: {
+        "PartyWindow": {
+            HorizontalAlignment.LeftOf.name: -8,
+            HorizontalAlignment.Left.name: 6,
+            HorizontalAlignment.Center.name: 1,
+            HorizontalAlignment.Right.name: -3,
+            HorizontalAlignment.RightOf.name: 10,
+            
+            VerticalAlignment.Above.name: -1,
+            VerticalAlignment.Top.name: -2,
+            VerticalAlignment.Bottom.name: -10,
+            VerticalAlignment.Below.name: -11,
+            },
+        "Skillbar": {
+            HorizontalAlignment.LeftOf.name: 1,
+            HorizontalAlignment.Left.name: 0,
+            HorizontalAlignment.Center.name: 2,
+            HorizontalAlignment.Right.name: 1,
+            HorizontalAlignment.RightOf.name: 1,
+            
+            VerticalAlignment.Above.name: 1,
+            VerticalAlignment.Top.name: 0,
+            VerticalAlignment.Bottom.name: 1,
+            VerticalAlignment.Below.name: 0,
+            },
+    },
+}
+    
 def draw_hotbar(hotbar: Settings.CommandHotBar, accounts: list[AccountData]):
     global configure_hotbar
     style = ImGui.get_style()
     window = hotbars.get(hotbar.identifier, None)
     
+    btn_size = hotbar.button_size
+    rows = len(hotbar.commands)
+    cols = max(1, max(len(row) for _, row in hotbar.commands.items()) if rows > 0 else 0)
+    cell_spacing = (1, 1)
+    
+    style.CellPadding.push_style_var(cell_spacing[0], cell_spacing[1])
+
+    height = max(btn_size, rows * (btn_size + cell_spacing[1]))
+    width = max(btn_size, cols * (btn_size + cell_spacing[0]) - 1)
+    
     if not window:
         window = WindowModule(hotbar.identifier, hotbar.identifier, window_pos=(hotbar.position[0], hotbar.position[1]), window_flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.AlwaysAutoResize), can_close=False)
         hotbars[hotbar.identifier] = window
+        
+    if hotbar.docked is not Docked.Freely:
+        window_width = window.window_size[0]
+        window_height = window.window_size[1]
+        
+        window_half_size = (window_width / 2, window_height / 2)
+        
+        match hotbar.docked:
+            case Docked.PartyWindow:
+                fid = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)
+                party_window = UIManager.GetFrameCoords(fid) if fid != 0 and UIManager.FrameExists(fid) else None
+                
+                if party_window:
+                    left, top, right, bottom = party_window
+                    
+                    offsets = hotbar_offsets.get(style.Theme, hotbar_offsets.get(StyleTheme.ImGui, {})).get("PartyWindow", {})                    
+                    x_offset = offsets.get(hotbar.alignment.horizontal.name, 0)
+                    y_offset = offsets.get(hotbar.alignment.vertical.name, 0)
+                    
+                    x , y = ImGui.get_position_aligned(
+                        hotbar.alignment,
+                        (left, top),
+                        (right - left, bottom - top),
+                        (window_width, window_height),
+                        (x_offset, y_offset))
+                    
+                    hotbar.position = (int(x), int(y))
+                
+            case Docked.Skillbar:
+                fid = UIManager.GetFrameIDByHash(SKILLBAR_WINDOW_HASH)
+                skillbar_window = UIManager.GetFrameCoords(fid) if fid != 0 and UIManager.FrameExists(fid) else None
+                if skillbar_window:
+                    left, top, right, bottom = skillbar_window
+                    
+                    offsets = hotbar_offsets.get(style.Theme, hotbar_offsets.get(StyleTheme.ImGui, {})).get("Skillbar", {})       
+                    x_offset = offsets.get(hotbar.alignment.horizontal.name, 0)
+                    y_offset = offsets.get(hotbar.alignment.vertical.name, 0)
+                    
+                    x , y = ImGui.get_position_aligned(
+                        hotbar.alignment,
+                        (left, top),
+                        (right - left, bottom - top),
+                        (window_width, window_height),
+                        (x_offset, y_offset))
+                    
+                    hotbar.position = (int(x), int(y))
+        
+        PyImGui.set_next_window_pos(hotbar.position, PyImGui.ImGuiCond.Always)
+           
 
     size = window.window_size
     style.WindowPadding.push_style_var(5, 5)
@@ -1690,15 +1828,6 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, accounts: list[AccountData]):
         explorable = GLOBAL_CACHE.Map.IsExplorable()
         
         is_window_active = Console.is_window_active()
-        btn_size = hotbar.button_size
-        rows = len(hotbar.commands)
-        cols = max(1, max(len(row) for _, row in hotbar.commands.items()) if rows > 0 else 0)
-        cell_spacing = (1, 1)
-        
-        style.CellPadding.push_style_var(cell_spacing[0], cell_spacing[1])
-
-        height = max(btn_size, rows * (btn_size + cell_spacing[1]))
-        width = max(btn_size, cols * (btn_size + cell_spacing[0]) - 1)
 
         if ImGui.begin_child("##HotbarCommandsChild" + hotbar.identifier, (width, height), False, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
             if PyImGui.is_rect_visible(width, height):
@@ -1826,7 +1955,7 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, accounts: list[AccountData]):
         pos = PyImGui.get_window_pos()
         
         if window.changed:
-            if is_window_active and hotbar.identifier in settings.CommandHotBars:
+            if is_window_active and hotbar.identifier in settings.CommandHotBars and hotbar.docked is Docked.Freely:
                 settings.CommandHotBars[hotbar.identifier].position = (int(pos[0]), int(pos[1]))
                 settings.save_settings()
             
@@ -2077,7 +2206,7 @@ def draw_configure_window():
                         settings.DisableAutomationOnLeaderAccount = disable_automation
                         settings.save_settings()
 
-                    show_command_panel = ImGui.checkbox("Show Command Panel", settings.ShowCommandPanel)
+                    show_command_panel = ImGui.checkbox("Show Global Config Panel", settings.ShowCommandPanel)
                     if show_command_panel != settings.ShowCommandPanel:
                         settings.ShowCommandPanel = show_command_panel
                         settings.save_settings()
@@ -2192,22 +2321,85 @@ def draw_configure_window():
                     
                     if ImGui.begin_child("##HotbarListChild", (0, 0), True):
                         for key, hotbar in settings.CommandHotBars.items():
-                            ImGui.text_aligned(f"{key}", height=20, alignment=Alignment.MidLeft, font_size=14)
-                            PyImGui.same_line(x_avail - 36 - 36, 0)
+                            if ImGui.collapsing_header(f"{hotbar.name}"):
+                                if ImGui.begin_child(f"##HotbarConfigChild_{key}", (0, 0), True):
+                                    x_avail, y_avail = PyImGui.get_content_region_avail()
+                    
+                                    name = ImGui.input_text(f"##hotbar name{key}", hotbar.name)
+                                    if name != hotbar.name:
+                                        if PyImGui.is_key_down(Key.Enter.value):
+                                            hotbar.name = name
+                                            settings.save_settings()
+                                    ImGui.show_tooltip("Name of the hotbar. Press Enter to confirm changes.")
 
-                            visible = ImGui.toggle_icon_button(f"{(IconsFontAwesome5.ICON_EYE if hotbar.visible else IconsFontAwesome5.ICON_EYE_SLASH)}##{key}", hotbar.visible, 32, 20)
-                            if visible != hotbar.visible:
-                                hotbar.visible = visible
-                                settings.save_settings()                    
-                            ImGui.show_tooltip(f"{'Hide' if hotbar.visible else 'Show'} Hotbar '{key}'")
-                            
-                            PyImGui.same_line(x_avail - 36, 0)
-                            
-                            if ImGui.icon_button(f"{IconsFontAwesome5.ICON_TRASH}##{key}", 32, 20):
-                                settings.delete_hotbar(key)
-                                break
-                            
-                            ImGui.show_tooltip(f"Delete Hotbar '{key}'")
+                                        
+                                    PyImGui.same_line(x_avail - 24 - 32, 0)
+
+                                    visible = ImGui.toggle_icon_button(f"{(IconsFontAwesome5.ICON_EYE if hotbar.visible else IconsFontAwesome5.ICON_EYE_SLASH)}##{key}", hotbar.visible, 32, 20)
+                                    if visible != hotbar.visible:
+                                        hotbar.visible = visible
+                                        settings.save_settings()                    
+                                    ImGui.show_tooltip(f"{'Hide' if hotbar.visible else 'Show'} Hotbar '{key}'")
+                                    
+                                    PyImGui.same_line(x_avail - 20, 0)
+                                    
+                                    if ImGui.icon_button(f"{IconsFontAwesome5.ICON_TRASH}##{key}", 32, 20):
+                                        settings.delete_hotbar(key)
+                                        break
+                                    ImGui.show_tooltip(f"Delete Hotbar '{key}'")
+                                    
+                                    positioning = ImGui.combo(f"Docked##positioning {key}", hotbar.docked.value, [Utils.humanize_string(pos.name) for pos in Docked])
+                                    if positioning != hotbar.docked.value:
+                                        hotbar.docked = Docked(positioning)
+                                        settings.save_settings()
+                                    ImGui.show_tooltip("Positioning preset for the hotbar. Custom allows free movement.")
+                                    
+                                    alignment_names = [f"{Utils.humanize_string(pos.name)}" for pos in Alignment]
+                                    current_alignment = f"{Utils.humanize_string(hotbar.alignment.name)}"
+                                    current_alignment_index = alignment_names.index(current_alignment) if current_alignment in alignment_names else 0
+                                    
+                                    alignment = ImGui.combo(f"Alignment##positioning {key}", current_alignment_index, alignment_names)
+                                    if alignment != current_alignment_index:
+                                        hotbar.alignment = Alignment[list(Alignment)[alignment].name]
+                                        settings.save_settings()
+                                        
+                                    ImGui.show_tooltip("Positioning preset for the hotbar. Custom allows free movement.")
+                                    
+                                    btn_size = ImGui.input_int(f"Button Size##{key}", hotbar.button_size)
+                                    if btn_size != hotbar.button_size and btn_size >= 10 and btn_size <= 256:
+                                        hotbar.button_size = btn_size
+                                        settings.save_settings()
+                                        
+                                    rows = ImGui.input_int(f"Rows##{key}", len(hotbar.commands))
+                                    if rows != len(hotbar.commands):
+                                        new_commands = {}
+                                        
+                                        for r in range(rows):
+                                            new_commands[r] = {}
+                                            for c in range(max(1, max(len(row) for _, row in hotbar.commands.items()) if len(hotbar.commands) > 0 else 0)):
+                                                if r in hotbar.commands and c in hotbar.commands[r]:
+                                                    new_commands[r][c] = hotbar.commands[r][c]
+                                                else:
+                                                    new_commands[r][c] = "Empty"
+                                                    
+                                        hotbar.commands = new_commands
+                                        settings.save_settings()
+                                        
+                                    cols = ImGui.input_int(f"Columns##{key}", max(1, max(len(row) for _, row in hotbar.commands.items()) if len(hotbar.commands) > 0 else 0))
+                                    if cols != max(1, max(len(row) for _, row in hotbar.commands.items()) if len(hotbar.commands) > 0 else 0):
+                                        new_commands = {}
+                                        
+                                        for r in range(len(hotbar.commands)):
+                                            new_commands[r] = {}
+                                            for c in range(cols):
+                                                if r in hotbar.commands and c in hotbar.commands[r]:
+                                                    new_commands[r][c] = hotbar.commands[r][c]
+                                                else:
+                                                    new_commands[r][c] = "Empty"
+                                                    
+                                        hotbar.commands = new_commands
+                                        settings.save_settings()
+                                
                     ImGui.end_child()
                         
                 ImGui.end_child()
