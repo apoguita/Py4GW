@@ -37,7 +37,10 @@ class PreGameContextStruct(Structure):
     chosen_character_index: int
     Unk08: int  
     
-    chars: GW_Array
+    chars_array: GW_Array
+    
+    @property
+    def chars_list(self) -> list[LoginCharacter]: ...
     
 # ----------------------------------------------------------------------
 # PreGameContext facade

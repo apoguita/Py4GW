@@ -1,18 +1,82 @@
 import PyPlayer
 from Py4GW import Game
+import math
+
 from ctypes import (
     Structure, POINTER,
     c_uint32, c_float, c_void_p, c_wchar, c_uint8,c_uint16,
     cast
 )
-from ..internals.types import Vec2f, GamePos
-from ..internals.gw_array import GW_Array
+from ..internals.helpers import read_wstr, encoded_wstr_to_str
+from ..internals.types import Vec2f, Vec3f, GamePos
+from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
 
+#region processed
+class AccountInfo(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("account_name_ptr", POINTER(c_wchar)),
+        ("wins", c_uint32),
+        ("losses", c_uint32),
+        ("rating", c_uint32),
+        ("qualifier_points", c_uint32),
+        ("rank", c_uint32),
+        ("tournament_reward_points", c_uint32),
+    ]
 
-# ---------------------------------------------------------------------
-# Simple structs
-# ---------------------------------------------------------------------
-
+    @property
+    def account_name_str(self) -> str | None:
+        return read_wstr(self.account_name_ptr)
+    
+class MapAgent(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("cur_energy", c_float),        # +h0000
+        ("max_energy", c_float),        # +h0004
+        ("energy_regen", c_float),      # +h0008
+        ("skill_timestamp", c_uint32),  # +h000C
+        ("h0010", c_float),             # +h0010
+        ("max_energy2", c_float),       # +h0014
+        ("h0018", c_float),             # +h0018
+        ("h001C", c_uint32),            # +h001C
+        ("cur_health", c_float),        # +h0020
+        ("max_health", c_float),        # +h0024
+        ("health_regen", c_float),      # +h0028
+        ("h002C", c_uint32),            # +h002C
+        ("effects", c_uint32),          # +h0030
+    ]
+    
+    @property
+    def is_bleeding(self) -> bool:
+        return (self.effects & 0x0001) != 0
+    @property
+    def is_conditioned(self) -> bool:
+        return (self.effects & 0x0002) != 0
+    @property
+    def is_crippled(self) -> bool:
+        return (self.effects & 0x000A) == 0xA
+    @property
+    def is_dead(self) -> bool:
+        return (self.effects & 0x0010) != 0   
+    @property
+    def is_deep_wounded(self) -> bool:
+        return (self.effects & 0x0020) != 0
+    @property
+    def is_poisoned(self) -> bool:
+        return (self.effects & 0x0040) != 0
+    @property
+    def is_enchanted(self) -> bool:
+        return (self.effects & 0x0080) != 0
+    @property
+    def is_degen_hexed(self) -> bool:
+        return (self.effects & 0x0400) != 0
+    @property
+    def is_hexed(self) -> bool:
+        return (self.effects & 0x0800) != 0
+    @property
+    def is_weapon_spelled(self) -> bool:
+        return (self.effects & 0x8000) != 0
+    
 class PartyAlly(Structure):
     _pack_ = 1
     _fields_ = [
@@ -20,6 +84,154 @@ class PartyAlly(Structure):
         ("unk", c_uint32),
         ("composite_id", c_uint32),
     ]
+
+class Attribute(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("attribute_id", c_uint32),
+        ("level_base", c_uint32),
+        ("level", c_uint32),
+        ("decrement_points", c_uint32),
+        ("increment_points", c_uint32),
+    ]
+
+class PartyAttribute(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("agent_id", c_uint32),
+        ("attribute_array", Attribute * 54),
+    ]     
+    
+    @property
+    def attributes(self) -> list[Attribute]:
+        return [self.attribute_array[i] for i in range(54)]
+    
+class Effect(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("skill_id", c_uint32),
+        ("attribute_level", c_uint32),
+        ("effect_id", c_uint32),
+        ("agent_id", c_uint32),  # non-zero means maintained enchantment - caster id
+        ("duration", c_float),
+        ("timestamp", c_uint32), #DWORD
+    ]
+    #DWORD GetTimeElapsed() const;
+    #DWORD GetTimeRemaining() const;
+       
+class Buff(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("skill_id", c_uint32),
+        ("h0004", c_uint32),
+        ("buff_id", c_uint32),
+        ("target_agent_id", c_uint32),
+    ]
+
+class AgentEffects(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("agent_id", c_uint32),
+        ("buff_array", GW_Array),  #Array<Buff>
+        ("effect_array", GW_Array),  #Array<Effect>
+    ]
+    @property
+    def buffs(self) -> list[Buff]:
+        return GW_Array_Value_View(self.buff_array, Buff).to_list()
+    @property
+    def effects(self) -> list[Effect]:
+        return GW_Array_Value_View(self.effect_array, Effect).to_list()
+    
+class Quest(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("quest_id", c_uint32),          # +h0000 GW::Constants::QuestID
+        ("log_state", c_uint32),         # +h0004
+        ("location_ptr", POINTER(c_wchar)), # +h0008
+        ("name_ptr", POINTER(c_wchar)),     # +h000C
+        ("npc_ptr", POINTER(c_wchar)),      # +h0010
+        ("map_from", c_uint32),          # +h0014 GW::Constants::MapID
+        ("marker_ptr", GamePos),             # +h0018
+        ("h0024", c_uint32),             # +h0024
+        ("map_to", c_uint32),            # +h0028 GW::Constants::MapID
+        ("description_ptr", POINTER(c_wchar)), # +h002C
+        ("objectives_ptr", POINTER(c_wchar)),  # +h0030
+    ]
+    
+    @property
+    def is_completed(self) -> bool:
+        return (self.log_state & 0x2) != 0
+    @property
+    def is_current_mission_quest(self) -> bool:
+        return (self.log_state & 0x10) != 0
+    @property
+    def is_area_primary(self) -> bool:
+        return (self.log_state & 0x40) != 0  # e.g. "Primary Echovald Forest Quests"
+    @property
+    def is_primary(self) -> bool:
+        return (self.log_state & 0x20) != 0  # e.g. "Primary Quests"
+    @property
+    def location_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.location_ptr))
+    @property
+    def location_encoded_str(self) -> str | None:
+        return read_wstr(self.location_ptr)
+    @property
+    def name_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.name_ptr))
+    @property
+    def name_encoded_str(self) -> str | None:
+        return read_wstr(self.name_ptr)
+    @property
+    def npc_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.npc_ptr))
+    @property
+    def npc_encoded_str(self) -> str | None:
+        return read_wstr(self.npc_ptr)
+    @property
+    def description_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.description_ptr))
+    @property
+    def description_encoded_str(self) -> str | None:
+        return read_wstr(self.description_ptr)
+    @property
+    def objectives_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.objectives_ptr))
+    @property
+    def objectives_encoded_str(self) -> str | None:
+        return read_wstr(self.objectives_ptr)
+    @property
+    def marker(self) -> GamePos | None:
+        x, y, zplane = self.marker_ptr.x, self.marker_ptr.y, self.marker_ptr.zplane
+
+        if not math.isfinite(x) or not math.isfinite(y) or not math.isfinite(zplane):
+            return None
+
+        return GamePos(x, y, zplane)
+    
+    
+
+class MissionObjective(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("objective_id", c_uint32),      # +h0000
+        ("enc_str_ptr", POINTER(c_wchar)),   # +h0004
+        ("type", c_uint32),              # +h0008
+    ]
+    
+    @property
+    def enc_str_encoded_str(self) -> str | None:
+        return read_wstr(self.enc_str_ptr)
+    @property
+    def enc_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.enc_str_ptr))
+    
+
+#region not_processed
+# ---------------------------------------------------------------------
+# Simple structs
+# ---------------------------------------------------------------------
+
 
 
 class ControlledMinions(Structure):
@@ -52,24 +264,13 @@ inline bool IsProfessionUnlocked(GW::Constants::Profession profession) const {
     return (unlocked_professions & (1 << (uint32_t)profession)) != 0;
 }"""
 
-class AccountInfo(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("account_name", POINTER(c_wchar)),
-        ("wins", c_uint32),
-        ("losses", c_uint32),
-        ("rating", c_uint32),
-        ("qualifier_points", c_uint32),
-        ("rank", c_uint32),
-        ("tournament_reward_points", c_uint32),
-    ]
 
 
 class PartyMemberMoraleInfo(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
-        ("agent_id_dup", c_uint32),
+        ("agent_id_dupe", c_uint32),
         ("unk", c_uint32 * 4),
         ("morale", c_uint32),
         #// ... unknown size
@@ -183,101 +384,7 @@ class PlayerControlledCharacter(Structure):
 # ---------------------------------------------------------------------
 # ADDED Misc structs
 # ---------------------------------------------------------------------
-class MapAgent(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("cur_energy", c_float),        # +h0000
-        ("max_energy", c_float),        # +h0004
-        ("energy_regen", c_float),      # +h0008
-        ("skill_timestamp", c_uint32),  # +h000C
-        ("h0010", c_float),             # +h0010
-        ("max_energy2", c_float),       # +h0014
-        ("h0018", c_float),             # +h0018
-        ("h001C", c_uint32),            # +h001C
-        ("cur_health", c_float),        # +h0020
-        ("max_health", c_float),        # +h0024
-        ("health_regen", c_float),      # +h0028
-        ("h002C", c_uint32),            # +h002C
-        ("effects", c_uint32),          # +h0030
-    ]
-"""        // Health Bar Effect Bitmasks.
-        inline bool GetIsBleeding()         const { return (effects & 0x0001) != 0; }
-        inline bool GetIsConditioned()      const { return (effects & 0x0002) != 0; }
-        inline bool GetIsCrippled()        const { return (effects & 0x000A) == 0xA; }
-        inline bool GetIsDead()             const { return (effects & 0x0010) != 0; }
-        inline bool GetIsDeepWounded()      const { return (effects & 0x0020) != 0; }
-        inline bool GetIsPoisoned()         const { return (effects & 0x0040) != 0; }
-        inline bool GetIsEnchanted()        const { return (effects & 0x0080) != 0; }
-        inline bool GetIsDegenHexed()       const { return (effects & 0x0400) != 0; }
-        inline bool GetIsHexed()            const { return (effects & 0x0800) != 0; }
-        inline bool GetIsWeaponSpelled()    const { return (effects & 0x8000) != 0; }"""
-   
-class PartyAttribute(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("agent_id", c_uint32),
-        ("attribute", c_uint32 * 54),
-    ]     
-    
-class Effect(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("skill_id", c_uint32),
-        ("attribute_level", c_uint32),
-        ("effect_id", c_uint32),
-        ("agent_id", c_uint32),
-        ("duration", c_float),
-        ("timestamp", c_uint32), #DWORD
-    ]
-    #DWORD GetTimeElapsed() const;
-    #DWORD GetTimeRemaining() const;
-       
-class Buff(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("skill_id", c_uint32),
-        ("h0004", c_uint32),
-        ("buff_id", c_uint32),
-        ("agent_id", c_uint32),
-        ("target_agent_id", c_uint32),
-    ]
 
-class AgentEffects(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("agent_id", c_uint32),
-        ("buffs", GW_Array),  #Array<Buff>
-        ("effects", GW_Array),  #Array<Effect>
-    ]
-
-class Quest(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("quest_id", c_uint32),          # +h0000 GW::Constants::QuestID
-        ("log_state", c_uint32),         # +h0004
-        ("location", POINTER(c_wchar)), # +h0008
-        ("name", POINTER(c_wchar)),     # +h000C
-        ("npc", POINTER(c_wchar)),      # +h0010
-        ("map_from", c_uint32),          # +h0014 GW::Constants::MapID
-        ("marker", GamePos),             # +h0018
-        ("h0024", c_uint32),             # +h0024
-        ("map_to", c_uint32),            # +h0028 GW::Constants::MapID
-        ("description", POINTER(c_wchar)), # +h002C
-        ("objectives", POINTER(c_wchar)),  # +h0030
-    ]
-    
-"""    inline bool IsCompleted() { return (log_state & 0x2) != 0; }
-inline bool IsCurrentMissionQuest() { return (log_state & 0x10) != 0; }
-inline bool IsAreaPrimary() { return (log_state & 0x40) != 0; } // e.g. "Primary Echovald Forest Quests"
-inline bool IsPrimary() { return (log_state & 0x20) != 0; } // e.g. "Primary Quests"""
-
-class MissionObjective(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("objective_id", c_uint32),      # +h0000
-        ("enc_str", POINTER(c_wchar)),   # +h0004
-        ("type", c_uint32),              # +h0008
-    ]
 
 class HeroFlag(Structure):
     _pack_ = 1
@@ -496,7 +603,7 @@ class Player(Structure):
         ("reforged_or_dhuums_flags", c_uint32),          # +h0034
         ("player_number", c_uint32),                     # +h0038
         ("party_size", c_uint32),                        # +h003C
-        ("h0040", GW_Array),                             # +h0040 Array<void*>
+        ("h0040_array", GW_Array),                             # +h0040 Array<void*>
     ]
  
     """  inline bool IsPvP() {
@@ -541,11 +648,11 @@ class TitleTier(Structure):
 class WorldContextStruct(Structure):
     _pack_ = 1
     _fields_ = [
-        ("accountInfo", POINTER(AccountInfo)),
-        ("message_buff", GW_Array), #Array<wchar_t>
-        ("dialog_buff", GW_Array), #Array<wchar_t>
-        ("merch_items", GW_Array), #Array<ItemID> uint32t
-        ("merch_items2", GW_Array),  #Array<ItemID> uint32t
+        ("account_info_ptr", POINTER(AccountInfo)),
+        ("message_buff_array", GW_Array), #Array<wchar_t>
+        ("dialog_buff_array", GW_Array), #Array<wchar_t>
+        ("merch_items_array", GW_Array), #Array<ItemID> uint32t
+        ("merch_items2_array", GW_Array),  #Array<ItemID> uint32t
         ("accumMapInitUnk0", c_uint32),
         ("accumMapInitUnk1", c_uint32),
         ("accumMapInitOffset", c_uint32),
@@ -553,34 +660,34 @@ class WorldContextStruct(Structure):
         ("h0054", c_uint32),
         ("accumMapInitUnk2", c_uint32),
         ("h005C", c_uint32 * 8),
-        ("map_agents", GW_Array), #Array<MapAgent>
-        ("party_allies", GW_Array), #Array<PartyAlly>
-        ("all_flag", c_float * 3),
+        ("map_agents_array", GW_Array), #Array<MapAgent>
+        ("party_allies_array", GW_Array), #Array<PartyAlly>
+        ("all_flag_array", c_float * 3),
         ("h00A8", c_uint32),
-        ("attributes", GW_Array), # Array<PartyAttribute>
+        ("party_attributes_array", GW_Array), # Array<PartyAttribute>
         ("h00BC", c_uint32 * 255),
-        ("h04B8", GW_Array), #Array<void *>
-        ("h04C8", GW_Array), #Array<void *>
+        ("h04B8_array", GW_Array), #Array<void *>
+        ("h04C8_array", GW_Array), #Array<void *>
         ("h04D8", c_uint32),
-        ("h04DC", GW_Array), #Array<void *>
+        ("h04DC_array", GW_Array), #Array<void *>
         ("h04EC", c_uint32 * 7),
-        ("party_effects", GW_Array), #Array<AgentEffects>
-        ("h0518", GW_Array), #Array<void *>
+        ("party_effects_array", GW_Array), #Array<AgentEffects>
+        ("h0518_array", GW_Array), #Array<void *>
         ("active_quest_id", c_uint32),
-        ("quest_log", GW_Array), #Array<Quest>
+        ("quest_log_array", GW_Array), #Array<Quest>
         ("h053C", c_uint32 * 10),
-        ("mission_objectives", GW_Array), #Array<MissionObjective>
-        ("henchmen_agent_ids", GW_Array), #Array<uint32_t>
-        ("hero_flags", GW_Array), #Array<HeroFlag>
-        ("hero_info", GW_Array), #Array<HeroInfo>
-        ("cartographed_areas", GW_Array), #Array<void *>
+        ("mission_objectives_array", GW_Array), #Array<MissionObjective>
+        ("henchmen_agent_ids_array", GW_Array), #Array<uint32_t>
+        ("hero_flags_array", GW_Array), #Array<HeroFlag>
+        ("hero_info_array", GW_Array), #Array<HeroInfo>
+        ("cartographed_areas_array", GW_Array), #Array<void *>
         ("h05B4", c_uint32 * 2),
-        ("controlled_minion_count", GW_Array), #Array<ControlledMinions>
-        ("missions_completed", GW_Array), #Array<uint32_t>
-        ("missions_bonus", GW_Array), #Array<uint32_t>
-        ("missions_completed_hm", GW_Array), #Array<uint32_t>
-        ("missions_bonus_hm", GW_Array), #Array<uint32_t>
-        ("unlocked_map", GW_Array), #Array<uint32_t>
+        ("controlled_minion_count_array", GW_Array), #Array<ControlledMinions>
+        ("missions_completed_array", GW_Array), #Array<uint32_t>
+        ("missions_bonus_array", GW_Array), #Array<uint32_t>
+        ("missions_completed_hm_array", GW_Array), #Array<uint32_t>
+        ("missions_bonus_hm_array", GW_Array), #Array<uint32_t>
+        ("unlocked_map_array", GW_Array), #Array<uint32_t>
         ("h061C", c_uint32 * 2),
         ("player_morale_info", POINTER(PartyMemberMoraleInfo)),
         ("h028C", c_uint32),
@@ -593,16 +700,16 @@ class WorldContextStruct(Structure):
         ("salvage_session_id", c_uint32),
         ("h0694", c_uint32 * 5),
         ("playerTeamToken", c_uint32),
-        ("pets", GW_Array), #Array<PetInfo>
-        ("party_profession_states", GW_Array), #Array<ProfessionState>
-        ("h06CC", GW_Array), #Array<void *>
+        ("pets_array", GW_Array), #Array<PetInfo>
+        ("party_profession_states_array", GW_Array), #Array<ProfessionState>
+        ("h06CC_array", GW_Array), #Array<void *>
         ("h06DC", c_uint32),
-        ("h06E0", GW_Array), #Array<void *>
-        ("skillbar", GW_Array), #Array<Skillbar>
-        ("learnable_character_skills", GW_Array), #Array<uint32_t>
-        ("unlocked_character_skills", GW_Array), #Array<uint32_t>
-        ("duplicated_character_skills", GW_Array), #Array<DupeSkill>
-        ("h0730", GW_Array), #Array<void *>
+        ("h06E0_array", GW_Array), #Array<void *>
+        ("skillbar_array", GW_Array), #Array<Skillbar>
+        ("learnable_character_skills_array", GW_Array), #Array<uint32_t>
+        ("unlocked_character_skills_array", GW_Array), #Array<uint32_t>
+        ("duplicated_character_skills_array", GW_Array), #Array<DupeSkill>
+        ("h0730_array", GW_Array), #Array<void *>
         ("experience", c_uint32),
         ("experience_dupe", c_uint32),
         ("current_kurzick", c_uint32),
@@ -638,18 +745,132 @@ class WorldContextStruct(Structure):
         ("max_balth", c_uint32),
         ("max_imperial", c_uint32),
         ("equipment_status", c_uint32),
-        ("agent_infos", GW_Array), #Array<AgentInfo>
-        ("h07DC", GW_Array), #Array<void *>
-        ("mission_map_icons", GW_Array), #Array<MissionMapIcon>
-        ("npcs", GW_Array), #Array<NPC>
-        ("players", GW_Array), #Array<Player>
-        ("titles", GW_Array), #Array<Title>
-        ("title_tiers", GW_Array), #Array<TitleTier>
-        ("vanquished_areas", GW_Array), #Array<uint32_t>
+        ("agent_infos_array", GW_Array), #Array<AgentInfo>
+        ("h07DC_array", GW_Array), #Array<void *>
+        ("mission_map_icons_array", GW_Array), #Array<MissionMapIcon>
+        ("npcs_array", GW_Array), #Array<NPC>
+        ("players_array", GW_Array), #Array<Player>
+        ("titles_array", GW_Array), #Array<Title>
+        ("title_tiers_array", GW_Array), #Array<TitleTier>
+        ("vanquished_areas_array", GW_Array), #Array<uint32_t>
         ("foes_killed", c_uint32),
         ("foes_to_kill", c_uint32),
         #//... couple more arrays after this
     ]
+    
+    @property
+    def account_info(self) -> AccountInfo | None:
+        if not self.account_info_ptr:
+            return None
+        return self.account_info_ptr.contents
+    
+    @property
+    def message_buff(self) -> list[str] | None:
+        messages = GW_Array_View(self.message_buff_array, c_wchar).to_list()
+        if not messages:
+            return None
+        return [str(ch) for ch in messages]
+
+    @property
+    def dialog_buff(self) -> list[str] | None:
+        dialogs = GW_Array_View(self.dialog_buff_array, c_wchar).to_list()
+        if not dialogs:
+            return None
+        return [str(ch) for ch in dialogs]
+    
+    @property
+    def merch_items(self) -> list[int] | None:
+        items = GW_Array_View(self.merch_items_array, c_uint32).to_list()
+        if not items:
+            return None
+        return [int(item) for item in items]
+    
+    @property
+    def merch_items2(self) -> list[int] | None:
+        items = GW_Array_View(self.merch_items2_array, c_uint32).to_list()
+        if not items:
+            return None
+        return [int(item) for item in items]
+    
+    @property
+    def map_agents(self) -> list[MapAgent] | None:
+        agents = GW_Array_Value_View(self.map_agents_array, MapAgent).to_list()
+        if not agents:
+            return None
+        return [agent for agent in agents]
+    
+    @property
+    def party_allies(self) -> list[PartyAlly] | None:
+        allies = GW_Array_Value_View(self.party_allies_array, PartyAlly).to_list()
+        if not allies:
+            return None
+        return [ally for ally in allies]
+    
+    @property
+    def party_attributes(self) -> list[PartyAttribute] | None:
+        attrs = GW_Array_Value_View(self.party_attributes_array, PartyAttribute).to_list()
+        if not attrs:
+            return None
+        return [attr for attr in attrs]
+    
+    @property
+    def all_flag(self) -> Vec3f | None:
+        x, y, z = self.all_flag_array
+
+        if not math.isfinite(x) or not math.isfinite(y) or not math.isfinite(z):
+            return None
+
+        return Vec3f(x, y, z)
+
+    @property
+    def h04B8_ptrs(self) -> list[int] | None:
+        ptrs = GW_Array_View(self.h04B8_array, c_void_p).to_list()
+        if not ptrs:
+            return None
+        return [int(ptr) for ptr in ptrs]
+    
+    @property
+    def h04C8_ptrs(self) -> list[int] | None:
+        ptrs = GW_Array_View(self.h04C8_array, c_void_p).to_list()
+        if not ptrs:
+            return None
+        return [int(ptr) for ptr in ptrs]
+    
+    @property
+    def h04DC_ptrs(self) -> list[int] | None:
+        ptrs = GW_Array_View(self.h04DC_array, c_void_p).to_list()
+        if not ptrs:
+            return None
+        return [int(ptr) for ptr in ptrs]
+    
+    @property
+    def party_effects(self) -> list[AgentEffects] | None:
+        effects = GW_Array_Value_View(self.party_effects_array, AgentEffects).to_list()
+        if not effects:
+            return None
+        return [effect for effect in effects]
+    
+    @property
+    def h0518_ptrs(self) -> list[int | None] | None:
+        ptrs = GW_Array_Value_View(self.h0518_array, c_void_p).to_list()
+        if not ptrs:
+            return None
+
+        return [int(ptr) if ptr is not None else None for ptr in ptrs]
+
+    @property
+    def quest_log(self) -> list[Quest] | None:
+        quests = GW_Array_Value_View(self.quest_log_array, Quest).to_list()
+        if not quests:
+            return None
+        return [quest for quest in quests]
+    
+    @property
+    def mission_objectives(self) -> list[MissionObjective] | None:
+        objectives = GW_Array_Value_View(self.mission_objectives_array, MissionObjective).to_list()
+        if not objectives:
+            return None
+        return [obj for obj in objectives]
 
 class WorldContext:
     _ptr: int = 0
@@ -684,3 +905,5 @@ class WorldContext:
             ptr,
             POINTER(WorldContextStruct)
         ).contents
+        
+WorldContext.enable()

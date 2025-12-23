@@ -1,6 +1,6 @@
 from typing import Optional
 from ctypes import Structure
-from ..internals.types import Vec2f
+from ..internals.types import Vec2f, CPointer
 from ..internals.gw_array import GW_Array
 
     
@@ -35,9 +35,14 @@ class MissionMapContextStruct(Structure):
     h0030: int
     h0034: int
     h0038: int
-    h003c: Optional[MissionMapSubContext2]
+    h003c: Optional[CPointer[MissionMapSubContext2]]
     h0040: int
     h0044: int
+    
+    @property
+    def subcontexts(self) -> list[MissionMapSubContext]: ...
+    @property
+    def subcontext2(self) -> Optional[MissionMapSubContext2]: ...
     
 # ----------------------------------------------------------------------
 # MissionMapContext facade

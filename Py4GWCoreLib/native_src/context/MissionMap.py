@@ -2,7 +2,7 @@ import PyMap
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, POINTER, cast
 from ..internals.types import Vec2f
-from ..internals.gw_array import GW_Array
+from ..internals.gw_array import GW_Array, GW_Array_View
 
 #region MissionMapContext
 
@@ -42,6 +42,15 @@ class MissionMapContextStruct(Structure):
         ("h0040", c_uint32),
         ("h0044", c_uint32),
     ]
+    @property
+    def subcontexts(self) -> list[MissionMapSubContext]:
+        return GW_Array_View(self.h0020, MissionMapSubContext).to_list()
+    
+    @property
+    def subcontext2(self) -> MissionMapSubContext2 | None:
+        if not self.h003c:
+            return None
+        return self.h003c.contents
 
 assert sizeof(MissionMapContextStruct) == 0x48
 
