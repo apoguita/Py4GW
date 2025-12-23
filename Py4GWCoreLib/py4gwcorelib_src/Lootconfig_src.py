@@ -531,6 +531,9 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
             ModelID.Hammer_of_Kathandrax,
             ModelID.Prismatic_Gelatinous_Material,
         ],
+        "General": [
+            ModelID.Urn_of_Saint_Viktor,
+        ],
     },
 }
 

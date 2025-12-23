@@ -583,13 +583,70 @@ class Yield:
         @staticmethod
         def ChangeTarget(agent_id, log=False):
             """
-            Purpose: Change the player's target to the specified agent ID.
+            Purpose: Load the specified hero skillbar by party position.
             Args:
-                agent_id (int): The ID of the agent to target.
+                hero_index (int): The 1-based party position of the hero (1 = first hero, 2 = second, etc.).
+                skill_template (str): The skill template code to load.
+                log (bool) Optional: Whether to log the action. Default is False.
             Returns: None
             """
-            yield from Yield.Player.ChangeTarget(agent_id, log=log)
-                
+            
+
+            GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(hero_index, skill_template)
+            ConsoleLog("LoadHeroSkillbar", f"Loading hero at party position {hero_index} with template {skill_template}", log=log)
+            yield from Yield.wait(500)
+        
+        @staticmethod    
+        def CastSkillID (skill_id:int,extra_condition=True, aftercast_delay=0,  log=False):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
+            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            
+            if not(enough_energy and skill_ready and extra_condition):
+                yield
+                return False
+            slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+            if slot <= 0 or slot > 8:
+                yield
+                return False
+            
+            GLOBAL_CACHE.SkillBar.UseSkill(GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id), aftercast_delay=aftercast_delay)
+            if log:
+                ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", Console.MessageType.Info)
+            
+            if aftercast_delay > 0:
+                yield from Yield.wait(aftercast_delay)
+            return True
+        
+        @staticmethod
+        def IsSkillIDUsable(skill_id: int):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
+            skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
+            yield
+            return enough_energy and skill_ready
+        
+        @staticmethod
+        def IsSkillSlotUsable(skill_slot: int):
+            from .Checks import Checks
+            if not Checks.Map.IsExplorable():
+                return False
+
+            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
+            enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id, skill.id)
+            skill_ready = Checks.Skills.IsSkillSlotReady(skill_slot)
+            yield
+            return enough_energy and skill_ready
+
         @staticmethod
         def InteractAgent(agent_id:int, log:bool=False):
             """
