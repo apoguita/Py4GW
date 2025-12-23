@@ -2,7 +2,7 @@ import PyPlayer
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from ..internals.types import Vec2f
-from ..internals.gw_array import GW_Array
+from ..internals.gw_array import GW_Array, GW_Array_View
 
 
 class LoginCharacter(Structure):
@@ -43,8 +43,12 @@ class PreGameContextStruct(Structure):
         ("Unk07", c_uint32 * 9),             
         ("chosen_character_index", c_uint32),
         ("Unk08", c_uint32),              
-        ("chars", GW_Array),  # (GW::Array<LoginCharacter>)
+        ("chars_array", GW_Array),  # (GW::Array<LoginCharacter>)
     ]
+    
+    @property
+    def chars_list(self) -> list[LoginCharacter]:
+        return GW_Array_View(self.chars, LoginCharacter).to_list()
 
 class PreGameContext:
     _ptr: int = 0
