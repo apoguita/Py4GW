@@ -69,6 +69,9 @@ from .enums_src.UI_enums import (
     BoolPreference,
     
 )
+
+from .enums_src.Calendar_enums import YEARS, MONTHS, EVENTS,PVE_WEEKLY_BONUSES,PVP_WEEKLY_BONUSES,NICHOLAS_CYCLE
+
 __all__ = [
     # GameData_enums
     "Ailment",
@@ -168,6 +171,14 @@ __all__ = [
     "ShaderQuality",
     "FrameLimiter",
     "BoolPreference",
+    
+    # Calendar_enums
+    "YEARS",
+    "MONTHS",
+    "EVENTS",
+    "PVE_WEEKLY_BONUSES",
+    "PVP_WEEKLY_BONUSES",
+    "NICHOLAS_CYCLE",
 ]
 
 

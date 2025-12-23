@@ -766,28 +766,28 @@ class WorldContextStruct(Structure):
     
     @property
     def message_buff(self) -> list[str] | None:
-        messages = GW_Array_View(self.message_buff_array, c_wchar).to_list()
+        messages = GW_Array_Value_View(self.message_buff_array, c_wchar).to_list()
         if not messages:
             return None
         return [str(ch) for ch in messages]
 
     @property
     def dialog_buff(self) -> list[str] | None:
-        dialogs = GW_Array_View(self.dialog_buff_array, c_wchar).to_list()
+        dialogs = GW_Array_Value_View(self.dialog_buff_array, c_wchar).to_list()
         if not dialogs:
             return None
         return [str(ch) for ch in dialogs]
     
     @property
     def merch_items(self) -> list[int] | None:
-        items = GW_Array_View(self.merch_items_array, c_uint32).to_list()
+        items = GW_Array_Value_View(self.merch_items_array, c_uint32).to_list()
         if not items:
             return None
         return [int(item) for item in items]
     
     @property
     def merch_items2(self) -> list[int] | None:
-        items = GW_Array_View(self.merch_items2_array, c_uint32).to_list()
+        items = GW_Array_Value_View(self.merch_items2_array, c_uint32).to_list()
         if not items:
             return None
         return [int(item) for item in items]
@@ -824,21 +824,21 @@ class WorldContextStruct(Structure):
 
     @property
     def h04B8_ptrs(self) -> list[int] | None:
-        ptrs = GW_Array_View(self.h04B8_array, c_void_p).to_list()
+        ptrs = GW_Array_Value_View(self.h04B8_array, c_void_p).to_list()
         if not ptrs:
             return None
         return [int(ptr) for ptr in ptrs]
     
     @property
     def h04C8_ptrs(self) -> list[int] | None:
-        ptrs = GW_Array_View(self.h04C8_array, c_void_p).to_list()
+        ptrs = GW_Array_Value_View(self.h04C8_array, c_void_p).to_list()
         if not ptrs:
             return None
         return [int(ptr) for ptr in ptrs]
     
     @property
     def h04DC_ptrs(self) -> list[int] | None:
-        ptrs = GW_Array_View(self.h04DC_array, c_void_p).to_list()
+        ptrs = GW_Array_Value_View(self.h04DC_array, c_void_p).to_list()
         if not ptrs:
             return None
         return [int(ptr) for ptr in ptrs]
@@ -871,6 +871,13 @@ class WorldContextStruct(Structure):
         if not objectives:
             return None
         return [obj for obj in objectives]
+    
+    @property
+    def henchmen_agent_ids(self) -> list[int] | None:
+        ids = GW_Array_Value_View(self.henchmen_agent_ids_array, c_uint32).to_list()
+        if not ids:
+            return None
+        return [int(id_) for id_ in ids]
 
 class WorldContext:
     _ptr: int = 0

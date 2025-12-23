@@ -613,11 +613,25 @@ def draw_world_context_tab(world_ctx: WorldContextStruct):
                     PyImGui.text(f"type: {obj.type}")
                     PyImGui.separator()
 
+def draw_world_context_tab2(world_ctx: WorldContextStruct):
+    account_info = world_ctx.account_info
 
+    if not account_info:
+        PyImGui.text("AccountInfo not available.")
+    else:
+        henchemen_ids = world_ctx.henchmen_agent_ids
+        if henchemen_ids is None:
+            PyImGui.text("No henchmen agent IDs available.")
+        else:
+            for i, agent_id in enumerate(henchemen_ids):
+                PyImGui.text(f"Henchman Agent ID[{i}]: {agent_id}")
+        
+    PyImGui.separator()
+    
 #region draw_window
     
 def draw_window():
-    if PyImGui.begin("Native Map Tester", True, PyImGui.WindowFlags.AlwaysAutoResize):
+    if PyImGui.begin("Memory Viewer", True, PyImGui.WindowFlags.AlwaysAutoResize):
 
         if PyImGui.begin_tab_bar("NativeMapTabs"):
 
@@ -672,12 +686,23 @@ def draw_window():
                 
             # ==================================================
             # World Context TAB
-            if PyImGui.begin_tab_item("World Context"):
+            """if PyImGui.begin_tab_item("World Context #1"):
                 world_ctx: WorldContextStruct | None = WorldContext.get_context()
                 if not world_ctx:
                     PyImGui.text("WorldContext not available.")
                 else:
                     draw_world_context_tab(world_ctx)
+
+                PyImGui.end_tab_item()
+
+            PyImGui.end_tab_bar()"""
+            
+            if PyImGui.begin_tab_item("WC #2"):
+                world_ctx: WorldContextStruct | None = WorldContext.get_context()
+                if not world_ctx:
+                    PyImGui.text("WorldContext not available.")
+                else:
+                    draw_world_context_tab2(world_ctx)
 
                 PyImGui.end_tab_item()
 
