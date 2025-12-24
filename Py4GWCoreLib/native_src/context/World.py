@@ -414,6 +414,14 @@ class SkillbarSkill(Structure):
         ("event", c_uint32),          # +h0010
     ]
 
+class SkillbarCast(Structure): #Array of queued skills on a skillbar
+    _pack_ = 1
+    _fields_ = [
+        ("h0000", c_uint16),           # +h0000
+        ("skill_id", c_uint16),        # +h0002 (SkillID is uint16 here)
+        ("h0004", c_uint32),           # +h0004
+    ]
+    
   
 class Skillbar(Structure):
     _pack_ = 1
@@ -421,13 +429,22 @@ class Skillbar(Structure):
         ("agent_id", c_uint32),            # +h0000
         ("skills", SkillbarSkill * 8),     # +h0004
         ("disabled", c_uint32),            # +h00A4
-        ("h00A8", c_uint32 * 2),           # +h00A8
-        ("casting", c_uint32),             # +h00B0
-        ("h00B4", c_uint32 * 2),           # +h00B4
+        ("cast_array", GW_Array),  #SkillbarCastArray           # +h00A8
+        ("h00B8", c_uint32),           # +h00B8
     ]
     @property
     def is_valid(self) -> bool:
         return self.agent_id > 0
+
+    def GetSkillById(self, skill_id: int) -> SkillbarSkill | None:
+        for skill in self.skills:
+            if skill.skill_id == skill_id:
+                return skill
+        return None
+    
+    @property
+    def casted_skills(self) -> list[SkillbarCast]:
+        return GW_Array_Value_View(self.cast_array, SkillbarCast).to_list()
     
 
 class DupeSkill(Structure):
@@ -450,21 +467,23 @@ class AgentNameInfo(Structure):
     @property
     def name_str(self) -> str | None:
         return encoded_wstr_to_str(read_wstr(self.name_enc_ptr))
-
-#region not_processed
-# ---------------------------------------------------------------------
-# Simple structs
-# ---------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
+    
+class MissionMapIcon(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("index", c_uint32),          # +h0000
+        ("X", c_float),               # +h0004
+        ("Y", c_float),               # +h0008
+        ("h000C", c_uint32),         # +h000C // = 0
+        ("h0010", c_uint32),         # +h0010 // = 0
+        ("option", c_uint32),        # +h0014 // Affilitation/color. gray = 0, blue, red, yellow, teal, purple, green, gray
+        ("h0018", c_uint32),         # +h0018 // = 0
+        ("model_id", c_uint32),      # +h001C // Model of the displayed icon in the Minimap
+        ("h0020", c_uint32),         # +h0020 // = 0
+        ("h0024", c_uint32),         # +h0024 // May concern the name
+    ]
+    
+    
 
 class PetInfo(Structure):
     _pack_ = 1
@@ -487,12 +506,167 @@ class PetInfo(Structure):
         return encoded_wstr_to_str(read_wstr(self.pet_name_ptr))
     
     
+class NPC_Model(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("model_file_id", c_uint32),    # +h0000
+        ("h0004", c_uint32),            # +h0004
+        ("scale", c_uint32),            # +h0008 // I think, 2 highest order bytes are percent of size, so 0x64000000 is 100
+        ("sex", c_uint32),              # +h000C
+        ("npc_flags", c_uint32),        # +h0010
+        ("primary", c_uint32),          # +h0014
+        ("h0018", c_uint32),            # +h0018
+        ("default_level", c_uint8),     # +h001C
+        ("padding1", c_uint8),          # +h001D
+        ("padding2", c_uint16),         # +h001E
+        ("name_enc_ptr", POINTER(c_wchar)), # +h0020
+        ("model_files_ptr", c_void_p),   # data* +h0024 // ModelFile*
+        ("files_count", c_uint32),      # +h0028 // length of ModelFile
+        ("files_capacity", c_uint32),   # +h002C // capacity of ModelFile
+    ]  
+    @property
+    def is_valid(self) -> bool:
+        return self.model_file_id != 0
+    @property
+    def is_henchman(self) -> bool:
+        return (self.npc_flags & 0x10) != 0
+    
+    @property
+    def is_hero(self) -> bool:
+        return (self.npc_flags & 0x20) != 0
+    
+    @property
+    def is_spirit(self) -> bool:
+        return (self.npc_flags & 0x4000) != 0
+    
+    @property
+    def is_minion(self) -> bool:
+        return (self.npc_flags & 0x100) != 0
+    
+    @property
+    def is_pet(self) -> bool:
+        return self.npc_flags == 0xD
+    
+    @property
+    def name_encoded_str(self) -> str | None:
+        return read_wstr(self.name_enc_ptr)
+    
+    @property
+    def name_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.name_enc_ptr))
+    
+    @property
+    def model_files(self) -> list[int]:
+        if not self.model_files_ptr or self.files_count == 0:
+            return []
+        arr = cast(self.model_files_ptr, POINTER(c_uint32))
+        return [arr[i] for i in range(self.files_count)]
     
 
 
-# ---------------------------------------------------------------------
-# ADDED Misc structs
-# ---------------------------------------------------------------------
+class Player(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("agent_id", c_uint32),                          # +h0000
+        ("h0004", c_uint32 * 3),                         # +h0004
+        ("appearance_bitmap", c_uint32),                 # +h0010
+        ("flags", c_uint32),                             # +h0014 Bitwise field
+        ("primary", c_uint32),                           # +h0018
+        ("secondary", c_uint32),                         # +h001C
+        ("h0020", c_uint32),                             # +h0020
+        ("name_enc_ptr", POINTER(c_wchar)),                  # +h0024
+        ("name_ptr", POINTER(c_wchar)),                      # +h0028
+        ("party_leader_player_number", c_uint32),        # +h002C
+        ("active_title_tier", c_uint32),                 # +h0030
+        ("reforged_or_dhuums_flags", c_uint32),          # +h0034
+        ("player_number", c_uint32),                     # +h0038
+        ("party_size", c_uint32),                        # +h003C
+        ("h0040_array", GW_Array),                             # +h0040 Array<void*>
+    ]
+ 
+    @property 
+    def is_pvp(self) -> bool:
+        return (self.flags & 0x800) != 0
+    @property
+    def name_enc_encoded_str(self) -> str | None:
+        return read_wstr(self.name_enc_ptr)
+    
+    @property
+    def name_enc_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.name_ptr))
+    
+    @property
+    def name_encoded_str(self) -> str | None:
+        return read_wstr(self.name_ptr)
+    
+    @property
+    def name_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.name_ptr))
+    
+    @property
+    def h0040_ptrs(self) -> list[int] | None:
+        arr = GW_Array_Value_View(self.h0040_array, c_void_p).to_list()
+        if not arr:
+            return None
+        # convert void* -> Python int
+        return [int(ptr) for ptr in arr]
+
+class Title(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("props", c_uint32),                     # +h0000
+        ("current_points", c_uint32),            # +h0004
+        ("current_title_tier_index", c_uint32),  # +h0008
+        ("points_needed_current_rank", c_uint32),# +h000C
+        ("next_title_tier_index", c_uint32),     # +h0010
+        ("points_needed_next_rank", c_uint32),   # +h0014
+        ("max_title_rank", c_uint32),            # +h0018
+        ("max_title_tier_index", c_uint32),      # +h001C
+        ("h0020", c_uint32),                     # +h0020
+        ("points_desc_ptr", POINTER(c_wchar)),       # +h0024 Pretty sure these are ptrs to title hash strings
+        ("h0028_ptr", POINTER(c_wchar)),             # +h0028 Pretty sure these are ptrs to title hash strings
+    ]
+    @property
+    def is_percentage_based(self) -> bool:
+        return (self.props & 1) != 0
+    @property
+    def has_tiers(self) -> bool:
+        return (self.props & 3) == 2
+    @property
+    def points_desc_encoded_str(self) -> str | None:
+        return read_wstr(self.points_desc_ptr)
+    @property
+    def points_desc_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.points_desc_ptr))
+    @property
+    def h0028_encoded_str(self) -> str | None:
+        return read_wstr(self.h0028_ptr)
+    @property
+    def h0028_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.h0028_ptr))
+
+
+class TitleTier(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("props", c_uint32),
+        ("tier_number", c_uint32),
+        ("tier_name_enc_ptr", POINTER(c_wchar)),
+    ]
+    @property
+    def is_valid(self) -> bool:
+        return self.tier_number != 0
+    @property
+    def tier_name_encoded_str(self) -> str | None:
+        return read_wstr(self.tier_name_enc_ptr)
+    @property
+    def tier_name_str(self) -> str | None:
+        return encoded_wstr_to_str(read_wstr(self.tier_name_enc_ptr))
+    @property
+    def is_percentage_based(self) -> bool:
+        return (self.props & 1) != 0
+
+#region not_processed
 
 
 # ---------------------------------------------------------------------
@@ -576,122 +750,7 @@ class Skill(Structure):
     static_assert(sizeof(Skill) == 0xa4, "struct Skill has incorrect size");"""
 
 
-# ---------------------------------------------------------------------
-# SkillbarCast (size = 0x08 / 8 bytes)
-# ---------------------------------------------------------------------
 
-class SkillbarCast(Structure): #Array of queued skills on a skillbar
-    _pack_ = 1
-    _fields_ = [
-        ("h0000", c_uint16),           # +h0000
-        ("skill_id", c_uint16),        # +h0002 (SkillID is uint16 here)
-        ("h0004", c_uint32),           # +h0004
-    ]
-
-
-    
-# ---------------------------------------------------------------------
-# Skillbar (size = 0xBC / 188 bytes)
-# ---------------------------------------------------------------------
-
-
-    
-
-    
-class MissionMapIcon(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("index", c_uint32),          # +h0000
-        ("X", c_float),               # +h0004
-        ("Y", c_float),               # +h0008
-        ("h000C", c_uint32),         # +h000C // = 0
-        ("h0010", c_uint32),         # +h0010 // = 0
-        ("option", c_uint32),        # +h0014 // Affilitation/color. gray = 0, blue, red, yellow, teal, purple, green, gray
-        ("h0018", c_uint32),         # +h0018 // = 0
-        ("model_id", c_uint32),      # +h001C // Model of the displayed icon in the Minimap
-        ("h0020", c_uint32),         # +h0020 // = 0
-        ("h0024", c_uint32),         # +h0024 // May concern the name
-    ]
-    
-  
-class NPC(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("model_file_id", c_uint32),    # +h0000
-        ("h0004", c_uint32),            # +h0004
-        ("scale", c_uint32),            # +h0008 // I think, 2 highest order bytes are percent of size, so 0x64000000 is 100
-        ("sex", c_uint32),              # +h000C
-        ("npc_flags", c_uint32),        # +h0010
-        ("primary", c_uint32),          # +h0014
-        ("h0018", c_uint32),            # +h0018
-        ("default_level", c_uint8),     # +h001C
-        ("padding1", c_uint8),          # +h001D
-        ("padding2", c_uint16),         # +h001E
-        ("name_enc", POINTER(c_wchar)), # +h0020
-        ("model_files", POINTER(c_uint32)), # +h0024
-        ("files_count", c_uint32),      # +h0028 // length of ModelFile
-        ("files_capacity", c_uint32),   # +h002C // capacity of ModelFile
-    ]  
-
-    """inline bool IsHenchman() { return (npc_flags & 0x10) != 0; }
-    inline bool IsHero() { return (npc_flags & 0x20) != 0; }
-    inline bool IsSpirit() { return (npc_flags & 0x4000) != 0; }
-    inline bool IsMinion() { return (npc_flags & 0x100) != 0; }
-    inline bool IsPet() { return (npc_flags & 0xD) != 0; }"""
-
-class Player(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("agent_id", c_uint32),                          # +h0000
-        ("h0004", c_uint32 * 3),                         # +h0004
-        ("appearance_bitmap", c_uint32),                 # +h0010
-        ("flags", c_uint32),                             # +h0014 Bitwise field
-        ("primary", c_uint32),                           # +h0018
-        ("secondary", c_uint32),                         # +h001C
-        ("h0020", c_uint32),                             # +h0020
-        ("name_enc", POINTER(c_wchar)),                  # +h0024
-        ("name", POINTER(c_wchar)),                      # +h0028
-        ("party_leader_player_number", c_uint32),        # +h002C
-        ("active_title_tier", c_uint32),                 # +h0030
-        ("reforged_or_dhuums_flags", c_uint32),          # +h0034
-        ("player_number", c_uint32),                     # +h0038
-        ("party_size", c_uint32),                        # +h003C
-        ("h0040_array", GW_Array),                             # +h0040 Array<void*>
-    ]
- 
-    """  inline bool IsPvP() {
-        return (flags & 0x800) != 0;
-    }"""
-
-class Title(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("props", c_uint32),                     # +h0000
-        ("current_points", c_uint32),            # +h0004
-        ("current_title_tier_index", c_uint32),  # +h0008
-        ("points_needed_current_rank", c_uint32),# +h000C
-        ("next_title_tier_index", c_uint32),     # +h0010
-        ("points_needed_next_rank", c_uint32),   # +h0014
-        ("max_title_rank", c_uint32),            # +h0018
-        ("max_title_tier_index", c_uint32),      # +h001C
-        ("h0020", c_uint32),                     # +h0020
-        ("points_desc", POINTER(c_wchar)),       # +h0024 Pretty sure these are ptrs to title hash strings
-        ("h0028", POINTER(c_wchar)),             # +h0028 Pretty sure these are ptrs to title hash strings
-    ]
-
-
-    """inline bool is_percentage_based() { return (props & 1) != 0; };
-    inline bool has_tiers() { return (props & 3) == 2; };"""
-
-class TitleTier(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("props", c_uint32),
-        ("tier_number", c_uint32),
-        ("tier_name_enc", POINTER(c_wchar)),
-    ]
-
-    """inline bool is_percentage_based() { return (props & 1) != 0; };"""
 
 
 # ---------------------------------------------------------------------
@@ -801,7 +860,7 @@ class WorldContextStruct(Structure):
         ("agent_name_info_array", GW_Array), #Array<AgentNameInfo>
         ("h07DC_array", GW_Array), #Array<void *>
         ("mission_map_icons_array", GW_Array), #Array<MissionMapIcon>
-        ("npcs_array", GW_Array), #Array<NPC>
+        ("npc_models_array", GW_Array), #Array<NPC_Model>
         ("players_array", GW_Array), #Array<Player>
         ("titles_array", GW_Array), #Array<Title>
         ("title_tiers_array", GW_Array), #Array<TitleTier>
@@ -1085,7 +1144,57 @@ class WorldContextStruct(Structure):
         if not infos:
             return None
         return [info for info in infos]
+    
+    @property
+    def h07DC_ptrs(self) -> list[int] | None:
+        ptrs = GW_Array_Value_View(self.h07DC_array, c_void_p).to_list()
+        if not ptrs:
+            return None
+        return [int(ptr) for ptr in ptrs]
+    
+    @property
+    def mission_map_icons(self) -> list[MissionMapIcon] | None:
+        icons = GW_Array_Value_View(self.mission_map_icons_array, MissionMapIcon).to_list()
+        if not icons:
+            return None
+        return [icon for icon in icons]
 
+    @property
+    def npc_models(self) -> list[NPC_Model] | None:
+        npcs = GW_Array_Value_View(self.npc_models_array, NPC_Model).to_list()
+        if not npcs:
+            return None
+        return [npc for npc in npcs]
+    
+    @property
+    def players(self) -> list[Player] | None:
+        players = GW_Array_Value_View(self.players_array, Player).to_list()
+        if not players:
+            return None
+        return [player for player in players]
+    
+    @property
+    def titles(self) -> list[Title] | None:
+        titles = GW_Array_Value_View(self.titles_array, Title).to_list()
+        if not titles:
+            return None
+        return [title for title in titles]
+    
+    @property
+    def title_tiers(self) -> list[TitleTier] | None:
+        tiers = GW_Array_Value_View(self.title_tiers_array, TitleTier).to_list()
+        if not tiers:
+            return None
+        return [tier for tier in tiers]
+    
+    @property
+    def vanquished_areas(self) -> list[int] | None:
+        areas = GW_Array_Value_View(self.vanquished_areas_array, c_uint32).to_list()
+        if not areas:
+            return None
+        return [int(area) for area in areas]
+    
+    
 class WorldContext:
     _ptr: int = 0
     _callback_name = "WorldContext.UpdateWorldContextPtr"

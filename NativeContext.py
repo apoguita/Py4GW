@@ -36,7 +36,8 @@ from Py4GWCoreLib.native_src.context.World import (
     PartyMoraleLink,
     PetInfo, ProfessionState,
     Skillbar,DupeSkill,
-    AgentNameInfo
+    AgentNameInfo, MissionMapIcon, NPC_Model,
+    Player,Title,TitleTier,
 )
 
 
@@ -1033,7 +1034,20 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                     true_false_text(skillbar.is_valid)
                     PyImGui.text(f"agent_id: {skillbar.agent_id}")
                     PyImGui.text(f"disabled: {skillbar.disabled}")
-                    PyImGui.text(f"casting: {skillbar.casting}")
+                    PyImGui.text(f"h00B8: {skillbar.h00B8}")
+                    
+                    casted_skills = skillbar.casted_skills
+                    if not casted_skills:
+                        PyImGui.text("No casted skills available.")
+                        PyImGui.separator()
+                    else:
+                        for j, casted_skill in enumerate(casted_skills):
+                            if PyImGui.collapsing_header(f"CastedSkill[{j}]"):
+                                PyImGui.text(f"h0000: {casted_skill.h0000}")
+                                PyImGui.text(f"skill_id: {casted_skill.skill_id}")
+                                PyImGui.text(f"h0004: {casted_skill.h0004}")
+                                PyImGui.separator()
+                    
                     skills = skillbar.skills
                     if not skills:
                         PyImGui.text("No skills available.")
@@ -1047,21 +1061,8 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                                 PyImGui.text(f"skill_id: {skill.skill_id}")
                                 PyImGui.text(f"event: {skill.event}")
                                 PyImGui.separator()
-                    h00A8_ptrs = skillbar.h00A8
-                    if h00A8_ptrs is None:
-                        PyImGui.text("h00A8_ptrs: <empty>")
-                    else:        
-                        if PyImGui.collapsing_header("h00A8_ptrs"):
-                            for k, val in enumerate(h00A8_ptrs): 
-                                PyImGui.text(f"h00A8_ptrs[{k}]: {val}")
                                 
-                    h00B4_ptrs = skillbar.h00B4
-                    if h00B4_ptrs is None:
-                        PyImGui.text("h00B4_ptrs: <empty>")
-                    else:        
-                        if PyImGui.collapsing_header("h00B4_ptrs"):
-                            for k, val in enumerate(h00B4_ptrs): 
-                                PyImGui.text(f"h00B4_ptrs[{k}]: {val}")
+
                     
                     PyImGui.separator()
     
@@ -1118,11 +1119,153 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                                 PyImGui.text(f"h0000_ptrs[{j}]: {val}")
                     PyImGui.separator()
                 
+    h07DC_ptrs :list[int] | None = world_ctx.h07DC_ptrs
+    if h07DC_ptrs is None:
+        PyImGui.text("h07DC_ptrs: <empty>")
+    else:        
+        if PyImGui.collapsing_header("h07DC_ptrs"):
+            for i, val in enumerate(world_ctx.h07DC_ptrs or []): 
+                PyImGui.text(f"h07DC_ptrs[{i}]: {val}")
                 
+    mission_map_icons :list[MissionMapIcon] | None = world_ctx.mission_map_icons
+    
+    if mission_map_icons is None:
+        PyImGui.text("mission_map_icons: <empty>")
+    else:
+        if PyImGui.collapsing_header("mission_map_icons"):
+            for i, icon in enumerate(mission_map_icons):
+                if PyImGui.collapsing_header(f"MissionMapIcon[{i}]"):
+                    PyImGui.text(f"index: {icon.index}")
+                    PyImGui.text(f"X: {icon.X}")
+                    PyImGui.text(f"Y: {icon.Y}")
+                    PyImGui.text(f"h000C: {icon.h000C}")
+                    PyImGui.text(f"h0010: {icon.h0010}")
+                    PyImGui.text(f"option: {icon.option}")
+                    PyImGui.text(f"h0018: {icon.h0018}")
+                    PyImGui.text(f"model_id: {icon.model_id}")
+                    PyImGui.text(f"h0020: {icon.h0020}")
+                    PyImGui.text(f"h0024: {icon.h0024}")
+                    PyImGui.separator()
                 
+    npcs :list[NPC_Model] | None = world_ctx.npc_models
+    if npcs is None:
+        PyImGui.text("npcs: <empty>")
+    else:
+        if PyImGui.collapsing_header("npcs"):
+            for i, npc in enumerate(npcs):
+                if npc is None or not npc.is_valid:
+                    continue
+                if PyImGui.collapsing_header(f"NPC[{i}]"):
+                    PyImGui.text(f"model_file_id: {npc.model_file_id}")
+                    PyImGui.text(f"h0004: {npc.h0004}")
+                    PyImGui.text(f"scale: {npc.scale}")
+                    PyImGui.text(f"sex: {npc.sex}")
+                    PyImGui.text(f"npc_flags: {hex(npc.npc_flags)}")
+                    PyImGui.text(f"primary: {npc.primary}")
+                    PyImGui.text(f"h0018: {npc.h0018}")
+                    PyImGui.text(f"default_level: {npc.default_level}")
+                    PyImGui.text(f"padding1: {npc.padding1}")
+                    PyImGui.text(f"padding2: {npc.padding2}")
+                    PyImGui.text(f"name_str: {npc.name_str}")
+                    PyImGui.text(f"files_count: {npc.files_count}")
+                    PyImGui.text(f"files_capacity: {npc.files_capacity}")
+                    PyImGui.text(f"is_henchman: "); PyImGui.same_line(0,-1); true_false_text(npc.is_henchman)
+                    PyImGui.text(f"is_hero: "); PyImGui.same_line(0,-1); true_false_text(npc.is_hero)
+                    PyImGui.text(f"is_spirit"); PyImGui.same_line(0,-1); true_false_text(npc.is_spirit)
+                    PyImGui.text(f"is_minion"); PyImGui.same_line(0,-1); true_false_text(npc.is_minion)
+                    PyImGui.text(f"is_pet"); PyImGui.same_line(0,-1); true_false_text(npc.is_pet)
+                    model_files = npc.model_files
+
+                    if not model_files:
+                        PyImGui.text("model_files: <empty>")
+                    else:
+                        if PyImGui.collapsing_header("model_files"):
+                            for j, file_id in enumerate(model_files):
+                                PyImGui.text(f"model_file[{j}]: {file_id}")
+                    PyImGui.separator()
                 
+    players :list[Player] | None = world_ctx.players
+    if players is None:
+        PyImGui.text("players: <empty>")
+    else:
+        if PyImGui.collapsing_header("players"):
+            for i, player in enumerate(players):
+                if PyImGui.collapsing_header(f"Player[{i}]"):
+                    PyImGui.text(f"agent_id: {player.agent_id}")
+                    PyImGui.text(f"appearance_bitmap: {hex(player.appearance_bitmap)}")
+                    PyImGui.text(f"flags: {hex(player.flags)}")
+                    PyImGui.text(f"primary: {player.primary}")
+                    PyImGui.text(f"secondary: {player.secondary}")
+                    PyImGui.text(f"h0020: {player.h0020}")
+                    PyImGui.text(f"name_enc: {player.name_enc_str}")
+                    PyImGui.text(f"name: {player.name_str}")
+                    PyImGui.text(f"party_leader_player_number: {player.party_leader_player_number}")
+                    PyImGui.text(f"active_title_tier: {player.active_title_tier}")
+                    PyImGui.text(f"reforged_or_dhuums_flags: {player.reforged_or_dhuums_flags}")
+                    PyImGui.text(f"player_number: {player.player_number}")
+                    PyImGui.text(f"party_size: {player.party_size}")
+                    PyImGui.text(f"is_pvp: "); PyImGui.same_line(0,-1); true_false_text(player.is_pvp)
+                    
+                    h0004_ptrs :list[int] | None = player.h0004
+                    if h0004_ptrs is None:
+                        PyImGui.text("h0004_ptrs: <empty>")
+                    else:        
+                        if PyImGui.collapsing_header("h0004_ptrs"):
+                            for j, val in enumerate(h0004_ptrs): 
+                                PyImGui.text(f"h0004_ptrs[{j}]: {val}")
+                    
+                    
+                    h0040_ptrs = player.h0040_ptrs
+                    if h0040_ptrs is None:
+                        PyImGui.text("h0040_ptrs: <empty>")
+                    else:        
+                        if PyImGui.collapsing_header("h0040_ptrs"):
+                            for j, val in enumerate(h0040_ptrs): 
+                                PyImGui.text(f"h0040_ptrs[{j}]: {val}")
+                    PyImGui.separator()
                 
-                
+    titles :list[Title] | None = world_ctx.titles
+    if titles is None:
+        PyImGui.text("titles: <empty>")
+    else:
+        if PyImGui.collapsing_header("titles"):
+            for i, title in enumerate(titles):
+                if PyImGui.collapsing_header(f"Title[{i}]"):
+                    PyImGui.text(f"props: {title.props}")
+                    PyImGui.text(f"current_points: {title.current_points}")
+                    PyImGui.text(f"current_title_tier_index: {title.current_title_tier_index}")
+                    PyImGui.text(f"points_needed_current_rank: {title.points_needed_current_rank}")
+                    PyImGui.text(f"next_title_tier_index: {title.next_title_tier_index}")
+                    PyImGui.text(f"points_needed_next_rank: {title.points_needed_next_rank}")
+                    PyImGui.text(f"max_title_rank: {title.max_title_rank}")
+                    PyImGui.text(f"max_title_tier_index: {title.max_title_tier_index}")
+                    PyImGui.text(f"points_desc_str: {title.points_desc_str}")
+                    PyImGui.text(f"h0028_str: {title.h0028_str}")
+                    PyImGui.separator()
+                    
+    title_tiers :list[TitleTier] | None = world_ctx.title_tiers
+    if title_tiers is None:
+        PyImGui.text("title_tiers: <empty>")
+    else:
+        if PyImGui.collapsing_header("title_tiers"):
+            for i, tier in enumerate(title_tiers):
+                if not tier.is_valid:
+                    continue
+                if PyImGui.collapsing_header(f"TitleTier[{i}]"):
+                    PyImGui.text(f"props: {tier.props}")
+                    PyImGui.text(f"tier_number: {tier.tier_number}")
+                    PyImGui.text(f"tier_name_str: {tier.tier_name_str}")
+                    PyImGui.separator()
+                    
+    vanquished_areas :list[int] | None = world_ctx.vanquished_areas
+    if vanquished_areas is None:
+        PyImGui.text("vanquished_areas: <empty>")
+    else:
+        if PyImGui.collapsing_header("vanquished_areas (BITMAP: each bit = area vanquished)"):
+            for i, area_mask in enumerate(vanquished_areas):
+                PyImGui.text(
+                    f"[{i:02}] mask=0x{area_mask:08X}  bits_set={area_mask.bit_count()}"
+                )
                 
                 
 #region draw_window

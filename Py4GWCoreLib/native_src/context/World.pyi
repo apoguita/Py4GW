@@ -3,7 +3,7 @@ from typing import Optional
 from ..internals.gw_array import GW_Array
 from ..internals.types import Vec2f, Vec3f, GamePos, CPointer
 
-#processed
+#region AccountInfo
 class AccountInfo(Structure):
     account_name_ptr: Optional[int]
     wins: int
@@ -15,7 +15,7 @@ class AccountInfo(Structure):
     
     @property
     def account_name_str(self) -> str | None: ...
-    
+   
 class MapAgent(Structure):
     cur_energy: float
     max_energy: float
@@ -51,6 +51,11 @@ class MapAgent(Structure):
     def is_hexed(self) -> bool: ...
     @property
     def is_weapon_spelled(self) -> bool: ...
+    
+class PartyAlly(Structure):
+    agent_id: int
+    unk : int
+    composite_id: int
     
 class Attribute(Structure):
     attribute_id: int
@@ -146,10 +151,6 @@ class MissionObjective(Structure):
     @property
     def enc_str_encoded_str(self) -> str | None: ...
     
-class ControlledMinions(Structure):
-    agent_id: int
-    minion_count: int   
-    
 
 class HeroFlag(Structure):
     hero_id: int
@@ -177,12 +178,16 @@ class HeroInfo(Structure):
     @property
     def name_str(self) -> str | None: ...
 
+class ControlledMinions(Structure):
+    agent_id: int
+    minion_count: int   
+    
+
 class PartyMemberMoraleInfo(Structure):
     agent_id : int
     agent_id_dupe : int
     unk : list[int]
     morale : int
-
 
 class PartyMoraleLink(Structure):
     unk: int
@@ -271,6 +276,15 @@ class PlayerControlledCharacter(Structure):
     field75_0x12c: int
     field76_0x130: int
     
+class ProfessionState(Structure):
+    agent_id: int
+    primary : int
+    secondary : int
+    unlocked_professions : int #bitwise flags
+    unk : int
+    
+    def IsProfessionUnlocked(self, profession_bit: int) -> bool: ...
+
 class SkillbarSkill(Structure):
     adrenaline_a: int
     adrenaline_b: int
@@ -279,16 +293,26 @@ class SkillbarSkill(Structure):
     event: int
 
 
+class SkillbarCast(Structure):
+    h0000: int
+    skill_id: int
+    h0004: int
+
 class Skillbar(Structure):
     agent_id: int
     skills: list[SkillbarSkill]
     disabled: int
-    h00A8: list[int]
-    casting: int
-    h00B4: list[int]
+    cast_array: GW_Array          # GW_Array<SkillbarCast>
+    h00B8: int
     
     @property
     def is_valid(self) -> bool: ...
+    
+    @property
+    def casted_skills(self) -> list[SkillbarCast]: ...
+    
+    def GetSkillById(self, skill_id: int) -> SkillbarSkill | None: ...
+    
     
 
 class DupeSkill(Structure):
@@ -302,30 +326,19 @@ class AgentNameInfo(Structure):
     def name_encoded_str(self) -> str | None: ...
     @property
     def name_str(self) -> str | None: ...
-
     
-#region missing
-class PartyAlly(Structure):
-    agent_id: int
-    unk : int
-    composite_id: int
-    
+class MissionMapIcon(Structure):
+    index: int
+    X: float
+    Y: float
+    h000C: int
+    h0010: int
+    option: int
+    h0018: int
+    model_id: int
+    h0020: int
+    h0024: int
 
-
-
-class ProfessionState(Structure):
-    agent_id: int
-    primary : int
-    secondary : int
-    unlocked_professions : int #bitwise flags
-    unk : int
-    
-    def IsProfessionUnlocked(self, profession_bit: int) -> bool: ...
-
-
-    
-
-    
 class PetInfo(Structure):
     agent_id: int
     owner_agent_id: int
@@ -340,84 +353,7 @@ class PetInfo(Structure):
     @property
     def pet_name_str(self) -> str | None: ...
 
-
-
-
-
-class Skill(Structure):
-    skill_id: int
-    h0004: int
-    campaign: int
-    type: int
-    special: int
-    combo_req: int
-    effect1: int
-    condition: int
-    effect2: int
-    weapon_req: int
-    profession: int
-    attribute: int
-    title: int
-    skill_id_pvp: int
-    combo: int
-    target: int
-    h0032: int
-    skill_equip_type: int
-    overcast: int
-    energy_cost: int
-    health_cost: int
-    h0037: int
-    adrenaline: int
-    activation: float
-    aftercast: float
-    duration0: int
-    duration15: int
-    recharge: int
-    h0050: list[int]
-    skill_arguments: int
-    scale0: int
-    scale15: int
-    bonusScale0: int
-    bonusScale15: int
-    aoe_range: float
-    const_effect: float
-    caster_overhead_animation_id: int
-    caster_body_animation_id: int
-    target_body_animation_id: int
-    target_overhead_animation_id: int
-    projectile_animation_1_id: int
-    projectile_animation_2_id: int
-    icon_file_id: int
-    icon_file_id_2: int
-    icon_file_id_hi_res: int
-    name: int
-    concise: int
-    description: int
-
-
-
-class SkillbarCast(Structure):
-    h0000: int
-    skill_id: int
-    h0004: int
-
-
-
-
-
-class MissionMapIcon(Structure):
-    index: int
-    X: float
-    Y: float
-    h000C: int
-    h0010: int
-    option: int
-    h0018: int
-    model_id: int
-    h0020: int
-    h0024: int
-    
-class NPC(Structure):
+class NPC_Model(Structure):
     model_file_id: int
     h0004: int
     scale: int
@@ -428,10 +364,30 @@ class NPC(Structure):
     default_level: int
     padding1: int
     padding2: int
-    name_enc: Optional[str]
-    model_files: Optional[int]     # pointer to uint32_t buffer
+    name_enc_ptr: Optional[str]
+    model_files_ptr: Optional[int]     # pointer to uint32_t buffer
     files_count: int
     files_capacity: int  
+    
+    @property
+    def is_valid(self) -> bool: ...
+    @property
+    def is_henchman(self) -> bool: ...
+    @property
+    def is_hero(self) -> bool: ...
+    @property
+    def is_spirit(self) -> bool: ...
+    @property
+    def is_minion(self) -> bool: ...
+    @property
+    def is_pet(self) -> bool: ...
+    @property
+    def name_encoded_str(self) -> str | None: ...
+    @property
+    def name_str(self) -> str | None: ...
+    @property
+    def model_files(self) -> list[int] | None: ...
+
     
 class Player(Structure):
     agent_id: int
@@ -441,14 +397,27 @@ class Player(Structure):
     primary: int
     secondary: int
     h0020: int
-    name_enc: Optional[str]
-    name: Optional[str]
+    name_enc_ptr: Optional[str]
+    name_ptr: Optional[str]
     party_leader_player_number: int
     active_title_tier: int
     reforged_or_dhuums_flags: int
     player_number: int
     party_size: int
-    h0040_array: GW_Array  # GW_Array<void*>
+    h0040_array: GW_Array  # GW_Array<void*>   
+    
+    @property 
+    def is_pvp(self) -> bool: ...
+    @property
+    def name_enc_encoded_str(self) -> str | None: ...
+    @property
+    def name_enc_str(self) -> str | None: ...
+    @property
+    def name_encoded_str(self) -> str | None: ...
+    @property
+    def name_str(self) -> str | None: ...
+    @property
+    def h0040_ptrs(self) -> list[int]: ...
     
 class Title(Structure):
     props: int
@@ -460,15 +429,34 @@ class Title(Structure):
     max_title_rank: int
     max_title_tier_index: int
     h0020: int
-    points_desc: Optional[str]
-    h0028: Optional[str]
+    points_desc_ptr: Optional[str]
+    h0028_ptr: Optional[str]
+    
+    @property
+    def is_percentage_based(self) -> bool: ...
+    @property
+    def has_tiers(self) -> bool: ...
+    @property
+    def points_desc_encoded_str(self) -> str | None: ...
+    @property
+    def points_desc_str(self) -> str | None: ...
+    @property
+    def h0028_encoded_str(self) -> str | None: ...
+    @property
+    def h0028_str(self) -> str | None: ...
     
 class TitleTier(Structure):
     props: int
     tier_number: int
-    tier_name_enc: Optional[str]
+    tier_name_enc_ptr: Optional[str]
+    @property
+    def tier_name_encoded_str(self) -> str | None: ...
+    @property
+    def tier_name_str(self) -> str | None: ...
+    @property
+    def is_percentage_based(self) -> bool: ...
     
-    
+#region WorldContextStruct
 class WorldContextStruct(Structure):
     account_info_ptr: Optional[CPointer[AccountInfo]]
 
@@ -598,7 +586,7 @@ class WorldContextStruct(Structure):
     agent_name_info_array: GW_Array
     h07DC_array: GW_Array
     mission_map_icons_array: GW_Array
-    npcs_array: GW_Array
+    npc_models_array: GW_Array
     players_array: GW_Array
     titles_array: GW_Array
     title_tiers_array: GW_Array
@@ -685,7 +673,20 @@ class WorldContextStruct(Structure):
     def h0730_ptrs(self) -> list[int] | None: ...
     @property
     def agent_name_info(self) -> list[AgentNameInfo] | None: ...
-
+    @property
+    def h07DC_ptrs(self) -> list[int] | None: ...
+    @property
+    def mission_map_icons(self) -> list[MissionMapIcon] | None: ...
+    @property
+    def npc_models(self) -> list[NPC_Model] | None: ...
+    @property
+    def players(self) -> list[Player] | None: ...
+    @property
+    def titles(self) -> list[Title] | None: ...
+    @property
+    def title_tiers(self) -> list[TitleTier] | None: ...
+    @property
+    def vanquished_areas(self) -> list[int] | None: ...
 # ----------------------------------------------------------------------
 # PreGameContext facade
 # ----------------------------------------------------------------------
