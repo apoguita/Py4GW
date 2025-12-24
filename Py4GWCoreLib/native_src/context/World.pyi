@@ -146,51 +146,52 @@ class MissionObjective(Structure):
     @property
     def enc_str_encoded_str(self) -> str | None: ...
     
-    
-
-#region missing
-class PartyAlly(Structure):
-    agent_id: int
-    unk : int
-    composite_id: int
-    
 class ControlledMinions(Structure):
     agent_id: int
-    minion_count: int
-
-class DupeSkill(Structure):
-    skill_id : int
-    count : int
-
-class ProfessionState(Structure):
-    agent_id: int
-    primary : int
-    secondary : int
-    unlocked_professions : int #bitwise flags
-    unk : int
-
-
+    minion_count: int   
     
+
+class HeroFlag(Structure):
+    hero_id: int
+    agent_id: int
+    level: int
+    hero_behavior: int
+    flag_ptr : Vec2f
+    h0018: int
+    locked_target_id: int
+    h0020: int
+    @property
+    def flag(self) -> Vec2f | None: ...
+
+class HeroInfo(Structure):
+    hero_id: int
+    agent_id: int
+    level: int
+    primary: int
+    secondary: int
+    hero_file_id: int
+    model_file_id: int
+    h001C: list[int]        # fixed-size array [52]
+    name_encoded_str: str
+    
+    @property
+    def name_str(self) -> str | None: ...
+
 class PartyMemberMoraleInfo(Structure):
     agent_id : int
     agent_id_dupe : int
-    unk : int
+    unk : list[int]
     morale : int
-    
+
+
 class PartyMoraleLink(Structure):
     unk: int
     unk2: int
-    party_member_info: Optional[PartyMemberMoraleInfo]
+    party_member_info_ptr: Optional[PartyMemberMoraleInfo]
     
-class PetInfo(Structure):
-    agent_id: int
-    owner_agent_id: int
-    pet_name: Optional[str]
-    model_file_id1: int
-    model_file_id2: int
-    behavior: int
-    locked_target_id: int
-
+    @property
+    def party_member_info(self) -> PartyMemberMoraleInfo | None: ...
+    
 class PlayerControlledCharacter(Structure):
     field0_0x0: int
     field1_0x4: int
@@ -211,8 +212,8 @@ class PlayerControlledCharacter(Structure):
     field16_0x40: int
     field17_0x44: int
     field18_0x48: int
-    field19_0x4c: int
-    field20_0x50: int
+    field19_0x4c: float
+    field20_0x50: float
     field21_0x54: int
     field22_0x58: int
     field23_0x5c: int
@@ -269,31 +270,79 @@ class PlayerControlledCharacter(Structure):
     field74_0x128: int
     field75_0x12c: int
     field76_0x130: int
+    
+class SkillbarSkill(Structure):
+    adrenaline_a: int
+    adrenaline_b: int
+    recharge: int
+    skill_id: int
+    event: int
 
 
-
-
-class HeroFlag(Structure):
-    hero_id: int
+class Skillbar(Structure):
     agent_id: int
-    level: int
-    hero_behavior: int
-    flag: Vec2f
-    h0018: int
+    skills: list[SkillbarSkill]
+    disabled: int
+    h00A8: list[int]
+    casting: int
+    h00B4: list[int]
+    
+    @property
+    def is_valid(self) -> bool: ...
+    
+
+class DupeSkill(Structure):
+    skill_id : int
+    count : int
+    
+class AgentNameInfo(Structure):
+    h0000: list[int]        # fixed-size array [13]
+    name_enc_ptr: Optional[str]
+    @property
+    def name_encoded_str(self) -> str | None: ...
+    @property
+    def name_str(self) -> str | None: ...
+
+    
+#region missing
+class PartyAlly(Structure):
+    agent_id: int
+    unk : int
+    composite_id: int
+    
+
+
+
+class ProfessionState(Structure):
+    agent_id: int
+    primary : int
+    secondary : int
+    unlocked_professions : int #bitwise flags
+    unk : int
+    
+    def IsProfessionUnlocked(self, profession_bit: int) -> bool: ...
+
+
+    
+
+    
+class PetInfo(Structure):
+    agent_id: int
+    owner_agent_id: int
+    pet_name_ptr: Optional[str]
+    model_file_id1: int
+    model_file_id2: int
+    behavior: int
     locked_target_id: int
-    h0020: int
+    
+    @property
+    def pet_name_encoded_str(self) -> str | None: ...
+    @property
+    def pet_name_str(self) -> str | None: ...
 
 
-class HeroInfo(Structure):
-    hero_id: int
-    agent_id: int
-    level: int
-    primary: int
-    secondary: int
-    hero_file_id: int
-    model_file_id: int
-    h001C: list[int]        # fixed-size array [52]
-    name: str
+
+
 
 class Skill(Structure):
     skill_id: int
@@ -345,12 +394,6 @@ class Skill(Structure):
     concise: int
     description: int
 
-class SkillbarSkill(Structure):
-    adrenaline_a: int
-    adrenaline_b: int
-    recharge: int
-    skill_id: int
-    event: int
 
 
 class SkillbarCast(Structure):
@@ -359,17 +402,8 @@ class SkillbarCast(Structure):
     h0004: int
 
 
-class Skillbar(Structure):
-    agent_id: int
-    skills: list[SkillbarSkill]
-    disabled: int
-    h00A8: list[int]
-    casting: int
-    h00B4: list[int]
 
-class AgentInfo(Structure):
-    agent_id: list[int]        # fixed-size array [13]
-    name_enc: Optional[str]
+
 
 class MissionMapIcon(Structure):
     index: int
@@ -490,14 +524,14 @@ class WorldContextStruct(Structure):
 
     h061C: list[int]                    # fixed-size array [2]
 
-    player_morale_info: Optional[PartyMemberMoraleInfo]
+    player_morale_ptr: Optional[PartyMemberMoraleInfo]
     h028C: int
 
-    party_morale_related: GW_Array
+    party_morale_array: GW_Array
     h063C: list[int]                    # fixed-size array [16]
 
     player_number: int
-    playerControlledChar: Optional[PlayerControlledCharacter]
+    playerControlledChar_ptr: Optional[PlayerControlledCharacter]
 
     is_hard_mode_unlocked: int
     h0688: list[int]                    # fixed-size array [2]
@@ -513,7 +547,7 @@ class WorldContextStruct(Structure):
     h06DC: int
     h06E0_array: GW_Array
 
-    skillbar_array: GW_Array
+    party_skillbar_array: GW_Array
     learnable_character_skills_array: GW_Array
     unlocked_character_skills_array: GW_Array
     duplicated_character_skills_array: GW_Array
@@ -561,7 +595,7 @@ class WorldContextStruct(Structure):
 
     equipment_status: int
 
-    agent_infos_array: GW_Array
+    agent_name_info_array: GW_Array
     h07DC_array: GW_Array
     mission_map_icons_array: GW_Array
     npcs_array: GW_Array
@@ -605,8 +639,52 @@ class WorldContextStruct(Structure):
     def quest_log(self) -> list[Quest] | None: ...
     @property
     def mission_objectives(self) -> list[MissionObjective] | None: ...
-
-
+    @property
+    def henchmen_agent_ids(self) -> list[int] | None: ...
+    @property
+    def hero_flags(self) -> list[HeroFlag] | None: ...
+    @property
+    def hero_info(self) -> list[HeroInfo] | None: ...
+    @property
+    def cartographed_areas(self) -> list[int] | None: ...
+    @property
+    def controlled_minions(self) -> list[ControlledMinions] | None: ...
+    @property
+    def missions_completed(self) -> list[int] | None: ...
+    @property
+    def missions_bonus(self) -> list[int] | None: ...
+    @property
+    def missions_completed_hm(self) -> list[int] | None: ...
+    @property
+    def missions_bonus_hm(self) -> list[int] | None: ...
+    @property
+    def unlocked_maps(self) -> list[int] | None: ...
+    @property
+    def player_morale(self) -> PartyMemberMoraleInfo | None: ...
+    @property
+    def party_morale(self) -> list[PartyMoraleLink] | None: ...
+    @property
+    def player_controlled_character(self) -> PlayerControlledCharacter | None: ...
+    @property
+    def pets(self) -> list[PetInfo] | None: ...
+    @property
+    def party_profession_states(self) -> list[ProfessionState] | None: ...
+    @property
+    def h06CC_ptrs(self) -> list[int] | None: ...
+    @property 
+    def h06E0_ptrs(self) -> list[int] | None: ...
+    @property
+    def party_skillbars(self) -> list[Skillbar] | None: ...
+    @property
+    def learnable_character_skills(self) -> list[int] | None: ...
+    @property
+    def unlocked_character_skills(self) -> list[int] | None: ...
+    @property
+    def duplicated_character_skills(self) -> list[DupeSkill] | None: ...
+    @property
+    def h0730_ptrs(self) -> list[int] | None: ...
+    @property
+    def agent_name_info(self) -> list[AgentNameInfo] | None: ...
 
 # ----------------------------------------------------------------------
 # PreGameContext facade
