@@ -8,6 +8,15 @@ from .Agent import *
 # Player
 class Player:
     @staticmethod
+    def _format_uuid_as_email(player_uuid):
+        if not player_uuid:
+            return ""
+        try:
+            return "uuid_" + "_".join(str(part) for part in player_uuid)
+        except TypeError:
+            return str(player_uuid)
+
+    @staticmethod
     def player_instance():
         """
         Helper method to create and return a PyPlayer instance.
@@ -286,7 +295,11 @@ class Player:
         Args: None
         Returns: str
         """
-        return Player.player_instance().account_email
+        player_instance = Player.player_instance()
+        account_email = player_instance.account_email
+        if account_email:
+            return account_email
+        return Player._format_uuid_as_email(player_instance.player_uuid)
     
     @staticmethod
     def GetPlayerUUID():
