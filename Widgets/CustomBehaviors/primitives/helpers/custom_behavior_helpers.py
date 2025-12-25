@@ -10,6 +10,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 from Py4GWCoreLib import GLOBAL_CACHE, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
@@ -324,25 +325,6 @@ class Actions:
         return BehaviorResult.ACTION_SKIPPED
 
     @staticmethod
-    def auto_attack(target_id: Optional[int] = None) -> Generator[Any, Any, Any]:
-
-        if GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
-            yield
-            return BehaviorResult.ACTION_SKIPPED
-
-        if target_id is None:
-            target_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority(Range.Spellcast.value)
-
-        if not GLOBAL_CACHE.Agent.IsValid(target_id):
-            return None
-
-        GLOBAL_CACHE.Player.ChangeTarget(target_id)
-        yield from Helpers.wait_for(100) 
-        GLOBAL_CACHE.Player.Interact(target_id, False)
-        yield from Helpers.wait_for(100)
-        return BehaviorResult.ACTION_PERFORMED
-
-    @staticmethod
     def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int]]) -> Generator[Any, Any, BehaviorResult]:
 
         if not Routines.Checks.Skills.IsSkillSlotReady(skill.skill_slot):
@@ -497,22 +479,24 @@ class Targets:
 
         enemy_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority(
             within_range = Range.Spellcast.value + 350,
+            should_prioritize_party_target=False,
             condition = lambda agent_id: not GLOBAL_CACHE.Agent.IsAggressive(agent_id),
         )
         if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): return True
         return False
-
 
     @staticmethod
     def is_player_in_aggro() -> bool:
         
         enemy_aggressive_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority(
             within_range = Range.Spellcast.value + 400,
+            should_prioritize_party_target=False,
             condition = lambda agent_id: GLOBAL_CACHE.Agent.IsAggressive(agent_id))
         if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): return True
 
         enemy_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority(
             within_range = Range.Spellcast.value,
+            should_prioritize_party_target=False,
             condition = lambda agent_id: not GLOBAL_CACHE.Agent.IsAggressive(agent_id))
         if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): return True
 
@@ -526,12 +510,14 @@ class Targets:
         enemy_aggressive_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority_custom_source(
             source_agent_pos=agent_pos,
             within_range = Range.Spellcast.value + 400,
+            should_prioritize_party_target=False,
             condition = lambda agent_id: GLOBAL_CACHE.Agent.IsAggressive(agent_id))
         if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): return True
 
         enemy_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority_custom_source(
             source_agent_pos=agent_pos,
             within_range = Range.Spellcast.value,
+            should_prioritize_party_target=False,
             condition = lambda agent_id: not GLOBAL_CACHE.Agent.IsAggressive(agent_id))
         if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): return True
 
@@ -710,11 +696,13 @@ class Targets:
     def get_nearest_or_default_from_enemy_ordered_by_priority_custom_source(
             source_agent_pos: tuple[float, float],
             within_range: float,
+            should_prioritize_party_target:bool,
             condition: Optional[Callable[[int], bool]] = None) -> Optional[int]:
         
         enemies = Targets._get_all_possible_enemies_ordered_by_priority_raw(
             source_agent_pos=source_agent_pos, 
             within_range=within_range,
+            should_prioritize_party_target=should_prioritize_party_target,
             condition=condition,
             sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.HP_ASC))
             
@@ -724,11 +712,13 @@ class Targets:
     @staticmethod
     def get_nearest_or_default_from_enemy_ordered_by_priority(
             within_range: float,
+            should_prioritize_party_target:bool,
             condition: Optional[Callable[[int], bool]] = None) -> Optional[int]:
-        
+    
         enemies = Targets._get_all_possible_enemies_ordered_by_priority_raw(
             source_agent_pos=GLOBAL_CACHE.Player.GetXY(), 
             within_range=within_range,
+            should_prioritize_party_target=should_prioritize_party_target,
             condition=condition,
             sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.HP_ASC))
 
@@ -768,7 +758,8 @@ class Targets:
             within_range: float,
             condition: Callable[[int], bool] | None = None,
             sort_key: tuple[TargetingOrder, ...] | None = None,
-            range_to_count_enemies: float | None = None) -> list[SortableAgentData]:
+            range_to_count_enemies: float | None = None,
+            should_prioritize_party_target:bool = True) -> list[SortableAgentData]:
         
         agent_ids: list[int] = GLOBAL_CACHE.AgentArray.GetEnemyArray()
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, source_agent_pos, within_range)
@@ -822,6 +813,16 @@ class Targets:
             else:
                 raise ValueError(f"Invalid sorting criterion: {criterion}")
 
+        if should_prioritize_party_target:
+            party_forced_target_agent_id: int | None = CustomBehaviorParty().get_party_custom_target()
+
+            # Final sort: move party forced target to the front if it exists in the array
+            if party_forced_target_agent_id is not None:
+                forced_target_index = next((i for i, x in enumerate(data_to_sort) if x.agent_id == party_forced_target_agent_id), None)
+                if forced_target_index is not None:
+                    forced_target = data_to_sort.pop(forced_target_index)
+                    data_to_sort.insert(0, forced_target)
+
         return data_to_sort
 
     @staticmethod
@@ -870,7 +871,6 @@ class Targets:
         return tuple(entry.agent_id for entry in data)
 
 class Heals:
-
 
     @staticmethod
     def is_party_damaged(within_range:Range, min_allies_count:int, less_health_than_percent:float) -> bool:

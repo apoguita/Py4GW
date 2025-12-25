@@ -29,37 +29,39 @@ def draw_party_target_vertical_line() -> None:
     - Screen-space vertical line aligned with the target's screen X, clamped to screen edges
     Draws nothing if no party custom target is set or it's invalid.
     """
-    try:
-        target_id = CustomBehaviorParty().get_party_custom_target()
-        if not target_id or not GLOBAL_CACHE.Agent.IsValid(target_id):
-            return
+    target_id = CustomBehaviorParty().get_party_custom_target()
+    if not target_id or not GLOBAL_CACHE.Agent.IsValid(target_id):
+        return
 
+    try:
         tx, ty, _ = GLOBAL_CACHE.Agent.GetXYZ(target_id)
 
         ov = Overlay()
         ov.BeginDraw()
-        color = Utils.RGBToColor(255, 255, 0, 200)  # semi-opaque yellow
-
-        # 1) 3D vertical pillar (from ground Z upwards)
-        gz = Overlay().FindZ(tx, ty, 0)
-        ov.DrawLine3D(tx, ty, gz, tx, ty, gz - 250, color, thickness=3.0)
-
-        # 2) Screen-space vertical line.
-        sx, _ = Overlay.WorldToScreen(tx, ty, gz)
-        disp_w, disp_h = ov.GetDisplaySize()
         try:
-            sx_i = int(sx)
-        except Exception:
-            sx_i = 0
-        if disp_w is None or disp_h is None:
-            disp_w, disp_h = 1920, 1080  # fallback
-        if sx_i < 0:
-            sx_i = 0
-        elif sx_i >= disp_w:
-            sx_i = disp_w - 1
-        ov.DrawLine(sx_i, 0, sx_i, disp_h, color, thickness=3.0)
+            color = Utils.RGBToColor(255, 255, 0, 200)  # semi-opaque yellow
 
-        ov.EndDraw()
+            # 1) 3D vertical pillar (from ground Z upwards)
+            gz = Overlay().FindZ(tx, ty, 0)
+            ov.DrawLine3D(tx, ty, gz, tx, ty, gz - 250, color, thickness=3.0)
+
+            # 2) Screen-space vertical line.
+            sx, _ = Overlay.WorldToScreen(tx, ty, gz)
+            disp_w, disp_h = ov.GetDisplaySize()
+            try:
+                sx_i = int(sx)
+            except Exception:
+                sx_i = 0
+            if disp_w is None or disp_h is None:
+                disp_w, disp_h = 1920, 1080  # fallback
+            if sx_i < 0:
+                sx_i = 0
+            elif sx_i >= disp_w:
+                sx_i = disp_w - 1
+            ov.DrawLine(sx_i, 0, sx_i, disp_h, color, thickness=3.0)
+        finally:
+            # Always call EndDraw to properly close the overlay context
+            ov.EndDraw()
     except Exception:
         pass
 
@@ -301,16 +303,11 @@ def render():
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_CROSSHAIRS} SetPartyCustomTarget"):
                     CustomBehaviorParty().set_party_custom_target(GLOBAL_CACHE.Player.GetTargetID())
             else:
-                if PyImGui.button(f"{IconsFontAwesome5.ICON_TRASH} ResetPartyCustomTarget"):
+                if PyImGui.button(f"{IconsFontAwesome5.ICON_TRASH} ResetPartyCustomTarget | id:{shared_data.party_target_id}"):
                     CustomBehaviorParty().set_party_custom_target(None)
-                PyImGui.same_line(0, 10)
-                PyImGui.text(f"id:{CustomBehaviorParty().get_party_custom_target()}")
-
-
 
             PyImGui.tree_pop()
-
-            # PyImGui.separator()
+            #PyImGui.separator()
 
     if GLOBAL_CACHE.Map.IsOutpost():
         if PyImGui.tree_node_ex("[OUTPOST] Feature across party :", PyImGui.TreeNodeFlags.DefaultOpen):
