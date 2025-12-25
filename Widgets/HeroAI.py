@@ -6,7 +6,6 @@ import Py4GW
 from Py4GWCoreLib.Map import Map
 
 MODULE_NAME = "HeroAI"
-      
 from enum import Enum
 from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessage
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
@@ -38,7 +37,7 @@ from HeroAI.windows import DrawMultiboxTools
 from HeroAI.windows import DrawOptions
 from HeroAI.windows import DrawPanelButtons
 from HeroAI.windows import SubmitGameOptions
-from HeroAI.ui import draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, draw_hero_panel, draw_hotbars, draw_skip_cutscene_overlay
+from HeroAI.ui import draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, draw_hero_panel, draw_hotbars, draw_party_overlay, draw_skip_cutscene_overlay
 from HeroAI.settings import Settings
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
@@ -77,7 +76,7 @@ configure_window : WindowModule = WindowModule(
 )
 command_panel_window : WindowModule = WindowModule(
     module_name="HeroAI Command Panel",
-    window_name="HeroAI Command Panel",
+    window_name="heroai_command_panel",
     window_size=(400, 300),
     window_pos=(200, 200),
     can_close=False,
@@ -469,62 +468,77 @@ def UpdateStatus(cached_data: CacheData):
             
                   
     if not own_data:
-        return      
+        return     
     
-    identifier = "combined_hero_panel"
-    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-    if not settings.ShowPanelOnlyOnLeaderAccount or own_data.PlayerIsPartyLeader:
-        if settings.ShowHeroPanels:
-            messages = GLOBAL_CACHE.ShMem.GetAllMessages()
+    show_ui = not UIManager.IsWorldMapShowing() and not GLOBAL_CACHE.Map.IsMapLoading() and not GLOBAL_CACHE.Map.IsInCinematic() and not GLOBAL_CACHE.Player.InCharacterSelectScreen()
+    if show_ui:
         
-            if settings.CombinePanels:            
-                if not identifier in hero_windows:
-                    stored = settings.HeroPanelPositions.get(identifier, (200, 200, 200, 100, False))
-                    hero_windows[identifier] = WindowModule(
-                        module_name=f"HeroAI - {identifier}",
-                        window_name=f"Heroes##HeroAI - {identifier}",
-                        window_size=(stored[2], stored[3]),
-                        window_pos=(stored[0], stored[1]),
-                        collapse=stored[4],
-                        can_close=True,
-                    )
-                    
-                open = hero_windows[identifier].begin(True, PyImGui.WindowFlags.AlwaysAutoResize)
+        identifier = "combined_hero_panel"
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        if not settings.ShowPanelOnlyOnLeaderAccount or own_data.PlayerIsPartyLeader:
+            if settings.ShowHeroPanels:
+                messages = GLOBAL_CACHE.ShMem.GetAllMessages()
             
-            for account in accounts:
-                if not account.AccountEmail:
-                    continue
-            
-                if account.AccountEmail == GLOBAL_CACHE.Player.GetAccountEmail() and not settings.ShowLeaderPanel:
-                    continue
-                
-                if not settings.CombinePanels:
-                    if not account.AccountEmail in hero_windows:
-                        stored = settings.HeroPanelPositions.get(account.AccountEmail.lower(), (200, 200, 200, 100, False))
-                        hero_windows[account.AccountEmail] = WindowModule(
-                            module_name=f"HeroAI - {account.AccountEmail}",
-                            window_name=f"##HeroAI - {account.AccountEmail}",
-                            window_size=(stored[2], stored[3]),
-                            window_pos=(stored[0], stored[1]),
-                            collapse=stored[4],
-                            can_close=False,
+                if settings.CombinePanels:            
+                    if not identifier in hero_windows:
+                        info = settings.HeroPanelPositions.get(identifier, Settings.HeroPanelInfo())
+                        hero_windows[identifier] = WindowModule(
+                            module_name=f"HeroAI - {identifier}",
+                            window_name=f"Heroes##HeroAI - {identifier}",
+                            window_pos=(info.x, info.y),
+                            collapse=info.collapsed,
+                            can_close=True,
                         )
+                        settings.HeroPanelPositions[identifier] = info
                         
-                    draw_hero_panel(hero_windows[account.AccountEmail], account, cached_data, messages)
-                else:                    
-                    draw_combined_hero_panel(account, cached_data, messages)
-                    
-            if settings.CombinePanels:
-                hero_windows[identifier].end()
-
-    if settings.ShowCommandPanel and (own_data.PlayerIsPartyLeader or not settings.ShowCommandPanelOnlyOnLeaderAccount):
-        draw_command_panel(command_panel_window, accounts, cached_data)
-    
-    if settings.CommandHotBars:
-        draw_hotbars(accounts, cached_data)
-        
-    draw_dialog_overlay(accounts, cached_data, messages)
+                    open = hero_windows[identifier].begin(True, PyImGui.WindowFlags.AlwaysAutoResize)
                 
+                for account in accounts:
+                    if not account.AccountEmail:
+                        continue
+                
+                    if account.AccountEmail == GLOBAL_CACHE.Player.GetAccountEmail() and not settings.ShowLeaderPanel:
+                        continue
+                    
+                    if not settings.CombinePanels:
+                        if not account.AccountEmail in hero_windows:
+                            info = settings.HeroPanelPositions.get(account.AccountEmail.lower(), Settings.HeroPanelInfo())
+                            hero_windows[account.AccountEmail] = WindowModule(
+                                module_name=f"HeroAI - {account.AccountEmail}",
+                                window_name=f"##HeroAI - {account.AccountEmail}",
+                                window_pos=(info.x, info.y),
+                                collapse=info.collapsed,
+                                can_close=True,
+                            )
+                            settings.HeroPanelPositions[account.AccountEmail] = info
+                            
+                        draw_hero_panel(hero_windows[account.AccountEmail], account, cached_data, messages)
+                    else:                    
+                        draw_combined_hero_panel(account, cached_data, messages)
+                        
+                if settings.CombinePanels:
+                    hero_windows[identifier].end()
+                    
+                    if hero_windows[identifier].changed:
+                        info = settings.HeroPanelPositions.get(identifier, Settings.HeroPanelInfo())
+                        info.x = round(hero_windows[identifier].window_pos[0])
+                        info.y = round(hero_windows[identifier].window_pos[1])
+                        info.collapsed = hero_windows[identifier].collapse
+                        info.open = hero_windows[identifier].open
+                        settings.HeroPanelPositions[identifier] = info
+                        settings.save_settings()
+
+        if settings.ShowPartyOverlay:
+            draw_party_overlay(accounts, hero_windows)
+        
+        if settings.ShowCommandPanel and (own_data.PlayerIsPartyLeader or not settings.ShowCommandPanelOnlyOnLeaderAccount):
+            draw_command_panel(command_panel_window, accounts, cached_data)
+        
+        if settings.CommandHotBars:
+            draw_hotbars(accounts, cached_data)
+            
+        draw_dialog_overlay(accounts, cached_data, messages)
+                    
     DrawEmbeddedWindow(cached_data)
     if cached_data.ui_state_data.show_classic_controls:
         DrawMainWindow(cached_data)
@@ -626,12 +640,11 @@ def main():
             if not settings.ensure_initialized(): 
                 SETTINGS_THROTTLE.SetThrottleTime(50)                              
                 hero_windows.clear()
-                window_settings = settings.HeroPanelPositions.get(command_panel_window.window_name.lower().replace(" ", "_"), (200, 200, 400, 300, False))
-                
-                command_panel_window.window_pos = (window_settings[0], window_settings[1])
-                command_panel_window.window_size = (window_settings[2], window_settings[3])
+                info = settings.HeroPanelPositions.get(command_panel_window.window_name, Settings.HeroPanelInfo())                
+                command_panel_window.window_pos = (info.x, info.y)
                 command_panel_window.first_run = True             
                 return
+            
             elif SETTINGS_THROTTLE.throttle_time != 1000:
                 SETTINGS_THROTTLE.SetThrottleTime(1000)
             
