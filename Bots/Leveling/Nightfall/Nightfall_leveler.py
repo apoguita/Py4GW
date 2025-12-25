@@ -285,7 +285,7 @@ def GetArmorMaterialPerProfession(headpiece: bool = True) -> int:
     if primary == "Warrior":
         return ModelID.Iron_Ingot.value
     elif primary == "Ranger":
-        return ModelID.Tanned_Hide_Square.value
+        return ModelID.Bolt_Of_Cloth.value
     elif primary == "Monk":
         return ModelID.Bolt_Of_Cloth.value
     elif primary == "Dervish":
@@ -910,7 +910,7 @@ def Armored_Transport(bot: Botting):
         dy = pos[1] - 1741.0
         return (dx * dx + dy * dy) <= (1000.0 * 1000.0)
     exit_condition = lambda: _exit_condition()
-    bot.Move.FollowModel(4830, 100, exit_condition)
+    bot.Move.FollowModel(4881, 100, exit_condition) #Dec New ID
     bot.Move.XY(-2963, 1813)
     bot.Wait.ForTime(10000)
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -1247,7 +1247,7 @@ def Craft_Player_Weapon(bot: Botting):
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
     bot.States.AddCustomState(BuyWeaponMaterials, "Buy Weapon Materials")
     bot.Move.XY(4108.39, 2211.65)
-    bot.Dialogs.WithModel(4727, 0x86)  # Weapon crafter
+    bot.Dialogs.WithModel(4778, 0x86)  # Weapon crafter Dec New ID
     bot.Wait.ForTime(1000)  # small delay to let the window open
     exec_fn = lambda: CraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapon")
@@ -1543,16 +1543,16 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
     bot.Move.XY(-6572.70, 6588.83)
-    bot.Dialogs.WithModel(5970, 0x800001) #eotn_pool_cinematic
+    bot.Dialogs.WithModel(6021, 0x800001) #eotn_pool_cinematic Gwen Dec New ID
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5908, 0x630) #eotn_pool_cinematic
+    bot.Dialogs.WithModel(5959, 0x630) #eotn_pool_cinematic Dec New ID
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5908, 0x632) #eotn_pool_cinematic
+    bot.Dialogs.WithModel(5959, 0x632) #eotn_pool_cinematic Dec New ID
     bot.Wait.ForTime(1000)
     bot.Wait.ForMapToChange(target_map_id=646)  # hall of monuments id
-    bot.Dialogs.WithModel(5970, 0x89) #gwen dialog
-    bot.Dialogs.WithModel(5970, 0x831904) #gwen dialog
-    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) #ogden dialog
+    bot.Dialogs.WithModel(6021, 0x89) #gwen dialog Dec New ID
+    bot.Dialogs.WithModel(6021, 0x831904) #gwen dialog Dec New ID
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) #ogden dialog 
     bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) #vekk dialog
 
 def To_Gunnars_Hold(bot: Botting):
@@ -1872,8 +1872,8 @@ def To_Vizunah_Square_Foreign_Quarter(bot: Botting):
     bot.Move.XY(11311, 958)
     bot.Move.XY(11415, 2975)
     bot.Move.XY(12366.46, 5069.94)
-    bot.Dialogs.WithModel(3228, 0x800009)
-    bot.Dialogs.WithModel(3228, 0x80000B)  # talk to the guard
+    bot.Dialogs.WithModel(3279, 0x800009) # Dec New ID
+    bot.Dialogs.WithModel(3279, 0x80000B)  # talk to the guard Dec New ID
     bot.Wait.ForMapToChange(target_map_id=292) #Vizunah Square Foreign
 
 def To_Marketplace_Outpost(bot: Botting):
@@ -1960,7 +1960,7 @@ def To_Lions_Arch(bot: Botting):
     bot.Move.XYAndDialog(-2546.09, 16203.26, 0x89)
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
-    bot.Dialogs.WithModel(1961, 0x85)  # Neiro dialog model id 1961
+    bot.Dialogs.WithModel(2011, 0x85)  # Neiro dialog model id 1961
     bot.Move.XY(-1856.86, 1434.14)
     bot.Move.FollowPath([(-2144, 1450)])
     bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
