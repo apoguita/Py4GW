@@ -113,7 +113,7 @@ def DrawWindow():
     global widget_config, window_module
     global killed, total
     
-    widget_config.string = f"{total:03}/{killed:03}"
+    widget_config.string = f"{killed:03}/{total:03}"
 
     PyImGui.set_next_window_pos(widget_config.x, widget_config.y)
 
@@ -144,7 +144,7 @@ def main():
             is_hard_mode
         ):
             killed = GLOBAL_CACHE.Map.GetFoesKilled()
-            total = GLOBAL_CACHE.Map.GetFoesToKill()
+            total = GLOBAL_CACHE.Map.GetFoesToKill() + killed
             
         game_throttle_timer.Start()
          
