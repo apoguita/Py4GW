@@ -152,10 +152,13 @@ class CameraCache:
         
     
     def IsPointInFOV(self, target_x: float, target_y: float) -> bool:
+        """
+        Determines if a game position point is within the camera's field of view.
+        """
+        
         cam_x, cam_y, _ = self.GetPosition()
         yaw = self.GetYaw()
         
-        ## if yaw is inf
         if yaw == float('inf') or yaw == float('-inf'):
             return False
         

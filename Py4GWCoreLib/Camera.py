@@ -336,8 +336,16 @@ class Camera:
             
     @staticmethod
     def IsPointInFOV(target_x: float, target_y: float) -> bool:
+        """
+        Determines if a game position point is within the camera's field of view.
+        This is a very expensive call use GLOBAL_CACHE.Camera.IsPointInFOV instead!
+        """
         cam_x, cam_y, _ = Camera.GetPosition()
         yaw = Camera.GetYaw()
+        
+        if yaw == float('inf') or yaw == float('-inf'):
+            return False
+        
         fov = Camera.GetFieldOfView()
 
         dx = target_x - cam_x
