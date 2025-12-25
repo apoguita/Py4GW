@@ -9,6 +9,13 @@ from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 
 class Settings:
+    class HeroPanelInfo:
+        def __init__(self, x: int = 200, y: int = 200, collapsed: bool = False, visible: bool = True):
+            self.x: int = x
+            self.y: int = y
+            self.collapsed: bool = collapsed
+            self.open: bool = visible
+            
     class CommandHotBar:
         def __init__(self, identifier: str = ""):
             self.identifier: str = identifier
@@ -104,6 +111,7 @@ class Settings:
             
         self.Anonymous_PanelNames = False
         self.ShowCommandPanel = True
+        self.ShowPartyOverlay = True
         self.ShowCommandPanelOnlyOnLeaderAccount = True
         
         self.ShowPanelOnlyOnLeaderAccount = True
@@ -125,7 +133,7 @@ class Settings:
         self.ShowHeroSkills = True
         self.ShowFloatingTargets = True
         self.ShowPartyPanelUI = True
-        self.HeroPanelPositions : dict[str, tuple[int, int, int, int, bool]] = {}
+        self.HeroPanelPositions : dict[str, Settings.HeroPanelInfo] = {}
         
         default_hotbar = Settings.CommandHotBar("hotbar_1")
         
@@ -214,7 +222,7 @@ class Settings:
         if not self.save_requested:
             return
         
-        ConsoleLog("HeroAI", "Saving HeroAI settings...")
+        # ConsoleLog("HeroAI", "Saving HeroAI settings...")
         
         self.ini_handler.write_key("General", "ShowCommandPanel", str(self.ShowCommandPanel))
         self.ini_handler.write_key("General", "ShowCommandPanelOnlyOnLeaderAccount", str(self.ShowCommandPanelOnlyOnLeaderAccount))
@@ -247,8 +255,8 @@ class Settings:
             self.ini_handler.write_key("CommandHotBars", hotbar_id, hotbar.to_ini_string())
             
         if self.account_ini_handler is not None:
-            for hero_email, (x, y, w, h, collapsed) in self.HeroPanelPositions.items():
-                self.account_ini_handler.write_key("HeroPanelPositions", hero_email, f"{x},{y},{w},{h},{collapsed}")
+            for hero_email, info in self.HeroPanelPositions.items():
+                self.account_ini_handler.write_key("HeroPanelPositions", hero_email, f"{info.x},{info.y},{info.collapsed},{info.open}")
                             
             for hotbar_id, hotbar in self.CommandHotBars.items():
                 self.account_ini_handler.write_key("CommandHotBars", hotbar_id, hotbar.to_pos_string())
@@ -298,14 +306,13 @@ class Settings:
 
         for key, value in items.items():
             try:
-                x_str, y_str, w_str, h_str, collapsed_str = value.split(",")
+                x_str, y_str, collapsed_str, visible_str = value.split(",")
                 x = int(x_str)
                 y = int(y_str)
-                w = int(w_str)
-                h = int(h_str)
                 collapsed = collapsed_str.lower() == "true"
-                request_save = key not in self.HeroPanelPositions or self.HeroPanelPositions[key] != (x, y, w, h, collapsed) or request_save
-                self.HeroPanelPositions[key] = (x, y, w, h, collapsed)
+                visible = visible_str.lower() == "true" if visible_str and visible_str.lower() is "true" or "false" else True
+                request_save = key not in self.HeroPanelPositions or request_save
+                self.HeroPanelPositions[key] = Settings.HeroPanelInfo(x, y, collapsed, visible)
                 
             except Exception as e:
                 ConsoleLog("HeroAI", f"Error loading HeroPanelPosition for {key}: {e}")
