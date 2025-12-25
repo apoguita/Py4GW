@@ -75,7 +75,7 @@ def filter_valuable_loot(item_id: int) -> bool:
         # 26568 = Offhand energy mod identifier
         if item_instance.item_type.ToInt() == 12 and mod.GetIdentifier() == 26568:
             has_max_stats = mod.GetArg1() == 12 # Max Energy mod
-            return has_max_stats# Only interested in Q8 or lower
+            return has_max_stats # Only interested in Q8 or lower
         
 
 

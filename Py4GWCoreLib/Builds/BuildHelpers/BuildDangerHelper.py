@@ -78,20 +78,20 @@ class BuildDangerHelper:
                 if any(term in lname for term in norm_terms):
                     self.extreme_kd_range_models.update(model_ids)
 
-        for agent_id in self.cripple_kd_models:
-            model_id = GLOBAL_CACHE.Agent.GetModelID(agent_id)
-
         # build spellcaster id set from the spellcast table
         self.spellcaster_models = set()
         for model_ids, category in self.spellcast_table:
             self.spellcaster_models.update(model_ids)
+
+        # Log the spellcaster models for debugging
+        ConsoleLog(self.name, f"Spellcaster models: {self.spellcaster_models}", Py4GW.Console.MessageType.Debug, True)
 
 
     def enemy_category_from_model_id(self, model_id: int) -> str:
         """
         Returns the category name for a given model ID.
         """
-        # check cripple/kd table first then spellcast table
+
         for entry, name in self.cripple_kd_table:
             if model_id in entry:
                 return name
@@ -150,14 +150,13 @@ class BuildDangerHelper:
 
         return False
 
-    def check_spellcaster(self, custom_distance: float = 2000.0) -> bool:
+    def check_spellcaster(self, custom_distance: float = 2000.0, include_non_specified: bool = True) -> bool:
         """
         Checks for spellcaster danger within the specified distance.
         Returns True if a spellcaster is detected and reports a fake chat warning.
         """
 
-        # No models configured
-        if len(self.spellcaster_models) == 0:
+        if not include_non_specified and len(self.spellcaster_models) == 0:
             return False
 
         # Throttle checks based on last check times
@@ -174,6 +173,7 @@ class BuildDangerHelper:
         if not (x and y):
             return False
 
+        # Scan for nearby enemies
         nearby_enemies = Routines.Agents.GetFilteredEnemyArray(x, y, max_distance=custom_distance)
         special_caster_found = False 
         
@@ -184,8 +184,8 @@ class BuildDangerHelper:
                 special_caster_found = True
                 break
 
-        nearby_spellcaster = Routines.Agents.GetNearestEnemyCaster(custom_distance, aggressive_only=False)
-
+        # If allowed, check for any spellcaster not in the specified table
+        nearby_spellcaster = Routines.Agents.GetNearestEnemyCaster(custom_distance, aggressive_only=False) if include_non_specified else 0
 
         # Report if any spellcaster was danger found
         if special_caster_found or nearby_spellcaster:

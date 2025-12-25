@@ -1,6 +1,6 @@
 import Py4GW
 from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, GLOBAL_CACHE, ItemArray, Bags, HeroType)
-from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, VOS_Derv_Barbarous
+from Py4GWCoreLib.Builds import SF_Assassin_Hells_Precipice
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
 from Bots.Sasemoi.bot_helpers import BotStuckHelper
 from Bots.Sasemoi.bot_helpers.bot_mystic_healing_support import MysticHealingSupport
@@ -32,6 +32,13 @@ def filter_valuable_loot(item_id: int) -> bool:
     item_instance = Item.item_instance(item_id)
     item_modifiers = item_instance.modifiers
     item_req = 13 # Default high req to skip uninteresting items
+    valuable_models = [344, 2247]
+
+
+    # if not item_instance.is_rarity_gold:
+    #     return False
+    
+    return item_instance.model_id in valuable_models and item_instance.is_rarity_gold
 
     # Check Q9 max stats
     for mod in item_modifiers:
@@ -45,7 +52,7 @@ def filter_valuable_loot(item_id: int) -> bool:
             item_req = mod.GetArg2() # Item requirement value
 
             # Low req found, continue checking other mods
-            if item_req <= 9:
+            if item_req < 9:
                 continue
             # High req found, skip entire item
             else:
@@ -89,19 +96,16 @@ def filter_valuable_loot(item_id: int) -> bool:
     return False
 
 # Globals
-BARBAROUS_SHORE = 375
-CAMP_HOJANU = 376
-BARB_SHORE_RUNNER = "Barbarous Shore Chestrun"
+HP_RUNNER = "Hell's Precipice Chestrun"
+HELLS_PRECIPICE_OUTPOST = 124
+HELLS_PRECIPICE_MISSION = 124
 
 # Danger Tables
 barbarous_cripple_kd_table: DangerTable = (
     ([5048 + 51, 5059 + 51, 5043 + 51, 5051 + 51, 5050 + 51, 5029 + 51, 5032 + 51, 5030 + 51], "Corsair"),
     ([4904 + 51], "Mesa")
 )
-barbarous_spellcast_table: DangerTable = ((
-    ([5048 + 51, 5059 + 51, 5043 + 51, 5051 + 51, 5050 + 51, 5029 + 51, 5032 + 51, 5030 + 51], "Corsair"),
-    ([4980], "Iboga")
-)) # Not using spellcaster detection because the script permanently keeps Shadow Form up
+barbarous_spellcast_table: DangerTable = () # Not using spellcaster detection because the script permanently keeps Shadow Form up
 
 hero_list = [
     HeroType.Gwen,
@@ -120,13 +124,14 @@ opened_chests: set[int] = set()
 should_manage_inventory = False
 
 bot = Botting(
-    BARB_SHORE_RUNNER,
-    custom_build=VOS_Derv_Barbarous(
+    HP_RUNNER,
+    custom_build=SF_Assassin_Hells_Precipice(
         build_danger_helper=BuildDangerHelper(
             cripple_kd_table=barbarous_cripple_kd_table,
             spellcast_table=barbarous_spellcast_table
         )),
     upkeep_alcohol_target_drunk_level=1,
+    upkeep_birthday_cupcake_active=True,
     upkeep_auto_combat_active=False,
     config_log_actions=False,
 )
@@ -147,7 +152,6 @@ def create_bot_routine(bot: Botting) -> None:
     InitialTravelAndSetup(bot)
     SetupHeroes(bot)
     SetupInventoryManagement(bot)
-    SetupResign(bot)
     ChestRunRoutine(bot)
     ResetFarmLoop(bot)
 
@@ -165,7 +169,6 @@ def InitializeBot(bot: Botting) -> None:
     bot.Properties.Disable("pause_on_danger")
     bot.Properties.Enable("halt_on_death")
     bot.Properties.Set("movement_timeout",value=-1)
-    bot.Properties.Disable("birthday_cupcake")
     bot.Properties.Disable("identify_kits")
     bot.Properties.Disable("salvage_kits")
 
@@ -175,15 +178,7 @@ def AssignBuild(bot: Botting):
     profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     match profession:
         case "Assassin":
-            bot.OverrideBuild(SF_Assassin_Barbarous())
-
-        case "Dervish":
-            bot.OverrideBuild(VOS_Derv_Barbarous(
-                build_danger_helper=BuildDangerHelper(
-                    cripple_kd_table=barbarous_cripple_kd_table,
-                    spellcast_table=barbarous_spellcast_table
-                )
-            ))
+            bot.OverrideBuild(SF_Assassin_Hells_Precipice())
         case _:
             ConsoleLog("Unsupported Profession", f"The profession '{profession}' is not supported by this bot.", Py4GW.Console.MessageType.Error, True)
             bot.Stop()
@@ -198,7 +193,7 @@ def EquipSkillBar(bot: Botting):
 
 # Danger tables define dangerous enemies for cripple/kd and spellcasting
 def SetupDangerTables():
-    if isinstance(bot.config.build_handler, SF_Assassin_Barbarous):
+    if isinstance(bot.config.build_handler, SF_Assassin_Hells_Precipice):
         build_danger_helper = bot.config.build_handler.build_danger_helper
         build_danger_helper.update_tables(cripple_kd_table=barbarous_cripple_kd_table)
     
@@ -216,7 +211,7 @@ def _on_death(bot: Botting):
     yield from ManageInventory(bot)
 
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Barbarous Shore Running_6") 
+    fsm.jump_to_state_by_name("[H]Hell's Precipice Chestrun Routine_5") 
     fsm.resume()                           
     yield  
 
@@ -254,9 +249,8 @@ def ConditionallyMoveToMerchant():
     global should_manage_inventory
 
     if should_manage_inventory:
-        # bot.Move.XYAndInteractNPC(-17174, 19180, "Interact with Merchant Kahdeh")
-        yield from Routines.Yield.Movement.FollowPath(path_points=[(-17174, 19180)])
-        yield from Routines.Yield.Agents.InteractWithAgentXY(-17174, 19180)
+        yield from Routines.Yield.Movement.FollowPath(path_points=[(6409.31, 8373.04)])
+        yield from Routines.Yield.Agents.InteractWithAgentXY(6409.31, 8373.04)
     else:
         yield
 
@@ -308,10 +302,10 @@ def ManageInventory(bot: Botting):
         yield
 
 
-def DetectChestAndOpen(bot: Botting, max_distance=4000):
+def DetectChestAndOpen(bot: Botting, max_distance=3000):
     # Log
     coord = GLOBAL_CACHE.Player.GetXY()
-    ConsoleLog(BARB_SHORE_RUNNER, f"Arrived at point coordinates ::: {coord}", Py4GW.Console.MessageType.Info)
+    ConsoleLog(HP_RUNNER, f"Arrived at point coordinates ::: {coord}", Py4GW.Console.MessageType.Info)
     # Checker for inventory
     nearby_chest_id = Routines.Agents.GetNearestChest(max_distance)
 
@@ -325,7 +319,7 @@ def DetectChestAndOpen(bot: Botting, max_distance=4000):
 
         # Update build handler to signal looting state
         def set_looting_signal(is_looting: bool):
-            if isinstance(bot.config.build_handler, SF_Assassin_Barbarous):
+            if isinstance(bot.config.build_handler, SF_Assassin_Hells_Precipice):
                 bot.config.build_handler.SetLootingSignal(is_looting)
 
         # Prevent casting to ensure item gets picked up,
@@ -354,9 +348,9 @@ def ResetUnopenedChests():
 # Initial travel to Barbarous Shore and setup runner build
 def InitialTravelAndSetup(bot: Botting) -> None:
     bot.States.AddHeader("Travel and Setup")
-    bot.Map.Travel(CAMP_HOJANU)
+    bot.Map.Travel(HELLS_PRECIPICE_OUTPOST)
     bot.States.AddCustomState(lambda: EquipSkillBar(bot), "Equip SkillBar")
-    bot.States.AddCustomState(lambda: SetupDangerTables(), "Setup Danger Tables for Barbarous Shore")
+    bot.States.AddCustomState(lambda: SetupDangerTables(), "Setup Danger Tables for runner")
 
 
 # Check if inventory management is needed and perform it
@@ -374,22 +368,17 @@ def SetupHeroes(bot: Botting):
     MysticHealingSupport.SetupHealingParty(bot, hero_list=hero_template_list)
 
 
-# Setup to spawn close to portal on resign
-def SetupResign(bot: Botting):
-    bot.States.AddHeader("Setup Resign")
-    bot.Move.XYAndExitMap(-12636, 16906, target_map_id=BARBAROUS_SHORE) # target_map_name="Barbarous Shore"
-    bot.Wait.ForTime(350)
-    bot.Move.XYAndExitMap(-14707, 18571, target_map_id=CAMP_HOJANU) # target_map_name="Camp Hojanu"
-
-
 # Chestrun routine follows a set path and opens chests along the way
 def ChestRunRoutine(bot: Botting) -> None:
-    bot.States.AddHeader("Barbarous Shore Running")
-    bot.Move.XYAndExitMap(-12636, 16906, target_map_id=BARBAROUS_SHORE) # target_map_name="Barbarous Shore"
+    bot.States.AddHeader("Hell's Precipice Chestrun Routine")
+    bot.Party.SetHardMode(True)
+    bot.Map.EnterChallenge(delay=2000, target_map_id=HELLS_PRECIPICE_MISSION)
+    bot.Wait.ForMapLoad(HELLS_PRECIPICE_MISSION)
+    bot.Wait.ForTime(3000)
     bot.States.AddCustomState(lambda: stuck_helper.Toggle(True), "Activate Stuck Helper")
     bot.States.AddManagedCoroutine("Run Stuck Handler", lambda: RunStuckHelper())
     bot.Wait.ForTime(500)
-    bot.Party.FlagAllHeroes(-12323, 17313)
+    bot.Party.FlagAllHeroes(6618.97, 1343.33)
 
     MysticHealingSupport.InitHeroComanagedRoutines(bot, hero_list=hero_list)
 
@@ -397,53 +386,71 @@ def ChestRunRoutine(bot: Botting) -> None:
     bot.Properties.Enable("alcohol")
     
     path_points: list[tuple[float, float]] = [
-        # (-7798, 15007),
-        # (-7101, 11558),
-        # (-12675, 10190),
-        (-14616, 8558),
-        (-15474, 4744),
-        (-16036, 3647),
-        (-9489, 1759),
-        (-13644, -1846),
-        (-11687, -5170),
-        (-13006, -9314),
-        (-14329, -11996),
-        (-16625, -14953),
-        (-16042, -15539),
-        (-7940, -11834),
-        (-6941, -7614),
-        # (-6941, -7614),
-        # (-5765, -3661),
-        # (-3917, -3608),
-        # (-1273, -4529),
-        # (1016, -2442),
+        (2996.16, 199.50),
+        (2681.12, -1627.27),
+        (3791.65, -3430.60),
+        (3205.93, -5282.41),
+        (4322.38, -6969.52),
+        (5626, -7737), # Check over the bridge, maybe remove
+        # (8131.97, -8948.46), # BRUGGETJE -> VANAF HIER NIEUWE ROUTE
 
-        # # Exit cove up north
-        # (-511, 201),
+        (3075.48, -7503.17), 
         
-        # # Corsair bay
-        # (1347, 581),
-        # (826, 888),
-        # (982, -3058),
+        
+        (3359.40, -9605.17),
+        (3620, -10628),
+        (2758.16, -11911.89),
+        (1819.95, -13427.39),
+        (4871, -12312),
+        # (3755.21, -13095.68),
 
-        # # Mandragor corridor
-        # (3059, -5966),
+        # Pre narrow corridor chest check
+        # (8440, -13070),
 
-        # # Before big plains
-        # (8115, -2483),
-        # (12993, -3892)
-        # (3540, -6390),
-        # Traverse plains
-        # (10524, -3770),
-        # (12569, -4510),
-        # (14580, -2447),
-        # (15119, -648),
-        # (13607, 994),
+        # Start narrow corridor
+        (5978.84, -13503.22),
+        (6089.90, -15081.02),
+        (5307.29, -15902.45),
+        (6528.93, -18036.41),
+        # End narrow corridor
 
-        # Last corridor
-        # (16471, 3187),
-        # (14646, 4945),
-        # (16882, 1506),
+        #Traverse
+        (5747, -21759),
+        (4850.03, -19614.07),
+        (2240.08, -18489.29),
+
+        # Lege brug
+        (-296.57, -18578.34),
+        (-1262.25, -22250.32),
+        (-3855.55, -22154.95),
+        (-4397.11, -18186.83),
+        (-6233.95, -18857.85),
+        (-7954.08, -19951.78),
+        (-8249.37, -16664.31),
+
+
+        # (9372.71, -10078.92),
+        # (10184.63, -12873.62),
+        # (9896.95, -15417.99),
+        # (10475.63, -17499.84),
+        # # (9261.01, -19160.33)
+        # (8648.91, -20172.06),
+        # (8151.23, -20864.10),
+        # (8742.15, -22811.51),
+        # (6651.90, -22754.62),
+
+        # (4815.17, -20616.51),
+        # (4500.70, -19317.72), # TOT HIER NIEUWE ROUTE
+        # (5249.11, -16238.19),
+
+        # (6102.97, -13618.41),
+        # (4922.85, -12486.86),
+
+        # (2990.91, -13364.78),
+
+
+        # # Niew
+        # (-4833.66, -17574.64)
     ]
 
     for i, coord in enumerate(path_points):
@@ -468,7 +475,7 @@ def ResetFarmLoop(bot: Botting):
     bot.Wait.ForTime(10000)
     bot.States.AddCustomState(lambda: ConditionallyMoveToMerchant(), "Move to merchant for inventory check")
     bot.States.AddCustomState(lambda: ManageInventory(bot), "Manage management execution")
-    bot.States.JumpToStepName("[H]Barbarous Shore Running_6")
+    bot.States.JumpToStepName("[H]Hell's Precipice Chestrun Routine_5")
 
 
 # ==================== END REGION Routines ====================

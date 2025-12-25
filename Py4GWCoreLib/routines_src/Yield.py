@@ -1968,10 +1968,11 @@ class Yield:
             
         @staticmethod
         def HeroSkill(hero_index:int, skill_slot:int, log=False):
-            if hero_index < 1 or hero_index > 4:
+            party_size = GLOBAL_CACHE.Party.GetPartySize()
+            if hero_index < 1 or hero_index > party_size:
                 return
-            if skill_slot < 1 or skill_slot > 8:
-                return
+            # if skill_slot < 1 or skill_slot > 8:
+            #     return
             yield from Yield.Keybinds.PressKeybind(ControlAction.ControlAction_Hero1Skill1.value + (hero_index - 1) * 8 + (skill_slot - 1), 75, log=log)
             
         @staticmethod
