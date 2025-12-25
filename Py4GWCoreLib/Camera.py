@@ -333,3 +333,27 @@ class Camera:
         Sets the fog state of the camera.
         """
         Camera.camera_instance().SetFog(fog)
+            
+    @staticmethod
+    def IsPointInFOV(target_x: float, target_y: float) -> bool:
+        cam_x, cam_y, _ = Camera.GetPosition()
+        yaw = Camera.GetYaw()
+        fov = Camera.GetFieldOfView()
+
+        dx = target_x - cam_x
+        dy = target_y - cam_y
+
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            return True
+
+        angle_to_target = math.atan2(dy, dx)
+        angle_diff = angle_to_target - yaw
+
+        while angle_diff > math.pi:
+            angle_diff -= 2 * math.pi
+        while angle_diff < -math.pi:
+            angle_diff += 2 * math.pi
+
+        half_fov = (fov / 2) + 0.2
+        return abs(angle_diff) < half_fov
