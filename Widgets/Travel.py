@@ -1,9 +1,9 @@
 from typing import Optional
 import Py4GW
+import PyImGui
 
-from Py4GWCoreLib import Timer
+from Py4GWCoreLib import Timer, UIManager
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import ThemeTextures
 from Py4GWCoreLib import Style
@@ -108,6 +108,16 @@ is_traveling = False
 is_map_ready = False
 is_party_loaded = False
 travel_history = []
+priority_outposts = {
+    194 : "Kaineng Center",
+    817 : "Kaineng Center",
+    857 : "Embark Beach",
+    449 : "Kamadan Jewel of Istan",
+    818 : "Kamadan Jewel of Istan",
+    819 : "Kamadan Jewel of Istan",
+    642 : "Eye of the North",
+    821 : "Eye of the North",
+}
 
 window_open = window_module.open = False
 
@@ -309,13 +319,16 @@ def themed_floating_button(button_rect : tuple[float, float, float, float]):
             )
             pass
 
-
-##TODO: Add on ensure on screen
 def DrawWindow():
     global is_traveling, widget_config, search_outpost, window_module, window_open, filtered_outposts, outpost_index, window_x, window_y, filtered_history
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
     
     try:    
+        show_ui = not UIManager.IsWorldMapShowing() and not GLOBAL_CACHE.Map.IsMapLoading() and not GLOBAL_CACHE.Map.IsInCinematic() and not GLOBAL_CACHE.Player.InCharacterSelectScreen()
+        
+        if not show_ui:
+            return
+        
         button_rect = (widget_config.button_position[0], widget_config.button_position[1], 48, 48)
         ## Ensure the button is within the screen bounds
         io = PyImGui.get_io()  
@@ -337,7 +350,7 @@ def DrawWindow():
             )
             
             if PyImGui.invisible_button("##Open Travel Window", button_rect[2], button_rect[3]):
-                window_module.open = True
+                window_module.open = not window_module.open
                 PyImGui.set_next_window_pos(window_module.window_pos[0], window_module.window_pos[1])
             
             elif PyImGui.is_item_active(): 
@@ -347,7 +360,7 @@ def DrawWindow():
                 widget_config.request_save()
                 
                 window_module.end_pos = window_module.window_pos = (int(window_module.window_pos[0] + delta[0]), int(window_module.window_pos[1] + delta[1]))
-                window_module.open = False
+                # window_module.open = False
             
                 
             PyImGui.end()
@@ -373,6 +386,8 @@ def DrawWindow():
         
         traveled = False
         if window_module.begin():
+            search_focused = False
+            
             style = ImGui.get_style()
             
             if widget_config.favorites and widget_config.show_favorites:
@@ -408,18 +423,19 @@ def DrawWindow():
                 search = search_outpost.lower()
                 
                 filtered_outposts = [(id, outpost) for id, outpost in outposts.items() if not search or search in outpost.lower() or search in generate_initials(outpost).lower()]
-                filtered_outposts = sorted(filtered_outposts, key=lambda item: item[1].lower())
+                ## filter priority outposts to the top then alphabetically                
+                # filtered_outposts = sorted(filtered_outposts, key=lambda item: item[1].lower())                
+                filtered_outposts.sort(key=lambda item: (0 if item[0] in priority_outposts else 1, priority_outposts.get(item[0], ""), item[1].lower()))
                 
                 filtered_history = [(id, outpost) for id, outpost in travel_history if not search or search in outpost.lower() or search in generate_initials(outpost).lower()] if widget_config.show_travel_history else []
                 
                 outpost_index = 0
-                
+            
             if PyImGui.is_window_appearing():
                 PyImGui.set_keyboard_focus_here(-1)
-                
-          
-                    
             
+            search_focused = PyImGui.is_item_active() or PyImGui.is_item_focused()    
+          
             items_height = max(1, min(300, ((len(filtered_outposts) * 20 if search else 0) + (len(filtered_history) * 20 + (20 if search and filtered_outposts else 0) if filtered_history else 0))))
             if items_height > 1:
                 PyImGui.spacing()
@@ -442,12 +458,14 @@ def DrawWindow():
                         
                         PyImGui.set_cursor_pos(x + 20, y)
                         
-                        if ImGui.selectable(outpost + f" ({id})", is_selected, PyImGui.SelectableFlags.NoFlag, (0, 0)) or is_selected and PyImGui.is_key_pressed(Key.Enter.value):
+                        ImGui.selectable(outpost + f" ({id})", is_selected, PyImGui.SelectableFlags.NoFlag, (0, 0))
+                        if PyImGui.is_item_clicked(0) or (is_selected and PyImGui.is_key_pressed(Key.Enter.value)):
+                            ConsoleLog(MODULE_NAME, f"Traveling to outpost {outpost} ({id}) from history.", Py4GW.Console.MessageType.Info)
                             click_select_outpost(io, id, i)
                             traveled = True
                             
                         is_favorite = id in widget_config.favorites
-                        ImGui.show_tooltip(f"Travel to {outpost}\n\n{("Add as favorite with Shift + Left Click" if not is_favorite else "Remove from favorites with Shift + Left Click")}")
+                        ImGui.show_tooltip(f"Travel to {outpost} ({id})\n\n{("Add as favorite with Shift + Left Click" if not is_favorite else "Remove from favorites with Shift + Left Click")}")
                                                                                        
                         if is_selected:
                             PyImGui.set_scroll_here_y(0.5)
@@ -467,7 +485,9 @@ def DrawWindow():
                             id, outpost = filtered_outposts[i - travel_history_len]
 
                             is_selected = i == outpost_index
-                            if ImGui.selectable(outpost + f" ({id})", is_selected, PyImGui.SelectableFlags.NoFlag, (0, 0)) or is_selected and PyImGui.is_key_pressed(Key.Enter.value):
+                            ImGui.selectable(outpost + f" ({id})", is_selected, PyImGui.SelectableFlags.NoFlag, (0, 0))
+                            if PyImGui.is_item_clicked(0) or (is_selected and PyImGui.is_key_pressed(Key.Enter.value)):
+                                ConsoleLog(MODULE_NAME, f"Traveling to outpost {outpost} ({id}) from search results.", Py4GW.Console.MessageType.Info)
                                 click_select_outpost(io, id, i)                                
                                 traveled = True
                             
@@ -499,11 +519,17 @@ def DrawWindow():
                                 
                                 
                 PyImGui.end_child()
-                    
-            if (traveled and widget_config.close_after_travel) or ((PyImGui.is_mouse_down(0) or PyImGui.is_mouse_clicked(0)) and not PyImGui.is_window_hovered() and not PyImGui.is_any_item_active()) or not PyImGui.is_window_focused() or PyImGui.is_key_pressed(Key.Escape.value):
-                window_module.open = False
-                                 
+                                
             window_module.process_window()
+            
+            if PyImGui.is_mouse_clicked(0):
+                window_rect = (window_x, window_y, window_module.window_size[0], window_module.window_size[1])     
+                if not ImGui.is_mouse_in_rect(button_rect) and not ImGui.is_mouse_in_rect(window_rect):
+                    window_module.open = False
+                    
+                elif ImGui.is_mouse_in_rect(button_rect):
+                    window_module.open = not window_module.open
+                                 
                                    
                 
         window_module.end()
@@ -544,7 +570,7 @@ def ensure_on_screen(button_rect, screen_width, screen_height) -> tuple[float, f
 def generate_initials(name):
     return ''.join(word[0] for word in name.split() if word)
                 
-def click_select_outpost(io, id, i):
+def click_select_outpost(io : PyImGui.ImGuiIO, id, i):
     global widget_config, outpost_index, travel_history, filtered_history
     
     if io.key_shift:
@@ -580,6 +606,9 @@ def TravelToOutpost(outpost_id):
                 travel_history.pop()
     else:
         ConsoleLog(MODULE_NAME, "Already traveling, please wait.", Py4GW.Console.MessageType.Warning)
+    
+    if widget_config.close_after_travel:
+        window_module.open = False
 
 def main():
     """Required main function for the widget"""
