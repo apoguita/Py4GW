@@ -749,7 +749,11 @@ def OpenChest(index, message):
                             account.MapLanguage == map_language)
                 
                 all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.PartyPosition > account_data.PartyPosition]
-                sorted_by_party_index = sorted(all_accounts, key=lambda acc: acc.PartyPosition) if all_accounts else []
+                chest_pos = GLOBAL_CACHE.Agent.GetXY(chest_id)
+                                
+                sorted_by_party_index = sorted(
+                    [acc for acc in all_accounts if Utils.Distance((acc.PlayerPosX, acc.PlayerPosY), chest_pos) < 2500.0], 
+                key=lambda acc: acc.PartyPosition ) if all_accounts else []
                 
                 if sorted_by_party_index:
                     next_account = sorted_by_party_index[0]
