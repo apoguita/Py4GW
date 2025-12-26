@@ -318,7 +318,7 @@ class Settings:
                 x = int(x_str)
                 y = int(y_str)
                 collapsed = collapsed_str.lower() == "true"
-                visible = visible_str.lower() == "true" if visible_str and visible_str.lower() is "true" or "false" else True
+                visible = visible_str.lower() == "true" if visible_str and visible_str.lower()  and visible_str == "true" or visible_str == "false" else True
                 request_save = key not in self.HeroPanelPositions or request_save
                 self.HeroPanelPositions[key] = Settings.HeroPanelInfo(x, y, collapsed, visible)
                 
