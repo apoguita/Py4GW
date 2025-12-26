@@ -150,7 +150,37 @@ class CameraCache:
     def SetLookAtTarget(self, x, y, z):
         self._action_queue_manager.AddAction("ACTION", self._camera_instance.SetLookAtTarget,x, y, z)    
         
+    
+    def IsPointInFOV(self, target_x: float, target_y: float) -> bool:
+        """
+        Determines if a game position point is within the camera's field of view.
+        """
         
+        cam_x, cam_y, _ = self.GetPosition()
+        yaw = self.GetYaw()
+        
+        if yaw == float('inf') or yaw == float('-inf'):
+            return False
+        
+        fov = self.GetFieldOfView()
+
+        dx = target_x - cam_x
+        dy = target_y - cam_y
+
+        dist = math.hypot(dx, dy)
+        if dist == 0:
+            return True
+
+        angle_to_target = math.atan2(dy, dx)
+        angle_diff = angle_to_target - yaw
+
+        while angle_diff > math.pi:
+            angle_diff -= 2 * math.pi
+        while angle_diff < -math.pi:
+            angle_diff += 2 * math.pi
+
+        half_fov = (fov / 2) + 0.2
+        return abs(angle_diff) < half_fov   
     
     
     
