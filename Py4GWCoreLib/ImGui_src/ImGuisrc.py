@@ -89,10 +89,10 @@ class ImGui:
 
     #region overloads
     @staticmethod
-    def push_style_color(idx: int, col: tuple[float, float, float, float]): PyImGui.push_style_color(idx, col)
+    def push_style_color(idx: int, col: tuple[float, float, float, float]): return PyImGui.push_style_color(idx, col)
 
     @staticmethod
-    def pop_style_color(count: int = 1): PyImGui.pop_style_color(count)
+    def pop_style_color(count: int = 1): return PyImGui.pop_style_color(count)
 
     @staticmethod
     def get_x_position_aligned(alignment: Alignment, parent_pos: tuple[float, float], parent_size: tuple[float, float], child_size: tuple[float, float], offset: tuple[float, float]=(0,0)) -> float: 
@@ -314,34 +314,34 @@ class ImGui:
         return open, open
     
     @staticmethod
-    def end(): PyImGui.end()
+    def end(): return PyImGui.end()
 
     @staticmethod
-    def new_line(): PyImGui.new_line()
+    def new_line(): return PyImGui.new_line()
     
     @staticmethod
-    def get_text_line_height() : PyImGui.get_text_line_height()
+    def get_text_line_height() : return PyImGui.get_text_line_height()
     
     @staticmethod
-    def get_text_line_height_with_spacing() : PyImGui.get_text_line_height_with_spacing()
+    def get_text_line_height_with_spacing() : return PyImGui.get_text_line_height_with_spacing()
     
     @staticmethod
-    def calc_text_size(text : str) : PyImGui.calc_text_size(text)
+    def calc_text_size(text : str) : return PyImGui.calc_text_size(text)
     
     @staticmethod
-    def invisible_button(label: str, width: float, height: float) : PyImGui.invisible_button(label, int(width), int(height))
+    def invisible_button(label: str, width: float, height: float) : return PyImGui.invisible_button(label, int(width), int(height))
 
     @staticmethod
-    def selectable(label: str, selected: bool, flags: PyImGui.SelectableFlags = PyImGui.SelectableFlags.NoFlag, size: Tuple[float, float] = (0.0, 0.0)) : PyImGui.selectable(label, selected, flags, (int(size[0]), int(size[1])))
+    def selectable(label: str, selected: bool, flags: PyImGui.SelectableFlags = PyImGui.SelectableFlags.NoFlag, size: Tuple[float, float] = (0.0, 0.0)) : return PyImGui.selectable(label, selected, flags, (int(size[0]), int(size[1])))
         
     @staticmethod
-    def color_edit3(label: str, color: Tuple[float, float, float]) : PyImGui.color_edit3(label, color)
+    def color_edit3(label: str, color: Tuple[float, float, float]) : return PyImGui.color_edit3(label, color)
     
     @staticmethod
-    def color_edit4(label: str, color: Tuple[float, float, float, float]) : PyImGui.color_edit4(label, color)
+    def color_edit4(label: str, color: Tuple[float, float, float, float]): return PyImGui.color_edit4(label, color)
 
     @staticmethod
-    def dummy(width: float, height: float) : PyImGui.dummy(int(width), int(height))
+    def dummy(width: float, height: float) : return PyImGui.dummy(int(width), int(height))
 
     @staticmethod
     def _draw_decorator(decorator : TextDecorator, color_int : int | None = None) -> None:
