@@ -4,6 +4,9 @@ from .AutoCombat import AutoCombat
 from .KeiranThackerayEOTN import KeiranThackerayEOTN
 from .SF_Ass_vaettir import SF_Ass_vaettir
 from .SF_Mes_vaettir import SF_Mes_vaettir
+from .SF_Assassin_Barbarous import SF_Assassin_Barbarous
+from .SF_Assassin_HP import SF_Assassin_Hells_Precipice
+from .VOS_Derv_Barbarous import VOS_Derv_Barbarous
 
 __all__ = [
     "ShadowFormAssassinVaettir",
@@ -11,5 +14,8 @@ __all__ = [
     "AutoCombat",
     "KeiranThackerayEOTN",
     "SF_Ass_vaettir",
-    "SF_Mes_vaettir"
+    "SF_Mes_vaettir",
+    "SF_Assassin_Barbarous",
+    "SF_Assassin_Hells_Precipice",
+    "VOS_Derv_Barbarous"
 ]
