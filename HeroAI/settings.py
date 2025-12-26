@@ -307,11 +307,9 @@ class Settings:
         for key, value in items.items():
             try:
                 parts = value.split(",")
-                
-                if len(parts) < 4:
+                if len(parts) != 4:
                     ConsoleLog("HeroAI", f"Legacy HeroPanelPosition format detected for {key}, upgrading...")
-                    x_str, y_str, collapsed_str, visible_str = *parts, "true"
-                    request_save = True
+                    x_str, y_str, collapsed_str, visible_str = parts[0] if len(parts) > 0 else "200", parts[1] if len(parts) > 1 else "200", "false", "true"
                 else:
                     x_str, y_str, collapsed_str, visible_str = parts
                     
@@ -323,7 +321,8 @@ class Settings:
                 self.HeroPanelPositions[key] = Settings.HeroPanelInfo(x, y, collapsed, visible)
                 
             except Exception as e:
-                ConsoleLog("HeroAI", f"Error loading HeroPanelPosition for {key}: {e}")
+                ConsoleLog("HeroAI", f"Invalid format for Hero Panel of {key}. Using default.")
+                self.HeroPanelPositions[key] = Settings.HeroPanelInfo()
         
         if request_save:
             self.save_requested = True
