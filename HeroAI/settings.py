@@ -306,7 +306,15 @@ class Settings:
 
         for key, value in items.items():
             try:
-                x_str, y_str, collapsed_str, visible_str = value.split(",")
+                parts = value.split(",")
+                
+                if len(parts) < 4:
+                    ConsoleLog("HeroAI", f"Legacy HeroPanelPosition format detected for {key}, upgrading...")
+                    x_str, y_str, collapsed_str, visible_str = *parts, "true"
+                    request_save = True
+                else:
+                    x_str, y_str, collapsed_str, visible_str = parts
+                    
                 x = int(x_str)
                 y = int(y_str)
                 collapsed = collapsed_str.lower() == "true"
