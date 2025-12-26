@@ -6,13 +6,11 @@ from Py4GWCoreLib import Overlay
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Color
 import os
+
+from Py4GWCoreLib.ImGui_src.types import Alignment
 module_name = "Vanquish Monitor"
 
-script_directory = os.path.dirname(os.path.abspath(__file__))
-root_directory = os.path.normpath(os.path.join(script_directory, ".."))
-ini_file_location = os.path.join(root_directory, "Widgets/Config/Vanquish.ini")
-
-ini_handler = IniHandler(ini_file_location)
+ini_handler = IniHandler("Widgets/Config/Vanquish.ini")
 sync_interval = 1000
 
 class Config:
@@ -45,9 +43,9 @@ window_module = ImGui.WindowModule(
     window_name="Vanquish Monitor##Vanquish Monitor",
     window_size=(100, 100), 
     window_flags=PyImGui.WindowFlags(
-        PyImGui.WindowFlags.AlwaysAutoResize | 
         PyImGui.WindowFlags.NoBackground | 
         PyImGui.WindowFlags.NoTitleBar | 
+        PyImGui.WindowFlags.NoMouseInputs | 
         PyImGui.WindowFlags.NoCollapse
     )
 )
@@ -113,17 +111,24 @@ def DrawWindow():
     global widget_config, window_module
     global killed, total
     
-    widget_config.string = f"{total:03}/{killed:03}"
+    widget_config.string = f"{killed}/{total}"
 
     PyImGui.set_next_window_pos(widget_config.x, widget_config.y)
-
+    ImGui.push_font("Regular", widget_config.font_size)
+    text_size = ImGui.calc_text_size("999/999")
+    width = text_size[0] + 20
+    height = text_size[1] + 20
+    
+    PyImGui.set_next_window_size(width, height)
+    
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
-        ImGui.push_font("Regular", widget_config.font_size)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Text,widget_config.color.to_tuple_normalized())
-        PyImGui.text(widget_config.string)
+        ImGui.text_aligned(widget_config.string, text_size[0], text_size[1], alignment=Alignment.MidRight)
         PyImGui.pop_style_color(1)
-        ImGui.pop_font()
+        
     PyImGui.end()
+    
+    ImGui.pop_font()
   
   
 def main():
@@ -144,7 +149,7 @@ def main():
             is_hard_mode
         ):
             killed = GLOBAL_CACHE.Map.GetFoesKilled()
-            total = GLOBAL_CACHE.Map.GetFoesToKill()
+            total = GLOBAL_CACHE.Map.GetFoesToKill() + killed
             
         game_throttle_timer.Start()
          
