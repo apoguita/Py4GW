@@ -14,6 +14,14 @@ class PlayerCache:
         self._name = ""
         self._action_queue_manager:ActionQueueManager = action_queue_manager
         self.login_characters = []
+
+    def _format_uuid_as_email(self, player_uuid):
+        if not player_uuid:
+            return ""
+        try:
+            return "uuid_" + "_".join(str(part) for part in player_uuid)
+        except TypeError:
+            return str(player_uuid)
         
     def _update_cache(self):
         self._player_instance.GetContext()
@@ -115,7 +123,10 @@ class PlayerCache:
         return self._player_instance.account_name
     
     def GetAccountEmail(self):
-        return self._player_instance.account_email
+        account_email = self._player_instance.account_email
+        if account_email:
+            return account_email
+        return self._format_uuid_as_email(self._player_instance.player_uuid)
     
     def GetPlayerUUID(self):
         return self._player_instance.player_uuid
