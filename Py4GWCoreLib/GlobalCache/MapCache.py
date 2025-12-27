@@ -1,57 +1,33 @@
-import PyMap
-from PyMap import MapID
 
+from ..Map import Map
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 from Py4GWCoreLib.enums import outposts, explorables, name_to_map_id
 
 class MapCache:
     def __init__(self, action_queue_manager: ActionQueueManager):
-        self._map_instance = PyMap.PyMap()
         self._name = ""
         self._action_queue_manager = action_queue_manager
         
     def _update_cache(self):
-        self._map_instance.GetContext()
+        pass
         
     def IsMapReady(self):
-        current_map = PyMap.PyMap()
-        return current_map.is_map_ready
+        return Map.IsMapReady()
     
     def IsOutpost(self):
-        current_map = PyMap.PyMap()
-        return current_map.instance_type.GetName() == "Outpost"
+        return Map.IsOutpost()
     
     def IsExplorable(self):
-        current_map = PyMap.PyMap()
-        return current_map.instance_type.GetName() == "Explorable"
+        return Map.IsExplorable()
     
     def IsMapLoading(self):
-        current_map = PyMap.PyMap()
-        return current_map.instance_type.GetName() == "Loading"
+        return Map.IsMapLoading()
     
     def GetMapName(self, mapid: int | None = None) -> str:
-        if mapid is None:
-            map_id = self._map_instance.map_id.ToInt()
-        else:
-            map_id = mapid
-
-        # direct dict lookups
-        if map_id in outposts:
-            return outposts[map_id]
-        if map_id in explorables:
-            return explorables[map_id]
-
-        # fallback: try combined dictionary
-        if map_id in {**outposts, **explorables}:
-            return {**outposts, **explorables}[map_id]
-
-        # final fallback: ask the game instance
-        map_id_instance = MapID(map_id)
-        return map_id_instance.GetName()
-
-    
+        return Map.GetMapName(mapid)
+ 
     def GetMapID(self):
-        return self._map_instance.map_id.ToInt()
+        return Map.GetMapID()
 
     def GetOutpostIDs(self):
         """Retrieve the outpost IDs."""
@@ -64,27 +40,7 @@ class MapCache:
         return list(outposts.values())
     
     def GetMapIDByName(self, name: str) -> int:
-        # normalize
-        key = name.strip().lower()
-
-        # try combined dict first
-        map_id = name_to_map_id.get(name)
-        if map_id:
-            return map_id
-
-        # fallback: normalized lookup
-        for k, v in name_to_map_id.items():
-            if k.lower() == key:
-                return v
-
-        # fallback: partial match (to catch "outpost", seasonal tags)
-        for k, v in name_to_map_id.items():
-            if key in k.lower():
-                return v
-
-        return 0
-
-
+        return Map.GetMapIDByName(name)
     
     def GetExplorableIDs(self):
         return list(explorables.keys())
@@ -93,169 +49,149 @@ class MapCache:
         return list(explorables.values())
     
     def Travel(self, map_id):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.Travel, map_id)
+        self._action_queue_manager.AddAction("ACTION", Map.Travel, map_id)
         
     def TravelToDistrict(self, map_id, district=0, district_number=0):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.Travel, map_id, district, district_number)
+        self._action_queue_manager.AddAction("ACTION", Map.TravelToDistrict, map_id, district, district_number)
         
     def TravelToRegion(self, map_id, server_region, district_number, language=0):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.Travel, map_id, server_region, district_number, language)
+        self._action_queue_manager.AddAction("ACTION", Map.TravelToRegion, map_id, server_region, district_number, language)
         
     def TravelGH(self):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.TravelGH)
+        self._action_queue_manager.AddAction("ACTION", Map.TravelGH)
         
     def LeaveGH(self):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.LeaveGH)
+        self._action_queue_manager.AddAction("ACTION", Map.LeaveGH)
         
     def GetInstanceUptime(self):
-        return self._map_instance.instance_time
+        return Map.GetInstanceUptime()
     
     def GetMaxPartySize(self):
-        return self._map_instance.max_party_size
+        return Map.GetMaxPartySize()
     
     def GetMinPartySize(self):
-        return self._map_instance.min_party_size
+        return Map.GetMinPartySize()
     
     def IsInCinematic(self):
-        return self._map_instance.is_in_cinematic
+        return Map.IsInCinematic()
     
     def SkipCinematic(self):        
-        self._action_queue_manager.AddAction("TRANSITION", self._map_instance.SkipCinematic)
+        self._action_queue_manager.AddAction("TRANSITION", Map.SkipCinematic)
         
     def HasEnterChallengeButton(self):
-        return self._map_instance.has_enter_button
+        return Map.HasEnterChallengeButton()
     
     def IsOnWorldMap(self):
-        return self._map_instance.is_on_world_map
+        return Map.IsOnWorldMap()
     
     def IsPVP(self):
-        return self._map_instance.is_pvp
+        return Map.IsPVP()
     
     def IsGuildHall(self):
-        return self._map_instance.is_guild_hall
+        return Map.IsGuildHall()
     
     def EnterChallenge(self):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.EnterChallenge)
+        self._action_queue_manager.AddAction("ACTION", Map.EnterChallenge)
         
     def CancelEnterChallenge(self):
-        self._action_queue_manager.AddAction("ACTION", self._map_instance.CancelEnterChallenge)
+        self._action_queue_manager.AddAction("ACTION", Map.CancelEnterChallenge)
         
     def IsVanquishable(self):
-        return self._map_instance.is_vanquishable_area
+        return Map.IsVanquishable()
     
     def GetFoesKilled(self):
-        return self._map_instance.foes_killed
+        return Map.GetFoesKilled()
     
     def GetFoesToKill(self):
-        return self._map_instance.foes_to_kill
+        return Map.GetFoesToKill()
     
     def GetIsVanquishComplete(self):
         if self.IsVanquishable():
-            return self._map_instance.foes_to_kill == 0
+            return Map.GetFoesToKill() == 0
         return False
     
     def GetCampaign(self):
-        campaign = self._map_instance.campaign
-        return campaign.ToInt(), campaign.GetName()
+        return Map.GetCampaign()
     
     def GetContinent(self):
-        continent = self._map_instance.continent
-        return continent.ToInt(), continent.GetName()
+        return Map.GetContinent()
     
     def GetRegionType(self):
-        region_type = self._map_instance.region_type
-        return region_type.ToInt(), region_type.GetName()
+        return Map.GetRegionType()
     
     def GetDistrict(self):
-        return self._map_instance.district
+        return Map.GetDistrict()
     
     def GetRegion(self):
-        return self._map_instance.server_region.ToInt(), self._map_instance.server_region.GetName()
+        return Map.GetRegion()
     
     def GetLanguage(self):
-        return self._map_instance.language.ToInt(), self._map_instance.language.GetName()
-    
-    def RegionFromDistrict(self, district):
-        region = self._map_instance.RegionFromDistrict(district)
-        return region.ToInt(), region.GetName()
-
-    def LanguageFromDistrict(self, district):
-        language = self._map_instance.LanguageFromDistrict(district)
-        return language.ToInt(), language.GetName()
+        return Map.GetLanguage()
     
     def GetIsMapUnlocked(self,mapid=None):
         """Check if the map is unlocked."""
-        if mapid is None:
-            map_id = self._map_instance.map_id.ToInt()
-        else:
-            map_id = mapid
-        return self._map_instance.GetIsMapUnlocked(map_id)
+        return Map.IsMapUnlocked(mapid)
 
     def GetAmountOfPlayersInInstance(self):
-        return self._map_instance.amount_of_players_in_instance
+        return Map.GetAmountOfPlayersInInstance()
     
     def GetFlags(self):
-        return self._map_instance.flags
+        return Map.GetFlags()
     
     def GetThumbnailID(self):
-        return self._map_instance.thumbnail_id
+        return Map.GetThumbnailID()
     
     def GetMinPlayerSize(self):
-        return self._map_instance.min_player_size
+        return Map.GetMinPlayerSize()
     
     def GetMaxPlayerSize(self):
-        return self._map_instance.max_player_size
+        return Map.GetMaxPlayerSize()
     
     def GetControlledOutpostID(self):
-        return self._map_instance.controlled_outpost_id
+        return Map.GetControlledOutpostID()
     
     def GetFractionMission(self):
-        return self._map_instance.fraction_mission
+        return Map.GetFractionMission()
        
     def GetMinLevel(self):
-        return self._map_instance.min_level
+        return Map.GetMinLevel()
     
     def GetMaxLevel(self):
-        return self._map_instance.max_level
+        return Map.GetMaxLevel()
     
     def GetNeededPQ(self):
-        return self._map_instance.needed_pq
+        return Map.GetNeededPQ()
     
     def GetMissionMapsTo(self):
-        return self._map_instance.mission_maps_to
+        return Map.GetMissionMapsTo()
     
     def GetIconPosition(self):
-        return self._map_instance.icon_position_x, self._map_instance.icon_position_y
+        return Map.GetIconPosition
     
     def GetIconStartPosition(self):
-        return self._map_instance.icon_start_x, self._map_instance.icon_start_y
+        return Map.GetIconStartPosition()
     
     def GetIconEndPosition(self):
-        return self._map_instance.icon_end_x, self._map_instance.icon_end_y
-    
-    def GetIconStartPositionDupe(self):
-        return self._map_instance.icon_start_x_dupe, self._map_instance.icon_start_y_dupe
-    
-    def GetIconEndPositionDupe(self):
-        return self._map_instance.icon_end_x_dupe, self._map_instance.icon_end_y_dupe
+        return Map.GetIconEndPosition()
 
     def GetFileID(self):
-        return self._map_instance.file_id
+        return Map.GetFileID()
         
     def GetMissionChronology(self):
-        return self._map_instance.mission_chronology
+        return Map.GetMissionChronology()
         
     def GetHAChronology(self):
-        return self._map_instance.ha_map_chronology
+        return Map.GetHAChronology()
 
     def GetNameID(self):
-        return self._map_instance.name_id
+        return Map.GetNameID()
 
     def GetDescriptionID(self):
-        return self._map_instance.description_id
+        return Map.GetDescriptionID()
     
     def GetMapWorldMapBounds(self):
-        map_info = self._map_instance
+        import PyMap
+        map_info = PyMap.PyMap()
 
         if map_info.icon_start_x == 0 and map_info.icon_start_y == 0 and map_info.icon_end_x == 0 and map_info.icon_end_y == 0:
             left   = float(map_info.icon_start_x_dupe)
@@ -271,7 +207,8 @@ class MapCache:
         return left, top, right, bottom
     
     def GetMapBoundaries(self):
-        boundaries = self._map_instance.map_boundaries
+        import PyMap
+        boundaries = PyMap.PyMap().map_boundaries
         if len(boundaries) < 5:
             return 0.0, 0.0, 0.0, 0.0  # Optional: fallback for safety
 

@@ -11,7 +11,7 @@ from ..internals.helpers import read_wstr, encoded_wstr_to_str
 from ..internals.types import Vec2f, Vec3f, GamePos
 from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
 
-#region processed
+#region AccountInfo
 class AccountInfo(Structure):
     _pack_ = 1
     _fields_ = [
@@ -27,7 +27,8 @@ class AccountInfo(Structure):
     @property
     def account_name_str(self) -> str | None:
         return read_wstr(self.account_name_ptr)
-    
+ 
+#region MapAgent   
 class MapAgent(Structure):
     _pack_ = 1
     _fields_ = [
@@ -77,6 +78,7 @@ class MapAgent(Structure):
     def is_weapon_spelled(self) -> bool:
         return (self.effects & 0x8000) != 0
     
+#region PartyAlly
 class PartyAlly(Structure):
     _pack_ = 1
     _fields_ = [
@@ -85,6 +87,7 @@ class PartyAlly(Structure):
         ("composite_id", c_uint32),
     ]
 
+#region Attribute
 class Attribute(Structure):
     _pack_ = 1
     _fields_ = [
@@ -95,6 +98,7 @@ class Attribute(Structure):
         ("increment_points", c_uint32),
     ]
 
+#region PartyAttribute
 class PartyAttribute(Structure):
     _pack_ = 1
     _fields_ = [
@@ -106,6 +110,7 @@ class PartyAttribute(Structure):
     def attributes(self) -> list[Attribute]:
         return [self.attribute_array[i] for i in range(54)]
     
+#region Effect and Buff
 class Effect(Structure):
     _pack_ = 1
     _fields_ = [
@@ -249,8 +254,6 @@ class HeroFlag(Structure):
 
         return Vec2f(flag.x, flag.y)
 
-
-
 class HeroInfo(Structure):
     _pack_ = 1
     _fields_ = [
@@ -278,7 +281,6 @@ class ControlledMinions(Structure):
         ("minion_count", c_uint32),
     ]
     
-
 class PartyMemberMoraleInfo(Structure):
     _pack_ = 1
     _fields_ = [
@@ -399,10 +401,6 @@ class ProfessionState(Structure):
     
     def IsProfessionUnlocked(self, profession: int) -> bool:    
         return (self.unlocked_professions & (1 << profession)) != 0
-  
-# ---------------------------------------------------------------------
-# SkillbarSkill (size = 0x14 / 20 bytes)
-# ---------------------------------------------------------------------
 
 class SkillbarSkill(Structure):
     _pack_ = 1
@@ -482,9 +480,10 @@ class MissionMapIcon(Structure):
         ("h0020", c_uint32),         # +h0020 // = 0
         ("h0024", c_uint32),         # +h0024 // May concern the name
     ]
+    @property 
+    def position(self) -> Vec2f:
+        return Vec2f(self.X, self.Y)
     
-    
-
 class PetInfo(Structure):
     _pack_ = 1
     _fields_ = [
@@ -666,92 +665,7 @@ class TitleTier(Structure):
     def is_percentage_based(self) -> bool:
         return (self.props & 1) != 0
 
-#region not_processed
-
-
-# ---------------------------------------------------------------------
-# Skill  (size = 0xA4 / 164 bytes)
-# ---------------------------------------------------------------------
-
-class Skill(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("skill_id", c_uint32),                 # +h0000
-        ("h0004", c_uint32),                    # +h0004
-        ("campaign", c_uint32),                 # +h0008
-        ("type", c_uint32),                     # +h000C
-        ("special", c_uint32),                  # +h0010
-        ("combo_req", c_uint32),                # +h0014
-        ("effect1", c_uint32),                  # +h0018
-        ("condition", c_uint32),                # +h001C
-        ("effect2", c_uint32),                  # +h0020
-        ("weapon_req", c_uint32),               # +h0024
-        ("profession", c_uint8),                # +h0028
-        ("attribute", c_uint8),                 # +h0029
-        ("title", c_uint16),                    # +h002A
-        ("skill_id_pvp", c_uint32),              # +h002C
-        ("combo", c_uint8),                     # +h0030
-        ("target", c_uint8),                    # +h0031
-        ("h0032", c_uint8),                     # +h0032
-        ("skill_equip_type", c_uint8),           # +h0033
-        ("overcast", c_uint8),                  # +h0034 // only if special flag has 0x000001 set
-        ("energy_cost", c_uint8),               # +h0035
-        ("health_cost", c_uint8),               # +h0036
-        ("h0037", c_uint8),                     # +h0037
-        ("adrenaline", c_uint32),               # +h0038
-        ("activation", c_float),                # +h003C
-        ("aftercast", c_float),                 # +h0040
-        ("duration0", c_uint32),                # +h0044
-        ("duration15", c_uint32),               # +h0048
-        ("recharge", c_uint32),                 # +h004C
-        ("h0050", c_uint16 * 4),                # +h0050
-        ("skill_arguments", c_uint32),           # +h0058 // 1 - duration set, 2 - scale set, 4 - bonus scale set (3 would mean duration and scale is set/used by the skill)
-        ("scale0", c_uint32),                   # +h005C
-        ("scale15", c_uint32),                  # +h0060
-        ("bonusScale0", c_uint32),              # +h0064
-        ("bonusScale15", c_uint32),             # +h0068
-        ("aoe_range", c_float),                 # +h006C
-        ("const_effect", c_float),              # +h0070
-        ("caster_overhead_animation_id", c_uint32), # +h0074 //2077 == max == no animation
-        ("caster_body_animation_id", c_uint32),     # +h0078
-        ("target_body_animation_id", c_uint32),     # +h007C
-        ("target_overhead_animation_id", c_uint32), # +h0080
-        ("projectile_animation_1_id", c_uint32),    # +h0084
-        ("projectile_animation_2_id", c_uint32),    # +h0088
-        ("icon_file_id", c_uint32),                  # +h008C
-        ("icon_file_id_2", c_uint32),                # +h0090
-        ("icon_file_id_hi_res", c_uint32),           # +h0094
-        ("name", c_uint32),                           # +h0098
-        ("concise", c_uint32),                        # +h009C
-        ("description", c_uint32),                    # +h00A0
-    ]
-
-
-"""        uint8_t GetEnergyCost() const {
-            switch (energy_cost) {
-            case 11: return 15;
-            case 12: return 25;
-            default: return energy_cost;
-            }
-        }
-
-        [[nodiscard]] bool IsTouchRange() const { return (special & 0x2) != 0; }
-        [[nodiscard]] bool IsElite() const { return (special & 0x4) != 0; }
-        [[nodiscard]] bool IsHalfRange() const { return (special & 0x8) != 0; }
-        [[nodiscard]] bool IsPvP() const { return (special & 0x400000) != 0; }
-        [[nodiscard]] bool IsPvE() const { return (special & 0x80000) != 0; }
-        [[nodiscard]] bool IsPlayable() const { return (special & 0x2000000) == 0; }
-
-        // NB: Guild Wars uses the skill array to build mods for weapons, so stuff like runes are skills too, and use stacking/non-stacking flags
-        [[nodiscard]] bool IsStacking() const { return (special & 0x10000) != 0; }
-        [[nodiscard]] bool IsNonStacking() const { return (special & 0x20000) != 0; }
-        [[nodiscard]] bool IsUnused() const;
-    };
-    static_assert(sizeof(Skill) == 0xa4, "struct Skill has incorrect size");"""
-
-
-
-
+#region WorldContextStruct
 
 # ---------------------------------------------------------------------
 # WorldContextStruct
@@ -870,6 +784,7 @@ class WorldContextStruct(Structure):
         #//... couple more arrays after this
     ]
     
+#region Properties
     @property
     def account_info(self) -> AccountInfo | None:
         if not self.account_info_ptr:
@@ -1195,6 +1110,7 @@ class WorldContextStruct(Structure):
         return [int(area) for area in areas]
     
     
+#region Facade
 class WorldContext:
     _ptr: int = 0
     _callback_name = "WorldContext.UpdateWorldContextPtr"

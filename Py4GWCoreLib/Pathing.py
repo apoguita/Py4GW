@@ -1,7 +1,6 @@
 import Py4GW
 import PyPathing
 import PyOverlay
-import PyMap
 import math
 import heapq
 import pickle
@@ -10,6 +9,7 @@ from .enums import name_to_map_id
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib.Map import Map
 
 PathingMap = PyPathing.PathingMap
 PathingTrapezoid = PyPathing.PathingTrapezoid
@@ -579,7 +579,7 @@ class AutoPathing:
         return (map_id,)  # Default: treat each unknown map_id as its own group
 
     def load_pathing_maps(self):
-        map_id = PyMap.PyMap().map_id.ToInt()
+        map_id = Map.GetMapID()
         group_key = self._get_group_key(map_id)
         yield
 
@@ -599,7 +599,7 @@ class AutoPathing:
             navmesh.save_to_file("NavMeshCache")"""
 
     def get_navmesh(self) -> Optional[NavMesh]:
-        map_id = PyMap.PyMap().map_id.ToInt()
+        map_id = Map.GetMapID()
         group_key = self._get_group_key(map_id)
         return self.pathing_map_cache.get(group_key, None)
 
@@ -628,7 +628,7 @@ class AutoPathing:
             return path2d
 
 
-        map_id = PyMap.PyMap().map_id.ToInt()
+        map_id = Map.GetMapID()
         group_key = self._get_group_key(map_id)
 
         # --- Try fast planner first ---

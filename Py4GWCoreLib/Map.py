@@ -1,47 +1,95 @@
 import PyMap
+from .Context import GWContext
+from .native_src.methods.MapMethods import MapMethods
+from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, RegionTypeName, 
+                                     ContinentName, CampaignName,)
+
+
+from .enums_src.Map_enums import (InstanceTypeName)
+
+
+
 import PyMissionMap
 import PyPathing
 import PyOverlay
-from .enums import outposts, explorables, explorable_name_to_id, FlagPreference
+from .enums import  explorable_name_to_id, FlagPreference
 from .UIManager import *
 from .Overlay import *
 import math
 
 class Map:
+    #region Context Instances
     @staticmethod
     def map_instance():
         """Return the PyMap instance. """
         return PyMap.PyMap() 
 
+    #region Instance_Type
     @staticmethod
-    def IsMapReady():
-        """Check if the map is ready to be handled."""
-        return Map.map_instance().is_map_ready
+    def GetInstanceType() -> int:
+        """Retrieve the instance type of the current map."""
+        if not (instance_info := GWContext.InstanceInfo.GetContext()):
+            return 2  # Loading
+        return instance_info.instance_type
+    
+    @staticmethod
+    def GetInstanceTypeName() -> str:
+        """Retrieve the instance type name of the current map."""
+        type = Map.GetInstanceType()
+        return InstanceTypeName.get(type, "Loading")
 
     @staticmethod
-    def IsOutpost():
+    def IsOutpost() -> bool:
         """Check if the map instance is an outpost."""
-        return Map.map_instance().instance_type.GetName() == "Outpost"
+        return Map.GetInstanceTypeName() == "Outpost"
 
     @staticmethod
-    def IsExplorable():
+    def IsExplorable() -> bool:
         """Check if the map instance is explorable."""
-        return Map.map_instance().instance_type.GetName() == "Explorable"
+        return Map.GetInstanceTypeName() == "Explorable"
 
     @staticmethod
-    def IsMapLoading():
+    def IsMapLoading() -> bool:
         """Check if the map instance is loading."""
-        return Map.map_instance().instance_type.GetName() == "Loading"
-
+        return Map.GetInstanceTypeName() == "Loading"
+    
     @staticmethod
-    def GetMapName(mapid=None):
+    def IsMapDataLoaded() -> bool:
+        """Check if the map data is loaded."""
+        if not (GWContext.Map.IsValid()): return False
+        return True
+    
+    @staticmethod
+    def IsObservingMatch() -> bool:
+        """Check if the character is observing a match."""
+        if not (char_context := GWContext.Char.GetContext()): return False
+        return char_context.current_map_id != char_context.observe_map_id
+    
+    @staticmethod
+    def IsMapReady() -> bool:
+        """Check if the map is ready to be handled."""  
+        map_data_loaded = Map.IsMapDataLoaded()
+        is_observing = Map.IsObservingMatch()
+        is_map_loading = Map.IsMapLoading()
+        return map_data_loaded and not is_observing and not is_map_loading
+    
+    #region Data
+    @staticmethod
+    def GetMapID() -> int:
+        """Retrieve the ID of the current map."""
+        if not (char_context :=  GWContext.Char.GetContext()): return 0
+        return char_context.current_map_id
+    
+    @staticmethod
+    def GetMapName(mapid=None) -> str:
         """
         Retrieve the name of a map by its ID.
         Args:
             mapid (int, optional): The ID of the map to retrieve. Defaults to the current map.
         Returns: str
         """
-        global outposts, explorables
+        from .enums_src.Map_enums import outposts, explorables
+
         if mapid is None:
             map_id = Map.GetMapID()
         else:
@@ -52,82 +100,463 @@ class Map:
         if map_id in explorables:
             return explorables[map_id]
 
-        map_id_instance = PyMap.MapID(map_id)
-        return map_id_instance.GetName()
-
-    @staticmethod
-    def GetMapID():
-        """Retrieve the ID of the current map."""
-        return Map.map_instance().map_id.ToInt()
-
-    @staticmethod
-    def GetOutpostIDs():
-        """Retrieve the outpost IDs."""
-        global outposts
-        return list(outposts.keys())
-
-    @staticmethod
-    def GetOutpostNames():
-        """Retrieve the outpost names."""
-        global outposts
-        return list(outposts.values())
+        return "Unknown Map ID"
     
     @staticmethod
-    def GetMapIDByName(name) -> int:
-        global explorable_name_to_id
-        """Retrieve the ID of a map by its name."""
-        map_id = explorable_name_to_id.get(name)
-        if map_id is not None:
-            return map_id
+    def GetMapIDByName(name: str) -> int:
+        """
+        Retrieve the ID of a map (outpost or explorable) by its name.
+        Case-insensitive. Returns 0 if not found.
+        """
+        from .enums_src.Map_enums import outposts, explorables
 
-        # Get outpost IDs and names, and build a reverse lookup map
-        outpost_ids = Map.GetOutpostIDs()
-        outpost_names = Map.GetOutpostNames()
-        outpost_name_to_id = {name: id for id, name in zip(outpost_names, outpost_ids)}
+        # Normalize lookup key
+        key = name.lower()
 
-        # Check if the name exists in outposts
-        return int(outpost_name_to_id.get(name, 0))
+        catalog: dict[str, int] = {}
+
+        # build lowercase-name -> id dictionary
+        for id, nm in outposts.items():
+            catalog[nm.lower()] = id
+
+        for id, nm in explorables.items():
+            catalog[nm.lower()] = id
+
+        return int(catalog.get(key, 0))
+    
+    @staticmethod
+    def GetInstanceUptime() -> int:
+        """Retrieve the uptime of the current instance."""
+        if not (agent_context := GWContext.Agent.GetContext()):
+            return 0
+        return agent_context.instance_timer
+    
+    @staticmethod
+    def GetRegion() -> tuple[int, str]:
+        """Retrieve the region ID and name of the current server region.
+        Returns:
+            tuple[int, str]: A tuple containing the region ID and its corresponding name.
+        """
+        if not (region_ctx := GWContext.ServerRegion.GetContext()):
+            return 255, ServerRegionName[255]
         
+        return region_ctx.region_id, ServerRegionName[region_ctx.region_id]
 
+    
     @staticmethod
-    def GetExplorableIDs():
+    def GetRegionType() -> tuple[int, str]:
         """
-        Retrieve all explorable map IDs.
-        Returns: list[int]
+        Retrieve the region type of the current map.
+        Args: None
+        Returns: tuple (int, str)
         """
-        global explorables
-        return list(explorables.keys())
-
-    @staticmethod
-    def GetExplorableNames():
-        """
-        Retrieve all explorable map names.
-        Returns: list[str]
-        """
-        global explorables
-        return list(explorables.values())
+        _unknown_region_type = 20  # Unknown
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return _unknown_region_type, RegionTypeName[_unknown_region_type]  # Unknown
         
+        return current_map_info.type, RegionTypeName[current_map_info.type]
+    
+    @staticmethod
+    def GetDistrict() -> int:
+        """Retrieve the district of the current map."""
+        if not (char_context :=  GWContext.Char.GetContext()): return -1
+        return char_context.district_number
+    
+    @staticmethod
+    def GetLanguage() -> tuple[int, str]:
+        """
+        Retrieve the language of the current map.
+        Args: None
+        Returns: tuple (int, str)
+        """
+        unknown_language = 255  # Unknown
+        lang_dict = ServerLanguageName
+        
+        if not (char_context := GWContext.Char.GetContext()):
+            return unknown_language, lang_dict[unknown_language]
+
+        language = char_context.language
+
+        # validate the value
+        if language not in lang_dict:
+            language = unknown_language
+
+        # now return the validated language
+        return language, lang_dict[language]
+    
 
     @staticmethod
-    def Travel(map_id):
+    def GetAmountOfPlayersInInstance():
+        """Retrieve the amount of players in the current instance."""
+        if not (world_ctx := GWContext.World.GetContext()):
+            return 0
+        players = world_ctx.players
+        if not players:
+            return 0
+        return len(players) -1
+    
+    @staticmethod
+    def GetMaxPartySize() -> int:
+        """ Retrieve the maximum party size of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        
+        return current_map_info.max_party_size
+    
+    @staticmethod
+    def GetMinPartySize() -> int:
+        """ Retrieve the minimum party size of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        
+        return current_map_info.min_party_size
+    
+    @staticmethod
+    def GetMinPlayerSize() -> int:
+        """Retrieve the minimum player size of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.min_player_size
+    
+    @staticmethod
+    def GetMaxPlayerSize() -> int:
+        """Retrieve the maximum player size of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.max_player_size
+    
+    @staticmethod
+    def GetFoesKilled() -> int:
+        """
+        Retrieve the number of foes killed in the current map.
+        Args: None
+        Returns: int
+        """
+        if not (world_ctx := GWContext.World.GetContext()):
+            return 0
+        return world_ctx.foes_killed
+
+    @staticmethod
+    def GetFoesToKill() -> int:
+        """
+        Retrieve the number of foes to kill in the current map.
+        Args: None
+        Returns: int
+        """
+        if not (world_ctx := GWContext.World.GetContext()):
+            return 0
+        return world_ctx.foes_to_kill
+    
+    @staticmethod
+    def IsInCinematic() -> bool:
+        """Check if the map is in a cinematic."""
+        if not (cinematic_ctx := GWContext.Cinematic.GetContext()):
+            return False
+        return cinematic_ctx.h0004 != 0
+    
+    @staticmethod
+    def GetCampaign() -> tuple[int, str]:
+        """
+        Retrieve the campaign of the current map.
+        Args: None
+        Returns: tuple (int, str)
+        """
+        not_valid = 255
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return not_valid, CampaignName[not_valid]
+
+        return current_map_info.campaign, CampaignName[current_map_info.campaign]
+
+    @staticmethod
+    def GetContinent() -> tuple[int, str]:
+        """
+        Retrieve the continent of the current map.
+        Args: None
+        Returns: tuple (int, str)
+        """
+        not_valid = 255
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return not_valid,ContinentName[not_valid]
+        return current_map_info.continent, ContinentName[current_map_info.continent]
+
+    @staticmethod
+    def HasEnterChallengeButton() -> bool:
+        """Check if the map has an enter challenge button."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return False
+        return current_map_info.has_enter_button
+
+    @staticmethod
+    def IsOnWorldMap():
+        """Check if the map is on the world map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return False
+        return current_map_info.is_on_world_map
+    
+    @staticmethod
+    def IsPVP():
+        """Check if the map is a PvP map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return False
+        return current_map_info.is_pvp
+    
+    @staticmethod
+    def IsGuildHall():
+        """Check if the map is a Guild Hall."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return False
+        return current_map_info.is_guild_hall
+    
+    @staticmethod
+    def IsVanquishable():
+        """Check if the map is vanquishable."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return False
+        return current_map_info.is_vanquishable_area
+    
+    @staticmethod
+    def IsVanquishComplete() -> bool:
+        """Check if the vanquish is complete."""
+        if Map.IsVanquishable():
+            return Map.GetFoesToKill() == 0
+        return False
+    
+    @staticmethod
+    def IsMapUnlocked(mapid: int | None = None) -> bool:
+        """Check if the map is unlocked."""
+        # Step 1: determine map_id
+        map_id = Map.GetMapID() if mapid is None else mapid
+        # Step 2: retrieve context
+        world_ctx = GWContext.World.GetContext()
+        if not world_ctx:
+            return False
+        # Step 3: fetch the underlying array
+        unlocked_maps = world_ctx.unlocked_maps
+        if not unlocked_maps or len(unlocked_maps) == 0:
+            return False
+        # Step 4: compute index (element in array)
+        real_index = map_id // 32
+        if real_index >= len(unlocked_maps):
+            return False
+        # Step 5: compute bit shift
+        shift = map_id % 32
+        # Step 6: compute bit flag
+        flag = 1 << shift
+        # Step 7: access array element and test
+        # world_ctx.unlocked_maps is expected to behave like Array<uint32_t>
+        value = unlocked_maps[real_index]  # becomes uint32_t automatically
+        return (value & flag) != 0
+    
+    #region Additional Fields
+    @staticmethod
+    def GetFlags() -> int:
+        """Retrieve the flags of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.flags
+
+    @staticmethod
+    def GetMinLevel() -> int:
+        """Retrieve the minimum level of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.min_level
+    
+    @staticmethod
+    def GetMaxLevel() -> int:
+        """Retrieve the maximum level of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.max_level
+    
+    @staticmethod
+    def GetThumbnailID() -> int:
+        """Retrieve the thumbnail ID of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.thumbnail_id
+    
+    @staticmethod
+    def GetControlledOutpostID() -> int:
+        """Retrieve the controlled outpost ID of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.controlled_outpost_id
+    
+    @staticmethod
+    def GetFractionMission() -> int:
+        """Retrieve the fraction mission of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.fraction_mission
+    
+    @staticmethod
+    def GetNeededPQ() -> int:
+        """Retrieve the needed PQ of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.needed_pq
+    
+    @staticmethod
+    def HasMissionMapsTo() -> bool:
+        """Check if the current map has mission maps to."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return False
+        return current_map_info.mission_maps_to != 0
+    
+    @staticmethod
+    def GetMissionMapsTo() -> int:
+        """Retrieve the mission maps to of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.mission_maps_to
+    
+    @staticmethod
+    def GetIconPosition() -> tuple[int, int]:
+        """Retrieve the icon position of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0, 0
+        return current_map_info.x, current_map_info.y
+    
+    @staticmethod
+    def GetIconStartPosition() -> tuple[int, int]:
+        """Retrieve the icon start position of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0, 0
+        return current_map_info.icon_start_x, current_map_info.icon_start_y
+    
+    @staticmethod
+    def GetIconEndPosition() -> tuple[int, int]:
+        """Retrieve the icon end position of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0, 0
+        return current_map_info.icon_end_x, current_map_info.icon_end_y
+    
+    @staticmethod
+    def GetFileID() -> int:
+        """Retrieve the file ID of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.file_id
+    
+    @staticmethod
+    def GetMissionChronology() -> int:
+        """Retrieve the mission chronology of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.mission_chronology
+    
+    @staticmethod
+    def GetHAChronology() -> int:
+        """Retrieve the HA chronology of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.ha_map_chronology
+    
+    @staticmethod
+    def GetNameID() -> int:
+        """Retrieve the name ID of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.name_id
+    
+    @staticmethod
+    def GetDescriptionID() -> int:
+        """Retrieve the description ID of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.description_id
+    
+    @staticmethod
+    def GetFileID1() -> int:
+        """Retrieve the file ID 1 of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.file_id1
+    
+    @staticmethod
+    def GetFileID2() -> int:
+        """Retrieve the file ID 2 of the current map."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return 0
+        return current_map_info.file_id2
+    
+    @staticmethod
+    def IsUnlockable() -> bool:
+        """Check if the current map is unlockable."""
+        current_map_info = GWContext.InstanceInfo().GetMapInfo()
+        if current_map_info is None:
+            return False
+        return current_map_info.is_unlockable
+    
+    @staticmethod
+    def IsEnteringChallenge() -> bool:
+        """Check if the character is entering a challenge."""
+        from .UIManager import WindowFrames
+        CancelEnterMissionButton = WindowFrames.get("CancelEnterMissionButton", None)
+        if CancelEnterMissionButton is None:
+            return False
+        if not CancelEnterMissionButton.FrameExists():
+            return False
+        return True
+        
+    #region Functions
+    @staticmethod
+    def SkipCinematic() -> bool:
+        """ Skip the cinematic."""
+        return MapMethods.SkipCinematic()
+        
+    @staticmethod
+    def Travel(map_id) -> bool:
         """Travel to a map by its ID."""
-        Map.map_instance().Travel(map_id)
+        return MapMethods.Travel(map_id)
 
     @staticmethod
-    def TravelToDistrict(map_id, district=0, district_number=0):
+    def TravelToDistrict(map_id, district=0, district_number=0) -> bool:
         """
         Travel to a map by its ID and district.
         Args:
             map_id (int): The ID of the map to travel to.
-            district (int): The district to travel to.
+            district (int): The district to travel to. (region)
             district_number (int): The number of the district to travel to.
         Returns: None
         """
-        Map.map_instance().Travel(map_id, district, district_number)
+        return MapMethods.Travel(map_id, district, district_number)
         
     #bool Travel(int map_id, int server_region, int district_number, int language);
     @staticmethod
-    def TravelToRegion(map_id, server_region, district_number, language=0):
+    def TravelToRegion(map_id, server_region, district_number, language=0) -> bool:
         """
         Travel to a map by its ID and region.
         Args:
@@ -137,282 +566,44 @@ class Map:
             language (int): The language to travel to.
         Returns: None
         """
-        Map.map_instance().Travel(map_id, server_region, district_number, language)
-    
-    @staticmethod
-    def TravelGH():
-        """Travel to the Guild Hall."""
-        Map.map_instance().TravelGH()
+        return MapMethods.Travel(map_id, server_region, district_number, language)
         
     @staticmethod
-    def LeaveGH():
+    def TravelGH() -> bool:
+        """Travel to the Guild Hall."""
+        return MapMethods.TravelGH()
+        
+    @staticmethod
+    def LeaveGH() -> bool:
         """Leave the Guild Hall."""
-        Map.map_instance().LeaveGH()
-
+        return MapMethods.LeaveGH()
+        
     @staticmethod
-    def GetInstanceUptime():
-        """Retrieve the uptime of the current instance."""
-        return Map.map_instance().instance_time
-
-    @staticmethod
-    def GetMaxPartySize():
-        """ Retrieve the maximum party size of the current map."""
-        return Map.map_instance().max_party_size
-    
-    @staticmethod
-    def GetMinPartySize():
-        """ Retrieve the minimum party size of the current map."""
-        return Map.map_instance().min_party_size
-
-    @staticmethod
-    def IsInCinematic():
-        """Check if the map is in a cinematic."""
-        return Map.map_instance().is_in_cinematic
-
-    @staticmethod
-    def SkipCinematic():
-        """ Skip the cinematic."""
-        Map.map_instance().SkipCinematic()
-
-    @staticmethod
-    def HasEnterChallengeButton():
-        """Check if the map has an enter challenge button."""
-        return Map.map_instance().has_enter_button
-    
-    @staticmethod
-    def IsOnWorldMap():
-        """Check if the map is on the world map."""
-        return Map.map_instance().is_on_world_map
-    
-    @staticmethod
-    def IsPVP():
-        """Check if the map is a PvP map."""
-        return Map.map_instance().is_pvp
-    
-    @staticmethod
-    def IsGuildHall():
-        """Check if the map is a Guild Hall."""
-        return Map.map_instance().is_guild_hall
-
-    @staticmethod
-    def EnterChallenge():
+    def EnterChallenge() -> bool:
         """Enter the challenge."""
-        Map.map_instance().EnterChallenge()
-
+        return MapMethods.EnterChallenge()
+        
     @staticmethod
-    def CancelEnterChallenge():
+    def CancelEnterChallenge() -> bool:
         """Cancel entering the challenge."""
-        Map.map_instance().CancelEnterChallenge()
+        CancelEnterMissionButton = WindowFrames.get("CancelEnterMissionButton", None)
+        if CancelEnterMissionButton is None:
+            return False
+        if not CancelEnterMissionButton.FrameExists():
+            return False
+        CancelEnterMissionButton.FrameClick()
+        return True
+        
+        
+        
+    #region not_processed
+    
+    
 
-    @staticmethod
-    def IsVanquishable():
-        """Check if the map is vanquishable."""
-        return Map.map_instance().is_vanquishable_area
+    
 
-    @staticmethod
-    def GetFoesKilled():
-        """
-        Retrieve the number of foes killed in the current map.
-        Args: None
-        Returns: int
-        """
-        return Map.map_instance().foes_killed
+    
 
-    @staticmethod
-    def GetFoesToKill():
-        """
-        Retrieve the number of foes to kill in the current map.
-        Args: None
-        Returns: int
-        """
-        return Map.map_instance().foes_to_kill
-
-    @staticmethod
-    def GetCampaign():
-        """
-        Retrieve the campaign of the current map.
-        Args: None
-        Returns: tuple (int, str)
-        """
-        campaign = Map.map_instance().campaign
-        return campaign.ToInt(), campaign.GetName()
-
-    @staticmethod
-    def GetContinent():
-        """
-        Retrieve the continent of the current map.
-        Args: None
-        Returns: tuple (int, str)
-        """
-        continent = Map.map_instance().continent
-        return continent.ToInt(), continent.GetName()
-
-    @staticmethod
-    def GetRegionType():
-        """
-        Retrieve the region type of the current map.
-        Args: None
-        Returns: tuple (int, str)
-        """
-        region_type = Map.map_instance().region_type
-        return region_type.ToInt(), region_type.GetName()
-
-    @staticmethod
-    def GetDistrict():
-        """Retrieve the district of the current map."""
-        return Map.map_instance().district
-
-    @staticmethod
-    def GetRegion():
-        """Retrieve the region of the current map."""
-        region = Map.map_instance().server_region
-        return region.ToInt(), region.GetName()
-
-    @staticmethod
-    def GetLanguage():
-        """
-        Retrieve the language of the current map.
-        Args: None
-        Returns: tuple (int, str)
-        """
-        language = Map.map_instance().language
-        return language.ToInt(), language.GetName()
-
-    @staticmethod
-    def RegionFromDistrict(district):
-        """
-        Retrieve the region from a district.
-        Args:
-            district (int): The district to retrieve the region from.
-        Returns: tuple (int, str)
-        """
-        region = Map.map_instance().RegionFromDistrict(district)
-        return region.ToInt(), region.GetName()
-
-    @staticmethod
-    def LanguageFromDistrict(district):
-        """
-        Retrieve the language from a district.
-        Args:
-            district (int): The district to retrieve the language from.
-        Returns: tuple (int, str)
-        """
-        language = Map.map_instance().LanguageFromDistrict(district)
-        return language.ToInt(), language.GetName()
-
-    @staticmethod
-    def GetIsMapUnlocked(mapid=None):
-        """Check if the map is unlocked."""
-        if mapid is None:
-            map_id = Map.GetMapID()
-        else:
-            map_id = mapid
-        return Map.map_instance().GetIsMapUnlocked(map_id)
-
-    @staticmethod
-    def GetAmountOfPlayersInInstance():
-        """Retrieve the amount of players in the current instance."""
-        return Map.map_instance().amount_of_players_in_instance
-    
-    @staticmethod
-    def GetFlags():
-        """Retrieve the flags of the current map."""
-        return Map.map_instance().flags
-    
-    @staticmethod
-    def GetThumbnailID():
-        """Retrieve the thumbnail ID of the current map."""
-        return Map.map_instance().thumbnail_id
-    
-    @staticmethod
-    def GetMinPlayerSize():
-        """Retrieve the minimum player size of the current map."""
-        return Map.map_instance().min_player_size
-    
-    @staticmethod
-    def GetMaxPlayerSize():
-        """Retrieve the maximum player size of the current map."""
-        return Map.map_instance().max_player_size
-    
-    @staticmethod
-    def GetControlledOutpostID():
-        """Retrieve the controlled outpost ID of the current map."""
-        return Map.map_instance().controlled_outpost_id
-    
-    @staticmethod
-    def GetFractionMission():
-        """Retrieve the fraction mission of the current map."""
-        return Map.map_instance().fraction_mission
-    
-    @staticmethod
-    def GetMinLevel():
-        """Retrieve the minimum level of the current map."""
-        return Map.map_instance().min_level
-    
-    @staticmethod
-    def GetMaxLevel():
-        """Retrieve the maximum level of the current map."""
-        return Map.map_instance().max_level
-    
-    @staticmethod
-    def GetNeededPQ():
-        """Retrieve the needed PQ of the current map."""
-        return Map.map_instance().needed_pq
-    
-    @staticmethod
-    def GetMissionMapsTo():
-        """Retrieve the mission maps to of the current map."""
-        return Map.map_instance().mission_maps_to
-    
-    @staticmethod
-    def GetIconPosition():
-        """Retrieve the icon position of the current map."""
-        return Map.map_instance().icon_position_x, Map.map_instance().icon_position_y
-    
-    @staticmethod
-    def GetIconStartPosition():
-        """Retrieve the icon start position of the current map."""
-        return Map.map_instance().icon_start_x, Map.map_instance().icon_start_y
-    
-    @staticmethod
-    def GetIconEndPosition():
-        """Retrieve the icon end position of the current map."""
-        return Map.map_instance().icon_end_x, Map.map_instance().icon_end_y
-    
-    @staticmethod
-    def GetIconStartPositionDupe():
-        """Retrieve the icon start position dupe of the current map."""
-        return Map.map_instance().icon_start_x_dupe, Map.map_instance().icon_start_y_dupe
-    
-    @staticmethod
-    def GetIconEndPositionDupe():
-        """Retrieve the icon end position dupe of the current map."""
-        return Map.map_instance().icon_end_x_dupe, Map.map_instance().icon_end_y_dupe
-
-    @staticmethod
-    def GetFileID():
-        """Retrieve the file ID of the current map."""
-        return Map.map_instance().file_id
-    
-    @staticmethod
-    def GetMissionChronology():
-        """Retrieve the mission chronology of the current map."""
-        return Map.map_instance().mission_chronology
-    
-    @staticmethod
-    def GetHAChronology():
-        """Retrieve the HA chronology of the current map."""
-        return Map.map_instance().ha_map_chronology
-    
-    @staticmethod
-    def GetNameID():
-        """Retrieve the name ID of the current map."""
-        return Map.map_instance().name_id
-    
-    @staticmethod
-    def GetDescriptionID():
-        """Retrieve the description ID of the current map."""
-        return Map.map_instance().description_id
     
     @staticmethod
     def GetMapWorldMapBounds():
@@ -605,6 +796,7 @@ class Map:
 
             return False
 
+    #region MissionMap
     class MissionMap:
         @staticmethod
         def _mission_map_instance():
@@ -868,6 +1060,7 @@ class Map:
 
                 return game_x, game_y
 
+    #region MiniMap
     class MiniMap:
         @staticmethod
         def GetFrameID():

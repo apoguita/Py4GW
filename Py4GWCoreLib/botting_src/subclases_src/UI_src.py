@@ -1,8 +1,8 @@
 #region STATES
 from typing import TYPE_CHECKING, Callable, Optional, Tuple
 from Py4GWCoreLib import Color
+from Py4GWCoreLib.Map import Map
 import PyImGui
-import PyMap
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingClass
@@ -623,9 +623,8 @@ class _UI:
                 PyImGui.end_tab_bar()
 
         PyImGui.end()
-        map_instance = PyMap.PyMap()
         
-        if map_instance.is_map_ready:
+        if Map.IsMapReady():
             self.parent.UI.DrawPath(
                 self._config.config_properties.follow_path_color.get("value"), 
                 self._config.config_properties.use_occlusion.is_active(), 

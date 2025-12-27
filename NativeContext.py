@@ -5,27 +5,27 @@ import struct
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from Py4GWCoreLib.native_src.internals.types import Vec2f, Vec3f
 from Py4GWCoreLib.native_src.internals.gw_array import GW_Array_View, GW_Array
-from Py4GWCoreLib.native_src.context.Gameplay import (
+from Py4GWCoreLib.native_src.context.GameplayContext import (
     GameplayContextStruct,
     GameplayContext,
 )
-from Py4GWCoreLib.native_src.context.WorldMap import (
+from Py4GWCoreLib.native_src.context.WorldMapContext import (
     WorldMapContext,
     WorldMapContextStruct,
 )
-from Py4GWCoreLib.native_src.context.MissionMap import (
+from Py4GWCoreLib.native_src.context.MissionMapContext import (
     MissionMapContext,
     MissionMapContextStruct,
     MissionMapSubContext,
 )
 
-from Py4GWCoreLib.native_src.context.PreGame import (
+from Py4GWCoreLib.native_src.context.PreGameContext import (
     PreGameContext,
     PreGameContextStruct,
     LoginCharacter,
 )
 
-from Py4GWCoreLib.native_src.context.World import (
+from Py4GWCoreLib.native_src.context.WorldContext import (
     WorldContext,
     WorldContextStruct,
     PartyAlly, PartyAttribute,
@@ -39,6 +39,28 @@ from Py4GWCoreLib.native_src.context.World import (
     AgentNameInfo, MissionMapIcon, NPC_Model,
     Player,Title,TitleTier,
 )
+
+from Py4GWCoreLib.native_src.context.PartyContext import (
+    PartyContextStruct,PartyContext,
+    PartyInfoStruct,
+    PlayerPartyMember,
+    HenchmanPartyMember,
+    HeroPartyMember,PartySearchStruct
+    
+)
+
+from Py4GWCoreLib.native_src.context.InstanceInfoContext import (
+    InstanceInfoStruct,
+    MapDimensionsStruct,
+    AreaInfoStruct,
+    InstanceInfo,
+)
+
+from Py4GWCoreLib.native_src.context.MapContext import (
+    MapContext, MapContextStruct,
+)
+
+from Py4GWCoreLib.native_src.context.CharContext import (CharContextStruct, CharContext, ProgressBar)
 
 
 def true_false_text(value: bool) -> None:
@@ -1267,7 +1289,216 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                     f"[{i:02}] mask=0x{area_mask:08X}  bits_set={area_mask.bit_count()}"
                 )
                 
-                
+#region party_context_tab
+def draw_party_context_tab(party_ctx: PartyContextStruct):
+    # ---- Main PartyContext fields ----
+    rows: list[tuple[str, str | int | float]] = [
+        ("h0000", party_ctx.h0000),
+        ("flag", party_ctx.flag),
+        ("h0018", party_ctx.h0018),
+        ("requests_count", party_ctx.requests_count),
+        ("sending_count", party_ctx.sending_count),
+        ("h003C", party_ctx.h003C),
+        ("h0050", party_ctx.h0050),
+        
+    ]
+    draw_kv_table("PartyContextTable", rows)
+    
+    h0004_ptrs :list[int] | None = party_ctx.h0004_ptrs
+    if h0004_ptrs is None:
+        PyImGui.text("h0004_ptrs: <empty>")
+    else:        
+        if PyImGui.collapsing_header("h0004_ptrs"):
+            for i, val in enumerate(party_ctx.h0004_ptrs or []): 
+                PyImGui.text(f"h0004_ptrs[{i}]: {val}")
+    
+    PyImGui.separator()
+    player_party = party_ctx.player_party
+    if not player_party:
+        PyImGui.text("player_party: <invalid>")
+    else:
+        PyImGui.text("player_party:")
+        PyImGui.text(f"party_id: {player_party.party_id}")
+        players :list[PlayerPartyMember] | None = player_party.players
+        if players is None:
+            PyImGui.text("players: <empty>")    
+        else:
+            if PyImGui.collapsing_header("players"):
+                for i, player in enumerate(players):
+                    if PyImGui.collapsing_header(f"PlayerPartyMember[{i}]"):
+                        PyImGui.text(f"login_number: {player.login_number}")
+                        PyImGui.text(f"called_target_id: {player.called_target_id}")
+                        PyImGui.text(f"state: {player.state}")
+                        PyImGui.separator()
+                        
+        heroes :list[HeroPartyMember] | None = player_party.heroes
+        if heroes is None:
+            PyImGui.text("heroes: <empty>")
+        else:
+            if PyImGui.collapsing_header("heroes"):
+                for i, hero in enumerate(heroes):
+                    if PyImGui.collapsing_header(f"HeroPartyMember[{i}]"):
+                        PyImGui.text(f"agent_id: {hero.agent_id}")
+                        PyImGui.text(f"owner_player_id: {hero.owner_player_id}")
+                        PyImGui.text(f"hero_id: {hero.hero_id}")
+                        PyImGui.text(f"state: {hero.h000C}")
+                        PyImGui.text(f"state: {hero.h0010}")
+                        PyImGui.text(f"state: {hero.level}")
+                        PyImGui.separator()
+                        
+        henchman :list[HenchmanPartyMember] | None = player_party.henchmen
+        if henchman is None:
+            PyImGui.text("henchman: <empty>")
+        else:
+            if PyImGui.collapsing_header("henchman"):
+                for i, hench in enumerate(henchman):
+                    if PyImGui.collapsing_header(f"HenchmanPartyMember[{i}]"):
+                        PyImGui.text(f"agent_id: {hench.agent_id}")
+                        PyImGui.text(f"profession: {hench.profession}")
+                        PyImGui.text(f"level: {hench.level}")
+                        h0004 :list[int] | None = hench.h0004
+                        if h0004 is None:
+                            PyImGui.text("h0004: <empty>")
+                        else:        
+                            if PyImGui.collapsing_header("h0004"):
+                                for j, val in enumerate(hench.h0004 or []): 
+                                    PyImGui.text(f"h0004[{j}]: {val}")
+                                    
+                        PyImGui.separator()
+                        
+        others :list[int] | None = player_party.others
+        if others is None:
+            PyImGui.text("others: <empty>")
+        else:        
+            if PyImGui.collapsing_header("others"):
+                for i, val in enumerate(player_party.others or []): 
+                    PyImGui.text(f"others[{i}]: {val}")
+                    
+        h0044 :list[int] | None = player_party.h0044
+        if h0044 is None:
+            PyImGui.text("h0044: <empty>")
+        else:        
+            if PyImGui.collapsing_header("h0044"):
+                for i, val in enumerate(player_party.h0044 or []): 
+                    PyImGui.text(f"h0044[{i}]: {val}")
+        
+    PyImGui.separator()
+        
+    party_searches :list[PartySearchStruct] | None = party_ctx.party_searches
+    if party_searches is None:
+        PyImGui.text("party_searches: <empty>")
+    else:
+        if PyImGui.collapsing_header("party_searches"):
+            for i, search in enumerate(party_searches):
+                if PyImGui.collapsing_header(f"PartySearchStruct[{i}]"):
+                    PyImGui.text(f"party_search_id: {search.party_search_id}")
+                    PyImGui.text(f"party_search_type: {hex(search.party_search_type)}")
+                    PyImGui.text(f"hardmode: {search.hardmode}")
+                    PyImGui.text(f"district: {search.district}")
+                    PyImGui.text(f"language: {search.language}")
+                    PyImGui.text(f"party_size: {search.party_size}")
+                    PyImGui.text(f"hero_count: {search.hero_count}")
+                    PyImGui.text(f"message: {search.message_str}")
+                    PyImGui.text(f"party_leader: {search.party_leader_str}")
+                    PyImGui.text(f"primary: {search.primary}")
+                    PyImGui.text(f"secondary: {search.secondary}")
+                    PyImGui.text(f"level: {search.level}")
+                    PyImGui.text(f"timestamp: {search.timestamp}")
+                    PyImGui.separator()
+    
+    
+    PyImGui.separator()             
+    
+#region InstanceInfoPtr
+def draw_InstanceInfoPtr_tab(instance_info_ptr: InstanceInfoStruct):
+    # ---- Main PartyContext fields ----
+    rows: list[tuple[str, str | int | float]] = [
+        ("instance_type", instance_info_ptr.instance_type),
+        ("terrain_count", instance_info_ptr.terrain_count),    
+    ]
+    draw_kv_table("InstanceInfoTable", rows)
+    
+    current_map_info: AreaInfoStruct | None= instance_info_ptr.current_map_info
+    if not current_map_info:
+        PyImGui.text("current_map_info: <invalid>")
+    else:
+        PyImGui.text("current_map_info:")
+        rows: list[tuple[str, str | int | float]] = [
+            ("campaign", current_map_info.campaign),
+            ("continent", current_map_info.continent),
+            ("region", current_map_info.region),
+            ("type", current_map_info.type),
+            ("flags", current_map_info.flags),
+            ("thumbnail_id", current_map_info.thumbnail_id),
+            ("min_party_size", current_map_info.min_party_size),
+            ("max_party_size", current_map_info.max_party_size),
+            ("min_player_size", current_map_info.min_player_size),
+            ("max_player_size", current_map_info.max_player_size),
+            ("controlled_outpost_id", current_map_info.controlled_outpost_id),
+            ("fraction_mission", current_map_info.fraction_mission),
+            ("min_level", current_map_info.min_level),
+            ("min_level", current_map_info.min_level),
+            ("max_level", current_map_info.max_level),
+            ("needed_pq", current_map_info.needed_pq),
+            ("mission_maps_to", current_map_info.mission_maps_to),
+            ("x", current_map_info.x),
+            ("y", current_map_info.y),
+            ("icon_start_x", current_map_info.icon_start_x),
+            ("icon_start_y", current_map_info.icon_start_y),
+            ("icon_end_x", current_map_info.icon_end_x),
+            ("icon_end_y", current_map_info.icon_end_y),
+            ("icon_start_x_dupe", current_map_info.icon_start_x_dupe),
+            ("icon_start_y_dupe", current_map_info.icon_start_y_dupe),
+            ("icon_end_x_dupe", current_map_info.icon_end_x_dupe),
+            ("icon_end_y_dupe", current_map_info.icon_end_y_dupe),
+            ("file_id", current_map_info.file_id),
+            ("mission_chronology", current_map_info.mission_chronology),
+            ("ha_map_chronology", current_map_info.ha_map_chronology),
+            ("name_id", current_map_info.name_id),
+            ("description_id", current_map_info.description_id),
+            ("file_id1", current_map_info.file_id1),
+            ("file_id2", current_map_info.file_id2),
+            ("has_enter_button", current_map_info.has_enter_button),
+            ("is_on_world_map", current_map_info.is_on_world_map),
+            ("is_pvp", current_map_info.is_pvp),
+            ("is_guild_hall", current_map_info.is_guild_hall),
+            ("is_vanquishable_area", current_map_info.is_vanquishable_area),
+            ("is_unlockable", current_map_info.is_unlockable),
+            ("has_mission_maps_to", current_map_info.has_mission_maps_to)
+        ]
+        draw_kv_table("CurrentMapInfoTable", rows)
+   
+#region MapContext   
+def draw_MapContext_tab(map_context_ptr: MapContextStruct):
+    # ---- Main PartyContext fields ----
+    map_boundaries: list[float] = map_context_ptr.map_boundaries
+    if not map_boundaries:
+        PyImGui.text("map_boundaries: <invalid>")
+    else:
+        PyImGui.text("map_boundaries:")
+        for i, boundary in enumerate(map_boundaries):
+            PyImGui.text(f"boundary[{i}]: {boundary}")
+
+    
+#region CharContext   
+def draw_CharContext_tab(char_context_ptr: CharContextStruct):
+    # ---- Main PartyContext fields ----
+    player_uuid: list[int] = char_context_ptr.player_uuid
+    if not player_uuid:
+        PyImGui.text("player_uuid: <invalid>")
+    else:
+        PyImGui.text("player_uuid:")
+        for i, byte in enumerate(player_uuid):
+            PyImGui.text(f"byte[{i}]: {byte}")
+            
+        current_map_id = char_context_ptr.current_map_id
+        observe_map_id = char_context_ptr.observe_map_id
+        PyImGui.text(f"current_map_id: {current_map_id}")
+        PyImGui.text(f"observe_map_id: {observe_map_id}")
+        is_observing = current_map_id != observe_map_id
+        PyImGui.text("is_observing: "); PyImGui.same_line(0,-1); true_false_text(is_observing)
+
+    
 #region draw_window
 _selected_view: str = "World Map Context"
 
@@ -1279,6 +1510,10 @@ VIEW_LIST = [
     "World Context #1",
     "World Context #2",
     "World Context #3",
+    "Party Context",
+    "InstanceInfoPtr",
+    "Map Context",
+    "Char Context"
 ]
 
   
@@ -1388,6 +1623,47 @@ def draw_window():
                 PyImGui.text("WorldContext not available.")
             else:
                 draw_world_context_tab3(world_ctx)
+        
+        # ==================================================
+        # Party Context
+        # ==================================================
+        elif _selected_view == "Party Context":
+            party_ctx: PartyContextStruct | None = PartyContext.get_context()
+            if not party_ctx:
+                PyImGui.text("PartyContext not available.")
+            else:
+                draw_party_context_tab(party_ctx)
+                
+        # ==================================================
+        # InstanceInfoPtr Context
+        # ==================================================
+        elif _selected_view == "InstanceInfoPtr":
+            instance_info_ptr: InstanceInfoStruct | None = InstanceInfo.get_context()
+            if not instance_info_ptr:
+                PyImGui.text("InstanceInfoPtr not available.")
+            else:
+                draw_InstanceInfoPtr_tab(instance_info_ptr)
+                
+        # ==================================================
+        # Map Context
+        # ==================================================
+        elif _selected_view == "Map Context":
+            map_context_ptr: MapContextStruct | None = MapContext.get_context()
+            if not map_context_ptr:
+                PyImGui.text("MapContext not available.")
+            else:
+                draw_MapContext_tab(map_context_ptr)
+                
+        # ==================================================
+        # Char Context
+        # ==================================================
+        elif _selected_view == "Char Context":
+            char_context_ptr: CharContextStruct | None = CharContext.get_context()
+            if not char_context_ptr:
+                PyImGui.text("CharContext not available.")
+            else:
+                draw_CharContext_tab(char_context_ptr)
+                
 
         PyImGui.end_child()
 

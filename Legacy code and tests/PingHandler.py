@@ -1,16 +1,6 @@
 # Necessary Imports
 import Py4GW        #Miscelanious functions and classes
-import ImGui_Py     #ImGui wrapper
-import PyMap        #Map functions and classes
-import PyAgent      #Agent functions and classes
-import PyPlayer     #Player functions and classes
-import PyParty      #Party functions and classes
-import PyItem       #Item functions and classes
-import PyInventory  #Inventory functions and classes
-import PySkill      #Skill functions and classes
-import PySkillbar   #Skillbar functions and classes
-import PyMerchant   #Merchant functions and classes
-import PyEffects    #Effects functions and classes
+import PyImGui     #ImGui wrapper
 import traceback    #traceback to log stack traces
 # End Necessary Imports
 import Py4GWcorelib as CoreLib
@@ -29,10 +19,10 @@ def DrawTextWithTitle(title, text_content, lines_visible=10):
     line_padding = 4  # Add a bit of padding for readability
 
     # Display the title first
-    ImGui_Py.text(title)
+    PyImGui.text(title)
 
     # Get the current window size and adjust for margin to calculate content width
-    window_width = ImGui_Py.get_window_size()[0]
+    window_width = PyImGui.get_window_size()[0]
     content_width = window_width - margin
     text_block = text_content + "\n" + Py4GW.Console.GetCredits()
 
@@ -45,7 +35,7 @@ def DrawTextWithTitle(title, text_content, lines_visible=10):
         total_lines = min(total_lines, max_lines)
 
     # Get the line height from ImGui
-    line_height = ImGui_Py.get_text_line_height()
+    line_height = PyImGui.get_text_line_height()
     if line_height == 0:
         line_height = 10  # Set default line height if it's not valid
 
@@ -53,13 +43,13 @@ def DrawTextWithTitle(title, text_content, lines_visible=10):
     content_height = (lines_visible * line_height) + ((lines_visible - 1) * line_padding)
 
     # Set up the scrollable child window with dynamic width and height
-    if ImGui_Py.begin_child(f"ScrollableTextArea_{title}", size=(content_width, content_height), border=True, flags=ImGui_Py.WindowFlags.HorizontalScrollbar):
+    if PyImGui.begin_child(f"ScrollableTextArea_{title}", size=(content_width, content_height), border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
 
         # Get the scrolling position and window size for visibility checks
-        scroll_y = ImGui_Py.get_scroll_y()
-        scroll_max_y = ImGui_Py.get_scroll_max_y()
-        window_size_y = ImGui_Py.get_window_size()[1]
-        window_pos_y = ImGui_Py.get_cursor_pos_y()
+        scroll_y = PyImGui.get_scroll_y()
+        scroll_max_y = PyImGui.get_scroll_max_y()
+        window_size_y = PyImGui.get_window_size()[1]
+        window_pos_y = PyImGui.get_cursor_pos_y()
 
         # Display each line only if it's visible based on scroll position
         for index, line in enumerate(lines):
@@ -74,11 +64,11 @@ def DrawTextWithTitle(title, text_content, lines_visible=10):
                 continue
 
             # Render the line if it's within the visible scroll area
-            ImGui_Py.text_wrapped(line)
-            ImGui_Py.spacing()  # Add spacing between lines for better readability
+            PyImGui.text_wrapped(line)
+            PyImGui.spacing()  # Add spacing between lines for better readability
 
         # End the scrollable child window
-        ImGui_Py.end_child()
+        PyImGui.end_child()
 
 
 
@@ -89,9 +79,9 @@ def DrawWindow():
 
 
         width, height = 400, 500
-        ImGui_Py.set_next_window_size(width, height)
+        PyImGui.set_next_window_size(width, height)
 
-        if ImGui_Py.begin(module_name):
+        if PyImGui.begin(module_name):
 
             DrawTextWithTitle("ATTENTION", description,5)
 
@@ -109,7 +99,7 @@ def DrawWindow():
 
             CoreLib.ImGui.table("Ping Info Table", headers, data)
 
-            ImGui_Py.end()
+            PyImGui.end()
 
 
     except Exception as e:

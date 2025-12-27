@@ -224,3 +224,6 @@ class PyMap:
     def GetGameplayContextPtr(self) -> int:
         """Returns uintptr_t pointer to GameplayContext"""
         ...
+    def GetMapContextPtr(self) -> int:
+        """Returns uintptr_t pointer to MapContext"""
+        ...

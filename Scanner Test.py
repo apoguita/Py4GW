@@ -4,7 +4,7 @@ import struct
 from Py4GWCoreLib.native_src.internals.prototypes import Prototypes
 from Py4GWCoreLib.native_src.internals.native_function import NativeFunction, ScannerSection
 from Py4GWCoreLib.native_src.internals.gw_array import GW_Array_View, GW_Array
-from Py4GWCoreLib.native_src.context.PreGame import (
+from Py4GWCoreLib.native_src.context.PreGameContext import (
     PreGameContext,
     PreGameContextStruct,
     LoginCharacter,
@@ -292,7 +292,7 @@ def draw_window():
             
         if PyImGui.button("Travel to eotn"):
             result = Travel(
-                map_id=642,           # Constants.MapID.LionsArch
+                map_id=248,           # Constants.MapID.LionsArch
                 region=0,             # Constants.ServerRegion.NA
                 language=0,           # Constants.Language.English
                 district_number=0     # Auto  
@@ -301,14 +301,14 @@ def draw_window():
             
         if PyImGui.button("Travel to eotn (struct Raw)"):
             result = Travel_struct(
-                map_id=642,           # Constants.MapID.LionsArch
+                map_id=248,           # Constants.MapID.LionsArch
                 region=0,             # Constants.ServerRegion.NA
                 language=0,           # Constants.Language.English
                 district_number=0     # Auto  
             )
             print ("Travel (struct) result:", result)
         
-        if world_map_ptr:
+        """if world_map_ptr:
             world_map_context = ctypes.cast(world_map_ptr, ctypes.POINTER(WorldMapContext)).contents
             PyImGui.text(f"WorldMapContext zoom: {world_map_context.zoom}")
         PyImGui.text(f"WorldMapContext ptr: {hex(world_map_ptr)}")
@@ -325,12 +325,6 @@ def draw_window():
         arr = cast(base_ptr + 0x00DC, POINTER(GW_Array)).contents
         
         def safe_imgui_text(s: str) -> str:
-            """
-            Make a string safe for ImGui by:
-            - removing nulls
-            - replacing invalid unicode
-            - keeping printable content only
-            """
             return (
                 s
                 .encode("utf-8", errors="replace")
@@ -372,8 +366,8 @@ def draw_window():
                 PyImGui.text(
                     safe_imgui_text(f"{i}: unk0={unk0}, name={name}")
                 )
-            # Pick an index that clearly showed a name before (example: 4)
-            """probe_login_character_offsets(
+                
+            probe_login_character_offsets(
                 base_ptr=arr.m_buffer,
                 index=4,
                 stride=0x2C,   # keep your current guess

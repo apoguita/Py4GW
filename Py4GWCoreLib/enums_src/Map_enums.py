@@ -1,8 +1,20 @@
-from enum import Enum
+
+import enum
 from enum import IntEnum
-
-
 # region Outpost Names
+
+class InstanceType(IntEnum):
+    Outpost = 0
+    Explorable = 1
+    Loading = 2
+
+    
+InstanceTypeName: dict[int, str] = {
+    InstanceType.Outpost.value: "Outpost",
+    InstanceType.Explorable.value: "Explorable",
+    InstanceType.Loading.value: "Loading",
+}
+
 
 outposts = {
     4: "Guild Hall - Warrior's Isle",

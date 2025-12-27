@@ -1,5 +1,4 @@
 import PyImGui
-import Py4GW
 import PyMap
 from typing import Tuple
 

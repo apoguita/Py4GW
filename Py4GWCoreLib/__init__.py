@@ -59,6 +59,7 @@ from .GlobalCache import GLOBAL_CACHE
 from .Pathing import AutoPathing
 from .BuildMgr import BuildMgr
 from .Botting import BottingClass as Botting
+from .Context import GWContext
 
 traceback = traceback
 math = math
