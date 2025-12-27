@@ -1,5 +1,5 @@
 from Py4GWCoreLib import *
-import PyMap, PyImGui
+import PyImGui
 
 MODULE_NAME = "Style tester"
 

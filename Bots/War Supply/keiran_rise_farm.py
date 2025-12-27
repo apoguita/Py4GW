@@ -1,6 +1,5 @@
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager, Keystroke, Key)
-import PyMap, PyImGui
 from typing import List, Tuple
 
 bot = Botting("Kieran Rise Farm")

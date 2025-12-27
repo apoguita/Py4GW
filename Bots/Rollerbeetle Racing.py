@@ -406,7 +406,7 @@ def DrawWindow():
                     StopBot()
             else:
                 # Disable the "Start Bot" button if the current map ID is not 467 and the player does not have the outpost unlocked
-                if not Map.GetMapID() == ROLLERBEETLE_RACING_OUTPOST_ID and not Map.GetIsMapUnlocked(ROLLERBEETLE_RACING_OUTPOST_ID):
+                if not Map.GetMapID() == ROLLERBEETLE_RACING_OUTPOST_ID and not Map.IsMapUnlocked(ROLLERBEETLE_RACING_OUTPOST_ID):
                     PyImGui.text("Go to Rollerbeetle Racing Outpost first!\nVia Kamadan, Shing Jea, LA, GToB")
                 elif Player.GetAccountName() == "":
                     PyImGui.text("Account is not registered yet!\nTalk to Tolkano [Tournament]")

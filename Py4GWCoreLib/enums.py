@@ -27,19 +27,25 @@ from .enums_src.Map_enums import (
     name_to_map_id,
     outpost_name_to_id,
     outposts,
+    InstanceType,
+    InstanceTypeName,
 )
 from .enums_src.Model_enums import AgentModelID, ModelID, PetModelID, SPIRIT_BUFF_MAP, SpiritModelID
 from .enums_src.Multiboxing_enums import CombatPrepSkillsType, SharedCommandType
 from .enums_src.Py4GW_enums import Console
 from .enums_src.Region_enums import (
     Campaign,
+    CampaignName,
     Continent,
+    ContinentName,
     District,
     Language,
     RegionType,
+    RegionTypeName,
     ServerLanguage,
     ServerLanguageName,
     ServerRegionName,
+    DistrictName,
 )
 from .enums_src.Texture_enums import (
     ProfessionTextureMap,
@@ -115,6 +121,8 @@ __all__ = [
     "name_to_map_id",
     "outpost_name_to_id",
     "outposts",
+    "InstanceType",
+    "InstanceTypeName",
 
     # Model_enums
     "AgentModelID",
@@ -132,13 +140,17 @@ __all__ = [
 
     # Region_enums
     "Campaign",
+    "CampaignName",
     "Continent",
+    "ContinentName",
     "District",
     "Language",
     "RegionType",
+    "RegionTypeName",
     "ServerLanguage",
     "ServerLanguageName",
     "ServerRegionName",
+    "DistrictName",
 
     # Texture_enums
     "ProfessionTextureMap",

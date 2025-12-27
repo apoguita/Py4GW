@@ -222,18 +222,16 @@ class Checks:
     class Map:
         @staticmethod
         def MapValid():
-            import PyMap
+            from ..Map import Map
             import PyParty
-            current_map = PyMap.PyMap()
 
-            if  current_map.instance_type.GetName() == "Loading":
+            if not Map.IsMapReady():
                 return False
-            if not current_map.is_map_ready:
-                return False
+            
             party = PyParty.PyParty()
             if not party.is_party_loaded:
                 return False
-            if  current_map.is_in_cinematic:
+            if  Map.IsInCinematic():
                 return False
             return True
         
@@ -253,29 +251,24 @@ class Checks:
         
         @staticmethod
         def IsLoading():
-            import PyMap
+            from ..Map import Map
             if not Checks.Map.MapValid():
                 return True
-            current_map = PyMap.PyMap()
-            if  current_map.instance_type.GetName() == "Loading":
-                return True
-            return False
+            
+            return Map.IsMapLoading()
         
         @staticmethod
         def IsMapReady():
-            import PyMap
-            if not Checks.Map.MapValid():
-                return False
-            current_map = PyMap.PyMap()
-            return current_map.is_map_ready
+            from ..Map import Map
+            return Map.IsMapReady()
+
         
         @staticmethod
         def IsInCinematic():
-            import PyMap
+            from ..Map import Map
             if not Checks.Map.MapValid():
                 return False
-            current_map = PyMap.PyMap()
-            return current_map.is_in_cinematic
+            return Map.IsInCinematic()
         
 #region Inventory
     class Inventory:

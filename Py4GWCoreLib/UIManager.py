@@ -142,6 +142,29 @@ class UIManager:
         return PyUIManager.UIManager.get_frame_logs()
     
     @staticmethod
+    def ClearFrameLogs() -> None:
+        """
+        Clear the frame logs.
+        """
+        PyUIManager.UIManager.clear_frame_logs()
+    
+    @staticmethod
+    def GetUIMessageLogs() -> List[tuple[int, int, bool, bool, int, list[int], list[int]]]:
+        """
+        Get the UI message logs.
+
+        :return: list of tuples: Each tuple contains (timestamp, msgid, incoming, is_frame_message, frame_id, wparam_bytes, lparam_bytes).
+        """
+        return PyUIManager.UIManager.get_ui_message_logs()
+    
+    @staticmethod
+    def ClearUIMessageLogs() -> None:
+        """
+        Clear the UI message logs.
+        """
+        PyUIManager.UIManager.clear_ui_message_logs()
+    
+    @staticmethod
     def GetFrameIDByLabel(label):
         """
         Get the frame ID by its label.
@@ -932,12 +955,18 @@ InventoryBags = FrameInfo(
     FrameHash = 291586130
 )
 
-DeleteButtonFrame = FrameInfo(
+CancelEnterMissionButton = FrameInfo(
+    WindowName="CancelEnterMissionButton",
+    ParentFrameHash=2209443298,
+    ChildOffsets=[0,1,1]
+)
+
+CharacterDeleteButtonFrame = FrameInfo(
     WindowName="DeleteCharacterButton",
     FrameHash=3379687503
 )
 
-FinalDeleteButtonFrame = FrameInfo(
+CharacterFinalDeleteButtonFrame = FrameInfo(
     WindowName="FinalDeleteCharacterButton",
     ParentFrameHash=140452905,
     ChildOffsets=[5,1,15,2]
@@ -970,8 +999,9 @@ FinalCreateCharacterButtonFrame = FrameInfo(
 
    
 WindowFrames["Inventory Bags"] = InventoryBags
-WindowFrames["DeleteCharacterButton"] = DeleteButtonFrame
-WindowFrames["FinalDeleteCharacterButton"] = FinalDeleteButtonFrame
+WindowFrames["CancelEnterMissionButton"] = CancelEnterMissionButton
+WindowFrames["DeleteCharacterButton"] = CharacterDeleteButtonFrame
+WindowFrames["FinalDeleteCharacterButton"] = CharacterFinalDeleteButtonFrame
 WindowFrames["CreateCharacterButton1"] = CreateCharacterButtonFrame1
 WindowFrames["CreateCharacterButton2"] = CreateCharacterButtonFrame2
 WindowFrames["CreateCharacterTypeNextButton"] = CreateCharacterTypeNextButtonFrame

@@ -1,7 +1,7 @@
 import random
 from time import sleep
 from Py4GWCoreLib import *
-import PyMap, PyImGui
+import PyImGui
 
 MODULE_NAME = "destroy item"
 ping_handler = Py4GW.PingHandler()

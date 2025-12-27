@@ -1,4 +1,11 @@
 import PyScanner
+from enum import IntEnum
+
+class ScannerSection(IntEnum):
+    TEXT = 0
+    RDATA = 1
+    DATA = 2
+
 
 #region Scanner
 class Scanner:
