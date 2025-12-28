@@ -202,9 +202,9 @@ def StandardHeroTeam():
         # Small party: Gwen, Vekk, Ogden
         hero_list.extend([24, 26, 27])
         skill_templates = [
-            "OQhkAsC8gFKzJY6lDMd40hQG4iB",  # 1 Gwen
-            "OgVDI8gsO5gTw0z0hTFAZgiA",     # 2 Vekk
-            "OwUUMsG/E4SNgbE3N3ETfQgZAMEA"  # 3 Ogden
+            "OQhkAsC8gFKgGckjHFRUGCA",  # 1 Gwen
+            "OgVDI8gsCawROeUEtZIA",     # 2 Vekk
+            "OwUUMsG/E4GgMnZskzkIZQAA"  # 3 Ogden
         ]
     # Add all heroes
     for hero_id in hero_list:

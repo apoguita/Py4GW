@@ -7,6 +7,7 @@ from collections import deque, defaultdict
 from .Py4GWcorelib import ConsoleLog, Console
 from .enums_src.UI_enums import WindowID
 from dataclasses import dataclass, field
+from .native_src.internals.types import Vec2f
 
 # —— Constants ——————————————————
 NPC_DIALOG_HASH    = 3856160816
@@ -163,6 +164,16 @@ class UIManager:
         Clear the UI message logs.
         """
         PyUIManager.UIManager.clear_ui_message_logs()
+        
+    @staticmethod
+    def GetFrameByID(frame_id) -> PyUIManager.UIFrame:
+        """
+        Get the frame by its ID.
+
+        :param frame_id: The ID of the frame.
+        :return: PyUIManager.UIFrame: The UIFrame object.
+        """
+        return PyUIManager.UIFrame(frame_id)
     
     @staticmethod
     def GetFrameIDByLabel(label):
@@ -434,7 +445,30 @@ class UIManager:
         return PyUIManager.UIFrame(frame_id).parent_id
     
     @staticmethod
-    def GetFrameCoords(frame_id):
+    def GetViewPortScale(frame_id) -> tuple[float, float]:
+        """
+        Get the viewport scale of a frame.
+
+        :param frame_id: The ID of the frame.
+        :return: float: The viewport scale of the frame.
+        """
+        frame = PyUIManager.UIFrame(frame_id)
+        return frame.position.viewport_scale_x, frame.position.viewport_scale_y
+    
+    @staticmethod
+    def GetViewportDimensions(frame_id) -> tuple[float, float]:
+        """
+        Get the viewport dimensions of a frame.
+
+        :param frame_id: The ID of the frame.
+        :return: float: The viewport dimensions of the frame.
+        """
+        frame = PyUIManager.UIFrame(frame_id)
+        return frame.position.viewport_width, frame.position.viewport_height
+    
+    
+    @staticmethod
+    def GetFrameCoords(frame_id) -> tuple[int, int, int, int]:
         """
         Get the coordinates of a frame.
 
@@ -448,6 +482,27 @@ class UIManager:
         right = frame.position.right_on_screen
         return left,top, right, bottom
     
+    
+    @staticmethod
+    def GetContentFrameCoords(frame_id) -> tuple[int, int, int, int]:
+        """
+        Return (left, top, right, bottom) screen coords for the *content area*
+        of a mission map frame, with Y correctly flipped into screen space.
+        """
+        frame = PyUIManager.UIFrame(frame_id)
+        viewport_scale = Vec2f(*UIManager.GetViewPortScale(frame_id))
+        root_frame_id = UIManager.GetRootFrameID()
+        viewport_dims  = Vec2f(*UIManager.GetViewportDimensions(root_frame_id))
+        _,height = viewport_dims.to_tuple()
+
+        # Raw content coords (frame-local)
+        left   = frame.position.content_left   * viewport_scale.x
+        top    = (height - frame.position.content_top)   * viewport_scale.y
+        right  = frame.position.content_right  * viewport_scale.x
+        bottom = (height - frame.position.content_bottom) * viewport_scale.y
+
+
+        return int(left), int(top), int(right), int(bottom)
         
     def DrawFrame(self,frame_id:int, draw_color:int):
         """
@@ -468,7 +523,7 @@ class UIManager:
         _overlay.EndDraw()
     
         
-    def DrawFrameOutline(self,frame_id, draw_color):
+    def DrawFrameOutline(self,frame_id, draw_color:int, thickness: float = 1.0):
         """
         Draw an outline of a frame on the UI.
 
@@ -483,7 +538,7 @@ class UIManager:
         p3 = PyOverlay.Point2D(right, bottom)
         p4 = PyOverlay.Point2D(left, bottom)
         _overlay.BeginDraw()
-        _overlay.DrawQuad(p1,p2,p3,p4, draw_color)
+        _overlay.DrawQuad(p1,p2,p3,p4, draw_color, thickness)
         _overlay.EndDraw()
 
     @staticmethod
@@ -907,10 +962,14 @@ class FrameInfo:
     FrameHash: int = 0
     ParentFrameHash: int = 0
     ChildOffsets: list = field(default_factory=list)
+    FrameID_source: int = 0
     FrameID: int = 0
     BlackBoard : dict = field(default_factory=dict)
     
     def update_frame_id(self):
+        if self.FrameID_source != 0:
+            self.FrameID = self.FrameID_source
+            return
         if self.WindowLabel:
             self.FrameID = UIManager.GetFrameIDByLabel(self.WindowLabel)
             return
@@ -928,9 +987,9 @@ class FrameInfo:
         if self.FrameExists():
             UIManager().DrawFrame(self.FrameID, color)
             
-    def DrawFrameOutline(self, color:int):
+    def DrawFrameOutline(self, color:int , thickness: float = 1.0):
         if self.FrameExists():
-            UIManager().DrawFrameOutline(self.FrameID, color)
+            UIManager().DrawFrameOutline(self.FrameID, color, thickness)
             
     def FrameClick(self):
         if self.FrameExists():
@@ -940,6 +999,21 @@ class FrameInfo:
         if self.FrameExists():
             return UIManager.GetFrameCoords(self.FrameID)
         return (0,0,0,0)
+    
+    def GetContentCoords(self):
+        if self.FrameExists():
+            return UIManager.GetContentFrameCoords(self.FrameID)
+        return (0,0,0,0)
+    
+    def GetViewPortScale(self):
+        if self.FrameExists():
+            return UIManager.GetViewPortScale(self.FrameID)
+        return (1.0,1.0)
+    
+    def GetViewportDimensions(self):
+        if self.FrameExists():
+            return UIManager.GetViewportDimensions(self.FrameID)
+        return (0,0)
     
     def IsMouseOver(self, mouse_x:float, mouse_y:float):
         left, top, right, bottom = self.GetCoords()

@@ -1,16 +1,10 @@
 import PyPlayer
 from Py4GW import Game
-import math
-from typing import ClassVar, Optional
-from ctypes import (
-    Structure, POINTER,
-    c_uint32, c_float, c_void_p, c_wchar, c_uint8,c_uint16,
-    cast, sizeof
-)
+from typing import Optional
+from ctypes import Structure, POINTER,c_uint32, c_wchar, c_uint8, cast
 from ..internals.helpers import read_wstr, encoded_wstr_to_str
-from ..internals.types import Vec2f, Vec3f, GamePos
-from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
-from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
+from ..internals.types import Vec3f
+from ..internals.gw_array import GW_Array, GW_Array_Value_View
 
 class AgentSummaryInfoSub(Structure):
     _pack_ = 1
@@ -35,6 +29,7 @@ class AgentSummaryInfoSub(Structure):
             return encoded_wstr_to_str(encoded)
         return None
 
+#region AgentSummaryInfo
 class AgentSummaryInfo(Structure):
     _pack_ = 1
     _fields_ = [
@@ -49,6 +44,7 @@ class AgentSummaryInfo(Structure):
             return self.extra_info_sub_ptr.contents
         return None
 
+#region AgentMovement
 class AgentMovement(Structure):
     _pack_ = 1
     _fields_ = [
@@ -66,7 +62,7 @@ class AgentMovement(Structure):
         ("h0074", Vec3f),           # +0x0074
     ]
 
-
+#region AgentContextStruct
 class AgentContextStruct(Structure):
     _pack_ = 1
     _fields_ = [
@@ -162,7 +158,7 @@ class AgentContextStruct(Structure):
             return None
         return [int(item) for item in array_view]
     
-#region facade
+#region AgentContext facade
 class AgentContext:
     _ptr: int = 0
     _callback_name = "AgentContext.UpdateAgentContextPtr"

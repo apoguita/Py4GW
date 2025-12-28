@@ -1,8 +1,7 @@
 from typing import List, Optional
-from ctypes import Structure
 from ..internals.types import CPointer
 from ..internals.gw_array import GW_Array
-from ..internals.types import Vec2f, Vec3f, GamePos
+from ..internals.types import Vec3f
 
 class AgentSummaryInfoSub():
     h0000: int

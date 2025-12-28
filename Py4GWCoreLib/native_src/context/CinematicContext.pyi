@@ -1,8 +1,3 @@
-from typing import List, Optional
-from ctypes import Structure
-from ..internals.types import CPointer
-from ..internals.gw_array import GW_Array
-from ..internals.gw_list import GW_TList, GW_TLink
 
 class CinematicStruct():
     h0000: int

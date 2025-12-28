@@ -12,7 +12,7 @@ from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
 from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
 
 # -------------------------------------------------------------
-# Pathing Structures
+#region Pathing Structures
 # -------------------------------------------------------------
 
 from ctypes import Structure, POINTER, c_uint32, c_uint16, c_float
@@ -51,6 +51,7 @@ PathingTrapezoid._fields_ = [
 ]
 
 
+#region Node Structures
 class Node(Structure):
     _pack_ = 1
     _fields_ = [
@@ -116,7 +117,7 @@ class YNode(Node):  # inherits: type + id (8 bytes)
             return None
         return self.right_ptr.contents
 
-
+#region Portal
 class Portal(Structure):
     _pack_ = 1
     @property
@@ -148,6 +149,7 @@ Portal._fields_ = [
 assert sizeof(Portal) == 20, f"Portal size mismatch: {sizeof(Portal)}"
 
 
+#region PathingMap
 class PathingMap(Structure):
     _pack_ = 1
     _fields_ = [
@@ -219,6 +221,7 @@ class PathingMap(Structure):
             return None
         return self.h0050_ptr.contents
 
+#region Props Structures
 class PropModelInfo(Structure):
     _pack_ = 1
     _fields_ = [
@@ -391,7 +394,7 @@ class MapContext_sub1(Structure):
 
 
 # ---------------------------------------
-# Main struct
+#Region MapContextStruct
 # ---------------------------------------
 
 class MapContextStruct(Structure):
@@ -440,7 +443,7 @@ class MapContextStruct(Structure):
             return None
         return self.props_ptr.contents
     
-#region Facade
+#region MapContext Facade
 class MapContext:
     _ptr: int = 0
     _callback_name = "MapContext.UpdateMapContextPtr"

@@ -1,5 +1,4 @@
-from typing import List, Optional
-from ctypes import Structure
+from typing import List
 from ..internals.types import CPointer
 from ..internals.gw_array import GW_Array
 
