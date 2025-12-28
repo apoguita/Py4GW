@@ -1,22 +1,8 @@
 import PyPlayer
 from Py4GW import Game
-import math
-from typing import ClassVar, Optional
-from ctypes import (
-    Structure, POINTER,
-    c_uint32, c_float, c_void_p, c_wchar, c_uint8,c_uint16,c_int32,
-    cast
-)
+from ctypes import Structure, POINTER,c_uint32, cast
 
-from Py4GWCoreLib.native_src.context.InstanceInfoContext import InstanceInfo
-from ..internals.helpers import read_wstr, encoded_wstr_to_str
-from ..internals.types import Vec2f, Vec3f, GamePos
-from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
-from ..internals.native_symbol import NativeSymbol
-from ...Scanner import Scanner, ScannerSection
-from ..internals.prototypes import Prototypes
-
-#region_id_addr
+#region CinematicStruct
 class CinematicStruct(Structure):
     _pack_ = 1
     _fields_ = [
@@ -24,7 +10,7 @@ class CinematicStruct(Structure):
         ("h0004", c_uint32),      # +0x0004
     ]
 
-#region facade
+#region Cinematic facade
 class Cinematic:
     _ptr: int = 0
     _callback_name = "Cinematic.UpdateCinematicPtr"
