@@ -25,6 +25,36 @@ class Utils:
         return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
     
     @staticmethod
+    def point_in_circle(px: float, py: float, cx: float, cy: float, r: float) -> bool:
+        dx = px - cx
+        dy = py - cy
+        return dx * dx + dy * dy <= r * r
+
+    @staticmethod
+    def point_in_polygon(px: float, py: float, polygon: list[Tuple[float, float]]) -> bool:
+        """
+        Ray casting algorithm
+        """
+        inside = False
+        n = len(polygon)
+        j = n - 1
+
+        for i in range(n):
+            xi, yi = polygon[i]
+            xj, yj = polygon[j]
+
+            intersect = (
+                ((yi > py) != (yj > py)) and
+                (px < (xj - xi) * (py - yi) / (yj - yi + 1e-12) + xi)
+            )
+            if intersect:
+                inside = not inside
+
+            j = i
+
+        return inside
+
+    @staticmethod
     def format_bytes(num_bytes: int) -> str:
             """
             Convert a byte count to a human-readable string using
