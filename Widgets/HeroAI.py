@@ -6,6 +6,7 @@ import Py4GW
 from Py4GWCoreLib.Map import Map
 
 MODULE_NAME = "HeroAI"
+
 from enum import Enum
 from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessage
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
@@ -24,7 +25,7 @@ from HeroAI.globals import hero_formation
 from HeroAI.players import RegisterHeroes
 from HeroAI.players import RegisterPlayer
 from HeroAI.players import UpdatePlayers
-from HeroAI.utils import DistanceFromLeader
+from HeroAI.utils import DistanceFromLeader, IsHeroFlagged
 from HeroAI.utils import DistanceFromWaypoint
 from HeroAI.windows import CompareAndSubmitGameOptions
 from HeroAI.windows import DrawCandidateWindow
@@ -442,6 +443,14 @@ def DrawEmbeddedWindow(cached_data: CacheData):
     ImGui.PopTransparentWindow()
     DrawFramedContent(cached_data, content_frame_id)
 
+def DistanceToDestination(cached_data: CacheData):
+    index = GLOBAL_CACHE.ShMem.GetAccountSlot(cached_data.account_email)
+    is_flagged = IsHeroFlagged(cached_data, index)
+    data = cached_data.HeroAI_vars.all_player_struct[index]
+    
+    destination = (data.FlagPosX, data.FlagPosY) if is_flagged else GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+    return Utils.Distance(destination, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+    
 
 def UpdateStatus(cached_data: CacheData):
     global hero_windows, messages, map_quads
@@ -555,9 +564,11 @@ def UpdateStatus(cached_data: CacheData):
 
     draw_Targeting_floating_buttons(cached_data)
 
+    index = GLOBAL_CACHE.ShMem.GetAccountSlot(cached_data.account_email)
+    
     if (
         not GLOBAL_CACHE.Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
-        or DistanceFromLeader(cached_data) >= Range.SafeCompass.value
+        or (DistanceToDestination(cached_data) >= Range.SafeCompass.value)
         or GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
         or cached_data.combat_handler.InCastingRoutine()
         or GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
