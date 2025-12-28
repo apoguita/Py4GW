@@ -51,6 +51,7 @@ class Compass():
     geometry   = []
     primitives_set = False
     map_bounds = []
+    window_rect = (0, 0, 0, 0)
 
     class Position:
         frame_id   = 0
@@ -361,9 +362,10 @@ class Compass():
 
         self.renderer.render()
 
-    def DrawAgent(self, visible, size, shape, color, fill_range, fill_color, x, y, rotation, is_alive, is_target):
+    def DrawAgent(self, id, mouse : tuple[bool, float, float], visible, size, shape, color, fill_range, fill_color, x, y, rotation, is_alive, is_target):
         if not Map.IsMapReady() or not visible: return
-
+        hit = False
+        
         if not is_alive:
             col = Utils.ColorToTuple(color)
             color = Color(int(col[0]*255), int(col[1]*255), int(col[2]*255), int(col[3]*255)).shift(Color(0,0,0,255), .4).to_color()
@@ -381,52 +383,65 @@ class Compass():
         if shape == 'Circle':
             self.imgui.draw_list_add_circle_filled(x, y, size, color, 12)
             self.imgui.draw_list_add_circle(x, y, size, line_col, 12, line_thickness)
+            hit = mouse[0] and Utils.point_in_circle(mouse[1], mouse[2], x, y, size)
+            
         elif shape == 'Star':
             scale = 1.2
 
-            x1 = math.cos(math.radians(  0) + rotation)*scale*size + x
-            y1 = math.sin(math.radians(  0) + rotation)*scale*size + y
-            x2 = math.cos(math.radians( 90) + rotation)*scale*size + x
-            y2 = math.sin(math.radians( 90) + rotation)*scale*size + y
-            x3 = math.cos(math.radians(180) + rotation)*scale*size + x
-            y3 = math.sin(math.radians(180) + rotation)*scale*size + y
-            x4 = math.cos(math.radians(270) + rotation)*scale*size + x
-            y4 = math.sin(math.radians(270) + rotation)*scale*size + y
+            def p_star(angle) -> tuple[float, float]:
+                return (
+                    math.cos(math.radians(angle) + rotation) * scale * size + x,
+                    math.sin(math.radians(angle) + rotation) * scale * size + y,
+                )
 
-            a1 = math.cos(math.radians( 45) + rotation)*scale*size + x
-            b1 = math.sin(math.radians( 45) + rotation)*scale*size + y
-            a2 = math.cos(math.radians(135) + rotation)*scale*size + x
-            b2 = math.sin(math.radians(135) + rotation)*scale*size + y
-            a3 = math.cos(math.radians(225) + rotation)*scale*size + x
-            b3 = math.sin(math.radians(225) + rotation)*scale*size + y
-            a4 = math.cos(math.radians(315) + rotation)*scale*size + x
-            b4 = math.sin(math.radians(315) + rotation)*scale*size + y
-
+            q1 : list[tuple[float, float]] = [p_star(0), p_star(90), p_star(180), p_star(270)]
+            q2 : list[tuple[float, float]] = [p_star(45), p_star(135), p_star(225), p_star(315)]
             
-            self.imgui.draw_list_add_quad(x1, y1, x2, y2, x3, y3, x4, y4, line_col, 2*line_thickness)
-            self.imgui.draw_list_add_quad(a1, b1, a2, b2, a3, b3, a4, b4, line_col, 2*line_thickness)
-            self.imgui.draw_list_add_quad_filled(x1, y1, x2, y2, x3, y3, x4, y4, color)
-            self.imgui.draw_list_add_quad_filled(a1, b1, a2, b2, a3, b3, a4, b4, color)
+            q1_unpacked : tuple[float, float, float, float, float, float, float, float] = (q1[0][0], q1[0][1], q1[1][0], q1[1][1], q1[2][0], q1[2][1], q1[3][0], q1[3][1])        
+            q2_unpacked : tuple[float, float, float, float, float, float, float, float] = (q2[0][0], q2[0][1], q2[1][0], q2[1][1], q2[2][0], q2[2][1], q2[3][0], q2[3][1])
+            
+            self.imgui.draw_list_add_quad(*q1_unpacked, line_col, 2 * line_thickness)
+            self.imgui.draw_list_add_quad(*q2_unpacked, line_col, 2 * line_thickness)
+            self.imgui.draw_list_add_quad_filled(*q1_unpacked, color)
+            self.imgui.draw_list_add_quad_filled(*q2_unpacked, color)
+
+            hit = mouse[0] and (
+                Utils.point_in_polygon(mouse[1], mouse[2], q1)
+                or Utils.point_in_polygon(mouse[1], mouse[2], q2)
+            )
         else:
-            scale = [1,1,1,1]
-            if shape == 'Tear':
-                scale = [2,1,1,1]
-            elif shape == 'Square':
-                scale = [1,1,1,1]
+            scale = [1, 1, 1, 1]
             
-            x1 = math.cos(                    rotation)*scale[0]*size + x
-            y1 = math.sin(                    rotation)*scale[0]*size + y
-            x2 = math.cos(math.radians( 90) + rotation)*scale[1]*size + x
-            y2 = math.sin(math.radians( 90) + rotation)*scale[1]*size + y
-            x3 = math.cos(math.radians(180) + rotation)*scale[2]*size + x
-            y3 = math.sin(math.radians(180) + rotation)*scale[2]*size + y
-            x4 = math.cos(math.radians(270) + rotation)*scale[3]*size + x
-            y4 = math.sin(math.radians(270) + rotation)*scale[3]*size + y
+            if shape == "Tear":
+                scale = [2, 1, 1, 1]
+                
+            def p_quad(angle, s):
+                return (
+                    math.cos(angle) * s * size + x,
+                    math.sin(angle) * s * size + y,
+                )
+                    
+            quad = [
+                p_quad(rotation, scale[0]),
+                p_quad(math.radians(90) + rotation, scale[1]),
+                p_quad(math.radians(180) + rotation, scale[2]),
+                p_quad(math.radians(270) + rotation, scale[3]),
+            ]
+            
+            quad_unpacked : tuple[float, float, float, float, float, float, float, float] = (quad[0][0], quad[0][1], quad[1][0], quad[1][1], quad[2][0], quad[2][1], quad[3][0], quad[3][1])
+                
+            self.imgui.draw_list_add_quad_filled(*quad_unpacked, color)
+            self.imgui.draw_list_add_quad(*quad_unpacked, line_col, line_thickness)
 
-            self.imgui.draw_list_add_quad_filled(x1, y1, x2, y2, x3, y3, x4, y4, color)
-            self.imgui.draw_list_add_quad(x1, y1, x2, y2, x3, y3, x4, y4, line_col, line_thickness)
+            hit = mouse[0] and Utils.point_in_polygon(mouse[1], mouse[2], quad)
 
+        if hit:
+            GLOBAL_CACHE.Player.ChangeTarget(id)
+        
     def DrawAgents(self):
+        io = self.imgui.get_io()
+        mouse = (PyImGui.is_mouse_clicked(0), io.mouse_pos_x, io.mouse_pos_y)
+        
         def GetAgentValid(agent):
             if agent.id and Utils.Distance((agent.x, agent.y), self.position.player_pos) <= self.position.culling:
                 return True
@@ -498,7 +513,7 @@ class Compass():
                         fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
                     else:
                         fill_color = None
-                    self.DrawAgent(marker.visible, marker.size, marker.shape, marker.color, marker.fill_range, fill_color, agent.x, agent.y, rot, is_alive, is_target)
+                    self.DrawAgent(agent.id, mouse, marker.visible, marker.size, marker.shape, marker.color, marker.fill_range, fill_color, agent.x, agent.y, rot, is_alive, is_target)
                     return True
             return False
 
@@ -511,7 +526,7 @@ class Compass():
             if not GetAgentValid(agent): continue
             rot, is_target, _ = GetAgentParams(agent)
 
-            self.DrawAgent(*self.config.markers['Signpost'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
+            self.DrawAgent(agent.id, mouse, *self.config.markers['Signpost'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
 
         for agent in agent_array.GetRawSpiritPetArray():
             if not GetAgentValid(agent): continue
@@ -525,23 +540,23 @@ class Compass():
                 model_id = agent.living_agent.player_number
                 spirit_params = GetSpiritParams(model_id)
 
-                self.DrawAgent(*spirit_params, agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent.id, mouse, *spirit_params, agent.x, agent.y, rot, is_alive, is_target) # type: ignore
             else:
-                self.DrawAgent(*self.config.markers['Ally (Pet)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent.id, mouse, *self.config.markers['Ally (Pet)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawNeutralArray():
             if not GetAgentValid(agent): continue
             if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
-            self.DrawAgent(*self.config.markers['Neutral'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+            self.DrawAgent(agent.id, mouse, *self.config.markers['Neutral'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawMinionArray():
             if not GetAgentValid(agent): continue
             if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
-            self.DrawAgent(*self.config.markers['Ally (Minion)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+            self.DrawAgent(agent.id, mouse, *self.config.markers['Ally (Minion)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawEnemyArray():
             if not GetAgentValid(agent): continue
@@ -549,7 +564,7 @@ class Compass():
             rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.has_boss_glow:
-                self.DrawAgent(self.config.markers['Enemy'].visible, self.config.markers['Enemy'].size*1.2, self.config.markers['Enemy'].shape, self.config.profession[agent.living_agent.profession.ToInt()],
+                self.DrawAgent(agent.id, mouse, self.config.markers['Enemy'].visible, self.config.markers['Enemy'].size*1.2, self.config.markers['Enemy'].shape, self.config.profession[agent.living_agent.profession.ToInt()],
                                             self.config.markers['Enemy'].fill_range, self.config.markers['Enemy'].fill_color, agent.x, agent.y, rot, is_alive, is_target)
             elif agent.living_agent.is_spawned:
                 if not is_alive:
@@ -558,9 +573,9 @@ class Compass():
                 model_id = agent.living_agent.player_number
                 visible, size, shape, _, range, fill_color = GetSpiritParams(model_id)
 
-                self.DrawAgent(visible, size, shape, self.config.markers['Enemy'].color, range, fill_color, agent.x, agent.y, rot, is_alive, is_target)
+                self.DrawAgent(agent.id, mouse, visible, size, shape, self.config.markers['Enemy'].color, range, fill_color, agent.x, agent.y, rot, is_alive, is_target)
             else:
-                self.DrawAgent(*self.config.markers['Enemy'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent.id, mouse, *self.config.markers['Enemy'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawAllyArray():
             if not GetAgentValid(agent): continue
@@ -568,29 +583,29 @@ class Compass():
             rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.is_npc:
-                self.DrawAgent(*self.config.markers['Ally'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent.id, mouse, *self.config.markers['Ally'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
             elif agent.id == self.player_id:
                 player_agent = agent
             else:
-                self.DrawAgent(*self.config.markers['Players'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
-
+                self.DrawAgent(agent.id, mouse, *self.config.markers['Players'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                
         for agent in agent_array.GetRawNPCMinipetArray():
             if not GetAgentValid(agent): continue
             if CheckCustomMarkers(agent): continue
             rot, is_target, is_alive = GetAgentParams(agent)
 
             if agent.living_agent.has_quest:
-                self.DrawAgent(self.config.markers['Ally (NPC)'].visible, self.config.markers['Ally (NPC)'].size, 'Star', self.config.markers['Ally (NPC)'].color,
+                self.DrawAgent(agent.id, mouse, self.config.markers['Ally (NPC)'].visible, self.config.markers['Ally (NPC)'].size, 'Star', self.config.markers['Ally (NPC)'].color,
                                             self.config.markers['Ally (NPC)'].fill_range, self.config.markers['Ally (NPC)'].fill_color, agent.x, agent.y, rot, is_alive, is_target)
             elif agent.living_agent.level > 1:
-                self.DrawAgent(*self.config.markers['Ally (NPC)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent.id, mouse, *self.config.markers['Ally (NPC)'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
             else:
-                self.DrawAgent(*self.config.markers['Minipet'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent.id, mouse, *self.config.markers['Minipet'].values(), agent.x, agent.y, rot, is_alive, is_target) # type: ignore
 
         if player_agent and GetAgentValid(player_agent):
             rot, is_target, is_alive = GetAgentParams(player_agent)
 
-            self.DrawAgent(*self.config.markers['Player'].values(), player_agent.x, player_agent.y, rot, is_alive, is_target) # type: ignore
+            self.DrawAgent(player_agent.id, mouse, *self.config.markers['Player'].values(), player_agent.x, player_agent.y, rot, is_alive, is_target) # type: ignore
 
         for agent in agent_array.GetRawItemArray():
             if not GetAgentValid(agent): continue
@@ -598,16 +613,15 @@ class Compass():
 
             match Item.item_instance(agent.item_agent.item_id).rarity.value:
                 case 1:
-                    self.DrawAgent(*self.config.markers['Item (Blue)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent.id, mouse, *self.config.markers['Item (Blue)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
                 case 2:
-                    self.DrawAgent(*self.config.markers['Item (Purple)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent.id, mouse, *self.config.markers['Item (Purple)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
                 case 3:
-                    self.DrawAgent(*self.config.markers['Item (Gold)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent.id, mouse, *self.config.markers['Item (Gold)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
                 case 4:
-                    self.DrawAgent(*self.config.markers['Item (Green)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent.id, mouse, *self.config.markers['Item (Green)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
                 case _:
-                    self.DrawAgent(*self.config.markers['Item (White)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
-
+                    self.DrawAgent(agent.id, mouse, *self.config.markers['Item (White)'].values(), agent.x, agent.y, rot, True, is_target) # type: ignore
     def Draw(self):
         self.UpdateOrientation()
     
@@ -615,6 +629,7 @@ class Compass():
         size = self.position.current_size 
         x = self.position.current_pos.x - size - buffer
         y = self.position.current_pos.y - size - buffer
+        self.window_rect = (x, y, (size + buffer)*2, (size + buffer)*2)
         
         self.imgui.set_next_window_pos(x, y)
         self.imgui.set_next_window_size((size + buffer)*2, (size + buffer)*2)
@@ -652,21 +667,7 @@ class Compass():
         self.imgui.end()
 
     def CheckClick(self):
-        if self.imgui.is_mouse_clicked(0): 
-            if self.imgui.get_io().key_ctrl:
-                pos = self.overlay.GetMouseCoords()
-                mouse_pos = (pos.x, pos.y)
-                world_pos = Map.MiniMap.MapProjection.ScreenToGamePos(*mouse_pos,
-                                                                      *self.position.player_pos,
-                                                                      self.position.current_pos.x, self.position.current_pos.y,
-                                                                      self.position.current_size, 
-                                                                      self.position.rotation)
-
-                agent_array = GLOBAL_CACHE.AgentArray.GetAgentArray()
-                agent_array = AgentArray.Sort.ByDistance(agent_array, world_pos)
-                if len(agent_array) > 0:
-                    GLOBAL_CACHE.Player.ChangeTarget(agent_array[0])
-
+        if self.imgui.is_mouse_clicked(0) and ImGui.is_mouse_in_rect(self.window_rect): 
             if self.imgui.get_io().key_alt:
                 pos = self.overlay.GetMouseCoords()
                 mouse_pos = (pos.x, pos.y)
