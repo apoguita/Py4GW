@@ -126,7 +126,7 @@ class PlayerCache:
         account_email = self._player_instance.account_email
         if account_email:
             return account_email
-        return self._format_uuid_as_email(self._player_instance.player_uuid)
+        return "" if all(part == 0 for part in self._player_instance.player_uuid) else self._format_uuid_as_email(self._player_instance.player_uuid)
     
     def GetPlayerUUID(self):
         return self._player_instance.player_uuid
