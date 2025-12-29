@@ -6,6 +6,7 @@ import Py4GW
 from Py4GWCoreLib.Map import Map
 
 MODULE_NAME = "HeroAI"
+
 from enum import Enum
 from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessage
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
@@ -24,7 +25,7 @@ from HeroAI.globals import hero_formation
 from HeroAI.players import RegisterHeroes
 from HeroAI.players import RegisterPlayer
 from HeroAI.players import UpdatePlayers
-from HeroAI.utils import DistanceFromLeader
+from HeroAI.utils import DistanceFromLeader, IsHeroFlagged
 from HeroAI.utils import DistanceFromWaypoint
 from HeroAI.windows import CompareAndSubmitGameOptions
 from HeroAI.windows import DrawCandidateWindow
@@ -37,7 +38,7 @@ from HeroAI.windows import DrawMultiboxTools
 from HeroAI.windows import DrawOptions
 from HeroAI.windows import DrawPanelButtons
 from HeroAI.windows import SubmitGameOptions
-from HeroAI.ui import draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, draw_hero_panel, draw_hotbars, draw_party_overlay, draw_skip_cutscene_overlay
+from HeroAI.ui import draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, draw_hero_panel, draw_hotbars, draw_party_overlay, draw_party_search_overlay, draw_skip_cutscene_overlay
 from HeroAI.settings import Settings
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ActionQueueManager
@@ -442,6 +443,21 @@ def DrawEmbeddedWindow(cached_data: CacheData):
     ImGui.PopTransparentWindow()
     DrawFramedContent(cached_data, content_frame_id)
 
+def DistanceToDestination(cached_data: CacheData):
+    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+    if not account:
+        return 0.0
+    
+    is_flagged = IsHeroFlagged(cached_data, account.PartyPosition)
+    player_structs = cached_data.HeroAI_vars.all_player_struct
+    data = player_structs[account.PartyPosition] if player_structs and len(player_structs) > account.PartyPosition else None
+    
+    if not data:
+        return 0.0 
+    
+    destination = (data.FlagPosX, data.FlagPosY) if is_flagged else GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+    return Utils.Distance(destination, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+    
 
 def UpdateStatus(cached_data: CacheData):
     global hero_windows, messages, map_quads
@@ -530,6 +546,9 @@ def UpdateStatus(cached_data: CacheData):
 
         if settings.ShowPartyOverlay:
             draw_party_overlay(accounts, hero_windows)
+            
+        if settings.ShowPartySearchOverlay:
+            draw_party_search_overlay(accounts, cached_data)
         
         if settings.ShowCommandPanel and (own_data.PlayerIsPartyLeader or not settings.ShowCommandPanelOnlyOnLeaderAccount):
             draw_command_panel(command_panel_window, accounts, cached_data)
@@ -555,9 +574,11 @@ def UpdateStatus(cached_data: CacheData):
 
     draw_Targeting_floating_buttons(cached_data)
 
+    index = GLOBAL_CACHE.ShMem.GetAccountSlot(cached_data.account_email)
+    
     if (
         not GLOBAL_CACHE.Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
-        or DistanceFromLeader(cached_data) >= Range.SafeCompass.value
+        or (DistanceToDestination(cached_data) >= Range.SafeCompass.value)
         or GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
         or cached_data.combat_handler.InCastingRoutine()
         or GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
@@ -621,7 +642,7 @@ def UpdateStatus(cached_data: CacheData):
 
 
 def configure():
-    draw_configure_window()
+    draw_configure_window(MODULE_NAME, configure_window)
 
 
 def main():

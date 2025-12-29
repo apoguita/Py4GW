@@ -615,7 +615,7 @@ class Py4GWSharedMemoryManager:
         if account_email:
             return account_email
         player_uuid = self.player_instance.player_uuid
-        if not player_uuid:
+        if all(part == 0 for part in player_uuid):
             return ""
         try:
             return "uuid_" + "_".join(str(part) for part in player_uuid)
