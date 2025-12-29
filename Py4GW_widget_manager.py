@@ -365,7 +365,7 @@ def draw_widget_ui():
             
             GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if handler.pause_optional_widgets else SharedCommandType.ResumeWidgets)
         
-    ImGui.show_tooltip(f"{("Pause" if not handler.pause_optional_widgets else "Resume")} all non-environmental widgets")
+    ImGui.show_tooltip(f"{("Pause" if not handler.pause_optional_widgets else "Resume")} all optional widgets")
     ImGui.separator()
     
     categorized_widgets = {}
