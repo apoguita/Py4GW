@@ -29,8 +29,9 @@ SECTION_INFO = {
             "- Mission Map.\n"
             "- Mini Map.\n"
             "- World Map.\n"
-            "- Geo Location and Pathing.\n"
+            "- Pregame Data.\n"
             "- Observing Matches Data.\n"
+            "- Geo Location and Pathing.\n"    
         ),
     },
 }
@@ -79,308 +80,589 @@ class MapVars:
         draw_content_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 2.0)
         center_outline = DisplayNode(True, ColorPalette.GetColor("fuchsia"), 4.0)
         draw_last_click_pos = DisplayNode(True, ColorPalette.GetColor("gold"), 3.0)
+        draw_last_right_click_pos = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
+        player_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
+        
+    class MiniMap:
+        frame_info: FrameInfo | None = None
+        draw_outline = DisplayNode(True, ColorPalette.GetColor("bright_green"), 3.0)
+        draw_content_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 2.0)
+        center_outline = DisplayNode(True, ColorPalette.GetColor("fuchsia"), 4.0)
+        draw_last_click_pos = DisplayNode(True, ColorPalette.GetColor("gold"), 3.0)
+        draw_last_right_click_pos = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
         player_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
 
         
         
 map_vars = MapVars()
         
+#region main_map_tab
+def draw_main_map_tab():
+    if _selected_view in SECTION_INFO:
+        info = SECTION_INFO[_selected_view]
+        #PyImGui.text(info["title"])
+        #PyImGui.separator()
+        PyImGui.text_wrapped(info["description"])
+        
+    PyImGui.separator()
+
+    PyImGui.text("Common fields:")
+
+    rows: list[tuple[str, str | int | float]] = [
+        ("Instance Type", Map.GetInstanceTypeName()),
+        ("Current Map", f"[{Map.GetMapID()}] - {Map.GetMapName()}"),
+        ("Instance uptime (ms)", f"{FormatTime(Map.GetInstanceUptime(), 'hh:mm:ss:ms')}"),
+        ("Region", f"[{Map.GetRegion()[0]}] - {Map.GetRegion()[1]}"),
+        ("Region Type", f"[{Map.GetRegionType()[0]}] - {Map.GetRegionType()[1]}"),
+        ("District", f"[{Map.GetDistrict()}]"),
+        ("Language", f"[{Map.GetLanguage()[0]}] - {Map.GetLanguage()[1]}"),
+        ("Amount of Players in Instance", f"{Map.GetAmountOfPlayersInInstance()}"),
+    ]
+
+    draw_kv_table("WorldMapTable", rows)
+    
+#region map_data_tab
+def draw_map_data_tab():
+    if PyImGui.collapsing_header("Common fields:"):
+        rows: list[tuple[str, str | int | float]] = [
+            ("Instance Type", Map.GetInstanceTypeName()),
+            ("Current Map", f"[{Map.GetMapID()}] - {Map.GetMapName()}"),
+            ("Instance uptime (ms)", f"{FormatTime(Map.GetInstanceUptime(), 'hh:mm:ss:ms')}"),
+            ("Campaign", f"[{Map.GetCampaign()[0]}] - {Map.GetCampaign()[1]}"),
+            ("Continent", f"[{Map.GetContinent()[0]}] - {Map.GetContinent()[1]}"),
+            ("Is Guild Hall", f"{Map.IsGuildHall()}"),
+            ("Region", f"[{Map.GetRegion()[0]}] - {Map.GetRegion()[1]}"),
+            ("Region Type", f"[{Map.GetRegionType()[0]}] - {Map.GetRegionType()[1]}"),
+            ("District", f"[{Map.GetDistrict()}]"),
+            ("Language", f"[{Map.GetLanguage()[0]}] - {Map.GetLanguage()[1]}"),
+            ("Amount of Players in Instance", f"{Map.GetAmountOfPlayersInInstance()}"),
+            ("Max Party Size", f"{Map.GetMaxPartySize()}"),
+            ("Foes Killed", f"{Map.GetFoesKilled()}"),
+            ("Foes to Kill", f"{Map.GetFoesToKill()}"),
+            ("Is Vanquishable", f"{Map.IsVanquishable()}"),
+            ("Is Vanquish Complete", f"{Map.IsVanquishComplete()}"),
+            ("Is in Cinematic", f"{Map.IsInCinematic()}"),
+            ("Has Enter Challenge Button", f"{Map.HasEnterChallengeButton()}"),  
+            ("Is Map Unlocked", f"{Map.IsMapUnlocked()}"),
+        ]
+
+        draw_kv_table("MissionMapTable", rows)
+        
+    if PyImGui.collapsing_header("Additional Fields:"):
+        rows: list[tuple[str, str | int | float]] = [
+            ("Is Unlockable", f"{Map.IsUnlockable()}"),
+            ("Has Mission Maps To", f"{Map.HasMissionMapsTo()}"),
+            ("Mission Maps To", f"{Map.GetMissionMapsTo()} - {Map.GetMapName(Map.GetMissionMapsTo())}"),
+            ("Controlled Outpost ID", f"{Map.GetControlledOutpostID()} - {Map.GetMapName(Map.GetControlledOutpostID())}"),
+            ("Is on World Map", f"{Map.IsOnWorldMap()}"),
+            ("Is PvP Map", f"{Map.IsPVP()}"),
+            ("Min Party Size", f"{Map.GetMinPartySize()}"),
+            ("Min Player Size", f"{Map.GetMinPlayerSize()}"),
+            ("Max Player Size", f"{Map.GetMaxPlayerSize()}"),
+            ("flags", f"{Map.GetFlags()}"),
+            ("Min Level", f"{Map.GetMinLevel()}"),
+            ("Max Level", f"{Map.GetMaxLevel()}"),
+            ("Thumbnail ID", f"{Map.GetThumbnailID()}"),
+            ("Fraction Mission", f"{Map.GetFractionMission()}"),
+            ("Needed PQ", f"{Map.GetNeededPQ()}"),
+            ("Icon Position (x, y)", f"{Map.GetIconPosition()}"),
+            ("Icon Start Position (x, y)", f"{Map.GetIconStartPosition()}"),
+            ("Icon End Position (x, y)", f"{Map.GetIconEndPosition()}"),
+            ("File ID", f"{Map.GetFileID()}"),
+            ("Mission Chronology", f"{Map.GetMissionChronology()}"),
+            ("HA Chronology", f"{Map.GetHAChronology()}"),
+            ("Name ID", f"{Map.GetNameID()}"),
+            ("Description ID", f"{Map.GetDescriptionID()}"),
+            ("File ID 1", f"{Map.GetFileID1()}"),
+            ("File ID 2", f"{Map.GetFileID2()}"),
+            
+        ]
+
+        draw_kv_table("MissionMapTable", rows)
+     
+#region map_actions_tab   
+def draw_map_actions_tab():
+    PyImGui.text("SkipCinematic:")
+    PyImGui.indent(20.0)
+    if not Map.IsInCinematic():
+        PyImGui.text("No cinematic is currently playing.")
+    else:
+        if PyImGui.button("Skip Cinematic"):
+            Map.SkipCinematic()
+            
+    PyImGui.unindent(20.0)
+    PyImGui.separator()
+    if PyImGui.collapsing_header("Travel to Map:"):
+        PyImGui.indent(20.0)
+        map_vars.Travel.map_id = PyImGui.input_int("Map ID", map_vars.Travel.map_id)
+        map_vars.Travel.region = PyImGui.input_int("Region", map_vars.Travel.region)
+        map_vars.Travel.district_number = PyImGui.input_int("District Number", map_vars.Travel.district_number)
+        map_vars.Travel.language = PyImGui.input_int("Language", map_vars.Travel.language)
+            
+        if PyImGui.button("Travel"):
+            Map.TravelToRegion(
+                map_vars.Travel.map_id,
+                map_vars.Travel.region,
+                map_vars.Travel.district_number,
+                map_vars.Travel.language
+            )
+        PyImGui.unindent(20.0)
+        
+    if PyImGui.collapsing_header("Guild Hall:"):
+        PyImGui.indent(20.0)
+        is_guild_hall = Map.IsGuildHall()
+        if is_guild_hall:
+            if PyImGui.button("Leave Guild Hall"):    
+                Map.LeaveGH()
+        else:
+            if PyImGui.button("Travel to Guild Hall"):
+                Map.TravelGH()
+        PyImGui.unindent(20.0)
+        
+    if PyImGui.collapsing_header("Enter Challenge:"):
+        PyImGui.indent(20.0)
+        if not Map.HasEnterChallengeButton():
+            PyImGui.text("No 'Enter Challenge' button is available in this map.")
+        else:
+            if not Map.IsEnteringChallenge():
+                if PyImGui.button("Enter Challenge"):
+                    Map.EnterChallenge()
+            else:
+                if PyImGui.button("Cancel Enter Challenge"):
+                    Map.CancelEnterChallenge()
+
+        PyImGui.unindent(20.0)
+    
+#region mission_map_tab
+def draw_mission_map_tab():
+    if not Map.MissionMap.IsWindowOpen():
+        PyImGui.text("Mission Map window is not open.")
+        if PyImGui.button("Open Mission Map"):
+            Map.MissionMap.OpenWindow()
+    else:
+        if PyImGui.button("Close Mission Map"):
+            Map.MissionMap.CloseWindow()
+        map_vars.MissionMap.frame_info = Map.MissionMap.GetFrameInfo()
+        _FI = map_vars.MissionMap.frame_info
+        
+        frame_id = Map.MissionMap.GetFrameID()
+        is_mouse_over = Map.MissionMap.IsMouseOver()
+        mm_coords = Map.MissionMap.GetMissionMapWindowCoords()
+        mm_contents_coords = Map.MissionMap.GetMissionMapContentsCoords()
+        scale = Map.MissionMap.GetScale()
+        zoom = Map.MissionMap.GetZoom()
+        adusted_zoom = Map.MissionMap.GetAdjustedZoom(zoom, 0.5)
+        center = Map.MissionMap.GetCenter()
+        map_center_screen = Map.MissionMap.GetMapScreenCenter()
+        
+        nx, ny = Map.MissionMap.GetLastClickCoords()
+        sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
+        wx, wy = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(nx, ny)
+        gx, gy = Map.MissionMap.MapProjection.NormalizedScreenToGameMap(nx, ny)
+        
+        r_nx, r_ny = Map.MissionMap.GetLastRightClickCoords()
+        r_sx, r_sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(r_nx, r_ny)  
+        r_wx, r_wy = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(r_nx, r_ny)
+        r_gx, r_gy = Map.MissionMap.MapProjection.NormalizedScreenToGameMap(r_nx, r_ny)
+        
+        pan_offset = Map.MissionMap.GetPanOffset()
+        player_world_pos = Player.GetXY()
+        player_map_pos = Map.MissionMap.MapProjection.GameMapToScreen(*player_world_pos)
+        
+        if PyImGui.collapsing_header("Mission Map Data:"):
+            
+        
+            rows: list[tuple[str, str | int | float]] = [
+                ("frame_id ", f"{frame_id}"),
+                ("Is Mouse Over", f"{is_mouse_over}"),
+                ("Coords (l, t, r, b)", f"{mm_coords}"),
+                ("Contents Coords (l, t, r, b)", f"{mm_contents_coords}"),
+                ("Scale", f"{scale[0]:.3f}, {scale[1]:.3f}"),
+                ("Zoom", f"{zoom}"),
+                ("Adjusted Zoom (+0.5)", f"{adusted_zoom:.3f}"),
+                ("Center", f"{center[0]:.1f}, {center[1]:.1f}"),
+                ("Map Screen Center (x, y)", f"{map_center_screen}"),
+
+                ("Last Click (normalized):", f"({nx:.3f}, {ny:.3f})"),
+                #("Last Click (screen):", f"({sx:.1f}, {sy:.1f})"),
+                #("Last Click (game):", f"({gx:.1f}, {gy:.1f})"),
+                
+                ("Last Right Click (normalized):", f"({r_nx:.3f}, {r_ny:.3f})"),
+                #("Last Right Click (screen):", f"({r_sx:.1f}, {r_sy:.1f})"),
+                #("Last Right Click (game):", f"({r_gx:.1f}, {r_gy:.1f})"),
+
+                ("Pan Offset (x, y)", f"{pan_offset[0]:.1f}, {pan_offset[1]:.1f}"),
+                ("Player World Position (x, y)", f"{player_world_pos[0]:.1f}, {player_world_pos[1]:.1f}"),
+                ("Player Map Position (x, y)", f"{player_map_pos[0]:.1f}, {player_map_pos[1]:.1f}"),
+
+            ]
+
+            draw_kv_table("MissionMapTable", rows)
+            PyImGui.separator()
+            
+        if PyImGui.collapsing_header("Mission Map Display Options:"):
+            PyImGui.text("Display Options:")
+            #================ Outline Options ================
+            if PyImGui.collapsing_header("Outline"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.draw_outline.visible = PyImGui.checkbox("Draw Frame Outline", map_vars.MissionMap.draw_outline.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.draw_outline.thickness = PyImGui.slider_int("Outline Thickness", int(map_vars.MissionMap.draw_outline.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Outline Color", map_vars.MissionMap.draw_outline.color.to_tuple_normalized())
+
+                map_vars.MissionMap.draw_outline.color = Color().from_tuple_normalized(_color)
+                if map_vars.MissionMap.draw_outline.visible:
+                    if _FI:
+                        _FI.DrawFrameOutline(map_vars.MissionMap.draw_outline.color.to_color(), map_vars.MissionMap.draw_outline.thickness)
+                PyImGui.unindent(20.0)
+                
+            #================ Content Outline Options ================
+            if PyImGui.collapsing_header("Content Outline"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.draw_content_outline.visible = PyImGui.checkbox("Draw Content Outline", map_vars.MissionMap.draw_content_outline.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.draw_content_outline.thickness = PyImGui.slider_int("Content Outline Thickness", int(map_vars.MissionMap.draw_content_outline.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Content Outline Color", map_vars.MissionMap.draw_content_outline.color.to_tuple_normalized())
+
+                map_vars.MissionMap.draw_content_outline.color = Color().from_tuple_normalized(_color)
+                if map_vars.MissionMap.draw_content_outline.visible:
+                    content_coords = Map.MissionMap.GetMissionMapContentsCoords()
+                    Overlay().BeginDraw()
+                    left, top, right, bottom = content_coords
+                    Overlay().DrawQuad(x1=left, y1=top,
+                                        x2=right, y2=top,
+                                        x3=right, y3=bottom,
+                                        x4=left, y4=bottom,
+                                        color=map_vars.MissionMap.draw_content_outline.color.to_color(),
+                                        thickness=map_vars.MissionMap.draw_content_outline.thickness)
+                    Overlay().EndDraw()
+                PyImGui.unindent(20.0)
+                
+            #================ Last Click Position Options ================
+            if PyImGui.collapsing_header("Last Click Position"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.draw_last_click_pos.visible = PyImGui.checkbox("Draw Last Click Position", map_vars.MissionMap.draw_last_click_pos.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.draw_last_click_pos.thickness = PyImGui.slider_int("Last Click Pos Thickness", int(map_vars.MissionMap.draw_last_click_pos.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Last Click Pos Color", map_vars.MissionMap.draw_last_click_pos.color.to_tuple_normalized())
+                map_vars.MissionMap.draw_last_click_pos.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.draw_last_click_pos.color.to_color()
+                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
+                if map_vars.MissionMap.draw_last_click_pos.visible:
+                    sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(sx, sy, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_click_pos.thickness)
+                    Overlay().EndDraw()
+                    def DrawFlagAll(pos_x, pos_y):
+                        overlay = Overlay()
+                        pos_z = overlay.FindZ(pos_x, pos_y)
+
+                        overlay.BeginDraw()
+                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
+                        overlay.DrawTriangleFilled3D(
+                            pos_x, pos_y, pos_z - 150,               # Base point
+                            pos_x, pos_y, pos_z - 120,               # 30 units up
+                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
+                            dc_color
+                        )
+
+                        overlay.EndDraw()
+                    DrawFlagAll(gx, gy)
+                PyImGui.unindent(20.0)
+                
+            #================ Last Right Click Position Options ================
+            if PyImGui.collapsing_header("Last Right Click Position"):
+                PyImGui.indent(20.0)
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.draw_last_right_click_pos.visible = PyImGui.checkbox("Draw Last Right Click Position", map_vars.MissionMap.draw_last_right_click_pos.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.draw_last_right_click_pos.thickness = PyImGui.slider_int("Last Right Click Pos Thickness", int(map_vars.MissionMap.draw_last_right_click_pos.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Last Right Click Pos Color", map_vars.MissionMap.draw_last_right_click_pos.color.to_tuple_normalized())
+                map_vars.MissionMap.draw_last_right_click_pos.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.draw_last_right_click_pos.color.to_color()
+                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
+                if map_vars.MissionMap.draw_last_right_click_pos.visible:
+                    r_sx, r_sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(r_nx, r_ny)
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(r_sx, r_sy, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_right_click_pos.thickness)
+                    Overlay().EndDraw()
+                    def DrawFlagAll(pos_x, pos_y):
+                        overlay = Overlay()
+                        pos_z = overlay.FindZ(pos_x, pos_y)
+
+                        overlay.BeginDraw()
+                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
+                        overlay.DrawTriangleFilled3D(
+                            pos_x, pos_y, pos_z - 150,               # Base point
+                            pos_x, pos_y, pos_z - 120,               # 30 units up
+                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
+                            dc_color
+                        )
+
+                        overlay.EndDraw()
+                    DrawFlagAll(r_gx, r_gy)
+                PyImGui.unindent(20.0)
+                
+                 
+            #================ Center Map Position Options ================   
+            if PyImGui.collapsing_header("Center Map Position"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.center_outline.visible = PyImGui.checkbox("Draw Center Map Position", map_vars.MissionMap.center_outline.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.center_outline.thickness = PyImGui.slider_int("Center Pos Thickness", int(map_vars.MissionMap.center_outline.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Center Pos Color", map_vars.MissionMap.center_outline.color.to_tuple_normalized())
+                map_vars.MissionMap.center_outline.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.center_outline.color.to_color()
+                if map_vars.MissionMap.center_outline.visible:
+                    center_world = Map.MissionMap.GetCenter()
+                    center_screen = Map.MissionMap.MapProjection.WorldMapToScreen(center_world[0], center_world[1])
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(center_screen[0], center_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.center_outline.thickness)
+                    Overlay().EndDraw()
+                PyImGui.unindent(20.0)
+                
+            #================ Player Position Options ================
+            if PyImGui.collapsing_header("Player Position"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.player_outline.visible = PyImGui.checkbox("Draw Player Position", map_vars.MissionMap.player_outline.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.player_outline.thickness = PyImGui.slider_int("Player Pos Thickness", int(map_vars.MissionMap.player_outline.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Player Pos Color", map_vars.MissionMap.player_outline.color.to_tuple_normalized())
+                map_vars.MissionMap.player_outline.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.player_outline.color.to_color()
+                if map_vars.MissionMap.player_outline.visible:
+                    player_pos = Player.GetXY()
+                    player_screen = Map.MissionMap.MapProjection.GameMapToScreen(player_pos[0], player_pos[1])
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(player_screen[0], player_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.player_outline.thickness)
+                    Overlay().EndDraw()
+                PyImGui.unindent(20.0)
+            
+            
+#region mission_map_tab
+def draw_mini_map_tab():
+    if not Map.MiniMap.IsWindowOpen():
+        PyImGui.text("Mini Map window is not open.")
+        if PyImGui.button("Open Mini Map"):
+            Map.MiniMap.OpenWindow()
+    else:
+        if PyImGui.button("Close Mini Map"):
+            Map.MiniMap.CloseWindow()
+        map_vars.MiniMap.frame_info = Map.MiniMap.GetFrameInfo()
+        _FI = map_vars.MiniMap.frame_info
+        
+        frame_id = Map.MiniMap.GetFrameID()
+        is_mouse_over = Map.MiniMap.IsMouseOver()
+        mm_coords = Map.MiniMap.GetWindowCoords()
+        scale = Map.MiniMap.GetScale()
+        zoom = Map.MiniMap.GetZoom()
+        map_center_screen = Map.MiniMap.GetMapScreenCenter()
+        
+        nx, ny = Map.MiniMap.GetLastClickCoords()
+        sx, sy = Map.MiniMap.MapProjection.ScreenToNormalizedScreen(nx, ny)
+        wx, wy = Map.MiniMap.MapProjection.NormalizedScreenToWorldMap(nx, ny)
+        gx, gy = Map.MiniMap.MapProjection.NormalizedScreenToGameMap(nx, ny)
+        
+        r_nx, r_ny = Map.MiniMap.GetLastRightClickCoords()
+        r_sx, r_sy = Map.MiniMap.MapProjection.ScreenToNormalizedScreen(r_nx, r_ny)  
+        r_wx, r_wy = Map.MiniMap.MapProjection.NormalizedScreenToWorldMap(r_nx, r_ny)
+        r_gx, r_gy = Map.MiniMap.MapProjection.NormalizedScreenToGameMap(r_nx, r_ny)
+        
+        pan_offset = Map.MiniMap.GetPanOffset()
+        player_game_pos = Player.GetXY()
+        player_map_pos = Map.MiniMap.MapProjection.GamePosToScreen(player_game_pos[0], player_game_pos[1])
+        
+        
+        if PyImGui.collapsing_header("MiniMap Data:"):
+            
+        
+            rows: list[tuple[str, str | int | float]] = [
+                ("frame_id ", f"{frame_id}"),
+                ("Is Mouse Over", f"{is_mouse_over}"),
+                ("Coords (l, t, r, b)", f"{mm_coords}"),
+                ("Scale", f"{scale:.3f}"),
+                ("Zoom", f"{zoom}"),
+                ("Map Screen Center (x, y)", f"{map_center_screen}"),
+
+                ("Last Click (screen):", f"({nx:.3f}, {ny:.3f})"),   
+                ("Last Right Click (screen):", f"({r_nx:.3f}, {r_ny:.3f})"),
+
+                ("Pan Offset (x, y)", f"{pan_offset[0]:.1f}, {pan_offset[1]:.1f}"),
+                ("Player World Position (x, y)", f"{player_game_pos[0]:.1f}, {player_game_pos[1]:.1f}"),
+                ("Player Map Position (x, y)", f"{player_map_pos[0]:.1f}, {player_map_pos[1]:.1f}"),
+
+            ]
+
+            draw_kv_table("MiniMapTable", rows)
+            PyImGui.separator()
+            
+        if PyImGui.collapsing_header("MiniMap Display Options:"):
+            PyImGui.text("Display Options:")
+            #================ Outline Options ================
+            if PyImGui.collapsing_header("Outline"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.draw_outline.visible = PyImGui.checkbox("Draw Frame Outline", map_vars.MissionMap.draw_outline.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.draw_outline.thickness = PyImGui.slider_int("Outline Thickness", int(map_vars.MissionMap.draw_outline.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Outline Color", map_vars.MissionMap.draw_outline.color.to_tuple_normalized())
+
+                map_vars.MissionMap.draw_outline.color = Color().from_tuple_normalized(_color)
+                if map_vars.MissionMap.draw_outline.visible:
+                    if _FI:
+                        _FI.DrawFrameOutline(map_vars.MissionMap.draw_outline.color.to_color(), map_vars.MissionMap.draw_outline.thickness)
+                PyImGui.unindent(20.0)
+                
+            #================ Last Click Position Options ================
+            if PyImGui.collapsing_header("Last Click Position"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.draw_last_click_pos.visible = PyImGui.checkbox("Draw Last Click Position", map_vars.MissionMap.draw_last_click_pos.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.draw_last_click_pos.thickness = PyImGui.slider_int("Last Click Pos Thickness", int(map_vars.MissionMap.draw_last_click_pos.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Last Click Pos Color", map_vars.MissionMap.draw_last_click_pos.color.to_tuple_normalized())
+                map_vars.MissionMap.draw_last_click_pos.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.draw_last_click_pos.color.to_color()
+                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
+                if map_vars.MissionMap.draw_last_click_pos.visible:
+                    #sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(nx, ny, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_click_pos.thickness)
+                    Overlay().EndDraw()
+                    def DrawFlagAll(pos_x, pos_y):
+                        overlay = Overlay()
+                        pos_z = overlay.FindZ(pos_x, pos_y)
+
+                        overlay.BeginDraw()
+                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
+                        overlay.DrawTriangleFilled3D(
+                            pos_x, pos_y, pos_z - 150,               # Base point
+                            pos_x, pos_y, pos_z - 120,               # 30 units up
+                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
+                            dc_color
+                        )
+
+                        overlay.EndDraw()
+                    DrawFlagAll(gx, gy)
+                PyImGui.unindent(20.0)
+                
+            #================ Last Right Click Position Options ================
+            if PyImGui.collapsing_header("Last Right Click Position"):
+                PyImGui.indent(20.0)
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.draw_last_right_click_pos.visible = PyImGui.checkbox("Draw Last Right Click Position", map_vars.MissionMap.draw_last_right_click_pos.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.draw_last_right_click_pos.thickness = PyImGui.slider_int("Last Right Click Pos Thickness", int(map_vars.MissionMap.draw_last_right_click_pos.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Last Right Click Pos Color", map_vars.MissionMap.draw_last_right_click_pos.color.to_tuple_normalized())
+                map_vars.MissionMap.draw_last_right_click_pos.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.draw_last_right_click_pos.color.to_color()
+                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
+                if map_vars.MissionMap.draw_last_right_click_pos.visible:
+                    #r_sx, r_sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(r_nx, r_ny)
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(r_nx, r_ny, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_right_click_pos.thickness)
+                    Overlay().EndDraw()
+                    def DrawFlagAll(pos_x, pos_y):
+                        overlay = Overlay()
+                        pos_z = overlay.FindZ(pos_x, pos_y)
+
+                        overlay.BeginDraw()
+                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
+                        overlay.DrawTriangleFilled3D(
+                            pos_x, pos_y, pos_z - 150,               # Base point
+                            pos_x, pos_y, pos_z - 120,               # 30 units up
+                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
+                            dc_color
+                        )
+
+                        overlay.EndDraw()
+                    DrawFlagAll(r_gx, r_gy)
+                PyImGui.unindent(20.0)
+                
+                 
+            #================ Center Map Position Options ================   
+            if PyImGui.collapsing_header("Center Map Position"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.center_outline.visible = PyImGui.checkbox("Draw Center Map Position", map_vars.MissionMap.center_outline.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.center_outline.thickness = PyImGui.slider_int("Center Pos Thickness", int(map_vars.MissionMap.center_outline.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Center Pos Color", map_vars.MissionMap.center_outline.color.to_tuple_normalized())
+                map_vars.MissionMap.center_outline.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.center_outline.color.to_color()
+                if map_vars.MissionMap.center_outline.visible:
+                    center_screen = Map.MiniMap.GetMapScreenCenter()
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(center_screen[0], center_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.center_outline.thickness)
+                    Overlay().EndDraw()
+                PyImGui.unindent(20.0)
+                
+            #================ Player Position Options ================
+            if PyImGui.collapsing_header("Player Position"):
+                PyImGui.indent(20.0)
+                map_vars.MissionMap.player_outline.visible = PyImGui.checkbox("Draw Player Position", map_vars.MissionMap.player_outline.visible)
+                PyImGui.same_line(0,-1)
+                PyImGui.set_next_item_width(100.0)
+                map_vars.MissionMap.player_outline.thickness = PyImGui.slider_int("Player Pos Thickness", int(map_vars.MissionMap.player_outline.thickness), 1, 10)
+                _color = PyImGui.color_edit4("Player Pos Color", map_vars.MissionMap.player_outline.color.to_tuple_normalized())
+                map_vars.MissionMap.player_outline.color = Color().from_tuple_normalized(_color)
+                dc_color = map_vars.MissionMap.player_outline.color.to_color()
+                if map_vars.MissionMap.player_outline.visible:
+                    player_pos = Player.GetXY()
+                    
+                    player_screen = Map.MiniMap.MapProjection.GamePosToScreen(player_pos[0], player_pos[1])
+                    Overlay().BeginDraw()
+                    Overlay().DrawPoly(player_screen[0], player_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.player_outline.thickness)
+                    Overlay().EndDraw()
+                PyImGui.unindent(20.0)
+              
+                
+    
 def draw_map_data():
     global _selected_view, SECTION_INFO, map_vars
     if PyImGui.begin_tab_bar("MapDataTabBar"):
         if PyImGui.begin_tab_item("Map##MapInfoTab"):
-            if _selected_view in SECTION_INFO:
-                info = SECTION_INFO[_selected_view]
-                #PyImGui.text(info["title"])
-                #PyImGui.separator()
-                PyImGui.text_wrapped(info["description"])
-                
-            PyImGui.separator()
-        
-            PyImGui.text("Common fields:")
-
-            rows: list[tuple[str, str | int | float]] = [
-                ("Instance Type", Map.GetInstanceTypeName()),
-                ("Current Map", f"[{Map.GetMapID()}] - {Map.GetMapName()}"),
-                ("Instance uptime (ms)", f"{FormatTime(Map.GetInstanceUptime(), 'hh:mm:ss:ms')}"),
-                ("Region", f"[{Map.GetRegion()[0]}] - {Map.GetRegion()[1]}"),
-                ("Region Type", f"[{Map.GetRegionType()[0]}] - {Map.GetRegionType()[1]}"),
-                ("District", f"[{Map.GetDistrict()}]"),
-                ("Language", f"[{Map.GetLanguage()[0]}] - {Map.GetLanguage()[1]}"),
-                ("Amount of Players in Instance", f"{Map.GetAmountOfPlayersInInstance()}"),
-            ]
-
-            draw_kv_table("WorldMapTable", rows)
+            
+            draw_main_map_tab() # Map Info Tab
+            
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Data##MapInfoDataTab"):
-            if PyImGui.collapsing_header("Common fields:"):
-                rows: list[tuple[str, str | int | float]] = [
-                    ("Instance Type", Map.GetInstanceTypeName()),
-                    ("Current Map", f"[{Map.GetMapID()}] - {Map.GetMapName()}"),
-                    ("Instance uptime (ms)", f"{FormatTime(Map.GetInstanceUptime(), 'hh:mm:ss:ms')}"),
-                    ("Campaign", f"[{Map.GetCampaign()[0]}] - {Map.GetCampaign()[1]}"),
-                    ("Continent", f"[{Map.GetContinent()[0]}] - {Map.GetContinent()[1]}"),
-                    ("Is Guild Hall", f"{Map.IsGuildHall()}"),
-                    ("Region", f"[{Map.GetRegion()[0]}] - {Map.GetRegion()[1]}"),
-                    ("Region Type", f"[{Map.GetRegionType()[0]}] - {Map.GetRegionType()[1]}"),
-                    ("District", f"[{Map.GetDistrict()}]"),
-                    ("Language", f"[{Map.GetLanguage()[0]}] - {Map.GetLanguage()[1]}"),
-                    ("Amount of Players in Instance", f"{Map.GetAmountOfPlayersInInstance()}"),
-                    ("Max Party Size", f"{Map.GetMaxPartySize()}"),
-                    ("Foes Killed", f"{Map.GetFoesKilled()}"),
-                    ("Foes to Kill", f"{Map.GetFoesToKill()}"),
-                    ("Is Vanquishable", f"{Map.IsVanquishable()}"),
-                    ("Is Vanquish Complete", f"{Map.IsVanquishComplete()}"),
-                    ("Is in Cinematic", f"{Map.IsInCinematic()}"),
-                    ("Has Enter Challenge Button", f"{Map.HasEnterChallengeButton()}"),  
-                    ("Is Map Unlocked", f"{Map.IsMapUnlocked()}"),
-                ]
-
-                draw_kv_table("MissionMapTable", rows)
-                
-            if PyImGui.collapsing_header("Additional Fields:"):
-                rows: list[tuple[str, str | int | float]] = [
-                    ("Is Unlockable", f"{Map.IsUnlockable()}"),
-                    ("Has Mission Maps To", f"{Map.HasMissionMapsTo()}"),
-                    ("Mission Maps To", f"{Map.GetMissionMapsTo()} - {Map.GetMapName(Map.GetMissionMapsTo())}"),
-                    ("Controlled Outpost ID", f"{Map.GetControlledOutpostID()} - {Map.GetMapName(Map.GetControlledOutpostID())}"),
-                    ("Is on World Map", f"{Map.IsOnWorldMap()}"),
-                    ("Is PvP Map", f"{Map.IsPVP()}"),
-                    ("Min Party Size", f"{Map.GetMinPartySize()}"),
-                    ("Min Player Size", f"{Map.GetMinPlayerSize()}"),
-                    ("Max Player Size", f"{Map.GetMaxPlayerSize()}"),
-                    ("flags", f"{Map.GetFlags()}"),
-                    ("Min Level", f"{Map.GetMinLevel()}"),
-                    ("Max Level", f"{Map.GetMaxLevel()}"),
-                    ("Thumbnail ID", f"{Map.GetThumbnailID()}"),
-                    ("Fraction Mission", f"{Map.GetFractionMission()}"),
-                    ("Needed PQ", f"{Map.GetNeededPQ()}"),
-                    ("Icon Position (x, y)", f"{Map.GetIconPosition()}"),
-                    ("Icon Start Position (x, y)", f"{Map.GetIconStartPosition()}"),
-                    ("Icon End Position (x, y)", f"{Map.GetIconEndPosition()}"),
-                    ("File ID", f"{Map.GetFileID()}"),
-                    ("Mission Chronology", f"{Map.GetMissionChronology()}"),
-                    ("HA Chronology", f"{Map.GetHAChronology()}"),
-                    ("Name ID", f"{Map.GetNameID()}"),
-                    ("Description ID", f"{Map.GetDescriptionID()}"),
-                    ("File ID 1", f"{Map.GetFileID1()}"),
-                    ("File ID 2", f"{Map.GetFileID2()}"),
-                    
-                ]
-
-                draw_kv_table("MissionMapTable", rows)
-                
+            
+            draw_map_data_tab() # Map Data Tab
+            
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Actions##MapInfoActionsTab"):
-            PyImGui.text("SkipCinematic:")
-            PyImGui.indent(20.0)
-            if not Map.IsInCinematic():
-                PyImGui.text("No cinematic is currently playing.")
-            else:
-                if PyImGui.button("Skip Cinematic"):
-                    Map.SkipCinematic()
-                    
-            PyImGui.unindent(20.0)
-            PyImGui.separator()
-            if PyImGui.collapsing_header("Travel to Map:"):
-                PyImGui.indent(20.0)
-                map_vars.Travel.map_id = PyImGui.input_int("Map ID", map_vars.Travel.map_id)
-                map_vars.Travel.region = PyImGui.input_int("Region", map_vars.Travel.region)
-                map_vars.Travel.district_number = PyImGui.input_int("District Number", map_vars.Travel.district_number)
-                map_vars.Travel.language = PyImGui.input_int("Language", map_vars.Travel.language)
-                    
-                if PyImGui.button("Travel"):
-                    Map.TravelToRegion(
-                        map_vars.Travel.map_id,
-                        map_vars.Travel.region,
-                        map_vars.Travel.district_number,
-                        map_vars.Travel.language
-                    )
-                PyImGui.unindent(20.0)
-                
-            if PyImGui.collapsing_header("Guild Hall:"):
-                PyImGui.indent(20.0)
-                is_guild_hall = Map.IsGuildHall()
-                if is_guild_hall:
-                    if PyImGui.button("Leave Guild Hall"):    
-                        Map.LeaveGH()
-                else:
-                    if PyImGui.button("Travel to Guild Hall"):
-                        Map.TravelGH()
-                PyImGui.unindent(20.0)
-                
-            if PyImGui.collapsing_header("Enter Challenge:"):
-                PyImGui.indent(20.0)
-                if not Map.HasEnterChallengeButton():
-                    PyImGui.text("No 'Enter Challenge' button is available in this map.")
-                else:
-                    if not Map.IsEnteringChallenge():
-                        if PyImGui.button("Enter Challenge"):
-                            Map.EnterChallenge()
-                    else:
-                        if PyImGui.button("Cancel Enter Challenge"):
-                            Map.CancelEnterChallenge()
-
-                PyImGui.unindent(20.0)
             
-                
-                
+            draw_map_actions_tab() # Map Actions Tab
+            
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Mission Map##MapInfoMissionMapTab"):
-            if not Map.MissionMap.IsWindowOpen():
-                PyImGui.text("Mission Map window is not open.")
-            else:
-                map_vars.MissionMap.frame_info = Map.MissionMap.GetFrameInfo()
-                _FI = map_vars.MissionMap.frame_info
-                
-                nx, ny = Map.MissionMap.GetLastClickCoords()
-                sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
-                wx, wy = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(nx, ny)
-                gx, gy = Map.MissionMap.MapProjection.NormalizedScreenToGameMap(nx, ny)
-
-                
-                    
-                rows: list[tuple[str, str | int | float]] = [
-                    ("frame_id ", f"{Map.MissionMap.GetFrameID()}"),
-                    ("Is Window Open", f"{Map.MissionMap.IsWindowOpen()}"),
-                    ("Coords (l, t, r, b)", f"{Map.MissionMap.GetMissionMapWindowCoords()}"),
-                    ("Contents Coords (l, t, r, b)", f"{Map.MissionMap.GetMissionMapContentsCoords()}"),
-                    ("Scale", f"{Map.MissionMap.GetScale()}"),
-                    ("Zoom", f"{Map.MissionMap.GetZoom()}"),
-                    ("Adjusted Zoom (+0.5)", f"{Map.MissionMap.GetAdjustedZoom(Map.MissionMap.GetZoom(), 0.5)}"),
-                    ("Center", f"{Map.MissionMap.GetCenter()}"),
-
-                    ("Last Click (normalized):", f"({nx:.3f}, {ny:.3f})"),
-                    ("Last Click (screen):", f"({sx:.1f}, {sy:.1f})"),
-                    ("Last Click (world):", f"({wx:.1f}, {wy:.1f})"),
-                    ("Last Click (game):", f"({gx:.1f}, {gy:.1f})"),
-
-                    ("Pan Offset (x, y)", f"{Map.MissionMap.GetPanOffset()}"),
-                    ("Map Screen Center (x, y)", f"{Map.MissionMap.GetMapScreenCenter()}"),
-                    ("Player World Position (x, y)", f"{Player.GetXY()}"),
-                    ("Player Map Position (x, y)", f"{Map.MissionMap.MapProjection.GameMapToScreen(*Player.GetXY())}"),
-
-                ]
-
-                draw_kv_table("MissionMapTable", rows)
-                PyImGui.separator()
-                PyImGui.text("Display Options:")
-                if PyImGui.collapsing_header("Outline"):
-                    PyImGui.indent(20.0)
-                    map_vars.MissionMap.draw_outline.visible = PyImGui.checkbox("Draw Frame Outline", map_vars.MissionMap.draw_outline.visible)
-                    PyImGui.same_line(0,-1)
-                    PyImGui.set_next_item_width(100.0)
-                    map_vars.MissionMap.draw_outline.thickness = PyImGui.slider_int("Outline Thickness", int(map_vars.MissionMap.draw_outline.thickness), 1, 10)
-                    _color = PyImGui.color_edit4("Outline Color", map_vars.MissionMap.draw_outline.color.to_tuple_normalized())
-
-                    map_vars.MissionMap.draw_outline.color = Color().from_tuple_normalized(_color)
-                    if map_vars.MissionMap.draw_outline.visible:
-                        if _FI:
-                            _FI.DrawFrameOutline(map_vars.MissionMap.draw_outline.color.to_color(), map_vars.MissionMap.draw_outline.thickness)
-                    PyImGui.unindent(20.0)
-                    
-                if PyImGui.collapsing_header("Content Outline"):
-                    PyImGui.indent(20.0)
-                    map_vars.MissionMap.draw_content_outline.visible = PyImGui.checkbox("Draw Content Outline", map_vars.MissionMap.draw_content_outline.visible)
-                    PyImGui.same_line(0,-1)
-                    PyImGui.set_next_item_width(100.0)
-                    map_vars.MissionMap.draw_content_outline.thickness = PyImGui.slider_int("Content Outline Thickness", int(map_vars.MissionMap.draw_content_outline.thickness), 1, 10)
-                    _color = PyImGui.color_edit4("Content Outline Color", map_vars.MissionMap.draw_content_outline.color.to_tuple_normalized())
-
-                    map_vars.MissionMap.draw_content_outline.color = Color().from_tuple_normalized(_color)
-                    if map_vars.MissionMap.draw_content_outline.visible:
-                        content_coords = Map.MissionMap.GetMissionMapContentsCoords()
-                        Overlay().BeginDraw()
-                        left, top, right, bottom = content_coords
-                        Overlay().DrawQuad(x1=left, y1=top,
-                                          x2=right, y2=top,
-                                          x3=right, y3=bottom,
-                                          x4=left, y4=bottom,
-                                          color=map_vars.MissionMap.draw_content_outline.color.to_color(),
-                                          thickness=map_vars.MissionMap.draw_content_outline.thickness)
-                        Overlay().EndDraw()
-                    PyImGui.unindent(20.0)
-                    
-                if PyImGui.collapsing_header("Last Click Position"):
-                    PyImGui.indent(20.0)
-                    map_vars.MissionMap.draw_last_click_pos.visible = PyImGui.checkbox("Draw Last Click Position", map_vars.MissionMap.draw_last_click_pos.visible)
-                    PyImGui.same_line(0,-1)
-                    PyImGui.set_next_item_width(100.0)
-                    map_vars.MissionMap.draw_last_click_pos.thickness = PyImGui.slider_int("Last Click Pos Thickness", int(map_vars.MissionMap.draw_last_click_pos.thickness), 1, 10)
-                    _color = PyImGui.color_edit4("Last Click Pos Color", map_vars.MissionMap.draw_last_click_pos.color.to_tuple_normalized())
-                    map_vars.MissionMap.draw_last_click_pos.color = Color().from_tuple_normalized(_color)
-                    dc_color = map_vars.MissionMap.draw_last_click_pos.color.to_color()
-                    PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
-                    if map_vars.MissionMap.draw_last_click_pos.visible:
-                        sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
-                        Overlay().BeginDraw()
-                        Overlay().DrawPoly(sx, sy, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_click_pos.thickness)
-                        Overlay().EndDraw()
-                        def DrawFlagAll(pos_x, pos_y):
-                            overlay = Overlay()
-                            pos_z = overlay.FindZ(pos_x, pos_y)
-
-                            overlay.BeginDraw()
-                            overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
-                            overlay.DrawTriangleFilled3D(
-                                pos_x, pos_y, pos_z - 150,               # Base point
-                                pos_x, pos_y, pos_z - 120,               # 30 units up
-                                pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
-                                dc_color
-                            )
-
-                            overlay.EndDraw()
-                        DrawFlagAll(gx, gy)
-                    PyImGui.unindent(20.0)
-                    
-                    
-                    
-                if PyImGui.collapsing_header("Center Map Position"):
-                    PyImGui.indent(20.0)
-                    map_vars.MissionMap.center_outline.visible = PyImGui.checkbox("Draw Center Map Position", map_vars.MissionMap.center_outline.visible)
-                    PyImGui.same_line(0,-1)
-                    PyImGui.set_next_item_width(100.0)
-                    map_vars.MissionMap.center_outline.thickness = PyImGui.slider_int("Center Pos Thickness", int(map_vars.MissionMap.center_outline.thickness), 1, 10)
-                    _color = PyImGui.color_edit4("Center Pos Color", map_vars.MissionMap.center_outline.color.to_tuple_normalized())
-                    map_vars.MissionMap.center_outline.color = Color().from_tuple_normalized(_color)
-                    dc_color = map_vars.MissionMap.center_outline.color.to_color()
-                    if map_vars.MissionMap.center_outline.visible:
-                        center_world = Map.MissionMap.GetCenter()
-                        center_screen = Map.MissionMap.MapProjection.WorldMapToScreen(center_world[0], center_world[1])
-                        Overlay().BeginDraw()
-                        Overlay().DrawPoly(center_screen[0], center_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.center_outline.thickness)
-                        Overlay().EndDraw()
-                    PyImGui.unindent(20.0)
-                if PyImGui.collapsing_header("Player Position"):
-                    PyImGui.indent(20.0)
-                    map_vars.MissionMap.player_outline.visible = PyImGui.checkbox("Draw Player Position", map_vars.MissionMap.player_outline.visible)
-                    PyImGui.same_line(0,-1)
-                    PyImGui.set_next_item_width(100.0)
-                    map_vars.MissionMap.player_outline.thickness = PyImGui.slider_int("Player Pos Thickness", int(map_vars.MissionMap.player_outline.thickness), 1, 10)
-                    _color = PyImGui.color_edit4("Player Pos Color", map_vars.MissionMap.player_outline.color.to_tuple_normalized())
-                    map_vars.MissionMap.player_outline.color = Color().from_tuple_normalized(_color)
-                    dc_color = map_vars.MissionMap.player_outline.color.to_color()
-                    if map_vars.MissionMap.player_outline.visible:
-                        player_pos = Player.GetXY()
-                        player_screen = Map.MissionMap.MapProjection.GameMapToScreen(player_pos[0], player_pos[1])
-                        Overlay().BeginDraw()
-                        Overlay().DrawPoly(player_screen[0], player_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.player_outline.thickness)
-                        Overlay().EndDraw()
-                    PyImGui.unindent(20.0)
-                    
-
-                    
+            
+            draw_mission_map_tab() # Mission Map Tab
+                   
+            PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("Mini Map##MapInfoMiniMapTab"):
+            
+            draw_mini_map_tab() # Mini Map Tab
+                   
             PyImGui.end_tab_item()
         PyImGui.end_tab_bar()
     
-
+#region Main Window
 def draw_window():
     global _selected_view
     if PyImGui.begin(MODULE_NAME, True, PyImGui.WindowFlags.AlwaysAutoResize):
         # ================= LEFT PANEL =================
         PyImGui.begin_child(
             "left_panel",
-            (180.0, 700.0),   # fixed width, full height
+            (180.0, 600.0),   # fixed width, full height
             True,
             0
         )
@@ -404,7 +686,7 @@ def draw_window():
         # ================= RIGHT PANEL =================
         PyImGui.begin_child(
             "right_panel",
-            (500.0, 700.0),     # take remaining space
+            (500.0, 600.0),     # take remaining space
             False,
             0
         )

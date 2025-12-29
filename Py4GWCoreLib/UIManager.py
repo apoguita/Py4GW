@@ -1,4 +1,5 @@
 
+import PyImGui
 import PyUIManager
 from typing import Dict, List
 import json
@@ -8,6 +9,7 @@ from .Py4GWcorelib import ConsoleLog, Console
 from .enums_src.UI_enums import WindowID
 from dataclasses import dataclass, field
 from .native_src.internals.types import Vec2f
+from typing import Any, TypedDict
 
 # —— Constants ——————————————————
 NPC_DIALOG_HASH    = 3856160816
@@ -15,10 +17,149 @@ DEFAULT_OFFSET     = [2, 0, 0, 1]
 DIALOG_CHILD_OFFSET = list(DEFAULT_OFFSET)
 
 # —— Globals —————————————————
-_overlay = PyOverlay.Overlay()
+
 
 class UIManager:  
-    global overlay
+    _overlay = PyOverlay.Overlay()
+    
+    class IOEvent(TypedDict):
+        timestamp: int
+        event_type: str
+        mouse_pos: tuple[float, float]
+        details: Dict[str, Any]
+     
+    frame_id_callbacks: list[int] = []
+    frame_id_io_events: Dict[int, List[IOEvent]] = defaultdict(list)
+    
+    @staticmethod
+    def RegisterFrameIOEventCallback(frame_id: int):
+        """
+        Register a frame ID to track IO events.
+
+        :param frame_id: The frame ID to register.
+        """
+        if frame_id not in UIManager.frame_id_callbacks:
+            UIManager.frame_id_callbacks.append(frame_id)
+            
+    @staticmethod
+    def UnregisterFrameIOEventCallback(frame_id: int):
+        """
+        Unregister a frame ID from tracking IO events.
+
+        :param frame_id: The frame ID to unregister.
+        """
+        if frame_id in UIManager.frame_id_callbacks:
+            UIManager.frame_id_callbacks.remove(frame_id)
+            if frame_id in UIManager.frame_id_io_events:
+                del UIManager.frame_id_io_events[frame_id]
+                
+    @staticmethod
+    def IsMouseOver(frame_id: int) -> bool:
+        """
+        Check if the mouse is over a specific frame.
+
+        :param frame_id: The ID of the frame.
+        :return: bool: True if the mouse is over the frame, False otherwise.
+        """
+        import PyImGui
+        from Py4GWCoreLib.ImGui import ImGui
+        
+        io = PyImGui.get_io()
+        
+        left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
+        return ImGui.is_mouse_in_rect((left, top, right, bottom),(io.mouse_pos_x, io.mouse_pos_y))
+    
+    @staticmethod
+    def _UpdateFrameIOEvents():
+        """
+        Update IO events for registered frame IDs.
+        """
+        import PyImGui
+        from Py4GW import Game
+        from .enums_src.IO_enums import MouseButton
+
+        io = PyImGui.get_io()
+        mouse_pos = (io.mouse_pos_x, io.mouse_pos_y)
+        timestamp = Game.get_tick_count64()
+        
+        for frame_id in UIManager.frame_id_callbacks:
+            if not UIManager.FrameExists(frame_id):
+                continue
+            
+            if not UIManager.IsMouseOver(frame_id):
+                continue
+            
+            is_left_mouse_clicked = PyImGui.is_mouse_clicked(MouseButton.Left.value)
+            is_right_mouse_clicked = PyImGui.is_mouse_clicked(MouseButton.Right.value)
+            is_middle_mouse_clicked = PyImGui.is_mouse_clicked(MouseButton.Middle.value)
+            is_double_clicked = PyImGui.is_mouse_double_clicked(MouseButton.Left.value)
+            scroll_y_delta = io.mouse_wheel
+            scroll_x_delta = io.mouse_wheel_h
+            
+            def _add_event(event_type: str, details: Dict[str, Any] = {}):
+                event: UIManager.IOEvent = {
+                    "timestamp": timestamp,
+                    "event_type": event_type,
+                    "mouse_pos": mouse_pos,
+                    "details": details
+                }
+
+                # ensure list exists for this frame
+                if frame_id not in UIManager.frame_id_io_events:
+                    UIManager.frame_id_io_events[frame_id] = []
+
+                # search for existing event and update instead of adding a duplicate
+                for i, existing in enumerate(UIManager.frame_id_io_events[frame_id]):
+                    if existing.get("event_type") == event_type:
+                        UIManager.frame_id_io_events[frame_id][i] = event
+                        break
+                else:
+                    # not found -> append new
+                    UIManager.frame_id_io_events[frame_id].append(event)
+                
+            if is_left_mouse_clicked:
+                _add_event("left_mouse_clicked")
+            
+            if is_right_mouse_clicked:
+                _add_event("right_mouse_clicked")
+                
+            if is_middle_mouse_clicked:
+                _add_event("middle_mouse_clicked")
+                
+            if is_double_clicked:
+                _add_event("double_clicked")
+                
+            if scroll_y_delta != 0.0:
+                _add_event("mouse_wheel_scrolled", {"scroll_y_delta": scroll_y_delta})
+                
+            if scroll_x_delta != 0.0:
+                _add_event("mouse_wheel_scrolled_horizontal", {"scroll_x_delta": scroll_x_delta})
+                
+    @staticmethod
+    def GetIOEventsForFrame(frame_id: int) -> List[IOEvent]:
+        """
+        Get the list of IO events for a specific frame ID.
+
+        :param frame_id: The frame ID to retrieve events for.
+        :return: List[IOEvent]: List of IO events for the frame.
+        """
+        #lazy load the list if it doesn't exist
+        if frame_id not in UIManager.frame_id_callbacks:
+            UIManager.frame_id_callbacks.append(frame_id)
+        
+        return UIManager.frame_id_io_events.get(frame_id, [])
+    
+    @staticmethod
+    def RegisterFrameIOCallbacks():
+        """
+        Register the frame IO event update callback.
+        """
+        from Py4GW import Game
+        Game.register_callback(
+            "UIManager.UpdateFrameIOEvents",
+            UIManager._UpdateFrameIOEvents
+        )
+   
     @staticmethod
     def ConstructFramePath(frame_id: int) -> str:
         """
@@ -518,9 +659,9 @@ class UIManager:
         p2 = PyOverlay.Point2D(right, top)
         p3 = PyOverlay.Point2D(right, bottom)
         p4 = PyOverlay.Point2D(left, bottom)
-        _overlay.BeginDraw()
-        _overlay.DrawQuadFilled(p1,p2,p3,p4, draw_color)
-        _overlay.EndDraw()
+        UIManager._overlay.BeginDraw()
+        UIManager._overlay.DrawQuadFilled(p1,p2,p3,p4, draw_color)
+        UIManager._overlay.EndDraw()
     
         
     def DrawFrameOutline(self,frame_id, draw_color:int, thickness: float = 1.0):
@@ -537,9 +678,9 @@ class UIManager:
         p2 = PyOverlay.Point2D(right, top)
         p3 = PyOverlay.Point2D(right, bottom)
         p4 = PyOverlay.Point2D(left, bottom)
-        _overlay.BeginDraw()
-        _overlay.DrawQuad(p1,p2,p3,p4, draw_color, thickness)
-        _overlay.EndDraw()
+        UIManager._overlay.BeginDraw()
+        UIManager._overlay.DrawQuad(p1,p2,p3,p4, draw_color, thickness)
+        UIManager._overlay.EndDraw()
 
     @staticmethod
     def GetPreferenceOptions(pref:int) -> List[int]:
@@ -971,13 +1112,19 @@ class FrameInfo:
             self.FrameID = self.FrameID_source
             return
         if self.WindowLabel:
-            self.FrameID = UIManager.GetFrameIDByLabel(self.WindowLabel)
+            _hash = UIManager.GetHashByLabel(self.WindowLabel)
+            self.FrameID = UIManager.GetFrameIDByHash(_hash)
+            #self.FrameID = UIManager.GetFrameIDByLabel(self.WindowLabel)
             return
 
         if self.FrameHash != 0:
             self.FrameID = UIManager.GetFrameIDByHash(self.FrameHash)
         else:
             self.FrameID = UIManager.GetChildFrameID(self.ParentFrameHash, self.ChildOffsets)
+            
+    def GetFrameID(self):
+        self.update_frame_id()
+        return self.FrameID
             
     def FrameExists(self):
         self.update_frame_id()
@@ -1015,9 +1162,15 @@ class FrameInfo:
             return UIManager.GetViewportDimensions(self.FrameID)
         return (0,0)
     
-    def IsMouseOver(self, mouse_x:float, mouse_y:float):
-        left, top, right, bottom = self.GetCoords()
-        return left <= mouse_x <= right and top <= mouse_y <= bottom
+    def IsMouseOver(self):
+        if self.FrameExists():
+            return UIManager.IsMouseOver(self.FrameID)
+        return False
+    
+    def GetIOEvents(self) -> list[UIManager.IOEvent]:
+        if self.FrameExists():
+            return UIManager.GetIOEventsForFrame(self.FrameID)
+        return []
             
 #region WindowFrames
 WindowFrames:dict[str, FrameInfo] = {}
@@ -1071,8 +1224,14 @@ FinalCreateCharacterButtonFrame = FrameInfo(
     FrameHash=3856299307
 )
 
+MiniMapFrame = FrameInfo(
+                WindowName="MiniMap",
+                WindowLabel="compass",
+)
+
    
 WindowFrames["Inventory Bags"] = InventoryBags
+WindowFrames["MiniMap"] = MiniMapFrame
 WindowFrames["CancelEnterMissionButton"] = CancelEnterMissionButton
 WindowFrames["DeleteCharacterButton"] = CharacterDeleteButtonFrame
 WindowFrames["FinalDeleteCharacterButton"] = CharacterFinalDeleteButtonFrame
@@ -1081,3 +1240,7 @@ WindowFrames["CreateCharacterButton2"] = CreateCharacterButtonFrame2
 WindowFrames["CreateCharacterTypeNextButton"] = CreateCharacterTypeNextButtonFrame
 WindowFrames["CreateCharacterNextButtonGeneric"] = CreateCharacterNextButtonGenericFrame
 WindowFrames["FinalCreateCharacterButton"] = FinalCreateCharacterButtonFrame
+
+
+#region Callbacks
+UIManager.RegisterFrameIOCallbacks()
