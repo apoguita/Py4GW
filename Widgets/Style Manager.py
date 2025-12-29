@@ -20,6 +20,7 @@ from Py4GW_widget_manager import WidgetHandler
   
 
 MODULE_NAME = "Style Manager"
+OPTIONAL = False
 
 class ThemeTexturesDev(Enum):
  pass
