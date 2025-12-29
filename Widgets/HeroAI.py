@@ -444,9 +444,16 @@ def DrawEmbeddedWindow(cached_data: CacheData):
     DrawFramedContent(cached_data, content_frame_id)
 
 def DistanceToDestination(cached_data: CacheData):
-    index = GLOBAL_CACHE.ShMem.GetAccountSlot(cached_data.account_email)
-    is_flagged = IsHeroFlagged(cached_data, index)
-    data = cached_data.HeroAI_vars.all_player_struct[index]
+    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+    if not account:
+        return 0.0
+    
+    is_flagged = IsHeroFlagged(cached_data, account.PartyPosition)
+    player_structs = cached_data.HeroAI_vars.all_player_struct
+    data = player_structs[account.PartyPosition] if player_structs and len(player_structs) > account.PartyPosition else None
+    
+    if not data:
+        return 0.0 
     
     destination = (data.FlagPosX, data.FlagPosY) if is_flagged else GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
     return Utils.Distance(destination, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
