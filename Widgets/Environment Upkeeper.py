@@ -2,6 +2,7 @@ from Py4GWCoreLib import *
 
 #do not ever disable this module, it is the main module for everything
 MODULE_NAME = "Environment Upkeeper"
+OPTIONAL = False
 
 __widget__ = {
     "name": "Environment Upkeeper",
