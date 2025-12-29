@@ -1,5 +1,9 @@
 from ctypes import Structure, c_int, c_float, c_bool
 from enum import Enum, IntEnum, auto
+
+from PyUIManager import UIFrame
+from PyUIManager import FramePosition as UIFramePosition
+
 from .constants import (
     MAX_NUM_PLAYERS,
     NUMBER_OF_SKILLS,
@@ -219,3 +223,9 @@ class Docked (IntEnum):
     Freely = 0
     PartyWindow = auto()
     Skillbar = auto()    
+    
+    
+class FramePosition:
+    def __init__(self, frame_id: int):
+        self.frame_id = frame_id
+        self.position: UIFramePosition = UIFrame(frame_id).position

@@ -112,6 +112,7 @@ class Settings:
         self.Anonymous_PanelNames = False
         self.ShowCommandPanel = True
         self.ShowPartyOverlay = True
+        self.ShowPartySearchOverlay = True
         self.ShowCommandPanelOnlyOnLeaderAccount = True
         
         self.ShowPanelOnlyOnLeaderAccount = True
@@ -228,6 +229,9 @@ class Settings:
         self.ini_handler.write_key("General", "ShowCommandPanelOnlyOnLeaderAccount", str(self.ShowCommandPanelOnlyOnLeaderAccount))
         self.ini_handler.write_key("General", "Anonymous_PanelNames", str(self.Anonymous_PanelNames))
         
+        self.ini_handler.write_key("General", "ShowPartyOverlay", str(self.ShowPartyOverlay))
+        self.ini_handler.write_key("General", "ShowPartySearchOverlay", str(self.ShowPartySearchOverlay))
+        
         self.ini_handler.write_key("General", "ShowPanelOnlyOnLeaderAccount", str(self.ShowPanelOnlyOnLeaderAccount))
         self.ini_handler.write_key("General", "DisableAutomationOnLeaderAccount", str(self.DisableAutomationOnLeaderAccount))
         self.ini_handler.write_key("General", "ShowDialogOverlay", str(self.ShowDialogOverlay))
@@ -268,6 +272,9 @@ class Settings:
         self.ShowCommandPanel = self.ini_handler.read_bool("General", "ShowCommandPanel", True)
         self.ShowCommandPanelOnlyOnLeaderAccount = self.ini_handler.read_bool("General", "ShowCommandPanelOnlyOnLeaderAccount", True)
         self.Anonymous_PanelNames = self.ini_handler.read_bool("General", "Anonymous_PanelNames", False)
+        
+        self.ShowPartyOverlay = self.ini_handler.read_bool("General", "ShowPartyOverlay", True)
+        self.ShowPartySearchOverlay = self.ini_handler.read_bool("General", "ShowPartySearchOverlay", True)
         
         self.ShowPanelOnlyOnLeaderAccount = self.ini_handler.read_bool("General", "ShowPanelOnlyOnLeaderAccount", True)
         self.DisableAutomationOnLeaderAccount = self.ini_handler.read_bool("General", "DisableAutomationOnLeaderAccount", False)
