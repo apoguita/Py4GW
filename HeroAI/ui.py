@@ -4,22 +4,23 @@ from enum import Enum
 import math
 import os
 import random
+from typing import Optional
 from Py4GW import Console
-import Py4GW
 import PyImGui
 from HeroAI import windows
 from HeroAI.cache_data import CacheData
 from HeroAI.commands import HeroAICommands
 from HeroAI.constants import NUMBER_OF_SKILLS, PARTY_WINDOW_HASH, SKILLBAR_WINDOW_HASH
 from HeroAI.settings import Settings
-from HeroAI.types import Docked, GameOptionStruct
+from HeroAI.types import Docked, GameOptionStruct, FramePosition
 from HeroAI.utils import IsHeroFlagged, SameMapAsAccount
 from HeroAI.windows import CompareAndSubmitGameOptions
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, SharedMessage
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
-from Py4GWCoreLib.ImGui_src.Textures import GameTexture, GameTexture, RegionFlags, TextureSliceMode, TextureState, ThemeTexture, ThemeTextures
+from Py4GWCoreLib.ImGui_src.Style import Style
+from Py4GWCoreLib.ImGui_src.Textures import GameTexture, GameTexture, TextureState, ThemeTexture, ThemeTextures
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 from Py4GWCoreLib.ImGui_src.types import Alignment, HorizontalAlignment, ImGuiStyleVar, StyleTheme, VerticalAlignment
 from Py4GWCoreLib.Overlay import Overlay
@@ -30,7 +31,6 @@ from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
-from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer, Timer
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GW_widget_manager import WidgetHandler
@@ -83,7 +83,8 @@ casting_animation_timer.Start()
 
 dialog_throttle = ThrottledTimer(500)
 party_throttle = ThrottledTimer(500)
-party_member_frames = []
+party_search_throttle = ThrottledTimer(500)
+party_member_frames : list[FramePosition] = []
 
 commands = HeroAICommands()
 gray_color = Color(150, 150, 150, 255)
@@ -2220,21 +2221,20 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
         party_members_hash = 3332025202 if GLOBAL_CACHE.Map.IsOutpost() else 3332025202
         offsets = [1,8,0,0,0,0] if GLOBAL_CACHE.Map.IsOutpost() else [0,0,0,0]
         
+        party_member_frames = []    
         fid = UIManager.GetChildFrameID(party_members_hash, offsets)
         if fid == 0 or not UIManager.FrameExists(fid):
             return
-            
-        party_member_frames = []        
+                
         for i in range(1, 12):
-            fid = UIManager.GetChildFrameID(party_members_hash, [1,8,0,0,0,0,i] if GLOBAL_CACHE.Map.IsOutpost() else [0,0,0,0,i])
+            fid = UIManager.GetChildFrameID(party_members_hash, [1,8,0,0,0,0,i,0] if GLOBAL_CACHE.Map.IsOutpost() else [0,0,0,0,i,0])
             if fid == 0 or not UIManager.FrameExists(fid):
                 continue
             
-            frame_coords = UIManager.GetFrameCoords(fid)
-            party_member_frames.append((fid, frame_coords))
+            party_member_frames.append(FramePosition(fid))
             
         ## sort frames by Y
-        party_member_frames.sort(key=lambda x: (x[1][1], x[1][0]))  # Sort by Y, then X
+        party_member_frames.sort(key=lambda x: (x.position.top_on_screen, x.position.left_on_screen))  # Sort by Y, then X
     
     style = ImGui.get_style()
     texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture()
@@ -2242,7 +2242,7 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
     if not party_member_frames:
         return
     
-    for i, (fid, frame_coords) in enumerate(party_member_frames, start=1):      
+    for i, frame_info in enumerate(party_member_frames, start=1):      
         account = next((acc for acc in accounts if acc.PartyPosition == i - 1), None)
         
         if account and account.AccountEmail != GLOBAL_CACHE.Player.GetAccountEmail():
@@ -2251,96 +2251,365 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
             
             window_info = settings.HeroPanelPositions.get(account.AccountEmail, None)
             
-            if window_info:                                    
-                PyImGui.set_next_window_pos((frame_coords[0] - 10, frame_coords[1] - 10), PyImGui.ImGuiCond.Always)
-                PyImGui.set_next_window_size((frame_coords[2] - frame_coords[0] + 20 , frame_coords[3] - frame_coords[1] +20), PyImGui.ImGuiCond.Always)
-                PyImGui.begin(f"##HeroAIPartyOverlay{i}", False, PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoSavedSettings | PyImGui.WindowFlags.NoFocusOnAppearing | PyImGui.WindowFlags.NoBackground| PyImGui.WindowFlags.NoMouseInputs )
-                
-                is_minimalus = style.Theme is StyleTheme.Minimalus
-                button_size = frame_coords[3] - frame_coords[1] + (0 if is_minimalus else -4)     
-                
+            if window_info:        
+                is_minimalus = style.Theme is StyleTheme.Minimalus  
+                button_size = frame_info.position.bottom_on_screen - frame_info.position.top_on_screen + (0 if is_minimalus else -4)   
                 button_rect = (
-                    frame_coords[0] + (0 if is_minimalus else 2), 
-                    frame_coords[1] + (-1 if is_minimalus else 2),
-                    frame_coords[0] + button_size,
-                    frame_coords[1] + button_size + (-3 if is_minimalus else 0)
+                    frame_info.position.right_on_screen - button_size + (0 if is_minimalus else 0), 
+                    frame_info.position.bottom_on_screen - button_size + (-1 if is_minimalus else -2),
+                    frame_info.position.right_on_screen,
+                    frame_info.position.bottom_on_screen + (-3 if is_minimalus else 0)
                     )
+                                            
+                PyImGui.set_next_window_pos((frame_info.position.left_on_screen - 10, frame_info.position.top_on_screen - 10), PyImGui.ImGuiCond.Always)
+                PyImGui.set_next_window_size((frame_info.position.right_on_screen - frame_info.position.left_on_screen + 20 , frame_info.position.bottom_on_screen - frame_info.position.top_on_screen +20), PyImGui.ImGuiCond.Always)
+                flags = PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoSavedSettings | PyImGui.WindowFlags.NoFocusOnAppearing | PyImGui.WindowFlags.NoBackground
                 
-                button_rect = (
-                    frame_coords[2] - button_size + (0 if is_minimalus else 2), 
-                    frame_coords[3] - button_size + (-1 if is_minimalus else 2),
-                    frame_coords[2],
-                    frame_coords[3] + (-3 if is_minimalus else 0)
-                    )
+                if not ImGui.is_mouse_in_rect((*button_rect[:2], button_size, button_size)):
+                    flags |= PyImGui.WindowFlags.NoMouseInputs
+                    
+                PyImGui.begin(f"##HeroAIPartyOverlay{i}", False, flags )
                 
-                bg_rect = (
-                    button_rect[0] + (2 if is_minimalus else 0),
-                    button_rect[1] + (2 if is_minimalus else 0),
-                    button_rect[2],
-                    button_rect[3] + (2 if is_minimalus else 0)
-                    )
+                draw_panel_toggle(i, account, button_rect, style, texture, window_info, is_minimalus, button_size)
                 
-                if is_minimalus:
-                    PyImGui.draw_list_add_rect_filled(
+                PyImGui.end()
+                                    
+            
+    pass
+
+def draw_panel_toggle(i, account : AccountData, button_rect : tuple[float, float, float, float], style : Style, texture : GameTexture, window_info : Settings.HeroPanelInfo | None, is_minimalus : bool, button_size : float, show_tooltip: bool = True):
+    if not window_info:
+        return
+    
+    bg_rect = (
+                button_rect[0] + (2 if is_minimalus else 0),
+                button_rect[1] + (2 if is_minimalus else 0),
+                button_rect[2],
+                button_rect[3] + (2 if is_minimalus else 0)
+                )
+                
+    if is_minimalus:
+        PyImGui.draw_list_add_rect_filled(
                         *bg_rect,
                         Color(0, 0, 0, 255).color_int,
                         style.FrameRounding.value1,
                         0
                         )
                 
-                hovered = ImGui.is_mouse_in_rect((*button_rect[:2], button_size, button_size))
-                texture.draw_in_drawlist(
+    hovered = ImGui.is_mouse_in_rect((*button_rect[:2], button_size, button_size))
+    texture.draw_in_drawlist(
                     button_rect[:2],
                     (button_size, button_size),
                     state=TextureState.Active if window_info.open else TextureState.Normal,
                     tint=(255, 255, 255, 255) if hovered else (200, 200, 200, 255)
                     )
                 
-                text = str(i)
-                text_size = PyImGui.calc_text_size(text)
+    text = str(i)
+    text_size = PyImGui.calc_text_size(text)
                 ## center align horizontally and vertically
-                text_pos = (
+    text_pos = (
                     button_rect[0] - 2 + (button_size - text_size[0]) / 2 + 2,
                     button_rect[1] + (button_size - text_size[1]) / 2 + 2
                     )
                 
-                PyImGui.draw_list_add_text(
+    PyImGui.draw_list_add_text(
                     text_pos[0],
                     text_pos[1],
                     style.Text.color_int,
                     text
                     )
-                
-                PyImGui.end()
-                
-                if hovered:
-                    ImGui.begin_tooltip()
-                    name = get_display_name(account)
-                    ImGui.text(f"{name}", 13)
-                    ImGui.text_colored(f"{account.AccountEmail if name == account.CharacterName else f'{name.lower().replace(' ', '')}@mail.com'}", gray_color.color_tuple, 12)
-                    
-                    PyImGui.separator()
-                    ImGui.text_colored(f"Click to {"Hide" if window_info.open else "Show"} the hero panel", gray_color.color_tuple, 11)
-                    ImGui.end_tooltip()
-                    
-                    if PyImGui.is_mouse_clicked(0):  
-                        window_info.open = not window_info.open
-                        settings.save_settings()
-                    
+
+    if hovered:
+        if show_tooltip:
+            ImGui.begin_tooltip()
+            name = get_display_name(account)
+            ImGui.text(f"{name}", 13)
+            ImGui.text_colored(f"{account.AccountEmail if name == account.CharacterName else f'{name.lower().replace(' ', '')}@mail.com'}", gray_color.color_tuple, 12)
             
+            PyImGui.separator()
+            ImGui.text_colored(f"Click to {"Hide" if window_info.open else "Show"} the hero panel", gray_color.color_tuple, 11)
+            ImGui.end_tooltip()
+        
+        if PyImGui.is_mouse_clicked(0):  
+            window_info.open = not window_info.open
+            settings.save_settings()
+
+show_accounts_in_party_search : bool = False
+last_active_tab : int = -1
+selected_account : str = ""
+
+party_search : Optional[FramePosition] = None
+player_tab : Optional[FramePosition] = None
+hero_tab : Optional[FramePosition] = None
+henchmen_tab : Optional[FramePosition] = None
+active_tab : Optional[FramePosition] = None
+active_tab_id : int = -1
+is_player_tab : bool = True
+
+def draw_tab_control(rect : tuple[float, float, float, float], label: str = "Accounts##PartySearchTab"):
+    global show_accounts_in_party_search
+    
+    PyImGui.push_clip_rect(
+        *rect,
+        False
+    )
+    
+    style = ImGui.get_style()
+    #NON THEMED
+    if style.Theme not in ImGui.Textured_Themes:
+        ## Draw button/tab item frame and text
+        
+        pass
+        
+        
+    #THEMED
+        
+    
+    (ThemeTextures.Tab_Active if show_accounts_in_party_search else ThemeTextures.Tab_Inactive).value.get_texture().draw_in_drawlist(
+        rect[:2],
+        rect[2:],
+    )
+
+    display_label = ImGui.trim_text_to_width(label.split("##")[0], rect[2] - 2)        
+    final_size = PyImGui.calc_text_size(display_label)
+    final_w, final_h = final_size
+
+    text_x = rect[0] + (rect[2] - final_w) / 2
+    text_y = rect[1] + (rect[3] - final_h + (5 if show_accounts_in_party_search else 7)) / 2
+    text_rect = (text_x, text_y, rect[2], rect[3])
+
+    PyImGui.push_clip_rect(
+        *text_rect,
+        True
+    )
+
+    PyImGui.draw_list_add_text(
+        text_x,
+        text_y,
+        style.Text.color_int,
+        display_label,
+    )
+
+    PyImGui.pop_clip_rect()  
+    
+    if ImGui.is_mouse_in_rect(rect):
+        if PyImGui.is_mouse_clicked(0):
+            show_accounts_in_party_search = not show_accounts_in_party_search
+            
+    
+    PyImGui.pop_clip_rect()
+    return show_accounts_in_party_search
+
+def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheData):
+    global show_accounts_in_party_search, last_active_tab, selected_account
+    global party_search, player_tab, hero_tab, henchmen_tab, active_tab, is_player_tab
+    
+    if party_search_throttle.IsExpired():
+        party_search_throttle.Reset()
+            
+        party_search_id = UIManager.GetChildFrameID(3199024334, [14])
+        if party_search_id == 0 or not UIManager.FrameExists(party_search_id):
+            party_search = None
+            party_search_throttle.SetThrottleTime(500)
+            return
+        
+        party_search = FramePosition(party_search_id)
+        
+        players_tab_id = UIManager.GetChildFrameID(3199024334, [14, 4294967295])    
+        player_tab = FramePosition(players_tab_id)
+            
+        heroes_tab_id = UIManager.GetChildFrameID(3199024334, [14, 4294967294])
+        hero_tab = FramePosition(heroes_tab_id)
+        
+        henchmen_tab_id = UIManager.GetChildFrameID(3199024334, [14, 4294967293])
+        henchmen_tab = FramePosition(henchmen_tab_id)
+            
+        active_tab = next((tab for tab in [player_tab, hero_tab, henchmen_tab] if tab.position.content_top == max(
+            player_tab.position.content_top,
+            hero_tab.position.content_top,
+            henchmen_tab.position.content_top
+        )), player_tab)
+        
+        is_player_tab = (active_tab == player_tab)
+               
+    
+    if not party_search or not player_tab or not hero_tab or not henchmen_tab or not active_tab:
+        return
+    
+    party_search_throttle.SetThrottleTime(0)
+    style = ImGui.get_style()
+    style.WindowPadding.push_style_var(20, 20)
+    style.HeaderHovered.push_color((200, 200, 200, 30))
+    style.HeaderActive.push_color((200, 200, 200, 100))
+    style.Header.push_color((200, 200, 200, 100))
+    
+    PyImGui.set_next_window_pos((party_search.position.left_on_screen, active_tab.position.bottom_on_screen + (8 if is_player_tab else 10)), PyImGui.ImGuiCond.Always)
+    PyImGui.set_next_window_size((party_search.position.width_on_screen + 3, party_search.position.height_on_screen - (38 if is_player_tab else 40)), PyImGui.ImGuiCond.Always)
+    flags = PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoSavedSettings | PyImGui.WindowFlags.NoFocusOnAppearing | PyImGui.WindowFlags.NoBackground
+    
+    if not show_accounts_in_party_search:
+        flags |= PyImGui.WindowFlags.NoMouseInputs 
+        
+    open = PyImGui.begin("##PartySearchOverlay", show_accounts_in_party_search, flags)
+    style.WindowPadding.pop_style_var()
+    
+    ImGui.push_font("Regular", 14)
+    text_size = ImGui.calc_text_size("Accounts")
+    
+    tab_rect = (
+        henchmen_tab.position.right_on_screen,
+        henchmen_tab.position.top_on_screen + 2,
+        text_size[0] + 25,
+        (active_tab.position.height_on_screen) + (0 if show_accounts_in_party_search else -2)
+    )
+    
+    if active_tab:
+        if last_active_tab != active_tab.frame_id:
+            show_accounts_in_party_search = False
+            
+        elif not ImGui.is_mouse_in_rect(tab_rect):
+            if PyImGui.is_mouse_clicked(0):
+                for tab in [player_tab, hero_tab, henchmen_tab]:
+                    if tab and ImGui.is_mouse_in_rect((
+                        tab.position.left_on_screen,
+                        tab.position.top_on_screen,
+                        tab.position.width_on_screen,
+                        tab.position.height_on_screen
+                    )):
+                        active_tab_id = tab
+                        show_accounts_in_party_search = False
+                        break
+            
+        last_active_tab = active_tab.frame_id
+    
+    tab_open = draw_tab_control(tab_rect)
+    
+    
+    ImGui.pop_font()
+    
+    if tab_open:
+        PyImGui.draw_list_add_rect_filled(
+            party_search.position.left_on_screen,
+            party_search.position.top_on_screen,
+            party_search.position.right_on_screen,
+            party_search.position.bottom_on_screen,
+            Color(0, 0, 0, 255).color_int,
+            style.FrameRounding.value1,
+            0,
+        )
+        
+        sorted_by_profession = sorted(accounts, key=lambda acc: (acc.PlayerProfession[0], get_display_name(acc)), reverse=False)
+        button_size  = 20
+        texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture()
+        mapid = GLOBAL_CACHE.Map.GetMapID()
+        
+        for i, account in enumerate(sorted_by_profession):
+            window_info = settings.HeroPanelPositions.get(account.AccountEmail, None)
+            
+            if not window_info:
+                continue
+            
+            name = get_display_name(account)
+            prof_primary = ProfessionShort(
+                account.PlayerProfession[0]).name if account.PlayerProfession[0] != 0 else ""
+            prof_secondary = ProfessionShort(
+                account.PlayerProfession[1]).name if account.PlayerProfession[1] != 0 else ""
+            display_text = f"{prof_primary}{("/" if prof_secondary else "")}{prof_secondary}{account.PlayerLevel} {name} {f"[{GLOBAL_CACHE.Map.GetMapName(account.MapID)}]" if account.MapID != 0 and account.MapID != mapid else ''}"
+            
+            ImGui.dummy(button_size, button_size)
+            draw_panel_toggle(
+                i,
+                account,
+                (
+                    PyImGui.get_item_rect_min()[0] - 2,
+                    PyImGui.get_item_rect_min()[1] - 2,
+                    PyImGui.get_item_rect_min()[0] + button_size,
+                    PyImGui.get_item_rect_min()[1] + button_size
+                ),
+                style,
+                texture,
+                window_info,
+                style.Theme is StyleTheme.Minimalus,
+                button_size,
+                # account.AccountEmail != cached_data.account_email
+            )
+            
+            PyImGui.same_line(0, 5)            
+            is_party_member = GLOBAL_CACHE.Party.IsPartyMember(account.PlayerID)
+            selected = selected_account == account.AccountEmail
+            
+            if is_party_member:
+                style.Text.push_color((200, 200, 200, 180))
+            elif selected:
+                style.Text.push_color((255, 238, 187, 255))
+                
+            
+            _ = ImGui.selectable(f"{display_text}##PartySearchAccount_{account.AccountEmail}", selected_account == account.AccountEmail)
+                        
+            if is_party_member or selected:
+                style.Text.pop_color()
+            
+            if account.AccountEmail != cached_data.account_email:
+                ImGui.show_tooltip(f"Double Click to {'Kick from' if is_party_member else 'Invite to'} party\nSingle Click to select account for travel/invite")
+                
+            if PyImGui.is_item_clicked(0):
+                if PyImGui.is_mouse_double_clicked(0):
+                    sender_email = cached_data.account_email or ""
+                        
+                    if account.AccountEmail == sender_email:
+                        continue
+                    
+                    same_map = GLOBAL_CACHE.Map.GetMapID() == account.MapID and GLOBAL_CACHE.Map.GetRegion()[0] == account.MapRegion and GLOBAL_CACHE.Map.GetDistrict() == account.MapDistrict and GLOBAL_CACHE.Map.GetLanguage()[0] == account.MapLanguage
+                    
+                    if same_map:
+                        if not is_party_member:
+                            Player.SendChatCommand("invite " + account.CharacterName)
+                            GLOBAL_CACHE.ShMem.SendMessage(
+                                sender_email,
+                                account.AccountEmail,
+                                SharedCommandType.InviteToParty,
+                                (GLOBAL_CACHE.Player.GetAgentID(), 0, 0, 0)
+                            )
+                            
+                        else:
+                            Player.SendChatCommand("kick " +  account.CharacterName)
+                            
+                    
+                    else:
+                        GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account.AccountEmail,
+                            SharedCommandType.TravelToMap,
+                            (
+                                GLOBAL_CACHE.Map.GetMapID(),
+                                GLOBAL_CACHE.Map.GetRegion()[0],
+                                GLOBAL_CACHE.Map.GetDistrict(),
+                                GLOBAL_CACHE.Map.GetLanguage()[0],
+                            )
+                        ) 
+                    
+                else:
+                    selected_account = account.AccountEmail
+        pass
+    
+    PyImGui.end()
+    
+    style.Header.pop_color()
+    style.HeaderActive.pop_color()
+    style.HeaderHovered.pop_color()
+    
     pass
 
-def draw_configure_window():
-    from Widgets import HeroAI
+def draw_configure_window(module_name : str, configure_window : WindowModule):
     
     global module_info
     
     if not module_info:
-        module_info = widget_handler.get_widget_info(HeroAI.MODULE_NAME)
+        module_info = widget_handler.get_widget_info(module_name)
         
-    HeroAI.configure_window.open = module_info.configuring if module_info else False
+    configure_window.open = module_info.configuring if module_info else False
     
-    if HeroAI.configure_window.begin():
+    if configure_window.begin():
         if ImGui.begin_tab_bar("##HeroAIConfigTabs"):
             if ImGui.begin_tab_item("General"):
                 if ImGui.begin_child("##GeneralSettingsChild", (0, 0)):
@@ -2389,6 +2658,11 @@ def draw_configure_window():
                     show_party_overlay = ImGui.checkbox("Show Party Overlay", settings.ShowPartyOverlay)
                     if show_party_overlay != settings.ShowPartyOverlay:
                         settings.ShowPartyOverlay = show_party_overlay
+                        settings.save_settings()
+                                       
+                    show_party_search_overlay = ImGui.checkbox("Show Party Search Overlay", settings.ShowPartySearchOverlay)
+                    if show_party_search_overlay != settings.ShowPartySearchOverlay:
+                        settings.ShowPartySearchOverlay = show_party_search_overlay
                         settings.save_settings()
                                        
                     show_on_leader = ImGui.checkbox("Show only on Leader", settings.ShowPanelOnlyOnLeaderAccount)
@@ -2568,9 +2842,9 @@ def draw_configure_window():
                 
                             
     
-    HeroAI.configure_window.end()  
+    configure_window.end()  
     
-    if not HeroAI.configure_window.open:
-        WidgetHandler().set_widget_configuring(HeroAI.MODULE_NAME, False)
+    if not configure_window.open:
+        WidgetHandler().set_widget_configuring(module_name, False)
           
     pass
