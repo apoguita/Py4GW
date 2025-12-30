@@ -2,6 +2,7 @@ from Py4GWCoreLib import UIManager, EnumPreference, FrameLimiter, ThrottledTimer
 import PyImGui
 
 update_timer = ThrottledTimer(1000)  # 1 second timer
+OPTIONAL = False
 
 def configure():
     PyImGui.begin("Frame Limiter Configurator")
@@ -19,8 +20,6 @@ def main():
         frame_limit = UIManager.GetEnumPreference(EnumPreference.FrameLimiter.value)
         if frame_limit > FrameLimiter._60.value:
             UIManager.SetEnumPreference(EnumPreference.FrameLimiter, FrameLimiter._60.value)
-        
-
 
 if __name__ == "__main__":
     main()
