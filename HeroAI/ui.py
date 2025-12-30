@@ -31,6 +31,7 @@ from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
+from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer, Timer
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GW_widget_manager import WidgetHandler
@@ -88,6 +89,7 @@ party_member_frames : list[FramePosition] = []
 
 commands = HeroAICommands()
 gray_color = Color(150, 150, 150, 255)
+MAX_CHILD_FRAMES = 50
 
 class HealthState(Enum):
     Normal = Color(204, 0, 0, 255)
@@ -2218,6 +2220,7 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
     
     if party_throttle.IsExpired():
         party_throttle.Reset()
+        # 3332025202,1,8,0,0,0,0,12,0
         party_members_hash = 3332025202 if GLOBAL_CACHE.Map.IsOutpost() else 3332025202
         offsets = [1,8,0,0,0,0] if GLOBAL_CACHE.Map.IsOutpost() else [0,0,0,0]
         
@@ -2226,7 +2229,7 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
         if fid == 0 or not UIManager.FrameExists(fid):
             return
                 
-        for i in range(1, 12):
+        for i in range(1, MAX_CHILD_FRAMES):
             fid = UIManager.GetChildFrameID(party_members_hash, [1,8,0,0,0,0,i,0] if GLOBAL_CACHE.Map.IsOutpost() else [0,0,0,0,i,0])
             if fid == 0 or not UIManager.FrameExists(fid):
                 continue
