@@ -46,6 +46,15 @@ def main():
         if PyImGui.button("eat fruitcake"):
             GLOBAL_CACHE.Coroutines.append(eat_items(ModelID.Fruitcake.value, quantity_to_consume))
 
+        if PyImGui.button("eat eggnogs"):
+            GLOBAL_CACHE.Coroutines.append(eat_items(ModelID.Eggnog.value, quantity_to_consume))
+            
+        if PyImGui.button("eat snowman sumonner"):
+            GLOBAL_CACHE.Coroutines.append(eat_items(ModelID.Snowman_Summoner.value, quantity_to_consume))
+
+        if PyImGui.button("eat wintersday gift"):
+            GLOBAL_CACHE.Coroutines.append(eat_items(ModelID.Wintersday_Gift.value, quantity_to_consume))            
+
     PyImGui.end()
 
 
