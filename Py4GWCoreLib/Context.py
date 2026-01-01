@@ -1,7 +1,8 @@
 from typing import Optional, TypeVar, Type, Generic, Any
 
 # native context structs + facades
-from .native_src.context.AgentContext import AgentContext, AgentContextStruct
+from .native_src.context.AccAgentContext import AccAgentContext, AccAgentContextStruct
+from .native_src.context.AgentContext import AgentArray, AgentArrayStruct
 from .native_src.context.CharContext import CharContext, CharContextStruct
 from .native_src.context.CinematicContext import Cinematic, CinematicStruct
 from .native_src.context.GameplayContext import GameplayContext, GameplayContextStruct
@@ -45,10 +46,14 @@ class _GWContextBase(Generic[TStruct]):
 
 
 class GWContext:
-    class Agent(_GWContextBase[AgentContextStruct]):
-        _struct_type = AgentContextStruct
-        _facade = AgentContext
-    
+    class AccAgent(_GWContextBase[AccAgentContextStruct]):
+        _struct_type = AccAgentContextStruct
+        _facade = AccAgentContext
+        
+    class AgentArray(_GWContextBase[AgentArrayStruct]):
+        _struct_type = AgentArrayStruct
+        _facade = AgentArray
+        
     class Char(_GWContextBase[CharContextStruct]):
         _struct_type = CharContextStruct
         _facade = CharContext

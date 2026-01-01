@@ -523,6 +523,7 @@ class _FSM_Helpers:
                     yield from self._reset_execution()
                 
         def WaitforLeftAggroBall(self):
+            from Py4GWCoreLib.Agent import Agent
             self._parent.LogMessage("Waiting for Left Aggro Ball", "Waiting for enemies to ball up.", LogConsole.LogSeverity.INFO)
             self._parent.SetCurrentStep("Wait for Left Aggro Ball", 0.05)
             self._parent.in_waiting_routine = True
@@ -546,10 +547,10 @@ class _FSM_Helpers:
                 # Check if ALL enemies are within Adjacent range
                 all_in_adjacent = True
                 for enemy_id in enemies_ids:
-                    enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+                    enemy = Agent.GetAgentByID(enemy_id)
                     if enemy is None:
                         continue
-                    ex, ey = enemy.x, enemy.y
+                    ex, ey = enemy.pos.x, enemy.pos.y
                     dx, dy = ex - px, ey - py
                     dist_sq = dx * dx + dy * dy
                     if dist_sq > (Range.Adjacent.value ** 2):
@@ -587,6 +588,7 @@ class _FSM_Helpers:
                     yield from self._reset_execution()
                     
         def WaitforRightAggroBall(self):
+            from Py4GWCoreLib.Agent import Agent
             self._parent.LogMessage("Waiting for Right Aggro Ball", "Waiting for enemies to ball up.", LogConsole.LogSeverity.INFO)
             self._parent.SetCurrentStep("Wait for Right Aggro Ball", 0.05)
             self._parent.in_waiting_routine = True
@@ -608,10 +610,10 @@ class _FSM_Helpers:
                 # Check if all enemies are within Adjacent range
                 all_in_adjacent = True
                 for enemy_id in enemies_ids:
-                    enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+                    enemy = Agent.GetAgentByID(enemy_id)
                     if enemy is None:
                         continue
-                    dx, dy = enemy.x - px, enemy.y - py
+                    dx, dy = enemy.pos.x - px, enemy.pos.y - py
                     if dx * dx + dy * dy > (Range.Adjacent.value ** 2):
                         all_in_adjacent = False
                         break

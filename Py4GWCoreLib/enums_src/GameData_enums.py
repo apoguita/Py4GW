@@ -52,6 +52,20 @@ class Profession(IntEnum):
     Dervish = 10
 
 
+Profession_Names = {
+    Profession._None: "None",
+    Profession.Warrior: "Warrior",
+    Profession.Ranger: "Ranger",
+    Profession.Monk: "Monk",
+    Profession.Necromancer: "Necromancer",
+    Profession.Mesmer: "Mesmer",
+    Profession.Elementalist: "Elementalist",
+    Profession.Assassin: "Assassin",
+    Profession.Ritualist: "Ritualist",
+    Profession.Paragon: "Paragon",
+    Profession.Dervish: "Dervish",
+}
+
 class ProfessionShort(IntEnum):
     _ = 0
     W = 1
@@ -64,6 +78,20 @@ class ProfessionShort(IntEnum):
     Rt = 8
     P = 9
     D = 10
+    
+ProfessionShort_Names = {
+    ProfessionShort._: "None",
+    ProfessionShort.W: "W",
+    ProfessionShort.R: "R",
+    ProfessionShort.Mo: "Mo",
+    ProfessionShort.N: "N",
+    ProfessionShort.Me: "Me",
+    ProfessionShort.E: "E",
+    ProfessionShort.A: "A",
+    ProfessionShort.Rt: "Rt",
+    ProfessionShort.P: "P",
+    ProfessionShort.D: "D",
+}
 
 
 # endregion
@@ -76,6 +104,16 @@ class Allegiance(IntEnum):
     SpiritPet = 4  # 0x4 = spirit/pet
     Minion = 5  # 0x5 = minion
     NpcMinipet = 6  # 0x6 = npc/minipet
+    
+AllegianceNames = {
+    Allegiance.Unknown: "Unknown",
+    Allegiance.Ally: "Ally",
+    Allegiance.Neutral: "Neutral",
+    Allegiance.Enemy: "Enemy",
+    Allegiance.SpiritPet: "Spirit/Pet",
+    Allegiance.Minion: "Minion",
+    Allegiance.NpcMinipet: "NPC/Minipet",
+}
 
 
 # AllieganceDonation
@@ -161,6 +199,34 @@ class Weapon(IntEnum):
     Unknown8 = 22
     Unknown9 = 23
     Unknown10 = 24
+    
+Weapon_Names = {
+    Weapon.Unknown: "Unknown",
+    Weapon.Bow: "Bow",  
+    Weapon.Axe: "Axe",
+    Weapon.Hammer: "Hammer",
+    Weapon.Daggers: "Daggers",
+    Weapon.Scythe: "Scythe",
+    Weapon.Spear: "Spear",
+    Weapon.Sword: "Sword",
+    Weapon.Scepter: "Scepter",
+    Weapon.Scepter2: "Scepter2",
+    Weapon.Wand: "Wand",
+    Weapon.Staff1: "Staff1",
+    Weapon.Staff: "Staff",
+    Weapon.Staff2: "Staff2",
+    Weapon.Staff3: "Staff3",
+    Weapon.Unknown1: "Unknown1",
+    Weapon.Unknown2: "Unknown2",
+    Weapon.Unknown3: "Unknown3",
+    Weapon.Unknown4: "Unknown4",
+    Weapon.Unknown5: "Unknown5",
+    Weapon.Unknown6: "Unknown6",
+    Weapon.Unknown7: "Unknown7",
+    Weapon.Unknown8: "Unknown8",
+    Weapon.Unknown9: "Unknown9",
+    Weapon.Unknown10: "Unknown10",
+}
    
 #region WeaporReq 
 class WeaporReq(IntEnum):

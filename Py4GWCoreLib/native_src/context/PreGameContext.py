@@ -2,7 +2,8 @@ import PyPlayer
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from ..internals.types import Vec2f
-from ..internals.gw_array import GW_Array, GW_Array_View
+from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
+from ..internals.helpers import read_wstr, encoded_wstr_to_str
 
 
 class LoginCharacter(Structure):
@@ -15,11 +16,19 @@ class LoginCharacter(Structure):
         ("UnkPvPData03", c_uint32),
         ("UnkPvPData04", c_uint32),
         ("Unk01", c_uint32  * 0x4),
-        ("Level", c_uint32),
+        ("level", c_uint32),
         ("current_map_id", c_uint32),
         ("Unk02", c_uint32  * 0x7),     # unknown / flags / padding
-        ("character_name", c_wchar * 20),
+        ("character_name_enc", c_wchar * 20),
     ]
+    @property
+    def character_name_encoded_string(self) -> str | None:
+        return self.character_name_enc
+    
+    @property
+    def character_name(self) -> str | None:
+        return encoded_wstr_to_str(self.character_name_enc)
+
 
 class PreGameContextStruct(Structure):
     _pack_ = 1
@@ -48,7 +57,7 @@ class PreGameContextStruct(Structure):
     
     @property
     def chars_list(self) -> list[LoginCharacter]:
-        return GW_Array_View(self.chars, LoginCharacter).to_list()
+        return GW_Array_Value_View(self.chars_array, LoginCharacter).to_list()
 
 class PreGameContext:
     _ptr: int = 0

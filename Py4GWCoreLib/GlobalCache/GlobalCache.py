@@ -61,6 +61,8 @@ class GlobalCache:
         
     def _update_cache(self):
         self.Map._update_cache()
+        #this block is forcing an update when loading or in cinematic
+        #to default everything to 0 
         if self.Map.IsMapLoading() or self.Map.IsInCinematic():
             self.Party._update_cache()
             self.Player._update_cache()
@@ -70,6 +72,7 @@ class GlobalCache:
             self.Agent._update_cache()
             self.AgentArray._update_cache()
             self.SkillBar._update_cache()
+        #end force update block
                
         if self._TrottleTimers._75ms.IsExpired():
             self._TrottleTimers._75ms.Reset()

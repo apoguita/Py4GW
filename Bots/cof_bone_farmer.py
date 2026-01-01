@@ -628,13 +628,13 @@ class Loot:
         valid_model_ids = valid_model_ids + ALCOHOL_MODEL_IDS
 
         item_array_model = AgentArray.Filter.ByCondition(
-            agent_array, lambda agent_id: Item.GetModelID(Agent.GetItemAgent(agent_id).item_id) in valid_model_ids
+            agent_array, lambda agent_id: Item.GetModelID(Agent.GetItemAgentItemID(agent_id)) in valid_model_ids
         )
 
         item_array_salv = []
         if bot_vars.loot.salvageables:
             item_array_salv = AgentArray.Filter.ByCondition(
-                agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id)
+                agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgentItemID(agent_id))
             )
 
         item_array = list(set(item_array_model + item_array_salv))

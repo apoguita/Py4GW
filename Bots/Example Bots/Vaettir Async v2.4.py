@@ -323,7 +323,7 @@ def get_filtered_loot_array():
     valid_owner_count = len(item_array) # Count after ownership check
 
     agent_to_item_map = {
-        agent_id: Agent.GetItemAgent(agent_id).item_id
+        agent_id: Agent.GetItemAgentItemID(agent_id)
         for agent_id in item_array
     }
 
@@ -346,10 +346,10 @@ def get_filtered_loot_array():
     # === Map piece filtering ===
     if not bot_vars.config_vars.loot_map_pieces:
         map_piece_model_ids = {
-            ModelID.Map_Piece_Tl, # 24629
-            ModelID.Map_Piece_Tr, # 24630
-            ModelID.Map_Piece_Bl, # 24631
-            ModelID.Map_Piece_Br, # 24632
+            ModelID.Map_Piece_Top_Left, # 24629
+            ModelID.Map_Piece_Top_Right, # 24630
+            ModelID.Map_Piece_Bottom_Left, # 24631
+            ModelID.Map_Piece_Bottom_Right, # 24632
         }
         item_ids = ItemArray.Filter.ByCondition(item_ids, lambda item_id: Item.GetModelID(item_id) not in map_piece_model_ids)
 
@@ -484,10 +484,10 @@ def check_looted_items():
                 ModelID.Slice_Of_Pumpkin_Pie  # 28436
             },
             "map_pieces": lambda item_id: Item.GetModelID(item_id) in {
-                ModelID.Map_Piece_Tl, # 24629
-                ModelID.Map_Piece_Tr, # 24630
-                ModelID.Map_Piece_Bl, # 24631
-                ModelID.Map_Piece_Br, # 24632
+                ModelID.Map_Piece_Top_Left, # 24629
+                ModelID.Map_Piece_Top_Right, # 24630
+                ModelID.Map_Piece_Bottom_Left, # 24631
+                ModelID.Map_Piece_Bottom_Right, # 24632
             },
             # --- END CORRECTION ---
         }
@@ -2013,7 +2013,8 @@ def get_escape_location(scaling_factor=50):
     player_x, player_y = Player.GetXY()
     
     # Initialize VectorFields with the player's position
-    vector_fields = Utils.VectorFields(probe_position=(player_x, player_y))
+    from ...Py4GWCoreLib import VectorFields
+    vector_fields = VectorFields(probe_position=(player_x, player_y))
 
     # Get and filter the enemy array
     enemy_array = AgentArray.GetEnemyArray()

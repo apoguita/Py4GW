@@ -143,7 +143,7 @@ def combat_phase():
         
         # Check if enemies 15 and 16 are valid and alive
         for agent_id in [15, 16]:
-            if AgentArray.IsAgentIDValid(agent_id) and not Agent.IsDead(agent_id):
+            if Agent.IsValid(agent_id) and not Agent.IsDead(agent_id):
                 target_enemies.append(agent_id)
                 
         if not target_enemies:

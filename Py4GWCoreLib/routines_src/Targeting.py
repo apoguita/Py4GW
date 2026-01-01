@@ -195,8 +195,7 @@ class Targeting:
             if item_id == 0:
                 return False
             
-            item_data = GLOBAL_CACHE.Agent.GetItemAgent(item_id)
-            owner_id = item_data.owner_id
+            owner_id = GLOBAL_CACHE.Agent.GetItemAgentOwnerID(item_id)
             
             is_assigned = (owner_id == GLOBAL_CACHE.Player.GetAgentID()) or (owner_id == 0)
             return is_assigned

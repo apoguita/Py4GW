@@ -249,6 +249,7 @@ class _Multibox:
         
     def _pixel_stack(self):
         from ...GlobalCache import GLOBAL_CACHE
+        from ...Agent import Agent
         from ...import Range
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
         x, y = GLOBAL_CACHE.Player.GetXY()
@@ -260,9 +261,10 @@ class _Multibox:
         for player in players:
             agent_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(player.login_number)
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-            agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
-
-            dx, dy = x - agent.x, y - agent.y
+            agent = Agent.GetAgentByID(agent_id)
+            if not agent:
+                continue
+            dx, dy = x - agent.pos.x, y - agent.pos.y
             players_dist_sq = dx * dx + dy * dy
             max_dist_sq = Range.Earshot.value ** 2
 

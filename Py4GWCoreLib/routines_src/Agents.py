@@ -78,35 +78,6 @@ class Agents:
                     best_id = agent_id
 
         return best_id
-
-    @staticmethod
-    def GetAgentIDByItemExtraType(extra_type: list[int]) -> int:
-        """
-        Purpose: Get the closest item agent ID with the given extra type (closest to the player).
-        Args:
-            extra_type (int): The extra type of the item.
-        Returns:
-            int: The closest matching item agent ID, or 0 if none found.
-        """
-        from ..GlobalCache import GLOBAL_CACHE
-        from ..Py4GWcorelib import Utils
-
-        item_ids = GLOBAL_CACHE.AgentArray.GetItemArray()
-        px, py = GLOBAL_CACHE.Player.GetXY()
-
-        best_id = 0
-        best_dist = float("inf")
-
-        for item_id in item_ids:
-            item_agent = GLOBAL_CACHE.Agent.GetItemAgent(item_id)
-            if item_agent.extra_type in extra_type:
-                ix, iy = GLOBAL_CACHE.Agent.GetXY(item_id)
-                d = Utils.Distance((px, py), (ix, iy))
-                if d < best_dist:
-                    best_dist = d
-                    best_id = item_id
-
-        return best_id
     
     @staticmethod
     def GetClosestKeyByBitMask() -> int:
@@ -134,8 +105,8 @@ class Agents:
         best_dist = float("inf")
 
         for item_id in item_ids:
-            item_agent = GLOBAL_CACHE.Agent.GetItemAgent(item_id)
-            et = item_agent.extra_type
+
+            et = GLOBAL_CACHE.Agent.GetItemAgentExtraType(item_id)
 
             # --- Required bit must be 1 ---
             if (et & BIT22) == 0:

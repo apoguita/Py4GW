@@ -418,7 +418,7 @@ def get_filtered_loot_array():
     
     # Map agent IDs to item data
     agent_to_item_map = {
-        agent_id: Agent.GetItemAgent(agent_id).item_id
+        agent_id: Agent.GetItemAgentItemID(agent_id)
         for agent_id in item_array
     }
 
