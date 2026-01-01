@@ -1,87 +1,188 @@
 import PyAgent
 
-from .Agent import *
 from .Player import *
 
 from .Py4GWcorelib import Utils
+from .enums_src.GameData_enums import Allegiance
+from .Context import GWContext
+from typing import Callable
+from .native_src.context.AgentContext import AgentStruct
 
 
 class AgentArray:
     @staticmethod
-    def GetRawAgentArray():
+    def GetAgentArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
-        import PyAgent
-        return PyAgent.PyAgent.GetRawAgentArray()
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+
+        agent_array = agent_array_ctx.GetAgentArray()
+        
+        return agent_array
     
     @staticmethod
-    def GetAgentArray():
+    def GetAllyArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
-        return [item for item in Player.player_instance().GetAgentArray()  if item != 0]    
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+
+        agent_array = agent_array_ctx.GetAllyArray()
+        return agent_array
 
     @staticmethod
-    def GetAllyArray():
-        """Purpose: Retrieve the agent array pre filtered by  allies."""
-        return [item for item in Player.player_instance().GetAllyArray() if item != 0]
-
-    @staticmethod
-    def GetNeutralArray():
+    def GetNeutralArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by neutrals."""
-        return [item for item in Player.player_instance().GetNeutralArray() if item != 0]
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetNeutralArray()
+        return agent_array
 
     @staticmethod
-    def GetEnemyArray():
+    def GetEnemyArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by enemies."""
-        return [item for item in Player.player_instance().GetEnemyArray() if item != 0]
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetEnemyArray()
+        return agent_array
 
     @staticmethod
-    def GetSpiritPetArray():
+    def GetSpiritPetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by spirit & pets."""
-        return [item for item in Player.player_instance().GetSpiritPetArray() if item != 0]
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetSpiritPetArray()
+        return agent_array
 
     @staticmethod
-    def GetMinionArray():
+    def GetMinionArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by minions."""
-        return [item for item in Player.player_instance().GetMinionArray() if item != 0]
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetMinionArray()
+        return agent_array
 
     @staticmethod
-    def GetNPCMinipetArray():
+    def GetNPCMinipetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by NPC & minipets."""
-        return [item for item in Player.player_instance().GetNPCMinipetArray() if item != 0]
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetNPCMinipetArray()
+        return agent_array
 
     @staticmethod
-    def GetItemArray():
+    def GetItemArray() -> list[int]:
         """Purpose: Retrieve the agent array pre-filtered by items."""
-        """
-        item_owner_cache = ItemOwnerCache()
-        loot_array = Player.player_instance().GetItemArray()
-        if not loot_array:
-            item_owner_cache.clear_all()
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetItemAgentArray()
+        return agent_array
+    
+    @staticmethod
+    def GetOwnedItemArray() -> list[int]:
+        """Purpose: Retrieve the agent array pre filtered by owned items."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetOwnedItemAgentArray()
+        return agent_array
+    
+    @staticmethod
+    def GetGadgetArray() -> list[int]:
+        """Purpose: Retrieve the agent array pre filtered by gadgets."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetGadgetAgentArray()
+        return agent_array
+    
+    @staticmethod
+    def GetDeadAllyArray() -> list[int]:
+        """Purpose: Retrieve the dead ally agent array."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetDeadAllyArray()
+        return agent_array
+    
+    @staticmethod
+    def GetDeadEnemyArray() -> list[int]:
+        """Purpose: Retrieve the dead enemy agent array."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetDeadEnemyArray()
+        return agent_array
+    
+    @staticmethod
+    def GetLivingArray() -> list[int]:
+        """Purpose: Retrieve the living agent array."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetLivingAgentArray()
+        return agent_array
+    
+    @staticmethod
+    def GetAgents() -> list[AgentStruct | None]:
+        """Purpose: Get the unfiltered full agent array."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
             return []
         
-        for item in loot_array:
-            item_data = Agent.GetItemAgent(item)
-            current_owner_id = item_data.owner_id
-            cached_owner_id = item_owner_cache.check_and_cache(item_data.item_id, current_owner_id)
-        
-        return loot_array
-        """
-        return Player.player_instance().GetItemArray()
-        
-    @staticmethod
-    def IsAgentIDValid(agent_id):
-        """Purpose: Check if the agent ID is valid."""
-        return Player.player_instance().IsAgentIDValid(agent_id)
+        agents = agent_array_ctx.raw_agents
+        if agents is None:
+            return []
+        return agents if agents else []
     
     @staticmethod
-    def GetGadgetArray():
-        """Purpose: Retrieve the agent array pre filtered by gadgets."""
-        return [item for item in Player.player_instance().GetGadgetArray() if item != 0]
+    def GetLivingAgents() -> list[AgentStruct]:
+        """Purpose: Get the unfiltered full living agent array."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        
+        agents = agent_array_ctx.GetLivingAgents()
+        return agents if agents else []
     
     @staticmethod
-    def GetMovementStuckArray():
-        """Purpose: Get the unfiltered full agent array."""
-        import PyAgent
-        return PyAgent.PyAgent.GetMovementStuckArray()
+    def GetItemAgents() -> list[AgentStruct]:
+        """Purpose: Get the unfiltered full item agent array."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        
+        agents = agent_array_ctx.GetItemAgents()
+        return agents if agents else []
+    
+    @staticmethod
+    def GetGadgetAgents() -> list[AgentStruct]:
+        """Purpose: Get the unfiltered full gadget agent array."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        
+        agents = agent_array_ctx.GetGadgetAgents()
+        return agents if agents else []
+    
+    @staticmethod
+    def GetAgentByID(agent_id: int) -> AgentStruct | None:
+        """Purpose: Get an agent by its AgentID."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return None
+        
+        agent = agent_array_ctx.GetAgentByID(agent_id)
+        return agent
+        
+    
 
     class Manipulation:
         @staticmethod
@@ -371,7 +472,6 @@ class RawAgentArray:
     def update(self):
         from .Routines import Routines
         from .Map import Map
-        import time
 
         # === Check map validity ===
         self.map_valid = Routines.Checks.Map.MapValid()

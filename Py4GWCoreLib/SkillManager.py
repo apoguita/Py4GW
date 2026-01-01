@@ -889,12 +889,12 @@ def _GetWeaponAttackAftercast():
         Returns the attack speed of the current weapon.
         """
         weapon_type,_ = GLOBAL_CACHE.Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
-        player = GLOBAL_CACHE.Agent.GetAgentByID(GLOBAL_CACHE.Player.GetAgentID())
-        if player is None:
+        living_player = Agent.GetLivingAgentByID(GLOBAL_CACHE.Player.GetAgentID())
+        if living_player is None:
             return 0
         
-        attack_speed = player.living_agent.weapon_attack_speed
-        attack_speed_modifier = player.living_agent.attack_speed_modifier if player.living_agent.attack_speed_modifier != 0 else 1.0
+        attack_speed = living_player.weapon_attack_speed
+        attack_speed_modifier = living_player.attack_speed_modifier if living_player.attack_speed_modifier != 0 else 1.0
         
         if attack_speed == 0:
             match weapon_type:
@@ -1973,16 +1973,17 @@ class SkillManager:
             Returns the attack speed of the current weapon in ms (int).
             Falls back to safe defaults if cache data is invalid.
             """
+            from Py4GWCoreLib.Agent import Agent
             
             player_id = GLOBAL_CACHE.Player.GetAgentID()
             weapon_type, _ = GLOBAL_CACHE.Agent.GetWeaponType(player_id)
-            player = GLOBAL_CACHE.Agent.GetAgentByID(player_id)
+            living_player = Agent.GetLivingAgentByID(player_id)
 
-            if player is None or not hasattr(player, "living_agent"):
+            if living_player is None:
                 return 1750  # default ms if no player
 
-            attack_speed = player.living_agent.weapon_attack_speed or 0
-            attack_speed_modifier = player.living_agent.attack_speed_modifier or 1.0
+            attack_speed = living_player.weapon_attack_speed or 0
+            attack_speed_modifier = living_player.attack_speed_modifier or 1.0
             if attack_speed_modifier == 0:
                 attack_speed_modifier = 1.0
 

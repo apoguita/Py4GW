@@ -1638,7 +1638,10 @@ def ShowGadgetAgentData(agent_id):
 
                 # Assume the gadget item data has been retrieved from Agent.GetGadgetItem
                 gadget_data = GLOBAL_CACHE.Agent.GetGadgetAgent(agent_id)
-
+                if gadget_data is None:
+                    PyImGui.text("No gadget data available for this agent.")
+                    PyImGui.end()
+                    return
                 # Prepare the data, converting uint32_t fields to decimal, hex, and binary
                 headers = ["Info", "Value"]
                 data = [
@@ -1686,11 +1689,15 @@ def ShowItemAgentData(agent_id):
                 PyImGui.text("Agent Item Data:")
 
                 item_data = GLOBAL_CACHE.Agent.GetItemAgent(agent_id)
+                if item_data is None:
+                    PyImGui.text("No item data available for this agent.")
+                    PyImGui.end()
+                    return
 
                 headers = ["Info", "Value"]
                 data = [
                     ("Agent ID:", item_data.agent_id),
-                    ("Owner ID:", item_data.owner_id),
+                    ("Owner ID:", item_data.owner),
                     ("Item ID:", item_data.item_id),
                     ("h00CC (decimal):", item_data.h00CC),
                     ("h00CC (hex):", hex(item_data.h00CC)),
@@ -2116,9 +2123,6 @@ def ShowPyImGuiExtraMaplWindow():
         if PyImGui.begin(PyMap_Extra_InfoWindow_state.window_name, PyImGui.WindowFlags.NoResize):
             #ImGui.DrawTextWithTitle(PyMap_Extra_InfoWindow_state.window_name, description)
 
-            map_instance = GLOBAL_CACHE.Map._map_instance
-            map_instance.GetContext()
-
             if not GLOBAL_CACHE.Map.IsOutpost():
                 PyImGui.text("Get to an Outpost to see this data")
                 PyImGui.separator()
@@ -2148,11 +2152,11 @@ def ShowPyImGuiExtraMaplWindow():
 
                     PyImGui.end_table()
 
-                    if not map_instance.has_enter_button:
+                    if not GLOBAL_CACHE.Map.HasEnterChallengeButton():
                         PyImGui.text("Get to an outpost with Enter Button to see this data")
 
 
-                    if map_instance.has_enter_button:
+                    if GLOBAL_CACHE.Map.HasEnterChallengeButton():
                         if PyImGui.begin_table("OutpostEnterMissionTable", 2, PyImGui.TableFlags.Borders):
                             PyImGui.table_next_row()
                             PyImGui.table_set_column_index(0)
@@ -2180,7 +2184,7 @@ def ShowPyImGuiExtraMaplWindow():
                     PyImGui.table_set_column_index(0)
                     PyImGui.text("Is Vanquishable?")
                     PyImGui.table_set_column_index(1)
-                    PyImGui.text(f"{'Yes' if map_instance.is_vanquishable_area else 'No'}")
+                    PyImGui.text(f"{'Yes' if GLOBAL_CACHE.Map.IsVanquishable() else 'No'}")
 
                     PyImGui.end_table()
                 if not GLOBAL_CACHE.Party.IsHardMode():
@@ -2190,7 +2194,7 @@ def ShowPyImGuiExtraMaplWindow():
                     PyImGui.separator()
 
                     headers = ["Foes Killed", "Foes To Kill"]
-                    data = [(map_instance.foes_killed, map_instance.foes_to_kill)]
+                    data = [(GLOBAL_CACHE.Map.GetFoesKilled(), GLOBAL_CACHE.Map.GetFoesToKill())]
 
                     ImGui.table("Vanquish Info Table",headers,data)
 
@@ -2255,8 +2259,6 @@ def ShowPyMapWindow():
         if PyImGui.begin(PyMap_window_state.window_name, PyImGui.WindowFlags.NoResize):
             ImGui.DrawTextWithTitle(PyMap_window_state.window_name, description,8)
 
-            map_instance = GLOBAL_CACHE.Map._map_instance
-
             # Instance Fields (General map data)
             PyImGui.text("Instance Information")
 
@@ -2264,7 +2266,7 @@ def ShowPyMapWindow():
             instance_time = GLOBAL_CACHE.Map.GetInstanceUptime()
             instance_time_seconds = instance_time / 1000  # Convert to seconds
             formatted_time = time.strftime('%H:%M:%S', time.gmtime(instance_time_seconds))
-            time_text = f"{formatted_time} - [{map_instance.instance_time}]"
+            time_text = f"{formatted_time} - [{instance_time}]"
             party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
             player_size = GLOBAL_CACHE.Map.GetMaxPlayerSize()
             min_party_size = GLOBAL_CACHE.Map.GetMinPartySize()

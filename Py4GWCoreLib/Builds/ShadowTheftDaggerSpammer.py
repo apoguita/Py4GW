@@ -123,8 +123,8 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             yield from self.call_a_priority_target()
             return
 
-        agent = GLOBAL_CACHE.Agent.GetAgentByID(self.priority_target)
-        if not agent or GLOBAL_CACHE.Agent.IsDead(self.priority_target):
+        #agent = GLOBAL_CACHE.Agent.GetAgentByID(self.priority_target)
+        if GLOBAL_CACHE.Agent.IsDead(self.priority_target):
             self.priority_target = None
             yield from self.call_a_priority_target()
             return
@@ -155,8 +155,10 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
 
         for agent_id in enemy_agent_ids:
             agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
-            model_id = GLOBAL_CACHE.Agent.GetModelID(agent.id)
-            dx, dy = agent.x - player_x, agent.y - player_y
+            if agent is None or agent.agent_id == 0:
+                continue
+            model_id = GLOBAL_CACHE.Agent.GetModelID(agent.agent_id)
+            dx, dy = agent.pos.x - player_x, agent.pos.y - player_y
             dist_sq = dx * dx + dy * dy
 
             # Determine priority rank (default = 999 if not special)
@@ -255,8 +257,11 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
             yield from Routines.Yield.Keybinds.TargetPriorityTarget()
             nearest_enemy_agent_id = GLOBAL_CACHE.Player.GetTargetID()
             nearest_enemy_agent = Agent.GetAgentByID(nearest_enemy_agent_id)
+            if nearest_enemy_agent is None:
+                yield
+                return
             player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-            enemy_x, enemy_y = nearest_enemy_agent.x, nearest_enemy_agent.y
+            enemy_x, enemy_y = nearest_enemy_agent.pos.x, nearest_enemy_agent.pos.y
 
             # --- Compute squared distance between player and enemy ---
             dx = enemy_x - player_x
@@ -305,7 +310,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                         nearest_enemy_agent_id = self.priority_target
                         nearest_enemy_agent = Agent.GetAgentByID(nearest_enemy_agent_id)
 
-                        if nearest_enemy_agent and nearest_enemy_agent.is_living and nearest_enemy_agent.living_agent:
+                        if nearest_enemy_agent and nearest_enemy_agent.is_living_type:
                             shadow_theft_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.shadow_theft)
                             yield from Routines.Yield.Keybinds.UseSkill(shadow_theft_slot)
                             yield from Routines.Yield.wait(350)
@@ -330,7 +335,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
 
                         # --- Confirm target is still in range before chaining ---
                         player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-                        dx, dy = nearest_enemy_agent.x - player_x, nearest_enemy_agent.y - player_y
+                        dx, dy = nearest_enemy_agent.pos.x - player_x, nearest_enemy_agent.pos.y - player_y
                         if dx * dx + dy * dy > MAX_RANGE_SQ:
                             yield from Routines.Yield.Keybinds.Interact()
                             return

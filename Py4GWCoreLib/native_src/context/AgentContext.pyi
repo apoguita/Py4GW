@@ -1,103 +1,329 @@
 from typing import List, Optional
 from ..internals.types import CPointer
 from ..internals.gw_array import GW_Array
-from ..internals.types import Vec3f
+from ..internals.gw_list import GW_TList, GW_TLink
+from ..internals.types import Vec2f, Vec3f, GamePos
 
-class AgentSummaryInfoSub():
-    h0000: int
-    h0004: int
+class AgentItemStruct(AgentStruct):
+    owner: int
+    item_id: int
+    h00CC: int
+    extra_type: int
+
+class AgentGadgetStruct(AgentStruct):
+    h00C4: int
+    h00C8: int
+    extra_type: int
     gadget_id: int
-    h000C: int
-    gadget_name_enc: CPointer[str]
-    h0014: int
-    composite_agent_id: int
+    h00D4: list[int]
+
+class DyeInfoStruct():
+    dye_tint: int
+    dye1: int
+    dye2: int
+    dye3: int
+    dye4: int
+    
+
+class ItemDataStruct():
+    model_file_id: int
+    type: int  # enum stored as uint32_t
+    dye: DyeInfoStruct
+    value: int
+    interaction: int
+
+class EquipmentItemsUnion():
+    items : list[ItemDataStruct]
+    weapon : ItemDataStruct
+    offhand : ItemDataStruct
+    chest : ItemDataStruct
+    legs : ItemDataStruct
+    head : ItemDataStruct
+    feet : ItemDataStruct
+    hands : ItemDataStruct
+    costume_body : ItemDataStruct
+    costume_head : ItemDataStruct
+
+class EquipmentItemIDsUnion():
+    item_ids: list[int]
+    item_id_weapon: int
+    item_id_offhand: int
+    item_id_chest: int
+    item_id_legs: int
+    item_id_head: int
+    item_id_feet: int
+    item_id_hands: int
+    item_id_costume_body: int
+    item_id_costume_head: int
+    
+class EquipmentStruct():
+    vtable : int
+    h0004 : int
+    h0008 : int
+    h000C : int
+    left_hand_ptr : Optional[CPointer[ItemDataStruct]]
+    right_hand_ptr : Optional[CPointer[ItemDataStruct]]
+    h0018 : int
+    shield_ptr : Optional[CPointer[ItemDataStruct]]
+    left_hand_map : int
+    right_hand_map : int
+    head_map : int
+    shield_map : int
+    items_union : EquipmentItemsUnion
+    ids_union : EquipmentItemIDsUnion
+
+    @property 
+    def left_hand(self) -> Optional[ItemDataStruct]:...
+    
+    @property
+    def right_hand(self) -> Optional[ItemDataStruct]:...
+    
+    @property
+    def shield(self) -> Optional[ItemDataStruct]:...
+
+
+class TagInfoStruct ():
+    guild_id: int
+    primary: int
+    secondary: int
+    level: int
+    # ... (possible more fields)
+
+
+
+class VisibleEffectStruct ():
+    unk : int
+    id : int  # Constants::EffectID
+    has_ended : int
+    
+class AgentLivingStruct(AgentStruct):
+    owner : int
+    h00C8 : int
+    h00CC : int
+    h00D0 : int
+    h00D4 : list[int]
+    animation_type : float
+    h00E4 : list[int]
+    weapon_attack_speed : float  # The base attack speed in float of last attacks weapon. 1.33 = axe, sWORD, daggers etc.
+    attack_speed_modifier : float  # Attack speed modifier of the last attack. 0.67 = 33% increase (1-.33)
+    player_number : int  # player number / modelnumber
+    agent_model_type : int  # Player = 0x3000, NPC = 0x2000
+    transmog_npc_id : int  # Actually, it's 0x20000000 | npc_id, It's not defined for npc, minipet, etc...
+    equipment_ptr_ptr : Optional[CPointer[CPointer[EquipmentStruct]]]  # Equipment**
+    h0100 : int
+    h0104 : int  # New variable added here
+    tags_ptr : Optional[TagInfoStruct]  # TagInfo
+    h010C : int
+    primary : int  # Primary profession 0-10 (None,W,R,Mo
+    secondary : int # Secondary profession 0-10 (None,W,R,Mo,N,Me,E,A,Rt,P,D)
+    level : int
+    team_id : int # 0=None, 1=Blue, 2=Red, 3=Yellow
+    h0112 : list[int]
+    h0114 : int
+    energy_regen : float
+    h011C : int
+    energy : float
+    max_energy : int
+    h0128 : int
+    hp_pips : float
+    h0130 : int
+    hp : float
+    max_hp : int
+    effects : int #Bitmap for effects to display when targetted. DOES include hexes
+    h0140 : int
+    hex : int # Bitmap for the hex effect when targetted (apparently obsolete!) (
+    h0145 : list[int]
+    model_state : int
+    type_map : int #Odd variable! 0x08 = dead, 0xC00 = boss, 0x40000 = spirit, 0x400000 = player
+    h0160 : list[int]
+    in_spirit_range : int #Tells if agent is within spirit range of you. Doesn't work anymore?
+    visible_effects_list : GW_TList  # TList<VisibleEffect>
+    h0180 : int
+    login_number : int #Unique number in instance that only works for players
+    animation_speed : float #Speed of the current animation
+    animation_code : int #related to animations
+    animation_id : int   #Id of the current animation
+    h0194 : list[int]
+    dagger_status : int            #0x1 = used lead attack, 0x2
+    allegiance : int               #Constants::Allegiance; 0x1 = ally/non-attackable, 0x2 = neutral, 0x3 = enemy, 0x4 = spirit/pet, 0x5 = minion, 0x6 = npc/minipet
+    weapon_type : int             #1=bow, 2=axe, 3=hammer, 4=daggers, 5=scythe, 6=spear, 7=sWORD, 10=wand, 12=staff, 14=staff
+    skill : int                   #0 = not using a skill. Anything else is the Id of
+    h01BA : int
+    weapon_item_type : int
+    offhand_item_type : int
+    weapon_item_id : int
+    offhand_item_id : int
 
     @property
-    def gadget_name_encoded_str(self) -> str | None:...
-    @property
-    def gadget_name_str(self) -> str | None:...
+    def equipment(self) -> Optional[EquipmentStruct]:...
     
-class AgentSummaryInfo():
-    h0000: int
+    @property
+    def tags(self) ->  Optional[TagInfoStruct]:...
+    
+    @property
+    def visible_effects(self) -> List[VisibleEffectStruct]:...
+    @property
+    def is_bleeding(self) -> bool:...
+    @property
+    def is_conditioned(self) -> bool:...
+    @property
+    def is_crippled(self) -> bool:...
+    @property
+    def is_dead(self) -> bool:...
+    @property
+    def is_deep_wounded(self) -> bool:...
+    @property
+    def is_poisoned(self) -> bool:...
+    @property
+    def is_enchanted(self) -> bool:...
+    @property
+    def is_degen_hexed(self) -> bool:...
+    @property
+    def is_hexed(self) -> bool:...
+    @property
+    def is_weapon_spelled(self) -> bool:...
+    @property
+    def is_in_combat_stance(self) -> bool:...
+    @property
+    def has_quest(self) -> bool:...
+    @property
+    def is_dead_by_type_map(self) -> bool:...
+    @property
+    def is_female(self) -> bool:...
+    @property
+    def has_boss_glow(self) -> bool:...
+    @property
+    def is_hiding_cape(self) -> bool:...
+    
+    @property
+    def can_be_viewed_in_party_window(self) -> bool:...
+    
+    @property
+    def is_spawned(self) -> bool:  ...
+    @property
+    def is_being_observed(self) -> bool:...
+    
+    @property
+    def is_knocked_down(self) -> bool:...
+    @property
+    def is_moving(self) -> bool:...
+    
+    @property
+    def is_attacking(self) -> bool:...
+    @property
+    def is_casting(self) -> bool:...
+    
+    @property
+    def is_idle(self) -> bool:...
+    
+    @property
+    def is_alive(self) -> bool:...
+    @property 
+    def is_player(self) -> bool:...
+    @property
+    def is_npc(self) -> bool:...
+    
+class AgentStruct():
+    vtable_ptr: CPointer[int]
     h0004: int
-    extra_info_sub_ptr: CPointer[AgentSummaryInfoSub]
-    @property
-    def extra_info_sub(self) -> Optional[AgentSummaryInfoSub]:...
-    
-   
-class AgentMovement():
-    h0000: List[int]
+    h0008: int
+    h000C: list[int]
+    timer: int  # Agent Instance Timer (in Frames)
+    timer2: int
+    link_link: GW_TLink  # TLink<Agent>
+    link2_link: GW_TLink  # TLink<Agent>
     agent_id: int
-    h0010: List[int]
-    agentDef: int
-    h0020: List[int]
-    moving1: int
-    h003C: List[int]
-    moving2: int
-    h0048: List[int]
-    h0064: Vec3f
-    h0070: int
-    h0074: Vec3f
-    
-class AgentContextStruct():
-    h0000_array: GW_Array
-    h0010: List[int]
-    h0024: int
-    h0028: List[int]
-    h0030: int
-    h0034: List[int]
-    h003C: int
-    h0040: List[int]
-    h0048: int
-    h004C: List[int]
-    h0054: int
-    h0058: List[int]
-    h0084_array: GW_Array
-    h0094: int
-    agent_summary_info_array: GW_Array
-    h00A8_array: GW_Array
-    h00B8_array: GW_Array
-    rand1: int
-    rand2: int
-    h00D0: List[int]
-    agent_movement_array: GW_Array
-    h00F8_array: GW_Array
-    h0108: List[int]
-    h014C_array: GW_Array
-    h015C_array: GW_Array
-    h016C: List[int]
-    instance_timer: int
+    z: float  # Z coord in float
+    width1: float  # Width of the model's box
+    height1: float  # Height of the model's box
+    width2: float  # Width of the model's box (same as 1)
+    height2: float  # Height of the model's box (same as 1)
+    width3: float  # Width of the model's box (same as 1)
+    height3: float  # Height of the model's box (same as 1)
+    rotation_angle: float  # Rotation in radians from East (-pi to pi)
+    rotation_cos: float  # Cosine of rotation
+    rotation_sin: float  # Sine of rotation
+    name_properties: int  # Bitmap basically telling what the agent is
+    ground: int
+    h0060: int
+    terrain_normal: Vec3f
+    h0070: list[int]
+    pos : GamePos
+    h0080: list[int]
+    name_tag_x: float
+    name_tag_y: float
+    name_tag_z: float
+    visual_effects: int
+    h0092: int
+    h0094: list[int]
+    type: int  # Key field to determine the type of agent
+    velocity: Vec2f
+    h00A8: int
+    rotation_cos2: float
+    rotation_sin2: float
+    h00B4: list[int]
 
     @property
-    def h0000_ptrs(self) -> list[int] | None:...
+    def vtable(self) -> int:...
+      
+    @property 
+    def is_item_type(self) -> bool:...
+    
     @property
-    def h0084_ptrs(self) -> list[int] | None:...
+    def is_gadget_type(self) -> bool:...
+    
     @property
-    def agent_summary_info_list(self) -> list[AgentSummaryInfo] | None:...
+    def is_living_type(self) -> bool:...
+    
+    def GetAsAgentItem(self) -> Optional[AgentItemStruct]:...
+
+    def GetAsAgentGadget(self) -> Optional[AgentGadgetStruct]:...
+
+    def GetAsAgentLiving(self) -> Optional[AgentLivingStruct]:...
+    
+class AgentArrayStruct():
+    agent_array: GW_Array
+
+    def _ensure_fields(self):...
+        
     @property
-    def h00A8_ptrs(self) -> list[int] | None:...
-    @property
-    def h00B8_ptrs(self) -> list[int] | None:...
-    @property
-    def agent_movement_ptrs(self) -> list[AgentMovement] | None:...
-    @property
-    def h00F8_ptrs(self) -> list[int] | None:...
-    @property
-    def h014C_ptrs(self) -> list[int] | None:...
-    @property
-    def h015C_ptrs(self) -> list[int] | None:...
+    def raw_agents(self) -> list[AgentStruct | None]:...
+    def _ensure_cache_up_to_date(self):...   
+    def _iter_valid_agents(self):...
+    def _build_allegiance_cache(self):...
+    def GetAgentArray(self) -> list[int]:...
+    def GetAllyArray(self) -> list[int]:...
+    def GetNeutralArray(self) -> list[int]:...
+    def GetEnemyArray(self) -> list[int]:...
+    def GetSpiritPetArray(self) -> list[int]:...
+    def GetMinionArray(self) -> list[int]:...
+    def GetNPCMinipetArray(self) -> list[int]:...
+    def GetItemAgentArray(self) -> list[int]:...
+    def GetOwnedItemAgentArray(self) -> list[int]:...
+    def GetGadgetAgentArray(self) -> list[int]:...
+    def GetDeadAllyArray(self) -> list[int]:...
+    def GetDeadEnemyArray(self) -> list[int]:...
+    def GetLivingAgentArray(self) -> list[int]:...
+    
+    def GetAgentByID(self, agent_id: int) -> Optional[AgentStruct]:...
+    def GetLivingAgents(self) -> list[AgentStruct]:...
+    def GetItemAgents(self) -> list[AgentStruct]:...
+    def GetGadgetAgents(self) -> list[AgentStruct]:...
     
     
-    
-class AgentContext:
+
+class AgentArray:
     @staticmethod
-    def get_ptr() -> int:... 
+    def get_ptr() -> int:...  
     @staticmethod
     def _update_ptr():...
     @staticmethod
     def enable():...
+
     @staticmethod
     def disable():...
+
     @staticmethod
-    def get_context() -> AgentContextStruct | None:...
+    def get_context() -> AgentArrayStruct | None:...
+        
         

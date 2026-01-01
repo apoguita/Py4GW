@@ -79,13 +79,13 @@ def get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=False):
     agent_array = AgentArray.GetItemArray()
 
     item_array_model = AgentArray.Filter.ByCondition(
-        agent_array, lambda agent_id: Item.GetModelID(Agent.GetItemAgent(agent_id).item_id) in viable_loot
+        agent_array, lambda agent_id: Item.GetModelID(Agent.GetItemAgentItemID(agent_id)) in viable_loot
     )
 
     item_array_salv = []
     if loot_salvagables:
         item_array_salv = AgentArray.Filter.ByCondition(
-            agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgent(agent_id).item_id)
+            agent_array, lambda agent_id: Item.Usage.IsSalvageable(Agent.GetItemAgentItemID(agent_id))
         )
 
     item_array = list(set(item_array_model + item_array_salv))
@@ -94,8 +94,8 @@ def get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=False):
     # return item_array
     filtered_agent_ids = []
     for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-        item_data = Agent.GetItemAgent(agent_id)
-        item_id = item_data.item_id
+        item_id = Agent.GetItemAgentItemID(agent_id)
+        item_id = item_id
         model_id = Item.GetModelID(item_id)
         if model_id in viable_loot and is_valid_item(agent_id):
             # Black and White Dyes

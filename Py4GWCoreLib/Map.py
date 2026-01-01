@@ -8,6 +8,7 @@ from .enums_src.Map_enums import (InstanceTypeName)
 from .native_src.internals.types import Vec2f
 
 
+
 import PyMissionMap
 import PyPathing
 import PyOverlay
@@ -138,7 +139,7 @@ class Map:
     @staticmethod
     def GetInstanceUptime() -> int:
         """Retrieve the uptime of the current instance."""
-        if not (agent_context := GWContext.Agent.GetContext()):
+        if not (agent_context := GWContext.AccAgent.GetContext()):
             return 0
         return agent_context.instance_timer
     
@@ -1065,19 +1066,18 @@ class Map:
                 return Map.MissionMap.MapProjection.ScreenToWorldMap(screen_x, screen_y, zoom_offset)
             
             @staticmethod
-            def NormalizedScreenToGameMap(x, y, zoom_offset=0.0) -> tuple[float, float]:
+            def NormalizedScreenToGamePos(x, y) -> tuple[float, float]:
                 """Convert normalized screen coordinates [-1, 1] to game-space coordinates (gwinches).
                 Args:
                     x (float): The normalized x-coordinate in [-1, 1].
                     y (float): The normalized y-coordinate in [-1, 1].
-                    zoom_offset (float, optional): The zoom offset. Defaults to 0.0.
                 Returns:
                     tuple[float, float]: The corresponding coordinates in game-space (gwinches).
                 """
                 #game_map_pos = PyOverlay.Overlay().NormalizedScreenToGameMap(x, y)
                 #return game_map_pos.x, game_map_pos.y
-                world_x, world_y = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(x, y, zoom_offset)
-                return Map.MissionMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+                world_x, world_y = Map.MissionMap.MapProjection.NormalizedScreenToScreen(x, y)
+                return Map.MissionMap.MapProjection.ScreenToGamePos(world_x, world_y)
              
             @staticmethod
             def GamePosToNormalizedScreen(x, y) -> tuple[float, float]:
@@ -1228,7 +1228,8 @@ class Map:
                     Map.MiniMap.last_left_clicked_timestamp = event["timestamp"]
                     return Map.MiniMap.last_left_clicked_coords
             
-            return Map.MiniMap.last_left_clicked_coords
+            #return Map.MiniMap.last_left_clicked_coords
+            return Map.MiniMap.MapProjection.ScreenToNormalizedScreen(*Map.MiniMap.last_left_clicked_coords)
         
         @staticmethod
         def GetLastRightClickCoords() -> tuple[float, float]:
@@ -1252,7 +1253,8 @@ class Map:
                     Map.MiniMap.last_right_clicked_timestamp = event["timestamp"]
                     return Map.MiniMap.last_right_clicked_coords
             
-            return Map.MiniMap.last_right_clicked_coords
+            #return Map.MiniMap.last_right_clicked_coords
+            return Map.MiniMap.MapProjection.ScreenToNormalizedScreen(*Map.MiniMap.last_right_clicked_coords)
         
         @staticmethod
         def GetWindowCoords():
@@ -1324,6 +1326,7 @@ class Map:
 
             return center_x, center_y
         
+        #region projection methods
         class MapProjection:
             @staticmethod
             def GamePosToWorldMap(x: float, y: float):
@@ -1397,11 +1400,11 @@ class Map:
                 pan_offset_x, pan_offset_y = Map.MiniMap.GetPanOffset()
 
                 # Invert transform from screen space back to world space
-                offset_x = (screen_x - center_x) / (zoom * scale)
-                offset_y = (screen_y - center_y) / (zoom * scale)
+                scaled_x = (screen_x - center_x) / zoom
+                scaled_y = (screen_y - center_y) / zoom
 
-                world_x = pan_offset_x + offset_x
-                world_y = pan_offset_y + offset_y
+                world_x = (scaled_x / scale) + pan_offset_x
+                world_y = (scaled_y / scale) + pan_offset_y
 
                 return world_x, world_y
             
@@ -1418,7 +1421,7 @@ class Map:
             @staticmethod
             def NormalizedScreenToScreen(x, y):
                 # Convert from [-1, 1] to [0, 1] with Y-inversion
-                norm_x, norm_y = Map.MiniMap.GetLastClickCoords()
+                norm_x, norm_y = x,y
                 adjusted_x = (norm_x + 1.0) * 0.5
                 adjusted_y = (1.0 - norm_y) * 0.5
 
@@ -1457,9 +1460,9 @@ class Map:
                 return Map.MiniMap.MapProjection.ScreenToWorldMap(screen_x, screen_y)
             
             @staticmethod
-            def NormalizedScreenToGameMap(x, y):
-                world_x, world_y = Map.MiniMap.MapProjection.NormalizedScreenToWorldMap(x, y)
-                return Map.MiniMap.MapProjection.WorldMapToGamePos(world_x, world_y)
+            def NormalizedScreenToGamePos(x, y):
+                world_x, world_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(x, y)
+                return Map.MiniMap.MapProjection.ScreenToGamePos(world_x, world_y)
              
             @staticmethod
             def GamePosToNormalizedScreen(x, y):
@@ -1589,7 +1592,233 @@ class Map:
 
                 return x_offset, y_offset, zoom
   
+#region WorldMap
+    class WorldMap:
+        last_right_clicked_coords: tuple[float, float] = (0.0, 0.0)
+        last_right_clicked_timestamp: int = 0
+        last_left_clicked_coords: tuple[float, float] = (0.0, 0.0)
+        last_left_clicked_timestamp: int = 0
+        @staticmethod
+        def GetFrameID():
+            """Get the frame ID of the mini map."""
+            if not (world_map_ctx := GWContext.WorldMap.GetContext()):
+                return 0
+            return world_map_ctx.frame_id
+        
+        @staticmethod
+        def GetFrameInfo() -> FrameInfo | None:
+            """Get the frame info of the mission map."""
+            if not (frame_id := Map.WorldMap.GetFrameID()):
+                return None
+            return FrameInfo(FrameID_source=frame_id)
+        
+        @staticmethod
+        def IsWindowOpen() -> bool:
+            """Check if the mission map window is open."""
+            if not (frame_info := Map.WorldMap.GetFrameInfo()):
+                return False
+            return frame_info.FrameExists()
+        
+        @staticmethod
+        def OpenWindow():
+            """Open the mission map window."""
+            from Py4GWCoreLib import GLOBAL_CACHE, Routines
+            if Map.WorldMap.IsWindowOpen():
+                return
+            GLOBAL_CACHE.Coroutines.append(Routines.Yield.Keybinds.OpenWorldMap())
+            
+        @staticmethod
+        def CloseWindow():
+            """Close the mission map window."""
+            from Py4GWCoreLib import GLOBAL_CACHE, Routines
+            if not (frame_info := Map.WorldMap.GetFrameInfo()):
+                return
+            GLOBAL_CACHE.Coroutines.append(Routines.Yield.Keybinds.OpenWorldMap())
+            
+        @staticmethod
+        def IsMouseOver() -> bool:
+            """Check if the mouse is hovering over the mission map."""
+            if not (frame_info := Map.WorldMap.GetFrameInfo()):
+                return False
+            return frame_info.IsMouseOver()
+        
+        @staticmethod
+        def GetLastClickCoords() -> tuple[float, float]:
+            """Get the last left click coordinates on the mission map."""
+            if not (frame_info := Map.WorldMap.GetFrameInfo()):
+                return 0.0, 0.0
+            
+            io_events: list[UIManager.IOEvent] = frame_info.GetIOEvents()
+            if len(io_events) == 0:
+                return Map.WorldMap.last_left_clicked_coords
+            
+            for event in io_events:
+                if event is None:
+                    return Map.WorldMap.last_left_clicked_coords
+                
+                if event["event_type"] != "left_mouse_clicked":
+                    continue
+                
+                if event["timestamp"] != Map.WorldMap.last_left_clicked_timestamp:
+                    Map.WorldMap.last_left_clicked_coords = event["mouse_pos"]
+                    Map.WorldMap.last_left_clicked_timestamp = event["timestamp"]
+                    return Map.WorldMap.last_left_clicked_coords
+            
+            return Map.WorldMap.last_left_clicked_coords
 
+        @staticmethod
+        def GetLastRightClickCoords() -> tuple[float, float]:
+            """Get the last right click coordinates on the mission map."""
+            if not (frame_info := Map.WorldMap.GetFrameInfo()):
+                return 0.0, 0.0
+            
+            io_events: list[UIManager.IOEvent] = frame_info.GetIOEvents()
+            if len(io_events) == 0:
+                return Map.WorldMap.last_right_clicked_coords
+            
+            for event in io_events:
+                if event is None:
+                    return Map.WorldMap.last_right_clicked_coords
+                
+                if event["event_type"] != "right_mouse_clicked":
+                    continue
+                
+                if event["timestamp"] != Map.WorldMap.last_right_clicked_timestamp:       
+                    Map.WorldMap.last_right_clicked_coords = event["mouse_pos"]
+                    Map.WorldMap.last_right_clicked_timestamp = event["timestamp"]
+                    return Map.WorldMap.last_right_clicked_coords
+            
+            return Map.WorldMap.last_right_clicked_coords
+        
+        @staticmethod
+        def GetWindowCoords():
+            """Get the coordinates of the mini map."""
+            if not (world_map_ctx := GWContext.WorldMap.GetContext()):
+                return 0.0, 0.0, 0.0, 0.0
+            
+            top_left = world_map_ctx.top_left
+            bottom_right = world_map_ctx.bottom_right
+            
+            return top_left.x, top_left.y, bottom_right.x, bottom_right.y
+        
+        @staticmethod
+        def GetZoom():
+            """Get the zoom level of the world map."""
+            if not (world_map_ctx := GWContext.WorldMap.GetContext()):
+                return 1.0
+            return world_map_ctx.zoom
+        
+        @staticmethod
+        def GetParams() -> list[int] | None:
+            """Get the parameters of the world map."""
+            if not (world_map_ctx := GWContext.WorldMap.GetContext()):
+                return None
+            return world_map_ctx.params
+        
+        @staticmethod
+        def GetExtraData() -> dict | None:
+            import ctypes
+            """Dump all misc fields (hXXXX + params) from WorldMapContext."""
+            ctx = GWContext.WorldMap.GetContext()
+            if not ctx:
+                return None
+
+            base_addr = ctypes.addressof(ctx)  # <-- raw starting address of the struct
+            result = {}
+
+            # ---- misc values at fixed offsets ----
+            misc_layout = [
+                (0x0004, "h0004", ctypes.c_uint32),
+                (0x0008, "h0008", ctypes.c_uint32),
+                (0x000C, "h000c", ctypes.c_float),
+                (0x0010, "h0010", ctypes.c_float),
+                (0x0014, "h0014", ctypes.c_uint32),
+                (0x0018, "h0018", ctypes.c_float),
+                (0x001C, "h001c", ctypes.c_float),
+                (0x0020, "h0020", ctypes.c_float),
+                (0x0024, "h0024", ctypes.c_float),
+                (0x0028, "h0028", ctypes.c_float),
+                (0x002C, "h002c", ctypes.c_float),
+                (0x0030, "h0030", ctypes.c_float),
+                (0x0034, "h0034", ctypes.c_float),
+                (0x0068, "h0068", ctypes.c_float),
+                (0x006C, "h006c", ctypes.c_float),
+            ]
+
+            for offset, name, ctype in misc_layout:
+                addr = base_addr + offset
+                raw_ptr = ctypes.cast(addr, ctypes.POINTER(ctype))
+                result[name] = raw_ptr.contents.value
+                
+            # ---- array h004c ----
+            h004c_offset = 0x004C
+            h004c_count  = 7
+            h004c        = []
+
+            for i in range(h004c_count):
+                addr = base_addr + h004c_offset + (i * ctypes.sizeof(ctypes.c_uint32))
+                raw_ptr = ctypes.cast(addr, ctypes.POINTER(ctypes.c_uint32))
+                h004c.append(raw_ptr.contents.value)
+
+            result["h004c"] = h004c
+
+            return result
+        
+#region Pregame
+    class Pregame:
+        from .native_src.context.PreGameContext import PreGameContextStruct, LoginCharacter
+        
+        last_right_clicked_coords: tuple[float, float] = (0.0, 0.0)
+        last_right_clicked_timestamp: int = 0
+        last_left_clicked_coords: tuple[float, float] = (0.0, 0.0)
+        last_left_clicked_timestamp: int = 0
+        
+        @staticmethod
+        def GetFrameID():
+            """Get the frame ID of the mini map."""
+            if not (world_map_ctx := GWContext.PreGame.GetContext()):
+                return 0
+            return world_map_ctx.frame_id
+        
+        @staticmethod
+        def GetFrameInfo() -> FrameInfo | None:
+            """Get the frame info of the mission map."""
+            if not (frame_id := Map.Pregame.GetFrameID()):
+                return None
+            return FrameInfo(FrameID_source=frame_id)
+        
+        @staticmethod
+        def IsWindowOpen() -> bool:
+            """Check if the mission map window is open."""
+            if not (frame_info := Map.Pregame.GetFrameInfo()):
+                return False
+            return frame_info.FrameExists()
+            
+        @staticmethod
+        def LogOutToCharachterSelect():
+            """Log out to character selection from pregame map."""
+            from Py4GWCoreLib import GLOBAL_CACHE
+            GLOBAL_CACHE.Player.LogoutToCharacterSelect()
+        
+        @staticmethod
+        def GetChosenCharacterIndex() -> int:
+            """Get the chosen character index from pregame map."""
+            if not (pre_game_ctx := GWContext.PreGame.GetContext()):
+                return -1
+            return pre_game_ctx.chosen_character_index
+        
+        @staticmethod
+        def GetContextStruct() -> PreGameContextStruct | None:
+            """Get the pregame map context structure."""
+            return GWContext.PreGame.GetContext()
+        
+        @staticmethod
+        def GetCharList() -> List[LoginCharacter]:
+            """Get the character list from pregame map."""
+            if not (pre_game_ctx := GWContext.PreGame.GetContext()):
+                return []
+            return pre_game_ctx.chars_list
+            
 #region not_processed
     #region Pathing
     class Pathing:

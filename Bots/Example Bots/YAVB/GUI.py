@@ -331,8 +331,7 @@ class YAVB_GUI:
 
                                     PyImGui.separator()
                                     for agent_id in filtered_agent_ids:
-                                        item_data = Agent.GetItemAgent(agent_id)
-                                        item_id = item_data.item_id
+                                        item_id = Agent.GetItemAgentItemID(agent_id)
                                         model_id = Item.GetModelID(item_id)
                                         name = GLOBAL_CACHE.Agent.GetName(agent_id)
                                         PyImGui.text(f"agent_id: {agent_id}, name: {name}, item_id: {item_id}, model_id: {model_id}")

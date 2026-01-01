@@ -220,6 +220,7 @@ def HandleInventory(bot: Botting) -> None:
     bot.Items.Restock.BirthdayCupcake() #restock birthday cupcake
     
 def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150):
+    from Py4GWCoreLib.Agent import Agent
     """
     Shared logic for waiting until enemies have balled up.
     side_label is just used for logging ("Left" / "Right").
@@ -255,10 +256,11 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
             # Check if all enemies are within Adjacent range
             all_in_adjacent = True
             for enemy_id in enemies_ids:
-                enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+                
+                enemy = Agent.GetAgentByID(enemy_id)
                 if enemy is None:
                     continue
-                dx, dy = enemy.x - px, enemy.y - py
+                dx, dy = enemy.pos.x - px, enemy.pos.y - py
                 if dx * dx + dy * dy > (Range.Adjacent.value ** 2):
                     all_in_adjacent = False
                     break

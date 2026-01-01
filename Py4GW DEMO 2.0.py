@@ -1,5 +1,6 @@
 import PyImGui
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.py4gwcorelib_src.Timer import FormatTime
 from Py4GWCoreLib.UIManager import FrameInfo, UIManager
@@ -12,6 +13,7 @@ MODULE_NAME = "Py4GW DEMO 2.0"
 
 VIEW_LIST = [
     "Map",
+    "Agents",
 ]
 
 SECTION_INFO = {
@@ -258,12 +260,12 @@ def draw_mission_map_tab():
         nx, ny = Map.MissionMap.GetLastClickCoords()
         sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
         wx, wy = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(nx, ny)
-        gx, gy = Map.MissionMap.MapProjection.NormalizedScreenToGameMap(nx, ny)
+        gx, gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(nx, ny)
         
         r_nx, r_ny = Map.MissionMap.GetLastRightClickCoords()
         r_sx, r_sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(r_nx, r_ny)  
         r_wx, r_wy = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(r_nx, r_ny)
-        r_gx, r_gy = Map.MissionMap.MapProjection.NormalizedScreenToGameMap(r_nx, r_ny)
+        r_gx, r_gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(r_nx, r_ny)
         
         pan_offset = Map.MissionMap.GetPanOffset()
         player_world_pos = Player.GetXY()
@@ -445,7 +447,7 @@ def draw_mission_map_tab():
                 PyImGui.unindent(20.0)
             
             
-#region mission_map_tab
+#region mini_map_tab
 def draw_mini_map_tab():
     if not Map.MiniMap.IsWindowOpen():
         PyImGui.text("Mini Map window is not open.")
@@ -464,15 +466,13 @@ def draw_mini_map_tab():
         zoom = Map.MiniMap.GetZoom()
         map_center_screen = Map.MiniMap.GetMapScreenCenter()
         
-        nx, ny = Map.MiniMap.GetLastClickCoords()
-        sx, sy = Map.MiniMap.MapProjection.ScreenToNormalizedScreen(nx, ny)
-        wx, wy = Map.MiniMap.MapProjection.NormalizedScreenToWorldMap(nx, ny)
-        gx, gy = Map.MiniMap.MapProjection.NormalizedScreenToGameMap(nx, ny)
+        normalized_mouse_x, normalized_mouse_y = Map.MiniMap.GetLastClickCoords()
+        screen_mouse_x, screen_mouse_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(normalized_mouse_x, normalized_mouse_y)
+        gamepos_mouse_x, gamepos_mouse_y = Map.MiniMap.MapProjection.ScreenToGamePos(screen_mouse_x, screen_mouse_y)
         
-        r_nx, r_ny = Map.MiniMap.GetLastRightClickCoords()
-        r_sx, r_sy = Map.MiniMap.MapProjection.ScreenToNormalizedScreen(r_nx, r_ny)  
-        r_wx, r_wy = Map.MiniMap.MapProjection.NormalizedScreenToWorldMap(r_nx, r_ny)
-        r_gx, r_gy = Map.MiniMap.MapProjection.NormalizedScreenToGameMap(r_nx, r_ny)
+        normalized_right_mouse_x, normalized_right_mouse_y = Map.MiniMap.GetLastRightClickCoords()
+        screen_right_mouse_x, screen_right_mouse_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(normalized_right_mouse_x, normalized_right_mouse_y)  
+        gamepos_right_mouse_x, gamepos_right_mouse_y = Map.MiniMap.MapProjection.ScreenToGamePos(screen_right_mouse_x, screen_right_mouse_y)
         
         pan_offset = Map.MiniMap.GetPanOffset()
         player_game_pos = Player.GetXY()
@@ -490,8 +490,12 @@ def draw_mini_map_tab():
                 ("Zoom", f"{zoom}"),
                 ("Map Screen Center (x, y)", f"{map_center_screen}"),
 
-                ("Last Click (screen):", f"({nx:.3f}, {ny:.3f})"),   
-                ("Last Right Click (screen):", f"({r_nx:.3f}, {r_ny:.3f})"),
+                ("Last Click (normalized):", f"({normalized_mouse_x:.3f}, {normalized_mouse_y:.3f})"),   
+                ("Last Click (screen):", f"({screen_mouse_x:.1f}, {screen_mouse_y:.1f})"),
+                ("Last Click (game):", f"({gamepos_mouse_x:.1f}, {gamepos_mouse_y:.1f})"),
+                ("Last Right Click (normalized):", f"({normalized_right_mouse_x:.3f}, {normalized_right_mouse_y:.3f})"),
+                ("Last Right Click (screen):", f"({screen_right_mouse_x:.1f}, {screen_right_mouse_y:.1f})"),
+                ("Last Right Click (game):", f"({gamepos_right_mouse_x:.1f}, {gamepos_right_mouse_y:.1f})"),
 
                 ("Pan Offset (x, y)", f"{pan_offset[0]:.1f}, {pan_offset[1]:.1f}"),
                 ("Player World Position (x, y)", f"{player_game_pos[0]:.1f}, {player_game_pos[1]:.1f}"),
@@ -531,9 +535,8 @@ def draw_mini_map_tab():
                 dc_color = map_vars.MissionMap.draw_last_click_pos.color.to_color()
                 PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
                 if map_vars.MissionMap.draw_last_click_pos.visible:
-                    #sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
                     Overlay().BeginDraw()
-                    Overlay().DrawPoly(nx, ny, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_click_pos.thickness)
+                    Overlay().DrawPoly(screen_mouse_x, screen_mouse_y, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_click_pos.thickness)
                     Overlay().EndDraw()
                     def DrawFlagAll(pos_x, pos_y):
                         overlay = Overlay()
@@ -549,7 +552,7 @@ def draw_mini_map_tab():
                         )
 
                         overlay.EndDraw()
-                    DrawFlagAll(gx, gy)
+                    DrawFlagAll(gamepos_mouse_x, gamepos_mouse_y)
                 PyImGui.unindent(20.0)
                 
             #================ Last Right Click Position Options ================
@@ -565,9 +568,8 @@ def draw_mini_map_tab():
                 dc_color = map_vars.MissionMap.draw_last_right_click_pos.color.to_color()
                 PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
                 if map_vars.MissionMap.draw_last_right_click_pos.visible:
-                    #r_sx, r_sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(r_nx, r_ny)
                     Overlay().BeginDraw()
-                    Overlay().DrawPoly(r_nx, r_ny, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_right_click_pos.thickness)
+                    Overlay().DrawPoly(screen_right_mouse_x, screen_right_mouse_y, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_right_click_pos.thickness)
                     Overlay().EndDraw()
                     def DrawFlagAll(pos_x, pos_y):
                         overlay = Overlay()
@@ -583,7 +585,7 @@ def draw_mini_map_tab():
                         )
 
                         overlay.EndDraw()
-                    DrawFlagAll(r_gx, r_gy)
+                    DrawFlagAll(gamepos_right_mouse_x, gamepos_right_mouse_y)
                 PyImGui.unindent(20.0)
                 
                  
@@ -624,6 +626,156 @@ def draw_mini_map_tab():
                 PyImGui.unindent(20.0)
               
                 
+#region mini_map_tab
+def draw_world_map_tab():
+    if not Map.WorldMap.IsWindowOpen():
+        PyImGui.text("World Map window is not open.")
+        if PyImGui.button("Open World Map"):
+            Map.WorldMap.OpenWindow()
+    else:
+        if PyImGui.button("Close World Map"):
+            Map.WorldMap.CloseWindow()
+            
+        if PyImGui.collapsing_header("World Map Data:"):
+            frame_id = Map.WorldMap.GetFrameID()
+            is_mouse_over = Map.WorldMap.IsMouseOver()
+            mm_coords = Map.WorldMap.GetWindowCoords()
+            zoom = Map.WorldMap.GetZoom()
+
+            screen_mouse_x, screen_mouse_y = Map.WorldMap.GetLastClickCoords()
+            screen_right_mouse_x, screen_right_mouse_y = Map.WorldMap.GetLastRightClickCoords()
+
+            # --- simple scalar rows ---
+            rows: list[tuple[str, str | int | float]] = [
+                ("frame_id",               f"{frame_id}"),
+                ("Is Mouse Over",          f"{is_mouse_over}"),
+                ("Coords (l,t,r,b)",       f"{mm_coords}"),
+                ("Zoom",                   f"{zoom:.3f}"),
+                ("Last Click (screen)",    f"({screen_mouse_x:.3f}, {screen_mouse_y:.3f})"),
+                ("Last Right Click",       f"({screen_right_mouse_x:.3f}, {screen_right_mouse_y:.3f})"),
+            ]
+
+            draw_kv_table("WorldMapPrimary", rows)
+            PyImGui.separator()
+
+            # --- params section ---
+            params = Map.WorldMap.GetParams()
+            if params:
+                if PyImGui.collapsing_header("Params (uint32 values)"):
+                    PyImGui.begin_table("ParamsTable", 2, PyImGui.TableFlags.Borders)
+                    PyImGui.table_setup_column("Index")
+                    PyImGui.table_setup_column("Value")
+                    PyImGui.table_headers_row()
+
+                    for i, val in enumerate(params):
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column(); PyImGui.text(f"[{i:03d}]")
+                        PyImGui.table_next_column(); PyImGui.text(f"{val}")
+
+                    PyImGui.end_table()
+                    PyImGui.separator()
+
+            # --- extra data as KV list ---
+            extra_data = Map.WorldMap.GetExtraData()
+            if extra_data:
+                if PyImGui.collapsing_header("Extra Data"):
+                    PyImGui.begin_table("ExtraDataTable", 2, PyImGui.TableFlags.Borders)
+                    for key, value in extra_data.items():
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column(); PyImGui.text(f"{key}")
+                        PyImGui.table_next_column(); PyImGui.text(f"{value}")
+                    PyImGui.end_table()
+                    
+def draw_pregame_tab():
+    if not Map.Pregame.IsWindowOpen():
+        PyImGui.text("Pregame context not ready.")
+        if PyImGui.button("Log Out to Character Select"):
+            Map.Pregame.LogOutToCharachterSelect()
+            print ("clicked")
+    else:
+        if PyImGui.collapsing_header("Pregame Data:"):
+            frame_id = Map.Pregame.GetFrameID()
+            chosen_character_index = Map.Pregame.GetChosenCharacterIndex()
+            
+            character_list = Map.Pregame.GetCharList()
+            
+            chosen_char = character_list[chosen_character_index] if (0 <= chosen_character_index < len(character_list)) else None
+            chosen_char_name = chosen_char.character_name if chosen_char else "N/A"
+            chosen_char_level = chosen_char.level if chosen_char else "N/A"
+            chosen_char_current_map_id = chosen_char.current_map_id if chosen_char else "N/A"
+
+            # --- simple scalar rows ---
+            rows: list[tuple[str, str | int | float]] = [
+                ("frame_id",               f"{frame_id}"),
+                
+                ("Chosen Character Index", f"{chosen_character_index}"),
+                ("Chosen Character Name",  f"{chosen_char_name}"),
+                ("Chosen Character Level", f"{chosen_char_level}"),
+                ("Chosen Character Current Map ID", f"{chosen_char_current_map_id} - {Map.GetMapName(chosen_char_current_map_id)}"),
+
+            ]
+
+            draw_kv_table("WorldMapPrimary", rows)
+            PyImGui.separator()
+            if PyImGui.collapsing_header("Extra Data:"):
+                context = Map.Pregame.GetContextStruct()
+                if context is None:
+                    PyImGui.text("Pregame context struct is not available.")
+                    return
+                
+                rows: list[tuple[str, str | int | float]] = [
+                    ("Unk01",           f"{list(context.Unk01)}"),
+                    ("h0054",          f"{context.h0054}"),
+                    ("h0058",          f"{context.h0058}"),
+                    ("Unk02_0",        f"{context.Unk02[0]} - {context.Unk02[1]}"),
+                    ("h0060",          f"{context.h0060}"),
+                    ("Unk03_0",        f"{context.Unk03[0]} - {context.Unk03[1]}"),
+                    ("h0068",          f"{context.h0068}"),
+                    ("Unk04",          f"{context.Unk04}"),
+                    ("h0070",          f"{context.h0070}"),
+                    ("Unk05",          f"{context.Unk05}"),
+                    ("h0078",          f"{context.h0078}"),
+                    ("Unk06",          f"{list(context.Unk06)}"),
+                    ("h00a0",          f"{context.h00a0}"),
+                    ("h00a4",          f"{context.h00a4}"),
+                    ("h00a8",          f"{context.h00a8}"),
+                    ("Unk07",          f"{list(context.Unk07)}"),
+                    ("Unk08",          f"{context.Unk08}"),
+                ]     
+                draw_kv_table("PregameExtraData", rows)
+                
+                PyImGui.separator()
+                
+            if PyImGui.collapsing_header("Character List:"):
+                for i, char in enumerate(character_list):
+                    if PyImGui.collapsing_header(f"Character {i}: {char.character_name}"):
+                        rows: list[tuple[str, str | int | float]] = [
+                            ("Index",                   f"{i}"),
+                            ("Character Name",          f"{char.character_name}"),
+                            ("Level",                   f"{char.level}"),
+                            ("Current Map ID",          f"{char.current_map_id} - {Map.GetMapName(char.current_map_id)}"),
+                        ]
+                        draw_kv_table(f"Character_{i}", rows)
+                        PyImGui.separator()
+                        
+                        if PyImGui.collapsing_header("extra_data"):
+                            rows: list[tuple[str, str | int | float]] = [
+                                ("Unk00",           f"{char.Unk00}"),
+                                ("pvp_or_campaign", f"{char.pvp_or_campaign}"),
+                                ("UnkPvPData01",    f"{char.UnkPvPData01}"),
+                                ("UnkPvPData02",    f"{char.UnkPvPData02}"),
+                                ("UnkPvPData03",    f"{char.UnkPvPData03}"),
+                                ("UnkPvPData04",    f"{char.UnkPvPData04}"),
+                                ("Unk01",           f"{list(char.Unk01)}"),
+                                ("Unk02",           f"{list(char.Unk02)}"),
+                            ]
+                            draw_kv_table(f"CharacterExtraData_{i}", rows)
+                            PyImGui.separator()
+                            
+  
+
+    
+
     
 def draw_map_data():
     global _selected_view, SECTION_INFO, map_vars
@@ -653,7 +805,31 @@ def draw_map_data():
             draw_mini_map_tab() # Mini Map Tab
                    
             PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("World Map##MapInfoWorldMapTab"):
+            
+            draw_world_map_tab() # World Map Tab
+                   
+            PyImGui.end_tab_item()
+            
+        if PyImGui.begin_tab_item("Pregame##MapInfoPregameTab"):
+            
+            draw_pregame_tab() # Pregame Tab
+                   
+            PyImGui.end_tab_item()
+            
         PyImGui.end_tab_bar()
+
+#region Agents
+def draw_agents_view():
+    PyImGui.text("Agents View")
+    player_agent_id = Player.GetAgentID()
+    agent = AgentArray.GetAgentByID(player_agent_id)
+    if agent is None:
+        PyImGui.text("Player agent not found.")
+        return
+    else:
+        PyImGui.text(f"Player Agent ID: {player_agent_id}")
+        PyImGui.separator()
     
 #region Main Window
 def draw_window():
@@ -693,6 +869,8 @@ def draw_window():
         
         if _selected_view == "Map":
             draw_map_data()
+        elif _selected_view == "Agents":
+            draw_agents_view()
 
         PyImGui.end_child()
 

@@ -110,7 +110,7 @@ class LootUtility(CustomSkillUtilityBase):
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6_000)
             if not follow_success:
                 print("Failed to follow path to loot item, halting.")
-                real_item_id = GLOBAL_CACHE.Agent.GetItemAgent(item_id).item_id
+                real_item_id = GLOBAL_CACHE.Agent.GetItemAgentItemID(item_id)
                 LootConfig().AddItemIDToBlacklist(real_item_id)
                 self.loot_cooldown_timer.Restart()
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
@@ -129,7 +129,7 @@ class LootUtility(CustomSkillUtilityBase):
 
             # 3) Check if we timed out and add to blacklist if so
             if pickup_timer.IsExpired():
-                real_item_id = GLOBAL_CACHE.Agent.GetItemAgent(item_id).item_id
+                real_item_id = GLOBAL_CACHE.Agent.GetItemAgentItemID(item_id)
                 LootConfig().AddItemIDToBlacklist(real_item_id)
                 self.loot_cooldown_timer.Restart()
 

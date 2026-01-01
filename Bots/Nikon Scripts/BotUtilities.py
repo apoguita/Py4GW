@@ -506,33 +506,32 @@ class ReportsProgress():
         agent = Agent.GetAgentByID(agentId)
 
         if agent:
-            item = Agent.GetItemAgent(agentId)
 
-            if item:
-                if item.owner_id != 0 and player_id != 0 and item.owner_id != player_id:
-                    return False
-                
-                model = Item.GetModelID(item.item_id)
+            item_id = Agent.GetItemAgentItemID(agentId)
+            if Agent.GetItemAgentOwnerID(agentId) != 0 and player_id != 0 and Agent.GetItemAgentOwnerID(agentId) != player_id:
+                return False
+            
+            model = Item.GetModelID(item_id)
 
-                if model == ModelID.Gold_Coins and self.collect_gold_coins:
-                    # Check should collect gold coins and this is gold coins
-                    onHand = Inventory.GetGoldOnCharacter()
-                    return onHand <= 99500
-                elif model == ModelID.Lockpick: # Just always pick these up for now
-                    return True
-                elif model == ModelID.Vial_Of_Dye and self.collect_dye_white_black:
-                    dye = Item.GetDyeColor(item.item_id)
-                    return dye == DyeColor.Black or dye == DyeColor.White
-                elif self.collect_event_items and model in EventItems_Array:
-                    # Check should collect event items and this is event item
-                    return True
-                else:
-                    # Check should collect color items and this is color item
-                    return (Item.Rarity.IsWhite(item.item_id) and self.collect_white_items) or \
-                            (Item.Rarity.IsBlue(item.item_id) and self.collect_blue_items) or \
-                            (Item.Rarity.IsPurple(item.item_id) and self.collect_grape_items) or \
-                            (Item.Rarity.IsGold(item.item_id) and self.collect_gold_items) or \
-                            (Item.Rarity.IsGreen(item.item_id) and self.collect_green_items)
+            if model == ModelID.Gold_Coins and self.collect_gold_coins:
+                # Check should collect gold coins and this is gold coins
+                onHand = Inventory.GetGoldOnCharacter()
+                return onHand <= 99500
+            elif model == ModelID.Lockpick: # Just always pick these up for now
+                return True
+            elif model == ModelID.Vial_Of_Dye and self.collect_dye_white_black:
+                dye = Item.GetDyeColor(item_id)
+                return dye == DyeColor.Black or dye == DyeColor.White
+            elif self.collect_event_items and model in EventItems_Array:
+                # Check should collect event items and this is event item
+                return True
+            else:
+                # Check should collect color items and this is color item
+                return (Item.Rarity.IsWhite(item_id) and self.collect_white_items) or \
+                        (Item.Rarity.IsBlue(item_id) and self.collect_blue_items) or \
+                        (Item.Rarity.IsPurple(item_id) and self.collect_grape_items) or \
+                        (Item.Rarity.IsGold(item_id) and self.collect_gold_items) or \
+                        (Item.Rarity.IsGreen(item_id) and self.collect_green_items)
             
         return False
 
@@ -1536,10 +1535,10 @@ def GetInventoryNonKeepItemsByModelId(keepItems = [], input = None):
             if model != ModelID.Vial_Of_Dye:
                 continue
             else:
-                itemAgent = Agent.GetItemAgent(item.agent_id)
+                extra_type = Agent.GetItemAgentExtraType(item.agent_id)
 
-                if itemAgent:
-                    if itemAgent.extra_type == DyeColor.Black or itemAgent.extra_type == DyeColor.White:
+                if extra_type:
+                    if extra_type == DyeColor.Black or extra_type == DyeColor.White:
                         continue
             
         sell_items.append(item)

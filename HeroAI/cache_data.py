@@ -85,12 +85,12 @@ class CacheData:
         Returns the attack speed of the current weapon.
         """
         weapon_type,_ = GLOBAL_CACHE.Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
-        player = GLOBAL_CACHE.Agent.GetAgentByID(GLOBAL_CACHE.Player.GetAgentID())
-        if player is None:
+        player_living = GLOBAL_CACHE.Agent.GetLivingAgentByID(GLOBAL_CACHE.Player.GetAgentID())
+        if player_living is None:
             return 0
         
-        attack_speed = player.living_agent.weapon_attack_speed
-        attack_speed_modifier = player.living_agent.attack_speed_modifier if player.living_agent.attack_speed_modifier != 0 else 1.0
+        attack_speed = player_living.weapon_attack_speed
+        attack_speed_modifier = player_living.attack_speed_modifier if player_living.attack_speed_modifier != 0 else 1.0
         
         if attack_speed == 0:
             match weapon_type:

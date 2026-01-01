@@ -11,10 +11,16 @@ class LoginCharacter(Structure):
     UnkPvPData03: int
     UnkPvPData04: int
     Unk01: list[int]
-    Level: int
+    level: int
     current_map_id: int
     Unk02: list[int]
-    character_name: str
+    character_name_enc: str
+    
+    @property
+    def character_name_encoded_string(self) -> str | None:...
+    
+    @property
+    def character_name(self) -> str | None:...
 
 class PreGameContextStruct(Structure):
     frame_id: int

@@ -376,6 +376,7 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
     side_label is just used for logging ("Left" / "Right").
     """
     global in_waiting_routine
+    from Py4GWCoreLib.Agent import Agent
     ConsoleLog(
         f"Waiting for {side_label} Aggro Ball", "Waiting for enemies to ball up.", Py4GW.Console.MessageType.Info
     )
@@ -406,10 +407,11 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
             # Check if all enemies are within Adjacent range
             all_in_adjacent = True
             for enemy_id in enemies_ids:
-                enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+                
+                enemy = Agent.GetAgentByID(enemy_id)
                 if enemy is None:
                     continue
-                dx, dy = enemy.x - px, enemy.y - py
+                dx, dy = enemy.pos.x - px, enemy.pos.y - py
                 if dx * dx + dy * dy > (Range.Adjacent.value**2):
                     all_in_adjacent = False
                     break
@@ -442,6 +444,7 @@ def wait_for_ball(bot: Botting, side_label: str, cycle_timeout: int = 150):
 
 
 def wait_for_right_aggro_ball(bot: Botting, use_hos_after=True):
+    from Py4GWCoreLib.Agent import Agent
     global in_waiting_routine
     ConsoleLog("Waiting for Right Aggro Ball", "Waiting for enemies to ball up.", Py4GW.Console.MessageType.Info)
 
@@ -463,10 +466,11 @@ def wait_for_right_aggro_ball(bot: Botting, use_hos_after=True):
         # Check if all enemies are within Adjacent range
         all_in_adjacent = True
         for enemy_id in enemies_ids:
-            enemy = GLOBAL_CACHE.Agent.GetAgent(enemy_id)
+            
+            enemy = Agent.GetAgentByID(enemy_id)
             if enemy is None:
                 continue
-            dx, dy = enemy.x - px, enemy.y - py
+            dx, dy = enemy.pos.x - px, enemy.pos.y - py
             if dx * dx + dy * dy > (Range.Adjacent.value**2):
                 all_in_adjacent = False
                 break

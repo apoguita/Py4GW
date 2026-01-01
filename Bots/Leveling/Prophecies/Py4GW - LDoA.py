@@ -671,7 +671,7 @@ def handle_loot():
     item_array = AgentArray.Filter.ByDistance(item_array, (my_x, my_y), item_distance)
 
     agent_to_item_map = {
-        agent_id: Agent.GetItemAgent(agent_id).item_id
+        agent_id: Agent.GetItemAgentItemID(agent_id)
         for agent_id in item_array
     }
 
@@ -713,7 +713,7 @@ def handle_lootFlower():
     item_array = AgentArray.Filter.ByDistance(item_array, (my_x, my_y), item_distance)
 
     agent_to_item_map = {
-        agent_id: Agent.GetItemAgent(agent_id).item_id
+        agent_id: Agent.GetItemAgentItemID(agent_id)
         for agent_id in item_array
     }
 
@@ -1198,7 +1198,7 @@ def handle_loot_baked_husk():
         item_array = AgentArray.Filter.ByDistance(item_array, (my_x, my_y), item_distance)
 
         agent_to_item_map = {
-            agent_id: Agent.GetItemAgent(agent_id).item_id
+            agent_id: Agent.GetItemAgentItemID(agent_id)
             for agent_id in item_array
         }
 

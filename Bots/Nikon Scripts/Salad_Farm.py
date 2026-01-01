@@ -1379,13 +1379,15 @@ class Salad_Farm(ReportsProgress):
     # If issues comment internals and call super().CanPickUp()
     def CanPickUp(self, agentId, player_id):
         # Check if our item is a Salad first, otherwise let base hangle it.
-        item = Agent.GetItemAgent(agentId)
 
-        if item:
-            if item.owner_id != 0 and player_id != 0 and item.owner_id != player_id:
+        item_owner_id = Agent.GetItemAgentOwnerID(agentId)
+        item_id = Agent.GetItemAgentItemID(agentId)
+
+        if item_owner_id:
+            if item_owner_id != 0 and player_id != 0 and item_owner_id != player_id:
                 return False
             
-            model = Item.GetModelID(item.item_id)
+            model = Item.GetModelID(item_id)
 
             if model == ModelID.Iboga_Petal:
                 return True
@@ -1404,8 +1406,7 @@ class Salad_Farm(ReportsProgress):
 
                 # Check if the current item has been picked up.
                 if self.current_lootable != 0:
-                    ag = Agent.GetAgentByID(self.current_lootable)
-                    test = ag.item_agent.agent_id
+                    test = Agent.GetItemAgentItemID(self.current_lootable)
 
                     if test != 0:
                         self.current_loot_tries += 1
@@ -1426,7 +1427,8 @@ class Salad_Farm(ReportsProgress):
                 if self.current_lootable != item:
                     self.current_lootable = item
 
-                model = Item.GetModelID(Agent.GetItemAgent(self.current_lootable).item_id)
+                item_id = Agent.GetItemAgentItemID(self.current_lootable)
+                model = Item.GetModelID(item_id)
 
                 if model == ModelID.Iboga_Petal:
                     self.salad_collected += 1

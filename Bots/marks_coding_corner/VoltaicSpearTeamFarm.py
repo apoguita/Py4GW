@@ -271,7 +271,9 @@ def handle_on_danger_flagging(bot: Botting):
 
         for agent_id in enemy_agent_ids:
             agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
-            dx, dy = agent.x - player_x, agent.y - player_y
+            if agent is None or not agent.is_living_type:
+                continue    
+            dx, dy = agent.pos.x - player_x, agent.pos.y - player_y
             dist_sq = dx * dx + dy * dy
             if dist_sq < nearest_enemy_dist_sq:
                 nearest_enemy_dist_sq = dist_sq
@@ -279,7 +281,7 @@ def handle_on_danger_flagging(bot: Botting):
 
         facing_angle = 0.0
         if nearest_enemy:
-            facing_angle = math.atan2(nearest_enemy.y - player_y, nearest_enemy.x - player_x)
+            facing_angle = math.atan2(nearest_enemy.pos.y - player_y, nearest_enemy.pos.x - player_x)
         angle_rad = facing_angle - math.pi / 2
 
         trigger_flagging = (

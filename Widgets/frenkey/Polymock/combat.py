@@ -3,7 +3,7 @@ import math
 from PyAgent import PyAgent
 from PySkillbar import SkillbarSkill
 import PySkillbar
-from Py4GWCoreLib import AgentArray
+from Py4GWCoreLib import AgentArray, Agent
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Keystroke, Utils
 from Py4GWCoreLib.Routines import Routines
@@ -268,10 +268,9 @@ class Combat:
         self.map_id = GLOBAL_CACHE.Map.GetMapID()
         self.map_name = GLOBAL_CACHE.Map.GetMapName() or "Unknown Map"
         self.target_id = target_id
-        self.target_agent = GLOBAL_CACHE.Agent.GetAgentByID(
-            self.target_id) if self.target_id > 0 else None
+        self.target_agent = GLOBAL_CACHE.Agent.GetAgentByID(self.target_id) if self.target_id > 0 else None
         self.target_name = GLOBAL_CACHE.Agent.GetName(
-            self.target_agent.id) if self.target_agent and self.target_agent.id > 0 else 'None'
+            self.target_agent.agent_id) if self.target_agent and self.target_agent.agent_id > 0 else 'None'
         self.target_allegiance = Allegiance(GLOBAL_CACHE.Agent.GetAllegiance(
             self.target_id)[0]) if self.target_agent else Allegiance.Neutral
         self.target_skill_id = GLOBAL_CACHE.Agent.GetCastingSkill(
