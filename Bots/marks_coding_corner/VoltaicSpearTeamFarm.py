@@ -15,6 +15,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import LootConfig
+from Py4GWCoreLib import Map
 
 from Py4GWCoreLib import ChatChannel
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import AssassinShadowTheftDaggerSpammer
@@ -26,7 +27,7 @@ BOT_NAME = "Voltaic Spear Farm [BETA]"
 TEXTURE = os.path.join(
     Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures", "voltaic_spear.png"
 )
-OUTPOST_TO_TRAVEL = GLOBAL_CACHE.Map.GetMapIDByName('Umbral Grotto')
+OUTPOST_TO_TRAVEL = Map.GetMapIDByName('Umbral Grotto')
 VERDANT_CASCADES_MAP_ID = 566
 SALVERS_EXILE_MAP_ID = 577
 JUSTICIAR_THOMMIS_ROOM_MAP_ID = 620
@@ -108,7 +109,7 @@ def _on_party_wipe(bot: "Botting"):
 
     bot.config.FSM.pause()
     # Check if within earshot
-    if GLOBAL_CACHE.Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
+    if Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
         if GLOBAL_CACHE.Party.IsPartyDefeated():
             yield from bot.helpers.Wait._for_time(10000)
             bot.config.FSM.jump_to_state_by_name("[H]Exit To Farm_3")
@@ -262,7 +263,7 @@ def handle_on_danger_flagging(bot: Botting):
             continue
 
         player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-        map_id = GLOBAL_CACHE.Map.GetMapID()
+        map_id = Map.GetMapID()
 
         # === Determine nearest enemy for facing angle ===
         enemy_agent_ids = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, Range.Earshot.value * 1.75)

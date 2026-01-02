@@ -94,14 +94,14 @@ class OnPartyDefeated(Event):
     
 class OnPartyWipe(Event):
     def should_trigger(self):
-        from Py4GWCoreLib import Routines, GLOBAL_CACHE
+        from Py4GWCoreLib import Routines, Map
         if not Routines.Checks.Map.MapValid():
             return False
         
         if not Routines.Checks.Map.IsExplorable():
             return False
         
-        map_uptime = GLOBAL_CACHE.Map.GetInstanceUptime()
+        map_uptime = Map.GetInstanceUptime()
         if map_uptime < 5000:
             return False
         

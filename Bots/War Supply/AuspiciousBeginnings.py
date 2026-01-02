@@ -3,7 +3,7 @@ from typing import Literal, Tuple
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager)
+                          Map, ImGui, ActionQueueManager)
 
 
 class BotSettings:
@@ -81,14 +81,14 @@ def GoToEOTN(bot: Botting) -> None:
     bot.States.AddHeader("Go to EOTN")
 
     def _go_to_eotn(bot: Botting):
-        current_map = GLOBAL_CACHE.Map.GetMapID()
+        current_map = Map.GetMapID()
         should_skip_travel = current_map in [BotSettings.EOTN_OUTPOST_ID, BotSettings.HOM_OUTPOST_ID]
         if should_skip_travel:
             if BotSettings.DEBUG:   
                 print(f"[DEBUG] Already in EOTN or HOM, skipping travel")
             return
 
-        GLOBAL_CACHE.Map.Travel(BotSettings.EOTN_OUTPOST_ID)
+        Map.Travel(BotSettings.EOTN_OUTPOST_ID)
         yield from Routines.Yield.wait(1000)
         yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID) 
 
@@ -98,7 +98,7 @@ def GetBonusBow(bot: Botting):
     bot.States.AddHeader("Check for Bonus Bow")
 
     def _get_bonus_bow(bot: Botting):
-        current_map = GLOBAL_CACHE.Map.GetMapID()
+        current_map = Map.GetMapID()
         should_skip_bonus_bow = current_map == BotSettings.HOM_OUTPOST_ID
         if should_skip_bonus_bow:
             if BotSettings.DEBUG:   
@@ -117,7 +117,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
     bot.States.AddHeader("Check and Deposit Gold")
 
     def _check_and_deposit_gold(bot: Botting):
-        current_map = GLOBAL_CACHE.Map.GetMapID()
+        current_map = Map.GetMapID()
         gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
         gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
 
@@ -131,7 +131,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
                 if BotSettings.DEBUG:   
                     print(f"[DEBUG] Traveling to EOTN from map {current_map}")
 
-                GLOBAL_CACHE.Map.Travel(BotSettings.EOTN_OUTPOST_ID)
+                Map.Travel(BotSettings.EOTN_OUTPOST_ID)
                 yield from Routines.Yield.wait(1000)
                 yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID)
                 current_map = BotSettings.EOTN_OUTPOST_ID
@@ -150,7 +150,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
                 print(f"Gold ({gold_on_char}) below threshold ({BotSettings.GOLD_THRESHOLD_DEPOSIT}), skipping travel and deposit")
         
         # After deposit check, try to buy ectos if in EOTN outpost
-        current_map = GLOBAL_CACHE.Map.GetMapID()
+        current_map = Map.GetMapID()
         if current_map == BotSettings.EOTN_OUTPOST_ID:
             yield from BuyMaterials(bot)
 
@@ -164,7 +164,7 @@ def ExitToHOM(bot: Botting) -> None:
 
     # Ensure we're in HOM for quest preparation
     def _exit_to_hom(bot: Botting):
-        current_map = GLOBAL_CACHE.Map.GetMapID()
+        current_map = Map.GetMapID()
         should_exit_to_hom = current_map != BotSettings.HOM_OUTPOST_ID
         should_travel_to_eotn = current_map != BotSettings.EOTN_OUTPOST_ID
 
@@ -175,7 +175,7 @@ def ExitToHOM(bot: Botting) -> None:
             if should_travel_to_eotn:
                 if BotSettings.DEBUG:   
                     print(f"[DEBUG] Not in EOTN, traveling there first")
-                GLOBAL_CACHE.Map.Travel(BotSettings.EOTN_OUTPOST_ID)
+                Map.Travel(BotSettings.EOTN_OUTPOST_ID)
                 yield from Routines.Yield.wait(1000)
                 yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID)
 

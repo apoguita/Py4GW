@@ -9,6 +9,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Keystroke
 from Py4GWCoreLib import Key
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import ActionQueueManager
 
 import os
@@ -307,12 +308,12 @@ def main():
             global_vars.reset_vars()
             return
         
-        if GLOBAL_CACHE.Map.IsOutpost():
+        if Map.IsOutpost():
             if not global_vars.outpost_timer.IsExpired():
                 return
             
             global_vars.outpost_timer.Reset()
-            map_id = GLOBAL_CACHE.Map.GetMapID()
+            map_id = Map.GetMapID()
             if global_vars.last_outpost != map_id:
                 global_vars.last_outpost = map_id
                 #Py4GW.Console.Log(module_name, f"Last Outpost: {Map.GetMapName(global_vars.last_outpost)}({Map.GetMapID()})", Py4GW.Console.MessageType.Info)
@@ -324,7 +325,7 @@ def main():
                     acceptparty()
             return
 
-        elif GLOBAL_CACHE.Map.IsExplorable():  
+        elif Map.IsExplorable():  
             update_max_health()
             update_party_names()
             if global_vars.low_life:
@@ -349,12 +350,12 @@ def main():
                     if len(global_vars.party_players) > 1:
                         global_vars.reform_party = True
 
-                    GLOBAL_CACHE.Map.Travel(global_vars.last_outpost)
+                    Map.Travel(global_vars.last_outpost)
 
                     ActionQueueManager().AddAction("ACTION", Keystroke.PressAndRelease, Key.Y.value)
                     ActionQueueManager().AddAction("ACTION", Keystroke.PressAndRelease, Key.Y.value)
 #                        Keystroke.PressAndRelease(Key.Y.value)
-                    Py4GW.Console.Log(module_name, f"Traveling to: {GLOBAL_CACHE.Map.GetMapName(global_vars.last_outpost)}({global_vars.last_outpost})", Py4GW.Console.MessageType.Info)
+                    Py4GW.Console.Log(module_name, f"Traveling to: {Map.GetMapName(global_vars.last_outpost)}({global_vars.last_outpost})", Py4GW.Console.MessageType.Info)
                     global_vars.low_life = False
                     global_vars.travel_timer.Start()
 

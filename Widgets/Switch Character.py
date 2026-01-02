@@ -317,7 +317,7 @@ def DrawWindow():
                     level = 20 if character.is_pvp else character.level
                     current_map = character.map_id
                     campaign_origin = character.campaign
-                    current_map_name = GLOBAL_CACHE.Map.GetMapName(current_map)
+                    current_map_name = Map.GetMapName(current_map)
                     campaign_name = Campaign(campaign_origin).name if campaign_origin else "Unknown"
                     row_color = Color(0, 0, 0, 50)  # Default row color
                     

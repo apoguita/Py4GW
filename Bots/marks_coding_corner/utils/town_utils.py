@@ -1,14 +1,14 @@
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Map
 from Py4GWCoreLib import Routines
 
 
 def return_to_outpost():
-    if GLOBAL_CACHE.Map.IsOutpost():
+    if Map.IsOutpost():
         return
 
-    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+    is_explorable = Map.IsExplorable()
     while is_explorable:
-        is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+        is_map_ready = Map.IsMapReady()
         is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
         is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated() or GLOBAL_CACHE.Player.GetMorale() < 100
 
@@ -17,5 +17,5 @@ def return_to_outpost():
             yield from Routines.Yield.wait(2000)
             GLOBAL_CACHE.Party.ReturnToOutpost()
         else:
-            is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+            is_explorable = Map.IsExplorable()
             yield from Routines.Yield.wait(4000)

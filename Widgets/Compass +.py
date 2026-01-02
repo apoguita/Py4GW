@@ -719,7 +719,7 @@ class Compass():
                 self.reset          = False
                 self.geometry       = Map.Pathing.GetComputedGeometry()
                 self.primitives_set = False
-                self.map_bounds     = list(GLOBAL_CACHE.Map.GetMapBoundaries())
+                self.map_bounds     = list(Map.GetMapBoundaries())
                 self.position.Update()
 
             self.Draw()

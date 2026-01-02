@@ -5,6 +5,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.Player import Player
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 
@@ -128,10 +129,10 @@ class HeroAICommands:
     
     def send_dialog(self, accounts: list[AccountData], dialog_option: int):
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
-        own_map_id = GLOBAL_CACHE.Map.GetMapID()
-        own_region = GLOBAL_CACHE.Map.GetRegion()[0]
-        own_district = GLOBAL_CACHE.Map.GetDistrict()
-        own_language = GLOBAL_CACHE.Map.GetLanguage()[0]
+        own_map_id = Map.GetMapID()
+        own_region = Map.GetRegion()[0]
+        own_district = Map.GetDistrict()
+        own_language = Map.GetLanguage()[0]
         
         for account in accounts:
             same_map = own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
@@ -178,7 +179,7 @@ class HeroAICommands:
             if account.AccountEmail == sender_email:
                 continue
             
-            same_map = GLOBAL_CACHE.Map.GetMapID() == account.MapID and GLOBAL_CACHE.Map.GetRegion()[0] == account.MapRegion and GLOBAL_CACHE.Map.GetDistrict() == account.MapDistrict and GLOBAL_CACHE.Map.GetLanguage()[0] == account.MapLanguage
+            same_map = Map.GetMapID() == account.MapID and Map.GetRegion()[0] == account.MapRegion and Map.GetDistrict() == account.MapDistrict and Map.GetLanguage()[0] == account.MapLanguage
             
             if same_map and not GLOBAL_CACHE.Party.IsPartyMember(account.PlayerID):        
                 char_name = account.CharacterName
@@ -194,10 +195,10 @@ class HeroAICommands:
                 account.AccountEmail,
                 SharedCommandType.InviteToParty if same_map else SharedCommandType.TravelToMap,
                 (sender_id, 0, 0, 0) if same_map else (
-                    GLOBAL_CACHE.Map.GetMapID(),
-                    GLOBAL_CACHE.Map.GetRegion()[0],
-                    GLOBAL_CACHE.Map.GetDistrict(),
-                    GLOBAL_CACHE.Map.GetLanguage()[0],
+                    Map.GetMapID(),
+                    Map.GetRegion()[0],
+                    Map.GetDistrict(),
+                    Map.GetLanguage()[0],
                 )
             ) 
             

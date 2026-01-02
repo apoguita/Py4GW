@@ -46,7 +46,7 @@ bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config 
 def SnowBallDominance(bot: Botting) -> None:
     InitializeBot(bot)
 
-    if GLOBAL_CACHE.Map.GetMapID() != 821:
+    if Map.GetMapID() != 821:
         def _state():
             yield from RndTravelState(821, use_districts=8)
         bot.States.AddCustomState(_state, "RndTravel -> EOTN")
@@ -114,7 +114,7 @@ def SnowBallDominance(bot: Botting) -> None:
 def attackRoutine(bot: "Botting"):
     global startedAttacking, oliasInDanger, successCounter, run_times
     while True:
-        if GLOBAL_CACHE.Map.GetMapID() == 793:
+        if Map.GetMapID() == 793:
             if oliasInDanger and not startedAttacking:
                 startedAttacking = True
                 target = _find_best_target()
@@ -205,7 +205,7 @@ def necroRoutine(bot: Botting):
     
     skill4, skill5 = False, False
     while True:
-        if GLOBAL_CACHE.Map.GetMapID() == 793:
+        if Map.GetMapID() == 793:
             if not oliasInDanger:
                 skill5 = False
                 skill4 = False
@@ -301,7 +301,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
     """Check gold on character, deposit if needed, buy ectos if conditions met"""
     if BotSettings.GOLD_DEPOSIT_ENABLED:
         def _check_and_deposit_gold(bot: Botting):
-            current_map = GLOBAL_CACHE.Map.GetMapID()
+            current_map = Map.GetMapID()
             gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
             gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
             
@@ -314,7 +314,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
                 if current_map != BotSettings.EOTN_OUTPOST_ID:
                     if BotSettings.DEBUG:
                         print(f"[GOLD] Traveling to EOTN from map {current_map}")
-                    GLOBAL_CACHE.Map.Travel(BotSettings.EOTN_OUTPOST_ID)
+                    Map.Travel(BotSettings.EOTN_OUTPOST_ID)
                     yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID)
                     current_map = BotSettings.EOTN_OUTPOST_ID
                 
@@ -344,7 +344,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
                     print(f"[GOLD] Below threshold ({gold_on_char}/{BotSettings.GOLD_THRESHOLD_DEPOSIT}), no deposit needed")
             
             # After deposit check, try to buy ectos if conditions are met
-            current_map = GLOBAL_CACHE.Map.GetMapID()
+            current_map = Map.GetMapID()
             if current_map == BotSettings.EOTN_OUTPOST_ID:
                 yield from BuyMaterials(bot)
             
@@ -453,7 +453,7 @@ def draw_window(bot: Botting):
     
     if BotSettings.STATS_FOR_NERDS:
         try:
-            PyImGui.set_next_window_size(270.0, 360.0, 4) 
+            PyImGui.set_next_window_size(270.0, 360.0) 
         except:
             pass 
 

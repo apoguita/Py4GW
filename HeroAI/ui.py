@@ -25,6 +25,7 @@ from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 from Py4GWCoreLib.ImGui_src.types import Alignment, HorizontalAlignment, ImGuiStyleVar, StyleTheme, VerticalAlignment
 from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.Player import Player
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.enums_src.GameData_enums import Allegiance, Profession, ProfessionShort, Range
 from Py4GWCoreLib.enums_src.IO_enums import Key
@@ -900,7 +901,7 @@ def draw_buffs_and_upkeeps(account_data: AccountData, skill_size: float = 28):
             if not HARD_MODE_EFFECT_ID in skill_cache:
                 skill_cache[HARD_MODE_EFFECT_ID] = CachedSkillInfo(HARD_MODE_EFFECT_ID)
 
-            to_kill = GLOBAL_CACHE.Map.GetFoesToKill()
+            to_kill = Map.GetFoesToKill()
             
             if to_kill > 0:
                 texture = ThemeTextures.HardMode.value.get_texture(StyleTheme.Guild_Wars)
@@ -1029,14 +1030,14 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
     draw_textures = style.Theme in ImGui.Textured_Themes
     
     global template_popup_open, template_account
-    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+    is_explorable = Map.IsExplorable()
     if not ImGui.begin_child("##buttons" + account_data.AccountEmail, (84, 58), False,
                              PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
         ImGui.end_child()
         return
 
     style = ImGui.get_style()
-    same_map = GLOBAL_CACHE.Map.GetMapID() == account_data.MapID and GLOBAL_CACHE.Map.GetRegion()[0] == account_data.MapRegion and GLOBAL_CACHE.Map.GetDistrict() == account_data.MapDistrict
+    same_map = Map.GetMapID() == account_data.MapID and Map.GetRegion()[0] == account_data.MapRegion and Map.GetDistrict() == account_data.MapDistrict
     player_email = GLOBAL_CACHE.Player.GetAccountEmail()
     account_email = account_data.AccountEmail
 
@@ -1116,10 +1117,10 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
                 account_email,
                 SharedCommandType.InviteToParty if same_map else SharedCommandType.TravelToMap,
                 (account_data.PlayerID, 0, 0, 0) if same_map else (
-                    GLOBAL_CACHE.Map.GetMapID(),
-                    GLOBAL_CACHE.Map.GetRegion()[0],
-                    GLOBAL_CACHE.Map.GetDistrict(),
-                    GLOBAL_CACHE.Map.GetLanguage()[0],
+                    Map.GetMapID(),
+                    Map.GetRegion()[0],
+                    Map.GetDistrict(),
+                    Map.GetLanguage()[0],
                 )
             )
         
@@ -1280,7 +1281,7 @@ def get_display_name(account_data: AccountData) -> str:
 
 def get_conditioned(account_data: AccountData) -> tuple[HealthState, bool, bool, bool, bool, bool]:
     buff_ids = [buff.SkillId for buff in account_data.PlayerBuffs]
-    same_map = GLOBAL_CACHE.Map.GetMapID() == account_data.MapID and GLOBAL_CACHE.Map.GetRegion()[0] == account_data.MapRegion and GLOBAL_CACHE.Map.GetDistrict() == account_data.MapDistrict
+    same_map = Map.GetMapID() == account_data.MapID and Map.GetRegion()[0] == account_data.MapRegion and Map.GetDistrict() == account_data.MapDistrict
     
     deep_wounded = 482 in buff_ids
     poisoned = 484 in buff_ids or 483 in buff_ids
@@ -1353,7 +1354,7 @@ def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, 
                                 account_data.PlayerEnergy, account_data.PlayerEnergyRegen)
                 
                 if health_clicked or energy_clicked:
-                            if GLOBAL_CACHE.Map.GetMapID() == account_data.MapID:
+                            if Map.GetMapID() == account_data.MapID:
                                 GLOBAL_CACHE.Player.ChangeTarget(account_data.PlayerID)
                                 
             if settings.ShowHeroSkills:
@@ -1447,7 +1448,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data
                     energy_clicked = draw_energy_bar(curr_avail[0], 13, account_data.PlayerMaxEnergy,
                                                        account_data.PlayerEnergy, account_data.PlayerEnergyRegen)
                     if health_clicked or energy_clicked:
-                        if GLOBAL_CACHE.Map.GetMapID() == account_data.MapID:
+                        if Map.GetMapID() == account_data.MapID:
                             GLOBAL_CACHE.Player.ChangeTarget(account_data.PlayerID)
                             
                 if settings.ShowHeroSkills:
@@ -1859,7 +1860,7 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, accounts: list[AccountData]):
     draw_textures = style.Theme in ImGui.Textured_Themes
     
     if window.begin():
-        explorable = GLOBAL_CACHE.Map.IsExplorable()
+        explorable = Map.IsExplorable()
         
         is_window_active = Console.is_window_active()
 
@@ -2178,7 +2179,7 @@ def draw_dialog_overlay(accounts: list[AccountData], cached_data: CacheData, mes
     pass
 
 def draw_skip_cutscene_overlay():
-    in_cutscene = GLOBAL_CACHE.Map.IsInCinematic()
+    in_cutscene = Map.IsInCinematic()
     
     if in_cutscene:
         pyimgui_io = PyImGui.get_io()
@@ -2221,8 +2222,8 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
     if party_throttle.IsExpired():
         party_throttle.Reset()
         # 3332025202,1,8,0,0,0,0,12,0
-        party_members_hash = 3332025202 if GLOBAL_CACHE.Map.IsOutpost() else 3332025202
-        offsets = [1,8,0,0,0,0] if GLOBAL_CACHE.Map.IsOutpost() else [0,0,0,0]
+        party_members_hash = 3332025202 if Map.IsOutpost() else 3332025202
+        offsets = [1,8,0,0,0,0] if Map.IsOutpost() else [0,0,0,0]
         
         party_member_frames = []    
         fid = UIManager.GetChildFrameID(party_members_hash, offsets)
@@ -2230,7 +2231,7 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
             return
                 
         for i in range(1, MAX_CHILD_FRAMES):
-            fid = UIManager.GetChildFrameID(party_members_hash, [1,8,0,0,0,0,i,0] if GLOBAL_CACHE.Map.IsOutpost() else [0,0,0,0,i,0])
+            fid = UIManager.GetChildFrameID(party_members_hash, [1,8,0,0,0,0,i,0] if Map.IsOutpost() else [0,0,0,0,i,0])
             if fid == 0 or not UIManager.FrameExists(fid):
                 continue
             
@@ -2504,7 +2505,7 @@ def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheDat
         sorted_by_profession = sorted(accounts, key=lambda acc: (acc.PlayerProfession[0], get_display_name(acc)), reverse=False)
         button_size  = 20
         texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture()
-        mapid = GLOBAL_CACHE.Map.GetMapID()
+        mapid = Map.GetMapID()
         
         for i, account in enumerate(sorted_by_profession):
             window_info = settings.HeroPanelPositions.get(account.AccountEmail, None)
@@ -2517,7 +2518,7 @@ def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheDat
                 account.PlayerProfession[0]).name if account.PlayerProfession[0] != 0 else ""
             prof_secondary = ProfessionShort(
                 account.PlayerProfession[1]).name if account.PlayerProfession[1] != 0 else ""
-            display_text = f"{prof_primary}{("/" if prof_secondary else "")}{prof_secondary}{account.PlayerLevel} {name} {f"[{GLOBAL_CACHE.Map.GetMapName(account.MapID)}]" if account.MapID != 0 and account.MapID != mapid else ''}"
+            display_text = f"{prof_primary}{("/" if prof_secondary else "")}{prof_secondary}{account.PlayerLevel} {name} {f"[{Map.GetMapName(account.MapID)}]" if account.MapID != 0 and account.MapID != mapid else ''}"
             
             ImGui.dummy(button_size, button_size)
             draw_panel_toggle(
@@ -2562,7 +2563,7 @@ def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheDat
                     if account.AccountEmail == sender_email:
                         continue
                     
-                    same_map = GLOBAL_CACHE.Map.GetMapID() == account.MapID and GLOBAL_CACHE.Map.GetRegion()[0] == account.MapRegion and GLOBAL_CACHE.Map.GetDistrict() == account.MapDistrict and GLOBAL_CACHE.Map.GetLanguage()[0] == account.MapLanguage
+                    same_map = Map.GetMapID() == account.MapID and Map.GetRegion()[0] == account.MapRegion and Map.GetDistrict() == account.MapDistrict and Map.GetLanguage()[0] == account.MapLanguage
                     
                     if same_map:
                         if not is_party_member:
@@ -2584,10 +2585,10 @@ def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheDat
                             account.AccountEmail,
                             SharedCommandType.TravelToMap,
                             (
-                                GLOBAL_CACHE.Map.GetMapID(),
-                                GLOBAL_CACHE.Map.GetRegion()[0],
-                                GLOBAL_CACHE.Map.GetDistrict(),
-                                GLOBAL_CACHE.Map.GetLanguage()[0],
+                                Map.GetMapID(),
+                                Map.GetRegion()[0],
+                                Map.GetDistrict(),
+                                Map.GetLanguage()[0],
                             )
                         ) 
                     

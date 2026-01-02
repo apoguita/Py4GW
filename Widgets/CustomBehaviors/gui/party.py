@@ -5,6 +5,7 @@ from Py4GWCoreLib.Overlay import Overlay
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import Utils
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
@@ -279,7 +280,7 @@ def render():
 
     PyImGui.separator()
 
-    if GLOBAL_CACHE.Map.IsExplorable():
+    if Map.IsExplorable():
 
         if PyImGui.tree_node_ex("[EXPLORABLE] Feature across party :", PyImGui.TreeNodeFlags.DefaultOpen):
 
@@ -309,7 +310,7 @@ def render():
             PyImGui.tree_pop()
             #PyImGui.separator()
 
-    if GLOBAL_CACHE.Map.IsOutpost():
+    if Map.IsOutpost():
         if PyImGui.tree_node_ex("[OUTPOST] Feature across party :", PyImGui.TreeNodeFlags.DefaultOpen):
 
             if CustomBehaviorParty().is_ready_for_action():
@@ -335,7 +336,7 @@ def render():
                     if is_in_map :
                         ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
                         count_in_map+=1
-                    else : ImGui.show_tooltip(f"{account.CharacterName} - In {GLOBAL_CACHE.Map.GetMapName(account.MapID)}")
+                    else : ImGui.show_tooltip(f"{account.CharacterName} - In {Map.GetMapName(account.MapID)}")
 
             ImGui.show_tooltip(f"----------------------------")
             ImGui.show_tooltip(f"{count_in_map}/{total_count} in current map")
@@ -400,7 +401,7 @@ def render():
 
         # PyImGui.separator()
 
-    if GLOBAL_CACHE.Map.IsExplorable() and False:
+    if Map.IsExplorable() and False:
 
         if PyImGui.tree_node_ex("[EXPLORABLE] Following & Spreading settings :", 0):
 

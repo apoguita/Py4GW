@@ -3,6 +3,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import Overlay
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Color
 import os
@@ -136,10 +137,10 @@ def main():
     global game_throttle_time, widget_config, killed, total
     
     if game_throttle_timer.HasElapsed(game_throttle_time):
-        is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+        is_map_ready = Map.IsMapReady()
         is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-        is_explorable = GLOBAL_CACHE.Map.IsExplorable()
-        is_vanquishable = GLOBAL_CACHE.Map.IsVanquishable()
+        is_explorable = Map.IsExplorable()
+        is_vanquishable = Map.IsVanquishable()
         is_hard_mode = GLOBAL_CACHE.Party.IsHardMode()
         if (
             is_map_ready and
@@ -148,8 +149,8 @@ def main():
             is_vanquishable and
             is_hard_mode
         ):
-            killed = GLOBAL_CACHE.Map.GetFoesKilled()
-            total = GLOBAL_CACHE.Map.GetFoesToKill() + killed
+            killed = Map.GetFoesKilled()
+            total = Map.GetFoesToKill() + killed
             
         game_throttle_timer.Start()
          

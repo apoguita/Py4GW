@@ -71,7 +71,7 @@ def main():
         except StopIteration:
             GLOBAL_CACHE.Coroutines.remove(routine)
     
-    if GLOBAL_CACHE.Map.IsMapLoading() or GLOBAL_CACHE.Map.IsInCinematic():
+    if Map.IsMapLoading() or Map.IsInCinematic():
         if widget_config.throttle_transition_queue.IsExpired():
             widget_config.action_queue_manager.ProcessQueue("TRANSITION")
             widget_config.throttle_transition_queue.Reset()

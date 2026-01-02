@@ -1,6 +1,7 @@
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Map
 
 module_name = "Resign on enter Map"
 
@@ -14,7 +15,7 @@ def main():
         explorable_loaded_timer.Reset()
         return
     
-    if not GLOBAL_CACHE.Map.IsExplorable():
+    if not Map.IsExplorable():
         resigned = False
         explorable_loaded_timer.Reset()
         return

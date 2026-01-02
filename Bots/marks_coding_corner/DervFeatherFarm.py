@@ -298,7 +298,7 @@ def handle_stuck(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            Map.GetMapID() == Map.GetMapIDByName(JAYA_BLUFFS)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if stuck_timer.IsExpired():
@@ -352,7 +352,7 @@ def handle_stuck(bot: Botting):
                 continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            Map.GetMapID() == Map.GetMapIDByName(JAYA_BLUFFS)
             and bot.config.build_handler.status == DervBuildFarmStatus.Loot  # type: ignore
         ):
             if movement_check_timer.IsExpired():
@@ -389,7 +389,7 @@ def handle_sensali_danger(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            Map.GetMapID() == Map.GetMapIDByName(JAYA_BLUFFS)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if bot.config.pause_on_danger_fn() and get_sensali_array(Range.Spellcast.value):
@@ -411,7 +411,7 @@ def handle_loot(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(JAYA_BLUFFS)
+            Map.GetMapID() == Map.GetMapIDByName(JAYA_BLUFFS)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if bot.config.pause_on_danger_fn() and get_valid_loot_array(viable_loot=VIABLE_LOOT):

@@ -14,6 +14,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import AutoInventoryHandler
+from Py4GWCoreLib import Map
 
 from enum import Enum
 from typing import Dict
@@ -421,7 +422,7 @@ def DrawButtonStrip():
                 global_vars.config.selected_tab = TabType.salvage
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Mass Salvage")
-            if GLOBAL_CACHE.Map.IsOutpost():
+            if Map.IsOutpost():
                 if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_BOX_OPEN + "##XunlaiVaultTab"):
                     global_vars.config.colorize_vars = ColorizeType.vault
                     global_vars.config.selected_tab = TabType.xunlai_vault
@@ -1294,7 +1295,7 @@ def DrawAutoHandler():
         PyImGui.pop_item_width()
         ImGui.show_tooltip("Changes will take effect after the next lookup.")
         
-        if not GLOBAL_CACHE.Map.IsExplorable():
+        if not Map.IsExplorable():
             PyImGui.text("Auto Lookup only runs in explorable.")
         else:
             remaining = global_vars.auto_widget_options.lookup_throttle.GetTimeRemaining() / 1000  # convert ms to seconds
@@ -1421,7 +1422,7 @@ def main():
         global_vars.auto_widget_options.initialized = True
         ConsoleLog(MODULE_NAME, "Auto Widget Options initialized", Py4GW.Console.MessageType.Success)
         
-    if not GLOBAL_CACHE.Map.IsExplorable():
+    if not Map.IsExplorable():
         global_vars.auto_widget_options.lookup_throttle.Stop()
         global_vars.auto_widget_options.status = "Idle"
         if not global_vars.auto_widget_options.outpost_handled and global_vars.auto_widget_options.module_active:
@@ -1463,7 +1464,7 @@ def main():
     elif global_vars.config.selected_tab == TabType.salvage:
         DrawSalvageBottomWindow()
     elif global_vars.config.selected_tab == TabType.xunlai_vault:
-        if GLOBAL_CACHE.Map.IsOutpost():
+        if Map.IsOutpost():
             if not GLOBAL_CACHE.Inventory.IsStorageOpen():
                 GLOBAL_CACHE.Inventory.OpenXunlaiWindow()
             else:

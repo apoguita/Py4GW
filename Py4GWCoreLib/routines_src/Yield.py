@@ -7,6 +7,7 @@ from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
 from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Py4GWCoreLib.routines_src import Checks
+from ..Map import Map
 
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
@@ -1461,7 +1462,7 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            if (not GLOBAL_CACHE.Map.IsExplorable()):
+            if (not Map.IsExplorable()):
                 yield from Yield.wait(500)
                 return
 
@@ -1505,7 +1506,7 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            if (not GLOBAL_CACHE.Map.IsExplorable()):
+            if (not Map.IsExplorable()):
                 yield from Yield.wait(500)
                 return
 
@@ -1590,7 +1591,7 @@ class Yield:
                 for m in Yield.Upkeepers.MORALE_ITEMS
             ]
 
-            if not (Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsExplorable()):
+            if not (Checks.Map.MapValid() and Map.IsExplorable()):
                 yield from Yield.wait(500)
                 return
 
@@ -1628,7 +1629,7 @@ class Yield:
             #    PyEffects.PyEffects.ApplyDrunkEffect(0, 0)
 
             
-            if not (Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsExplorable()):
+            if not (Checks.Map.MapValid() and Map.IsExplorable()):
                 yield from Yield.wait(500)
                 return
 
@@ -1674,7 +1675,7 @@ class Yield:
                 yield from Yield.wait(period_ms)
                 return
             # City speed is for towns/outposts, so skip if explorable
-            if not GLOBAL_CACHE.Map.IsOutpost():
+            if not Map.IsOutpost():
                 yield from Yield.wait(period_ms)
                 return
             if GLOBAL_CACHE.Agent.IsDead(player_id()):
@@ -2242,7 +2243,7 @@ class Yield:
             Keystroke.PressAndRelease(Key.P.value)
             yield from Yield.wait(50)
             
-            while not GLOBAL_CACHE.Map.IsMapReady() and not _timeout_reached():
+            while not Map.IsMapReady() and not _timeout_reached():
                 yield from Yield.wait(250)
                 
             if _timeout_reached():

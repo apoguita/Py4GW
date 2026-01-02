@@ -1,7 +1,7 @@
 import Py4GW
 import math
 from Py4GWCoreLib import (Routines,Botting,ActionQueueManager, ConsoleLog, GLOBAL_CACHE, AgentArray, Utils)
-from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import ThrottledTimer, Map
 from Py4GWCoreLib.enums import ModelID, Range, TitleID
 
 from Py4GWCoreLib.BuildMgr import BuildMgr
@@ -311,8 +311,8 @@ finished_routine = False
 stuck_counter = 0
 stuck_timer = ThrottledTimer(5000)
 stuck_timer.Start()
-BJORA_MARCHES = GLOBAL_CACHE.Map.GetMapIDByName("Bjora Marches")
-JAGA_MORAINE = GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine")
+BJORA_MARCHES = Map.GetMapIDByName("Bjora Marches")
+JAGA_MORAINE = Map.GetMapIDByName("Jaga Moraine")
 movement_check_timer = ThrottledTimer(3000)
 old_player_position = (0,0)
 in_killing_routine = False
@@ -342,7 +342,7 @@ def HandleStuckJagaMoraine(bot: Botting):
 
         build: BuildMgr = bot.config.build_handler
         
-        instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
+        instance_time = Map.GetInstanceUptime() / 1000  # Convert ms to seconds
         if instance_time > 7 * 60:  # 7 minutes in seconds
             ConsoleLog("HandleStuck", "Instance time exceeded 7 minutes, force resigning.", Py4GW.Console.MessageType.Debug, forced_log)
             stuck_counter = 0
@@ -384,7 +384,7 @@ def HandleStuckJagaMoraine(bot: Botting):
             continue
 
         # Jaga Moraine map check
-        if GLOBAL_CACHE.Map.GetMapID() == JAGA_MORAINE:
+        if Map.GetMapID() == JAGA_MORAINE:
             if stuck_timer.IsExpired():
                 ConsoleLog("HandleStuck", "Issuing scheduled /stuck command.", Py4GW.Console.MessageType.Debug, log_actions)
                 GLOBAL_CACHE.Player.SendChatCommand("stuck")

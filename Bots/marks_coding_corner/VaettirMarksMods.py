@@ -17,6 +17,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Map
 from Py4GWCoreLib.BuildMgr import BuildMgr
 from Py4GWCoreLib.Builds import SF_Ass_vaettir
 from Py4GWCoreLib.Builds import SF_Mes_vaettir
@@ -510,8 +511,8 @@ finished_routine = False
 stuck_counter = 0
 stuck_timer = ThrottledTimer(3000)
 stuck_timer.Start()
-BJORA_MARCHES = GLOBAL_CACHE.Map.GetMapIDByName("Bjora Marches")
-JAGA_MORAINE = GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine")
+BJORA_MARCHES = Map.GetMapIDByName("Bjora Marches")
+JAGA_MORAINE = Map.GetMapIDByName("Jaga Moraine")
 movement_check_timer = ThrottledTimer(5000)
 old_player_position = (0, 0)
 in_killing_routine = False
@@ -549,7 +550,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
 
         build: BuildMgr = bot.config.build_handler
 
-        instance_time = GLOBAL_CACHE.Map.GetInstanceUptime() / 1000  # Convert ms to seconds
+        instance_time = Map.GetInstanceUptime() / 1000  # Convert ms to seconds
         if instance_time > 7 * 60:  # 7 minutes in seconds
             ConsoleLog(
                 "HandleStuck",
@@ -609,7 +610,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
             continue
 
         # Jaga Moraine map check
-        if GLOBAL_CACHE.Map.GetMapID() == JAGA_MORAINE:
+        if Map.GetMapID() == JAGA_MORAINE:
             if stuck_timer.IsExpired():
                 ConsoleLog(
                     "Stuck Detection",

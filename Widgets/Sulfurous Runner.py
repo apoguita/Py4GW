@@ -1,7 +1,7 @@
 import sys
         
 from Py4GWCoreLib import UIManager
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
@@ -51,7 +51,7 @@ def main():
     if draw_throttle.IsExpired():
         if settings.draw_flags:
             draw_flags(
-                g.waypoints.get(GLOBAL_CACHE.Map.GetMapID(), []),
+                g.waypoints.get(Map.GetMapID(), []),
                 settings.flag_color,
                 settings.use_flag_collision
             )

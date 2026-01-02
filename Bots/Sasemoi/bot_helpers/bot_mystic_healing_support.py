@@ -1,7 +1,7 @@
 import Py4GW
 from Py4GWCoreLib import Botting, Routines
 from Py4GWCoreLib import HeroType
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Map
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import ConsoleLog
 
@@ -82,7 +82,7 @@ def _healing_support_routine(hero_id: int, hero_index: int = 0, delay_ms: int = 
             yield from Routines.Yield.wait(1000)
             continue
         
-        if not GLOBAL_CACHE.Map.IsExplorable():
+        if not Map.IsExplorable():
             yield from Routines.Yield.wait(1000)
             continue
         

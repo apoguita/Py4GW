@@ -2,6 +2,7 @@ import datetime
 from Py4GWCoreLib import AgentArray, Quest
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Item import Bag
+from Py4GWCoreLib import Map
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Utils
 from Py4GWCoreLib.enums import Allegiance, Bags, ItemType
 from Widgets.frenkey.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockPieces
@@ -45,7 +46,7 @@ class WidgetState:
         )
     
     def get_quest(self):        
-        map_id = GLOBAL_CACHE.Map.GetMapID()
+        map_id = Map.GetMapID()
         
         self.in_arena = False
         for spawn in Polymock_Spawns:
@@ -81,7 +82,7 @@ class WidgetState:
     
     def GetAgentAtPosition(self) -> int:
         agents = AgentArray.GetAgentArray()
-        map_id = GLOBAL_CACHE.Map.GetMapID()
+        map_id = Map.GetMapID()
 
         spawn_point = next(
             (spawn for spawn in Polymock_Spawns if spawn.value[0] == map_id), None)

@@ -3,7 +3,7 @@ from typing import List, Tuple, Generator, Any
 import PyImGui
 import os
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager)
+                          AutoPathing, ImGui, ActionQueueManager, Map)
 
 bot = Botting("Factions Leveler",
               upkeep_birthday_cupcake_restock=10,
@@ -145,20 +145,20 @@ def AddHenchmen():
         ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
         yield from Routines.Yield.wait(250)
         
-    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+    party_size = Map.GetMaxPartySize()
 
     henchmen_list = []
     if party_size <= 4:
         henchmen_list.extend([1, 5, 2]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Seitung Harbor"):
         henchmen_list.extend([2, 3, 1, 4, 5]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("The Marketplace"):
+    elif Map.GetMapID() == Map.GetMapIDByName("The Marketplace"):
         henchmen_list.extend([6,9,5,1,4,7,3])
-    elif GLOBAL_CACHE.Map.GetMapID() == 213: #zen_daijun_map_id
+    elif Map.GetMapID() == 213: #zen_daijun_map_id
         henchmen_list.extend([3,1,6,8,5])
-    elif GLOBAL_CACHE.Map.GetMapID() == 194: #kaineng_map_id
+    elif Map.GetMapID() == 194: #kaineng_map_id
         henchmen_list.extend([2,10,4,8,7,9,12])
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Boreal Station"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Boreal Station"):
         henchmen_list.extend([7,9,2,3,4,6,5])
     else:
         henchmen_list.extend([2,3,5,6,7,9,10])
@@ -172,14 +172,14 @@ def AddHenchmenLA():
         ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
         yield from Routines.Yield.wait(250)
         
-    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+    party_size = Map.GetMaxPartySize()
 
     henchmen_list = []
     if party_size <= 4:
         henchmen_list.extend([2, 3, 1]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Lions Arch"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Lions Arch"):
         henchmen_list.extend([7, 2, 5, 3, 1]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Ascalon City"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Ascalon City"):
         henchmen_list.extend([2, 3, 1])
     else:
         henchmen_list.extend([2,8,6,7,3,5,1])
@@ -193,7 +193,7 @@ def StandardHeroTeam():
         ConsoleLog("addhero",f"Added Hero: {hero_id}", log=False)
         yield from Routines.Yield.wait(250)
 
-    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+    party_size = Map.GetMaxPartySize()
 
     hero_list = []
     skill_templates = []
@@ -440,6 +440,8 @@ def GetArmorCrafterCoords() -> tuple[float, float]:
         return (-1682.00, -3970.00) #Ryoko armor npc
     elif primary == "Elementalist":
         return (-1682.00, -3970.00) #Ryoko armor npc
+    else:
+        return (-1682.00, -3970.00) #default Ryoko armor npc
 
 def GetMaxArmorPiecesByProfession(bot: Botting):
     """Returns model IDs for max armor pieces in Kaineng."""
@@ -717,6 +719,7 @@ def withdraw_gold_weapon(target_gold=500, deposit_all=True):
 
 def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     """Destroy starter armor pieces based on profession and useless items."""
+    global starter_armor
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     
     # Profession-specific starter armor model IDs
@@ -790,6 +793,7 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
 
 def destroy_seitung_armor() -> Generator[Any, Any, None]:
     """Destroy Seitung armor pieces based on profession."""
+    global seitung_armor
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     
     # Profession-specific Seitung armor model IDs
@@ -2018,14 +2022,14 @@ def main():
                     if PyImGui.collapsing_header("Direct Navigation"):
                         for step_num, waypoint in WAYPOINTS.items():
 
-                            map_name = GLOBAL_CACHE.Map.GetMapName(waypoint.MapID)
+                            map_name = Map.GetMapName(waypoint.MapID)
 
                             # Tree node: visible label is waypoint.label, ID is unique
                             if PyImGui.tree_node(f"{waypoint.label}##wp_{step_num}"):
 
                                 # Travel button
                                 if PyImGui.button(f"Travel##travel_{step_num}"):
-                                    GLOBAL_CACHE.Map.Travel(waypoint.MapID)
+                                    Map.Travel(waypoint.MapID)
 
                                 PyImGui.same_line(0,-1)
 

@@ -9,6 +9,7 @@ from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Map
 
 
 #region SFAssassinVaettir
@@ -147,7 +148,7 @@ class ShadowFormAssassinVaettir(BuildMgr):
                 yield from Routines.Yield.wait(1000)
                 continue
             
-            if not GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine"):
+            if not Map.GetMapID() == Map.GetMapIDByName("Jaga Moraine"):
                 yield from Routines.Yield.wait(1000)
                 return
             

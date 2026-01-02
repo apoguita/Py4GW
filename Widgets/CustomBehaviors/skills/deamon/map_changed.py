@@ -3,7 +3,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import Map, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -36,7 +36,7 @@ class MapChangedUtility(CustomSkillUtilityBase):
         self.__previous_map_id = 0
         # Initialize to current map id to avoid emitting a false-positive event on first evaluation
         try:
-            current_map_id = GLOBAL_CACHE.Map.GetMapID()
+            current_map_id = Map.GetMapID()
             if isinstance(current_map_id, int) and current_map_id != 0:
                 self.__previous_map_id = current_map_id
         except Exception:
@@ -52,7 +52,7 @@ class MapChangedUtility(CustomSkillUtilityBase):
 
         if not self.throttle_timer.IsExpired(): return None
 
-        current_map_id = GLOBAL_CACHE.Map.GetMapID()
+        current_map_id = Map.GetMapID()
 
         # First run: set baseline and do not emit
         if self.__previous_map_id == 0:

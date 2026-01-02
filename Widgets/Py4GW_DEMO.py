@@ -2041,10 +2041,10 @@ def ShowPyAgentWindow():
             # Show description text
             ImGui.DrawTextWithTitle(PyAgent_window_state.window_name, description)
 
-            if not GLOBAL_CACHE.Map.IsMapReady():
+            if not Map.IsMapReady():
                     PyImGui.text_colored("Travel : Map is not ready",(1, 0, 0, 1))
 
-            if GLOBAL_CACHE.Map.IsMapReady():
+            if Map.IsMapReady():
                 # Fetch nearest entities
                 player_x, player_y = GLOBAL_CACHE.Player.GetXY()
                 player_id = GLOBAL_CACHE.Player.GetAgentID()
@@ -2123,18 +2123,18 @@ def ShowPyImGuiExtraMaplWindow():
         if PyImGui.begin(PyMap_Extra_InfoWindow_state.window_name, PyImGui.WindowFlags.NoResize):
             #ImGui.DrawTextWithTitle(PyMap_Extra_InfoWindow_state.window_name, description)
 
-            if not GLOBAL_CACHE.Map.IsOutpost():
+            if not Map.IsOutpost():
                 PyImGui.text("Get to an Outpost to see this data")
                 PyImGui.separator()
     
-            if GLOBAL_CACHE.Map.IsOutpost():
+            if Map.IsOutpost():
 
                 headers = ["Info", "Value"]
-                data = [("Campaign:", GLOBAL_CACHE.Map.GetCampaign()[1]),
-                        ("Continent:", GLOBAL_CACHE.Map.GetContinent()[1]),
-                        ("Region:", f"{GLOBAL_CACHE.Map.GetRegion()[1]} ({GLOBAL_CACHE.Map.GetRegion()[0]})"),
-                        ("District:", GLOBAL_CACHE.Map.GetDistrict()),
-                        ("Language:", GLOBAL_CACHE.Map.GetLanguage()[1])]
+                data = [("Campaign:", Map.GetCampaign()[1]),
+                        ("Continent:", Map.GetContinent()[1]),
+                        ("Region:", f"{Map.GetRegion()[1]} ({Map.GetRegion()[0]})"),
+                        ("District:", Map.GetDistrict()),
+                        ("Language:", Map.GetLanguage()[1])]
 
                 ImGui.table("Instance Info Table",headers,data)
 
@@ -2148,35 +2148,35 @@ def ShowPyImGuiExtraMaplWindow():
                     PyImGui.table_set_column_index(0)
                     PyImGui.text("Has Enter Button?")
                     PyImGui.table_set_column_index(1)
-                    PyImGui.text(f"{'Yes' if GLOBAL_CACHE.Map.HasEnterChallengeButton() else 'No'}")
+                    PyImGui.text(f"{'Yes' if Map.HasEnterChallengeButton() else 'No'}")
 
                     PyImGui.end_table()
 
-                    if not GLOBAL_CACHE.Map.HasEnterChallengeButton():
+                    if not Map.HasEnterChallengeButton():
                         PyImGui.text("Get to an outpost with Enter Button to see this data")
 
 
-                    if GLOBAL_CACHE.Map.HasEnterChallengeButton():
+                    if Map.HasEnterChallengeButton():
                         if PyImGui.begin_table("OutpostEnterMissionTable", 2, PyImGui.TableFlags.Borders):
                             PyImGui.table_next_row()
                             PyImGui.table_set_column_index(0)
                             if PyImGui.button("Enter Mission"):
-                                GLOBAL_CACHE.Map.EnterChallenge()
+                                Map.EnterChallenge()
 
                             PyImGui.table_set_column_index(1)
                             if PyImGui.button("Cancel Enter"):
-                               GLOBAL_CACHE.Map.CancelEnterChallenge()
+                               Map.CancelEnterChallenge()
                     
                             PyImGui.end_table()
 
                 PyImGui.separator()
 
             # Explorable Specific Fields
-            if not GLOBAL_CACHE.Map.IsExplorable():
+            if not Map.IsExplorable():
                 PyImGui.text("Get to an Explorable Zone to see this data")
                 PyImGui.separator()
 
-            if GLOBAL_CACHE.Map.IsExplorable():
+            if Map.IsExplorable():
                 PyImGui.text("Explorable Zone Specific Information")
            
                 if PyImGui.begin_table("ExplorableNormalTable", 2, PyImGui.TableFlags.Borders):
@@ -2184,7 +2184,7 @@ def ShowPyImGuiExtraMaplWindow():
                     PyImGui.table_set_column_index(0)
                     PyImGui.text("Is Vanquishable?")
                     PyImGui.table_set_column_index(1)
-                    PyImGui.text(f"{'Yes' if GLOBAL_CACHE.Map.IsVanquishable() else 'No'}")
+                    PyImGui.text(f"{'Yes' if Map.IsVanquishable() else 'No'}")
 
                     PyImGui.end_table()
                 if not GLOBAL_CACHE.Party.IsHardMode():
@@ -2194,7 +2194,7 @@ def ShowPyImGuiExtraMaplWindow():
                     PyImGui.separator()
 
                     headers = ["Foes Killed", "Foes To Kill"]
-                    data = [(GLOBAL_CACHE.Map.GetFoesKilled(), GLOBAL_CACHE.Map.GetFoesToKill())]
+                    data = [(Map.GetFoesKilled(), Map.GetFoesToKill())]
 
                     ImGui.table("Vanquish Info Table",headers,data)
 
@@ -2218,18 +2218,18 @@ def ShowPyImGuiTravelWindow():
         if PyImGui.begin(PyMap_Travel_Window_state.window_name, PyImGui.WindowFlags.NoResize):
             ImGui.DrawTextWithTitle(PyMap_Travel_Window_state.window_name, description,8)
 
-            if not GLOBAL_CACHE.Map.IsMapReady():
+            if not Map.IsMapReady():
                     PyImGui.text_colored("Travel : Map is not ready",(1, 0, 0, 1))
                
-            if GLOBAL_CACHE.Map.IsMapReady():
+            if Map.IsMapReady():
 
                 PyImGui.text("Travel to default district")
-                if PyImGui.button(GLOBAL_CACHE.Map.GetMapName(857)): #Embark Beach
-                    GLOBAL_CACHE.Map.Travel(857)
+                if PyImGui.button(Map.GetMapName(857)): #Embark Beach
+                    Map.Travel(857)
 
                 PyImGui.text("Travel to specific district")
-                if PyImGui.button(GLOBAL_CACHE.Map.GetMapName(248)): #Great Temple of Balthazar
-                    GLOBAL_CACHE.Map.TravelToDistrict(248, 0, 0)
+                if PyImGui.button(Map.GetMapName(248)): #Great Temple of Balthazar
+                    Map.TravelToDistrict(248, 0, 0)
 
                 PyImGui.text("Travel trough toolbox chat command")
                 if PyImGui.button("Eye Of The North"):
@@ -2263,21 +2263,21 @@ def ShowPyMapWindow():
             PyImGui.text("Instance Information")
 
 
-            instance_time = GLOBAL_CACHE.Map.GetInstanceUptime()
+            instance_time = Map.GetInstanceUptime()
             instance_time_seconds = instance_time / 1000  # Convert to seconds
             formatted_time = time.strftime('%H:%M:%S', time.gmtime(instance_time_seconds))
             time_text = f"{formatted_time} - [{instance_time}]"
-            party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
-            player_size = GLOBAL_CACHE.Map.GetMaxPlayerSize()
-            min_party_size = GLOBAL_CACHE.Map.GetMinPartySize()
-            min_player_size = GLOBAL_CACHE.Map.GetMinPlayerSize()
+            party_size = Map.GetMaxPartySize()
+            player_size = Map.GetMaxPlayerSize()
+            min_party_size = Map.GetMinPartySize()
+            min_player_size = Map.GetMinPlayerSize()
             
 
             headers = ["Info", "Value"]
-            data = [("Instance ID:", GLOBAL_CACHE.Map.GetMapID()),
-                    ("Instance Name:", GLOBAL_CACHE.Map.GetMapName()),
+            data = [("Instance ID:", Map.GetMapID()),
+                    ("Instance Name:", Map.GetMapName()),
                     ("Instance Time:", time_text),
-                    ("Amount of Players in Instance:",GLOBAL_CACHE.Map.GetAmountOfPlayersInInstance()),
+                    ("Amount of Players in Instance:",Map.GetAmountOfPlayersInInstance()),
                     ("Max Party Size:", party_size),
                     ("Max Player Size:", player_size),
                     ("Min Party Size:", min_party_size),
@@ -2289,10 +2289,10 @@ def ShowPyMapWindow():
             PyImGui.separator()
 
             headers = ["Info", "Value"]
-            data = [("Outpost:", GLOBAL_CACHE.Map.IsOutpost()),
-                    ("Explorable:", GLOBAL_CACHE.Map.IsExplorable()),
-                    ("Loading:", GLOBAL_CACHE.Map.IsMapLoading()),
-                    ("Ready:", GLOBAL_CACHE.Map.IsMapReady())]
+            data = [("Outpost:", Map.IsOutpost()),
+                    ("Explorable:", Map.IsExplorable()),
+                    ("Loading:", Map.IsMapLoading()),
+                    ("Ready:", Map.IsMapReady())]
 
             ImGui.table("Map Status Info Table",headers,data)
 
@@ -2746,7 +2746,7 @@ def configure():
 def main():
     global module_name
     try:
-        if GLOBAL_CACHE.Map.IsMapReady():    
+        if Map.IsMapReady():    
             DrawWindow()
         else:
             CloseAllWindows()

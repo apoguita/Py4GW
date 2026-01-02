@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Generator, Any
 import os
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Map, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager)
 
 
@@ -110,7 +110,7 @@ def StandardHeroTeam():
         ConsoleLog("addhero",f"Added Hero: {hero_id}", log=False)
         yield from Routines.Yield.wait(250)
 
-    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+    party_size = Map.GetMaxPartySize()
 
     hero_list = []
     skill_templates = []
@@ -139,20 +139,20 @@ def AddHenchmenFC():
         ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
         yield from Routines.Yield.wait(250)
         
-    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+    party_size = Map.GetMaxPartySize()
 
     henchmen_list = []
     if party_size <= 4:
         henchmen_list.extend([1, 5, 2]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Seitung Harbor"):
         henchmen_list.extend([2, 3, 1, 4, 5]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("The Marketplace"):
+    elif Map.GetMapID() == Map.GetMapIDByName("The Marketplace"):
         henchmen_list.extend([6,9,5,1,4,7,3])
-    elif GLOBAL_CACHE.Map.GetMapID() == 213: #zen_daijun_map_id
+    elif Map.GetMapID() == 213: #zen_daijun_map_id
         henchmen_list.extend([3,1,6,8,5])
-    elif GLOBAL_CACHE.Map.GetMapID() == 194: #kaineng_map_id
+    elif Map.GetMapID() == 194: #kaineng_map_id
         henchmen_list.extend([2,10,4,8,7,9,12])
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Boreal Station"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Boreal Station"):
         henchmen_list.extend([7,9,2,3,4,6,5])
     else:
         henchmen_list.extend([2,3,5,6,7,9,10])
@@ -166,14 +166,14 @@ def AddHenchmenLA():
         ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
         yield from Routines.Yield.wait(250)
         
-    party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+    party_size = Map.GetMaxPartySize()
 
     henchmen_list = []
     if party_size <= 4:
         henchmen_list.extend([2, 3, 1]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Lions Arch"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Lions Arch"):
         henchmen_list.extend([7, 2, 5, 3, 1]) 
-    elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Ascalon City"):
+    elif Map.GetMapID() == Map.GetMapIDByName("Ascalon City"):
         henchmen_list.extend([2, 3, 1])
     else:
         henchmen_list.extend([2,8,6,7,3,5,1])
@@ -1258,6 +1258,7 @@ def Destroy_Starter_Armor_And_Useless_Items(bot: Botting):
 
 def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     """Destroy starter armor pieces based on profession and useless items."""
+    global starter_armor
     primary, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     
     # Profession-specific starter armor model IDs
@@ -1331,7 +1332,8 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                      16227,   #1st Scythe Warrior and Dervish
                      30853, #MOX Manual
                     ]
-    
+
+
     for model in starter_armor:
         result = yield from Routines.Yield.Items.DestroyItem(model)
     

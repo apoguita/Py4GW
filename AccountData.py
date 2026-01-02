@@ -1,7 +1,7 @@
 from turtle import title
 
 from PyParty import Hero
-from Py4GWCoreLib import ImGui, ColorPalette, TITLE_TIERS, TITLE_NAME, GLOBAL_CACHE, TITLE_CATEGORIES
+from Py4GWCoreLib import Map, Agent, TITLE_TIERS, TITLE_NAME, GLOBAL_CACHE, TITLE_CATEGORIES
 from Py4GWCoreLib import ProfessionShort, Campaign, Routines, Utils
 import PyImGui
 import PyPlayer
@@ -54,28 +54,31 @@ class AgentData:
             if self.name_requested and self.name == "":
                 if GLOBAL_CACHE.Agent.IsNameReady(self.agent_id):
                     self.name = GLOBAL_CACHE.Agent.GetName(self.agent_id)
-                    
-            self.professions = GLOBAL_CACHE.Agent.GetProfessionIDs(self.agent_id)
-            self.level = GLOBAL_CACHE.Agent.GetLevel(self.agent_id)
-            energy = GLOBAL_CACHE.Agent.GetEnergy(self.agent_id)
-            max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(self.agent_id)
-            energy_pips = GLOBAL_CACHE.Agent.GetEnergyPips(self.agent_id)
+               
+            prof1, prof2 = Agent.GetProfessionIDs(self.agent_id)  
+            if prof1 is None: prof1 = 0
+            if prof2 is None: prof2 = 0   
+            self.professions = (prof1, prof2)
+            self.level = Agent.GetLevel(self.agent_id)
+            energy = Agent.GetEnergy(self.agent_id)
+            max_energy = Agent.GetMaxEnergy(self.agent_id)
+            energy_pips = Agent.GetEnergyPips(self.agent_id)
             self.energy_data = (energy, max_energy, energy_pips)
-            hp = GLOBAL_CACHE.Agent.GetHealth(self.agent_id)
-            max_hp = GLOBAL_CACHE.Agent.GetMaxHealth(self.agent_id)
-            hp_regen = GLOBAL_CACHE.Agent.GetHealthRegen(self.agent_id)
+            hp = Agent.GetHealth(self.agent_id)
+            max_hp = Agent.GetMaxHealth(self.agent_id)
+            hp_regen = Agent.GetHealthRegen(self.agent_id)
             self.hp_data = (hp, max_hp, hp_regen)
-            self.dager_status = GLOBAL_CACHE.Agent.GetDaggerStatus(self.agent_id)
-            self.weapon_type = GLOBAL_CACHE.Agent.GetWeaponType(self.agent_id)[0]
-            self.attributes = GLOBAL_CACHE.Agent.GetAttributes(self.agent_id)
-            self.model_id = GLOBAL_CACHE.Agent.GetModelID(self.agent_id)
-            x,y,z = GLOBAL_CACHE.Agent.GetXYZ(self.agent_id)
+            self.dager_status = Agent.GetDaggerStatus(self.agent_id)
+            self.weapon_type = Agent.GetWeaponType(self.agent_id)[0]
+            self.attributes = Agent.GetAttributes(self.agent_id)
+            self.model_id = Agent.GetModelID(self.agent_id)
+            x,y,z = Agent.GetXYZ(self.agent_id)
             self.coords = (x,y,z)
-            self.zplane = GLOBAL_CACHE.Agent.GetZPlane(self.agent_id)
-            self.rotation_angle = GLOBAL_CACHE.Agent.GetRotationAngle(self.agent_id)
-            self.velocity_vector = GLOBAL_CACHE.Agent.GetVelocityXY(self.agent_id)
-            self.can_be_viewed_in_party_window = GLOBAL_CACHE.Agent.CanBeViewedInPartyWindow(self.agent_id)
-            self.overcast = GLOBAL_CACHE.Agent.GetOvercast(self.agent_id)
+            self.zplane = int(Agent.GetZPlane(self.agent_id))
+            self.rotation_angle = Agent.GetRotationAngle(self.agent_id)
+            self.velocity_vector = Agent.GetVelocityXY(self.agent_id)
+            self.can_be_viewed_in_party_window = Agent.CanBeViewedInPartyWindow(self.agent_id)
+            self.overcast = Agent.GetOvercast(self.agent_id)
 
     class Flags:
         def __init__(self):
@@ -211,7 +214,7 @@ class PlayerData:
                     if self.show_details["missions_not_completed"] or completed:
                         status_txt = "Completed" if completed else "Not Completed"
                         PyImGui.text_colored(
-                            f"MapID {map_id} - {GLOBAL_CACHE.Map.GetMapName(map_id)} - {status_txt}",
+                            f"MapID {map_id} - {Map.GetMapName(map_id)} - {status_txt}",
                             Utils.TrueFalseColor(bool(completed))
                         )
 
@@ -241,7 +244,7 @@ class PlayerData:
                     if self.show_details["missions_bonus_not_completed"] or completed:
                         status_txt = "Completed" if completed else "Not Completed"
                         PyImGui.text_colored(
-                            f"MapID {map_id} - {GLOBAL_CACHE.Map.GetMapName(map_id)} - {status_txt}",
+                            f"MapID {map_id} - {Map.GetMapName(map_id)} - {status_txt}",
                             Utils.TrueFalseColor(bool(completed))
                         )
 
@@ -268,7 +271,7 @@ class PlayerData:
                     if self.show_details["missions_hm_not_completed"] or completed:
                         status_txt = "Completed" if completed else "Not Completed"
                         PyImGui.text_colored(
-                            f"MapID {map_id} - {GLOBAL_CACHE.Map.GetMapName(map_id)} - {status_txt}",
+                            f"MapID {map_id} - {Map.GetMapName(map_id)} - {status_txt}",
                             Utils.TrueFalseColor(bool(completed))
                         )
 
@@ -292,7 +295,7 @@ class PlayerData:
                     if self.show_details["missions_bonus_hm_not_completed"] or completed:
                         status_txt = "Completed" if completed else "Not Completed"
                         PyImGui.text_colored(
-                            f"MapID {map_id} - {GLOBAL_CACHE.Map.GetMapName(map_id)} - {status_txt}",
+                            f"MapID {map_id} - {Map.GetMapName(map_id)} - {status_txt}",
                             Utils.TrueFalseColor(bool(completed))
                         )
 
@@ -375,7 +378,7 @@ class AccountInfo:
 
                     # Map
                     PyImGui.table_set_column_index(2)
-                    PyImGui.text(GLOBAL_CACHE.Map.GetMapName(char.map_id))
+                    PyImGui.text(Map.GetMapName(char.map_id))
 
                     # Professions
                     PyImGui.table_set_column_index(3)

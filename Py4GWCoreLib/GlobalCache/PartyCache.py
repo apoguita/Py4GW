@@ -1,16 +1,15 @@
 import PyParty
-from Py4GWCoreLib import Player
+from Py4GWCoreLib import Player, Map
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 
 class PartyCache:
-    def __init__(self, action_queue_manager, map_cache, player_cache):
+    def __init__(self, action_queue_manager, player_cache):
         self._action_queue_manager:ActionQueueManager = action_queue_manager
         self._party_instance = PyParty.PyParty()
         self.Players = self._Players(self)
         self.Heroes = self._Heroes(self)
         self.Henchmen = self._Henchmen(self)
         self.Pets = self._Pets(self)
-        self._map_cache = map_cache
         self._player_cache = player_cache
     
     def _update_cache(self):
@@ -101,7 +100,7 @@ class PartyCache:
         return self._party_instance.is_party_defeated
     
     def IsPartyLoaded(self):
-        if self._map_cache.IsMapLoading():
+        if Map.IsMapLoading():
             return False
         return self._party_instance.is_party_loaded
     

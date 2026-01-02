@@ -7,7 +7,7 @@ from typing import Callable, Generator, Any, List
 
 from PyAgent import AttributeClass
 
-from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Routines, Map
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
@@ -59,7 +59,7 @@ class CustomBehaviorParty:
             self.messaging_process()
             self.party_teambuild_manager.act() # todo only if idle ?
 
-            if GLOBAL_CACHE.Party.IsPartyLeader() and GLOBAL_CACHE.Map.IsExplorable():
+            if GLOBAL_CACHE.Party.IsPartyLeader() and Map.IsExplorable():
                 
                 current_party_target_id = self.get_party_custom_target()
                 if current_party_target_id is not None:

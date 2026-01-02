@@ -6,7 +6,8 @@ from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, Regio
 
 from .enums_src.Map_enums import (InstanceTypeName)
 from .native_src.internals.types import Vec2f
-
+from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
+from Py4GWCoreLib.enums import outposts
 
 
 import PyMissionMap
@@ -91,6 +92,19 @@ class Map:
         """Retrieve the ID of the current map."""
         if not (char_context :=  GWContext.Char.GetContext()): return 0
         return char_context.current_map_id
+    
+    @staticmethod
+    def GetOutpostIDs():
+        """Retrieve the outpost IDs."""
+        global outposts
+        return list(outposts.keys())
+    
+    @staticmethod
+    def GetOutpostNames():
+        """Retrieve the outpost names."""
+        global outposts
+        return list(outposts.values())
+    
     
     @staticmethod
     def GetMapName(mapid=None) -> str:
@@ -263,6 +277,13 @@ class Map:
         if not (world_ctx := GWContext.World.GetContext()):
             return 0
         return world_ctx.foes_to_kill
+    
+    @staticmethod
+    def IsVanquishCompleted() -> bool:
+        """Check if the vanquish is completed."""
+        if Map.IsVanquishable():
+            return Map.GetFoesToKill() == 0
+        return False
     
     @staticmethod
     def IsInCinematic() -> bool:
@@ -599,17 +620,23 @@ class Map:
         
     #region Functions
     @staticmethod
-    def SkipCinematic() -> bool:
+    def SkipCinematic():
         """ Skip the cinematic."""
-        return MapMethods.SkipCinematic()
+        def _skip_cinematic() -> bool:
+            return MapMethods.SkipCinematic()
+        ActionQueueManager().AddAction("ACTION", _skip_cinematic)
+
         
     @staticmethod
-    def Travel(map_id) -> bool:
+    def Travel(map_id):
         """Travel to a map by its ID."""
-        return MapMethods.Travel(map_id)
+        def _travel() -> bool:
+            return MapMethods.Travel(map_id)
+        ActionQueueManager().AddAction("ACTION", _travel)
+
 
     @staticmethod
-    def TravelToDistrict(map_id, district=0, district_number=0) -> bool:
+    def TravelToDistrict(map_id, district=0, district_number=0):
         """
         Travel to a map by its ID and district.
         Args:
@@ -618,11 +645,62 @@ class Map:
             district_number (int): The number of the district to travel to.
         Returns: None
         """
-        return MapMethods.Travel(map_id, district, district_number)
+        def _region_from_district(district: int) -> int:
+            from .enums_src.Region_enums import District, ServerRegion
+            
+            if district == District.International.value:
+                return ServerRegion.International.value
+            if district == District.American.value:
+                return ServerRegion.America.value
+            if district in [District.EuropeEnglish.value,
+                            District.EuropeFrench.value,
+                            District.EuropeGerman.value,
+                            District.EuropeItalian.value,
+                            District.EuropeSpanish.value,
+                            District.EuropePolish.value,
+                            District.EuropeRussian.value]:
+                return ServerRegion.Europe.value
+            if district == District.AsiaKorean.value:
+                return ServerRegion.Korea.value
+            if district == District.AsiaChinese.value:
+                return ServerRegion.China.value
+            if district == District.AsiaJapanese.value:
+                return ServerRegion.Japan.value
+            
+            return Map.GetRegion()[0]
         
-    #bool Travel(int map_id, int server_region, int district_number, int language);
+        def _language_from_district(district: int) -> int:
+            from .enums_src.Region_enums import District, ServerLanguage
+            
+            if district == District.EuropeFrench.value:
+                return ServerLanguage.French.value
+            if district == District.EuropeGerman.value:
+                return ServerLanguage.German.value
+            if district == District.EuropeItalian.value:
+                return ServerLanguage.Italian.value
+            if district == District.EuropeSpanish.value:
+                return ServerLanguage.Spanish.value
+            if district == District.EuropePolish.value:
+                return ServerLanguage.Polish.value
+            if district == District.EuropeRussian.value:
+                return ServerLanguage.Russian.value
+            if district in [District.EuropeEnglish.value,
+                            District.AsiaKorean.value,
+                            District.AsiaChinese.value,
+                            District.AsiaJapanese.value,
+                            District.International.value,
+                            District.American.value]:
+                return ServerLanguage.English.value
+            return Map.GetLanguage()[0]
+
+        def _travel_to_district() -> bool:
+            return MapMethods.Travel(map_id, _region_from_district(district), district_number, _language_from_district(district))
+        ActionQueueManager().AddAction("ACTION", _travel_to_district)
+
+            
+        #bool Travel(int map_id, int server_region, int district_number, int language);
     @staticmethod
-    def TravelToRegion(map_id, server_region, district_number, language=0) -> bool:
+    def TravelToRegion(map_id, server_region, district_number, language=0):
         """
         Travel to a map by its ID and region.
         Args:
@@ -632,33 +710,46 @@ class Map:
             language (int): The language to travel to.
         Returns: None
         """
-        return MapMethods.Travel(map_id, server_region, district_number, language)
+        def _travel_to_region() -> bool:
+            return MapMethods.Travel(map_id, server_region, district_number, language)
+        ActionQueueManager().AddAction("ACTION", _travel_to_region)
+
         
     @staticmethod
-    def TravelGH() -> bool:
+    def TravelGH():
         """Travel to the Guild Hall."""
-        return MapMethods.TravelGH()
+        def _travel_gh() -> bool:
+            return MapMethods.TravelGH()
+        ActionQueueManager().AddAction("ACTION", _travel_gh)
+
         
     @staticmethod
-    def LeaveGH() -> bool:
+    def LeaveGH():
         """Leave the Guild Hall."""
-        return MapMethods.LeaveGH()
+        def _leave_gh() -> bool:
+            return MapMethods.LeaveGH()
+        ActionQueueManager().AddAction("ACTION", _leave_gh)
         
     @staticmethod
-    def EnterChallenge() -> bool:
+    def EnterChallenge():
         """Enter the challenge."""
-        return MapMethods.EnterChallenge()
+        def _enter_challenge() -> bool:   
+            return MapMethods.EnterChallenge()
+        ActionQueueManager().AddAction("ACTION", _enter_challenge)
         
     @staticmethod
-    def CancelEnterChallenge() -> bool:
+    def CancelEnterChallenge():
         """Cancel entering the challenge."""
-        CancelEnterMissionButton = WindowFrames.get("CancelEnterMissionButton", None)
-        if CancelEnterMissionButton is None:
-            return False
-        if not CancelEnterMissionButton.FrameExists():
-            return False
-        CancelEnterMissionButton.FrameClick()
-        return True
+        def _cancel_enter_challenge() -> bool:
+            CancelEnterMissionButton = WindowFrames.get("CancelEnterMissionButton", None)
+            if CancelEnterMissionButton is None:
+                return False
+            if not CancelEnterMissionButton.FrameExists():
+                return False
+            CancelEnterMissionButton.FrameClick()
+            return True
+        ActionQueueManager().AddAction("ACTION", _cancel_enter_challenge)
+
         
     
     #region MissionMap

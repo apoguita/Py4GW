@@ -123,7 +123,8 @@ class Sequential:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog, Console
             from .Checks import Checks
-            if not GLOBAL_CACHE.Map.IsMapReady():
+            from ..Map import Map
+            if not Map.IsMapReady():
                 return False
             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
@@ -179,20 +180,21 @@ class Sequential:
             Returns: None
             """
             from ..GlobalCache import GLOBAL_CACHE
+            from ..Map import Map
             from ..Py4GWcorelib import ConsoleLog, Console
-            if GLOBAL_CACHE.Map.GetMapID() != outpost_id:
-                ConsoleLog("TravelToOutpost", f"Travelling to {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
-                GLOBAL_CACHE.Map.Travel(outpost_id)
+            if Map.GetMapID() != outpost_id:
+                ConsoleLog("TravelToOutpost", f"Travelling to {Map.GetMapName(outpost_id)}", log=log)
+                Map.Travel(outpost_id)
                 sleep(3)
                 waititng_for_map_load = True
                 while waititng_for_map_load:
-                    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == outpost_id:
+                    if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.GetMapID() == outpost_id:
                         waititng_for_map_load = False
                         break
                     sleep(1)
                 sleep(1)
             
-            ConsoleLog("TravelToOutpost", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(outpost_id)}", log=log)
+            ConsoleLog("TravelToOutpost", f"Arrived at {Map.GetMapName(outpost_id)}", log=log)
 
         @staticmethod
         def WaitforMapLoad(map_id, log=False):
@@ -205,15 +207,16 @@ class Sequential:
             """
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog
+            from ..Map import Map
             waititng_for_map_load = True
             while waititng_for_map_load:
-                if not (GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.GetMapID() == map_id):
+                if not (Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.GetMapID() == map_id):
                     sleep(1)
                 else:
                     waititng_for_map_load = False
                     break
             
-            ConsoleLog("WaitforMapLoad", f"Arrived at {GLOBAL_CACHE.Map.GetMapName(map_id)}", log=log)
+            ConsoleLog("WaitforMapLoad", f"Arrived at {Map.GetMapName(map_id)}", log=log)
             sleep(1)
             
     class Agents:

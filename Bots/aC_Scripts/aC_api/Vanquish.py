@@ -16,16 +16,16 @@ def draw_vanquish_status(label: str = "Vanquish Status"):
 
     if _vanquish_timer.IsExpired():
         ready = (
-            GLOBAL_CACHE.Map.IsMapReady() and
+            Map.IsMapReady() and
             GLOBAL_CACHE.Party.IsPartyLoaded() and
-            GLOBAL_CACHE.Map.IsExplorable() and
-            GLOBAL_CACHE.Map.IsVanquishable() and
+            Map.IsExplorable() and
+            Map.IsVanquishable() and
             GLOBAL_CACHE.Party.IsHardMode()
         )
         _cached_vanquish["valid"] = ready
         if ready:
-            _cached_vanquish["killed"] = GLOBAL_CACHE.Map.GetFoesKilled()
-            _cached_vanquish["total"] = GLOBAL_CACHE.Map.GetFoesToKill()
+            _cached_vanquish["killed"] = Map.GetFoesKilled()
+            _cached_vanquish["total"] = Map.GetFoesToKill()
         _vanquish_timer.Reset()
 
     if _cached_vanquish["valid"]:

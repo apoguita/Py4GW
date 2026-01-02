@@ -291,7 +291,7 @@ def draw_Targeting_floating_buttons(cached_data: CacheData):
     
     if not cached_data.option_show_floating_targets:
         return
-    if not GLOBAL_CACHE.Map.IsExplorable():
+    if not Map.IsExplorable():
         return
     player_pos = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.SafeCompass.value)
@@ -396,7 +396,7 @@ def DrawEmbeddedWindow(cached_data: CacheData):
     outpost_content_frame_id = UIManager.GetChildFrameID(PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
     explorable_content_frame_id = UIManager.GetChildFrameID(PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
 
-    if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.IsExplorable():
+    if Map.IsMapReady() and Map.IsExplorable():
         content_frame_id = explorable_content_frame_id
     else:
         content_frame_id = outpost_content_frame_id
@@ -423,7 +423,7 @@ def DrawEmbeddedWindow(cached_data: CacheData):
                 selected_tab = TabType.messaging
                 PyImGui.end_tab_item()
             ImGui.show_tooltip("Messaging")
-            if GLOBAL_CACHE.Map.IsOutpost():
+            if Map.IsOutpost():
                 if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USER_PLUS + "##candidatesTab"):
                     selected_tab = TabType.candidates
                     PyImGui.end_tab_item()
@@ -486,7 +486,7 @@ def UpdateStatus(cached_data: CacheData):
     if not own_data:
         return     
     
-    show_ui = not UIManager.IsWorldMapShowing() and not GLOBAL_CACHE.Map.IsMapLoading() and not GLOBAL_CACHE.Map.IsInCinematic() and not GLOBAL_CACHE.Player.InCharacterSelectScreen()
+    show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not GLOBAL_CACHE.Player.InCharacterSelectScreen()
     if show_ui:
         
         identifier = "combined_hero_panel"
@@ -564,10 +564,10 @@ def UpdateStatus(cached_data: CacheData):
         DrawControlPanelWindow(cached_data)
         DrawMultiboxTools(cached_data)
 
-    if not GLOBAL_CACHE.Map.IsExplorable():  # halt operation if not in explorable area
+    if not Map.IsExplorable():  # halt operation if not in explorable area
         return
 
-    if GLOBAL_CACHE.Map.IsInCinematic():  # halt operation during cinematic
+    if Map.IsInCinematic():  # halt operation during cinematic
         return
 
     DrawFlags(cached_data)
@@ -674,7 +674,7 @@ def main():
         if not settings._initialized:
             return
             
-        if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
+        if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
             UpdateStatus(cached_data)
 
     except ImportError as e:

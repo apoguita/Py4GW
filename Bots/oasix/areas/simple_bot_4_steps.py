@@ -5,7 +5,7 @@ import sys
 import time
 from typing import Any
 
-from Py4GWCoreLib import Party, Routines
+from Py4GWCoreLib import Map, Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import LootConfig
 from Py4GWCoreLib.enums import Range, SharedCommandType
@@ -96,7 +96,7 @@ class SimpleBot4Steps:
 
     def __teleport_to_outpost(self) -> Generator[Any, None, bool]:
         yield from Routines.Yield.Map.TravelToOutpost(self.outpost_id)
-        while GLOBAL_CACHE.Map.GetMapID() != self.outpost_id:
+        while Map.GetMapID() != self.outpost_id:
             yield from Routines.Yield.wait(1_000)
         # Party.SetHardMode()
         yield from Routines.Yield.wait(200)
@@ -110,7 +110,7 @@ class SimpleBot4Steps:
         
         yield from Routines.Yield.Movement.FollowPath(
                 path_points=self.leave_outpost_coords, 
-                custom_exit_condition=lambda: GLOBAL_CACHE.Map.GetMapID() == self.explorable_area_id, 
+                custom_exit_condition=lambda: Map.GetMapID() == self.explorable_area_id, 
                 tolerance=self.tolerance, 
                 log=True, 
                 timeout=60_000, 
@@ -123,7 +123,7 @@ class SimpleBot4Steps:
         
         print("__move_across_coords_and_kill_if_needed")
 
-        if GLOBAL_CACHE.Map.GetMapID() != self.explorable_area_id:
+        if Map.GetMapID() != self.explorable_area_id:
             return False
 
         instance:CustomBehaviorBaseUtility = CustomBehaviorLoader._instance.custom_combat_behavior
@@ -176,7 +176,7 @@ class SimpleBot4Steps:
             if loop_counter > 4:
                 print("Loop counter Resign is too high, the script is stuck")
 
-            if GLOBAL_CACHE.Map.GetMapID() == self.outpost_id:
+            if Map.GetMapID() == self.outpost_id:
                 break
 
         print("Party is defeated")
@@ -186,9 +186,9 @@ class SimpleBot4Steps:
         start_time = time.time()
 
         while time.time() - start_time < timeout:
-            is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+            is_map_ready = Map.IsMapReady()
             is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-            is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+            is_explorable = Map.IsExplorable()
             is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
 
             if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
@@ -199,7 +199,7 @@ class SimpleBot4Steps:
         else:
             print(f"Something failed, i am not able to recover - stopping bot.")
 
-        # while not GLOBAL_CACHE.Map.GetMapID() != self.outpost_id:
+        # while not Map.GetMapID() != self.outpost_id:
         #     print("GLOBAL_CACHE.Party.ReturnToOutpost")
         #     GLOBAL_CACHE.Party.ReturnToOutpost()
 

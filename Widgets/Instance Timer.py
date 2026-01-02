@@ -7,6 +7,7 @@ from Py4GWCoreLib import Timer
 from Py4GWCoreLib import FormatTime
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Color
+from Py4GWCoreLib import Map
 import os
 module_name = "Instance Timer"
 
@@ -136,16 +137,16 @@ def main():
     global widget_config, instance_uptime
     global game_throttle_timer, game_throttle_time, is_map_ready, is_party_loaded
 
-    if not widget_config.initialized and GLOBAL_CACHE.Map.IsMapReady():
+    if not widget_config.initialized and Map.IsMapReady():
         widget_config.initialized = True
-        widget_config.instance_entry_time = GLOBAL_CACHE.Map.GetInstanceUptime()
+        widget_config.instance_entry_time = Map.GetInstanceUptime()
         
     if game_throttle_timer.HasElapsed(game_throttle_time):
-        is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+        is_map_ready = Map.IsMapReady()
         is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
         
         if is_map_ready and is_party_loaded:
-            instance_uptime = GLOBAL_CACHE.Map.GetInstanceUptime() - (0 if widget_config.true_instance_timer else widget_config.instance_entry_time )
+            instance_uptime = Map.GetInstanceUptime() - (0 if widget_config.true_instance_timer else widget_config.instance_entry_time )
         game_throttle_timer.Reset()
 
     if is_map_ready and is_party_loaded:

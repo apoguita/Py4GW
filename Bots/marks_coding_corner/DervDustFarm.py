@@ -262,7 +262,7 @@ def handle_stuck(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
+            Map.GetMapID() == Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if stuck_timer.IsExpired():
@@ -316,7 +316,7 @@ def handle_stuck(bot: Botting):
                 continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
+            Map.GetMapID() == Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Loot  # type: ignore
         ):
             if movement_check_timer.IsExpired():
@@ -353,7 +353,7 @@ def handle_fog_nightmare_danger(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
+            Map.GetMapID() == Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Earshot.value):
@@ -380,7 +380,7 @@ def handle_loot(bot: Botting):
             continue
 
         if (
-            GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName(THE_BLACK_CURTAIN)
+            Map.GetMapID() == Map.GetMapIDByName(THE_BLACK_CURTAIN)
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if bot.config.pause_on_danger_fn() and get_valid_loot_array(viable_loot=VIABLE_LOOT):

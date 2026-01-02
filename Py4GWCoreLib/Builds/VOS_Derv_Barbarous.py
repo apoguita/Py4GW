@@ -6,7 +6,7 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import BuildMgr
-from Py4GWCoreLib import Agent
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ThrottledTimer
@@ -217,7 +217,7 @@ class VOS_Derv_Barbarous(BuildMgr):
 
 
     def ProcessSkillCasting(self):
-        current_map_id = GLOBAL_CACHE.Map.GetMapID()
+        current_map_id = Map.GetMapID()
 
         while True:
             # Check basic conditions where skill handling should be skipped
@@ -273,7 +273,7 @@ class VOS_Derv_Barbarous(BuildMgr):
             yield from Routines.Yield.wait(100)
             
             # Log current map id and name
-            ConsoleLog(self.build_name, f"Current Map ID: {current_map_id}, Name: {GLOBAL_CACHE.Map.GetMapName(current_map_id)}", Py4GW.Console.MessageType.Info, log=False)
+            ConsoleLog(self.build_name, f"Current Map ID: {current_map_id}, Name: {Map.GetMapName(current_map_id)}", Py4GW.Console.MessageType.Info, log=False)
 
 
 

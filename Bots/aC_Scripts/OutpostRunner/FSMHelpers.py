@@ -47,12 +47,12 @@ class OutpostRunnerFSMHelpers:
 
     @staticmethod
     def travel_to_outpost(outpost_id):
-        if GLOBAL_CACHE.Map.GetMapID() == outpost_id:
+        if Map.GetMapID() == outpost_id:
             ConsoleLog("OutpostRunnerFSM", "Already at outpost. Skipping travel.", Console.MessageType.Info)
             return
 
         ConsoleLog("OutpostRunnerFSM", f"Initiating safe travel to outpost ID {outpost_id}")
-        if GLOBAL_CACHE.Map.IsExplorable():
+        if Map.IsExplorable():
             # === STEP 1: Broadcast resign command to other accounts ===
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
@@ -64,7 +64,7 @@ class OutpostRunnerFSMHelpers:
             start_time = time.time()
 
             while time.time() - start_time < timeout:
-                if (GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyDefeated()):
+                if (Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyDefeated()):
                     GLOBAL_CACHE.Party.ReturnToOutpost()
                     break
 
@@ -78,7 +78,7 @@ class OutpostRunnerFSMHelpers:
             start_time = time.time()
 
             while time.time() - start_time < timeout:
-                if Routines.Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsOutpost():
+                if Routines.Checks.Map.MapValid() and Map.IsOutpost():
                     ConsoleLog("OutpostRunnerFSM", "Returned to outpost. Proceeding to travel...")
                     break
 
@@ -108,7 +108,7 @@ class OutpostRunnerFSMHelpers:
                         # This IS the final segment - check if we're on the destination outpost
                         final_map_id = last_seg.get("map_id")
                         try:
-                            current_map = GLOBAL_CACHE.Map.GetMapID()
+                            current_map = Map.GetMapID()
                             if current_map == final_map_id:
                                 # Already on the destination outpost - done with this run
                                 ConsoleLog("OutpostRunnerFSM", f"★★★ FINAL SEGMENT CONFIRMED: Arrived at outpost map {final_map_id} ★★★", Console.MessageType.Info)
@@ -126,7 +126,7 @@ class OutpostRunnerFSMHelpers:
                                     if current_time - last_check >= 0.5:
                                         last_check = current_time
                                         try:
-                                            current_map = GLOBAL_CACHE.Map.GetMapID()
+                                            current_map = Map.GetMapID()
                                             if current_map == final_map_id:
                                                 # Arrived at destination
                                                 ConsoleLog("OutpostRunnerFSM", f"★★★ FINAL SEGMENT COMPLETE: Arrived at outpost {final_map_id} ★★★", Console.MessageType.Info)
@@ -226,7 +226,7 @@ class OutpostRunnerFSMHelpers:
         # skip remaining outpost walking and let the segment walk handle it
         if is_outpost_path and self.current_map_data:
             try:
-                current_map = GLOBAL_CACHE.Map.GetMapID()
+                current_map = Map.GetMapID()
                 segments = self.current_map_data.get("segments", [])
                 if segments and len(segments) > 0:
                     first_explorable_map = segments[0].get("map_id")
@@ -311,7 +311,7 @@ class OutpostRunnerFSMHelpers:
 
             # If we know which map this path belongs to, ensure we're on that map first
             if expected_map_id:
-                current_map = GLOBAL_CACHE.Map.GetMapID()
+                current_map = Map.GetMapID()
                 if current_map != expected_map_id:
                     # OUTPOST PATH SPECIAL CASE: If we're walking an outpost_path and we've transitioned to the explorable,
                     # this is SUCCESS - exit immediately, don't wait for the outpost map to return
@@ -346,7 +346,7 @@ class OutpostRunnerFSMHelpers:
                     ConsoleLog("OutpostRunnerFSM", f"Map mismatch: current {current_map} != expected {expected_map_id}. Waiting...", Console.MessageType.Warning)
                     # Wait for the expected map to load (short timeout)
                     yield from self.wait_for_map_load(expected_map_id, timeout=15000)
-                    current_map = GLOBAL_CACHE.Map.GetMapID()
+                    current_map = Map.GetMapID()
                     if current_map != expected_map_id:
                         ConsoleLog("OutpostRunnerFSM", f"Still not on expected map {expected_map_id}; skipping waypoint {point}", Console.MessageType.Warning)
                         index += 1
@@ -371,7 +371,7 @@ class OutpostRunnerFSMHelpers:
             # Debug log: include current map, expected map, segment index and path index (log every 5th waypoint to reduce spam)
             if index % 5 == 0:
                 try:
-                    cur_map = GLOBAL_CACHE.Map.GetMapID()
+                    cur_map = Map.GetMapID()
                 except Exception:
                     cur_map = None
                 ConsoleLog("OutpostRunnerFSM", f"About to move: cur_map={cur_map} expected_map={expected_map_id} seg_index={expected_seg_index} path_index={index} point={point}", Console.MessageType.Debug)
@@ -429,7 +429,7 @@ class OutpostRunnerFSMHelpers:
                         if current_time - last_map_check_time >= 0.5:
                             last_map_check_time = current_time
                             try:
-                                current_map = GLOBAL_CACHE.Map.GetMapID()
+                                current_map = Map.GetMapID()
                                 
                                 # Only process if map ID is not 0 (loading state)
                                 if current_map != 0:
@@ -485,7 +485,7 @@ class OutpostRunnerFSMHelpers:
                     if is_outpost_path and self.current_map_data and (current_time - last_map_check_time >= 1.0):
                         last_map_check_time = current_time
                         try:
-                            current_map = GLOBAL_CACHE.Map.GetMapID()
+                            current_map = Map.GetMapID()
                             
                             # Only process if map ID is not 0 (loading state)
                             if current_map != 0:
@@ -506,7 +506,7 @@ class OutpostRunnerFSMHelpers:
                         # CHECK FOR MAP TRANSITION BEFORE GIVING UP: If this is a segment walk and map changed, exit early
                         if not is_outpost_path and self.current_map_data:
                             try:
-                                current_map = GLOBAL_CACHE.Map.GetMapID()
+                                current_map = Map.GetMapID()
                                 segments = self.current_map_data.get("segments", [])
                                 if expected_seg_index is not None and expected_seg_index >= 0 and expected_seg_index + 1 < len(segments):
                                     next_segment = segments[expected_seg_index + 1]
@@ -588,7 +588,7 @@ class OutpostRunnerFSMHelpers:
                                 # Check every 0.5 seconds for faster detection
                                 if current_time - last_check >= 0.5:
                                     last_check = current_time
-                                    current_map = GLOBAL_CACHE.Map.GetMapID()
+                                    current_map = Map.GetMapID()
                                     
                                     # Only process if map ID is not 0 (loading state)
                                     if current_map != 0:
@@ -625,7 +625,7 @@ class OutpostRunnerFSMHelpers:
                                 # Check every 0.5 seconds
                                 if current_time - last_check >= 0.5:
                                     last_check = current_time
-                                    current_map = GLOBAL_CACHE.Map.GetMapID()
+                                    current_map = Map.GetMapID()
                                     
                                     # Only process if map ID is not 0 (loading state)
                                     if current_map != 0 and current_map != expected_map_id:

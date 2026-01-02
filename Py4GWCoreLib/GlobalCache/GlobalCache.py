@@ -2,9 +2,10 @@
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 from Py4GWCoreLib import RawAgentArray
+from Py4GWCoreLib import Map
 
 from .PlayerCache import PlayerCache
-from .MapCache import MapCache
+
 from .AgentCache import AgentCache
 
 from .CameraCache import CameraCache
@@ -35,7 +36,7 @@ class GlobalCache:
         self._RawAgentArray = RawAgentArray()
         self._RawItemCache = RawItemCache()
         self.Player = PlayerCache(self._ActionQueueManager)
-        self.Map = MapCache(self._ActionQueueManager)
+   
         self.Agent = AgentCache()
 
         self.Camera = CameraCache(self._ActionQueueManager)
@@ -44,7 +45,7 @@ class GlobalCache:
         self.ItemArray = ItemArray()
         self.Inventory = InventoryCache(self._ActionQueueManager, self._RawItemCache, self.Item)
         self.Trading = TradingCache(self._ActionQueueManager)
-        self.Party = PartyCache(self._ActionQueueManager, self.Map, self.Player)
+        self.Party = PartyCache(self._ActionQueueManager, self.Player)
         self.Quest = QuestCache(self._ActionQueueManager)
         self.Skill = SkillCache()
         self.SkillBar = SkillbarCache(self._ActionQueueManager)
@@ -60,10 +61,9 @@ class GlobalCache:
         self._TrottleTimers.Reset()
         
     def _update_cache(self):
-        self.Map._update_cache()
         #this block is forcing an update when loading or in cinematic
         #to default everything to 0 
-        if self.Map.IsMapLoading() or self.Map.IsInCinematic():
+        if Map.IsMapLoading() or Map.IsInCinematic():
             self.Party._update_cache()
             self.Player._update_cache()
             self._RawItemCache.update()

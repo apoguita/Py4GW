@@ -11,6 +11,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import PetBehavior
 from Py4GWCoreLib import Keystroke
 from Py4GWCoreLib import Key
+from Py4GWCoreLib import Map
 
 
 module_name = "PetHelper"
@@ -160,7 +161,7 @@ def configure():
 def main():
     global global_vars
 
-    if not Routines.Checks.Map.MapValid() or not GLOBAL_CACHE.Map.IsExplorable():
+    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
         if global_vars.pet_name != "":
             global_vars.pet_name = ""
         if global_vars.player_name != "":

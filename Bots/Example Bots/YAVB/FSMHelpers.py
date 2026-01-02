@@ -5,6 +5,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib.enums import ModelID, TitleID, SharedCommandType, Range
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Map
 from typing import List, Tuple
 from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import Profession
@@ -189,7 +190,7 @@ class _FSM_Helpers:
                 return True
         
         def _movement_eval_exit_on_map_loading(self):
-            if GLOBAL_CACHE.Map.IsMapLoading():
+            if Map.IsMapLoading():
                 return True
             
             if not self._parent.script_running:
@@ -198,7 +199,7 @@ class _FSM_Helpers:
             return False
         
         def _movement_eval_exit_on_map_loading_or_death(self):
-            if GLOBAL_CACHE.Map.IsMapLoading():
+            if Map.IsMapLoading():
                 return True
             
             if not self._parent.script_running:
@@ -225,7 +226,7 @@ class _FSM_Helpers:
             
         def TravelToLongeyesLedge(self):
             self._parent.SetCurrentStep("Travel to Longeyes Ledge",0.02)
-            current_map = GLOBAL_CACHE.Map.GetMapID()
+            current_map = Map.GetMapID()
             if current_map != self._parent.LONGEYES_LEDGE:
                 self._parent.AdvanceProgress(0.5)
                 self._parent.LogMessage("Map Check", "Traveling to Longeyes Ledge", LogConsole.LogSeverity.INFO)
@@ -381,7 +382,7 @@ class _FSM_Helpers:
             if not success_movement:
                 if not self._parent.script_running:
                     return
-                if not GLOBAL_CACHE.Map.IsMapLoading():
+                if not Map.IsMapLoading():
                     self._parent.LogMessage("Failed to leave outpost", "TIMEOUT", LogConsole.LogSeverity.ERROR)
                     yield from self._stop_execution()
                 
@@ -428,7 +429,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if GLOBAL_CACHE.Map.IsMapLoading():
+                if Map.IsMapLoading():
                     return
  
                 if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
@@ -438,7 +439,7 @@ class _FSM_Helpers:
                     yield from Routines.Yield.wait(1000)
                     yield from self._reset_execution()
             
-                if GLOBAL_CACHE.Map.GetMapID() != self._parent.JAGA_MORAINE:
+                if Map.GetMapID() != self._parent.JAGA_MORAINE:
                     self._parent.running_to_jaga = False
                     self._parent.run_to_jaga_stats.EndCurrentRun(failed=True, stuck_timeouts=1)
                     self._parent.LogMessage("Failed to traverse Bjora Marches", "TIMEOUT", LogConsole.LogSeverity.ERROR)
@@ -694,7 +695,7 @@ class _FSM_Helpers:
                 GLOBAL_CACHE.Coroutines.remove(build.ProcessSkillCasting())
             if self._parent.HandleStuckJagaMoraine() in GLOBAL_CACHE.Coroutines:
                 GLOBAL_CACHE.Coroutines.remove(self._parent.HandleStuckJagaMoraine())
-            self._parent.farming_stats.EndCurrentRun(vaettirs_killed=GLOBAL_CACHE.Map.GetFoesKilled())
+            self._parent.farming_stats.EndCurrentRun(vaettirs_killed=Map.GetFoesKilled())
             self._parent.LogDetailedMessage("Skill Casting Coroutine", "Removed from Coroutines.", LogConsole.LogSeverity.INFO)
   
  
@@ -738,8 +739,8 @@ class _FSM_Helpers:
                     yield from Routines.Yield.wait(1000)
                     yield from self._reset_execution()
             
-                if not GLOBAL_CACHE.Map.IsMapLoading():
-                    if GLOBAL_CACHE.Map.GetMapID() != self._parent.BJORA_MARCHES:
+                if not Map.IsMapLoading():
+                    if Map.GetMapID() != self._parent.BJORA_MARCHES:
                         self._parent.LogMessage("Failed to traverse Bjora Marches", "TIMEOUT", LogConsole.LogSeverity.ERROR)
                         yield from Routines.Yield.wait(1000)
                         yield from self._reset_execution()  
@@ -767,8 +768,8 @@ class _FSM_Helpers:
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()
             
-                if not GLOBAL_CACHE.Map.IsMapLoading():
-                    if GLOBAL_CACHE.Map.GetMapID() != self._parent.JAGA_MORAINE:
+                if not Map.IsMapLoading():
+                    if Map.GetMapID() != self._parent.JAGA_MORAINE:
                         self._parent.LogMessage("Failed to return to Jaga Moraine", "TIMEOUT", LogConsole.LogSeverity.ERROR)
                         yield from Routines.Yield.wait(1000)
                         yield from self._reset_execution()

@@ -237,17 +237,17 @@ class Checks:
         
         @staticmethod
         def IsExplorable():
-            from ..GlobalCache import GLOBAL_CACHE
+            from ..Map import Map
             if not Checks.Map.MapValid():
                 return False
-            return GLOBAL_CACHE.Map.IsExplorable()
+            return Map.IsExplorable()
         
         @staticmethod
         def IsOutpost():
-            from ..GlobalCache import GLOBAL_CACHE
+            from ..Map import Map
             if not Checks.Map.MapValid():
                 return False
-            return GLOBAL_CACHE.Map.IsOutpost()
+            return Map.IsOutpost()
         
         @staticmethod
         def IsLoading():
