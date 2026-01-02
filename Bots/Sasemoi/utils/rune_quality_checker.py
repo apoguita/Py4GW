@@ -13,6 +13,14 @@ mod_id_9224_runes = [
                 },
 
                 {
+                    'name': 'Survivor Insignia',
+                    'type': 'insignia',
+                    'modifiers': [
+                        (9224, 1, 230),
+                    ]
+                },
+
+                {
                     'name': 'Rune of Vitae',
                     'type': 'rune',
                     'modifiers': [
@@ -107,6 +115,30 @@ mod_id_8680_runes = [
                 },
 
                 {
+                    'name': 'Minor Protection Prayers',
+                    'type': 'rune',
+                    'modifiers': [
+                        (8680, 15, 1)
+                    ]
+                },
+                
+                {
+                    'name': 'Minor Divine Favor',
+                    'type': 'rune',
+                    'modifiers': [
+                        (8680, 16, 1)
+                    ]
+                },
+
+                {
+                    'name': 'Minor Healing Prayers',
+                    'type': 'rune',
+                    'modifiers': [
+                        (8680, 13, 1)
+                    ]
+                },
+
+                {
                     'name': 'Minor Fast Casting',
                     'type': 'rune',
                     'modifiers': [
@@ -119,6 +151,14 @@ mod_id_8680_runes = [
                     'type': 'rune',
                     'modifiers': [
                         (8680, 3, 1)
+                    ]
+                },
+
+                {
+                    'name': 'Minor Domination Magic',
+                    'type': 'rune',
+                    'modifiers': [
+                        (8680, 2, 1)
                     ]
                 },
 
@@ -169,6 +209,14 @@ mod_id_8680_runes = [
                     'type': 'rune',
                     'modifiers': [
                         (8680, 0, 2),
+                    ]
+                },
+
+                {
+                    'name': 'Major Domination Magic',
+                    'type': 'rune',
+                    'modifiers': [
+                        (8680, 2, 2),
                     ]
                 },
                 #endregion
