@@ -1,13 +1,12 @@
-
-
-from typing import Iterable
 from Py4GWCoreLib import ItemArray, Item
 from Py4GWCoreLib.enums import Bags
-from PyItem import ItemModifier
 from Bots.Sasemoi.utils.rune_quality_checker import item_has_valuable_rune
+from Py4GWCoreLib import Rarity
 
-def get_unidentified_items(rarities: list[str], slot_blacklist: list[tuple[int,int]]) -> list[int]:
-    ''' Returns a list of all unidentified item IDs in the player's inventory '''
+def get_unidentified_items(rarities: list[Rarity], slot_blacklist: list[tuple[int,int]]) -> list[int]:
+    '''
+    Returns a list of all unidentified item IDs in the player's inventory
+    '''
     unidentified_items = []
 
     # Loop over all bags
@@ -29,6 +28,15 @@ def get_unidentified_items(rarities: list[str], slot_blacklist: list[tuple[int,i
     return unidentified_items
 
 def filter_valuable_weapon_type(item_id: int) -> bool:
+    '''
+    Checks for extreme rare stats on shields, swords and offhands
+
+    q5 shields with ideal armor or q8 with max armor
+
+    q8 swords with max damage
+
+    q8 offhands with max energy (gold rarity only)
+    '''
     desired_types = [12, 24, 27] # Offhand, Shield, Sword
     item_instance = Item.item_instance(item_id)
     item_modifiers = item_instance.modifiers
