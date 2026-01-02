@@ -2,7 +2,7 @@ import math
 from typing import Any, Generator, override
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Map, Range
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils, VectorFields
 from Py4GWCoreLib.Overlay import Overlay
@@ -64,7 +64,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
         self.event_bus.subscribe(EventType.MAP_CHANGED, self.area_changed, subscriber_name=self.custom_skill.skill_name)
     
     def area_changed(self, message: EventMessage)-> Generator[Any, Any, Any]:
-        if GLOBAL_CACHE.Map.IsExplorable():
+        if Map.IsExplorable():
             self.enable_enemy_repulsion = False if GLOBAL_CACHE.Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID()) else True
             self.enable_leader_attraction = True
             self.enable_allies_repulsion = False if GLOBAL_CACHE.Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID()) else True

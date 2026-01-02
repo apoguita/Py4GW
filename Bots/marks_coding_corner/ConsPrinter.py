@@ -8,6 +8,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Item
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import ModelID
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import Py4GW
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
@@ -517,7 +518,7 @@ def analyze_conset_material_balance():
 
 
 def cons_printer_bot(bot: Botting) -> None:
-    map_id = GLOBAL_CACHE.Map.GetMapID()
+    map_id = Map.GetMapID()
     if map_id != 640:
         bot.Map.Travel(target_map_name=EMBARK_BEACH)
         bot.Wait.ForMapLoad(target_map_name=EMBARK_BEACH)

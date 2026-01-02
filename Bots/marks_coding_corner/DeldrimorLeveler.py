@@ -17,9 +17,9 @@ def AddHenchies():
 
 def ReturnToOutpost():
     yield from Routines.Yield.wait(4000)
-    is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+    is_map_ready = Map.IsMapReady()
     is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+    is_explorable = Map.IsExplorable()
     is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
 
     if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:

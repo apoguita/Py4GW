@@ -198,7 +198,7 @@ def ShowWindow():
             widget_options._LOOKUP_TIME = PyImGui.input_int("##lookup_time",  widget_options._LOOKUP_TIME)
             ImGui.show_tooltip("Changes will take effect after the next lookup.")
             
-            if not GLOBAL_CACHE.Map.IsExplorable():
+            if not Map.IsExplorable():
                 PyImGui.text("Auto Lookup only runs in explorable maps.")
             else:
                 remaining = widget_options.lookup_throttle.GetTimeRemaining() / 1000  # convert ms to seconds
@@ -510,7 +510,7 @@ def main():
 
         ShowWindow()
         
-        if not GLOBAL_CACHE.Map.IsExplorable():
+        if not Map.IsExplorable():
             widget_options.lookup_throttle.Stop()
             widget_options.status = "Idle"
             if not widget_options.outpost_handled:

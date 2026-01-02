@@ -168,8 +168,8 @@ class LiveData:
         self.player_profession_primary = primary
         self.player_profession_secondary = secondary
         self.level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
-        self.current_map_id = GLOBAL_CACHE.Map.GetMapID()
-        self.map_max_party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+        self.current_map_id = Map.GetMapID()
+        self.map_max_party_size = Map.GetMaxPartySize()
         
 #region BotConfig
 class BotConfig:
@@ -290,7 +290,7 @@ class BottingHelpers:
         self.parent = parent
         
     def is_map_loading(self):
-        if GLOBAL_CACHE.Map.IsMapLoading():
+        if Map.IsMapLoading():
             return True
         if not self.parent.config.fsm_running:
             return True
@@ -387,7 +387,7 @@ class BottingHelpers:
     CITY_10M = [ModelID.Creme_Brulee, ModelID.Jar_Of_Honey, ModelID.Krytan_Lokum]
     CITY_5M  = [ModelID.Chocolate_Bunny, ModelID.Fruitcake, ModelID.Red_Bean_Cake]
     CITY_3M  = [ModelID.Mandragor_Root_Cake]
-    CITY_2M  = [ModelID.Delicious_Cake, ModelID.Minitreats_Of_Purity, ModelID.Sugary_Blue_Drink]
+    CITY_2M  = [ModelID.Delicious_Cake, ModelID.Minitreat_Of_Purity, ModelID.Sugary_Blue_Drink]
 
     CON_SET = [ModelID.Grail_Of_Might, ModelID.Armor_Of_Salvation, ModelID.Essence_Of_Celerity]
 
@@ -771,7 +771,7 @@ class BottingHelpers:
 
     @_yield_step(label="Travel", counter_key="TRAVEL")
     def travel(self, target_map_id):
-        GLOBAL_CACHE.Map.Travel(target_map_id)
+        Map.Travel(target_map_id)
         yield from Routines.Yield.wait(1000)
 
     @_yield_step(label="FollowPath", counter_key="FOLLOW_PATH")
@@ -833,7 +833,7 @@ class BottingHelpers:
 
     @_yield_step(label="EnterChallenge", counter_key="ENTER_CHALLENGE")
     def enter_challenge(self, wait_for:int= 3000):
-        GLOBAL_CACHE.Map.EnterChallenge()
+        Map.EnterChallenge()
         yield from Routines.Yield.wait(wait_for)
 
     @_yield_step(label="CancelSkillRewardWindow", counter_key="CANCEL_SKILL_REWARD_WINDOW")
@@ -984,7 +984,7 @@ class Botting:
 
     def Travel(self, target_map_id: int = 0, target_map_name: str = "") -> None:
         if target_map_name:
-            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+            target_map_id = Map.GetMapIDByName(target_map_name)
 
         self.helpers.travel(target_map_id)
 
@@ -1032,7 +1032,7 @@ class Botting:
 
     def WaitForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
         if target_map_name:
-            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+            target_map_id = Map.GetMapIDByName(target_map_name)
             
         self.helpers.wait_for_map_load(target_map_id)
 

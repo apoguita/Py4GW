@@ -17,11 +17,11 @@ def main():
                 x, y = 100, 100
                 GLOBAL_CACHE.Player.Move(x, y)
         if PyImGui.collapsing_header("Map"):
-            PyImGui.text(f"Map ID: {GLOBAL_CACHE.Map.GetMapID()}")
-            PyImGui.text(f"Map Name: {GLOBAL_CACHE.Map.GetMapName()}")
+            PyImGui.text(f"Map ID: {Map.GetMapID()}")
+            PyImGui.text(f"Map Name: {Map.GetMapName()}")
             if PyImGui.button("travel to 248"):
                 map_id = 248
-                GLOBAL_CACHE.Map.Travel(map_id)
+                Map.Travel(map_id)
         
         if PyImGui.collapsing_header("Agent"):
             agent_id = GLOBAL_CACHE.Player.GetTargetID() if GLOBAL_CACHE.Player.GetTargetID() != 0 else GLOBAL_CACHE.Player.GetAgentID()

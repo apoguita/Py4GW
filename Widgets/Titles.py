@@ -1,5 +1,6 @@
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import TitleID
 
@@ -83,7 +84,7 @@ def main():
     game_throttle_timer.Reset()
     
     is_map_valid = Routines.Checks.Map.MapValid()
-    is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+    is_explorable = Map.IsExplorable()
     
     if not is_map_valid:
         widget_config.title_applied = False
@@ -93,7 +94,7 @@ def main():
         widget_config.title_applied = False
         return
     
-    map_name = GLOBAL_CACHE.Map.GetMapName()
+    map_name = Map.GetMapName()
 
     if not widget_config.title_applied:
         if map_name in asuran_map_names:

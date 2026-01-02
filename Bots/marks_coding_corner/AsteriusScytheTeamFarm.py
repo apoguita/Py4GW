@@ -9,12 +9,13 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Map
 
 BOT_NAME = "Asterius Scythe Farm"
 TEXTURE = os.path.join(
     Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures", "asterius_scythe.png"
 )
-OUTPOST_TO_TRAVEL = GLOBAL_CACHE.Map.GetMapIDByName('Olafstead')
+OUTPOST_TO_TRAVEL = Map.GetMapIDByName('Olafstead')
 VARAJAR_FELLS_MAP_ID = 553
 ASTERIUS_MODEL_ID = 6458
 
@@ -109,7 +110,7 @@ def handle_asterius_killed_en_route():
     global asterius_agent_id
 
     while True:
-        if not GLOBAL_CACHE.Map.IsExplorable():
+        if not Map.IsExplorable():
             yield from Routines.Yield.wait(1000)
             continue
 

@@ -96,10 +96,10 @@ def scan_for_aloes():
 def evaluate_skill_casting_status():
     global bot_variables   
     """Returns True if the bot can cast skills, False otherwise."""
-    if GLOBAL_CACHE.Map.IsMapLoading():
+    if Map.IsMapLoading():
         yield from Routines.Yield.wait(3000)
         return False
-    elif not (GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and GLOBAL_CACHE.Map.IsExplorable()):
+    elif not (Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.IsExplorable()):
         yield from Routines.Yield.wait(1000)
         return False
     elif bot_variables.config.routine_finished:

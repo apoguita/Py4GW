@@ -1,10 +1,11 @@
 #region STATES
 from typing import TYPE_CHECKING, Any, Generator
 
+from Py4GWCoreLib.Map import Map
+
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingClass
 
-from ...enums import ModelID
 from ..helpers_src.decorators import _yield_step
 
 #region MAP
@@ -17,43 +18,39 @@ class _MAP:
     #region coroutines (_coro_)
     def _coro_travel(self, target_map_id:int =0, target_map_name:str ="") -> Generator:
         from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
         
-        if GLOBAL_CACHE.Map.IsMapLoading():
+        if Map.IsMapLoading():
             yield from Routines.Yield.wait(1000)
             return
         
         if target_map_name:
-            target_map_id = GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+            target_map_id = Map.GetMapIDByName(target_map_name)
         
-        current_map_id = GLOBAL_CACHE.Map.GetMapID()
+        current_map_id = Map.GetMapID()
         if current_map_id == target_map_id:
             yield from Routines.Yield.wait(1000)
             return
         
-        GLOBAL_CACHE.Map.Travel(target_map_id)
+        Map.Travel(target_map_id)
         yield from Routines.Yield.wait(500)
         
         yield from self.parent.Wait._coro_for_map_load(target_map_id=target_map_id, target_map_name=target_map_name)
     
     def _coro_enter_challenge(self, wait_for:int= 3000, target_map_id: int = 0, target_map_name: str = "") -> Generator:
-        from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
-        GLOBAL_CACHE.Map.EnterChallenge()
+        Map.EnterChallenge()
         yield from Routines.Yield.wait(wait_for)
         yield from self.parent.Wait._coro_for_map_load(target_map_id=target_map_id, target_map_name=target_map_name)
     
     def _coro_travel_to_gh(self, wait_time:int= 1000):
         from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
-        GLOBAL_CACHE.Map.TravelGH()
+        Map.TravelGH()
         yield from Routines.Yield.wait(wait_time)
         yield from self.parent.Wait._coro_until_on_outpost()
         
     def _coro_leave_gh(self, wait_time:int= 1000):
         from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
-        GLOBAL_CACHE.Map.LeaveGH()
+        Map.LeaveGH()
         yield from Routines.Yield.wait(wait_time)
         yield from self.parent.Wait._coro_until_on_outpost()
             

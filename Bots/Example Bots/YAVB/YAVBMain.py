@@ -25,6 +25,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import AgentArray
 from Py4GWCoreLib import AgentModelID
 from Py4GWCoreLib import Range
+from Py4GWCoreLib import Map
 
 
 class YAVB:
@@ -154,9 +155,9 @@ class YAVB:
         self.console.SetMainWindowSize(self.main_window_size)
         self.console.SetLogToFile(self.console_log_to_file)
         
-        self.LONGEYES_LEDGE = GLOBAL_CACHE.Map.GetMapIDByName("Longeyes Ledge")
-        self.BJORA_MARCHES = GLOBAL_CACHE.Map.GetMapIDByName("Bjora Marches")
-        self.JAGA_MORAINE = GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine")
+        self.LONGEYES_LEDGE = Map.GetMapIDByName("Longeyes Ledge")
+        self.BJORA_MARCHES = Map.GetMapIDByName("Bjora Marches")
+        self.JAGA_MORAINE = Map.GetMapIDByName("Jaga Moraine")
         
         self.FSM_Handler._initialize_fsm()
         
@@ -351,7 +352,7 @@ class YAVB:
                 continue
 
 
-            if GLOBAL_CACHE.Map.GetMapID() == self.BJORA_MARCHES:
+            if Map.GetMapID() == self.BJORA_MARCHES:
                 if self.stuck_timer.IsExpired():
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     self.stuck_timer.Reset()
@@ -433,7 +434,7 @@ class YAVB:
                 yield from Routines.Yield.wait(1000)
                 continue
 
-            if GLOBAL_CACHE.Map.GetMapID() == self.JAGA_MORAINE:
+            if Map.GetMapID() == self.JAGA_MORAINE:
                 if self.stuck_timer.IsExpired():
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     self.stuck_timer.Reset()

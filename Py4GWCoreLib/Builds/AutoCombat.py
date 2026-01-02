@@ -1,5 +1,5 @@
 
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import BuildMgr
@@ -20,7 +20,7 @@ class AutoCombat(BuildMgr):
 
         if not (Routines.Checks.Map.MapValid() and 
                 Routines.Checks.Player.CanAct() and
-                GLOBAL_CACHE.Map.IsExplorable() and
+                Map.IsExplorable() and
                 not self.auto_combat_handler.InCastingRoutine()):
             yield from Routines.Yield.wait(100)
         else:

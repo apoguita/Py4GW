@@ -28,15 +28,15 @@ class FSM_Config:
         
     def initialize(self):
         self.FSM.AddYieldRoutineStep(name = "Exit Monastery Overlook", coroutine_fn=self.ExitMonasteryOverlook)
-        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 001",coroutine_fn = lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery")))
+        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 001",coroutine_fn = lambda: self.WaitforMapLoad(Map.GetMapIDByName("Shing Jea Monastery")))
         self.FSM.AddYieldRoutineStep(name = "Exit to Courtyard 001", coroutine_fn=self.ExitToCourtyard001)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Linnok Courtyard Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Linnok Courtyard")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Linnok Courtyard Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Linnok Courtyard")))
         self.FSM.AddYieldRoutineStep(name = "Unlock Secondary and Exit", coroutine_fn=self.UnlockSecondaryAndExit)
-        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 002",coroutine_fn = lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery")))
+        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 002",coroutine_fn = lambda: self.WaitforMapLoad(Map.GetMapIDByName("Shing Jea Monastery")))
         self.FSM.AddYieldRoutineStep(name = "Unlock Xunlai Storage", coroutine_fn=self.UnlockXunlaiStorage)
         self.FSM.AddYieldRoutineStep(name = "Craft Weapons", coroutine_fn=self.CraftWeapons)
         self.FSM.AddYieldRoutineStep(name = "Exit Shing Jea Monastery", coroutine_fn=self.ExitShingJeaMonastery)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Sunqua Vale Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Sunqua Vale")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Sunqua Vale Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Sunqua Vale")))
         self.FSM.AddYieldRoutineStep(name = "Travel to Minister Cho", coroutine_fn=self.TravelToMinisterCho)
         minister_cho_map_id = 214
         self.FSM.AddYieldRoutineStep(name = "Wait for Minister Cho Map Load", coroutine_fn=lambda: self.WaitforMapLoad(minister_cho_map_id))
@@ -44,34 +44,34 @@ class FSM_Config:
         self.FSM.AddYieldRoutineStep(name = "Wait for Minister Cho Mission Load", coroutine_fn=lambda: self.WaitforMapLoad(minister_cho_map_id))
         self.FSM.AddYieldRoutineStep(name = "Minister Cho Mission", coroutine_fn=self.MinisterChoMission)
         self.FSM.AddYieldRoutineStep(name = "Take Warning the Tengu and Exit", coroutine_fn=self.TakeWarningTheTenguandExit)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Kinya Province Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Kinya Province"))) #236
+        self.FSM.AddYieldRoutineStep(name = "Wait for Kinya Province Map Load", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Kinya Province"))) #236
         self.FSM.AddYieldRoutineStep(name = "Warning the Tengu", coroutine_fn=self.WarningTheTengu)
-        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 003",coroutine_fn = lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery")))
+        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 003",coroutine_fn = lambda: self.WaitforMapLoad(Map.GetMapIDByName("Shing Jea Monastery")))
         self.FSM.AddYieldRoutineStep(name = "Exit Monastery Overlook 002", coroutine_fn=self.ExitMonasteryOverlook002)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Sunqua Vale Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Sunqua Vale")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Sunqua Vale Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Sunqua Vale")))
         self.FSM.AddYieldRoutineStep(name = "Travel to Tsumei Village", coroutine_fn=self.TravelTsumeiVillage)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Tsumei Village Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Tsumei Village")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Tsumei Village Map Load", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Tsumei Village")))
         self.FSM.AddYieldRoutineStep(name = "Exit Tsumei Village", coroutine_fn=self.ExitTsumeiVillage)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Panjiang Peninsula Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Panjiang Peninsula")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Panjiang Peninsula Map Load", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Panjiang Peninsula")))
         self.FSM.AddYieldRoutineStep(name = "The Threat Grows", coroutine_fn=self.TheThreatGrows)
-        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 004",coroutine_fn = lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery")))
+        self.FSM.AddYieldRoutineStep(name = "Wait shing jea Monastery to Load 004",coroutine_fn = lambda: self.WaitforMapLoad(Map.GetMapIDByName("Shing Jea Monastery")))
         self.FSM.AddYieldRoutineStep(name = "Exit to Courtyard 002", coroutine_fn=self.ExitToCourtyard002)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Linnok Courtyard Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Linnok Courtyard")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Linnok Courtyard Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Linnok Courtyard")))
         self.FSM.AddYieldRoutineStep(name = "Finish quest and advance to Saoshang Trail", coroutine_fn=self.FinishQuestsAndAdvanceToSaoshangTrail)
         saoshang_trail_map_id = 313
         self.FSM.AddYieldRoutineStep(name = "Wait for Saoshang Trail Map Load", coroutine_fn=lambda: self.WaitforMapLoad(saoshang_trail_map_id))
         self.FSM.AddYieldRoutineStep(name = "Traverse Saoshang Trail", coroutine_fn=self.TraverseSaoshangTrail)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load 001", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Seitung Harbor")))
         self.FSM.AddYieldRoutineStep(name = "Take Reward and Exit Seitung Harbor", coroutine_fn=self.TakeRewardAndExitSeitungHarbor)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Jaya Bluffs Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Jaya Bluffs")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Jaya Bluffs Map Load", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Jaya Bluffs")))
         self.FSM.AddYieldRoutineStep(name = "Go to Zen Daijun 001", coroutine_fn=self.GoToZenDaijunPart001)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Haiju Lagoon Map Load", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Haiju Lagoon")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Haiju Lagoon Map Load", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Haiju Lagoon")))
         self.FSM.AddYieldRoutineStep(name = "Go to Zen Daijun 002", coroutine_fn=self.GoToZenDaijunPart002)
         zen_daijun_map_id = 213
         self.FSM.AddYieldRoutineStep(name = "Wait for Zen Daijun Map Load", coroutine_fn=lambda: self.WaitforMapLoad(zen_daijun_map_id))
         self.FSM.AddYieldRoutineStep(name = "Prepare for Zen Daijun Mission", coroutine_fn=self.PrepareForZenDaijunMission)
         self.FSM.AddYieldRoutineStep(name = "Zen Daijun Mission", coroutine_fn=self.ZenDaijunMission)
-        self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor")))
+        self.FSM.AddYieldRoutineStep(name = "Wait for Seitung Harbor Map Load 002", coroutine_fn=lambda: self.WaitforMapLoad(Map.GetMapIDByName("Seitung Harbor")))
         self.FSM.AddYieldRoutineStep(name = "End Routines", coroutine_fn=self.Endroutine)
         
     #region HELPERS
@@ -105,7 +105,7 @@ class FSM_Config:
         GLOBAL_CACHE.Party.LeaveParty()
         yield from Routines.Yield.wait(250)
         
-        party_size = GLOBAL_CACHE.Map.GetMaxPartySize()
+        party_size = Map.GetMaxPartySize()
         
         zen_daijun_map_id = 213
         
@@ -119,7 +119,7 @@ class FSM_Config:
             GUARDIAN_ID = 2
             GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
             yield from Routines.Yield.wait(200)
-        elif GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"):
+        elif Map.GetMapID() == Map.GetMapIDByName("Seitung Harbor"):
             GUARDIAN_ID = 2
             GLOBAL_CACHE.Party.Henchmen.AddHenchman(GUARDIAN_ID)
             yield from Routines.Yield.wait(200)
@@ -135,7 +135,7 @@ class FSM_Config:
             HEALER_ID = 5
             GLOBAL_CACHE.Party.Henchmen.AddHenchman(HEALER_ID)
             yield from Routines.Yield.wait(200)
-        elif GLOBAL_CACHE.Map.GetMapID() == zen_daijun_map_id:
+        elif Map.GetMapID() == zen_daijun_map_id:
             FIGHTER_ID = 3
             GLOBAL_CACHE.Party.Henchmen.AddHenchman(FIGHTER_ID)
             yield from Routines.Yield.wait(200)
@@ -284,7 +284,7 @@ class FSM_Config:
             yield
         
     def _movement_eval_exit_on_map_loading(self):
-        if GLOBAL_CACHE.Map.IsMapLoading():
+        if Map.IsMapLoading():
             return True
         
         if not self.script_running:
@@ -342,7 +342,7 @@ class FSM_Config:
         )
 
         if not success_movement:
-            if GLOBAL_CACHE.Map.IsMapLoading():
+            if Map.IsMapLoading():
                 return True
             yield from self._stop_execution()
             return False
@@ -576,7 +576,7 @@ class FSM_Config:
         
         yield from self._prepare_for_battle()
 
-        GLOBAL_CACHE.Map.EnterChallenge()
+        Map.EnterChallenge()
 
         yield from Routines.Yield.wait(4500)  # Wait for the map to load and the challenge to start
         
@@ -610,8 +610,8 @@ class FSM_Config:
                 return
 
             while True:
-                mapid = GLOBAL_CACHE.Map.GetMapID() #251
-                if (Routines.Checks.Map.MapValid() and (mapid == GLOBAL_CACHE.Map.GetMapIDByName("Ran Musu Gardens"))):
+                mapid = Map.GetMapID() #251
+                if (Routines.Checks.Map.MapValid() and (mapid == Map.GetMapIDByName("Ran Musu Gardens"))):
                     break
                 yield from Routines.Yield.wait(1000)
         finally:  
@@ -693,7 +693,7 @@ class FSM_Config:
             if autocombat in GLOBAL_CACHE.Coroutines:
                 GLOBAL_CACHE.Coroutines.remove(autocombat)
         
-        GLOBAL_CACHE.Map.Travel(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery"))
+        Map.Travel(Map.GetMapIDByName("Shing Jea Monastery"))
         yield from Routines.Yield.wait(1000)
         
     def ExitMonasteryOverlook002(self):
@@ -762,7 +762,7 @@ class FSM_Config:
         GLOBAL_CACHE.Player.SendDialog(TAKE_QUEST)
         yield from Routines.Yield.wait(500)
         
-        GLOBAL_CACHE.Map.Travel(GLOBAL_CACHE.Map.GetMapIDByName("Shing Jea Monastery"))
+        Map.Travel(Map.GetMapIDByName("Shing Jea Monastery"))
         yield from Routines.Yield.wait(1000)
         
     def ExitToCourtyard002(self):
@@ -887,7 +887,7 @@ class FSM_Config:
        
     def PrepareForZenDaijunMission(self):
         yield from self._prepare_for_battle()
-        GLOBAL_CACHE.Map.EnterChallenge()
+        Map.EnterChallenge()
         yield from Routines.Yield.wait(6500)  # Wait for the map to load and the challenge to start
                  
     def ZenDaijunMission(self):
@@ -948,8 +948,8 @@ class FSM_Config:
                 return
             
             while True:
-                mapid = GLOBAL_CACHE.Map.GetMapID() #251
-                if (Routines.Checks.Map.MapValid() and (mapid == GLOBAL_CACHE.Map.GetMapIDByName("Seitung Harbor"))):
+                mapid = Map.GetMapID() #251
+                if (Routines.Checks.Map.MapValid() and (mapid == Map.GetMapIDByName("Seitung Harbor"))):
                     break
                 yield from Routines.Yield.wait(1000)
         finally:  
@@ -961,7 +961,7 @@ class FSM_Config:
         level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
         if level < 10:
             zen_daijun_map_id = 213
-            GLOBAL_CACHE.Map.Travel(zen_daijun_map_id)
+            Map.Travel(zen_daijun_map_id)
             yield from Routines.Yield.wait(1000)
             self.FSM.jump_to_state_by_name("Wait for Zen Daijun Map Load")
             return

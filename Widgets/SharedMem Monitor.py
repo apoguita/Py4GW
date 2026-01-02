@@ -393,7 +393,7 @@ def draw_available_characters(player: AccountData):
 
             # Map
             PyImGui.table_set_column_index(2)
-            PyImGui.text(GLOBAL_CACHE.Map.GetMapName(char.MapID))
+            PyImGui.text(Map.GetMapName(char.MapID))
 
             # Professions
             PyImGui.table_set_column_index(3)
@@ -481,7 +481,7 @@ class PlayerData:
     def _get_map_name(self, map_id: int) -> str:
         """Store map names permanently."""
         if map_id not in self._map_name_cache:
-            map_name = GLOBAL_CACHE.Map.GetMapName(map_id)
+            map_name = Map.GetMapName(map_id)
             if not map_name:
                 map_name = "Unknown"
             self._map_name_cache[map_id] = map_name

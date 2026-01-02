@@ -5,7 +5,7 @@ import traceback
 from typing import List, Generator, Any, override
 import time
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -241,7 +241,7 @@ class CustomBehaviorBaseUtility():
         return self.__final_skills_list
 
     def is_custom_behavior_match_in_game_build(self) -> bool:
-        if not GLOBAL_CACHE.Map.IsOutpost(): return True
+        if not Map.IsOutpost(): return True
 
         utility_build_full:list[CustomSkillUtilityBase] = self.get_skills_final_list()
         is_completed:bool = self.complete_build_with_generic_skills
@@ -353,7 +353,7 @@ class CustomBehaviorBaseUtility():
             if not Routines.Checks.Map.MapValid():
                 return BehaviorState.IDLE
 
-            if GLOBAL_CACHE.Map.IsOutpost():
+            if Map.IsOutpost():
                 return BehaviorState.IDLE
 
             if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):

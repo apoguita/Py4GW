@@ -775,17 +775,17 @@ def Travel(outpost_id):
     if bot_vars.opts.debug:
         Debug(f'Travelling to outpost ID [{outpost_id}].')
 
-    if GLOBAL_CACHE.Map.IsMapReady():
-        if not GLOBAL_CACHE.Map.IsOutpost() or (GLOBAL_CACHE.Map.GetMapID() != outpost_id):
-            GLOBAL_CACHE.Map.Travel(outpost_id)
+    if Map.IsMapReady():
+        if not Map.IsOutpost() or (Map.GetMapID() != outpost_id):
+            Map.Travel(outpost_id)
             return
 
 
 def ArrivedOutpost(map_id):
     if (
-        GLOBAL_CACHE.Map.IsMapReady()
-        and GLOBAL_CACHE.Map.GetMapID() == map_id
-        and GLOBAL_CACHE.Map.IsOutpost()
+        Map.IsMapReady()
+        and Map.GetMapID() == map_id
+        and Map.IsOutpost()
         and GLOBAL_CACHE.Party.IsPartyLoaded()
     ):
         return True
@@ -794,9 +794,9 @@ def ArrivedOutpost(map_id):
 
 def ArrivedExplorable(map_id):
     if (
-        GLOBAL_CACHE.Map.IsMapReady()
-        and GLOBAL_CACHE.Map.GetMapID() == map_id
-        and GLOBAL_CACHE.Map.IsExplorable()
+        Map.IsMapReady()
+        and Map.GetMapID() == map_id
+        and Map.IsExplorable()
         and GLOBAL_CACHE.Party.IsPartyLoaded()
     ):
         return True
@@ -1054,9 +1054,9 @@ def KillRotation():
 def HandleSkillbar():
     global bot_vars
     if (
-        GLOBAL_CACHE.Map.IsMapReady()
-        and not GLOBAL_CACHE.Map.IsMapLoading()
-        and GLOBAL_CACHE.Map.IsExplorable()
+        Map.IsMapReady()
+        and not Map.IsMapLoading()
+        and Map.IsExplorable()
         and GLOBAL_CACHE.Party.IsPartyLoaded()
     ):
         if bot_vars.fsm.get_current_step_name() == 'waiting for enemies':
@@ -1068,9 +1068,9 @@ def HandleSkillbar():
 def HandleStuck():
     global bot_vars
     if (
-        GLOBAL_CACHE.Map.IsMapReady()
-        and not GLOBAL_CACHE.Map.IsMapLoading()
-        and GLOBAL_CACHE.Map.IsExplorable()
+        Map.IsMapReady()
+        and not Map.IsMapLoading()
+        and Map.IsExplorable()
         and GLOBAL_CACHE.Party.IsPartyLoaded()
     ):
         if bot_vars.fsm.get_current_step_name() == 'going to kill spot':
@@ -1630,7 +1630,7 @@ def main():
 
     try:
         # only run when everything is loaded
-        if not GLOBAL_CACHE.Map.IsMapReady() or not GLOBAL_CACHE.Party.IsPartyLoaded():
+        if not Map.IsMapReady() or not GLOBAL_CACHE.Party.IsPartyLoaded():
             return
 
         # draw gui

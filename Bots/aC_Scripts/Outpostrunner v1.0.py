@@ -588,10 +588,10 @@ if not os.path.exists(OUTPOST_PATH_DIR):
     os.makedirs(OUTPOST_PATH_DIR)
 
 def get_map_name():
-    return GLOBAL_CACHE.Map.GetMapName()
+    return Map.GetMapName()
 
 def get_map_id():
-    return GLOBAL_CACHE.Map.GetMapID()
+    return Map.GetMapID()
 
 def reset_state():
     state["active"] = False

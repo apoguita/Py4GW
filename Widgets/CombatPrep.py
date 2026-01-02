@@ -14,6 +14,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Range
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
@@ -771,10 +772,10 @@ class CombatPrep:
 
         if is_window_opened:
             is_hero_ai_enabled = widget_handler.is_widget_enabled("HeroAI")
-            if not GLOBAL_CACHE.Map.IsExplorable() or not self.is_party_leader or not is_hero_ai_enabled:
+            if not Map.IsExplorable() or not self.is_party_leader or not is_hero_ai_enabled:
                 header_text = "The following prevents you from using CombatPrep:"
                 final_text = header_text
-                if not GLOBAL_CACHE.Map.IsExplorable():
+                if not Map.IsExplorable():
                     final_text += "\n  - Not in Explorable Area"
                 if not self.is_party_leader:
                     final_text += "\n  - Not Currently Party Leader"
@@ -844,7 +845,7 @@ def main():
             return
 
         cached_data.Update()
-        if GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
+        if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
             combat_prep = CombatPrep(cached_data, module_icon_size, module_layout)
             combat_prep.draw_window()
 

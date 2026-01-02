@@ -7,6 +7,7 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import ThemeTextures
 from Py4GWCoreLib import Style
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import IconsFontAwesome5
 
 import json
@@ -98,7 +99,7 @@ window_module = ImGui.WindowModule(
 
 new_favorite = 0
 config_module = ImGui.WindowModule(f"Config {MODULE_NAME}", window_name="Travel##config", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize, can_close=True)
-outposts = dict(zip(GLOBAL_CACHE.Map.GetOutpostIDs(), GLOBAL_CACHE.Map.GetOutpostNames()))
+outposts = dict(zip(Map.GetOutpostIDs(), Map.GetOutpostNames()))
 outposts = {id: outpost.replace("outpost", "") for id, outpost in outposts.items() if outpost}  # Filter out empty names
 outpost_index = 0
 filtered_outposts = [(id, outpost) for id, outpost in outposts.items()]
@@ -324,7 +325,7 @@ def DrawWindow():
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
     
     try:    
-        show_ui = not UIManager.IsWorldMapShowing() and not GLOBAL_CACHE.Map.IsMapLoading() and not GLOBAL_CACHE.Map.IsInCinematic() and not GLOBAL_CACHE.Player.InCharacterSelectScreen()
+        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not GLOBAL_CACHE.Player.InCharacterSelectScreen()
         
         if not show_ui:
             return
@@ -589,10 +590,10 @@ def TravelToOutpost(outpost_id):
     global is_traveling, widget_config, MODULE_NAME, travel_history
     
     if not is_traveling:
-        if outpost_id != GLOBAL_CACHE.Map.GetMapID():
+        if outpost_id != Map.GetMapID():
             ConsoleLog(MODULE_NAME, f"Traveling to outpost: {outposts[outpost_id]} ({outpost_id})", Py4GW.Console.MessageType.Debug)
             is_traveling = True
-            GLOBAL_CACHE.Map.Travel(outpost_id)
+            Map.Travel(outpost_id)
             
             if outpost_id in [id for id, _ in travel_history]:
                 travel_history = [(id, outpost) for id, outpost in travel_history if id != outpost_id]
@@ -617,7 +618,7 @@ def main():
     
     try:
         if game_throttle_timer.HasElapsed(game_throttle_time):
-            is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+            is_map_ready = Map.IsMapReady()
             is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
             game_throttle_timer.Start()
             

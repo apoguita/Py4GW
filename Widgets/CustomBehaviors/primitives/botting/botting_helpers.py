@@ -1,7 +1,7 @@
 from collections.abc import Callable, Generator
 import time
 from typing import Any, List
-from Py4GWCoreLib import Player, Item, ItemArray, Bags, Routines
+from Py4GWCoreLib import Map, Item, ItemArray, Bags, Routines
 from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.GameData_enums import Range
@@ -67,7 +67,7 @@ class BottingHelpers:
         timeout = ThrottledTimer(timeout_ms)
 
         while not timeout.IsExpired():
-            if GLOBAL_CACHE.Map.GetMapID() == target_map_id:
+            if Map.GetMapID() == target_map_id:
                 return True
             yield from custom_behavior_helpers.Helpers.wait_for(100)
         return False
@@ -135,7 +135,7 @@ class BottingHelpers:
         loop_counter = 0
         while not timeout.IsExpired():
 
-            if GLOBAL_CACHE.Map.IsOutpost(): return True
+            if Map.IsOutpost(): return True
             if GLOBAL_CACHE.Party.IsPartyDefeated(): return True
 
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()

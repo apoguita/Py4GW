@@ -6,7 +6,7 @@ from typing import Dict
 
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import ColorPalette
-from Py4GWCoreLib import ItemArray
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import Item
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import IconsFontAwesome5
@@ -253,7 +253,7 @@ class AutoHandlderModule:
             PyImGui.pop_item_width()
             ImGui.show_tooltip("Changes will take effect after the next lookup.")
             
-            if not GLOBAL_CACHE.Map.IsExplorable():
+            if not Map.IsExplorable():
                 PyImGui.text("Auto Lookup only runs in explorable.")
             else:
                 remaining = self.auto_handler.lookup_throttle.GetTimeRemaining() / 1000  # convert ms to seconds
@@ -386,7 +386,7 @@ class AutoHandlderModule:
             auto_handler.initialized = True
             ConsoleLog(self.MODULE_NAME, "Auto Widget Options initialized", Py4GW.Console.MessageType.Success)
             
-        if not GLOBAL_CACHE.Map.IsExplorable():
+        if not Map.IsExplorable():
             auto_handler.lookup_throttle.Stop()
             auto_handler.status = "Idle"
             if not auto_handler.outpost_handled and auto_handler.module_active:

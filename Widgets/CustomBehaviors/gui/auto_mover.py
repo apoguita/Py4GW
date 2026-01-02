@@ -219,7 +219,7 @@ def render():
 
 
         if True:
-            PyImGui.text(f"CurrentMap: {GLOBAL_CACHE.Map.GetMapID()}")
+            PyImGui.text(f"CurrentMap: {Map.GetMapID()}")
             coordinate = GLOBAL_CACHE.Player.GetXY()
             PyImGui.text(f"CurrentPos: {int(coordinate[0])}, {int(coordinate[1])}") 
             PyImGui.same_line(0,5)

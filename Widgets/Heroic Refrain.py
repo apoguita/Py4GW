@@ -141,7 +141,7 @@ def cast_heroic_refrain():
     heroic_refrain_skill_id = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
     
     # check if player is in explorable area
-    if not GLOBAL_CACHE.Map.IsExplorable():
+    if not Map.IsExplorable():
         PyImGui.text("Enter explorable area")
         return
     

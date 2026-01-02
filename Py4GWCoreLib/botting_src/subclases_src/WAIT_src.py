@@ -68,13 +68,13 @@ class _WAIT:
     def _coro_for_map_to_change(self, target_map_id: int = 0, target_map_name: str = ""):
         """Waits until all action finishes in current map and game sends you to a new one"""
         from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
+        from ...Map import Map
 
         wait_condition = lambda: (
-            not GLOBAL_CACHE.Map.IsMapLoading()
+            not Map.IsMapLoading()
             and Routines.Checks.Map.MapValid()
-            and GLOBAL_CACHE.Map.GetMapID() == (
-                target_map_id if target_map_id else GLOBAL_CACHE.Map.GetMapIDByName(target_map_name)
+            and Map.GetMapID() == (
+                target_map_id if target_map_id else Map.GetMapIDByName(target_map_name)
             )
         )
 

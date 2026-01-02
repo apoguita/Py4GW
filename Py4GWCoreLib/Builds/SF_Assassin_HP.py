@@ -6,7 +6,7 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import BuildMgr
-from Py4GWCoreLib import Agent
+from Py4GWCoreLib import Map
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import Overlay, DXOverlay
@@ -220,7 +220,7 @@ class SF_Assassin_Hells_Precipice(BuildMgr):
             yield from self.DeathsChargeToBestEnemy()
 
     def ProcessSkillCasting(self):
-        current_map_id = GLOBAL_CACHE.Map.GetMapID()
+        current_map_id = Map.GetMapID()
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
 
         while True:
@@ -274,7 +274,7 @@ class SF_Assassin_Hells_Precipice(BuildMgr):
             yield from Routines.Yield.wait(150)
             
             # Log current map id and name
-            ConsoleLog(self.build_name, f"Current Map ID: {current_map_id}, Name: {GLOBAL_CACHE.Map.GetMapName(current_map_id)}", Py4GW.Console.MessageType.Info, log=False)
+            ConsoleLog(self.build_name, f"Current Map ID: {current_map_id}, Name: {Map.GetMapName(current_map_id)}", Py4GW.Console.MessageType.Info, log=False)
 
 
 

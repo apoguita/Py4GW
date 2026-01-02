@@ -4,7 +4,7 @@ import importlib
 import os
 from Widgets.frenkey.Polymock import gui, combat, state
 
-from Py4GWCoreLib import Player, Routines
+from Py4GWCoreLib import Map, Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import Py4GWSharedMemoryManager
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, ThrottledTimer
@@ -35,7 +35,7 @@ def main():
     widget_state.update()
     ui.draw()
     
-    if not GLOBAL_CACHE.Map.IsExplorable():
+    if not Map.IsExplorable():
         return                    
                      
     if throttle_timer.IsExpired():

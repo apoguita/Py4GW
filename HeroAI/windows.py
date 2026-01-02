@@ -1,5 +1,5 @@
 from operator import index
-from Py4GWCoreLib import GLOBAL_CACHE, IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
+from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
 from Py4GWCoreLib import UIManager, ModelID, GLOBAL_CACHE
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
@@ -13,7 +13,7 @@ import math
 
 def DrawBuffWindow(cached_data:CacheData):
     global MAX_NUM_PLAYERS
-    if not GLOBAL_CACHE.Map.IsExplorable():
+    if not Map.IsExplorable():
         return
 
     for index in range(MAX_NUM_PLAYERS):
@@ -807,7 +807,7 @@ def DrawDebugWindow(cached_data:CacheData):
     if PyImGui.collapsing_header("Heroes Debug"):
         DrawHeroesDebug(cached_data)
 
-    if GLOBAL_CACHE.Map.IsExplorable():
+    if Map.IsExplorable():
         if PyImGui.collapsing_header("Follow Debug"):
             DrawFollowDebug(cached_data)
         if PyImGui.collapsing_header("Flag Debug"):
@@ -825,10 +825,10 @@ def DrawMultiboxTools(cached_data:CacheData):
     cached_data.HeroAI_windows.tools_window.initialize()
 
     if cached_data.HeroAI_windows.tools_window.begin():
-        if GLOBAL_CACHE.Map.IsOutpost() and GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+        if Map.IsOutpost() and GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
             if PyImGui.collapsing_header("Party Setup",PyImGui.TreeNodeFlags.DefaultOpen):
                 DrawCandidateWindow(cached_data)
-        if GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+        if Map.IsExplorable() and GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
             if PyImGui.collapsing_header("Flagging"):
                 DrawFlaggingWindow(cached_data)
 

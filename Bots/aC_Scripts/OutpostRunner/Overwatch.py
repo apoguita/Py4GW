@@ -122,9 +122,9 @@ class OutpostRunnerOverwatch:
             start_time = time.time()
 
             while time.time() - start_time < timeout:
-                is_map_ready = GLOBAL_CACHE.Map.IsMapReady()
+                is_map_ready = Map.IsMapReady()
                 is_party_loaded = GLOBAL_CACHE.Party.IsPartyLoaded()
-                is_explorable = GLOBAL_CACHE.Map.IsExplorable()
+                is_explorable = Map.IsExplorable()
                 is_party_defeated = GLOBAL_CACHE.Party.IsPartyDefeated()
 
                 if is_map_ready and is_party_loaded and is_explorable and is_party_defeated:
@@ -143,7 +143,7 @@ class OutpostRunnerOverwatch:
             start_time = time.time()
 
             while time.time() - start_time < timeout:
-                if Routines.Checks.Map.MapValid() and GLOBAL_CACHE.Map.IsOutpost():
+                if Routines.Checks.Map.MapValid() and Map.IsOutpost():
                     ConsoleLog("Overwatch", f"Restarting run: {current_run.display}", Console.MessageType.Warning)
                     remaining_runs = [r for r in self.runner.map_chain if not r.finished]
                     retry_chain = [current_run] + [r for r in remaining_runs if r != current_run]

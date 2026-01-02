@@ -6,7 +6,7 @@ import Py4GW
 import PyUIManager
 
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE, Player
+from Py4GWCoreLib import GLOBAL_CACHE, Player, Map
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import Console
@@ -604,7 +604,7 @@ def DonateToGuild(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    map_id = GLOBAL_CACHE.Map.GetMapID()
+    map_id = Map.GetMapID()
     TITLE_CAP = 10_000_000
     TOTAL_CUMULATIVE = 0
     if map_id == 77:  # House zu Heltzer
@@ -736,10 +736,10 @@ def OpenChest(index, message):
                 ConsoleLog(MODULE_NAME, f"Current account party position: {account_data.PartyPosition}", Console.MessageType.Info)
                 
                 party_id = account_data.PartyID
-                map_id = GLOBAL_CACHE.Map.GetMapID()
-                map_region = GLOBAL_CACHE.Map.GetRegion()[0]
-                map_district = GLOBAL_CACHE.Map.GetDistrict()
-                map_language = GLOBAL_CACHE.Map.GetLanguage()[0]
+                map_id = Map.GetMapID()
+                map_region = Map.GetRegion()[0]
+                map_district = Map.GetDistrict()
+                map_language = Map.GetLanguage()[0]
 
                 def on_same_map_and_party(account : AccountData) -> bool:                    
                     return (account.PartyID == party_id and
@@ -1313,7 +1313,7 @@ def LoadSkillTemplate(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     
-    if GLOBAL_CACHE.Map.IsOutpost():
+    if Map.IsOutpost():
         extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
         template = extra[0] if extra else ""
             
@@ -1334,8 +1334,8 @@ def SkipCutscene(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     
-    if GLOBAL_CACHE.Map.IsInCinematic():
-        GLOBAL_CACHE.Map.SkipCinematic()
+    if Map.IsInCinematic():
+        Map.SkipCinematic()
         yield from Routines.Yield.wait(100)
     
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -1350,11 +1350,11 @@ def TravelToGuildHall(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     
-    if GLOBAL_CACHE.Map.IsGuildHall():
+    if Map.IsGuildHall():
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     
-    GLOBAL_CACHE.Map.TravelGH()
+    Map.TravelGH()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "TravelToGuildHall message processed and finished.", Console.MessageType.Info, False)

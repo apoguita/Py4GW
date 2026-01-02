@@ -8,6 +8,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Keystroke, Utils
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.Skillbar import SkillBar
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums import Allegiance, Key
 from Widgets.frenkey.Polymock import state
 from Widgets.frenkey.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockBar, PolymockPieces, SkillReaction
@@ -233,7 +234,7 @@ class Combat:
 
     def GetAgentAtPosition(self, agent_id: int) -> int:
         agents = AgentArray.GetAgentArray()
-        map_id = GLOBAL_CACHE.Map.GetMapID()
+        map_id = Map.GetMapID()
 
         spawn_point = next(
             (spawn for spawn in Polymock_Spawns if spawn.value[0] == map_id), None)
@@ -265,8 +266,8 @@ class Combat:
 
         target_id = self.GetAgentAtPosition(target_id)
 
-        self.map_id = GLOBAL_CACHE.Map.GetMapID()
-        self.map_name = GLOBAL_CACHE.Map.GetMapName() or "Unknown Map"
+        self.map_id = Map.GetMapID()
+        self.map_name = Map.GetMapName() or "Unknown Map"
         self.target_id = target_id
         self.target_agent = GLOBAL_CACHE.Agent.GetAgentByID(self.target_id) if self.target_id > 0 else None
         self.target_name = GLOBAL_CACHE.Agent.GetName(

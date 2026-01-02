@@ -1,7 +1,7 @@
 import Py4GW
 import PyImGui
 from typing import Callable
-from Py4GWCoreLib import ImGui, ColorPalette, GLOBAL_CACHE, Routines, Utils
+from Py4GWCoreLib import ImGui, ColorPalette, GLOBAL_CACHE, Routines, Utils, Map
 from typing import Dict, Tuple, List
 #region QuestData
 class QuestNode:
@@ -290,7 +290,7 @@ class QuestData:
             ImGui.render_tokenized_markup(tokens, max_width=child_width, COLOR_MAP=self.COLOR_MAP)
 
             PyImGui.separator()
-            PyImGui.text(f"From: {GLOBAL_CACHE.Map.GetMapName(self.quest_log[self.active_quest_id].map_from)}")
-            PyImGui.text(f"To: {GLOBAL_CACHE.Map.GetMapName(self.quest_log[self.active_quest_id].map_to)}")
+            PyImGui.text(f"From: {Map.GetMapName(self.quest_log[self.active_quest_id].map_from)}")
+            PyImGui.text(f"To: {Map.GetMapName(self.quest_log[self.active_quest_id].map_to)}")
             PyImGui.text(f"Marker X,Y: ({self.quest_log[self.active_quest_id].quest_marker[0]}, {self.quest_log[self.active_quest_id].quest_marker[1]})")
             PyImGui.end_child()

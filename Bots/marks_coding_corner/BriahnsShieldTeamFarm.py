@@ -9,13 +9,14 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Map
 
 BOT_NAME = "Briahn's Shield Farm"
 TEXTURE = os.path.join(
     Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures", "briahns_guidance.png"
 )
-OUTPOST_TO_TRAVEL_KODASH = GLOBAL_CACHE.Map.GetMapIDByName('The Kodash Bazaar')
-OUTPOST_TO_TRAVEL_HONUR_HILL = GLOBAL_CACHE.Map.GetMapIDByName('Honur Hill')
+OUTPOST_TO_TRAVEL_KODASH = Map.GetMapIDByName('The Kodash Bazaar')
+OUTPOST_TO_TRAVEL_HONUR_HILL = Map.GetMapIDByName('Honur Hill')
 MIRROR_OF_LYSS_MAP_ID = 419
 BRIAHNS_MODEL_ID = 5518
 
@@ -122,7 +123,7 @@ def handle_briahn_killed_en_route():
     global briahn_agent_id
 
     while True:
-        if not GLOBAL_CACHE.Map.IsExplorable():
+        if not Map.IsExplorable():
             yield from Routines.Yield.wait(1000)
             continue
 

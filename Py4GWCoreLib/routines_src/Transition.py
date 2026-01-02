@@ -1,5 +1,7 @@
 
 from ..Py4GWcorelib import Timer
+from ..Map import Map
+
 arrived_timer = Timer()
 
 
@@ -24,24 +26,24 @@ class Transition:
             log_actions (bool) Optional: Whether to log the action. Default is True.
         Returns: None
         """
-        from ..GlobalCache import GLOBAL_CACHE
+        from ..Map import Map
         from ..Py4GWcorelib import ConsoleLog
 
         global arrived_timer
 
-        if not GLOBAL_CACHE.Map.IsMapReady():
+        if not Map.IsMapReady():
             return
 
-        if GLOBAL_CACHE.Map.GetMapID() == outpost_id:
+        if Map.GetMapID() == outpost_id:
             if log_actions and arrived_timer.IsStopped():
-                ConsoleLog("TravelToOutpost", f"Already at outpost: {GLOBAL_CACHE.Map.GetMapName(outpost_id)}.")
+                ConsoleLog("TravelToOutpost", f"Already at outpost: {Map.GetMapName(outpost_id)}.")
             return
 
         if arrived_timer.IsStopped():
-            GLOBAL_CACHE.Map.Travel(outpost_id)
+            Map.Travel(outpost_id)
             arrived_timer.Start()
             if log_actions:
-                ConsoleLog("TravelToOutpost", f"Traveling to outpost: {GLOBAL_CACHE.Map.GetMapName(outpost_id)}.")
+                ConsoleLog("TravelToOutpost", f"Traveling to outpost: {Map.GetMapName(outpost_id)}.")
 
     @staticmethod
     def HasArrivedToOutpost(outpost_id, log_actions=True):
@@ -56,22 +58,22 @@ class Transition:
         from ..Py4GWcorelib import ConsoleLog
         global arrived_timer
 
-        has_arrived = GLOBAL_CACHE.Map.GetMapID() == outpost_id and Transition.IsOutpostLoaded()
+        has_arrived = Map.GetMapID() == outpost_id and Transition.IsOutpostLoaded()
 
         if has_arrived:
             arrived_timer.Stop()
             if log_actions:
-                ConsoleLog("HasArrivedToOutpost", f"Arrived at outpost: {GLOBAL_CACHE.Map.GetMapName(outpost_id)}.")
+                ConsoleLog("HasArrivedToOutpost", f"Arrived at outpost: {Map.GetMapName(outpost_id)}.")
             return True
 
         if arrived_timer.HasElapsed(5000):
             arrived_timer.Stop()
             if log_actions:
-                ConsoleLog("HasArrivedToOutpost", f"Timeout reaching outpost: {GLOBAL_CACHE.Map.GetMapName(outpost_id)}.")
+                ConsoleLog("HasArrivedToOutpost", f"Timeout reaching outpost: {Map.GetMapName(outpost_id)}.")
             return False
 
         if log_actions:
-            ConsoleLog("HasArrivedToOutpost", f"Still traveling... Waiting to arrive at: {GLOBAL_CACHE.Map.GetMapName(outpost_id)}.")
+            ConsoleLog("HasArrivedToOutpost", f"Still traveling... Waiting to arrive at: {Map.GetMapName(outpost_id)}.")
 
         return False
 
@@ -85,7 +87,7 @@ class Transition:
         """
         from ..GlobalCache import GLOBAL_CACHE
         from ..Py4GWcorelib import ConsoleLog
-        map_loaded = GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded()
+        map_loaded = Map.IsMapReady() and Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded()
 
         if log_actions:
             if map_loaded:
@@ -105,7 +107,7 @@ class Transition:
         """
         from ..GlobalCache import GLOBAL_CACHE
         from ..Py4GWcorelib import ConsoleLog
-        map_loaded = GLOBAL_CACHE.Map.IsMapReady() and GLOBAL_CACHE.Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded()
+        map_loaded = Map.IsMapReady() and Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded()
         
         if log_actions:
             if map_loaded:

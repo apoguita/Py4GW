@@ -9,6 +9,7 @@ from typing import Any, Generator, TYPE_CHECKING, Tuple, List, Optional, Callabl
 from Py4GWCoreLib.enums import SharedCommandType 
 
 from Py4GWCoreLib import ConsoleLog, Console
+from Py4GWCoreLib.Map import Map
 
 #region Multibox
 class _Multibox:
@@ -255,7 +256,7 @@ class _Multibox:
         x, y = GLOBAL_CACHE.Player.GetXY()
 
         players = GLOBAL_CACHE.Party.GetPlayers()
-        current_map = GLOBAL_CACHE.Map.GetMapID()
+        current_map = Map.GetMapID()
         player_names = []
 
         for player in players:
@@ -295,7 +296,7 @@ class _Multibox:
         x, y = GLOBAL_CACHE.Player.GetXY()
 
         players = GLOBAL_CACHE.Party.GetPlayers()
-        current_map = GLOBAL_CACHE.Map.GetMapID()
+        current_map = Map.GetMapID()
         player_names = []
 
         for player in players:

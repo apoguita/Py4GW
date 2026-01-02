@@ -6,6 +6,7 @@ Manages flag positions for up to 12 party members.
 
 import math
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib import Map
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 class PartyFlaggingManager:
@@ -67,7 +68,7 @@ class PartyFlaggingManager:
         # Check if we're in game and can get player position
         try:
             # Only initialize if we're the party leader and in an explorable area
-            if not GLOBAL_CACHE.Map.IsExplorable():
+            if not Map.IsExplorable():
                 return
 
             if not GLOBAL_CACHE.Party.IsPartyLeader():

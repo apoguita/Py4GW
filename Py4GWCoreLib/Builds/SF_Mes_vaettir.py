@@ -9,6 +9,7 @@ from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Map
 
 
 # region SFMesmerVaettir
@@ -174,7 +175,7 @@ class SF_Mes_vaettir(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        if not GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine"):
+        if not Map.GetMapID() == Map.GetMapIDByName("Jaga Moraine"):
             from Py4GWCoreLib import AgentArray  # TODO: FIx
             from Py4GWCoreLib import AgentModelID  # TODO: FIx
 

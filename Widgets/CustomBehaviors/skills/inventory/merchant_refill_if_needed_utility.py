@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, ItemArray, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, ItemArray, Routines, Range, Map
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, Keystroke, ThrottledTimer, Utils
 from Py4GWCoreLib.enums_src.IO_enums import Key
@@ -51,7 +51,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
-        if not GLOBAL_CACHE.Map.IsOutpost(): return False
+        if not Map.IsOutpost(): return False
         return True
 
     def _is_merchant_agent(self, agent_id: int) -> bool:

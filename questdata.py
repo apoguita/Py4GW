@@ -2,7 +2,7 @@ from turtle import title
 
 from PyParty import Hero
 from Py4GWCoreLib import ImGui, ColorPalette, TITLE_TIERS, TITLE_NAME, GLOBAL_CACHE, TITLE_CATEGORIES, Utils
-from Py4GWCoreLib import Routines, Overlay
+from Py4GWCoreLib import Routines, Map
 import PyImGui
 import Py4GW
 import PyQuest
@@ -566,7 +566,7 @@ def draw_window():
                 render_markup_text(quest_objectives, max_width=child_width)
                 
             if GLOBAL_CACHE.Quest.IsQuestNPCReady(active_quest):
-                quest_npc = f"{GLOBAL_CACHE.Quest.GetQuestNPC(active_quest)} ({GLOBAL_CACHE.Map.GetMapName(quest.map_from)})"
+                quest_npc = f"{GLOBAL_CACHE.Quest.GetQuestNPC(active_quest)} ({Map.GetMapName(quest.map_from)})"
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, COLOR_MAP["Header"])
                 PyImGui.text_wrapped(f"{quest_npc}")
                 PyImGui.pop_style_color(1)
@@ -576,8 +576,8 @@ def draw_window():
                 render_markup_text(quest_description, max_width=child_width)
 
             PyImGui.separator()
-            PyImGui.text(f"From: {GLOBAL_CACHE.Map.GetMapName(quest.map_from)}")
-            PyImGui.text(f"To: {GLOBAL_CACHE.Map.GetMapName(quest.map_to)}")
+            PyImGui.text(f"From: {Map.GetMapName(quest.map_from)}")
+            PyImGui.text(f"To: {Map.GetMapName(quest.map_to)}")
             PyImGui.text(f"Marker X,Y: ({quest.marker_x}, {quest.marker_y})")
             PyImGui.text(f"h0024: {quest.h0024}")
             

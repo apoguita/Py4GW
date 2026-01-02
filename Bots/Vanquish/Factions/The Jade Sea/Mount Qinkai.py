@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Range, Utils, ConsoleLog
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Utils, ConsoleLog
 import Py4GW
 import os
 BOT_NAME = "VQ Mount Qinkai"
@@ -129,7 +129,7 @@ def _upkeep_multibox_consumables(bot :"Botting"):
 
 def _reverse_path():
     global Vanquish_Path
-    if GLOBAL_CACHE.Map.GetIsVanquishComplete():
+    if Map.IsVanquishCompleted():
         Vanquish_Path = []
         yield 
         return
