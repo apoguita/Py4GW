@@ -17,14 +17,11 @@ def InitBot(bot: Botting) -> None:
     bot.Map.Travel(target_map_name="Embark Beach")
     bot.Move.XY(2989.08, -2204.94)
     bot.Interact.WithNpcAtXY(2989.08, -2204.94)
-    bot.States.AddCustomState(lambda: SellDust(bot), "Sell Dust")
+    bot.States.AddCustomState(lambda: SellDust(), "Sell Dust")
 
-def SellDust(bot: Botting):
-    for _ in range(25):
-        pass
-
-
-
+def SellDust():
+    for _ in range(175):
+        yield from Routines.Yield.Merchant.SellMaterial(ModelID.Bone.value)
 
 bot.SetMainRoutine(create_bot_routine)
 base_path = Console.get_projects_path()
