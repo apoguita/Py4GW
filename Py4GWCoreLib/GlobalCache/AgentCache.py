@@ -7,8 +7,8 @@ import time
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 class AgentCache:
-    def __init__(self, raw_agent_array):
-        #self.raw_agent_array:RawAgentArray = raw_agent_array
+    def __init__(self):
+
         self.name_cache: dict[int, tuple[str, float]] = {}  # agent_id -> (name, timestamp)
         self.name_requested: set[int] = set()
         self.name_timeout_ms = 1_000

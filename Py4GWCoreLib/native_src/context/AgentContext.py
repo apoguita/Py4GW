@@ -505,18 +505,31 @@ class AgentArrayStruct(Structure):
 
         self._allegiance_cache = {
             "ally": [],#-
+            "ally_raw": [],
             "neutral": [], #-
+            "neutral_raw": [],
             "enemy": [], #-
+            "enemy_raw": [],
             "spirit_pet": [],#-
+            "spirit_pet_raw": [],
             "minion": [], #-
+            "minion_raw": [],
             "npc_minipet": [], #-
+            "npc_minipet_raw": [],
             "living": [],#-
+            "living_raw": [],
             "item": [], #-
+            "item_raw": [],
             "owned_item": [], # -
+            "owned_item_raw": [],
             "gadget": [], #-
+            "gadget_raw": [],
             "dead_ally": [],
+            "dead_ally_raw": [],
             "dead_enemy": [],
+            "dead_enemy_raw": [],
             "all": [], #-
+            "all_raw": [],
         }
         
         self.raw_agent_list = []
@@ -541,9 +554,11 @@ class AgentArrayStruct(Structure):
             
             aid = agent.agent_id
             self._allegiance_cache["all"].append(aid)
+            self._allegiance_cache["all_raw"].append(agent)
             
             if agent.is_gadget_type:
                 self._allegiance_cache["gadget"].append(aid)
+                self._allegiance_cache["gadget_raw"].append(agent)
                 continue
             
             if agent.is_item_type:
@@ -553,8 +568,10 @@ class AgentArrayStruct(Structure):
 
                 if item and item.owner!= 0:
                     self._allegiance_cache["owned_item"].append(aid)
+                    self._allegiance_cache["owned_item_raw"].append(agent)
                 
                 self._allegiance_cache["item"].append(aid)
+                self._allegiance_cache["item_raw"].append(agent)
                 continue
             
             # ---------- LIVING types ----------
@@ -566,6 +583,7 @@ class AgentArrayStruct(Structure):
                 continue
             
             self._allegiance_cache["living"].append(aid)
+            self._allegiance_cache["living_raw"].append(agent)
 
             """ 1: "ally",
                 2: "neutral",
@@ -578,20 +596,28 @@ class AgentArrayStruct(Structure):
             match living.allegiance:
                 case 1:
                     self._allegiance_cache["ally"].append(aid)
+                    self._allegiance_cache["ally_raw"].append(agent)
                     if living.is_dead:
                         self._allegiance_cache["dead_ally"].append(aid)
+                        self._allegiance_cache["dead_ally_raw"].append(agent)
                 case 2:
                     self._allegiance_cache["neutral"].append(aid)
+                    self._allegiance_cache["neutral_raw"].append(agent)
                 case 3:
                     self._allegiance_cache["enemy"].append(aid)
+                    self._allegiance_cache["enemy_raw"].append(agent)
                     if living.is_dead:
                         self._allegiance_cache["dead_enemy"].append(aid)
+                        self._allegiance_cache["dead_enemy_raw"].append(agent)
                 case 4:
                     self._allegiance_cache["spirit_pet"].append(aid)
+                    self._allegiance_cache["spirit_pet_raw"].append(agent)
                 case 5:
                     self._allegiance_cache["minion"].append(aid)
+                    self._allegiance_cache["minion_raw"].append(agent)
                 case 6:
                     self._allegiance_cache["npc_minipet"].append(aid)
+                    self._allegiance_cache["npc_minipet_raw"].append(agent)
 
     
     def GetAgentByID(self, agent_id: int) -> Optional[AgentStruct]:
@@ -602,33 +628,7 @@ class AgentArrayStruct(Structure):
                 return agent
         return None
     
-    def GetLivingAgents(self) -> list[AgentStruct]:
-        """Retrieve all living Agents (players, NPCs, monsters)."""
-        self._ensure_cache_up_to_date()
-        living_agents: list[AgentStruct] = []
-        for agent in self.raw_agent_list:
-            if agent and agent.is_living_type:
-                living_agents.append(agent)
-        return living_agents
-    
-    def GetItemAgents(self) -> list[AgentStruct]:
-        """Retrieve all item Agents."""
-        self._ensure_cache_up_to_date()
-        item_agents: list[AgentStruct] = []
-        for agent in self.raw_agent_list:
-            if agent and agent.is_item_type:
-                item_agents.append(agent)
-        return item_agents
-    
-    def GetGadgetAgents(self) -> list[AgentStruct]:
-        """Retrieve all gadget Agents."""
-        self._ensure_cache_up_to_date()
-        gadget_agents: list[AgentStruct] = []
-        for agent in self.raw_agent_list:
-            if agent and agent.is_gadget_type:
-                gadget_agents.append(agent)
-        return gadget_agents
-    
+    #AgentArray
     def GetAgentArray(self) -> list[int]:
         """Retrieve the raw agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
@@ -636,35 +636,14 @@ class AgentArrayStruct(Structure):
             return []
         return self._allegiance_cache.get("all", [])
     
-    def GetLivingAgentArray(self) -> list[int]:
-        """Retrieve the living agent array as a list of AgentIDs."""
+    def GetAgentArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the raw agent array as a list of AgentStructs."""
         self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
-        return self._allegiance_cache.get("living", [])
+        return self._allegiance_cache.get("all_raw", [])
     
-    def GetItemAgentArray(self) -> list[int]:
-        """Retrieve the item agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("item", [])
-    
-    def GetOwnedItemAgentArray(self) -> list[int]:
-        """Retrieve the owned item agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("owned_item", [])
-    
-    def GetGadgetAgentArray(self) -> list[int]:
-        """Retrieve the gadget agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("gadget", [])
-    
-
+    #AllyArray
     def GetAllyArray(self) -> list[int]:
         """Retrieve the ally agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
@@ -672,6 +651,14 @@ class AgentArrayStruct(Structure):
             return []
         return self._allegiance_cache.get("ally", [])
     
+    def GetAllyArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the ally agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("ally_raw", [])
+    
+    #neutral
     def GetNeutralArray(self) -> list[int]:
         """Retrieve the neutral agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
@@ -679,6 +666,14 @@ class AgentArrayStruct(Structure):
             return []
         return self._allegiance_cache.get("neutral", [])
     
+    def GetNeutralArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the neutral agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("neutral_raw", [])
+    
+    #enemy
     def GetEnemyArray(self) -> list[int]:
         """Retrieve the enemy agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
@@ -686,12 +681,35 @@ class AgentArrayStruct(Structure):
             return []
         return self._allegiance_cache.get("enemy", [])
     
+    def GetEnemyArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the enemy agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("enemy_raw", [])
+    
+    #spirit_pet
     def GetSpiritPetArray(self) -> list[int]:
         """Retrieve the spirit/pet agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("spirit_pet", [])
+    
+    def GetSpiritPetArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the spirit/pet agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("spirit_pet_raw", [])
+    
+    #minion
+    def GetMinionArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the minion agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("minion_raw", [])
     
     def GetMinionArray(self) -> list[int]:
         """Retrieve the minion agent array as a list of AgentIDs."""
@@ -700,6 +718,7 @@ class AgentArrayStruct(Structure):
             return []
         return self._allegiance_cache.get("minion", [])
     
+    #npc-minipet
     def GetNPCMinipetArray(self) -> list[int]:
         """Retrieve the NPC/minipet agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
@@ -707,6 +726,59 @@ class AgentArrayStruct(Structure):
             return []
         return self._allegiance_cache.get("npc_minipet", [])
     
+    def GetNPCMinipetArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the NPC/minipet agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("npc_minipet_raw", [])
+    
+    #item
+    def GetItemAgentArray(self) -> list[int]:
+        """Retrieve the item agent array as a list of AgentIDs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("item", [])
+    
+    def GetItemAgentArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the item agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("item_raw", [])
+    
+    #owned item
+    def GetOwnedItemAgentArray(self) -> list[int]:
+        """Retrieve the owned item agent array as a list of AgentIDs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("owned_item", [])
+    
+    def GetOwnedItemAgentArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the owned item agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("owned_item_raw", [])
+    
+    #gadget
+    def GetGadgetAgentArray(self) -> list[int]:
+        """Retrieve the gadget agent array as a list of AgentIDs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("gadget", [])
+    
+    def GetGadgetAgentArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the gadget agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("gadget_raw", [])
+    
+    #dead ally/enemy
     def GetDeadAllyArray(self) -> list[int]:
         """Retrieve the dead ally agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
@@ -714,12 +786,27 @@ class AgentArrayStruct(Structure):
             return []
         return self._allegiance_cache.get("dead_ally", [])
     
+    def GetDeadEnemyArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the dead enemy agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("dead_enemy_raw", [])
+    
     def GetDeadEnemyArray(self) -> list[int]:
         """Retrieve the dead enemy agent array as a list of AgentIDs."""
         self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("dead_enemy", [])
+    
+    def GetDeadAllyArrayRaw(self) -> list[AgentStruct]:
+        """Retrieve the dead ally agent array as a list of AgentStructs."""
+        self._ensure_cache_up_to_date()
+        if not self._allegiance_cache:
+            return []
+        return self._allegiance_cache.get("dead_ally_raw", [])
+    
     
     
     

@@ -220,7 +220,8 @@ class Sequential:
         @staticmethod
         def GetAgentIDByName(agent_name):
             from ..GlobalCache import GLOBAL_CACHE
-            agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+            from ..AgentArray import AgentArray
+            agent_ids = AgentArray.GetAgentArray()
             agent_names = {}
 
             # Request all names
@@ -268,7 +269,8 @@ class Sequential:
             """
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog, Console
-            agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+            from ..AgentArray import AgentArray
+            agent_ids = AgentArray.GetAgentArray()
             for agent_id in agent_ids:
                 if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
                     return agent_id

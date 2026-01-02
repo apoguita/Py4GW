@@ -6,7 +6,7 @@ from Py4GWCoreLib import RawAgentArray
 from .PlayerCache import PlayerCache
 from .MapCache import MapCache
 from .AgentCache import AgentCache
-from .AgentArrayCache import AgentArrayCache
+
 from .CameraCache import CameraCache
 from .EffectCache import EffectsCache
 from .ItemCache import RawItemCache, ItemCache, ItemArray
@@ -36,8 +36,8 @@ class GlobalCache:
         self._RawItemCache = RawItemCache()
         self.Player = PlayerCache(self._ActionQueueManager)
         self.Map = MapCache(self._ActionQueueManager)
-        self.Agent = AgentCache(self._RawAgentArray)
-        self.AgentArray = AgentArrayCache(self._RawAgentArray)
+        self.Agent = AgentCache()
+
         self.Camera = CameraCache(self._ActionQueueManager)
         self.Effects = EffectsCache()
         self.Item = ItemCache(self._RawItemCache)
@@ -70,7 +70,7 @@ class GlobalCache:
             self.Item._update_cache()
             self._RawAgentArray.update()
             self.Agent._update_cache()
-            self.AgentArray._update_cache()
+
             self.SkillBar._update_cache()
         #end force update block
                
@@ -92,7 +92,7 @@ class GlobalCache:
              
             self._RawAgentArray.update()
             self.Agent._update_cache()
-            self.AgentArray._update_cache()
+
             self.SkillBar._update_cache()
             
             

@@ -125,7 +125,7 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
         PyImGui.bullet_text(f"opened_chest_agent_ids : {self.opened_chest_agent_ids}")
         return
         # debug mode
-        gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.GetGadgetArray()
         gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), 100)
         for agent_id in gadget_array:
             gadget_id = GLOBAL_CACHE.Agent.GetGadgetID(agent_id)

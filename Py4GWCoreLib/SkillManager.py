@@ -793,7 +793,7 @@ def _AreCastConditionsMet(slot,
                                     
         if Conditions.RequiresSpiritInEarshot:            
             distance = Range.Earshot.value
-            spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+            spirit_array = AgentArray.GetSpiritPetArray()
             spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), distance)            
             spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
             
@@ -867,7 +867,7 @@ def _AreCastConditionsMet(slot,
         return False
     
 def _SpiritBuffExists(skill_id):
-    spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+    spirit_array = AgentArray.GetSpiritPetArray()
     distance = Range.Earshot.value
     spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), distance)
     spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
@@ -1756,7 +1756,7 @@ class SkillManager:
                                         
             if Conditions.RequiresSpiritInEarshot:            
                 distance = Range.Earshot.value
-                spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+                spirit_array = AgentArray.GetSpiritPetArray()
                 spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), distance)            
                 spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
                 
@@ -1826,7 +1826,7 @@ class SkillManager:
             return False
 
         def SpiritBuffExists(self, skill_id):
-            spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+            spirit_array = AgentArray.GetSpiritPetArray()
             distance = Range.Earshot.value
             spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), distance)
             spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))

@@ -6,6 +6,7 @@ from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils, VectorFields
 from Py4GWCoreLib.Overlay import Overlay
+from Py4GWCoreLib.AgentArray import AgentArray
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -87,14 +88,14 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
         positions = []
         
         # Get ally positions
-        for agent_id in GLOBAL_CACHE.AgentArray.GetAllyArray():
+        for agent_id in AgentArray.GetAllyArray():
             if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
                 # Exclude self
                 if agent_id != GLOBAL_CACHE.Player.GetAgentID():
                     positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
 
         # Get spirit positions
-        for agent_id in GLOBAL_CACHE.AgentArray.GetSpiritPetArray():
+        for agent_id in AgentArray.GetSpiritPetArray():
             if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
                 positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
 
@@ -112,7 +113,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
 
         try:
             # Get nearby enemies
-            enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.GetEnemyArray()
             for enemy_id in enemy_array:
                 if not GLOBAL_CACHE.Agent.IsAlive(enemy_id) or not GLOBAL_CACHE.Agent.IsValid(enemy_id):
                     continue

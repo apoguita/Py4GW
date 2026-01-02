@@ -41,7 +41,7 @@ class TogetherAsOneUtility(CustomSkillUtilityBase):
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
         if state is BehaviorState.IN_AGGRO:
-            agent_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+            agent_array = AgentArray.GetAllyArray()
             agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
             agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != GLOBAL_CACHE.Player.GetAgentID())
             agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)

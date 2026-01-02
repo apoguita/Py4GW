@@ -10,6 +10,7 @@ from .native_src.context.AgentContext import AgentStruct
 
 
 class AgentArray:
+    #region Agent
     @staticmethod
     def GetAgentArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
@@ -22,6 +23,18 @@ class AgentArray:
         return agent_array
     
     @staticmethod
+    def GetAgentArrayRaw() -> list[AgentStruct]:
+        """Purpose: Get the unfiltered full agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+
+        agent_array = agent_array_ctx.GetAgentArrayRaw()
+        
+        return agent_array
+    
+    #region Ally
+    @staticmethod
     def GetAllyArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
         agent_array_ctx = GWContext.AgentArray.GetContext()
@@ -30,7 +43,18 @@ class AgentArray:
 
         agent_array = agent_array_ctx.GetAllyArray()
         return agent_array
+    
+    @staticmethod
+    def GetAllyArrayRaw() -> list[AgentStruct]:
+        """Purpose: Get the unfiltered full ally agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
 
+        agent_array = agent_array_ctx.GetAllyArrayRaw()
+        return agent_array
+    
+    #region Neutral
     @staticmethod
     def GetNeutralArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by neutrals."""
@@ -39,7 +63,17 @@ class AgentArray:
             return []
         agent_array = agent_array_ctx.GetNeutralArray()
         return agent_array
-
+    
+    @staticmethod
+    def GetNeutralArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the neutral agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetNeutralArrayRaw()
+        return agent_array
+    
+    #region Enemy
     @staticmethod
     def GetEnemyArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by enemies."""
@@ -50,6 +84,16 @@ class AgentArray:
         return agent_array
 
     @staticmethod
+    def GetEnemyArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the enemy agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetEnemyArrayRaw()
+        return agent_array
+
+    #region SpiritPet
+    @staticmethod
     def GetSpiritPetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by spirit & pets."""
         agent_array_ctx = GWContext.AgentArray.GetContext()
@@ -57,7 +101,17 @@ class AgentArray:
             return []
         agent_array = agent_array_ctx.GetSpiritPetArray()
         return agent_array
-
+    
+    @staticmethod
+    def GetSpiritPetArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the spirit & pet agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetSpiritPetArrayRaw()
+        return agent_array
+    
+    #region Minion
     @staticmethod
     def GetMinionArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by minions."""
@@ -66,7 +120,17 @@ class AgentArray:
             return []
         agent_array = agent_array_ctx.GetMinionArray()
         return agent_array
+    
+    @staticmethod
+    def GetMinionArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the minion agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetMinionArrayRaw()
+        return agent_array
 
+    #region NPCMinipet
     @staticmethod
     def GetNPCMinipetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by NPC & minipets."""
@@ -75,7 +139,17 @@ class AgentArray:
             return []
         agent_array = agent_array_ctx.GetNPCMinipetArray()
         return agent_array
+    
+    @staticmethod
+    def GetNPCMinipetArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the NPC & minipet agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetNPCMinipetArrayRaw()
+        return agent_array
 
+    #region Item
     @staticmethod
     def GetItemArray() -> list[int]:
         """Purpose: Retrieve the agent array pre-filtered by items."""
@@ -86,6 +160,16 @@ class AgentArray:
         return agent_array
     
     @staticmethod
+    def GetItemArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the item agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetItemAgentArrayRaw()
+        return agent_array
+    
+    #region OwnedItem
+    @staticmethod
     def GetOwnedItemArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by owned items."""
         agent_array_ctx = GWContext.AgentArray.GetContext()
@@ -94,6 +178,16 @@ class AgentArray:
         agent_array = agent_array_ctx.GetOwnedItemAgentArray()
         return agent_array
     
+    @staticmethod
+    def GetOwnedItemArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the owned item agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetOwnedItemAgentArrayRaw()
+        return agent_array
+    
+    #region Gadget
     @staticmethod
     def GetGadgetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by gadgets."""
@@ -104,6 +198,16 @@ class AgentArray:
         return agent_array
     
     @staticmethod
+    def GetGadgetArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the gadget agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetGadgetAgentArrayRaw()
+        return agent_array
+    
+    #region DeadAlly
+    @staticmethod
     def GetDeadAllyArray() -> list[int]:
         """Purpose: Retrieve the dead ally agent array."""
         agent_array_ctx = GWContext.AgentArray.GetContext()
@@ -112,6 +216,16 @@ class AgentArray:
         agent_array = agent_array_ctx.GetDeadAllyArray()
         return agent_array
     
+    @staticmethod
+    def GetDeadAllyArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the dead ally agent array as AgentStructs."""
+        agent_array_ctx = GWContext.AgentArray.GetContext()
+        if not agent_array_ctx:
+            return []
+        agent_array = agent_array_ctx.GetDeadAllyArrayRaw()
+        return agent_array
+    
+    #region DeadEnemy
     @staticmethod
     def GetDeadEnemyArray() -> list[int]:
         """Purpose: Retrieve the dead enemy agent array."""
@@ -122,55 +236,14 @@ class AgentArray:
         return agent_array
     
     @staticmethod
-    def GetLivingArray() -> list[int]:
-        """Purpose: Retrieve the living agent array."""
+    def GetDeadEnemyArrayRaw() -> list[AgentStruct]:
+        """Purpose: Retrieve the dead enemy agent array as AgentStructs."""
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
-        agent_array = agent_array_ctx.GetLivingAgentArray()
+        agent_array = agent_array_ctx.GetDeadEnemyArrayRaw()
         return agent_array
     
-    @staticmethod
-    def GetAgents() -> list[AgentStruct | None]:
-        """Purpose: Get the unfiltered full agent array."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        
-        agents = agent_array_ctx.raw_agents
-        if agents is None:
-            return []
-        return agents if agents else []
-    
-    @staticmethod
-    def GetLivingAgents() -> list[AgentStruct]:
-        """Purpose: Get the unfiltered full living agent array."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        
-        agents = agent_array_ctx.GetLivingAgents()
-        return agents if agents else []
-    
-    @staticmethod
-    def GetItemAgents() -> list[AgentStruct]:
-        """Purpose: Get the unfiltered full item agent array."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        
-        agents = agent_array_ctx.GetItemAgents()
-        return agents if agents else []
-    
-    @staticmethod
-    def GetGadgetAgents() -> list[AgentStruct]:
-        """Purpose: Get the unfiltered full gadget agent array."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        
-        agents = agent_array_ctx.GetGadgetAgents()
-        return agents if agents else []
     
     @staticmethod
     def GetAgentByID(agent_id: int) -> AgentStruct | None:
@@ -182,8 +255,9 @@ class AgentArray:
         agent = agent_array_ctx.GetAgentByID(agent_id)
         return agent
         
+    #region
     
-
+    #region Manipulation
     class Manipulation:
         @staticmethod
         def Merge(array1, array2):
@@ -236,6 +310,7 @@ class AgentArray:
             """
             return list(set(array1).intersection(set(array2)))
 
+    #region Sort
     class Sort:
         @staticmethod
         def ByAttribute(agent_array, attribute, descending=False):
@@ -297,7 +372,7 @@ class AgentArray:
                 condition_func=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id),
                 reverse=descending
             )
-
+    #region Filter
     class Filter:
         @staticmethod
         def ByAttribute(agent_array, attribute, condition_func=None, negate=False):
@@ -353,7 +428,7 @@ class AgentArray:
 
             return AgentArray.Filter.ByCondition(agent_array, distance_filter)
 
-
+    #region Routines
     class Routines:
             @staticmethod
             def DetectLargestAgentCluster(agent_array, cluster_radius):
@@ -424,6 +499,7 @@ class AgentArray:
                 return closest_agent_id
 
 
+#region RawAgentArray
 class RawAgentArray:
     _instance = None
 

@@ -33,7 +33,7 @@ class WaitIfPartyMemberTooFarUtility(CustomSkillUtilityBase):
         
     def __should_wait_for_party(self) -> bool:
         player_pos: tuple[float, float] = GLOBAL_CACHE.Player.GetXY()
-        agent_ids: list[int] = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        agent_ids: list[int] = AgentArray.GetAllyArray()
         party_size = len(agent_ids)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, Range.Spellcast.value * 0.75)

@@ -14,7 +14,7 @@ class Agents:
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
         scan_pos = (x,y)
-        npc_array = GLOBAL_CACHE.AgentArray.GetNPCMinipetArray()
+        npc_array = AgentArray.GetNPCMinipetArray()
         npc_array = AgentArray.Filter.ByDistance(npc_array,scan_pos, distance)
         npc_array = AgentArray.Sort.ByDistance(npc_array, scan_pos)
         if len(npc_array) > 0:
@@ -26,7 +26,7 @@ class Agents:
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
         scan_pos = (x,y)
-        gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.GetGadgetArray()
         gadget_array = AgentArray.Filter.ByDistance(gadget_array,scan_pos, distance)
         gadget_array = AgentArray.Sort.ByDistance(gadget_array, scan_pos)
         if len(gadget_array) > 0:
@@ -38,7 +38,7 @@ class Agents:
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
         scan_pos = (x,y)
-        item_array = GLOBAL_CACHE.AgentArray.GetItemArray()
+        item_array = AgentArray.GetItemArray()
         item_array = AgentArray.Filter.ByDistance(item_array,scan_pos, distance)
         item_array = AgentArray.Sort.ByDistance(item_array, scan_pos)
         if len(item_array) > 0:
@@ -62,8 +62,9 @@ class Agents:
         """
         from ..GlobalCache import GLOBAL_CACHE
         from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
 
-        agent_ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+        agent_ids = AgentArray.GetAgentArray()
         px, py = GLOBAL_CACHE.Player.GetXY()
 
         best_id = 0
@@ -93,12 +94,13 @@ class Agents:
         """
         from ..GlobalCache import GLOBAL_CACHE
         from ..Py4GWcorelib import Utils
+        from ..AgentArray import AgentArray
 
         # Required bit rules
         BIT22 = 1 << 22
         ZERO_BITS = (1 << 0) | (1 << 1) | (1 << 31)   # bits 0,1,31 must be 0
 
-        item_ids = GLOBAL_CACHE.AgentArray.GetItemArray()
+        item_ids = AgentArray.GetItemArray()
         px, py = GLOBAL_CACHE.Player.GetXY()
 
         best_id = 0
@@ -217,7 +219,7 @@ class Agents:
         Returns: List of ally agent IDs
         """
         from ..GlobalCache import GLOBAL_CACHE
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = AgentArray.Filter.ByDistance(ally_array, (x,y), max_distance)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         if other_ally:
@@ -234,7 +236,7 @@ class Agents:
 
         self_id = GLOBAL_CACHE.Player.GetAgentID()
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = AgentArray.Filter.ByDistance(ally_array, player_pos, max_distance)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         if exclude_self:
@@ -273,7 +275,7 @@ class Agents:
             return False
 
         distance = max_distance
-        corpse_array = GLOBAL_CACHE.AgentArray.GetAgentArray()
+        corpse_array = AgentArray.GetAgentArray()
         corpse_array = AgentArray.Filter.ByDistance(corpse_array, GLOBAL_CACHE.Player.GetXY(), distance)
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: GLOBAL_CACHE.Agent.IsDead(agent_id))
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
@@ -286,7 +288,7 @@ class Agents:
         from ..Py4GWcorelib import Utils
         from ..GlobalCache import GLOBAL_CACHE
         distance = max_distance
-        spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_array = AgentArray.GetSpiritPetArray()
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), distance)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsSpawned(agent_id))
@@ -303,7 +305,7 @@ class Agents:
         Returns: List of spirit agent IDs
         """
         from ..GlobalCache import GLOBAL_CACHE
-        spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_array = AgentArray.GetSpiritPetArray()
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, (x,y), max_distance)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsSpawned(agent_id))
@@ -316,7 +318,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         
         distance = max_distance
-        minion_array = GLOBAL_CACHE.AgentArray.GetMinionArray()
+        minion_array = AgentArray.GetMinionArray()
         minion_array = AgentArray.Filter.ByDistance(minion_array, GLOBAL_CACHE.Player.GetXY(), distance)
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         minion_array = AgentArray.Sort.ByHealth(minion_array)
@@ -332,7 +334,7 @@ class Agents:
         Returns: List of minion agent IDs
         """
         from ..GlobalCache import GLOBAL_CACHE
-        minion_array = GLOBAL_CACHE.AgentArray.GetMinionArray()
+        minion_array = AgentArray.GetMinionArray()
         minion_array = AgentArray.Filter.ByDistance(minion_array, (x,y), max_distance)
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         return minion_array    
@@ -355,7 +357,7 @@ class Agents:
         from ..Py4GWcorelib import Utils
         from ..GlobalCache import GLOBAL_CACHE
 
-        gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.GetGadgetArray()
         gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
         gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
         return Utils.GetFirstFromArray(gadget_array)
@@ -366,7 +368,7 @@ class Agents:
         from ..Py4GWcorelib import Utils
         from ..GlobalCache import GLOBAL_CACHE
 
-        gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+        gadget_array = AgentArray.GetGadgetArray()
         gadget_array = AgentArray.Filter.ByCondition(gadget_array, lambda agent_id: GLOBAL_CACHE.Agent.GetGadgetID(agent_id) == gadget_id)
         gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
         gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
@@ -421,7 +423,7 @@ class Agents:
         lowest_hp = float('inf')
 
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        agents = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+        agents = AgentArray.GetEnemyArray()
         agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         agents = AgentArray.Filter.ByDistance(agents, player_pos, a_range)
 

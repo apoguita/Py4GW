@@ -40,11 +40,11 @@ class Targeting:
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
 
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = AgentArray.Filter.ByDistance(ally_array, GLOBAL_CACHE.Player.GetXY(), distance)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         
-        spirit_pet_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
         spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, GLOBAL_CACHE.Player.GetXY(), distance)
         spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not GLOBAL_CACHE.Agent.IsSpawned(agent_id)) #filter spirits
         ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
@@ -82,11 +82,11 @@ class Targeting:
         from ..GlobalCache import GLOBAL_CACHE
 
         distance = Range.Spellcast.value
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id) 
         
         
-        spirit_pet_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
         spirit_pet_array = Targeting.FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
         spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not GLOBAL_CACHE.Agent.IsSpawned(agent_id)) #filter spirits
         ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
@@ -111,7 +111,7 @@ class Targeting:
             return 1.0 #default return full energy to prevent issues
         
         distance = Range.Spellcast.value
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Checks.Agents.HasEffect(agent_id, BLOOD_IS_POWER))
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Checks.Agents.HasEffect(agent_id, BLOOD_RITUAL))
@@ -126,7 +126,7 @@ class Targeting:
         from ..GlobalCache import GLOBAL_CACHE
 
         distance = Range.Spellcast.value
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsCaster(agent_id))
 
@@ -140,11 +140,11 @@ class Targeting:
         from ..GlobalCache import GLOBAL_CACHE
 
         distance = Range.Spellcast.value
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsMartial(agent_id))
         
-        spirit_pet_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
         spirit_pet_array = Targeting.FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
         spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not GLOBAL_CACHE.Agent.IsSpawned(agent_id)) #filter spirits
         ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
@@ -159,11 +159,11 @@ class Targeting:
         from ..GlobalCache import GLOBAL_CACHE
 
         distance = Range.Spellcast.value
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsMelee(agent_id))
         
-        spirit_pet_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
         spirit_pet_array = Targeting.FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
         spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not GLOBAL_CACHE.Agent.IsSpawned(agent_id)) #filter spirits
         ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
@@ -178,7 +178,7 @@ class Targeting:
         from ..GlobalCache import GLOBAL_CACHE
 
         distance = Range.Spellcast.value
-        ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        ally_array = AgentArray.GetAllyArray()
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsRanged(agent_id))
         
@@ -201,7 +201,7 @@ class Targeting:
             return is_assigned
     
         distance = Range.Spellcast.value
-        item_array = GLOBAL_CACHE.AgentArray.GetItemArray()
+        item_array = AgentArray.GetItemArray()
         item_array = AgentArray.Filter.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY(), distance)
         item_array = AgentArray.Filter.ByCondition(item_array, lambda item_id: IsValidItem(item_id))
         #IsPointValid implementation goes here
@@ -215,7 +215,7 @@ class Targeting:
         from ..GlobalCache import GLOBAL_CACHE
 
         distance = area
-        enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByDistance(enemy_array, GLOBAL_CACHE.Player.GetXY(), distance)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         

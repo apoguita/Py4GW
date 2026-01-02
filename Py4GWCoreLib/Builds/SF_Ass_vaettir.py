@@ -151,7 +151,7 @@ class SF_Ass_vaettir(BuildMgr):
         if not GLOBAL_CACHE.Map.GetMapID() == GLOBAL_CACHE.Map.GetMapIDByName("Jaga Moraine"):
             from ..AgentArray import AgentArray
             from ..enums import AgentModelID
-            agent_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+            agent_array = AgentArray.GetEnemyArray()
             agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent: GLOBAL_CACHE.Agent.GetModelID(agent) in (AgentModelID.FROZEN_ELEMENTAL.value, AgentModelID.FROST_WURM.value))
             agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
             if len(agent_array) > 0:

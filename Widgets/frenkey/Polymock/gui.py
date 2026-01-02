@@ -6,6 +6,7 @@ from Py4GWCoreLib.Py4GWcorelib import ConsoleLog
 from Widgets.frenkey.Core import utility
 from Widgets.frenkey.Core.gui import GUI
 from Widgets.frenkey.Polymock import combat, data, state
+from datetime import datetime
 
 importlib.reload(combat)
 importlib.reload(data)
@@ -170,7 +171,7 @@ class UI:
                 
                 PyImGui.text("Agents")
                 PyImGui.table_next_column()
-                agents = GLOBAL_CACHE.AgentArray.GetAgentArray()
+                agents = AgentArray.GetAgentArray()
                 if agents:
                     PyImGui.text_wrapped(f"{len(agents)}")
                 else:
