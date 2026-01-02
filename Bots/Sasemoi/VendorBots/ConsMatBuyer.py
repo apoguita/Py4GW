@@ -1,14 +1,10 @@
 import Py4GW
-from Py4GWCoreLib import Routines, ConsoleLog, Console
-from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Botting, HeroType
-from Bots.Sasemoi.bot_helpers.bot_mystic_healing_support import MysticHealingSupport
+from Py4GWCoreLib import Routines, Console
+from Py4GWCoreLib import Botting
 from Py4GWCoreLib import ModelID
 
 bot = Botting(
     "Material Buyer",
-
 )
 
 
