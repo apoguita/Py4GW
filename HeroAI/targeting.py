@@ -27,11 +27,11 @@ def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
 
 def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     distance = Range.Spellcast.value
-    ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+    ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id) 
      
     
-    spirit_pet_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
     spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not GLOBAL_CACHE.Agent.IsSpawned(agent_id)) #filter spirits
     ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
@@ -54,7 +54,7 @@ def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0):
         return 1.0 #default return full energy to prevent issues
     
     distance = Range.Spellcast.value
-    ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+    ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not CheckForEffect(agent_id, BLOOD_IS_POWER))
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not CheckForEffect(agent_id, BLOOD_RITUAL))
@@ -65,7 +65,7 @@ def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0):
 
 def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
     distance = Range.Spellcast.value
-    ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+    ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsCaster(agent_id))
 
@@ -75,11 +75,11 @@ def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
 
 def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
     distance = Range.Spellcast.value
-    ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+    ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsMartial(agent_id))
     
-    spirit_pet_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
     spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not GLOBAL_CACHE.Agent.IsSpawned(agent_id)) #filter spirits
     ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
@@ -90,11 +90,11 @@ def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
 
 def TargetLowestAllyMelee(other_ally=False, filter_skill_id=0):
     distance = Range.Spellcast.value
-    ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+    ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsMelee(agent_id))
     
-    spirit_pet_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
     spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not GLOBAL_CACHE.Agent.IsSpawned(agent_id)) #filter spirits
     ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
@@ -105,7 +105,7 @@ def TargetLowestAllyMelee(other_ally=False, filter_skill_id=0):
 
 def TargetLowestAllyRanged(other_ally=False, filter_skill_id=0):
     distance = Range.Spellcast.value
-    ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+    ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Agent.IsRanged(agent_id))
     

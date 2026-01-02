@@ -30,7 +30,7 @@ def main():
             PyImGui.text(f"Agent Position: {GLOBAL_CACHE.Agent.GetXY(agent_id)}")
 
         if PyImGui.collapsing_header("Agent Array"):
-            agent_array = GLOBAL_CACHE.AgentArray.GetAgentArray()
+            agent_array = AgentArray.GetAgentArray()
             for agent_id in agent_array:
                 agent_name = GLOBAL_CACHE.Agent.GetName(agent_id)
                 agent_position = GLOBAL_CACHE.Agent.GetXY(agent_id)

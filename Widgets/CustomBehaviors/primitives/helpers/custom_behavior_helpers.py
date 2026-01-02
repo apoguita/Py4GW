@@ -265,7 +265,7 @@ class Resources:
             associated_to_skill: Optional[CustomSkill] = None,
             condition: Optional[Callable[[int], bool]] = None) -> bool:
 
-        spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_array = AgentArray.GetSpiritPetArray()
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), within_range.value)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsSpawned(agent_id))
@@ -550,7 +550,7 @@ class Targets:
             within_range: Range,
             spirit_model_ids: list[SpiritModelID] | None = None,
             condition: Optional[Callable[[int], bool]] = None) -> list[SpiritAgentData]:
-        spirit_agent_ids = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_agent_ids = AgentArray.GetSpiritPetArray()
         spirit_agent_ids = AgentArray.Filter.ByDistance(spirit_agent_ids, GLOBAL_CACHE.Player.GetXY(), within_range.value)
         spirit_agent_ids = AgentArray.Filter.ByCondition(spirit_agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         if condition is not None:
@@ -587,8 +587,8 @@ class Targets:
             range_to_count_allies: float | None = None) -> list[SortableAgentData]:
 
         player_pos: tuple[float, float] = GLOBAL_CACHE.Player.GetXY()
-        agent_ids: list[int] = GLOBAL_CACHE.AgentArray.GetAllyArray()
-        all_enemies_ids: list[int] = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+        agent_ids: list[int] = AgentArray.GetAllyArray()
+        all_enemies_ids: list[int] = AgentArray.GetEnemyArray()
 
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, within_range.value)
@@ -761,7 +761,7 @@ class Targets:
             range_to_count_enemies: float | None = None,
             should_prioritize_party_target:bool = True) -> list[SortableAgentData]:
         
-        agent_ids: list[int] = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+        agent_ids: list[int] = AgentArray.GetEnemyArray()
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, source_agent_pos, within_range)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         if condition is not None: agent_ids = AgentArray.Filter.ByCondition(agent_ids, condition)

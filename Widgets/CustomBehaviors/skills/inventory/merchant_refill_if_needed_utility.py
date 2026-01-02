@@ -62,7 +62,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
 
     def _get_target(self) -> int | None:
         
-        agent_ids = GLOBAL_CACHE.AgentArray.GetNPCMinipetArray()
+        agent_ids = AgentArray.GetNPCMinipetArray()
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, GLOBAL_CACHE.Player.GetXY(), Range.Compass.value)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id))
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, self._is_merchant_agent)

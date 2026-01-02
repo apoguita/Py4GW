@@ -5,6 +5,7 @@ import PyImGui
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils, VectorFields
 from Py4GWCoreLib.Overlay import Overlay
+from Py4GWCoreLib.AgentArray import AgentArray
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -94,12 +95,13 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         return GLOBAL_CACHE.Party.IsPartyLeader()
 
     def _get_party_member_positions(self) -> list[tuple[float, float]]:
+        
         positions = []
-        for agent_id in GLOBAL_CACHE.AgentArray.GetAllyArray():
+        for agent_id in AgentArray.GetAllyArray():
             if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
                 positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
 
-        for agent_id in GLOBAL_CACHE.AgentArray.GetSpiritPetArray():
+        for agent_id in AgentArray.GetSpiritPetArray():
             if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
                 positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
 

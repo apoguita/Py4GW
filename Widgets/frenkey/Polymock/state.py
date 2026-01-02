@@ -51,7 +51,7 @@ class WidgetState:
         for spawn in Polymock_Spawns:
             if spawn.value[0] == map_id:
                 self.in_arena = True                
-                self.match_started = len(GLOBAL_CACHE.AgentArray.GetAgentArray()) == 9 or self.match_started
+                self.match_started = len(AgentArray.GetAgentArray()) == 9 or self.match_started
                 
                 target_id = self.GetAgentAtPosition()
                 quest = Polymock_Quests.get_quest_by_model_id(GLOBAL_CACHE.Agent.GetModelID(target_id))
@@ -80,7 +80,7 @@ class WidgetState:
         self.quest = None
     
     def GetAgentAtPosition(self) -> int:
-        agents = GLOBAL_CACHE.AgentArray.GetAgentArray()
+        agents = AgentArray.GetAgentArray()
         map_id = GLOBAL_CACHE.Map.GetMapID()
 
         spawn_point = next(

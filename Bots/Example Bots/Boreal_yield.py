@@ -86,7 +86,7 @@ def IsChestFound(max_distance=4500) -> bool:
 
 #region skillhandler
 def scan_for_aloes():
-    enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.GetEnemyArray()
     for enemy in enemy_array:
         if GLOBAL_CACHE.Agent.GetPlayerNumber(enemy) == 6489: 
             return True

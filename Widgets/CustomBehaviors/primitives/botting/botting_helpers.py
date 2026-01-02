@@ -79,7 +79,7 @@ class BottingHelpers:
         timeout = ThrottledTimer(timeout_ms)
 
         def search_item_id_by_name(item_name: str) -> int | None:
-            item_array = GLOBAL_CACHE.AgentArray.GetItemArray()
+            item_array = AgentArray.GetItemArray()
             item_array = AgentArray.Filter.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY(), Range.Spirit.value)
             for item_id in item_array:
                 name = GLOBAL_CACHE.Agent.GetName(item_id)

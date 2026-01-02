@@ -36,7 +36,7 @@ class EbonBattleStandardOfWisdom(CustomSkillUtilityBase):
     def _get_agent_array(self) -> list[int]:
         allowed_classes = [Profession.Mesmer.value, Profession.Necromancer.value, Profession.Ritualist.value]
         allowed_agent_names = ["to_be_implemented"]
-        agent_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+        agent_array = AgentArray.GetAllyArray()
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != GLOBAL_CACHE.Player.GetAgentID())
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0] in allowed_classes)

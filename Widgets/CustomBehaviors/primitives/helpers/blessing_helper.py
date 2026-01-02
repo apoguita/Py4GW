@@ -31,7 +31,7 @@ def find_first_blessing_npc(within_range:float)  -> tuple[BlessingNpc,int] | Non
     
     player_pos = GLOBAL_CACHE.Player.GetXY()
 
-    agent_ids: list[int] = GLOBAL_CACHE.AgentArray.GetAgentArray()
+    agent_ids: list[int] = AgentArray.GetAgentArray()
     agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsValid(agent_id))
     agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, within_range)
     agent_ids = AgentArray.Sort.ByDistance(agent_ids, player_pos)

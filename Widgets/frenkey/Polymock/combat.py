@@ -232,7 +232,7 @@ class Combat:
         return False
 
     def GetAgentAtPosition(self, agent_id: int) -> int:
-        agents = GLOBAL_CACHE.AgentArray.GetAgentArray()
+        agents = AgentArray.GetAgentArray()
         map_id = GLOBAL_CACHE.Map.GetMapID()
 
         spawn_point = next(

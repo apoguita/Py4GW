@@ -562,8 +562,9 @@ class BT:
         agent_ids = None
         @staticmethod
         def GetAgentIDByName(agent_name: str) -> BehaviorTree:
+            from ..AgentArray import AgentArray
             def _request_names(node):
-                ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+                ids = AgentArray.GetAgentArray()
                 node.blackboard["agent_ids"] = ids
 
                 for aid in ids:
@@ -623,7 +624,8 @@ class BT:
             Returns: int: The agent ID or 0 if not found.
             """
             def _search_model_id(node):
-                ids = GLOBAL_CACHE.AgentArray.GetAgentArray()
+                from ..AgentArray import AgentArray
+                ids = AgentArray.GetAgentArray()
                 found = 0
 
                 for aid in ids:

@@ -258,7 +258,7 @@ def _find_best_target():
     return best_target
 
 def isAgentInDanger(agentId, aggro_area=Range.Spellcast, aggressive_only = False):
-    enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+    enemy_array = AgentArray.GetEnemyArray()
     if len(enemy_array) == 0: return False
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Agent.GetXY(agentId), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= aggro_area.value)
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))

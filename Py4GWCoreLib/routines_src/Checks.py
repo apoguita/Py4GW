@@ -341,7 +341,7 @@ class Checks:
             if not Checks.Map.MapValid():
                 return False
             
-            enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.GetEnemyArray()
             if len(enemy_array) == 0:
                 return False
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= aggro_area.value)
@@ -361,7 +361,7 @@ class Checks:
             if not Checks.Map.MapValid():
                 return False
             
-            enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.GetEnemyArray()
             if len(enemy_array) == 0:
                 return False
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= aggro_area)

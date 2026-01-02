@@ -178,7 +178,7 @@ class SF_Mes_vaettir(BuildMgr):
             from Py4GWCoreLib import AgentArray  # TODO: FIx
             from Py4GWCoreLib import AgentModelID  # TODO: FIx
 
-            agent_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+            agent_array = AgentArray.GetEnemyArray()
             agent_array = AgentArray.Filter.ByCondition(
                 agent_array,
                 lambda agent: GLOBAL_CACHE.Agent.GetModelID(agent)

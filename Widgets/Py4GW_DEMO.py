@@ -2049,24 +2049,24 @@ def ShowPyAgentWindow():
                 player_x, player_y = GLOBAL_CACHE.Player.GetXY()
                 player_id = GLOBAL_CACHE.Player.GetAgentID()
                 
-                enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
+                enemy_array = AgentArray.GetEnemyArray()
                 enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x,player_y))
                 closest_enemy = next(iter(enemy_array), 0)
 
-                ally_array = GLOBAL_CACHE.AgentArray.GetAllyArray()
+                ally_array = AgentArray.GetAllyArray()
                 ally_array = AgentArray.Manipulation.Subtract(ally_array, [player_id]) #remove player_id from ally array
                 ally_array = AgentArray.Sort.ByDistance(ally_array, (player_x,player_y))
                 closest_ally = next(iter(ally_array), 0)
 
-                item_array = GLOBAL_CACHE.AgentArray.GetItemArray()
+                item_array = AgentArray.GetItemArray()
                 item_array = AgentArray.Sort.ByDistance(item_array, (player_x,player_y))
                 closest_item = next(iter(item_array), 0)
                 
-                gadget_array = GLOBAL_CACHE.AgentArray.GetGadgetArray()
+                gadget_array = AgentArray.GetGadgetArray()
                 gadget_array = AgentArray.Sort.ByDistance(gadget_array, (player_x,player_y))
                 closest_gadget = next(iter(gadget_array), 0)
 
-                npc_array = GLOBAL_CACHE.AgentArray.GetNPCMinipetArray()
+                npc_array = AgentArray.GetNPCMinipetArray()
                 npc_array = AgentArray.Sort.ByDistance(npc_array, (player_x,player_y))
                 closest_npc = next(iter(npc_array), 0)
 

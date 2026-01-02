@@ -861,7 +861,7 @@ class CombatClass:
                                     
         if Conditions.RequiresSpiritInEarshot:            
             distance = Range.Earshot.value
-            spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+            spirit_array = AgentArray.GetSpiritPetArray()
             spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), distance)            
             spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
             
@@ -936,7 +936,7 @@ class CombatClass:
 
 
     def SpiritBuffExists(self, skill_id):
-        spirit_array = GLOBAL_CACHE.AgentArray.GetSpiritPetArray()
+        spirit_array = AgentArray.GetSpiritPetArray()
         distance = Range.Earshot.value
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), distance)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))

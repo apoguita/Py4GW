@@ -188,9 +188,9 @@ class CacheData:
                 self.data.update()
                 
                 if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
-                    self.data.in_aggro = self.InAggro(GLOBAL_CACHE.AgentArray.GetEnemyArray(), Range.Earshot.value)
+                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
                 else:
-                    self.data.in_aggro = self.InAggro(GLOBAL_CACHE.AgentArray.GetEnemyArray(), Range.Spellcast.value)
+                    self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Spellcast.value)
                     
                 if self.data.in_aggro:
                     self.stay_alert_timer.Reset()
