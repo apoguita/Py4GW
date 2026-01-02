@@ -103,9 +103,15 @@ def filter_valuable_inscription_type(item_id: int) -> bool:
 
     # Forget Me Not max value check
     for mod in modifiers:
-        # Aptitude Not Attitude 
+        # Forget Me Not max value identifier
         if mod.GetIdentifier() == 10280 and mod.GetArg1() == 20:
             return True
+        
+        # Of the necromancer max value identifier
+        elif mod.GetIdentifier() == 10408 and mod.GetArg1() == 6 and mod.GetArg2() == 5:
+            return True
+
+        
     
     # ANA max value check
     aptitude_mod_collection = []
