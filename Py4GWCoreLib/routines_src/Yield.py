@@ -1028,10 +1028,12 @@ class Yield:
             # Request a single quote
             # GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
             GLOBAL_CACHE.Trading.Trader.RequestSellQuote(item_id)
+            ConsoleLog(MODULE_NAME, f"Requested Sell Quote for item {item_id}.", Console.MessageType.Warning)
 
             while True:
                 yield from Yield.wait(50)
                 cost = GLOBAL_CACHE.Trading.Trader.GetQuotedValue()
+                ConsoleLog(MODULE_NAME, f"Received sell quote for item {item_id} at cost: {cost}", Console.MessageType.Warning)
                 if cost >= 0:
                     break
 

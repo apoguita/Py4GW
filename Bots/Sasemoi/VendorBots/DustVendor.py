@@ -21,7 +21,7 @@ def InitBot(bot: Botting) -> None:
 
 def SellDust():
     for _ in range(175):
-        yield from Routines.Yield.Merchant.SellMaterial(ModelID.Bone.value)
+        yield from Routines.Yield.Merchant.SellMaterial(ModelID.Pile_Of_Glittering_Dust.value)
 
 bot.SetMainRoutine(create_bot_routine)
 base_path = Console.get_projects_path()
