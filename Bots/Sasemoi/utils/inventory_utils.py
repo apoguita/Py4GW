@@ -1,7 +1,9 @@
 
 
+from typing import Iterable
 from Py4GWCoreLib import ItemArray, Item
 from Py4GWCoreLib.enums import Bags
+from PyItem import ItemModifier
 from Bots.Sasemoi.utils.rune_quality_checker import item_has_valuable_rune
 
 def get_unidentified_items(rarities: list[str], slot_blacklist: list[tuple[int,int]]) -> list[int]:
@@ -74,11 +76,47 @@ def filter_valuable_weapon_type(item_id: int) -> bool:
 
     return False
 
-def filter_valuable_rune_type(item_id: int) -> bool:
-    # item_instance = Item.item_instance(item_id)
-    desired_types = [0] # Salvage Type
 
+def filter_valuable_rune_type(item_id: int) -> bool:
+    '''
+    Check for valuable runes on salvage type items
+    '''
+
+    desired_types = [0] # Salvage Type
     if Item.item_instance(item_id).item_type.ToInt() not in desired_types:
         return False
 
     return item_has_valuable_rune(item_id)
+
+
+def filter_valuable_inscription_type(item_id: int) -> bool:
+    '''
+    Check for FMN and ANA max inscriptions on wands, staves and offhands
+    '''
+
+    desired_types = [12, 22, 26] # Offhand, Wands and Staves
+    if Item.item_instance(item_id).item_type.ToInt() not in desired_types:
+        return False
+
+    # Check for inscriptions
+    modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
+
+    # Forget Me Not max value check
+    for mod in modifiers:
+        # Aptitude Not Attitude 
+        if mod.GetIdentifier() == 10280 and mod.GetArg1() == 20:
+            return True
+    
+    # ANA max value check
+    aptitude_mod_collection = []
+    for mod in modifiers:
+        # ANA inscription identifier
+        if mod.GetIdentifier() == 9522 and mod.GetArg1() == 3 and mod.GetArg2() == 174:
+            aptitude_mod_collection.append(mod)
+
+        # ANA max value identifier
+        if mod.GetIdentifier() == 10248 and mod.GetArg1() == 20 and mod.GetArg2() == 0:
+            aptitude_mod_collection.append(mod)
+
+    # If combination of both identifiers is found, ANA is present at max value
+    return len(aptitude_mod_collection) == 2
