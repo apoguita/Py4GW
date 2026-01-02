@@ -1,6 +1,7 @@
 from Bots.Sasemoi.utils.inventory_utils import filter_valuable_rune_type
 from Py4GWCoreLib import Routines, Console
 from Py4GWCoreLib import Botting
+from Py4GWCoreLib import GLOBAL_CACHE
 
 bot = Botting(
     "ID Rune Testing Bot",
@@ -17,6 +18,9 @@ def InitBot(bot: Botting) -> None:
 def TestIDRunes():
     rarities = ["Purple", "Gold"]
     all_items = Routines.Items.GetSalvageableItems(rarities=rarities, slot_blacklist=[])
+
+    for item_id in all_items:
+        Console.Log('Test Rune Identifying', f"Found salvageable item ID: {item_id}", Console.MessageType.Info)
 
     valuable_runes = [item_id for item_id in all_items if filter_valuable_rune_type(item_id)]
 
