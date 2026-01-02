@@ -1,6 +1,6 @@
 # PyAgent.pyi - Auto-generated .pyi file for PyAgent module
 
-from typing import List, Tuple
+from typing import List, Tuple, Callable, Any
 
 # Enum ProfessionType
 class ProfessionType:
@@ -306,3 +306,9 @@ class PyAgent:
     def GetRawAgentArray() -> List[PyAgent]: ...
     @staticmethod
     def GetMovementStuckArray() -> List[Tuple[int, int]]: ...
+    
+    @staticmethod
+    def GetAgentEncNamePtr(agent_id: int) -> int: ...
+    
+    @staticmethod
+    def GetNameByID(agent_id: int) -> str: ...

@@ -211,6 +211,8 @@ class PartyContextStruct(Structure):
 
 class PartyContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: PartyContextStruct | None = None
     _callback_name = "PartyContext.UpdatePartyContextPtr"
 
     @staticmethod
@@ -232,15 +234,24 @@ class PartyContext:
     def disable():
         Game.remove_callback(PartyContext._callback_name)
         PartyContext._ptr = 0
+        PartyContext._cached_ptr = 0
+        PartyContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> PartyContextStruct | None:
         ptr = PartyContext._ptr
         if not ptr:
+            PartyContext._cached_ptr = 0
+            PartyContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(PartyContextStruct)
-        ).contents
+        
+        if ptr != PartyContext._cached_ptr:
+            PartyContext._cached_ptr = ptr
+            PartyContext._cached_ctx = cast(
+                ptr,
+                POINTER(PartyContextStruct)
+            ).contents
+            
+        return PartyContext._cached_ctx
 
 PartyContext.enable()

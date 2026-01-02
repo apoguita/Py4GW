@@ -121,6 +121,41 @@ class Agent:
         return agent.GetAsAgentGadget()
     
     @staticmethod
+    def GetNameByID(agent_id):
+        """Purpose: Get the native name of an agent by its ID."""
+        return PyAgent.PyAgent.GetNameByID(agent_id)
+    
+    #aliases for reto compatibility
+    GetName = GetNameByID
+    RequestName = GetNameByID
+        
+    @staticmethod
+    def IsNameReady(agent_id):
+        """Purpose: Check if the agent name is ready."""
+        return Agent.GetNameByID(agent_id) != ""
+ 
+    
+    
+    @staticmethod
+    def GetAgentIDByName(name):
+        from .AgentArray import AgentArray
+        """
+        Purpose: Retrieve the first agent by matching a partial mask of its name.
+        Args:
+            partial_name (str): The partial name to search for.
+        Returns:
+            int: The AgentID of the matching agent, or None if no match is found.
+        """
+        agent_array = AgentArray.GetAgentArray()
+
+        for agent_id in agent_array:
+            agent_name = Agent.GetName(agent_id)  # Retrieve the full name of the agent
+            if name.lower() in agent_name.lower():  # Check for partial match (case-insensitive)
+                return agent_id
+        
+        return 0
+    
+    @staticmethod
     def GetAgentEffects(agent_id) -> int:
         """
         Purpose: Retrieve the effects of an agent.
@@ -1170,9 +1205,7 @@ class Agent:
             return []
         return gadget.h00D4
 
-#region worked
 
-    
     #region not worked
     
     @staticmethod
@@ -1185,26 +1218,6 @@ class Agent:
             PyAgent: The PyAgent instance for the given ID.
         """
         return PyAgent.PyAgent(agent_id)
-    
-    @staticmethod
-    def GetAgentIDByName(name):
-        """
-        Purpose: Retrieve the first agent by matching a partial mask of its name.
-        Args:
-            partial_name (str): The partial name to search for.
-        Returns:
-            int: The AgentID of the matching agent, or None if no match is found.
-        """
-        import PyPlayer
-
-        agent_array = PyPlayer.PyPlayer().GetAgentArray()
-
-        for agent_id in agent_array:
-            agent_name = Agent.GetName(agent_id)  # Retrieve the full name of the agent
-            if name.lower() in agent_name.lower():  # Check for partial match (case-insensitive)
-                return agent_id
-        
-        return 0
 
     @staticmethod
     def GetAttributes(agent_id):
@@ -1252,30 +1265,6 @@ class Agent:
         if not Agent.agent_instance(agent_id).living_agent.is_casting:
             return 0    
         return Agent.agent_instance(agent_id).living_agent.casting_skill_id
-
-
-    @staticmethod
-    def RequestName(agent_id):
-        """Purpose: Request the name of an agent."""
-        Agent.agent_instance(agent_id).living_agent.RequestName()
-        
-    @staticmethod
-    def IsNameReady(agent_id):
-        """Purpose: Check if the agent name is ready."""
-        return Agent.agent_instance(agent_id).living_agent.IsAgentNameReady()
-
-    @staticmethod
-    def GetName(agent_id):
-        """Purpose: Get the name of an agent by its ID."""
-        
-        #agent_instance = Agent.agent_instance(agent_id)
-        #model_id = agent_instance.living_agent.player_number
-        #return ModelData.get(model_id, {}).get('name', agent_instance.living_agent.name)
-
-        return Agent.agent_instance(agent_id).living_agent.GetName()
-    
-    
-        
 
     @staticmethod
     def GetItemAgent(agent_id):

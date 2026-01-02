@@ -39,6 +39,8 @@ assert sizeof(WorldMapContextStruct) == 0x224
 
 class WorldMapContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: WorldMapContextStruct | None = None
     _callback_name = "WorldMapContext.UpdateWorldMapContextPtr"
 
     @staticmethod
@@ -60,15 +62,24 @@ class WorldMapContext:
     def disable():
         Game.remove_callback(WorldMapContext._callback_name)
         WorldMapContext._ptr = 0
+        WorldMapContext._cached_ptr = 0
+        WorldMapContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> WorldMapContextStruct | None:
         ptr = WorldMapContext._ptr
         if not ptr:
+            WorldMapContext._cached_ptr = 0
+            WorldMapContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(WorldMapContextStruct)
-        ).contents
+        
+        if ptr != WorldMapContext._cached_ptr:
+            WorldMapContext._cached_ptr = ptr
+            WorldMapContext._cached_ctx = cast(
+                ptr,
+                POINTER(WorldMapContextStruct)
+            ).contents
+            
+        return WorldMapContext._cached_ctx
 
 WorldMapContext.enable()

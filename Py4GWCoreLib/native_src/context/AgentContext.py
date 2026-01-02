@@ -501,6 +501,7 @@ class AgentArrayStruct(Structure):
 
     def _build_allegiance_cache(self):
         """Populate ALL allegiance/type lists in a single traversal."""
+        import PyAgent
 
         self._allegiance_cache = {
             "ally": [],#-
@@ -535,6 +536,7 @@ class AgentArrayStruct(Structure):
             if agent.agent_id not in valid_agents_ids:
                 continue
             
+            #PyAgent.PyAgent.GetNameByID(agent.agent_id)  # Warm up name cache
             self.raw_agent_list.append(agent)
             
             aid = agent.agent_id

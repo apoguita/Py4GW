@@ -446,6 +446,8 @@ class MapContextStruct(Structure):
 #region MapContext Facade
 class MapContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: MapContextStruct | None = None
     _callback_name = "MapContext.UpdateMapContextPtr"
 
     @staticmethod
@@ -466,15 +468,25 @@ class MapContext:
     def disable():
         Game.remove_callback(MapContext._callback_name)
         MapContext._ptr = 0
+        MapContext._cached_ptr = 0
+        MapContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> MapContextStruct | None:
         ptr = MapContext._ptr
         if not ptr:
+            MapContext._cached_ptr = 0
+            MapContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(MapContextStruct)
-        ).contents
+        
+        if ptr != MapContext._cached_ptr:
+            MapContext._cached_ptr = ptr
+            MapContext._cached_ctx = cast(
+                ptr,
+                POINTER(MapContextStruct)
+            ).contents
+            
+        return MapContext._cached_ctx
+
               
 MapContext.enable()

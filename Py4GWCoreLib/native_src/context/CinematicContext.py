@@ -13,6 +13,8 @@ class CinematicStruct(Structure):
 #region Cinematic facade
 class Cinematic:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: CinematicStruct | None = None
     _callback_name = "Cinematic.UpdateCinematicPtr"
 
     @staticmethod
@@ -33,16 +35,24 @@ class Cinematic:
     def disable():
         Game.remove_callback(Cinematic._callback_name)
         Cinematic._ptr = 0
+        Cinematic._cached_ptr = 0
+        Cinematic._cached_ctx = None
 
     @staticmethod
     def get_context() -> CinematicStruct | None:
         ptr = Cinematic._ptr
         if not ptr:
+            Cinematic._cached_ptr = 0
+            Cinematic._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(CinematicStruct)
-        ).contents
+        
+        if ptr != Cinematic._cached_ptr:
+            Cinematic._cached_ptr = ptr
+            Cinematic._cached_ctx = cast(
+                ptr,
+                POINTER(CinematicStruct)
+            ).contents
+        return Cinematic._cached_ctx
         
         
         

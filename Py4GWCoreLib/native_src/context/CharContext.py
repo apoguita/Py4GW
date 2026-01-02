@@ -203,6 +203,8 @@ class CharContextStruct(Structure):
 #region CharContext Facade
 class CharContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: CharContextStruct | None = None
     _callback_name = "CharContext.UpdateCharContextPtr"
 
     @staticmethod
@@ -224,17 +226,24 @@ class CharContext:
     def disable():
         Game.remove_callback(CharContext._callback_name)
         CharContext._ptr = 0
+        CharContext._cached_ptr = 0
+        CharContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> CharContextStruct | None:
         ptr = CharContext._ptr
         if not ptr:
+            CharContext._cached_ptr = 0
+            CharContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(CharContextStruct)
-        ).contents
         
+        if ptr != CharContext._cached_ptr:
+            CharContext._cached_ptr = ptr
+            CharContext._cached_ctx = cast(
+                ptr,
+                POINTER(CharContextStruct)
+            ).contents
         
+        return CharContext._cached_ctx
         
 CharContext.enable()

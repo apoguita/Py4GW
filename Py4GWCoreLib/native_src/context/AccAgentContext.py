@@ -215,7 +215,8 @@ class AccAgentContext:
     _cached_ptr: int = 0
     _cached_ctx: AccAgentContextStruct | None = None
     _callback_name = "AgentContext.UpdateAgentContextPtr"
-
+    
+    
     @staticmethod
     def get_ptr() -> int:
         return AccAgentContext._ptr    
@@ -259,6 +260,8 @@ class AccAgentContext:
             ).contents
 
         return AccAgentContext._cached_ctx
+    
+    
         
         
         

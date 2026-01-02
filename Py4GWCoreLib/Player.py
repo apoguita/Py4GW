@@ -15,6 +15,8 @@ class Player:
             return "uuid_" + "_".join(str(part) for part in player_uuid)
         except TypeError:
             return str(player_uuid)
+        except Exception:
+            return ""
 
     @staticmethod
     def player_instance():
@@ -295,14 +297,17 @@ class Player:
         Args: None
         Returns: str
         """
-        player_instance = Player.player_instance()
-        account_email = player_instance.account_email
-        if account_email:
-            return account_email
-        player_uuid = player_instance.player_uuid
-        if all(part == 0 for part in player_uuid):
+        try:
+            player_instance = Player.player_instance()
+            account_email = player_instance.account_email
+            if account_email:
+                return account_email
+            player_uuid = player_instance.player_uuid
+            if all(part == 0 for part in player_uuid):
+                return ""
+            return Player._format_uuid_as_email(player_uuid)
+        except Exception:
             return ""
-        return Player._format_uuid_as_email(player_uuid)
     
     @staticmethod
     def GetPlayerUUID():

@@ -61,6 +61,8 @@ class PreGameContextStruct(Structure):
 
 class PreGameContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: PreGameContextStruct | None = None
     _callback_name = "PreGameContext.UpdatePreGameContextPtr"
 
     @staticmethod
@@ -82,15 +84,23 @@ class PreGameContext:
     def disable():
         Game.remove_callback(PreGameContext._callback_name)
         PreGameContext._ptr = 0
+        PreGameContext._cached_ptr = 0
+        PreGameContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> PreGameContextStruct | None:
         ptr = PreGameContext._ptr
         if not ptr:
+            PreGameContext._cached_ptr = 0
+            PreGameContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(PreGameContextStruct)
-        ).contents
-
+        
+        if ptr != PreGameContext._cached_ptr:
+            PreGameContext._cached_ptr = ptr
+            PreGameContext._cached_ctx = cast(
+                ptr,
+                POINTER(PreGameContextStruct)
+            ).contents
+            
+        return PreGameContext._cached_ctx
 PreGameContext.enable()

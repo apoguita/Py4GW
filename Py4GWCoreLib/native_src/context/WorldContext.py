@@ -1113,6 +1113,8 @@ class WorldContextStruct(Structure):
 #region Facade
 class WorldContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: WorldContextStruct | None = None
     _callback_name = "WorldContext.UpdateWorldContextPtr"
 
     @staticmethod
@@ -1134,16 +1136,25 @@ class WorldContext:
     def disable():
         Game.remove_callback(WorldContext._callback_name)
         WorldContext._ptr = 0
+        WorldContext._cached_ptr = 0
+        WorldContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> WorldContextStruct | None:
         ptr = WorldContext._ptr
         if not ptr:
+            WorldContext._cached_ptr = 0
+            WorldContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(WorldContextStruct)
-        ).contents
+        
+        if ptr != WorldContext._cached_ptr:
+            WorldContext._cached_ptr = ptr
+            WorldContext._cached_ctx = cast(
+                ptr,
+                POINTER(WorldContextStruct)
+            ).contents
+            
+        return WorldContext._cached_ctx
         
         
         

@@ -272,6 +272,8 @@ class GuildContextStruct(Structure):
 #region Facade
 class GuildContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: GuildContextStruct | None = None
     _callback_name = "GuildContext.UpdateGuildContextPtr"
 
     @staticmethod
@@ -292,16 +294,25 @@ class GuildContext:
     def disable():
         Game.remove_callback(GuildContext._callback_name)
         GuildContext._ptr = 0
+        GuildContext._cached_ptr = 0
+        GuildContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> GuildContextStruct | None:
         ptr = GuildContext._ptr
         if not ptr:
+            GuildContext._cached_ptr = 0
+            GuildContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(GuildContextStruct)
-        ).contents
+        
+        if ptr != GuildContext._cached_ptr:
+            GuildContext._cached_ptr = ptr
+            GuildContext._cached_ctx = cast(
+                ptr,
+                POINTER(GuildContextStruct)
+            ).contents
+            
+        return GuildContext._cached_ctx
         
         
         
