@@ -123,11 +123,14 @@ class PlayerCache:
         return self._player_instance.account_name
     
     def GetAccountEmail(self):
-        account_email = self._player_instance.account_email
-        if account_email:
-            return account_email
-        return "" if all(part == 0 for part in self._player_instance.player_uuid) else self._format_uuid_as_email(self._player_instance.player_uuid)
-    
+        try:
+            account_email = self._player_instance.account_email
+            if account_email:
+                return account_email
+            return "" if all(part == 0 for part in self._player_instance.player_uuid) else self._format_uuid_as_email(self._player_instance.player_uuid)
+        except Exception:
+            return ""
+        
     def GetPlayerUUID(self):
         return self._player_instance.player_uuid
 

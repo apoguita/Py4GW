@@ -34,6 +34,8 @@ ServerRegion_GetPtr = NativeSymbol(
 #region facade
 class ServerRegion:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: ServerRegionStruct | None = None
     _callback_name = "ServerRegion.UpdateServerRegionPtr"
 
     @staticmethod
@@ -54,16 +56,25 @@ class ServerRegion:
     def disable():
         Game.remove_callback(ServerRegion._callback_name)
         ServerRegion._ptr = 0
+        ServerRegion._cached_ptr = 0
+        ServerRegion._cached_ctx = None
 
     @staticmethod
     def get_context() -> ServerRegionStruct | None:
         ptr = ServerRegion._ptr
         if not ptr:
+            ServerRegion._cached_ptr = 0
+            ServerRegion._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(ServerRegionStruct)
-        ).contents
+        
+        if ptr != ServerRegion._cached_ptr:
+            ServerRegion._cached_ptr = ptr
+            ServerRegion._cached_ctx = cast(
+                ptr,
+                POINTER(ServerRegionStruct)
+            ).contents
+            
+        return ServerRegion._cached_ctx
         
         
         

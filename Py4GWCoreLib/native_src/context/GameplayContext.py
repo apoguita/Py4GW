@@ -14,6 +14,8 @@ assert sizeof(GameplayContextStruct) == 0x78
 
 class GameplayContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: GameplayContextStruct | None = None
     _callback_name = "GameplayContext.UpdateGameplayContextPtr"
 
     @staticmethod
@@ -35,15 +37,22 @@ class GameplayContext:
     def disable():
         Game.remove_callback(GameplayContext._callback_name)
         GameplayContext._ptr = 0
+        GameplayContext._cached_ptr = 0
+        GameplayContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> GameplayContextStruct | None:
         ptr = GameplayContext._ptr
         if not ptr:
+            GameplayContext._cached_ptr = 0
+            GameplayContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(GameplayContextStruct)
-        ).contents
+        if ptr != GameplayContext._cached_ptr:
+            GameplayContext._cached_ptr = ptr
+            GameplayContext._cached_ctx = cast(
+                ptr,
+                POINTER(GameplayContextStruct)
+            ).contents
+        return GameplayContext._cached_ctx
         
 GameplayContext.enable()

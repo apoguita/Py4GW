@@ -56,6 +56,8 @@ assert sizeof(MissionMapContextStruct) == 0x48
 
 class MissionMapContext:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: MissionMapContextStruct | None = None
     _callback_name = "MissionMapContext.UpdateMissionMapContextPtr"
 
     @staticmethod
@@ -77,15 +79,24 @@ class MissionMapContext:
     def disable():
         Game.remove_callback(MissionMapContext._callback_name)
         MissionMapContext._ptr = 0
+        MissionMapContext._cached_ptr = 0
+        MissionMapContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> MissionMapContextStruct | None:
         ptr = MissionMapContext._ptr
         if not ptr:
+            MissionMapContext._cached_ptr = 0
+            MissionMapContext._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(MissionMapContextStruct)
-        ).contents
+        
+        if ptr != MissionMapContext._cached_ptr:
+            MissionMapContext._cached_ptr = ptr
+            MissionMapContext._cached_ctx = cast(
+                ptr,
+                POINTER(MissionMapContextStruct)
+            ).contents
+            
+        return MissionMapContext._cached_ctx
 
 MissionMapContext.enable()

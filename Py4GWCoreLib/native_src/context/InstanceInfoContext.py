@@ -132,6 +132,8 @@ InstanceInfo_GetPtr = NativeSymbol(
 #region facade
 class InstanceInfo:
     _ptr: int = 0
+    _cached_ptr: int = 0
+    _cached_ctx: InstanceInfoStruct | None = None
     _callback_name = "InstanceInfo.UpdateInstanceInfoPtr"
 
     @staticmethod
@@ -152,18 +154,24 @@ class InstanceInfo:
     def disable():
         Game.remove_callback(InstanceInfo._callback_name)
         InstanceInfo._ptr = 0
+        InstanceInfo._cached_ptr = 0
+        InstanceInfo._cached_ctx = None
 
     @staticmethod
     def get_context() -> InstanceInfoStruct | None:
         ptr = InstanceInfo._ptr
         if not ptr:
+            InstanceInfo._cached_ptr = 0
+            InstanceInfo._cached_ctx = None
             return None
-        return cast(
-            ptr,
-            POINTER(InstanceInfoStruct)
-        ).contents
         
-        
-        
+        if ptr != InstanceInfo._cached_ptr:
+            InstanceInfo._cached_ptr = ptr
+            InstanceInfo._cached_ctx = cast(
+                ptr,
+                POINTER(InstanceInfoStruct)
+            ).contents
+        return InstanceInfo._cached_ctx
+ 
 InstanceInfo.enable()
 

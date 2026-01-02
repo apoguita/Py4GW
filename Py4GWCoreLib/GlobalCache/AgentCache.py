@@ -8,7 +8,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 class AgentCache:
     def __init__(self, raw_agent_array):
-        self.raw_agent_array:RawAgentArray = raw_agent_array
+        #self.raw_agent_array:RawAgentArray = raw_agent_array
         self.name_cache: dict[int, tuple[str, float]] = {}  # agent_id -> (name, timestamp)
         self.name_requested: set[int] = set()
         self.name_timeout_ms = 1_000
@@ -18,13 +18,15 @@ class AgentCache:
         """Should be called every frame to resolve names when ready."""
         now = time.time() * 1000
         for agent_id in list(self.name_requested):
-            agent = self.raw_agent_array.get_agent(agent_id)
-            if agent.living_agent.IsAgentNameReady():
-                name = agent.living_agent.GetName()
-                if name in ("Unknown", "Timeout"):
-                    name = ""
-                self.name_cache[agent_id] = (name, now)
-                self.name_requested.discard(agent_id)
+            #agent = self.raw_agent_array.get_agent(agent_id)
+            #if agent.living_agent.IsAgentNameReady():
+            
+            name = Agent.GetNameByID(agent_id)
+            #name = agent.living_agent.GetName()
+            if name in ("Unknown", "Timeout"):
+                name = ""
+            self.name_cache[agent_id] = (name, now)
+            self.name_requested.discard(agent_id)
                 
     def _reset_cache(self):
         """Resets the name cache and requested set."""
@@ -137,16 +139,13 @@ class AgentCache:
         return Agent.GetVelocityXY(agent_id)
     
     def RequestName(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        agent.living_agent.RequestName()
-        
+        Agent.GetNameByID(agent_id)
+
     def IsNameReady(self, agent_id):
-        agent = self.raw_agent_array.get_agent(agent_id)
-        return agent.living_agent.IsAgentNameReady()
-    
+        return Agent.GetNameByID(agent_id) != ""
+
     def GetName(self, agent_id: int) -> str:
         now = time.time() * 1000  # current time in ms
-        agent = self.raw_agent_array.get_agent(agent_id)
         # Cached and still valid
         if agent_id in self.name_cache:
             name, timestamp = self.name_cache[agent_id]
@@ -155,7 +154,7 @@ class AgentCache:
             else:
                 # Expired; refresh
                 if agent_id not in self.name_requested:    
-                    agent.living_agent.RequestName()
+                    Agent.GetNameByID(agent_id)
                     self.name_requested.add(agent_id)
                 return name  # Still return old while waiting
 
@@ -163,8 +162,7 @@ class AgentCache:
         if agent_id in self.name_requested:
             return ""
 
-        # Request name for the first time
-        agent.living_agent.RequestName()
+        Agent.GetNameByID(agent_id)
         self.name_requested.add(agent_id)
         return ""
     

@@ -1,836 +1,564 @@
 import PyImGui
-from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.AgentArray import AgentArray
+from py4gw_demo_src.helpers import draw_kv_table
 from Py4GWCoreLib.Player import Player
-from Py4GWCoreLib.py4gwcorelib_src.Timer import FormatTime
-from Py4GWCoreLib.UIManager import FrameInfo, UIManager
-from Py4GWCoreLib.Overlay import Overlay
-from Py4GWCoreLib.py4gwcorelib_src.Color import ColorPalette, Color
-from dataclasses import dataclass
-
+from py4gw_demo_src.helpers import VIEW_LIST, _selected_view
+from py4gw_demo_src.map_demo import draw_map_data
 
 MODULE_NAME = "Py4GW DEMO 2.0"
 
-VIEW_LIST = [
-    "Map",
-    "Agents",
-]
 
-SECTION_INFO = {
-    "Map": {
-        "title": "Map Library",
-        "description": (
-            "The Map Library provides a comprehensive set of methods to gather "
-            "map-related data and interact with the game world.\n"
-            "It allows you to retrieve information about locations, distances, and "
-            "other geographical data within the game environment.\n"
-            "It also offers pathing and geo-location functionalities to enhance "
-            "navigation and spatial awareness."
-            "Privides data for various map-related features, including:\n\n"
-            "- Maps.\n"
-            "- Mission Map.\n"
-            "- Mini Map.\n"
-            "- World Map.\n"
-            "- Pregame Data.\n"
-            "- Observing Matches Data.\n"
-            "- Geo Location and Pathing.\n"    
-        ),
-    },
-}
 
-_selected_view: str = "Map"
+from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import ImGui 
+from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Allegiance
+from Py4GWCoreLib import Color
+from typing import Tuple
+from Py4GWCoreLib import AgentArray, Agent, Player
+from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 
-def draw_kv_table(table_id: str, rows: list[tuple[str, str | int | float]]):
-    flags = (
-        PyImGui.TableFlags.BordersInnerV
-        | PyImGui.TableFlags.RowBg
-        | PyImGui.TableFlags.SizingStretchProp
-    )
+MODULE_NAME = "Agent Info Viewer"
+LOG_ACTIONS = True
 
-    if PyImGui.begin_table(table_id, 2, flags):
-        PyImGui.table_setup_column("Field", PyImGui.TableColumnFlags.WidthFixed, 180)
-        PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthStretch)
-        PyImGui.table_headers_row()
 
-        for field, value in rows:
-            PyImGui.table_next_row()
-            PyImGui.table_next_column()
-            PyImGui.text_unformatted(str(field))
-            PyImGui.table_next_column()
-            PyImGui.text_unformatted(str(value))
+#region WinwowStup
+window_module = ImGui.WindowModule(
+    MODULE_NAME, 
+    window_name="Agent Info Viewer", 
+    window_size=(0, 0),
+    window_flags=PyImGui.WindowFlags.AlwaysAutoResize
+)
 
-        PyImGui.end_table()
- 
-@dataclass
-class DisplayNode:
-    visible: bool = True
-    color: Color= ColorPalette.GetColor("white")
-    thickness: float = 1.0
-               
-class MapVars:
-    class Travel:
-        map_id: int = 0
-        region: int = 0
-        district_number: int = 0
-        language: int = 0
-    
-    
-        
-    class MissionMap:
-        frame_info: FrameInfo | None = None
-        draw_outline = DisplayNode(True, ColorPalette.GetColor("bright_green"), 3.0)
-        draw_content_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 2.0)
-        center_outline = DisplayNode(True, ColorPalette.GetColor("fuchsia"), 4.0)
-        draw_last_click_pos = DisplayNode(True, ColorPalette.GetColor("gold"), 3.0)
-        draw_last_right_click_pos = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
-        player_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
-        
-    class MiniMap:
-        frame_info: FrameInfo | None = None
-        draw_outline = DisplayNode(True, ColorPalette.GetColor("bright_green"), 3.0)
-        draw_content_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 2.0)
-        center_outline = DisplayNode(True, ColorPalette.GetColor("fuchsia"), 4.0)
-        draw_last_click_pos = DisplayNode(True, ColorPalette.GetColor("gold"), 3.0)
-        draw_last_right_click_pos = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
-        player_outline = DisplayNode(True, ColorPalette.GetColor("crimson"), 3.0)
+#endregion
 
-        
-        
-map_vars = MapVars()
-        
-#region main_map_tab
-def draw_main_map_tab():
-    if _selected_view in SECTION_INFO:
-        info = SECTION_INFO[_selected_view]
-        #PyImGui.text(info["title"])
-        #PyImGui.separator()
-        PyImGui.text_wrapped(info["description"])
-        
-    PyImGui.separator()
-
-    PyImGui.text("Common fields:")
-
-    rows: list[tuple[str, str | int | float]] = [
-        ("Instance Type", Map.GetInstanceTypeName()),
-        ("Current Map", f"[{Map.GetMapID()}] - {Map.GetMapName()}"),
-        ("Instance uptime (ms)", f"{FormatTime(Map.GetInstanceUptime(), 'hh:mm:ss:ms')}"),
-        ("Region", f"[{Map.GetRegion()[0]}] - {Map.GetRegion()[1]}"),
-        ("Region Type", f"[{Map.GetRegionType()[0]}] - {Map.GetRegionType()[1]}"),
-        ("District", f"[{Map.GetDistrict()}]"),
-        ("Language", f"[{Map.GetLanguage()[0]}] - {Map.GetLanguage()[1]}"),
-        ("Amount of Players in Instance", f"{Map.GetAmountOfPlayersInInstance()}"),
-    ]
-
-    draw_kv_table("WorldMapTable", rows)
-    
-#region map_data_tab
-def draw_map_data_tab():
-    if PyImGui.collapsing_header("Common fields:"):
-        rows: list[tuple[str, str | int | float]] = [
-            ("Instance Type", Map.GetInstanceTypeName()),
-            ("Current Map", f"[{Map.GetMapID()}] - {Map.GetMapName()}"),
-            ("Instance uptime (ms)", f"{FormatTime(Map.GetInstanceUptime(), 'hh:mm:ss:ms')}"),
-            ("Campaign", f"[{Map.GetCampaign()[0]}] - {Map.GetCampaign()[1]}"),
-            ("Continent", f"[{Map.GetContinent()[0]}] - {Map.GetContinent()[1]}"),
-            ("Is Guild Hall", f"{Map.IsGuildHall()}"),
-            ("Region", f"[{Map.GetRegion()[0]}] - {Map.GetRegion()[1]}"),
-            ("Region Type", f"[{Map.GetRegionType()[0]}] - {Map.GetRegionType()[1]}"),
-            ("District", f"[{Map.GetDistrict()}]"),
-            ("Language", f"[{Map.GetLanguage()[0]}] - {Map.GetLanguage()[1]}"),
-            ("Amount of Players in Instance", f"{Map.GetAmountOfPlayersInInstance()}"),
-            ("Max Party Size", f"{Map.GetMaxPartySize()}"),
-            ("Foes Killed", f"{Map.GetFoesKilled()}"),
-            ("Foes to Kill", f"{Map.GetFoesToKill()}"),
-            ("Is Vanquishable", f"{Map.IsVanquishable()}"),
-            ("Is Vanquish Complete", f"{Map.IsVanquishComplete()}"),
-            ("Is in Cinematic", f"{Map.IsInCinematic()}"),
-            ("Has Enter Challenge Button", f"{Map.HasEnterChallengeButton()}"),  
-            ("Is Map Unlocked", f"{Map.IsMapUnlocked()}"),
-        ]
-
-        draw_kv_table("MissionMapTable", rows)
-        
-    if PyImGui.collapsing_header("Additional Fields:"):
-        rows: list[tuple[str, str | int | float]] = [
-            ("Is Unlockable", f"{Map.IsUnlockable()}"),
-            ("Has Mission Maps To", f"{Map.HasMissionMapsTo()}"),
-            ("Mission Maps To", f"{Map.GetMissionMapsTo()} - {Map.GetMapName(Map.GetMissionMapsTo())}"),
-            ("Controlled Outpost ID", f"{Map.GetControlledOutpostID()} - {Map.GetMapName(Map.GetControlledOutpostID())}"),
-            ("Is on World Map", f"{Map.IsOnWorldMap()}"),
-            ("Is PvP Map", f"{Map.IsPVP()}"),
-            ("Min Party Size", f"{Map.GetMinPartySize()}"),
-            ("Min Player Size", f"{Map.GetMinPlayerSize()}"),
-            ("Max Player Size", f"{Map.GetMaxPlayerSize()}"),
-            ("flags", f"{Map.GetFlags()}"),
-            ("Min Level", f"{Map.GetMinLevel()}"),
-            ("Max Level", f"{Map.GetMaxLevel()}"),
-            ("Thumbnail ID", f"{Map.GetThumbnailID()}"),
-            ("Fraction Mission", f"{Map.GetFractionMission()}"),
-            ("Needed PQ", f"{Map.GetNeededPQ()}"),
-            ("Icon Position (x, y)", f"{Map.GetIconPosition()}"),
-            ("Icon Start Position (x, y)", f"{Map.GetIconStartPosition()}"),
-            ("Icon End Position (x, y)", f"{Map.GetIconEndPosition()}"),
-            ("File ID", f"{Map.GetFileID()}"),
-            ("Mission Chronology", f"{Map.GetMissionChronology()}"),
-            ("HA Chronology", f"{Map.GetHAChronology()}"),
-            ("Name ID", f"{Map.GetNameID()}"),
-            ("Description ID", f"{Map.GetDescriptionID()}"),
-            ("File ID 1", f"{Map.GetFileID1()}"),
-            ("File ID 2", f"{Map.GetFileID2()}"),
-            
-        ]
-
-        draw_kv_table("MissionMapTable", rows)
-     
-#region map_actions_tab   
-def draw_map_actions_tab():
-    PyImGui.text("SkipCinematic:")
-    PyImGui.indent(20.0)
-    if not Map.IsInCinematic():
-        PyImGui.text("No cinematic is currently playing.")
-    else:
-        if PyImGui.button("Skip Cinematic"):
-            Map.SkipCinematic()
-            
-    PyImGui.unindent(20.0)
-    PyImGui.separator()
-    if PyImGui.collapsing_header("Travel to Map:"):
-        PyImGui.indent(20.0)
-        map_vars.Travel.map_id = PyImGui.input_int("Map ID", map_vars.Travel.map_id)
-        map_vars.Travel.region = PyImGui.input_int("Region", map_vars.Travel.region)
-        map_vars.Travel.district_number = PyImGui.input_int("District Number", map_vars.Travel.district_number)
-        map_vars.Travel.language = PyImGui.input_int("Language", map_vars.Travel.language)
-            
-        if PyImGui.button("Travel"):
-            Map.TravelToRegion(
-                map_vars.Travel.map_id,
-                map_vars.Travel.region,
-                map_vars.Travel.district_number,
-                map_vars.Travel.language
-            )
-        PyImGui.unindent(20.0)
-        
-    if PyImGui.collapsing_header("Guild Hall:"):
-        PyImGui.indent(20.0)
-        is_guild_hall = Map.IsGuildHall()
-        if is_guild_hall:
-            if PyImGui.button("Leave Guild Hall"):    
-                Map.LeaveGH()
-        else:
-            if PyImGui.button("Travel to Guild Hall"):
-                Map.TravelGH()
-        PyImGui.unindent(20.0)
-        
-    if PyImGui.collapsing_header("Enter Challenge:"):
-        PyImGui.indent(20.0)
-        if not Map.HasEnterChallengeButton():
-            PyImGui.text("No 'Enter Challenge' button is available in this map.")
-        else:
-            if not Map.IsEnteringChallenge():
-                if PyImGui.button("Enter Challenge"):
-                    Map.EnterChallenge()
-            else:
-                if PyImGui.button("Cancel Enter Challenge"):
-                    Map.CancelEnterChallenge()
-
-        PyImGui.unindent(20.0)
-    
-#region mission_map_tab
-def draw_mission_map_tab():
-    if not Map.MissionMap.IsWindowOpen():
-        PyImGui.text("Mission Map window is not open.")
-        if PyImGui.button("Open Mission Map"):
-            Map.MissionMap.OpenWindow()
-    else:
-        if PyImGui.button("Close Mission Map"):
-            Map.MissionMap.CloseWindow()
-        map_vars.MissionMap.frame_info = Map.MissionMap.GetFrameInfo()
-        _FI = map_vars.MissionMap.frame_info
-        
-        frame_id = Map.MissionMap.GetFrameID()
-        is_mouse_over = Map.MissionMap.IsMouseOver()
-        mm_coords = Map.MissionMap.GetMissionMapWindowCoords()
-        mm_contents_coords = Map.MissionMap.GetMissionMapContentsCoords()
-        scale = Map.MissionMap.GetScale()
-        zoom = Map.MissionMap.GetZoom()
-        adusted_zoom = Map.MissionMap.GetAdjustedZoom(zoom, 0.5)
-        center = Map.MissionMap.GetCenter()
-        map_center_screen = Map.MissionMap.GetMapScreenCenter()
-        
-        nx, ny = Map.MissionMap.GetLastClickCoords()
-        sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
-        wx, wy = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(nx, ny)
-        gx, gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(nx, ny)
-        
-        r_nx, r_ny = Map.MissionMap.GetLastRightClickCoords()
-        r_sx, r_sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(r_nx, r_ny)  
-        r_wx, r_wy = Map.MissionMap.MapProjection.NormalizedScreenToWorldMap(r_nx, r_ny)
-        r_gx, r_gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(r_nx, r_ny)
-        
-        pan_offset = Map.MissionMap.GetPanOffset()
-        player_world_pos = Player.GetXY()
-        player_map_pos = Map.MissionMap.MapProjection.GameMapToScreen(*player_world_pos)
-        
-        if PyImGui.collapsing_header("Mission Map Data:"):
-            
-        
-            rows: list[tuple[str, str | int | float]] = [
-                ("frame_id ", f"{frame_id}"),
-                ("Is Mouse Over", f"{is_mouse_over}"),
-                ("Coords (l, t, r, b)", f"{mm_coords}"),
-                ("Contents Coords (l, t, r, b)", f"{mm_contents_coords}"),
-                ("Scale", f"{scale[0]:.3f}, {scale[1]:.3f}"),
-                ("Zoom", f"{zoom}"),
-                ("Adjusted Zoom (+0.5)", f"{adusted_zoom:.3f}"),
-                ("Center", f"{center[0]:.1f}, {center[1]:.1f}"),
-                ("Map Screen Center (x, y)", f"{map_center_screen}"),
-
-                ("Last Click (normalized):", f"({nx:.3f}, {ny:.3f})"),
-                #("Last Click (screen):", f"({sx:.1f}, {sy:.1f})"),
-                #("Last Click (game):", f"({gx:.1f}, {gy:.1f})"),
-                
-                ("Last Right Click (normalized):", f"({r_nx:.3f}, {r_ny:.3f})"),
-                #("Last Right Click (screen):", f"({r_sx:.1f}, {r_sy:.1f})"),
-                #("Last Right Click (game):", f"({r_gx:.1f}, {r_gy:.1f})"),
-
-                ("Pan Offset (x, y)", f"{pan_offset[0]:.1f}, {pan_offset[1]:.1f}"),
-                ("Player World Position (x, y)", f"{player_world_pos[0]:.1f}, {player_world_pos[1]:.1f}"),
-                ("Player Map Position (x, y)", f"{player_map_pos[0]:.1f}, {player_map_pos[1]:.1f}"),
-
-            ]
-
-            draw_kv_table("MissionMapTable", rows)
-            PyImGui.separator()
-            
-        if PyImGui.collapsing_header("Mission Map Display Options:"):
-            PyImGui.text("Display Options:")
-            #================ Outline Options ================
-            if PyImGui.collapsing_header("Outline"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.draw_outline.visible = PyImGui.checkbox("Draw Frame Outline", map_vars.MissionMap.draw_outline.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.draw_outline.thickness = PyImGui.slider_int("Outline Thickness", int(map_vars.MissionMap.draw_outline.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Outline Color", map_vars.MissionMap.draw_outline.color.to_tuple_normalized())
-
-                map_vars.MissionMap.draw_outline.color = Color().from_tuple_normalized(_color)
-                if map_vars.MissionMap.draw_outline.visible:
-                    if _FI:
-                        _FI.DrawFrameOutline(map_vars.MissionMap.draw_outline.color.to_color(), map_vars.MissionMap.draw_outline.thickness)
-                PyImGui.unindent(20.0)
-                
-            #================ Content Outline Options ================
-            if PyImGui.collapsing_header("Content Outline"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.draw_content_outline.visible = PyImGui.checkbox("Draw Content Outline", map_vars.MissionMap.draw_content_outline.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.draw_content_outline.thickness = PyImGui.slider_int("Content Outline Thickness", int(map_vars.MissionMap.draw_content_outline.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Content Outline Color", map_vars.MissionMap.draw_content_outline.color.to_tuple_normalized())
-
-                map_vars.MissionMap.draw_content_outline.color = Color().from_tuple_normalized(_color)
-                if map_vars.MissionMap.draw_content_outline.visible:
-                    content_coords = Map.MissionMap.GetMissionMapContentsCoords()
-                    Overlay().BeginDraw()
-                    left, top, right, bottom = content_coords
-                    Overlay().DrawQuad(x1=left, y1=top,
-                                        x2=right, y2=top,
-                                        x3=right, y3=bottom,
-                                        x4=left, y4=bottom,
-                                        color=map_vars.MissionMap.draw_content_outline.color.to_color(),
-                                        thickness=map_vars.MissionMap.draw_content_outline.thickness)
-                    Overlay().EndDraw()
-                PyImGui.unindent(20.0)
-                
-            #================ Last Click Position Options ================
-            if PyImGui.collapsing_header("Last Click Position"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.draw_last_click_pos.visible = PyImGui.checkbox("Draw Last Click Position", map_vars.MissionMap.draw_last_click_pos.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.draw_last_click_pos.thickness = PyImGui.slider_int("Last Click Pos Thickness", int(map_vars.MissionMap.draw_last_click_pos.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Last Click Pos Color", map_vars.MissionMap.draw_last_click_pos.color.to_tuple_normalized())
-                map_vars.MissionMap.draw_last_click_pos.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.draw_last_click_pos.color.to_color()
-                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
-                if map_vars.MissionMap.draw_last_click_pos.visible:
-                    sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(sx, sy, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_click_pos.thickness)
-                    Overlay().EndDraw()
-                    def DrawFlagAll(pos_x, pos_y):
-                        overlay = Overlay()
-                        pos_z = overlay.FindZ(pos_x, pos_y)
-
-                        overlay.BeginDraw()
-                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
-                        overlay.DrawTriangleFilled3D(
-                            pos_x, pos_y, pos_z - 150,               # Base point
-                            pos_x, pos_y, pos_z - 120,               # 30 units up
-                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
-                            dc_color
-                        )
-
-                        overlay.EndDraw()
-                    DrawFlagAll(gx, gy)
-                PyImGui.unindent(20.0)
-                
-            #================ Last Right Click Position Options ================
-            if PyImGui.collapsing_header("Last Right Click Position"):
-                PyImGui.indent(20.0)
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.draw_last_right_click_pos.visible = PyImGui.checkbox("Draw Last Right Click Position", map_vars.MissionMap.draw_last_right_click_pos.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.draw_last_right_click_pos.thickness = PyImGui.slider_int("Last Right Click Pos Thickness", int(map_vars.MissionMap.draw_last_right_click_pos.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Last Right Click Pos Color", map_vars.MissionMap.draw_last_right_click_pos.color.to_tuple_normalized())
-                map_vars.MissionMap.draw_last_right_click_pos.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.draw_last_right_click_pos.color.to_color()
-                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
-                if map_vars.MissionMap.draw_last_right_click_pos.visible:
-                    r_sx, r_sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(r_nx, r_ny)
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(r_sx, r_sy, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_right_click_pos.thickness)
-                    Overlay().EndDraw()
-                    def DrawFlagAll(pos_x, pos_y):
-                        overlay = Overlay()
-                        pos_z = overlay.FindZ(pos_x, pos_y)
-
-                        overlay.BeginDraw()
-                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
-                        overlay.DrawTriangleFilled3D(
-                            pos_x, pos_y, pos_z - 150,               # Base point
-                            pos_x, pos_y, pos_z - 120,               # 30 units up
-                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
-                            dc_color
-                        )
-
-                        overlay.EndDraw()
-                    DrawFlagAll(r_gx, r_gy)
-                PyImGui.unindent(20.0)
-                
-                 
-            #================ Center Map Position Options ================   
-            if PyImGui.collapsing_header("Center Map Position"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.center_outline.visible = PyImGui.checkbox("Draw Center Map Position", map_vars.MissionMap.center_outline.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.center_outline.thickness = PyImGui.slider_int("Center Pos Thickness", int(map_vars.MissionMap.center_outline.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Center Pos Color", map_vars.MissionMap.center_outline.color.to_tuple_normalized())
-                map_vars.MissionMap.center_outline.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.center_outline.color.to_color()
-                if map_vars.MissionMap.center_outline.visible:
-                    center_world = Map.MissionMap.GetCenter()
-                    center_screen = Map.MissionMap.MapProjection.WorldMapToScreen(center_world[0], center_world[1])
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(center_screen[0], center_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.center_outline.thickness)
-                    Overlay().EndDraw()
-                PyImGui.unindent(20.0)
-                
-            #================ Player Position Options ================
-            if PyImGui.collapsing_header("Player Position"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.player_outline.visible = PyImGui.checkbox("Draw Player Position", map_vars.MissionMap.player_outline.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.player_outline.thickness = PyImGui.slider_int("Player Pos Thickness", int(map_vars.MissionMap.player_outline.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Player Pos Color", map_vars.MissionMap.player_outline.color.to_tuple_normalized())
-                map_vars.MissionMap.player_outline.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.player_outline.color.to_color()
-                if map_vars.MissionMap.player_outline.visible:
-                    player_pos = Player.GetXY()
-                    player_screen = Map.MissionMap.MapProjection.GameMapToScreen(player_pos[0], player_pos[1])
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(player_screen[0], player_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.player_outline.thickness)
-                    Overlay().EndDraw()
-                PyImGui.unindent(20.0)
-            
-            
-#region mini_map_tab
-def draw_mini_map_tab():
-    if not Map.MiniMap.IsWindowOpen():
-        PyImGui.text("Mini Map window is not open.")
-        if PyImGui.button("Open Mini Map"):
-            Map.MiniMap.OpenWindow()
-    else:
-        if PyImGui.button("Close Mini Map"):
-            Map.MiniMap.CloseWindow()
-        map_vars.MiniMap.frame_info = Map.MiniMap.GetFrameInfo()
-        _FI = map_vars.MiniMap.frame_info
-        
-        frame_id = Map.MiniMap.GetFrameID()
-        is_mouse_over = Map.MiniMap.IsMouseOver()
-        mm_coords = Map.MiniMap.GetWindowCoords()
-        scale = Map.MiniMap.GetScale()
-        zoom = Map.MiniMap.GetZoom()
-        map_center_screen = Map.MiniMap.GetMapScreenCenter()
-        
-        normalized_mouse_x, normalized_mouse_y = Map.MiniMap.GetLastClickCoords()
-        screen_mouse_x, screen_mouse_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(normalized_mouse_x, normalized_mouse_y)
-        gamepos_mouse_x, gamepos_mouse_y = Map.MiniMap.MapProjection.ScreenToGamePos(screen_mouse_x, screen_mouse_y)
-        
-        normalized_right_mouse_x, normalized_right_mouse_y = Map.MiniMap.GetLastRightClickCoords()
-        screen_right_mouse_x, screen_right_mouse_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(normalized_right_mouse_x, normalized_right_mouse_y)  
-        gamepos_right_mouse_x, gamepos_right_mouse_y = Map.MiniMap.MapProjection.ScreenToGamePos(screen_right_mouse_x, screen_right_mouse_y)
-        
-        pan_offset = Map.MiniMap.GetPanOffset()
-        player_game_pos = Player.GetXY()
-        player_map_pos = Map.MiniMap.MapProjection.GamePosToScreen(player_game_pos[0], player_game_pos[1])
-        
-        
-        if PyImGui.collapsing_header("MiniMap Data:"):
-            
-        
-            rows: list[tuple[str, str | int | float]] = [
-                ("frame_id ", f"{frame_id}"),
-                ("Is Mouse Over", f"{is_mouse_over}"),
-                ("Coords (l, t, r, b)", f"{mm_coords}"),
-                ("Scale", f"{scale:.3f}"),
-                ("Zoom", f"{zoom}"),
-                ("Map Screen Center (x, y)", f"{map_center_screen}"),
-
-                ("Last Click (normalized):", f"({normalized_mouse_x:.3f}, {normalized_mouse_y:.3f})"),   
-                ("Last Click (screen):", f"({screen_mouse_x:.1f}, {screen_mouse_y:.1f})"),
-                ("Last Click (game):", f"({gamepos_mouse_x:.1f}, {gamepos_mouse_y:.1f})"),
-                ("Last Right Click (normalized):", f"({normalized_right_mouse_x:.3f}, {normalized_right_mouse_y:.3f})"),
-                ("Last Right Click (screen):", f"({screen_right_mouse_x:.1f}, {screen_right_mouse_y:.1f})"),
-                ("Last Right Click (game):", f"({gamepos_right_mouse_x:.1f}, {gamepos_right_mouse_y:.1f})"),
-
-                ("Pan Offset (x, y)", f"{pan_offset[0]:.1f}, {pan_offset[1]:.1f}"),
-                ("Player World Position (x, y)", f"{player_game_pos[0]:.1f}, {player_game_pos[1]:.1f}"),
-                ("Player Map Position (x, y)", f"{player_map_pos[0]:.1f}, {player_map_pos[1]:.1f}"),
-
-            ]
-
-            draw_kv_table("MiniMapTable", rows)
-            PyImGui.separator()
-            
-        if PyImGui.collapsing_header("MiniMap Display Options:"):
-            PyImGui.text("Display Options:")
-            #================ Outline Options ================
-            if PyImGui.collapsing_header("Outline"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.draw_outline.visible = PyImGui.checkbox("Draw Frame Outline", map_vars.MissionMap.draw_outline.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.draw_outline.thickness = PyImGui.slider_int("Outline Thickness", int(map_vars.MissionMap.draw_outline.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Outline Color", map_vars.MissionMap.draw_outline.color.to_tuple_normalized())
-
-                map_vars.MissionMap.draw_outline.color = Color().from_tuple_normalized(_color)
-                if map_vars.MissionMap.draw_outline.visible:
-                    if _FI:
-                        _FI.DrawFrameOutline(map_vars.MissionMap.draw_outline.color.to_color(), map_vars.MissionMap.draw_outline.thickness)
-                PyImGui.unindent(20.0)
-                
-            #================ Last Click Position Options ================
-            if PyImGui.collapsing_header("Last Click Position"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.draw_last_click_pos.visible = PyImGui.checkbox("Draw Last Click Position", map_vars.MissionMap.draw_last_click_pos.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.draw_last_click_pos.thickness = PyImGui.slider_int("Last Click Pos Thickness", int(map_vars.MissionMap.draw_last_click_pos.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Last Click Pos Color", map_vars.MissionMap.draw_last_click_pos.color.to_tuple_normalized())
-                map_vars.MissionMap.draw_last_click_pos.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.draw_last_click_pos.color.to_color()
-                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
-                if map_vars.MissionMap.draw_last_click_pos.visible:
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(screen_mouse_x, screen_mouse_y, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_click_pos.thickness)
-                    Overlay().EndDraw()
-                    def DrawFlagAll(pos_x, pos_y):
-                        overlay = Overlay()
-                        pos_z = overlay.FindZ(pos_x, pos_y)
-
-                        overlay.BeginDraw()
-                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
-                        overlay.DrawTriangleFilled3D(
-                            pos_x, pos_y, pos_z - 150,               # Base point
-                            pos_x, pos_y, pos_z - 120,               # 30 units up
-                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
-                            dc_color
-                        )
-
-                        overlay.EndDraw()
-                    DrawFlagAll(gamepos_mouse_x, gamepos_mouse_y)
-                PyImGui.unindent(20.0)
-                
-            #================ Last Right Click Position Options ================
-            if PyImGui.collapsing_header("Last Right Click Position"):
-                PyImGui.indent(20.0)
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.draw_last_right_click_pos.visible = PyImGui.checkbox("Draw Last Right Click Position", map_vars.MissionMap.draw_last_right_click_pos.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.draw_last_right_click_pos.thickness = PyImGui.slider_int("Last Right Click Pos Thickness", int(map_vars.MissionMap.draw_last_right_click_pos.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Last Right Click Pos Color", map_vars.MissionMap.draw_last_right_click_pos.color.to_tuple_normalized())
-                map_vars.MissionMap.draw_last_right_click_pos.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.draw_last_right_click_pos.color.to_color()
-                PyImGui.text_colored("this feature will draw also in world space", ColorPalette.GetColor("gold").to_tuple_normalized())
-                if map_vars.MissionMap.draw_last_right_click_pos.visible:
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(screen_right_mouse_x, screen_right_mouse_y, 10.0, dc_color, 32, map_vars.MissionMap.draw_last_right_click_pos.thickness)
-                    Overlay().EndDraw()
-                    def DrawFlagAll(pos_x, pos_y):
-                        overlay = Overlay()
-                        pos_z = overlay.FindZ(pos_x, pos_y)
-
-                        overlay.BeginDraw()
-                        overlay.DrawLine3D(pos_x, pos_y, pos_z, pos_x, pos_y, pos_z - 150, dc_color, 3)    
-                        overlay.DrawTriangleFilled3D(
-                            pos_x, pos_y, pos_z - 150,               # Base point
-                            pos_x, pos_y, pos_z - 120,               # 30 units up
-                            pos_x - 50, pos_y, pos_z - 135,          # 50 units left, 15 units up
-                            dc_color
-                        )
-
-                        overlay.EndDraw()
-                    DrawFlagAll(gamepos_right_mouse_x, gamepos_right_mouse_y)
-                PyImGui.unindent(20.0)
-                
-                 
-            #================ Center Map Position Options ================   
-            if PyImGui.collapsing_header("Center Map Position"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.center_outline.visible = PyImGui.checkbox("Draw Center Map Position", map_vars.MissionMap.center_outline.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.center_outline.thickness = PyImGui.slider_int("Center Pos Thickness", int(map_vars.MissionMap.center_outline.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Center Pos Color", map_vars.MissionMap.center_outline.color.to_tuple_normalized())
-                map_vars.MissionMap.center_outline.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.center_outline.color.to_color()
-                if map_vars.MissionMap.center_outline.visible:
-                    center_screen = Map.MiniMap.GetMapScreenCenter()
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(center_screen[0], center_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.center_outline.thickness)
-                    Overlay().EndDraw()
-                PyImGui.unindent(20.0)
-                
-            #================ Player Position Options ================
-            if PyImGui.collapsing_header("Player Position"):
-                PyImGui.indent(20.0)
-                map_vars.MissionMap.player_outline.visible = PyImGui.checkbox("Draw Player Position", map_vars.MissionMap.player_outline.visible)
-                PyImGui.same_line(0,-1)
-                PyImGui.set_next_item_width(100.0)
-                map_vars.MissionMap.player_outline.thickness = PyImGui.slider_int("Player Pos Thickness", int(map_vars.MissionMap.player_outline.thickness), 1, 10)
-                _color = PyImGui.color_edit4("Player Pos Color", map_vars.MissionMap.player_outline.color.to_tuple_normalized())
-                map_vars.MissionMap.player_outline.color = Color().from_tuple_normalized(_color)
-                dc_color = map_vars.MissionMap.player_outline.color.to_color()
-                if map_vars.MissionMap.player_outline.visible:
-                    player_pos = Player.GetXY()
-                    
-                    player_screen = Map.MiniMap.MapProjection.GamePosToScreen(player_pos[0], player_pos[1])
-                    Overlay().BeginDraw()
-                    Overlay().DrawPoly(player_screen[0], player_screen[1], 10.0, dc_color, 32, map_vars.MissionMap.player_outline.thickness)
-                    Overlay().EndDraw()
-                PyImGui.unindent(20.0)
-              
-                
-#region mini_map_tab
-def draw_world_map_tab():
-    if not Map.WorldMap.IsWindowOpen():
-        PyImGui.text("World Map window is not open.")
-        if PyImGui.button("Open World Map"):
-            Map.WorldMap.OpenWindow()
-    else:
-        if PyImGui.button("Close World Map"):
-            Map.WorldMap.CloseWindow()
-            
-        if PyImGui.collapsing_header("World Map Data:"):
-            frame_id = Map.WorldMap.GetFrameID()
-            is_mouse_over = Map.WorldMap.IsMouseOver()
-            mm_coords = Map.WorldMap.GetWindowCoords()
-            zoom = Map.WorldMap.GetZoom()
-
-            screen_mouse_x, screen_mouse_y = Map.WorldMap.GetLastClickCoords()
-            screen_right_mouse_x, screen_right_mouse_y = Map.WorldMap.GetLastRightClickCoords()
-
-            # --- simple scalar rows ---
-            rows: list[tuple[str, str | int | float]] = [
-                ("frame_id",               f"{frame_id}"),
-                ("Is Mouse Over",          f"{is_mouse_over}"),
-                ("Coords (l,t,r,b)",       f"{mm_coords}"),
-                ("Zoom",                   f"{zoom:.3f}"),
-                ("Last Click (screen)",    f"({screen_mouse_x:.3f}, {screen_mouse_y:.3f})"),
-                ("Last Right Click",       f"({screen_right_mouse_x:.3f}, {screen_right_mouse_y:.3f})"),
-            ]
-
-            draw_kv_table("WorldMapPrimary", rows)
-            PyImGui.separator()
-
-            # --- params section ---
-            params = Map.WorldMap.GetParams()
-            if params:
-                if PyImGui.collapsing_header("Params (uint32 values)"):
-                    PyImGui.begin_table("ParamsTable", 2, PyImGui.TableFlags.Borders)
-                    PyImGui.table_setup_column("Index")
-                    PyImGui.table_setup_column("Value")
-                    PyImGui.table_headers_row()
-
-                    for i, val in enumerate(params):
-                        PyImGui.table_next_row()
-                        PyImGui.table_next_column(); PyImGui.text(f"[{i:03d}]")
-                        PyImGui.table_next_column(); PyImGui.text(f"{val}")
-
-                    PyImGui.end_table()
-                    PyImGui.separator()
-
-            # --- extra data as KV list ---
-            extra_data = Map.WorldMap.GetExtraData()
-            if extra_data:
-                if PyImGui.collapsing_header("Extra Data"):
-                    PyImGui.begin_table("ExtraDataTable", 2, PyImGui.TableFlags.Borders)
-                    for key, value in extra_data.items():
-                        PyImGui.table_next_row()
-                        PyImGui.table_next_column(); PyImGui.text(f"{key}")
-                        PyImGui.table_next_column(); PyImGui.text(f"{value}")
-                    PyImGui.end_table()
-                    
-def draw_pregame_tab():
-    if not Map.Pregame.IsWindowOpen():
-        PyImGui.text("Pregame context not ready.")
-        if PyImGui.button("Log Out to Character Select"):
-            Map.Pregame.LogOutToCharachterSelect()
-            print ("clicked")
-    else:
-        if PyImGui.collapsing_header("Pregame Data:"):
-            frame_id = Map.Pregame.GetFrameID()
-            chosen_character_index = Map.Pregame.GetChosenCharacterIndex()
-            
-            character_list = Map.Pregame.GetCharList()
-            
-            chosen_char = character_list[chosen_character_index] if (0 <= chosen_character_index < len(character_list)) else None
-            chosen_char_name = chosen_char.character_name if chosen_char else "N/A"
-            chosen_char_level = chosen_char.level if chosen_char else "N/A"
-            chosen_char_current_map_id = chosen_char.current_map_id if chosen_char else "N/A"
-
-            # --- simple scalar rows ---
-            rows: list[tuple[str, str | int | float]] = [
-                ("frame_id",               f"{frame_id}"),
-                
-                ("Chosen Character Index", f"{chosen_character_index}"),
-                ("Chosen Character Name",  f"{chosen_char_name}"),
-                ("Chosen Character Level", f"{chosen_char_level}"),
-                ("Chosen Character Current Map ID", f"{chosen_char_current_map_id} - {Map.GetMapName(chosen_char_current_map_id)}"),
-
-            ]
-
-            draw_kv_table("WorldMapPrimary", rows)
-            PyImGui.separator()
-            if PyImGui.collapsing_header("Extra Data:"):
-                context = Map.Pregame.GetContextStruct()
-                if context is None:
-                    PyImGui.text("Pregame context struct is not available.")
-                    return
-                
-                rows: list[tuple[str, str | int | float]] = [
-                    ("Unk01",           f"{list(context.Unk01)}"),
-                    ("h0054",          f"{context.h0054}"),
-                    ("h0058",          f"{context.h0058}"),
-                    ("Unk02_0",        f"{context.Unk02[0]} - {context.Unk02[1]}"),
-                    ("h0060",          f"{context.h0060}"),
-                    ("Unk03_0",        f"{context.Unk03[0]} - {context.Unk03[1]}"),
-                    ("h0068",          f"{context.h0068}"),
-                    ("Unk04",          f"{context.Unk04}"),
-                    ("h0070",          f"{context.h0070}"),
-                    ("Unk05",          f"{context.Unk05}"),
-                    ("h0078",          f"{context.h0078}"),
-                    ("Unk06",          f"{list(context.Unk06)}"),
-                    ("h00a0",          f"{context.h00a0}"),
-                    ("h00a4",          f"{context.h00a4}"),
-                    ("h00a8",          f"{context.h00a8}"),
-                    ("Unk07",          f"{list(context.Unk07)}"),
-                    ("Unk08",          f"{context.Unk08}"),
-                ]     
-                draw_kv_table("PregameExtraData", rows)
-                
-                PyImGui.separator()
-                
-            if PyImGui.collapsing_header("Character List:"):
-                for i, char in enumerate(character_list):
-                    if PyImGui.collapsing_header(f"Character {i}: {char.character_name}"):
-                        rows: list[tuple[str, str | int | float]] = [
-                            ("Index",                   f"{i}"),
-                            ("Character Name",          f"{char.character_name}"),
-                            ("Level",                   f"{char.level}"),
-                            ("Current Map ID",          f"{char.current_map_id} - {Map.GetMapName(char.current_map_id)}"),
-                        ]
-                        draw_kv_table(f"Character_{i}", rows)
-                        PyImGui.separator()
-                        
-                        if PyImGui.collapsing_header("extra_data"):
-                            rows: list[tuple[str, str | int | float]] = [
-                                ("Unk00",           f"{char.Unk00}"),
-                                ("pvp_or_campaign", f"{char.pvp_or_campaign}"),
-                                ("UnkPvPData01",    f"{char.UnkPvPData01}"),
-                                ("UnkPvPData02",    f"{char.UnkPvPData02}"),
-                                ("UnkPvPData03",    f"{char.UnkPvPData03}"),
-                                ("UnkPvPData04",    f"{char.UnkPvPData04}"),
-                                ("Unk01",           f"{list(char.Unk01)}"),
-                                ("Unk02",           f"{list(char.Unk02)}"),
-                            ]
-                            draw_kv_table(f"CharacterExtraData_{i}", rows)
-                            PyImGui.separator()
-                            
-  
-
-    
-
-    
-def draw_map_data():
-    global _selected_view, SECTION_INFO, map_vars
-    if PyImGui.begin_tab_bar("MapDataTabBar"):
-        if PyImGui.begin_tab_item("Map##MapInfoTab"):
-            
-            draw_main_map_tab() # Map Info Tab
-            
-            PyImGui.end_tab_item()
-        if PyImGui.begin_tab_item("Data##MapInfoDataTab"):
-            
-            draw_map_data_tab() # Map Data Tab
-            
-            PyImGui.end_tab_item()
-        if PyImGui.begin_tab_item("Actions##MapInfoActionsTab"):
-            
-            draw_map_actions_tab() # Map Actions Tab
-            
-            PyImGui.end_tab_item()
-        if PyImGui.begin_tab_item("Mission Map##MapInfoMissionMapTab"):
-            
-            draw_mission_map_tab() # Mission Map Tab
-                   
-            PyImGui.end_tab_item()
-        if PyImGui.begin_tab_item("Mini Map##MapInfoMiniMapTab"):
-            
-            draw_mini_map_tab() # Mini Map Tab
-                   
-            PyImGui.end_tab_item()
-        if PyImGui.begin_tab_item("World Map##MapInfoWorldMapTab"):
-            
-            draw_world_map_tab() # World Map Tab
-                   
-            PyImGui.end_tab_item()
-            
-        if PyImGui.begin_tab_item("Pregame##MapInfoPregameTab"):
-            
-            draw_pregame_tab() # Pregame Tab
-                   
-            PyImGui.end_tab_item()
-            
-        PyImGui.end_tab_bar()
-
-#region Agents
+#region ImGui
+SELECTED_ALLIEGANCE = 0
+SELECTED_AGENT_INDEX = 0 
+SELECTED_AGENT_ID = 0    
 def draw_agents_view():
-    PyImGui.text("Agents View")
-    player_agent_id = Player.GetAgentID()
-    agent = AgentArray.GetAgentByID(player_agent_id)
-    if agent is None:
-        PyImGui.text("Player agent not found.")
-        return
-    else:
-        PyImGui.text(f"Player Agent ID: {player_agent_id}")
-        PyImGui.separator()
+    global SELECTED_ALLIEGANCE, SELECTED_AGENT_INDEX, SELECTED_AGENT_ID
+    def _get_type(agent:AgentStruct) -> str:
+        if agent.is_living_type:
+            return "Living"
+        elif agent.is_item_type:
+            return "Item"
+        elif agent.is_gadget_type:
+            return "Gadget"
+        else:
+            return "Unknown"
+        
+    def _format_agent_row(label: str, agent:AgentStruct | None) -> tuple: 
+        from Py4GWCoreLib import GLOBAL_CACHE
+        if agent is None:
+            return (label, "N/A", "N/A", "N/A", "N/A")
+        return (
+            label,
+            agent.agent_id,
+            GLOBAL_CACHE.Agent.GetName(agent.agent_id),
+            f"({agent.pos.x:.2f}, {agent.pos.y:.2f}, {agent.z:.2f})",
+            _get_type(agent)
+        )
+        
+    def _colored_bool(value: bool) -> Tuple[int, int, int, int]:
+        return Color(0,255,0,255).to_tuple() if value else Color(255,0,0,255).to_tuple()
     
+    def _draw_agent_tab_item(agent_id:  int):
+        from Py4GWCoreLib import GLOBAL_CACHE
+        _AGENT_ID = agent_id
+        PyImGui.text(f"ID: {_AGENT_ID}")
+        PyImGui.text(f"Name: {GLOBAL_CACHE.Agent.GetName(_AGENT_ID)}")
+        if PyImGui.button("Target Agent"):
+            Player.ChangeTarget(_AGENT_ID)
+        PyImGui.separator()
+        if PyImGui.collapsing_header(f"Positional Data:"):
+            flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
+            if PyImGui.begin_table(f"PositionalData##PositionalData{_AGENT_ID}", 5,flags):                                
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text("Position")
+                PyImGui.same_line(0,-1)
+                if PyImGui.button("Copy to Clipboard"):
+                    PyImGui.set_clipboard_text(f"({Agent.GetXY(_AGENT_ID)[0]:.2f}, {Agent.GetXY(_AGENT_ID)[1]:.2f})")
+                PyImGui.table_next_column()
+                PyImGui.text(f"X: {Agent.GetXYZ(_AGENT_ID)[0]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Y: {Agent.GetXYZ(_AGENT_ID)[1]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Z: {Agent.GetXYZ(_AGENT_ID)[2]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"ZPlane {Agent.GetZPlane(_AGENT_ID):.2f}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                
+                PyImGui.text("Rotation")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Angle: {Agent.GetRotationAngle(_AGENT_ID):.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Cos: {Agent.GetRotationCos(_AGENT_ID):.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Sin: {Agent.GetRotationSin(_AGENT_ID):.2f}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                
+                PyImGui.text("Velocity")
+                PyImGui.table_next_column()
+                PyImGui.text(f"X: {Agent.GetVelocityXY(_AGENT_ID)[0]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Y: {Agent.GetVelocityXY(_AGENT_ID)[1]:.2f}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+
+                PyImGui.text("Name Tag")
+                PyImGui.table_next_column()
+                PyImGui.text(f"X: {Agent.GetNameTagXYZ(_AGENT_ID)[0]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Y: {Agent.GetNameTagXYZ(_AGENT_ID)[1]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Z: {Agent.GetNameTagXYZ(_AGENT_ID)[2]:.2f}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                
+                PyImGui.end_table()
+                
+        if PyImGui.collapsing_header(f"Agent Properties"):
+            flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
+            if PyImGui.begin_table(f"AgentProperties##AgentProperties{_AGENT_ID}", 5,flags):                                
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text("Model 1")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Width: {Agent.GetModelScale1(_AGENT_ID)[0]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Height: {Agent.GetModelScale1(_AGENT_ID)[1]:.2f}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text("Model 2")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Width: {Agent.GetModelScale2(_AGENT_ID)[0]:.2f}")
+                PyImGui.table_next_column() 
+                PyImGui.text(f"Height: {Agent.GetModelScale2(_AGENT_ID)[1]:.2f}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text("Model 3")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Width: {Agent.GetModelScale3(_AGENT_ID)[0]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Height: {Agent.GetModelScale3(_AGENT_ID)[1]:.2f}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text(f"Name Properties")
+                PyImGui.table_next_column()
+                PyImGui.text(f"{Agent.GetNameProperties(_AGENT_ID)}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"HEX: {hex(Agent.GetNameProperties(_AGENT_ID))}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"BIN: {bin(Agent.GetNameProperties(_AGENT_ID))}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text(f"Visual Effectes")
+                PyImGui.table_next_column()
+                PyImGui.text(f"{Agent.GetVisualEffects(_AGENT_ID)}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Hex: {hex(Agent.GetVisualEffects(_AGENT_ID))}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Bin: {bin(Agent.GetVisualEffects(_AGENT_ID))}")
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.end_table()
+
+                
+        if _AGENT_ID == Player.GetAgentID():
+            if PyImGui.collapsing_header(f"Player Instance Exclusive Data:"):
+            
+                PyImGui.text("Terrain Normal")
+                PyImGui.table_next_column()
+                PyImGui.text(f"X: {Agent.GetTerrainNormalXYZ(_AGENT_ID)[0]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Y: {Agent.GetTerrainNormalXYZ(_AGENT_ID)[1]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Z: {Agent.GetTerrainNormalXYZ(_AGENT_ID)[2]:.2f}")
+                PyImGui.table_next_column()
+                PyImGui.text(f"Ground: {Agent.GetGround(_AGENT_ID):.2f}")
+                
+                
+        if PyImGui.collapsing_header("Attributes"):
+
+            attributes = Agent.GetAttributes(_AGENT_ID)
+
+            headers = ["Attribute", "Base Level", "Level"]
+            data = []
+            for attribute in attributes:
+                data.append((attribute.GetName(), str(attribute.level_base), str(attribute.level)))
+
+            ImGui.table(f"Attributes Info##attinfo{_AGENT_ID}", headers, data)
+            
+        PyImGui.text_colored("Is Living", _colored_bool(Agent.IsLiving(_AGENT_ID)))
+        PyImGui.same_line(0, -1)
+        PyImGui.text_colored("Is Item", _colored_bool(Agent.IsItem(_AGENT_ID)))
+        PyImGui.same_line(0, -1)
+        PyImGui.text_colored("Is Gadget", _colored_bool(Agent.IsGadget(_AGENT_ID)))
+        
+        if Agent.IsLiving(_AGENT_ID):
+            if PyImGui.collapsing_header("Living Agent Data"):
+                flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
+                if PyImGui.begin_table(f"livingfields##livingfields{_AGENT_ID}", 3,flags):                                
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Owner ID: {Agent.GetOwnerID(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Player Number/ModelID: {Agent.GetPlayerNumber(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Animation Code: {Agent.GetAnimationCode(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    primary, secondary = Agent.GetProfessions(_AGENT_ID)
+                    primary_name, secondary_name = Agent.GetProfessionNames(_AGENT_ID)
+                    PyImGui.text(f"Primary: [{primary}] {primary_name}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Secondary: [{secondary}] {secondary_name}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Level: {Agent.GetLevel(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Energy: {Agent.GetEnergy(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Max Energy: {Agent.GetMaxEnergy(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Energy Regeneration: {Agent.GetEnergyRegen(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Health: {Agent.GetHealth(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Max Health: {Agent.GetMaxHealth(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Health Regeneration: {Agent.GetHealthRegen(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Login Number: {Agent.GetLoginNumber(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Dagger Status: {Agent.GetDaggerStatus(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Allegiance: {Agent.GetAllegiance(_AGENT_ID)[0]} ({Agent.GetAllegiance(_AGENT_ID)[1]})")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Weapon Type: {Agent.GetWeaponType(_AGENT_ID)[0]} ({Agent.GetWeaponType(_AGENT_ID)[1]})")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Weapon Item Type: {Agent.GetWeaponItemType(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Offhand Item Type: {Agent.GetOffhandItemType(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    extra_data = Agent.GetWeaponExtraData(_AGENT_ID)
+                    weapon_item_id = extra_data[0]
+                    offhand_item_id = extra_data[2]
+                    PyImGui.text(f"Weapon Item ID: {weapon_item_id}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Offhand Item ID: {offhand_item_id}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Bleeding", _colored_bool(Agent.IsBleeding(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Conditioned", _colored_bool(Agent.IsConditioned(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Crippled", _colored_bool(Agent.IsCrippled(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Dead", _colored_bool(Agent.IsDead(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Deep Wounded", _colored_bool(Agent.IsDeepWounded(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Poisoned", _colored_bool(Agent.IsPoisoned(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Enchanted", _colored_bool(Agent.IsEnchanted(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Degen Hexed", _colored_bool(Agent.IsDegenHexed(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Hexed", _colored_bool(Agent.IsHexed(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Weapon Spelled", _colored_bool(Agent.IsWeaponSpelled(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("In Combat Stance", _colored_bool(Agent.IsInCombatStance(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Has Quest", _colored_bool(Agent.HasQuest(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Dead By Type Map", _colored_bool(Agent.IsDeadByTypeMap(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Female", _colored_bool(Agent.IsFemale(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Has Boss Glow", _colored_bool(Agent.HasBossGlow(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Hiding Cape", _colored_bool(Agent.IsHidingCape(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Can Be Viewed In Party Window", _colored_bool(Agent.CanBeViewedInPartyWindow(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Spawned", _colored_bool(Agent.IsSpawned(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Being Observed", _colored_bool(Agent.IsBeingObserved(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Knocked Down", _colored_bool(Agent.IsKnockedDown(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Moving", _colored_bool(Agent.IsMoving(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Attacking", _colored_bool(Agent.IsAttacking(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Casting", _colored_bool(Agent.IsCasting(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Idle", _colored_bool(Agent.IsIdle(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Alive", _colored_bool(Agent.IsAlive(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is Player", _colored_bool(Agent.IsPlayer(_AGENT_ID)))
+                    PyImGui.table_next_column()
+                    PyImGui.text_colored("Is NPC", _colored_bool(Agent.IsNPC(_AGENT_ID)))
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Casting Skill ID: {Agent.GetCastingSkill(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Overcast: {Agent.GetOvercast(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Animation Type: {Agent.GetAnimationType(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Weapon Attack Speed: {Agent.GetWeaponAttackSpeed(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Attack Speed Modifier: {Agent.GetAttackSpeedModifier(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Agent Model Type: {Agent.GetAgentModelType(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Transmog NPC ID: {Agent.GetTransmogNPCID(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Guild ID: {Agent.GetGuildID(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Team ID: {Agent.GetTeamID(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Effects: {Agent.GetAgentEffects(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Hex: {hex(Agent.GetAgentEffects(_AGENT_ID))}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Bin: {bin(Agent.GetAgentEffects(_AGENT_ID))}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Model State: {Agent.GetModelState(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Hex: {hex(Agent.GetModelState(_AGENT_ID))}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Bin: {bin(Agent.GetModelState(_AGENT_ID))}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Type Map: {Agent.GetTypeMap(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Hex: {hex(Agent.GetTypeMap(_AGENT_ID))}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Bin: {bin(Agent.GetTypeMap(_AGENT_ID))}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Animation Speed: {Agent.GetAnimationSpeed(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Animation Code: {Agent.GetAnimationCode(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Animation ID: {Agent.GetAnimationID(_AGENT_ID)}")
+ 
+                    PyImGui.end_table()
+    
+        if Agent.IsItem(_AGENT_ID):
+            if PyImGui.collapsing_header("Item Agent Data"):
+                flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
+                if PyImGui.begin_table(f"itemfields##itemfields{_AGENT_ID}", 3,flags):                                
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Owner ID: {Agent.GetItemAgentOwnerID(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Item Id: {Agent.GetItemAgentItemID(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Extra Type: {Agent.GetItemAgentExtraType(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Hex: {hex(Agent.GetItemAgentExtraType(_AGENT_ID))}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Bin: {bin(Agent.GetItemAgentExtraType(_AGENT_ID))}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"h00CC: {Agent.GetItemAgenth00CC(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Hex: {hex(Agent.GetItemAgenth00CC(_AGENT_ID))}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Bin: {bin(Agent.GetItemAgenth00CC(_AGENT_ID))}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    
+                    PyImGui.end_table()
+                    
+        if Agent.IsGadget(_AGENT_ID):
+            if PyImGui.collapsing_header("Gadget Agent Data"):
+                flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
+                if PyImGui.begin_table(f"gadgetfields##gadgetfields{_AGENT_ID}", 3,flags):                                
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Gadget ID: {Agent.GetGadgetAgentID(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Extra Type: {Agent.GetGadgetAgentExtraType(_AGENT_ID)}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"h00C4: {Agent.GetGadgetAgenth00C4(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Hex: {hex(Agent.GetGadgetAgenth00C4(_AGENT_ID))}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Bin: {bin(Agent.GetGadgetAgenth00C4(_AGENT_ID))}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"h00C8: {Agent.GetGadgetAgenth00C8(_AGENT_ID)}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Hex: {hex(Agent.GetGadgetAgenth00C8(_AGENT_ID))}")
+                    PyImGui.table_next_column()
+                    PyImGui.text(f"Bin: {bin(Agent.GetGadgetAgenth00C8(_AGENT_ID))}")
+                    PyImGui.table_next_row()
+                    PyImGui.table_next_column()
+                    
+                    for idx, h00D4 in enumerate(Agent.GetGadgetAgenth00D4(_AGENT_ID)):
+                        PyImGui.text(f"h00D4[{idx}]")
+                        PyImGui.table_next_column()
+                        PyImGui.text(f"{h00D4}")
+                        PyImGui.table_next_column()
+                        PyImGui.text(f"Hex: {hex(h00D4)}")
+                        PyImGui.table_next_column()
+                        PyImGui.text(f"Bin: {bin(h00D4)}")
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+
+                    
+                    PyImGui.end_table()
+
+        
+    player:AgentStruct | None = Agent.GetAgentByID(Player.GetAgentID() or 0)
+    nearest_enemy:AgentStruct | None = Agent.GetAgentByID(Routines.Agents.GetNearestEnemy() or 0)
+    nearest_ally:AgentStruct | None = Agent.GetAgentByID(Routines.Agents.GetNearestAlly() or 0)
+    nearest_item:AgentStruct | None = Agent.GetAgentByID(Routines.Agents.GetNearestItem() or 0)
+    nearest_gadget:AgentStruct | None = Agent.GetAgentByID(Routines.Agents.GetNearestGadget() or 0)
+    nearest_npc:AgentStruct | None = Agent.GetAgentByID(Routines.Agents.GetNearestNPC() or 0)
+    target:AgentStruct | None = Agent.GetAgentByID(Player.GetTargetID() or 0)
+
+#region main
+    #if PyImGui.begin(window_module.window_name, window_module.window_flags):
+    if PyImGui.begin_child("NearestAgents Info", size=(600, 230),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+        headers = ["Closest", "ID", "Name", "{x,y,z}", "Type"]
+        data = [
+            _format_agent_row("Player:", player),
+            _format_agent_row("Enemy:", nearest_enemy),
+            _format_agent_row("Ally:", nearest_ally),
+            _format_agent_row("Item:", nearest_item),
+            _format_agent_row("Gadget:", nearest_gadget),
+            _format_agent_row("NPC/Minipet:", nearest_npc),
+            _format_agent_row("Target:", target),
+        ]
+
+        ImGui.table("Nearest Agents Data",headers,data)
+        
+        PyImGui.text("Targetting:")
+        PyImGui.push_item_width(175)
+        # Build combo items where index 0 = "All" (Unknown), rest map to Allegiance values 1..6
+        combo_items = ["All"] + [a.name for a in Allegiance if a != Allegiance.Unknown]
+        SELECTED_ALLIEGANCE = PyImGui.combo("Allegiance", SELECTED_ALLIEGANCE, combo_items)
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, -1)
+
+        # Efficiently use the correct pre-filtered array
+        if SELECTED_ALLIEGANCE == 0:
+            agent_ids = AgentArray.GetAgentArray()
+        else:
+            allegiance_enum = list(Allegiance)[SELECTED_ALLIEGANCE]
+            
+            if allegiance_enum == Allegiance.Ally:
+                agent_ids = AgentArray.GetAllyArray()
+            elif allegiance_enum == Allegiance.Neutral:
+                agent_ids = AgentArray.GetNeutralArray()
+            elif allegiance_enum == Allegiance.Enemy:
+                agent_ids = AgentArray.GetEnemyArray()
+            elif allegiance_enum == Allegiance.SpiritPet:
+                agent_ids = AgentArray.GetSpiritPetArray()
+            elif allegiance_enum == Allegiance.Minion:
+                agent_ids = AgentArray.GetMinionArray()
+            elif allegiance_enum == Allegiance.NpcMinipet:
+                agent_ids = AgentArray.GetNPCMinipetArray()
+            else:
+                agent_ids = AgentArray.GetAgentArray()
+        # Build combo items: "id - name"
+        combo_items = []
+        id_map = []
+        for agent_id in agent_ids:
+            agent = Agent.GetAgentByID(agent_id)
+            if agent and agent.agent_id != 0:
+                from Py4GWCoreLib import GLOBAL_CACHE
+                combo_items.append(f"{agent.agent_id} - {GLOBAL_CACHE.Agent.GetName(agent.agent_id)}")
+                id_map.append(agent.agent_id)  # maintain index mapping
+
+        # Show combo
+        PyImGui.push_item_width(175)
+        SELECTED_AGENT_INDEX = PyImGui.combo("Agent", SELECTED_AGENT_INDEX, combo_items)
+
+        # Validate selection and update selected agent ID
+        if 0 <= SELECTED_AGENT_INDEX < len(id_map):
+            SELECTED_AGENT_ID = id_map[SELECTED_AGENT_INDEX]
+        else:
+            SELECTED_AGENT_ID = 0  # Reset if invalid
+
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, -1)
+
+        # Only show the button if there's a valid agent selected
+        if SELECTED_AGENT_ID != 0:
+            if PyImGui.button("Set Target"):
+                Player.ChangeTarget(SELECTED_AGENT_ID)
+
+        PyImGui.end_child()
+        
+    if PyImGui.begin_child("InfoGlobalArea", size=(600, 500),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+        if PyImGui.begin_tab_bar("InfoTabBar"):
+            if player and player.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Player"}##tab{player.agent_id}"):
+                    _draw_agent_tab_item(player.agent_id)
+                    PyImGui.end_tab_item()
+            
+            if target and target.agent_id is not None:
+                if PyImGui.begin_tab_item(f"{"Target"}##tab{target.agent_id}"):
+                    _draw_agent_tab_item(target.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_enemy and nearest_enemy.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Enemy"}##tab{nearest_enemy.agent_id}"):
+                    _draw_agent_tab_item(nearest_enemy.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_ally and nearest_ally.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Ally"}##tab{nearest_ally.agent_id}"):
+                    _draw_agent_tab_item(nearest_ally.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_item and nearest_item.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Item"}##tab{nearest_item.agent_id}"):
+                    _draw_agent_tab_item(nearest_item.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_gadget and nearest_gadget.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Gadget"}##tab{nearest_gadget.agent_id}"):
+                    _draw_agent_tab_item(nearest_gadget.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_npc and nearest_npc.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"NPC"}##tab{nearest_npc.agent_id}"):
+                    _draw_agent_tab_item(nearest_npc.agent_id)
+                    PyImGui.end_tab_item()
+                    
+            PyImGui.end_tab_bar()
+        PyImGui.end_child()
+        
+    #PyImGui.end()
+    
+
 #region Main Window
 def draw_window():
     global _selected_view
@@ -862,7 +590,7 @@ def draw_window():
         # ================= RIGHT PANEL =================
         PyImGui.begin_child(
             "right_panel",
-            (500.0, 600.0),     # take remaining space
+            (600.0, 600.0),     # take remaining space
             False,
             0
         )
