@@ -53,7 +53,7 @@ bot = Botting(
 # Would like to move this to Botting
 stuck_helper = BotStuckHelper(
     config={
-        "log_enabled": False,
+        "log_enabled": True,
         "movement_timeout_handler": lambda: HandleStuck()
     }
 )

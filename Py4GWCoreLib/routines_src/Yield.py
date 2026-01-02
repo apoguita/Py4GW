@@ -1032,7 +1032,9 @@ class Yield:
 
             while True:
                 yield from Yield.wait(50)
+                quoted_id = GLOBAL_CACHE.Trading.Trader.GetQuotedItemID()
                 cost = GLOBAL_CACHE.Trading.Trader.GetQuotedValue()
+                ConsoleLog(MODULE_NAME, f"Attempted to request sell quote for item {quoted_id}.", Console.MessageType.Warning)
                 ConsoleLog(MODULE_NAME, f"Received sell quote for item {item_id} at cost: {cost}", Console.MessageType.Warning)
                 if cost >= 0:
                     break
