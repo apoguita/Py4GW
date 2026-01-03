@@ -1,5 +1,5 @@
 import Py4GW
-from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, GLOBAL_CACHE, ItemArray, Bags, HeroType)
+from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, GLOBAL_CACHE, Agent, HeroType)
 from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, SF_Derv_Barbarous
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
 from Bots.Sasemoi.bot_helpers import BotStuckHelper
