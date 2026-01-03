@@ -1,10 +1,7 @@
-import PyAgent
-from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
-from Py4GWCoreLib.AgentArray import RawAgentArray, AgentArray
+
 from Py4GWCoreLib.Agent import Agent
 import time
 
-from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 class AgentCache:
     def __init__(self):
