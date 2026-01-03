@@ -1,6 +1,7 @@
 from operator import index
 from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
 from Py4GWCoreLib import UIManager, ModelID, GLOBAL_CACHE
+from Py4GWCoreLib import Agent
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget, GameOptionStruct
@@ -19,8 +20,8 @@ def DrawBuffWindow(cached_data:CacheData):
     for index in range(MAX_NUM_PLAYERS):
         player_struct = cached_data.HeroAI_vars.all_player_struct[index]
         if player_struct.IsActive:
-            if GLOBAL_CACHE.Agent.IsPlayer(player_struct.PlayerID):
-                player_name = GLOBAL_CACHE.Agent.GetName(player_struct.PlayerID)
+            if Agent.IsPlayer(player_struct.PlayerID):
+                player_name = Agent.GetNameByID(player_struct.PlayerID)
             else:
                 player_name = GLOBAL_CACHE.Party.Heroes.GetNameByAgentID(player_struct.PlayerID)
 
@@ -110,23 +111,23 @@ def DrawPrioritizedSkills(cached_data:CacheData):
                     
                     PyImGui.text_colored(f"IsReadyToCast: {is_ready_to_cast}", TrueFalseColor(is_ready_to_cast))
                     if PyImGui.tree_node(f"IsReadyToCast: {is_ready_to_cast}"): 
-                        is_casting = GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
-                        casting_skill = GLOBAL_CACHE.Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID())
+                        is_casting = Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+                        casting_skill = Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID())
                         skillbar_casting = GLOBAL_CACHE.SkillBar.GetCasting()
                         skillbar_recharge = cached_data.combat_handler.skills[skill_slot].skillbar_data.recharge
                         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-                        current_energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id) * GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
+                        current_energy = Agent.GetEnergy(player_agent_id) * Agent.GetMaxEnergy(player_agent_id)
                         ordered_skill = cached_data.combat_handler.GetOrderedSkill(skill_slot)
                         if ordered_skill:                        
                             energy_cost = GLOBAL_CACHE.Skill.Data.GetEnergyCost(ordered_skill.skill_id)
-                            current_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                            current_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
                             target_hp = ordered_skill.custom_skill_data.Conditions.SacrificeHealth
                             health_cost = GLOBAL_CACHE.Skill.Data.GetHealthCost(ordered_skill.skill_id)
 
                             adrenaline_required = GLOBAL_CACHE.Skill.Data.GetAdrenaline(ordered_skill.skill_id)
                             adrenaline_a = ordered_skill.skillbar_data.adrenaline_a
 
-                            current_overcast = GLOBAL_CACHE.Agent.GetOvercast(GLOBAL_CACHE.Player.GetAgentID())
+                            current_overcast = Agent.GetOvercast(GLOBAL_CACHE.Player.GetAgentID())
                             overcast_target = ordered_skill.custom_skill_data.Conditions.Overcast
                             skill_overcast = GLOBAL_CACHE.Skill.Data.GetOvercast(ordered_skill.skill_id)
 
@@ -194,7 +195,7 @@ def DrawFlags(cached_data:CacheData):
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "IsFlagged", True)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosX", x)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FlagPosY", y)
-                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID()))
+                cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_ai_index, "FollowAngle", Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID()))
                 
                 one_time_set_flag = True
 
@@ -345,8 +346,8 @@ def DrawPlayersDebug(cached_data:CacheData):
 
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "PlayerID", self_id)
         player_id = GLOBAL_CACHE.Player.GetAgentID()
-        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", GLOBAL_CACHE.Agent.GetEnergyRegen(player_id))
-        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", GLOBAL_CACHE.Agent.GetEnergy(player_id))
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy_Regen", Agent.GetEnergyRegen(player_id))
+        cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "Energy", Agent.GetEnergy(player_id))
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsActive", True)
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsHero", False)
         cached_data.HeroAI_vars.shared_memory_handler.set_player_property(slot_to_write, "IsFlagged", False)
@@ -459,7 +460,7 @@ def DrawFlagDebug(cached_data:CacheData):
     PyImGui.text_colored("Having GetMouseWorldPos active will crash your client on map change",(1, 0.5, 0.05, 1))
     mouse_x, mouse_y = Overlay().GetMouseCoords()
     PyImGui.text(f"Mouse Coords: {mouse_x}, {mouse_y}")
-    PyImGui.text(f"Player Position: {GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())}")
+    PyImGui.text(f"Player Position: {Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())}")
     draw_fake_flag = PyImGui.checkbox("Draw Fake Flag", draw_fake_flag)
 
     if draw_fake_flag:
@@ -486,16 +487,16 @@ def DrawFollowDebug(cached_data:CacheData):
     show_distance_on_followers = PyImGui.checkbox("Show Distance on Followers", show_distance_on_followers)
     PyImGui.separator()
     PyImGui.text(f"InAggro: {cached_data.data.in_aggro}")
-    PyImGui.text(f"IsMelee: {GLOBAL_CACHE.Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID())}")
+    PyImGui.text(f"IsMelee: {Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID())}")
     PyImGui.text(f"stay_alert_timer: {cached_data.stay_alert_timer.GetElapsedTime()}")
-    PyImGui.text(f"Leader Rotation Angle: {GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())}")
+    PyImGui.text(f"Leader Rotation Angle: {Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())}")
     PyImGui.text(f"old_leader_rotation_angle: {cached_data.data.old_angle}")
     PyImGui.text(f"Angle_changed: {cached_data.data.angle_changed}")
 
     segments = 32
     Overlay().BeginDraw()
     if show_area_rings:
-        player_x, player_y, player_z = GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID()) #cached_data.data.player_xyz # needs to be live
+        player_x, player_y, player_z = Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID()) #cached_data.data.player_xyz # needs to be live
 
         Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Touch.value / 2, Utils.RGBToColor(255, 255, 0 , 128), numsegments=segments, thickness=2.0)
         Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Touch.value    , Utils.RGBToColor(255, 200, 0 , 128), numsegments=segments, thickness=2.0)
@@ -506,12 +507,12 @@ def DrawFollowDebug(cached_data:CacheData):
         Overlay().DrawPoly3D(player_x, player_y, player_z, Range.Spellcast.value, Utils.RGBToColor(255, 12 , 0 , 128), numsegments=segments, thickness=2.0)
 
     if show_hero_follow_grid:
-        leader_x, leader_y, leader_z = GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Party.GetPartyLeaderID()) #cached_data.data.party_leader_xyz #needs to be live 
+        leader_x, leader_y, leader_z = Agent.GetXYZ(GLOBAL_CACHE.Party.GetPartyLeaderID()) #cached_data.data.party_leader_xyz #needs to be live 
 
         for index, angle in enumerate(hero_formation):
             if index == 0:
                 continue
-            angle_on_hero_grid = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID()) + Utils.DegToRad(angle)
+            angle_on_hero_grid = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID()) + Utils.DegToRad(angle)
             hero_x = Range.Touch.value * math.cos(angle_on_hero_grid) + leader_x
             hero_y = Range.Touch.value * math.sin(angle_on_hero_grid) + leader_y
             
@@ -524,7 +525,7 @@ def DrawFollowDebug(cached_data:CacheData):
                 player_id = cached_data.HeroAI_vars.all_player_struct[i].PlayerID
                 if player_id == GLOBAL_CACHE.Player.GetAgentID():
                     continue
-                target_x, target_y, target_z = GLOBAL_CACHE.Agent.GetXYZ(player_id)
+                target_x, target_y, target_z = Agent.GetXYZ(player_id)
                 Overlay().DrawPoly3D(target_x, target_y, target_z, radius=72, color=Utils.RGBToColor(255, 255, 255, 128),numsegments=segments,thickness=2.0)
                 z_coord = Overlay().FindZ(target_x, target_y, 0)
                 Overlay().DrawText3D(target_x, target_y, z_coord-130, f"{DistanceFromWaypoint(target_x, target_y):.1f}",color=Utils.RGBToColor(255, 255, 255, 128), autoZ=False, centered=True, scale=2.0)

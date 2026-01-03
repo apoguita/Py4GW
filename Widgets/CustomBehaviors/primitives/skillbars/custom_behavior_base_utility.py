@@ -5,7 +5,7 @@ import traceback
 from typing import List, Generator, Any, override
 import time
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -356,7 +356,7 @@ class CustomBehaviorBaseUtility():
             if Map.IsOutpost():
                 return BehaviorState.IDLE
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 return BehaviorState.IDLE
 
             if custom_behavior_helpers.Targets.is_player_in_aggro():

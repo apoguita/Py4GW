@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Party, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives import constants
@@ -101,16 +101,16 @@ class LootUtility(CustomSkillUtilityBase):
             if item_id is None or item_id == 0:
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
-            if not GLOBAL_CACHE.Agent.IsValid(item_id):
+            if not Agent.IsValid(item_id):
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
 
             # 1) try to loot
-            pos = GLOBAL_CACHE.Agent.GetXY(item_id)
+            pos = Agent.GetXY(item_id)
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6_000)
             if not follow_success:
                 print("Failed to follow path to loot item, halting.")
-                real_item_id = GLOBAL_CACHE.Agent.GetItemAgentItemID(item_id)
+                real_item_id = Agent.GetItemAgentItemID(item_id)
                 LootConfig().AddItemIDToBlacklist(real_item_id)
                 self.loot_cooldown_timer.Restart()
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
@@ -129,7 +129,7 @@ class LootUtility(CustomSkillUtilityBase):
 
             # 3) Check if we timed out and add to blacklist if so
             if pickup_timer.IsExpired():
-                real_item_id = GLOBAL_CACHE.Agent.GetItemAgentItemID(item_id)
+                real_item_id = Agent.GetItemAgentItemID(item_id)
                 LootConfig().AddItemIDToBlacklist(real_item_id)
                 self.loot_cooldown_timer.Restart()
 

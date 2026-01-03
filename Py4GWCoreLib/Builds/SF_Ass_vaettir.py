@@ -83,7 +83,7 @@ class SF_Ass_vaettir(BuildMgr):
                 
     def CastShroudOfDistress(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
+        if Agent.GetHealth(player_agent_id) < 0.45:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             # ** Cast Shroud of Distress **
             yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1750)
@@ -115,9 +115,9 @@ class SF_Ass_vaettir(BuildMgr):
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
         
         for enemy in enemy_array:
-            if GLOBAL_CACHE.Agent.IsDead(enemy):
+            if Agent.IsDead(enemy):
                 continue
-            enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
+            enemy_pos = Agent.GetXY(enemy)
             to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
             angle_score = self.vector_angle(to_goal, to_enemy)  # -1 is most opposite
             if angle_score < most_opposite_score:
@@ -139,7 +139,7 @@ class SF_Ass_vaettir(BuildMgr):
             player_pos = GLOBAL_CACHE.Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
             for enemy in enemy_array:
-                if GLOBAL_CACHE.Agent.IsDead(enemy):
+                if Agent.IsDead(enemy):
                     continue
                 if Agent.IsHexed(enemy):
                     continue
@@ -153,7 +153,7 @@ class SF_Ass_vaettir(BuildMgr):
             from ..AgentArray import AgentArray
             from ..enums import AgentModelID
             agent_array = AgentArray.GetEnemyArray()
-            agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent: GLOBAL_CACHE.Agent.GetModelID(agent) in (AgentModelID.FROZEN_ELEMENTAL.value, AgentModelID.FROST_WURM.value))
+            agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent: Agent.GetModelID(agent) in (AgentModelID.FROZEN_ELEMENTAL.value, AgentModelID.FROST_WURM.value))
             agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
             if len(agent_array) > 0:
                     yield from self.DefensiveActions()
@@ -163,7 +163,7 @@ class SF_Ass_vaettir(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             return
 
@@ -207,8 +207,8 @@ class SF_Ass_vaettir(BuildMgr):
             ConsoleLog(self.build_name, "Casting Way of Perfection.", Py4GW.Console.MessageType.Info, log=False)
             return
 
-        if not self.in_killing_routine or GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.05:
-            health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
+        if not self.in_killing_routine or Agent.GetHealth(player_agent_id) < 0.05:
+            health = Agent.GetHealth(player_agent_id)
             if health < 0.35 or self.stuck_signal:
                 center_point1 = (10980, -21532)
                 center_point2 = (11461, -17282)
@@ -224,9 +224,9 @@ class SF_Ass_vaettir(BuildMgr):
 
                 enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
                 for enemy in enemy_array:
-                    if GLOBAL_CACHE.Agent.IsDead(enemy):
+                    if Agent.IsDead(enemy):
                         continue
-                    enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
+                    enemy_pos = Agent.GetXY(enemy)
                     to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
                     angle_score = self.vector_angle(to_goal, to_enemy)
                     if angle_score < most_opposite_score:

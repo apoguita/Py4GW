@@ -207,6 +207,7 @@ class Sequential:
             """
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog
+            from ..Agent import Agent
             from ..Map import Map
             waititng_for_map_load = True
             while waititng_for_map_load:
@@ -224,12 +225,13 @@ class Sequential:
         def GetAgentIDByName(agent_name):
             from ..GlobalCache import GLOBAL_CACHE
             from ..AgentArray import AgentArray
+            from ..Agent import Agent   
             agent_ids = AgentArray.GetAgentArray()
             agent_names = {}
 
             # Request all names
             for agent_id in agent_ids:
-                GLOBAL_CACHE.Agent.RequestName(agent_id)
+                Agent.RequestName(agent_id)
 
             # Wait until all names are ready (with timeout safeguard)
             timeout = 2.0  # seconds
@@ -239,7 +241,7 @@ class Sequential:
             while elapsed < timeout:
                 all_ready = True
                 for agent_id in agent_ids:
-                    if not GLOBAL_CACHE.Agent.IsNameReady(agent_id):
+                    if not Agent.IsNameReady(agent_id):
                         all_ready = False
                         break  # no need to check further
 
@@ -251,8 +253,8 @@ class Sequential:
 
             # Populate agent_names dictionary
             for agent_id in agent_ids:
-                if GLOBAL_CACHE.Agent.IsNameReady(agent_id):
-                    agent_names[agent_id] = GLOBAL_CACHE.Agent.GetName(agent_id)
+                if Agent.IsNameReady(agent_id):
+                    agent_names[agent_id] = Agent.GetNameByID(agent_id)
 
             # Partial, case-insensitive match
             search_lower = agent_name.lower()
@@ -273,9 +275,10 @@ class Sequential:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog, Console
             from ..AgentArray import AgentArray
+            from ..Agent import Agent
             agent_ids = AgentArray.GetAgentArray()
             for agent_id in agent_ids:
-                if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
+                if Agent.GetModelID(agent_id) == model_id:
                     return agent_id
             return 0
 
@@ -336,8 +339,9 @@ class Sequential:
             from ..GlobalCache import GLOBAL_CACHE
             from ..enums_src.GameData_enums import Range
             from .Agents import Agents
+            from ..Agent import Agent
             nearest_chest = Agents.GetNearestChest(2500)
-            chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(nearest_chest)
+            chest_x, chest_y = Agent.GetXY(nearest_chest)
 
 
             Sequential.Movement.FollowPath([(chest_x, chest_y)])
@@ -358,8 +362,9 @@ class Sequential:
         @staticmethod
         def InteractWithAgentByName(agent_name:str):
             from ..GlobalCache import GLOBAL_CACHE
+            from ..Agent import Agent
             Sequential.Agents.TargetAgentByName(agent_name)
-            agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
+            agent_x, agent_y = Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
 
             Sequential.Movement.FollowPath([(agent_x, agent_y)])
             sleep(0.5)
@@ -370,8 +375,9 @@ class Sequential:
         @staticmethod
         def InteractWithAgentXY(x:float, y:float):
             from ..GlobalCache import GLOBAL_CACHE
+            from ..Agent import Agent
             Sequential.Agents.TargetNearestNPCXY(x, y, 100)
-            agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
+            agent_x, agent_y = Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
 
             Sequential.Movement.FollowPath([(agent_x, agent_y)])
             sleep(1)

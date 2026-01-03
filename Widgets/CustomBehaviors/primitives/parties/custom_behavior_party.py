@@ -7,7 +7,7 @@ from typing import Callable, Generator, Any, List
 
 from PyAgent import AttributeClass
 
-from Py4GWCoreLib import Routines, Map
+from Py4GWCoreLib import Routines, Map, Agent
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
@@ -63,8 +63,8 @@ class CustomBehaviorParty:
                 
                 current_party_target_id = self.get_party_custom_target()
                 if current_party_target_id is not None:
-                    # if not GLOBAL_CACHE.Agent.IsValid(current_party_target_id): self.set_party_custom_target(None)
-                    if not GLOBAL_CACHE.Agent.IsAlive(current_party_target_id): self.set_party_custom_target(None)
+                    # if not Agent.IsValid(current_party_target_id): self.set_party_custom_target(None)
+                    if not Agent.IsAlive(current_party_target_id): self.set_party_custom_target(None)
 
                 players = GLOBAL_CACHE.Party.GetPlayers()
                 for player in players:

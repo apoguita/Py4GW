@@ -251,7 +251,7 @@ class Combat:
         agent_id = Utils.GetFirstFromArray(agent_array)
 
         if agent_id:
-            x, y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+            x, y = Agent.GetXY(agent_id)
             distance = Utils.Distance(spawn_point, [x, y])
             if distance < 250.0:
                 return agent_id
@@ -269,28 +269,28 @@ class Combat:
         self.map_id = Map.GetMapID()
         self.map_name = Map.GetMapName() or "Unknown Map"
         self.target_id = target_id
-        self.target_agent = GLOBAL_CACHE.Agent.GetAgentByID(self.target_id) if self.target_id > 0 else None
-        self.target_name = GLOBAL_CACHE.Agent.GetName(
+        self.target_agent = Agent.GetAgentByID(self.target_id) if self.target_id > 0 else None
+        self.target_name = Agent.GetNameByID(
             self.target_agent.agent_id) if self.target_agent and self.target_agent.agent_id > 0 else 'None'
-        self.target_allegiance = Allegiance(GLOBAL_CACHE.Agent.GetAllegiance(
+        self.target_allegiance = Allegiance(Agent.GetAllegiance(
             self.target_id)[0]) if self.target_agent else Allegiance.Neutral
-        self.target_skill_id = GLOBAL_CACHE.Agent.GetCastingSkill(
+        self.target_skill_id = Agent.GetCastingSkill(
             self.target_id) if self.target_agent else 0
-        self.target_model_id = GLOBAL_CACHE.Agent.GetModelID(
+        self.target_model_id = Agent.GetModelID(
             self.target_id) if self.target_agent else 0
-        self.target_hp = GLOBAL_CACHE.Agent.GetHealth(
-            self.target_id) * GLOBAL_CACHE.Agent.GetMaxHealth(self.target_id) if self.target_agent else 0
+        self.target_hp = Agent.GetHealth(
+            self.target_id) * Agent.GetMaxHealth(self.target_id) if self.target_agent else 0
         
         if self.target_hp <= 0.0:
             self.target_hp = 4000            
 
         self.player_id = GLOBAL_CACHE.Player.GetAgentID()
         self.player_name = GLOBAL_CACHE.Player.GetName() or "Unknown Player"
-        self.player_energy = round(GLOBAL_CACHE.Agent.GetEnergy(
-            self.player_id) * GLOBAL_CACHE.Agent.GetMaxEnergy(self.player_id))
-        self.player_hp = GLOBAL_CACHE.Agent.GetHealth(
-            self.player_id) * GLOBAL_CACHE.Agent.GetMaxHealth(self.player_id)
-        self.player_hp_percent = GLOBAL_CACHE.Agent.GetHealth(
+        self.player_energy = round(Agent.GetEnergy(
+            self.player_id) * Agent.GetMaxEnergy(self.player_id))
+        self.player_hp = Agent.GetHealth(
+            self.player_id) * Agent.GetMaxHealth(self.player_id)
+        self.player_hp_percent = Agent.GetHealth(
             self.player_id) * 100.0
 
         self.skills = {}
@@ -300,7 +300,7 @@ class Combat:
             if skill and skill.id.id > 0:
                 self.skills[slot] = skill
         
-        is_casting =  GLOBAL_CACHE.Agent.IsCasting(self.player_id)
+        is_casting =  Agent.IsCasting(self.player_id)
 
         if self.target_id > 0 and GLOBAL_CACHE.Player.GetTargetID() != self.target_id and self.target_allegiance == Allegiance.Enemy:
             GLOBAL_CACHE.Player.ChangeTarget(self.target_id)
@@ -318,7 +318,7 @@ class Combat:
         self.target_block_ready = passed_milliseconds > 12000        
         
         self.remove_block = False        
-        if GLOBAL_CACHE.Agent.IsEnchanted(self.target_id):
+        if Agent.IsEnchanted(self.target_id):
             time_since_block = datetime.now() - self.target_casted_block
             passed_milliseconds = time_since_block.total_seconds() * 1000
             
@@ -331,7 +331,7 @@ class Combat:
                 
                 if can_interrupt:
                     if self.cancel_casting:
-                        if is_casting and GLOBAL_CACHE.Agent.GetCastingSkill(self.player_id) != self.skills[4].id.id:                   
+                        if is_casting and Agent.GetCastingSkill(self.player_id) != self.skills[4].id.id:                   
                             self.state.Log(f"Cancel casting current skill.")
                             Keystroke.PressAndRelease(Key.Escape.value)
 
@@ -347,7 +347,7 @@ class Combat:
                 
                 if can_block:
                     if self.cancel_casting:
-                        if is_casting and GLOBAL_CACHE.Agent.GetCastingSkill(self.player_id) != self.skills[5].id.id: 
+                        if is_casting and Agent.GetCastingSkill(self.player_id) != self.skills[5].id.id: 
                             self.state.Log(f"Cancel casting current skill.")
                             Keystroke.PressAndRelease(Key.Escape.value)
                         

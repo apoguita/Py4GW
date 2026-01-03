@@ -2,7 +2,7 @@ import math
 from typing import Any, Generator, override
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils
 from Py4GWCoreLib.Overlay import Overlay
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -74,10 +74,10 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
             if leader_agent_id is None:
                 return None
             
-            if not GLOBAL_CACHE.Agent.IsAlive(leader_agent_id):
+            if not Agent.IsAlive(leader_agent_id):
                 return None
             
-            pos = GLOBAL_CACHE.Agent.GetXY(leader_agent_id)
+            pos = Agent.GetXY(leader_agent_id)
             if pos is None or len(pos) != 2:
                 return None
             
@@ -148,7 +148,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
 
         Overlay().BeginDraw()
         my_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        _, _, my_z = GLOBAL_CACHE.Agent.GetXYZ(my_agent_id)
+        _, _, my_z = Agent.GetXYZ(my_agent_id)
 
         # Determine state color for visual feedback
         if state == BehaviorState.IN_AGGRO:

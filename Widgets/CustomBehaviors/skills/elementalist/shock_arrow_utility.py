@@ -3,7 +3,7 @@ from token import STRING
 from typing import Any, Generator, override
 
 from HeroAI.combat import CombatClass
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -39,7 +39,7 @@ class ShockArrowUtility(CustomSkillUtilityBase):
 
         target = custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
             within_range=Range.Spellcast,
-            condition=lambda agent_id: (not glimmer_tracker.had_glimmer_recently(agent_id) and GLOBAL_CACHE.Agent.IsConditioned(agent_id)),
+            condition=lambda agent_id: (not glimmer_tracker.had_glimmer_recently(agent_id) and Agent.IsConditioned(agent_id)),
             sort_key=(TargetingOrder.DISTANCE_ASC,)
         )
         return target

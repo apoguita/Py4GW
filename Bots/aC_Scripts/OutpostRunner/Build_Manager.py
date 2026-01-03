@@ -1,5 +1,5 @@
 import math
-from Py4GWCoreLib import ConsoleLog, Console, Overlay, Player, GLOBAL_CACHE, Profession, Routines, DXOverlay
+from Py4GWCoreLib import ConsoleLog, Console, Overlay, Agent,Player, GLOBAL_CACHE, Profession, Routines, DXOverlay
 from OutpostRunner.Build_Manager_Addon import CheckCrippleKDanger, CheckSpellcasterDanger, BodyBlockDetection
 dx = DXOverlay()
 ShowDXoverlay = False
@@ -112,7 +112,7 @@ class OutpostRunnerDA(Build):
         SPELLCAST_RANGE = 1248.0
         px, py = GLOBAL_CACHE.Player.GetXY()
         pz = Overlay().FindZ(px, py)
-        heading = GLOBAL_CACHE.Agent.GetRotationAngle(Player.GetAgentID())
+        heading = Agent.GetRotationAngle(Player.GetAgentID())
         facing_vec = (math.cos(heading), math.sin(heading))
 
         enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, max_distance=SPELLCAST_RANGE)
@@ -123,10 +123,10 @@ class OutpostRunnerDA(Build):
         best_30deg_dist = -1
 
         for enemy in enemy_array:
-            if GLOBAL_CACHE.Agent.IsDead(enemy):
+            if Agent.IsDead(enemy):
                 continue
 
-            ex, ey = GLOBAL_CACHE.Agent.GetXY(enemy)
+            ex, ey = Agent.GetXY(enemy)
             enemy_vec = (ex - px, ey - py)
             dist = math.hypot(enemy_vec[0], enemy_vec[1])
             angle = angle_between_player_and_enemy(facing_vec, enemy_vec)
@@ -146,7 +146,7 @@ class OutpostRunnerDA(Build):
             ConsoleLog("Teleport", "No valid target in 15° or 30° cone → skip", Console.MessageType.Debug)
             return
 
-        ex, ey = GLOBAL_CACHE.Agent.GetXY(best_target)
+        ex, ey = Agent.GetXY(best_target)
         ez = Overlay().FindZ(ex, ey)
         target_dist = math.hypot(ex - px, ey - py)
         ConsoleLog(
@@ -181,8 +181,8 @@ class OutpostRunnerDA(Build):
 
         #cast if we have enough energy
         if Routines.Checks.Skills.IsSkillIDReady(self.zealous_renewal):
-            max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(player_id)
-            return GLOBAL_CACHE.Agent.GetEnergy(player_id) * max_energy > 10
+            max_energy = Agent.GetMaxEnergy(player_id)
+            return Agent.GetEnergy(player_id) * max_energy > 10
 
         return False
 
@@ -192,7 +192,7 @@ class OutpostRunnerDA(Build):
                 yield from Routines.Yield.wait(1000)
                 continue
             
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
             
@@ -208,7 +208,7 @@ class OutpostRunnerDA(Build):
             has_shroud = Routines.Checks.Effects.HasBuff(player_id, self.shroud_of_distress)
             has_dwarven = Routines.Checks.Effects.HasBuff(player_id, self.dwarven_stability)
             has_iau = Routines.Checks.Effects.HasBuff(player_id, self.i_am_unstoppable)
-            hp = GLOBAL_CACHE.Agent.GetHealth(player_id)
+            hp = Agent.GetHealth(player_id)
             
             current_target = GLOBAL_CACHE.Player.GetTargetID()
             if current_target != player_id:
@@ -265,7 +265,7 @@ class OutpostRunnerDA(Build):
                 player_id = GLOBAL_CACHE.Player.GetAgentID()
                 player_pos = GLOBAL_CACHE.Player.GetXY()
                 px, py = player_pos[0], player_pos[1]
-                if GLOBAL_CACHE.Agent.IsCrippled(player_id) or CheckCrippleKDanger(px, py):
+                if Agent.IsCrippled(player_id) or CheckCrippleKDanger(px, py):
                     aftercast = 200
                     if (yield from Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, aftercast_delay=aftercast)):
                         yield from Routines.Yield.wait(aftercast)

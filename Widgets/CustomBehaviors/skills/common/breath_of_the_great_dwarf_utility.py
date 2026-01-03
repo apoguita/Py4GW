@@ -1,5 +1,5 @@
 from typing import Any, Generator, override
-from Py4GWCoreLib import Routines, Range, GLOBAL_CACHE
+from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -48,7 +48,7 @@ class BreathOfTheGreatDwarfUtility(CustomSkillUtilityBase):
 
         allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority(
             within_range=Range.Spirit,
-            condition= lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.85 
+            condition= lambda agent_id: Agent.GetHealth(agent_id) < 0.85 
                 and custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, burning_skill_id),
             sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
             range_to_count_enemies=None,

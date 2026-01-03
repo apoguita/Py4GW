@@ -1,6 +1,7 @@
 from typing import override
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib import Agent
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
@@ -45,19 +46,19 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         self.unnatural_signet_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
             event_bus=self.event_bus, skill=CustomSkill("Unnatural_Signet"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 75 if enemy_qte >= 2 else 40 if enemy_qte <= 2 else 0),
-            condition = lambda agent_id: GLOBAL_CACHE.Agent.IsHexed(agent_id))
+            condition = lambda agent_id: Agent.IsHexed(agent_id))
         
         self.signet_of_clumsiness_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
             event_bus=self.event_bus, skill=CustomSkill("Signet_of_Clumsiness"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 76 if enemy_qte >= 2 else 41 if enemy_qte <= 2 else 0),
-            condition = lambda agent_id: GLOBAL_CACHE.Agent.IsAttacking(agent_id))
+            condition = lambda agent_id: Agent.IsAttacking(agent_id))
         
         self.signet_of_disruption_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
             event_bus=self.event_bus, skill=CustomSkill("Signet_of_Disruption"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 77 if enemy_qte >= 2 else 42 if enemy_qte <= 2 else 0),
             condition = lambda agent_id: 
             (
-                (GLOBAL_CACHE.Agent.IsCasting(agent_id) and GLOBAL_CACHE.Skill.Flags.IsSpell(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)) >= 0.200))
+                (Agent.IsCasting(agent_id) and GLOBAL_CACHE.Skill.Flags.IsSpell(Agent.GetCastingSkill(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkill(agent_id)) >= 0.200))
                 or
-                (GLOBAL_CACHE.Agent.IsCasting(agent_id) and GLOBAL_CACHE.Agent.IsHexed(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)) >= 0.200))
+                (Agent.IsCasting(agent_id) and Agent.IsHexed(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkill(agent_id)) >= 0.200))
             )
 
         # aoe

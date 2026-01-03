@@ -1,6 +1,6 @@
 from typing import Any, Callable, Generator, List, Tuple
 
-from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Routines, Agent
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.auto_mover.path_helper import PathHelper
@@ -70,7 +70,7 @@ class FollowPathExecutor:
 
         result = yield from Routines.Yield.Movement.FollowPath(
             path_points=self.current_path,
-            custom_exit_condition=lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()),
+            custom_exit_condition=lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()),
             tolerance=150,
             log=constants.DEBUG,
             timeout=-1,

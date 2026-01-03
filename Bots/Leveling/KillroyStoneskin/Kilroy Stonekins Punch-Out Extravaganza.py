@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, get_texture_for_model, GLOBAL_CACHE, Routines, ActionQueueManager
+from Py4GWCoreLib import Botting, Agent, GLOBAL_CACHE, Routines, ActionQueueManager
 import PyImGui, Py4GW
 import os
 BOT_NAME = "Killroy Stoneskin"
@@ -61,8 +61,8 @@ def _on_death(bot: "Botting"):
             yield from Routines.Yield.wait(1000)
             continue
         
-        energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
-        max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())
+        energy = Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
+        max_energy = Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())
         if max_energy >= 80: #we can go much higher but were dying too much, not worth the time
             bot.config.FSM.pause()
             yield from bot.Map._coro_travel(644)
@@ -75,7 +75,7 @@ def _on_death(bot: "Botting"):
         while energy < 0.9999:
             ActionQueueManager().AddAction("FAST", skillbar.UseSkillTargetless, slot)
             yield from Routines.Yield.wait(20)
-            energy = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
+            energy = Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
             if energy >= 0.9999:
                 ActionQueueManager().ResetAllQueues()
 
@@ -89,11 +89,11 @@ bot.SetMainRoutine(bot_routine)
 
 def draw_window(bot: Botting):
     if PyImGui.begin("debug data"):
-        #PyImGui.text(f"IsDead: {GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())}")
-        #PyImGui.text(f"Energy: {GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
-        #PyImGui.text(f"Max Energy: {GLOBAL_CACHE.Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
-        #PyImGui.text(f"Health: {GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())}")
-        #PyImGui.text(f"Max Health: {GLOBAL_CACHE.Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"IsDead: {Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Energy: {Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Max Energy: {Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Health: {Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())}")
+        #PyImGui.text(f"Max Health: {Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())}")
         if PyImGui.button("Unlock Killroy and Skills"):
             bot.StartAtStep("[H]Unlock Killroy and Skills_2")
     PyImGui.end()

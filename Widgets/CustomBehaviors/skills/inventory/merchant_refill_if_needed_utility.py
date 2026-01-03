@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, ItemArray, Routines, Range, Map
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, ItemArray, Routines, Range, Map, Agent
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, Keystroke, ThrottledTimer, Utils
 from Py4GWCoreLib.enums_src.IO_enums import Key
@@ -57,14 +57,14 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
     def _is_merchant_agent(self, agent_id: int) -> bool:
         """Check if the agent is a merchant by checking for merchant tags in multiple languages."""
         merchant_tags = ['[Merchant]', '[Marchand]', 'Kauffrau']
-        agent_name = GLOBAL_CACHE.Agent.GetName(agent_id)
+        agent_name = Agent.GetNameByID(agent_id)
         return any(merchant_tag in agent_name for merchant_tag in merchant_tags)
 
     def _get_target(self) -> int | None:
         
         agent_ids = AgentArray.GetNPCMinipetArray()
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, GLOBAL_CACHE.Player.GetXY(), Range.Compass.value)
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id))
+        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id) and Agent.IsValid(agent_id))
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, self._is_merchant_agent)
         if len(agent_ids) == 0: return None
         return agent_ids[0]
@@ -123,14 +123,14 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
 
     def move_and_interract_with_merchant(self, agent_id:int) -> Generator[None, None, None]:
-        target_position : tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id)
+        target_position : tuple[float, float] = Agent.GetXY(agent_id)
         if Utils.Distance(target_position, GLOBAL_CACHE.Player.GetXY()) > 150:
             path3d = yield from AutoPathing().get_path_to(target_position[0], target_position[1], smooth_by_los=True, margin=100.0, step_dist=300.0)
             path2d:list[tuple[float, float]]  = [(x, y) for (x, y, *_ ) in path3d]
 
             yield from Routines.Yield.Movement.FollowPath(
                     path_points= path2d, 
-                    custom_exit_condition=lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()),
+                    custom_exit_condition=lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()),
                     tolerance=150, 
                     log=constants.DEBUG, 
                     timeout=10_000, 
@@ -207,6 +207,6 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
         
         agent_id = self._get_target()
         if agent_id is not None:
-            PyImGui.bullet_text(f"Merchant found: {GLOBAL_CACHE.Agent.GetName(agent_id)}")
+            PyImGui.bullet_text(f"Merchant found: {Agent.GetNameByID(agent_id)}")
         else:
             PyImGui.bullet_text("No merchant found nearby")

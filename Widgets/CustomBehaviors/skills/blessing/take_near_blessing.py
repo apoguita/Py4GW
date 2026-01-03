@@ -2,7 +2,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import Keystroke, Utils
 from Py4GWCoreLib.enums import Key
@@ -136,7 +136,7 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
         return True
 
     def move_to_npc(self, agent_id:int) -> Generator[None, None, None]:
-        target_position : tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(agent_id)
+        target_position : tuple[float, float] = Agent.GetXY(agent_id)
 
         if Utils.Distance(target_position, GLOBAL_CACHE.Player.GetXY()) > 150:
             path3d = yield from AutoPathing().get_path_to(target_position[0], target_position[1], smooth_by_los=True, margin=100.0, step_dist=300.0)
@@ -144,7 +144,7 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
 
             yield from Routines.Yield.Movement.FollowPath(
                     path_points= path2d, 
-                    custom_exit_condition=lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()),
+                    custom_exit_condition=lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()),
                     tolerance=150, 
                     log=constants.DEBUG, 
                     timeout=10_000, 

@@ -1,6 +1,6 @@
 import Py4GW
 import math
-from Py4GWCoreLib import (Routines,Botting,ActionQueueManager, ConsoleLog, GLOBAL_CACHE, AgentArray, Utils)
+from Py4GWCoreLib import (Routines,Botting,ActionQueueManager, ConsoleLog, GLOBAL_CACHE, Agent, Utils)
 from Py4GWCoreLib import ThrottledTimer, Map
 from Py4GWCoreLib.enums import ModelID, Range, TitleID
 
@@ -170,7 +170,7 @@ def KillEnemies(bot: Botting):
             yield from Routines.Yield.wait(500)
             return
   
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             ConsoleLog("Killing Routine", "Player is dead, restarting.", Py4GW.Console.MessageType.Warning)
             yield from Routines.Yield.wait(500)
             return 
@@ -188,7 +188,7 @@ def KillEnemies(bot: Botting):
 
 
 def AssignBuild(bot: Botting):
-    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     match profession:
         case "Assassin":
             bot.OverrideBuild(SF_Ass_vaettir())
@@ -240,7 +240,7 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
             elapsed += 1
 
             # hard exit if player dies
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 ConsoleLog(f"{side_label} Aggro Ball Wait",
                            "Player is dead, exiting wait.",
                            Py4GW.Console.MessageType.Warning)
@@ -334,7 +334,7 @@ def HandleStuckJagaMoraine(bot: Botting):
             yield from Routines.Yield.wait(1000)
             return
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             ConsoleLog("HandleStuck", "Player is dead, exiting stuck handler.", Py4GW.Console.MessageType.Debug, forced_log)
             yield from Routines.Yield.wait(1000)
             return

@@ -2,7 +2,7 @@ from re import S
 from typing import Any, Callable, Generator, override
 import random
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Agent
 from Py4GWCoreLib.enums import Profession, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -35,7 +35,7 @@ class FallBackUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         has_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
-        is_moving = GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
+        is_moving = Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
         
         if not has_buff and is_moving: return self.score_definition.get_score()
         return None

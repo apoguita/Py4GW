@@ -1,7 +1,7 @@
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -47,7 +47,7 @@ class HeartofShadowUtility(CustomSkillUtilityBase):
         
         targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
                     within_range=Range.Spellcast,
-                    condition=lambda agent_id: GLOBAL_CACHE.Agent.IsAggressive(agent_id),
+                    condition=lambda agent_id: Agent.IsAggressive(agent_id),
                     sort_key=(TargetingOrder.DISTANCE_DESC, ),
                     range_to_count_enemies=None)
         return targets
@@ -55,10 +55,10 @@ class HeartofShadowUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        if GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.05:
+        if Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.05:
             return 97
 
-        if GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
+        if Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
             return 97
 
         if self.is_player_stuck:

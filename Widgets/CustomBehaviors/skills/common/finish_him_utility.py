@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range
+from Py4GWCoreLib import Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -21,7 +21,7 @@ class FinishHimUtility(CustomSkillUtilityBase):
       lowest-health valid enemy in spellcast range.
     - By default it's only considered while engaged (IN_AGGRO) to avoid wasting it out of combat.
 
-    Note: This implementation assumes GLOBAL_CACHE.Agent.GetHealth(agent_id) returns a normalized fraction (0.0 - 1.0).
+    Note: This implementation assumes Agent.GetHealth(agent_id) returns a normalized fraction (0.0 - 1.0).
     If your code uses absolute HP values, tell me and I'll change the check to compare against max HP.
     """
 
@@ -53,7 +53,7 @@ class FinishHimUtility(CustomSkillUtilityBase):
         Only include enemies with known health fraction > 0 and < REQUIRED_TARGET_HP_FRACTION.
         """
         def condition(agent_id: int) -> bool:
-            hp = GLOBAL_CACHE.Agent.GetHealth(agent_id)
+            hp = Agent.GetHealth(agent_id)
             return hp is not None and hp > 0.0 and hp < self.REQUIRED_TARGET_HP_FRACTION
 
         return custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority(
@@ -78,7 +78,7 @@ class FinishHimUtility(CustomSkillUtilityBase):
             return None
 
         try:
-            target_health = GLOBAL_CACHE.Agent.GetHealth(target)
+            target_health = Agent.GetHealth(target)
         except Exception:
             return None
 

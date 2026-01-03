@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range
+from Py4GWCoreLib import Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -36,7 +36,7 @@ class SoothingMemoriesUtility(CustomSkillUtilityBase):
 
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spirit,
-            condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.9,
+            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.9,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC)
         )
         
@@ -54,7 +54,7 @@ class SoothingMemoriesUtility(CustomSkillUtilityBase):
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
             within_range=Range.Spirit,
-            condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.95,
+            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.95,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC)
         )
 

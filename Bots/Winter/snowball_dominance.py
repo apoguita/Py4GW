@@ -146,11 +146,11 @@ def attackRoutine(bot: "Botting"):
                     target = _find_best_target()
                     if target != None:
                         Player.ChangeTarget(target)
-                    if fortSkill.recharge == 0 and GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.80:
+                    if fortSkill.recharge == 0 and Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.80:
                         GLOBAL_CACHE.SkillBar.UseSkill(7)
                         yield from Routines.Yield.wait(1200)
                         continue
-                    if healSkill.recharge == 0 and GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
+                    if healSkill.recharge == 0 and Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
                         GLOBAL_CACHE.SkillBar.UseSkill(8)
                         yield from Routines.Yield.Movement.FollowPath([(2496.01, -210.70)])
                         yield from Routines.Yield.wait(8000)
@@ -260,11 +260,11 @@ def _find_best_target():
 def isAgentInDanger(agentId, aggro_area=Range.Spellcast, aggressive_only = False):
     enemy_array = AgentArray.GetEnemyArray()
     if len(enemy_array) == 0: return False
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Agent.GetXY(agentId), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= aggro_area.value)
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Agent.GetXY(agentId), Agent.GetXY(agent_id)) <= aggro_area.value)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: agentId != agent_id)
     if aggressive_only:
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAggressive(agent_id))
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
     return len(enemy_array) > 0
 
 def RndTravelState(map_id: int, use_districts: int = 4):
@@ -276,7 +276,7 @@ def RndTravelState(map_id: int, use_districts: int = 4):
     while tempidx == idx:
         tempidx = random.randint(0, use_districts - 1)
     idx = tempidx
-    Map.map_instance().Travel(map_id, region[idx], 0, language[idx])
+    Map.TravelToRegion(map_id, region[idx], 0, language[idx])
     yield from Routines.Yield.wait(8500)
 
 def Use_Frosty_Tonics():
@@ -288,7 +288,7 @@ def Use_Frosty_Tonics():
         if ((not Routines.Checks.Map.MapValid()) and (Map.IsExplorable())):
             yield
         
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield
         
         if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), Tonic_cooldown_effect) and Frost_Tonic_id:

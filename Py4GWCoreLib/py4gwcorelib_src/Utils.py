@@ -622,6 +622,7 @@ class Utils:
         
         try:
             from ..GlobalCache import GLOBAL_CACHE
+            from ..Agent import Agent
             from PyAgent import AttributeClass
             # Get skill IDs for all 8 slots
             skills = []
@@ -630,10 +631,14 @@ class Utils:
                 skills.append(skill_id if skill_id else 0)
 
             # Get profession IDs
-            prof_primary, prof_secondary = GLOBAL_CACHE.Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
+            prof_primary, prof_secondary = Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
+            if prof_primary is None:
+                prof_primary = 0
+            if prof_secondary is None:
+                prof_secondary = 0
 
             # Get attributes
-            attributes_raw:list[AttributeClass] = GLOBAL_CACHE.Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
+            attributes_raw:list[AttributeClass] = Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
             attributes = {}
 
             # Convert attributes to dictionary format

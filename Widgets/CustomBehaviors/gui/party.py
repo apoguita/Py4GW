@@ -6,6 +6,7 @@ from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import Utils
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
@@ -31,11 +32,11 @@ def draw_party_target_vertical_line() -> None:
     Draws nothing if no party custom target is set or it's invalid.
     """
     target_id = CustomBehaviorParty().get_party_custom_target()
-    if not target_id or not GLOBAL_CACHE.Agent.IsValid(target_id):
+    if not target_id or not Agent.IsValid(target_id):
         return
 
     try:
-        tx, ty, _ = GLOBAL_CACHE.Agent.GetXYZ(target_id)
+        tx, ty, _ = Agent.GetXYZ(target_id)
 
         ov = Overlay()
         ov.BeginDraw()
@@ -241,7 +242,7 @@ def render():
             flag_manager.auto_assign_emails_if_none_assigned()
             leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
             leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+            leader_angle = Agent.GetRotationAngle(leader_agent_id)
             flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_1")
 
         # Toggle expand/collapse using FlagsUI state (no module-level globals)
@@ -260,7 +261,7 @@ def render():
             flag_manager.auto_assign_emails_if_none_assigned()
             leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
             leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+            leader_angle = Agent.GetRotationAngle(leader_agent_id)
             flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_2")
 
         # Clear Flag Positions

@@ -1,4 +1,4 @@
-import PyMap
+
 from .Context import GWContext
 from .native_src.methods.MapMethods import MapMethods
 from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, RegionTypeName, 
@@ -10,10 +10,9 @@ from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
 from Py4GWCoreLib.enums import outposts
 
 
-import PyMissionMap
 import PyPathing
 import PyOverlay
-import PyImGui
+
 from .enums import FlagPreference
 from typing import List
 from .UIManager import UIManager,WindowFrames, FrameInfo
@@ -31,12 +30,6 @@ classes:
 """
 
 class Map:
-    #region Context Instances
-    @staticmethod
-    def map_instance():
-        """Return the PyMap instance. """
-        return PyMap.PyMap() 
-
     #region Instance_Type
     @staticmethod
     def GetInstanceType() -> int:

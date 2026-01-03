@@ -100,7 +100,7 @@ class TitleHelper:
                 yield from Routines.Yield.wait(50)
                 continue
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Routines.Yield.wait(50)
                 continue
 

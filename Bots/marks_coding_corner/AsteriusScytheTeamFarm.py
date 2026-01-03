@@ -9,7 +9,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Agent
 
 BOT_NAME = "Asterius Scythe Farm"
 TEXTURE = os.path.join(
@@ -52,21 +52,21 @@ def is_asterius_killed_or_time_elapsed():
         return True
 
     if is_asterius_spotted and asterius_agent_id:
-        if not GLOBAL_CACHE.Agent.IsDead(asterius_agent_id):
+        if not Agent.IsDead(asterius_agent_id):
             return False
         is_asterius_killed = True
 
     enemy_array = AgentArray.GetEnemyArray()
     enemy_array = AgentArray.Filter.ByCondition(
         enemy_array,
-        lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id))
+        lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), Agent.GetXY(agent_id))
         <= Range.SafeCompass.value,
     )
     enemy_array = AgentArray.Filter.ByCondition(
         enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id
     )
     for enemy_id in enemy_array:
-        if GLOBAL_CACHE.Agent.GetModelID(enemy_id) == ASTERIUS_MODEL_ID:
+        if Agent.GetModelID(enemy_id) == ASTERIUS_MODEL_ID:
             is_asterius_spotted = True
             asterius_agent_id = enemy_id
     return False
@@ -85,8 +85,8 @@ def reset_farm_flags():
 
 
 def _on_party_wipe(bot: "Botting"):
-    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-        yield from bot.helpers.Wait._for_time(1000)
+    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid → release FSM and exit
             bot.config.FSM.resume()
@@ -120,21 +120,21 @@ def handle_asterius_killed_en_route():
 
         if is_asterius_spotted and asterius_agent_id:
             yield from Routines.Yield.wait(1000)
-            if GLOBAL_CACHE.Agent.IsDead(asterius_agent_id):
+            if Agent.IsDead(asterius_agent_id):
                 is_asterius_killed = True
             continue
 
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByCondition(
             enemy_array,
-            lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), GLOBAL_CACHE.Agent.GetXY(agent_id))
+            lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), Agent.GetXY(agent_id))
             <= Range.SafeCompass.value,
         )
         enemy_array = AgentArray.Filter.ByCondition(
             enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id
         )
         for enemy_id in enemy_array:
-            if GLOBAL_CACHE.Agent.GetModelID(enemy_id) == ASTERIUS_MODEL_ID:
+            if Agent.GetModelID(enemy_id) == ASTERIUS_MODEL_ID:
                 is_asterius_spotted = True
                 asterius_agent_id = enemy_id
                 yield from Routines.Yield.wait(1000)

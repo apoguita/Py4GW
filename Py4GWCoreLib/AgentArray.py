@@ -352,7 +352,7 @@ class AgentArray:
             return AgentArray.Sort.ByCondition(
                 agent_array,
                 condition_func=lambda agent_id: Utils.Distance(
-                    GLOBAL_CACHE.Agent.GetXY(agent_id),
+                    Agent.GetXY(agent_id),
                     (pos[0], pos[1])
                 ),
                 reverse=descending
@@ -369,7 +369,7 @@ class AgentArray:
                 return []
             return AgentArray.Sort.ByCondition(
                 agent_array,
-                condition_func=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id),
+                condition_func=lambda agent_id: Agent.GetHealth(agent_id),
                 reverse=descending
             )
     #region Filter
@@ -422,7 +422,7 @@ class AgentArray:
             if agent_array is None:
                 return []
             def distance_filter(agent_id):
-                agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                agent_x, agent_y = Agent.GetXY(agent_id)
                 distance = Utils.Distance((agent_x, agent_y), (pos[0], pos[1]))
                 return (distance > max_distance) if negate else (distance <= max_distance)
 
@@ -453,8 +453,8 @@ class AgentArray:
                 cluster_radius_sq = cluster_radius ** 2
 
                 def is_in_radius(agent1, agent2):
-                    x1, y1 = GLOBAL_CACHE.Agent.GetXY(agent1)
-                    x2, y2 = GLOBAL_CACHE.Agent.GetXY(agent2)
+                    x1, y1 = Agent.GetXY(agent1)
+                    x2, y2 = Agent.GetXY(agent2)
                     dx, dy = x1 - x2, y1 - y2
                     return (dx * dx + dy * dy) <= cluster_radius_sq
 
@@ -483,7 +483,7 @@ class AgentArray:
                 # --- Compute cluster center (average XY) ---
                 total_x = total_y = 0
                 for agent_id in largest_cluster:
-                    x, y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                    x, y = Agent.GetXY(agent_id)
                     total_x += x
                     total_y += y
                 center_x = total_x / len(largest_cluster)
@@ -492,7 +492,7 @@ class AgentArray:
 
                 # --- Find agent closest to center ---
                 def dist(agent_id):
-                    ax, ay = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                    ax, ay = Agent.GetXY(agent_id)
                     return Utils.Distance((ax, ay), center_pos)
 
                 closest_agent_id = min(largest_cluster, key=dist)

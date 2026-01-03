@@ -84,7 +84,7 @@ class FSM_Config:
         
     def _prepare_for_battle(self):
         
-        profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if profession == "Warrior":
             yield from Routines.Yield.Skills.LoadSkillbar("OQcUEvq0jvIClLHAAAAAAAAAAA",log=False)
         elif profession == "Ranger":
@@ -212,8 +212,8 @@ class FSM_Config:
         cast_imp = True  # Assume we should cast
 
         for other in others:
-            if GLOBAL_CACHE.Agent.GetModelID(other) == imp_model_id:
-                if not GLOBAL_CACHE.Agent.IsDead(other):
+            if Agent.GetModelID(other) == imp_model_id:
+                if not Agent.IsDead(other):
                     # Imp is alive — no need to cast
                     cast_imp = False
                 break  # Found the imp, no need to keep checking
@@ -229,7 +229,7 @@ class FSM_Config:
         if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
             return
         
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             return
 
         cupcake__id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Birthday_Cupcake.value)
@@ -246,7 +246,7 @@ class FSM_Config:
         if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
             return
         
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             return
         
         target_morale = 110
@@ -318,16 +318,16 @@ class FSM_Config:
         
         for player in players:
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-            if GLOBAL_CACHE.Agent.IsDead(agent_id):
+            if Agent.IsDead(agent_id):
                 is_someone_dead = True
                 break
         for henchman in henchmen:
-            if GLOBAL_CACHE.Agent.IsDead(henchman.agent_id):
+            if Agent.IsDead(henchman.agent_id):
                 is_someone_dead = True
                 break
             
         for hero in heroes:
-            if GLOBAL_CACHE.Agent.IsDead(hero.agent_id):
+            if Agent.IsDead(hero.agent_id):
                 is_someone_dead = True
                 break
             
@@ -437,7 +437,7 @@ class FSM_Config:
         if not (yield from self.follow_path(path_to_togo)):
             return
         
-        profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         UNLOCK_SECONDARY = 0x813D08 if profession != "Assassin" else 0x813D0E
 
         if not (yield from self.interact_with_agent((-92, 9217), dialog_id=UNLOCK_SECONDARY)):
@@ -499,7 +499,7 @@ class FSM_Config:
             return
     
         MELEE_CLASSES = ["Warrior", "Ranger", "Assassin"]
-        profession,_ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession,_ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         
         if profession in MELEE_CLASSES:
             if not (yield from self.interact_with_agent((-6519, 12335))):
@@ -585,7 +585,7 @@ class FSM_Config:
         GLOBAL_CACHE.Coroutines.append(autocombat)
 
         try:
-            z = float(GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID()))
+            z = float(Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID()))
 
             waypoints: list[tuple[float, float]] = [
                 (6358, -7348),     # Start
@@ -742,7 +742,7 @@ class FSM_Config:
             while True:
                 sister_tai_agent_id = Routines.Agents.GetAgentIDByModelID(SISTER_TAI_MODEL_ID)
                 
-                if (not Routines.Checks.Agents.InDanger(aggro_area=Range.Spellcast)) and GLOBAL_CACHE.Agent.HasQuest(sister_tai_agent_id):
+                if (not Routines.Checks.Agents.InDanger(aggro_area=Range.Spellcast)) and Agent.HasQuest(sister_tai_agent_id):
                     break
                 yield from Routines.Yield.wait(1000)
                 
@@ -752,7 +752,7 @@ class FSM_Config:
                 yield from Routines.Yield.wait(3000)
             
         sister_tai_agent_id = Routines.Agents.GetAgentIDByModelID(SISTER_TAI_MODEL_ID)
-        x,y = GLOBAL_CACHE.Agent.GetXY(sister_tai_agent_id)
+        x,y = Agent.GetXY(sister_tai_agent_id)
         ACCEPT_REWARD = 0x815407
         if not (yield from self.interact_with_agent((x, y), dialog_id=ACCEPT_REWARD)):
             yield from self._stop_execution()
@@ -958,7 +958,7 @@ class FSM_Config:
                 yield from Routines.Yield.wait(3000)
                 
     def EvaluateLevel10(self):
-        level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+        level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
         if level < 10:
             zen_daijun_map_id = 213
             Map.Travel(zen_daijun_map_id)
@@ -1023,7 +1023,7 @@ def ShowMainWindow():
         others = GLOBAL_CACHE.Party.GetOthers()
         if others:
             for other in others:
-                name = GLOBAL_CACHE.Agent.GetName(other)
+                name = Agent.GetNameByID(other)
                 PyImGui.text(f"Other: {name} (ID: {other})")
 
     PyImGui.end()

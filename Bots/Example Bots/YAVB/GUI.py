@@ -10,7 +10,7 @@ from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Item
 from Py4GWCoreLib import Agent
-from Py4GWCoreLib import ImguiFonts
+from Py4GWCoreLib import Agent
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -174,7 +174,12 @@ class YAVB_GUI:
                     
                     map_valid = Routines.Checks.Map.MapValid()
                     if map_valid:
-                        self.parent.primary_profession, self.secondary_profession = GLOBAL_CACHE.Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
+                        prof1, prof2 = Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
+                        if prof1 is None:
+                            prof1 = 0
+                        if prof2 is None:
+                            prof2 = 0
+                        self.parent.primary_profession, self.secondary_profession = prof1, prof2
                         self.parent.prof_supported = self.parent.IsProfessionSupported(self.parent.primary_profession)
                     
                     
@@ -333,7 +338,7 @@ class YAVB_GUI:
                                     for agent_id in filtered_agent_ids:
                                         item_id = Agent.GetItemAgentItemID(agent_id)
                                         model_id = Item.GetModelID(item_id)
-                                        name = GLOBAL_CACHE.Agent.GetName(agent_id)
+                                        name = Agent.GetNameByID(agent_id)
                                         PyImGui.text(f"agent_id: {agent_id}, name: {name}, item_id: {item_id}, model_id: {model_id}")
 
                                     PyImGui.end_tab_item()

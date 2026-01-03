@@ -533,7 +533,7 @@ def get_player_name():
         return ""
 
     if Agent.IsNameReady(target):
-        return Agent.GetName(target)
+        return Agent.GetNameByID(target)
     return ""
 
 def add_player_name_if_new(log_actions=False):
@@ -866,7 +866,7 @@ def is_char_select_ready():
     return is_char_select_context_ready()
 
 def is_target_selected():
-    return is_char_select_context_ready() and Player.GetPreGameContext().index_1 == bot_vars.character_index
+    return is_char_select_context_ready() and Player.GetPreGameContext().chosen_character_index == bot_vars.character_index
 
 def initiate_logout(debug: bool = False):
     if not bot_vars.character_to_delete_name:
@@ -896,9 +896,10 @@ def find_target_character(debug: bool = False):
         
         target_lower = target_name.lower()
         for i, char_name in enumerate(pregame.chars):
-            if target_lower == char_name.lower():
+            character_name = char_name if isinstance(char_name, str) else ""
+            if target_lower == character_name.lower():
                 bot_vars.character_index = i
-                bot_vars.char_select_current_index = pregame.index_1
+                bot_vars.char_select_current_index = pregame.chosen_character_index
                 if debug:
                     ConsoleLog("find_target_character", f"Found deletion target '{target_name}' at index {i}. Current selection: {bot_vars.char_select_current_index}", Console.MessageType.Info)
                 return
@@ -914,7 +915,7 @@ def navigate_char_select(debug: bool = False):
         return
 
     pregame = Player.GetPreGameContext()
-    current_index = pregame.index_1
+    current_index = pregame.chosen_character_index
 
     if current_index == bot_vars.character_index:
         if debug:
@@ -1072,14 +1073,14 @@ def _is_target_character_selected(target_name: str, debug: bool = False):
         return False
 
     pregame = Player.GetPreGameContext()
-    current_index = pregame.index_1
+    current_index = pregame.chosen_character_index
 
     if not (pregame.chars and 0 <= current_index < len(pregame.chars)):
         if debug:
             ConsoleLog("_is_target_character_selected", f"Current index {current_index} out of bounds or chars list empty/None.", Console.MessageType.Warning)
         return False
 
-    selected_name = pregame.chars[current_index].lower()
+    selected_name = pregame.chars[current_index].character_name
     is_correct = selected_name == target_name.lower()
 
     if debug:
@@ -2247,7 +2248,7 @@ def draw_window():
                             
                             if not agent_name_recieved and Agent.IsNameReady(target):
                                 agent_name_recieved = True
-                                agent_name = Agent.GetName(target)
+                                agent_name = Agent.GetNameByID(target)
                             
                             print(f"Target Name: {agent_name}")
                         PyImGui.end_tab_item()

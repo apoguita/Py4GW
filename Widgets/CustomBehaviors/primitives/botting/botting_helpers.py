@@ -1,7 +1,7 @@
 from collections.abc import Callable, Generator
 import time
 from typing import Any, List
-from Py4GWCoreLib import Map, Item, ItemArray, Bags, Routines
+from Py4GWCoreLib import Map, Agent, ItemArray, Bags, Routines
 from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.GameData_enums import Range
@@ -82,7 +82,7 @@ class BottingHelpers:
             item_array = AgentArray.GetItemArray()
             item_array = AgentArray.Filter.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY(), Range.Spirit.value)
             for item_id in item_array:
-                name = GLOBAL_CACHE.Agent.GetName(item_id)
+                name = Agent.GetNameByID(item_id)
                 # print(f"item {name}")
 
                 # Clean both strings to remove non-printable characters (like NULL bytes) and whitespace
@@ -105,7 +105,7 @@ class BottingHelpers:
                 continue
 
             # LOOT
-            pos = GLOBAL_CACHE.Agent.GetXY(item_id)
+            pos = Agent.GetXY(item_id)
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6_000)
             if not follow_success:
                 print("Failed to follow path to loot item, next attempt.")

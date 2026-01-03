@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -60,7 +60,7 @@ class AutoAttackUtility(CustomSkillUtilityBase):
         target_agent_id = self.__get_target_agent_id()
         if target_agent_id == 0: return None
 
-        if GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
             self.throttle_timer.Reset()
             return None
 
@@ -80,14 +80,14 @@ class AutoAttackUtility(CustomSkillUtilityBase):
             GLOBAL_CACHE.Player.Interact(target_agent_id, False)
             yield from custom_behavior_helpers.Helpers.wait_for(300)
         else:
-            if not GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
+            if not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
                 GLOBAL_CACHE.Player.Interact(target_agent_id, False)
                 yield from custom_behavior_helpers.Helpers.wait_for(300)
 
         self.throttle_timer.Reset()
         return BehaviorResult.ACTION_PERFORMED
 
-        # if GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
+        # if Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
         #     if target_agent_id == 0: return BehaviorResult.ACTION_SKIPPED
         #     yield
         #     return BehaviorResult.ACTION_SKIPPED
@@ -95,7 +95,7 @@ class AutoAttackUtility(CustomSkillUtilityBase):
         # if target_id is None:
         #     target_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority(Range.Spellcast.value, should_prioritize_party_target=True)
 
-        # if not GLOBAL_CACHE.Agent.IsValid(target_id):
+        # if not Agent.IsValid(target_id):
         #     return None
 
         # GLOBAL_CACHE.Player.ChangeTarget(target_id)

@@ -38,7 +38,7 @@ def main():
     if PyImGui.begin("Pathing Test", PyImGui.WindowFlags.AlwaysAutoResize):
 
         player_pos = GLOBAL_CACHE.Player.GetXY()
-        player_z = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+        player_z = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
         map_id = PyMap.PyMap().map_id.ToInt()
 
         x = PyImGui.input_int("Target X", x)
@@ -62,7 +62,7 @@ def main():
             path_requested = True
             def search_path_coroutine():
                 global result_path, path_requested, elapsed_time
-                zplane = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+                zplane = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
                 result_path = yield from pathing_object.get_path(
                     (player_pos[0], player_pos[1], zplane),
                     (x, y, zplane),

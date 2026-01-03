@@ -1,11 +1,11 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Range, Utils, ConsoleLog
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, Agent, Range, Utils, ConsoleLog
 import Py4GW
 import os
 
 bot = Botting("Sunspear Title Farm - Yohlon Haven",)
 
 
-KILLING_PATH = [ (-18601, -12507), (-18103, -8169), (-16868, -7706), (-18433, -14250), (-16334, -17663), (-14982, -16881) ]
+KILLING_PATH = [ (-18601.0, -12507.0), (-18103.0, -8169.0), (-16868.0, -7706.0), (-18433.0, -14250.0), (-16334.0, -17663.0), (-14982.0, -16881.0) ]
 
 
 
@@ -49,7 +49,7 @@ def main():
 
 
 def _on_party_wipe(bot: "Botting"):
-    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid → release FSM and exit

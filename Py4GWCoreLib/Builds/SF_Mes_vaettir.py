@@ -84,7 +84,7 @@ class SF_Mes_vaettir(BuildMgr):
 
     def DefensiveActions(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        player_hp = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
+        player_hp = Agent.GetHealth(player_agent_id)
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
         if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
             if (
@@ -110,7 +110,7 @@ class SF_Mes_vaettir(BuildMgr):
 
     def CastShroudOfDistress(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
+        if Agent.GetHealth(player_agent_id) < 0.45:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             # ** Cast Shroud of Distress **
             yield from self._CastSkillID(self.shroud_of_distress, log=False, aftercast_delay=1750)
@@ -142,9 +142,9 @@ class SF_Mes_vaettir(BuildMgr):
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
 
         for enemy in enemy_array:
-            if GLOBAL_CACHE.Agent.IsDead(enemy):
+            if Agent.IsDead(enemy):
                 continue
-            enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
+            enemy_pos = Agent.GetXY(enemy)
             to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
 
             angle_score = self.vector_angle(to_goal, to_enemy)  # -1 is most opposite
@@ -165,7 +165,7 @@ class SF_Mes_vaettir(BuildMgr):
             player_pos = GLOBAL_CACHE.Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
             for enemy in enemy_array:
-                if GLOBAL_CACHE.Agent.IsDead(enemy):
+                if Agent.IsDead(enemy):
                     continue
                 if Agent.IsHexed(enemy):
                     continue
@@ -182,7 +182,7 @@ class SF_Mes_vaettir(BuildMgr):
             agent_array = AgentArray.GetEnemyArray()
             agent_array = AgentArray.Filter.ByCondition(
                 agent_array,
-                lambda agent: GLOBAL_CACHE.Agent.GetModelID(agent)
+                lambda agent: Agent.GetModelID(agent)
                 in (AgentModelID.FROZEN_ELEMENTAL.value, AgentModelID.FROST_WURM.value),
             )
             agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
@@ -194,7 +194,7 @@ class SF_Mes_vaettir(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             return
 
@@ -250,7 +250,7 @@ class SF_Mes_vaettir(BuildMgr):
             return
 
         if not self.in_killing_routine:
-            player_hp = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
+            player_hp = Agent.GetHealth(player_agent_id)
             kill_spot_x, kill_spot_y = (12684, -17184)
             player_x, player_y = GLOBAL_CACHE.Player.GetXY()
             dx = kill_spot_x - player_x
@@ -274,9 +274,9 @@ class SF_Mes_vaettir(BuildMgr):
                 enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
 
                 for enemy in enemy_array:
-                    if GLOBAL_CACHE.Agent.IsDead(enemy):
+                    if Agent.IsDead(enemy):
                         continue
-                    enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
+                    enemy_pos = Agent.GetXY(enemy)
                     to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
 
                     angle_score = self.vector_angle(to_goal, to_enemy)  # -1 is most opposite

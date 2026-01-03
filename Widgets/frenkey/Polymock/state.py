@@ -2,7 +2,7 @@ import datetime
 from Py4GWCoreLib import AgentArray, Quest
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Item import Bag
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Agent
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Utils
 from Py4GWCoreLib.enums import Allegiance, Bags, ItemType
 from Widgets.frenkey.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockPieces
@@ -55,7 +55,7 @@ class WidgetState:
                 self.match_started = len(AgentArray.GetAgentArray()) == 9 or self.match_started
                 
                 target_id = self.GetAgentAtPosition()
-                quest = Polymock_Quests.get_quest_by_model_id(GLOBAL_CACHE.Agent.GetModelID(target_id))
+                quest = Polymock_Quests.get_quest_by_model_id(Agent.GetModelID(target_id))
                 
                 if quest:                
                     self.quest = quest       
@@ -97,7 +97,7 @@ class WidgetState:
         agent_id = Utils.GetFirstFromArray(agent_array)
 
         if agent_id:
-            x, y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+            x, y = Agent.GetXY(agent_id)
             distance = Utils.Distance(spawn_point, [x, y])
             if distance < 250.0:
                 return agent_id

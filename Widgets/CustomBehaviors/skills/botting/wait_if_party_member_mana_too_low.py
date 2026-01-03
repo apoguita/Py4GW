@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -44,7 +44,7 @@ class WaitIfPartyMemberManaTooLowUtility(CustomSkillUtilityBase):
         players = GLOBAL_CACHE.Party.GetPlayers()
         for player in players:
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-            if GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.4:
+            if Agent.GetHealth(agent_id) < 0.4:
                 return self.score_definition.get_score()
             if custom_behavior_helpers.Resources.get_energy_percent_in_party(agent_id) < self.mana_limit:
                 return self.score_definition.get_score()

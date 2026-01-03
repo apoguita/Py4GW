@@ -104,7 +104,7 @@ def farm_fog_nightmares(bot):
             return
 
         # Death check
-        if GLOBAL_CACHE.Agent.IsDead(player_id):
+        if Agent.IsDead(player_id):
             # handle death here
             ConsoleLog(DUST_FARMER, 'Died fighting, setting back to [Move] status')
             bot.config.build_handler.status = DervBuildFarmStatus.Move
@@ -139,7 +139,7 @@ def get_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
     return [
         agent_id
         for agent_id in enemy_array
-        if GLOBAL_CACHE.Agent.GetModelID(agent_id) in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}
+        if Agent.GetModelID(agent_id) in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}
     ]
 
 
@@ -149,7 +149,7 @@ def get_non_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
     return [
         agent_id
         for agent_id in enemy_array
-        if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}
+        if Agent.GetModelID(agent_id) not in {AgentModelID.FOG_NIGHTMARE, AgentModelID.SPINED_ALOE}
     ]
 
 
@@ -256,7 +256,7 @@ def handle_stuck(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             yield from Routines.Yield.Player.Resign()
             continue
@@ -278,7 +278,7 @@ def handle_stuck(bot: Botting):
                     stuck_counter += 1
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     player_pos = GLOBAL_CACHE.Player.GetXY()
-                    facing_direction = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
+                    facing_direction = Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
                     # --- Backpedal (opposite facing direction) ---
                     back_angle = facing_direction + math.pi  # 180° behind
                     back_distance = 200
@@ -348,7 +348,7 @@ def handle_fog_nightmare_danger(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             continue
 
@@ -359,10 +359,10 @@ def handle_fog_nightmare_danger(bot: Botting):
             if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Earshot.value):
                 # Deal with local enemies before resuming
                 yield from farm_fog_nightmares(bot)
-                player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
                 while player_hp < 0.99:
                     ConsoleLog(DUST_FARMER, 'Dying, Need recovery...')
-                    player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                    player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
                     yield from Routines.Yield.wait(2000)
         yield from Routines.Yield.wait(500)
 
@@ -375,7 +375,7 @@ def handle_loot(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             continue
 
@@ -489,7 +489,7 @@ def dust_farm_bot(bot: Botting):
 
     bot.Party.Resign()
     bot.Wait.ForTime(3000)
-    bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
+    bot.Wait.UntilCondition(lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
 
 bot.SetMainRoutine(dust_farm_bot)

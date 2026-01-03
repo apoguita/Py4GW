@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -36,7 +36,7 @@ class RawCombotAttackUtility(CustomSkillUtilityBase):
 
     def _is_agent_compatible_with_dagger_status(self, agent_id: int) -> bool:
 
-        dagger_status:int = GLOBAL_CACHE.Agent.GetDaggerStatus(agent_id) # GetDaggerStatus is between 0 and 3. 0=None, 1= affected by lead, 2= affected by offhand, 3= affected by dual
+        dagger_status:int = Agent.GetDaggerStatus(agent_id) # GetDaggerStatus is between 0 and 3. 0=None, 1= affected by lead, 2= affected by offhand, 3= affected by dual
         
         # this is a strict mode.
 

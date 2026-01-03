@@ -2,7 +2,7 @@ import traceback
 import Py4GW
 
 from Py4GWCoreLib import IniHandler, Timer, ThrottledTimer
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from Py4GWCoreLib import RawAgentArray
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui
@@ -126,7 +126,7 @@ def update_party_names():
     #players = Party.GetPlayers()
     for player in global_vars.party_players:
         agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-        name = GLOBAL_CACHE.Agent.GetName(agent_id) #agent_array.get_name(agent_id)
+        name = Agent.GetNameByID(agent_id) #agent_array.get_name(agent_id)
         if name != "":
             #if agent_id == Party.GetPartyLeaderID():
             if agent_id == global_vars.plarty_leader_id:
@@ -142,14 +142,14 @@ def update_party_names():
 
 def get_max_health(agent_id:int):
     global global_vars
-    level = GLOBAL_CACHE.Agent.GetLevel(agent_id)
+    level = Agent.GetLevel(agent_id)
     default = global_vars.default_max_health_table.get(level, 1)
     max_health = global_vars.players_max_health_table.get(agent_id, default)
     return max_health
 
 def get_threshold(agent_id:int):
     global global_vars
-    level = GLOBAL_CACHE.Agent.GetLevel(agent_id)
+    level = Agent.GetLevel(agent_id)
     if 1 <= level <= 10:
         global_vars.current_threhold = global_vars.lvl1_10_threshold
 
@@ -221,7 +221,7 @@ def configure():
         if PyImGui.begin(config_module.window_name, config_module.window_flags):
             # new_collapsed = PyImGui.is_window_collapsed()
 
-            agent_level = GLOBAL_CACHE.Agent.GetLevel(global_vars.player_agent_id)
+            agent_level = Agent.GetLevel(global_vars.player_agent_id)
             PyImGui.text_wrapped(f"         {module_name}:")
             PyImGui.text_wrapped("if any of your player party members")
             PyImGui.text_wrapped("          goes below threshold:")
@@ -341,7 +341,7 @@ def main():
                     if health <= get_threshold(agent_id):
                         if global_vars.log_low_health:
                             global_vars.log_low_health = False
-                            Py4GW.Console.Log(module_name, f"Player: {GLOBAL_CACHE.Agent.GetName(agent_id)} ({agent_id}) have low health: {round(health * max_health)}", Py4GW.Console.MessageType.Info)
+                            Py4GW.Console.Log(module_name, f"Player: {Agent.GetNameByID(agent_id)} ({agent_id}) have low health: {round(health * max_health)}", Py4GW.Console.MessageType.Info)
                         global_vars.low_life = True
                         global_vars.low_life_agent = agent_id
 

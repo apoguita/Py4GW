@@ -1,6 +1,6 @@
 from typing import Any, Generator
 
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Agent
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 
@@ -37,7 +37,7 @@ class PathHelper:
 
     @staticmethod
     def build_valid_path(path_2d: list[tuple[float, float]]) -> Generator[Any, None, list[tuple[float, float]]]:
-        z = float(GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID()))
+        z = float(Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID()))
         result = yield from PathHelper.__chain_paths(path_2d, z)
         return result
 
@@ -46,7 +46,7 @@ class PathHelper:
     def normalized_to_screen(norm_x: float, norm_y: float) -> tuple[float, float]:
         """Convert normalized coordinates (-1 to 1) to screen coordinates."""
         # Get mission map window bounds
-        l, t, r, b = Map.MissionMap.GetWindowCoords()
+        l, t, r, b = Map.MissionMap.GetMissionMapContentsCoords()
         left, top, right, bottom = int(l), int(t), int(r), int(b)
         width, height = right - left, bottom - top
         

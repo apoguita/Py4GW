@@ -16,7 +16,7 @@ class ItemDataHandler:
     def ConstructItemData(self, item_id):
         item_data = {
             "account_email": Player.GetAccountEmail(),
-            "character_name": Agent.GetName(Player.GetAgentID()),
+            "character_name": Agent.GetNameByID(Player.GetAgentID()),
             "model_id": Item.GetModelID(item_id),
             "item_name": Item.GetName(item_id),
             "quantity": Item.Properties.GetQuantity(item_id)

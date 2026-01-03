@@ -1,7 +1,7 @@
 
 
 import Py4GW
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import ConsoleLog
@@ -68,7 +68,7 @@ class BotStuckHelper:
         return None
 
     def _check_player_dead(self):
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             ConsoleLog(self.name, "Player is dead, waiting...", Py4GW.Console.MessageType.Debug, self.log_enabled)
             yield from Routines.Yield.wait(1000)
         # Generator completes (returns None) when player is alive

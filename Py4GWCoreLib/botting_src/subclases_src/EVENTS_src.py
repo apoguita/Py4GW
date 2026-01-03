@@ -91,6 +91,7 @@ class _EVENTS:
     def _on_party_member_death_behind(self):
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
+        from ...Agent import Agent
         bot = self.parent
         
         if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
@@ -124,7 +125,7 @@ class _EVENTS:
 
         exit_movement_condition = lambda: Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
 
-        pos = GLOBAL_CACHE.Agent.GetXY(dead_player)
+        pos = Agent.GetXY(dead_player)
         path = [(pos[0], pos[1])]
         result = (yield from Routines.Yield.Movement.FollowPath(
             path,

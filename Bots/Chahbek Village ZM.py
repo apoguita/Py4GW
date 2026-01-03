@@ -5,7 +5,7 @@ from Py4GW import Console
 import PyImGui
 from Py4GWCoreLib import Key, Keystroke, Map, CHAR_MAP
 from AccountData import MODULE_NAME
-from Py4GWCoreLib import (GLOBAL_CACHE, Inventory, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
+from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager,)
 LAST_CHARACTER_NAME: str = ""
 LAST_PRIMARY_PROF: str = ""
@@ -18,7 +18,7 @@ def create_bot_routine(bot: Botting) -> None:
     # capture early while still in game
     LAST_CHARACTER_NAME = GLOBAL_CACHE.Player.GetName() or LAST_CHARACTER_NAME
     try:
-        p, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        p, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if p:
             LAST_PRIMARY_PROF = p
     except Exception:
@@ -83,7 +83,7 @@ def Meeting_First_Spear_Jahdugar(bot: Botting):
 
 def Equip_Weapon():
         global bot
-        profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         if profession == "Dervish":
             bot.Items.Equip(15591)  # starter scythe
         elif profession == "Paragon":
@@ -202,7 +202,7 @@ def _resolve_character_name():
         if GLOBAL_CACHE.Player.InCharacterSelectScreen():
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
             if pregame and hasattr(pregame, "chars") and hasattr(pregame, "index_1"):
-                idx = int(pregame.index_1)
+                idx = int(pregame.chosen_character_index)
                 if 0 <= idx < len(pregame.chars):
                     name = str(pregame.chars[idx])
                     if name:
@@ -244,12 +244,12 @@ def type_text_keystroke(text: str, delay_ms: int = 50):
         if char in CHAR_MAP:
             key, needs_shift = CHAR_MAP[char]
             if needs_shift:
-                Keystroke.Press(Key.LeftShift.value)
+                Keystroke.Press(Key.LShift.value)
                 yield from Routines.Yield.wait(50)
             Keystroke.PressAndRelease(key.value)
             yield from Routines.Yield.wait(delay_ms)
             if needs_shift:
-                Keystroke.Release(Key.LeftShift.value)
+                Keystroke.Release(Key.LShift.value)
                 yield from Routines.Yield.wait(50)
         else:
             # Skip unmapped characters
@@ -329,7 +329,9 @@ def LogoutAndDeleteState():
         ConsoleLog("Reroll", "Unable to resolve character name. Abort.", Console.MessageType.Error)
         return
 
-    primary_prof, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary_prof, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    if not primary_prof:
+        primary_prof = LAST_PRIMARY_PROF or "Warrior"
     campaign_name = "Nightfall"
 
     RC = getattr(getattr(Routines, "Yield", None), "RerollCharacter", None)
@@ -519,7 +521,7 @@ def TravelToRegion(map_id: int, server_region: int, district_number: int = 0, la
     """
     Travel to a map by its ID and region/language (direct MapInstance call).
     """
-    Map.map_instance().Travel(map_id, server_region, district_number, language)
+    Map.TravelToRegion(map_id, server_region, district_number, language)
 
 def RndTravelState(map_id: int, use_districts: int = 4):
     region   = [2, 2, 2, 2] 
@@ -533,7 +535,7 @@ def RndTravelState(map_id: int, use_districts: int = 4):
     lang = language[idx]
     ConsoleLog("RndTravel", f"MoveMap(map_id={map_id}, region={reg}, district=0, language={lang})", Console.MessageType.Info)
     # Direct low-level call (equivalent to MoveMap/Map_MoveMap)
-    Map.map_instance().Travel(map_id, reg, 0, lang)
+    Map.TravelToRegion(map_id, reg, 0, lang)
     # Wait for loading (equivalent to Map_WaitMapLoading)
     yield from Routines.Yield.wait(6500)
     yield from Routines.Yield.wait(1000)
@@ -544,7 +546,7 @@ iconwidth = 96
 
 def _draw_texture():
     global iconwidth
-    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
 
     path = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "Leveling", "Nightfall","Nightfall_leveler-art.png")
     size = (float(iconwidth), float(iconwidth))

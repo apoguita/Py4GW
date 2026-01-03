@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Py4GWCoreLib.Overlay import Overlay
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -162,7 +162,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
             if my_agent_id is None:
                 return
 
-            _, _, my_z = GLOBAL_CACHE.Agent.GetXYZ(my_agent_id)
+            _, _, my_z = Agent.GetXYZ(my_agent_id)
 
             # Get my account email to highlight my assigned flag
             my_email = GLOBAL_CACHE.Player.GetAccountEmail()

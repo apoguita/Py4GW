@@ -112,10 +112,10 @@ class _MOVE:
         yield
         
     def _coro_to_model(self, model_id: int) -> Generator[Any, Any, bool]:
-        from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
+        from ...Agent import Agent
         agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
-        x,y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+        x,y = Agent.GetXY(agent_id)
         yield from self._coro_get_path_to(x, y)
         yield from self._coro_follow_path_to()
         return True

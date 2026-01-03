@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range
+from Py4GWCoreLib import Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -52,7 +52,7 @@ class AssassinsPromiseUtility(CustomSkillUtilityBase):
         Only includes enemies whose health fraction is below REQUIRED_TARGET_HP_FRACTION (0.5).
         """
         def condition(agent_id: int) -> bool:
-            hp = GLOBAL_CACHE.Agent.GetHealth(agent_id)
+            hp = Agent.GetHealth(agent_id)
             # Include only alive agents with a known health fraction below 0.5
             return hp is not None and hp > 0.0 and hp < self.REQUIRED_TARGET_HP_FRACTION
 
@@ -85,7 +85,7 @@ class AssassinsPromiseUtility(CustomSkillUtilityBase):
             return None
 
         try:
-            target_health = GLOBAL_CACHE.Agent.GetHealth(target)
+            target_health = Agent.GetHealth(target)
         except Exception:
             return None
 

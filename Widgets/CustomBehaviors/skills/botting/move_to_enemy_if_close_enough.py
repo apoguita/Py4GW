@@ -1,7 +1,7 @@
 import re
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -39,11 +39,11 @@ class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
 
     def __get_enemy_to_fight(self) -> int | None:
         enemy_aggressive_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 400, aggressive_only=True)
-        if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_aggressive_id): 
+        if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and Agent.IsValid(enemy_aggressive_id): 
             return enemy_aggressive_id
 
         enemy_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 300, aggressive_only=False)
-        if enemy_id is not None and enemy_id > 0 and GLOBAL_CACHE.Agent.IsValid(enemy_id): 
+        if enemy_id is not None and enemy_id > 0 and Agent.IsValid(enemy_id): 
             return enemy_id
 
         return None
