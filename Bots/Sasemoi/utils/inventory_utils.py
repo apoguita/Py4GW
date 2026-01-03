@@ -1,9 +1,9 @@
 from Py4GWCoreLib import ItemArray, Item
 from Py4GWCoreLib.enums import Bags
 from Bots.Sasemoi.utils.rune_quality_checker import item_has_valuable_rune
-from Py4GWCoreLib import Rarity
+# from Py4GWCoreLib import Rarity
 
-def get_unidentified_items(rarities: list[Rarity], slot_blacklist: list[tuple[int,int]]) -> list[int]:
+def get_unidentified_items(rarities: list[str], slot_blacklist: list[tuple[int,int]]) -> list[int]:
     '''
     Returns a list of all unidentified item IDs in the player's inventory
     '''
