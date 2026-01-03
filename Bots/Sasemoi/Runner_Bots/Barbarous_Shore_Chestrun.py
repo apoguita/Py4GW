@@ -144,6 +144,7 @@ def on_death(bot: Botting):
     ConsoleLog("Death detected", "Player Died - Run Failed, Restarting...", Py4GW.Console.MessageType.Notice)
 
     # Reset Action Queues and FSM
+    ResetUnopenedChests()
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
@@ -202,7 +203,11 @@ def ManageInventory(bot: Botting):
 
         # Filter valuable loot
         valuable_loot = [item_id for item_id in all_items if filter_valuable_weapon_type(item_id)]
+        valuable_runes = [item_id for item_id in all_items if filter_valuable_rune_type(item_id)]
+        valuable_inscriptions = [item_id for item_id in all_items if filter_valuable_inscription_type(item_id)]
         items_to_keep = valuable_loot[:]
+        items_to_keep.extend(valuable_runes)
+        items_to_keep.extend(valuable_inscriptions)
 
         # Make items unique
         items_to_keep = list(set(items_to_keep)) # Remove duplicates
