@@ -1,6 +1,6 @@
 import Py4GW
-from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, Agent, ConsoleLog, GLOBAL_CACHE, ItemArray, Bags, HeroType)
-from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, VOS_Derv_Barbarous
+from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, GLOBAL_CACHE, ItemArray, Bags, HeroType)
+from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, SF_Derv_Barbarous
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
 from Bots.Sasemoi.bot_helpers import BotStuckHelper
 from Bots.Sasemoi.utils.inventory_utils import get_unidentified_items, filter_valuable_weapon_type, filter_valuable_rune_type
@@ -40,7 +40,7 @@ should_manage_inventory = False
 
 bot = Botting(
     BARB_SHORE_RUNNER,
-    custom_build=VOS_Derv_Barbarous(
+    custom_build=SF_Derv_Barbarous(
         build_danger_helper=BuildDangerHelper(
             cripple_kd_table=barbarous_cripple_kd_table,
             spellcast_table=barbarous_spellcast_table
@@ -97,7 +97,7 @@ def AssignBuild(bot: Botting):
             bot.OverrideBuild(SF_Assassin_Barbarous())
 
         case "Dervish":
-            bot.OverrideBuild(VOS_Derv_Barbarous(
+            bot.OverrideBuild(SF_Derv_Barbarous(
                 build_danger_helper=BuildDangerHelper(
                     cripple_kd_table=barbarous_cripple_kd_table,
                     spellcast_table=barbarous_spellcast_table
