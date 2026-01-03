@@ -53,7 +53,7 @@ bot = Botting(
 # Would like to move this to Botting
 stuck_helper = BotStuckHelper(
     config={
-        "log_enabled": True,
+        "log_enabled": False,
         "movement_timeout_handler": lambda: HandleStuck()
     }
 )
@@ -62,8 +62,8 @@ stuck_helper = BotStuckHelper(
 # ==================== SETUP ====================
 
 def create_bot_routine(bot: Botting) -> None:    
-    InitializeBot(bot)
     InitialTravelAndSetup(bot)
+    InitializeBot(bot)
     SetupHeroes(bot)
     SetupInventoryManagement(bot)
     SetupResign(bot)
@@ -130,7 +130,7 @@ def _on_death(bot: Botting):
     yield from Routines.Yield.Player.Resign()
     yield from Routines.Yield.wait(1000)
     yield from AssessLootManagement()
-    yield from Routines.Yield.wait(10000)  # Wait for resign to complete
+    yield from Routines.Yield.wait(10000)  # Wait for death to complete
     yield from ConditionallyMoveToMerchant()
     yield from ManageInventory(bot)
 
