@@ -58,10 +58,11 @@ class OnDeathEvent(Event):
     def should_trigger(self) -> bool:
         from Py4GWCoreLib import GLOBAL_CACHE  # local import!
         from Py4GWCoreLib import Routines
+        from Py4GWCoreLib import Agent
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable() or not player_agent_id:
             return False
-        dead = GLOBAL_CACHE.Agent.IsDead(player_agent_id)
+        dead = Agent.IsDead(player_agent_id)
         #if dead:
         #    print("OnDeathEvent triggered")
         return dead
