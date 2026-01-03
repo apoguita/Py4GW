@@ -44,7 +44,7 @@ def DrawWindow():
                     
                 if not agent_name_recieved and Agent.IsNameReady(target):
                     agent_name_recieved = True
-                    agent_name = Agent.GetName(target)
+                    agent_name = Agent.GetNameByID(target)
                     
                 PyImGui.text(f"Target Name: {agent_name}")
                 
@@ -60,7 +60,7 @@ def DrawWindow():
                             
                     for agent_id in agent_ids:
                         if Agent.IsNameReady(agent_id):
-                            agent_names[agent_id] = Agent.GetName(agent_id)
+                            agent_names[agent_id] = Agent.GetNameByID(agent_id)
                         
                         
                     for agent_id, name in agent_names.items():

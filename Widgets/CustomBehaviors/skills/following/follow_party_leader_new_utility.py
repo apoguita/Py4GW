@@ -2,7 +2,7 @@ import math
 from typing import Any, Generator, override
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils, VectorFields
 from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.AgentArray import AgentArray
@@ -79,10 +79,10 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
             if leader_agent_id is None:
                 return None
             
-            if not GLOBAL_CACHE.Agent.IsAlive(leader_agent_id):
+            if not Agent.IsAlive(leader_agent_id):
                 return None
             
-            pos = GLOBAL_CACHE.Agent.GetXY(leader_agent_id)
+            pos = Agent.GetXY(leader_agent_id)
             if pos is None or len(pos) != 2:
                 return None
             
@@ -98,12 +98,12 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         
         positions = []
         for agent_id in AgentArray.GetAllyArray():
-            if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
-                positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
+            if Agent.IsAlive(agent_id) and Agent.IsValid(agent_id):
+                positions.append(Agent.GetXY(agent_id))
 
         for agent_id in AgentArray.GetSpiritPetArray():
-            if GLOBAL_CACHE.Agent.IsAlive(agent_id) and GLOBAL_CACHE.Agent.IsValid(agent_id):
-                positions.append(GLOBAL_CACHE.Agent.GetXY(agent_id))
+            if Agent.IsAlive(agent_id) and Agent.IsValid(agent_id):
+                positions.append(Agent.GetXY(agent_id))
 
         return positions
 
@@ -233,7 +233,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
 
         Overlay().BeginDraw()
         my_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        _, _, my_z = GLOBAL_CACHE.Agent.GetXYZ(my_agent_id)
+        _, _, my_z = Agent.GetXYZ(my_agent_id)
 
         # Determine state color for visual feedback
         if state == BehaviorState.IN_AGGRO:

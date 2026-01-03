@@ -6,6 +6,7 @@ from Py4GWCoreLib import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.enums import Allegiance, Range
+from Py4GWCoreLib.Agent import Agent
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
@@ -32,13 +33,13 @@ def find_first_blessing_npc(within_range:float)  -> tuple[BlessingNpc,int] | Non
     player_pos = GLOBAL_CACHE.Player.GetXY()
 
     agent_ids: list[int] = AgentArray.GetAgentArray()
-    agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsValid(agent_id))
+    agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsValid(agent_id))
     agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, within_range)
     agent_ids = AgentArray.Sort.ByDistance(agent_ids, player_pos)
 
     for npc in BlessingNpc:
         for agent_id in agent_ids:
-            if GLOBAL_CACHE.Agent.GetModelID(agent_id) in npc.model_ids:
+            if Agent.GetModelID(agent_id) in npc.model_ids:
                 return (npc, agent_id)
 
     return None
@@ -94,7 +95,7 @@ def __norn_sequence(npc_result:tuple[BlessingNpc,int], timeout_ms:int) -> Genera
 def __wait_until_friendly_again(npc_result:tuple[BlessingNpc,int], timeout_ms:int):
     throttle_timer = ThrottledTimer(timeout_ms)
     while not throttle_timer.IsExpired():
-        if GLOBAL_CACHE.Agent.GetAllegiance(npc_result[1]) != Allegiance.Enemy: 
+        if Agent.GetAllegiance(npc_result[1]) != Allegiance.Enemy: 
             return True
         yield from custom_behavior_helpers.Helpers.wait_for(500)
     return False 

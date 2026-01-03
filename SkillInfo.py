@@ -372,7 +372,7 @@ class SkillData:
             PyImGui.end_group()
             if PyImGui.is_item_hovered():
                 if PyImGui.begin_tooltip():
-                    energy_pips = GLOBAL_CACHE.Agent.GetEnergyPips(GLOBAL_CACHE.Player.GetAgentID())
+                    energy_pips = Agent.GetEnergyPips(GLOBAL_CACHE.Player.GetAgentID())
                     PyImGui.text(f"Skill is maintained")
                     PyImGui.text(f"You can upkeep {energy_pips}x this skill")
                     PyImGui.end_tooltip()
@@ -388,7 +388,7 @@ class SkillData:
             PyImGui.end_group()
             if PyImGui.is_item_hovered():
                 if PyImGui.begin_tooltip():
-                    max_health = GLOBAL_CACHE.Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())
+                    max_health = Agent.GetMaxHealth(GLOBAL_CACHE.Player.GetAgentID())
                     PyImGui.text(f"Health Cost: {self.health_cost}%")
                     PyImGui.text(f"HP Cost: {math.ceil(max_health * (self.health_cost / 100))}")
                     PyImGui.end_tooltip()
@@ -434,9 +434,9 @@ class SkillData:
             if PyImGui.is_item_hovered():
                 if PyImGui.begin_tooltip():
                     PyImGui.text(f"Energy Cost: {self.energy_cost}")
-                    energy_pips = GLOBAL_CACHE.Agent.GetEnergyPips(GLOBAL_CACHE.Player.GetAgentID())
+                    energy_pips = Agent.GetEnergyPips(GLOBAL_CACHE.Player.GetAgentID())
                     PyImGui.text(f"Energy Pips: {energy_pips}")
-                    max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())
+                    max_energy = Agent.GetMaxEnergy(GLOBAL_CACHE.Player.GetAgentID())
                     PyImGui.text(f"Energy: {max_energy}")
 
                     if energy_pips > 0:

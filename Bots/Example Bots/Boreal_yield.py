@@ -51,7 +51,7 @@ def DrawWindow():
     PyImGui.end()   
 
 def LoadSkillBar():
-    primary_profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary_profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
 
     skill_templates = {
         "Warrior":      "OQcAQ3lTQ0kAAAAAAAAAAA",
@@ -73,7 +73,7 @@ def LoadSkillBar():
     yield from Routines.Yield.wait(500)
       
 def IsSkillBarLoaded():
-    primary_profession, secondary_profession = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary_profession, secondary_profession = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary_profession != "Assassin" and secondary_profession != "Assassin":
         Py4GW.Console.Log("Boreal Bot", f"IsSkillBarLoaded - This bot requires A/Any or Any/A to work, halting.", Py4GW.Console.MessageType.Error)
         return False
@@ -88,7 +88,7 @@ def IsChestFound(max_distance=4500) -> bool:
 def scan_for_aloes():
     enemy_array = AgentArray.GetEnemyArray()
     for enemy in enemy_array:
-        if GLOBAL_CACHE.Agent.GetPlayerNumber(enemy) == 6489: 
+        if Agent.GetPlayerNumber(enemy) == 6489: 
             return True
     return False
 

@@ -1,6 +1,6 @@
 from typing import Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -39,9 +39,9 @@ class PowerDrainUtility(CustomSkillUtilityBase):
             skill=self.custom_skill,
             select_target=lambda: custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
                 within_range=Range.Spellcast,
-                condition=lambda agent_id: GLOBAL_CACHE.Agent.IsCasting(agent_id) and 
-                GLOBAL_CACHE.Skill.Flags.IsSpell(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)) and 
-                GLOBAL_CACHE.Skill.Data.GetActivation(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)) >= 0.250,
+                condition=lambda agent_id: Agent.IsCasting(agent_id) and 
+                GLOBAL_CACHE.Skill.Flags.IsSpell(Agent.GetCastingSkill(agent_id)) and 
+                GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkill(agent_id)) >= 0.250,
                 sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
         ))

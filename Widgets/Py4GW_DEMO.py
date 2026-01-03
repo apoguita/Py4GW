@@ -440,7 +440,7 @@ def ShowPy4GW_Window_main():
                     PyImGui.text_colored("it is unstable on some conditions",(1, 0, 0, 1))
                     x,y,z = Overlay().GetMouseWorldPos()
                     agent_id = GLOBAL_CACHE.Player.GetAgentID()
-                    player_x, player_y, player_z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+                    player_x, player_y, player_z = Agent.GetXYZ(agent_id)
                     
                     headers = ["X", "Y", "Z"]
                     data = [
@@ -461,7 +461,7 @@ def ShowPy4GW_Window_main():
 
                 show_area_rings = PyImGui.checkbox("Show Area Rings", show_area_rings)
                 if show_area_rings:
-                    player_x, player_y, player_z = GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())
+                    player_x, player_y, player_z = Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())
 
                     #GW Areas
                     Touch = 144
@@ -1364,7 +1364,7 @@ def ShowPartyWindow():
                     headers = ["Other:" + str(agent_id)]
                     data = [
                         (f"Agent ID: {agent_id}"),
-                        (f"Name: {GLOBAL_CACHE.Agent.GetName(agent_id)}"),
+                        (f"Name: {Agent.GetNameByID(agent_id)}"),
                     ]
 
                     ImGui.table("other info"+ str(agent_id), headers, data)
@@ -1637,7 +1637,7 @@ def ShowGadgetAgentData(agent_id):
                 PyImGui.text("Agent Item Data:")
 
                 # Assume the gadget item data has been retrieved from Agent.GetGadgetItem
-                gadget_data = GLOBAL_CACHE.Agent.GetGadgetAgent(agent_id)
+                gadget_data = Agent.GetGadgetAgent(agent_id)
                 if gadget_data is None:
                     PyImGui.text("No gadget data available for this agent.")
                     PyImGui.end()
@@ -1688,7 +1688,7 @@ def ShowItemAgentData(agent_id):
 
                 PyImGui.text("Agent Item Data:")
 
-                item_data = GLOBAL_CACHE.Agent.GetItemAgent(agent_id)
+                item_data = Agent.GetItemAgent(agent_id)
                 if item_data is None:
                     PyImGui.text("No item data available for this agent.")
                     PyImGui.end()
@@ -1697,7 +1697,7 @@ def ShowItemAgentData(agent_id):
                 headers = ["Info", "Value"]
                 data = [
                     ("Agent ID:", item_data.agent_id),
-                    ("Owner ID:", item_data.owner),
+                    ("Owner ID:", item_data.owner_id),
                     ("Item ID:", item_data.item_id),
                     ("h00CC (decimal):", item_data.h00CC),
                     ("h00CC (hex):", hex(item_data.h00CC)),
@@ -1730,37 +1730,37 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Agent Living Data:")
 
-                pprof_id, sprof_id = GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)
-                pprof_name, sprof_name = GLOBAL_CACHE.Agent.GetProfessionNames(agent_id)
-                pprof_short, sprof_short = GLOBAL_CACHE.Agent.GetProfessionShortNames(agent_id)
+                pprof_id, sprof_id = Agent.GetProfessionIDs(agent_id)
+                pprof_name, sprof_name = Agent.GetProfessionNames(agent_id)
+                pprof_short, sprof_short = Agent.GetProfessionShortNames(agent_id)
 
                 profs_id = f"{pprof_id}/{sprof_id}"
                 profs_name = f"{pprof_name}/{sprof_name}"
                 profs_short = f"{pprof_short}/{sprof_short}"
 
-                alliegance_id, alliegance_name = GLOBAL_CACHE.Agent.GetAllegiance(agent_id)
+                alliegance_id, alliegance_name = Agent.GetAllegiance(agent_id)
                 alliegance = f"{alliegance_id}/{alliegance_name}"
                 
-                #GLOBAL_CACHE.Agent.RequestName(agent_id)
+                #Agent.RequestName(agent_id)
 
                 # Combine info and value into a single string
                 combined_data = [
                     f"Agent ID: {agent_id}",
-                    f"Owner Id: {GLOBAL_CACHE.Agent.GetOwnerID(agent_id)}",
-                    f"Player Number: {GLOBAL_CACHE.Agent.GetPlayerNumber(agent_id)}",
-                    f"Login Number: {GLOBAL_CACHE.Agent.GetLoginNumber(agent_id)}",
+                    f"Owner Id: {Agent.GetOwnerID(agent_id)}",
+                    f"Player Number: {Agent.GetPlayerNumber(agent_id)}",
+                    f"Login Number: {Agent.GetLoginNumber(agent_id)}",
                     f"Professions ID: {profs_id}",
                     f"Professions Name: {profs_name}",
                     f"Professions ShortName: {profs_short}",
-                    f"Level: {GLOBAL_CACHE.Agent.GetLevel(agent_id)}",
-                    f"Energy: {GLOBAL_CACHE.Agent.GetEnergy(agent_id):.2f}",
-                    f"Max Energy: {GLOBAL_CACHE.Agent.GetMaxEnergy(agent_id)}",
-                    f"Energy Regen: {GLOBAL_CACHE.Agent.GetEnergyRegen(agent_id):.2f}",
-                    f"Health: {GLOBAL_CACHE.Agent.GetHealth(agent_id):.2f}",
-                    f"Max Health: {GLOBAL_CACHE.Agent.GetMaxHealth(agent_id)}",
-                    f"Health Regen: {GLOBAL_CACHE.Agent.GetHealthRegen(agent_id):.2f}",
-                    f"Name: {GLOBAL_CACHE.Agent.GetName(agent_id)}",
-                    f"Strike Dagger Status: {GLOBAL_CACHE.Agent.GetDaggerStatus(agent_id)}",
+                    f"Level: {Agent.GetLevel(agent_id)}",
+                    f"Energy: {Agent.GetEnergy(agent_id):.2f}",
+                    f"Max Energy: {Agent.GetMaxEnergy(agent_id)}",
+                    f"Energy Regen: {Agent.GetEnergyRegen(agent_id):.2f}",
+                    f"Health: {Agent.GetHealth(agent_id):.2f}",
+                    f"Max Health: {Agent.GetMaxHealth(agent_id)}",
+                    f"Health Regen: {Agent.GetHealthRegen(agent_id):.2f}",
+                    f"Name: {Agent.GetNameByID(agent_id)}",
+                    f"Strike Dagger Status: {Agent.GetDaggerStatus(agent_id)}",
                     f"Alliegance: {alliegance}"
                 ]
 
@@ -1781,10 +1781,10 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Weapon Data:")
 
-                weapon_id, weapon_name = GLOBAL_CACHE.Agent.GetWeaponType(agent_id)
+                weapon_id, weapon_name = Agent.GetWeaponType(agent_id)
                 weapon = f"{weapon_id}/{weapon_name}"
                 PyImGui.text(f"Weapon Type: {weapon}")
-                weapon_item_id, weapon_item_type, offhand_item_id, offhand_item_type = GLOBAL_CACHE.Agent.GetWeaponExtraData(agent_id)
+                weapon_item_id, weapon_item_type, offhand_item_id, offhand_item_type = Agent.GetWeaponExtraData(agent_id)
 
                 headers = ["Info", "Value"]
                 data = [(f"Weapon Item ID: {weapon_item_id}",f"Weapon Item Type: {weapon_item_type}"),
@@ -1796,17 +1796,17 @@ def ShowLivingAgentData(agent_id):
                 PyImGui.text("State:")
 
                 headers = ["IsPlayer", "IsNpc"]
-                data = [(f"{GLOBAL_CACHE.Agent.IsPlayer(agent_id)}",f"{GLOBAL_CACHE.Agent.IsNPC(agent_id)}"),
-                        (f"IsDead: {GLOBAL_CACHE.Agent.IsDead(agent_id)}",f"IsAlive: {GLOBAL_CACHE.Agent.IsAlive(agent_id)}")]
+                data = [(f"{Agent.IsPlayer(agent_id)}",f"{Agent.IsNPC(agent_id)}"),
+                        (f"IsDead: {Agent.IsDead(agent_id)}",f"IsAlive: {Agent.IsAlive(agent_id)}")]
                 ImGui.table("Agent state", headers, data)  
 
                 PyImGui.text("Model State:")
                 combined_data = [
-                    f"IsMoving: {GLOBAL_CACHE.Agent.IsMoving(agent_id)}",
-                    f"IsAttacking: {GLOBAL_CACHE.Agent.IsAttacking(agent_id)}",
-                    f"IsCasting: {GLOBAL_CACHE.Agent.IsCasting(agent_id)}",
-                    f"IsIdle: {GLOBAL_CACHE.Agent.IsIdle(agent_id)}",
-                    f"IsKnockedDown: {GLOBAL_CACHE.Agent.IsKnockedDown(agent_id)}"  
+                    f"IsMoving: {Agent.IsMoving(agent_id)}",
+                    f"IsAttacking: {Agent.IsAttacking(agent_id)}",
+                    f"IsCasting: {Agent.IsCasting(agent_id)}",
+                    f"IsIdle: {Agent.IsIdle(agent_id)}",
+                    f"IsKnockedDown: {Agent.IsKnockedDown(agent_id)}"  
                 ]
 
                 # Format data into rows of 3 columns
@@ -1827,15 +1827,15 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Agent TypeMap Bitmasks:")
                 combined_data = [
-                    f"InCombatStance: {GLOBAL_CACHE.Agent.IsInCombatStance(agent_id)}",
-                    f"HasQuest: {GLOBAL_CACHE.Agent.HasQuest(agent_id)}",
-                    f"IsDeadByTypeMap: {GLOBAL_CACHE.Agent.IsDeadByTypeMap(agent_id)}",
-                    f"IsFemale: {GLOBAL_CACHE.Agent.IsFemale(agent_id)}",
-                    f"HasBossGlow: {GLOBAL_CACHE.Agent.HasBossGlow(agent_id)}",
-                    f"IsHidingCape: {GLOBAL_CACHE.Agent.IsHidingCape(agent_id)}",
-                    f"CanBeViewedInPartyWindow: {GLOBAL_CACHE.Agent.CanBeViewedInPartyWindow(agent_id)}",
-                    f"IsSpawned: {GLOBAL_CACHE.Agent.IsSpawned(agent_id)}",
-                    f"IsBeingObserved: {GLOBAL_CACHE.Agent.IsBeingObserved(agent_id)}"
+                    f"InCombatStance: {Agent.IsInCombatStance(agent_id)}",
+                    f"HasQuest: {Agent.HasQuest(agent_id)}",
+                    f"IsDeadByTypeMap: {Agent.IsDeadByTypeMap(agent_id)}",
+                    f"IsFemale: {Agent.IsFemale(agent_id)}",
+                    f"HasBossGlow: {Agent.HasBossGlow(agent_id)}",
+                    f"IsHidingCape: {Agent.IsHidingCape(agent_id)}",
+                    f"CanBeViewedInPartyWindow: {Agent.CanBeViewedInPartyWindow(agent_id)}",
+                    f"IsSpawned: {Agent.IsSpawned(agent_id)}",
+                    f"IsBeingObserved: {Agent.IsBeingObserved(agent_id)}"
                 ]
 
                 # Format data into rows of 3 columns
@@ -1856,17 +1856,17 @@ def ShowLivingAgentData(agent_id):
 
                 PyImGui.text("Agent Combat Info:")
                 combined_data = [
-                    f"IsConditioned: {GLOBAL_CACHE.Agent.IsConditioned(agent_id)}",
-                    f"IsBleeding: {GLOBAL_CACHE.Agent.IsBleeding(agent_id)}",
-                    f"IsCrippled: {GLOBAL_CACHE.Agent.IsCrippled(agent_id)}",
-                    f"IsDeepWounded: {GLOBAL_CACHE.Agent.IsDeepWounded(agent_id)}",
-                    f"isPoisoned: {GLOBAL_CACHE.Agent.IsPoisoned(agent_id)}",
-                    f"IsEnchanted: {GLOBAL_CACHE.Agent.IsEnchanted(agent_id)}",
-                    f"IsHexed: {GLOBAL_CACHE.Agent.IsHexed(agent_id)}",
-                    f"IsdegenHexed: {GLOBAL_CACHE.Agent.IsDegenHexed(agent_id)}",
-                    f"IsWeaponSpelled: {GLOBAL_CACHE.Agent.IsWeaponSpelled(agent_id)}",
-                    f"CastingSkillId: {GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)}",
-                    f"Overcast: {GLOBAL_CACHE.Agent.GetOvercast(agent_id)}"
+                    f"IsConditioned: {Agent.IsConditioned(agent_id)}",
+                    f"IsBleeding: {Agent.IsBleeding(agent_id)}",
+                    f"IsCrippled: {Agent.IsCrippled(agent_id)}",
+                    f"IsDeepWounded: {Agent.IsDeepWounded(agent_id)}",
+                    f"isPoisoned: {Agent.IsPoisoned(agent_id)}",
+                    f"IsEnchanted: {Agent.IsEnchanted(agent_id)}",
+                    f"IsHexed: {Agent.IsHexed(agent_id)}",
+                    f"IsdegenHexed: {Agent.IsDegenHexed(agent_id)}",
+                    f"IsWeaponSpelled: {Agent.IsWeaponSpelled(agent_id)}",
+                    f"CastingSkillId: {Agent.GetCastingSkill(agent_id)}",
+                    f"Overcast: {Agent.GetOvercast(agent_id)}"
                 ]
 
                 # Format data into rows of 3 columns
@@ -1958,26 +1958,26 @@ def draw_agent_window(agent_id):
    
                 headers = ["Info", "Value"]
                 data = [("Agent ID:", agent_id),
-                        ("Is LivingAgent:", GLOBAL_CACHE.Agent.IsLiving(agent_id)),
-                        ("Is ItemAgent:", GLOBAL_CACHE.Agent.IsItem(agent_id)),
-                        ("Is GadgetAgent:", GLOBAL_CACHE.Agent.IsGadget(agent_id))]
+                        ("Is LivingAgent:", Agent.IsLiving(agent_id)),
+                        ("Is ItemAgent:", Agent.IsItem(agent_id)),
+                        ("Is GadgetAgent:", Agent.IsGadget(agent_id))]
 
                 ImGui.table("agent common info",headers,data)
 
                 PyImGui.text("Positional Data:")
 
-                agent_x, agent_y, agent_z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+                agent_x, agent_y, agent_z = Agent.GetXYZ(agent_id)
                 pos_str = f"({agent_x:.2f}, {agent_y:.2f}, {agent_z:.2f})"
 
-                vel_x, vel_y = GLOBAL_CACHE.Agent.GetVelocityXY(agent_id)
+                vel_x, vel_y = Agent.GetVelocityXY(agent_id)
                 vel_str = f"({vel_x:.2f}, {vel_y:.2f})"
 
                 headers = ["Info", "Value"]
                 data = [("(X,Y,Z):", pos_str),
-                        ("zplane:", GLOBAL_CACHE.Agent.IsLiving(agent_id)),
-                        ("Rotation Angle:", GLOBAL_CACHE.Agent.GetRotationAngle(agent_id)),
-                        ("Rotation cosine:", GLOBAL_CACHE.Agent.GetRotationCos(agent_id)),
-                        ("Rotation sine:", GLOBAL_CACHE.Agent.GetRotationSin(agent_id)),
+                        ("zplane:", Agent.IsLiving(agent_id)),
+                        ("Rotation Angle:", Agent.GetRotationAngle(agent_id)),
+                        ("Rotation cosine:", Agent.GetRotationCos(agent_id)),
+                        ("Rotation sine:", Agent.GetRotationSin(agent_id)),
                         ("Velocity (X,Y):", vel_str)]
 
                 ImGui.table("agent positional common info",headers,data)
@@ -1986,7 +1986,7 @@ def draw_agent_window(agent_id):
 
                 PyImGui.text("Attributes:")
 
-                attributes = GLOBAL_CACHE.Agent.GetAttributes(agent_id)
+                attributes = Agent.GetAttributes(agent_id)
 
                 headers = ["Attribute", "Base Level", "Level"]
                 data = []
@@ -1997,13 +1997,13 @@ def draw_agent_window(agent_id):
 
                 PyImGui.text("Show Agent type Specific data")
 
-                if GLOBAL_CACHE.Agent.IsLiving(agent_id):
+                if Agent.IsLiving(agent_id):
                     PyAgent_agent_window_state.values[0] = ImGui.toggle_button("Show Living Agent Data", PyAgent_agent_window_state.values[0])
 
-                if GLOBAL_CACHE.Agent.IsItem(agent_id):
+                if Agent.IsItem(agent_id):
                     PyAgent_agent_window_state.values[1] = ImGui.toggle_button("Show Item Agent Data", PyAgent_agent_window_state.values[1])
 
-                if GLOBAL_CACHE.Agent.IsGadget(agent_id):
+                if Agent.IsGadget(agent_id):
                     PyAgent_agent_window_state.values[2] = ImGui.toggle_button("Show Gadget Agent Data", PyAgent_agent_window_state.values[2])
 
 
@@ -2075,7 +2075,7 @@ def ShowPyAgentWindow():
                 # Display table headers
                 PyImGui.text("Nearest Entities:")
                 
-                merchant_id = GLOBAL_CACHE.Agent.GetAgentIDByName("[Merchant]")
+                merchant_id = Agent.GetAgentIDByName("[Merchant]")
                 
                 headers = ["Info", "Value"]
                 data = [("Enemy:", closest_enemy),

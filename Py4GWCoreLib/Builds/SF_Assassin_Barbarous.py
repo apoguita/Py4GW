@@ -9,7 +9,7 @@ from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Map
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Overlay, DXOverlay
+from Py4GWCoreLib import Agent, DXOverlay
 
 from typing import List, Tuple
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper
@@ -117,9 +117,9 @@ class SF_Assassin_Barbarous(BuildMgr):
         
         # Find enemy most opposite to goal direction
         for enemy in enemy_array:
-            if GLOBAL_CACHE.Agent.IsDead(enemy):
+            if Agent.IsDead(enemy):
                 continue
-            enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
+            enemy_pos = Agent.GetXY(enemy)
             to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
             angle_score = vector_angle(to_goal, to_enemy)  # -1 is most opposite
             if angle_score < most_opposite_score:
@@ -179,7 +179,7 @@ class SF_Assassin_Barbarous(BuildMgr):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         (px, py) = GLOBAL_CACHE.Player.GetXY()
 
-        if GLOBAL_CACHE.Agent.IsCrippled(player_agent_id) or self.build_danger_helper.check_cripple_kd(px, py):
+        if Agent.IsCrippled(player_agent_id) or self.build_danger_helper.check_cripple_kd(px, py):
             has_iau = Routines.Checks.Effects.HasBuff(player_agent_id, self.i_am_unstoppable)
             is_iau_ready = Routines.Checks.Skills.IsSkillIDReady(self.i_am_unstoppable)
 
@@ -191,10 +191,10 @@ class SF_Assassin_Barbarous(BuildMgr):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         is_ss_ready = Routines.Checks.Skills.IsSkillIDReady(self.shadow_sanctuary)
         is_hos_ready = Routines.Checks.Skills.IsSkillIDReady(self.heart_of_shadow)
-        is_poisoned = GLOBAL_CACHE.Agent.IsPoisoned(player_agent_id)
-        is_low_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.49
-        is_extreme_low_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.35
-        is_emergency_health = GLOBAL_CACHE.Agent.GetHealth(player_agent_id) <= 0.2
+        is_poisoned = Agent.IsPoisoned(player_agent_id)
+        is_low_health = Agent.GetHealth(player_agent_id) <= 0.49
+        is_extreme_low_health = Agent.GetHealth(player_agent_id) <= 0.35
+        is_emergency_health = Agent.GetHealth(player_agent_id) <= 0.2
 
         # Some checks to ensure Shadow Sanctuary is used optimally
         if is_ss_ready and ((is_poisoned and is_low_health) or is_extreme_low_health):
@@ -225,7 +225,7 @@ class SF_Assassin_Barbarous(BuildMgr):
                 continue
             
             # Player is dead
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
 
@@ -291,7 +291,7 @@ class SF_Assassin_Barbarous(BuildMgr):
     #     SPELLCAST_RANGE = 1248.0
     #     px, py = GLOBAL_CACHE.Player.GetXY()
     #     pz = Overlay().FindZ(px, py)
-    #     heading = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
+    #     heading = Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
     #     facing_vec = (math.cos(heading), math.sin(heading))
 
     #     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, max_distance=SPELLCAST_RANGE)
@@ -302,10 +302,10 @@ class SF_Assassin_Barbarous(BuildMgr):
     #     best_30deg_dist = -1
 
     #     for enemy in enemy_array:
-    #         if GLOBAL_CACHE.Agent.IsDead(enemy):
+    #         if Agent.IsDead(enemy):
     #             continue
 
-    #         ex, ey = GLOBAL_CACHE.Agent.GetXY(enemy)
+    #         ex, ey = Agent.GetXY(enemy)
     #         enemy_vec = (ex - px, ey - py)
     #         dist = math.hypot(enemy_vec[0], enemy_vec[1])
     #         angle = angle_between_player_and_enemy(facing_vec, enemy_vec)
@@ -325,7 +325,7 @@ class SF_Assassin_Barbarous(BuildMgr):
     #         ConsoleLog(self.build_name, "Deaths Charge Handler ::: No valid target in 15° or 30° cone → skip", Py4GW.Console.MessageType.Debug)
     #         return
 
-    #     ex, ey = GLOBAL_CACHE.Agent.GetXY(best_target)
+    #     ex, ey = Agent.GetXY(best_target)
     #     ez = Overlay().FindZ(ex, ey)
     #     target_dist = math.hypot(ex - px, ey - py)
     #     ConsoleLog(

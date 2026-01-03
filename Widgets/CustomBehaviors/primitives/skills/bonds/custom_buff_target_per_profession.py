@@ -3,7 +3,7 @@ from enum import IntEnum
 from typing import Callable, override
 
 import PyImGui
-from Py4GWCoreLib import GLOBAL_CACHE, ImGui
+from Py4GWCoreLib import GLOBAL_CACHE, ImGui, Agent
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.enums import Profession, Range
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
@@ -71,7 +71,9 @@ class BuffConfigurationPerProfession(CustomBuffTarget):
         return False
 
     def __should_apply_effect_on_agent_id(self, agent_id: int, profession: Profession) -> bool:
-        profession_id: int = GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0]
+        profession_id: int | None= Agent.GetProfessionIDs(agent_id)[0]
+        if profession_id is None:
+            return False
 
         if profession_id != profession.value:
             return False

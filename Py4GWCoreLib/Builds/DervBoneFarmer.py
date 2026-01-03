@@ -11,6 +11,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Skill
 from Py4GWCoreLib import SpiritModelID
 from Py4GWCoreLib import Weapon
+from Py4GWCoreLib import Agent
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
 
 ENEMY_BLACKLIST = {SpiritModelID.BLOODSONG, SpiritModelID.DESTRUCTION, AgentModelID.CHARR_AXEMASTER}
@@ -63,12 +64,12 @@ class DervBoneFarmer(BuildMgr):
         self.attacking = False
 
     def swap_to_scythe(self):
-        if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
+        if Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
             Keystroke.PressAndRelease(Key.F1.value)
             yield
 
     def swap_to_shield_set(self):
-        if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] == Weapon.Scythe:
+        if Agent.GetWeaponType(Player.GetAgentID())[0] == Weapon.Scythe:
             Keystroke.PressAndRelease(Key.F2.value)
             yield from Routines.Yield.wait(750)
 
@@ -154,7 +155,7 @@ class DervBoneFarmer(BuildMgr):
 
             px, py = GLOBAL_CACHE.Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Spellcast.value)
-            filtered_enemy_array = [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
+            filtered_enemy_array = [agent_id for agent_id in enemy_array if Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
 
             if filtered_enemy_array:
                 nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)

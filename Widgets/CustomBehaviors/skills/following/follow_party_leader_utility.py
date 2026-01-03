@@ -7,7 +7,7 @@ from typing import Any, Generator, override
 import PyImGui
 
 from HeroAI.types import PlayerStruct
-from Py4GWCoreLib import GLOBAL_CACHE, Party, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -69,10 +69,10 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
         all_player_struct:list[PlayerStruct] = cached_data.HeroAI_vars.all_player_struct
         if all_player_struct[party_number].IsFlagged: return None
 
-        party_leader_position:tuple[float, float] = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        party_leader_position:tuple[float, float] = Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
         max_distance_to_party_leader = self._get_max_distance_to_party_leader(current_state)
 
-        party_leader_rotation_angle = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        party_leader_rotation_angle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
         is_party_leader_angle_changed = False
         if self.old_angle != party_leader_rotation_angle:
             is_party_leader_angle_changed = True
@@ -120,8 +120,8 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
 
     def _get_position_near_leader(self, current_state) -> tuple[float, float]:
 
-        follow_x, follow_y = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
-        follow_angle = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        follow_x, follow_y = Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        follow_angle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
 
         hero_grid_pos = party_number # + cached_data.data.party_hero_count + cached_data.data.party_henchman_count

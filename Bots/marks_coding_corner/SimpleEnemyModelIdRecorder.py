@@ -34,12 +34,12 @@ def record_current_enemies():
 
     added = 0
     for agent_id in enemy_agent_ids:
-        agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
+        agent = Agent.GetAgentByID(agent_id)
         if not agent or agent.agent_id == 0:
             continue
 
-        name = GLOBAL_CACHE.Agent.GetName(agent.agent_id)
-        model_id = GLOBAL_CACHE.Agent.GetModelID(agent.agent_id)
+        name = Agent.GetNameByID(agent.agent_id)
+        model_id = Agent.GetModelID(agent.agent_id)
         if not name:
             continue
 

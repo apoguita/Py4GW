@@ -80,7 +80,7 @@ def farm(bot):
             break  # all enemies dead
 
         # Death check
-        if GLOBAL_CACHE.Agent.IsDead(player_id):
+        if Agent.IsDead(player_id):
             # handle death here
             ConsoleLog(COF_FARMER, 'Died fighting, setting back to [Wait], dont block going to outpost')
             bot.config.build_handler.status = DervBuildFarmStatus.Wait
@@ -115,7 +115,7 @@ def loot_items():
 def get_enemy_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
+    return [agent_id for agent_id in enemy_array if Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
 
 
 def reset_looted_areas():
@@ -262,7 +262,7 @@ def cof_farm_bot(bot: Botting):
     bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
     bot.Party.Resign()
     bot.Wait.ForTime(60000)
-    bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
+    bot.Wait.UntilCondition(lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
 
 bot.SetMainRoutine(cof_farm_bot)

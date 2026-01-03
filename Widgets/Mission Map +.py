@@ -14,6 +14,7 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Rarity
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Map
+from Py4GWCoreLib import Agent
 
 from typing import Union
 import math
@@ -141,17 +142,17 @@ def FloatingSlider(caption, value,x,y,min_value, max_value, color:Color):
     PyImGui.pop_style_color(1)
     return result
 
-def RawGamePosToScreen(x:float, y:float, zoom:float, zoom_offset:float, left_bound:float, top_bound:float, boundaries:list[float],
+def RawGamePosToScreen(x:float, y:float, zoom:float, zoom_offset:float, left_bound:float, top_bound:float, boundaries:tuple[float, float, float, float],
                        pan_offset_x:float, pan_offset_y:float, scale_x:float, scale_y:float,
                        mission_map_screen_center_x:float, mission_map_screen_center_y:float) -> tuple[float, float]:
 
     global GWINCHES
 
-    if len(boundaries) < 5:
+    if len(boundaries) < 4:
         return 0.0, 0.0  # fail-safe
 
-    min_x = boundaries[1]
-    max_y = boundaries[4]
+    min_x = boundaries[0]
+    max_y = boundaries[3]
 
     # Step 3: Compute origin on the world map based on boundary distances
     origin_x = left_bound + abs(min_x) / GWINCHES
@@ -175,17 +176,17 @@ def RawGamePosToScreen(x:float, y:float, zoom:float, zoom_offset:float, left_bou
     return screen_x, screen_y
 
 def RawScreenToRawGamePos(screen_x: float, screen_y: float, zoom: float, zoom_offset: float,
-                       left_bound: float, top_bound: float, boundaries: list[float],
+                       left_bound: float, top_bound: float, boundaries: tuple[float, float, float, float],
                        pan_offset_x: float, pan_offset_y: float,
                        scale_x: float, scale_y: float,
                        mission_map_screen_center_x: float, mission_map_screen_center_y: float) -> tuple[float, float]:
     global GWINCHES
 
-    if len(boundaries) < 5:
+    if len(boundaries) < 4:
         return 0.0, 0.0  # fail-safe
 
-    min_x = boundaries[1]
-    max_y = boundaries[4]
+    min_x = boundaries[0]
+    max_y = boundaries[3]
 
     # Compute origin same as before
     origin_x = left_bound + abs(min_x) / GWINCHES
@@ -667,7 +668,7 @@ class MissionMap:
         self.last_click_x = 0
         self.last_click_y = 0
         
-        self.boundaries = []
+        self.boundaries:tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
         self.geometry = []
         self.renderer = DXOverlay()
         self.mega_zoom_renderer = DXOverlay()
@@ -723,7 +724,7 @@ class MissionMap:
         self.throttle_timer.Reset()    
         self.mission_map_instance.GetContext()
         if not self.geometry:
-            self.boundaries = Map.map_instance().map_boundaries
+            self.boundaries = Map.GetMapBoundaries()
             self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
             
             self.geometry = Map.Pathing.GetComputedGeometry()
@@ -976,7 +977,7 @@ def DrawFrame():
             level = agent.living_agent.level
             if level > 1:
                 #agent_name = mission_map.raw_agent_array_handler.get_name(agent.id)  if mission_map.raw_agent_array_handler is not None else ""
-                agent_name = GLOBAL_CACHE.Agent.GetName(agent.id)
+                agent_name = Agent.GetNameByID(agent.id)
                 if "MERCHANT" in agent_name.upper():
                     marker = mission_map.merchant_marker
                 else:
@@ -990,7 +991,7 @@ def DrawFrame():
         x,y = _get_agent_xy(agent)
         if agent.is_gadget:
             rotation_angle = agent.rotation_angle
-            gadget_id = GLOBAL_CACHE.Agent.GetGadgetID(agent.id)
+            gadget_id = Agent.GetGadgetID(agent.id)
             if gadget_id in CHEST_GADGET_IDS:
                 marker = mission_map.chest_marker
             else:

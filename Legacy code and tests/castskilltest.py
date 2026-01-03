@@ -54,7 +54,7 @@ class OutpostRunnerDA:
             if not Routines.Checks.Map.MapValid():
                 yield from Routines.Yield.wait(1000)
                 continue
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
             if not Routines.Checks.Skills.CanCast():
@@ -66,13 +66,13 @@ class OutpostRunnerDA:
             player_pos = GLOBAL_CACHE.Player.GetXY()
             px, py = player_pos[0], player_pos[1]
             # Unit vector for player's facing direction (to evaluate front/back for targeting)
-            facing_angle = GLOBAL_CACHE.Agent.GetRotationAngle(player_id)
+            facing_angle = Agent.GetRotationAngle(player_id)
             facing_vector = (math.cos(facing_angle), math.sin(facing_angle))
 
             # **1. Anti-Cripple:** Use "I Am Unstoppable!" immediately if crippled
             if Routines.Checks.Effects.HasBuff(player_id, self.i_am_unstoppable) is False:
                 # Check if player has "Crippled" condition (implementation dependent)
-                if  GLOBAL_CACHE.Agent.IsCrippled(player_id):
+                if  Agent.IsCrippled(player_id):
                     ConsoleLog(self.name, "Crippled! Using 'I Am Unstoppable!'", 
                                Py4GW.Console.MessageType.Info, log=False)
                     if Routines.Yield.Skills.CastSkillID(self.i_am_unstoppable, log=False, aftercast_delay=100):
@@ -86,7 +86,7 @@ class OutpostRunnerDA:
                 enemies_near = Routines.Agents.GetFilteredEnemyArray(px, py, 1500.0)
                 caster_found = False
                 for eid in enemies_near:
-                    if GLOBAL_CACHE.Agent.IsAlive(eid) and not GLOBAL_CACHE.Agent.IsMartial(eid):
+                    if Agent.IsAlive(eid) and not Agent.IsMartial(eid):
                         # Found an enemy that is likely a caster (not a martial attacker)
                         caster_found = True
                         break
@@ -98,7 +98,7 @@ class OutpostRunnerDA:
                         continue
 
             # **3. Emergency Defense:** Shroud of Distress if HP < 60% and not already active
-            if GLOBAL_CACHE.Agent.GetHealth(player_id) < 0.60:
+            if Agent.GetHealth(player_id) < 0.60:
                 has_shroud = Routines.Checks.Effects.HasBuff(player_id, self.shroud_of_distress)
                 if not has_shroud and Routines.Checks.Skills.IsSkillSlotReady(self.shroud_slot):
                     ConsoleLog(self.name, "Health low! Casting Shroud of Distress.", 
@@ -142,7 +142,7 @@ class OutpostRunnerDA:
             # Count alive hostiles in close proximity
             close_count = 0
             for eid in close_enemies:
-                if GLOBAL_CACHE.Agent.IsAlive(eid) and GLOBAL_CACHE.Player.GetAgentID() != eid:
+                if Agent.IsAlive(eid) and GLOBAL_CACHE.Player.GetAgentID() != eid:
                     # Only count distinct living enemies
                     close_count += 1
                     if close_count >= 3:
@@ -153,9 +153,9 @@ class OutpostRunnerDA:
                 max_distance = 0.0
                 enemies_in_area = Routines.Agents.GetFilteredEnemyArray(px, py, 1500.0)
                 for eid in enemies_in_area:
-                    if not GLOBAL_CACHE.Agent.IsAlive(eid):
+                    if not Agent.IsAlive(eid):
                         continue
-                    ex, ey = GLOBAL_CACHE.Agent.GetXY(eid)
+                    ex, ey = Agent.GetXY(eid)
                     to_enemy_vec = (ex - px, ey - py)
                     # Check if enemy is generally in front (cosine > 0 means < 90° ahead)
                     if vector_cos(facing_vector, to_enemy_vec) > 0:
@@ -181,9 +181,9 @@ class OutpostRunnerDA:
                 most_behind_val = 1.0  # looking for lowest cosine (most behind, approaching -1)
                 enemies_around = Routines.Agents.GetFilteredEnemyArray(px, py, 1000.0)
                 for eid in enemies_around:
-                    if not GLOBAL_CACHE.Agent.IsAlive(eid):
+                    if not Agent.IsAlive(eid):
                         continue
-                    ex, ey = GLOBAL_CACHE.Agent.GetXY(eid)
+                    ex, ey = Agent.GetXY(eid)
                     to_enemy_vec = (ex - px, ey - py)
                     cos_angle = vector_cos(facing_vector, to_enemy_vec)
                     if cos_angle < most_behind_val:

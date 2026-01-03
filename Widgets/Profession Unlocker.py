@@ -67,7 +67,7 @@ class ProUnlockWindow(BasicWindow):
                 Agent.RequestName(agent_id)
                 self.requested_name = True
             if Agent.IsNameReady(agent_id):
-                self.cached_character_name = Agent.GetName(agent_id)
+                self.cached_character_name = Agent.GetNameByID(agent_id)
             return self.cached_character_name if self.cached_character_name else "(loading...)"
         except Exception:
             return "(unknown)"

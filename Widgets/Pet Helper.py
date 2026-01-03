@@ -4,6 +4,7 @@ from Py4GWCoreLib import Timer
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import RawAgentArray
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Agent
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Color
@@ -58,14 +59,14 @@ class Global_Vars:
         players_dead = {player: False for player in players}
         wipe = False
         all_dead = True
-        if GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) == 1.0 or GLOBAL_CACHE.Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) == 1.0 or Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID()):
             if not self.wipe_log:
                 self.wipe_log = True
 
         if len(players) >= 1:
             for player in players:
                 player_agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-                if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.001 or GLOBAL_CACHE.Agent.IsDead(player_agent_id):
+                if Agent.GetHealth(player_agent_id) < 0.001 or Agent.IsDead(player_agent_id):
                     players_dead[player] = True
 
             for player in players_dead:
@@ -84,7 +85,7 @@ class Global_Vars:
         self.player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
         self.pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(self.player_agent_id)
 
-        if not GLOBAL_CACHE.Agent.IsValid(self.pet_id):
+        if not Agent.IsValid(self.pet_id):
             return
 
         self.title_frame_id =  UIManager.GetChildFrameID(self.title_frame_parent_hash, self.title_frame_offsets)
@@ -99,31 +100,31 @@ class Global_Vars:
             self.pet_target_id = GLOBAL_CACHE.Party.Pets.GetPetInfo(self.player_agent_id).locked_target_id
             self.pet_bahavior = GLOBAL_CACHE.Party.Pets.GetPetInfo(self.player_agent_id).behavior
             
-        if GLOBAL_CACHE.Agent.IsDead(global_vars.pet_target_id):
+        if Agent.IsDead(global_vars.pet_target_id):
             self.pet_target_id = 0
             
         self.party_target_id = Routines.Agents.GetPartyTargetID()
-        _, alliegance = GLOBAL_CACHE.Agent.GetAllegiance(self.party_target_id)
+        _, alliegance = Agent.GetAllegiance(self.party_target_id)
         if not (alliegance == "Enemy"):
             self.party_target_id = 0
             
-        if GLOBAL_CACHE.Agent.GetHealth(self.party_target_id) < 1.0:
-            if GLOBAL_CACHE.Agent.GetHealth(self.party_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
+        if Agent.GetHealth(self.party_target_id) < 1.0:
+            if Agent.GetHealth(self.party_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
                 self.party_target_id = 0
 
-        if GLOBAL_CACHE.Agent.IsDead(self.party_target_id):
+        if Agent.IsDead(self.party_target_id):
             self.party_target_id = 0
         
         self.owner_target_id = GLOBAL_CACHE.Player.GetTargetID()
-        _, alliegance = GLOBAL_CACHE.Agent.GetAllegiance(self.owner_target_id)
+        _, alliegance = Agent.GetAllegiance(self.owner_target_id)
         if not (alliegance == "Enemy"):
             self.owner_target_id = 0
 
-        if GLOBAL_CACHE.Agent.GetHealth(self.owner_target_id) < 1.0:
-            if GLOBAL_CACHE.Agent.GetHealth(self.owner_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
+        if Agent.GetHealth(self.owner_target_id) < 1.0:
+            if Agent.GetHealth(self.owner_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
                 self.owner_target_id = 0
 
-        if GLOBAL_CACHE.Agent.IsDead(self.owner_target_id):
+        if Agent.IsDead(self.owner_target_id):
             self.owner_target_id = 0
 
         if self.wipe():
@@ -133,14 +134,14 @@ class Global_Vars:
         self.agent_array.update()
         if self.pet_name == "":
             #self.pet_name = self.agent_array.get_name(self.pet_id).replace("Pet - ", "")
-            self.pet_name = GLOBAL_CACHE.Agent.GetName(self.pet_id).replace("Pet - ", "")
+            self.pet_name = Agent.GetNameByID(self.pet_id).replace("Pet - ", "")
         if self.player_name == "":
             #self.player_name = self.agent_array.get_name(self.player_agent_id)
-            self.player_name = GLOBAL_CACHE.Agent.GetName(self.player_agent_id)
+            self.player_name = Agent.GetNameByID(self.player_agent_id)
         #self.party_target_name = self.agent_array.get_name(self.party_target_id)
-        self.party_target_name = GLOBAL_CACHE.Agent.GetName(self.party_target_id)
+        self.party_target_name = Agent.GetNameByID(self.party_target_id)
         #self.owner_target_name = self.agent_array.get_name(self.owner_target_id)
-        self.owner_target_name = GLOBAL_CACHE.Agent.GetName(self.owner_target_id)
+        self.owner_target_name = Agent.GetNameByID(self.owner_target_id)
 
 global_vars = Global_Vars()
 

@@ -93,7 +93,7 @@ def CheckCrippleKDanger(x, y):
     far_enemies = Routines.Agents.GetFilteredEnemyArray(x, y, max_distance=2000.0)
 
     for enemy_id in close_enemies:
-        model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+        model_id = Agent.GetModelID(enemy_id)
         if model_id in cripple_kd_models:
             enemy_category = EnemyCategoryFromModelID(model_id)
             Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
@@ -101,7 +101,7 @@ def CheckCrippleKDanger(x, y):
             return True
 
     for enemy_id in far_enemies:
-        model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+        model_id = Agent.GetModelID(enemy_id)
         if model_id in tundra_giant_ids:
             enemy_category = EnemyCategoryFromModelID(model_id)
             Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
@@ -132,7 +132,7 @@ def CheckSpellcasterDanger(custom_distance=2000):
     nearby_enemies = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance=2000.0)
     special_caster_found = False
     for enemy_id in nearby_enemies:
-        model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+        model_id = Agent.GetModelID(enemy_id)
         if model_id in special_casters:
             special_caster_found = True
             break

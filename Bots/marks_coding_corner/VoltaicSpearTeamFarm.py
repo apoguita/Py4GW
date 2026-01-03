@@ -15,7 +15,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import LootConfig
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Agent
 
 from Py4GWCoreLib import ChatChannel
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import AssassinShadowTheftDaggerSpammer
@@ -92,15 +92,15 @@ at_final_chest = False
 
 
 def _on_party_wipe(bot: "Botting"):
-    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-        yield from bot.helpers.Wait._for_time(1000)
+    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid → release FSM and exit
             bot.config.FSM.resume()
             return
 
     ConsoleLog("Res Check", "We ressed retrying!")
-    yield from bot.helpers.Wait._for_time(3000)
+    yield from bot.Wait._coro_for_time(3000)
     player_x, player_y = GLOBAL_CACHE.Player.GetXY()
     shrine_2_x, shrine_2_y = (-18673, -7701)
 
@@ -111,7 +111,7 @@ def _on_party_wipe(bot: "Botting"):
     # Check if within earshot
     if Map.GetMapID() == JUSTICIAR_THOMMIS_ROOM_MAP_ID:
         if GLOBAL_CACHE.Party.IsPartyDefeated():
-            yield from bot.helpers.Wait._for_time(10000)
+            yield from bot.Wait._coro_for_time(10000)
             bot.config.FSM.jump_to_state_by_name("[H]Exit To Farm_3")
             bot.config.FSM.resume()
             return
@@ -124,7 +124,7 @@ def _on_party_wipe(bot: "Botting"):
             bot.config.FSM.jump_to_state_by_name("[H]Justiciar Tommis pt1_6")
     else:
         bot.Multibox.ResignParty()
-        yield from bot.helpers.Wait._for_time(10000)  # Allow the widget to take the party back to town
+        yield from bot.Wait._coro_for_time(10000)  # Allow the widget to take the party back to town
         bot.config.FSM.jump_to_state_by_name("[H]Exit To Farm_3")
     bot.config.FSM.resume()
     return
@@ -271,7 +271,7 @@ def handle_on_danger_flagging(bot: Botting):
         nearest_enemy_dist_sq = float("inf")
 
         for agent_id in enemy_agent_ids:
-            agent = GLOBAL_CACHE.Agent.GetAgentByID(agent_id)
+            agent = Agent.GetAgentByID(agent_id)
             if agent is None or not agent.is_living_type:
                 continue    
             dx, dy = agent.pos.x - player_x, agent.pos.y - player_y
@@ -372,7 +372,7 @@ def setup_hero_ai_and_custom_builds(bot: Botting):
         yield
         return
 
-    primary_profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary_profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if primary_profession != "Assassin" and use_assassin_skillbar:
         GLOBAL_CACHE.Player.SendFakeChat(
             ChatChannel.CHANNEL_WARNING, "You are not allowed to use this skill bar! Not Assassin main"

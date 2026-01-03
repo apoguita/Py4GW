@@ -128,7 +128,7 @@ class BuildDangerHelper:
 
         # Check close-range enemies first
         for enemy_id in close_enemies:
-            model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+            model_id = Agent.GetModelID(enemy_id)
             if model_id in self.cripple_kd_models:
                 enemy_category = self.enemy_category_from_model_id(model_id)
                 Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
@@ -141,7 +141,7 @@ class BuildDangerHelper:
        
         # Check far-range enemies for extreme-range models
         for enemy_id in far_enemies:
-            model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+            model_id = Agent.GetModelID(enemy_id)
             if model_id in self.extreme_kd_range_models:
                 enemy_category = self.enemy_category_from_model_id(model_id)
                 Player.SendFakeChat(ChatChannel.CHANNEL_WARNING, f"Cripple/KD danger - {enemy_category} spotted!")
@@ -179,7 +179,7 @@ class BuildDangerHelper:
         
         # Check nearby enemies against specific provided spellcaster models
         for enemy_id in nearby_enemies:
-            model_id = GLOBAL_CACHE.Agent.GetModelID(enemy_id)
+            model_id = Agent.GetModelID(enemy_id)
             if model_id in self.spellcaster_models:
                 special_caster_found = True
                 break

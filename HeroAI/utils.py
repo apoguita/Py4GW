@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Map
+from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Map, Agent
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from .constants import MAX_NUM_PLAYERS
 from .targeting import *
@@ -13,7 +13,7 @@ def SameMapAsAccount(account : AccountData):
     return own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
 
 def DistanceFromLeader(cached_data:CacheData):
-    return Utils.Distance(GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+    return Utils.Distance(Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
 
 def DistanceFromWaypoint(posX,posY):
     distance = Utils.Distance((posX,posY), GLOBAL_CACHE.Player.GetXY())
@@ -33,8 +33,8 @@ def CheckForEffect(agent_id, skill_id):
             if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
                 return True
             
-        allegiance , _ = GLOBAL_CACHE.Agent.GetAllegiance(agent_id)
-        if allegiance == Allegiance.SpiritPet.value and not GLOBAL_CACHE.Agent.IsSpawned(agent_id):
+        allegiance , _ = Agent.GetAllegiance(agent_id)
+        if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
             return True
         
         return False

@@ -1,7 +1,7 @@
 import Py4GW
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import ImGui, PyImGui
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import ModelID, TitleID
 from Py4GWCoreLib import ItemArray
@@ -250,7 +250,7 @@ def IsSkillBarLoaded():
     global bot_variables
     global skillbar
 
-    primary_profession, secondary_profession = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary_profession, secondary_profession = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     if ((primary_profession == "Assassin" and secondary_profession != "Mesmer")):
 
         ConsoleLog(IsSkillBarLoaded, f"This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error, log=True)
@@ -419,7 +419,7 @@ def filter_items_to_deposit():
 def player_is_dead_or_map_loading(destination_map_id=0):
     if Map.IsMapLoading():
         return True
-    if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         return True
     
     if Map.GetMapID() == destination_map_id:
@@ -428,10 +428,10 @@ def player_is_dead_or_map_loading(destination_map_id=0):
 
     
 def player_is_dead():
-    return GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+    return Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
 
 def handle_death():
-    if (GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()) or not bot_variables.config.is_script_running):
+    if (Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()) or not bot_variables.config.is_script_running):
         ConsoleLog(MODULE_NAME, f"Player is dead while traversing {Map.GetMapName(Map.GetMapID())} . Reseting Environment.", Py4GW.Console.MessageType.Error, log=bot_variables.config.log_to_console)
         return True
     return False
@@ -458,7 +458,7 @@ def handle_return_inventory_check():
 def GetNotHexedEnemy():
     player_pos = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id:not GLOBAL_CACHE.Agent.IsHexed(agent_id))
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id:not Agent.IsHexed(agent_id))
     if len(enemy_array) == 0:
         return 0
     
@@ -613,7 +613,7 @@ def Handle_Stuck():
         restart_due_to_stuck()
 
     # Detect and handle non-movement
-    if not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
+    if not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
         handle_non_movement()
     else:
         handle_player_movement()
@@ -677,7 +677,7 @@ def RunBotSequentialLogic():
         bjora_marches = Map.GetMapIDByName("Bjora Marches")
         jaga_moraine = Map.GetMapIDByName("Jaga Moraine")
         
-        primary_profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        primary_profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
         
         if not bot_variables.config.reset_from_jaga_moraine:
             ConsoleLog(MODULE_NAME, "Entering Longeyes Ledge", Py4GW.Console.MessageType.Info, log=log_to_console)
@@ -855,7 +855,7 @@ def BjoraMarchesSkillCasting():
         return 
         
     #if were hurt, we need to cast shroud of distress 
-    if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
+    if Agent.GetHealth(player_agent_id) < 0.45:
         # ** Cast Shroud of Distress **
         if (yield from Routines.Yield.Skills.CastSkillID(shroud_of_distress, log=log_to_console, aftercast_delay=1250)):
             return
@@ -902,7 +902,7 @@ def JagaMoraineSkillCasting():
             return
                 
     #if were hurt, we need to cast shroud of distress 
-    if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
+    if Agent.GetHealth(player_agent_id) < 0.45:
         ConsoleLog(MODULE_NAME, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=log_to_console)
         # ** Cast Shroud of Distress **
         if (yield from Routines.Yield.Skills.CastSkillID(shroud_of_distress, log =log_to_console, aftercast_delay=1250)):
@@ -924,7 +924,7 @@ def JagaMoraineSkillCasting():
         
     # ** Heart of Shadow to Stay Alive or to get out of stuck**
     if not bot_variables.config.in_killing_routine:
-        if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.35 or bot_variables.config.stuck_count > 0:
+        if Agent.GetHealth(player_agent_id) < 0.35 or bot_variables.config.stuck_count > 0:
             if bot_variables.config.pause_stuck_routine:
                 yield from Routines.Yield.Agents.ChangeTarget(player_agent_id)
             else:
@@ -1126,7 +1126,7 @@ def main():
             bot_variables.config.stuck_count = 0
             return
             
-        if not Routines.Checks.Skills.InCastingProcess() and not GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID()):  
+        if not Routines.Checks.Skills.InCastingProcess() and not Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID()):  
             if bot_variables.config.is_script_running:
                 for coro in GLOBAL_CACHE.Coroutines[:]:
                     try:

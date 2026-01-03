@@ -12,6 +12,7 @@ from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Weapon
+from Py4GWCoreLib import Agent
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
 
 
@@ -61,12 +62,12 @@ class DervDustFarmer(BuildMgr):
         self.spiking = False
 
     def swap_to_scythe(self):
-        if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
+        if Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
             Keystroke.PressAndRelease(Key.F1.value)
             yield
 
     def swap_to_shield_set(self):
-        if GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[0] == Weapon.Scythe:
+        if Agent.GetWeaponType(Player.GetAgentID())[0] == Weapon.Scythe:
             Keystroke.PressAndRelease(Key.F2.value)
             yield from Routines.Yield.wait(750)
 
@@ -74,7 +75,7 @@ class DervDustFarmer(BuildMgr):
         if not agent_id:
             return False
 
-        if GLOBAL_CACHE.Agent.GetModelID(agent_id) == model_id:
+        if Agent.GetModelID(agent_id) == model_id:
             return True
         return False
 
@@ -118,7 +119,7 @@ class DervDustFarmer(BuildMgr):
         if self.status == DervBuildFarmStatus.Setup:
             yield from self.swap_to_shield_set()
             self.spiked = False
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and GLOBAL_CACHE.Agent.IsMoving(
+            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and Agent.IsMoving(
                 GLOBAL_CACHE.Player.GetAgentID()
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
@@ -128,7 +129,7 @@ class DervDustFarmer(BuildMgr):
         has_dwarven_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
         has_mystic_regen = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_regen)
         has_mystic_vigor = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_vigor)
-        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
 
         if (
             (yield from Routines.Yield.Skills.IsSkillIDUsable(self.mystic_vigor))
@@ -161,7 +162,7 @@ class DervDustFarmer(BuildMgr):
             if (
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
                 and has_dwarven_stability
-                and GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
+                and Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
                 return
@@ -172,7 +173,7 @@ class DervDustFarmer(BuildMgr):
 
         if self.status == DervBuildFarmStatus.Kill:
             player_pos = GLOBAL_CACHE.Player.GetXY()
-            player_current_energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id) * GLOBAL_CACHE.Agent.GetMaxEnergy(
+            player_current_energy = Agent.GetEnergy(player_agent_id) * Agent.GetMaxEnergy(
                 player_agent_id
             )
             remaining_enemies = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Earshot.value)
@@ -181,7 +182,7 @@ class DervDustFarmer(BuildMgr):
             if next_target:
                 yield from self.swap_to_scythe()
                 if self.is_target_correct_model_id(next_target, AgentModelID.SPINED_ALOE):
-                    agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(next_target)
+                    agent_x, agent_y = Agent.GetXY(next_target)
                     player_x, player_y = GLOBAL_CACHE.Player.GetXY()
 
                     # === Step 1: Calculate vector from player -> target ===

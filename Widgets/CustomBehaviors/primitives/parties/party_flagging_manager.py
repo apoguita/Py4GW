@@ -6,7 +6,7 @@ Manages flag positions for up to 12 party members.
 
 import math
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Agent
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 class PartyFlaggingManager:
@@ -90,7 +90,7 @@ class PartyFlaggingManager:
             # Get leader position and angle
             leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
             leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+            leader_angle = Agent.GetRotationAngle(leader_agent_id)
 
             # Get all party members (excluding leader)
             account_email = GLOBAL_CACHE.Player.GetAccountEmail()
@@ -508,7 +508,7 @@ class PartyFlaggingManager:
         # Get leader position and angle
         leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
         leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+        leader_angle = Agent.GetRotationAngle(leader_agent_id)
 
         # Get all party members (excluding leader)
         account_email = GLOBAL_CACHE.Player.GetAccountEmail()

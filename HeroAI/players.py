@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from .constants import MAX_NUM_PLAYERS
 from .cache_data import CacheData
 
@@ -9,8 +9,8 @@ def RegisterPlayer(cached_data:CacheData):
         return False
 
     cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "PlayerID", GLOBAL_CACHE.Player.GetAgentID())
-    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "Energy_Regen", GLOBAL_CACHE.Agent.GetEnergyRegen(GLOBAL_CACHE.Player.GetAgentID()))
-    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "Energy", GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID()))
+    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "Energy_Regen", Agent.GetEnergyRegen(GLOBAL_CACHE.Player.GetAgentID()))
+    cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "Energy", Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID()))
     cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "IsActive", True)
     cached_data.HeroAI_vars.shared_memory_handler.set_player_property(GLOBAL_CACHE.Party.GetOwnPartyNumber(), "IsHero", False)
 
@@ -21,10 +21,10 @@ def RegisterHeroes(cached_data:CacheData):
     for index, hero in enumerate(GLOBAL_CACHE.Party.GetHeroes()):
         hero_party_number = GLOBAL_CACHE.Party.GetPlayerCount() + index
         agent_id = hero.agent_id
-        if hero.owner_player_id == GLOBAL_CACHE.Agent.GetLoginNumber(GLOBAL_CACHE.Player.GetAgentID()): 
+        if hero.owner_player_id == Agent.GetLoginNumber(GLOBAL_CACHE.Player.GetAgentID()): 
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "PlayerID", agent_id)
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy_Regen", GLOBAL_CACHE.Agent.GetEnergyRegen(agent_id))
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy", GLOBAL_CACHE.Agent.GetEnergy(agent_id))
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy_Regen", Agent.GetEnergyRegen(agent_id))
+            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "Energy", Agent.GetEnergy(agent_id))
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "IsActive", True)
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(hero_party_number, "IsHero", True)
 

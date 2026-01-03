@@ -2,7 +2,7 @@ from functools import wraps
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib import ConsoleLog, Console
+from Py4GWCoreLib import ConsoleLog, Console, Agent
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingHelpers
@@ -44,7 +44,7 @@ class _Upkeepers:
                 self.cancel_movement_triggered = False
             
             if (self.parent.config.pause_on_danger_fn() and 
-                GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()) and
+                Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()) and
                 not self.cancel_movement_triggered):
                 yield from Routines.Yield.Movement.StopMovement()
                 self.cancel_movement_triggered = True

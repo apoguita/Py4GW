@@ -6,7 +6,7 @@ import Py4GW
 import PyUIManager
 
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE, Player, Map
+from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import Console
@@ -394,7 +394,7 @@ def InteractWithTarget(index, message):
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
@@ -425,7 +425,7 @@ def TakeDialogWithTarget(index, message):
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
@@ -461,7 +461,7 @@ def SendDialogToTarget(index, message):
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
@@ -509,7 +509,7 @@ def GetBlessing(index, message):
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-        x, y = GLOBAL_CACHE.Agent.GetXY(target)
+        x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
@@ -626,7 +626,7 @@ def DonateToGuild(index, message):
 
     # --- Move to NPC ---
     px, py = GLOBAL_CACHE.Player.GetXY()
-    z = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+    z = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
     try:
         path3d = yield from AutoPathing().get_path(
             (px, py, z), (npc_pos[0], npc_pos[1], z), smooth_by_los=True, margin=100.0, step_dist=500.0
@@ -690,12 +690,12 @@ def OpenChest(index, message):
             ConsoleLog(MODULE_NAME, "No lockpicks available, halting.", Console.MessageType.Warning)
             return
             
-        if not GLOBAL_CACHE.Agent.IsValid(chest_id):
+        if not Agent.IsValid(chest_id):
             return
                 
         yield from DisableHeroAIOptions(email_owner)
         yield from Routines.Yield.wait(100)
-        x, y = GLOBAL_CACHE.Agent.GetXY(chest_id)
+        x, y = Agent.GetXY(chest_id)
         ConsoleLog(MODULE_NAME, f"Moving to chest at ({x}, {y})", Console.MessageType.Info)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
@@ -749,7 +749,7 @@ def OpenChest(index, message):
                             account.MapLanguage == map_language)
                 
                 all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.PartyPosition > account_data.PartyPosition]
-                chest_pos = GLOBAL_CACHE.Agent.GetXY(chest_id)
+                chest_pos = Agent.GetXY(chest_id)
                                 
                 sorted_by_party_index = sorted(
                     [acc for acc in all_accounts if Utils.Distance((acc.PlayerPosX, acc.PlayerPosY), chest_pos) < 2500.0], 
@@ -825,11 +825,11 @@ def PickUpLoot(index, message):
                 ActionQueueManager().ResetAllQueues()
                 return
 
-            if not GLOBAL_CACHE.Agent.IsValid(item_id):
+            if not Agent.IsValid(item_id):
                 yield from Routines.Yield.wait(100)
                 continue
 
-            pos = GLOBAL_CACHE.Agent.GetXY(item_id)
+            pos = Agent.GetXY(item_id)
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=10000)
             if not follow_success:
                 LootConfig().AddItemIDToBlacklist(item_id)

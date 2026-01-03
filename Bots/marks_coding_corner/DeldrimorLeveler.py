@@ -36,7 +36,7 @@ def wait_until_item_looted(item_name: str, timeout_ms: int):
         item_array = AgentArray.GetItemArray()
         item_array = AgentArray.Filter.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY(), Range.Spirit.value)
         for item_id in item_array:
-            name = GLOBAL_CACHE.Agent.GetName(item_id)
+            name = Agent.GetNameByID(item_id)
             # print(f"item {name}")
 
             # Clean both strings to remove non-printable characters (like NULL bytes) and whitespace
@@ -59,7 +59,7 @@ def wait_until_item_looted(item_name: str, timeout_ms: int):
             continue
 
         # LOOT
-        pos = GLOBAL_CACHE.Agent.GetXY(item_id)
+        pos = Agent.GetXY(item_id)
         follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6000)
         if not follow_success:
             print("Failed to follow path to loot item, next attempt.")

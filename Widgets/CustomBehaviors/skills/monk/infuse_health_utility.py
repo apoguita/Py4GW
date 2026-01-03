@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range, Routines
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Routines, Agent
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -59,7 +59,7 @@ class InfuseHealthUtility(CustomSkillUtilityBase):
             within_range=Range.Spellcast,
             condition=lambda agent_id:
                 agent_id != player_agent and
-                (GLOBAL_CACHE.Agent.GetHealth(agent_id) is not None and GLOBAL_CACHE.Agent.GetHealth(agent_id) < 1.0),
+                (Agent.GetHealth(agent_id) is not None and Agent.GetHealth(agent_id) < 1.0),
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
         return targets

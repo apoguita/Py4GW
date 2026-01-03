@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import threading
 
 from typing import Callable, override
-from Py4GWCoreLib import GLOBAL_CACHE, ThrottledTimer
+from Py4GWCoreLib import GLOBAL_CACHE, ThrottledTimer, Agent
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.enums import Profession
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -125,7 +125,7 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
             prof_prefix: str | None = None
             if agent_id:
                 try:
-                    primary, secondary = GLOBAL_CACHE.Agent.GetProfessionShortNames(agent_id)
+                    primary, secondary = Agent.GetProfessionShortNames(agent_id)
                     primary = (primary or "").strip()
                     secondary = (secondary or "").strip()
                     if secondary and secondary.lower() not in ("none", "n/a", "0"):
@@ -167,7 +167,9 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
                 if agent_id <= 0:
                     continue
                 try:
-                    primary_prof_id: int = int(GLOBAL_CACHE.Agent.GetProfessionIDs(agent_id)[0])
+                    primary_prof_id: int | None = Agent.GetProfessionIDs(agent_id)[0]
+                    if primary_prof_id is None:
+                        continue
                     email_to_prof_id[email] = primary_prof_id
                 except Exception:
                     continue

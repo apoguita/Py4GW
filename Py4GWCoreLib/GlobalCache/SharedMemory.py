@@ -14,6 +14,7 @@ from ctypes import sizeof
 from datetime import datetime, timezone
 
 from Py4GWCoreLib.Skillbar import SkillBar
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.GameData_enums import Attribute
 from Py4GWCoreLib.py4gwcorelib_src import Utils
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
@@ -557,7 +558,6 @@ class Py4GWSharedMemoryManager:
             self.shm_name = name
             self.max_num_players = max_num_players
             self.size = sizeof(AllAccounts)
-            self.map_instance = Map.map_instance()
             self.party_instance = None #Party.party_instance()
             self.player_instance = None #Player.player_instance()
             self.agent_instance = None #Agent.agent_instance()
@@ -976,9 +976,8 @@ class Py4GWSharedMemoryManager:
     #region Update Cache
     def _updatechache(self):
         """Update the shared memory cache."""
-        self.map_instance.GetContext()
-        if (self.map_instance.instance_type.GetName() == "Loading" or 
-            self.map_instance.is_in_cinematic):
+        if (Map.IsMapLoading() or 
+            Map.IsInCinematic()):
             if self.party_instance is not None:
                 self.party_instance.GetContext()
             if self.player_instance is not None:
@@ -1291,10 +1290,10 @@ class Py4GWSharedMemoryManager:
             
         def _set_map_data(index):
             player : AccountData = self.GetStruct().AccountData[index]
-            player.MapID = self.map_instance.map_id.ToInt()
-            player.MapRegion = self.map_instance.server_region.ToInt()
-            player.MapDistrict = self.map_instance.district
-            player.MapLanguage = self.map_instance.language.ToInt()
+            player.MapID = Map.GetMapID()
+            player.MapRegion = Map.GetRegion()[0]
+            player.MapDistrict = Map.GetDistrict()
+            player.MapLanguage = Map.GetLanguage()[0]
             
         def _set_player_data(index):
             player : AccountData = self.GetStruct().AccountData[index]
@@ -1357,18 +1356,18 @@ class Py4GWSharedMemoryManager:
             player.AccountEmail = account_email
             player.LastUpdated = self.GetBaseTimestamp()
             
-            if self.map_instance.instance_type.GetName() == "Loading":
+            if Map.IsMapLoading():
                 return
             
             if (self.party_instance is None or 
                 self.player_instance is None):
                 return
             
-            if not self.map_instance.is_map_ready:
+            if not Map.IsMapReady():
                 return
             if not self.party_instance.is_party_loaded:
                 return
-            if self.map_instance.is_in_cinematic:
+            if Map.IsInCinematic():
                 return
             
             _set_account_data(index)
@@ -1464,23 +1463,23 @@ class Py4GWSharedMemoryManager:
             hero.IsAccount = False
             hero.LastUpdated = self.GetBaseTimestamp()
             
-            if self.map_instance.instance_type.GetName() == "Loading":
+            if Map.IsMapLoading():
                 return
             
             if (self.party_instance is None or 
                 self.player_instance is None):
                 return
             
-            if not self.map_instance.is_map_ready:
+            if not Map.IsMapReady():
                 return
             if not self.party_instance.is_party_loaded:
                 return
-            if self.map_instance.is_in_cinematic:
+            if Map.IsInCinematic():
                 return
             
             hero.AccountEmail = self._get_account_email()
             agent_id = hero_data.agent_id
-            map_region = self.map_instance.region_type.ToInt()
+            map_region = Map.GetRegion()[0]
             
             if not Agent.IsValid(agent_id):
                 return
@@ -1496,10 +1495,10 @@ class Py4GWSharedMemoryManager:
             hero.IsNPC = False
             hero.OwnerPlayerID = self.party_instance.GetAgentIDByLoginNumber(hero_data.owner_player_id)
             hero.HeroID = hero_data.hero_id.GetID()
-            hero.MapID = self.map_instance.map_id.ToInt()
+            hero.MapID = Map.GetMapID()
             hero.MapRegion = map_region
-            hero.MapDistrict = self.map_instance.district
-            hero.MapLanguage = self.map_instance.language.ToInt()
+            hero.MapDistrict = Map.GetDistrict()
+            hero.MapLanguage = Map.GetLanguage()[0]
             hero.PlayerID = agent_id
             hero.PlayerLevel = hero_agent_instance.living_agent.level
             hero.PlayerProfession = (hero_agent_instance.living_agent.profession.Get(), hero_agent_instance.living_agent.secondary_profession.Get())
@@ -1656,25 +1655,25 @@ class Py4GWSharedMemoryManager:
             pet.IsAccount = False
             pet.LastUpdated = self.GetBaseTimestamp()
             
-            if self.map_instance.instance_type.GetName() == "Loading":
+            if Map.IsMapLoading():
                 return
             
             if (self.party_instance is None or 
                 self.player_instance is None):
                 return
             
-            if not self.map_instance.is_map_ready:
+            if not Map.IsMapReady():
                 return
             if not self.party_instance.is_party_loaded:
                 return
-            if self.map_instance.is_in_cinematic:
+            if Map.IsInCinematic():
                 return
             
             agent_id = pet_info.agent_id
             if not Agent.IsValid(agent_id):
                 return
             agent_instance = Agent.agent_instance(agent_id)
-            map_region = self.map_instance.region_type.ToInt()
+            map_region = Map.GetRegion()[0]
             playerx, playery, playerz = agent_instance.x, agent_instance.y, agent_instance.z
             
             pet.AccountEmail = self._get_account_email()
@@ -1682,16 +1681,16 @@ class Py4GWSharedMemoryManager:
             pet.CharacterName = f"Agent {pet_info.owner_agent_id} Pet"
             pet.IsHero = False
             pet.IsNPC = False
-            pet.MapID = self.map_instance.map_id.ToInt()
+            pet.MapID = Map.GetMapID()
             pet.MapRegion = map_region
-            pet.MapDistrict = self.map_instance.district
-            pet.MapLanguage = self.map_instance.language.ToInt()
+            pet.MapDistrict = Map.GetDistrict()
+            pet.MapLanguage = Map.GetLanguage()[0]
             pet.PlayerID = agent_id
             pet.PartyID = self.party_instance.party_id
             pet.PartyPosition = 0
             pet.PlayerIsPartyLeader = False  
             pet.PlayerLoginNumber = 0 
-            if self.map_instance.instance_type.GetName() == "Outpost":
+            if Map.IsOutpost():
                 return
             pet.PlayerMorale = 0
             pet.PlayerHP = agent_instance.living_agent.hp

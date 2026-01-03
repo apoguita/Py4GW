@@ -17,7 +17,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Agent
 from Py4GWCoreLib.BuildMgr import BuildMgr
 from Py4GWCoreLib.Builds import SF_Ass_vaettir
 from Py4GWCoreLib.Builds import SF_Mes_vaettir
@@ -315,7 +315,7 @@ def kill_enemies(bot: Botting):
             fsm.jump_to_state_by_name("[H]Town Routines_1")
             return
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             ConsoleLog("Killing Routine", "Player is dead, restarting.", Py4GW.Console.MessageType.Warning)
             fsm = bot.config.FSM
             fsm.jump_to_state_by_name("[H]Town Routines_1")
@@ -332,7 +332,7 @@ def kill_enemies(bot: Botting):
 
 
 def assign_build(bot: Botting):
-    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
     match profession:
         case "Assassin":
             bot.OverrideBuild(SF_Ass_vaettir())
@@ -392,7 +392,7 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
             elapsed += 1
 
             # hard exit if player dies
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 ConsoleLog(
                     f"{side_label} Aggro Ball Wait", "Player is dead, exiting wait.", Py4GW.Console.MessageType.Warning
                 )
@@ -476,7 +476,7 @@ def wait_for_right_aggro_ball(bot: Botting, use_hos_after=True):
                 all_in_adjacent = False
                 break
 
-        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
         if all_in_adjacent and player_hp > 0.45:
             break  # Exit early if enemies are balled up
 
@@ -541,7 +541,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             ConsoleLog(
                 "Stuck Detection", "Player is dead, exiting stuck handler.", Py4GW.Console.MessageType.Debug, False
             )

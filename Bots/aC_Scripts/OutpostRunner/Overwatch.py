@@ -62,7 +62,7 @@ class OutpostRunnerOverwatch:
                     continue
 
                 # --- Death detection ---
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     ConsoleLog("Overwatch", f"Overwatch: Player died - resetting run.", Console.MessageType.Warning)
                     yield from self._trigger_resign_and_restart()
                     continue

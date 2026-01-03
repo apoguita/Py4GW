@@ -26,6 +26,7 @@ from Py4GWCoreLib.ImGui_src.types import Alignment, HorizontalAlignment, ImGuiSt
 from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.enums_src.GameData_enums import Allegiance, Profession, ProfessionShort, Range
 from Py4GWCoreLib.enums_src.IO_enums import Key
@@ -496,11 +497,11 @@ def get_skill_target(account_data: AccountData, cached_skill: CachedSkillInfo) -
         return None
     
     target_id = GLOBAL_CACHE.Player.GetTargetID()
-    is_gadget = GLOBAL_CACHE.Agent.IsGadget(target_id)
-    is_item = GLOBAL_CACHE.Agent.IsItem(target_id)
+    is_gadget = Agent.IsGadget(target_id)
+    is_item = Agent.IsItem(target_id)
     
     if cached_skill.is_enchantment or cached_skill.is_shout:
-        allegiance, _ = GLOBAL_CACHE.Agent.GetAllegiance(target_id) if target_id != 0 else (Allegiance.Neutral, None)
+        allegiance, _ = Agent.GetAllegiance(target_id) if target_id != 0 else (Allegiance.Neutral, None)
         
         if allegiance in [Allegiance.Ally, Allegiance.Minion, Allegiance.SpiritPet]:
             return target_id
@@ -1286,10 +1287,10 @@ def get_conditioned(account_data: AccountData) -> tuple[HealthState, bool, bool,
     deep_wounded = 482 in buff_ids
     poisoned = 484 in buff_ids or 483 in buff_ids
     
-    enchanted = GLOBAL_CACHE.Agent.IsEnchanted(account_data.PlayerID) if same_map else False
-    conditioned = GLOBAL_CACHE.Agent.IsConditioned(account_data.PlayerID) if same_map else False
-    hexed = GLOBAL_CACHE.Agent.IsHexed(account_data.PlayerID) if same_map else False
-    has_weaponspell = GLOBAL_CACHE.Agent.IsWeaponSpelled(account_data.PlayerID) if same_map else False
+    enchanted = Agent.IsEnchanted(account_data.PlayerID) if same_map else False
+    conditioned = Agent.IsConditioned(account_data.PlayerID) if same_map else False
+    hexed = Agent.IsHexed(account_data.PlayerID) if same_map else False
+    has_weaponspell = Agent.IsWeaponSpelled(account_data.PlayerID) if same_map else False
         
     if poisoned:
         return HealthState.Poisoned, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
@@ -1298,7 +1299,7 @@ def get_conditioned(account_data: AccountData) -> tuple[HealthState, bool, bool,
     if bleeding:
         return HealthState.Bleeding, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
     
-    degen_hexed = GLOBAL_CACHE.Agent.IsDegenHexed(account_data.PlayerID) if same_map else False
+    degen_hexed = Agent.IsDegenHexed(account_data.PlayerID) if same_map else False
     if degen_hexed:
         return HealthState.DegenHexed, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
     

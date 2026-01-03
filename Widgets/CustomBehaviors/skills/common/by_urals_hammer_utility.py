@@ -1,7 +1,7 @@
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -44,7 +44,7 @@ class ByUralsHammerUtility(CustomSkillUtilityBase):
 
         allies_qte = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Earshot,
-            condition=lambda agent_id: not GLOBAL_CACHE.Agent.IsAlive(agent_id) and agent_id != player_agent_id,
+            condition=lambda agent_id: not Agent.IsAlive(agent_id) and agent_id != player_agent_id,
             sort_key=(TargetingOrder.DISTANCE_ASC, )
         )
         if len(allies_qte) == 0: return None

@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Inventory, Party, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Party, Routines, Range
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Widgets.CustomBehaviors.primitives import constants
@@ -75,7 +75,7 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
 
         if constants.DEBUG: print(f"open_near_dungeon_chest_utility STARTING")
 
-        chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(chest_agent_id)
+        chest_x, chest_y = Agent.GetXY(chest_agent_id)
         lock_key = f"open_near_dungeon_chest_utility{chest_agent_id}"
 
         result = yield from Routines.Yield.Movement.FollowPath(
@@ -128,5 +128,5 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
         gadget_array = AgentArray.GetGadgetArray()
         gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), 100)
         for agent_id in gadget_array:
-            gadget_id = GLOBAL_CACHE.Agent.GetGadgetID(agent_id)
+            gadget_id = Agent.GetGadgetID(agent_id)
             PyImGui.bullet_text(f"gadget_id close to my position : {gadget_id}")

@@ -5,7 +5,7 @@ import sys
 import time
 from typing import Any
 
-from Py4GWCoreLib import Map, Routines
+from Py4GWCoreLib import Map, Routines, Agent
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import LootConfig
 from Py4GWCoreLib.enums import Range, SharedCommandType
@@ -152,7 +152,7 @@ class SimpleBot4Steps:
         count = 0
         for player in players:
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-            if GLOBAL_CACHE.Agent.IsDead(agent_id):
+            if Agent.IsDead(agent_id):
                 count += 1
             
         if count > 5: return True

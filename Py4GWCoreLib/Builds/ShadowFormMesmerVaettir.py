@@ -91,7 +91,7 @@ class ShadowFormMesmerVaettir(BuildMgr):
                 
     def CastShroudOfDistress(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.45:
+        if Agent.GetHealth(player_agent_id) < 0.45:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             # ** Cast Shroud of Distress **
             yield from self._CastSkillID(self.shroud_of_distress, log =False, aftercast_delay=1750)
@@ -123,9 +123,9 @@ class ShadowFormMesmerVaettir(BuildMgr):
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
         
         for enemy in enemy_array:
-            if GLOBAL_CACHE.Agent.IsDead(enemy):
+            if Agent.IsDead(enemy):
                 continue
-            enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
+            enemy_pos = Agent.GetXY(enemy)
             to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
 
             angle_score = self.vector_angle(to_goal, to_enemy)  # -1 is most opposite
@@ -146,7 +146,7 @@ class ShadowFormMesmerVaettir(BuildMgr):
             player_pos =  GLOBAL_CACHE.Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
             for enemy in enemy_array:
-                if GLOBAL_CACHE.Agent.IsDead(enemy):
+                if Agent.IsDead(enemy):
                     continue
                 if Agent.IsHexed(enemy):
                     continue 
@@ -164,7 +164,7 @@ class ShadowFormMesmerVaettir(BuildMgr):
                 return
             
             
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
             
@@ -211,7 +211,7 @@ class ShadowFormMesmerVaettir(BuildMgr):
                 continue
 
             if not self.in_killing_routine:
-                if GLOBAL_CACHE.Agent.GetHealth(player_agent_id) < 0.35 or self.stuck_counter > 0:
+                if Agent.GetHealth(player_agent_id) < 0.35 or self.stuck_counter > 0:
                     center_point1 = (10980, -21532)
                     center_point2 = (11461, -17282)
                     player_pos = GLOBAL_CACHE.Player.GetXY()
@@ -228,9 +228,9 @@ class ShadowFormMesmerVaettir(BuildMgr):
                     enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
                     
                     for enemy in enemy_array:
-                        if GLOBAL_CACHE.Agent.IsDead(enemy):
+                        if Agent.IsDead(enemy):
                             continue
-                        enemy_pos = GLOBAL_CACHE.Agent.GetXY(enemy)
+                        enemy_pos = Agent.GetXY(enemy)
                         to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
 
                         angle_score = self.vector_angle(to_goal, to_enemy)  # -1 is most opposite

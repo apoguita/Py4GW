@@ -1,6 +1,6 @@
 from typing import Any, Generator, override, Tuple
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -34,7 +34,7 @@ class SignetOfLostSoulsUtility(CustomSkillUtilityBase):
     def _get_target() -> int | None:
         targets: Tuple[int, ...] = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority(
             within_range=Range.Spellcast,
-            condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.5,
+            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.5,
             sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.HP_ASC)
         )
         if len(targets) == 0: return None
@@ -45,8 +45,8 @@ class SignetOfLostSoulsUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         target = self._get_target()
 
-        player_health_percent = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
-        player_energy_percent = GLOBAL_CACHE.Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
+        player_health_percent = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        player_energy_percent = Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
 
         if not target:
             return None

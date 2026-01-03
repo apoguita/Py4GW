@@ -5,7 +5,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
 from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer, ThrottledTimer
 from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
-from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.routines_src import Checks
 from ..Map import Map
 
@@ -467,7 +467,7 @@ class Yield:
                         ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
                         return False
 
-                    if GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+                    if Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
                         ConsoleLog("FollowPath", "Player casting detected, waiting 750ms...", Console.MessageType.Debug, log=detailed_log)
                 
                         yield from Yield.wait(750)
@@ -706,7 +706,7 @@ class Yield:
             from ..enums_src.GameData_enums import Range
 
             nearest_chest = Agents.GetNearestChest(max_distance)
-            chest_x, chest_y = GLOBAL_CACHE.Agent.GetXY(nearest_chest)
+            chest_x, chest_y = Agent.GetXY(nearest_chest)
 
 
             yield from Yield.Movement.FollowPath([(chest_x, chest_y)])
@@ -733,7 +733,7 @@ class Yield:
         def InteractWithAgentByName(agent_name:str):
             
             yield from Yield.Agents.TargetAgentByName(agent_name)
-            agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
+            agent_x, agent_y = Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
 
             yield from Yield.Movement.FollowPath([(agent_x, agent_y)])
             yield from Yield.wait(500)
@@ -761,7 +761,7 @@ class Yield:
             step = 100  # ms
             while elapsed < timeout_ms:
                 px, py = GLOBAL_CACHE.Player.GetXY()
-                tx, ty = GLOBAL_CACHE.Agent.GetXY(target_id)
+                tx, ty = Agent.GetXY(target_id)
                 if Utils.Distance((px, py), (tx, ty)) <= tolerance:
                     break
 
@@ -802,7 +802,7 @@ class Yield:
             step = 100  # ms
             while elapsed < timeout_ms:
                 px, py = GLOBAL_CACHE.Player.GetXY()
-                tx, ty = GLOBAL_CACHE.Agent.GetXY(target_id)
+                tx, ty = Agent.GetXY(target_id)
                 if Utils.Distance((px, py), (tx, ty)) <= tolerance:
                     break
 
@@ -843,7 +843,7 @@ class Yield:
             step = 100  # ms
             while elapsed < timeout_ms:
                 px, py = GLOBAL_CACHE.Player.GetXY()
-                tx, ty = GLOBAL_CACHE.Agent.GetXY(target_id)
+                tx, ty = Agent.GetXY(target_id)
                 if Utils.Distance((px, py), (tx, ty)) <= tolerance:
                     break
 
@@ -1190,10 +1190,10 @@ class Yield:
                     ActionQueueManager().ResetAllQueues()
                     return False
                 
-                if not GLOBAL_CACHE.Agent.IsValid(item_id):
+                if not Agent.IsValid(item_id):
                     continue
                 
-                item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
+                item_x, item_y = Agent.GetXY(item_id)
                 item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
                 if not item_reached:
                     item_array.clear()
@@ -1204,7 +1204,7 @@ class Yield:
                     item_array.clear()
                     ActionQueueManager().ResetAllQueues()
                     return False
-                if GLOBAL_CACHE.Agent.IsValid(item_id):
+                if Agent.IsValid(item_id):
                     yield from Yield.Player.InteractAgent(item_id)
                     while True:
                         yield from Yield.wait(50)
@@ -1251,23 +1251,23 @@ class Yield:
                     ActionQueueManager().ResetAllQueues()
                     return failed_items + item_array
 
-                if not GLOBAL_CACHE.Agent.IsValid(item_id):
+                if not Agent.IsValid(item_id):
                     continue
 
                 # Try to walk to item
-                item_x, item_y = GLOBAL_CACHE.Agent.GetXY(item_id)
+                item_x, item_y = Agent.GetXY(item_id)
                 item_reached = yield from Yield.Movement.FollowPath([(item_x, item_y)], timeout=pickup_timeout)
                 if not item_reached:
                     ConsoleLog("LootItems", f"Failed to reach item {item_id}, skipping.", Console.MessageType.Warning)
                     failed_items.append(item_id)
                     continue
 
-                if GLOBAL_CACHE.Agent.IsValid(item_id):
+                if Agent.IsValid(item_id):
                     attempts = 0
                     picked_up = False
 
                     while attempts < max_attempts and not picked_up:
-                        if GLOBAL_CACHE.Agent.IsValid(item_id):
+                        if Agent.IsValid(item_id):
                             yield from Yield.Player.InteractAgent(item_id)
 
                         for _ in range(attempts_timeout_seconds * 10):  # default 3s
@@ -1466,11 +1466,11 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Yield.wait(500)
                 return
 
-            level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+            level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
 
             if level >= 20:
                 yield from Yield.wait(500)
@@ -1486,8 +1486,8 @@ class Yield:
             cast_imp = True  # Assume we should cast
 
             for other in others:
-                if GLOBAL_CACHE.Agent.GetModelID(other) == imp_model_id:
-                    if not GLOBAL_CACHE.Agent.IsDead(other):
+                if Agent.GetModelID(other) == imp_model_id:
+                    if not Agent.IsDead(other):
                         # Imp is alive — no need to cast
                         cast_imp = False
                     break  # Found the imp, no need to keep checking
@@ -1510,7 +1510,7 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Yield.wait(500)
                 return
 
@@ -1595,7 +1595,7 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Yield.wait(500)
                 return
 
@@ -1633,7 +1633,7 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Yield.wait(500)
                 return
 
@@ -1678,7 +1678,7 @@ class Yield:
             if not Map.IsOutpost():
                 yield from Yield.wait(period_ms)
                 return
-            if GLOBAL_CACHE.Agent.IsDead(player_id()):
+            if Agent.IsDead(player_id()):
                 yield from Yield.wait(period_ms)
                 return
 

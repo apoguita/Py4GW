@@ -44,16 +44,16 @@ class AgentData:
             self.overcast: float = 0.0
             
         def update(self):
-            self.owner_id = GLOBAL_CACHE.Agent.GetOwnerID(self.agent_id)
-            self.login_number = GLOBAL_CACHE.Agent.GetLoginNumber(self.agent_id)
-            self.player_number = GLOBAL_CACHE.Agent.GetPlayerNumber(self.agent_id)
+            self.owner_id = Agent.GetOwnerID(self.agent_id)
+            self.login_number = Agent.GetLoginNumber(self.agent_id)
+            self.player_number = Agent.GetPlayerNumber(self.agent_id)
             if not self.name_requested:
-                GLOBAL_CACHE.Agent.RequestName(self.agent_id)
+                Agent.RequestName(self.agent_id)
                 self.name_requested = True
                 
             if self.name_requested and self.name == "":
-                if GLOBAL_CACHE.Agent.IsNameReady(self.agent_id):
-                    self.name = GLOBAL_CACHE.Agent.GetName(self.agent_id)
+                if Agent.IsNameReady(self.agent_id):
+                    self.name = Agent.GetNameByID(self.agent_id)
                
             prof1, prof2 = Agent.GetProfessionIDs(self.agent_id)  
             if prof1 is None: prof1 = 0
@@ -105,27 +105,27 @@ class AgentData:
             self.is_ranged: bool = False
             
         def update(self, agent_id:int):
-            self.is_moving = GLOBAL_CACHE.Agent.IsMoving(agent_id)
-            self.is_knocked_down = GLOBAL_CACHE.Agent.IsKnockedDown(agent_id)
-            self.is_bleeding = GLOBAL_CACHE.Agent.IsBleeding(agent_id)
-            self.is_crippled = GLOBAL_CACHE.Agent.IsCrippled(agent_id)
-            self.is_deep_wounded = GLOBAL_CACHE.Agent.IsDeepWounded(agent_id)
-            self.is_poisoned = GLOBAL_CACHE.Agent.IsPoisoned(agent_id)
-            self.is_conditioned = GLOBAL_CACHE.Agent.IsConditioned(agent_id)
-            self.is_enchanted = GLOBAL_CACHE.Agent.IsEnchanted(agent_id)
-            self.is_hexed = GLOBAL_CACHE.Agent.IsHexed(agent_id)
-            self.is_degen_hexed = GLOBAL_CACHE.Agent.IsDegenHexed(agent_id)
-            self.is_dead = GLOBAL_CACHE.Agent.IsDead(agent_id)
-            self.is_weapon_spelled = GLOBAL_CACHE.Agent.IsWeaponSpelled(agent_id)
-            self.is_in_combat_stance = GLOBAL_CACHE.Agent.IsInCombatStance(agent_id)
-            self.is_aggressive = GLOBAL_CACHE.Agent.IsAggressive(agent_id)
-            self.is_attacking = GLOBAL_CACHE.Agent.IsAttacking(agent_id)
-            self.is_casting = GLOBAL_CACHE.Agent.IsCasting(agent_id)
-            self.is_idle = GLOBAL_CACHE.Agent.IsIdle(agent_id)
-            self.is_martial = GLOBAL_CACHE.Agent.IsMartial(agent_id)
-            self.is_caster = GLOBAL_CACHE.Agent.IsCaster(agent_id)
-            self.is_melee = GLOBAL_CACHE.Agent.IsMelee(agent_id)
-            self.is_ranged = GLOBAL_CACHE.Agent.IsRanged(agent_id)
+            self.is_moving = Agent.IsMoving(agent_id)
+            self.is_knocked_down = Agent.IsKnockedDown(agent_id)
+            self.is_bleeding = Agent.IsBleeding(agent_id)
+            self.is_crippled = Agent.IsCrippled(agent_id)
+            self.is_deep_wounded = Agent.IsDeepWounded(agent_id)
+            self.is_poisoned = Agent.IsPoisoned(agent_id)
+            self.is_conditioned = Agent.IsConditioned(agent_id)
+            self.is_enchanted = Agent.IsEnchanted(agent_id)
+            self.is_hexed = Agent.IsHexed(agent_id)
+            self.is_degen_hexed = Agent.IsDegenHexed(agent_id)
+            self.is_dead = Agent.IsDead(agent_id)
+            self.is_weapon_spelled = Agent.IsWeaponSpelled(agent_id)
+            self.is_in_combat_stance = Agent.IsInCombatStance(agent_id)
+            self.is_aggressive = Agent.IsAggressive(agent_id)
+            self.is_attacking = Agent.IsAttacking(agent_id)
+            self.is_casting = Agent.IsCasting(agent_id)
+            self.is_idle = Agent.IsIdle(agent_id)
+            self.is_martial = Agent.IsMartial(agent_id)
+            self.is_caster = Agent.IsCaster(agent_id)
+            self.is_melee = Agent.IsMelee(agent_id)
+            self.is_ranged = Agent.IsRanged(agent_id)
             
     class SkillbarData:
         def __init__(self):
@@ -139,7 +139,7 @@ class AgentData:
             self.agent_id = GLOBAL_CACHE.SkillBar.GetAgentID()
             self.disabled = GLOBAL_CACHE.SkillBar.GetDisabled()
             self.casting = GLOBAL_CACHE.SkillBar.GetCasting()
-            self.casting_skill_id = GLOBAL_CACHE.Agent.GetCastingSkill(self.agent_id)
+            self.casting_skill_id = Agent.GetCastingSkill(self.agent_id)
             
             for i in range(1,9):
                 skill_data = GLOBAL_CACHE.SkillBar.GetSkillBySlot(i)

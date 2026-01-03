@@ -1,6 +1,6 @@
 from Py4GWCoreLib.Builds import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
 from .LogConsole import LogConsole
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib.enums import ModelID, TitleID, SharedCommandType, Range
 from Py4GWCoreLib import ItemArray
@@ -205,7 +205,7 @@ class _FSM_Helpers:
             if not self._parent.script_running:
                 return True
             
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 return True
             
             return False
@@ -432,7 +432,7 @@ class _FSM_Helpers:
                 if Map.IsMapLoading():
                     return
  
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     self._parent.run_to_jaga_stats.EndCurrentRun(failed=True, deaths=1)
                     self._parent.running_to_jaga = False
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
@@ -519,7 +519,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()
                 
@@ -564,7 +564,7 @@ class _FSM_Helpers:
             self._parent.in_waiting_routine = False
 
             # Death check
-            if GLOBAL_CACHE.Agent.IsDead(player_id):
+            if Agent.IsDead(player_id):
                 self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
 
@@ -584,7 +584,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()
                     
@@ -625,7 +625,7 @@ class _FSM_Helpers:
             self._parent.in_waiting_routine = False
 
             # Death check
-            if GLOBAL_CACHE.Agent.IsDead(player_id):
+            if Agent.IsDead(player_id):
                 self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
 
@@ -646,7 +646,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
 
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
                 
@@ -674,7 +674,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                     
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()   
                 yield from Routines.Yield.wait(1000)
@@ -734,7 +734,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from Routines.Yield.wait(1000)
                     yield from self._reset_execution()
@@ -764,7 +764,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()
             

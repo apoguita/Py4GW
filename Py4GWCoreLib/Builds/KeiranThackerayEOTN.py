@@ -1,5 +1,5 @@
 
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import ActionQueueManager
@@ -45,13 +45,13 @@ class KeiranThackerayEOTN(BuildMgr):
         
         life_threshold = 0.80
         if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.natures_blessing)):
-            player_life = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+            player_life = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
             low_on_life = player_life < life_threshold
 
             nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
             npc_low_on_life = False
             if nearest_npc != 0:
-                npc_life = GLOBAL_CACHE.Agent.GetHealth(nearest_npc)
+                npc_life = Agent.GetHealth(nearest_npc)
                 npc_low_on_life = npc_life < life_threshold
 
             if low_on_life or npc_low_on_life:
@@ -66,10 +66,10 @@ class KeiranThackerayEOTN(BuildMgr):
                     return
 
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.relentless_assaunlt)):
-                if (GLOBAL_CACHE.Agent.IsDegenHexed(GLOBAL_CACHE.Player.GetAgentID()) or 
-                    #GLOBAL_CACHE.Agent.IsConditioned(GLOBAL_CACHE.Player.GetAgentID()) or
-                    GLOBAL_CACHE.Agent.IsBleeding(GLOBAL_CACHE.Player.GetAgentID()) or
-                    GLOBAL_CACHE.Agent.IsPoisoned(GLOBAL_CACHE.Player.GetAgentID()) or
+                if (Agent.IsDegenHexed(GLOBAL_CACHE.Player.GetAgentID()) or 
+                    #Agent.IsConditioned(GLOBAL_CACHE.Player.GetAgentID()) or
+                    Agent.IsBleeding(GLOBAL_CACHE.Player.GetAgentID()) or
+                    Agent.IsPoisoned(GLOBAL_CACHE.Player.GetAgentID()) or
                     Routines.Checks.Agents.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), GLOBAL_CACHE.Skill.GetID("Deep_Wound")) or
                     Routines.Checks.Agents.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), GLOBAL_CACHE.Skill.GetID("Cracked_Armor")) or
                     Routines.Checks.Agents.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), GLOBAL_CACHE.Skill.GetID("Burning"))):

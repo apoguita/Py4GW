@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, get_texture_for_model, ModelID, GLOBAL_CACHE, Routines
+from Py4GWCoreLib import Botting, get_texture_for_model, ModelID, GLOBAL_CACHE, Routines, Agent
 
 BOT_NAME = "Totem Axe Farm"
 MODEL_ID_TO_FARM = ModelID.Totem_Axe
@@ -97,8 +97,8 @@ def bot_routine(bot: Botting) -> None:
 def _on_party_wipe(bot: "Botting"):
     global party_wiped
     party_wiped = True
-    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
-        yield from bot.helpers.Wait._for_time(1000)
+    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid - release FSM and exit
             bot.config.FSM.resume()

@@ -14,7 +14,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Range
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Agent
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
@@ -250,7 +250,7 @@ class CombatPrep:
         for slot in GLOBAL_CACHE.Party.GetPlayers():
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(slot.login_number)
             if agent_id:
-                agent_x, agent_y = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                agent_x, agent_y = Agent.GetXY(agent_id)
                 total_x += agent_x
                 total_y += agent_y
                 count += 1
@@ -262,7 +262,7 @@ class CombatPrep:
 
     def get_party_leader_x_y(self):
         party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
-        return GLOBAL_CACHE.Agent.GetXY(party_leader_id)
+        return Agent.GetXY(party_leader_id)
 
     def is_party_leader_hero_ai_status_enabled(self):
         if not self.is_party_leader:
@@ -323,9 +323,9 @@ class CombatPrep:
     def cb_set_formation(self, set_formations_relative_to_leader, disband_formation, custom_angle=None):
         party_size = GLOBAL_CACHE.Party.GetPartySize()
         if len(set_formations_relative_to_leader):
-            leader_follow_angle = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())  # in radians
+            leader_follow_angle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())  # in radians
             party_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
-            leader_x, leader_y, _ = GLOBAL_CACHE.Agent.GetXYZ(party_leader_id)
+            leader_x, leader_y, _ = Agent.GetXYZ(party_leader_id)
             angle_rad = leader_follow_angle - math.pi / 2  # adjust for coordinate system
 
             if custom_angle:

@@ -41,6 +41,7 @@ from HeroAI.windows import SubmitGameOptions
 from HeroAI.ui import draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, draw_hero_panel, draw_hotbars, draw_party_overlay, draw_party_search_overlay, draw_skip_cutscene_overlay
 from HeroAI.settings import Settings
 from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Agent
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import IconsFontAwesome5
 from Py4GWCoreLib import ImGui
@@ -107,7 +108,7 @@ def HandleCombatFlagging(cached_data: CacheData):
         own_follow_y = all_player_struct[party_number].FlagPosY
         own_flag_coords = (own_follow_x, own_follow_y)
         if (
-            Utils.Distance(own_flag_coords, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+            Utils.Distance(own_flag_coords, Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
             >= FOLLOW_COMBAT_DISTANCE
         ):
             return True  # Forces a reset on autoattack timer
@@ -116,7 +117,7 @@ def HandleCombatFlagging(cached_data: CacheData):
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_flag_coords = (leader_follow_x, leader_follow_y)
         if (
-            Utils.Distance(leader_flag_coords, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+            Utils.Distance(leader_flag_coords, Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
             >= LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE
         ):
             return True  # Forces a reset on autoattack timer
@@ -230,12 +231,12 @@ def Follow(cached_data: CacheData):
         following_flag = False
     else:  # follow leader
         following_flag = False
-        follow_x, follow_y = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
-        follow_angle = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        follow_x, follow_y = Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        follow_angle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
 
     if following_flag:
         FOLLOW_DISTANCE_ON_COMBAT = FOLLOW_COMBAT_DISTANCE
-    elif GLOBAL_CACHE.Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID()):
+    elif Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID()):
         FOLLOW_DISTANCE_ON_COMBAT = MELEE_RANGE_VALUE
     else:
         FOLLOW_DISTANCE_ON_COMBAT = RANGED_RANGE_VALUE
@@ -301,7 +302,7 @@ def draw_Targeting_floating_buttons(cached_data: CacheData):
 
     Overlay().BeginDraw()
     for agent_id in enemy_array:
-        x, y, z = GLOBAL_CACHE.Agent.GetXYZ(agent_id)
+        x, y, z = Agent.GetXYZ(agent_id)
         screen_x, screen_y = Overlay.WorldToScreen(x, y, z + 25)
         if ImGui.floating_button(
             f"{IconsFontAwesome5.ICON_CROSSHAIRS}", name=agent_id, x=screen_x - 12, y=screen_y - 12, width=25, height=25
@@ -455,8 +456,8 @@ def DistanceToDestination(cached_data: CacheData):
     if not data:
         return 0.0 
     
-    destination = (data.FlagPosX, data.FlagPosY) if is_flagged else GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
-    return Utils.Distance(destination, GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+    destination = (data.FlagPosX, data.FlagPosY) if is_flagged else Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+    return Utils.Distance(destination, Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
     
 
 def UpdateStatus(cached_data: CacheData):
@@ -577,11 +578,11 @@ def UpdateStatus(cached_data: CacheData):
     index = GLOBAL_CACHE.ShMem.GetAccountSlot(cached_data.account_email)
     
     if (
-        not GLOBAL_CACHE.Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
+        not Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
         or (DistanceToDestination(cached_data) >= Range.SafeCompass.value)
-        or GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
+        or Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
         or cached_data.combat_handler.InCastingRoutine()
-        or GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+        or Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
     ):
         return
 
@@ -592,7 +593,7 @@ def UpdateStatus(cached_data: CacheData):
     if HandleOutOfCombat(cached_data):
         return
 
-    if GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
+    if Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
         return
 
     if Loot(cached_data):
@@ -614,14 +615,14 @@ def UpdateStatus(cached_data: CacheData):
         return
 
     target_id = GLOBAL_CACHE.Player.GetTargetID()
-    _, target_aliegance = GLOBAL_CACHE.Agent.GetAllegiance(target_id)
+    _, target_aliegance = Agent.GetAllegiance(target_id)
 
-    if target_id == 0 or GLOBAL_CACHE.Agent.IsDead(target_id) or (target_aliegance != "Enemy"):
+    if target_id == 0 or Agent.IsDead(target_id) or (target_aliegance != "Enemy"):
         if (
             cached_data.data.is_combat_enabled
-            and (not GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
         ):
             cached_data.combat_handler.ChooseTarget()
             cached_data.auto_attack_timer.Reset()
@@ -631,9 +632,9 @@ def UpdateStatus(cached_data: CacheData):
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
         if (
             cached_data.data.is_combat_enabled
-            and (not GLOBAL_CACHE.Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
         ):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()

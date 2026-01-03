@@ -1,5 +1,5 @@
 
-from Py4GWCoreLib import PyImGui
+from Py4GWCoreLib import PyImGui, Agent
 from Py4GWCoreLib import ImGui 
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Allegiance
@@ -45,7 +45,7 @@ def DrawMainWindow():
         return (
             label,
             agent.agent_id,
-            GLOBAL_CACHE.Agent.GetName(agent.agent_id),
+            Agent.GetNameByID(agent.agent_id),
             f"({agent.pos.x:.2f}, {agent.pos.y:.2f}, {agent.z:.2f})",
             _get_type(agent)
         )
@@ -57,7 +57,7 @@ def DrawMainWindow():
         from Py4GWCoreLib import GLOBAL_CACHE
         _AGENT_ID = agent_id
         PyImGui.text(f"ID: {_AGENT_ID}")
-        PyImGui.text(f"Name: {GLOBAL_CACHE.Agent.GetName(_AGENT_ID)}")
+        PyImGui.text(f"Name: {Agent.GetNameByID(_AGENT_ID)}")
         if PyImGui.button("Target Agent"):
             Player.ChangeTarget(_AGENT_ID)
         PyImGui.separator()
@@ -487,7 +487,7 @@ def DrawMainWindow():
                 agent = Agent.GetAgentByID(agent_id)
                 if agent and agent.agent_id != 0:
                     from Py4GWCoreLib import GLOBAL_CACHE
-                    combo_items.append(f"{agent.agent_id} - {GLOBAL_CACHE.Agent.GetName(agent.agent_id)}")
+                    combo_items.append(f"{agent.agent_id} - {Agent.GetNameByID(agent.agent_id)}")
                     id_map.append(agent.agent_id)  # maintain index mapping
 
             # Show combo

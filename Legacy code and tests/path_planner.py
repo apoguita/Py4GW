@@ -23,15 +23,15 @@ def main():
         # Get positions
         mouse_x, mouse_y, mouse_z = Overlay().GetMouseWorldPos()
         player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-        player_z = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+        player_z_plane = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
 
         if PyImGui.begin("PathPlanner Test", PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.text(f"Player: ({player_x:.0f}, {player_y:.0f}, {player_z:.0f})")
+            PyImGui.text(f"Player: ({player_x:.0f}, {player_y:.0f}, {player_z_plane:.0f})")
             PyImGui.text(f"Mouse:  ({mouse_x:.0f}, {mouse_y:.0f}, {mouse_z:.0f})")
             PyImGui.separator()
             
             if PyImGui.button("Capture End Position"):
-                last_goal_pos = (-14961, 11453, player_z)
+                last_goal_pos = (-14961, 11453, player_z_plane)
             
             update_path_by_mouse_coords = ImGui.toggle_button(
                 "Update Path by Mouse Coordinates",
@@ -41,13 +41,13 @@ def main():
             if update_path_by_mouse_coords:
                 status = path_planner.get_status()
                 if update_timer.IsExpired() and status != PyPathing.PathStatus.Pending:
-                    last_goal_pos = (mouse_x, mouse_y, player_z)
-                    last_goal_pos = (-14961, 11453, player_z)
+                    last_goal_pos = (mouse_x, mouse_y, player_z_plane)
+                    last_goal_pos = (-14961, 11453, player_z_plane)
                     path_planner.reset()
                     path_planner.plan(
                         start_x=player_x,
                         start_y=player_y,
-                        start_z=player_z,
+                        start_z=player_z_plane,
                         goal_x=last_goal_pos[0],
                         goal_y=last_goal_pos[1],
                         goal_z=last_goal_pos[2]
@@ -57,8 +57,8 @@ def main():
             
 
             if PyImGui.button("Plan Path"):
-                last_start_pos = (player_x, player_y, player_z)
-                last_goal_pos = (0, 0, player_z)
+                last_start_pos = (player_x, player_y, player_z_plane)
+                last_goal_pos = (0, 0, player_z_plane)
                 path_planner.reset()
                 path_planner.plan(
                     start_x=last_start_pos[0],
@@ -100,8 +100,8 @@ def main():
             Overlay().BeginDraw()
 
             # Connect player to first path point
-            z_player = Overlay().FindZ(player_x, player_y, player_z)
-            z_first = Overlay().FindZ(planned_path[0][0], planned_path[0][1], player_z)
+            z_player = Overlay().FindZ(player_x, player_y, int(player_z_plane))
+            z_first = Overlay().FindZ(planned_path[0][0], planned_path[0][1], int(player_z_plane))
             Overlay().DrawLine3D(
                 x1=player_x, y1=player_y, z1=z_player,
                 x2=planned_path[0][0], y2=planned_path[0][1], z2=z_first,
@@ -110,8 +110,8 @@ def main():
 
             # Draw path segments
             for i in range(len(planned_path) - 1):
-                z1 = Overlay().FindZ(planned_path[i][0], planned_path[i][1], player_z)
-                z2 = Overlay().FindZ(planned_path[i + 1][0], planned_path[i + 1][1], player_z)
+                z1 = Overlay().FindZ(planned_path[i][0], planned_path[i][1], int(player_z_plane))
+                z2 = Overlay().FindZ(planned_path[i + 1][0], planned_path[i + 1][1], int(player_z_plane))
                 Overlay().DrawLine3D(
                     x1=planned_path[i][0], y1=planned_path[i][1], z1=z1,
                     x2=planned_path[i + 1][0], y2=planned_path[i + 1][1], z2=z2,

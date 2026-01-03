@@ -224,10 +224,10 @@ class Combat:
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
 
         if (
-            GLOBAL_CACHE.Agent.IsCasting(player_agent_id)
-            or GLOBAL_CACHE.Agent.GetCastingSkill(player_agent_id) != 0
-            or GLOBAL_CACHE.Agent.IsKnockedDown(player_agent_id)
-            or GLOBAL_CACHE.Agent.IsDead(player_agent_id)
+            Agent.IsCasting(player_agent_id)
+            or Agent.GetCastingSkill(player_agent_id) != 0
+            or Agent.IsKnockedDown(player_agent_id)
+            or Agent.IsDead(player_agent_id)
             or GLOBAL_CACHE.SkillBar.GetCasting() != 0
         ):
             return False
@@ -252,16 +252,16 @@ class Combat:
 
     def GetEnergy(self):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
-        max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
+        energy = Agent.GetEnergy(player_agent_id)
+        max_energy = Agent.GetMaxEnergy(player_agent_id)
         energy_points = int(energy * max_energy)
 
         return energy_points
 
     def HasEnoughEnergy(self, skill_slot):
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        energy = GLOBAL_CACHE.Agent.GetEnergy(player_agent_id)
-        max_energy = GLOBAL_CACHE.Agent.GetMaxEnergy(player_agent_id)
+        energy = Agent.GetEnergy(player_agent_id)
+        max_energy = Agent.GetMaxEnergy(player_agent_id)
         energy_points = int(energy * max_energy)
 
         return self.GetEnergyAgentCost(skill_slot) <= energy_points
@@ -648,7 +648,7 @@ class Loot:
         if ActionIsPending():
             return False
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             return True
 
         if not bot_vars.inv.log:
@@ -668,8 +668,8 @@ class Loot:
         current_target = Player.GetTargetID()
         if current_target != bot_vars.inv.item_id:
             if bot_vars.opts.debug:
-                if GLOBAL_CACHE.Agent.IsNameReady(bot_vars.inv.item_id):
-                    name = f'"{GLOBAL_CACHE.Agent.GetName(bot_vars.inv.item_id)}" - '
+                if Agent.IsNameReady(bot_vars.inv.item_id):
+                    name = f'"{Agent.GetNameByID(bot_vars.inv.item_id)}" - '
                 else:
                     name = ''
                 Debug(f'Changing target to {name}AgentID [{bot_vars.inv.item_id}].')
@@ -680,8 +680,8 @@ class Loot:
             return False
 
         if bot_vars.opts.debug:
-            if GLOBAL_CACHE.Agent.IsNameReady(bot_vars.inv.item_id):
-                name = f'"{GLOBAL_CACHE.Agent.GetName(bot_vars.inv.item_id)}" - '
+            if Agent.IsNameReady(bot_vars.inv.item_id):
+                name = f'"{Agent.GetNameByID(bot_vars.inv.item_id)}" - '
             else:
                 name = ''
             Debug(f'Picking up {name}AgentID [{bot_vars.inv.item_id}].')
@@ -814,13 +814,13 @@ def PathFinished(path_handler, follow_handler):
 def RequestEnemyNames():
     enemy_array = AgentArray.GetEnemyArray()
     for enemy in enemy_array:
-        GLOBAL_CACHE.Agent.RequestName(enemy)
+        Agent.RequestName(enemy)
 
 
 def RequestItemNames():
     item_array = AgentArray.GetItemArray()
     for item in item_array:
-        GLOBAL_CACHE.Agent.RequestName(item)
+        Agent.RequestName(item)
 
 
 def RequestInventoryNames():
@@ -999,7 +999,7 @@ def KillRotation():
 
     # target
     target_id = GLOBAL_CACHE.Player.GetTargetID()
-    if target_id == 0 or GLOBAL_CACHE.Agent.GetAllegiance(target_id)[0] != 3 or GLOBAL_CACHE.Agent.IsDead(target_id):
+    if target_id == 0 or Agent.GetAllegiance(target_id)[0] != 3 or Agent.IsDead(target_id):
 
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
@@ -1010,7 +1010,7 @@ def KillRotation():
         new_target = 0
 
         if (
-            Utils.Distance(GLOBAL_CACHE.Agent.GetXY(target_id), (-15706, -9035)) > 100
+            Utils.Distance(Agent.GetXY(target_id), (-15706, -9035)) > 100
             and close_array
             and close_array[0]
         ):
@@ -1020,8 +1020,8 @@ def KillRotation():
 
         if new_target:
             if bot_vars.opts.debug:
-                if GLOBAL_CACHE.Agent.IsNameReady(Player.GetTargetID()):
-                    name = f'"{GLOBAL_CACHE.Agent.GetName(Player.GetTargetID())}" - '
+                if Agent.IsNameReady(Player.GetTargetID()):
+                    name = f'"{Agent.GetNameByID(Player.GetTargetID())}" - '
                 else:
                     name = ''
                 Debug(f'Changing target to {name}AgentID [{new_target}].')
@@ -1031,10 +1031,10 @@ def KillRotation():
             return
 
     # attack
-    if not GLOBAL_CACHE.Agent.IsAttacking(Player.GetAgentID()):
+    if not Agent.IsAttacking(Player.GetAgentID()):
         if bot_vars.opts.debug:
-            if GLOBAL_CACHE.Agent.IsNameReady(Player.GetTargetID()):
-                name = f'"{GLOBAL_CACHE.Agent.GetName(Player.GetTargetID())}" - '
+            if Agent.IsNameReady(Player.GetTargetID()):
+                name = f'"{Agent.GetNameByID(Player.GetTargetID())}" - '
             else:
                 name = ''
             Debug(f'Attacking {name}AgentID [{Player.GetTargetID()}].')
@@ -1074,7 +1074,7 @@ def HandleStuck():
         and GLOBAL_CACHE.Party.IsPartyLoaded()
     ):
         if bot_vars.fsm.get_current_step_name() == 'going to kill spot':
-            if not GLOBAL_CACHE.Agent.IsMoving(Player.GetAgentID()):
+            if not Agent.IsMoving(Player.GetAgentID()):
                 if not bot_vars.timers.stuck.IsRunning():
                     bot_vars.timers.stuck.Start()
                     return
@@ -1091,10 +1091,10 @@ def HandleStuck():
 def WaitForSettle(range, count, timeout=6000):
     global bot_vars
 
-    if GLOBAL_CACHE.Agent.IsDead(Player.GetAgentID()):
+    if Agent.IsDead(Player.GetAgentID()):
         return True
 
-    if GLOBAL_CACHE.Agent.GetHealth(Player.GetAgentID()) < 0.5:
+    if Agent.GetHealth(Player.GetAgentID()) < 0.5:
         return True
 
     if not bot_vars.timers.settle.IsRunning():
@@ -1120,7 +1120,7 @@ def WaitForSettle(range, count, timeout=6000):
 def WaitForKill():
     global bot_vars
 
-    if GLOBAL_CACHE.Agent.IsDead(Player.GetAgentID()):
+    if Agent.IsDead(Player.GetAgentID()):
         bot_vars.gui.stats.fails += 1
         return True
 
@@ -1131,7 +1131,7 @@ def WaitForKill():
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), 600)
 
     if not enemy_array or (
-        len(enemy_array) < 2 and enemy_array[0] and GLOBAL_CACHE.Agent.GetHealth(enemy_array[0]) > 0.4
+        len(enemy_array) < 2 and enemy_array[0] and Agent.GetHealth(enemy_array[0]) > 0.4
     ):
         bot_vars.gui.stats.runs += 1
         lap_time = bot_vars.timers.lap.GetElapsedTime()
@@ -1258,7 +1258,7 @@ fsm_farm_states = [
         'equipping scythe',
         dict(
             execute_fn=lambda: combat.ChangeWeaponSet(build.scythe),
-            exit_condition=lambda: GLOBAL_CACHE.Agent.GetWeaponType(Player.GetAgentID())[1] == 'Scythe',
+            exit_condition=lambda: Agent.GetWeaponType(Player.GetAgentID())[1] == 'Scythe',
             run_once=False,
         ),
     ),

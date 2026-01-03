@@ -81,7 +81,7 @@ def ball_sensalis(bot: Botting):
     elapsed = 0
     while elapsed < (10 * 10):  # 100 = 10 seconds, 30 = 3 seconds
         # Enemies nearby
-        player_hp = GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
         if player_hp < 0.80:
             ConsoleLog(FEATHER_FARMER, 'Dying, killing immediately!')
             return True
@@ -146,7 +146,7 @@ def farm_sensalis(bot, kill_immediately=False):
             return
 
         # Death check
-        if GLOBAL_CACHE.Agent.IsDead(player_id):
+        if Agent.IsDead(player_id):
             # handle death here
             ConsoleLog(FEATHER_FARMER, 'Died fighting, setting back to [Move] status')
             bot.config.build_handler.status = DervBuildFarmStatus.Move
@@ -178,13 +178,13 @@ def loot_items():
 def get_sensali_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS]
+    return [agent_id for agent_id in enemy_array if Agent.GetModelID(agent_id) in SENSALI_MODEL_IDS]
 
 
 def get_non_sensali_array(custom_range=Range.Area.value * 1.50):
     px, py = GLOBAL_CACHE.Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
-    return [agent_id for agent_id in enemy_array if GLOBAL_CACHE.Agent.GetModelID(agent_id) not in SENSALI_MODEL_IDS]
+    return [agent_id for agent_id in enemy_array if Agent.GetModelID(agent_id) not in SENSALI_MODEL_IDS]
 
 
 def reset_item_id_blacklist():
@@ -292,7 +292,7 @@ def handle_stuck(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             yield from Routines.Yield.Player.Resign()
             continue
@@ -314,7 +314,7 @@ def handle_stuck(bot: Botting):
                     stuck_counter += 1
                     GLOBAL_CACHE.Player.SendChatCommand("stuck")
                     player_pos = GLOBAL_CACHE.Player.GetXY()
-                    facing_direction = GLOBAL_CACHE.Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
+                    facing_direction = Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
                     # --- Backpedal (opposite facing direction) ---
                     back_angle = facing_direction + math.pi  # 180° behind
                     back_distance = 200
@@ -384,7 +384,7 @@ def handle_sensali_danger(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             continue
 
@@ -406,7 +406,7 @@ def handle_loot(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             continue
 
@@ -520,7 +520,7 @@ def feather_farm_bot(bot: Botting):
 
     bot.Party.Resign()
     bot.Wait.ForTime(3000)
-    bot.Wait.UntilCondition(lambda: GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
+    bot.Wait.UntilCondition(lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
 
 
 bot.SetMainRoutine(feather_farm_bot)

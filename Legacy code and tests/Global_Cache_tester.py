@@ -26,14 +26,14 @@ def main():
         if PyImGui.collapsing_header("Agent"):
             agent_id = GLOBAL_CACHE.Player.GetTargetID() if GLOBAL_CACHE.Player.GetTargetID() != 0 else GLOBAL_CACHE.Player.GetAgentID()
             PyImGui.text(f"Agent ID: {agent_id}")
-            PyImGui.text(f"Agent Name: {GLOBAL_CACHE.Agent.GetName(agent_id)}")
-            PyImGui.text(f"Agent Position: {GLOBAL_CACHE.Agent.GetXY(agent_id)}")
+            PyImGui.text(f"Agent Name: {Agent.GetNameByID(agent_id)}")
+            PyImGui.text(f"Agent Position: {Agent.GetXY(agent_id)}")
 
         if PyImGui.collapsing_header("Agent Array"):
             agent_array = AgentArray.GetAgentArray()
             for agent_id in agent_array:
-                agent_name = GLOBAL_CACHE.Agent.GetName(agent_id)
-                agent_position = GLOBAL_CACHE.Agent.GetXY(agent_id)
+                agent_name = Agent.GetNameByID(agent_id)
+                agent_position = Agent.GetXY(agent_id)
                 PyImGui.text(f"Agent ID: {agent_id}, Name: {agent_name}, Position: {agent_position}")
                 
         if PyImGui.collapsing_header("Camera"):

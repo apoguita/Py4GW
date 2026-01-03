@@ -1,7 +1,7 @@
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -35,7 +35,7 @@ class IAmUnstoppableUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        current_heath_percent = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
+        current_heath_percent = Agent.GetHealth(player_agent_id)
 
         if current_heath_percent < 1: return self.score_definition.get_score()
         return None

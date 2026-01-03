@@ -99,16 +99,17 @@ class Movement:
             """
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog
+            from ..Agent import Agent
             
             if self._paused:
                 return
             
             if self.following:
                 current_position = GLOBAL_CACHE.Player.GetXY()
-                is_casting = GLOBAL_CACHE.Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
-                is_moving = GLOBAL_CACHE.Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
-                is_knocked_down = GLOBAL_CACHE.Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
-                is_dead = GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+                is_casting = Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+                is_moving = Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
+                is_knocked_down = Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
+                is_dead = Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
 
                 if is_casting or is_moving or is_knocked_down or is_dead:
                     return 

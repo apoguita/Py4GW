@@ -1,7 +1,7 @@
 from Py4GWCoreLib import IconsFontAwesome5, PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-
+from Py4GWCoreLib import Agent
 import math
 
 from Widgets.CustomBehaviors.primitives.parties.party_flagging_manager import PartyFlaggingManager
@@ -74,7 +74,7 @@ class FlagsUI:
             flag_manager.spacing_radius = new_spacing
             leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
             leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+            leader_angle = Agent.GetRotationAngle(leader_agent_id)
             flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_1")
 
 
@@ -122,7 +122,7 @@ class FlagsUI:
             # Also place flags at leader position so overlay updates immediately
             leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
             leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-            leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+            leader_angle = Agent.GetRotationAngle(leader_agent_id)
             flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_1")
         if PyImGui.is_item_hovered():
             PyImGui.set_tooltip(
@@ -148,7 +148,7 @@ class FlagsUI:
         # Get current leader position for applying changes
         leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
         leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        leader_angle = GLOBAL_CACHE.Agent.GetRotationAngle(leader_agent_id)
+        leader_angle = Agent.GetRotationAngle(leader_agent_id)
 
         # Draw the grid
         for row in grid_layout:

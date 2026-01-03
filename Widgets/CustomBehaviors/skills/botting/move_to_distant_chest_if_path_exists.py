@@ -1,6 +1,6 @@
 from typing import Any, Callable, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Utils
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Agent, Utils
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Widgets.CustomBehaviors.primitives import constants
@@ -80,8 +80,8 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
         if chest_agent_id is None or chest_agent_id == 0: return None
         if chest_agent_id in self.opened_chest_agent_ids: return None
 
-        player_position = GLOBAL_CACHE.Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())
-        chest_position = GLOBAL_CACHE.Agent.GetXY(chest_agent_id)
+        player_position = Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())
+        chest_position = Agent.GetXY(chest_agent_id)
         if Utils.Distance(player_position, chest_position) < 600: return None # we don't care about close chests
 
         # we can't evaluate path is really reachable there. (not yieldable)
@@ -91,11 +91,11 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
         chest_agent_id = Routines.Agents.GetNearestChest(3000)
-        player_position = GLOBAL_CACHE.Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())
-        chest_position = GLOBAL_CACHE.Agent.GetXY(chest_agent_id)
+        player_position = Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())
+        chest_position = Agent.GetXY(chest_agent_id)
         print(f"chest_agent_id {chest_agent_id}")
 
-        zplane = GLOBAL_CACHE.Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+        zplane = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
         path3d = yield from AutoPathing().get_path((player_position[0], player_position[1], zplane), (chest_position[0], chest_position[1], zplane),smooth_by_los=True, margin=100.0, step_dist=300.0)
         path_flatten:list[tuple[float, float]] = [(px, py) for (px, py, pz) in path3d]
 

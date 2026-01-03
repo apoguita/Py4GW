@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Range, Utils, ConsoleLog
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Utils, ConsoleLog
 import Py4GW
 import os
 BOT_NAME = "VQ Ferndale"
@@ -145,14 +145,13 @@ def _upkeep_multibox_consumables(bot :"Botting"):
             yield from bot.Wait._coro_for_time(250)
             
 def _on_party_wipe(bot: "Botting"):
-    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid → release FSM and exit
             bot.config.FSM.resume()
             return
 
-    GLOBAL_CACHE.Map
     # Player revived on same map → jump to recovery step
     bot.States.JumpToStepName("[H]Start Combat_3")
     bot.config.FSM.resume()

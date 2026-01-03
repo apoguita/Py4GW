@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent
 from Py4GWCoreLib.enums import Profession
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -63,7 +63,7 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
         if lowest_target is None: return None
         
         is_spirit_exist:bool = custom_behavior_helpers.Resources.is_spirit_exist(within_range=Range.Earshot)
-        is_conditioned:bool = GLOBAL_CACHE.Agent.IsConditioned(lowest_target.agent_id)
+        is_conditioned:bool = Agent.IsConditioned(lowest_target.agent_id)
         blind_or_crippled_melee_target: custom_behavior_helpers.SortableAgentData | None = self._get_melee_blind_or_crippled_if_exist()
 
         if lowest_target.hp < 0.40:

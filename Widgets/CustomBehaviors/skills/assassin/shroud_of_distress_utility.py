@@ -1,7 +1,7 @@
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Agent
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -39,7 +39,7 @@ class ShroudOfDistressUtility(CustomSkillUtilityBase):
             return None
 
         player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        current_health_percent = GLOBAL_CACHE.Agent.GetHealth(player_agent_id)
+        current_health_percent = Agent.GetHealth(player_agent_id)
 
         if current_health_percent > 0.55: 
             return None

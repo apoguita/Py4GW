@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Range
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -35,7 +35,7 @@ class WaitIfPartyMemberTooFarUtility(CustomSkillUtilityBase):
         player_pos: tuple[float, float] = GLOBAL_CACHE.Player.GetXY()
         agent_ids: list[int] = AgentArray.GetAllyArray()
         party_size = len(agent_ids)
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
+        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id))
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, Range.Spellcast.value * 0.75)
         party_size_within_range = len(agent_ids)
         return party_size_within_range < party_size

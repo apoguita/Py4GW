@@ -45,7 +45,7 @@ class Player:
         Args: None
         Returns: str
         """
-        return Agent.GetName(Player.GetAgentID())
+        return Agent.GetNameByID(Player.GetAgentID())
 
     @staticmethod
     def GetXY():

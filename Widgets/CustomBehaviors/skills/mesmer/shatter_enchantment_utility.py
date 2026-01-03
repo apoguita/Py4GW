@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range
+from Py4GWCoreLib import Range, Agent
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -34,7 +34,7 @@ class ShatterEnchantmentUtility(CustomSkillUtilityBase):
         
         targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
                     within_range=Range.Spellcast,
-                    condition=lambda agent_id: GLOBAL_CACHE.Agent.IsEnchanted(agent_id),
+                    condition=lambda agent_id: Agent.IsEnchanted(agent_id),
                     sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
 
         return targets

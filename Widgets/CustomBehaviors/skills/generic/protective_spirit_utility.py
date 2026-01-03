@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
 from Py4GWCoreLib.enums import SpiritModelID
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 
@@ -56,14 +56,14 @@ class ProtectiveSpiritUtility(CustomSkillUtilityBase):
             if custom_behavior_helpers.Resources.is_spirit_exist(
                     within_range=Range.Spellcast,
                     associated_to_skill=self.custom_skill,
-                    condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) < 0.80): # we only refresh low life spirits
+                    condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.80): # we only refresh low life spirits
                 return self.score_definition.get_score()
 
         # Check if we need to cast the spirit
         if not custom_behavior_helpers.Resources.is_spirit_exist(
                 within_range=Range.Spellcast,
                 associated_to_skill=self.custom_skill,
-                condition=lambda agent_id: GLOBAL_CACHE.Agent.GetHealth(agent_id) > 0.3):
+                condition=lambda agent_id: Agent.GetHealth(agent_id) > 0.3):
             return self.score_definition.get_score()  # High priority if spirit doesn't exist or is low health
             
         return None  # No need to cast if spirit exists and is healthy

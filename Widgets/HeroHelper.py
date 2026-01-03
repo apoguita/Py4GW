@@ -567,7 +567,7 @@ class Helper:
 
         for aid in agents:
             if aid not in Helper.agent_name_cache and Agent.IsNameReady(aid):
-                Helper.agent_name_cache[aid] = Agent.GetName(aid)
+                Helper.agent_name_cache[aid] = Agent.GetNameByID(aid)
 
         Helper.cached_agent_ids.update(new_ids)
 
@@ -578,7 +578,7 @@ class Helper:
 
         Agent.RequestName(agent_id)
         if Agent.IsNameReady(agent_id):
-            name = Agent.GetName(agent_id)
+            name = Agent.GetNameByID(agent_id)
             Helper.agent_name_cache[agent_id] = name
             return name
 

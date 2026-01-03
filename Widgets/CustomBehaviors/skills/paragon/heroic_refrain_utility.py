@@ -3,6 +3,7 @@ from typing import Any, Generator, override
 from PyAgent import AttributeClass
 import PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.enums import Profession, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -39,7 +40,7 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
         # it will cause issue if you don't have 16 leadership base. can be dactivated through UI(customized_debug_ui & detailled mode)
 
         if self.should_reach_leadership_attribute_score_of_20:
-            attributes: list[AttributeClass] = GLOBAL_CACHE.Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
+            attributes: list[AttributeClass] = Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
             leadership_attribute:AttributeClass|None = next((attribute for attribute in attributes if attribute.GetName() == 'Leadership'), None)
             if leadership_attribute is not None and leadership_attribute.level < 20:
                 return GLOBAL_CACHE.Player.GetAgentID()

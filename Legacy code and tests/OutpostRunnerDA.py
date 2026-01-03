@@ -100,7 +100,7 @@ class OutpostRunnerDA(Build):
                 yield from Routines.Yield.wait(1000)
                 continue
             
-            if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
             
@@ -118,7 +118,7 @@ class OutpostRunnerDA(Build):
             has_shroud = Routines.Checks.Effects.HasBuff(player_id, self.shroud_of_distress)
             has_pious = Routines.Checks.Effects.HasBuff(player_id, self.pious_haste)
             has_dwarven = Routines.Checks.Effects.HasBuff(player_id, self.dwarven_stability)
-            hp = GLOBAL_CACHE.Agent.GetHealth(player_id)
+            hp = Agent.GetHealth(player_id)
             
             current_target = GLOBAL_CACHE.Player.GetTargetID()
             if current_target != player_id:

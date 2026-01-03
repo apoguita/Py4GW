@@ -3,6 +3,7 @@ from Py4GWCoreLib.routines_src.Agents import Agents
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console
 from ..Map import Map
+from ..Agent import Agent
 from ..enums_src.Title_enums import TITLE_NAME
 from ..UIManager import UIManager
 from ..enums_src.UI_enums import ControlAction
@@ -569,13 +570,13 @@ class BT:
                 node.blackboard["agent_ids"] = ids
 
                 for aid in ids:
-                    GLOBAL_CACHE.Agent.RequestName(aid)
+                    Agent.RequestName(aid)
 
                 return BehaviorTree.NodeState.SUCCESS
 
             def _check_names_ready(node):
                 for aid in node.blackboard["agent_ids"]:
-                    if not GLOBAL_CACHE.Agent.IsNameReady(aid):
+                    if not Agent.IsNameReady(aid):
                         return BehaviorTree.NodeState.FAILURE
                 return BehaviorTree.NodeState.SUCCESS
             
@@ -584,8 +585,8 @@ class BT:
                 found = 0
 
                 for aid in node.blackboard["agent_ids"]:
-                    if GLOBAL_CACHE.Agent.IsNameReady(aid):
-                        name = GLOBAL_CACHE.Agent.GetName(aid)
+                    if Agent.IsNameReady(aid):
+                        name = Agent.GetNameByID(aid)
                         if search_lower in name.lower():
                             found = aid
                             break
@@ -630,7 +631,7 @@ class BT:
                 found = 0
 
                 for aid in ids:
-                    if GLOBAL_CACHE.Agent.GetModelID(aid) == model_id:
+                    if Agent.GetModelID(aid) == model_id:
                         found = aid
                         break
 

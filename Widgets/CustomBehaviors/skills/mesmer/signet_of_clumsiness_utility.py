@@ -1,6 +1,6 @@
 from typing import Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -42,7 +42,7 @@ class SignetOfClumsinessUtility(CustomSkillUtilityBase):
         """Get attacking enemies ordered by cluster size."""
         return custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
                     within_range=Range.Spellcast,
-                    condition=lambda agent_id: GLOBAL_CACHE.Agent.IsAttacking(agent_id),
+                    condition=lambda agent_id: Agent.IsAttacking(agent_id),
                     sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC,),
                     range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
 

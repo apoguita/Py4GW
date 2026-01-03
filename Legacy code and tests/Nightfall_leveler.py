@@ -1,4 +1,4 @@
-from Py4GWCoreLib import (Botting, Routines, GLOBAL_CACHE, ModelID, ImGui)
+from Py4GWCoreLib import (Botting, Routines, GLOBAL_CACHE,Agent,  ModelID, ImGui)
 
 bot = Botting("NF Leveler")
      
@@ -49,8 +49,8 @@ def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
 def EquipSkillBar(): 
     global bot
 
-    profession, _ = GLOBAL_CACHE.Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if profession == "Dervish":
         if level <= 2: #5 attribute points available
             yield from Routines.Yield.Skills.LoadSkillbar("OgCjkKrBbMiXprAAAAAAAAAAAA")
@@ -372,7 +372,7 @@ def jokanur_diggings_quests(bot):
     bot.Wait.UntilOutOfCombat()
     bot.Map.Travel(target_map_id=491) #Jokanur Diggings, add more mobs before here
     bot.Wait.ForMapToChange(target_map_id=491)
-    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
     if level <= 10:
         bot.States.JumpToStepName("[H]Sprint to level 10_23") # Will add more to the loop
     else:
@@ -432,7 +432,7 @@ iconwidth = 96
 
 def _draw_texture():
     global iconwidth
-    level = GLOBAL_CACHE.Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
 
     path = "SS Evos.png"
     size = (float(iconwidth), float(iconwidth))

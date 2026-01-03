@@ -57,11 +57,11 @@ class _WAIT:
         
     def _coro_until_model_has_quest(self, model_id: int):
         from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
+        from ...Agent import Agent
         from ...enums import Range
         wait_function = lambda: (
             not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
-            GLOBAL_CACHE.Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(model_id))
+            Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(model_id))
         )
         yield from self._coro_until_condition(wait_function, duration=1000)
         

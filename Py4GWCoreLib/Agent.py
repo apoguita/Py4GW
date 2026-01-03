@@ -1,35 +1,37 @@
-import PyAgent
+
+import time
 
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 from .model_data import ModelData
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 
-class ItemOwnerCache:
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ItemOwnerCache, cls).__new__(cls)
-            cls._instance._init()
-        return cls._instance
-
-    def _init(self):
-        self.cache = {}  # { item_id: original_owner_id }
-
-    def check_and_cache(self, item_id, owner_id):
-        if item_id not in self.cache:
-            self.cache[item_id] = owner_id
-        return self.cache[item_id]
-
-    def clear_all(self):
-        self.cache.clear()
-
-
 # Agent
 class Agent:
+    name_cache: dict[int, tuple[str, float]] = {}  # agent_id -> (name, timestamp)
+    name_requested: set[int] = set()
+    name_timeout_ms = 1_000
+
+    
     @staticmethod
-    def IsValid(agent_id):
+    def _update_cache() -> None:
+        import PyAgent
+        """Should be called every frame to resolve names when ready."""
+        now = time.time() * 1000
+        for agent_id in list(Agent.name_requested):
+            name = PyAgent.PyAgent.GetNameByID(agent_id)
+
+            Agent.name_cache[agent_id] = (name, now)
+            Agent.name_requested.discard(agent_id)
+            
+    @staticmethod
+    def _reset_cache() -> None:
+        """Resets the name cache and requested set."""
+        Agent.name_cache.clear()
+        Agent.name_requested.clear()
+        
+    @staticmethod
+    def IsValid(agent_id) -> bool:
         """
         Purpose: Check if the agent is valid.
         Args: agent_id (int): The ID of the agent.
@@ -54,18 +56,6 @@ class Agent:
                 return func(agent_id, *args, **kwargs)
             return wrapper
         return decorator
-
-    
-    
-    @staticmethod
-    def GetIdFromAgent(agent_instance):
-        """
-        Purpose: Retrieve the ID of an agent.
-        Args:
-            agent_instance (PyAgent): The agent instance.
-        Returns: int
-        """
-        return agent_instance.id
 
     @staticmethod
     def GetAgentByID(agent_id) -> AgentStruct | None:
@@ -121,12 +111,31 @@ class Agent:
         return agent.GetAsAgentGadget()
     
     @staticmethod
-    def GetNameByID(agent_id):
+    def GetNameByID(agent_id) -> str:
+        import PyAgent
         """Purpose: Get the native name of an agent by its ID."""
-        return PyAgent.PyAgent.GetNameByID(agent_id)
-    
-    #aliases for reto compatibility
-    GetName = GetNameByID
+        now = time.time() * 1000  # current time in ms
+        # Cached and still valid
+        if agent_id in Agent.name_cache:
+            name, timestamp = Agent.name_cache[agent_id]
+            if now - timestamp < Agent.name_timeout_ms:
+                return name
+            else:
+                # Expired; refresh
+                if agent_id not in Agent.name_requested:    
+                    PyAgent.PyAgent.GetNameByID(agent_id)
+                    Agent.name_requested.add(agent_id)
+                return name  # Still return old while waiting
+
+        # Already requested but not ready
+        if agent_id in Agent.name_requested:
+            return ""
+
+        PyAgent.PyAgent.GetNameByID(agent_id)
+        Agent.name_requested.add(agent_id)
+        return ""
+
+    #aliases for retro compatibility
     RequestName = GetNameByID
         
     @staticmethod
@@ -137,7 +146,7 @@ class Agent:
     
     
     @staticmethod
-    def GetAgentIDByName(name):
+    def GetAgentIDByName(name:str) -> int:
         from .AgentArray import AgentArray
         """
         Purpose: Retrieve the first agent by matching a partial mask of its name.
@@ -149,7 +158,7 @@ class Agent:
         agent_array = AgentArray.GetAgentArray()
 
         for agent_id in agent_array:
-            agent_name = Agent.GetName(agent_id)  # Retrieve the full name of the agent
+            agent_name = Agent.GetNameByID(agent_id)  # Retrieve the full name of the agent
             if name.lower() in agent_name.lower():  # Check for partial match (case-insensitive)
                 return agent_id
         
@@ -625,7 +634,7 @@ class Agent:
         return velocity.x, velocity.y
     
     @staticmethod
-    def GetProfessions(agent_id):
+    def GetProfessions(agent_id) -> tuple[int, int]:
         """
         Purpose: Retrieve the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -633,12 +642,12 @@ class Agent:
         """
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
-            return None, None
+            return 0, 0
 
         return living.primary, living.secondary
 
     @staticmethod
-    def GetProfessionNames(agent_id):
+    def GetProfessionNames(agent_id) -> tuple[str, str]:
         """
         Purpose: Retrieve the names of the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -647,17 +656,17 @@ class Agent:
         from .enums_src.GameData_enums import Profession, Profession_Names
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
-            return None, None
+            return "", ""
 
         profession = Profession(living.primary)
         prof_name = Profession_Names[profession]
         secondary_profession = Profession(living.secondary)
         secondary_prof_name = Profession_Names[secondary_profession]
         
-        return prof_name, secondary_prof_name
+        return prof_name  if prof_name is not None else "", secondary_prof_name if secondary_prof_name is not None else ""
     
     @staticmethod
-    def GetProfessionShortNames(agent_id):
+    def GetProfessionShortNames(agent_id) -> tuple[str, str]:
         """
         Purpose: Retrieve the short names of the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -666,17 +675,17 @@ class Agent:
         from .enums_src.GameData_enums import ProfessionShort, ProfessionShort_Names
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
-            return None, None
+            return "", ""
 
         profession = ProfessionShort(living.primary)
         prof_name = ProfessionShort_Names[profession]
         secondary_profession = ProfessionShort(living.secondary)
         secondary_prof_name = ProfessionShort_Names[secondary_profession]
         
-        return prof_name, secondary_prof_name
+        return prof_name , secondary_prof_name
     
     @staticmethod
-    def GetProfessionIDs(agent_id):
+    def GetProfessionIDs(agent_id) -> tuple[int, int]:
         """
         Purpose: Retrieve the IDs of the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -684,7 +693,7 @@ class Agent:
         """
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
-            return None, None
+            return 0, 0
         return living.primary, living.secondary
 
     @staticmethod
@@ -909,7 +918,7 @@ class Agent:
         return is_attacking or is_casting
 
     @staticmethod
-    def IsAttacking(agent_id):
+    def IsAttacking(agent_id:int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
@@ -1158,7 +1167,7 @@ class Agent:
     
 #region gadgets
     @staticmethod
-    def GetGadgetID(agent_id):
+    def GetGadgetID(agent_id) -> int:
         """Retrieve the gadget ID of the agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
         if gadget is None:
@@ -1207,9 +1216,10 @@ class Agent:
 
 
     #region not worked
-    
+    import PyAgent
     @staticmethod
     def agent_instance(agent_id) -> PyAgent.PyAgent:
+        import PyAgent
         """
         Helper method to create and return a PyAgent instance.
         Args:
@@ -1221,6 +1231,7 @@ class Agent:
 
     @staticmethod
     def GetAttributes(agent_id):
+        import PyAgent
         """
         Purpose: Retrieve the attributes of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -1258,6 +1269,22 @@ class Agent:
 
         agent = Agent.agent_instance(agent_id)
         return agent.attributes
+    
+    @staticmethod
+    def GetAttributesDict(agent_id):  
+        import PyAgent  
+        # Get attributes
+        attributes_raw:list[PyAgent.AttributeClass] = Agent.GetAttributes(agent_id)
+        attributes = {}
+
+        # Convert attributes to dictionary format
+        for attr in attributes_raw:
+            attr_id = int(attr.attribute_id)  # Convert enum to integer
+            attr_level = attr.level_base  # Get attribute level
+            if attr_level > 0:  # Only include attributes with points
+                attributes[attr_id] = attr_level
+                
+        return attributes
 
     @staticmethod
     def GetCastingSkill(agent_id):
@@ -1276,54 +1303,6 @@ class Agent:
         """Retrieve the gadget agent of the agent."""
         return Agent.agent_instance(agent_id).gadget_agent
     
-#region Names
-class AgentName:
-    """
-    Purpose: Requests and Retrieve the name of an agent.
-    """
-    def __init__(self, agent_id, refresh_rate=1000):
-        from .Py4GWcorelib import ThrottledTimer
-        self.agent_id = agent_id
-        self.name = None
-        self.refresh_timer = ThrottledTimer(refresh_rate)
-        self.requested = False
-        self.name_ready = False
-
-    def request_name(self):
-        """Request the agent's name if not already requested."""
-        if not self.requested:
-            Agent.RequestName(self.agent_id)
-            self.requested = True
-
-    def is_name_ready(self):
-        """Check if the name is ready."""
-        return Agent.IsNameReady(self.agent_id)
-
-    def get_name(self):
-        """
-        Get the agent's name.
-        """
-        
-        if not self.name_ready or self.refresh_timer.IsExpired():
-            self.refresh_timer.Reset()
-            if not self.requested:
-                self.request_name()
-                self.name_ready = False
-                return self.name
-                
-                
-        if not self.name_ready and self.is_name_ready():
-            self.name = Agent.GetName(self.agent_id)
-            self.name_ready = True
-            self.requested = False
-                    
-        return self.name
-            
-
-
-
-
-
 
 
 

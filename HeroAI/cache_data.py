@@ -5,7 +5,7 @@ from .globals import HeroAI_varsClass, HeroAI_Window_varsClass
 from .combat import CombatClass
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Timer, ThrottledTimer
-from Py4GWCoreLib import Range, Utils, ConsoleLog
+from Py4GWCoreLib import Range, Agent, ConsoleLog
 from Py4GWCoreLib import AgentArray, Weapon, Routines
 
 @dataclass
@@ -47,7 +47,7 @@ class GameData:
     def update(self):
         
         #Player data
-        attributes = GLOBAL_CACHE.Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
+        attributes = Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
         self.fast_casting_exists = False
         self.fast_casting_level = 0
         self.expertise_exists = False
@@ -84,8 +84,8 @@ class CacheData:
         """
         Returns the attack speed of the current weapon.
         """
-        weapon_type,_ = GLOBAL_CACHE.Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
-        player_living = GLOBAL_CACHE.Agent.GetLivingAgentByID(GLOBAL_CACHE.Player.GetAgentID())
+        weapon_type,_ = Agent.GetWeaponType(GLOBAL_CACHE.Player.GetAgentID())
+        player_living = Agent.GetLivingAgentByID(GLOBAL_CACHE.Player.GetAgentID())
         if player_living is None:
             return 0
         

@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Py4GWCoreLib.Py4GWcorelib import Utils
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -50,9 +50,9 @@ class DistractingShotUtility(CustomSkillUtilityBase):
             select_target=lambda: custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
                 within_range=Range.Spellcast,
                 condition=lambda agent_id: 
-                    GLOBAL_CACHE.Agent.IsCasting(agent_id) and 
-                    Utils.Distance(GLOBAL_CACHE.Agent.GetXY(agent_id), (player_position)) < Range.Spellcast.value * 0.6 and
-                    GLOBAL_CACHE.Skill.Data.GetActivation(GLOBAL_CACHE.Agent.GetCastingSkill(agent_id)) >= 0.510,
+                    Agent.IsCasting(agent_id) and 
+                    Utils.Distance(Agent.GetXY(agent_id), (player_position)) < Range.Spellcast.value * 0.6 and
+                    GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkill(agent_id)) >= 0.510,
                 sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.CASTER_THEN_MELEE))
         ))
 
