@@ -500,6 +500,8 @@ class AgentArray:
 
 
 #region RawAgentArray
+#DEPRECATED
+"""
 class RawAgentArray:
     _instance = None
 
@@ -652,8 +654,6 @@ class RawAgentArray:
 
 
     def reset(self):
-        """Reset the agent array and all caches."""
-
         # === Reset throttles ===
         self.update_throttle.Reset()
 
@@ -719,10 +719,6 @@ class RawAgentArray:
         return self.agent_dict.get(agent_id) or PyAgent.PyAgent(agent_id)
     
     def get_item_owner(self, item_id: int) -> int:
-        """
-        Get the owner ID of an item by its item ID.
-        If the item is not found, returns 0.
-        """
         self.update()
         if Agent.IsValid(item_id) is False:
             return 999
@@ -730,3 +726,4 @@ class RawAgentArray:
         owner = agent.item_agent.owner_id if agent.is_item else 999
         return owner
 
+"""

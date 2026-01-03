@@ -2,7 +2,6 @@ import Py4GW
 
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib import RawAgentArray
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import UIManager
@@ -48,7 +47,6 @@ class Global_Vars:
         self.party_target_id = 0
         self.owner_target_id = 0
 
-        self.agent_array = RawAgentArray()
         self.pet_name = ""
         self.player_name = ""
         self.party_target_name = ""
@@ -131,16 +129,11 @@ class Global_Vars:
             self.party_target_id = 0
             self.owner_target_id = 0
 
-        self.agent_array.update()
         if self.pet_name == "":
-            #self.pet_name = self.agent_array.get_name(self.pet_id).replace("Pet - ", "")
             self.pet_name = Agent.GetNameByID(self.pet_id).replace("Pet - ", "")
         if self.player_name == "":
-            #self.player_name = self.agent_array.get_name(self.player_agent_id)
             self.player_name = Agent.GetNameByID(self.player_agent_id)
-        #self.party_target_name = self.agent_array.get_name(self.party_target_id)
         self.party_target_name = Agent.GetNameByID(self.party_target_id)
-        #self.owner_target_name = self.agent_array.get_name(self.owner_target_id)
         self.owner_target_name = Agent.GetNameByID(self.owner_target_id)
 
 global_vars = Global_Vars()

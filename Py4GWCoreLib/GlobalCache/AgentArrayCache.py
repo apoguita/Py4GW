@@ -1,10 +1,10 @@
-from Py4GWCoreLib.AgentArray import RawAgentArray, AgentArray
+from Py4GWCoreLib.AgentArray import  AgentArray
 from ..native_src.context.AgentContext import AgentStruct
 import PyPlayer
 
 class AgentArrayCache:
-    def __init__(self, raw_agent_array: RawAgentArray):
-        self._raw_agent_array = raw_agent_array  
+    def __init__(self):
+        self._raw_agent_array = AgentArray.GetAgentArrayRaw()  
         self._player_instance = PyPlayer.PyPlayer()
         
     def _update_cache(self):
