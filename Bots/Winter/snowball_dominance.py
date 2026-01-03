@@ -46,7 +46,7 @@ bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config 
 def SnowBallDominance(bot: Botting) -> None:
     InitializeBot(bot)
 
-    if Map.GetMapID() != 821:
+    if GLOBAL_CACHE.Map.GetMapID() != 821:
         def _state():
             yield from RndTravelState(821, use_districts=8)
         bot.States.AddCustomState(_state, "RndTravel -> EOTN")
@@ -114,7 +114,7 @@ def SnowBallDominance(bot: Botting) -> None:
 def attackRoutine(bot: "Botting"):
     global startedAttacking, oliasInDanger, successCounter, run_times
     while True:
-        if Map.GetMapID() == 793:
+        if GLOBAL_CACHE.Map.GetMapID() == 793:
             if oliasInDanger and not startedAttacking:
                 startedAttacking = True
                 target = _find_best_target()
@@ -146,11 +146,11 @@ def attackRoutine(bot: "Botting"):
                     target = _find_best_target()
                     if target != None:
                         Player.ChangeTarget(target)
-                    if fortSkill.recharge == 0 and Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.80:
+                    if fortSkill.recharge == 0 and GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.80:
                         GLOBAL_CACHE.SkillBar.UseSkill(7)
                         yield from Routines.Yield.wait(1200)
                         continue
-                    if healSkill.recharge == 0 and Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
+                    if healSkill.recharge == 0 and GLOBAL_CACHE.Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
                         GLOBAL_CACHE.SkillBar.UseSkill(8)
                         yield from Routines.Yield.Movement.FollowPath([(2496.01, -210.70)])
                         yield from Routines.Yield.wait(8000)
@@ -205,7 +205,7 @@ def necroRoutine(bot: Botting):
     
     skill4, skill5 = False, False
     while True:
-        if Map.GetMapID() == 793:
+        if GLOBAL_CACHE.Map.GetMapID() == 793:
             if not oliasInDanger:
                 skill5 = False
                 skill4 = False
@@ -258,13 +258,13 @@ def _find_best_target():
     return best_target
 
 def isAgentInDanger(agentId, aggro_area=Range.Spellcast, aggressive_only = False):
-    enemy_array = AgentArray.GetEnemyArray()
+    enemy_array = GLOBAL_CACHE.AgentArray.GetEnemyArray()
     if len(enemy_array) == 0: return False
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Agent.GetXY(agentId), Agent.GetXY(agent_id)) <= aggro_area.value)
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(GLOBAL_CACHE.Agent.GetXY(agentId), GLOBAL_CACHE.Agent.GetXY(agent_id)) <= aggro_area.value)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAlive(agent_id))
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: agentId != agent_id)
     if aggressive_only:
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Agent.IsAggressive(agent_id))
     return len(enemy_array) > 0
 
 def RndTravelState(map_id: int, use_districts: int = 4):
@@ -276,7 +276,7 @@ def RndTravelState(map_id: int, use_districts: int = 4):
     while tempidx == idx:
         tempidx = random.randint(0, use_districts - 1)
     idx = tempidx
-    Map.TravelToRegion(map_id, region[idx], 0, language[idx])
+    Map.map_instance().Travel(map_id, region[idx], 0, language[idx])
     yield from Routines.Yield.wait(8500)
 
 def Use_Frosty_Tonics():
@@ -288,7 +288,7 @@ def Use_Frosty_Tonics():
         if ((not Routines.Checks.Map.MapValid()) and (Map.IsExplorable())):
             yield
         
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield
         
         if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), Tonic_cooldown_effect) and Frost_Tonic_id:
@@ -301,7 +301,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
     """Check gold on character, deposit if needed, buy ectos if conditions met"""
     if BotSettings.GOLD_DEPOSIT_ENABLED:
         def _check_and_deposit_gold(bot: Botting):
-            current_map = Map.GetMapID()
+            current_map = GLOBAL_CACHE.Map.GetMapID()
             gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
             gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
             
@@ -314,7 +314,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
                 if current_map != BotSettings.EOTN_OUTPOST_ID:
                     if BotSettings.DEBUG:
                         print(f"[GOLD] Traveling to EOTN from map {current_map}")
-                    Map.Travel(BotSettings.EOTN_OUTPOST_ID)
+                    GLOBAL_CACHE.Map.Travel(BotSettings.EOTN_OUTPOST_ID)
                     yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID)
                     current_map = BotSettings.EOTN_OUTPOST_ID
                 
@@ -344,7 +344,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
                     print(f"[GOLD] Below threshold ({gold_on_char}/{BotSettings.GOLD_THRESHOLD_DEPOSIT}), no deposit needed")
             
             # After deposit check, try to buy ectos if conditions are met
-            current_map = Map.GetMapID()
+            current_map = GLOBAL_CACHE.Map.GetMapID()
             if current_map == BotSettings.EOTN_OUTPOST_ID:
                 yield from BuyMaterials(bot)
             
@@ -453,7 +453,7 @@ def draw_window(bot: Botting):
     
     if BotSettings.STATS_FOR_NERDS:
         try:
-            PyImGui.set_next_window_size(270.0, 360.0) 
+            PyImGui.set_next_window_size(270.0, 360.0, 4) 
         except:
             pass 
 
