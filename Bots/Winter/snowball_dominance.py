@@ -1,15 +1,11 @@
 from Py4GWCoreLib import ConsoleLog, Map, Botting, Range, Utils, Agent, get_texture_for_model, GLOBAL_CACHE, Routines, ActionQueueManager, AgentArray, Player, ModelID
-import PyImGui, Py4GW
-import PyMap, PyPlayer, PyAgent
+import PyImGui
 import random
 
 
 # --- CONFIGURATION ---
 BOT_NAME = "Snowball Dominance"
 bot = Botting(BOT_NAME)
-map_instance = PyMap.PyMap()
-
-
 
 # --- GLOBAL VARIABLES ---
 oliasInDanger = False
@@ -436,7 +432,7 @@ def _draw_help():
     PyImGui.bullet_text("Olias (Necromancer) MUST be unlocked.")
     PyImGui.bullet_text("Strategy: Olias with 'Charm Animal' + Polar Bear.")
     PyImGui.bullet_text("Weapon: 20/20 HCT Set recommended.")
-    PyImGui.text(f"Instance Time: {map_instance.instance_time}")
+    PyImGui.text(f"Instance Time: {Map.GetInstanceUptime()}")
 
 
 def _draw_settings():

@@ -787,7 +787,9 @@ def DrawFilteredLootList():
     for agent_id in loot_array:
         try:
             # get raw model-ID and distance
-            item_data = Agent.GetItemAgent(agent_id)
+            item_data = Agent.GetItemAgentByID(agent_id)
+            if item_data is None:
+                continue
             raw_mid   = Item.GetModelID(item_data.item_id)
             dist      = Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id))
 

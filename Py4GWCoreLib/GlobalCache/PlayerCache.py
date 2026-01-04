@@ -2,6 +2,7 @@ import PyPlayer
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 from Py4GWCoreLib import ThrottledTimer
+from ..native_src.internals.helpers import encoded_wstr_to_str
 
 class PlayerCache:
     def __init__(self, action_queue_manager):
@@ -17,7 +18,8 @@ class PlayerCache:
         if not player_uuid:
             return ""
         try:
-            return "uuid_" + "_".join(str(part) for part in player_uuid)
+            result = encoded_wstr_to_str("uuid_" + "_".join(str(part) for part in player_uuid))
+            return result if result else "INVALID"
         except TypeError:
             return str(player_uuid)
         
@@ -118,7 +120,7 @@ class PlayerCache:
     def GetAccountName(self):
         return self._player_instance.account_name
     
-    def GetAccountEmail(self):
+    def GetAccountEmail(self) -> str:
         try:
             account_email = self._player_instance.account_email
             if account_email:

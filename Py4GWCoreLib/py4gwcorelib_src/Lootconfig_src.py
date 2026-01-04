@@ -792,7 +792,9 @@ class LootConfig:
         pick_up_array = []
 
         for agent_id in loot_array[:]:  # Iterate over a copy to avoid modifying while iterating
-            item_data = Agent.GetItemAgent(agent_id)
+            item_data = Agent.GetItemAgentByID(agent_id)
+            if item_data is None:
+                continue
             item_id = item_data.item_id
             model_id = Item.GetModelID(item_id)
             
