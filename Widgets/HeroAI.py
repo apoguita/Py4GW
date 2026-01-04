@@ -294,9 +294,9 @@ def handle_UI (cached_data: CacheData):
 def initialize(cached_data: CacheData) -> bool:
     if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
         register_data(cached_data)
-        own_data = get_own_data(cached_data)                             
+        """own_data = get_own_data(cached_data)                             
         if not own_data:
-            return False   
+            return False   """
 
         handle_UI (cached_data)
         
@@ -312,7 +312,7 @@ def initialize(cached_data: CacheData) -> bool:
     return True
         
 #region main  
-def UpdateStatus(cached_data: CacheData):
+def UpdateStatus(cached_data: CacheData) -> bool:
     if (
         not Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
         or (HeroAI_FloatingWindows.DistanceToDestination(cached_data) >= Range.SafeCompass.value)
@@ -320,33 +320,35 @@ def UpdateStatus(cached_data: CacheData):
         or cached_data.combat_handler.InCastingRoutine()
         or Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
     ):
-        return
+        return False
 
     if LootingRoutineActive():
-        return
+        return True
 
     if HandleOutOfCombat(cached_data):
-        return
+        return True
 
     if Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
-        return
+        return False
 
     if Loot(cached_data):
-        return
+        return True
 
     if Follow(cached_data):
         cached_data.follow_throttle_timer.Reset()
-        return
+        return True
 
     if HandleCombat(cached_data):
         cached_data.auto_attack_timer.Reset()
-        return
+        return True
 
     if not cached_data.data.in_aggro:
-        return
+        return False
 
     if HandleAutoAttack(cached_data):
-        return
+        return True
+    
+    return False
 
 
 #region real_main
