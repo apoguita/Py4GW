@@ -2,24 +2,21 @@
 import math
 import traceback
 import Py4GW
-import PyImGui
 
 MODULE_NAME = "HeroAI"
 
 from Py4GWCoreLib.Map import Map
 
 from HeroAI.cache_data import CacheData
-from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, MELEE_RANGE_VALUE, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS,
-                              PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
+from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MELEE_RANGE_VALUE, RANGED_RANGE_VALUE)
 from HeroAI.game_option import UpdateGameOptions
 from HeroAI.globals import hero_formation
 from HeroAI.players import (RegisterHeroes, RegisterPlayer, UpdatePlayers)
 from HeroAI.utils import (DistanceFromWaypoint)
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
-from HeroAI.ui import (draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, 
-                       draw_hero_panel, draw_hotbars, draw_party_overlay, draw_party_search_overlay, draw_skip_cutscene_overlay)
-from Py4GWCoreLib import (GLOBAL_CACHE, Agent, ActionQueueManager, IconsFontAwesome5, ImGui, LootConfig, Overlay,
-                          Range, Routines, ThrottledTimer, SharedCommandType, UIManager, Utils)
+from HeroAI.ui import (draw_configure_window, draw_skip_cutscene_overlay)
+from Py4GWCoreLib import (GLOBAL_CACHE, Agent, ActionQueueManager, LootConfig,
+                          Range, Routines, ThrottledTimer, SharedCommandType, Utils)
 
 #region GLOBALS
 FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
@@ -74,9 +71,37 @@ def HandleCombat(cached_data: CacheData):
         return combat_flagging_handled
     return cached_data.combat_handler.HandleCombat(ooc=False)
 
+def HandleAutoAttack(cached_data: CacheData) -> bool:
+    target_id = GLOBAL_CACHE.Player.GetTargetID()
+    _, target_aliegance = Agent.GetAllegiance(target_id)
+
+    if target_id == 0 or Agent.IsDead(target_id) or (target_aliegance != "Enemy"):
+        if (
+            cached_data.data.is_combat_enabled
+            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
+        ):
+            cached_data.combat_handler.ChooseTarget()
+            cached_data.auto_attack_timer.Reset()
+            return True
+
+    # auto attack
+    if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
+        if (
+            cached_data.data.is_combat_enabled
+            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
+        ):
+            cached_data.combat_handler.ChooseTarget()
+        cached_data.auto_attack_timer.Reset()
+        cached_data.combat_handler.ResetSkillPointer()
+        return True
+    return False
+
 
 cached_data.in_looting_routine = False
-
 
 #region Looting
 def LootingRoutineActive():
@@ -146,6 +171,12 @@ following_flag = False
 #region Following
 def Follow(cached_data: CacheData):
     global FOLLOW_DISTANCE_ON_COMBAT, following_flag, map_quads
+    
+    if not cached_data.follow_throttle_timer.IsExpired():
+        return False
+    
+    if not map_quads:
+        map_quads = Map.Pathing.GetMapQuads()
 
     if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
@@ -229,17 +260,15 @@ def Follow(cached_data: CacheData):
 
 
     
-#region main
-def UpdateStatus(cached_data: CacheData):
-    global messages, map_quads
-            
+
+def register_data(cached_data: CacheData):
     RegisterPlayer(cached_data)
     RegisterHeroes(cached_data)
     UpdatePlayers(cached_data)
     UpdateGameOptions(cached_data)
-
     cached_data.UpdateGameOptions()
     
+def get_own_data(cached_data: CacheData):
     own_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
     
     if own_data and own_data.PlayerIsPartyLeader and HeroAI_FloatingWindows.settings.DisableAutomationOnLeaderAccount:        
@@ -251,28 +280,39 @@ def UpdateStatus(cached_data: CacheData):
             hero_ai_data.Looting = False
             hero_ai_data.Targeting = False
             hero_ai_data.Combat = False
-            GLOBAL_CACHE.ShMem.SetHeroAIOptions(own_data.AccountEmail, hero_ai_data)            
-                          
-    if not own_data:
-        return     
-    
+            GLOBAL_CACHE.ShMem.SetHeroAIOptions(own_data.AccountEmail, hero_ai_data)
+    return own_data
+
+def handle_UI (cached_data: CacheData):
     HeroAI_FloatingWindows.show_ui(cached_data)               
     HeroAI_FloatingWindows.DrawEmbeddedWindow(cached_data)
     if cached_data.ui_state_data.show_classic_controls:
         HeroAI_Windows.DrawMainWindow(cached_data)
         HeroAI_Windows.DrawControlPanelWindow(cached_data)
         HeroAI_Windows.DrawMultiboxTools(cached_data)
+   
+def initialize(cached_data: CacheData) -> bool:
+    if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
+        register_data(cached_data)
+        own_data = get_own_data(cached_data)                             
+        if not own_data:
+            return False   
 
-    if not Map.IsExplorable():  # halt operation if not in explorable area
-        return
+        handle_UI (cached_data)
+        
+        if not Map.IsExplorable():  # halt operation if not in explorable area
+            return False
 
-    if Map.IsInCinematic():  # halt operation during cinematic
-        return
-
-    HeroAI_Windows.DrawFlags(cached_data)
-
-    HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)
- 
+        if Map.IsInCinematic():  # halt operation during cinematic
+            return False
+        
+        HeroAI_Windows.DrawFlags(cached_data)
+        HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
+        cached_data.UdpateCombat()
+    return True
+        
+#region main  
+def UpdateStatus(cached_data: CacheData):
     if (
         not Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
         or (HeroAI_FloatingWindows.DistanceToDestination(cached_data) >= Range.SafeCompass.value)
@@ -285,7 +325,6 @@ def UpdateStatus(cached_data: CacheData):
     if LootingRoutineActive():
         return
 
-    cached_data.UdpateCombat()
     if HandleOutOfCombat(cached_data):
         return
 
@@ -295,13 +334,9 @@ def UpdateStatus(cached_data: CacheData):
     if Loot(cached_data):
         return
 
-    if cached_data.follow_throttle_timer.IsExpired():
-        if not map_quads:
-            map_quads = Map.Pathing.GetMapQuads()
-        
-        if Follow(cached_data):
-            cached_data.follow_throttle_timer.Reset()
-            return
+    if Follow(cached_data):
+        cached_data.follow_throttle_timer.Reset()
+        return
 
     if HandleCombat(cached_data):
         cached_data.auto_attack_timer.Reset()
@@ -310,59 +345,28 @@ def UpdateStatus(cached_data: CacheData):
     if not cached_data.data.in_aggro:
         return
 
-    target_id = GLOBAL_CACHE.Player.GetTargetID()
-    _, target_aliegance = Agent.GetAllegiance(target_id)
-
-    if target_id == 0 or Agent.IsDead(target_id) or (target_aliegance != "Enemy"):
-        if (
-            cached_data.data.is_combat_enabled
-            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
-        ):
-            cached_data.combat_handler.ChooseTarget()
-            cached_data.auto_attack_timer.Reset()
-            return
-
-    # auto attack
-    if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
-        if (
-            cached_data.data.is_combat_enabled
-            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
-        ):
-            cached_data.combat_handler.ChooseTarget()
-        cached_data.auto_attack_timer.Reset()
-        cached_data.combat_handler.ResetSkillPointer()
+    if HandleAutoAttack(cached_data):
         return
 
 
+#region real_main
 def configure():
     draw_configure_window(MODULE_NAME, HeroAI_FloatingWindows.configure_window)
 
 
+
 def main():
-    global cached_data, settings, init_success, map_quads
+    global cached_data, map_quads
     
     try:        
-        if not Routines.Checks.Map.MapValid():
-            map_quads.clear()
-            return
-
         cached_data.Update()
+        HeroAI_FloatingWindows.update()
         
-        HeroAI_FloatingWindows._handle_settings()
-        if not HeroAI_FloatingWindows.settings._initialized:
-            return
-        else:
-            if not HeroAI_FloatingWindows.init_success:
-                HeroAI_FloatingWindows.init_success = True
-                Py4GW.Console.Log(MODULE_NAME, "HeroAI initialized successfully.", Py4GW.Console.MessageType.Info)
-        
-            
-        if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
+        if initialize(cached_data):
             UpdateStatus(cached_data)
+        else:
+            map_quads.clear()
+
 
     except ImportError as e:
         Py4GW.Console.Log(MODULE_NAME, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)

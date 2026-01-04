@@ -1,5 +1,5 @@
 from operator import index
-from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, PyImGui, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
+from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
 from Py4GWCoreLib import UIManager, ModelID, GLOBAL_CACHE
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import (Routines, ActionQueueManager,Key, Keystroke, ThrottledTimer)
@@ -22,6 +22,7 @@ from .cache_data import CacheData
 from enum import Enum
 
 import math
+import PyImGui
 
 #region FloatingWindows
 
@@ -321,7 +322,20 @@ class HeroAI_FloatingWindows():
                 draw_hotbars(HeroAI_FloatingWindows.accounts, cached_data)
                 
             draw_dialog_overlay(HeroAI_FloatingWindows.accounts, cached_data, HeroAI_FloatingWindows.messages)
+ 
+    @staticmethod
+    def update():
+        import Py4GW
+        HeroAI_FloatingWindows._handle_settings()
+        if not HeroAI_FloatingWindows.settings._initialized:
+            return
+        else:
+            if not HeroAI_FloatingWindows.init_success:
+                HeroAI_FloatingWindows.init_success = True
+                Py4GW.Console.Log("HeroAI", "HeroAI initialized successfully.", Py4GW.Console.MessageType.Info)
+        
             
+                   
 #region Windows
 class HeroAI_Windows():
     skill_slot = 0
@@ -504,7 +518,7 @@ class HeroAI_Windows():
     @staticmethod
     def DrawFlags(cached_data:CacheData):
         global capture_flag_all, capture_hero_flag, capture_hero_index
-        global one_time_set_flag, ClearFlags
+        global one_time_set_flag
         
         if capture_hero_flag:        
             x, y, _ = Overlay().GetMouseWorldPos()
@@ -550,7 +564,7 @@ class HeroAI_Windows():
             if cached_data.HeroAI_vars.all_player_struct[i].IsFlagged and cached_data.HeroAI_vars.all_player_struct[i].IsActive and not cached_data.HeroAI_vars.all_player_struct[i].IsHero:
                 DrawHeroFlag(cached_data.HeroAI_vars.all_player_struct[i].FlagPosX,cached_data.HeroAI_vars.all_player_struct[i].FlagPosY)
 
-        if ClearFlags:
+        if HeroAI_Windows.ClearFlags:
             for i in range(MAX_NUM_PLAYERS):
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "IsFlagged", False)
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosX", 0.0)
@@ -558,13 +572,13 @@ class HeroAI_Windows():
                 cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FollowAngle", 0.0)
                 GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
             GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
-            ClearFlags = False
+            HeroAI_Windows.ClearFlags = False
                 
         
     @staticmethod
     def DrawFlaggingWindow(cached_data:CacheData):
         global AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
-        global ClearFlags
+
         party_size = GLOBAL_CACHE.Party.GetPartySize()
         if party_size == 1:
             PyImGui.text("No Follower or Heroes to Flag.")
@@ -599,7 +613,7 @@ class HeroAI_Windows():
                 if party_size >= 8:
                     HeroAI_Windows.HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cached_data,7), 30, 30)
                 PyImGui.table_next_column()
-                ClearFlags = ImGui.toggle_button("X", HeroAI_Windows.HeroFlags[7],30,30)
+                HeroAI_Windows.ClearFlags = ImGui.toggle_button("X", HeroAI_Windows.HeroFlags[7],30,30)
                 PyImGui.end_table()
                     
                     
