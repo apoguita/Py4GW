@@ -1,7 +1,7 @@
-from Py4GWCoreLib import ConsoleLog, Map, Botting, Range, Utils, Agent, get_texture_for_model, GLOBAL_CACHE, Routines, \
-    ActionQueueManager, AgentArray, Player, ModelID
+from Py4GWCoreLib import ConsoleLog, Map, Botting, Range, Utils, Agent, get_texture_for_model, GLOBAL_CACHE, Routines, ActionQueueManager, AgentArray, Player, ModelID
 import PyImGui
 import random
+
 
 # --- CONFIGURATION ---
 BOT_NAME = "Snowball Dominance"
@@ -16,29 +16,27 @@ idx = 0
 run_times = []
 totalGoldDeposited = 0
 
-
 class BotSettings:
-    STATS_FOR_NERDS: bool = True
+    STATS_FOR_NERDS : bool = True
 
     USE_FROSTY_TONICS: bool = True
 
     GOLD_DEPOSIT_ENABLED: bool = True
     GOLD_THRESHOLD_DEPOSIT: int = 80000  # 80 platinum - deposit when reached
 
-    GOLD_STORAGE_MAX: int = 800000  # 800k - stop depositing when storage full
+    GOLD_STORAGE_MAX: int = 800000       # 800k - stop depositing when storage full
     BUY_ECTOS_ENABLED: bool = True
-    GOLD_KEEP_FOR_ECTOS: int = 2000  # Keep 2k gold for safety
+    GOLD_KEEP_FOR_ECTOS: int = 2000     # Keep 2k gold for safety
 
-    EOTN_OUTPOST_ID: int = 821  # Eye of the North map ID
-    DEBUG: bool = False  # Set to False to disable debug messages
+
+    EOTN_OUTPOST_ID: int = 821          # Eye of the North map ID
+    DEBUG: bool = False                 # Set to False to disable debug messages
 
     ECTOS_BOUGHT: int = 0
-
 
 # Override the help window
 bot.UI.override_draw_help(lambda: _draw_help())
 bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config window
-
 
 # --- MAIN ROUTINE ---
 def SnowBallDominance(bot: Botting) -> None:
@@ -47,20 +45,19 @@ def SnowBallDominance(bot: Botting) -> None:
     if Map.GetMapID() != 821:
         def _state():
             yield from RndTravelState(821, use_districts=8)
-
         bot.States.AddCustomState(_state, "RndTravel -> EOTN")
 
     bot.States.AddHeader(BOT_NAME)
     bot.States.RemoveManagedCoroutine("NecroRoutine")
     bot.States.RemoveManagedCoroutine("rangerAttackRoutine")
 
+
     def _4state():
         yield from Use_Frosty_Tonics()
-
     bot.States.AddCustomState(_4state, "Use Frosty Tonics")
 
     heroes = GLOBAL_CACHE.Party.GetHeroes()
-    if len(heroes) > 1:
+    if len(heroes) > 1 :
         bot.Party.LeaveParty()
 
     for id, hero in enumerate(heroes):
@@ -94,7 +91,6 @@ def SnowBallDominance(bot: Botting) -> None:
 
     def _3state():
         yield from Use_Frosty_Tonics()
-
     bot.States.AddCustomState(_3state, "Use Frosty Tonics")
 
     # --- QUEST TURN IN ---
@@ -107,10 +103,8 @@ def SnowBallDominance(bot: Botting) -> None:
 
     def _state2():
         yield from RndTravelState(821, use_districts=8)
-
     bot.States.AddCustomState(_state2, "RndDistrictTravel -> EOTN")
     bot.States.JumpToStepName("[H]Snowball Dominance_1")
-
 
 # --- COMBAT & LOGIC ---
 def attackRoutine(bot: "Botting"):
@@ -134,6 +128,7 @@ def attackRoutine(bot: "Botting"):
                     startedAttacking = False
                     oliasInDanger = False
                     successCounter += 1
+
 
                     bot.config.FSM.pause()
                     yield from Routines.Yield.wait(3000)
@@ -169,7 +164,6 @@ def attackRoutine(bot: "Botting"):
             break
         yield from Routines.Yield.wait(250)
 
-
 # --- STANDARD FUNCTIONS ---
 def _on_death(bot: "Botting"):
     global oliasInDanger, startedAttacking, failCounter
@@ -179,31 +173,28 @@ def _on_death(bot: "Botting"):
     bot.States.RemoveManagedCoroutine("NecroRoutine")
     bot.States.RemoveManagedCoroutine("rangerAttackRoutine")
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
-    bot.Properties.ApplyNow("halt_on_death", "active", True)
-    bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", False)
+    bot.Properties.ApplyNow("halt_on_death","active", True)
+    bot.Properties.ApplyNow("movement_timeout","value", 15000)
+    bot.Properties.ApplyNow("auto_combat","active", False)
     yield from RndTravelState(821, use_districts=8)
     fsm = bot.config.FSM
     fsm.resume()
     yield
 
-
 def on_death(bot: "Botting"):
-    print("Player is dead. Run Failed, Restarting...")
+    print ("Player is dead. Run Failed, Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
 
-
 def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
 
-
 def necroRoutine(bot: Botting):
     global oliasInDanger
-    yield from Routines.Yield.Map.WaitforMapLoad(793, True)
+    yield from Routines.Yield.Map.WaitforMapLoad(793,True)
     oliasAgentID = -1
     for id, hero in enumerate(GLOBAL_CACHE.Party.GetHeroes()):
         oliasAgentID = hero.agent_id
@@ -241,11 +232,9 @@ def necroRoutine(bot: Botting):
         yield from Routines.Yield.wait(250)
         yield
 
-
 def _find_best_target():
     my_pos = Player.GetXY()
-    enemies = [e for e in AgentArray.GetEnemyArray() if
-               Agent.IsAlive(e) and Utils.Distance(my_pos, Agent.GetXY(e)) <= 5000]
+    enemies = [e for e in AgentArray.GetEnemyArray() if Agent.IsAlive(e) and Utils.Distance(my_pos, Agent.GetXY(e)) <= 5000]
     if not enemies: return None
     best_target = None
     max_neighbors = -1
@@ -264,24 +253,19 @@ def _find_best_target():
                 best_target = e
     return best_target
 
-
-def isAgentInDanger(agentId, aggro_area=Range.Spellcast, aggressive_only=False):
+def isAgentInDanger(agentId, aggro_area=Range.Spellcast, aggressive_only = False):
     enemy_array = AgentArray.GetEnemyArray()
     if len(enemy_array) == 0: return False
-    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Agent.GetXY(agentId),
-                                                                                             Agent.GetXY(
-                                                                                                 agent_id)) <= aggro_area.value)
+    enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Agent.GetXY(agentId), Agent.GetXY(agent_id)) <= aggro_area.value)
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: agentId != agent_id)
     if aggressive_only:
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
     return len(enemy_array) > 0
 
-
 def RndTravelState(map_id: int, use_districts: int = 4):
     global idx
-    region = [2, 2, 2, 2];
-    language = [4, 5, 9, 10]
+    region = [2, 2, 2, 2]; language = [4, 5, 9, 10]
     if use_districts < 1: use_districts = 1
     if use_districts > len(region): use_districts = len(region)
     tempidx = random.randint(0, use_districts - 1)
@@ -290,7 +274,6 @@ def RndTravelState(map_id: int, use_districts: int = 4):
     idx = tempidx
     Map.TravelToRegion(map_id, region[idx], 0, language[idx])
     yield from Routines.Yield.wait(8500)
-
 
 def Use_Frosty_Tonics():
     if BotSettings.USE_FROSTY_TONICS:
@@ -304,13 +287,11 @@ def Use_Frosty_Tonics():
         if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
             yield
 
-        if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(),
-                                              Tonic_cooldown_effect) and Frost_Tonic_id:
+        if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), Tonic_cooldown_effect) and Frost_Tonic_id:
             GLOBAL_CACHE.Inventory.UseItem(Frost_Tonic_id)
             yield
 
     yield
-
 
 def CheckAndDepositGold(bot: Botting) -> None:
     """Check gold on character, deposit if needed, buy ectos if conditions met"""
@@ -353,12 +334,10 @@ def CheckAndDepositGold(bot: Botting) -> None:
                         print(f"[GOLD] Total deposited this session: {totalGoldDeposited}")
                 else:
                     if BotSettings.DEBUG:
-                        print(
-                            f"[GOLD] Storage full ({gold_in_storage}/{BotSettings.GOLD_STORAGE_MAX}), keeping gold for ectos")
+                        print(f"[GOLD] Storage full ({gold_in_storage}/{BotSettings.GOLD_STORAGE_MAX}), keeping gold for ectos")
             else:
                 if BotSettings.DEBUG:
-                    print(
-                        f"[GOLD] Below threshold ({gold_on_char}/{BotSettings.GOLD_THRESHOLD_DEPOSIT}), no deposit needed")
+                    print(f"[GOLD] Below threshold ({gold_on_char}/{BotSettings.GOLD_THRESHOLD_DEPOSIT}), no deposit needed")
 
             # After deposit check, try to buy ectos if conditions are met
             current_map = Map.GetMapID()
@@ -366,7 +345,6 @@ def CheckAndDepositGold(bot: Botting) -> None:
                 yield from BuyMaterials(bot)
 
             yield
-
         bot.States.AddCustomState(lambda: _check_and_deposit_gold(bot), "CheckAndDepositGold")
 
 
@@ -388,8 +366,7 @@ def BuyMaterials(bot: Botting):
             yield from Routines.Yield.wait(500)
 
             if BotSettings.DEBUG:
-                print(
-                    f"[ECTO] Starting ecto purchases (will buy until {BotSettings.GOLD_KEEP_FOR_ECTOS} gold remaining)...")
+                print(f"[ECTO] Starting ecto purchases (will buy until {BotSettings.GOLD_KEEP_FOR_ECTOS} gold remaining)...")
 
             # Buy ectos until we reach the gold threshold
             ectos_bought_this_session = 0
@@ -413,8 +390,7 @@ def BuyMaterials(bot: Botting):
                     new_gold = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
                     if BotSettings.DEBUG:
                         ecto_price = current_gold - new_gold
-                        print(
-                            f"[ECTO] Bought ecto #{ectos_bought_this_session} for {ecto_price}g (remaining: {new_gold}g)")
+                        print(f"[ECTO] Bought ecto #{ectos_bought_this_session} for {ecto_price}g (remaining: {new_gold}g)")
 
                     yield from Routines.Yield.wait(100)
                 except Exception as e:
@@ -431,14 +407,11 @@ def BuyMaterials(bot: Botting):
 
         else:
             if BotSettings.DEBUG:
-                print(
-                    f"[ECTO] Conditions not met - Char: {gold_in_inventory}/{BotSettings.GOLD_THRESHOLD_DEPOSIT}, Storage: {gold_in_storage}/{BotSettings.GOLD_STORAGE_MAX}")
+                print(f"[ECTO] Conditions not met - Char: {gold_in_inventory}/{BotSettings.GOLD_THRESHOLD_DEPOSIT}, Storage: {gold_in_storage}/{BotSettings.GOLD_STORAGE_MAX}")
 
         yield
 
-
 bot.SetMainRoutine(SnowBallDominance)
-
 
 def _draw_help():
     import PyImGui
@@ -466,7 +439,6 @@ def _draw_settings():
     BotSettings.USE_FROSTY_TONICS = PyImGui.checkbox("Use Frosty Tonics", BotSettings.USE_FROSTY_TONICS)
     BotSettings.STATS_FOR_NERDS = PyImGui.checkbox("Show Stats for nerds", BotSettings.STATS_FOR_NERDS)
     BotSettings.DEBUG = PyImGui.checkbox("Enable Debug Logs", BotSettings.DEBUG)
-
 
 # --- GUI FUNCTIONS ---
 
@@ -503,8 +475,7 @@ def draw_window(bot: Botting):
             # --- WIN RATE ---
             PyImGui.text("Win Rate:")
             PyImGui.same_line(0.0, -1.0)
-            wr_color = (0, 255, 0, 255) if win_rate >= 80 else (255, 255, 0, 255) if win_rate >= 50 else (
-            255, 50, 50, 255)
+            wr_color = (0, 255, 0, 255) if win_rate >= 80 else (255, 255, 0, 255) if win_rate >= 50 else (255, 50, 50, 255)
             PyImGui.text_colored(f"{win_rate:.1f}%", wr_color)
 
             PyImGui.separator()
@@ -523,6 +494,7 @@ def draw_window(bot: Botting):
             PyImGui.text("")  # Spacer
             PyImGui.text("Ectos Bought")
 
+
             PyImGui.next_column()
 
             # Right Side Values
@@ -532,8 +504,7 @@ def draw_window(bot: Botting):
             PyImGui.text("")  # Spacer
 
             # Display current gold with color based on threshold
-            gold_color = (255, 150, 0, 255) if current_gold >= BotSettings.GOLD_THRESHOLD_DEPOSIT else (
-            255, 215, 0, 255)
+            gold_color = (255, 150, 0, 255) if current_gold >= BotSettings.GOLD_THRESHOLD_DEPOSIT else (255, 215, 0, 255)
             PyImGui.text_colored(f"{current_gold}", gold_color)
 
             # Display storage gold
@@ -548,6 +519,7 @@ def draw_window(bot: Botting):
 
             # Display ectos bought
             PyImGui.text_colored(f"{BotSettings.ECTOS_BOUGHT}", (200, 100, 255, 255))
+
 
             PyImGui.columns(1, "reset_layout", False)
 
@@ -571,12 +543,10 @@ def draw_window(bot: Botting):
 
         PyImGui.end()
 
-
 def main():
     bot.Update()
     draw_window(bot)
     bot.UI.draw_window()
-
 
 if __name__ == "__main__":
     main()
