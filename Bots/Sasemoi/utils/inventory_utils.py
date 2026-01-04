@@ -123,7 +123,7 @@ def filter_valuable_inscription_type(item_id: int) -> bool:
         # Early exit condition, ANA detected
         if identifier in [9522, 10248]:
             should_check_ANA = True
-            break
+            continue
 
         # Skip uninteresting mods
         if identifier not in [10280, 10408]:
