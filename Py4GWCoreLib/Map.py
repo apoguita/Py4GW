@@ -9,7 +9,6 @@ from .native_src.internals.types import Vec2f
 from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
 from Py4GWCoreLib.enums import outposts
 
-
 import PyPathing
 import PyOverlay
 
@@ -87,13 +86,13 @@ class Map:
         return char_context.current_map_id
     
     @staticmethod
-    def GetOutpostIDs():
+    def GetOutpostIDs() -> List[int]:
         """Retrieve the outpost IDs."""
         global outposts
         return list(outposts.keys())
     
     @staticmethod
-    def GetOutpostNames():
+    def GetOutpostNames() -> List[str]:
         """Retrieve the outpost names."""
         global outposts
         return list(outposts.values())
@@ -206,7 +205,7 @@ class Map:
     
 
     @staticmethod
-    def GetAmountOfPlayersInInstance():
+    def GetAmountOfPlayersInInstance() -> int:
         """Retrieve the amount of players in the current instance."""
         if not (world_ctx := GWContext.World.GetContext()):
             return 0
@@ -321,7 +320,7 @@ class Map:
         return current_map_info.has_enter_button
 
     @staticmethod
-    def IsOnWorldMap():
+    def IsOnWorldMap() -> bool:
         """Check if the map is on the world map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
         if current_map_info is None:
@@ -329,7 +328,7 @@ class Map:
         return current_map_info.is_on_world_map
     
     @staticmethod
-    def IsPVP():
+    def IsPVP() -> bool:
         """Check if the map is a PvP map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
         if current_map_info is None:
@@ -337,7 +336,7 @@ class Map:
         return current_map_info.is_pvp
     
     @staticmethod
-    def IsGuildHall():
+    def IsGuildHall() -> bool:
         """Check if the map is a Guild Hall."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
         if current_map_info is None:
@@ -345,7 +344,7 @@ class Map:
         return current_map_info.is_guild_hall
     
     @staticmethod
-    def IsVanquishable():
+    def IsVanquishable() -> bool:
         """Check if the map is vanquishable."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
         if current_map_info is None:
@@ -613,7 +612,7 @@ class Map:
         
     #region Functions
     @staticmethod
-    def SkipCinematic():
+    def SkipCinematic() -> None:
         """ Skip the cinematic."""
         def _skip_cinematic() -> bool:
             return MapMethods.SkipCinematic()
@@ -621,7 +620,7 @@ class Map:
 
         
     @staticmethod
-    def Travel(map_id):
+    def Travel(map_id: int) -> None:
         """Travel to a map by its ID."""
         def _travel() -> bool:
             return MapMethods.Travel(map_id)
@@ -629,7 +628,7 @@ class Map:
 
 
     @staticmethod
-    def TravelToDistrict(map_id, district=0, district_number=0):
+    def TravelToDistrict(map_id: int, district: int = 0, district_number: int = 0) -> None:
         """
         Travel to a map by its ID and district.
         Args:
@@ -693,7 +692,7 @@ class Map:
             
         #bool Travel(int map_id, int server_region, int district_number, int language);
     @staticmethod
-    def TravelToRegion(map_id, server_region, district_number, language=0):
+    def TravelToRegion(map_id: int, server_region: int, district_number: int, language: int = 0) -> None:
         """
         Travel to a map by its ID and region.
         Args:
@@ -709,7 +708,7 @@ class Map:
 
         
     @staticmethod
-    def TravelGH():
+    def TravelGH() -> None:
         """Travel to the Guild Hall."""
         def _travel_gh() -> bool:
             return MapMethods.TravelGH()
@@ -717,21 +716,21 @@ class Map:
 
         
     @staticmethod
-    def LeaveGH():
+    def LeaveGH() -> None:
         """Leave the Guild Hall."""
         def _leave_gh() -> bool:
             return MapMethods.LeaveGH()
         ActionQueueManager().AddAction("ACTION", _leave_gh)
         
     @staticmethod
-    def EnterChallenge():
+    def EnterChallenge() -> None:
         """Enter the challenge."""
         def _enter_challenge() -> bool:   
             return MapMethods.EnterChallenge()
         ActionQueueManager().AddAction("ACTION", _enter_challenge)
         
     @staticmethod
-    def CancelEnterChallenge():
+    def CancelEnterChallenge() -> None:
         """Cancel entering the challenge."""
         def _cancel_enter_challenge() -> bool:
             CancelEnterMissionButton = WindowFrames.get("CancelEnterMissionButton", None)
@@ -774,7 +773,7 @@ class Map:
             return frame_info.FrameExists()
         
         @staticmethod
-        def OpenWindow():
+        def OpenWindow() -> None:
             """Open the mission map window."""
             from Py4GWCoreLib import GLOBAL_CACHE, Routines
             if Map.MissionMap.IsWindowOpen():
@@ -782,7 +781,7 @@ class Map:
             GLOBAL_CACHE.Coroutines.append(Routines.Yield.Keybinds.OpenMissionMap())
             
         @staticmethod
-        def CloseWindow():
+        def CloseWindow() -> None:
             """Close the mission map window."""
             from Py4GWCoreLib import GLOBAL_CACHE, Routines
             if not (frame_info := Map.MissionMap.GetFrameInfo()):
@@ -883,7 +882,7 @@ class Map:
             return gameplay_ctx.mission_map_zoom
         
         @staticmethod
-        def GetAdjustedZoom(_zoom, zoom_offset=0.0):
+        def GetAdjustedZoom(_zoom: float, zoom_offset: float = 0.0) -> float:
             """Adjust the zoom level of the mission map."""
             zoom = _zoom + zoom_offset
             if zoom == 1.0:
@@ -1059,7 +1058,7 @@ class Map:
                 return world_x, world_y
     
             @staticmethod
-            def GameMapToScreen(x, y, zoom_offset=0.0) -> tuple[float, float]:
+            def GameMapToScreen(x: float, y: float, zoom_offset: float = 0.0) -> tuple[float, float]:
                 """Convert game-space coordinates (gwinches) to screen coordinates.
                 
                 Args:
@@ -1075,7 +1074,7 @@ class Map:
                 return Map.MissionMap.MapProjection.WorldMapToScreen(world_x, world_y, zoom_offset)
             
             @staticmethod
-            def ScreenToGameMap(x, y, zoom_offset=0.0) -> tuple[float, float]:
+            def ScreenToGameMap(x: float, y: float, zoom_offset: float = 0.0) -> tuple[float, float]:
                 """Convert screen coordinates to game-space coordinates (gwinches).
                 Args:
                     x (float): The x-coordinate on the screen.
@@ -1088,7 +1087,7 @@ class Map:
                 return Map.MissionMap.MapProjection.WorldMapToGamePos(world_x, world_y)
             
             @staticmethod
-            def NormalizedScreenToScreen(x, y) -> tuple[float, float]:
+            def NormalizedScreenToScreen(x: float, y: float) -> tuple[float, float]:
                 """Convert normalized screen coordinates [-1, 1] to screen coordinates.
                 Args:   
                     x (float): The normalized x-coordinate in [-1, 1].
@@ -1137,7 +1136,7 @@ class Map:
                 return norm_x, norm_y
             
             @staticmethod
-            def NormalizedScreenToWorldMap(x, y, zoom_offset=0.0) -> tuple[float, float]:
+            def NormalizedScreenToWorldMap(x: float, y: float, zoom_offset: float = 0.0) -> tuple[float, float]:
                 """Convert normalized screen coordinates [-1, 1] to world map coordinates.
                 Args:
                     x (float): The normalized x-coordinate in [-1, 1].
@@ -1150,7 +1149,7 @@ class Map:
                 return Map.MissionMap.MapProjection.ScreenToWorldMap(screen_x, screen_y, zoom_offset)
             
             @staticmethod
-            def NormalizedScreenToGamePos(x, y) -> tuple[float, float]:
+            def NormalizedScreenToGamePos(x: float, y: float) -> tuple[float, float]:
                 """Convert normalized screen coordinates [-1, 1] to game-space coordinates (gwinches).
                 Args:
                     x (float): The normalized x-coordinate in [-1, 1].
@@ -1164,7 +1163,7 @@ class Map:
                 return Map.MissionMap.MapProjection.ScreenToGamePos(world_x, world_y)
              
             @staticmethod
-            def GamePosToNormalizedScreen(x, y) -> tuple[float, float]:
+            def GamePosToNormalizedScreen(x: float, y: float) -> tuple[float, float]:
                 """Convert game-space coordinates (gwinches) to normalized screen coordinates [-1, 1].
                 Args:
                     x (float): The x-coordinate in game-space (gwinches).
@@ -1176,7 +1175,7 @@ class Map:
                 return Map.MissionMap.MapProjection.ScreenToNormalizedScreen(screen_x, screen_y)
             
             @staticmethod
-            def GamePosToScreen(x, y, zoom_offset=0.0) -> tuple[float, float]:
+            def GamePosToScreen(x: float, y: float, zoom_offset: float = 0.0) -> tuple[float, float]:
                 """Convert game-space coordinates (gwinches) to screen coordinates.
                 Args:
                     x (float): The x-coordinate in game-space (gwinches).
@@ -1190,7 +1189,7 @@ class Map:
                 return Map.MissionMap.MapProjection.WorldMapToScreen(world_x, world_y, zoom_offset)
             
             @staticmethod
-            def ScreenToGamePos(x, y, zoom_offset=0.0) -> tuple[float, float]:
+            def ScreenToGamePos(x: float, y: float, zoom_offset: float = 0.0) -> tuple[float, float]:
                 """Convert screen coordinates to game-space coordinates (gwinches).
                 Args:
                     x (float): The x-coordinate on the screen.
@@ -1204,7 +1203,7 @@ class Map:
     
             
             @staticmethod
-            def WorldPosToMissionMapScreen(x: float, y: float, zoom_offset=0.0) -> tuple[float, float]:
+            def WorldPosToMissionMapScreen(x: float, y: float, zoom_offset: float = 0.0) -> tuple[float, float]:
                 """Convert world position coordinates to mission map screen coordinates.
                 
                 Args:
@@ -1253,7 +1252,7 @@ class Map:
             return WindowFrames["MiniMap"]
         
         @staticmethod
-        def GetFrameID():
+        def GetFrameID() -> int:
             """Get the frame ID of the mini map."""
             if not (mini_map_frame := Map.MiniMap.GetFrameInfo()):
                 return 0
@@ -1261,14 +1260,14 @@ class Map:
             return mini_map_frame.GetFrameID()
 
         @staticmethod
-        def IsWindowOpen():
+        def IsWindowOpen() -> bool:
             """Check if the mini map window is open."""
             if not (mini_map_frame := Map.MiniMap.GetFrameInfo()):
                 return False
             return mini_map_frame.FrameExists()
         
         @staticmethod
-        def OpenWindow():
+        def OpenWindow() -> None:
             """Open the mini map window."""
             from Py4GWCoreLib.enums_src.UI_enums import WindowID
             if Map.MiniMap.IsWindowOpen():
@@ -1276,7 +1275,7 @@ class Map:
             UIManager.SetWindowVisible(WindowID.WindowID_Compass, True)
             
         @staticmethod
-        def CloseWindow():
+        def CloseWindow() -> None:
             """Close the mini map window."""
             from Py4GWCoreLib.enums_src.UI_enums import WindowID
             if not Map.MiniMap.IsWindowOpen():
@@ -1284,7 +1283,7 @@ class Map:
             UIManager.SetWindowVisible(WindowID.WindowID_Compass, False)
             
         @staticmethod
-        def IsMouseOver():
+        def IsMouseOver() -> bool:
             """Check if the mouse is hovering over the mini map."""
             if not (mini_map_frame := Map.MiniMap.GetFrameInfo()):
                 return False
@@ -1341,26 +1340,26 @@ class Map:
             return Map.MiniMap.MapProjection.ScreenToNormalizedScreen(*Map.MiniMap.last_right_clicked_coords)
         
         @staticmethod
-        def GetWindowCoords():
+        def GetWindowCoords() -> tuple[float, float, float, float]:
             """Get the coordinates of the mini map."""
             if not (mini_map_frame := Map.MiniMap.GetFrameInfo()):
                 return 0.0, 0.0, 0.0, 0.0
             return mini_map_frame.GetCoords()
         
         @staticmethod
-        def IsLocked():
+        def IsLocked() -> bool:
             """Check if the mini map is locked."""
             return UIManager.GetBoolPreference(FlagPreference.LockCompassRotation)
         
         @staticmethod
-        def GetPanOffset():
+        def GetPanOffset() -> list[float]:
             """Get the pan offset of the mini map."""
             return [0.0,0.0]
         
         @staticmethod
-        def GetScale(coords = None):
+        def GetScale(coords: tuple[float, float, float, float] | None = None) -> float:
             """Get the scale of the mini map."""
-            if not coords:
+            if coords is None:
                 left,top,right,bottom = Map.MiniMap.GetWindowCoords()
             else:
                 left,top,right,bottom = coords
@@ -1375,7 +1374,7 @@ class Map:
             return scale
         
         @staticmethod
-        def GetRotation():
+        def GetRotation() -> float:
             """Get the rotation of the mini map."""
             from .Camera import Camera
 
@@ -1385,16 +1384,16 @@ class Map:
                 return Camera.GetCurrentYaw() - math.pi/2
         
         @staticmethod
-        def GetZoom():
+        def GetZoom() -> float:
             """Get the zoom level of the mini map."""
             return 1.0
         
         
         
         @staticmethod
-        def GetMapScreenCenter(coords = None):
+        def GetMapScreenCenter(coords: tuple[float, float, float, float] | None = None) -> tuple[float, float]:
             """Get the map screen center coordinates."""
-            if not coords:
+            if coords is None:
                 left,top,right,bottom = Map.MiniMap.GetWindowCoords()
             else:
                 left,top,right,bottom = coords
@@ -1413,7 +1412,7 @@ class Map:
         #region projection methods
         class MapProjection:
             @staticmethod
-            def GamePosToWorldMap(x: float, y: float):
+            def GamePosToWorldMap(x: float, y: float) -> tuple[float, float]:
                 gwinches = 96.0
 
                 # Step 1: Get map bounds in UI space
@@ -1437,7 +1436,7 @@ class Map:
                 return screen_x, screen_y
             
             @staticmethod
-            def WorldMapToGamePos(x: float, y: float):
+            def WorldMapToGamePos(x: float, y: float) -> tuple[float, float]:
                 gwinches = 96.0
                 left, top, right, bottom = Map.GetMapWorldMapBounds()
                 bounds = Map.GetMapBoundaries()
@@ -1458,7 +1457,7 @@ class Map:
                 return game_x, game_y
             
             @staticmethod
-            def WorldMapToScreen(x: float, y: float):
+            def WorldMapToScreen(x: float, y: float) -> tuple[float, float]:
                 # World map coordinates (x, y) to screen space
                 pan_offset_x, pan_offset_y = Map.MiniMap.GetPanOffset()
                 offset_x = x - pan_offset_x
@@ -1476,7 +1475,7 @@ class Map:
                 return screen_x, screen_y
 
             @staticmethod
-            def ScreenToWorldMap(screen_x: float, screen_y: float):
+            def ScreenToWorldMap(screen_x: float, screen_y: float) -> tuple[float, float]:
 
                 zoom = Map.MiniMap.GetZoom()
                 scale = Map.MiniMap.GetScale()
@@ -1493,17 +1492,17 @@ class Map:
                 return world_x, world_y
             
             @staticmethod
-            def GameMapToScreen(x, y):
+            def GameMapToScreen(x: float, y: float) -> tuple[float, float]:
                 world_x, world_y = Map.MiniMap.MapProjection.GamePosToWorldMap(x, y)
                 return Map.MiniMap.MapProjection.WorldMapToScreen(world_x, world_y)
             
             @staticmethod
-            def ScreenToGameMap(x, y):
+            def ScreenToGameMap(x: float, y: float) -> tuple[float, float]:
                 world_x, world_y = Map.MiniMap.MapProjection.ScreenToWorldMap(x, y)
                 return Map.MiniMap.MapProjection.WorldMapToGamePos(world_x, world_y)
             
             @staticmethod
-            def NormalizedScreenToScreen(x, y):
+            def NormalizedScreenToScreen(x: float, y: float) -> tuple[float, float]:
                 # Convert from [-1, 1] to [0, 1] with Y-inversion
                 norm_x, norm_y = x,y
                 adjusted_x = (norm_x + 1.0) * 0.5
@@ -1521,7 +1520,7 @@ class Map:
                 return screen_x, screen_y
             
             @staticmethod
-            def ScreenToNormalizedScreen(screen_x: float, screen_y: float):
+            def ScreenToNormalizedScreen(screen_x: float, screen_y: float) -> tuple[float, float]:
                 # Compute width and height of the map frame
                 coords = Map.MiniMap.GetWindowCoords()
                 left, top, right, bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
@@ -1539,25 +1538,25 @@ class Map:
                 return norm_x, norm_y
             
             @staticmethod
-            def NormalizedScreenToWorldMap(x, y):
+            def NormalizedScreenToWorldMap(x: float, y: float) -> tuple[float, float]:
                 screen_x, screen_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(x, y)
                 return Map.MiniMap.MapProjection.ScreenToWorldMap(screen_x, screen_y)
             
             @staticmethod
-            def NormalizedScreenToGamePos(x, y):
+            def NormalizedScreenToGamePos(x: float, y: float) -> tuple[float, float]:
                 world_x, world_y = Map.MiniMap.MapProjection.NormalizedScreenToScreen(x, y)
                 return Map.MiniMap.MapProjection.ScreenToGamePos(world_x, world_y)
              
             @staticmethod
-            def GamePosToNormalizedScreen(x, y):
+            def GamePosToNormalizedScreen(x: float, y: float) -> tuple[float, float]:
                 screen_x, screen_y = Map.MiniMap.MapProjection.GameMapToScreen(x, y)
                 return Map.MiniMap.MapProjection.ScreenToNormalizedScreen(screen_x, screen_y)
     
             @staticmethod
-            def GamePosToScreen(game_x, game_y,
-                                player_x = None, player_y = None,
-                                center_x = None, center_y = None,
-                                scale = None, rotation = None):
+            def GamePosToScreen(game_x: float, game_y: float,
+                                player_x: float | None = None, player_y: float | None = None,
+                                center_x: float | None = None, center_y: float | None = None,
+                                scale: float | None = None, rotation: float | None = None) -> tuple[float, float]:
                 """ Convert a game position to a position on the screen relative to the compass."""
 
                 from .Player import Player
@@ -1580,10 +1579,10 @@ class Map:
                 return screen_x, screen_y
             
             @staticmethod
-            def ScreenToGamePos(screen_x, screen_y,
-                                player_x = None, player_y = None,
-                                center_x = None, center_y = None,
-                                scale = None, rotation = None):
+            def ScreenToGamePos(screen_x: float, screen_y: float,
+                                player_x: float | None = None, player_y: float | None = None,
+                                center_x: float | None = None, center_y: float | None = None,
+                                scale: float | None = None, rotation: float | None = None) -> tuple[float, float]:
                 """ Convert a screen position relative to the compass to a position in the game."""
 
                 from .Player import Player
@@ -1606,7 +1605,8 @@ class Map:
                 return game_x, game_y
             
             @staticmethod
-            def WorldPosToMiniMapScreen(x: float, y: float):
+            def WorldPosToMiniMapScreen(x: float, y: float) -> tuple[float, float]:
+                """ Convert world position coordinates to mini map screen coordinates."""
                 # 1. Convert game position (gwinches) to world map coordinates
                 world_x, world_y = Map.MiniMap.MapProjection.GamePosToWorldMap(x, y)
 
@@ -1616,7 +1616,8 @@ class Map:
                 return screen_x, screen_y
             
             @staticmethod
-            def ScreenToWorldPos(screen_x: float, screen_y: float):
+            def ScreenToWorldPos(screen_x: float, screen_y: float) -> tuple[float, float]:
+                """ Convert mini map screen coordinates to world position coordinates."""
                 # Step 1: Convert from screen-space to world map coordinates
                 world_x, world_y = Map.MiniMap.MapProjection.ScreenToWorldMap(screen_x, screen_y)
 
@@ -1626,10 +1627,10 @@ class Map:
                 return game_x, game_y
             
             @staticmethod
-            def ComputedPathingGeometryToScreen(map_bounds = None,
-                                                   player_x = None, player_y = None,
-                                                   center_x = None, center_y = None,
-                                                   scale = None, rotation = None):
+            def ComputedPathingGeometryToScreen(map_bounds: tuple[float, float, float, float] | None= None,
+                                                   player_x: float | None = None, player_y: float | None = None,
+                                                   center_x: float | None = None, center_y: float | None = None,
+                                                   scale: float | None = None, rotation: float | None = None) -> tuple[float, float, float]:
                 """ Convert a screen position of pathing geometry to a screen position relative to the compass."""
                 from .Player import Player
                 
@@ -1683,7 +1684,7 @@ class Map:
         last_left_clicked_coords: tuple[float, float] = (0.0, 0.0)
         last_left_clicked_timestamp: int = 0
         @staticmethod
-        def GetFrameID():
+        def GetFrameID() -> int:
             """Get the frame ID of the mini map."""
             if not (world_map_ctx := GWContext.WorldMap.GetContext()):
                 return 0
@@ -1704,7 +1705,7 @@ class Map:
             return frame_info.FrameExists()
         
         @staticmethod
-        def OpenWindow():
+        def OpenWindow() -> None:
             """Open the mission map window."""
             from Py4GWCoreLib import GLOBAL_CACHE, Routines
             if Map.WorldMap.IsWindowOpen():
@@ -1712,7 +1713,7 @@ class Map:
             GLOBAL_CACHE.Coroutines.append(Routines.Yield.Keybinds.OpenWorldMap())
             
         @staticmethod
-        def CloseWindow():
+        def CloseWindow() -> None:
             """Close the mission map window."""
             from Py4GWCoreLib import GLOBAL_CACHE, Routines
             if not (frame_info := Map.WorldMap.GetFrameInfo()):
@@ -1775,7 +1776,7 @@ class Map:
             return Map.WorldMap.last_right_clicked_coords
         
         @staticmethod
-        def GetWindowCoords():
+        def GetWindowCoords() -> tuple[float, float, float, float]:
             """Get the coordinates of the mini map."""
             if not (world_map_ctx := GWContext.WorldMap.GetContext()):
                 return 0.0, 0.0, 0.0, 0.0
@@ -1786,7 +1787,7 @@ class Map:
             return top_left.x, top_left.y, bottom_right.x, bottom_right.y
         
         @staticmethod
-        def GetZoom():
+        def GetZoom() -> float:
             """Get the zoom level of the world map."""
             if not (world_map_ctx := GWContext.WorldMap.GetContext()):
                 return 1.0
@@ -1858,7 +1859,7 @@ class Map:
         last_left_clicked_timestamp: int = 0
         
         @staticmethod
-        def GetFrameID():
+        def GetFrameID() -> int:
             """Get the frame ID of the mini map."""
             if not (world_map_ctx := GWContext.PreGame.GetContext()):
                 return 0
@@ -1879,7 +1880,7 @@ class Map:
             return frame_info.FrameExists()
             
         @staticmethod
-        def LogOutToCharachterSelect():
+        def LogOutToCharachterSelect() -> None:
             """Log out to character selection from pregame map."""
             from Py4GWCoreLib import GLOBAL_CACHE
             GLOBAL_CACHE.Player.LogoutToCharacterSelect()
@@ -1911,7 +1912,7 @@ class Map:
             return PyPathing.get_pathing_maps()
 
         @staticmethod
-        def WorldToScreen(x, y, z=0.0):
+        def WorldToScreen(x: float, y: float, z: float = 0.0) -> tuple[float, float]:
             if z == 0.0:
                 z = Overlay.FindZ(x, y)
 
@@ -2018,7 +2019,7 @@ class Map:
             return (b1 == b2 == b3 == b4)
 
         @staticmethod
-        def GetMapQuads():
+        def GetMapQuads() -> List['Map.Pathing.Quad']:
             '''Retrieve all pathing quads in the current map.'''
             pathing_maps = Map.Pathing.GetPathingMaps()
             quads = []

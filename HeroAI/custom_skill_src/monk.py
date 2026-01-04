@@ -428,6 +428,7 @@ class MonkSkills:
         skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
+
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Orison_of_Healing")
         skill.SkillType = SkillType.Spell.value

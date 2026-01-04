@@ -3,6 +3,7 @@ import PyPlayer
 from .enums import *
 from .Map import *
 from .Agent import *
+from .native_src.internals.helpers import encoded_wstr_to_str
 
 
 # Player
@@ -12,11 +13,10 @@ class Player:
         if not player_uuid:
             return ""
         try:
-            return "uuid_" + "_".join(str(part) for part in player_uuid)
+            result = encoded_wstr_to_str("uuid_" + "_".join(str(part) for part in player_uuid))
+            return result if result else "INVALID"
         except TypeError:
             return str(player_uuid)
-        except Exception:
-            return ""
 
     @staticmethod
     def player_instance():

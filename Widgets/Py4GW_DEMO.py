@@ -1637,7 +1637,7 @@ def ShowGadgetAgentData(agent_id):
                 PyImGui.text("Agent Item Data:")
 
                 # Assume the gadget item data has been retrieved from Agent.GetGadgetItem
-                gadget_data = Agent.GetGadgetAgent(agent_id)
+                gadget_data = Agent.GetGadgetAgentByID(agent_id)
                 if gadget_data is None:
                     PyImGui.text("No gadget data available for this agent.")
                     PyImGui.end()
@@ -1688,7 +1688,7 @@ def ShowItemAgentData(agent_id):
 
                 PyImGui.text("Agent Item Data:")
 
-                item_data = Agent.GetItemAgent(agent_id)
+                item_data = Agent.GetItemAgentByID(agent_id)
                 if item_data is None:
                     PyImGui.text("No item data available for this agent.")
                     PyImGui.end()
@@ -1697,7 +1697,7 @@ def ShowItemAgentData(agent_id):
                 headers = ["Info", "Value"]
                 data = [
                     ("Agent ID:", item_data.agent_id),
-                    ("Owner ID:", item_data.owner_id),
+                    ("Owner ID:", item_data.owner),
                     ("Item ID:", item_data.item_id),
                     ("h00CC (decimal):", item_data.h00CC),
                     ("h00CC (hex):", hex(item_data.h00CC)),

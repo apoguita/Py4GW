@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import Py4GW
 import PyScanner
 import PyImGui
-import PyMap
+
 import PyMissionMap
 import PyAgent
 import PyPlayer
@@ -74,7 +74,7 @@ Py4Gw = Py4GW
 Py4GW = Py4GW
 PyScanner = PyScanner
 PyImGui = PyImGui
-PyMap = PyMap
+
 PyMissionMap = PyMissionMap
 PyAgent = PyAgent
 PyPlayer = PyPlayer

@@ -14,7 +14,7 @@ from HeroAI.constants import NUMBER_OF_SKILLS, PARTY_WINDOW_HASH, SKILLBAR_WINDO
 from HeroAI.settings import Settings
 from HeroAI.types import Docked, GameOptionStruct, FramePosition
 from HeroAI.utils import IsHeroFlagged, SameMapAsAccount
-from HeroAI.windows import CompareAndSubmitGameOptions
+
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, SharedMessage
@@ -1683,7 +1683,8 @@ def draw_command_panel(window: WindowModule, accounts : list[AccountData], cache
                 
         # is_window_active = Console.is_window_active()
         # if is_window_active:
-        CompareAndSubmitGameOptions(cached_data, game_options)
+        from HeroAI.windows import HeroAI_Windows
+        HeroAI_Windows.CompareAndSubmitGameOptions(cached_data, game_options)
 
         window.process_window()
         

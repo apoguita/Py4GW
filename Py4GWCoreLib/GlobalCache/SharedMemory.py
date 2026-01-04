@@ -18,6 +18,7 @@ from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.GameData_enums import Attribute
 from Py4GWCoreLib.py4gwcorelib_src import Utils
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+from ..native_src.internals.helpers import encoded_wstr_to_str
 
 SHMEM_MAX_NUM_PLAYERS = 64
 SHMEM_MAX_EMAIL_LEN = 64
@@ -618,7 +619,8 @@ class Py4GWSharedMemoryManager:
         if all(part == 0 for part in player_uuid):
             return ""
         try:
-            return "uuid_" + "_".join(str(part) for part in player_uuid)
+            result =  encoded_wstr_to_str("uuid_" + "_".join(str(part) for part in player_uuid))
+            return result if result else "INVALID"
         except TypeError:
             return str(player_uuid)
     

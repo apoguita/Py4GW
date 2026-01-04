@@ -8,7 +8,7 @@ from tkinter.filedialog import dialogstates
 from turtle import st
 import Py4GW
 import ImGui_Py
-import PyMap
+
 import PyAgent
 import PyPlayer
 import PyParty
@@ -263,7 +263,7 @@ class Utils:
             range_array = Utils.Filters.FilterAgentArrayByRange(agent_pos, agent_array, area)
             filtered_agent_array = []
             for agent_id in range_array:
-                if Agent.HasEnchantment(agent_id):
+                if Agent.IsEnchanted(agent_id):
                     filtered_agent_array.append(agent_id)
             return filtered_agent_array
 
@@ -279,7 +279,7 @@ class Utils:
             range_array = Utils.Filters.FilterAgentArrayByRange(agent_pos, agent_array, area)
             filtered_agent_array = []
             for agent_id in range_array:
-                if not Agent.HasEnchantment(agent_id):
+                if not Agent.IsEnchanted(agent_id):
                     filtered_agent_array.append(agent_id)
             return filtered_agent_array
 
@@ -295,7 +295,7 @@ class Utils:
             range_array = Utils.Filters.FilterAgentArrayByRange(agent_pos, agent_array, area)
             filtered_agent_array = []
             for agent_id in range_array:
-                if Agent.HasHex(agent_id):
+                if Agent.IsHexed(agent_id):
                     filtered_agent_array.append(agent_id)
             return filtered_agent_array
 
@@ -311,7 +311,7 @@ class Utils:
             range_array = Utils.Filters.FilterAgentArrayByRange(agent_pos, agent_array, area)
             filtered_agent_array = []
             for agent_id in range_array:
-                if not Agent.HasHex(agent_id):
+                if not Agent.IsHexed(agent_id):
                     filtered_agent_array.append(agent_id)
             return filtered_agent_array
 
@@ -635,8 +635,7 @@ class Map:
         Args: None
         Returns: bool
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.is_map_ready
+        return Map.IsMapReady()
 
     @staticmethod
     def IsOutpost():
@@ -645,9 +644,7 @@ class Map:
         Args: None
         Returns: bool
         """
-        map_instance = PyMap.PyMap()
-        region_type_instance = map_instance.instance_type.Get()
-        return region_type_instance == PyMap.InstanceType.Outpost
+        return Map.IsOutpost()
 
     @staticmethod
     def IsExplorable():
@@ -656,9 +653,7 @@ class Map:
         Args: None
         Returns: bool
         """
-        map_instance = PyMap.PyMap()
-        region_type_instance = map_instance.instance_type.Get()
-        return region_type_instance == PyMap.InstanceType.Explorable
+        return Map.IsExplorable()
 
     @staticmethod
     def IsMapLoading():
@@ -667,9 +662,7 @@ class Map:
         Args: None
         Returns: bool
         """
-        map_instance = PyMap.PyMap()
-        region_type_instance = map_instance.instance_type.Get()
-        return region_type_instance == PyMap.InstanceType.Loading
+        return Map.IsMapLoading()
 
     @staticmethod
     def GetMapName(mapid=None):
@@ -679,13 +672,7 @@ class Map:
             mapid (int, optional): The ID of the map to retrieve. Defaults to the current map.
         Returns: str
         """
-        if mapid is None:
-            map_instance = PyMap.PyMap()
-            map_id = map_instance.map_id.ToInt()
-        else:
-            map_id = mapid
-        map_id_instance = PyMap.MapID(map_id)
-        return map_id_instance.GetName()
+        return Map.GetMapName(mapid)
 
     @staticmethod
     def GetMapID():
@@ -694,8 +681,7 @@ class Map:
         Args: None
         Returns: int
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.map_id.ToInt()
+        return Map.GetMapID()
 
     @staticmethod
     def Travel(map_id):
@@ -705,8 +691,7 @@ class Map:
             map_id (int): The ID of the map to travel to.
         Returns: None
         """
-        map_instance = PyMap.PyMap()
-        map_instance.Travel(map_id)
+        Map.Travel(map_id)
 
     @staticmethod
     def GetInstanceUptime():
@@ -715,8 +700,7 @@ class Map:
         Args: None
         Returns: int (ms)
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.instance_time
+        return Map.GetInstanceUptime()
 
     @staticmethod
     def GetMaxPartySize():
@@ -725,8 +709,7 @@ class Map:
         Args: None
         Returns: int
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.max_party_size
+        return Map.GetMaxPartySize()
 
     @staticmethod
     def IsInCinematic():
@@ -735,8 +718,7 @@ class Map:
         Args: None
         Returns: bool
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.is_in_cinematic
+        return Map.IsInCinematic()
 
     @staticmethod
     def SkipCinematic():
@@ -745,8 +727,7 @@ class Map:
         Args: None
         Returns: None
         """
-        map_instance = PyMap.PyMap()
-        map_instance.SkipCinematic()
+        return Map.SkipCinematic()
 
     @staticmethod
     def HasEnterChallengeButton():
@@ -755,8 +736,7 @@ class Map:
         Args: None
         Returns: bool
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.has_enter_button
+        return Map.HasEnterChallengeButton()
 
     @staticmethod
     def EnterChallenge():
@@ -765,8 +745,7 @@ class Map:
         Args: None
         Returns: None
         """
-        map_instance = PyMap.PyMap()
-        map_instance.EnterChallenge()
+        return Map.EnterChallenge()
 
     @staticmethod
     def CancelEnterChallenge():
@@ -775,8 +754,7 @@ class Map:
         Args: None
         Returns: None
         """
-        map_instance = PyMap.PyMap()
-        map_instance.CancelEnterChallenge()
+        return Map.CancelEnterChallenge()
 
     @staticmethod
     def IsVanquishable():
@@ -785,8 +763,7 @@ class Map:
         Args: None
         Returns: bool
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.is_vanquishable_area
+        return Map.IsVanquishable()
 
     @staticmethod
     def GetFoesKilled():
@@ -795,8 +772,7 @@ class Map:
         Args: None
         Returns: int
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.foes_killed
+        return Map.GetFoesKilled()
 
     @staticmethod
     def GetFoesToKill():
@@ -805,8 +781,7 @@ class Map:
         Args: None
         Returns: int
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.foes_to_kill
+        return Map.GetFoesToKill()
 
     @staticmethod
     def GetDistrict():
@@ -815,18 +790,16 @@ class Map:
         Args: None
         Returns: str
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.district
+        return Map.GetDistrict()
 
     @staticmethod
-    def Getregion():
+    def GetRegion():
         """
         Purpose: Retrieve the region of the current map.
         Args: None
         Returns: str
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.server_region.ToInt(), map_instance.server_region.GetName()
+        return Map.GetRegion()[0]
 
     @staticmethod
     def GetLanguage():
@@ -835,8 +808,7 @@ class Map:
         Args: None
         Returns: str
         """
-        map_instance = PyMap.PyMap()
-        return map_instance.language.ToInt(), map_instance.language.GetName()
+        return Map.GetLanguage()
 
 # Agents
 class Agent:
@@ -848,7 +820,7 @@ class Agent:
             agent_instance (PyAgent): The agent instance.
         Returns: int
         """
-        return agent_instance.id
+        return agent_instance.agent_id
     
     @staticmethod
     def GetAgentByID(agent_id):
@@ -868,8 +840,7 @@ class Agent:
             agent_id (int): The ID of the agent.
         Returns: str
         """
-        agent_instance = PyAgent.PyAgent(agent_id)
-        return agent_instance.model_id
+        Agent.GetModelID(agent_id)
 
     @staticmethod
     def IsLiving(agent_id):
@@ -1580,8 +1551,7 @@ class Agent:
         Args: agent_id
         Returns: bool
         """
-        agent_instance = PyAgent.PyAgent(agent_id)
-        return agent_instance.living_agent.is_in_combat_stance
+        return Agent.IsInCombatStance(agent_id)
     
     @staticmethod
     def IsAttacking(agent_id):
@@ -1952,7 +1922,7 @@ class Player:
                     self.player_instance = PyPlayer.PyPlayer()
                     self.following = False
                     self.arrived = False
-                    self.timer = Py4GW.Timer()
+                    self.timer = Timer()
                     self.timer.start()
                     self.timer.stop()
 

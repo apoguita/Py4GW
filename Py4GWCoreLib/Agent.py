@@ -1,10 +1,11 @@
 
 import time
-
+from PyAgent import AttributeClass
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 from .model_data import ModelData
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
+from .native_src.internals.helpers import encoded_wstr_to_str
 
 # Agent
 class Agent:
@@ -19,7 +20,9 @@ class Agent:
         """Should be called every frame to resolve names when ready."""
         now = time.time() * 1000
         for agent_id in list(Agent.name_requested):
-            name = PyAgent.PyAgent.GetNameByID(agent_id)
+            name = encoded_wstr_to_str(PyAgent.PyAgent.GetNameByID(agent_id))
+            if name is None:
+                name = "INVALID"
 
             Agent.name_cache[agent_id] = (name, now)
             Agent.name_requested.discard(agent_id)
@@ -31,7 +34,7 @@ class Agent:
         Agent.name_requested.clear()
         
     @staticmethod
-    def IsValid(agent_id) -> bool:
+    def IsValid(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is valid.
         Args: agent_id (int): The ID of the agent.
@@ -58,7 +61,7 @@ class Agent:
         return decorator
 
     @staticmethod
-    def GetAgentByID(agent_id) -> AgentStruct | None:
+    def GetAgentByID(agent_id: int) -> AgentStruct | None:
         """
         Purpose: Retrieve an agent by its ID.
         Args:
@@ -72,7 +75,7 @@ class Agent:
         return agent
     
     @staticmethod
-    def GetLivingAgentByID(agent_id) -> AgentLivingStruct | None:
+    def GetLivingAgentByID(agent_id: int) -> AgentLivingStruct | None:
         """
         Purpose: Retrieve a living agent by its ID.
         Args:
@@ -85,7 +88,7 @@ class Agent:
         return agent.GetAsAgentLiving()
     
     @staticmethod
-    def GetItemAgentByID(agent_id) -> AgentItemStruct | None:
+    def GetItemAgentByID(agent_id: int) -> AgentItemStruct | None:
         """
         Purpose: Retrieve an item agent by its ID.
         Args:
@@ -98,7 +101,7 @@ class Agent:
         return agent.GetAsAgentItem()
     
     @staticmethod
-    def GetGadgetAgentByID(agent_id) -> AgentGadgetStruct | None:
+    def GetGadgetAgentByID(agent_id: int) -> AgentGadgetStruct | None:
         """
         Purpose: Retrieve a gadget agent by its ID.
         Args:
@@ -111,7 +114,7 @@ class Agent:
         return agent.GetAsAgentGadget()
     
     @staticmethod
-    def GetNameByID(agent_id) -> str:
+    def GetNameByID(agent_id : int) -> str:
         import PyAgent
         """Purpose: Get the native name of an agent by its ID."""
         now = time.time() * 1000  # current time in ms
@@ -139,7 +142,7 @@ class Agent:
     RequestName = GetNameByID
         
     @staticmethod
-    def IsNameReady(agent_id):
+    def IsNameReady(agent_id: int) -> bool:
         """Purpose: Check if the agent name is ready."""
         return Agent.GetNameByID(agent_id) != ""
  
@@ -165,7 +168,7 @@ class Agent:
         return 0
     
     @staticmethod
-    def GetAgentEffects(agent_id) -> int:
+    def GetAgentEffects(agent_id : int) -> int:
         """
         Purpose: Retrieve the effects of an agent.
         Args:
@@ -179,7 +182,7 @@ class Agent:
         return living.effects
     
     @staticmethod
-    def GetTypeMap(agent_id) -> int:
+    def GetTypeMap(agent_id : int) -> int:
         """
         Purpose: Retrieve the type map of an agent.
         Args:
@@ -192,7 +195,7 @@ class Agent:
         return living.type_map
     
     @staticmethod
-    def GetModelState(agent_id) -> int:
+    def GetModelState(agent_id : int) -> int:
         """
         Purpose: Retrieve the model state of an agent.
         Args:
@@ -205,7 +208,7 @@ class Agent:
         return living.model_state 
 
     @staticmethod
-    def GetModelID(agent_id) -> int:
+    def GetModelID(agent_id : int) -> int:
         """Retrieve the model of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -213,7 +216,7 @@ class Agent:
         return living.player_number
 
     @staticmethod
-    def IsLiving(agent_id) -> bool:
+    def IsLiving(agent_id : int) -> bool:
         """Check if the agent is living."""
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
@@ -221,7 +224,7 @@ class Agent:
         return agent.is_living_type
 
     @staticmethod
-    def IsItem(agent_id) -> bool:
+    def IsItem(agent_id : int) -> bool:
         """Check if the agent is an item."""
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
@@ -229,7 +232,7 @@ class Agent:
         return agent.is_item_type
     
     @staticmethod
-    def IsGadget(agent_id) -> bool:
+    def IsGadget(agent_id : int) -> bool:
         """Check if the agent is a gadget."""
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
@@ -237,7 +240,7 @@ class Agent:
         return agent.is_gadget_type
 
     @staticmethod
-    def GetPlayerNumber(agent_id) -> int:
+    def GetPlayerNumber(agent_id : int) -> int:
         """Retrieve the player number of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -245,7 +248,7 @@ class Agent:
         return living.player_number
 
     @staticmethod
-    def GetLoginNumber(agent_id) -> int:
+    def GetLoginNumber(agent_id : int) -> int:
         """Retrieve the login number of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -253,7 +256,7 @@ class Agent:
         return living.login_number
 
     @staticmethod
-    def IsSpirit(agent_id) -> bool:
+    def IsSpirit(agent_id : int) -> bool:
         """Check if the agent is a spirit."""
         from .enums_src.GameData_enums import Allegiance
         living = Agent.GetLivingAgentByID(agent_id)
@@ -263,7 +266,7 @@ class Agent:
         return allegiance == Allegiance.SpiritPet
 
     @staticmethod
-    def IsMinion(agent_id) -> bool:
+    def IsMinion(agent_id : int) -> bool:
         """Check if the agent is a minion."""
         from .enums_src.GameData_enums import Allegiance
         living = Agent.GetLivingAgentByID(agent_id)
@@ -273,7 +276,7 @@ class Agent:
         return allegiance == Allegiance.Minion
 
     @staticmethod
-    def GetOwnerID(agent_id) -> int:
+    def GetOwnerID(agent_id : int) -> int:
         """Retrieve the owner ID of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -281,7 +284,7 @@ class Agent:
         return living.owner
 
     @staticmethod
-    def GetXY(agent_id) -> tuple[float, float]:
+    def GetXY(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the X and Y coordinates of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -294,7 +297,7 @@ class Agent:
         return pos.x, pos.y
 
     @staticmethod
-    def GetXYZ(agent_id) -> tuple[float, float, float]:
+    def GetXYZ(agent_id : int) -> tuple[float, float, float]:
         """
         Purpose: Retrieve the X, Y, and Z coordinates of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -308,7 +311,7 @@ class Agent:
         return pos.x, pos.y, z
 
     @staticmethod
-    def GetZPlane(agent_id) -> float:
+    def GetZPlane(agent_id : int) -> float:
         """
         Purpose: Retrieve the Z plane of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -321,7 +324,7 @@ class Agent:
         return pos.zplane
     
     @staticmethod
-    def GetNameTagXYZ(agent_id) -> tuple[float, float, float]:
+    def GetNameTagXYZ(agent_id : int) -> tuple[float, float, float]:
         """
         Purpose: Retrieve the name tag X and Y coordinates of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -333,7 +336,7 @@ class Agent:
         return agent.name_tag_x, agent.name_tag_y, agent.name_tag_z
     
     @staticmethod
-    def GetModelScale1(agent_id) -> tuple[float, float]:
+    def GetModelScale1(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the model scale of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -346,7 +349,7 @@ class Agent:
         return agent.width1, agent.height1
     
     @staticmethod
-    def GetModelScale2(agent_id) -> tuple[float, float]:
+    def GetModelScale2(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the model scale of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -359,7 +362,7 @@ class Agent:
         return agent.width2, agent.height2
     
     @staticmethod
-    def GetModelScale3(agent_id) -> tuple[float, float]:
+    def GetModelScale3(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the model scale of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -372,7 +375,7 @@ class Agent:
         return agent.width3, agent.height3
     
     @staticmethod
-    def GetNameProperties(agent_id) -> int:
+    def GetNameProperties(agent_id : int) -> int:
         """
         Purpose: Retrieve the name properties of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -385,7 +388,7 @@ class Agent:
         return agent.name_properties
         
     @staticmethod
-    def GetVisualEffects(agent_id) -> int:
+    def GetVisualEffects(agent_id : int) -> int:
         """
         Purpose: Retrieve the visual effects of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -398,7 +401,7 @@ class Agent:
         return agent.visual_effects
     
     @staticmethod
-    def GetTerrainNormalXYZ(agent_id) -> tuple[float, float, float]:
+    def GetTerrainNormalXYZ(agent_id : int) -> tuple[float, float, float]:
         """
         Purpose: Retrieve the terrain normal X, Y, and Z of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -411,7 +414,7 @@ class Agent:
         return agent.terrain_normal.x, agent.terrain_normal.y, agent.terrain_normal.z
     
     @staticmethod
-    def GetGround(agent_id) -> float:
+    def GetGround(agent_id : int) -> float:
         """
         Purpose: Retrieve the ground of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -424,7 +427,7 @@ class Agent:
         return agent.ground
     
     @staticmethod
-    def GetAnimationCode (agent_id) -> int:
+    def GetAnimationCode (agent_id : int) -> int:
         """
         Purpose: Retrieve the animation code of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -437,7 +440,7 @@ class Agent:
         return living_agent.animation_code
     
     @staticmethod
-    def GetWeaponItemType(agent_id) -> int:
+    def GetWeaponItemType(agent_id : int) -> int:
         """
         Purpose: Retrieve the weapon item type of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -450,7 +453,7 @@ class Agent:
         return living_agent.weapon_item_type
     
     @staticmethod
-    def GetOffhandItemType(agent_id) -> int:
+    def GetOffhandItemType(agent_id : int) -> int:
         """
         Purpose: Retrieve the offhand item type of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -463,7 +466,7 @@ class Agent:
         return living_agent.offhand_item_type
     
     @staticmethod
-    def GetAnimationType(agent_id) -> float:
+    def GetAnimationType(agent_id : int) -> float:
         """
         Purpose: Retrieve the animation type of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -476,7 +479,7 @@ class Agent:
         return living_agent.animation_type
     
     @staticmethod
-    def GetWeaponAttackSpeed(agent_id) -> float:
+    def GetWeaponAttackSpeed(agent_id : int) -> float:
         """
         Purpose: Retrieve the weapon attack speed of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -489,7 +492,7 @@ class Agent:
         return living_agent.weapon_attack_speed
     
     @staticmethod
-    def GetAttackSpeedModifier(agent_id) -> float:
+    def GetAttackSpeedModifier(agent_id : int) -> float:
         """
         Purpose: Retrieve the attack speed modifier of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -502,7 +505,7 @@ class Agent:
         return living_agent.attack_speed_modifier
     
     @staticmethod
-    def GetAgentModelType(agent_id) -> int:
+    def GetAgentModelType(agent_id : int) -> int:
         """
         Purpose: Retrieve the agent model type of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -515,7 +518,7 @@ class Agent:
         return living_agent.agent_model_type
     
     @staticmethod
-    def GetTransmogNPCID(agent_id) -> int:
+    def GetTransmogNPCID(agent_id : int) -> int:
         """ 
         Purpose: Retrieve the transmog NPC ID of an agent.  
         Args: agent_id (int): The ID of the agent.
@@ -528,7 +531,7 @@ class Agent:
         return living_agent.transmog_npc_id
     
     @staticmethod
-    def GetGuildID(agent_id) -> int:
+    def GetGuildID(agent_id : int) -> int:
         """ 
         Purpose: Retrieve the guild ID of an agent.  
         Args: agent_id (int): The ID of the agent.
@@ -544,7 +547,7 @@ class Agent:
         return tags.guild_id
     
     @staticmethod
-    def GetTeamID(agent_id) -> int:
+    def GetTeamID(agent_id : int) -> int:
         """ 
         Purpose: Retrieve the team ID of an agent.  
         Args: agent_id (int): The ID of the agent.
@@ -557,7 +560,7 @@ class Agent:
         return living_agent.team_id
     
     @staticmethod
-    def GetAnimationSpeed(agent_id) -> float:
+    def GetAnimationSpeed(agent_id : int) -> float:
         """
         Purpose: Retrieve the animation speed of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -570,7 +573,7 @@ class Agent:
         return living_agent.animation_speed
     
     @staticmethod
-    def GetAnimationID(agent_id) -> int:
+    def GetAnimationID(agent_id : int) -> int:
         """
         Purpose: Retrieve the animation ID of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -583,7 +586,7 @@ class Agent:
         return living_agent.animation_id
 
     @staticmethod
-    def GetRotationAngle(agent_id) -> float:
+    def GetRotationAngle(agent_id : int) -> float:
         """
         Purpose: Retrieve the rotation angle of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -595,7 +598,7 @@ class Agent:
         return agent.rotation_angle
     
     @staticmethod
-    def GetRotationCos(agent_id) -> float:
+    def GetRotationCos(agent_id : int) -> float:
         """
         Purpose: Retrieve the cosine of the rotation angle of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -608,7 +611,7 @@ class Agent:
 
 
     @staticmethod
-    def GetRotationSin(agent_id) -> float:
+    def GetRotationSin(agent_id : int) -> float:
         """
         Purpose: Retrieve the sine of the rotation angle of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -620,7 +623,7 @@ class Agent:
         return agent.rotation_sin
 
     @staticmethod
-    def GetVelocityXY(agent_id) -> tuple[float, float]:
+    def GetVelocityXY(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the X and Y velocity of an agent.
         Args: agent_id (int): The ID of the agent.
@@ -634,7 +637,7 @@ class Agent:
         return velocity.x, velocity.y
     
     @staticmethod
-    def GetProfessions(agent_id) -> tuple[int, int]:
+    def GetProfessions(agent_id : int) -> tuple[int, int]:
         """
         Purpose: Retrieve the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -647,7 +650,7 @@ class Agent:
         return living.primary, living.secondary
 
     @staticmethod
-    def GetProfessionNames(agent_id) -> tuple[str, str]:
+    def GetProfessionNames(agent_id : int) -> tuple[str, str]:
         """
         Purpose: Retrieve the names of the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -666,7 +669,7 @@ class Agent:
         return prof_name  if prof_name is not None else "", secondary_prof_name if secondary_prof_name is not None else ""
     
     @staticmethod
-    def GetProfessionShortNames(agent_id) -> tuple[str, str]:
+    def GetProfessionShortNames(agent_id : int) -> tuple[str, str]:
         """
         Purpose: Retrieve the short names of the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -685,7 +688,7 @@ class Agent:
         return prof_name , secondary_prof_name
     
     @staticmethod
-    def GetProfessionIDs(agent_id) -> tuple[int, int]:
+    def GetProfessionIDs(agent_id : int) -> tuple[int, int]:
         """
         Purpose: Retrieve the IDs of the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -697,7 +700,7 @@ class Agent:
         return living.primary, living.secondary
 
     @staticmethod
-    def GetLevel(agent_id):
+    def GetLevel(agent_id : int) -> int:
         """
         Purpose: Retrieve the level of the agent.
         Args: agent_id (int): The ID of the agent.
@@ -709,7 +712,7 @@ class Agent:
         return living.level
 
     @staticmethod
-    def GetEnergy(agent_id):
+    def GetEnergy(agent_id: int) -> float:
         """
         Purpose: Retrieve the energy of the agent, only works for players and their heroes.
         Args: agent_id (int): The ID of the agent.
@@ -721,7 +724,7 @@ class Agent:
         return living.energy
     
     @staticmethod
-    def GetMaxEnergy(agent_id):
+    def GetMaxEnergy(agent_id: int) -> int:
         """
         Purpose: Retrieve the maximum energy of the agent, only works for players and heroes.
         Args: agent_id (int): The ID of the agent.
@@ -733,7 +736,7 @@ class Agent:
         return living.max_energy
 
     @staticmethod
-    def GetEnergyRegen(agent_id):
+    def GetEnergyRegen(agent_id: int) -> float:
         """
         Purpose: Retrieve the energy regeneration of the agent, only works for players and heroes.
         Args: agent_id (int): The ID of the agent.
@@ -745,7 +748,7 @@ class Agent:
         return living.energy_regen
     
     @staticmethod
-    def GetEnergyPips(agent_id):
+    def GetEnergyPips(agent_id: int) -> int:
         """
         Purpose: Retrieve the energy pips of the agent, only works for players and heroes.
         Args: agent_id (int): The ID of the agent.
@@ -757,7 +760,7 @@ class Agent:
         return Utils.calculate_energy_pips(living.max_energy, living.energy_regen)
 
     @staticmethod
-    def GetHealth(agent_id):
+    def GetHealth(agent_id: int) -> float:
         """
         Purpose: Retrieve the health of the agent.
         Args: agent_id (int): The ID of the agent.
@@ -769,7 +772,7 @@ class Agent:
         return living.hp
 
     @staticmethod
-    def GetMaxHealth(agent_id):
+    def GetMaxHealth(agent_id: int) -> int:
         """
         Purpose: Retrieve the maximum health of the agent.
         Args: agent_id (int): The ID of the agent.
@@ -781,7 +784,7 @@ class Agent:
         return living.max_hp
 
     @staticmethod
-    def GetHealthRegen(agent_id):
+    def GetHealthRegen(agent_id: int) -> float:
         """
         Purpose: Retrieve the health regeneration of the agent.
         Args: agent_id (int): The ID of the agent.
@@ -793,7 +796,7 @@ class Agent:
         return living.hp_pips
     
     @staticmethod
-    def GetHealthPips(agent_id):
+    def GetHealthPips(agent_id: int) -> int:
         """
         Purpose: Retrieve the health pips of the agent.
         Args: agent_id (int): The ID of the agent.
@@ -806,77 +809,77 @@ class Agent:
         return Utils.calculate_health_pips(living.max_hp, living.hp_pips)
 
     @staticmethod
-    def IsMoving(agent_id):
+    def IsMoving(agent_id: int) -> bool:
         living  = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_moving
 
     @staticmethod
-    def IsKnockedDown(agent_id):
+    def IsKnockedDown(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_knocked_down
 
     @staticmethod
-    def IsBleeding(agent_id):
+    def IsBleeding(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_bleeding
 
     @staticmethod
-    def IsCrippled(agent_id):
+    def IsCrippled(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_crippled
 
     @staticmethod
-    def IsDeepWounded(agent_id):
+    def IsDeepWounded(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_deep_wounded
 
     @staticmethod
-    def IsPoisoned(agent_id):
+    def IsPoisoned(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_poisoned
 
     @staticmethod
-    def IsConditioned(agent_id):
+    def IsConditioned(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_conditioned
 
     @staticmethod
-    def IsEnchanted(agent_id):
+    def IsEnchanted(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_enchanted
 
     @staticmethod
-    def IsHexed(agent_id):
+    def IsHexed(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_hexed
 
     @staticmethod
-    def IsDegenHexed(agent_id):
+    def IsDegenHexed(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_degen_hexed
 
     @staticmethod
-    def IsDead(agent_id):
+    def IsDead(agent_id: int) -> bool:
         """Check if the agent is dead."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -886,7 +889,7 @@ class Agent:
         return is_dead or dead_by_type_map
 
     @staticmethod
-    def IsAlive(agent_id):
+    def IsAlive(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
@@ -894,21 +897,21 @@ class Agent:
         return not Agent.IsDead(agent_id) and health > 0.0
 
     @staticmethod
-    def IsWeaponSpelled(agent_id):
+    def IsWeaponSpelled(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_weapon_spelled
 
     @staticmethod
-    def IsInCombatStance(agent_id):
+    def IsInCombatStance(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_in_combat_stance
 
     @staticmethod
-    def IsAggressive(agent_id):
+    def IsAggressive(agent_id: int) -> bool:
         """Check if the agent is attacking or casting."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -925,28 +928,28 @@ class Agent:
         return living.is_attacking
 
     @staticmethod
-    def IsCasting(agent_id):
+    def IsCasting(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_casting
 
     @staticmethod
-    def IsIdle(agent_id):
+    def IsIdle(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_idle
 
     @staticmethod
-    def HasBossGlow(agent_id):
+    def HasBossGlow(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.has_boss_glow
 
     @staticmethod
-    def GetWeaponType(agent_id):
+    def GetWeaponType(agent_id: int) -> tuple[int, str]:
         """Purpose: Retrieve the weapon type of the agent."""
         """Purpose: Retrieve the allegiance of the agent."""
         from .enums_src.GameData_enums import  Weapon, Weapon_Names
@@ -963,7 +966,7 @@ class Agent:
         return living.weapon_type, name
 
     @staticmethod
-    def GetWeaponExtraData(agent_id):
+    def GetWeaponExtraData(agent_id: int) -> tuple[int, int, int, int]:
         """
         Purpose: Retrieve the weapon extra data of the agent.
         Args: agent_id (int): The ID of the agent.
@@ -976,7 +979,7 @@ class Agent:
         return living.weapon_item_id, living.weapon_item_type, living.offhand_item_id, living.offhand_item_type
 
     @staticmethod
-    def IsMartial(agent_id):
+    def IsMartial(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is martial.
         Args: agent_id (int): The ID of the agent.
@@ -987,7 +990,7 @@ class Agent:
         return weapon_name in martial_weapon_types
 
     @staticmethod
-    def IsCaster(agent_id):
+    def IsCaster(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is a caster.
         Args: agent_id (int): The ID of the agent.
@@ -996,7 +999,7 @@ class Agent:
         return not Agent.IsMartial(agent_id)
 
     @staticmethod
-    def IsMelee(agent_id):
+    def IsMelee(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is melee.
         Args: agent_id (int): The ID of the agent.
@@ -1007,7 +1010,7 @@ class Agent:
         return weapon_name in melee_weapon_types
 
     @staticmethod
-    def IsRanged(agent_id):
+    def IsRanged(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is ranged.
         Args: agent_id (int): The ID of the agent.
@@ -1016,7 +1019,7 @@ class Agent:
         return not Agent.IsMelee(agent_id)
 
     @staticmethod
-    def GetDaggerStatus(agent_id):
+    def GetDaggerStatus(agent_id: int) -> int:
         """Purpose: Retrieve the dagger status of the agent."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1024,7 +1027,7 @@ class Agent:
         return living.dagger_status
     
     @staticmethod
-    def GetAllegiance(agent_id):
+    def GetAllegiance(agent_id: int) -> tuple[int, str]:
         """Purpose: Retrieve the allegiance of the agent."""
         from .enums_src.GameData_enums import  Allegiance, AllegianceNames
         living = Agent.GetLivingAgentByID(agent_id)
@@ -1040,66 +1043,66 @@ class Agent:
         return living.allegiance, name
     
     @staticmethod
-    def IsPlayer(agent_id):
+    def IsPlayer(agent_id: int) -> bool:
         login_number = Agent.GetLoginNumber(agent_id)
         return login_number  != 0
 
     @staticmethod
-    def IsNPC(agent_id):
+    def IsNPC(agent_id: int) -> bool:
         login_number = Agent.GetLoginNumber(agent_id)
         return login_number  == 0
 
     @staticmethod
-    def HasQuest(agent_id):
+    def HasQuest(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.has_quest
 
     @staticmethod
-    def IsDeadByTypeMap(agent_id):
+    def IsDeadByTypeMap(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_dead_by_type_map
 
     @staticmethod
-    def IsFemale(agent_id):
+    def IsFemale(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_female
     
     @staticmethod
-    def IsHidingCape(agent_id):
+    def IsHidingCape(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_hiding_cape
 
     @staticmethod
-    def CanBeViewedInPartyWindow(agent_id):
+    def CanBeViewedInPartyWindow(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.can_be_viewed_in_party_window
 
     @staticmethod
-    def IsSpawned(agent_id):
+    def IsSpawned(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_spawned
 
     @staticmethod
-    def IsBeingObserved(agent_id):
+    def IsBeingObserved(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
         return living.is_being_observed
 
     @staticmethod
-    def GetOvercast(agent_id):
+    def GetOvercast(agent_id: int) -> float:
         """Retrieve the overcast of the agent."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1107,7 +1110,7 @@ class Agent:
         return living.h0128
     
     @staticmethod
-    def GetProfessionsTexturePaths(agent_id):
+    def GetProfessionsTexturePaths(agent_id: int) -> tuple[str, str]:
         """
         Purpose: Retrieve the texture paths of the player's primary and secondary professions.
         Args: agent_id (int): The ID of the agent.
@@ -1131,7 +1134,7 @@ class Agent:
     
 #region items
     @staticmethod
-    def GetItemAgentOwnerID(agent_id):
+    def GetItemAgentOwnerID(agent_id: int) -> int:
         #item_owner_cache = ItemOwnerCache()
         """Retrieve the owner ID of the item agent."""
         item = Agent.GetItemAgentByID(agent_id)
@@ -1142,32 +1145,32 @@ class Agent:
         return current_owner_id
     
     @staticmethod
-    def GetItemAgentItemID(agent_id):
+    def GetItemAgentItemID(agent_id: int) -> int:
         """Retrieve the item ID of the item agent."""
-        item_data =  Agent.GetItemAgent(agent_id)    
+        item_data =  Agent.GetItemAgentByID(agent_id)    
         if item_data is None:
             return 0
         return item_data.item_id
     
     @staticmethod
-    def GetItemAgentExtraType(agent_id):
+    def GetItemAgentExtraType(agent_id: int) -> int:
         """Retrieve the extra type of the item agent."""
-        item_data =  Agent.GetItemAgent(agent_id)    
+        item_data =  Agent.GetItemAgentByID(agent_id)    
         if item_data is None:
             return 0
         return item_data.extra_type
     
     @staticmethod
-    def GetItemAgenth00CC(agent_id):
+    def GetItemAgenth00CC(agent_id: int) -> int:
         """Retrieve the h00CC of the item agent."""
-        item_data =  Agent.GetItemAgent(agent_id)    
+        item_data =  Agent.GetItemAgentByID(agent_id)    
         if item_data is None:
             return 0
         return item_data.h00CC
     
 #region gadgets
     @staticmethod
-    def GetGadgetID(agent_id) -> int:
+    def GetGadgetID(agent_id : int) -> int:
         """Retrieve the gadget ID of the agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
         if gadget is None:
@@ -1175,7 +1178,7 @@ class Agent:
         return gadget.gadget_id
     
     @staticmethod
-    def GetGadgetAgentID(agent_id):
+    def GetGadgetAgentID(agent_id: int) -> int:
         """Retrieve the gadget ID of the agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
         if gadget is None:
@@ -1183,7 +1186,7 @@ class Agent:
         return gadget.agent_id
 
     @staticmethod
-    def GetGadgetAgentExtraType(agent_id):
+    def GetGadgetAgentExtraType(agent_id: int) -> int:
         """Retrieve the extra type of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
         if gadget is None:
@@ -1191,7 +1194,7 @@ class Agent:
         return gadget.extra_type
     
     @staticmethod
-    def GetGadgetAgenth00C4(agent_id):
+    def GetGadgetAgenth00C4(agent_id: int) -> int:
         """Retrieve the h00CC of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
         if gadget is None:
@@ -1199,7 +1202,7 @@ class Agent:
         return gadget.h00C4
     
     @staticmethod
-    def GetGadgetAgenth00C8(agent_id):
+    def GetGadgetAgenth00C8(agent_id: int) -> int:
         """Retrieve the h00C8 of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
         if gadget is None:
@@ -1207,7 +1210,7 @@ class Agent:
         return gadget.h00C8
 
     @staticmethod
-    def GetGadgetAgenth00D4(agent_id):
+    def GetGadgetAgenth00D4(agent_id: int) -> list:
         """Retrieve the h00D4 of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
         if gadget is None:
@@ -1218,7 +1221,7 @@ class Agent:
     #region not worked
     import PyAgent
     @staticmethod
-    def agent_instance(agent_id) -> PyAgent.PyAgent:
+    def agent_instance(agent_id : int) -> PyAgent.PyAgent:
         import PyAgent
         """
         Helper method to create and return a PyAgent instance.
@@ -1230,7 +1233,7 @@ class Agent:
         return PyAgent.PyAgent(agent_id)
 
     @staticmethod
-    def GetAttributes(agent_id):
+    def GetAttributes(agent_id: int) -> list[AttributeClass]:
         import PyAgent
         """
         Purpose: Retrieve the attributes of an agent.
@@ -1271,7 +1274,7 @@ class Agent:
         return agent.attributes
     
     @staticmethod
-    def GetAttributesDict(agent_id):  
+    def GetAttributesDict(agent_id: int) -> dict[int, int]:  
         import PyAgent  
         # Get attributes
         attributes_raw:list[PyAgent.AttributeClass] = Agent.GetAttributes(agent_id)
@@ -1287,22 +1290,12 @@ class Agent:
         return attributes
 
     @staticmethod
-    def GetCastingSkill(agent_id):
+    def GetCastingSkill(agent_id: int) -> int:
         """ Purpose: Retrieve the casting skill of the agent."""
         if not Agent.agent_instance(agent_id).living_agent.is_casting:
             return 0    
         return Agent.agent_instance(agent_id).living_agent.casting_skill_id
 
-    @staticmethod
-    def GetItemAgent(agent_id):
-        """Retrieve the item agent of the agent."""
-        return Agent.agent_instance(agent_id).item_agent
-    
-    @staticmethod
-    def GetGadgetAgent(agent_id):
-        """Retrieve the gadget agent of the agent."""
-        return Agent.agent_instance(agent_id).gadget_agent
-    
 
 
 
