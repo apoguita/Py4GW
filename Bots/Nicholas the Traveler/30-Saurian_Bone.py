@@ -8,19 +8,30 @@ OUTPOST_TO_TRAVEL = 640  # Rata Sum
 COORD_TO_EXIT_MAP = (20091, 16856)  # Sortie vers Riven Earth
 EXPLORABLE_TO_TRAVEL = 501  # Riven Earth
                 
-KILLING_PATH = [
-                (-20439.48, -6241.88),   # Premier spawn de Raptors
-                (-20828.68, -10486.12),  # Deuxième spawn
-                (-23149.12, -11032.64),  # Troisième spawn
-                (-20148.12, -11946.11),  # Quatrième spawn
-                (-14024.27, -10626.06),  # Cinquième spawn
+KILLING_PATH = [(-22788.35, -7395.83),
+                (-21152.77, -9351.26),
+                (-19285.32, -10412.26),
+                (-19489.34, -12276.55),
+                (-20887.78, -11281.10),
+                (-22261.11, -12643.81),
+                (-23085.04, -11902.00),
+                (-23293.07, -10863.60),
                 ]
 
 NICK_OUTPOST = 640  # Rata Sum
 COORDS_TO_EXIT_OUTPOST = (20091, 16856)
 EXPLORABLE_AREA = 501  # Riven Earth
-NICK_COORDS = [
-                # À compléter si Nicholas est dans cette zone
+NICK_COORDS = [(-22788.35, -7395.83),
+               (-18345.24, -8801.11),
+               (-15282.19, -8637.26),
+               (-13504.29, -12107.34),
+               (-7994.64, -13041.42),
+               (-338.48, -8849.78),
+               (2793.29, -11594.35),
+               (9888.96, -10685.56),
+               (16346.44, -8881.42),     #Bridge
+               (20036.23, -4774.40),
+               (20934.02, -6074.08),
                ]
 
 bot = Botting(BOT_NAME)
@@ -31,6 +42,8 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     bot.States.AddHeader(f"{BOT_NAME}_loop")
     bot.Move.XYAndExitMap(*COORD_TO_EXIT_MAP, target_map_id=EXPLORABLE_TO_TRAVEL)
+    bot.Move.XYAndInteractNPC(-24286.94, -5667.19)
+    bot.Multibox.SendDialogToTarget(0x84) #Get Bounty
     bot.Move.FollowAutoPath(KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
     bot.Multibox.ResignParty()
