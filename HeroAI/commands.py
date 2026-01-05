@@ -273,4 +273,6 @@ class HeroAICommands:
     
     def __unflag_heroes_command(self, accounts: list[AccountData]):
         from HeroAI import ui, windows
-        windows.ClearFlags = True
+        pass
+        #ClearFlags does not exists!?
+        #windows.ClearFlags = True
