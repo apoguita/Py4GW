@@ -1550,4 +1550,21 @@ class CombatEvents:
         """Set maximum number of events to store in history."""
         cls._skill_history = deque(cls._skill_history, maxlen=count)
         cls._damage_history = deque(cls._damage_history, maxlen=count)
+        
+    @staticmethod
+    def enable_callbacks():
+        """Enable or disable all callbacks globally."""
+        from Py4GW import Game
+        Game.register_callback(
+            "CombatEvents.Callbacks",
+            CombatEvents().update)
+        
+
+    @staticmethod
+    def disable_callbacks():
+        """Disable all callbacks globally."""
+        from Py4GW import Game
+        Game.remove_callback("CombatEvents.Callbacks")
+        
+CombatEvents.enable_callbacks()
 
