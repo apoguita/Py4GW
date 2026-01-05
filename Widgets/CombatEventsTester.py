@@ -2,6 +2,8 @@
 CombatEvents Tester - Test and Demo Script for the Combat Events System
 ========================================================================
 
+Author: Paul (HamsterSerious)
+
 This script provides a comprehensive UI to test, visualize, and demonstrate all
 CombatEvents functionality. Use it as a reference for implementing combat event
 handling in your own bots.
@@ -25,20 +27,15 @@ Example Code Patterns:
 
 1. Basic Event Handling:
 ```python
-from Py4GWCoreLib.native_src.events import CombatEvents
-
-# Initialize (call once)
-CombatEvents.initialize()
+from Py4GWCoreLib import CombatEvents
 
 # Register callbacks for events you care about
+# The system auto-initializes and processes events every frame automatically
 def on_skill_cast(caster_id, skill_id, target_id):
     print(f"Agent {caster_id} casting skill {skill_id}")
 
 CombatEvents.on_skill_activated(on_skill_cast)
-
-# In your main loop, call update() every frame
-def main():
-    CombatEvents.update()
+# That's it! No manual update() call needed.
 ```
 
 2. Reacting to Aftercast (Perfect Skill Chaining):
@@ -142,7 +139,6 @@ class TesterState:
         # Event logging
         self.event_log = EventLog()
         self.callbacks_registered = False
-        self.combat_events_initialized = False
 
         # Filters
         self.show_skill_events = True
@@ -492,33 +488,14 @@ def on_energy_spent(agent_id: int, amount: float):
 # Callback Registration
 # ============================================================================
 
-def initialize_combat_events():
-    """Initialize the CombatEvents system"""
-    if state.combat_events_initialized:
-        return True
-
-    try:
-        success = CombatEvents.initialize()
-        if success:
-            state.combat_events_initialized = True
-            state.event_log.add("SYSTEM", "CombatEvents initialized successfully")
-            return True
-        else:
-            state.event_log.add("ERROR", "Failed to initialize CombatEvents")
-            return False
-    except Exception as e:
-        state.event_log.add("ERROR", f"Failed to initialize CombatEvents: {e}")
-        return False
-
 def register_callbacks():
-    """Register all event callbacks"""
+    """Register all event callbacks.
+
+    Note: CombatEvents auto-initializes when the module is imported,
+    so we don't need to call initialize() manually.
+    """
     if state.callbacks_registered:
         return
-
-    # Make sure CombatEvents is initialized first
-    if not state.combat_events_initialized:
-        if not initialize_combat_events():
-            return
 
     try:
         # Use the new snake_case method names
@@ -636,13 +613,8 @@ def draw_event_log_tab():
 
     PyImGui.separator()
 
-    # Control buttons
-    if not state.combat_events_initialized:
-        if PyImGui.button("Initialize CombatEvents"):
-            initialize_combat_events()
-    else:
-        PyImGui.text_colored("CombatEvents: INITIALIZED", (100, 255, 100, 255))
-
+    # Control buttons - CombatEvents auto-initializes, just show status
+    PyImGui.text_colored("CombatEvents: INITIALIZED", (100, 255, 100, 255))
     PyImGui.same_line(0, -1)
 
     if not state.callbacks_registered:
@@ -671,7 +643,7 @@ def draw_event_log_tab():
             state.event_log.add("ERROR", f"Failed to track target: {e}")
 
     PyImGui.same_line(0, -1)
-    tracked = CombatEvents.get_tracked_agents() if state.combat_events_initialized else set()
+    tracked = CombatEvents.get_tracked_agents()
     PyImGui.text(f"Tracking: {len(tracked)} agents")
 
     PyImGui.separator()
@@ -1061,14 +1033,8 @@ def draw_debug_tab():
     PyImGui.separator()
 
     if PyImGui.begin_child("DebugChild", (0, 300), True, 0):
-        PyImGui.text(f"CombatEvents Initialized: {state.combat_events_initialized}")
+        PyImGui.text(f"CombatEvents Initialized: {CombatEvents.is_initialized()}")
         PyImGui.text(f"Callbacks Registered: {state.callbacks_registered}")
-
-        if state.combat_events_initialized:
-            try:
-                PyImGui.text(f"CombatEvents.is_initialized(): {CombatEvents.is_initialized()}")
-            except Exception as e:
-                PyImGui.text_colored(f"Error checking initialized: {e}", (255, 0, 0, 255))
 
         PyImGui.separator()
         PyImGui.text("Event Types:")
@@ -1085,12 +1051,10 @@ def draw_debug_tab():
 def draw_main_window():
     """Draw the main tester window"""
     if PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize):
-        # Status bar
-        init_color = (100, 255, 100, 255) if state.combat_events_initialized else (255, 100, 100, 255)
-        init_text = "INITIALIZED" if state.combat_events_initialized else "NOT INITIALIZED"
+        # Status bar - CombatEvents always auto-initializes
         PyImGui.text("CombatEvents: ")
         PyImGui.same_line(0, -1)
-        PyImGui.text_colored(init_text, init_color)
+        PyImGui.text_colored("INITIALIZED", (100, 255, 100, 255))
 
         PyImGui.same_line(0, 20)
 
@@ -1130,6 +1094,9 @@ def draw_main_window():
 
             PyImGui.end_tab_bar()
 
+        PyImGui.separator()
+        PyImGui.text_colored("by Paul (HSTools)", (150, 150, 150, 255))
+
     PyImGui.end()
 
 # ============================================================================
@@ -1145,12 +1112,8 @@ def main():
     if not Routines.Checks.Map.MapValid():
         return
 
-    # Process combat events each frame (IMPORTANT!)
-    if state.combat_events_initialized:
-        try:
-            CombatEvents.update()
-        except Exception as e:
-            state.event_log.add("ERROR", f"CombatEvents.update() failed: {e}")
+    # CombatEvents.update() is called automatically via Game.register_callback()
+    # No need to call it manually here
 
     draw_main_window()
 
