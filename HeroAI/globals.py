@@ -28,8 +28,8 @@ class HeroAI_varsClass:
 class HeroAI_Window_varsClass:
     global MODULE_NAME
     def __init__(self):
-        self.main_window = ImGui.WindowModule(MODULE_NAME, "HeroAI", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
-        self.control_window = ImGui.WindowModule(MODULE_NAME, "HeroAI - Control Panel", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+        self.main_window = ImGui.WindowModule(MODULE_NAME, "HeroAI - Follower", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+        self.control_window = ImGui.WindowModule(MODULE_NAME, "HeroAI", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
         self.tools_window = ImGui.WindowModule(MODULE_NAME, "Multibox Tools", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
 class DebugWindowClass:

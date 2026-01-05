@@ -1182,6 +1182,18 @@ InventoryBags = FrameInfo(
     FrameHash = 291586130
 )
 
+MiniMapFrame = FrameInfo(
+                WindowName="MiniMap",
+                WindowLabel="compass",
+)
+
+PartyWindowFrame = FrameInfo(
+    WindowID=WindowID.WindowID_PartyWindow,
+    WindowName="PartyWindow",
+    FrameHash=3332025202,
+    ChildOffsets=[1]
+)
+
 CancelEnterMissionButton = FrameInfo(
     WindowName="CancelEnterMissionButton",
     ParentFrameHash=2209443298,
@@ -1224,14 +1236,12 @@ FinalCreateCharacterButtonFrame = FrameInfo(
     FrameHash=3856299307
 )
 
-MiniMapFrame = FrameInfo(
-                WindowName="MiniMap",
-                WindowLabel="compass",
-)
+
 
    
 WindowFrames["Inventory Bags"] = InventoryBags
 WindowFrames["MiniMap"] = MiniMapFrame
+WindowFrames["PartyWindow"] = PartyWindowFrame
 WindowFrames["CancelEnterMissionButton"] = CancelEnterMissionButton
 WindowFrames["DeleteCharacterButton"] = CharacterDeleteButtonFrame
 WindowFrames["FinalDeleteCharacterButton"] = CharacterFinalDeleteButtonFrame
