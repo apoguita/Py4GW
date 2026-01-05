@@ -70,7 +70,7 @@ class GameData:
 @dataclass
 class UIStateData:
     def __init__(self):
-        self.show_classic_controls = False
+        self.show_classic_controls = True
 
 class CacheData:
     _instance = None  # Singleton instance

@@ -267,37 +267,24 @@ def register_data(cached_data: CacheData):
     UpdatePlayers(cached_data)
     UpdateGameOptions(cached_data)
     cached_data.UpdateGameOptions()
-    
-def get_own_data(cached_data: CacheData):
-    own_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
-    
-    if own_data and own_data.PlayerIsPartyLeader and HeroAI_FloatingWindows.settings.DisableAutomationOnLeaderAccount:        
-        hero_ai_data = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(own_data.PartyPosition)
-                
-        if hero_ai_data is not None:
-            hero_ai_data.Following = False
-            hero_ai_data.Avoidance = False
-            hero_ai_data.Looting = False
-            hero_ai_data.Targeting = False
-            hero_ai_data.Combat = False
-            GLOBAL_CACHE.ShMem.SetHeroAIOptions(own_data.AccountEmail, hero_ai_data)
-    return own_data
 
-def handle_UI (cached_data: CacheData):
-    HeroAI_FloatingWindows.show_ui(cached_data)               
-    HeroAI_FloatingWindows.DrawEmbeddedWindow(cached_data)
-    if cached_data.ui_state_data.show_classic_controls:
-        HeroAI_Windows.DrawMainWindow(cached_data)
-        HeroAI_Windows.DrawControlPanelWindow(cached_data)
-        HeroAI_Windows.DrawMultiboxTools(cached_data)
+def handle_UI (cached_data: CacheData):      
+    if not cached_data.ui_state_data.show_classic_controls:   
+        HeroAI_FloatingWindows.DrawEmbeddedWindow(cached_data)
+    else:
+        HeroAI_Windows.DrawControlPanelWindow(cached_data)           
+        HeroAI_Windows.DrawFollowerUI(cached_data)
+        
+    HeroAI_FloatingWindows.show_ui(cached_data) 
    
 def initialize(cached_data: CacheData) -> bool:
     if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
+    
         register_data(cached_data)
-        """own_data = get_own_data(cached_data)                             
-        if not own_data:
-            return False   """
 
+        if HeroAI_FloatingWindows.disable_main_automation(cached_data):
+            return False
+        
         handle_UI (cached_data)
         
         if not Map.IsExplorable():  # halt operation if not in explorable area

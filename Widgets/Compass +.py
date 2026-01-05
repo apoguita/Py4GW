@@ -50,7 +50,7 @@ class Compass():
     target_id  = 0
     geometry   = []
     primitives_set = False
-    map_bounds = []
+    map_bounds: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
     window_rect = (0, 0, 0, 0)
 
     class Position:
@@ -719,7 +719,7 @@ class Compass():
                 self.reset          = False
                 self.geometry       = Map.Pathing.GetComputedGeometry()
                 self.primitives_set = False
-                self.map_bounds     = list(Map.GetMapBoundaries())
+                self.map_bounds: tuple[float, float, float, float]     = Map.GetMapBoundaries()
                 self.position.Update()
 
             self.Draw()
