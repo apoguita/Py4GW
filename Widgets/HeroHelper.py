@@ -72,6 +72,7 @@ class Config:
             "smart_sos_enabled",
             "smart_st_enabled",
             "smart_honor_enabled",
+            "smart_life_bond_enabled",
             "smart_splinter_enabled",
             "smart_vigorous_enabled",
             "hero_behaviour",
@@ -94,6 +95,7 @@ class Config:
         self.smart_sos_enabled = ini_handler.read_bool(MODULE_NAME, "smart_sos_enabled", False)
         self.smart_st_enabled = ini_handler.read_bool(MODULE_NAME, "smart_st_enabled", False)
         self.smart_honor_enabled = ini_handler.read_bool(MODULE_NAME, "smart_honor_enabled", False)
+        self.smart_life_bond_enabled = ini_handler.read_bool(MODULE_NAME, "smart_life_bond_enabled", False)
         self.smart_splinter_enabled = ini_handler.read_bool(MODULE_NAME, "smart_splinter_enabled", False)
         self.smart_vigorous_enabled = ini_handler.read_bool(MODULE_NAME, "smart_vigorous_enabled", False)
         self.hero_behaviour = ini_handler.read_int(MODULE_NAME, "hero_behaviour", 0)
@@ -799,7 +801,7 @@ def smart_splinter():
     result = Helper.smartcast_hero_skill(
         skill_id=Skill.GetID("Splinter_Weapon"),
         min_enemies=2,
-        enemy_range_check=Helper.get_nearby_range(),
+        enemy_range_check=Helper.get_spirit_range(),
         effect_check=True,
         distance_check_range=Helper.get_spell_cast_range(),
         allow_out_of_combat=False,
@@ -823,6 +825,31 @@ def smart_honor():
 
     result = Helper.smartcast_hero_skill(
         skill_id=Skill.GetID("Strength_of_Honor"),
+        min_enemies=0,
+        enemy_range_check=Helper.get_spell_cast_range(),
+        effect_check=True,
+        distance_check_range=Helper.get_spell_cast_range(),
+        allow_out_of_combat=True,
+        min_energy_perc=0.25
+    )
+
+    if result:
+        execute_hero_skill(*result)
+
+def smart_life_bond():
+    if Party.GetHeroCount() == 0:
+        return
+    if not Helper.can_execute_with_delay("smart_life_bond", 1000):
+        return
+
+    player_id = Player.GetAgentID()
+    if not Helper.is_agent_alive(player_id):
+        return
+    if not Helper.is_melee_class() or not Helper.holds_melee_weapon():
+        return
+
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Life_Bond"),
         min_enemies=0,
         enemy_range_check=Helper.get_spell_cast_range(),
         effect_check=True,
@@ -1090,6 +1117,8 @@ def draw_tab_smart_skills(config):
     PyImGui.same_line(0.0, 31)
     Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Honor on melee player.")
 
+    Helper.create_and_update_checkbox("Smart Life Bond", "smart_life_bond_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Life Bond on melee player.")
+
     Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="Casts Splinter on melee player in combat.")
     PyImGui.same_line(0.0, 10)
     Helper.create_and_update_checkbox("Smart Vigorous Spirit", "smart_vigorous_enabled", tooltip_text="Casts Vigorous Spirit on melee player in combat.")
@@ -1348,6 +1377,7 @@ def draw_options_window():
         ("Smart SoS", "smart_sos_enabled", "Smart SoS"),
         ("Smart ST", "smart_st_enabled", "Smart ST"),
         ("Smart SoH", "smart_honor_enabled", "Smart SoH"),
+        ("Smart LB", "smart_life_bond_enabled", "Smart Life Bond"),
         ("Smart SW", "smart_splinter_enabled", "Smart SW"),
         ("Smart VS", "smart_vigorous_enabled", "Smart VS"),
         ("Smart CC", "smart_con_cleanse_toggled", "Condition Cleanse"),
@@ -1478,12 +1508,14 @@ def main():
                 smart_hex_removal()
             if widget_config.smart_con_cleanse_toggled:
                 smart_cond_removal()
-            if widget_config.smart_vigorous_enabled: 
+            if widget_config.smart_vigorous_enabled:
                 smart_vigorous()
-            if widget_config.smart_splinter_enabled: 
+            if widget_config.smart_splinter_enabled:
                 smart_splinter()
-            if widget_config.smart_honor_enabled: 
+            if widget_config.smart_honor_enabled:
                 smart_honor()
+            if widget_config.smart_life_bond_enabled:
+                smart_life_bond()
             if widget_config.smart_st_enabled:   
                 smart_st()
             if widget_config.smart_bip_enabled:
