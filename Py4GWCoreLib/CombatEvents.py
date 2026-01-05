@@ -16,22 +16,20 @@ The system follows a two-layer design:
 
 Quick Start
 -----------
-    from Py4GWCoreLib.native_src.events import CombatEvents
+The system initializes automatically when the module is imported. Just register
+your callbacks and they will be called every frame:
 
-    # 1. Initialize the system (call once at startup)
-    CombatEvents.initialize()
+    from Py4GWCoreLib import CombatEvents
 
-    # 2. Register callbacks for events you care about
+    # 1. Register callbacks for events you care about
     def on_skill_cast(caster_id, skill_id, target_id):
         print(f"Agent {caster_id} is casting skill {skill_id}")
 
     CombatEvents.on_skill_activated(on_skill_cast)
 
-    # 3. Call update() every frame in your main loop
-    def main():
-        CombatEvents.update()  # Process events and dispatch callbacks
+    # 2. That's it! Callbacks are processed automatically every frame.
 
-    # 4. Optionally query state at any time
+    # 3. Optionally query state at any time
     if CombatEvents.is_agent_casting(player_id):
         skill = CombatEvents.get_casting_skill(player_id)
 
@@ -119,7 +117,7 @@ import time
 
 # Import the C++ module
 try:
-    from Py4GWCoreLib.CombatEvents import EventType, RawCombatEvent, GetCombatEventQueue
+    import PyCombatEvents
     _CPP_AVAILABLE = True
 except ImportError:
     _CPP_AVAILABLE = False
@@ -351,7 +349,6 @@ class CombatEvents:
 
     @classmethod
     def initialize(cls) -> bool:
-        import PyCombatEvents
         """Initialize the combat events system. Call once at startup."""
         if cls._initialized:
             return True
@@ -1553,11 +1550,12 @@ class CombatEvents:
         
     @staticmethod
     def enable_callbacks():
-        """Enable or disable all callbacks globally."""
+        """Enable callbacks globally. Also initializes the system if not already done."""
+        CombatEvents.initialize()  # Must initialize before update() will process events
         from Py4GW import Game
         Game.register_callback(
             "CombatEvents.Callbacks",
-            CombatEvents().update)
+            CombatEvents.update)  # Use class method directly, not instance
         
 
     @staticmethod
