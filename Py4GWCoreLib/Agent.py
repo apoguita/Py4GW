@@ -116,7 +116,6 @@ class Agent:
         return agent.GetAsAgentGadget()
     
     @staticmethod
-    @require_valid
     def GetNameByID(agent_id : int) -> str:
         import PyAgent
         """Purpose: Get the native name of an agent by its ID."""
@@ -145,7 +144,6 @@ class Agent:
     RequestName = GetNameByID
         
     @staticmethod
-    @require_valid
     def IsNameReady(agent_id: int) -> bool:
         """Purpose: Check if the agent name is ready."""
         return Agent.GetNameByID(agent_id) != ""
@@ -153,7 +151,6 @@ class Agent:
     
     
     @staticmethod
-    @require_valid
     def GetAgentIDByName(name:str) -> int:
         from .AgentArray import AgentArray
         """
@@ -161,19 +158,18 @@ class Agent:
         Args:
             partial_name (str): The partial name to search for.
         Returns:
-            int: The AgentID of the matching agent, or None if no match is found.
+            int: The AgentID of the matching agent, or 0 if no match is found.
         """
         agent_array = AgentArray.GetAgentArray()
 
         for agent_id in agent_array:
             agent_name = Agent.GetNameByID(agent_id)  # Retrieve the full name of the agent
             if name.lower() in agent_name.lower():  # Check for partial match (case-insensitive)
-                return agent_id
-        
+                if Agent.IsValid(agent_id):
+                    return agent_id
         return 0
     
     @staticmethod
-    @require_valid
     def GetAgentEffects(agent_id : int) -> int:
         """
         Purpose: Retrieve the effects of an agent.
@@ -188,7 +184,6 @@ class Agent:
         return living.effects
     
     @staticmethod
-    @require_valid
     def GetTypeMap(agent_id : int) -> int:
         """
         Purpose: Retrieve the type map of an agent.
@@ -202,7 +197,6 @@ class Agent:
         return living.type_map
     
     @staticmethod
-    @require_valid
     def GetModelState(agent_id : int) -> int:
         """
         Purpose: Retrieve the model state of an agent.
@@ -216,7 +210,6 @@ class Agent:
         return living.model_state 
 
     @staticmethod
-    @require_valid
     def GetModelID(agent_id : int) -> int:
         """Retrieve the model of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -225,7 +218,6 @@ class Agent:
         return living.player_number
 
     @staticmethod
-    @require_valid
     def IsLiving(agent_id : int) -> bool:
         """Check if the agent is living."""
         agent = Agent.GetAgentByID(agent_id)
@@ -234,7 +226,6 @@ class Agent:
         return agent.is_living_type
 
     @staticmethod
-    @require_valid
     def IsItem(agent_id : int) -> bool:
         """Check if the agent is an item."""
         agent = Agent.GetAgentByID(agent_id)
@@ -243,7 +234,6 @@ class Agent:
         return agent.is_item_type
     
     @staticmethod
-    @require_valid
     def IsGadget(agent_id : int) -> bool:
         """Check if the agent is a gadget."""
         agent = Agent.GetAgentByID(agent_id)
@@ -252,7 +242,6 @@ class Agent:
         return agent.is_gadget_type
 
     @staticmethod
-    @require_valid
     def GetPlayerNumber(agent_id : int) -> int:
         """Retrieve the player number of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -261,7 +250,6 @@ class Agent:
         return living.player_number
 
     @staticmethod
-    @require_valid
     def GetLoginNumber(agent_id : int) -> int:
         """Retrieve the login number of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -270,7 +258,6 @@ class Agent:
         return living.login_number
 
     @staticmethod
-    @require_valid
     def IsSpirit(agent_id : int) -> bool:
         """Check if the agent is a spirit."""
         from .enums_src.GameData_enums import Allegiance
@@ -281,7 +268,6 @@ class Agent:
         return allegiance == Allegiance.SpiritPet
 
     @staticmethod
-    @require_valid
     def IsMinion(agent_id : int) -> bool:
         """Check if the agent is a minion."""
         from .enums_src.GameData_enums import Allegiance
@@ -292,7 +278,6 @@ class Agent:
         return allegiance == Allegiance.Minion
 
     @staticmethod
-    @require_valid
     def GetOwnerID(agent_id : int) -> int:
         """Retrieve the owner ID of an agent."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -301,7 +286,6 @@ class Agent:
         return living.owner
 
     @staticmethod
-    @require_valid
     def GetXY(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the X and Y coordinates of an agent.
@@ -315,7 +299,6 @@ class Agent:
         return pos.x, pos.y
 
     @staticmethod
-    @require_valid
     def GetXYZ(agent_id : int) -> tuple[float, float, float]:
         """
         Purpose: Retrieve the X, Y, and Z coordinates of an agent.
@@ -330,7 +313,6 @@ class Agent:
         return pos.x, pos.y, z
 
     @staticmethod
-    @require_valid
     def GetZPlane(agent_id : int) -> float:
         """
         Purpose: Retrieve the Z plane of an agent.
@@ -344,7 +326,6 @@ class Agent:
         return pos.zplane
     
     @staticmethod
-    @require_valid
     def GetNameTagXYZ(agent_id : int) -> tuple[float, float, float]:
         """
         Purpose: Retrieve the name tag X and Y coordinates of an agent.
@@ -357,7 +338,6 @@ class Agent:
         return agent.name_tag_x, agent.name_tag_y, agent.name_tag_z
     
     @staticmethod
-    @require_valid
     def GetModelScale1(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the model scale of an agent.
@@ -371,7 +351,6 @@ class Agent:
         return agent.width1, agent.height1
     
     @staticmethod
-    @require_valid
     def GetModelScale2(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the model scale of an agent.
@@ -385,7 +364,6 @@ class Agent:
         return agent.width2, agent.height2
     
     @staticmethod
-    @require_valid
     def GetModelScale3(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the model scale of an agent.
@@ -399,7 +377,6 @@ class Agent:
         return agent.width3, agent.height3
     
     @staticmethod
-    @require_valid
     def GetNameProperties(agent_id : int) -> int:
         """
         Purpose: Retrieve the name properties of an agent.
@@ -413,7 +390,6 @@ class Agent:
         return agent.name_properties
         
     @staticmethod
-    @require_valid
     def GetVisualEffects(agent_id : int) -> int:
         """
         Purpose: Retrieve the visual effects of an agent.
@@ -427,7 +403,6 @@ class Agent:
         return agent.visual_effects
     
     @staticmethod
-    @require_valid
     def GetTerrainNormalXYZ(agent_id : int) -> tuple[float, float, float]:
         """
         Purpose: Retrieve the terrain normal X, Y, and Z of an agent.
@@ -441,7 +416,6 @@ class Agent:
         return agent.terrain_normal.x, agent.terrain_normal.y, agent.terrain_normal.z
     
     @staticmethod
-    @require_valid
     def GetGround(agent_id : int) -> float:
         """
         Purpose: Retrieve the ground of an agent.
@@ -455,7 +429,6 @@ class Agent:
         return agent.ground
     
     @staticmethod
-    @require_valid
     def GetAnimationCode (agent_id : int) -> int:
         """
         Purpose: Retrieve the animation code of an agent.
@@ -469,7 +442,6 @@ class Agent:
         return living_agent.animation_code
     
     @staticmethod
-    @require_valid
     def GetWeaponItemType(agent_id : int) -> int:
         """
         Purpose: Retrieve the weapon item type of an agent.
@@ -483,7 +455,6 @@ class Agent:
         return living_agent.weapon_item_type
     
     @staticmethod
-    @require_valid
     def GetOffhandItemType(agent_id : int) -> int:
         """
         Purpose: Retrieve the offhand item type of an agent.
@@ -497,7 +468,6 @@ class Agent:
         return living_agent.offhand_item_type
     
     @staticmethod
-    @require_valid
     def GetAnimationType(agent_id : int) -> float:
         """
         Purpose: Retrieve the animation type of an agent.
@@ -511,7 +481,6 @@ class Agent:
         return living_agent.animation_type
     
     @staticmethod
-    @require_valid
     def GetWeaponAttackSpeed(agent_id : int) -> float:
         """
         Purpose: Retrieve the weapon attack speed of an agent.
@@ -525,7 +494,6 @@ class Agent:
         return living_agent.weapon_attack_speed
     
     @staticmethod
-    @require_valid
     def GetAttackSpeedModifier(agent_id : int) -> float:
         """
         Purpose: Retrieve the attack speed modifier of an agent.
@@ -539,7 +507,6 @@ class Agent:
         return living_agent.attack_speed_modifier
     
     @staticmethod
-    @require_valid
     def GetAgentModelType(agent_id : int) -> int:
         """
         Purpose: Retrieve the agent model type of an agent.
@@ -553,7 +520,6 @@ class Agent:
         return living_agent.agent_model_type
     
     @staticmethod
-    @require_valid
     def GetTransmogNPCID(agent_id : int) -> int:
         """ 
         Purpose: Retrieve the transmog NPC ID of an agent.  
@@ -567,7 +533,6 @@ class Agent:
         return living_agent.transmog_npc_id
     
     @staticmethod
-    @require_valid
     def GetGuildID(agent_id : int) -> int:
         """ 
         Purpose: Retrieve the guild ID of an agent.  
@@ -584,7 +549,6 @@ class Agent:
         return tags.guild_id
     
     @staticmethod
-    @require_valid
     def GetTeamID(agent_id : int) -> int:
         """ 
         Purpose: Retrieve the team ID of an agent.  
@@ -598,7 +562,6 @@ class Agent:
         return living_agent.team_id
     
     @staticmethod
-    @require_valid
     def GetAnimationSpeed(agent_id : int) -> float:
         """
         Purpose: Retrieve the animation speed of an agent.
@@ -612,7 +575,6 @@ class Agent:
         return living_agent.animation_speed
     
     @staticmethod
-    @require_valid
     def GetAnimationID(agent_id : int) -> int:
         """
         Purpose: Retrieve the animation ID of an agent.
@@ -626,7 +588,6 @@ class Agent:
         return living_agent.animation_id
 
     @staticmethod
-    @require_valid
     def GetRotationAngle(agent_id : int) -> float:
         """
         Purpose: Retrieve the rotation angle of an agent.
@@ -639,7 +600,6 @@ class Agent:
         return agent.rotation_angle
     
     @staticmethod
-    @require_valid
     def GetRotationCos(agent_id : int) -> float:
         """
         Purpose: Retrieve the cosine of the rotation angle of an agent.
@@ -653,7 +613,6 @@ class Agent:
 
 
     @staticmethod
-    @require_valid
     def GetRotationSin(agent_id : int) -> float:
         """
         Purpose: Retrieve the sine of the rotation angle of an agent.
@@ -666,7 +625,6 @@ class Agent:
         return agent.rotation_sin
 
     @staticmethod
-    @require_valid
     def GetVelocityXY(agent_id : int) -> tuple[float, float]:
         """
         Purpose: Retrieve the X and Y velocity of an agent.
@@ -681,7 +639,6 @@ class Agent:
         return velocity.x, velocity.y
     
     @staticmethod
-    @require_valid
     def GetProfessions(agent_id : int) -> tuple[int, int]:
         """
         Purpose: Retrieve the player's primary and secondary professions.
@@ -695,7 +652,6 @@ class Agent:
         return living.primary, living.secondary
 
     @staticmethod
-    @require_valid
     def GetProfessionNames(agent_id : int) -> tuple[str, str]:
         """
         Purpose: Retrieve the names of the player's primary and secondary professions.
@@ -715,7 +671,6 @@ class Agent:
         return prof_name  if prof_name is not None else "", secondary_prof_name if secondary_prof_name is not None else ""
     
     @staticmethod
-    @require_valid
     def GetProfessionShortNames(agent_id : int) -> tuple[str, str]:
         """
         Purpose: Retrieve the short names of the player's primary and secondary professions.
@@ -735,7 +690,6 @@ class Agent:
         return prof_name , secondary_prof_name
     
     @staticmethod
-    @require_valid
     def GetProfessionIDs(agent_id : int) -> tuple[int, int]:
         """
         Purpose: Retrieve the IDs of the player's primary and secondary professions.
@@ -748,7 +702,6 @@ class Agent:
         return living.primary, living.secondary
 
     @staticmethod
-    @require_valid
     def GetLevel(agent_id : int) -> int:
         """
         Purpose: Retrieve the level of the agent.
@@ -761,7 +714,6 @@ class Agent:
         return living.level
 
     @staticmethod
-    @require_valid
     def GetEnergy(agent_id: int) -> float:
         """
         Purpose: Retrieve the energy of the agent, only works for players and their heroes.
@@ -774,7 +726,6 @@ class Agent:
         return living.energy
     
     @staticmethod
-    @require_valid
     def GetMaxEnergy(agent_id: int) -> int:
         """
         Purpose: Retrieve the maximum energy of the agent, only works for players and heroes.
@@ -787,7 +738,6 @@ class Agent:
         return living.max_energy
 
     @staticmethod
-    @require_valid
     def GetEnergyRegen(agent_id: int) -> float:
         """
         Purpose: Retrieve the energy regeneration of the agent, only works for players and heroes.
@@ -800,7 +750,6 @@ class Agent:
         return living.energy_regen
     
     @staticmethod
-    @require_valid
     def GetEnergyPips(agent_id: int) -> int:
         """
         Purpose: Retrieve the energy pips of the agent, only works for players and heroes.
@@ -813,7 +762,6 @@ class Agent:
         return Utils.calculate_energy_pips(living.max_energy, living.energy_regen)
 
     @staticmethod
-    @require_valid
     def GetHealth(agent_id: int) -> float:
         """
         Purpose: Retrieve the health of the agent.
@@ -826,7 +774,6 @@ class Agent:
         return living.hp
 
     @staticmethod
-    @require_valid
     def GetMaxHealth(agent_id: int) -> int:
         """
         Purpose: Retrieve the maximum health of the agent.
@@ -839,7 +786,6 @@ class Agent:
         return living.max_hp
 
     @staticmethod
-    @require_valid
     def GetHealthRegen(agent_id: int) -> float:
         """
         Purpose: Retrieve the health regeneration of the agent.
@@ -852,7 +798,6 @@ class Agent:
         return living.hp_pips
     
     @staticmethod
-    @require_valid
     def GetHealthPips(agent_id: int) -> int:
         """
         Purpose: Retrieve the health pips of the agent.
@@ -866,7 +811,6 @@ class Agent:
         return Utils.calculate_health_pips(living.max_hp, living.hp_pips)
 
     @staticmethod
-    @require_valid
     def IsMoving(agent_id: int) -> bool:
         living  = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -874,7 +818,6 @@ class Agent:
         return living.is_moving
 
     @staticmethod
-    @require_valid
     def IsKnockedDown(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -882,7 +825,6 @@ class Agent:
         return living.is_knocked_down
 
     @staticmethod
-    @require_valid
     def IsBleeding(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -890,7 +832,6 @@ class Agent:
         return living.is_bleeding
 
     @staticmethod
-    @require_valid
     def IsCrippled(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -898,7 +839,6 @@ class Agent:
         return living.is_crippled
 
     @staticmethod
-    @require_valid
     def IsDeepWounded(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -906,7 +846,6 @@ class Agent:
         return living.is_deep_wounded
 
     @staticmethod
-    @require_valid
     def IsPoisoned(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -914,7 +853,6 @@ class Agent:
         return living.is_poisoned
 
     @staticmethod
-    @require_valid
     def IsConditioned(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -922,7 +860,6 @@ class Agent:
         return living.is_conditioned
 
     @staticmethod
-    @require_valid
     def IsEnchanted(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -930,7 +867,6 @@ class Agent:
         return living.is_enchanted
 
     @staticmethod
-    @require_valid
     def IsHexed(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -938,7 +874,6 @@ class Agent:
         return living.is_hexed
 
     @staticmethod
-    @require_valid
     def IsDegenHexed(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -946,18 +881,16 @@ class Agent:
         return living.is_degen_hexed
 
     @staticmethod
-    @require_valid
     def IsDead(agent_id: int) -> bool:
         """Check if the agent is dead."""
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
-            return True
+            return False
         is_dead = living.is_dead
         dead_by_type_map = living.is_dead_by_type_map
         return is_dead or dead_by_type_map
 
     @staticmethod
-    @require_valid
     def IsAlive(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -966,7 +899,6 @@ class Agent:
         return not Agent.IsDead(agent_id) and health > 0.0
 
     @staticmethod
-    @require_valid
     def IsWeaponSpelled(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -974,7 +906,6 @@ class Agent:
         return living.is_weapon_spelled
 
     @staticmethod
-    @require_valid
     def IsInCombatStance(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -982,7 +913,6 @@ class Agent:
         return living.is_in_combat_stance
 
     @staticmethod
-    @require_valid
     def IsAggressive(agent_id: int) -> bool:
         """Check if the agent is attacking or casting."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -993,7 +923,6 @@ class Agent:
         return is_attacking or is_casting
 
     @staticmethod
-    @require_valid
     def IsAttacking(agent_id:int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1001,7 +930,6 @@ class Agent:
         return living.is_attacking
 
     @staticmethod
-    @require_valid
     def IsCasting(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1009,7 +937,6 @@ class Agent:
         return living.is_casting
 
     @staticmethod
-    @require_valid
     def IsIdle(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1017,7 +944,6 @@ class Agent:
         return living.is_idle
 
     @staticmethod
-    @require_valid
     def HasBossGlow(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1025,7 +951,6 @@ class Agent:
         return living.has_boss_glow
 
     @staticmethod
-    @require_valid
     def GetWeaponType(agent_id: int) -> tuple[int, str]:
         """Purpose: Retrieve the weapon type of the agent."""
         """Purpose: Retrieve the allegiance of the agent."""
@@ -1043,7 +968,6 @@ class Agent:
         return living.weapon_type, name
 
     @staticmethod
-    @require_valid
     def GetWeaponExtraData(agent_id: int) -> tuple[int, int, int, int]:
         """
         Purpose: Retrieve the weapon extra data of the agent.
@@ -1057,7 +981,6 @@ class Agent:
         return living.weapon_item_id, living.weapon_item_type, living.offhand_item_id, living.offhand_item_type
 
     @staticmethod
-    @require_valid
     def IsMartial(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is martial.
@@ -1069,7 +992,6 @@ class Agent:
         return weapon_name in martial_weapon_types
 
     @staticmethod
-    @require_valid
     def IsCaster(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is a caster.
@@ -1079,7 +1001,6 @@ class Agent:
         return not Agent.IsMartial(agent_id)
 
     @staticmethod
-    @require_valid
     def IsMelee(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is melee.
@@ -1091,7 +1012,6 @@ class Agent:
         return weapon_name in melee_weapon_types
 
     @staticmethod
-    @require_valid
     def IsRanged(agent_id: int) -> bool:
         """
         Purpose: Check if the agent is ranged.
@@ -1101,7 +1021,6 @@ class Agent:
         return not Agent.IsMelee(agent_id)
 
     @staticmethod
-    @require_valid
     def GetDaggerStatus(agent_id: int) -> int:
         """Purpose: Retrieve the dagger status of the agent."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -1110,7 +1029,6 @@ class Agent:
         return living.dagger_status
     
     @staticmethod
-    @require_valid
     def GetAllegiance(agent_id: int) -> tuple[int, str]:
         """Purpose: Retrieve the allegiance of the agent."""
         from .enums_src.GameData_enums import  Allegiance, AllegianceNames
@@ -1127,19 +1045,16 @@ class Agent:
         return living.allegiance, name
     
     @staticmethod
-    @require_valid
     def IsPlayer(agent_id: int) -> bool:
         login_number = Agent.GetLoginNumber(agent_id)
         return login_number  != 0
 
     @staticmethod
-    @require_valid
     def IsNPC(agent_id: int) -> bool:
         login_number = Agent.GetLoginNumber(agent_id)
         return login_number  == 0
 
     @staticmethod
-    @require_valid
     def HasQuest(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1147,7 +1062,6 @@ class Agent:
         return living.has_quest
 
     @staticmethod
-    @require_valid
     def IsDeadByTypeMap(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1155,7 +1069,6 @@ class Agent:
         return living.is_dead_by_type_map
 
     @staticmethod
-    @require_valid
     def IsFemale(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1163,7 +1076,6 @@ class Agent:
         return living.is_female
     
     @staticmethod
-    @require_valid
     def IsHidingCape(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1171,7 +1083,6 @@ class Agent:
         return living.is_hiding_cape
 
     @staticmethod
-    @require_valid
     def CanBeViewedInPartyWindow(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1179,7 +1090,6 @@ class Agent:
         return living.can_be_viewed_in_party_window
 
     @staticmethod
-    @require_valid
     def IsSpawned(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1187,7 +1097,6 @@ class Agent:
         return living.is_spawned
 
     @staticmethod
-    @require_valid
     def IsBeingObserved(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1195,7 +1104,6 @@ class Agent:
         return living.is_being_observed
 
     @staticmethod
-    @require_valid
     def GetOvercast(agent_id: int) -> float:
         """Retrieve the overcast of the agent."""
         living = Agent.GetLivingAgentByID(agent_id)
@@ -1204,7 +1112,6 @@ class Agent:
         return living.h0128
     
     @staticmethod
-    @require_valid
     def GetProfessionsTexturePaths(agent_id: int) -> tuple[str, str]:
         """
         Purpose: Retrieve the texture paths of the player's primary and secondary professions.
@@ -1229,7 +1136,6 @@ class Agent:
     
 #region items
     @staticmethod
-    @require_valid
     def GetItemAgentOwnerID(agent_id: int) -> int:
         #item_owner_cache = ItemOwnerCache()
         """Retrieve the owner ID of the item agent."""
@@ -1241,7 +1147,6 @@ class Agent:
         return current_owner_id
     
     @staticmethod
-    @require_valid
     def GetItemAgentItemID(agent_id: int) -> int:
         """Retrieve the item ID of the item agent."""
         item_data =  Agent.GetItemAgentByID(agent_id)    
@@ -1250,7 +1155,6 @@ class Agent:
         return item_data.item_id
     
     @staticmethod
-    @require_valid
     def GetItemAgentExtraType(agent_id: int) -> int:
         """Retrieve the extra type of the item agent."""
         item_data =  Agent.GetItemAgentByID(agent_id)    
@@ -1259,7 +1163,6 @@ class Agent:
         return item_data.extra_type
     
     @staticmethod
-    @require_valid
     def GetItemAgenth00CC(agent_id: int) -> int:
         """Retrieve the h00CC of the item agent."""
         item_data =  Agent.GetItemAgentByID(agent_id)    
@@ -1269,7 +1172,6 @@ class Agent:
     
 #region gadgets
     @staticmethod
-    @require_valid
     def GetGadgetID(agent_id : int) -> int:
         """Retrieve the gadget ID of the agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
@@ -1278,7 +1180,6 @@ class Agent:
         return gadget.gadget_id
     
     @staticmethod
-    @require_valid
     def GetGadgetAgentID(agent_id: int) -> int:
         """Retrieve the gadget ID of the agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
@@ -1287,7 +1188,6 @@ class Agent:
         return gadget.agent_id
 
     @staticmethod
-    @require_valid
     def GetGadgetAgentExtraType(agent_id: int) -> int:
         """Retrieve the extra type of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
@@ -1296,7 +1196,6 @@ class Agent:
         return gadget.extra_type
     
     @staticmethod
-    @require_valid
     def GetGadgetAgenth00C4(agent_id: int) -> int:
         """Retrieve the h00CC of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
@@ -1305,7 +1204,6 @@ class Agent:
         return gadget.h00C4
     
     @staticmethod
-    @require_valid
     def GetGadgetAgenth00C8(agent_id: int) -> int:
         """Retrieve the h00C8 of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
@@ -1314,7 +1212,6 @@ class Agent:
         return gadget.h00C8
 
     @staticmethod
-    @require_valid
     def GetGadgetAgenth00D4(agent_id: int) -> list:
         """Retrieve the h00D4 of the gadget agent."""
         gadget = Agent.GetGadgetAgentByID(agent_id)
@@ -1326,7 +1223,6 @@ class Agent:
     #region not worked
     import PyAgent
     @staticmethod
-    @require_valid
     def agent_instance(agent_id : int) -> PyAgent.PyAgent:
         import PyAgent
         """
@@ -1339,7 +1235,6 @@ class Agent:
         return PyAgent.PyAgent(agent_id)
 
     @staticmethod
-    @require_valid
     def GetAttributes(agent_id: int) -> list[AttributeClass]:
         import PyAgent
         """
@@ -1381,7 +1276,6 @@ class Agent:
         return agent.attributes
     
     @staticmethod
-    @require_valid
     def GetAttributesDict(agent_id: int) -> dict[int, int]:  
         import PyAgent  
         # Get attributes
@@ -1398,7 +1292,6 @@ class Agent:
         return attributes
 
     @staticmethod
-    @require_valid
     def GetCastingSkill(agent_id: int) -> int:
         """ Purpose: Retrieve the casting skill of the agent."""
         if not Agent.agent_instance(agent_id).living_agent.is_casting:
