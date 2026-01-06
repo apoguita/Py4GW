@@ -1,5 +1,6 @@
 #region Imports
 import math
+import sys
 import traceback
 import Py4GW
 
@@ -258,6 +259,9 @@ def Follow(cached_data: CacheData):
     return True
 
 
+
+    
+
 def register_data(cached_data: CacheData):
     RegisterPlayer(cached_data)
     RegisterHeroes(cached_data)
@@ -279,10 +283,9 @@ def initialize(cached_data: CacheData) -> bool:
     
         register_data(cached_data)
 
-        if HeroAI_FloatingWindows.disable_main_automation(cached_data):
-            return False
+        HeroAI_FloatingWindows.disable_main_automation(cached_data)
         
-        handle_UI (cached_data)
+        handle_UI(cached_data)
         
         if not Map.IsExplorable():  # halt operation if not in explorable area
             return False
@@ -352,6 +355,7 @@ def main():
             UpdateStatus(cached_data)
         else:
             map_quads.clear()
+            
 
 
     except ImportError as e:
