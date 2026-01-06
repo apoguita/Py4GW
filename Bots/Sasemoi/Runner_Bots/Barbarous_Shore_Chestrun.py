@@ -1,93 +1,12 @@
 import Py4GW
-from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, Agent, ConsoleLog, GLOBAL_CACHE, ItemArray, Bags, HeroType)
-from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, VOS_Derv_Barbarous
+from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, GLOBAL_CACHE, Agent, HeroType)
+from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, SF_Derv_Barbarous
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
 from Bots.Sasemoi.bot_helpers import BotStuckHelper
+from Bots.Sasemoi.utils.inventory_utils import filter_valuable_inscription_type, get_unidentified_items, filter_valuable_weapon_type, filter_valuable_rune_type
 from Bots.Sasemoi.bot_helpers.bot_mystic_healing_support import MysticHealingSupport
 
-
-def get_unidentified_items(rarities: list[str], slot_blacklist: list[tuple[int,int]]) -> list[int]:
-    ''' Returns a list of all unidentified item IDs in the player's inventory '''
-    unidentified_items = []
-
-    # Loop over all bags
-    for bag_id in range(Bags.Backpack, Bags.Bag2+1):
-        bag_to_check = ItemArray.CreateBagList(bag_id)
-        item_array = ItemArray.GetItemArray(bag_to_check) # Get all items in the baglist
-
-        # Loop over items
-        for item_id in item_array:
-            item_instance = Item.item_instance(item_id)
-            slot = item_instance.slot
-            if (bag_id, slot) in slot_blacklist:
-                continue
-            if item_instance.rarity.name not in rarities:
-                continue
-            if not item_instance.is_identified:
-                unidentified_items.append(item_id)
-    return unidentified_items
-
-def filter_valuable_loot(item_id: int) -> bool:
-    desired_types = [12, 24, 27] # Offhand, Shield, Sword
-    item_instance = Item.item_instance(item_id)
-    item_modifiers = item_instance.modifiers
-    item_req = 13 # Default high req to skip uninteresting items
-
-    # Check Q9 max stats
-    for mod in item_modifiers:
-        # Dont waste time on uninteresting mods
-        # [requirement, shield armor, sword damage, offhand energy]
-        if mod.GetIdentifier() not in [10136, 42936, 42920, 26568]:
-            continue
-
-        # Store item requirement
-        if mod.GetIdentifier() == 10136:
-            item_req = mod.GetArg2() # Item requirement value
-
-            # Low req found, continue checking other mods
-            if item_req <= 9:
-                continue
-            # High req found, skip entire item
-            else:
-                return False
-        
-        
-        # Handle Shield
-        # 42936 = Shield armor mod identifier
-        if item_instance.item_type.ToInt() == 24 and mod.GetIdentifier() == 42936:
-            has_ideal_q5_stats = mod.GetArg1() == 12 or mod.GetArg1() == 13 # Ideal shield armor for q5
-            has_max_stats = mod.GetArg1() == 16 # Max armor
-
-            # Handle Q5 Shields
-            if item_req == 5 and has_ideal_q5_stats:
-                return True
-
-            # Handle uninteresting Shields
-            if not has_max_stats :
-                return False
-
-        # Handle Sword -- Only Q8 and Q9 Swords with max stats are interesting
-        # 42920 = Sword damage mod identifier
-        if item_instance.item_type.ToInt() == 27 and mod.GetIdentifier() == 42920:
-            has_max_stats = mod.GetArg2() == 15 and mod.GetArg1() == 22 # Max damage mod
-            return has_max_stats
-        
-
-        # Handle Offhand -- Only Q8 and Q9 Offhands with max stats are interesting
-        # 26568 = Offhand energy mod identifier
-        if item_instance.item_type.ToInt() == 12 and mod.GetIdentifier() == 26568:
-            has_max_stats = mod.GetArg1() == 12 # Max Energy mod
-            return has_max_stats and item_req < 9 # Only interested in Q8 or lower
-        
-        # Whalekin Wand
-        if item_instance.model_id == 1453:
-            q8_max_stats = mod.GetArg2() == 11 and mod.GetArg1() >= 21 # Max damage mod
-            has_max_stats = mod.GetArg2() == 11 and mod.GetArg1() == 22 # Max damage mod
-            return (has_max_stats and item_instance.is_rarity_gold) or (item_req == 8 and q8_max_stats)
-
-        
-    return False
-
+#region Constants and Globals
 # Globals
 BARBAROUS_SHORE = 375
 CAMP_HOJANU = 376
@@ -121,7 +40,7 @@ should_manage_inventory = False
 
 bot = Botting(
     BARB_SHORE_RUNNER,
-    custom_build=VOS_Derv_Barbarous(
+    custom_build=SF_Derv_Barbarous(
         build_danger_helper=BuildDangerHelper(
             cripple_kd_table=barbarous_cripple_kd_table,
             spellcast_table=barbarous_spellcast_table
@@ -139,12 +58,12 @@ stuck_helper = BotStuckHelper(
     }
 )
 
-
-# ==================== REGION Setup ====================
+#region Setup
+# ==================== SETUP ====================
 
 def create_bot_routine(bot: Botting) -> None:    
-    InitializeBot(bot)
     InitialTravelAndSetup(bot)
+    InitializeBot(bot)
     SetupHeroes(bot)
     SetupInventoryManagement(bot)
     SetupResign(bot)
@@ -178,7 +97,7 @@ def AssignBuild(bot: Botting):
             bot.OverrideBuild(SF_Assassin_Barbarous())
 
         case "Dervish":
-            bot.OverrideBuild(VOS_Derv_Barbarous(
+            bot.OverrideBuild(SF_Derv_Barbarous(
                 build_danger_helper=BuildDangerHelper(
                     cripple_kd_table=barbarous_cripple_kd_table,
                     spellcast_table=barbarous_spellcast_table
@@ -211,7 +130,7 @@ def _on_death(bot: Botting):
     yield from Routines.Yield.Player.Resign()
     yield from Routines.Yield.wait(1000)
     yield from AssessLootManagement()
-    yield from Routines.Yield.wait(10000)  # Wait for resign to complete
+    yield from Routines.Yield.wait(10000)  # Wait for death to complete
     yield from ConditionallyMoveToMerchant()
     yield from ManageInventory(bot)
 
@@ -225,6 +144,7 @@ def on_death(bot: Botting):
     ConsoleLog("Death detected", "Player Died - Run Failed, Restarting...", Py4GW.Console.MessageType.Notice)
 
     # Reset Action Queues and FSM
+    ResetUnopenedChests()
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
@@ -277,26 +197,28 @@ def ManageInventory(bot: Botting):
         rarities = ["Purple", "Gold"]
         all_items = get_unidentified_items(rarities=rarities, slot_blacklist=[])
 
-        # Log all unidentified items length
-        ConsoleLog("Item Info Test", f"Unidentified Items Count: {len(all_items)}", Py4GW.Console.MessageType.Info)
-
-        # Filter valuable loot
-        valuable_loot = [item_id for item_id in all_items if filter_valuable_loot(item_id)]
-
-        # Log valuable loot length
-        ConsoleLog("Item Info Test", f"Valuable Unidentified Items Count: {len(valuable_loot)}", Py4GW.Console.MessageType.Info)
-
         # Identify Items
         yield from Routines.Yield.Items.IdentifyItems(all_items)
         yield from Routines.Yield.wait(500)
 
+        # Filter valuable loot
+        valuable_loot = [item_id for item_id in all_items if filter_valuable_weapon_type(item_id)]
+        valuable_runes = [item_id for item_id in all_items if filter_valuable_rune_type(item_id)]
+        valuable_inscriptions = [item_id for item_id in all_items if filter_valuable_inscription_type(item_id)]
+        items_to_keep = valuable_loot[:]
+        items_to_keep.extend(valuable_runes)
+        items_to_keep.extend(valuable_inscriptions)
+
+        # Make items unique
+        items_to_keep = list(set(items_to_keep)) # Remove duplicates
+
         # Deposit valuable loot
-        for item_id in valuable_loot:
+        for item_id in items_to_keep:
             GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-            yield from Routines.Yield.wait(250)
+            yield from Routines.Yield.wait(500)
 
         # Sell remaining items
-        remaining_items = [item_id for item_id in all_items if item_id not in valuable_loot]
+        remaining_items = [item_id for item_id in all_items if item_id not in items_to_keep]
         yield from Routines.Yield.Merchant.SellItems(remaining_items)
         
         # End inventory management
@@ -345,11 +267,10 @@ def ResetUnopenedChests():
     global opened_chests
     opened_chests = set()
 
-# ==================== END REGION Setup ====================
+# ==================== END SETUP ====================
 
-
-# ==================== REGION Routines ====================
-
+#region Routines
+# ==================== ROUTINES ====================
 
 # Initial travel to Barbarous Shore and setup runner build
 def InitialTravelAndSetup(bot: Botting) -> None:
@@ -397,12 +318,10 @@ def ChestRunRoutine(bot: Botting) -> None:
     bot.Properties.Enable("alcohol")
     
     path_points: list[tuple[float, float]] = [
-        # (-7798, 15007),
-        # (-7101, 11558),
-        # (-12675, 10190),
         (-14616, 8558),
         (-15474, 4744),
         (-16036, 3647),
+        (-14193, 4443),
         (-9489, 1759),
         (-13644, -1846),
         (-11687, -5170),
@@ -412,7 +331,6 @@ def ChestRunRoutine(bot: Botting) -> None:
         (-16042, -15539),
         (-7940, -11834),
         (-6941, -7614),
-        # (-6941, -7614),
         # (-5765, -3661),
         # (-3917, -3608),
         # (-1273, -4529),
@@ -471,12 +389,12 @@ def ResetFarmLoop(bot: Botting):
     bot.States.JumpToStepName("[H]Barbarous Shore Running_6")
 
 
-# ==================== END REGION Routines ====================
+# ==================== END ROUTINES ====================
 
 
 
-
-# ==================== REGION Main ====================
+#region Main
+# ==================== MAIN ====================
 
 bot.SetMainRoutine(create_bot_routine)
 base_path = Py4GW.Console.get_projects_path()
@@ -495,4 +413,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# ==================== END REGION Main ====================
+# ==================== END MAIN ====================

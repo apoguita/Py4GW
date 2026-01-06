@@ -29,10 +29,10 @@ def vector_angle(a: Tuple[float, float], b: Tuple[float, float]) -> float:
     return dot / (mag_a * mag_b)
 
 #region SFAssassinBarbarous
-class VOS_Derv_Barbarous(BuildMgr):
+class SF_Derv_Barbarous(BuildMgr):
     def __init__(self, build_danger_helper: BuildDangerHelper = BuildDangerHelper()):
         super().__init__(
-            name="VOS Barbarous Shore Dervish Runner",
+            name="SF Barbarous Shore Dervish Runner",
             required_primary=Profession.Dervish,
             required_secondary=Profession.Assassin,
             template_code="Ogei8xsMxjozcAdgdXiANuRTCA",
@@ -149,7 +149,7 @@ class VOS_Derv_Barbarous(BuildMgr):
             return
         
         # Compute spellcast danger only when necessary
-        is_spellcast_danger = self.build_danger_helper.check_spellcaster(custom_distance=Range.Spellcast.value, include_non_specified=False)
+        is_spellcast_danger = self.build_danger_helper.check_spellcaster(custom_distance=Range.Spellcast.value + 150, include_non_specified=False)
 
         # Cast Shadow Form if we dont have it or its about to expire, and there is spellcast danger
         if (not self._has_sf or self._is_sf_about_to_expire) and is_sf_ready and is_spellcast_danger:

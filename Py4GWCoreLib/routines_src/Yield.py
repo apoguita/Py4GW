@@ -996,6 +996,68 @@ class Yield:
                 Console.MessageType.Success
             )
             return True
+        
+        @staticmethod
+        def SellMaterial(model_id: int):
+            MODULE_NAME = "Inventory + Sell Material"
+
+            def _is_material_trader():
+                merchant_models = [
+                    GLOBAL_CACHE.Item.GetModelID(item_id)
+                    for item_id in GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
+                ]
+                return ModelID.Wood_Plank.value in merchant_models
+
+            def _get_minimum_quantity():
+                return 10 if _is_material_trader() else 1
+
+            required_quantity = _get_minimum_quantity()
+            merchant_item_list = GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
+
+            # resolve merchant item ID from model_id
+            item_id = None
+            for candidate in merchant_item_list:
+                if GLOBAL_CACHE.Item.GetModelID(candidate) == model_id:
+                    item_id = candidate
+                    break
+
+            if item_id is None:
+                ConsoleLog(MODULE_NAME, f"Model {model_id} not sold here.", Console.MessageType.Warning)
+                return False
+
+            # Request a single quote
+            # GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
+            GLOBAL_CACHE.Trading.Trader.RequestSellQuote(item_id)
+            ConsoleLog(MODULE_NAME, f"Requested Sell Quote for item {item_id}.", Console.MessageType.Warning)
+
+            while True:
+                yield from Yield.wait(50)
+                quoted_id = GLOBAL_CACHE.Trading.Trader.GetQuotedItemID()
+                cost = GLOBAL_CACHE.Trading.Trader.GetQuotedValue()
+                ConsoleLog(MODULE_NAME, f"Attempted to request sell quote for item {quoted_id}.", Console.MessageType.Warning)
+                ConsoleLog(MODULE_NAME, f"Received sell quote for item {item_id} at cost: {cost}", Console.MessageType.Warning)
+                if cost >= 0:
+                    break
+
+            if cost == 0:
+                ConsoleLog(MODULE_NAME, f"Item {item_id} has no price.", Console.MessageType.Warning)
+                return False
+
+            # Perform a single buy transaction
+            GLOBAL_CACHE.Trading.Trader.SellItem(item_id, cost)
+
+            while True:
+                yield from Yield.wait(50)
+                if GLOBAL_CACHE.Trading.IsTransactionComplete():
+                    break
+
+            ConsoleLog(
+                MODULE_NAME,
+                f"Bought {required_quantity} units of model {model_id} for {cost} gold.",
+                Console.MessageType.Success
+            )
+            return True
+
 
 
 #region Items
