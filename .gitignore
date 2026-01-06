@@ -191,3 +191,9 @@ cython_debug/
 
 # # But keep the .default.json ones
 !/Styles/*.default.json
+
+# Ignore Visual Studio Code settings folder
+.vscode/
+
+# macOS system files
+.DS_Store

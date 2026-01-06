@@ -55,6 +55,10 @@ VIABLE_LOOT = {
     ModelID.Witchs_Brew,
     # Sweet Treat
     ModelID.Slice_Of_Pumpkin_Pie,
+    ModelID.Candy_Cane_Shard,
+    ModelID.Fruitcake,
+    ModelID.Snowman_Summoner,
+    ModelID.Frosty_Tonic
 }
 
 

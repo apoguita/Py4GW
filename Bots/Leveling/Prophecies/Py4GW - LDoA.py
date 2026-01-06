@@ -1,7 +1,6 @@
 from Py4GWCoreLib import*
 import time
 import traceback
-import random
 from Py4GWCoreLib import Key
 
 
@@ -38,7 +37,7 @@ class GameAreas:
     def __init__(self):
         self.Area = 1600 
         self.Area_1 = 2000
-        self.Area_2 = 2700
+        self.Area_2 = 2500
 
 ModelData = {}
 text_input = "resign"
@@ -142,7 +141,7 @@ baked_husk_location_6 = [(-6711, -1690)]
 nicholas_sandford_coordinate_list = [(22237, 4061),(17213, 2817),(16320, 3621),(16757, 8255),(17315, 8812),(14385, 11414),(14159, 13931),(15257, 16442)]
 
 #LVL 2-10
-ascalon_coordinate_list = [(7900, 5730),(7420, 5450)]
+ascalon_coordinate_list = [(7420, 5450)]
 rurikpause_coordinate_list = [(5987, 4087),(5977, 4077)]
 rurik_coordinate_list = [(6068, 4180),(5835, 4323),(5602, 4493),(5371, 4672),(5147, 4858),(4933, 5058),(4721, 5255),(4504, 5446),(4283, 5637),(4068, 5825),(3845, 6010),(3577, 6131),(3299, 6199),(3012, 6249),(2720, 6290),(2438, 6324),(2147, 6362),(1860, 6416),(1575, 6433),(1284, 6437),(995, 6441),(702, 6477),(428, 6576),(208, 6759),(-7, 6959),(-221, 7157),(-437, 7358),(-649, 7555),(-861, 7751),(-1080, 7944),(-1301, 8129),(-1522, 8312),(-1750, 8496),(-1997, 8641),(-2260, 8776),(-2519, 8910),(-2753, 9078),(-2902, 9324),(-3020, 9584),(-3137, 9847),(-3252, 10115),(-3367, 10386),(-3486, 10655),(-3724, 10822),(-3981, 10957),(-4241, 11095),(-4483, 11222),(-3823, 11060),(-5253, 11672)]
 
@@ -183,8 +182,8 @@ charr_gate_opener_fast_gate_run = [(-5390, 12810), (-5258, 12851), (-5448, 12353
 ascalon_town_exit_coordinate_list = [(7465, 5461)]  # Move closer to exit before pressing R
 
 
-foible_coordinate_list = [(460, 7805)]
-bandit_coordinate_list = [(random.randint(2300,2320), random.randint(5960,5975)), (random.randint(2580,2595),random.randint(4425,4435))]
+foible_coordinate_list = [(344, 7832), (367, 7790)]
+bandit_coordinate_list = [(2312, 5970), (2586,4429)]
 
 abbeyout_coordinate_list = [(7954, 5862),(7430, 5480),(7410, 5480)]
 abbey_coordinate_list = [(3386, -1112), (-220, -5393), (-3710, -6761), (-6529, -6570), (-11028, -6230), (-11060, -6200)]
@@ -429,17 +428,10 @@ def LDoA_TravelToOutpost(map_id=148):
     if not Map.GetMapID() == map_id:
         Map.Travel(map_id)
 
-def LDoA_TravelToRegion(map_id, server_region, district_number, language):
-    if not Map.GetMapID() == map_id:
-        if not Map.GetRegion() == server_region:
-            if not Map.GetDistrict() == district_number:
-                if not Map.GetLanguage() == language:
-                    Map.TravelToRegion(map_id, server_region, 0, language)     
-
 def LDoA_TravelToDistrict(map_id=148, district=0, district_number=0):
     if not Map.GetMapID() == map_id:
         if not Map.GetDistrict() == district:
-            Map.TravelToRegion(map_id, district, district_number)
+            Map.TravelToDistrict(map_id, district, district_number)
 
 #ITEMS FUNCTIONS   
 def useitem(model_id):
@@ -498,20 +490,17 @@ def set_killing_routine():
 def end_killing_routine():
     global FSM_vars, bot_vars
     global area_distance
-
-    if FSM_vars.in_killing_routine == False:
-        return False
     player_x, player_y = Player.GetXY()
     enemy_array = AgentArray.GetEnemyArray()
-    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Area_2)
+    enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Area_1)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
     enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x, player_y))
-    
-    if not any("Bandit" in str(item) for item in enemy_array):
-        if len(enemy_array) < 1:
-            FSM_vars.in_waiting_routine = False
-            FSM_vars.in_killing_routine = False
-            return True
+
+    if len(enemy_array) < 1:
+        FSM_vars.in_waiting_routine = False
+        FSM_vars.in_killing_routine = False
+        return True
+
     return False
 
 #RURIK KILLING ROUTINE
@@ -2085,7 +2074,7 @@ FSM_vars.state_machine_lvl2_10.AddState(name="PAUSE BEFORE FOLLOWING", execute_f
 FSM_vars.state_machine_lvl2_10.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
 FSM_vars.state_machine_lvl2_10.AddState(name="FOLLOWING RURIK", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.rurik_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.rurik_pathing, FSM_vars.movement_handler) or Survivor() or Death(), run_once=False)
 FSM_vars.state_machine_lvl2_10.AddState(name="WAITING RURIK KILLING", execute_fn=lambda: set_killing_routine(), exit_condition=lambda: end_killing_routine_1() or Survivor() or Death(), run_once=False)
-FSM_vars.state_machine_lvl2_10.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: LDoA_TravelToRegion(bot_vars.ascalon_map,2,1,3), exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_lvl2_10.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: LDoA_TravelToOutpost(bot_vars.ascalon_map), exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_lvl2_10.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
 FSM_vars.state_machine_lvl2_10.AddState(name="COUNTER", execute_fn=lambda: increment_run_counter(), exit_condition=lambda: Party.IsPartyLoaded() and Map.IsMapReady(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_lvl2_10.AddSubroutine(name="CHECK QUEST STATUS", sub_fsm = FSM_vars.state_machine_ResetQuest,  condition_fn=lambda: Quest.IsQuestCompleted(bot_vars.CharrAtTheGate))
@@ -2097,14 +2086,14 @@ FSM_vars.state_machine_ResetQuest.AddState(name="CHECK NPC", execute_fn=lambda: 
 FSM_vars.state_machine_ResetQuest.AddState(name="TAKING QUEST", execute_fn=lambda: Player.SendDialog(int("0x802E01", 16)), transition_delay_ms=1500, run_once=True)
 
 #___________________________ FARMER HAMNET ___________________________#
-FSM_vars.state_machine_lvl11_20.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: LDoA_TravelToRegion(bot_vars.foible_map,2,1,3), exit_condition=lambda: Map.GetMapID() == bot_vars.foible_map or Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=3500, run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="GOING BACK TO ASCALON", execute_fn=lambda: LDoA_TravelToOutpost(bot_vars.foible_map), exit_condition=lambda: Map.GetMapID() == bot_vars.foible_map or Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
 FSM_vars.state_machine_lvl11_20.AddState(name="WAITING OUTPOST MAP", exit_condition=lambda: Map.IsMapReady() and LDoA_IsOutpost() and Party.IsPartyLoaded(), transition_delay_ms=5000, run_once=True)
 FSM_vars.state_machine_lvl11_20.AddState(name="GOING OUT IN DANGEROUS LANDS", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.foible_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.foible_pathing, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)
 FSM_vars.state_machine_lvl11_20.AddState(name="WAITING EXPLORABLE MAP", exit_condition=lambda: Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded(), transition_delay_ms=3000, run_once=True)
 FSM_vars.state_machine_lvl11_20.AddState(name="USING IMP STONE", execute_fn=lambda: useitem(30847), run_once=True)
-FSM_vars.state_machine_lvl11_20.AddState(name="LUCKILY THERE IS A PRIEST", execute_fn=lambda: early_handle_map_path(FSM_vars.bandit_pathing), exit_condition=lambda: end_killing_routine() or Routines.Movement.IsFollowPathFinished(FSM_vars.bandit_pathing, FSM_vars.movement_handler) or Survivor_Hamnet(), run_once=False)
+FSM_vars.state_machine_lvl11_20.AddState(name="LUCKILY THERE IS A PRIEST", execute_fn=lambda: early_handle_map_path(FSM_vars.bandit_pathing), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bandit_pathing, FSM_vars.movement_handler) or Survivor_Hamnet(), run_once=False)
 FSM_vars.state_machine_lvl11_20.AddState(name="FIRE IMP IS FIRING", execute_fn=lambda: set_killing_routine(), exit_condition=lambda: end_killing_routine() or Survivor_Hamnet(), run_once=False)
-FSM_vars.state_machine_lvl11_20.AddState(name="COUNTER", execute_fn=lambda: increment_run_counter(), exit_condition=lambda: Party.IsPartyLoaded() and Map.IsMapReady(), transition_delay_ms=1500, run_once=True)
+FSM_vars.state_machine_lvl11_20.AddState(name="COUNTER", execute_fn=lambda: increment_run_counter(), exit_condition=lambda: Party.IsPartyLoaded() and Map.IsMapReady(), transition_delay_ms=1000, run_once=True)
 
 #___________________________ TAME PET ___________________________#
 FSM_vars.state_machine_TamePet.AddState(name="GOING OUT ASHFORD ABBEY", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.goingout_ashfordabbey, FSM_vars.movement_handler) or (Map.IsMapReady() and Map.IsExplorable() and Party.IsPartyLoaded()), run_once=False)

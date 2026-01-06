@@ -132,8 +132,8 @@ class NecromancerSkills:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.EnergyBuff.value
-        skill.Conditions.LessEnergy = 0.5
-        skill.Conditions.SacrificeHealth = 0.75
+        skill.Conditions.LessEnergy = 0.4
+        skill.Conditions.SacrificeHealth = 0.5
         skill.Conditions.TargetingStrict = True
         skill_data[skill.SkillID] = skill
 

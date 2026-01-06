@@ -354,7 +354,7 @@ class PVESkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Air_of_Superiority")
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.EnergyBuff.value
+        skill.Nature = SkillNature.Buff.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -444,8 +444,6 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.DeadAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
-        skill.Conditions.IsPartyWide = True
-        skill.Conditions.PartyWideArea = Range.Earshot.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -481,7 +479,7 @@ class PVESkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Breath_of_the_Great_Dwarf")
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Healing.value
+        skill.Nature = SkillNature.CustomC.value
         skill.Conditions.LessLife = 0.85
         skill.Conditions.IsPartyWide = True
         skill.Conditions.PartyWideArea = Range.SafeCompass.value
@@ -602,7 +600,7 @@ class PVESkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Ebon_Vanguard_Assassin_Support")
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.CustomA.value
+        skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

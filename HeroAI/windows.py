@@ -160,13 +160,14 @@ def DrawPrioritizedSkills(cached_data:CacheData):
 
 HeroFlags: list[bool] = [False, False, False, False, False, False, False, False, False]
 AllFlag = False
-CLearFlags = False
+ClearFlags = False
 one_time_set_flag = False
+
 def DrawFlags(cached_data:CacheData):
     global capture_flag_all, capture_hero_flag, capture_hero_index
-    global one_time_set_flag, CLearFlags
-
-    if capture_hero_flag:
+    global one_time_set_flag, ClearFlags
+    
+    if capture_hero_flag:        
         x, y, _ = Overlay().GetMouseWorldPos()
         if capture_flag_all:
             DrawFlagAll(x, y)
@@ -210,7 +211,7 @@ def DrawFlags(cached_data:CacheData):
         if cached_data.HeroAI_vars.all_player_struct[i].IsFlagged and cached_data.HeroAI_vars.all_player_struct[i].IsActive and not cached_data.HeroAI_vars.all_player_struct[i].IsHero:
             DrawHeroFlag(cached_data.HeroAI_vars.all_player_struct[i].FlagPosX,cached_data.HeroAI_vars.all_player_struct[i].FlagPosY)
 
-    if CLearFlags:
+    if ClearFlags:
         for i in range(MAX_NUM_PLAYERS):
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "IsFlagged", False)
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FlagPosX", 0.0)
@@ -218,13 +219,13 @@ def DrawFlags(cached_data:CacheData):
             cached_data.HeroAI_vars.shared_memory_handler.set_player_property(i, "FollowAngle", 0.0)
             GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
         GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
-        CLearFlags = False
+        ClearFlags = False
             
         
 
 def DrawFlaggingWindow(cached_data:CacheData):
     global HeroFlags, AllFlag, capture_flag_all, capture_hero_flag, capture_hero_index, one_time_set_flag
-    global CLearFlags
+    global ClearFlags
     party_size = GLOBAL_CACHE.Party.GetPartySize()
     if party_size == 1:
         PyImGui.text("No Follower or Heroes to Flag.")
@@ -259,7 +260,7 @@ def DrawFlaggingWindow(cached_data:CacheData):
             if party_size >= 8:
                 HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(cached_data,7), 30, 30)
             PyImGui.table_next_column()
-            CLearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
+            ClearFlags = ImGui.toggle_button("X", HeroFlags[7],30,30)
             PyImGui.end_table()
                 
                 
