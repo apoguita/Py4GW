@@ -119,6 +119,7 @@ class Settings:
         self.DisableAutomationOnLeaderAccount = False
         
         self.ShowDialogOverlay = True
+        self.ShowControlPanelWindow = True
         
         self.CombinePanels = False
         self.ShowLeaderPanel = False
@@ -182,9 +183,13 @@ class Settings:
     
     def ensure_initialized(self) -> bool: 
         account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        
+        if not account_email:
+            return True
+         
         initialized = True if account_email and account_email == self.account_email else False
         
-        if not initialized:
+        if not initialized or not self._initialized:
             self.initialize_account_config()
         
         return self._initialized == initialized
@@ -197,7 +202,7 @@ class Settings:
             config_dir = os.path.join(base_path, "Widgets", "Config", "Accounts", account_email)
             os.makedirs(config_dir, exist_ok=True)
             self.account_ini_path = os.path.join(config_dir, "HeroAI.ini")
-            self.account_ini_handler = IniHandler(self.account_ini_path)
+            self.account_ini_handler = IniHandler(self.account_ini_path)            
             self.account_email = account_email
                     
         self._initialized = True if account_email and account_email == self.account_email else False
@@ -238,8 +243,7 @@ class Settings:
         
         self.ini_handler.write_key("General", "CombinePanels", str(self.CombinePanels))
         self.ini_handler.write_key("General", "ShowHeroPanels", str(self.ShowHeroPanels))
-        self.ini_handler.write_key("General", "ShowLeaderPanel", str(self.ShowLeaderPanel))
-        
+        self.ini_handler.write_key("General", "ShowLeaderPanel", str(self.ShowLeaderPanel))        
         
         self.ini_handler.write_key("General", "ShowHeroEffects", str(self.ShowHeroEffects))
         self.ini_handler.write_key("General", "ShowEffectDurations", str(self.ShowEffectDurations))
@@ -251,7 +255,9 @@ class Settings:
         self.ini_handler.write_key("General", "ShowHeroBars", str(self.ShowHeroBars))
         self.ini_handler.write_key("General", "ShowFloatingTargets", str(self.ShowFloatingTargets))
         self.ini_handler.write_key("General", "ShowHeroSkills", str(self.ShowHeroSkills))
+        
         self.ini_handler.write_key("General", "ShowPartyPanelUI", str(self.ShowPartyPanelUI))
+        self.ini_handler.write_key("General", "ShowControlPanelWindow", str(self.ShowControlPanelWindow))
 
         self.ini_handler.write_key("General", "ConfirmFollowPoint", str(self.ConfirmFollowPoint))
 
@@ -294,7 +300,9 @@ class Settings:
         self.ShowHeroBars = self.ini_handler.read_bool("General", "ShowHeroBars", True)
         self.ShowFloatingTargets = self.ini_handler.read_bool("General", "ShowFloatingTargets", True)
         self.ShowHeroSkills = self.ini_handler.read_bool("General", "ShowHeroSkills", True)
+        
         self.ShowPartyPanelUI = self.ini_handler.read_bool("General", "ShowPartyPanelUI", True)
+        self.ShowControlPanelWindow = self.ini_handler.read_bool("General", "ShowControlPanelWindow", True)
         
         self.ConfirmFollowPoint = self.ini_handler.read_bool("General", "ConfirmFollowPoint", False)
 
