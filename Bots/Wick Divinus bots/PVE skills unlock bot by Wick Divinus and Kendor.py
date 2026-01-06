@@ -506,16 +506,16 @@ def bot_routine(bot: Botting) -> None:
     bot.UI.PrintMessageToConsole("Starting", "Beginning Vanguard Ebon Sin quest routine")
     
     # Travel to Eotn Outpost
-    bot.Map.Travel(target_map_id=642)
-    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836A01)
-    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x86)
+    bot.Map.Travel(target_map_id=821)
+    bot.Move.XYAndDialog(-2055.43, 2599.45, 0x836A01)
+    bot.Move.XYAndDialog(-2055.43, 2599.45, 0x86)
     bot.Wait.ForMapLoad(target_map_id=697) # Special Eotn Map
     bot.Multibox.ResignParty()
     bot.Wait.ForTime(3000)
     bot.Map.Travel(target_map_id=642)
     #bot.Wait.ForMapToChange(target_map_id=642)  
     # Collect reward
-    bot.Move.XYAndDialog(-1904.21, 3112.10, 0x836A07) # Rewards
+    bot.Move.XYAndDialog(-2055.43, 2599.45, 0x836A07) # Rewards
     bot.States.JumpToStepName("[H]End_8")
 
     bot.States.AddHeader("Unlock Skill #10")
