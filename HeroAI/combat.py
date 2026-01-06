@@ -508,7 +508,14 @@ class CombatClass:
 
         """ Check if the skill is a resurrection skill and the target is dead """
         if self.skills[slot].custom_skill_data.Nature == SkillNature.Resurrection.value:
-            return True if GLOBAL_CACHE.Agent.IsDead(vTarget) else False
+            if Conditions.IsPartyWide:
+                allies_array = GetAllAlliesArray(Range.SafeCompass.value if Conditions.PartyWideArea == 0 else Conditions.PartyWideArea)
+                allies_array = AgentArray.Filter.ByCondition(allies_array, lambda agent_id: GLOBAL_CACHE.Agent.IsDead(agent_id))
+
+                if len(allies_array) >= 3:
+                    return True
+            else:
+                return True if GLOBAL_CACHE.Agent.IsDead(vTarget) else False
 
 
         if self.skills[slot].custom_skill_data.Conditions.UniqueProperty:
