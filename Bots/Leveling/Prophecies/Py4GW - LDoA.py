@@ -429,7 +429,7 @@ def LDoA_TravelToOutpost(map_id=148):
         Map.Travel(map_id)
 
 def LDoA_TravelToDistrict(map_id=148, district=0, district_number=0):
-    if not Map.GetDistrict() == district or not Map.GetMapID() == map_id :
+    if not Map.GetDistrict() == district or not Map.GetMapID() == map_id:
         Map.TravelToDistrict(map_id, district, district_number)
 
 #ITEMS FUNCTIONS   
