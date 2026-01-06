@@ -6,15 +6,17 @@ class AgentModelID(IntEnum):
     FOG_NIGHTMARE = 1729
     FROST_WURM = 6491
     FROZEN_ELEMENTAL = 6478
-    SENSALI_DARKFEATHER = 3946
-    SENSALI_CLAW = 3944
-    SENSALI_CUTTER = 3948
+    SENSALI_DARKFEATHER = 3946 + 51
+    SENSALI_CLAW = 3944 + 51
+    SENSALI_CUTTER = 3948 + 51
     SPINED_ALOE = 1731
     
 class GadgetModelID(IntEnum):
     CHEST_HIDDEN_STASH = 9 #ID for Hidden Stash (Pre-Searing)
     CHEST_ASCALONIAN = 69 #ID for Ascalonian Chest
     CHEST_SHING_JEA = 4579 #ID for Shing Jea Chest
+    CHEST_KOURNAN = 6064 #ID for Kournan Chest
+    CHEST_DARKSTONE = 73 # ID for Darkstone Chest
     CHEST_GENERIC = 8141 #ID for generic chest (used in many places)
     
     CHEST_DUNGEON_SECRET_LAIR_OF_THE_SNOWMAN = 9274 #ID for Secret Lair of the Snowman
@@ -22,7 +24,7 @@ class GadgetModelID(IntEnum):
     CHEST_DUNGEON_SLAVERS_EXILE_JUSTICIAR_THOMMIS_ROOM = 9284 #ID for Slavers Exile (Justiciar Thommis room)
 
     BURIED_TREASURE_THE_MIRROR_OF_LYSS = 7465
-    
+    BURIED_TREASURE_NIGHTFALLEN_JAHAI_AND_DOMAIN_OF_PAIN_AND_KODLONU_HAMLET = 7466
     
 class SpiritModelID(IntEnum):
     # SPIRIT_MODEL

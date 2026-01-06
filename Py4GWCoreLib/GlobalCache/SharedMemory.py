@@ -607,6 +607,20 @@ class Py4GWSharedMemoryManager:
     def _c_wchar_array_to_str(self,arr: ctypes.Array) -> str:
         """Convert c_wchar array back to Python str, stopping at null terminator."""
         return "".join(ch for ch in arr if ch != '\0').rstrip()
+
+    def _get_account_email(self) -> str:
+        if self.player_instance is None:
+            return ""
+        account_email = self.player_instance.account_email
+        if account_email:
+            return account_email
+        player_uuid = self.player_instance.player_uuid
+        if not player_uuid:
+            return ""
+        try:
+            return "uuid_" + "_".join(str(part) for part in player_uuid)
+        except TypeError:
+            return str(player_uuid)
     
     def _pack_extra_data_for_sendmessage(self, extra_tuple, maxlen=128):
         out = []
@@ -1464,7 +1478,7 @@ class Py4GWSharedMemoryManager:
             if self.map_instance.is_in_cinematic:
                 return
             
-            hero.AccountEmail = self.player_instance.account_email
+            hero.AccountEmail = self._get_account_email()
             agent_id = hero_data.agent_id
             map_region = self.map_instance.region_type.ToInt()
             
@@ -1663,7 +1677,7 @@ class Py4GWSharedMemoryManager:
             map_region = self.map_instance.region_type.ToInt()
             playerx, playery, playerz = agent_instance.x, agent_instance.y, agent_instance.z
             
-            pet.AccountEmail = self.player_instance.account_email
+            pet.AccountEmail = self._get_account_email()
             pet.AccountName = self.player_instance.account_name
             pet.CharacterName = f"Agent {pet_info.owner_agent_id} Pet"
             pet.IsHero = False

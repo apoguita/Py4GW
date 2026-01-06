@@ -3,6 +3,8 @@ from typing import Any, Generator, override
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Py4GWCoreLib.Overlay import Overlay
+from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
+from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -45,7 +47,14 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
         # Use singleton manager for all configuration
         self.manager =  CustomBehaviorParty().party_flagging_manager
+
+        self.event_bus.subscribe(EventType.MAP_CHANGED, self.area_changed, subscriber_name=self.custom_skill.skill_name)
         
+    def area_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
+        self.throttle_timer.Reset()
+        self.manager.clear_all_flag_positions()
+        yield
+
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
@@ -183,15 +192,16 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
                     text_color = Utils.RGBToColor(0, 200, 255, 255)
 
                 # Draw filled circle for flag position
-                Overlay().DrawPolyFilled3D(flag_x, flag_y, my_z, 25,
+                Overlay().DrawPolyFilled3D(flag_x, flag_y, my_z, 16,
                                           fill_color, numsegments=16)
 
                 # Draw circle outline
-                Overlay().DrawPoly3D(flag_x, flag_y, my_z, 25,
+                Overlay().DrawPoly3D(flag_x, flag_y, my_z, 16,
                                     circle_color, numsegments=16, thickness=3.0)
 
-                # Draw flag number
-                Overlay().DrawText3D(flag_x, flag_y, my_z - 100,
+                # Draw flag number (closer to ground at flag position)
+                flag_z = Overlay().FindZ(flag_x, flag_y)
+                Overlay().DrawText3D(flag_x, flag_y, flag_z - 25,
                                    f"Flag {flag_index + 1}",
                                    text_color,
                                    autoZ=False, centered=True, scale=1.0)
@@ -211,9 +221,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
                                        Utils.RGBToColor(0, 255, 0, 255),
                                        autoZ=False, centered=True, scale=1.0)
 
-            # Draw my position (blue circle)
-            Overlay().DrawPoly3D(my_pos[0], my_pos[1], my_z, 25,
-                                Utils.RGBToColor(0, 100, 255, 200), numsegments=16, thickness=3.0)
+            # Intentionally omit drawing player's blue circle in flag overlay
 
         except Exception as e:
             # Silently fail on debug UI errors

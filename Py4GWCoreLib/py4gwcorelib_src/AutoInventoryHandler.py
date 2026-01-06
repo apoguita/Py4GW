@@ -5,6 +5,7 @@ from .IniHandler import IniHandler
 from .Timer import ThrottledTimer
 from .ActionQueue import ActionQueueManager
 from .Lootconfig_src import LootConfig
+import Py4GW
 
 class AutoInventoryHandler():
     _instance = None
@@ -20,7 +21,9 @@ class AutoInventoryHandler():
             return
         self._LOOKUP_TIME:int = 15000
         self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
-        self.ini = IniHandler("AutoLoot.ini")
+        projects_path = Py4GW.Console.get_projects_path()
+        full_path = projects_path + "\\Widgets\\Config\\InventoryPlus.ini"
+        self.ini = IniHandler(full_path)
         self.initialized = False
         self.status = "Idle"
         self.outpost_handled = False
@@ -32,6 +35,7 @@ class AutoInventoryHandler():
         self.id_purples = True
         self.id_golds = False
         self.id_greens = False
+        self.id_model_blacklist = []  # Items that should not be identified, even if they match the ID criteria
         
         self.salvage_whites = True
         self.salvage_rare_materials = False
@@ -57,6 +61,11 @@ class AutoInventoryHandler():
         self.deposit_event_items = True
         self.deposit_dyes = True
         self.keep_gold = 5000
+        self.deposit_trophies_blacklist = []  # Model IDs of trophies that should not be deposited
+        self.deposit_materials_blacklist = []  # Model IDs of materials that should not be deposited
+        self.deposit_event_items_blacklist = []  # Model IDs of event items that should not
+        self.deposit_dyes_blacklist = []  # Model IDs of dyes that should not be deposited
+        self.deposit_model_blacklist = []  # Model IDs of items that should not be deposited
         
         self.load_from_ini(self.ini, "AutoLootOptions")
         self._initialized = True
@@ -69,6 +78,7 @@ class AutoInventoryHandler():
         self.ini.write_key(section, "id_purples", str(self.id_purples))
         self.ini.write_key(section, "id_golds", str(self.id_golds))
         self.ini.write_key(section, "id_greens", str(self.id_greens))
+        self.ini.write_key(section, "id_model_blacklist", ",".join(str(x) for x in sorted(set(self.id_model_blacklist))))
 
         self.ini.write_key(section, "salvage_whites", str(self.salvage_whites))
         self.ini.write_key(section, "salvage_rare_materials", str(self.salvage_rare_materials))
@@ -88,10 +98,17 @@ class AutoInventoryHandler():
         self.ini.write_key(section, "deposit_golds", str(self.deposit_golds))
         self.ini.write_key(section, "deposit_greens", str(self.deposit_greens))
         self.ini.write_key(section, "keep_gold", str(self.keep_gold))
+        
+        self.ini.write_key(section, "deposit_trophies_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_trophies_blacklist))))
+        self.ini.write_key(section, "deposit_materials_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_materials_blacklist))))
+        self.ini.write_key(section, "deposit_event_items_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_event_items_blacklist))))
+        self.ini.write_key(section, "deposit_dyes_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_dyes_blacklist))))
+        self.ini.write_key(section, "deposit_model_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_model_blacklist))))
 
 
-    def load_from_ini(self, ini, section: str = "AutoLootOptions"):
-
+    def load_from_ini(self, ini:IniHandler | None, section: str = "AutoLootOptions"):
+        if not ini:
+            ini = self.ini
         self._LOOKUP_TIME = ini.read_int(section, "lookup_time", self._LOOKUP_TIME)
         self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
 
@@ -125,23 +142,7 @@ class AutoInventoryHandler():
         self.deposit_greens = ini.read_bool(section, "deposit_greens", self.deposit_greens)
 
         self.keep_gold = ini.read_int(section, "keep_gold", self.keep_gold)
-        
-    def AutoID(self, item_id):
-        from ..Inventory import Inventory
-        first_id_kit = Inventory.GetFirstIDKit()
-        if first_id_kit == 0:
-            ConsoleLog(self.module_name, "No ID Kit found in inventory", Console.MessageType.Warning)
-        else:
-            Inventory.IdentifyItem(item_id, first_id_kit)
-            
-    def AutoSalvage(self, item_id):
-        from ..Inventory import Inventory
-        first_salv_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
-        if first_salv_kit == 0:
-            ConsoleLog(self.module_name, "No Salvage Kit found in inventory", Console.MessageType.Warning)
-        else:
-            Inventory.SalvageItem(item_id, first_salv_kit)
-            
+                
     def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None, log: bool = False):
         from ..ItemArray import ItemArray
         from ..enums import Bags
@@ -290,6 +291,7 @@ class AutoInventoryHandler():
             ConsoleLog(self.module_name, f"Salvaged {salvaged_items} items", Console.MessageType.Success)
 
             
+            
     def DepositItemsAuto(self):
         from ..enums import Bags, ModelID
         from ..GlobalCache import GLOBAL_CACHE
@@ -314,6 +316,27 @@ class AutoInventoryHandler():
                 is_gold = rarity == "Gold"
                 
                 model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+                
+                is_dye = model_id == ModelID.Vial_Of_Dye.value
+                
+                if model_id in self.deposit_model_blacklist:
+                    continue
+                
+                if is_material and model_id in self.deposit_materials_blacklist:
+                    continue
+                
+                if is_trophy and model_id in self.deposit_trophies_blacklist:
+                    continue
+                
+                is_dye = (model_id == ModelID.Vial_Of_Dye.value)
+                dye1_to_match = None
+                if is_dye:
+                    dye_info = GLOBAL_CACHE.Item.Customization.GetDyeInfo(item_id)
+                    dye1_to_match = dye_info.dye1.ToInt()
+                    
+                if is_dye and dye1_to_match in self.deposit_dyes_blacklist:
+                    continue
+                
                 
                 if is_tome:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
@@ -369,7 +392,9 @@ class AutoInventoryHandler():
 
                         event_items.update(m.value for m in items)
                         
-                if model_id in event_items and self.deposit_event_items:
+                if ((model_id in event_items) and 
+                    self.deposit_event_items and
+                    model_id not in self.deposit_event_items_blacklist):
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
             

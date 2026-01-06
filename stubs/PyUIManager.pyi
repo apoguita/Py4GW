@@ -1,4 +1,4 @@
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Sequence, Any
 
 class UIInteractionCallback:
     def __init__(self) -> None:
@@ -156,6 +156,8 @@ class UIFrame:
 class UIManager:
     #def __init__(self) -> None: ... 
     @staticmethod
+    def get_frame_logs() -> List[Tuple[int, int, str]]: ...
+    @staticmethod
     def get_frame_id_by_label(label: str) -> int: ...
     @staticmethod
     def get_frame_id_by_hash(hash: int) -> int: ...
@@ -165,6 +167,21 @@ class UIManager:
     def get_frame_hierarchy() -> List[Tuple[int, int, int, int]]: ...
     @staticmethod
     def get_frame_coords_by_hash(frame_hash: int) -> List[Tuple[int, int]]: ...
+    @staticmethod
+    def SendUIMessage(
+        msgid: int,
+        values: list[int],
+        skip_hooks: bool = False
+    ) -> bool: ...
+    
+    @staticmethod
+    def SendUIMessageRaw(
+        msgid: int,
+        wparam: int,
+        lparam: int,
+        skip_hooks: bool = False
+    ) -> bool: ...
+    
     @staticmethod
     def button_click(frame_id: int) -> None: ...
     @staticmethod

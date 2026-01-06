@@ -313,7 +313,14 @@ class Checks:
         def IsModelInInventoryOrEquipped(model_id: int):
             from ..GlobalCache import GLOBAL_CACHE
             return (GLOBAL_CACHE.Inventory.GetModelCount(model_id) + GLOBAL_CACHE.Inventory.GetModelCountInEquipped(model_id)) > 0
-        
+    
+    class Items:
+        @staticmethod
+        def IsSalvageable(item_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            from ..Item import Item
+            item_instance = Item.item_instance(item_id)
+            return item_instance.is_salvageable  
         
         
 #region Effects

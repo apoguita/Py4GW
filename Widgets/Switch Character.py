@@ -57,9 +57,9 @@ class RerollCharacter:
         target_name = self.target_character_name
         found_index = -99
         try:
-            for char in pregame.chars:
-                if target_name == char:
-                    found_index = pregame.chars.index(target_name)
+            for idx, char in enumerate(pregame.chars):
+                if target_name == char.character_name:
+                    found_index = idx
                     break
         except Exception as e:
             ConsoleLog("Reroll", f"Error accessing character list: {e}", Console.MessageType.Error)
@@ -68,7 +68,7 @@ class RerollCharacter:
 
         if found_index != -99:
             self.target_index = found_index
-            self.last_known_index = pregame.index_1
+            self.last_known_index = pregame.chosen_character_index
             ConsoleLog("Reroll", f"Found '{target_name}' at index {found_index}. Current selection: {self.last_known_index}", Console.MessageType.Info)
         else:
             ConsoleLog("Reroll", f"Character '{target_name}' not found in list yet.", Console.MessageType.Debug)
@@ -80,7 +80,7 @@ class RerollCharacter:
             return
 
         pregame = GLOBAL_CACHE.Player.GetPreGameContext()
-        current_index = pregame.index_1
+        current_index = pregame.chosen_character_index
 
         if current_index == self.target_index:
             return
@@ -137,7 +137,7 @@ class RerollCharacter:
                  return
 
             pregame = GLOBAL_CACHE.Player.GetPreGameContext()
-            current_index = pregame.index_1
+            current_index = pregame.chosen_character_index
 
             if current_index == self.target_index:
                 ConsoleLog("Reroll", "Target character is selected.", Console.MessageType.Debug)

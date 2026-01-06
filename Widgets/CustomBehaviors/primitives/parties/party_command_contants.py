@@ -20,6 +20,17 @@ class PartyCommandConstants:
                 GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.MapID, self_account.MapRegion, self_account.MapDistrict, 0))
         yield
 
+    @staticmethod    
+    def travel_gh() -> Generator[Any, None, None]:
+        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+        if self_account is not None:
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
+                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToGuildHall, (0,0,0,0))
+        yield
+
     @staticmethod
     def invite_all_to_leader_party() -> Generator[Any, None, None]:
         account_email = GLOBAL_CACHE.Player.GetAccountEmail()

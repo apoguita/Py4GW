@@ -168,7 +168,18 @@ class Utils:
         import re
         return re.sub(r'(?<!^)(?=[A-Z])', ' ', s)
     
-     
+    @staticmethod
+    def humanize_string(string: str) -> str:
+        """Convert a string like "Some_VariableName" to "Some Variable Name"."""
+        
+        # Replace underscores with spaces
+        string = string.replace('_', ' ')
+        
+        # Insert spaces before uppercase letters (if not at start)
+        string = re.sub(r'(?<!^)(?=[A-Z])', ' ', string)
+                
+        return string
+    
     @staticmethod
     def GetExperienceProgression(xp: int) -> float:
         """

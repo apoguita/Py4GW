@@ -16,7 +16,9 @@ def main():
     global loading_in_character_screen, start_timer, play_button_hash
     if start_timer.IsStopped():
         return
-    if GLOBAL_CACHE.Player.InCharacterSelectScreen() and start_timer.HasElapsed(1000) and loading_in_character_screen:
+    
+    pregame_context = GLOBAL_CACHE.Player.GetPreGameContextPtr()
+    if pregame_context and start_timer.HasElapsed(1000) and loading_in_character_screen:
         frame_id = UIManager.GetFrameIDByHash(play_button_hash)
         if UIManager.FrameExists(frame_id):
             ConsoleLog(module_name, f"Entering Game.")
