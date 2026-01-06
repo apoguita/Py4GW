@@ -292,19 +292,23 @@ def initialize(cached_data: CacheData) -> bool:
         
         HeroAI_Windows.DrawFlags(cached_data)
         HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
-        cached_data.UdpateCombat()
+        cached_data.UpdateCombat()
+        
+        
+    
     return True
         
 #region main  
 def UpdateStatus(cached_data: CacheData) -> bool:
+    
     if (
-        not Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
-        or (HeroAI_FloatingWindows.DistanceToDestination(cached_data) >= Range.SafeCompass.value)
-        or Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
-        or cached_data.combat_handler.InCastingRoutine()
-        or Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
-    ):
-        return False
+            not Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
+            or (HeroAI_FloatingWindows.DistanceToDestination(cached_data) >= Range.SafeCompass.value)
+            or Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
+            or cached_data.combat_handler.InCastingRoutine()
+            or Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+        ):
+            return False
 
     if LootingRoutineActive():
         return True
