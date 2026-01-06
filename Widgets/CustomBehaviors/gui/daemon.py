@@ -36,7 +36,7 @@ def daemon():
         RegisterPlayer(cached_data)
         RegisterHeroes(cached_data)
         UpdatePlayers(cached_data)
-        cached_data.UdpateCombat()
+        cached_data.UpdateCombat()
 
     # main loops
     if cb is not None:
