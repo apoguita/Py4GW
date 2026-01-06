@@ -18,6 +18,12 @@ hero_list = [
     HeroType.Melonni
 ]
 
+hero_template_list = [
+    (HeroType.Gwen, "OQpjAwDjKP3XlAAAAAAAAAAAAA"),
+    (HeroType.MOX, "Ogmioys8cfpxAAAAAAAAAAAA"),
+    (HeroType.Melonni, "Ogmioys8cfpxAAAAAAAAAAAA")
+]
+
 def SetupHeroManagedCoroutine(hero_type, hero_index):
     ConsoleLog("Hero Testing", "Setting up Gwen Mystic Healing Support Routine...", Py4GW.Console.MessageType.Info)
     yield from _healing_support_routine(hero_type.value, hero_index=hero_index, delay_ms=0)
@@ -29,7 +35,7 @@ def create_bot_routine(bot: Botting) -> None:
 
 def InitBot(bot: Botting) -> None:
     bot.States.AddHeader("Init Party")
-    MysticHealingSupport.SetupHealingParty(bot, hero_list=hero_list)
+    MysticHealingSupport.SetupHealingParty(bot, hero_list=hero_template_list)
 
 
 def SenquaValeRoutine(bot: Botting) -> None:
