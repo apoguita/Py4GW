@@ -258,9 +258,6 @@ def Follow(cached_data: CacheData):
     return True
 
 
-
-    
-
 def register_data(cached_data: CacheData):
     RegisterPlayer(cached_data)
     RegisterHeroes(cached_data)
