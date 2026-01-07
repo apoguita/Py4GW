@@ -271,12 +271,12 @@ class HeroAI_FloatingWindows():
                         continue
                     
                     if not HeroAI_FloatingWindows.settings.CombinePanels:
-                        email = account.AccountEmail.lower()
+                        email = account.AccountEmail
                         
                         if not email in HeroAI_FloatingWindows.hero_windows:
                             ConsoleLog("HeroAI", f"Creating Hero Panel for account: {email}")
                             
-                            info = HeroAI_FloatingWindows.settings.HeroPanelPositions.get(email, Settings.HeroPanelInfo())
+                            info = HeroAI_FloatingWindows.settings.HeroPanelPositions.get(email, HeroAI_FloatingWindows.settings.HeroPanelPositions.get(email.lower(), Settings.HeroPanelInfo()))
                             HeroAI_FloatingWindows.hero_windows[email] = WindowModule(
                                 module_name=f"HeroAI - {email}",
                                 window_name=f"##HeroAI - {email}",
