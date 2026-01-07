@@ -28,6 +28,7 @@ edit_flags: Dict[int, bool] = {}
 @staticmethod
 def render():
 
+    PyImGui.text(f"auto-moving from map coords [U] require [MissionMap+ - Widget]")
     PyImGui.text(f"such feature will inject additionnal utility skills,")
     PyImGui.text(f"so the leader account will be able to act as a bot - fully autonomous")
     PyImGui.separator()
@@ -67,7 +68,7 @@ def render():
     if PyImGui.tree_node_ex("Waypoint builder", PyImGui.TreeNodeFlags.DefaultOpen):
 
         if not Map.MissionMap.IsWindowOpen():
-            PyImGui.text_colored(f"To manage waypoints & path, you must have Mission Map openned", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
+            PyImGui.text_colored(f"To manage waypoints & path, you must have MissionMap+ openned", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
 
         if Map.MissionMap.IsWindowOpen():
             root.render()
@@ -77,7 +78,7 @@ def render():
             root.set_waypoint_recording_activated(result)
 
             if len(root.get_list_of_waypoints()) == 0:
-                PyImGui.text_colored(f"click on Mission Map to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
+                PyImGui.text_colored(f"click on MissionMap+ to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
                 if PyImGui.button("or paste an array of tuple[float, float] from clipboard"):
                     clipboard_array:str = PyImGui.get_clipboard_text()
                     root.try_inject_waypoint_coordinates_from_clipboard(clipboard_array)
