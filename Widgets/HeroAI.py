@@ -7,6 +7,7 @@ import Py4GW
 MODULE_NAME = "HeroAI"
 
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 
 from HeroAI.cache_data import CacheData
 from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MELEE_RANGE_VALUE, RANGED_RANGE_VALUE)
@@ -268,13 +269,30 @@ def register_data(cached_data: CacheData):
     UpdatePlayers(cached_data)
     UpdateGameOptions(cached_data)
     cached_data.UpdateGameOptions()
+    
+    
+show_debug = True
 
-def handle_UI (cached_data: CacheData):      
+def draw_debug_window(cached_data: CacheData):
+    global HeroAI_BT, show_debug
+    import PyImGui
+    visible, show_debug = PyImGui.begin_with_close("HeroAI Debug", show_debug, 0)
+    if visible:
+        if HeroAI_BT is not None:
+            HeroAI_BT.draw()
+    PyImGui.end()
+        
+
+def handle_UI (cached_data: CacheData):    
+    global show_debug    
     if not cached_data.ui_state_data.show_classic_controls:   
         HeroAI_FloatingWindows.DrawEmbeddedWindow(cached_data)
     else:
         HeroAI_Windows.DrawControlPanelWindow(cached_data)           
         HeroAI_Windows.DrawFollowerUI(cached_data)
+        
+    if show_debug:
+        draw_debug_window(cached_data)
         
     HeroAI_FloatingWindows.show_ui(cached_data) 
    
@@ -302,7 +320,9 @@ def initialize(cached_data: CacheData) -> bool:
     return True
         
 #region main  
-def UpdateStatus(cached_data: CacheData) -> bool:
+#DEPRECATED FOR BEHAVIOUR TREE IMPLEMENTATION
+#KEPT FOR REFERENCE
+"""def UpdateStatus(cached_data: CacheData) -> bool:
     
     if (
             not Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
@@ -339,7 +359,140 @@ def UpdateStatus(cached_data: CacheData) -> bool:
     if HandleAutoAttack(cached_data):
         return True
     
-    return False
+    return False"""
+
+    
+GlobalGuardNode = BehaviorTree.SequenceNode(
+    name="GlobalGuard",
+    children=[
+        BehaviorTree.ConditionNode(
+            name="IsAlive",
+            condition_fn=lambda:
+                Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
+        ),
+
+        BehaviorTree.ConditionNode(
+            name="DistanceSafe",
+            condition_fn=lambda:
+                HeroAI_FloatingWindows.DistanceToDestination(cached_data)
+                < Range.SafeCompass.value
+        ),
+
+        BehaviorTree.ConditionNode(
+            name="NotKnockedDown",
+            condition_fn=lambda:
+                not Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
+        ),
+    ],
+)
+  
+CastingBlockNode = BehaviorTree.ConditionNode(
+    name="IsCasting",
+    condition_fn=lambda:
+        BehaviorTree.NodeState.RUNNING
+        if (
+            cached_data.combat_handler.InCastingRoutine()
+            or Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+        )
+        else BehaviorTree.NodeState.SUCCESS
+)
+
+    
+    
+def movement_interrupt() -> BehaviorTree.NodeState:
+    if Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
+        return BehaviorTree.NodeState.RUNNING   # block automation
+    return BehaviorTree.NodeState.FAILURE      # allow next branch
+
+
+HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
+    children=[
+        # ---------- GLOBAL HARD GUARD ----------
+        GlobalGuardNode,
+        CastingBlockNode,
+
+        # ---------- PRIORITY SELECTOR ----------
+        BehaviorTree.SelectorNode(name="UpdateStatusSelector",
+            children=[
+                # Looting routine already active (allowed anytime)
+                BehaviorTree.ActionNode(name="LootingRoutineActive",
+                    action_fn=lambda: (
+                        BehaviorTree.NodeState.RUNNING
+                        if LootingRoutineActive()
+                        else BehaviorTree.NodeState.FAILURE
+                    ),
+                ),
+
+                # Out-of-combat behavior (allowed while moving)
+                BehaviorTree.ActionNode(
+                    name="HandleOutOfCombat",
+                    action_fn=lambda: (
+                        BehaviorTree.NodeState.SUCCESS
+                        if HandleOutOfCombat(cached_data)
+                        else BehaviorTree.NodeState.FAILURE
+                    ),
+                ),
+
+                # User / external movement override (blocks below)
+                BehaviorTree.ActionNode(
+                    name="MovementInterrupt",
+                    action_fn=lambda: movement_interrupt(),
+                ),
+
+                # Loot
+                BehaviorTree.ActionNode(
+                    name="Loot",
+                    action_fn=lambda: (
+                        BehaviorTree.NodeState.SUCCESS
+                        if Loot(cached_data)
+                        else BehaviorTree.NodeState.FAILURE
+                    ),
+                ),
+
+                # Follow
+                BehaviorTree.ActionNode(
+                    name="Follow",
+                    action_fn=lambda: (
+                        cached_data.follow_throttle_timer.Reset()
+                        or BehaviorTree.NodeState.SUCCESS
+                        if Follow(cached_data)
+                        else BehaviorTree.NodeState.FAILURE
+                    ),
+                ),
+
+                # Combat
+                BehaviorTree.ActionNode(
+                    name="HandleCombat",
+                    action_fn=lambda: (
+                        cached_data.auto_attack_timer.Reset()
+                        or BehaviorTree.NodeState.SUCCESS
+                        if HandleCombat(cached_data)
+                        else BehaviorTree.NodeState.FAILURE
+                    ),
+                ),
+
+                # Auto-attack (guarded by in_aggro)
+                BehaviorTree.SequenceNode(
+                    name="AutoAttackSequence",
+                    children=[
+                        BehaviorTree.ConditionNode(
+                            name="InAggro",
+                            condition_fn=lambda: cached_data.data.in_aggro,
+                        ),
+                        BehaviorTree.ActionNode(
+                            name="HandleAutoAttack",
+                            action_fn=lambda: (
+                                BehaviorTree.NodeState.SUCCESS
+                                if HandleAutoAttack(cached_data)
+                                else BehaviorTree.NodeState.FAILURE
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ],
+)
 
 
 #region real_main
@@ -356,10 +509,12 @@ def main():
         HeroAI_FloatingWindows.update()
         
         if initialize(cached_data):
-            UpdateStatus(cached_data)
+            #UpdateStatus(cached_data)
+            HeroAI_BT.tick()
         else:
             map_quads.clear()
-            
+            HeroAI_BT.reset()
+
 
 
     except ImportError as e:
