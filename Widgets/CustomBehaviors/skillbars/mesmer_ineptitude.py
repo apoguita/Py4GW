@@ -34,7 +34,7 @@ from Widgets.CustomBehaviors.skills.mesmer.wandering_eye_utility import Wanderin
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Widgets.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
 
-class MesmeIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
+class MesmerIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     def __init__(self):
         super().__init__()

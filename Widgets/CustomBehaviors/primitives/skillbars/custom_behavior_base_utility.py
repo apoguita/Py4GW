@@ -97,8 +97,7 @@ class CustomBehaviorBaseUtility():
             # INVENTORY_MANAGEMENT
             MerchantRefillIfNeededUtility(event_bus=self.event_bus, current_build=self.in_game_build),
         ]
-
-
+        
     def inject_additionnal_utility_skills(self, skill:CustomSkillUtilityBase):
         for injected_skill in self.__injected_additional_utility_skills:
             if injected_skill.custom_skill.skill_name == skill.custom_skill.skill_name:
@@ -107,7 +106,10 @@ class CustomBehaviorBaseUtility():
         self.__final_skills_list = None
 
     def clear_additionnal_utility_skills(self):
-        self.__injected_additional_utility_skills.clear()
+        for skill in self.__injected_additional_utility_skills:
+            self.event_bus.unsubscribe_all(skill.custom_skill.skill_name)
+            self.__injected_additional_utility_skills.remove(skill)
+
         self.__final_skills_list = None
 
     def enable(self):
