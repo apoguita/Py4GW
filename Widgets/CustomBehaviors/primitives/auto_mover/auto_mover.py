@@ -133,7 +133,7 @@ class AutoMover:
         ov = Overlay()
 
         # Mission Map window rect & clip (cast to int for API)
-        l, t, r, b = Map.MissionMap.GetMissionMapWindowCoords()
+        l, t, r, b = Map.MissionMap.GetWindowCoords()
         left, top, right, bottom = int(l), int(t), int(r), int(b)
         width, height = right - left, bottom - top
 
