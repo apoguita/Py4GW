@@ -52,12 +52,13 @@ class WaitIfLockTakenUtility(CustomSkillUtilityBase):
             self.no_lock_timer.Reset()  # Reset timer when locks are active
             return self.score_definition.get_score()
 
-        # If no locks are active, start timer
+        # If no locks are active, check timer
         if self.no_lock_timer.IsExpired():
             # Timer expired with no locks - stop executing
             return None
 
-        return None
+        # No locks but timer hasn't expired yet - keep waiting
+        return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:

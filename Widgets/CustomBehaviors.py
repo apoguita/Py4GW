@@ -3,7 +3,8 @@ import pathlib
 import sys
 
 import Py4GW
-from Py4GWCoreLib.Py4GWcorelib import LootConfig, ThrottledTimer, Utils
+from Py4GWCoreLib import ImGui, PyImGui, Routines
+from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.fps_monitor import FPSMonitor
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -25,11 +26,10 @@ for module_name in list(sys.modules.keys()):
         except Exception as e:
             Py4GW.Console.Log("CustomBehaviors", f"Error reloading module {module_name}: {e}")
 
-from typing import List
-from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import ImGui, PyImGui, Routines, ActionQueueManager, Player, GLOBAL_CACHE, IconsFontAwesome5, SharedCommandType
-from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
-from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.daemon import daemon
+from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.fps_monitor import FPSMonitor
+from Widgets.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
 from Widgets.CustomBehaviors.gui.current_build import render as current_build_render
 from Widgets.CustomBehaviors.gui.party import render as party
 from Widgets.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
@@ -37,10 +37,8 @@ from Widgets.CustomBehaviors.gui.debug_execution import render as debug_executio
 from Widgets.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
 from Widgets.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
 from Widgets.CustomBehaviors.gui.auto_mover import render as auto_mover
-from Widgets.CustomBehaviors.gui.daemon import daemon as daemon
-from Widgets.CustomBehaviors.gui.botting import render as botting
-from Widgets.CustomBehaviors.gui.daemon_botting import daemon_botting
 from Widgets.CustomBehaviors.gui.teambuild import render as teambuild
+from Widgets.CustomBehaviors.gui.botting import render as botting
 
 party_forced_state_combo = 0
 current_path = pathlib.Path.cwd()
@@ -56,14 +54,12 @@ def gui():
 
     global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
-    window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 0), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 600), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
         widget_window_size = PyImGui.get_window_size()
         widget_window_pos = PyImGui.get_window_pos()
         
-        PyImGui.text(f"{monitor.fps_stats()[1]}")
-        PyImGui.text(f"{monitor.frame_stats()[1]}")
 
         PyImGui.begin_tab_bar("tabs")
         if PyImGui.begin_tab_item("party"):
@@ -87,6 +83,10 @@ def gui():
             PyImGui.end_tab_item()
 
         if PyImGui.begin_tab_item("debug"):
+                
+                PyImGui.text(f"{monitor.fps_stats()[1]}")
+                PyImGui.text(f"{monitor.frame_stats()[1]}")
+                constants.DEBUG = PyImGui.checkbox("with debugging logs", constants.DEBUG)
                 
                 PyImGui.begin_tab_bar("debug_tab_bar")
                 
@@ -118,8 +118,6 @@ map_change_throttler = ThrottledTimer(1_500)
 
 def main():
     global previous_map_status, monitor, widget_window_size, widget_window_pos
-
-    daemon_botting(widget_window_size, widget_window_pos) # botting deamon is fully autonomous, no throttling or map check
 
     monitor.tick()
     widget_monitor.act()

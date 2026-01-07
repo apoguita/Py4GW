@@ -1,5 +1,7 @@
 from typing import Any, Generator, override
 
+import PyImGui
+
 from Py4GWCoreLib import Range
 from Py4GWCoreLib.enums import SpiritModelID
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -54,7 +56,7 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
         for spirit in spirits:
             if current_state is BehaviorState.FAR_FROM_AGGRO and spirit.distance_from_player > Range.Compass.value * 0.75:
                 return self.score_definition.get_score()
-            if current_state is BehaviorState.CLOSE_TO_AGGRO or current_state is BehaviorState.IN_AGGRO and spirit.distance_from_player > Range.Area.value:
+            if (current_state is BehaviorState.CLOSE_TO_AGGRO or current_state is BehaviorState.IN_AGGRO) and spirit.distance_from_player > Range.Area.value:
                 return self.score_definition.get_score()
             # if any spirit has life lower than < x, we summon spirit
             if spirit.hp < 0.9:
@@ -66,3 +68,20 @@ class SummonSpiritUtility(CustomSkillUtilityBase):
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result
+    
+    @override
+    def customized_debug_ui(self, current_state):
+        PyImGui.bullet_text(f"owned_spirits :")
+        for spirit in self.owned_spirits:
+            PyImGui.text(f"spirit : {spirit}")
+
+        spirits: list[custom_behavior_helpers.SpiritAgentData] = custom_behavior_helpers.Targets.get_all_spirits_raw(
+            within_range=Range.Compass,
+            spirit_model_ids=self.owned_spirits,
+            condition=lambda agent_id: True
+        )
+
+        PyImGui.bullet_text(f"spirits on map :")
+        for spirit in spirits:
+            PyImGui.text(f"spirit_agent_id : {spirit.agent_id}, distance : {spirit.distance_from_player:.2f}, hp : {spirit.hp:.2f}")
+        return

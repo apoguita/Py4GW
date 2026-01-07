@@ -16,7 +16,6 @@ from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low im
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
 from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
 
-
 class FollowPathExecutor:
 
     def __init__(self):

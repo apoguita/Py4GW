@@ -135,7 +135,33 @@ class EventBus:
             return []
         with self._lock:
             return self._subscriber_names.get(event_type, []).copy()
-    
+
+    def unsubscribe_all(self, subscriber_name: str) -> int:
+        """
+        Unsubscribe a subscriber from all event types.
+
+        Args:
+            subscriber_name: The name of the subscriber to remove
+
+        Returns:
+            The number of subscriptions removed
+        """
+        removed_count = 0
+        with self._lock:
+            for event_type in list(self._subscriber_names.keys()):
+                if subscriber_name in self._subscriber_names[event_type]:
+                    idx = self._subscriber_names[event_type].index(subscriber_name)
+                    self._subscriber_names[event_type].pop(idx)
+                    self._subscribers[event_type].pop(idx)
+                    removed_count += 1
+                    if self._debug_mode:
+                        print(f"Unsubscribed '{subscriber_name}' from event type '{event_type.name}'")
+
+        if self._debug_mode and removed_count > 0:
+            print(f"Total unsubscriptions for '{subscriber_name}': {removed_count}")
+
+        return removed_count
+
     def clear_subscribers(self, event_type: Optional[EventType] = None):
         """
         Clear all subscribers for a specific event type or all events.

@@ -6,7 +6,6 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager
-from Widgets.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 script_directory = os.path.dirname(os.path.abspath(__file__))
