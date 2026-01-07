@@ -215,10 +215,34 @@ class BehaviorTree:
 
         # -------- PyImGui drawing --------
         def _format_duration(self, ms: float) -> str:
+            if ms is None:
+                return "0 ms"
+
+            # clamp negatives if your timer can underflow
+            if ms < 0:
+                ms = 0
+
+            # milliseconds
             if ms < 1000:
-                return f"{ms:.3f} ms"
-            else:
-                return f"{ms/1000:.4f} s"
+                return f"{ms:.0f} ms"
+
+            total_seconds = ms / 1000.0
+
+            # seconds (keep decimals only in the pure-seconds range)
+            if total_seconds < 60:
+                return f"{total_seconds:.2f} s"
+
+            # from here on, use integer breakdown
+            s = int(total_seconds)  # floor
+            minutes, seconds = divmod(s, 60)
+
+            if minutes < 60:
+                return f"{minutes}m {seconds:02d}s"
+
+            hours, minutes = divmod(minutes, 60)
+            return f"{hours}h {minutes:02d}m {seconds:02d}s"
+
+
     
         def draw(self, indent: int = 0) -> None:
             """

@@ -782,16 +782,13 @@ def draw_skill_recharges_tab():
                 if not recharging:
                     PyImGui.text("  No skills on cooldown")
                 else:
-                    for item in recharging:
-                        # Handle both old (skill_id, remaining) and new (skill_id, remaining, is_estimated) format
-                        if len(item) == 3:
-                            skill_id, remaining_ms, is_estimated = item
-                        else:
-                            skill_id, remaining_ms = item
-                            is_estimated = False
+                    for skill_id, remaining_ms, is_estimated in recharging:
                         skill_name = get_skill_name(skill_id)
                         if is_estimated:
-                            PyImGui.text_colored(f"    {skill_name}: ~{remaining_ms/1000:.1f}s (estimated)", (255, 200, 100, 255))
+                            PyImGui.text_colored(
+                                f"    {skill_name}: ~{remaining_ms/1000:.1f}s (estimated)",
+                                (255, 200, 100, 255),
+                            )
                         else:
                             PyImGui.text(f"    {skill_name}: {remaining_ms/1000:.1f}s")
             except Exception as e:

@@ -122,6 +122,7 @@ See Also:
 import PyCombatEvents
 from typing import List, Set, Tuple, Optional, Callable
 from collections import deque
+import Py4GW
 
 
 def _get_tick_count() -> int:
@@ -776,7 +777,7 @@ class CombatEvents:
             try:
                 cb(*args)
             except Exception as e:
-                print(f"[CombatEvents] Callback error: {e}")
+                Py4GW.Console.Log("CombatEvents", f"Callback error in '{event_name}': {e}", Py4GW.Console.MessageType.Error)
 
 
 # Aliases for backward compatibility
@@ -796,10 +797,11 @@ def _enable():
         Game.register_callback("CombatEvents.Update", CombatEvents.update)
         _update_registered = True
     except Exception as e:
-        print(f"[CombatEvents] Failed to register update callback: {e}")
+        Py4GW.Console.Log("CombatEvents", f"Failed to register update callback: {e}", Py4GW.Console.MessageType.Error)
 
 # Try to register at module load
 try:
     _enable()
 except Exception as e:
-    print(f"[CombatEvents] Module init error: {e}")
+    Py4GW.Console.Log("CombatEvents", f"Module init error: {e}", Py4GW.Console.MessageType.Error)
+
