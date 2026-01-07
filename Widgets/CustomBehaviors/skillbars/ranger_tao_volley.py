@@ -63,7 +63,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
     
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.together_as_one_utility,
             self.savage_shot_utility,

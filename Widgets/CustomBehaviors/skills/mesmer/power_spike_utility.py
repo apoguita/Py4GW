@@ -10,25 +10,25 @@ from Widgets.CustomBehaviors.primitives.scores.score_static_definition import Sc
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
-class PowerDrainUtility(CustomSkillUtilityBase):
+class PowerSpikeUtility(CustomSkillUtilityBase):
 
     def __init__(self,
                     event_bus: EventBus,
                     current_build: list[CustomSkill],
-                    score_definition: ScoreStaticDefinition = ScoreStaticDefinition(82),
+                    score_definition: ScoreStaticDefinition = ScoreStaticDefinition(85),
             ) -> None:
 
             super().__init__(
                 event_bus=event_bus,
-                skill=CustomSkill("Power_Drain"),
+                skill=CustomSkill("Power_Spike"),
                 in_game_build=current_build,
                 score_definition=score_definition)
             
             self.score_definition: ScoreStaticDefinition = score_definition
 
+    @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        
-        if custom_behavior_helpers.Resources.get_player_absolute_energy() > 30 : return None
+
         if self.nature_has_been_attempted_last(previously_attempted_skills): return None
         return self.score_definition.get_score()
 
@@ -46,4 +46,4 @@ class PowerDrainUtility(CustomSkillUtilityBase):
         ))
 
         result: BehaviorResult = yield from custom_behavior_helpers.Helpers.wait_for_or_until_completion(500, action)
-        return result 
+        return result

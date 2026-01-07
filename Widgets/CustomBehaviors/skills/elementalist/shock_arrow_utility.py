@@ -2,7 +2,6 @@ from operator import truediv
 from token import STRING
 from typing import Any, Generator, override
 
-from HeroAI.combat import CombatClass
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState

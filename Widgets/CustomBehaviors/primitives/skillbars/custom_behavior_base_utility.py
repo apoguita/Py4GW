@@ -13,6 +13,7 @@ from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Widgets.CustomBehaviors.primitives.skillbars import utility_skill_finder
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_skillbar_management import CustomBehaviorSkillbarManagement
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
@@ -175,9 +176,9 @@ class CustomBehaviorBaseUtility():
 
     @property
     @abstractmethod
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         '''
-        the list of skills that are allowed in the behavior.
+        the list of skills that are customized in the behavior.
         if a skill is not in this list, 2 options : 
             - if complete_build_with_generic_skills is True, the behavior will complete the build with generic skills.
             - if False, the behavior will not use the skill at all.
@@ -220,18 +221,25 @@ class CustomBehaviorBaseUtility():
             return self.__final_skills_list
         
         in_game_build_by_skill_id: dict[int, CustomSkill] = self.skillbar_management.get_in_game_build()
-        skills_allowed_in_behavior_by_skill_id: dict[int, CustomSkillUtilityBase] = {x.custom_skill.skill_id: x for x in self.skills_allowed_in_behavior}
-        # skills_required_in_behavior: list[CustomSkill] = self.skills_required_in_behavior
+        custom_skills_in_behavior_by_skill_id: dict[int, CustomSkillUtilityBase] = {x.custom_skill.skill_id: x for x in self.custom_skills_in_behavior}
+        generic_utility_skills_by_skill_id: dict[int, CustomSkillUtilityBase] = utility_skill_finder.discover_all_utility_skills(
+            event_bus=self.event_bus,
+            in_game_build=list(in_game_build_by_skill_id.values())
+        )
+        
         final_list: list[CustomSkillUtilityBase] = []
 
         for skill in in_game_build_by_skill_id.values():
             if skill is None: raise ValueError(f"Skill is None")
             if skill.skill_id == 0: raise ValueError(f"Skill {skill.skill_id} is not in the build")
             
-            if skill.skill_id in skills_allowed_in_behavior_by_skill_id.keys():
-                final_list.append(skills_allowed_in_behavior_by_skill_id[skill.skill_id])
+            if skill.skill_id in custom_skills_in_behavior_by_skill_id.keys():
+                final_list.append(custom_skills_in_behavior_by_skill_id[skill.skill_id])
             elif self.complete_build_with_generic_skills:
-                final_list.append(HeroAiUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values())))
+                if skill.skill_id in generic_utility_skills_by_skill_id.keys():
+                    final_list.append(generic_utility_skills_by_skill_id[skill.skill_id])
+                else:
+                    final_list.append(HeroAiUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values())))
 
         for skill in self.additional_autonomous_skills:
             final_list.append(skill)
@@ -277,7 +285,7 @@ class CustomBehaviorBaseUtility():
             #  2/ check if we added a new ingame skill that should be part of the behavior.
             for skill_id in in_game_build.keys():
                 if skill_id not in [item.custom_skill.skill_id for item in utility_build_full]:
-                    if skill_id in [item.custom_skill.skill_id for item in self.skills_allowed_in_behavior]:
+                    if skill_id in [item.custom_skill.skill_id for item in self.custom_skills_in_behavior]:
                         if constants.DEBUG: print(f"{skill_id} should be present in the behavior, the behavior must be refreshed.")
                         return False
 
@@ -414,63 +422,73 @@ class CustomBehaviorBaseUtility():
     # HANDLING 
 
     def _handle(self) -> Generator[Any | None, Any | None, None]:
-        
+
         # if no aftercast, there is no reason to continue once the score is no more the highest.
         # so lets declare it.
         while True:
-            highest_score: tuple[CustomSkillUtilityBase, float | None] | None = None
             try:
-                highest_score = self.get_highest_score()
-            except:
-                raise Exception(f"WTF self.get_highest_score() FAILURE.")
+                highest_score: tuple[CustomSkillUtilityBase, float | None] | None = None
+                try:
+                    highest_score = self.get_highest_score()
+                except:
+                    raise Exception(f"WTF self.get_highest_score() FAILURE.")
 
-            if highest_score is None: # score is None
-                yield
-                continue
+                if highest_score is None: # score is None
+                    yield
+                    continue
 
-            if highest_score[1] is None: # score is None
-                yield
-                continue
+                if highest_score[1] is None: # score is None
+                    yield
+                    continue
 
-            should_run_through_then_end = highest_score[0].execution_strategy == UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END
-            result:BehaviorResult
-            started_at: float = time.time()
-            current_score: float | None = highest_score[1]
-            # append placeholder entry at start and keep reference
-            history_entry = UtilitySkillExecutionHistory(
-                skill=highest_score[0],
-                score=current_score,
-                result=None,
-                started_at=started_at,
-                ended_at=None,
-            )
-            self.skill_execution_history.append(history_entry)
+                should_run_through_then_end = highest_score[0].execution_strategy == UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END
+                result:BehaviorResult
+                started_at: float = time.time()
+                current_score: float | None = highest_score[1]
+                # append placeholder entry at start and keep reference
+                history_entry = UtilitySkillExecutionHistory(
+                    skill=highest_score[0],
+                    score=current_score,
+                    result=None,
+                    started_at=started_at,
+                    ended_at=None,
+                )
+                self.skill_execution_history.append(history_entry)
 
-            if should_run_through_then_end:
-                # either we want to run through to the end.
-                result = yield from self.__execute_until_the_end(highest_score[0])
-            else:
-                # either we prefer to stop if we are not the highest anymore.
-                result = yield from self.__execute_until_condition(highest_score[0])
+                if should_run_through_then_end:
+                    # either we want to run through to the end.
+                    result = yield from self.__execute_until_the_end(highest_score[0])
+                else:
+                    # either we prefer to stop if we are not the highest anymore.
+                    result = yield from self.__execute_until_condition(highest_score[0])
 
-            ended_at: float = time.time()
-            # update the referenced entry
-            history_entry.result = result
-            history_entry.ended_at = ended_at
-            self.__previously_attempted_skills.append(highest_score[0].custom_skill)
+                ended_at: float = time.time()
+                # update the referenced entry
+                history_entry.result = result
+                history_entry.ended_at = ended_at
+                self.__previously_attempted_skills.append(highest_score[0].custom_skill)
 
-            yield  # ← yield control back to the main execution flow
+                yield  # ← yield control back to the main execution flow
+            except Exception as e:
+                import traceback
+                print(f"_handle() caught exception: {type(e).__name__}: {e}")
+                print(f"Traceback: {traceback.format_exc()}")
+                yield  # yield to prevent generator death, then continue the loop
 
     def __execute_until_the_end(self, utility: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
         state: BehaviorState = self.get_final_state()
         utility_generator = utility.execute(state)
         try:
-            result: BehaviorResult = yield from utility.execute(state)
+            result: BehaviorResult = yield from utility_generator
             return result
-        except:
+        except Exception as e:
+            import traceback
             print(f"Generator: {utility_generator}")
             print(f"Name: {utility.custom_skill.skill_name}")
-            raise Exception(f"WTF1 utility.execute(state) FAILURE.")
+            print(f"Exception type: {type(e).__name__}")
+            print(f"Exception message: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
+            raise Exception(f"WTF1 utility.execute(state) FAILURE: {e}")
 
     def __execute_until_condition(self, new_highest_score: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
         state: BehaviorState = self.get_final_state()
