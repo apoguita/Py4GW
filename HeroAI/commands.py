@@ -80,6 +80,7 @@ class HeroAICommands:
         self.CombatPrep = Command("Prepare for Combat", IconsFontAwesome5.ICON_SHIELD_ALT, self.__combat_prep_command, "Use Combat Preparations", map_types=["Explorable"])
         self.DisbandParty = Command("Disband Party", IconsFontAwesome5.ICON_SIGN_OUT_ALT, self.__leave_party_command, "Make all heroes leave party", map_types=["Outpost"])
         self.FormParty = Command("Form Party", IconsFontAwesome5.ICON_USERS, self.__invite_all_command, "Invite all heroes to party", map_types=["Outpost"])
+        self.LeavePartyAndTravelGH = Command("Leave & Travel to GH", IconsFontAwesome5.ICON_HOME, self.__leave_party_and_travel_gh_command, "Leave party and travel to Guild Hall")
         
         self.__commands = [
             self.Empty,
@@ -96,6 +97,7 @@ class HeroAICommands:
             self.CombatPrep,
             self.DisbandParty,
             self.FormParty,
+            self.LeavePartyAndTravelGH,
         ]
     
     @property
@@ -146,6 +148,13 @@ class HeroAICommands:
         for account in accounts:
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.LeaveParty, (0, 0, 0, 0))
     
+    def __leave_party_and_travel_gh_command(self, accounts: list[AccountData]):
+        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()        
+        
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.LeaveParty, (0, 0, 0, 0))
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TravelToGuildHall, (0, 0, 0, 0))
+
     def __combat_prep_command(self, accounts: list[AccountData]):
         sender_email = GLOBAL_CACHE.Player.GetAccountEmail()        
         
