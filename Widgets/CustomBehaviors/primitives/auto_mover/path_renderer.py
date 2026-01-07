@@ -24,7 +24,7 @@ class PathRenderer:
         
         for i, (game_x, game_y) in enumerate(list_of_points):
             # Convert game coordinates to screen coordinates each time (accounts for zoom)
-            screen_x, screen_y = PathHelper.game_to_screen(game_x, game_y)
+            screen_x, screen_y = Map.MissionMap.MapProjection.GamePosToScreen(game_x, game_y)
             
             # Draw line from previous point to current point
             if last_sx is not None:
@@ -39,7 +39,7 @@ class PathRenderer:
             
         for i, (game_x, game_y) in enumerate(list_of_points):
             # Convert game coordinates to screen coordinates each time (accounts for zoom)
-            screen_x, screen_y = PathHelper.game_to_screen(game_x, game_y)
+            screen_x, screen_y = Map.MissionMap.MapProjection.GamePosToScreen(game_x, game_y)
             ov.DrawPolyFilled(screen_x, screen_y, radius=radius, color=color.to_color(), numsegments=18)
 
     def draw_label(self, ov: Overlay, list_of_points: list[tuple[float, float]], text: str = "Path", color: Color | None = None):
@@ -52,7 +52,7 @@ class PathRenderer:
             
         # Draw labels for each point showing their index
         for i, (game_x, game_y) in enumerate(list_of_points):
-            screen_x, screen_y = PathHelper.game_to_screen(game_x, game_y)
+            screen_x, screen_y = Map.MissionMap.MapProjection.GamePosToScreen(game_x, game_y)
             
             # Create label text with point index
             label_text = f"{i}"
