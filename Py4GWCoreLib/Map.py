@@ -616,7 +616,7 @@ class Map:
         """ Skip the cinematic."""
         def _skip_cinematic() -> bool:
             return MapMethods.SkipCinematic()
-        ActionQueueManager().AddAction("ACTION", _skip_cinematic)
+        ActionQueueManager().AddAction("TRANSITION", _skip_cinematic)
 
         
     @staticmethod

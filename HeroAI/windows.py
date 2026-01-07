@@ -6,7 +6,7 @@ from Py4GWCoreLib import (Routines, ActionQueueManager,Key, Keystroke, Throttled
 from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, MELEE_RANGE_VALUE, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS,
                               PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
-from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessage
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, SharedMessage
 from Py4GW_widget_manager import WidgetHandler
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
@@ -151,7 +151,10 @@ class HeroAI_FloatingWindows():
         PyImGui.pop_style_var(1)
 
     @staticmethod
-    def DrawEmbeddedWindow(cached_data: CacheData):
+    def DrawEmbeddedWindow(cached_data: CacheData):         
+        if not HeroAI_FloatingWindows.settings.ShowPartyPanelUI:        
+             return
+         
         parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)
         outpost_content_frame_id = UIManager.GetChildFrameID(PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
         explorable_content_frame_id = UIManager.GetChildFrameID(PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS)
@@ -201,6 +204,7 @@ class HeroAI_FloatingWindows():
         PyImGui.end()
 
         ImGui.PopTransparentWindow()
+            
         HeroAI_FloatingWindows.DrawFramedContent(cached_data, content_frame_id)
 
     @staticmethod
@@ -238,7 +242,7 @@ class HeroAI_FloatingWindows():
             HeroAI_FloatingWindows.settings.write_settings()
             
     @staticmethod
-    def combined_hero_panel(own_data, cached_data: CacheData):
+    def combined_hero_panel(own_data : AccountData, cached_data: CacheData):
         identifier = "combined_hero_panel"
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         if not HeroAI_FloatingWindows.settings.ShowPanelOnlyOnLeaderAccount or own_data.PlayerIsPartyLeader:
@@ -267,18 +271,22 @@ class HeroAI_FloatingWindows():
                         continue
                     
                     if not HeroAI_FloatingWindows.settings.CombinePanels:
-                        if not account.AccountEmail in HeroAI_FloatingWindows.hero_windows:
-                            info = HeroAI_FloatingWindows.settings.HeroPanelPositions.get(account.AccountEmail.lower(), Settings.HeroPanelInfo())
-                            HeroAI_FloatingWindows.hero_windows[account.AccountEmail] = WindowModule(
-                                module_name=f"HeroAI - {account.AccountEmail}",
-                                window_name=f"##HeroAI - {account.AccountEmail}",
+                        email = account.AccountEmail
+                        
+                        if not email in HeroAI_FloatingWindows.hero_windows:
+                            ConsoleLog("HeroAI", f"Creating Hero Panel for account: {email}")
+                            
+                            info = HeroAI_FloatingWindows.settings.HeroPanelPositions.get(email, HeroAI_FloatingWindows.settings.HeroPanelPositions.get(email.lower(), Settings.HeroPanelInfo()))
+                            HeroAI_FloatingWindows.hero_windows[email] = WindowModule(
+                                module_name=f"HeroAI - {email}",
+                                window_name=f"##HeroAI - {email}",
                                 window_pos=(info.x, info.y),
                                 collapse=info.collapsed,
                                 can_close=True,
                             )
-                            HeroAI_FloatingWindows.settings.HeroPanelPositions[account.AccountEmail] = info
+                            HeroAI_FloatingWindows.settings.HeroPanelPositions[email] = info
                             
-                        draw_hero_panel(HeroAI_FloatingWindows.hero_windows[account.AccountEmail], account, cached_data, messages)
+                        draw_hero_panel(HeroAI_FloatingWindows.hero_windows[email], account, cached_data, messages)
                     else:                    
                         draw_combined_hero_panel(account, cached_data, messages)
                         
@@ -301,8 +309,9 @@ class HeroAI_FloatingWindows():
             own_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
             if not own_data:
                 return
+            
             HeroAI_FloatingWindows.accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            HeroAI_FloatingWindows.combined_hero_panel(own_data , cached_data)
+            HeroAI_FloatingWindows.combined_hero_panel(own_data, cached_data)
 
             if HeroAI_FloatingWindows.settings.ShowPartyOverlay:
                 draw_party_overlay(HeroAI_FloatingWindows.accounts, HeroAI_FloatingWindows.hero_windows)
@@ -322,17 +331,22 @@ class HeroAI_FloatingWindows():
     @staticmethod
     def disable_main_automation(cached_data: CacheData):
         own_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
+        
         if own_data and own_data.PlayerIsPartyLeader and HeroAI_FloatingWindows.settings.DisableAutomationOnLeaderAccount:        
             hero_ai_data = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(own_data.PartyPosition)
                     
             if hero_ai_data is not None:
-                hero_ai_data.Following = False
-                hero_ai_data.Avoidance = False
-                hero_ai_data.Looting = False
-                hero_ai_data.Targeting = False
-                hero_ai_data.Combat = False
-                GLOBAL_CACHE.ShMem.SetHeroAIOptions(own_data.AccountEmail, hero_ai_data)
-                return True
+                if own_data.AccountEmail:
+                    hero_ai_data.Following = False
+                    hero_ai_data.Avoidance = False
+                    hero_ai_data.Looting = False
+                    hero_ai_data.Targeting = False
+                    hero_ai_data.Combat = False
+                    GLOBAL_CACHE.ShMem.SetHeroAIOptions(own_data.AccountEmail, hero_ai_data)
+                    return True
+                else:
+                    ConsoleLog("HeroAI", "Account email is empty, cannot disable automation.")
+            
         return False
 
     
@@ -1324,15 +1338,18 @@ class HeroAI_Windows():
         return game_option
 
     @staticmethod
-    def DrawFollowerUI(cached_data:CacheData):
+    def DrawFollowerUI(cached_data:CacheData): 
+         
         own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
         original_game_option = cached_data.HeroAI_vars.all_game_option_struct[own_party_number]
         
         if not original_game_option.WindowVisible:
             return
 
-        if own_party_number <= 0:
+        if own_party_number < 0:
             return
+        
+        party_window_frame = WindowFrames["PartyWindow"]
                 
         def advance_rainbow_color(tick: int) -> tuple[int,Color]:
             tick += 2
@@ -1341,31 +1358,31 @@ class HeroAI_Windows():
             g = int((math.sin(tick * 0.05 + 2.0) * 0.5 + 0.5) * 255)  # Green wave
             b = int((math.sin(tick * 0.05 + 4.0) * 0.5 + 0.5) * 255)  # Blue wave
             return tick, Color(r, g, b, 255).copy()
-            
-        HeroAI_Windows.color_tick, HeroAI_Windows.outline_color = advance_rainbow_color(HeroAI_Windows.color_tick)
         
-        party_window_frame = WindowFrames["PartyWindow"]
-        party_window_frame.DrawFrameOutline(HeroAI_Windows.outline_color.to_color(), 3)
+        if HeroAI_FloatingWindows.settings.ShowPartyPanelUI:       
+            HeroAI_Windows.color_tick, HeroAI_Windows.outline_color = advance_rainbow_color(HeroAI_Windows.color_tick)
+            party_window_frame.DrawFrameOutline(HeroAI_Windows.outline_color.to_color(), 3)
 
-        left, top, right, _bottom = party_window_frame.GetCoords()
-        frame_offset = 5
-        width = right - left - frame_offset
+            left, top, right, _bottom = party_window_frame.GetCoords()
+            frame_offset = 5
+            width = right - left - frame_offset
 
-        flags = ImGui.PushTransparentWindow()
+            flags = ImGui.PushTransparentWindow()
 
-        PyImGui.set_next_window_pos(left, top - 35)
-        PyImGui.set_next_window_size(width, 35)
-        if PyImGui.begin("embedded contorl panel", True, flags):
-            if PyImGui.begin_tab_bar("HeroAITabs"):
-                if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USERS + "HeroAI##HeroAITab"):
-                    pass
-                    PyImGui.end_tab_item()
-                ImGui.show_tooltip("HeroAI is Active. \nRefer to Leaders control panel for options.")
-                PyImGui.end_tab_bar()
-        PyImGui.end()
+            PyImGui.set_next_window_pos(left, top - 35)
+            PyImGui.set_next_window_size(width, 35)
+            if PyImGui.begin("embedded contorl panel", True, flags):
+                if PyImGui.begin_tab_bar("HeroAITabs"):
+                    if PyImGui.begin_tab_item(IconsFontAwesome5.ICON_USERS + "HeroAI##HeroAITab"):
+                        pass
+                        PyImGui.end_tab_item()
+                    ImGui.show_tooltip("HeroAI is Active. \nRefer to Leaders control panel for options.")
+                    PyImGui.end_tab_bar()
+            PyImGui.end()
 
-        ImGui.PopTransparentWindow()
-        HeroAI_FloatingWindows.DrawFramedContent(cached_data, party_window_frame.GetFrameID())
+            ImGui.PopTransparentWindow()
+        
+            HeroAI_FloatingWindows.DrawFramedContent(cached_data, party_window_frame.GetFrameID())
 
     @staticmethod
     def DrawButtonBar(cached_data:CacheData):
@@ -1526,6 +1543,9 @@ class HeroAI_Windows():
             
     @staticmethod
     def DrawControlPanelWindow(cached_data:CacheData):
+        if not HeroAI_FloatingWindows.settings.ShowControlPanelWindow:      
+            return
+        
         global MAX_NUM_PLAYERS
         own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
         game_option = GameOptionStruct()     
