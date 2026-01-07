@@ -29,6 +29,14 @@ properties.Set("movement_timeout", value=-1)  # No timeout
 
 ConsoleLog(BOT_NAME, "Combat config: pause_on_danger + auto_combat + auto_loot enabled", Console.MessageType.Info)
 
+# Wait for lagging or dead party members before continuing.
+bot.Events.OnPartyMemberBehindCallback(
+    lambda: bot.Templates.Routines.OnPartyMemberBehind()
+)
+bot.Events.OnPartyMemberDeadBehindCallback(
+    lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
+)
+
 # Quest data storage
 quest_info = {
     "quest_data": None,
