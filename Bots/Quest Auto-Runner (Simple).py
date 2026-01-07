@@ -13,6 +13,8 @@ from Py4GWCoreLib.Pathing import AutoPathing
 import PyImGui
 
 BOT_NAME = "Quest Auto-Runner (Simple)"
+MARKER_UPDATE_TIMEOUT_S = 20.0
+MARKER_POLL_INTERVAL_S = 1.0
 
 # Create bot instance
 bot = Botting(BOT_NAME)
@@ -181,62 +183,99 @@ def bot_routine(bot: Botting) -> None:
 
             return False
 
-        # Use AutoPathing to detour around obstacles/navmesh gaps
-        attempt = 0
-        reached = False
-        while attempt < 3 and not reached:
-            attempt += 1
+        def refresh_marker_from_quest():
+            quest_info["quest_data"] = GetQuestData()
+            qd = quest_info["quest_data"]
+            marker_x, marker_y = ConvertQuestMarkerCoordinates(qd)
+            if marker_x is None or marker_y is None:
+                return None
+            return float(marker_x), float(marker_y)
 
-            # If we changed maps (portal/zone), refresh quest data and marker
-            current_map_id = Map.GetMapID()
-            if current_map_id != start_map_id:
+        def wait_for_next_marker(current_marker):
+            ConsoleLog(BOT_NAME, f"Waiting up to {MARKER_UPDATE_TIMEOUT_S:.0f}s for next quest marker...", Console.MessageType.Info)
+            start_time = time.time()
+            while time.time() - start_time < MARKER_UPDATE_TIMEOUT_S:
                 try:
-                    quest_info["quest_data"] = GetQuestData()
-                    qd = quest_info["quest_data"]
-                    marker_x, marker_y = ConvertQuestMarkerCoordinates(qd)
-                    if marker_x is None or marker_y is None:
-                        ConsoleLog(BOT_NAME, "Quest marker coordinates missing after map change; stopping", Console.MessageType.Error)
-                        return
-                    marker_x = float(marker_x)
-                    marker_y = float(marker_y)
-                    quest_info["marker_x"] = marker_x
-                    quest_info["marker_y"] = marker_y
-                    ConsoleLog(BOT_NAME, f"Map changed to {Map.GetMapName(current_map_id)}; refreshed quest marker to ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
-                    start_map_id = current_map_id
+                    qd = Quest.GetQuestData(Quest.GetActiveQuest())
+                    if qd.is_completed:
+                        ConsoleLog(BOT_NAME, "Quest completed; no further markers expected.", Console.MessageType.Success)
+                        return None
+                    next_marker = ConvertQuestMarkerCoordinates(qd)
                 except Exception as e:
-                    ConsoleLog(BOT_NAME, f"Failed to refresh quest data after map change: {e}", Console.MessageType.Error)
-                    return
+                    ConsoleLog(BOT_NAME, f"Failed to refresh quest marker: {e}", Console.MessageType.Warning)
+                    next_marker = None
 
-            try:
-                path = yield from AutoPathing().get_path_to(marker_x, marker_y)
-            except Exception as e:
-                ConsoleLog(BOT_NAME, f"Pathfinding failed (attempt {attempt}/3): {e}", Console.MessageType.Warning)
-                path = []
+                if next_marker is not None and None not in next_marker:
+                    next_marker = (float(next_marker[0]), float(next_marker[1]))
+                    if next_marker != current_marker:
+                        return next_marker
 
-            if not path:
-                ConsoleLog(BOT_NAME, f"No path returned from AutoPathing (attempt {attempt}/3)", Console.MessageType.Warning)
-                yield from Routines.Yield.wait(1000)
-                continue
+                yield from Routines.Yield.wait(int(MARKER_POLL_INTERVAL_S * 1000))
+            return None
 
-            ConsoleLog(BOT_NAME, f"Following path with {len(path)} waypoints (attempt {attempt}/3)", Console.MessageType.Info)
-            success = yield from Routines.Yield.Movement.FollowPath(
-                path_points=path,
-                tolerance=200,
-                timeout=120000,
-                custom_pause_fn=should_pause
-            )
+        # Use AutoPathing to detour around obstacles/navmesh gaps
+        while True:
+            attempt = 0
+            reached = False
+            while attempt < 3 and not reached:
+                attempt += 1
 
-            if success:
-                reached = True
+                # If we changed maps (portal/zone), refresh quest data and marker
+                current_map_id = Map.GetMapID()
+                if current_map_id != start_map_id:
+                    try:
+                        refreshed_marker = refresh_marker_from_quest()
+                        if refreshed_marker is None:
+                            ConsoleLog(BOT_NAME, "Quest marker coordinates missing after map change; stopping", Console.MessageType.Error)
+                            return
+                        marker_x, marker_y = refreshed_marker
+                        quest_info["marker_x"] = marker_x
+                        quest_info["marker_y"] = marker_y
+                        ConsoleLog(BOT_NAME, f"Map changed to {Map.GetMapName(current_map_id)}; refreshed quest marker to ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
+                        start_map_id = current_map_id
+                    except Exception as e:
+                        ConsoleLog(BOT_NAME, f"Failed to refresh quest data after map change: {e}", Console.MessageType.Error)
+                        return
+
+                try:
+                    path = yield from AutoPathing().get_path_to(marker_x, marker_y)
+                except Exception as e:
+                    ConsoleLog(BOT_NAME, f"Pathfinding failed (attempt {attempt}/3): {e}", Console.MessageType.Warning)
+                    path = []
+
+                if not path:
+                    ConsoleLog(BOT_NAME, f"No path returned from AutoPathing (attempt {attempt}/3)", Console.MessageType.Warning)
+                    yield from Routines.Yield.wait(1000)
+                    continue
+
+                ConsoleLog(BOT_NAME, f"Following path with {len(path)} waypoints (attempt {attempt}/3)", Console.MessageType.Info)
+                success = yield from Routines.Yield.Movement.FollowPath(
+                    path_points=path,
+                    tolerance=200,
+                    timeout=120000,
+                    custom_pause_fn=should_pause
+                )
+
+                if success:
+                    reached = True
+                    break
+
+                # Path failed (e.g., map change/portal). Wait briefly and retry with fresh navmesh.
+                ConsoleLog(BOT_NAME, f"Path interrupted; retrying navigation ({attempt}/3)", Console.MessageType.Warning)
+                yield from Routines.Yield.wait(2000)
+
+            if not reached:
+                ConsoleLog(BOT_NAME, "Failed to reach quest marker after retries; stopping navigation", Console.MessageType.Error)
+                return
+
+            next_marker = yield from wait_for_next_marker((marker_x, marker_y))
+            if next_marker is None:
                 break
 
-            # Path failed (e.g., map change/portal). Wait briefly and retry with fresh navmesh.
-            ConsoleLog(BOT_NAME, f"Path interrupted; retrying navigation ({attempt}/3)", Console.MessageType.Warning)
-            yield from Routines.Yield.wait(2000)
-
-        if not reached:
-            ConsoleLog(BOT_NAME, "Failed to reach quest marker after retries; stopping navigation", Console.MessageType.Error)
-            return
+            marker_x, marker_y = next_marker
+            quest_info["marker_x"] = marker_x
+            quest_info["marker_y"] = marker_y
+            ConsoleLog(BOT_NAME, f"New quest marker detected: ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
 
         yield
 
