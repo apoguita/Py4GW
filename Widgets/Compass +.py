@@ -441,7 +441,7 @@ class Compass():
     def DrawAgents(self):
         io = self.imgui.get_io()
         mouse = (PyImGui.is_mouse_clicked(0), io.mouse_pos_x, io.mouse_pos_y)
-        
+
         def GetAgentValid(agent):
             if agent.agent_id and Utils.Distance((agent.pos.x, agent.pos.y), self.position.player_pos) <= self.position.culling:
                 return True
@@ -587,7 +587,10 @@ class Compass():
                 model_id = living_obj.player_number
                 visible, size, shape, _, range, fill_color = GetSpiritParams(model_id)
 
-                self.DrawAgent(agent.agent_id, mouse, visible, size, shape, self.config.markers['Enemy'].color, range, fill_color, agent.pos.x, agent.pos.y, rot, is_alive, is_target)
+                if visible:  # It's actually a spirit
+                    self.DrawAgent(agent.agent_id, mouse, visible, size, shape, self.config.markers['Enemy'].color, range, fill_color, agent.pos.x, agent.pos.y, rot, is_alive, is_target)
+                else:  # Not a spirit, draw as regular enemy
+                    self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Enemy'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
             else:
                 self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Enemy'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
 

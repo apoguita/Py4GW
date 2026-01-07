@@ -175,7 +175,7 @@ class CacheData:
             self.data.is_skill_enabled[i] = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Skills[i].Active
   
         
-    def UdpateCombat(self):
+    def UpdateCombat(self):
         self.combat_handler.Update(self.data)
         self.combat_handler.PrioritizeSkills()
         
