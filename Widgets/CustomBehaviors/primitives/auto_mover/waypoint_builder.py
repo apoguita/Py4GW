@@ -4,10 +4,9 @@ import time
 from collections.abc import Generator
 from typing import Any, List, Tuple
 
-import PyMissionMap
-
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
+from Py4GWCoreLib.Map import Map
 from Widgets.CustomBehaviors.primitives.auto_mover.path_helper import PathHelper
 from Widgets.CustomBehaviors.primitives import constants
 
@@ -20,25 +19,13 @@ class WaypointBuilder:
         self._initialized_click: bool = False
         self.is_new_waypoint_record_activated = False # default, we do not record waypoint.
 
-    def get_mm_last_click(self):
-        """Get the last click position from Mission Map."""
-        mm = PyMissionMap.PyMissionMap()  # singleton
-        mm.GetContext()                   # refresh this frame
-        if not mm.window_open:
-            return None
-        x = float(getattr(mm, "last_click_x", 0.0))
-        y = float(getattr(mm, "last_click_y", 0.0))
-        # some builds keep (0,0) until you click inside the MM panel
-        if x == 0.0 and y == 0.0:
-            return None
-        return (x, y)
 
     def _process_new_clicks(self):
         if self.is_new_waypoint_record_activated == False:
             return 
 
         """Process new clicks and add points with delay control."""
-        current_click = self.get_mm_last_click()
+        current_click = Map.MissionMap.GetLastClickCoords()
         
         # Initialize the last processed click to current position on first run
         if not self._initialized_click and current_click is not None:
@@ -53,7 +40,7 @@ class WaypointBuilder:
             if current_time - self._last_point_add_time >= self._point_add_delay:
                 # Convert normalized coordinates to game coordinates and store them
                 # This way points will move correctly with zoom
-                game_x, game_y = PathHelper.normalized_to_game(current_click[0], current_click[1])
+                game_x, game_y = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(current_click[0], current_click[1])
                 self.list_of_points.append((game_x, game_y))
                 self._last_processed_click = current_click
                 self._last_point_add_time = current_time
