@@ -160,7 +160,24 @@ def bot_routine(bot: Botting) -> None:
         combat_hold_until = [0.0]
 
         def should_pause():
+            # PRIORITY 1: Check if FSM is paused (handles party member death/behind events)
+            try:
+                if bot.config.FSM.is_paused():
+                    return True
+            except Exception:
+                pass
+
+            # PRIORITY 2: Check if there's a dead party member
+            try:
+                dead_player = Routines.Party.GetDeadPartyMemberID()
+                if dead_player != 0:
+                    return True
+            except Exception:
+                pass
+
             now = time.time()
+
+            # Check for looting
             try:
                 from HeroAI.cache_data import CacheData
                 if CacheData().in_looting_routine:
@@ -169,6 +186,7 @@ def bot_routine(bot: Botting) -> None:
             except Exception:
                 pass
 
+            # Check for combat
             try:
                 from Py4GWCoreLib.Agent import Agent
                 player_id = GLOBAL_CACHE.Player.GetAgentID()
