@@ -48,7 +48,7 @@ class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.shroud_of_distress_utility,
             self.deadly_paradox_utility,

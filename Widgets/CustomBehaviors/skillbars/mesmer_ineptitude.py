@@ -68,7 +68,7 @@ class MesmerIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.signet_of_clumsiness_utility,
             self.ebon_vanguard_assassin_support,

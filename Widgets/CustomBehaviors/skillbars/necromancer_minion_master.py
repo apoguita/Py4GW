@@ -52,7 +52,7 @@ class NecromancerMinionMaster_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.animated_bone_fiend_utility,
             self.blood_of_the_master_utility,
