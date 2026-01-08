@@ -2,10 +2,8 @@ import os
 
 import Py4GW
 from Py4GW_widget_manager import get_widget_handler
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Botting
-from Py4GWCoreLib import ConsoleLog
-from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Botting, ConsoleLog, Routines, Agent, Player
+from Py4GWCoreLib import Map
 
 BOT_NAME = "Brightclaw Farm 8man"
 
@@ -31,7 +29,7 @@ KILLING_PATH = [
 
 def _on_party_wipe(bot: "Botting"):
     """Gère la mort complète du groupe"""
-    while GLOBAL_CACHE.Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalide → libérer FSM et sortir
@@ -65,7 +63,7 @@ def Routine(bot: Botting) -> None:
 
     bot.States.AddHeader("Travel to Jade Flats Kurzick")
     bot.Map.Travel(target_map_id=390)
-    bot.Party.SetHardMode(True)
+    bot.Party.SetHardMode(False)
 
     bot.States.AddHeader("Exit Jade Flats Kurzick to Melendru's Hope")
     bot.Move.XYAndExitMap(-7058, -10806, 201)
