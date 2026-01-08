@@ -83,7 +83,6 @@ class DeathDetectionUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        del current_state  # Unused parameter
         pass
         # PyImGui.bullet_text(f"__stuck_count : {self.__stuck_count}")
         # PyImGui.bullet_text(f"__stuck_timer : {self.throttle_timer.GetTimeRemaining()}")

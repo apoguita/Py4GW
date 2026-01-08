@@ -75,7 +75,7 @@ class ElementalistEmo_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
 
             self.ebon_vanguard_assassin_support,

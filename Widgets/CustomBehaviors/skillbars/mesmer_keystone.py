@@ -80,7 +80,7 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.wastrels_demise_utility,
             self.spiritual_pain_utility,

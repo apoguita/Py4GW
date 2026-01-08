@@ -1,27 +1,42 @@
-from typing import Any, Generator, override
 from Py4GWCoreLib import Botting
-from Widgets.CustomBehaviors.primitives.botting.botting_abstract import BottingAbstract
-from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
+from Widgets.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 
-class Example(BottingAbstract):
-    def __init__(self):
-        super().__init__()
+def bot_routine(bot_instance: Botting):
 
-    @override
-    def bot_routine(self, bot_instance: Botting):
-        # Set up the FSM states properly
-        bot_instance.States.AddHeader("STARTING_POINT")
-        bot_instance.Party.SetHardMode(False)
-        bot_instance.States.AddHeader("MAIN_LOOP")
-        bot_instance.States.JumpToStepName("[H]STARTING_POINT_1")
+    CustomBehaviorParty().set_party_is_blessing_enabled(True)
 
-    @property
-    @override
-    def name(self) -> str:
-        return "Example"
+    bot_instance.Templates.Routines.UseCustomBehaviors(
+        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
+        on_party_death=BottingHelpers.botting_unrecoverable_issue,
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
 
-    @property
-    @override
-    def description(self) -> str:
-        return "A bot template example"
+    bot_instance.Templates.Aggressive()
 
+    # Set up the FSM states properly
+    bot_instance.States.AddHeader("STARTING_POINT")
+    bot_instance.Party.SetHardMode(False)
+
+    bot_instance.States.AddHeader("MAIN_LOOP")
+    bot_instance.Templates.Aggressive()
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Templates.Pacifist()
+    bot_instance.Wait.ForTime(4000)
+    bot_instance.Templates.Aggressive()
+    bot_instance.Wait.ForTime(3000)
+
+    bot_instance.Wait.ForTime(10000000)
+
+    bot_instance.States.JumpToStepName("[H]STARTING_POINT_1")
+
+    bot_instance.States.AddHeader("END")
+
+bot = Botting("Example")
+bot.SetMainRoutine(bot_routine)
+
+def main():
+    bot.Update()
+    bot.UI.draw_window()
+
+if __name__ == "__main__":
+    main()

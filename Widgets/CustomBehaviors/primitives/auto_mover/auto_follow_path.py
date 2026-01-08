@@ -9,12 +9,12 @@ from Widgets.CustomBehaviors.primitives.auto_mover.path_renderer import PathRend
 from Widgets.CustomBehaviors.primitives.auto_mover.waypoint_builder import WaypointBuilder
 
 
-class AutoMover:
+class AutoFollowPath:
     _instance = None  # Singleton instance
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(AutoMover, cls).__new__(cls)
+            cls._instance = super(AutoFollowPath, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
@@ -41,12 +41,6 @@ class AutoMover:
 
     def remove_last_waypoint_from_the_list(self):
         return self.__waypoint_builder.remove_last_point_from_the_list()
-
-    def is_waypoint_recording_activated(self) -> bool:
-        return self.__waypoint_builder.is_new_waypoint_record_activated
-
-    def set_waypoint_recording_activated(self, is_active):
-        self.__waypoint_builder.is_new_waypoint_record_activated = is_active
 
     def clear_list_of_waypoints(self):
         self.__waypoint_builder.clear_list()
@@ -133,7 +127,7 @@ class AutoMover:
         ov = Overlay()
 
         # Mission Map window rect & clip (cast to int for API)
-        l, t, r, b = Map.MissionMap.GetWindowCoords()
+        l, t, r, b = Map.MissionMap.GetMissionMapWindowCoords()
         left, top, right, bottom = int(l), int(t), int(r), int(b)
         width, height = right - left, bottom - top
 
@@ -141,29 +135,20 @@ class AutoMover:
         ov.PushClipRect(left, top, right, bottom)
 
         try:
+            # Update transform cache once per frame (7 API calls total)
+            self.__path_renderer.update_transform_cache()
+
+            # Draw waypoints path, points, and labels
             self.__path_renderer.draw_path(ov, self.__waypoint_builder.get_waypoints())
             self.__path_renderer.draw_list_of_points(ov, self.__waypoint_builder.get_waypoints())
             self.__path_renderer.draw_label(ov, self.__waypoint_builder.get_waypoints())
 
+            # Draw final path (blue)
             self.__path_renderer.draw_path(ov, self.__path_builder.get_final_path(), Color(0, 0, 175, 255))
             self.__path_renderer.draw_list_of_points(ov, self.__path_builder.get_final_path(), radius=2, color=Color(0,0,250,255))
 
+            # Draw current execution path (red)
             self.__path_renderer.draw_path(ov, self.__follow_path_executor.current_path, Color(230, 0, 0, 255))
-            
-            self.__path_renderer.draw_label(ov, self.__waypoint_builder.get_waypoints())
-
-            if not self.is_waypoint_recording_activated():
-                shadow = Color(0, 0, 0, 200).to_color()
-                color = Color(255, 0, 0, 255) 
-                label_text = "WAYPOINT RECORDING IS NOT ACTIVATED"
-                ov.DrawText(left, top + height - 50, label_text, shadow, False, 1.5)       # shadow
-                ov.DrawText(left,   top + height - 50,   label_text, color.to_color(), False, 1.5) # foreground 
-            else:
-                shadow = Color(0, 0, 0, 200).to_color()
-                color = Color(0, 255, 0, 255) 
-                label_text = "WAYPOINT RECORDING IS ACTIVATED"
-                ov.DrawText(left, top + height - 50, label_text, shadow, False, 1.5)       # shadow
-                ov.DrawText(left,   top + height - 50,   label_text, color.to_color(), False, 1.5) # foreground 
 
             # Draw background overlay
             bgc = Color(0, 0, 0, int(255 * 0.3)).to_color()

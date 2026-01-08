@@ -53,7 +53,7 @@ class RitualistSos_UtilitySkillBar(CustomBehaviorBaseUtility):
     
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.signet_of_spirits_utility,
             self.vampirism_utility,

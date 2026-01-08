@@ -55,7 +55,7 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
     
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.soul_twisting_utility,
             self.boon_of_creation_utility,
