@@ -623,7 +623,7 @@ class Map:
     def Travel(map_id: int) -> None:
         """Travel to a map by its ID."""
         def _travel() -> bool:
-            return MapMethods.Travel(map_id)
+            return MapMethods.Travel(map_id, Map.GetRegion()[0], 0, Map.GetLanguage()[0])
         ActionQueueManager().AddAction("ACTION", _travel)
 
 
