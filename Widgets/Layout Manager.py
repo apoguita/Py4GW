@@ -25,8 +25,7 @@ def _send_message_to(command: SharedCommandType, receiver_email: str, params=(0.
 
     GLOBAL_CACHE.ShMem.SendMessage(sender_email, receiver_email, command, params, ExtraData)
 
-    
-    
+
 def slider_input_int(label: str, value: int, min_value: int, max_value: int) -> int:
     """Draw a slider + input int combo on one line, clamped to [min_value, max_value]."""
     v = int(value)
@@ -157,25 +156,26 @@ class LayoutConfig:
     def get_all_clients(self) -> list[ClientConfig]:
         return self.clients
 
-    
+
 class WindowLayouts:
     def __init__(self):
         self.layouts: list[LayoutConfig] = []
         self.all_accounts: list[ClientConfig] = []
-        self.accounts_file = "accounts.json"
         self.projects_path = Py4GW.Console.get_projects_path()
-        
+        self.accounts_file = os.path.join(self.projects_path, "accounts.json")
+
         # existing UI state...
         self._lcw_selected_layout_idx = -1
         self._lcw_selected_client_idx = -1
         self._lcw_account_picker_idx = 0
-        
+
         self._edit_layout_name = ""
         self._new_layout_name = ""
         # NEW: per-client editor windows state
         self._client_editor_windows: list[dict] = []  # each: {"layout_idx": int, "client_idx": int, "open": bool}
         self.load_layouts()
         self.get_all_accounts_from_json()
+        self.get_remaining_accounts_from_shmem()
 
     def load_layouts(self):
         config_path = os.path.join(self.projects_path, "Widgets", "Config", "window_layouts.json")
@@ -197,7 +197,7 @@ class WindowLayouts:
                 "layouts": [layout.to_dict() for layout in self.layouts]
             }
             json.dump(data, f, indent=4)
-            
+
     def export_template(self, layout: LayoutConfig, filepath: str):
         """Export layout as a template with placeholder emails."""
         import json
@@ -278,10 +278,40 @@ class WindowLayouts:
         # Save into layouts
         self.all_accounts = unique_accounts
         self.save_layouts()
-        print(f"Extracted {len(unique_accounts)} unique accounts.")
-        
-    
-    
+        print(f"Extracted {len(unique_accounts)} unique accounts from json.")
+
+    def get_remaining_accounts_from_shmem(self):
+        """
+        Fallback to populate any accounts from SharedMemory that we're not already aware of from accounts.json
+        Allows steam accounts to be managed without their uuid being present in accounts.json
+        """
+        seen = set([acc.email for acc in self.all_accounts])
+        unique_accounts: list[ClientConfig] = []
+
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            email = account.AccountEmail
+            if not email or email in seen:
+                continue
+            seen.add(email)
+
+            # Create a ClientConfig using relevant fields
+            client = ClientConfig(
+                email=email,
+                alias=account.CharacterName,
+                x=0,
+                y=0,
+                width=800,
+                height=600,
+                borderless=False,
+                rename_window=False,
+                window_title="",
+            )
+            unique_accounts.append(client)
+
+        # Save into layouts
+        self.all_accounts += unique_accounts
+        self.save_layouts()
+        print(f"Extracted {len(unique_accounts)} unique accounts from shmem.")
 
     def pick_save_path(self,default_name="layout.json"):
         from tkinter import filedialog
@@ -307,7 +337,6 @@ class WindowLayouts:
         root.destroy()
         return filepath or None
 
-        
     def draw_window(self):
         if PyImGui.begin("Layout Management", PyImGui.WindowFlags.AlwaysAutoResize):
             PyImGui.text("Window Layouts:")
@@ -352,7 +381,6 @@ class WindowLayouts:
                         if imported:
                             self.add_layout(imported)
 
-
             PyImGui.separator()
             self._new_layout_name = PyImGui.input_text("New Layout Name", self._new_layout_name, 0)
             if PyImGui.button("Add Layout") and self._new_layout_name.strip():
@@ -368,7 +396,7 @@ class WindowLayouts:
             if win["layout_idx"] == layout_idx and win["client_idx"] == client_idx and win["open"]:
                 return
         self._client_editor_windows.append({"layout_idx": layout_idx, "client_idx": client_idx, "open": True})
-        
+
     def draw_client_editors(self):
         # draw each open editor; collect those to close after drawing
         to_close = []
@@ -394,7 +422,7 @@ class WindowLayouts:
 
                 PyImGui.text(f"Layout: {layout.layout_name}")
                 PyImGui.separator()
-                
+
                 start_x = PyImGui.get_cursor_pos_x()
                 PyImGui.text("Alias:")
                 PyImGui.same_line(start_x + 50, -1)
@@ -412,20 +440,20 @@ class WindowLayouts:
                 PyImGui.same_line(0, -1)
                 client.rename_window = PyImGui.checkbox("Rename", client.rename_window)
                 PyImGui.pop_item_width()
-                
+
                 PyImGui.separator()
                 PyImGui.text("Position and Size (px):")
-                
+
                 client.x = slider_input_int("X", int(client.x), -100, int(screen_width))
                 client.y = slider_input_int("Y", int(client.y), -100, int(screen_height))
 
                 client.width  = slider_input_int("Width",  int(client.width),  0, int(screen_width))
                 client.height = slider_input_int("Height", int(client.height), 0, int(screen_height))
-                
+
                 client.show_overlay = PyImGui.checkbox("Preview Position", getattr(client, "show_overlay", False))
                 color = PyImGui.color_edit4("Color", client.color.to_tuple_normalized())
                 client.color = Color.from_tuple(color)
-                
+
                 PyImGui.separator()
 
                 client.borderless = PyImGui.checkbox("Borderless", client.borderless)
@@ -442,7 +470,7 @@ class WindowLayouts:
                     layout.remove_client(client)
                     self.save_layouts()
                     to_close.append(idx)  # close this editor; client is gone"""
-            
+
                 accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
                 if any(acc.AccountEmail == client.email for acc in accounts):
                     if PyImGui.button("Apply to Client Now"):
@@ -453,8 +481,7 @@ class WindowLayouts:
                         _send_message_to(SharedCommandType.SetBorderless, client.email, params=(float(client.borderless), 0.0, 0.0, 0.0))
                         _send_message_to(SharedCommandType.SetAlwaysOnTop, client.email, params=(float(client.always_on_top), 0.0, 0.0, 0.0))
                         _send_message_to(SharedCommandType.SetOpacity, client.email, params=(float(client.opacity), 0.0, 0.0, 0.0))
-    
-                
+
                 PyImGui.same_line(0, -1)
                 if PyImGui.button("Close"):
                     to_close.append(idx)
@@ -465,8 +492,6 @@ class WindowLayouts:
         for i in reversed(to_close):
             if 0 <= i < len(self._client_editor_windows):
                 self._client_editor_windows.pop(i)
-
-
 
 
 window_manager = WindowLayouts()
