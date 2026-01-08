@@ -7,7 +7,8 @@ Start the bot on the correct quest map/outpost.
 """
 
 import time
-from Py4GWCoreLib import Botting, Quest, Map, ConsoleLog, Console, Routines
+import os
+from Py4GWCoreLib import Botting, Quest, Map, ConsoleLog, Console, Routines, IniHandler, Timer, ImGui
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 import PyImGui
@@ -15,6 +16,45 @@ import PyImGui
 BOT_NAME = "Quest Auto-Runner (Simple)"
 MARKER_UPDATE_TIMEOUT_S = 20.0
 MARKER_POLL_INTERVAL_S = 1.0
+
+# Configuration
+script_directory = os.path.dirname(os.path.abspath(__file__))
+root_directory = os.path.normpath(os.path.join(script_directory, ".."))
+ini_file_location = os.path.join(root_directory, "Widgets/Config/Quest Auto-Runner.ini")
+
+ini_handler = IniHandler(ini_file_location)
+sync_timer = Timer()
+sync_timer.Start()
+sync_interval = 1000
+
+class Config:
+    def __init__(self):
+        """Read configuration values from INI file"""
+        self.debug_logging = ini_handler.read_bool(BOT_NAME, "debug_logging", False)
+
+    def save(self):
+        """Save the current configuration to the INI file."""
+        if sync_timer.HasElapsed(sync_interval):
+            ini_handler.write_key(BOT_NAME, "debug_logging", str(self.debug_logging))
+            sync_timer.Start()
+
+bot_config = Config()
+
+# Configuration window
+config_module = ImGui.WindowModule(
+    f"{BOT_NAME} Config",
+    window_name=f"{BOT_NAME} Settings##{BOT_NAME}",
+    window_size=(300, 150),
+    window_flags=PyImGui.WindowFlags.AlwaysAutoResize
+)
+window_x = ini_handler.read_int(BOT_NAME + " Config", "config_x", 300)
+window_y = ini_handler.read_int(BOT_NAME + " Config", "config_y", 300)
+config_module.window_pos = (window_x, window_y)
+
+def DebugLog(module_name: str, message: str, message_type=Console.MessageType.Info):
+    """Wrapper for ConsoleLog that respects debug_logging setting"""
+    if bot_config.debug_logging:
+        ConsoleLog(module_name, message, message_type)
 
 # Create bot instance
 bot = Botting(BOT_NAME)
@@ -29,7 +69,7 @@ properties.Disable("auto_inventory_management")  # No salvaging/ID
 properties.Disable("halt_on_death")    # Don't stop on death
 properties.Set("movement_timeout", value=-1)  # No timeout
 
-ConsoleLog(BOT_NAME, "Combat config: pause_on_danger + auto_combat + auto_loot enabled", Console.MessageType.Info)
+DebugLog(BOT_NAME, "Combat config: pause_on_danger + auto_combat + auto_loot enabled", Console.MessageType.Info)
 
 # Wait for lagging or dead party members before continuing.
 bot.Events.OnPartyMemberBehindCallback(
@@ -52,21 +92,21 @@ def GetQuestData():
     active_quest_id = Quest.GetActiveQuest()
 
     if active_quest_id == 0:
-        ConsoleLog(BOT_NAME, "ERROR: No active quest found!", Console.MessageType.Error)
-        ConsoleLog(BOT_NAME, "Please click a quest in your in-game quest log to make it active.", Console.MessageType.Info)
+        DebugLog(BOT_NAME, "ERROR: No active quest found!", Console.MessageType.Error)
+        DebugLog(BOT_NAME, "Please click a quest in your in-game quest log to make it active.", Console.MessageType.Info)
         raise Exception("No active quest")
 
     quest_data = Quest.GetQuestData(active_quest_id)
 
     if quest_data.is_completed:
-        ConsoleLog(BOT_NAME, f"WARNING: Quest '{quest_data.name}' is already completed. Navigating to its marker anyway.", Console.MessageType.Warning)
+        DebugLog(BOT_NAME, f"WARNING: Quest '{quest_data.name}' is already completed. Navigating to its marker anyway.", Console.MessageType.Warning)
 
     quest_name_display = quest_data.name if quest_data.name else f"Quest #{active_quest_id}"
-    ConsoleLog(BOT_NAME, f"Active Quest: {quest_name_display} (ID: {active_quest_id})", Console.MessageType.Info)
+    DebugLog(BOT_NAME, f"Active Quest: {quest_name_display} (ID: {active_quest_id})", Console.MessageType.Info)
 
     target_map_name = Map.GetMapName(quest_data.map_to)
-    ConsoleLog(BOT_NAME, f"Target Map: {target_map_name} (ID: {quest_data.map_to})", Console.MessageType.Info)
-    ConsoleLog(BOT_NAME, f"Quest Marker: ({quest_data.marker_x:.0f}, {quest_data.marker_y:.0f})", Console.MessageType.Info)
+    DebugLog(BOT_NAME, f"Target Map: {target_map_name} (ID: {quest_data.map_to})", Console.MessageType.Info)
+    DebugLog(BOT_NAME, f"Quest Marker: ({quest_data.marker_x:.0f}, {quest_data.marker_y:.0f})", Console.MessageType.Info)
 
     return quest_data
 
@@ -92,13 +132,13 @@ def ConvertQuestMarkerCoordinates(quest_data):
 def bot_routine(bot: Botting) -> None:
     """Main bot routine using Botting framework."""
 
-    ConsoleLog(BOT_NAME, "=== Bot routine starting ===", Console.MessageType.Info)
+    DebugLog(BOT_NAME, "=== Bot routine starting ===", Console.MessageType.Info)
 
     # Step 1: Load quest data and get coordinates
     bot.States.AddHeader("Load Quest Data")
 
     def load_and_setup():
-        ConsoleLog(BOT_NAME, "Loading quest data...", Console.MessageType.Info)
+        DebugLog(BOT_NAME, "Loading quest data...", Console.MessageType.Info)
         try:
             quest_info["quest_data"] = GetQuestData()
             quest_data = quest_info["quest_data"]
@@ -107,7 +147,7 @@ def bot_routine(bot: Botting) -> None:
             marker_x, marker_y = ConvertQuestMarkerCoordinates(quest_data)
 
             if marker_x is None or marker_y is None:
-                ConsoleLog(BOT_NAME, "ERROR: Quest has no valid marker coordinates!", Console.MessageType.Error)
+                DebugLog(BOT_NAME, "ERROR: Quest has no valid marker coordinates!", Console.MessageType.Error)
                 bot.Stop()
                 return
 
@@ -115,10 +155,10 @@ def bot_routine(bot: Botting) -> None:
             quest_info["marker_y"] = marker_y
             quest_info["is_valid"] = True
 
-            ConsoleLog(BOT_NAME, f"Quest marker: ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
+            DebugLog(BOT_NAME, f"Quest marker: ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
 
         except Exception as e:
-            ConsoleLog(BOT_NAME, f"Failed to load quest: {str(e)}", Console.MessageType.Error)
+            DebugLog(BOT_NAME, f"Failed to load quest: {str(e)}", Console.MessageType.Error)
             quest_info["is_valid"] = False
             bot.Stop()
             # Let FSM exit cleanly
@@ -130,21 +170,21 @@ def bot_routine(bot: Botting) -> None:
     # Step 2: (Travel removed) assume user is on/near the quest map
     target_map_id = quest_info["quest_data"].map_to if quest_info.get("quest_data") else None
     if target_map_id is not None and Map.GetMapID() != target_map_id:
-        ConsoleLog(BOT_NAME, "Travel step skipped — start the bot on the quest map/outpost.", Console.MessageType.Warning)
+        DebugLog(BOT_NAME, "Travel step skipped — start the bot on the quest map/outpost.", Console.MessageType.Warning)
     # Step 3: Navigate to quest marker
     bot.States.AddHeader("Navigate to Quest Marker")
 
     def setup_navigation():
         """Set up navigation states using bot.Move."""
         if not quest_info.get("is_valid"):
-            ConsoleLog(BOT_NAME, "Quest data invalid, cannot navigate", Console.MessageType.Error)
+            DebugLog(BOT_NAME, "Quest data invalid, cannot navigate", Console.MessageType.Error)
             bot.Stop()
             return
 
         marker_x = quest_info["marker_x"]
         marker_y = quest_info["marker_y"]
         if marker_x is None or marker_y is None:
-            ConsoleLog(BOT_NAME, "Quest marker coordinates missing; cannot navigate", Console.MessageType.Error)
+            DebugLog(BOT_NAME, "Quest marker coordinates missing; cannot navigate", Console.MessageType.Error)
             bot.Stop()
             return
 
@@ -153,7 +193,7 @@ def bot_routine(bot: Botting) -> None:
         marker_y = float(marker_y)
         start_map_id = Map.GetMapID()
 
-        ConsoleLog(BOT_NAME, f"Setting up navigation to ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
+        DebugLog(BOT_NAME, f"Setting up navigation to ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
 
         # Pause following while looting or in combat
         loot_hold_until = [0.0]
@@ -218,17 +258,17 @@ def bot_routine(bot: Botting) -> None:
             return float(marker_x), float(marker_y)
 
         def wait_for_next_marker(current_marker):
-            ConsoleLog(BOT_NAME, f"Waiting up to {MARKER_UPDATE_TIMEOUT_S:.0f}s for next quest marker...", Console.MessageType.Info)
+            DebugLog(BOT_NAME, f"Waiting up to {MARKER_UPDATE_TIMEOUT_S:.0f}s for next quest marker...", Console.MessageType.Info)
             start_time = time.time()
             while time.time() - start_time < MARKER_UPDATE_TIMEOUT_S:
                 try:
                     qd = Quest.GetQuestData(Quest.GetActiveQuest())
                     if qd.is_completed:
-                        ConsoleLog(BOT_NAME, "Quest completed; no further markers expected.", Console.MessageType.Success)
+                        DebugLog(BOT_NAME, "Quest completed; no further markers expected.", Console.MessageType.Success)
                         return None
                     next_marker = ConvertQuestMarkerCoordinates(qd)
                 except Exception as e:
-                    ConsoleLog(BOT_NAME, f"Failed to refresh quest marker: {e}", Console.MessageType.Warning)
+                    DebugLog(BOT_NAME, f"Failed to refresh quest marker: {e}", Console.MessageType.Warning)
                     next_marker = None
 
                 if next_marker is not None and None not in next_marker:
@@ -252,29 +292,29 @@ def bot_routine(bot: Botting) -> None:
                     try:
                         refreshed_marker = refresh_marker_from_quest()
                         if refreshed_marker is None:
-                            ConsoleLog(BOT_NAME, "Quest marker coordinates missing after map change; stopping", Console.MessageType.Error)
+                            DebugLog(BOT_NAME, "Quest marker coordinates missing after map change; stopping", Console.MessageType.Error)
                             return
                         marker_x, marker_y = refreshed_marker
                         quest_info["marker_x"] = marker_x
                         quest_info["marker_y"] = marker_y
-                        ConsoleLog(BOT_NAME, f"Map changed to {Map.GetMapName(current_map_id)}; refreshed quest marker to ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
+                        DebugLog(BOT_NAME, f"Map changed to {Map.GetMapName(current_map_id)}; refreshed quest marker to ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
                         start_map_id = current_map_id
                     except Exception as e:
-                        ConsoleLog(BOT_NAME, f"Failed to refresh quest data after map change: {e}", Console.MessageType.Error)
+                        DebugLog(BOT_NAME, f"Failed to refresh quest data after map change: {e}", Console.MessageType.Error)
                         return
 
                 try:
                     path = yield from AutoPathing().get_path_to(marker_x, marker_y)
                 except Exception as e:
-                    ConsoleLog(BOT_NAME, f"Pathfinding failed (attempt {attempt}/3): {e}", Console.MessageType.Warning)
+                    DebugLog(BOT_NAME, f"Pathfinding failed (attempt {attempt}/3): {e}", Console.MessageType.Warning)
                     path = []
 
                 if not path:
-                    ConsoleLog(BOT_NAME, f"No path returned from AutoPathing (attempt {attempt}/3)", Console.MessageType.Warning)
+                    DebugLog(BOT_NAME, f"No path returned from AutoPathing (attempt {attempt}/3)", Console.MessageType.Warning)
                     yield from Routines.Yield.wait(1000)
                     continue
 
-                ConsoleLog(BOT_NAME, f"Following path with {len(path)} waypoints (attempt {attempt}/3)", Console.MessageType.Info)
+                DebugLog(BOT_NAME, f"Following path with {len(path)} waypoints (attempt {attempt}/3)", Console.MessageType.Info)
                 success = yield from Routines.Yield.Movement.FollowPath(
                     path_points=path,
                     tolerance=200,
@@ -287,11 +327,11 @@ def bot_routine(bot: Botting) -> None:
                     break
 
                 # Path failed (e.g., map change/portal). Wait briefly and retry with fresh navmesh.
-                ConsoleLog(BOT_NAME, f"Path interrupted; retrying navigation ({attempt}/3)", Console.MessageType.Warning)
+                DebugLog(BOT_NAME, f"Path interrupted; retrying navigation ({attempt}/3)", Console.MessageType.Warning)
                 yield from Routines.Yield.wait(2000)
 
             if not reached:
-                ConsoleLog(BOT_NAME, "Failed to reach quest marker after retries; stopping navigation", Console.MessageType.Error)
+                DebugLog(BOT_NAME, "Failed to reach quest marker after retries; stopping navigation", Console.MessageType.Error)
                 return
 
             next_marker = yield from wait_for_next_marker((marker_x, marker_y))
@@ -301,7 +341,7 @@ def bot_routine(bot: Botting) -> None:
             marker_x, marker_y = next_marker
             quest_info["marker_x"] = marker_x
             quest_info["marker_y"] = marker_y
-            ConsoleLog(BOT_NAME, f"New quest marker detected: ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
+            DebugLog(BOT_NAME, f"New quest marker detected: ({marker_x:.0f}, {marker_y:.0f})", Console.MessageType.Info)
 
         yield
 
@@ -314,8 +354,8 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader("Quest Marker Reached")
 
     def completion():
-        ConsoleLog(BOT_NAME, "=== Arrived at quest marker! ===", Console.MessageType.Success)
-        ConsoleLog(BOT_NAME, "Handle quest objectives manually or restart for next quest.", Console.MessageType.Info)
+        DebugLog(BOT_NAME, "=== Arrived at quest marker! ===", Console.MessageType.Success)
+        DebugLog(BOT_NAME, "Handle quest objectives manually or restart for next quest.", Console.MessageType.Info)
         yield
 
     bot.States.AddCustomState(completion, "Completion")
@@ -438,6 +478,41 @@ def draw_window():
             bot.Start()
 
     PyImGui.end()
+
+def configure():
+    """Draw configuration window for the bot."""
+    global bot_config, config_module, ini_handler
+
+    if config_module.first_run:
+        PyImGui.set_next_window_size(config_module.window_size[0], config_module.window_size[1])
+        PyImGui.set_next_window_pos(config_module.window_pos[0], config_module.window_pos[1])
+        config_module.first_run = False
+
+    end_pos = config_module.window_pos
+    if PyImGui.begin(config_module.window_name, config_module.window_flags):
+        PyImGui.text_wrapped(f"{BOT_NAME} Settings")
+        PyImGui.separator()
+        PyImGui.dummy(0, 5)
+
+        # Debug logging toggle
+        PyImGui.text("Debug Logging:")
+        bot_config.debug_logging = PyImGui.checkbox("##debug_logging", bot_config.debug_logging)
+        if PyImGui.is_item_hovered():
+            PyImGui.set_tooltip("Enable/disable console log messages from this bot")
+
+        PyImGui.dummy(0, 5)
+        PyImGui.separator()
+        PyImGui.text_wrapped("When enabled, the bot will print status messages to the console.")
+
+        bot_config.save()
+        end_pos = PyImGui.get_window_pos()
+
+    PyImGui.end()
+
+    if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
+        config_module.window_pos = (int(end_pos[0]), int(end_pos[1]))
+        ini_handler.write_key(BOT_NAME + " Config", "config_x", str(int(end_pos[0])))
+        ini_handler.write_key(BOT_NAME + " Config", "config_y", str(int(end_pos[1])))
 
 def main():
     """Main entry point called every frame."""
