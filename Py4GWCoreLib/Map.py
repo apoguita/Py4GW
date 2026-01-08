@@ -1016,8 +1016,6 @@ class Map:
                 offset_x = x - pan_offset_x
                 offset_y = y - pan_offset_y
                 
-                offset_y = -offset_y
-
                 scale_x, scale_y = Map.MissionMap.GetScale()
                 scaled_x = offset_x * scale_x
                 scaled_y = offset_y * scale_y
