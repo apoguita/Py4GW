@@ -34,7 +34,7 @@ from Widgets.CustomBehaviors.skills.mesmer.wandering_eye_utility import Wanderin
 from Widgets.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Widgets.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
 
-class MesmeIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
+class MesmerIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     def __init__(self):
         super().__init__()
@@ -68,7 +68,7 @@ class MesmeIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.signet_of_clumsiness_utility,
             self.ebon_vanguard_assassin_support,

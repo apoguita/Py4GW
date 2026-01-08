@@ -20,7 +20,7 @@ from Widgets.CustomBehaviors.primitives.helpers.targeting_order import Targeting
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
-class ResignIfNeededUtility(CustomSkillUtilityBase):
+class ResignIfNeededUtility_Deprecated(CustomSkillUtilityBase):
     def __init__(
             self,
             event_bus: EventBus,

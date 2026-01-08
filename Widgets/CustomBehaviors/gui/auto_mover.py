@@ -5,22 +5,12 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Widgets.CustomBehaviors.primitives import constants
-from Widgets.CustomBehaviors.primitives.auto_mover.auto_mover import AutoMover
+from Widgets.CustomBehaviors.primitives.auto_mover.auto_follow_agent import AutoFollowAgent
+from Widgets.CustomBehaviors.primitives.auto_mover.auto_follow_path import AutoFollowPath
 from Widgets.CustomBehaviors.primitives.auto_mover.waypoint_builder import WaypointBuilder
-from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
+from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
-from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
-from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_distant_chest_if_path_exists import MoveToDistantChestIfPathExistsUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_enemy_if_close_enough import MoveToEnemyIfCloseEnoughUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_dead import MoveToPartyMemberIfDeadUtility
-from Widgets.CustomBehaviors.skills.botting.move_to_party_member_if_in_aggro import MoveToPartyMemberIfInAggroUtility
-from Widgets.CustomBehaviors.skills.botting.resign_if_needed import ResignIfNeededUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_in_aggro import WaitIfInAggroUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low import WaitIfPartyMemberManaTooLowUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
-from Widgets.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 edit_flags: Dict[int, bool] = {}
@@ -41,26 +31,26 @@ def render():
     instance: CustomBehaviorBaseUtility | None = CustomBehaviorLoader().custom_combat_behavior
 
     if instance is None: return
-    root = AutoMover()
+    auto_follow_path = AutoFollowPath()
+    auto_follow_agent = AutoFollowAgent()
 
-    if root.is_movement_running():
+    if auto_follow_path.is_movement_running():
         if PyImGui.tree_node_ex("Follow path & fight", PyImGui.TreeNodeFlags.DefaultOpen):
 
-            PyImGui.text(f"Running {root.get_movement_progress()}%")
+            PyImGui.text(f"Running {auto_follow_path.get_movement_progress()}%")
             
-
             if PyImGui.button("STOP"):
-                root.stop_movement()
+                auto_follow_path.stop_movement()
 
-            if not root.is_movement_paused():
+            if not auto_follow_path.is_movement_paused():
                 PyImGui.same_line(0,5)
                 if PyImGui.button("PAUSE"):
-                    root.pause_movement()
+                    auto_follow_path.pause_movement()
 
-            if root.is_movement_paused():
+            if auto_follow_path.is_movement_paused():
                 PyImGui.same_line(0,5)
                 if PyImGui.button("RESUME"):
-                    root.resume_movement()
+                    auto_follow_path.resume_movement()
 
             PyImGui.tree_pop()
 
@@ -71,28 +61,24 @@ def render():
             PyImGui.text_colored(f"To manage waypoints & path, you must have MissionMap+ openned", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
 
         if Map.MissionMap.IsWindowOpen():
-            root.render()
+            auto_follow_path.render()
 
-            current_value = root.is_waypoint_recording_activated()
-            result:bool = PyImGui.checkbox("is waypoint recorded on map click", current_value)
-            root.set_waypoint_recording_activated(result)
-
-            if len(root.get_list_of_waypoints()) == 0:
-                PyImGui.text_colored(f"click on MissionMap+ to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
+            if len(auto_follow_path.get_list_of_waypoints()) == 0:
+                PyImGui.text_colored(f"Right click on MissionMap+ to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
                 if PyImGui.button("or paste an array of tuple[float, float] from clipboard"):
                     clipboard_array:str = PyImGui.get_clipboard_text()
-                    root.try_inject_waypoint_coordinates_from_clipboard(clipboard_array)
+                    auto_follow_path.try_inject_waypoint_coordinates_from_clipboard(clipboard_array)
                 
-            if PyImGui.button("paste a 'float, float' from clipboard"):
+            if PyImGui.button("or paste a 'float, float' from clipboard"):
                     clipboard_tuple:str = PyImGui.get_clipboard_text()
-                    root.try_inject_waypoint_coordinate_from_clipboard(clipboard_tuple)
+                    auto_follow_path.try_inject_waypoint_coordinate_from_clipboard(clipboard_tuple)
 
-            if len(root.get_list_of_waypoints()) >0:
+            if len(auto_follow_path.get_list_of_waypoints()) >0:
                 if PyImGui.button("Remove last waypoint from the list"):
-                    root.remove_last_waypoint_from_the_list()
+                    auto_follow_path.remove_last_waypoint_from_the_list()
                 PyImGui.same_line(0,5)
                 if PyImGui.button("clear list"):
-                    root.clear_list_of_waypoints()
+                    auto_follow_path.clear_list_of_waypoints()
 
                 table_flags = PyImGui.TableFlags.Sortable | PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg
                 if PyImGui.begin_table("Waypoints", 6, table_flags):
@@ -105,7 +91,7 @@ def render():
                     PyImGui.table_setup_column("follow", PyImGui.TableColumnFlags.NoSort)
                     PyImGui.table_headers_row()
 
-                    waypoints = root.get_list_of_waypoints()
+                    waypoints = auto_follow_path.get_list_of_waypoints()
 
                     for index, point in enumerate(waypoints):
                         PyImGui.table_next_row()
@@ -189,21 +175,21 @@ def render():
                         PyImGui.table_next_column()
 
                         if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##REMOVE_{index}"):
-                            root.remove_waypoint(index)
+                            auto_follow_path.remove_waypoint(index)
                             edit_flags.pop(index, None)
                             pass
                         PyImGui.show_tooltip("Remove waypoint")
                         
                         PyImGui.table_next_column()
-                        if not root.is_movement_running():
+                        if not auto_follow_path.is_movement_running():
                             if PyImGui.button(f"Start moving from point:{index} to the end"):
-                                root.start_movement(start_at_waypoint_index=index)
+                                auto_follow_path.start_movement(start_at_waypoint_index=index)
 
                     # End the nested ControlTable
                     PyImGui.end_table()
 
                 if PyImGui.button("Copy waypoints coordinates"):
-                    points = root.get_list_of_waypoints()
+                    points = auto_follow_path.get_list_of_waypoints()
                     if points:
                         # Format coordinates as [ (xxx, xxx), (xxx, xxx), etc ] - cast as INT
                         formatted_coords = ", ".join([f"({int(point[0])}, {int(point[1])})" for point in points])
@@ -211,12 +197,11 @@ def render():
                         PyImGui.set_clipboard_text(coordinates)
                 PyImGui.same_line(0,5)
                 if PyImGui.button("Copy autopathing coordinates"):
-                    points = root.get_final_path()
+                    points = auto_follow_path.get_final_path()
                     # Format coordinates as [ (xxx, xxx), (xxx, xxx), etc ]
                     formatted_coords = ", ".join([f"({int(point[0])}, {int(point[1])})" for point in points])
                     coordinates = f"[ {formatted_coords} ]"
                     PyImGui.set_clipboard_text(coordinates)
-
 
         if True:
             PyImGui.text(f"CurrentMap: {Map.GetMapID()}")
@@ -230,9 +215,83 @@ def render():
 
             if PyImGui.small_button("Insert as waypoint"):
                 coordinate = GLOBAL_CACHE.Player.GetXY()
-                root.add_raw_waypoint(coordinate)
+                auto_follow_path.add_raw_waypoint(coordinate)
 
         PyImGui.tree_pop()
 
         # PyImGui.separator()
 
+    PyImGui.separator()
+
+    if PyImGui.tree_node_ex("Follow agent_id", 0):
+        PyImGui.text("This will follow an agent_id, and stop when the agent_id is no longer valid")
+        PyImGui.text("This is useful for following a quest NPC, or a merchant")
+        PyImGui.text("This will NOT work for enemies, as they are not valid targets for movement")
+        PyImGui.separator()
+
+        # Show status if following is active
+        if auto_follow_agent.is_running():
+            PyImGui.text(f"Following agent_id: {auto_follow_agent.get_target_agent_id()}")
+            PyImGui.text(f"Progress: {auto_follow_agent.get_movement_progress():.1f}%")
+
+            # Show agent name and position if available
+            agent_name = auto_follow_agent.get_target_agent_name()
+            if agent_name:
+                PyImGui.text(f"Agent name: {agent_name}")
+            agent_pos = auto_follow_agent.get_target_agent_position()
+            if agent_pos != (0.0, 0.0):
+                PyImGui.text(f"Agent position: ({int(agent_pos[0])}, {int(agent_pos[1])})")
+
+            if PyImGui.button("STOP##follow_agent"):
+                auto_follow_agent.stop()
+
+            if not auto_follow_agent.is_paused():
+                PyImGui.same_line(0, 5)
+                if PyImGui.button("PAUSE##follow_agent"):
+                    auto_follow_agent.pause()
+
+            if auto_follow_agent.is_paused():
+                PyImGui.same_line(0, 5)
+                if PyImGui.button("RESUME##follow_agent"):
+                    auto_follow_agent.resume()
+        else:
+            # Agent ID input
+            PyImGui.text("Agent ID to follow:")
+            selected_id = auto_follow_agent.get_selected_agent_id()
+            new_id = PyImGui.input_int("##agent_id_input", selected_id)
+            if new_id != selected_id:
+                auto_follow_agent.set_selected_agent_id(new_id)
+
+            PyImGui.same_line(0, 5)
+            if PyImGui.small_button("Get from current target"):
+                if not auto_follow_agent.set_agent_from_current_target():
+                    PyImGui.text_colored("No valid target selected", Utils.ColorToTuple(Utils.RGBToColor(255, 100, 100, 255)))
+
+            PyImGui.same_line(0, 5)
+            if PyImGui.small_button("Get from mouse over"):
+                if not auto_follow_agent.set_agent_from_mouse_over():
+                    PyImGui.text_colored("No valid agent under mouse", Utils.ColorToTuple(Utils.RGBToColor(255, 100, 100, 255)))
+
+            # Show agent info if valid
+            if auto_follow_agent.is_selected_agent_valid():
+                agent_name = auto_follow_agent.get_selected_agent_name()
+                if agent_name:
+                    PyImGui.text_colored(f"Agent: {agent_name}", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
+                agent_pos = auto_follow_agent.get_selected_agent_position()
+                PyImGui.text(f"Position: ({int(agent_pos[0])}, {int(agent_pos[1])})")
+            elif auto_follow_agent.get_selected_agent_id() != 0:
+                PyImGui.text_colored("Invalid agent_id", Utils.ColorToTuple(Utils.RGBToColor(255, 100, 100, 255)))
+
+            # Follow distance input
+            PyImGui.text("Follow distance (stop when within this range):")
+            selected_distance = auto_follow_agent.get_selected_follow_distance()
+            new_distance = PyImGui.slider_float("##follow_distance", selected_distance, 100.0, 1000.0)
+            if new_distance != selected_distance:
+                auto_follow_agent.set_selected_follow_distance(new_distance)
+
+            # Start button
+            if PyImGui.button("Start following"):
+                if not auto_follow_agent.start_following_selected():
+                    PyImGui.text_colored("Cannot start: Invalid agent_id", Utils.ColorToTuple(Utils.RGBToColor(255, 100, 100, 255)))
+
+        PyImGui.tree_pop()

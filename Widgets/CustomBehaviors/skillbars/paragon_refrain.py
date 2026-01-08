@@ -59,7 +59,7 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
     
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.heroic_refrain_utility,
             self.theyre_on_fire_utility,

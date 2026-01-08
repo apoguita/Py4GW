@@ -2,8 +2,6 @@ from typing import List, Any, Generator, Callable, override
 
 import PyImGui
 
-from HeroAI.combat import CombatClass
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult

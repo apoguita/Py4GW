@@ -1,12 +1,48 @@
+import Py4GW
 import PyImGui
+import os
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
-from Widgets.CustomBehaviors.primitives.botting.botting_abstract import BottingAbstract, StickPosition
-from Widgets.CustomBehaviors.primitives.botting.botting_loader import BottingLoader, AvailableBot
 
 # Global state for bot selection and control
 _selected_bot_index = 0
+_bot_scripts_cache = None
+_last_scan_time = 0
+
+def _scan_bot_scripts():
+    """
+    Scan the bots folder and return a list of (bot_name, script_path) tuples.
+    Caches results to avoid repeated file system scans.
+    """
+    global _bot_scripts_cache, _last_scan_time
+    import time
+
+    current_time = time.time()
+    # Cache for 5 seconds
+    if _bot_scripts_cache is not None and (current_time - _last_scan_time) < 5:
+        return _bot_scripts_cache
+
+    bots_folder = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "CustomBehaviors", "bots")
+    bot_scripts = []
+
+    try:
+        if os.path.exists(bots_folder):
+            for filename in os.listdir(bots_folder):
+                if filename.endswith(".py") and not filename.startswith("__"):
+                    # Remove .py extension for display name
+                    bot_name = os.path.splitext(filename)[0]
+                    script_path = os.path.join(bots_folder, filename)
+                    bot_scripts.append((bot_name, script_path))
+
+            # Sort by bot name
+            bot_scripts.sort(key=lambda x: x[0])
+    except Exception as e:
+        pass  # Silently fail if folder doesn't exist or can't be read
+
+    _bot_scripts_cache = bot_scripts
+    _last_scan_time = current_time
+    return bot_scripts
 
 def render():
     global _selected_bot_index
@@ -18,109 +54,39 @@ def render():
         PyImGui.text(f"Feature restricted to party leader.")
         return
 
-    PyImGui.text_colored(f"additionnal custom_behaviors will be injected in the party leader.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
-    PyImGui.text_colored(f"it would act autonomously", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
-    if PyImGui.tree_node("List of additionnal behaviors :"):
-        PyImGui.bullet_text(f"resign_if_needed_utility")
-        PyImGui.bullet_text(f"move_to_distant_chest_if_path_exists_utility")
-        PyImGui.bullet_text(f"move_if_stuck_utility")
-        PyImGui.bullet_text(f"move_to_party_member_if_in_aggro_utility")
-        PyImGui.bullet_text(f"move_to_enemy_if_close_enough_utility")
-        PyImGui.bullet_text(f"move_to_party_member_if_dead_utility")
-        PyImGui.bullet_text(f"wait_if_party_member_mana_too_low_utility")
-        PyImGui.bullet_text(f"wait_if_party_member_too_far_utility")
-        PyImGui.bullet_text(f"wait_if_party_member_needs_to_loot_utility")
-        PyImGui.bullet_text(f"wait_if_in_aggro_utility")
-        PyImGui.bullet_text(f"wait_if_lock_taken_utility")
+    # Bot Scripts Table
+    bot_scripts = _scan_bot_scripts()
 
-        PyImGui.tree_pop()
+    if len(bot_scripts) > 0:
+        PyImGui.text(f"Available Bot Scripts ({len(bot_scripts)})")
+        PyImGui.separator()
 
-    # PyImGui.separator()
+        # Create table with 2 columns: Bot Name and Load Button
+        table_flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.ScrollY
+        if PyImGui.begin_table("BotScriptsTable", 2, table_flags, 0, 300):
+            # Setup columns
+            PyImGui.table_setup_column("Bot Name", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("Action", PyImGui.TableColumnFlags.WidthFixed, 80)
+            PyImGui.table_headers_row()
 
+            # Render each bot script as a row
+            for bot_name, script_path in bot_scripts:
+                PyImGui.table_next_row()
 
+                # Column 0: Bot Name
+                PyImGui.table_set_column_index(0)
+                PyImGui.text(bot_name)
 
-    # Load bot list if not already loaded
-    botting_loader = BottingLoader()
-    # if not botting_loader._has_loaded:
-    #     botting_loader.load_bot_list()
+                # Column 1: Load Button
+                PyImGui.table_set_column_index(1)
+                button_id = f"Load##{bot_name}"
+                if PyImGui.button(button_id):
+                    # Load and run the bot script with a 500ms delay
+                    Py4GW.Console.defer_stop_load_and_run(script_path, delay_ms=500)
 
-    # Bot selection combo box
-    if len(botting_loader.available_bots) > 0:
-        # Filter out bots with invalid names and create valid bot list
-        valid_bots = []
-        for bot in botting_loader.available_bots:
-            if bot.instance.name is not None and bot.instance.name.strip():
-                valid_bots.append(bot)
-
-        if len(valid_bots) > 0:
-            bot_names = [""] + [bot.instance.name for bot in valid_bots]
-            # Ensure selected index is within bounds
-            if _selected_bot_index >= len(bot_names):
-                _selected_bot_index = 0
-            
-            # Initialize botting_loader.current_bot_instance if it's None and we have valid bots
-            new_index = PyImGui.combo("Select Bot", _selected_bot_index, bot_names)
-
-            if new_index != _selected_bot_index:
-                _old_index = _selected_bot_index
-                _selected_bot_index = new_index
-
-                # open new selected bot
-                if _selected_bot_index > 0:
-                    botting_loader.define_bot_as_active(_selected_bot_index - 1)
-                    if botting_loader.get_active_bot() is not None:
-                        botting_loader.get_active_bot().open_bot()
-                else:
-                    botting_loader.define_bot_as_active(None)
-
-                #close previous one
-                if _old_index > 0:
-                    botting_loader.available_bots[_old_index - 1].instance.close_bot()
-
-            
-
-                #= valid_bots[_selected_bot_index - 1].instance if _selected_bot_index > 0 else None
-        else:
-            PyImGui.text("No valid bots available (all bots have invalid names)")
-            return
-
-        # Display bot name and description
-        if botting_loader.get_active_bot() is not None:
-
-            if botting_loader.get_active_bot().is_openned_bot():
-                PyImGui.text(f"Name: {botting_loader.get_active_bot().name}")
-                PyImGui.text_wrapped(f"Description: {botting_loader.get_active_bot().description}")
-                PyImGui.separator()
-
-                if not botting_loader.get_active_bot().is_botting_behavior_injected:
-                    if PyImGui.button("inject custom botting behaviors"):
-                        botting_loader.get_active_bot().inject_botting_behavior()
-                else:
-                    if PyImGui.button("remove custom botting behaviors"):
-                        botting_loader.get_active_bot().remove_botting_behavior()
-                
-                if PyImGui.button("Toggle bot UI"):
-                    botting_loader.get_active_bot().toggle_ui()
-                if botting_loader.get_active_bot()._is_ui_visible:
-                    PyImGui.same_line(0,5)
-                    if PyImGui.button("Stick Left"):
-                        botting_loader.get_active_bot().ui_stick_position = StickPosition.Left
-                    PyImGui.same_line(0,5)
-                    if PyImGui.button("Stick Right"):
-                        botting_loader.get_active_bot().ui_stick_position = StickPosition.Right
-                    PyImGui.same_line(0,5)
-                    if PyImGui.button("Stick Bottom"):
-                        botting_loader.get_active_bot().ui_stick_position = StickPosition.Bottom
-
-        else:
-            PyImGui.text("No bot selected")
+            PyImGui.end_table()
     else:
-        PyImGui.text("No bots available")
-        if PyImGui.button("Refresh Bot List"):
-            botting_loader.refresh_bot_list()
-            botting_loader.load_bot_list()
+        PyImGui.text("No bot scripts found in the bots folder.")
+        PyImGui.text("Place .py files in: Widgets/CustomBehaviors/bots/")
 
-
-
-
-    
+    PyImGui.separator()

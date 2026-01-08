@@ -2,6 +2,8 @@
 
 from typing import List, Any, Generator, override
 
+import PyImGui
+
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -74,3 +76,9 @@ class GlimmeringMarkUtility(CustomSkillUtilityBase):
             pass
 
         return result
+    
+    @override
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        PyImGui.bullet_text(f"recently_glimmered_agent_ids :")
+        for agent_id in glimmer_tracker._recent_glimmers:
+            PyImGui.bullet_text(f"agent_id : {agent_id} - timestamp : {glimmer_tracker._recent_glimmers[agent_id]}")

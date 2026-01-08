@@ -4,6 +4,7 @@ class CommonScore(Enum):
     FOLLOW                          = 01.000
     FOLLOW_FLAG                     = 01.001
     LOOT                            = 01.100
+    INVENTORY                       = 01.101
     BLESSING                        = 01.200
     AUTO_ATTACK                     = 09.900
     GENERIC_SKILL_HERO_AI           = 09.910

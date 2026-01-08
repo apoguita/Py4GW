@@ -45,7 +45,7 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.critical_eye_utility,
             self.critical_agility_utility,

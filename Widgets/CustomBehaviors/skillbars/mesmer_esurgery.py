@@ -91,7 +91,7 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @property
     @override
-    def skills_allowed_in_behavior(self) -> list[CustomSkillUtilityBase]:
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
             self.cry_of_pain_utility,
             self.cry_of_frustration_utility,

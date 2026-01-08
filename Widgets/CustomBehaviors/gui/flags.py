@@ -8,32 +8,13 @@ from Widgets.CustomBehaviors.primitives.parties.party_flagging_manager import Pa
 
 
 class FlagsUI:
-    # Persistent UI state for expansion of the flags configuration
-    expanded: bool = False
-
-    @staticmethod
-    def is_expanded() -> bool:
-        return FlagsUI.expanded
-
-    @staticmethod
-    def render_expand_toggle(label_prefix: str = "", id_suffix: str = "expand_flagging") -> bool:
-        toggle_label = "[-]" if FlagsUI.expanded else "[+]"
-        label = f"{label_prefix} {toggle_label}##{id_suffix}" if label_prefix else f"{toggle_label}##{id_suffix}"
-        if PyImGui.small_button(label):
-            FlagsUI.expanded = not FlagsUI.expanded
-        return FlagsUI.expanded
-
     @staticmethod
     def render_configuration() -> None:
         """
-        Render the configurable flags/formation UI previously inline in party.py.
-        Expects a PartyFlaggingManager instance (flag_manager).
+        Render the configurable flags/formation UI.
+        Note: The caller should check if the section is expanded before calling this method.
         """
         flag_manager = PartyFlaggingManager()
-
-
-        if not FlagsUI.expanded:
-            return
 
         PyImGui.separator()
         PyImGui.text("[FLAGGING] configure party flag formation :")
