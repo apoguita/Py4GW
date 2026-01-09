@@ -612,21 +612,41 @@ class AutoPathing:
                  smooth_by_chaikin: bool = False,
                  chaikin_iterations: int = 1):
         from . import Routines
-        
-        def _prepend_start(path2d: list[tuple[float, float]], sx: float, sy: float, tol: float = 250.0):
-            if not path2d:
-                path2d.insert(0, (sx, sy))
+
+        def _project_start_onto_path(path2d: list[tuple[float, float]], sx: float, sy: float):
+            if len(path2d) < 2:
                 return path2d
 
-            dx = path2d[0][0] - sx
-            dy = path2d[0][1] - sy
+            # Point A (previous target) and point B (next target)
+            ax, ay = path2d[0]
+            bx, by = path2d[1]
 
-            # prepend start only if the first point is farther than 250 units
-            if dx * dx + dy * dy > tol * tol:
-                path2d.insert(0, (sx, sy))
+            # Vector AB
+            dx, dy = bx - ax, by - ay
+            mag_sq = dx * dx + dy * dy
+
+            if mag_sq == 0:
+                return path2d
+
+            # Project the current position (sx, sy) onto the line AB
+            # Formula: t = [(P - A) · (B - A)] / |B - A|^2
+            t = ((sx - ax) * dx + (sy - ay) * dy) / mag_sq
+
+            # Clamp t between 0 and 1 to stay on segment AB
+            t = max(0, min(1, t))
+
+            # The new start point S on the line
+            nx = ax + t * dx
+            ny = ay + t * dy
+
+            # Replace the old point A with the projected point S
+            path2d[0] = (nx, ny)
+
+            # Optional: If we are very close to B, remove A entirely
+            if math.dist((nx, ny), (bx, by)) < 100:
+                path2d.pop(0)
 
             return path2d
-
 
         map_id = Map.GetMapID()
         group_key = self._get_group_key(map_id)
@@ -647,7 +667,7 @@ class AutoPathing:
                 raw_path = path_planner.get_path()
                 path2d = [(pt[0], pt[1]) for pt in raw_path]
                 
-                path2d = _prepend_start(path2d, start[0], start[1])
+                path2d = _project_start_onto_path(path2d, start[0], start[1])
                 
                 if smooth_by_chaikin:
                     path2d = chaikin_smooth_path(path2d, chaikin_iterations)
@@ -676,7 +696,7 @@ class AutoPathing:
         if success:
             raw_path = astar.get_path()
             yield
-            raw_path = _prepend_start(raw_path, start[0], start[1])
+            raw_path = _project_start_onto_path(raw_path, start[0], start[1])
             if smooth_by_los:
                 smoothed = navmesh.smooth_path_by_los(raw_path, margin, step_dist)
             else:
