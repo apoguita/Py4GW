@@ -499,10 +499,438 @@ class Skill:
             full_path = f"Textures\\Skill_Icons\\{filename}" if filename else ""
             return full_path
 
+    # =========================================================================
+    # Target Type 
+    # =========================================================================
 
-        
+    class Target:
+        """
+        Skill target/affected entities.
 
+        NOTE: This field indicates which entities are AFFECTED by the skill,
+        not necessarily who you can TARGET with the skill UI.
 
-        
+        For example:
+            - Death's Charge (5 = Self/Foe): Affects SELF (you teleport) and FOE (destination)
+            - Sever Artery (5 = Self/Foe): Attack skill - you attack, foe takes damage
+            - Healing Breeze (3 = Self/Ally): Can cast on self or allies
+
+        For actual targeting logic, also consider:
+            - Skill type (Attack skills target foes)
+            - Skill description
+            - IsTouchRange/IsHalfRange flags
+
+        Common values:
+            0 = No target / Self only
+            1 = Self
+            2 = Ally
+            4 = Foe/Enemy
+            8 = Dead ally (for resurrection)
+            16 = Item/Object
+            32 = Spirit
+        """
+
+        # Target type bitmask values
+        NONE = 0
+        SELF = 1
+        ALLY = 2
+        FOE = 4
+        DEAD = 8
+        ITEM = 16
+        SPIRIT = 32
+
+        _TARGET_NAMES = {
+            0: "No Target",
+            1: "Self",
+            2: "Ally",
+            3: "Self/Ally",
+            4: "Foe",
+            5: "Self/Foe",
+            6: "Ally/Foe",
+            7: "Any",
+            8: "Dead Ally",
+            10: "Ally/Dead",
+            12: "Foe/Dead",
+        }
+
+        @staticmethod
+        def GetTargetType(skill_id: int) -> int:
+            """Get the raw target type bitmask."""
+            return Skill.skill_instance(skill_id).target
+
+        @staticmethod
+        def GetTargetTypeName(skill_id: int) -> str:
+            """Get a human-readable name for the affected entities."""
+            target = Skill.Target.GetTargetType(skill_id)
+            if target in Skill.Target._TARGET_NAMES:
+                return Skill.Target._TARGET_NAMES[target]
+
+            # Build name from flags
+            parts = []
+            if target & Skill.Target.SELF:
+                parts.append("Self")
+            if target & Skill.Target.ALLY:
+                parts.append("Ally")
+            if target & Skill.Target.FOE:
+                parts.append("Foe")
+            if target & Skill.Target.DEAD:
+                parts.append("Dead")
+            if target & Skill.Target.ITEM:
+                parts.append("Item")
+            if target & Skill.Target.SPIRIT:
+                parts.append("Spirit")
+
+            return "/".join(parts) if parts else "Unknown"
+
+        @staticmethod
+        def RequiresTarget(skill_id: int) -> bool:
+            """Check if skill requires selecting a target (not self-only or no-target)."""
+            target = Skill.Target.GetTargetType(skill_id)
+            # If target is 0 (no target) or 1 (self only), no target required
+            return target > 1
+
+        @staticmethod
+        def AffectsSelf(skill_id: int) -> bool:
+            """Check if skill affects self."""
+            target = Skill.Target.GetTargetType(skill_id)
+            return (target & Skill.Target.SELF) != 0 or target == 0
+
+        @staticmethod
+        def AffectsAlly(skill_id: int) -> bool:
+            """Check if skill affects allies."""
+            target = Skill.Target.GetTargetType(skill_id)
+            return (target & Skill.Target.ALLY) != 0
+
+        @staticmethod
+        def AffectsFoe(skill_id: int) -> bool:
+            """Check if skill affects enemies."""
+            target = Skill.Target.GetTargetType(skill_id)
+            return (target & Skill.Target.FOE) != 0
+
+        @staticmethod
+        def AffectsDead(skill_id: int) -> bool:
+            """Check if skill affects dead allies (resurrection skills)."""
+            target = Skill.Target.GetTargetType(skill_id)
+            return (target & Skill.Target.DEAD) != 0
+
+        @staticmethod
+        def AffectsSpirit(skill_id: int) -> bool:
+            """Check if skill affects spirits."""
+            target = Skill.Target.GetTargetType(skill_id)
+            return (target & Skill.Target.SPIRIT) != 0
+
+        # Keep old names as aliases for backwards compatibility
+        CanTargetSelf = AffectsSelf
+        CanTargetAlly = AffectsAlly
+        CanTargetFoe = AffectsFoe
+        CanTargetDead = AffectsDead
+        CanTargetSpirit = AffectsSpirit
+
+    # =========================================================================
+    # Combo Chain 
+    # =========================================================================
+
+    class Combo:
+        """
+        Assassin combo chain.
+
+        Combo skills must be used in sequence: Lead Attack -> Off-Hand Attack -> Dual Attack.
+        - combo: What this skill provides (0=None, 1=Lead, 2=Off-Hand, 3=Dual)
+        - combo_req: What this skill requires (0=None, 1=Lead, 2=Off-Hand)
+        """
+
+        # Combo types (what the skill provides)
+        TYPE_NONE = 0
+        TYPE_LEAD = 1
+        TYPE_OFFHAND = 2
+        TYPE_DUAL = 3
+
+        # Combo requirements (what the skill needs)
+        REQ_NONE = 0
+        REQ_LEAD = 1
+        REQ_OFFHAND = 2
+
+        _COMBO_NAMES = {
+            0: "None",
+            1: "Lead Attack",
+            2: "Off-Hand Attack",
+            3: "Dual Attack",
+        }
+
+        _REQ_NAMES = {
+            0: "None",
+            1: "Requires Lead",
+            2: "Requires Off-Hand",
+        }
+
+        @staticmethod
+        def GetComboType(skill_id: int) -> int:
+            """Get the combo type this skill provides."""
+            return Skill.skill_instance(skill_id).combo
+
+        @staticmethod
+        def GetComboTypeName(skill_id: int) -> str:
+            """Get human-readable combo type name."""
+            combo = Skill.Combo.GetComboType(skill_id)
+            return Skill.Combo._COMBO_NAMES.get(combo, "Unknown")
+
+        @staticmethod
+        def GetComboRequirement(skill_id: int) -> int:
+            """Get the combo requirement for this skill."""
+            return Skill.skill_instance(skill_id).combo_req
+
+        @staticmethod
+        def GetComboRequirementName(skill_id: int) -> str:
+            """Get human-readable combo requirement name."""
+            req = Skill.Combo.GetComboRequirement(skill_id)
+            return Skill.Combo._REQ_NAMES.get(req, "Unknown")
+
+        @staticmethod
+        def IsLeadAttack(skill_id: int) -> bool:
+            """Check if skill is a Lead Attack."""
+            return Skill.Combo.GetComboType(skill_id) == Skill.Combo.TYPE_LEAD
+
+        @staticmethod
+        def IsOffhandAttack(skill_id: int) -> bool:
+            """Check if skill is an Off-Hand Attack."""
+            return Skill.Combo.GetComboType(skill_id) == Skill.Combo.TYPE_OFFHAND
+
+        @staticmethod
+        def IsDualAttack(skill_id: int) -> bool:
+            """Check if skill is a Dual Attack."""
+            return Skill.Combo.GetComboType(skill_id) == Skill.Combo.TYPE_DUAL
+
+        @staticmethod
+        def RequiresLead(skill_id: int) -> bool:
+            """Check if skill requires a Lead Attack to have been used."""
+            return Skill.Combo.GetComboRequirement(skill_id) == Skill.Combo.REQ_LEAD
+
+        @staticmethod
+        def RequiresOffhand(skill_id: int) -> bool:
+            """Check if skill requires an Off-Hand Attack to have been used."""
+            return Skill.Combo.GetComboRequirement(skill_id) == Skill.Combo.REQ_OFFHAND
+
+        @staticmethod
+        def IsComboSkill(skill_id: int) -> bool:
+            """Check if skill is part of a combo chain (Lead, Off-Hand, or Dual)."""
+            return Skill.Combo.GetComboType(skill_id) != Skill.Combo.TYPE_NONE
+
+    # =========================================================================
+    # Weapon Requirement
+    # =========================================================================
+
+    class Weapon:
+        """
+        Skill weapon requirement.
+
+        Some skills require specific weapon types to be equipped.
+        These are bitmask values that can be combined.
+        """
+
+        # Weapon requirement values (from WeaporReq enum)
+        REQ_NONE = 0
+        REQ_AXE = 1
+        REQ_BOW = 2
+        REQ_DAGGER = 8
+        REQ_HAMMER = 16
+        REQ_SCYTHE = 32
+        REQ_SPEAR = 64
+        REQ_SWORD = 128
+        REQ_MELEE = 185  # Combined melee weapons
+
+        _WEAPON_NAMES = {
+            0: "None",
+            1: "Axe",
+            2: "Bow",
+            8: "Daggers",
+            16: "Hammer",
+            32: "Scythe",
+            64: "Spear",
+            128: "Sword",
+            185: "Melee",
+        }
+
+        @staticmethod
+        def GetWeaponRequirement(skill_id: int) -> int:
+            """Get the raw weapon requirement value."""
+            return Skill.skill_instance(skill_id).weapon_req
+
+        @staticmethod
+        def GetWeaponRequirementName(skill_id: int) -> str:
+            """Get human-readable weapon requirement name."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return Skill.Weapon._WEAPON_NAMES.get(req, f"Unknown ({req})")
+
+        @staticmethod
+        def HasWeaponRequirement(skill_id: int) -> bool:
+            """Check if skill has any weapon requirement."""
+            return Skill.Weapon.GetWeaponRequirement(skill_id) != Skill.Weapon.REQ_NONE
+
+        @staticmethod
+        def RequiresAxe(skill_id: int) -> bool:
+            """Check if skill requires an axe."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return req == Skill.Weapon.REQ_AXE or (req & Skill.Weapon.REQ_AXE) != 0
+
+        @staticmethod
+        def RequiresBow(skill_id: int) -> bool:
+            """Check if skill requires a bow."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return req == Skill.Weapon.REQ_BOW or (req & Skill.Weapon.REQ_BOW) != 0
+
+        @staticmethod
+        def RequiresDaggers(skill_id: int) -> bool:
+            """Check if skill requires daggers."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return req == Skill.Weapon.REQ_DAGGER or (req & Skill.Weapon.REQ_DAGGER) != 0
+
+        @staticmethod
+        def RequiresHammer(skill_id: int) -> bool:
+            """Check if skill requires a hammer."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return req == Skill.Weapon.REQ_HAMMER or (req & Skill.Weapon.REQ_HAMMER) != 0
+
+        @staticmethod
+        def RequiresSword(skill_id: int) -> bool:
+            """Check if skill requires a sword."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return req == Skill.Weapon.REQ_SWORD or (req & Skill.Weapon.REQ_SWORD) != 0
+
+        @staticmethod
+        def RequiresScythe(skill_id: int) -> bool:
+            """Check if skill requires a scythe."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return req == Skill.Weapon.REQ_SCYTHE or (req & Skill.Weapon.REQ_SCYTHE) != 0
+
+        @staticmethod
+        def RequiresSpear(skill_id: int) -> bool:
+            """Check if skill requires a spear."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            return req == Skill.Weapon.REQ_SPEAR or (req & Skill.Weapon.REQ_SPEAR) != 0
+
+        @staticmethod
+        def RequiresMelee(skill_id: int) -> bool:
+            """Check if skill requires a melee weapon (axe, sword, hammer, daggers, scythe)."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            # Check if it's exactly REQ_MELEE or if it matches any melee weapon
+            if req == Skill.Weapon.REQ_MELEE:
+                return True
+            melee_mask = (Skill.Weapon.REQ_AXE | Skill.Weapon.REQ_SWORD |
+                         Skill.Weapon.REQ_HAMMER | Skill.Weapon.REQ_DAGGER |
+                         Skill.Weapon.REQ_SCYTHE)
+            return req != 0 and (req & melee_mask) != 0
+
+        @staticmethod
+        def RequiresRanged(skill_id: int) -> bool:
+            """Check if skill requires a ranged weapon (bow, spear)."""
+            req = Skill.Weapon.GetWeaponRequirement(skill_id)
+            ranged_mask = Skill.Weapon.REQ_BOW | Skill.Weapon.REQ_SPEAR
+            return req != 0 and (req & ranged_mask) != 0
+
+    # =========================================================================
+    # Range Interpretation
+    # =========================================================================
+
+    class Range:
+        """
+        Skill range.
+
+        Guild Wars uses several standard range values (in game units):
+            - Touch: ~144 (adjacent)
+            - Adjacent: ~166
+            - Nearby: ~252
+            - In the Area: ~322
+            - Earshot: ~1010
+            - Half Range (Shortbow): ~1010
+            - Full Range (Flatbow): ~1245
+            - Spirit Range: ~2500
+        """
+
+        # Range constants (in game units, approximate)
+        TOUCH = 144
+        ADJACENT = 166
+        NEARBY = 252
+        IN_THE_AREA = 322
+        EARSHOT = 1010
+        HALF_RANGE = 1010
+        FULL_RANGE = 1245
+        SPIRIT_RANGE = 2500
+
+        _RANGE_TYPES = {
+            "Touch": 144,
+            "Adjacent": 166,
+            "Nearby": 252,
+            "In the Area": 322,
+            "Earshot": 1010,
+            "Half Range": 1010,
+            "Full Range": 1245,
+            "Spirit Range": 2500,
+        }
+
+        @staticmethod
+        def GetRangeType(skill_id: int) -> str:
+            """
+            Get the range type name for a skill.
+
+            Returns one of: "Touch", "Half Range", "Full Range", "Self"
+            """
+            if Skill.Flags.IsTouchRange(skill_id):
+                return "Touch"
+            if Skill.Flags.IsHalfRange(skill_id):
+                return "Half Range"
+
+            # Check if it's a self-target only skill
+            target = Skill.skill_instance(skill_id).target
+            if target == 0 or target == 1:
+                return "Self"
+
+            # Default to full range for targeted skills
+            return "Full Range"
+
+        @staticmethod
+        def GetRangeInUnits(skill_id: int) -> float:
+            """
+            Get the skill's range in game units.
+
+            Note: This is approximate as exact ranges depend on skill type.
+            """
+            if Skill.Flags.IsTouchRange(skill_id):
+                return Skill.Range.TOUCH
+            if Skill.Flags.IsHalfRange(skill_id):
+                return Skill.Range.HALF_RANGE
+
+            # Check if it's a self-target only skill
+            target = Skill.skill_instance(skill_id).target
+            if target == 0 or target == 1:
+                return 0.0  # Self-target, no range
+
+            # Default to full range
+            return Skill.Range.FULL_RANGE
+
+        @staticmethod
+        def GetAoERange(skill_id: int) -> float:
+            """
+            Get the Area of Effect range for a skill.
+
+            Returns the aoe_range field from skill data.
+            """
+            return Skill.skill_instance(skill_id).aoe_range
+
+        @staticmethod
+        def IsInRange(skill_id: int, distance: float) -> bool:
+            """
+            Check if a target at the given distance is within skill range.
+
+            Args:
+                skill_id: The skill to check
+                distance: Distance to target in game units
+
+            Returns:
+                True if target is within range.
+            """
+            skill_range = Skill.Range.GetRangeInUnits(skill_id)
+            if skill_range == 0:
+                return True  # Self-target skills always "in range"
+            return distance <= skill_range
 
         
