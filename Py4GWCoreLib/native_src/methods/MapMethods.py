@@ -29,11 +29,19 @@ class MapMethods:
         return True
 
     @staticmethod
-    def Travel(map_id: int, region: int =0, district_number: int =0, language: int =0) -> bool:
-        return UIManager.SendUIMessage(
+    def Travel(map_id: int, region: int = 0, district_number: int = 0, language: int = 0) -> bool:
+        class TravelStruct(ctypes.Structure):
+            _fields_ = [
+                ("map_id", ctypes.c_uint32),  # GW::Constants::MapID
+                ("region", ctypes.c_int32),  # ServerRegion
+                ("language", ctypes.c_int32),  # Language
+                ("district_number", ctypes.c_int32),
+            ]
+
+        return UIManager.SendUIMessageRaw(
             UIMessage.kTravel,
-            [map_id, region, language, district_number],
-            False
+            ctypes.addressof(TravelStruct(map_id=map_id, region=region, language=language, district_number=district_number)),
+            False,
         )
 
     @staticmethod
