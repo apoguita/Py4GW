@@ -3,6 +3,8 @@ accounts.json
 accounts - Copy.json
 Py4GW_Launcher.exe
 
+GodTools.py
+god_tools_src/*
 imgui.ini
 Inject.au3
 AlcoholProc.ini
