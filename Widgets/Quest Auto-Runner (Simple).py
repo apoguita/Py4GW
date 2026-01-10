@@ -6,12 +6,28 @@ computes a navmesh path, and walks to the marker while pausing for combat/lootin
 Start the bot on the correct quest map/outpost.
 """
 
+from __future__ import annotations
 import time
 import os
 from Py4GWCoreLib import Botting, Quest, Map, ConsoleLog, Console, Routines, IniHandler, Timer, ImGui
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
+from Py4GWCoreLib.Agent import Agent
+from Py4GWCoreLib.enums import SharedCommandType
 import PyImGui
+
+
+def LootingRoutineActive() -> bool:
+    """Check if a looting command is currently active in shared memory."""
+    account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+
+    if index == -1 or message is None:
+        return False
+
+    if message.Command != SharedCommandType.PickUpLoot:
+        return False
+    return True
 
 BOT_NAME = "Quest Auto-Runner (Simple)"
 MARKER_UPDATE_TIMEOUT_S = 20.0
@@ -110,16 +126,19 @@ def GetQuestData():
 
     return quest_data
 
-def ConvertQuestMarkerCoordinates(quest_data):
-    """Convert quest marker coordinates from unsigned to signed if needed."""
+def ConvertQuestMarkerCoordinates(quest_data) -> tuple[float, float] | None:
+    """Convert quest marker coordinates from unsigned to signed if needed.
+
+    Returns None if coordinates are invalid, otherwise returns (x, y) as floats.
+    """
     marker_x = quest_data.marker_x
     marker_y = quest_data.marker_y
 
     # Check for sentinel values
     if marker_x == 2147483648 or marker_y == 2147483648:
-        return None, None
+        return None
     if marker_x == 0 and marker_y == 0:
-        return None, None
+        return None
 
     # Convert unsigned to signed
     if marker_y > 2147483647:
@@ -127,7 +146,7 @@ def ConvertQuestMarkerCoordinates(quest_data):
     if marker_x > 2147483647:
         marker_x = marker_x - 4294967296
 
-    return marker_x, marker_y
+    return float(marker_x), float(marker_y)
 
 def bot_routine(bot: Botting) -> None:
     """Main bot routine using Botting framework."""
@@ -144,13 +163,14 @@ def bot_routine(bot: Botting) -> None:
             quest_data = quest_info["quest_data"]
 
             # Convert coordinates immediately
-            marker_x, marker_y = ConvertQuestMarkerCoordinates(quest_data)
+            coords = ConvertQuestMarkerCoordinates(quest_data)
 
-            if marker_x is None or marker_y is None:
+            if coords is None:
                 DebugLog(BOT_NAME, "ERROR: Quest has no valid marker coordinates!", Console.MessageType.Error)
                 bot.Stop()
                 return
 
+            marker_x, marker_y = coords
             quest_info["marker_x"] = marker_x
             quest_info["marker_y"] = marker_y
             quest_info["is_valid"] = True
@@ -200,62 +220,47 @@ def bot_routine(bot: Botting) -> None:
         combat_hold_until = [0.0]
 
         def should_pause():
-            # PRIORITY 1: Check if FSM is paused (handles party member death/behind events)
+            """Check if movement should pause for combat, looting, or party issues."""
+            now = time.time()
+
             try:
+                # PRIORITY 1: Check if FSM is paused (handles party member death/behind events)
                 if bot.config.FSM.is_paused():
                     return True
-            except Exception:
-                pass
 
-            # PRIORITY 2: Check if there's a dead party member
-            try:
+                # PRIORITY 2: Check if there's a dead party member
                 dead_player = Routines.Party.GetDeadPartyMemberID()
                 if dead_player != 0:
                     return True
-            except Exception:
-                pass
 
-            now = time.time()
-
-            # Check for looting
-            try:
-                from HeroAI.cache_data import CacheData
-                if CacheData().in_looting_routine:
-                    loot_hold_until[0] = now + 1.0  # brief cooldown after loot flag clears (extended)
+                # Check for active looting (uses shared memory - more reliable)
+                if LootingRoutineActive():
+                    loot_hold_until[0] = now + 0.5  # Short cooldown, we'll re-check actual state
                     return True
-            except Exception:
-                pass
 
-            # Check for combat
-            try:
-                from Py4GWCoreLib.Agent import Agent
+                # Check for combat
                 player_id = GLOBAL_CACHE.Player.GetAgentID()
                 in_combat = Agent.IsInCombatStance(player_id)
-            except Exception:
-                in_combat = False
+                in_danger = Routines.Checks.Agents.InDanger()
 
-            try:
-                from Py4GWCoreLib.Routines import Routines as Rout
-                in_danger = Rout.Checks.Agents.InDanger()
-            except Exception:
-                in_danger = False
+                if in_combat or in_danger:
+                    combat_hold_until[0] = now + 2.0
+                    return True
 
-            if in_combat or in_danger:
-                combat_hold_until[0] = now + 2.0  # short grace after combat
-                return True
+                # Check cooldown timers
+                if loot_hold_until[0] > now or combat_hold_until[0] > now:
+                    return True
 
-            if loot_hold_until[0] > now or combat_hold_until[0] > now:
-                return True
+                return False
 
-            return False
+            except Exception as e:
+                DebugLog(BOT_NAME, f"Error in should_pause: {e}", Console.MessageType.Warning)
+                return False  # Don't pause on error - let movement continue
 
         def refresh_marker_from_quest():
             quest_info["quest_data"] = GetQuestData()
             qd = quest_info["quest_data"]
-            marker_x, marker_y = ConvertQuestMarkerCoordinates(qd)
-            if marker_x is None or marker_y is None:
-                return None
-            return float(marker_x), float(marker_y)
+            return ConvertQuestMarkerCoordinates(qd)
 
         def wait_for_next_marker(current_marker):
             DebugLog(BOT_NAME, f"Waiting up to {MARKER_UPDATE_TIMEOUT_S:.0f}s for next quest marker...", Console.MessageType.Info)
@@ -271,10 +276,8 @@ def bot_routine(bot: Botting) -> None:
                     DebugLog(BOT_NAME, f"Failed to refresh quest marker: {e}", Console.MessageType.Warning)
                     next_marker = None
 
-                if next_marker is not None and None not in next_marker:
-                    next_marker = (float(next_marker[0]), float(next_marker[1]))
-                    if next_marker != current_marker:
-                        return next_marker
+                if next_marker is not None and next_marker != current_marker:
+                    return next_marker
 
                 yield from Routines.Yield.wait(int(MARKER_POLL_INTERVAL_S * 1000))
             return None
