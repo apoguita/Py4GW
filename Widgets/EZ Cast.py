@@ -11,8 +11,6 @@ from Py4GWCoreLib import Timer
 import Py4GWCoreLib as GW
 import time
 from typing import List
-import Py4GWCoreLib.dNodes.dNodes as dNodes
-
 # import node_editor as ed
 
 """Module by Dharmanatrix for autocasting spells for ease of play."""
@@ -45,33 +43,131 @@ window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 
-class PinTypes(dNodes.PinType):
-    BOOL = 1
+logic_id = 0
+TRIGGER_COLOR = (0.573, 0, 1, 1)
+FLOW_COLOR = (0.631, 0, 0, 1)
+LOGIC_COLOR = (0, 0.616, 1, 1)
+DATA_COLOR = (0, 0.529, 0.051, 1)
+OUTPUT_COLOR = (0.969, 0.271, 0, 1)
+pin_load = None
+pin_hover = None
+pin_drag_start = None
+PACKED_GREY = Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255)
+
+class Pin():
+    def __init__(self):
+        global logic_id
+        self.id = logic_id
+        self.location = (1, 1)
+        self.type = "FLOW"
+        self.radius = 8
+        self.exists = True
+        logic_id += 1
+
+    def Draw(self):
+        PyImGui.push_id(f"{self.id}pin")
+        match self.type:
+            case "FLOW":
+                PyImGui.draw_list_add_circle(self.location[0] + self.radius, self.location[1] + self.radius, self.radius, PACKED_GREY, 4, 3)
+            case _:
+                pass
+        pressed = PyImGui.invisible_button("pin_button", self.radius * 2, self.radius * 2)
+        hovered = PyImGui.is_item_hovered()
+        if PyImGui.is_item_active() and PyImGui.is_mouse_dragging(0, -1.0):
+            global pin_load
+            pin_load = self
+            # print(f"Pin pressed {self.id}")
+        if hovered:
+            global pin_hover
+            pin_hover = self
+        PyImGui.pop_id()
 
 
-class NodeSelector(dNodes.Node):
+class Link():
+    def __init__(self):
+        global logic_id
+        self.pins: List[Pin] = list()
+        self.exists = True
+        self.id = logic_id
+        logic_id += 1
+
+    def Draw(self):
+        PyImGui.push_id(f"linkid{self.id}")
+        if not self.pins[0].exists or not self.pins[1].exists:
+            self.exists = False
+            return
+        PyImGui.draw_list_add_line(self.pins[0].location[0] + self.pins[0].radius, self.pins[0].location[1] + self.pins[0].radius, self.pins[1].location[0] + self.pins[0].radius, self.pins[1].location[1] + self.pins[0].radius, Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255), 4)
+        PyImGui.set_cursor_screen_pos((self.pins[0].location[0] + self.pins[1].location[0])/2 - 5, (self.pins[0].location[1] + self.pins[1].location[1])/2 - 5)
+        self.exists = not PyImGui.small_button("d")
+        PyImGui.pop_id()
+
+class LogicType():
+    def __init__(self):
+        global logic_id
+        self.id = logic_id
+        logic_id += 1
+        self.type = "None"
+        self.delete_me = False
+        self.del_width = 30
+        self.header_color = (0.20, 0.15, 0.7, 1.0)
+        self.height = 40
+        self.width = 100
+        self.pins: List[Pin] = list()
+
+    def draw_header(self):
+        PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+        PyImGui.text(self.type)
+        PyImGui.pop_item_width()
+        PyImGui.same_line(PyImGui.get_content_region_avail()[0] - self.del_width, -1)
+        if PyImGui.small_button("del"):
+            self.delete_me = True
+            p: Pin
+            for p in self.pins:
+                p.exists = False
+
+    def draw_body(self):
+        pass
+
+    def draw(self):
+        self.draw_body()
+
+    def draw_inputs(self):
+        pass
+
+    def draw_outputs(self):
+        pass
+
+
+class LogicOnFrame(LogicType):
+    def __init__(self):
+        super().__init__()
+        self.type = "OnFrame"
+
+    def draw_body(self):
+        PyImGui.text("Trigger Every Frame")
+
+
+class LogicSelector(LogicType):
     def __init__(self):
         super().__init__()
         self.type = "Selector"
         self.index = 0
-        self.height = 30
-        self.width = 100
-        self.side_padding = 30
-        self.input_pin = dNodes.Pin(True, PinTypes.BOOL, self.id)
-        self.output_pin = dNodes.Pin(False, PinTypes.BOOL, self.id)
+        self.height = 60
+        self.input_pin = Pin()
+        self.output_pin = Pin()
         self.pins.append(self.input_pin)
         self.pins.append(self.output_pin)
 
     def draw_inputs(self):
         pos = PyImGui.get_cursor_screen_pos()
         self.input_pin.location = pos
-        self.input_pin.draw()
+        self.input_pin.Draw()
         # PyImGui.draw_list_add_circle(pos[0], pos[1], 5, Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255), 4, 3)
 
     def draw_outputs(self):
         pos = PyImGui.get_cursor_screen_pos()
         self.output_pin.location = pos
-        self.output_pin.draw()
+        self.output_pin.Draw()
         # PyImGui.draw_list_add_circle(pos[0], pos[1], 5, Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255), 4, 3)
 
     def draw_body(self):
@@ -79,8 +175,60 @@ class NodeSelector(dNodes.Node):
         self.index = PyImGui.combo(f"##LogicSelector{self.id}", self.index, ["Selector", "Triggers", "Flow", "Logic/Math", "Data", "Output"])
         PyImGui.pop_item_width()
         match self.index:
+            case 0:
+                pass
+            case 1:
+                pass
             case _:
                 pass
+
+
+class LogicBlock():
+    def __init__(self):
+        global logic_id
+        self.id = logic_id
+        self.header = 20
+        self.side_padding = 20
+        self.x = 100
+        self.y = 100
+        self.hovered = False
+        logic_id += 1
+        self.logic: LogicType = LogicSelector()
+
+    def draw(self):
+        PyImGui.push_id(f"Ldraw{self.id}")
+        PyImGui.set_cursor_pos(self.x, self.y)
+        if self.hovered:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, (0.30, 0.15, 0.2, 1.0))
+        else:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, (0.10, 0.15, 0.2, 1.0))
+        PyImGui.begin_child(f"LogicBlockFull", (self.logic.width + self.side_padding * 2, self.header + self.logic.height), border=False)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, self.logic.header_color)
+        PyImGui.begin_child(f"LogicHeader", (self.logic.width + self.side_padding * 2, self.header), border=False)
+        pos = PyImGui.get_cursor_pos()
+        pressed = PyImGui.invisible_button(f"##LogicBlockButton{self.id}", self.logic.width + self.side_padding * 2 - self.logic.del_width, self.header)
+        self.hovered = PyImGui.is_item_hovered()
+        if PyImGui.is_item_active() and PyImGui.is_mouse_dragging(0, -1.0):
+            self.hovered = True
+            dx, dy = PyImGui.get_mouse_drag_delta(0, 0.0)
+            self.x += dx
+            self.y += dy
+            PyImGui.reset_mouse_drag_delta(0)
+        PyImGui.set_cursor_pos(pos[0], pos[1] + 2)
+        self.logic.draw_header()
+        PyImGui.end_child()
+        PyImGui.pop_style_color(1)
+        PyImGui.set_cursor_pos(2, pos[1] + self.header + 2)
+        self.logic.draw_inputs()
+        PyImGui.set_cursor_pos(self.side_padding, self.header)
+        PyImGui.begin_child(f"LogicBody", (self.logic.width, self.logic.height), border=False)
+        self.logic.draw_body()
+        PyImGui.end_child()
+        PyImGui.set_cursor_pos(self.side_padding + self.logic.width + 2, pos[1] + self.header + 2)
+        self.logic.draw_outputs()
+        PyImGui.end_child()
+        PyImGui.pop_style_color(1)
+        PyImGui.pop_id()
 
 
 class Cache():
@@ -121,11 +269,11 @@ class Cache():
         self.qa_attack_detect = False
         #smartcast
         self.sc_checkbox = False
-        self.node_space = dNodes.NodeSpace("SmartCastSpace")
-
-
+        self.logic_blocks = []
+        self.links: List[Link] = list()
+        self.pin_delay = False
+        self.link_drag = 0
 cache = Cache()
-cache.node_space.new_node_class = NodeSelector
 
 
 def DrawGenericSkills():
@@ -267,7 +415,8 @@ def DrawQuickAttack():
 
 
 def DrawSmartCast():
-    global cache
+    global pin_hover, pin_load, pin_drag_start
+    pin_hover = None
 
     section_header = PyImGui.collapsing_header("SmartCast", 4)
     PyImGui.same_line(PyImGui.get_content_region_avail()[0] - 20, -1)
@@ -277,7 +426,57 @@ def DrawSmartCast():
 
     if section_header:
         PyImGui.text("NOT COMPLETE: IN DEV")  # todo get rid of this
-        cache.node_space.draw_space()
+        PyImGui.begin_child("SmartCastOne", border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar)
+        PyImGui.begin_child("SmartCastTwo", (10000, 40000), border=True)
+        if PyImGui.button("Create Logic Block"):
+            cache.logic_blocks.append(LogicBlock())
+        block: LogicBlock
+        PyImGui.text(f"[{PyImGui.get_content_region_avail()}]")
+        pos = PyImGui.get_cursor_pos()
+        for block in cache.logic_blocks:
+            # if avail > block.width + 10:
+            #    PyImGui.same_line(0, 10)
+            # avail = PyImGui.get_content_region_avail()[0]
+            if block.logic.delete_me:
+                cache.logic_blocks.remove(block)
+                break
+            else:
+                block.draw()
+            # PyImGui.same_line(0, 10)
+            # PyImGui.text(f"[{PyImGui.get_content_region_avail()[0]}, {block.width * 4}, {avail > block.width * 4}]")
+        link: Link
+        for link in cache.links:
+            if not link.exists:
+                cache.links.remove(link)
+                break
+            link.Draw()
+        PyImGui.set_cursor_pos(pos[0], pos[1])
+        PyImGui.text(f"Hovered {pin_hover if pin_hover is None else pin_hover.id}, {cache.link_drag}")
+        if pin_load is not None:
+            if PyImGui.is_mouse_dragging(0, -1.0):
+                # PyImGui.text("Dragon deez")
+                cache.link_drag = 3
+            if cache.link_drag > 0:
+                if pin_drag_start is None:
+                    pin_drag_start = pin_load.location
+                    pin_drag_start[0] += pin_load.radius
+                    pin_drag_start[1] += pin_load.radius
+                dx, dy = PyImGui.get_mouse_drag_delta(0, 0.0)
+                PyImGui.draw_list_add_line(pin_load.location[0] + pin_load.radius, pin_load.location[1] + pin_load.radius, pin_drag_start[0] + dx, pin_drag_start[1] + dy, PACKED_GREY, 4)
+                if not PyImGui.is_mouse_dragging(0, -1):
+                    if pin_hover is not None and pin_load != pin_hover:
+                        new_link: Link = Link()
+                        new_link.pins.append(pin_load)
+                        new_link.pins.append(pin_hover)
+                        cache.links.append(new_link)
+                        cache.link_drag = 1
+                cache.link_drag -= 1
+            else:
+                pin_load = None
+                pin_drag_start = None
+
+        PyImGui.end_child()
+        PyImGui.end_child()
 
 def draw_widget(cached_data):
     global window_x, window_y, window_collapsed, first_run
@@ -328,7 +527,7 @@ def draw_widget(cached_data):
 def configure():
     pass
 
-def UseGenericSkills(energy, player_id, now):
+def UseGenericSkills(energy, player_id, player_ag, now):
     global cache
     player_x, player_y = GW.Agent.GetXY(player_id)
     nearest_foe_id = GW.Routines.Agents.GetNearestEnemy()
@@ -366,7 +565,7 @@ def UseGenericSkills(energy, player_id, now):
                 return True
     return False
 
-def MaintainRefrains(player_id, now):
+def MaintainRefrains(player_id, player_ag, now):
     effects = GW.Effects.GetEffects(player_id)
     effect : GW.PyEffects.EffectType
     rit_lord = next((effect for effect in effects if effect.skill_id == GW.Skill.GetID("Ritual_Lord")), None)
@@ -413,7 +612,7 @@ def MaintainRefrains(player_id, now):
     refrains = [heroic, bladeturn, aggressive, burning, hasty, mending]
     refrains = [x for x in refrains if x is not None]
     help_me_slot = GW.SkillBar.GetSlotBySkillID(help_me_skill.id.id)
-    attributes: List[GW.AttributeClass] = GW.Agent.GetAttributes(player_id)
+    attributes = GW.Agent.GetAttributes(player_id)
     command = next((attr for attr in attributes if attr.attribute_id == GW.PyAgent.SafeAttribute.Command), None)
     if command is None:
         help_me_duration = help_me_skill.duration_0pts
@@ -464,7 +663,7 @@ def MaintainRefrains(player_id, now):
                     return True
     return False
 
-def AuraOfTheAssassin(energy, player_id, now):
+def AuraOfTheAssassin(energy, player_id, player_ag, now):
     player_x, player_y = GW.Agent.GetXY(player_id)
     foes = GW.Routines.Agents.GetFilteredEnemyArray(player_x, player_y, 1000)
     found = False
@@ -484,7 +683,7 @@ def AuraOfTheAssassin(energy, player_id, now):
             return True
     return False
 
-def QuickAttack(energy, player_id, now, delta):
+def QuickAttack(energy, player_id, player_ag, now, delta):
     global cache
     if GW.Agent.IsAttacking(player_id):
         if not cache.qa_attack_detect:
@@ -510,17 +709,17 @@ def Update():
     if cache.busy_timer > 0:
         return
     player_id = GW.Player.GetAgentID()
-    # player_ag : GW.AgentStruct = GW.Agent.GetAgentByID(player_id)
+    player_ag = GW.Player.GetAgent()
     energy = GW.Agent.GetEnergy(player_id) * GW.Agent.GetMaxEnergy(player_id)
     if cache.generic_skill_use_checkbox:
-        if UseGenericSkills(energy, player_id, now): return
+        if UseGenericSkills(energy, player_id, player_ag, now): return
     # TODO autoritlord
     if cache.qa_checkbox:
-        if QuickAttack(energy, player_id, now, delta): return
+        if QuickAttack(energy, player_id, player_ag, now, delta): return
     if cache.refrainer_use_checkbox:
-        if MaintainRefrains(player_id, now): return
+        if MaintainRefrains(player_id, player_ag, now): return
     if cache.aota_checkbox:
-        if AuraOfTheAssassin(energy, player_id, now): return
+        if AuraOfTheAssassin(energy, player_id, player_ag, now): return
     # TODO AutoFinishHim
 
 
