@@ -1,0 +1,3 @@
+[submodule "Py4GWCoreLib/dNodes"]
+	path = Py4GWCoreLib/dNodes
+	url = https://github.com/thermad/dNodes.git
