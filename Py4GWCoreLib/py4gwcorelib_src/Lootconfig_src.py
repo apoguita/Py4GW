@@ -743,8 +743,11 @@ class LootConfig:
                 return True
 
             # Always pick up gold coins (if unassigned)
-            agent = Agent.agent_instance(item_id)
-            item_agent_id = agent.item_agent.item_id
+            item_agent = Agent.GetItemAgentByID(item_id)
+            if item_agent is None:
+                return False
+            
+            item_agent_id = item_agent.item_id
             item_type, _ = Item.GetItemType(item_agent_id)
             if item_type == ItemType.Gold_Coin and owner_id == 0:
                 return True

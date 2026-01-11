@@ -52,7 +52,7 @@ class DisruptingDaggerUtility(CustomSkillUtilityBase):
                 condition=lambda agent_id: 
                     Agent.IsCasting(agent_id) and 
                     Utils.Distance(Agent.GetXY(agent_id), player_position) < Range.Spellcast.value * 0.4  and 
-                    GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkill(agent_id)) >= 0.51,
+                    GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkillID(agent_id)) >= 0.51,
                 sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.CASTER_THEN_MELEE))
         ))
 

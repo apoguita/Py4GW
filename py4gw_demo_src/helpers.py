@@ -6,6 +6,7 @@ from Py4GWCoreLib.UIManager import FrameInfo, UIManager
 
 VIEW_LIST = [
     "Map",
+    "AgentArray",
     "Agents",
 ]
 

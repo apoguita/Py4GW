@@ -265,7 +265,7 @@ class Targeting:
         def _filter_spells(enemy_array):
             result_array = []
             for enemy_id in enemy_array:
-                casting_skill_id = Agent.GetCastingSkill(enemy_id)
+                casting_skill_id = Agent.GetCastingSkillID(enemy_id)
                 if GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id):
                     result_array.append(enemy_id)
             return result_array

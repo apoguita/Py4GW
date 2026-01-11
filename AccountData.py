@@ -139,7 +139,7 @@ class AgentData:
             self.agent_id = GLOBAL_CACHE.SkillBar.GetAgentID()
             self.disabled = GLOBAL_CACHE.SkillBar.GetDisabled()
             self.casting = GLOBAL_CACHE.SkillBar.GetCasting()
-            self.casting_skill_id = Agent.GetCastingSkill(self.agent_id)
+            self.casting_skill_id = Agent.GetCastingSkillID(self.agent_id)
             
             for i in range(1,9):
                 skill_data = GLOBAL_CACHE.SkillBar.GetSkillBySlot(i)

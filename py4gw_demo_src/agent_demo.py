@@ -1,5 +1,5 @@
 
-from Py4GWCoreLib import PyImGui, Agent
+from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import ImGui 
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Allegiance
@@ -26,7 +26,7 @@ window_module = ImGui.WindowModule(
 SELECTED_ALLIEGANCE = 0
 SELECTED_AGENT_INDEX = 0 
 SELECTED_AGENT_ID = 0    
-def DrawMainWindow():
+def draw_agents_view():
     global SELECTED_ALLIEGANCE, SELECTED_AGENT_INDEX, SELECTED_AGENT_ID
     def _get_type(agent:AgentStruct) -> str:
         if agent.is_living_type:
@@ -437,124 +437,114 @@ def DrawMainWindow():
     nearest_npc:AgentStruct | None = Agent.GetAgentByID(Routines.Agents.GetNearestNPC() or 0)
     target:AgentStruct | None = Agent.GetAgentByID(Player.GetTargetID() or 0)
 
-    if PyImGui.begin(window_module.window_name, window_module.window_flags):
-        if PyImGui.begin_child("NearestAgents Info", size=(600, 230),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
-            headers = ["Closest", "ID", "Name", "{x,y,z}", "Type"]
-            data = [
-                _format_agent_row("Player:", player),
-                _format_agent_row("Enemy:", nearest_enemy),
-                _format_agent_row("Ally:", nearest_ally),
-                _format_agent_row("Item:", nearest_item),
-                _format_agent_row("Gadget:", nearest_gadget),
-                _format_agent_row("NPC/Minipet:", nearest_npc),
-                _format_agent_row("Target:", target),
-            ]
+#region main
+    #if PyImGui.begin(window_module.window_name, window_module.window_flags):
+    if PyImGui.begin_child("NearestAgents Info", size=(600, 230),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+        headers = ["Closest", "ID", "Name", "{x,y,z}", "Type"]
+        data = [
+            _format_agent_row("Player:", player),
+            _format_agent_row("Enemy:", nearest_enemy),
+            _format_agent_row("Ally:", nearest_ally),
+            _format_agent_row("Item:", nearest_item),
+            _format_agent_row("Gadget:", nearest_gadget),
+            _format_agent_row("NPC/Minipet:", nearest_npc),
+            _format_agent_row("Target:", target),
+        ]
 
-            ImGui.table("Nearest Agents Data",headers,data)
-            
-            PyImGui.text("Targetting:")
-            PyImGui.push_item_width(175)
-            # Build combo items where index 0 = "All" (Unknown), rest map to Allegiance values 1..6
-            combo_items = ["All"] + [a.name for a in Allegiance if a != Allegiance.Unknown]
-            SELECTED_ALLIEGANCE = PyImGui.combo("Allegiance", SELECTED_ALLIEGANCE, combo_items)
-            PyImGui.pop_item_width()
-            PyImGui.same_line(0, -1)
-
-            # Efficiently use the correct pre-filtered array
-            if SELECTED_ALLIEGANCE == 0:
-                agent_ids = AgentArray.GetAgentArray()
-            else:
-                allegiance_enum = list(Allegiance)[SELECTED_ALLIEGANCE]
-                
-                if allegiance_enum == Allegiance.Ally:
-                    agent_ids = AgentArray.GetAllyArray()
-                elif allegiance_enum == Allegiance.Neutral:
-                    agent_ids = AgentArray.GetNeutralArray()
-                elif allegiance_enum == Allegiance.Enemy:
-                    agent_ids = AgentArray.GetEnemyArray()
-                elif allegiance_enum == Allegiance.SpiritPet:
-                    agent_ids = AgentArray.GetSpiritPetArray()
-                elif allegiance_enum == Allegiance.Minion:
-                    agent_ids = AgentArray.GetMinionArray()
-                elif allegiance_enum == Allegiance.NpcMinipet:
-                    agent_ids = AgentArray.GetNPCMinipetArray()
-                else:
-                    agent_ids = AgentArray.GetAgentArray()
-            # Build combo items: "id - name"
-            combo_items = []
-            id_map = []
-            for agent_id in agent_ids:
-                agent = Agent.GetAgentByID(agent_id)
-                if agent and agent.agent_id != 0:
-                    from Py4GWCoreLib import GLOBAL_CACHE
-                    combo_items.append(f"{agent.agent_id} - {Agent.GetNameByID(agent.agent_id)}")
-                    id_map.append(agent.agent_id)  # maintain index mapping
-
-            # Show combo
-            PyImGui.push_item_width(175)
-            SELECTED_AGENT_INDEX = PyImGui.combo("Agent", SELECTED_AGENT_INDEX, combo_items)
-
-            # Validate selection and update selected agent ID
-            if 0 <= SELECTED_AGENT_INDEX < len(id_map):
-                SELECTED_AGENT_ID = id_map[SELECTED_AGENT_INDEX]
-            else:
-                SELECTED_AGENT_ID = 0  # Reset if invalid
-
-            PyImGui.pop_item_width()
-            PyImGui.same_line(0, -1)
-
-            # Only show the button if there's a valid agent selected
-            if SELECTED_AGENT_ID != 0:
-                if PyImGui.button("Set Target"):
-                    Player.ChangeTarget(SELECTED_AGENT_ID)
-
-            PyImGui.end_child()
-            
-        if PyImGui.begin_child("InfoGlobalArea", size=(600, 500),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
-            if PyImGui.begin_tab_bar("InfoTabBar"):
-                if player and player.agent_id != 0:
-                    if PyImGui.begin_tab_item(f"{"Player"}##tab{player.agent_id}"):
-                        _draw_agent_tab_item(player.agent_id)
-                        PyImGui.end_tab_item()
-                
-                if target and target.agent_id is not None:
-                    if PyImGui.begin_tab_item(f"{"Target"}##tab{target.agent_id}"):
-                        _draw_agent_tab_item(target.agent_id)
-                        PyImGui.end_tab_item()
-                if nearest_enemy and nearest_enemy.agent_id != 0:
-                    if PyImGui.begin_tab_item(f"{"Enemy"}##tab{nearest_enemy.agent_id}"):
-                        _draw_agent_tab_item(nearest_enemy.agent_id)
-                        PyImGui.end_tab_item()
-                if nearest_ally and nearest_ally.agent_id != 0:
-                    if PyImGui.begin_tab_item(f"{"Ally"}##tab{nearest_ally.agent_id}"):
-                        _draw_agent_tab_item(nearest_ally.agent_id)
-                        PyImGui.end_tab_item()
-                if nearest_item and nearest_item.agent_id != 0:
-                    if PyImGui.begin_tab_item(f"{"Item"}##tab{nearest_item.agent_id}"):
-                        _draw_agent_tab_item(nearest_item.agent_id)
-                        PyImGui.end_tab_item()
-                if nearest_gadget and nearest_gadget.agent_id != 0:
-                    if PyImGui.begin_tab_item(f"{"Gadget"}##tab{nearest_gadget.agent_id}"):
-                        _draw_agent_tab_item(nearest_gadget.agent_id)
-                        PyImGui.end_tab_item()
-                if nearest_npc and nearest_npc.agent_id != 0:
-                    if PyImGui.begin_tab_item(f"{"NPC"}##tab{nearest_npc.agent_id}"):
-                        _draw_agent_tab_item(nearest_npc.agent_id)
-                        PyImGui.end_tab_item()
-                        
-                PyImGui.end_tab_bar()
-            PyImGui.end_child()
+        ImGui.table("Nearest Agents Data",headers,data)
         
-    PyImGui.end()
-    
-def configure():
-    pass
+        PyImGui.text("Targetting:")
+        PyImGui.push_item_width(175)
+        # Build combo items where index 0 = "All" (Unknown), rest map to Allegiance values 1..6
+        combo_items = ["All"] + [a.name for a in Allegiance if a != Allegiance.Unknown]
+        SELECTED_ALLIEGANCE = PyImGui.combo("Allegiance", SELECTED_ALLIEGANCE, combo_items)
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, -1)
 
-def main():
-    if not Routines.Checks.Map.MapValid():
-        return
-    
-    DrawMainWindow()
+        # Efficiently use the correct pre-filtered array
+        if SELECTED_ALLIEGANCE == 0:
+            agent_ids = AgentArray.GetAgentArray()
+        else:
+            allegiance_enum = list(Allegiance)[SELECTED_ALLIEGANCE]
+            
+            if allegiance_enum == Allegiance.Ally:
+                agent_ids = AgentArray.GetAllyArray()
+            elif allegiance_enum == Allegiance.Neutral:
+                agent_ids = AgentArray.GetNeutralArray()
+            elif allegiance_enum == Allegiance.Enemy:
+                agent_ids = AgentArray.GetEnemyArray()
+            elif allegiance_enum == Allegiance.SpiritPet:
+                agent_ids = AgentArray.GetSpiritPetArray()
+            elif allegiance_enum == Allegiance.Minion:
+                agent_ids = AgentArray.GetMinionArray()
+            elif allegiance_enum == Allegiance.NpcMinipet:
+                agent_ids = AgentArray.GetNPCMinipetArray()
+            else:
+                agent_ids = AgentArray.GetAgentArray()
+        # Build combo items: "id - name"
+        combo_items = []
+        id_map = []
+        for agent_id in agent_ids:
+            agent = Agent.GetAgentByID(agent_id)
+            if agent and agent.agent_id != 0:
+                from Py4GWCoreLib import GLOBAL_CACHE
+                combo_items.append(f"{agent.agent_id} - {Agent.GetNameByID(agent.agent_id)}")
+                id_map.append(agent.agent_id)  # maintain index mapping
 
-if __name__ == "__main__":
-    main()
+        # Show combo
+        PyImGui.push_item_width(175)
+        SELECTED_AGENT_INDEX = PyImGui.combo("Agent", SELECTED_AGENT_INDEX, combo_items)
+
+        # Validate selection and update selected agent ID
+        if 0 <= SELECTED_AGENT_INDEX < len(id_map):
+            SELECTED_AGENT_ID = id_map[SELECTED_AGENT_INDEX]
+        else:
+            SELECTED_AGENT_ID = 0  # Reset if invalid
+
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, -1)
+
+        # Only show the button if there's a valid agent selected
+        if SELECTED_AGENT_ID != 0:
+            if PyImGui.button("Set Target"):
+                Player.ChangeTarget(SELECTED_AGENT_ID)
+
+        PyImGui.end_child()
+        
+    if PyImGui.begin_child("InfoGlobalArea", size=(600, 500),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+        if PyImGui.begin_tab_bar("InfoTabBar"):
+            if player and player.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Player"}##tab{player.agent_id}"):
+                    _draw_agent_tab_item(player.agent_id)
+                    PyImGui.end_tab_item()
+            
+            if target and target.agent_id is not None:
+                if PyImGui.begin_tab_item(f"{"Target"}##tab{target.agent_id}"):
+                    _draw_agent_tab_item(target.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_enemy and nearest_enemy.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Enemy"}##tab{nearest_enemy.agent_id}"):
+                    _draw_agent_tab_item(nearest_enemy.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_ally and nearest_ally.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Ally"}##tab{nearest_ally.agent_id}"):
+                    _draw_agent_tab_item(nearest_ally.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_item and nearest_item.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Item"}##tab{nearest_item.agent_id}"):
+                    _draw_agent_tab_item(nearest_item.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_gadget and nearest_gadget.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"Gadget"}##tab{nearest_gadget.agent_id}"):
+                    _draw_agent_tab_item(nearest_gadget.agent_id)
+                    PyImGui.end_tab_item()
+            if nearest_npc and nearest_npc.agent_id != 0:
+                if PyImGui.begin_tab_item(f"{"NPC"}##tab{nearest_npc.agent_id}"):
+                    _draw_agent_tab_item(nearest_npc.agent_id)
+                    PyImGui.end_tab_item()
+                    
+            PyImGui.end_tab_bar()
+        PyImGui.end_child()
+        
+    #PyImGui.end()
+    
