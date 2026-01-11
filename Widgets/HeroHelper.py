@@ -666,7 +666,7 @@ def smart_interrupt():
         if Helper.is_agent_alive(eid)
         and Agent.IsCasting(eid)
         and Utils.Distance(player_pos, Agent.GetXY(eid)) <= spell_range
-        and Agent.GetCastingSkill(eid) in skills_to_rupt_ids
+        and Agent.GetCastingSkillID(eid) in skills_to_rupt_ids
     ]
 
     if not casting_enemies:
