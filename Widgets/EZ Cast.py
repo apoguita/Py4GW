@@ -2,6 +2,7 @@ import os
 import traceback
 
 import Py4GW  # type: ignore
+import Py4GWCoreLib
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
@@ -9,6 +10,10 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Timer
 import Py4GWCoreLib as GW
 import time
+from typing import List
+import Py4GWCoreLib.dNodes.dNodes as dNodes
+
+# import node_editor as ed
 
 """Module by Dharmanatrix for autocasting spells for ease of play."""
 
@@ -38,6 +43,45 @@ Y_POS = "y"
 window_x = ini_window.read_int(MODULE_NAME, X_POS, 100)
 window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
+
+
+class PinTypes(dNodes.PinType):
+    BOOL = 1
+
+
+class NodeSelector(dNodes.Node):
+    def __init__(self):
+        super().__init__()
+        self.type = "Selector"
+        self.index = 0
+        self.height = 30
+        self.width = 100
+        self.side_padding = 30
+        self.input_pin = dNodes.Pin(True, PinTypes.BOOL, self.id)
+        self.output_pin = dNodes.Pin(False, PinTypes.BOOL, self.id)
+        self.pins.append(self.input_pin)
+        self.pins.append(self.output_pin)
+
+    def draw_inputs(self):
+        pos = PyImGui.get_cursor_screen_pos()
+        self.input_pin.location = pos
+        self.input_pin.draw()
+        # PyImGui.draw_list_add_circle(pos[0], pos[1], 5, Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255), 4, 3)
+
+    def draw_outputs(self):
+        pos = PyImGui.get_cursor_screen_pos()
+        self.output_pin.location = pos
+        self.output_pin.draw()
+        # PyImGui.draw_list_add_circle(pos[0], pos[1], 5, Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255), 4, 3)
+
+    def draw_body(self):
+        PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+        self.index = PyImGui.combo(f"##LogicSelector{self.id}", self.index, ["Selector", "Triggers", "Flow", "Logic/Math", "Data", "Output"])
+        PyImGui.pop_item_width()
+        match self.index:
+            case _:
+                pass
+
 
 class Cache():
     def __init__(self):
@@ -75,7 +119,14 @@ class Cache():
         self.qa_attack_time = 1
         self.qa_percent_cancel = 0.5
         self.qa_attack_detect = False
+        #smartcast
+        self.sc_checkbox = False
+        self.node_space = dNodes.NodeSpace("SmartCastSpace")
+
+
 cache = Cache()
+cache.node_space.new_node_class = NodeSelector
+
 
 def DrawGenericSkills():
     generic_skill_collapse = PyImGui.collapsing_header("GenericSkillUse", 4)
@@ -167,6 +218,7 @@ def DrawGenericSkills():
                                                            cache.combat_ranges[len(cache.combat_ranges) - 1])
             PyImGui.pop_style_color(1)
 
+
 def DrawRefrainMaintainer():
     section_header = PyImGui.collapsing_header("Refrain Maintainer", 4)
     PyImGui.same_line(PyImGui.get_content_region_avail()[0] - 20, -1)
@@ -176,10 +228,13 @@ def DrawRefrainMaintainer():
 
     if section_header:
         # PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
+        cache.node_editor.begin()
+        cache.node_editor.end()
         PyImGui.text_wrapped("""This function will use "Help Me!" to maintain refrains intelligently. It will alternatively use "Dont Trip!" and "I am Unstoppable!" if both are present. If only "Don't Trip!" is available, it will require a recharge reduction such as an Essence of Celerity to work.""")
         PyImGui.slider_float("Grace buffer", cache.refrain_buffer, 0, 10)
         if PyImGui.is_item_hovered():
             PyImGui.set_tooltip("The time in seconds that a refrain should have remaining when the shout ends.\nValues lower than ping will result in dropped refrains.")
+
 
 def DrawAuraOfTheAssassin():
     section_header = PyImGui.collapsing_header("Aura of the Assassin", 4)
@@ -211,6 +266,18 @@ def DrawQuickAttack():
             """This function will cancel attacks as soon as they complete the damage phase and queue follow up attack skills to increase effective attack speed.""")
 
 
+def DrawSmartCast():
+    global cache
+
+    section_header = PyImGui.collapsing_header("SmartCast", 4)
+    PyImGui.same_line(PyImGui.get_content_region_avail()[0] - 20, -1)
+    cache.sc_checkbox = PyImGui.checkbox("##SCCheckbox", cache.sc_checkbox)
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Disable" if cache.sc_checkbox else "Enable")
+
+    if section_header:
+        PyImGui.text("NOT COMPLETE: IN DEV")  # todo get rid of this
+        cache.node_space.draw_space()
 
 def draw_widget(cached_data):
     global window_x, window_y, window_collapsed, first_run
@@ -237,6 +304,7 @@ def draw_widget(cached_data):
         # ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
         DrawGenericSkills()
         DrawRefrainMaintainer()
+        DrawSmartCast()
         if cache.dev_mode:
             DrawAuraOfTheAssassin()
             DrawQuickAttack()
@@ -260,7 +328,7 @@ def draw_widget(cached_data):
 def configure():
     pass
 
-def UseGenericSkills(energy, player_id, player_ag, now):
+def UseGenericSkills(energy, player_id, now):
     global cache
     player_x, player_y = GW.Agent.GetXY(player_id)
     nearest_foe_id = GW.Routines.Agents.GetNearestEnemy()
@@ -271,8 +339,8 @@ def UseGenericSkills(energy, player_id, player_ag, now):
         nearest_distance = (player_x - foe_x) ** 2 + (player_y - foe_y) ** 2
     cache.combat = (nearest_distance < square_dis)
     # GW.Console.Log("",f"{cache.combat} cache result")
-    for n in range(0,3):
-        for i in range(1,9):
+    for n in range(0, 3):
+        for i in range(1, 9):
             if not cache.skill_array[n][i - 1]: continue
             if cache.combat_skill[i - 1] and not cache.combat: continue
             if not GW.Routines.Checks.Skills.IsSkillSlotReady(i): continue
@@ -298,7 +366,7 @@ def UseGenericSkills(energy, player_id, player_ag, now):
                 return True
     return False
 
-def MaintainRefrains(player_id, player_ag, now):
+def MaintainRefrains(player_id, now):
     effects = GW.Effects.GetEffects(player_id)
     effect : GW.PyEffects.EffectType
     rit_lord = next((effect for effect in effects if effect.skill_id == GW.Skill.GetID("Ritual_Lord")), None)
@@ -345,7 +413,7 @@ def MaintainRefrains(player_id, player_ag, now):
     refrains = [heroic, bladeturn, aggressive, burning, hasty, mending]
     refrains = [x for x in refrains if x is not None]
     help_me_slot = GW.SkillBar.GetSlotBySkillID(help_me_skill.id.id)
-    attributes = GW.Agent.GetAttributes(player_id)
+    attributes: List[GW.AttributeClass] = GW.Agent.GetAttributes(player_id)
     command = next((attr for attr in attributes if attr.attribute_id == GW.PyAgent.SafeAttribute.Command), None)
     if command is None:
         help_me_duration = help_me_skill.duration_0pts
@@ -396,7 +464,7 @@ def MaintainRefrains(player_id, player_ag, now):
                     return True
     return False
 
-def AuraOfTheAssassin(energy, player_id, player_ag, now):
+def AuraOfTheAssassin(energy, player_id, now):
     player_x, player_y = GW.Agent.GetXY(player_id)
     foes = GW.Routines.Agents.GetFilteredEnemyArray(player_x, player_y, 1000)
     found = False
@@ -416,7 +484,7 @@ def AuraOfTheAssassin(energy, player_id, player_ag, now):
             return True
     return False
 
-def QuickAttack(energy, player_id, player_ag, now, delta):
+def QuickAttack(energy, player_id, now, delta):
     global cache
     if GW.Agent.IsAttacking(player_id):
         if not cache.qa_attack_detect:
@@ -442,17 +510,17 @@ def Update():
     if cache.busy_timer > 0:
         return
     player_id = GW.Player.GetAgentID()
-    player_ag = GW.Player.GetAgent()
+    # player_ag : GW.AgentStruct = GW.Agent.GetAgentByID(player_id)
     energy = GW.Agent.GetEnergy(player_id) * GW.Agent.GetMaxEnergy(player_id)
     if cache.generic_skill_use_checkbox:
-        if UseGenericSkills(energy, player_id, player_ag, now): return
+        if UseGenericSkills(energy, player_id, now): return
     # TODO autoritlord
     if cache.qa_checkbox:
-        if QuickAttack(energy, player_id, player_ag, now, delta): return
+        if QuickAttack(energy, player_id, now, delta): return
     if cache.refrainer_use_checkbox:
-        if MaintainRefrains(player_id, player_ag, now): return
+        if MaintainRefrains(player_id, now): return
     if cache.aota_checkbox:
-        if AuraOfTheAssassin(energy, player_id, player_ag, now): return
+        if AuraOfTheAssassin(energy, player_id, now): return
     # TODO AutoFinishHim
 
 
