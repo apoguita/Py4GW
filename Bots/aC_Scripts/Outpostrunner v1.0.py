@@ -808,7 +808,7 @@ def main():
 
             player_pos = GLOBAL_CACHE.Player.GetXY()
             player_z = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
-            map_id = PyMap.PyMap().map_id.ToInt()
+            map_id = Map.GetMapID()
             x = PyImGui.input_int("Target X", x)
             y = PyImGui.input_int("Target Y", y)
 

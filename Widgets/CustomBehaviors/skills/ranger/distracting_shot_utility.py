@@ -52,7 +52,7 @@ class DistractingShotUtility(CustomSkillUtilityBase):
                 condition=lambda agent_id: 
                     Agent.IsCasting(agent_id) and 
                     Utils.Distance(Agent.GetXY(agent_id), (player_position)) < Range.Spellcast.value * 0.6 and
-                    GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkill(agent_id)) >= 0.510,
+                    GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkillID(agent_id)) >= 0.510,
                 sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.CASTER_THEN_MELEE))
         ))
 
