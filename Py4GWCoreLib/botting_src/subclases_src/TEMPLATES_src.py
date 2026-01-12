@@ -1,5 +1,5 @@
 #region CONFIG_TEMPLATES
-from typing import TYPE_CHECKING, Any, Callable, Generator
+from typing import TYPE_CHECKING, Any, Callable, Generator, List
 
 from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
 
@@ -25,6 +25,9 @@ class _TEMPLATES:
         properties.Disable("hero_ai") #no hero combat     
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
+        
+        from Widgets.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsPacifist(self.parent)
 
     def Aggressive(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
@@ -60,6 +63,9 @@ class _TEMPLATES:
         else:
             properties.Disable("imp")
         
+        from Widgets.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
+        
     def Multibox_Aggressive(self):
         properties = self.parent.Properties
         properties.Enable("pause_on_danger") #engage in combat
@@ -69,7 +75,9 @@ class _TEMPLATES:
         properties.Enable("hero_ai") #hero combat     
         properties.Enable("auto_loot") #wait for loot
         properties.Enable("auto_inventory_management") #manage inventory
-
+        
+        from Widgets.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
 
 #region Routines
     class _Routines:
