@@ -957,7 +957,7 @@ def CanCast():
 
     if (
         Agent.IsCasting(player_agent_id) 
-        or Agent.GetCastingSkill(player_agent_id) != 0
+        or Agent.GetCastingSkillID(player_agent_id) != 0
         or Agent.IsKnockedDown(player_agent_id)
         or Agent.IsDead(player_agent_id)
         or SkillBar.GetCasting() != 0

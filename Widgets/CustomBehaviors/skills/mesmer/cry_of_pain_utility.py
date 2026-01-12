@@ -44,7 +44,7 @@ class CryOfPainUtility(CustomSkillUtilityBase):
                 within_range=Range.Spellcast,
                 condition=lambda agent_id: condition(agent_id) and 
                 Agent.IsCasting(agent_id) and 
-                GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkill(agent_id)) >= 0.250,
+                GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkillID(agent_id)) >= 0.250,
                 sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
         ))
