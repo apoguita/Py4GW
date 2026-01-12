@@ -4,6 +4,7 @@ import os
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
 # Global state for bot selection and control
 _selected_bot_index = 0
@@ -47,12 +48,30 @@ def _scan_bot_scripts():
 def render():
     global _selected_bot_index
     
+    if CustomBehaviorLoader()._botting_daemon_fsm is not None and CustomBehaviorLoader().custom_combat_behavior is not None:
+        PyImGui.text(f"CustomBehavior FSM Management")
+
+        PyImGui.text(f"CustomBehavior.IsExecutingUtilitySkills: {CustomBehaviorLoader().custom_combat_behavior.is_executing_utility_skills()}")
+
+        from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
+        fsm:FSM = CustomBehaviorLoader()._botting_daemon_fsm
+        PyImGui.text(f"FSM.IsStarted: {fsm.is_started()}")
+        PyImGui.text(f"FSM.IsPaused: {fsm.paused}")
+        PyImGui.text(f"FSM.IsFinished: {fsm.is_finished()}")
+        PyImGui.text(f"FSM.CurrentState: {fsm.get_current_step_name()}")
+
+
+        
+
+        PyImGui.separator()
+
     PyImGui.text(f"Multiboxing Bot Collection")
-    PyImGui.separator()
     
     if not GLOBAL_CACHE.Party.IsPartyLeader():
         PyImGui.text(f"Feature restricted to party leader.")
         return
+
+
 
     # Bot Scripts Table
     bot_scripts = _scan_bot_scripts()
