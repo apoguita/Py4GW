@@ -1255,35 +1255,6 @@ class Agent:
         Returns: tuple
         """
 
-        def safe_int(value):
-            """
-            Safely convert a value to an integer.
-            Returns 0 if the value is not a valid integer.
-            """
-            if isinstance(value, int):
-                return value  # Already an integer
-            if isinstance(value, str) and value.isdigit():
-                return int(value)  # Convert valid string integers like '15'
-            try:
-                # Attempt to extract the first valid integer if possible
-                return int(value.split()[0]) if isinstance(value, str) else 0
-            except (ValueError, AttributeError):
-                return 0  # Default to 0 for any invalid cases
-
-        agent_instance = Agent.agent_instance(agent_id)
-        model_id = agent_instance.living_agent.player_number
-        attribute_list = []
-        if model_id in ModelData:
-            attributes = ModelData[model_id].get('attributes', [])
-            for attribute in attributes:
-                level = safe_int(attribute.get('level', 0))
-
-                name = attribute.get('name', 'N/A')
-                attribute_instance = PyAgent.AttributeClass(name, level)
-                if attribute_instance.GetName() != "None":
-                    attribute_list.append(attribute_instance)
-            return attribute_list
-
         agent = Agent.agent_instance(agent_id)
         return agent.attributes
     

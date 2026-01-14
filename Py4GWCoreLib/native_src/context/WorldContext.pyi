@@ -4,7 +4,7 @@ from ..internals.gw_array import GW_Array
 from ..internals.types import Vec2f, Vec3f, GamePos, CPointer
 
 #region AccountInfo
-class AccountInfo(Structure):
+class AccountInfoStruct(Structure):
     account_name_ptr: Optional[int]
     wins: int
     losses: int
@@ -16,7 +16,7 @@ class AccountInfo(Structure):
     @property
     def account_name_str(self) -> str | None: ...
    
-class MapAgent(Structure):
+class MapAgentStruct(Structure):
     cur_energy: float
     max_energy: float
     energy_regen: float
@@ -52,26 +52,26 @@ class MapAgent(Structure):
     @property
     def is_weapon_spelled(self) -> bool: ...
     
-class PartyAlly(Structure):
+class PartyAllyStruct(Structure):
     agent_id: int
     unk : int
     composite_id: int
     
-class Attribute(Structure):
+class AttributeStruct(Structure):
     attribute_id: int
     level_base: int
     level: int
     decrement_points: int
     increment_points: int
     
-class PartyAttribute(Structure):
+class PartyAttributeStruct(Structure):
     agent_id: int
-    attribute_array: list[Attribute]   # fixed-size array [54]
+    attribute_array: list[AttributeStruct]   # fixed-size array [54]
     
     @property
-    def attributes(self) -> list[Attribute]: ...
+    def attributes(self) -> list[AttributeStruct]: ...
     
-class Effect(Structure):
+class EffectStruct(Structure):
     skill_id: int
     attribute_level: int
     effect_id: int
@@ -79,25 +79,25 @@ class Effect(Structure):
     duration: float
     timestamp: int
 
-class Buff(Structure):
+class BuffStruct(Structure):
     skill_id: int
     h0004: int
     buff_id: int
     target_agent_id: int
 
 
-class AgentEffects(Structure):
+class AgentEffectsStruct(Structure):
     agent_id: int
-    buff_array: GW_Array          # GW_Array<Buff>
-    effect_array: GW_Array        # GW_Array<Effect> 
+    buff_array: GW_Array          # GW_Array<BuffStruct>
+    effect_array: GW_Array        # GW_Array<EffectStruct> 
     
     @property
-    def buffs(self) -> list[Buff]: ...
+    def buffs(self) -> list[BuffStruct]: ...
     @property
-    def effects(self) -> list[Effect]: ...
+    def effects(self) -> list[EffectStruct]: ...
 
     
-class Quest(Structure):
+class QuestStruct(Structure):
     quest_id: int
     log_state: int
     location_ptr: Optional[str]
@@ -141,7 +141,7 @@ class Quest(Structure):
     @property
     def marker(self) -> GamePos | None: ...
     
-class MissionObjective(Structure):
+class MissionObjectiveStruct(Structure):
     objective_id: int
     enc_str_ptr: Optional[int]
     type: int
@@ -152,7 +152,7 @@ class MissionObjective(Structure):
     def enc_str_encoded_str(self) -> str | None: ...
     
 
-class HeroFlag(Structure):
+class HeroFlagStruct(Structure):
     hero_id: int
     agent_id: int
     level: int
@@ -164,7 +164,7 @@ class HeroFlag(Structure):
     @property
     def flag(self) -> Vec2f | None: ...
 
-class HeroInfo(Structure):
+class HeroInfoStruct(Structure):
     hero_id: int
     agent_id: int
     level: int
@@ -178,26 +178,26 @@ class HeroInfo(Structure):
     @property
     def name_str(self) -> str | None: ...
 
-class ControlledMinions(Structure):
+class ControlledMinionsStruct(Structure):
     agent_id: int
     minion_count: int   
     
 
-class PartyMemberMoraleInfo(Structure):
+class PartyMemberMoraleInfoStruct(Structure):
     agent_id : int
     agent_id_dupe : int
     unk : list[int]
     morale : int
 
-class PartyMoraleLink(Structure):
+class PartyMoraleLinkStruct(Structure):
     unk: int
     unk2: int
-    party_member_info_ptr: Optional[PartyMemberMoraleInfo]
+    party_member_info_ptr: Optional[PartyMemberMoraleInfoStruct]
     
     @property
-    def party_member_info(self) -> PartyMemberMoraleInfo | None: ...
+    def party_member_info(self) -> PartyMemberMoraleInfoStruct | None: ...
     
-class PlayerControlledCharacter(Structure):
+class PlayerControlledCharacterStruct(Structure):
     field0_0x0: int
     field1_0x4: int
     field2_0x8: int
@@ -276,7 +276,7 @@ class PlayerControlledCharacter(Structure):
     field75_0x12c: int
     field76_0x130: int
     
-class ProfessionState(Structure):
+class ProfessionStateStruct(Structure):
     agent_id: int
     primary : int
     secondary : int
@@ -285,7 +285,7 @@ class ProfessionState(Structure):
     
     def IsProfessionUnlocked(self, profession_bit: int) -> bool: ...
 
-class SkillbarSkill(Structure):
+class SkillbarSkillStruct(Structure):
     adrenaline_a: int
     adrenaline_b: int
     recharge: int
@@ -293,33 +293,33 @@ class SkillbarSkill(Structure):
     event: int
 
 
-class SkillbarCast(Structure):
+class SkillbarCastStruct(Structure):
     h0000: int
     skill_id: int
     h0004: int
 
-class Skillbar(Structure):
+class SkillbarStruct(Structure):
     agent_id: int
-    skills: list[SkillbarSkill]
+    skills: list[SkillbarSkillStruct]
     disabled: int
-    cast_array: GW_Array          # GW_Array<SkillbarCast>
+    cast_array: GW_Array          # GW_Array<SkillbarCastStruct>
     h00B8: int
     
     @property
     def is_valid(self) -> bool: ...
     
     @property
-    def casted_skills(self) -> list[SkillbarCast]: ...
+    def casted_skills(self) -> list[SkillbarCastStruct]: ...
     
-    def GetSkillById(self, skill_id: int) -> SkillbarSkill | None: ...
+    def GetSkillById(self, skill_id: int) -> SkillbarSkillStruct | None: ...
     
     
 
-class DupeSkill(Structure):
+class DupeSkillStruct(Structure):
     skill_id : int
     count : int
     
-class AgentNameInfo(Structure):
+class AgentNameInfoStruct(Structure):
     h0000: list[int]        # fixed-size array [13]
     name_enc_ptr: Optional[str]
     @property
@@ -327,7 +327,7 @@ class AgentNameInfo(Structure):
     @property
     def name_str(self) -> str | None: ...
     
-class MissionMapIcon(Structure):
+class MissionMapIconStruct(Structure):
     index: int
     X: float
     Y: float
@@ -339,7 +339,7 @@ class MissionMapIcon(Structure):
     h0020: int
     h0024: int
 
-class PetInfo(Structure):
+class PetInfoStruct(Structure):
     agent_id: int
     owner_agent_id: int
     pet_name_ptr: Optional[str]
@@ -353,7 +353,7 @@ class PetInfo(Structure):
     @property
     def pet_name_str(self) -> str | None: ...
 
-class NPC_Model(Structure):
+class NPC_ModelStruct(Structure):
     model_file_id: int
     h0004: int
     scale: int
@@ -389,7 +389,7 @@ class NPC_Model(Structure):
     def model_files(self) -> list[int] | None: ...
 
     
-class Player(Structure):
+class PlayerStruct(Structure):
     agent_id: int
     h0004: list[int]                # fixed-size array [3]
     appearance_bitmap: int
@@ -419,7 +419,7 @@ class Player(Structure):
     @property
     def h0040_ptrs(self) -> list[int]: ...
     
-class Title(Structure):
+class TitleStruct(Structure):
     props: int
     current_points: int
     current_title_tier_index: int
@@ -445,7 +445,7 @@ class Title(Structure):
     @property
     def h0028_str(self) -> str | None: ...
     
-class TitleTier(Structure):
+class TitleTierStruct(Structure):
     props: int
     tier_number: int
     tier_name_enc_ptr: Optional[str]
@@ -458,7 +458,7 @@ class TitleTier(Structure):
     
 #region WorldContextStruct
 class WorldContextStruct(Structure):
-    account_info_ptr: Optional[CPointer[AccountInfo]]
+    account_info_ptr: Optional[CPointer[AccountInfoStruct]]
 
     message_buff_array: GW_Array
     dialog_buff_array: GW_Array
@@ -512,14 +512,14 @@ class WorldContextStruct(Structure):
 
     h061C: list[int]                    # fixed-size array [2]
 
-    player_morale_ptr: Optional[PartyMemberMoraleInfo]
+    player_morale_ptr: Optional[PartyMemberMoraleInfoStruct]
     h028C: int
 
     party_morale_array: GW_Array
     h063C: list[int]                    # fixed-size array [16]
 
     player_number: int
-    playerControlledChar_ptr: Optional[PlayerControlledCharacter]
+    playerControlledChar_ptr: Optional[PlayerControlledCharacterStruct]
 
     is_hard_mode_unlocked: int
     h0688: list[int]                    # fixed-size array [2]
@@ -596,7 +596,7 @@ class WorldContextStruct(Structure):
     foes_to_kill: int
     
     @property
-    def account_info(self) -> AccountInfo | None: ...
+    def account_info(self) -> AccountInfoStruct | None: ...
     @property
     def message_buff(self) -> list[str] | None: ...
     @property
@@ -606,11 +606,11 @@ class WorldContextStruct(Structure):
     @property
     def merch_items2(self) -> list[int] | None: ...
     @property
-    def map_agents(self) -> list[MapAgent] | None: ...
+    def map_agents(self) -> list[MapAgentStruct] | None: ...
     @property
-    def party_allies(self) -> list[PartyAlly] | None: ...
+    def party_allies(self) -> list[PartyAllyStruct] | None: ...
     @property
-    def party_attributes(self) -> list[PartyAttribute] | None: ...
+    def party_attributes(self) -> list[PartyAttributeStruct] | None: ...
     @property
     def all_flag(self) -> Vec3f | None: ...
     @property
@@ -620,23 +620,23 @@ class WorldContextStruct(Structure):
     @property
     def h04DC_ptrs(self) -> list[int] | None: ...
     @property
-    def party_effects(self) -> list[AgentEffects] | None: ...
+    def party_effects(self) -> list[AgentEffectsStruct] | None: ...
     @property
     def h0518_ptrs(self) -> list[int] | None: ...
     @property
-    def quest_log(self) -> list[Quest] | None: ...
+    def quest_log(self) -> list[QuestStruct] | None: ...
     @property
-    def mission_objectives(self) -> list[MissionObjective] | None: ...
+    def mission_objectives(self) -> list[MissionObjectiveStruct] | None: ...
     @property
     def henchmen_agent_ids(self) -> list[int] | None: ...
     @property
-    def hero_flags(self) -> list[HeroFlag] | None: ...
+    def hero_flags(self) -> list[HeroFlagStruct] | None: ...
     @property
-    def hero_info(self) -> list[HeroInfo] | None: ...
+    def hero_info(self) -> list[HeroInfoStruct] | None: ...
     @property
     def cartographed_areas(self) -> list[int] | None: ...
     @property
-    def controlled_minions(self) -> list[ControlledMinions] | None: ...
+    def controlled_minions(self) -> list[ControlledMinionsStruct] | None: ...
     @property
     def missions_completed(self) -> list[int] | None: ...
     @property
@@ -648,43 +648,43 @@ class WorldContextStruct(Structure):
     @property
     def unlocked_maps(self) -> list[int] | None: ...
     @property
-    def player_morale(self) -> PartyMemberMoraleInfo | None: ...
+    def player_morale(self) -> PartyMemberMoraleInfoStruct | None: ...
     @property
-    def party_morale(self) -> list[PartyMoraleLink] | None: ...
+    def party_morale(self) -> list[PartyMoraleLinkStruct] | None: ...
     @property
-    def player_controlled_character(self) -> PlayerControlledCharacter | None: ...
+    def player_controlled_character(self) -> PlayerControlledCharacterStruct | None: ...
     @property
-    def pets(self) -> list[PetInfo] | None: ...
+    def pets(self) -> list[PetInfoStruct] | None: ...
     @property
-    def party_profession_states(self) -> list[ProfessionState] | None: ...
+    def party_profession_states(self) -> list[ProfessionStateStruct] | None: ...
     @property
     def h06CC_ptrs(self) -> list[int] | None: ...
     @property 
     def h06E0_ptrs(self) -> list[int] | None: ...
     @property
-    def party_skillbars(self) -> list[Skillbar] | None: ...
+    def party_skillbars(self) -> list[SkillbarStruct] | None: ...
     @property
     def learnable_character_skills(self) -> list[int] | None: ...
     @property
     def unlocked_character_skills(self) -> list[int] | None: ...
     @property
-    def duplicated_character_skills(self) -> list[DupeSkill] | None: ...
+    def duplicated_character_skills(self) -> list[DupeSkillStruct] | None: ...
     @property
     def h0730_ptrs(self) -> list[int] | None: ...
     @property
-    def agent_name_info(self) -> list[AgentNameInfo] | None: ...
+    def agent_name_info(self) -> list[AgentNameInfoStruct] | None: ...
     @property
     def h07DC_ptrs(self) -> list[int] | None: ...
     @property
-    def mission_map_icons(self) -> list[MissionMapIcon] | None: ...
+    def mission_map_icons(self) -> list[MissionMapIconStruct] | None: ...
     @property
-    def npc_models(self) -> list[NPC_Model] | None: ...
+    def npc_models(self) -> list[NPC_ModelStruct] | None: ...
     @property
-    def players(self) -> list[Player] | None: ...
+    def players(self) -> list[PlayerStruct] | None: ...
     @property
-    def titles(self) -> list[Title] | None: ...
+    def titles(self) -> list[TitleStruct] | None: ...
     @property
-    def title_tiers(self) -> list[TitleTier] | None: ...
+    def title_tiers(self) -> list[TitleTierStruct] | None: ...
     @property
     def vanquished_areas(self) -> list[int] | None: ...
 # ----------------------------------------------------------------------

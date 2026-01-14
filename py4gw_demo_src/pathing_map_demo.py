@@ -1,4 +1,5 @@
 from Py4GWCoreLib import *
+import PyImGui
 
 module_name = "Pathing Maps"
 
@@ -35,7 +36,7 @@ class PathingMapRenderer:
         self.quad_cache = {}
         self.last_window_state = (0, 0, 0, 0)
         self.initialized = False
-        self.draw_maps = False
+        self.draw_maps = True
         self.clicked_points: list[tuple[float, float]] = []
         self.paths: list[list[tuple[float, float, float]]] = []
         
@@ -320,78 +321,81 @@ class PathingMapRenderer:
             PyImGui.WindowFlags.NoScrollbar |
             PyImGui.WindowFlags.NoScrollWithMouse
         )
-        if PyImGui.begin("Pathing Map", flags):
+        #if PyImGui.begin("Pathing Map", flags):
             # Parent window info
-            parent_pos = PyImGui.get_window_pos()
-            parent_size = PyImGui.get_window_size()
-            self.WINDOW_WIDTH, self.WINDOW_HEIGHT = int(parent_size[0]), int(parent_size[1])
+        parent_pos = PyImGui.get_window_pos()
+        parent_size = PyImGui.get_window_size()
+        self.WINDOW_WIDTH, self.WINDOW_HEIGHT = int(parent_size[0]), int(parent_size[1])
 
-            # Child region = full content area
-            avail_w, avail_h = PyImGui.get_content_region_avail()
-            if PyImGui.begin_child(
-                "MapCanvas",
-                (avail_w, avail_h),
-                border=False,
-                flags=PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse
-            ):
-                # Inside DrawMapWindow -> inside child block
-                child_pos = PyImGui.get_window_pos()
-                child_size = PyImGui.get_window_size()
-                self.WINDOW_WIDTH, self.WINDOW_HEIGHT = int(child_size[0]), int(child_size[1])
+        # Child region = full content area
+        avail_w, avail_h = PyImGui.get_content_region_avail()
+        if PyImGui.begin_child(
+            "MapCanvas",
+            (avail_w, avail_h),
+            border=False,
+            flags=PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse
+        ):
+            # Inside DrawMapWindow -> inside child block
+            child_pos = PyImGui.get_window_pos()
+            child_size = PyImGui.get_window_size()
+            self.WINDOW_WIDTH, self.WINDOW_HEIGHT = int(child_size[0]), int(child_size[1])
 
-                # Compute absolute clip rect for child content
-                child_min = PyImGui.get_window_content_region_min()
-                child_max = PyImGui.get_window_content_region_max()
-                clip_x1 = child_pos[0] + child_min[0]
-                clip_y1 = child_pos[1] + child_min[1]
-                clip_x2 = child_pos[0] + child_max[0]
-                clip_y2 = child_pos[1] + child_max[1]
+            # Compute absolute clip rect for child content
+            child_min = PyImGui.get_window_content_region_min()
+            child_max = PyImGui.get_window_content_region_max()
+            clip_x1 = child_pos[0] + child_min[0]
+            clip_y1 = child_pos[1] + child_min[1]
+            clip_x2 = child_pos[0] + child_max[0]
+            clip_y2 = child_pos[1] + child_max[1]
 
-                # Update pan/zoom
-                self.update_pan_zoom_with_mouse(child_pos)
-
-
-                # Draw map with proper clip rect
-                for index, layer in enumerate(self.pathing_map):
-                    color = Color(255, 255, 255, 255) if index == 0 else Color(230, 0, 255, 255)
-                    self.draw_trapezoids(index, layer, (clip_x1, clip_y1, clip_x2, clip_y2), color)
-
-                # Draw player
-                self.draw_player_position(child_pos)
-                self.draw_clicked_points(child_pos)
-
-            PyImGui.end_child()
-            PyImGui.end()
+            # Update pan/zoom
+            self.update_pan_zoom_with_mouse(child_pos)
 
 
-    def DrawWindow(self):
-        if PyImGui.begin("Pathing Map Controls", PyImGui.WindowFlags.AlwaysAutoResize):
-            if not self.pathing_map:
-                if PyImGui.button("Get Pathing Maps!"):
-                    self.pathing_map = PyPathing.get_pathing_maps()
-                    self.pathing_map = [
-                        self.shift_layer_geometry(self.flip_layer_geometry(layer))
-                        for layer in self.pathing_map
-                    ]
+            # Draw map with proper clip rect
+            for index, layer in enumerate(self.pathing_map):
+                color = Color(255, 255, 255, 255) if index == 0 else Color(230, 0, 255, 255)
+                self.draw_trapezoids(index, layer, (clip_x1, clip_y1, clip_x2, clip_y2), color)
 
-            # Toggle
-            self.draw_maps = PyImGui.checkbox("Draw Pathing Maps", self.draw_maps)
+            # Draw player
+            self.draw_player_position(child_pos)
+            self.draw_clicked_points(child_pos)
 
-            # Zoom slider
-            self.zoom_factor = PyImGui.slider_float("Zoom", self.zoom_factor, 0.1, 5.0)
+        PyImGui.end_child()
+           # PyImGui.end()
 
-            # Pan sliders
-            self.pan_x = PyImGui.slider_float("Pan X", self.pan_x, -500.0, 500.0)
-            PyImGui.same_line(0,-1)
-            self.pan_y = PyImGui.slider_float("Pan Y", self.pan_y, -500.0, 500.0)
 
-            # Reset
-            if PyImGui.button("Reset Pan/Zoom"):
-                self.zoom_factor = 1.0
-                self.pan_x = 0.0
-                self.pan_y = 0.0
+    def Draw_PathingMap_Window(self):
+        if not self.pathing_map:
+            if PyImGui.button("Populate Pathing Maps"):
+                self.pathing_map = Map.Pathing.GetPathingMaps()
+                self.pathing_map = [
+                    self.shift_layer_geometry(self.flip_layer_geometry(layer))
+                    for layer in self.pathing_map
+                ]
 
-        PyImGui.end()
+        # Toggle
+        #self.draw_maps = PyImGui.checkbox("Draw Pathing Maps", self.draw_maps)
+
+        # Zoom slider
+        self.zoom_factor = PyImGui.slider_float("Zoom", self.zoom_factor, 0.1, 5.0)
+
+        # Pan sliders
+        self.pan_x = PyImGui.slider_float("Pan X", self.pan_x, -500.0, 500.0)
+        PyImGui.same_line(0,-1)
+        self.pan_y = PyImGui.slider_float("Pan Y", self.pan_y, -500.0, 500.0)
+
+        # Reset
+        if PyImGui.button("Reset Pan/Zoom"):
+            self.zoom_factor = 1.0
+            self.pan_x = 0.0
+            self.pan_y = 0.0
+            
+        PyImGui.same_line(0,-1)
+        PyImGui.text("Drag your mouse to pan, scroll to zoom, double-click to set path points.")
+
+        PyImGui.separator()
+        
 
         # Draw the actual map if enabled
         if self.draw_maps and self.pathing_map:
@@ -488,10 +492,11 @@ class PathingMapRenderer:
 
 renderer = PathingMapRenderer()
 
-def main():
+"""def main():
     x,y = GLOBAL_CACHE,Player.GetXY()
-    renderer.DrawWindow()
+    renderer.Draw_PathingMap_Window()
 
 
 if __name__ == "__main__":
     main()
+"""

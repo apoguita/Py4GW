@@ -28,16 +28,16 @@ from Py4GWCoreLib.native_src.context.PreGameContext import (
 from Py4GWCoreLib.native_src.context.WorldContext import (
     WorldContext,
     WorldContextStruct,
-    PartyAlly, PartyAttribute,
-    AgentEffects, Buff, Effect, Quest,
-    MissionObjective,
-    HeroFlag,
-    ControlledMinions,
-    PartyMoraleLink,
-    PetInfo, ProfessionState,
-    Skillbar,DupeSkill,
-    AgentNameInfo, MissionMapIcon, NPC_Model,
-    Player,Title,TitleTier,
+    PartyAllyStruct, PartyAttributeStruct,
+    AgentEffectsStruct, BuffStruct, EffectStruct, QuestStruct,
+    MissionObjectiveStruct,
+    HeroFlagStruct,
+    ControlledMinionsStruct,
+    PartyMoraleLinkStruct,
+    PetInfoStruct, ProfessionStateStruct,
+    SkillbarStruct,DupeSkillStruct,
+    AgentNameInfoStruct, MissionMapIconStruct, NPC_ModelStruct,
+    PlayerStruct,TitleStruct,TitleTierStruct,
 )
 
 from Py4GWCoreLib.native_src.context.PartyContext import (
@@ -504,7 +504,7 @@ def draw_world_context_tab(world_ctx: WorldContextStruct):
                     PyImGui.separator()
                     
     if PyImGui.collapsing_header("Party Attributes"):
-        party_attributes:list[PartyAttribute] | None = world_ctx.party_attributes
+        party_attributes:list[PartyAttributeStruct] | None = world_ctx.party_attributes
         if party_attributes is None:
             PyImGui.text("No attributes available.")
         else:
@@ -551,7 +551,7 @@ def draw_world_context_tab(world_ctx: WorldContextStruct):
             for i, val in enumerate(world_ctx.h04EC or []): 
                 PyImGui.text(f"h04EC[{i}]: {val}")
 
-    party_effects :list[AgentEffects] | None = world_ctx.party_effects
+    party_effects :list[AgentEffectsStruct] | None = world_ctx.party_effects
     
     if party_effects is None:
         PyImGui.text("party_effects: <empty>")
@@ -598,7 +598,7 @@ def draw_world_context_tab(world_ctx: WorldContextStruct):
     PyImGui.separator()
     PyImGui.text(f"active_quest_id: {world_ctx.active_quest_id}")
     
-    quest_log :list[Quest] | None = world_ctx.quest_log
+    quest_log :list[QuestStruct] | None = world_ctx.quest_log
     if quest_log is None:
         PyImGui.text("quest_log: <empty>")
     else:
@@ -630,7 +630,7 @@ def draw_world_context_tab(world_ctx: WorldContextStruct):
             for i, val in enumerate(world_ctx.h053C or []): 
                 PyImGui.text(f"h053C[{i}]: {val}")
                 
-    mission_objectives :list[MissionObjective] | None = world_ctx.mission_objectives
+    mission_objectives :list[MissionObjectiveStruct] | None = world_ctx.mission_objectives
     if mission_objectives is None:
         PyImGui.text("mission_objectives: <empty>")
     else:
@@ -659,7 +659,7 @@ def draw_world_context_tab2(world_ctx: WorldContextStruct):
         
     PyImGui.separator()
     
-    hero_flags :list[HeroFlag] | None = world_ctx.hero_flags
+    hero_flags :list[HeroFlagStruct] | None = world_ctx.hero_flags
     if hero_flags is None:
         PyImGui.text("hero_flags: <empty>")
     else:
@@ -734,7 +734,7 @@ def draw_world_context_tab2(world_ctx: WorldContextStruct):
                 PyImGui.text(f"h05B4[{i}]: {val}")
                 
     
-    controlled_minions :list[ControlledMinions] | None = world_ctx.controlled_minions
+    controlled_minions :list[ControlledMinionsStruct] | None = world_ctx.controlled_minions
     if controlled_minions is None:
         PyImGui.text("controlled_minions: <empty>")
     else:
@@ -822,7 +822,7 @@ def draw_world_context_tab2(world_ctx: WorldContextStruct):
     
     PyImGui.text(f"h028C: {world_ctx.h028C}")
     
-    party_morale :list[PartyMoraleLink] | None = world_ctx.party_morale
+    party_morale :list[PartyMoraleLinkStruct] | None = world_ctx.party_morale
     
     if party_morale is None:
         PyImGui.text("party_morale: <empty>")
@@ -1009,7 +1009,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
             for i, val in enumerate(world_ctx.h0694 or []): 
                 PyImGui.text(f"h0694[{i}]: {val}")
     
-    pets :list[PetInfo] | None = world_ctx.pets
+    pets :list[PetInfoStruct] | None = world_ctx.pets
     if pets is None:
         PyImGui.text("pets: <empty>")
     else:
@@ -1025,7 +1025,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                     PyImGui.text(f"locked_target_id: {pet.locked_target_id}")
                     PyImGui.separator()
                     
-    party_profession_states :list[ProfessionState] | None = world_ctx.party_profession_states    
+    party_profession_states :list[ProfessionStateStruct] | None = world_ctx.party_profession_states    
     if party_profession_states is None:
         PyImGui.text("party_profession_states: <empty>")
     else:
@@ -1046,7 +1046,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
             for i, val in enumerate(world_ctx.h06CC_ptrs or []): 
                 PyImGui.text(f"h06CC_ptrs[{i}]: {val}")    
                 
-    party_skillbars :list[Skillbar] | None = world_ctx.party_skillbars     
+    party_skillbars :list[SkillbarStruct] | None = world_ctx.party_skillbars     
     if party_skillbars is None:
         PyImGui.text("party_skillbars: <empty>")
     else:
@@ -1105,7 +1105,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
             for i, skill_id in enumerate(unlocked_character_skills):
                 PyImGui.text(f"unlocked_character_skill[{i}]: {hex(skill_id)}")
                 
-    duplicated_character_skills :list[DupeSkill] | None = world_ctx.duplicated_character_skills
+    duplicated_character_skills :list[DupeSkillStruct] | None = world_ctx.duplicated_character_skills
     if duplicated_character_skills is None:
         PyImGui.text("duplicated_character_skills: <empty>")
     else:
@@ -1124,7 +1124,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
             for i, val in enumerate(world_ctx.h0730_ptrs or []): 
                 PyImGui.text(f"h0730_ptrs[{i}]: {val}")
                 
-    agent_name_infos :list[AgentNameInfo] | None = world_ctx.agent_name_info
+    agent_name_infos :list[AgentNameInfoStruct] | None = world_ctx.agent_name_info
     if agent_name_infos is None:
         PyImGui.text("agent_name_infos: <empty>")
     else:
@@ -1149,7 +1149,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
             for i, val in enumerate(world_ctx.h07DC_ptrs or []): 
                 PyImGui.text(f"h07DC_ptrs[{i}]: {val}")
                 
-    mission_map_icons :list[MissionMapIcon] | None = world_ctx.mission_map_icons
+    mission_map_icons :list[MissionMapIconStruct] | None = world_ctx.mission_map_icons
     
     if mission_map_icons is None:
         PyImGui.text("mission_map_icons: <empty>")
@@ -1169,7 +1169,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                     PyImGui.text(f"h0024: {icon.h0024}")
                     PyImGui.separator()
                 
-    npcs :list[NPC_Model] | None = world_ctx.npc_models
+    npcs :list[NPC_ModelStruct] | None = world_ctx.npc_models
     if npcs is None:
         PyImGui.text("npcs: <empty>")
     else:
@@ -1206,7 +1206,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                                 PyImGui.text(f"model_file[{j}]: {file_id}")
                     PyImGui.separator()
                 
-    players :list[Player] | None = world_ctx.players
+    players :list[PlayerStruct] | None = world_ctx.players
     if players is None:
         PyImGui.text("players: <empty>")
     else:
@@ -1246,7 +1246,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                                 PyImGui.text(f"h0040_ptrs[{j}]: {val}")
                     PyImGui.separator()
                 
-    titles :list[Title] | None = world_ctx.titles
+    titles :list[TitleStruct] | None = world_ctx.titles
     if titles is None:
         PyImGui.text("titles: <empty>")
     else:
@@ -1265,7 +1265,7 @@ def draw_world_context_tab3(world_ctx: WorldContextStruct):
                     PyImGui.text(f"h0028_str: {title.h0028_str}")
                     PyImGui.separator()
                     
-    title_tiers :list[TitleTier] | None = world_ctx.title_tiers
+    title_tiers :list[TitleTierStruct] | None = world_ctx.title_tiers
     if title_tiers is None:
         PyImGui.text("title_tiers: <empty>")
     else:

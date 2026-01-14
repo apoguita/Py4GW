@@ -13,6 +13,20 @@ class GHKey(Structure):
     _fields_ = [
         ("key_data", c_uint8 * 4),
     ]
+    @property
+    def as_string(self) -> str:
+        return ''.join(f'{byte:02X}' for byte in self.key_data)
+    
+    @classmethod
+    def from_hex(cls, hex_string: str) -> "GHKey":
+        """Create a GHKey instance from a hexadecimal string."""
+        if len(hex_string) != 8:
+            raise ValueError("Hex string must be exactly 8 characters long.")
+        key_bytes = bytes.fromhex(hex_string)
+        key_instance = cls()
+        for i in range(4):
+            key_instance.key_data[i] = key_bytes[i]
+        return key_instance
         
 class CapeDesign(Structure):
     _pack_ = 1

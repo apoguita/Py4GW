@@ -114,7 +114,7 @@ def tessellate_geometry(geometry, trapezoids, tolerance=1e-5):
         process_quad(idx, trapezoids)
     return merged_geometry
 
-def precompute_layer_geometry(pathing_map, width, height, tolerance=1e-5):
+def precompute_layer_geometry1(pathing_map, width, height, tolerance=1e-5):
     """
     Precompute geometry for all layers in the pathing map using tessellation.
     """
@@ -359,7 +359,7 @@ def DrawWindow():
 
             if PyImGui.button("Get Pathing Maps!"):
                 
-                pathing_map = PyPathing.get_pathing_maps()
+                pathing_map = Map.Pathing.GetPathingMaps()
                 Py4GW.Console.Log(module_name, "Pathing maps acquired!", Py4GW.Console.MessageType.Success)
                 precompute_layer_geometry(pathing_map, width=500, height=500)
                 Py4GW.Console.Log(module_name, "Pathing maps precomputed!", Py4GW.Console.MessageType.Success)

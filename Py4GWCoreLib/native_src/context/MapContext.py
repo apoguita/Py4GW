@@ -1,3 +1,4 @@
+from PyImGui import end
 import PyMap
 from Py4GW import Game
 import math
@@ -17,29 +18,42 @@ from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
 
 from ctypes import Structure, POINTER, c_uint32, c_uint16, c_float
 
-class PathingTrapezoid(Structure):
+class PathingTrapezoidStruct(Structure):
     _pack_ = 1
 
     @property
-    def adjacent(self) -> list["PathingTrapezoid | None"]:
+    def adjacent(self) -> list["PathingTrapezoidStruct | None"]:
         """
         Returns a list of 4 entries:
         - PathingTrapezoid instance if the pointer is non-null
         - None if the pointer is null
         """
-        result: list[PathingTrapezoid | None] = []
+        result: list[PathingTrapezoidStruct | None] = []
         for ptr in self.adjacent_ptr:
             if ptr:
                 result.append(ptr.contents)
             else:
                 result.append(None)
         return result
+    
+    @property
+    def neighbor_ids(self) -> list[int]:
+        """
+        Return the list of neighbor trapezoid IDs.
+        Only non-null adjacent pointers are included
+        (faithful to the C++ implementation).
+        """
+        result: list[int] = []
+        for ptr in self.adjacent_ptr:
+            if ptr:
+                result.append(ptr.contents.id)
+        return result
 
 
 # self-referential field layout must be assigned after class creation
-PathingTrapezoid._fields_ = [
+PathingTrapezoidStruct._fields_ = [
     ("id", c_uint32),                           # +0x00
-    ("adjacent_ptr", POINTER(PathingTrapezoid) * 4),  # +0x04 PathingTrapezoid* adjacent[4]
+    ("adjacent_ptr", POINTER(PathingTrapezoidStruct) * 4),  # +0x04 PathingTrapezoid* adjacent[4]
     ("portal_left", c_uint16),                 # +0x14
     ("portal_right", c_uint16),                # +0x16
     ("XTL", c_float),                          # +0x18
@@ -52,20 +66,20 @@ PathingTrapezoid._fields_ = [
 
 
 #region Node Structures
-class Node(Structure):
+class NodeStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("type", c_uint32),  # +0x00
         ("id",   c_uint32),  # +0x04
     ]
 
-class SinkNode(Node):
+class SinkNodeStruct(NodeStruct):
     _pack_ = 1
     _fields_ = [
-        ("trapezoid_ptr_ptr", POINTER(POINTER(PathingTrapezoid))),  # +0x08 PathingTrapezoid**
+        ("trapezoid_ptr_ptr", POINTER(POINTER(PathingTrapezoidStruct))),  # +0x08 PathingTrapezoid**
     ]
     @property
-    def trapezoid(self) -> PathingTrapezoid | None:
+    def trapezoid(self) -> PathingTrapezoidStruct | None:
         """Dereference trapezoid_ptr_ptr to get the actual PathingTrapezoid instance, or None."""
         if not self.trapezoid_ptr_ptr:
             return None
@@ -76,58 +90,60 @@ class SinkNode(Node):
 
 
 
-class XNode(Node):  # inherits type + id (8 bytes)
+class XNodeStruct(NodeStruct):  # inherits type + id (8 bytes)
     _pack_ = 1
     _fields_ = [
         ("pos",  Vec2f),             # +0x08 (2 floats, 8 bytes)
         ("dir",  Vec2f),             # +0x10 (2 floats, 8 bytes)
-        ("left_ptr", POINTER(Node)),     # +0x18
-        ("right_ptr", POINTER(Node)),    # +0x1C
+        ("left_ptr", POINTER(NodeStruct)),     # +0x18
+        ("right_ptr", POINTER(NodeStruct)),    # +0x1C
     ]
     @property
-    def left(self) -> Optional[Node]:
+    def left(self) -> Optional[NodeStruct]:
         """Dereference left_ptr to get the actual Node instance, or None."""
         if not self.left_ptr:
             return None
         return self.left_ptr.contents
     @property
-    def right(self) -> Optional[Node]:
+    def right(self) -> Optional[NodeStruct]:
         """Dereference right_ptr to get the actual Node instance, or None."""
         if not self.right_ptr:
             return None
         return self.right_ptr.contents
 
-class YNode(Node):  # inherits: type + id (8 bytes)
+class YNodeStruct(NodeStruct):  # inherits: type + id (8 bytes)
     _pack_ = 1
     _fields_ = [
         ("pos",  Vec2f),          # +0x08 (8 bytes)
-        ("left_ptr", POINTER(Node)),  # +0x10 (4 bytes)
-        ("right_ptr", POINTER(Node)), # +0x14 (4 bytes)
+        ("left_ptr", POINTER(NodeStruct)),  # +0x10 (4 bytes)
+        ("right_ptr", POINTER(NodeStruct)), # +0x14 (4 bytes)
     ]
     @property
-    def left(self) -> Optional[Node]:
+    def left(self) -> Optional[NodeStruct]:
         """Dereference left_ptr to get the actual Node instance, or None."""
         if not self.left_ptr:
             return None
         return self.left_ptr.contents
     @property
-    def right(self) -> Optional[Node]:
+    def right(self) -> Optional[NodeStruct]:
         """Dereference right_ptr to get the actual Node instance, or None."""
         if not self.right_ptr:
             return None
         return self.right_ptr.contents
 
 #region Portal
-class Portal(Structure):
+class PortalStruct(Structure):
     _pack_ = 1
     @property
-    def pair(self) -> Optional["Portal"]:
+    def pair(self) -> Optional["PortalStruct"]:
         """Dereference pair_ptr to get the actual Portal instance, or None."""
         if not self.pair_ptr:
             return None
         return self.pair_ptr.contents
+    
+
     @property
-    def trapezoids(self) -> PathingTrapezoid | None:
+    def trapezoids(self) -> PathingTrapezoidStruct | None:
         """Dereference trapezoid_ptr_ptr to get the actual PathingTrapezoid instance, or None."""
         if not self.trapezoids_ptr_ptr:
             return None
@@ -135,22 +151,39 @@ class Portal(Structure):
         if not trapezoids_ptr:
             return None
         return trapezoids_ptr.contents
+    @property
+    def trapezoid_indices(self) -> list[int]:
+        """
+        Return the list of trapezoid IDs connected by this portal.
+        Faithful to the C++ implementation.
+        """
+        result: list[int] = []
+
+        if not self.trapezoids_ptr_ptr or self.count == 0:
+            return result
+
+        for i in range(self.count):
+            trap_ptr = self.trapezoids_ptr_ptr[i]
+            if trap_ptr:
+                result.append(trap_ptr.contents.id)
+
+        return result
         
         
-Portal._fields_ = [
+PortalStruct._fields_ = [
     ("left_layer_id",  c_uint16),                           # +0x0000
     ("right_layer_id", c_uint16),                           # +0x0002
     ("h0004",          c_uint32),                           # +0x0004
-    ("pair_ptr",           POINTER(Portal)),                    # +0x0008 Portal*
+    ("pair_ptr",           POINTER(PortalStruct)),                    # +0x0008 Portal*
     ("count",          c_uint32),                           # +0x000C
-    ("trapezoids_ptr_ptr",     POINTER(POINTER(PathingTrapezoid))), # +0x0010 PathingTrapezoid**
+    ("trapezoids_ptr_ptr",     POINTER(POINTER(PathingTrapezoidStruct))), # +0x0010 PathingTrapezoid**
 ]
 
-assert sizeof(Portal) == 20, f"Portal size mismatch: {sizeof(Portal)}"
+assert sizeof(PortalStruct) == 20, f"Portal size mismatch: {sizeof(PortalStruct)}"
 
 
 #region PathingMap
-class PathingMap(Structure):
+class PathingMapStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("zplane",          c_uint32),                       # +0x0000
@@ -159,49 +192,49 @@ class PathingMap(Structure):
         ("h000C",           c_uint32),                       # +0x000C
         ("h0010",           c_uint32),                       # +0x0010
         ("trapezoid_count", c_uint32),                       # +0x0014
-        ("trapezoids_ptr",  POINTER(PathingTrapezoid)),      # +0x0018 PathingTrapezoid*
+        ("trapezoids_ptr",  POINTER(PathingTrapezoidStruct)),      # +0x0018 PathingTrapezoid*
         ("sink_node_count", c_uint32),                       # +0x001C
-        ("sink_nodes_ptr",  POINTER(SinkNode)),              # +0x0020 SinkNode*
+        ("sink_nodes_ptr",  POINTER(SinkNodeStruct)),              # +0x0020 SinkNode*
         ("x_node_count",    c_uint32),                       # +0x0024
-        ("x_nodes_ptr",     POINTER(XNode)),                 # +0x0028 XNode*
+        ("x_nodes_ptr",     POINTER(XNodeStruct)),                 # +0x0028 XNode*
         ("y_node_count",    c_uint32),                       # +0x002C
-        ("y_nodes_ptr",     POINTER(YNode)),                 # +0x0030 YNode*
+        ("y_nodes_ptr",     POINTER(YNodeStruct)),                 # +0x0030 YNode*
         ("h0034",           c_uint32),                       # +0x0034
         ("h0038",           c_uint32),                       # +0x0038
         ("portal_count",    c_uint32),                       # +0x003C
-        ("portals_ptr",     POINTER(Portal)),                # +0x0040 Portal*
-        ("root_node_ptr",   POINTER(Node)),                  # +0x0044 Node*
+        ("portals_ptr",     POINTER(PortalStruct)),                # +0x0040 Portal*
+        ("root_node_ptr",   POINTER(NodeStruct)),                  # +0x0044 Node*
         ("h0048_ptr",       POINTER(c_uint32)),              # +0x0048 uint32_t*
         ("h004C_ptr",       POINTER(c_uint32)),              # +0x004C uint32_t*
         ("h0050_ptr",       POINTER(c_uint32)),              # +0x0050 uint32_t*
     ]
     @property
-    def trapezoids(self) -> PathingTrapezoid | None:
-        if not self.trapezoids_ptr:
-            return None
-        return self.trapezoids_ptr.contents
+    def trapezoids(self) -> list[PathingTrapezoidStruct]:
+        if not self.trapezoids_ptr or self.trapezoid_count == 0:
+            return []
+        return [self.trapezoids_ptr[i] for i in range(self.trapezoid_count)]
     @property
-    def sink_nodes(self) -> SinkNode | None:
-        if not self.sink_nodes_ptr:
-            return None
-        return self.sink_nodes_ptr.contents
+    def sink_nodes(self) -> list[SinkNodeStruct]:
+        if not self.sink_nodes_ptr or self.sink_node_count == 0:
+            return []
+        return [self.sink_nodes_ptr[i] for i in range(self.sink_node_count)]
     @property
-    def x_nodes(self) -> XNode | None:
-        if not self.x_nodes_ptr:
-            return None
-        return self.x_nodes_ptr.contents
+    def x_nodes(self) -> list[XNodeStruct]:
+        if not self.x_nodes_ptr or self.x_node_count == 0:
+            return []
+        return [self.x_nodes_ptr[i] for i in range(self.x_node_count)]
     @property
-    def y_nodes(self) -> YNode | None:
-        if not self.y_nodes_ptr:
-            return None
-        return self.y_nodes_ptr.contents
+    def y_nodes(self) -> list[YNodeStruct]:
+        if not self.y_nodes_ptr or self.y_node_count == 0:
+            return []
+        return [self.y_nodes_ptr[i] for i in range(self.y_node_count)]
     @property
-    def portals(self) -> Portal | None:
-        if not self.portals_ptr:
-            return None
-        return self.portals_ptr.contents
+    def portals(self) -> list[PortalStruct]:
+        if not self.portals_ptr or self.portal_count == 0:
+            return []
+        return [self.portals_ptr[i] for i in range(self.portal_count)]
     @property
-    def root_node(self) -> Node | None:
+    def root_node(self) -> NodeStruct | None:
         if not self.root_node_ptr:
             return None
         return self.root_node_ptr.contents
@@ -222,7 +255,7 @@ class PathingMap(Structure):
         return self.h0050_ptr.contents
 
 #region Props Structures
-class PropModelInfo(Structure):
+class PropModelInfoStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("h0000", c_uint32),  # +0x00
@@ -234,7 +267,7 @@ class PropModelInfo(Structure):
     ]
 
 
-class RecObject(Structure):
+class RecObjectStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("h0000",    c_uint32),  # +0x00
@@ -243,14 +276,14 @@ class RecObject(Structure):
         # ... additional fields unknown / unused
     ]
 
-class PropByType(Structure):
+class PropByTypeStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("object_id",  c_uint32),  # +0x00
         ("prop_index", c_uint32),  # +0x04
     ]
 
-class MapProp(Structure):
+class MapPropStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("h0000",            c_uint32 * 5),          # +0x0000
@@ -264,28 +297,28 @@ class MapProp(Structure):
         ("rotation_cos",     c_float),               # +0x003C
         ("rotation_sin",     c_float),               # +0x0040
         ("h0034",            c_uint32 * 5),          # +0x0044  *** (5 * 4 = 20 bytes)
-        ("interactive_model_ptr",POINTER(RecObject)),    # +0x0058
+        ("interactive_model_ptr",POINTER(RecObjectStruct)),    # +0x0058
         ("h005C",            c_uint32 * 4),          # +0x005C
         ("appearance_bitmap",c_uint32),              # +0x006C
         ("animation_bits",   c_uint32),              # +0x0070
         ("h0064",            c_uint32 * 5),          # +0x0074 ← C++ text was out of order, layout fixed
-        ("prop_object_info_ptr", POINTER(PropByType)),   # +0x0088
+        ("prop_object_info_ptr", POINTER(PropByTypeStruct)),   # +0x0088
         ("h008C",            c_uint32),              # +0x008C
     ]
     @property
-    def interactive_model(self) -> Optional[RecObject]:
+    def interactive_model(self) -> Optional[RecObjectStruct]:
         """Dereference interactive_model_ptr to get the actual RecObject instance, or None."""
         if not self.interactive_model_ptr:
             return None
         return self.interactive_model_ptr.contents
     @property
-    def prop_object_info(self) -> Optional[PropByType]:
+    def prop_object_info(self) -> Optional[PropByTypeStruct]:
         """Dereference prop_object_info_ptr to get the actual PropByType instance, or None."""
         if not self.prop_object_info_ptr:
             return None
         return self.prop_object_info_ptr.contents
     
-class PropsContext(Structure):
+class PropsContextStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("pad1", c_uint32 * 0x1B),   # +0x0000  (0x6C bytes)
@@ -296,14 +329,14 @@ class PropsContext(Structure):
         ("propArray_array", GW_Array),     # +0x0194 # Array<MapProp*>
     ]
     @property
-    def props_by_type(self) -> list[list[PropByType]]:
+    def props_by_type(self) -> list[list[PropByTypeStruct]]:
         """
         C++: Array<TList<PropByType>> propsByType;
         Python:
           1) GW_Array_Value_View(..., GW_TList) -> [GW_TList, GW_TList, ...]
           2) For each GW_TList -> GW_TList_View(tlist, PropByType).to_list()
         """
-        result: list[list[PropByType]] = []
+        result: list[list[PropByTypeStruct]] = []
 
         # Step 1: get the array of TList<PropByType> heads
         tlist_heads = GW_Array_Value_View(self.propsByType_array, GW_TList).to_list()
@@ -312,21 +345,21 @@ class PropsContext(Structure):
 
         # Step 2: for each TList head, walk the list into a python list[PropByType]
         for tlist in tlist_heads:
-            group = GW_TList_View(tlist, PropByType).to_list()
+            group = GW_TList_View(tlist, PropByTypeStruct).to_list()
             result.append(group)
 
         return result
     
     @property
-    def prop_models(self) -> list[PropModelInfo]:
-        ptrs = GW_Array_Value_View(self.propModels_array, PropModelInfo).to_list()
+    def prop_models(self) -> list[PropModelInfoStruct]:
+        ptrs = GW_Array_Value_View(self.propModels_array, PropModelInfoStruct).to_list()
         if not ptrs:
             return []
         return [ptr for ptr in ptrs]
     
     @property
-    def props(self) -> list[MapProp]:
-        ptrs = GW_Array_Value_View(self.propArray_array, MapProp).to_list()
+    def props(self) -> list[MapPropStruct]:
+        ptrs = GW_Array_Value_View(self.propArray_array, MapPropStruct).to_list()
         if not ptrs:
             return []
         return [ptr for ptr in ptrs]
@@ -335,31 +368,31 @@ class PropsContext(Structure):
 # Nested structs first, as per layout
 # ---------------------------------------
 
-class MapContext_sub1_sub2(Structure):
+class MapContext_sub1_sub2Struct(Structure):
     _pack_ = 1
     _fields_ = [
         ("pad1", c_uint32 * 6),     # +0x0000
         ("pmaps_array", GW_Array),        # +0x0018 -> Array<PathingMap>
     ]
     @property
-    def pathing_maps(self) -> list[PathingMap]:
-        ptrs = GW_Array_Value_View(self.pmaps_array, PathingMap).to_list()
+    def pathing_maps(self) -> list[PathingMapStruct]:
+        ptrs = GW_Array_Value_View(self.pmaps_array, PathingMapStruct).to_list()
         if not ptrs:
             return []
         return [ptr for ptr in ptrs]
 
 
-class MapContext_sub1(Structure):
+class MapContext_sub1Struct(Structure):
     _pack_ = 1
     _fields_ = [
-        ("", POINTER(MapContext_sub1_sub2)),  # +0x0000
+        ("sub2_ptr", POINTER(MapContext_sub1_sub2Struct)),  # +0x0000
         ("pathing_map_block_array", GW_Array), # +0x0004 Array<uint32_t> pathing_map_block
         ("total_trapezoid_count", c_uint32),      # +0x0018
         ("0x001C", c_uint32 * 0x12),               # +0x001C (0x12 * 4 = 72 bytes)
         ("something_else_for_props_array", GW_Array),   # +0x0060 Array<TList<void*>> 
     ]
     @property
-    def sub2(self) -> Optional[MapContext_sub1_sub2]:
+    def sub2(self) -> Optional[MapContext_sub1_sub2Struct]:
         if not self.sub2_ptr:
             return None
         return self.sub2_ptr.contents
@@ -391,8 +424,7 @@ class MapContext_sub1(Structure):
             result.append(group)
 
         return result
-
-
+    
 # ---------------------------------------
 #Region MapContextStruct
 # ---------------------------------------
@@ -406,9 +438,9 @@ class MapContextStruct(Structure):
         ("spawns2_array", GW_Array),              # +0x003C # Array<void*>// Same as above
         ("spawns3_array", GW_Array),              # +0x004C # Array<void*>// Same as above
         ("h005C", c_float * 6),                   # +0x005C
-        ("sub1_ptr", POINTER(MapContext_sub1)),   # +0x0074
+        ("sub1_ptr", POINTER(MapContext_sub1Struct)),   # +0x0074
         ("pad1", c_uint8 * 4),                    # +0x0078
-        ("props_ptr", POINTER(PropsContext)),     # +0x007C
+        ("props_ptr", POINTER(PropsContextStruct)),     # +0x007C
         ("h0080", c_uint32),                      # +0x0080
         ("terrain", c_void_p),                    # +0x0084 (unknown struct)
         ("h0088", c_uint32 * 42),                 # +0x0088
@@ -433,12 +465,23 @@ class MapContextStruct(Structure):
             return []
         return [int(ptr) for ptr in ptrs]
     @property
-    def sub1(self) -> Optional[MapContext_sub1]:
+    def sub1(self) -> Optional[MapContext_sub1Struct]:
         if not self.sub1_ptr:
             return None
         return self.sub1_ptr.contents
+    
     @property
-    def props(self) -> Optional[PropsContext]:
+    def pathing_maps(self) -> list[PathingMapStruct]:
+        sub1 = self.sub1
+        if not sub1:
+            return []
+        sub2 = sub1.sub2
+        if not sub2:
+            return []
+        return sub2.pathing_maps
+    
+    @property
+    def props(self) -> Optional[PropsContextStruct]:
         if not self.props_ptr:
             return None
         return self.props_ptr.contents

@@ -12,7 +12,7 @@ from ..internals.types import Vec2f, Vec3f, GamePos
 from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
 
 #region AccountInfo
-class AccountInfo(Structure):
+class AccountInfoStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("account_name_ptr", POINTER(c_wchar)),
@@ -29,7 +29,7 @@ class AccountInfo(Structure):
         return read_wstr(self.account_name_ptr)
  
 #region MapAgent   
-class MapAgent(Structure):
+class MapAgentStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("cur_energy", c_float),        # +h0000
@@ -79,7 +79,7 @@ class MapAgent(Structure):
         return (self.effects & 0x8000) != 0
     
 #region PartyAlly
-class PartyAlly(Structure):
+class PartyAllyStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
@@ -88,7 +88,7 @@ class PartyAlly(Structure):
     ]
 
 #region Attribute
-class Attribute(Structure):
+class AttributeStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("attribute_id", c_uint32),
@@ -99,19 +99,19 @@ class Attribute(Structure):
     ]
 
 #region PartyAttribute
-class PartyAttribute(Structure):
+class PartyAttributeStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
-        ("attribute_array", Attribute * 54),
+        ("attribute_array", AttributeStruct * 54),
     ]     
     
     @property
-    def attributes(self) -> list[Attribute]:
+    def attributes(self) -> list[AttributeStruct]:
         return [self.attribute_array[i] for i in range(54)]
     
 #region Effect and Buff
-class Effect(Structure):
+class EffectStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("skill_id", c_uint32),
@@ -124,7 +124,7 @@ class Effect(Structure):
     #DWORD GetTimeElapsed() const;
     #DWORD GetTimeRemaining() const;
        
-class Buff(Structure):
+class BuffStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("skill_id", c_uint32),
@@ -133,7 +133,7 @@ class Buff(Structure):
         ("target_agent_id", c_uint32),
     ]
 
-class AgentEffects(Structure):
+class AgentEffectsStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
@@ -141,13 +141,13 @@ class AgentEffects(Structure):
         ("effect_array", GW_Array),  #Array<Effect>
     ]
     @property
-    def buffs(self) -> list[Buff]:
-        return GW_Array_Value_View(self.buff_array, Buff).to_list()
+    def buffs(self) -> list[BuffStruct]:
+        return GW_Array_Value_View(self.buff_array, BuffStruct).to_list()
     @property
-    def effects(self) -> list[Effect]:
-        return GW_Array_Value_View(self.effect_array, Effect).to_list()
+    def effects(self) -> list[EffectStruct]:
+        return GW_Array_Value_View(self.effect_array, EffectStruct).to_list()
     
-class Quest(Structure):
+class QuestStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("quest_id", c_uint32),          # +h0000 GW::Constants::QuestID
@@ -216,7 +216,7 @@ class Quest(Structure):
     
     
 
-class MissionObjective(Structure):
+class MissionObjectiveStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("objective_id", c_uint32),      # +h0000
@@ -232,7 +232,7 @@ class MissionObjective(Structure):
         return encoded_wstr_to_str(read_wstr(self.enc_str_ptr))
   
 
-class HeroFlag(Structure):
+class HeroFlagStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("hero_id", c_uint32),          # +h0000
@@ -254,7 +254,7 @@ class HeroFlag(Structure):
 
         return Vec2f(flag.x, flag.y)
 
-class HeroInfo(Structure):
+class HeroInfoStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("hero_id", c_uint32),           # +h0000
@@ -274,14 +274,14 @@ class HeroInfo(Structure):
         return _name if _name else ""
 
   
-class ControlledMinions(Structure):
+class ControlledMinionsStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
         ("minion_count", c_uint32),
     ]
     
-class PartyMemberMoraleInfo(Structure):
+class PartyMemberMoraleInfoStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
@@ -291,22 +291,22 @@ class PartyMemberMoraleInfo(Structure):
         #// ... unknown size
     ]
 
-class PartyMoraleLink(Structure):
+class PartyMoraleLinkStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("unk", c_uint32),
         ("unk2", c_uint32),
-        ("party_member_info_ptr", POINTER(PartyMemberMoraleInfo)),
+        ("party_member_info_ptr", POINTER(PartyMemberMoraleInfoStruct)),
     ]
     
     @property
-    def party_member_info(self) -> PartyMemberMoraleInfo | None:
+    def party_member_info(self) -> PartyMemberMoraleInfoStruct | None:
         if not self.party_member_info_ptr:
             return None
         return self.party_member_info_ptr.contents
     
 
-class PlayerControlledCharacter(Structure):
+class PlayerControlledCharacterStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("field0_0x0", c_uint32),
@@ -389,7 +389,7 @@ class PlayerControlledCharacter(Structure):
     ]
     
 
-class ProfessionState(Structure):
+class ProfessionStateStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
@@ -402,7 +402,7 @@ class ProfessionState(Structure):
     def IsProfessionUnlocked(self, profession: int) -> bool:    
         return (self.unlocked_professions & (1 << profession)) != 0
 
-class SkillbarSkill(Structure):
+class SkillbarSkillStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("adrenaline_a", c_uint32),   # +h0000
@@ -412,7 +412,7 @@ class SkillbarSkill(Structure):
         ("event", c_uint32),          # +h0010
     ]
 
-class SkillbarCast(Structure): #Array of queued skills on a skillbar
+class SkillbarCastStruct(Structure): #Array of queued skills on a skillbar
     _pack_ = 1
     _fields_ = [
         ("h0000", c_uint16),           # +h0000
@@ -421,11 +421,11 @@ class SkillbarCast(Structure): #Array of queued skills on a skillbar
     ]
     
   
-class Skillbar(Structure):
+class SkillbarStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),            # +h0000
-        ("skills", SkillbarSkill * 8),     # +h0004
+        ("skills", SkillbarSkillStruct * 8),     # +h0004
         ("disabled", c_uint32),            # +h00A4
         ("cast_array", GW_Array),  #SkillbarCastArray           # +h00A8
         ("h00B8", c_uint32),           # +h00B8
@@ -434,18 +434,18 @@ class Skillbar(Structure):
     def is_valid(self) -> bool:
         return self.agent_id > 0
 
-    def GetSkillById(self, skill_id: int) -> SkillbarSkill | None:
+    def GetSkillById(self, skill_id: int) -> SkillbarSkillStruct | None:
         for skill in self.skills:
             if skill.skill_id == skill_id:
                 return skill
         return None
     
     @property
-    def casted_skills(self) -> list[SkillbarCast]:
-        return GW_Array_Value_View(self.cast_array, SkillbarCast).to_list()
+    def casted_skills(self) -> list[SkillbarCastStruct]:
+        return GW_Array_Value_View(self.cast_array, SkillbarCastStruct).to_list()
     
 
-class DupeSkill(Structure):
+class DupeSkillStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("skill_id", c_uint32),
@@ -453,7 +453,7 @@ class DupeSkill(Structure):
     ]
 
 
-class AgentNameInfo(Structure):
+class AgentNameInfoStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("h0000", c_uint32 * 13),
@@ -466,7 +466,7 @@ class AgentNameInfo(Structure):
     def name_str(self) -> str | None:
         return encoded_wstr_to_str(read_wstr(self.name_enc_ptr))
     
-class MissionMapIcon(Structure):
+class MissionMapIconStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("index", c_uint32),          # +h0000
@@ -484,7 +484,7 @@ class MissionMapIcon(Structure):
     def position(self) -> Vec2f:
         return Vec2f(self.X, self.Y)
     
-class PetInfo(Structure):
+class PetInfoStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),
@@ -505,7 +505,7 @@ class PetInfo(Structure):
         return encoded_wstr_to_str(read_wstr(self.pet_name_ptr))
     
     
-class NPC_Model(Structure):
+class NPC_ModelStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("model_file_id", c_uint32),    # +h0000
@@ -563,7 +563,7 @@ class NPC_Model(Structure):
     
 
 
-class Player(Structure):
+class PlayerStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("agent_id", c_uint32),                          # +h0000
@@ -610,7 +610,7 @@ class Player(Structure):
         # convert void* -> Python int
         return [int(ptr) for ptr in arr]
 
-class Title(Structure):
+class TitleStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("props", c_uint32),                     # +h0000
@@ -645,7 +645,7 @@ class Title(Structure):
         return encoded_wstr_to_str(read_wstr(self.h0028_ptr))
 
 
-class TitleTier(Structure):
+class TitleTierStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("props", c_uint32),
@@ -674,7 +674,7 @@ class TitleTier(Structure):
 class WorldContextStruct(Structure):
     _pack_ = 1
     _fields_ = [
-        ("account_info_ptr", POINTER(AccountInfo)),
+        ("account_info_ptr", POINTER(AccountInfoStruct)),
         ("message_buff_array", GW_Array), #Array<wchar_t>
         ("dialog_buff_array", GW_Array), #Array<wchar_t>
         ("merch_items_array", GW_Array), #Array<ItemID> uint32t
@@ -715,12 +715,12 @@ class WorldContextStruct(Structure):
         ("missions_bonus_hm_array", GW_Array), #Array<uint32_t>
         ("unlocked_map_array", GW_Array), #Array<uint32_t>
         ("h061C", c_uint32 * 2),
-        ("player_morale_ptr", POINTER(PartyMemberMoraleInfo)),
+        ("player_morale_ptr", POINTER(PartyMemberMoraleInfoStruct)),
         ("h028C", c_uint32),
         ("party_morale_array", GW_Array), #Array<PartyMoraleLink>
         ("h063C", c_uint32 * 16),
         ("player_number", c_uint32),
-        ("playerControlledChar_ptr", POINTER(PlayerControlledCharacter)),
+        ("playerControlledChar_ptr", POINTER(PlayerControlledCharacterStruct)),
         ("is_hard_mode_unlocked", c_uint32),
         ("h0688", c_uint32 * 2),
         ("salvage_session_id", c_uint32),
@@ -786,7 +786,7 @@ class WorldContextStruct(Structure):
     
 #region Properties
     @property
-    def account_info(self) -> AccountInfo | None:
+    def account_info(self) -> AccountInfoStruct | None:
         if not self.account_info_ptr:
             return None
         return self.account_info_ptr.contents
@@ -820,22 +820,22 @@ class WorldContextStruct(Structure):
         return [int(item) for item in items]
     
     @property
-    def map_agents(self) -> list[MapAgent] | None:
-        agents = GW_Array_Value_View(self.map_agents_array, MapAgent).to_list()
+    def map_agents(self) -> list[MapAgentStruct] | None:
+        agents = GW_Array_Value_View(self.map_agents_array, MapAgentStruct).to_list()
         if not agents:
             return None
         return [agent for agent in agents]
     
     @property
-    def party_allies(self) -> list[PartyAlly] | None:
-        allies = GW_Array_Value_View(self.party_allies_array, PartyAlly).to_list()
+    def party_allies(self) -> list[PartyAllyStruct] | None:
+        allies = GW_Array_Value_View(self.party_allies_array, PartyAllyStruct).to_list()
         if not allies:
             return None
         return [ally for ally in allies]
     
     @property
-    def party_attributes(self) -> list[PartyAttribute] | None:
-        attrs = GW_Array_Value_View(self.party_attributes_array, PartyAttribute).to_list()
+    def party_attributes(self) -> list[PartyAttributeStruct] | None:
+        attrs = GW_Array_Value_View(self.party_attributes_array, PartyAttributeStruct).to_list()
         if not attrs:
             return None
         return [attr for attr in attrs]
@@ -871,8 +871,8 @@ class WorldContextStruct(Structure):
         return [int(ptr) for ptr in ptrs]
     
     @property
-    def party_effects(self) -> list[AgentEffects] | None:
-        effects = GW_Array_Value_View(self.party_effects_array, AgentEffects).to_list()
+    def party_effects(self) -> list[AgentEffectsStruct] | None:
+        effects = GW_Array_Value_View(self.party_effects_array, AgentEffectsStruct).to_list()
         if not effects:
             return None
         return [effect for effect in effects]
@@ -886,15 +886,15 @@ class WorldContextStruct(Structure):
         return [int(ptr) if ptr is not None else None for ptr in ptrs]
 
     @property
-    def quest_log(self) -> list[Quest] | None:
-        quests = GW_Array_Value_View(self.quest_log_array, Quest).to_list()
+    def quest_log(self) -> list[QuestStruct] | None:
+        quests = GW_Array_Value_View(self.quest_log_array, QuestStruct).to_list()
         if not quests:
             return None
         return [quest for quest in quests]
     
     @property
-    def mission_objectives(self) -> list[MissionObjective] | None:
-        objectives = GW_Array_Value_View(self.mission_objectives_array, MissionObjective).to_list()
+    def mission_objectives(self) -> list[MissionObjectiveStruct] | None:
+        objectives = GW_Array_Value_View(self.mission_objectives_array, MissionObjectiveStruct).to_list()
         if not objectives:
             return None
         return [obj for obj in objectives]
@@ -907,15 +907,15 @@ class WorldContextStruct(Structure):
         return [int(id_) for id_ in ids]
     
     @property
-    def hero_flags(self) -> list[HeroFlag] | None:
-        flags = GW_Array_Value_View(self.hero_flags_array, HeroFlag).to_list()
+    def hero_flags(self) -> list[HeroFlagStruct] | None:
+        flags = GW_Array_Value_View(self.hero_flags_array, HeroFlagStruct).to_list()
         if not flags:
             return None
         return [flag for flag in flags]
     
     @property
-    def hero_info(self) -> list[HeroInfo] | None:
-        infos = GW_Array_Value_View(self.hero_info_array, HeroInfo).to_list()
+    def hero_info(self) -> list[HeroInfoStruct] | None:
+        infos = GW_Array_Value_View(self.hero_info_array, HeroInfoStruct).to_list()
         if not infos:
             return None
         return [info for info in infos]
@@ -930,8 +930,8 @@ class WorldContextStruct(Structure):
         return [int(a) if a is not None else None for a in areas]
     
     @property
-    def controlled_minions(self) -> list[ControlledMinions] | None:
-        minions = GW_Array_Value_View(self.controlled_minion_count_array, ControlledMinions).to_list()
+    def controlled_minions(self) -> list[ControlledMinionsStruct] | None:
+        minions = GW_Array_Value_View(self.controlled_minion_count_array, ControlledMinionsStruct).to_list()
         if not minions:
             return None
         return [minion for minion in minions]
@@ -972,34 +972,34 @@ class WorldContextStruct(Structure):
         return [int(map_) for map_ in maps]
     
     @property
-    def player_morale(self) -> PartyMemberMoraleInfo | None:
+    def player_morale(self) -> PartyMemberMoraleInfoStruct | None:
         if not self.player_morale_ptr:
             return None
         return self.player_morale_ptr.contents
     
     @property
-    def party_morale(self) -> list[PartyMoraleLink] | None:
-        links = GW_Array_Value_View(self.party_morale_array, PartyMoraleLink).to_list()
+    def party_morale(self) -> list[PartyMoraleLinkStruct] | None:
+        links = GW_Array_Value_View(self.party_morale_array, PartyMoraleLinkStruct).to_list()
         if not links:
             return None
         return [link for link in links]
     
     @property
-    def player_controlled_character(self) -> PlayerControlledCharacter | None:
+    def player_controlled_character(self) -> PlayerControlledCharacterStruct | None:
         if not self.playerControlledChar_ptr:
             return None
         return self.playerControlledChar_ptr.contents
     
     @property
-    def pets(self) -> list[PetInfo] | None:
-        pets = GW_Array_Value_View(self.pets_array, PetInfo).to_list()
+    def pets(self) -> list[PetInfoStruct] | None:
+        pets = GW_Array_Value_View(self.pets_array, PetInfoStruct).to_list()
         if not pets:
             return None
         return [pet for pet in pets]
     
     @property
-    def party_profession_states(self) -> list[ProfessionState] | None:
-        states = GW_Array_Value_View(self.party_profession_states_array, ProfessionState).to_list()
+    def party_profession_states(self) -> list[ProfessionStateStruct] | None:
+        states = GW_Array_Value_View(self.party_profession_states_array, ProfessionStateStruct).to_list()
         if not states:
             return None
         return [state for state in states]
@@ -1019,8 +1019,8 @@ class WorldContextStruct(Structure):
         return [int(ptr) for ptr in ptrs]
     
     @property
-    def party_skillbars(self) -> list[Skillbar] | None:
-        skillbars = GW_Array_Value_View(self.party_skillbar_array, Skillbar).to_list()
+    def party_skillbars(self) -> list[SkillbarStruct] | None:
+        skillbars = GW_Array_Value_View(self.party_skillbar_array, SkillbarStruct).to_list()
         if not skillbars:
             return None
         return [skillbar for skillbar in skillbars]
@@ -1040,8 +1040,8 @@ class WorldContextStruct(Structure):
         return [int(skill) for skill in skills]
     
     @property
-    def duplicated_character_skills(self) -> list[DupeSkill] | None:
-        skills = GW_Array_Value_View(self.duplicated_character_skills_array, DupeSkill).to_list()
+    def duplicated_character_skills(self) -> list[DupeSkillStruct] | None:
+        skills = GW_Array_Value_View(self.duplicated_character_skills_array, DupeSkillStruct).to_list()
         if not skills:
             return None
         return [skill for skill in skills]
@@ -1054,8 +1054,8 @@ class WorldContextStruct(Structure):
         return [int(ptr) for ptr in ptrs]
     
     @property
-    def agent_name_info(self) -> list[AgentNameInfo] | None:
-        infos = GW_Array_Value_View(self.agent_name_info_array, AgentNameInfo).to_list()
+    def agent_name_info(self) -> list[AgentNameInfoStruct] | None:
+        infos = GW_Array_Value_View(self.agent_name_info_array, AgentNameInfoStruct).to_list()
         if not infos:
             return None
         return [info for info in infos]
@@ -1068,36 +1068,36 @@ class WorldContextStruct(Structure):
         return [int(ptr) for ptr in ptrs]
     
     @property
-    def mission_map_icons(self) -> list[MissionMapIcon] | None:
-        icons = GW_Array_Value_View(self.mission_map_icons_array, MissionMapIcon).to_list()
+    def mission_map_icons(self) -> list[MissionMapIconStruct] | None:
+        icons = GW_Array_Value_View(self.mission_map_icons_array, MissionMapIconStruct).to_list()
         if not icons:
             return None
         return [icon for icon in icons]
 
     @property
-    def npc_models(self) -> list[NPC_Model] | None:
-        npcs = GW_Array_Value_View(self.npc_models_array, NPC_Model).to_list()
+    def npc_models(self) -> list[NPC_ModelStruct] | None:
+        npcs = GW_Array_Value_View(self.npc_models_array, NPC_ModelStruct).to_list()
         if not npcs:
             return None
         return [npc for npc in npcs]
     
     @property
-    def players(self) -> list[Player] | None:
-        players = GW_Array_Value_View(self.players_array, Player).to_list()
+    def players(self) -> list[PlayerStruct] | None:
+        players = GW_Array_Value_View(self.players_array, PlayerStruct).to_list()
         if not players:
             return None
         return [player for player in players]
     
     @property
-    def titles(self) -> list[Title] | None:
-        titles = GW_Array_Value_View(self.titles_array, Title).to_list()
+    def titles(self) -> list[TitleStruct] | None:
+        titles = GW_Array_Value_View(self.titles_array, TitleStruct).to_list()
         if not titles:
             return None
         return [title for title in titles]
     
     @property
-    def title_tiers(self) -> list[TitleTier] | None:
-        tiers = GW_Array_Value_View(self.title_tiers_array, TitleTier).to_list()
+    def title_tiers(self) -> list[TitleTierStruct] | None:
+        tiers = GW_Array_Value_View(self.title_tiers_array, TitleTierStruct).to_list()
         if not tiers:
             return None
         return [tier for tier in tiers]

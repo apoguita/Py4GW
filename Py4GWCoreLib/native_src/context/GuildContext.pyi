@@ -5,6 +5,11 @@ from ..internals.gw_array import GW_Array
 
 class GHKey(Structure):
     key_data: List[int]
+    @property
+    def as_string(self) -> str: ...
+    @classmethod
+    def from_hex(cls, hex_string: str) -> "GHKey": ...
+
         
 class CapeDesign():
     cape_bg_color: int
