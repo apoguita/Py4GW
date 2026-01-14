@@ -1,5 +1,4 @@
 from typing import List, overload
-from PyMap import Campaign
 from PyAgent import Profession, AttributeClass
 
 class SkillID:
@@ -25,7 +24,7 @@ class SkillType:
 
 class Skill:
     id: SkillID
-    campaign: Campaign
+    campaign: int
     type: SkillType
     special: int
     combo_req: int

@@ -59,7 +59,9 @@ class SkillCache:
     
     def GetCampaign(self, skill_id):
         skill = self._get_skill_instance(skill_id)
-        return skill.campaign.ToInt(), skill.campaign.GetName()
+        from ..enums_src.Region_enums import CampaignName
+        campaign = skill.campaign
+        return campaign, CampaignName.get(campaign, "Unknown")
     
     def GetProfession(self, skill_id):
         skill = self._get_skill_instance(skill_id)

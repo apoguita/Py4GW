@@ -1,5 +1,6 @@
 from PyImGui import end
-import PyMap
+
+import PyPointers
 from Py4GW import Game
 import math
 from typing import ClassVar, Optional
@@ -498,7 +499,8 @@ class MapContext:
         return MapContext._ptr
     @staticmethod
     def _update_ptr():
-        MapContext._ptr = PyMap.PyMap().GetMapContextPtr()
+        
+        MapContext._ptr = PyPointers.PyPointers.GetMapContextPtr()
 
     @staticmethod
     def enable():

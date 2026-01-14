@@ -1,4 +1,4 @@
-import PyMap
+
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_void_p
 from ..internals.types import Vec2f

@@ -12,13 +12,13 @@ from Py4GWCoreLib.native_src.context.PreGameContext import (
 
 import ctypes
 from ctypes import sizeof
-import PyMap
+import PyPointers
 from Py4GW import Game
 
 world_map_ptr = 0
 def get_world_map_context_ptr():
     global world_map_ptr
-    world_map_ptr = PyMap.PyMap().GetWorldMapContextPtr()
+    world_map_ptr = PyPointers.PyPointers.GetWorldMapContextPtr()
     
 #Game.clear_callbacks()
 CallbackID = Game.register_callback("get_world_map_context_ptr", lambda: get_world_map_context_ptr())
