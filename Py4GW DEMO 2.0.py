@@ -3,8 +3,9 @@ from Py4GWCoreLib.AgentArray import AgentArray
 from py4gw_demo_src.helpers import draw_kv_table
 from Py4GWCoreLib.Player import Player
 from py4gw_demo_src.helpers import VIEW_LIST, _selected_view
-from py4gw_demo_src.map_demo import draw_map_data
+from py4gw_demo_src.map_demo import draw_map_data, draw_mission_map_tab, draw_mini_map_tab, draw_world_map_tab, draw_pregame_tab
 from py4gw_demo_src.agent_demo import draw_agents_view
+from py4gw_demo_src.pathing_map_demo import renderer
 from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 
 MODULE_NAME = "Py4GW DEMO 2.0"
@@ -92,7 +93,7 @@ def draw_window():
         # ================= LEFT PANEL =================
         PyImGui.begin_child(
             "left_panel",
-            (180.0, 600.0),   # fixed width, full height
+            (250.0, 700.0),   # fixed width, full height
             True,
             0
         )
@@ -100,7 +101,10 @@ def draw_window():
         PyImGui.text("Modules")
         PyImGui.separator()
 
-        for name in VIEW_LIST:
+        for is_child, name in VIEW_LIST:
+            if is_child:
+                PyImGui.indent(20.0)
+                #name = name.replace(" |- ", "")
             if PyImGui.selectable(
                 name,
                 _selected_view == name,
@@ -108,6 +112,9 @@ def draw_window():
                 (0.0, 0.0)
             ):
                 _selected_view = name
+                
+            if is_child:
+                PyImGui.unindent(20.0)
 
         PyImGui.end_child()
 
@@ -116,13 +123,23 @@ def draw_window():
         # ================= RIGHT PANEL =================
         PyImGui.begin_child(
             "right_panel",
-            (600.0, 600.0),     # take remaining space
+            (700.0, 700.0),     # take remaining space
             False,
             0
         )
         
         if _selected_view == "Map":
             draw_map_data()
+        elif _selected_view == "Mission Map":
+            draw_mission_map_tab()
+        elif _selected_view == "Mini Map":
+            draw_mini_map_tab()
+        elif _selected_view == "World Map":
+            draw_world_map_tab()
+        elif _selected_view == "Pregame Data":
+            draw_pregame_tab()
+        elif _selected_view == "Geo Location and Pathing":
+            renderer.Draw_PathingMap_Window()
         elif _selected_view == "AgentArray":
             draw_agent_array_data() 
         

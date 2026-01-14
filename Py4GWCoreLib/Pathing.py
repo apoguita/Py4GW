@@ -4,16 +4,18 @@ import PyOverlay
 import math
 import heapq
 import pickle
+import ctypes
 
 from .enums import name_to_map_id
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoidStruct, PathingMapStruct, PortalStruct
 
-PathingMap = PyPathing.PathingMap
-PathingTrapezoid = PyPathing.PathingTrapezoid
-PathingPortal = PyPathing.Portal
+PathingMap = PathingMapStruct
+PathingTrapezoid = PathingTrapezoidStruct
+PathingPortal = PortalStruct
 Point2D = PyOverlay.Point2D
 
 class AABB:
@@ -169,7 +171,17 @@ class NavMesh:
                     trap = self.trapezoids.get(trap_id)
                     if not trap:
                         continue
-                    portal_groups[p.pair_index][z].append(trap)
+                    pair = p.pair
+                    if pair:
+                        key = (
+                            min(ctypes.addressof(p), ctypes.addressof(pair)),
+                            max(ctypes.addressof(p), ctypes.addressof(pair))
+                        )
+                    else:
+                        key = ctypes.addressof(p)
+
+                    portal_groups[key][z].append(trap)
+
 
         # Step 2: only test across zplane groups
         for zplane_map in portal_groups.values():
@@ -587,7 +599,7 @@ class AutoPathing:
             yield
             return  # Already loaded
 
-        pathing_maps = PyPathing.get_pathing_maps()
+        pathing_maps = Map.Pathing.GetPathingMaps()
         navmesh = NavMesh(pathing_maps, map_id)
         self.pathing_map_cache[group_key] = navmesh
         yield

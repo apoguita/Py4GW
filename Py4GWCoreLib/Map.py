@@ -1,6 +1,7 @@
 
 from .Context import GWContext
 from .native_src.methods.MapMethods import MapMethods
+from .native_src.context.MapContext import PathingMapStruct, PathingTrapezoidStruct
 from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, RegionTypeName, 
                                      ContinentName, CampaignName,)
 
@@ -1906,8 +1907,11 @@ class Map:
     #region Pathing
     class Pathing:
         @staticmethod
-        def GetPathingMaps() -> List[PyPathing.PathingMap]:
-            return PyPathing.get_pathing_maps()
+        def GetPathingMaps() -> List[PathingMapStruct]:
+            if (map_ctx := GWContext.Map.GetContext()) is None:
+                return []
+            
+            return map_ctx.pathing_maps
 
         @staticmethod
         def WorldToScreen(x: float, y: float, z: float = 0.0) -> tuple[float, float]:
@@ -1918,7 +1922,7 @@ class Map:
             return screen_pos.x, screen_pos.y
 
         class Quad:
-            def __init__(self, trapezoid: PyPathing.PathingTrapezoid):
+            def __init__(self, trapezoid: PathingTrapezoidStruct):
                 self.trapezoid = trapezoid
 
                 self.top_left: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTL), int(trapezoid.YT))
