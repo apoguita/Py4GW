@@ -1,4 +1,5 @@
-import PyMap
+
+import PyPointers
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, POINTER, cast
 from ..internals.types import Vec2f
@@ -66,7 +67,7 @@ class MissionMapContext:
     
     @staticmethod
     def _update_ptr():
-        MissionMapContext._ptr = PyMap.PyMap().GetMissionMapContextPtr()
+        MissionMapContext._ptr = PyPointers.PyPointers.GetMissionMapContextPtr()
 
     @staticmethod
     def enable():

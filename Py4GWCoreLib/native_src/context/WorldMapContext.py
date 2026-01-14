@@ -1,4 +1,5 @@
-import PyMap
+
+import PyPointers
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER
 from ..internals.types import Vec2f
@@ -49,7 +50,7 @@ class WorldMapContext:
     
     @staticmethod
     def _update_ptr():
-        WorldMapContext._ptr = PyMap.PyMap().GetWorldMapContextPtr()
+        WorldMapContext._ptr = PyPointers.PyPointers.GetWorldMapContextPtr()
 
     @staticmethod
     def enable():

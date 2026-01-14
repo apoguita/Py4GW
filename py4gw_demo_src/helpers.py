@@ -11,7 +11,7 @@ VIEW_LIST: list[tuple[bool, str]] = [
     (True,  "Mini Map"),
     (True,  "World Map"),
     (True,  "Pregame Data"),
-    (True,  "Observing Matches Data"),
+    (True,  "WIP Observing Matches Data"),
     (True,  "Geo Location and Pathing"),
     (False, "AgentArray"),
     (False, "Agents"),

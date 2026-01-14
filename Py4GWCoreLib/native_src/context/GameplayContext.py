@@ -1,4 +1,5 @@
-import PyMap
+
+import PyPointers
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, POINTER, cast
 
@@ -24,7 +25,7 @@ class GameplayContext:
 
     @staticmethod
     def _update_ptr():
-        GameplayContext._ptr = PyMap.PyMap().GetGameplayContextPtr()
+        GameplayContext._ptr = PyPointers.PyPointers.GetGameplayContextPtr()
 
     @staticmethod
     def enable():

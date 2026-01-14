@@ -84,9 +84,12 @@ class Skill:
         """Purpose: Retrieve the type of a skill by its ID. (tuple)"""
         return Skill.skill_instance(skill_id).type.id, Skill.skill_instance(skill_id).type.GetName()
 
+    @staticmethod
     def GetCampaign(skill_id):
         """Purpose: Retrieve the campaign of a skill by its ID."""
-        return Skill.skill_instance(skill_id).campaign.ToInt(), Skill.skill_instance(skill_id).campaign.GetName()
+        from .enums_src.Region_enums import CampaignName
+        campaign = Skill.skill_instance(skill_id).campaign
+        return campaign, CampaignName.get(campaign, "Unknown")
 
     @staticmethod
     def GetProfession(skill_id):
