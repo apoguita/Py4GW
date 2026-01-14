@@ -501,7 +501,7 @@ class HeroAI_Windows():
                         PyImGui.text_colored(f"IsReadyToCast: {is_ready_to_cast}", Utils.TrueFalseColor(is_ready_to_cast))
                         if PyImGui.tree_node(f"IsReadyToCast: {is_ready_to_cast}"): 
                             is_casting = Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
-                            casting_skill = Agent.GetCastingSkill(GLOBAL_CACHE.Player.GetAgentID())
+                            casting_skill = Agent.GetCastingSkillID(GLOBAL_CACHE.Player.GetAgentID())
                             skillbar_casting = GLOBAL_CACHE.SkillBar.GetCasting()
                             skillbar_recharge = cached_data.combat_handler.skills[HeroAI_Windows.skill_slot].skillbar_data.recharge
                             player_agent_id = GLOBAL_CACHE.Player.GetAgentID()

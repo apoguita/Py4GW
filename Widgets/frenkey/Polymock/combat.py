@@ -274,7 +274,7 @@ class Combat:
             self.target_agent.agent_id) if self.target_agent and self.target_agent.agent_id > 0 else 'None'
         self.target_allegiance = Allegiance(Agent.GetAllegiance(
             self.target_id)[0]) if self.target_agent else Allegiance.Neutral
-        self.target_skill_id = Agent.GetCastingSkill(
+        self.target_skill_id = Agent.GetCastingSkillID(
             self.target_id) if self.target_agent else 0
         self.target_model_id = Agent.GetModelID(
             self.target_id) if self.target_agent else 0
@@ -331,7 +331,7 @@ class Combat:
                 
                 if can_interrupt:
                     if self.cancel_casting:
-                        if is_casting and Agent.GetCastingSkill(self.player_id) != self.skills[4].id.id:                   
+                        if is_casting and Agent.GetCastingSkillID(self.player_id) != self.skills[4].id.id:                   
                             self.state.Log(f"Cancel casting current skill.")
                             Keystroke.PressAndRelease(Key.Escape.value)
 
@@ -347,7 +347,7 @@ class Combat:
                 
                 if can_block:
                     if self.cancel_casting:
-                        if is_casting and Agent.GetCastingSkill(self.player_id) != self.skills[5].id.id: 
+                        if is_casting and Agent.GetCastingSkillID(self.player_id) != self.skills[5].id.id: 
                             self.state.Log(f"Cancel casting current skill.")
                             Keystroke.PressAndRelease(Key.Escape.value)
                         

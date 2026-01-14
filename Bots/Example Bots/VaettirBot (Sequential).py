@@ -452,7 +452,12 @@ def GetNotHexedEnemy():
     return enemy_array[0]
 
 def IsValidItem(item_id):
-    return (Agent.agent_instance(item_id).item_agent.owner_id == Player.GetAgentID()) or (Agent.agent_instance(item_id).item_agent.owner_id == 0)
+    item_agent = Agent.GetItemAgentByID(item_id)
+    if item_agent is None:
+        return False
+    
+    owner = item_agent.owner
+    return owner == Player.GetAgentID() or owner == 0
 
 def get_filtered_loot_array():
     global bot_variables
@@ -493,6 +498,7 @@ def get_filtered_loot_array():
 
 
 def get_escape_location(scaling_factor=50):
+    from Py4GWCoreLib import VectorFields
     """
     Moves the player to a calculated escape location based on enemy repulsion.
     
@@ -506,7 +512,7 @@ def get_escape_location(scaling_factor=50):
     player_x, player_y = Player.GetXY()
     
     # Initialize VectorFields with the player's position
-    vector_fields = Utils.VectorFields(probe_position=(player_x, player_y))
+    vector_fields = VectorFields(probe_position=(player_x, player_y))
 
     # Get and filter the enemy array
     enemy_array = AgentArray.GetEnemyArray()

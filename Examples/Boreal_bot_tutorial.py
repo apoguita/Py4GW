@@ -160,7 +160,7 @@ def main():
         interrupt_slot = 6
         player_number = Player.GetPlayerNumber()
         HeroAI = PyHeroAI.PyHeroAI()
-        if Agent.IsCasting(target) and Agent.GetCastingSkill(target) == backfire_id and Agent.IsCaster(target):
+        if Agent.IsCasting(target) and Agent.GetCastingSkillID(target) == backfire_id and Agent.IsCaster(target):
             HeroAI.SetCombat(player_number, False)
             Skillbar.SkillBar.UseSkill(interrupt_slot)
             HeroAI.SetCombat(player_number, True)
