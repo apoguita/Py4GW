@@ -310,7 +310,7 @@ def DrawMainWindow():
                     PyImGui.text_colored("Is NPC", _colored_bool(Agent.IsNPC(_AGENT_ID)))
                     PyImGui.table_next_row()
                     PyImGui.table_next_column()
-                    PyImGui.text(f"Casting Skill ID: {Agent.GetCastingSkill(_AGENT_ID)}")
+                    PyImGui.text(f"Casting Skill ID: {Agent.GetCastingSkillID(_AGENT_ID)}")
                     PyImGui.table_next_column()
                     PyImGui.text(f"Overcast: {Agent.GetOvercast(_AGENT_ID)}")
                     PyImGui.table_next_column()

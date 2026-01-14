@@ -797,7 +797,7 @@ class CombatClass:
                                 
         if Conditions.IsCasting:
             if Agent.IsCasting(vTarget):
-                casting_skill_id = Agent.GetCastingSkill(vTarget)
+                casting_skill_id = Agent.GetCastingSkillID(vTarget)
                 if GLOBAL_CACHE.Skill.Data.GetActivation(casting_skill_id) >= 0.250:
                     if len(Conditions.CastingSkillList) == 0:
                         number_of_features += 1
