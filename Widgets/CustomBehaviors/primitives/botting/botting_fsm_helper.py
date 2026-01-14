@@ -3,7 +3,10 @@ import time
 from typing import Any, List
 from Py4GWCoreLib import Botting, Routines
 
+from Py4GWCoreLib.enums_src.IO_enums import Key
+from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
 from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
+from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
 from Widgets.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -28,7 +31,10 @@ class BottingFsmHelpers:
 
                     # Pause or resume FSM depending on CB utilities running
                     if instance.is_executing_utility_skills():
+                        # print("CustomBehaviorsDaemon pausing FSM")
                         fsm.pause()
+                        # we press ESC to cancel any movement
+                        # ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Escape.value])
                     else:
                         fsm.resume()
                 else:
@@ -45,8 +51,7 @@ class BottingFsmHelpers:
         print("SetBottingBehaviorAsPacifist")
         
         instance = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: raise Exception("CustomBehavior widget is required.")
-        # todo we must verify we are under UseCustomBehavior
+        if instance is None: pass
 
         # Local imports to avoid circular import with resign_if_needed -> botting_helpers
         from Widgets.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
@@ -64,8 +69,7 @@ class BottingFsmHelpers:
     def _set_botting_behavior_as_aggressive(bot: Botting):
         print("SetBottingBehaviorAsAggressive")
         instance = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: raise Exception("CustomBehavior widget is required.")
-        # todo we must verify we are under UseCustomBehavior
+        if instance is None: pass
 
         # Local imports to avoid circular import with resign_if_needed -> botting_helpers
         from Widgets.CustomBehaviors.skills.botting.move_to_distant_chest_if_path_exists import MoveToDistantChestIfPathExistsUtility
@@ -107,6 +111,20 @@ class BottingFsmHelpers:
                 yield from BottingHelpers.botting_unrecoverable_issue(event_message.data)
 
         return wrapper
+    
+    @staticmethod
+    def __reset_botting_behavior(bot: Botting):
+        
+        properties = bot.Properties
+        properties.Disable("pause_on_danger") #engage in combat
+        properties.Disable("halt_on_death") 
+        properties.Set("movement_timeout", value=-1)
+        properties.Disable("auto_combat") #engage in combat
+        properties.Disable("hero_ai") #hero combat     
+        properties.Disable("auto_loot") #wait for loot
+        properties.Disable("auto_inventory_management") #manage inventory
+
+    # ---
 
     @staticmethod
     def UseCustomBehavior(
@@ -115,22 +133,22 @@ class BottingFsmHelpers:
             on_player_critical_death: Callable[[FSM], Generator[Any, Any, Any]] | None = None,
             on_party_death: Callable[[FSM], Generator[Any, Any, Any]] | None = None
             ):
-
+        
         fsm = bot.config.FSM
-
         instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
 
-        # Attach to FSM safely across start/reset. If FSM already started, attach now; otherwise add a Step
-        if fsm.current_state is not None:
-            if not fsm.HasManagedCoroutine("CustomBehaviorsBottingDaemon"):
-                print("CustomBehaviorsBottingDaemon AddManagedCoroutine (runtime)")
-                fsm.AddManagedCoroutine("CustomBehaviorsDaemon", BottingFsmHelpers.__custom_behaviors_botting_daemon(fsm))
-        else:
-            # Not started yet: use a step so it attaches during run (start() clears managed_coroutines)
-            if not fsm.has_state("CustomBehaviorsBottingDaemon"):
-                print("CustomBehaviorsBottingDaemon AddManagedCoroutineStep (pre-start)")
-                fsm.AddManagedCoroutineStep("CustomBehaviorsBottingDaemon", BottingFsmHelpers.__custom_behaviors_botting_daemon(fsm))
+        BottingFsmHelpers.__reset_botting_behavior(bot)
+
+        # Create the daemon factory and register it with the loader for persistence across FSM restarts
+        daemon_factory = lambda: BottingFsmHelpers.__custom_behaviors_botting_daemon(fsm)
+        loader = CustomBehaviorLoader()
+        loader.register_botting_daemon(fsm, daemon_factory)
+
+        # Try to add immediately if FSM is already running
+        if fsm.current_state is not None and not fsm.HasManagedCoroutine("CustomBehaviorsBottingDaemon"):
+            print("CustomBehaviorsBottingDaemon AddManagedCoroutine (initial)")
+            fsm.AddManagedCoroutine("CustomBehaviorsBottingDaemon", daemon_factory)
 
         event_bus = instance.event_bus
         subscriber_name = "CustomBehaviorsBottingDaemon"
@@ -140,11 +158,21 @@ class BottingFsmHelpers:
         event_bus.subscribe(EventType.PARTY_DEATH, BottingFsmHelpers.__wrapper_event_bus(on_party_death), subscriber_name=subscriber_name)
     
     @staticmethod
+    def PauseCustomBehavior(bot: Botting):
+        instance = CustomBehaviorLoader().custom_combat_behavior
+        if instance is None: raise Exception("CustomBehavior widget is required.")
+        instance.clear_additionnal_utility_skills()
+        CustomBehaviorParty().set_party_is_combat_enabled(True)
+        CustomBehaviorParty().set_party_is_looting_enabled(True)
+        BottingFsmHelpers.__reset_botting_behavior(bot)
+
+    @staticmethod
     def SetBottingBehaviorAsAggressive(bot: Botting):
         instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is not None:
             BottingFsmHelpers.UseCustomBehavior(bot)
             bot.config.FSM.AddManagedCoroutineStep("CustomBehavior_SetBottingBehaviorAsAggressive", lambda: BottingFsmHelpers._set_botting_behavior_as_aggressive(bot))
+            BottingFsmHelpers.__reset_botting_behavior(bot)
 
     @staticmethod
     def SetBottingBehaviorAsPacifist(bot: Botting):
@@ -152,3 +180,4 @@ class BottingFsmHelpers:
         if instance is not None:
             BottingFsmHelpers.UseCustomBehavior(bot)
             bot.config.FSM.AddManagedCoroutineStep("CustomBehavior_SetBottingBehaviorAsPacifist", lambda: BottingFsmHelpers._set_botting_behavior_as_pacifist(bot))
+            BottingFsmHelpers.__reset_botting_behavior(bot)

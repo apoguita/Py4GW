@@ -34,7 +34,9 @@ class NecromancerMinionMaster_UtilitySkillBar(CustomBehaviorBaseUtility):
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # core skills
-        self.animated_bone_fiend_utility: CustomSkillUtilityBase = MinionInvocationFromCorpseUtility(event_bus=self.event_bus, skill=CustomSkill("Animate_Bone_Fiend"), current_build=in_game_build, score_definition=ScoreStaticDefinition(60))
+        self.animate_shambling_horror_utility: CustomSkillUtilityBase = MinionInvocationFromCorpseUtility(event_bus=self.event_bus, skill=CustomSkill("Animate_Shambling_Horror"), current_build=in_game_build, score_definition=ScoreStaticDefinition(62))
+        self.animate_bone_fiend_utility: CustomSkillUtilityBase = MinionInvocationFromCorpseUtility(event_bus=self.event_bus, skill=CustomSkill("Animate_Bone_Fiend"), current_build=in_game_build, score_definition=ScoreStaticDefinition(61))
+        self.animate_vampiric_horror_utility: CustomSkillUtilityBase = MinionInvocationFromCorpseUtility(event_bus=self.event_bus, skill=CustomSkill("Animate_Vampiric_Horror"), current_build=in_game_build, score_definition=ScoreStaticDefinition(60))
         self.blood_of_the_master_utility: CustomSkillUtilityBase = BloodOfTheMasterUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(33))
 
         # optional
@@ -54,7 +56,9 @@ class NecromancerMinionMaster_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
-            self.animated_bone_fiend_utility,
+            self.animate_bone_fiend_utility,
+            self.animate_vampiric_horror_utility,
+            self.animate_shambling_horror_utility,
             self.blood_of_the_master_utility,
             
             self.great_dwarf_weapon_utility,

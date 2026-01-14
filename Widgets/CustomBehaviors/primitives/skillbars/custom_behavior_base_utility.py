@@ -99,6 +99,8 @@ class CustomBehaviorBaseUtility():
             MerchantRefillIfNeededUtility(event_bus=self.event_bus, current_build=self.in_game_build),
         ]
         
+        self.utility_generator: Generator[Any | None, Any | None, BehaviorResult] | None = None
+        
     def inject_additionnal_utility_skills(self, skill:CustomSkillUtilityBase):
         for injected_skill in self.__injected_additional_utility_skills:
             if injected_skill.custom_skill.skill_name == skill.custom_skill.skill_name:
@@ -107,7 +109,8 @@ class CustomBehaviorBaseUtility():
         self.__final_skills_list = None
 
     def clear_additionnal_utility_skills(self):
-        for skill in self.__injected_additional_utility_skills:
+        # clear additionnal skills
+        for skill in self.__injected_additional_utility_skills.copy():
             self.event_bus.unsubscribe_all(skill.custom_skill.skill_name)
             self.__injected_additional_utility_skills.remove(skill)
 
@@ -151,10 +154,14 @@ class CustomBehaviorBaseUtility():
         if highest_score[1] is not None: 
             # any skill with positive evaluation are a condition to stop an external script
             return True
-
-        if self.get_final_state() == BehaviorState.IN_AGGRO:
-            # in_aggro, even if nothing is done, we must stop  an external script
+        
+        if self.utility_generator is not None and inspect.getgeneratorstate(self.utility_generator) != inspect.GEN_CLOSED:
+            # check that we are in the middle of an execution (utility_generator is still running)
             return True
+
+        # if self.get_final_state() == BehaviorState.IN_AGGRO:
+        #     # in_aggro, even if nothing is done, we must stop  an external script
+        #     return True
 
         return False
 
@@ -492,7 +499,7 @@ class CustomBehaviorBaseUtility():
 
     def __execute_until_condition(self, new_highest_score: CustomSkillUtilityBase) -> Generator[Any | None, Any | None, BehaviorResult]:
         state: BehaviorState = self.get_final_state()
-        utility_generator = new_highest_score.execute(state)
+        self.utility_generator = new_highest_score.execute(state)
         
         # manually iterate through the utility's generator to check priority between yields
         try:
@@ -510,14 +517,14 @@ class CustomBehaviorBaseUtility():
 
                 try:
                     # get the next step from the utility
-                    result = next(utility_generator)
+                    result = next(self.utility_generator)
                     yield result  # yield the utility's result back to the caller
                 except StopIteration as e:
                     # utility completed, return its final result
                     return e.value if hasattr(e, 'value') and e.value is not None else BehaviorResult.ACTION_PERFORMED
         except:
             
-            print(f"Generator: {utility_generator}")
+            print(f"Generator: {self.utility_generator}")
             current_highest:tuple[CustomSkillUtilityBase, float | None] | None = self.get_highest_score()
             if current_highest is None: # score is None
                 print("none!")
@@ -529,6 +536,6 @@ class CustomBehaviorBaseUtility():
         finally:
             # Ensure the underlying generator is closed to trigger its finally blocks (e.g., lock release)
             try:
-                utility_generator.close()
+                self.utility_generator.close()
             except Exception:
                 pass
