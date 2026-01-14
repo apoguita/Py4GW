@@ -1,3 +1,4 @@
+import math
 import os
 import traceback
 
@@ -45,51 +46,27 @@ window_y = ini_window.read_int(MODULE_NAME, Y_POS, 100)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, False)
 
 
-class PinTypes(dNodes.PinType):
-    BOOL = 1
+# "Triggers", "Flow", "Logic/Math", "Data", "Output"
+TRIGGER_COLOR: Py4GWCoreLib.Color = Py4GWCoreLib.Color.from_tuple((0.50, 0.2, 0.2, 1.0)) # RED
+LOGIC_COLOR: Py4GWCoreLib.Color = Py4GWCoreLib.Color.from_tuple((0.2, 0.5, 0.2, 1.0)) #GREEN
+GAME_COLOR: Py4GWCoreLib.Color = Py4GWCoreLib.Color.from_tuple((0.5, 0.35, 0.05, 1.0)) #YELLOW
+DATA_COLOR: Py4GWCoreLib.Color = Py4GWCoreLib.Color.from_tuple((0, 0.3, 0.8, 1.0)) #LIGHT BLUE
+OUTPUT_COLOR: Py4GWCoreLib.Color = Py4GWCoreLib.Color.from_tuple((0.8, 0, 0.8, 1.0)) #PINK
 
 
-class NodeSelector(dNodes.Node):
-    def __init__(self):
-        super().__init__()
-        self.type = "Selector"
-        self.index = 0
-        self.height = 30
-        self.width = 100
-        self.side_padding = 30
-        self.input_pin = dNodes.Pin(True, PinTypes.BOOL, self.id)
-        self.output_pin = dNodes.Pin(False, PinTypes.BOOL, self.id)
-        self.pins.append(self.input_pin)
-        self.pins.append(self.output_pin)
-
-    def draw_inputs(self):
-        pos = PyImGui.get_cursor_screen_pos()
-        self.input_pin.location = pos
-        self.input_pin.draw()
-        # PyImGui.draw_list_add_circle(pos[0], pos[1], 5, Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255), 4, 3)
-
-    def draw_outputs(self):
-        pos = PyImGui.get_cursor_screen_pos()
-        self.output_pin.location = pos
-        self.output_pin.draw()
-        # PyImGui.draw_list_add_circle(pos[0], pos[1], 5, Py4GWCoreLib.Color()._pack_rgba(100, 200, 250, 255), 4, 3)
-
-    def draw_body(self):
-        PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
-        self.index = PyImGui.combo(f"##LogicSelector{self.id}", self.index, ["Selector", "Triggers", "Flow", "Logic/Math", "Data", "Output"])
-        PyImGui.pop_item_width()
-        match self.index:
-            case _:
-                pass
-
-
-class Cache():
+class Cache:
     def __init__(self):
         self.busy_timer = 0
         self.previous_time = 0
         self.ping_buffer = 0.05 #delay added after a cast should complete to avoid actions queueing when not ready
         self.ezcast_cast_minimum_timer = 0.1 #minimum delay between cast attempts, used for instant speed skills
         self.dev_mode = False
+        #General
+        self.e_percent = 1
+        self.energy = 0
+        self.max_energy = 25
+        self.player_id = 0
+        self.target_id = 0
         #Generic
         self.generic_skill_use_checkbox = False
         self.reset_generic_skill_on_mapload = False
@@ -122,9 +99,533 @@ class Cache():
         #smartcast
         self.sc_checkbox = False
         self.node_space = dNodes.NodeSpace("SmartCastSpace")
+        self.smart_cast_triggered = False
 
 
 cache = Cache()
+
+
+class PinTypes(dNodes.PinType):
+    BOOL = 1
+    FLOAT = 2
+
+
+class PinBool(dNodes.Pin):
+    def __init__(self, is_in: bool, parent_id):
+        super().__init__(is_in, PinTypes.BOOL, parent_id)
+        self.value = False
+
+
+class PinFloat(dNodes.Pin):
+    def __init__(self, is_in: bool, parent_id):
+        super().__init__(is_in, PinTypes.FLOAT, parent_id)
+        self.value = False
+        self.radius = 10
+        self.thickness = 4
+
+    def draw_override(self):
+        rgba = LOGIC_COLOR.to_rgba()
+        PyImGui.draw_list_add_circle(self.location[0] + self.radius - self.thickness + 2, self.location[1] + self.radius - self.thickness + 2, self.radius - self.thickness,
+                                     Py4GWCoreLib.Color._pack_rgba(180, 20, 20, 255), 3, self.thickness)
+
+
+class NodeOnFrame(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "On Frame"
+        self.index = 0
+        self.height = 20
+        self.width = 70
+        self.side_padding = 20
+        self.output_pin = PinBool(False, self.id)
+        self.pins.append(self.output_pin)
+        self.header_color = TRIGGER_COLOR.to_tuple_normalized()
+
+    def draw_body(self):
+        PyImGui.text("Start Here")
+
+    def execute(self):
+        global cache
+        self.output_pin.value = True
+        cache.node_space.propagate_pin(self.output_pin)
+
+
+class NodeLogicAnd(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "And"
+        self.height = 60
+        self.output_pin = PinBool(False, self.id)
+        self.input_pins = PinBool(True, self.id), PinBool(True, self.id)
+        self.inputs_updated = [False, False]
+        self.pins.append(self.output_pin)
+        self.pins.extend(self.input_pins)
+        self.header_color = LOGIC_COLOR.to_tuple_normalized()
+
+    def execute(self):
+        self.output_pin.value = self.input_pins[0].value and self.input_pins[1].value
+        global cache
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def pre_execute(self):
+        self.inputs_updated = [False, False]
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin is self.input_pins[0]:
+            self.inputs_updated[0] = True
+        else:
+            self.inputs_updated[1] = True
+        if self.inputs_updated[0] and self.inputs_updated[1]:
+            self.execute()
+
+
+class NodeLogicOr(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Or"
+        self.height = 60
+        self.output_pin = PinBool(False, self.id)
+        self.input_pins = PinBool(True, self.id), PinBool(True, self.id)
+        self.inputs_updated = [False, False]
+        self.pins.append(self.output_pin)
+        self.pins.extend(self.input_pins)
+        self.header_color = LOGIC_COLOR.to_tuple_normalized()
+
+    def execute(self):
+        self.output_pin.value = self.input_pins[0].value or self.input_pins[1].value
+        global cache
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def pre_execute(self):
+        self.inputs_updated = [False, False]
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin is self.input_pins[0]:
+            self.inputs_updated[0] = True
+        else:
+            self.inputs_updated[1] = True
+        if self.inputs_updated[0] and self.inputs_updated[1]:
+            self.execute()
+
+
+class NodeLogicNot(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Not"
+        self.height = 20
+        self.width = 40
+        self.output_pin = PinBool(False, self.id)
+        self.input_pin = PinBool(True, self.id)
+        self.pins.append(self.output_pin)
+        self.pins.append(self.input_pin)
+        self.header_color = LOGIC_COLOR.to_tuple_normalized()
+
+    def execute(self):
+        self.output_pin.value = not self.input_pin.value
+        global cache
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        self.execute()
+
+
+class NodeLogicGreaterThan(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Greater Than"
+        self.height = 45
+        self.width = 80
+        self.output_pin = PinBool(False, self.id)
+        self.input_pins = PinFloat(True, self.id), PinFloat(True, self.id)
+        self.side_padding = self.input_pins[0].radius * 2
+        self.inputs_updated = [False, False]
+        self.pins.append(self.output_pin)
+        self.pins.extend(self.input_pins)
+        self.header_color = LOGIC_COLOR.to_tuple_normalized()
+
+    def execute(self):
+        self.output_pin.value = self.input_pins[0].value > self.input_pins[1].value
+        global cache
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def pre_execute(self):
+        self.inputs_updated = [False, False]
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin is self.input_pins[0]:
+            self.inputs_updated[0] = True
+        else:
+            self.inputs_updated[1] = True
+        if self.inputs_updated[0] and self.inputs_updated[1]:
+            self.execute()
+
+
+class NodeEffect(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Effect"
+        self.height = 45
+        self.width = 80
+        self.output_pin = PinFloat(False, self.id)
+        self.input_pin = PinBool(True, self.id)
+        self.pins.append(self.output_pin)
+        self.pins.append(self.input_pin)
+        self.header_color = GAME_COLOR.to_tuple_normalized()
+
+    def draw_body(self):
+        pass
+
+    def execute(self):
+        global cache
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin.value:
+            self.execute()
+
+
+class NodeEnergy(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Energy"
+        self.height = 25
+        self.width = 100
+        self.output_pin = PinFloat(False, self.id)
+        self.input_pin = PinBool(True, self.id)
+        self.pins.append(self.output_pin)
+        self.pins.append(self.input_pin)
+        self.header_color = GAME_COLOR.to_tuple_normalized()
+
+    def draw_body(self):
+        global cache
+        PyImGui.progress_bar(cache.e_percent, -1, f"energy {cache.energy: .1f}")
+
+    def execute(self):
+        global cache
+        self.output_pin.value = cache.energy
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin.value:
+            self.execute()
+
+
+class NodeFrameDelta(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Time Delta"
+        self.height = 25
+        self.width = 80
+        self.output_pin = PinFloat(False, self.id)
+        self.input_pin = PinBool(True, self.id)
+        self.pins.append(self.output_pin)
+        self.pins.append(self.input_pin)
+        self.header_color = GAME_COLOR.to_tuple_normalized()
+        self.timer = time.time()
+        self.tooltip = "Returns the time since this node was last called."
+
+    def draw_body(self):
+        self.output_pin.value = time.time() - self.timer
+        PyImGui.text(f"{self.output_pin.value: .2f}")
+
+    def execute(self):
+        global cache
+        self.timer = time.time()
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin.value:
+            self.execute()
+
+
+class NodeUseSkill(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Use Skill"
+        self.height = 25
+        self.width = 50
+        self.input_pin = PinBool(True, self.id)
+        self.pins.append(self.input_pin)
+        self.header_color = OUTPUT_COLOR.to_tuple_normalized()
+        self.skill_slot = 1
+
+    def draw_body(self):
+        PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+        self.skill_slot = PyImGui.combo(f"##useskillcombo{self.id}", self.skill_slot, ["", "1", "2", "3", "4", "5", "6", "7", "8"])
+        PyImGui.pop_item_width()
+
+    def execute(self):
+        global cache
+        cache.smart_cast_triggered = True
+        cache.node_space.block_propagation = True
+        GW.SkillBar.UseSkill(self.skill_slot, GW.Player.GetTargetID())
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin.value:
+            self.execute()
+
+
+class NodeTargetData(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Target"
+        self.height = 60
+        self.width = 100
+        self.output_pin = PinFloat(False, self.id)
+        self.input_pin = PinBool(True, self.id)
+        self.pins.append(self.output_pin)
+        self.pins.append(self.input_pin)
+        self.header_color = GAME_COLOR.to_tuple_normalized()
+        self.index = 0
+
+    def draw_body(self):
+        global cache
+        self.index = PyImGui.combo(f"##TargetDataSelector{self.id}", self.index,
+                                               ["HP", "Distance", "Allegiance"])
+        PyImGui.text(f"{self.output_pin.value: .2f}")
+
+    def execute(self):
+        global cache
+        if cache.target_id == 0:
+            return
+        match self.index:
+            case 0:
+                self.output_pin.value = GW.Agent.GetHealth(cache.target_id)
+            case 1:
+                foe_x, foe_y = GW.Agent.GetXY(cache.target_id)
+                player_x, player_y = GW.Agent.GetXY(cache.player_id)
+                distance = math.sqrt((player_x - foe_x) ** 2 + (player_y - foe_y) ** 2)
+                self.output_pin.value = distance
+        if self.output_pin.value != 0:
+            cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin.value:
+            self.execute()
+
+
+class NodePlayerFree(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Player Free"
+        self.height = 25
+        self.width = 100
+        self.output_pin = PinBool(False, self.id)
+        self.input_pin = PinBool(True, self.id)
+        self.pins.append(self.output_pin)
+        self.pins.append(self.input_pin)
+        self.header_color = GAME_COLOR.to_tuple_normalized()
+
+    def draw_body(self):
+        PyImGui.text(f"{self.output_pin.value}")
+
+    def pre_execute(self):
+        global cache
+        ag = GW.Agent.GetAgentByID(cache.player_id)
+        if ag is None: return
+        pl: GW.AgentLivingStruct = ag.GetAsAgentLiving()
+        if pl is None: return
+        self.output_pin.value = not pl.is_casting and not pl.is_attacking
+
+    def execute(self):
+        global cache
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin.value:
+            self.execute()
+
+
+class NodeInputFloat(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Number Input"
+        self.height = 60
+        self.width = 100
+        self.output_pin = PinFloat(False, self.id)
+        self.input_pins = PinBool(True, self.id), PinFloat(True, self.id), PinBool(True, self.id)
+        self.pins.append(self.output_pin)
+        self.pins.extend(self.input_pins)
+        self.header_color = DATA_COLOR.to_tuple_normalized()
+        self.value = 0.0
+
+    def draw_body(self):
+        self.value = PyImGui.input_float(f"##inputfloat{self.id}", self.value)
+        PyImGui.dummy(0, 0)
+        PyImGui.text("< Clear")
+
+    def execute(self):
+        global cache
+        self.output_pin.value = self.value
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin == self.input_pins[0]:
+            self.execute()
+        elif pin == self.input_pins[1]:
+            self.value = pin.value
+        elif pin == self.input_pins[2]:
+            self.value = 0
+
+
+class NodeMathOperation(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Math Op"
+        self.height = 60
+        self.width = 100
+        self.output_pin = PinFloat(False, self.id)
+        self.input_pins = PinFloat(True, self.id), PinFloat(True, self.id)
+        self.inputs_updated = [False, False]
+        self.pins.append(self.output_pin)
+        self.pins.extend(self.input_pins)
+        self.header_color = LOGIC_COLOR.to_tuple_normalized()
+        self.value = 0.0
+        self.index = 0
+
+    def draw_body(self):
+        PyImGui.push_item_width(self.width)
+        self.index = PyImGui.combo(f"##operation{self.id}", self.index, ["Add", "Subtract", "Multiply", "Divide"])
+        PyImGui.pop_item_width()
+
+    def execute(self):
+        global cache
+        match self.index:
+            case 0:
+                self.output_pin.value = self.input_pins[0].value + self.input_pins[1].value
+            case 1:
+                self.output_pin.value = self.input_pins[0].value - self.input_pins[1].value
+            case 2:
+                self.output_pin.value = self.input_pins[0].value * self.input_pins[1].value
+            case 3:
+                self.output_pin.value = self.input_pins[0].value / self.input_pins[1].value
+        cache.node_space.propagate_pin(self.output_pin)
+
+    def inform_update(self, pin: dNodes.Pin):
+        if pin is self.input_pins[0]:
+            self.inputs_updated[0] = True
+        else:
+            self.inputs_updated[1] = True
+        if self.inputs_updated[0] and self.inputs_updated[1]:
+            self.execute()
+
+
+class NodeSelector(dNodes.Node):
+    def __init__(self, x=100, y=100):
+        super().__init__(x, y)
+        self.type = "Selector"
+        self.index = 0
+        self.sub_index = 0
+        self.height = 60
+        self.width = 100
+        self.side_padding = 0
+
+    def draw_body(self):
+        PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+        self.index = PyImGui.combo(f"##NodeSelector{self.id}", self.index, ["Selector", "Triggers", "Game State", "Logic/Math", "Data", "Output"])
+        PyImGui.pop_item_width()
+        match self.index:
+            case 1:
+                self.sub_index = PyImGui.combo(f"##TriggerSelector{self.id}", self.sub_index, ["Select Below", "On Frame"])
+            case 2:
+                self.sub_index = PyImGui.combo(f"##TriggerGameState{self.id}", self.sub_index, ["Select Below", "Effect", "Energy", "Player Free", "Time Delta", "Target Info"])
+            case 3:
+                self.sub_index = PyImGui.combo(f"##LogicSelector{self.id}", self.sub_index, ["Select Below", "And", "Or", "Not", "Greater Than", "Operation"])
+            case 4:
+                self.sub_index = PyImGui.combo(f"##DataSelector{self.id}", self.sub_index,
+                                               ["Select Below", "Number"])
+            case 5:
+                self.sub_index = PyImGui.combo(f"##DataSelector{self.id}", self.sub_index,
+                                       ["Select Below", "UseSkill"])
+            case _:
+                pass
+
+    def execute(self):
+        match self.index:
+            case 1:
+                match self.sub_index:
+                    case 1:
+                        self.delete_me = True
+                        n = NodeOnFrame(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 3:
+                        self.delete_me = True
+                        n = NodeLogicAnd(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case _:
+                        pass
+            case 2:
+                match self.sub_index:
+                    case 1:
+                        self.delete_me = True
+                        n = NodeEffect(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 2:
+                        self.delete_me = True
+                        n = NodeEnergy(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 3:
+                        self.delete_me = True
+                        n = NodePlayerFree(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 4:
+                        self.delete_me = True
+                        n = NodeFrameDelta(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 5:
+                        self.delete_me = True
+                        n = NodeTargetData(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case _:
+                        pass
+            case 3:
+                match self.sub_index:
+                    case 1:
+                        self.delete_me = True
+                        n = NodeLogicAnd(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 2:
+                        self.delete_me = True
+                        n = NodeLogicOr(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 3:
+                        self.delete_me = True
+                        n = NodeLogicNot(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 4:
+                        self.delete_me = True
+                        n = NodeLogicGreaterThan(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case 5:
+                        self.delete_me = True
+                        n = NodeMathOperation(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case _:
+                        pass
+            case 4:
+                match self.sub_index:
+                    case 1:
+                        self.delete_me = True
+                        n = NodeInputFloat(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case _:
+                        pass
+            case 5:
+                match self.sub_index:
+                    case 1:
+                        self.delete_me = True
+                        n = NodeUseSkill(self.x, self.y)
+                        cache.node_space.add_node(n)
+                    case _:
+                        pass
+            case _:
+                pass
+        return False
+
+    def can_execute(self) -> bool:
+        return True
+
+
 cache.node_space.new_node_class = NodeSelector
 
 
@@ -279,6 +780,11 @@ def DrawSmartCast():
         PyImGui.text("NOT COMPLETE: IN DEV")  # todo get rid of this
         cache.node_space.draw_space()
 
+
+def use_smartcast(now):
+    cache.node_space.execute_graph()
+
+
 def draw_widget(cached_data):
     global window_x, window_y, window_collapsed, first_run
 
@@ -328,6 +834,7 @@ def draw_widget(cached_data):
 def configure():
     pass
 
+
 def UseGenericSkills(energy, player_id, now):
     global cache
     player_x, player_y = GW.Agent.GetXY(player_id)
@@ -365,6 +872,7 @@ def UseGenericSkills(energy, player_id, now):
                 GW.SkillBar.UseSkill(i, GW.Player.GetTargetID())
                 return True
     return False
+
 
 def MaintainRefrains(player_id, now):
     effects = GW.Effects.GetEffects(player_id)
@@ -509,18 +1017,23 @@ def Update():
     cache.busy_timer -= delta
     if cache.busy_timer > 0:
         return
-    player_id = GW.Player.GetAgentID()
+    cache.player_id = GW.Player.GetAgentID()
     # player_ag : GW.AgentStruct = GW.Agent.GetAgentByID(player_id)
-    energy = GW.Agent.GetEnergy(player_id) * GW.Agent.GetMaxEnergy(player_id)
+    cache.e_percent = GW.Agent.GetEnergy(cache.player_id)
+    cache.energy = cache.e_percent * GW.Agent.GetMaxEnergy(cache.player_id)
+    cache.max_energy = GW.Agent.GetMaxEnergy(cache.player_id)
+    cache.target_id = GW.Player.GetTargetID()
     if cache.generic_skill_use_checkbox:
-        if UseGenericSkills(energy, player_id, now): return
+        if UseGenericSkills(cache.energy, cache.player_id, now): return
     # TODO autoritlord
     if cache.qa_checkbox:
-        if QuickAttack(energy, player_id, now, delta): return
+        if QuickAttack(cache.energy, cache.player_id, now, delta): return
     if cache.refrainer_use_checkbox:
-        if MaintainRefrains(player_id, now): return
+        if MaintainRefrains(cache.player_id, now): return
     if cache.aota_checkbox:
-        if AuraOfTheAssassin(energy, player_id, now): return
+        if AuraOfTheAssassin(cache.energy, cache.player_id, now): return
+    if cache.sc_checkbox:
+        use_smartcast(now)
     # TODO AutoFinishHim
 
 
