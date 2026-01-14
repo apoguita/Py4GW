@@ -22,7 +22,7 @@ class BloodOfTheMasterUtility(CustomSkillUtilityBase):
     def __init__(self, 
         event_bus:EventBus,
         current_build: list[CustomSkill], 
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(33),
+        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(30),
         sacrifice_life_limit_percent: float = 0.55,
         sacrifice_life_limit_absolute: int = 175,
         required_target_mana_lower_than_percent: float = 0.40,
@@ -46,6 +46,7 @@ class BloodOfTheMasterUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         minion_array = AgentArray.GetMinionArray()
+        minion_array = AgentArray.Filter.ByDistance(minion_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.IsAlive(agent_id))
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.GetHealth(agent_id) < 0.70)
 

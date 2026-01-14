@@ -122,6 +122,7 @@ class ElementalistGlimmeringMark_UtilitySkillBar(CustomBehaviorBaseUtility):
             current_build=in_game_build,
             score_definition=ScoreStaticDefinition(70),
             mana_required_to_cast=10,
+            renew_before_expiration_in_milliseconds=1000,
             allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         )
 

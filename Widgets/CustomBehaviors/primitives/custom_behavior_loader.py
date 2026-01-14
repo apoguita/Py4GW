@@ -31,6 +31,9 @@ class CustomBehaviorLoader:
             self._has_loaded = False
             self.__behaviors_found:list[MatchResult] = []
             self._initialized = True
+            # Botting daemon state - stores FSM and factory for re-registration after FSM restart
+            self._botting_daemon_fsm = None
+            self._botting_daemon_factory = None
 
     # internal
 
@@ -177,3 +180,28 @@ class CustomBehaviorLoader:
     def get_all_custom_behavior_candidates(self) -> list[MatchResult] | None:
         if self._has_loaded: return self.__behaviors_found
         return None
+
+    # botting daemon
+    
+    def register_botting_daemon(self, fsm, daemon_factory):
+        """
+        Store the FSM and daemon factory for later re-registration.
+        Called by UseCustomBehavior to enable daemon persistence across FSM restarts.
+        """
+        self._botting_daemon_fsm = fsm
+        self._botting_daemon_factory = daemon_factory
+
+    def ensure_botting_daemon_running(self):
+        """
+        Ensure the botting daemon is registered with the FSM.
+        Should be called from the widget's daemon() on every frame.
+        This handles re-registration after FSM.restart() clears managed_coroutines.
+        """
+        if self._botting_daemon_fsm is None or self._botting_daemon_factory is None:
+            return
+
+        fsm = self._botting_daemon_fsm
+        # Only register if FSM is running and daemon is not already attached
+        if fsm.current_state is not None and not fsm.HasManagedCoroutine("CustomBehaviorsBottingDaemon"):
+            print("CustomBehaviorsBottingDaemon re-registering (daemon loop)")
+            fsm.AddManagedCoroutine("CustomBehaviorsBottingDaemon", self._botting_daemon_factory)

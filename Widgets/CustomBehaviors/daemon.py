@@ -10,18 +10,22 @@ refresh_throttler = ThrottledTimer(1_000)
 
 @staticmethod
 def daemon():
+    loader = CustomBehaviorLoader()
 
-    player_behavior = CustomBehaviorLoader().custom_combat_behavior
-    if loader_throttler.IsExpired(): 
+    # Ensure botting daemon is registered with FSM (handles re-registration after FSM restart)
+    loader.ensure_botting_daemon_running()
+
+    player_behavior = loader.custom_combat_behavior
+    if loader_throttler.IsExpired():
         loader_throttler.Reset()
-        loaded = CustomBehaviorLoader().initialize_custom_behavior_candidate()
+        loaded = loader.initialize_custom_behavior_candidate()
         if loaded: return
 
-    if refresh_throttler.IsExpired(): 
+    if refresh_throttler.IsExpired():
         refresh_throttler.Reset()
         if player_behavior is not None:
             if not player_behavior.is_custom_behavior_match_in_game_build():
-                CustomBehaviorLoader().refresh_custom_behavior_candidate()
+                loader.refresh_custom_behavior_candidate()
                 return
 
     HeroAiWrapping().act()
