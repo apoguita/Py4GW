@@ -903,9 +903,10 @@ class Map:
         @staticmethod
         def GetCenter() -> tuple[float, float]:
             """Get the player position coordinates of the mission map."""
-            if not (misison_map_ctx := GWContext.MissionMap.GetContext()):
-                return 0.0, 0.0
-            return misison_map_ctx.player_mission_map_pos.to_tuple()
+            dimensions = Map.MissionMap.GetMissionMapContentsCoords()
+            center_x = dimensions[0] + (dimensions[2] - dimensions[0]) / 2.0
+            center_y = dimensions[1] + (dimensions[3] - dimensions[1]) / 2.0
+            return center_x,  center_y
         
         
         
