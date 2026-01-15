@@ -11,7 +11,6 @@ import Py4GW
 import PyScanner
 import PyImGui
 
-import PyMissionMap
 import PyAgent
 import PyPlayer
 import PyParty
@@ -77,7 +76,6 @@ Py4GW = Py4GW
 PyScanner = PyScanner
 PyImGui = PyImGui
 
-PyMissionMap = PyMissionMap
 PyAgent = PyAgent
 PyPlayer = PyPlayer
 PyParty = PyParty

@@ -6,7 +6,6 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import Overlay
 from Py4GWCoreLib import DXOverlay
 from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib import PyMissionMap
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import Range
@@ -651,7 +650,6 @@ GLOBAL_CONFIGS.add(object_item)
 #region MISSIONMAP
 class MissionMap:
     def __init__(self):
-        self.mission_map_instance = PyMissionMap.PyMissionMap()
         self.left = 0
         self.top = 0
         self.right = 0
@@ -718,7 +716,7 @@ class MissionMap:
         if not self.throttle_timer.IsExpired():
             return
         self.throttle_timer.Reset()    
-        self.mission_map_instance.GetContext()
+
         if not self.geometry:
             self.boundaries = Map.GetMapBoundaries()
             self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
@@ -730,16 +728,16 @@ class MissionMap:
             self.renderer.mask.set_rectangle_mask(True)
             self.mega_zoom_renderer.mask.set_rectangle_mask(True)
             
-        coords = mission_map.mission_map_instance.left, mission_map.mission_map_instance.top, mission_map.mission_map_instance.right, mission_map.mission_map_instance.bottom
+        coords = Map.MissionMap.GetMissionMapContentsCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
         self.width = self.right - self.left
         self.height = self.bottom - self.top
         
-        self.pan_offset_x, self.pan_offset_y = mission_map.mission_map_instance.pan_offset_x, mission_map.mission_map_instance.pan_offset_y
-        self.scale_x, self.scale_y = mission_map.mission_map_instance.scale_x, mission_map.mission_map_instance.scale_y
+        self.pan_offset_x, self.pan_offset_y = Map.MissionMap.GetPanOffset()
+        self.scale_x, self.scale_y = Map.MissionMap.GetScale()
 
-        self.zoom = mission_map.mission_map_instance.zoom
-        self.mission_map_screen_center_x, self.mission_map_screen_center_y = mission_map.mission_map_instance.mission_map_screen_center_x, mission_map.mission_map_instance.mission_map_screen_center_y
+        self.zoom = Map.MissionMap.GetZoom()
+        self.mission_map_screen_center_x, self.mission_map_screen_center_y = Map.MissionMap.GetCenter()
         
         self.left_world, self.top_world = RawScreenToRawGamePos(self.left, self.top, 
                                                                 self.zoom, self.mega_zoom,
