@@ -25,6 +25,7 @@ from Widgets.CustomBehaviors.primitives.parties.party_following_manager import P
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager
 from Widgets.CustomBehaviors.primitives.parties.party_teambuild_manager import PartyTeamBuildManager
 from Widgets.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
+from Widgets.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
 
 @dataclass
 class PartyData:
@@ -50,7 +51,9 @@ class CustomBehaviorParty:
             self.party_following_manager = PartyFollowingManager()
             self.party_shared_lock_manager = CustomBehaviorWidgetMemoryManager().GetSharedLockManager()
             self.party_flagging_manager = PartyFlaggingManager()
-
+            # Rename GW windows to match custom behavior party names on load
+            print("CustomBehaviorParty: Renaming GW windows")
+            CustomBehaviorParty().schedule_action(PartyCommandConstants.rename_gw_windows)
             self.throttler = ThrottledTimer(50)
 
     def _handle(self) -> Generator[Any | None, Any | None, None]:
