@@ -17,9 +17,6 @@ MODULE_NAME = "Polymock"
 throttle_timer = ThrottledTimer(250)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
-
-sharedMemoryManager = Py4GWSharedMemoryManager()
-
 combat_handler = combat.Combat()
 widget_state = state.WidgetState()
 ui = gui.UI()
