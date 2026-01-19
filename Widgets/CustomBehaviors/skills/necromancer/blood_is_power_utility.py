@@ -3,7 +3,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
 from Py4GWCoreLib.enums import Profession
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -49,7 +49,7 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
         target: int | None = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
                 within_range=Range.Spellcast,
                 condition=lambda agent_id:
-                    agent_id != GLOBAL_CACHE.Player.GetAgentID() and
+                    agent_id != Player.GetAgentID() and
                     custom_behavior_helpers.Resources.get_energy_percent_in_party(agent_id) < self.required_target_mana_lower_than_percent and
                     self.buff_configuration.get_agent_id_predicate()(agent_id),
                 sort_key=(TargetingOrder.ENERGY_ASC, TargetingOrder.DISTANCE_ASC),

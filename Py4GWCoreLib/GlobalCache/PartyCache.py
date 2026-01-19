@@ -1,16 +1,15 @@
 import PyParty
-from Py4GWCoreLib import Player, Map
+from Py4GWCoreLib import Player, Map, Party
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 
 class PartyCache:
-    def __init__(self, action_queue_manager, player_cache):
+    def __init__(self, action_queue_manager):
         self._action_queue_manager:ActionQueueManager = action_queue_manager
         self._party_instance = PyParty.PyParty()
         self.Players = self._Players(self)
         self.Heroes = self._Heroes(self)
         self.Henchmen = self._Henchmen(self)
         self.Pets = self._Pets(self)
-        self._player_cache = player_cache
     
     def _update_cache(self):
         self._party_instance.GetContext()
@@ -24,6 +23,9 @@ class PartyCache:
         if not self.IsPartyLoaded():
             return []
         return self._party_instance.players
+    
+    def GetPartyMorale(self):
+        return Party.GetPartyMorale()
     
     def GetHeroes(self):
         if not self.IsPartyLoaded():
@@ -65,7 +67,7 @@ class PartyCache:
     def GetOwnPartyNumber(self):
         if not self.IsPartyLoaded():
             return -1
-        agent_id = self._player_cache.GetAgentID()
+        agent_id = Player.GetAgentID()
         players = self.GetPlayers()
         for i in range(self.GetPlayerCount()):
             player_id = self.Players.GetAgentIDByLoginNumber(players[i].login_number)
@@ -100,7 +102,9 @@ class PartyCache:
         return self._party_instance.is_party_defeated
     
     def IsPartyLoaded(self):
-        if Map.IsMapLoading():
+        if not Map.IsMapReady():
+            return False
+        if not Player.IsPlayerLoaded():
             return False
         return self._party_instance.is_party_loaded
     
@@ -120,7 +124,7 @@ class PartyCache:
         self._action_queue_manager.AddAction("ACTION", self._party_instance.tick.SetTicked, ticked)
         
     def ToggleTicked(self):
-        agent_id = self._player_cache.GetAgentID()
+        agent_id = Player.GetAgentID()
         login_number = self.Players.GetLoginNumberByAgentID(agent_id)
         party_number = self.Players.GetPartyNumberFromLoginNumber(login_number)
         

@@ -2,7 +2,7 @@ from functools import wraps
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib import ConsoleLog, Console, Agent
+from Py4GWCoreLib import ConsoleLog, Console, Agent, Player
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingHelpers
@@ -44,7 +44,7 @@ class _Upkeepers:
                 self.cancel_movement_triggered = False
             
             if (self.parent.config.pause_on_danger_fn() and 
-                Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()) and
+                Agent.IsMoving(Player.GetAgentID()) and
                 not self.cancel_movement_triggered):
                 yield from Routines.Yield.Movement.StopMovement()
                 self.cancel_movement_triggered = True
@@ -73,7 +73,7 @@ class _Upkeepers:
         from ...enums import Range, SharedCommandType
         from Py4GW_widget_manager import get_widget_handler
         def LootingRoutineActive():
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            account_email = Player.GetAccountEmail()
             index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
 
             if index == -1 or message is None:
@@ -103,7 +103,7 @@ class _Upkeepers:
             if len(loot_array) == 0:
                 yield from Routines.Yield.wait(500)
                 continue
-            player_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            player_email = Player.GetAccountEmail()
             GLOBAL_CACHE.ShMem.SendMessage(
                 player_email,
                 player_email,

@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -48,7 +48,7 @@ class MoveToPartyMemberIfDeadUtility(CustomSkillUtilityBase):
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
             if Agent.IsDead(agent_id): 
                 agent_id_position: tuple[float, float] = Agent.GetXY(agent_id)
-                player_agent_id_position: tuple[float, float] = Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())
+                player_agent_id_position: tuple[float, float] = Agent.GetXY(Player.GetAgentID())
                 if Utils.Distance(player_agent_id_position , agent_id_position) < 2500: #todo constant
                     return agent_id
         return None
@@ -66,7 +66,7 @@ class MoveToPartyMemberIfDeadUtility(CustomSkillUtilityBase):
         if agent_id_dead is None: return BehaviorResult.ACTION_SKIPPED
 
         agent_id_position: tuple[float, float] = Agent.GetXY(agent_id_dead)
-        GLOBAL_CACHE.Player.Move(agent_id_position[0], agent_id_position[1])
+        Player.Move(agent_id_position[0], agent_id_position[1])
         yield from custom_behavior_helpers.Helpers.wait_for(100)
         self.throttle_timer.Reset()
         yield

@@ -1,9 +1,8 @@
 import os
 
-from PyPlayer import PyPlayer
 from HeroAI.commands import HeroAICommands
 from HeroAI.types import Docked
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
@@ -182,7 +181,7 @@ class Settings:
         pass 
     
     def ensure_initialized(self) -> bool: 
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         
         if not account_email:
             return True
@@ -196,7 +195,7 @@ class Settings:
 
     def initialize_account_config(self):
         base_path = Console.get_projects_path()        
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         
         if account_email:
             config_dir = os.path.join(base_path, "Widgets", "Config", "Accounts", account_email)

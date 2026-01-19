@@ -7,6 +7,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import Utils
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Agent import Agent
+from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
@@ -251,8 +252,8 @@ def render():
 
         if clicked_p1:
             flag_manager.auto_assign_emails_if_none_assigned()
-            leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
-            leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            leader_x, leader_y = Player.GetXY()
+            leader_agent_id = Player.GetAgentID()
             leader_angle = Agent.GetRotationAngle(leader_agent_id)
             flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_1")
 
@@ -270,8 +271,8 @@ def render():
             PyImGui.set_tooltip("Preset 2 (Stacked): Stack all assigned flags at the leader's position; auto-assign if none")
         if clicked_p2:
             flag_manager.auto_assign_emails_if_none_assigned()
-            leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
-            leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            leader_x, leader_y = Player.GetXY()
+            leader_agent_id = Player.GetAgentID()
             leader_angle = Agent.GetRotationAngle(leader_agent_id)
             flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_2")
 
@@ -314,7 +315,7 @@ def render():
 
             if shared_data.party_target_id is None:
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_CROSSHAIRS} SetPartyCustomTarget"):
-                    CustomBehaviorParty().set_party_custom_target(GLOBAL_CACHE.Player.GetTargetID())
+                    CustomBehaviorParty().set_party_custom_target(Player.GetTargetID())
             else:
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_TRASH} ResetPartyCustomTarget | id:{shared_data.party_target_id}"):
                     CustomBehaviorParty().set_party_custom_target(None)
@@ -333,7 +334,7 @@ def render():
             ImGui.show_tooltip("Ask all other open GW windows to travel to current map.")
             ImGui.show_tooltip(f"----------------------------")
 
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            account_email = Player.GetAccountEmail()
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
             count_in_map = 0
@@ -374,7 +375,7 @@ def render():
 
             ImGui.show_tooltip(f"--------------Eligibles--------------")
 
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            account_email = Player.GetAccountEmail()
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
             if self_account is not None:

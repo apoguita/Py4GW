@@ -17,7 +17,7 @@ class ConsumablesHelper:
             if not Routines.Checks.Map.MapValid():
                 yield from Routines.Yield.wait(1000)
                 continue
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
 

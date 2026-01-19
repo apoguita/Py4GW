@@ -52,7 +52,7 @@ class ChatChannel(IntEnum):
 
     # Non-standard channels, but useful.
     CHANNEL_COMMAND = 16
-    CHANNEL_UNKNOW = -1
+    CHANNEL_UNKNOWN = -1
 
 
 # endregion

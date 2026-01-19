@@ -1,7 +1,7 @@
 from typing import Any, Generator
 
 from Py4GWCoreLib import Agent, Routines
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
@@ -84,14 +84,14 @@ class AutoFollowAgent:
                 break
 
             # Check if player is dead
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 if constants.DEBUG:
                     print("AutoFollowAgentId: Player is dead, stopping")
                 break
 
             # Get positions
             agent_pos = Agent.GetXY(self.target_agent_id)
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_pos = Player.GetXY()
             distance = Utils.Distance(agent_pos, player_pos)
 
             # Update progress based on distance
@@ -124,8 +124,8 @@ class AutoFollowAgent:
                 path_points=path,
                 custom_exit_condition=lambda: (
                     not Agent.IsValid(self.target_agent_id) or
-                    Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()) or
-                    Utils.Distance(Agent.GetXY(self.target_agent_id), GLOBAL_CACHE.Player.GetXY()) <= self.follow_distance
+                    Agent.IsDead(Player.GetAgentID()) or
+                    Utils.Distance(Agent.GetXY(self.target_agent_id), Player.GetXY()) <= self.follow_distance
                 ),
                 tolerance=self.follow_distance,
                 log=constants.DEBUG,
@@ -217,18 +217,14 @@ class AutoFollowAgent:
 
     def set_agent_from_current_target(self):
         """Set selected agent_id from player's current target."""
-        target_id = GLOBAL_CACHE.Player.GetTargetID()
+        target_id = Player.GetTargetID()
         if Agent.IsValid(target_id):
             self.selected_agent_id = target_id
             return True
         return False
 
     def set_agent_from_mouse_over(self):
-        """Set selected agent_id from mouse over agent."""
-        mouse_over_id = GLOBAL_CACHE.Player.GetMouseOverID()
-        if Agent.IsValid(mouse_over_id):
-            self.selected_agent_id = mouse_over_id
-            return True
+        "deprecated, no property available"
         return False
 
     def is_selected_agent_valid(self) -> bool:

@@ -39,3 +39,45 @@ class PyPointers:
         Returns uintptr_t pointer to AreaInfo.
         """
         ...
+    @staticmethod
+    def GetGameContextPtr() -> int:
+        """
+        Returns uintptr_t pointer to GameContext.
+        """
+        ...
+    @staticmethod
+    def GetPreGameContextPtr() -> int:
+        """
+        Returns uintptr_t pointer to PreGameContext.
+        """
+        ...
+    @staticmethod
+    def GetWorldContextPtr() -> int:
+        """
+        Returns uintptr_t pointer to WorldContext.
+        """
+        ...
+    @staticmethod
+    def GetCharContextPtr() -> int:
+        """
+        Returns uintptr_t pointer to CharContext.
+        """
+        ...
+    @staticmethod
+    def GetAgentContextPtr() -> int:
+        """
+        Returns uintptr_t pointer to AgentContext.
+        """
+        ...
+    @staticmethod
+    def GetCinematicPtr() -> int:
+        """
+        Returns uintptr_t pointer to Cinematic.
+        """
+        ...
+    @staticmethod
+    def GetGuildContextPtr() -> int:
+        """
+        Returns uintptr_t pointer to GuildContext.
+        """
+        ...

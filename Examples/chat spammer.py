@@ -33,7 +33,7 @@ def main():
             
             if spam_chat and chat_timer.IsExpired():
                 chat_timer.Reset()
-                GLOBAL_CACHE.Player.SendChat('$', message)
+                Player.SendChat('$', message)
         PyImGui.end()
 
 

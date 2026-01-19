@@ -199,7 +199,7 @@ class ConsumablesHelper:
             if not Routines.Checks.Map.MapValid():
                 yield from Routines.Yield.wait(1000)
                 continue
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
 
@@ -678,7 +678,7 @@ def render_path_ui():
 
             reset_state()
 
-    x, y = GLOBAL_CACHE.Player.GetXY()
+    x, y = Player.GetXY()
     PyImGui.text(f"Player Pos: ({int(x)}, {int(y)})")
     if PyImGui.button("Copy position"):
         PyImGui.set_clipboard_text(f"({int(x)}, {int(y)}),")
@@ -702,7 +702,7 @@ def log_path():
     if not state["active"]:
         return
 
-    x, y = GLOBAL_CACHE.Player.GetXY()
+    x, y = Player.GetXY()
     current_map_id = get_map_id()
 
     if (x, y) == (0, 0):
@@ -806,14 +806,14 @@ def main():
 
         if PyImGui.begin("Pathing Test", PyImGui.WindowFlags.AlwaysAutoResize):
 
-            player_pos = GLOBAL_CACHE.Player.GetXY()
-            player_z = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+            player_pos = Player.GetXY()
+            player_z = Agent.GetZPlane(Player.GetAgentID())
             map_id = Map.GetMapID()
             x = PyImGui.input_int("Target X", x)
             y = PyImGui.input_int("Target Y", y)
 
             if PyImGui.button("Capture Start Position"):
-                player_pos = GLOBAL_CACHE.Player.GetXY()
+                player_pos = Player.GetXY()
                 x = int(player_pos[0])
                 y = int(player_pos[1])
                 print(f"Captured start position: ({x}, {y})")
@@ -830,7 +830,7 @@ def main():
                 path_requested = True
                 def search_path_coroutine():
                     global result_path, path_requested, elapsed_time
-                    zplane = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+                    zplane = Agent.GetZPlane(Player.GetAgentID())
                     result_path = yield from pathing_object.get_path(
                         (player_pos[0], player_pos[1], zplane),
                         (x, y, zplane),

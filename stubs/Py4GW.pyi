@@ -1,4 +1,5 @@
-from typing import Callable, Any
+from typing import Callable, Any, TypeVar
+T = TypeVar("T")
 
 
 class Console:
@@ -125,6 +126,9 @@ class Game:
     All functions run inside the Guild Wars game thread when appropriate.
     """
 
+    @staticmethod
+    def InCharacterSelectScreen() -> bool: ...
+
     # --- Functions ---
     @staticmethod
     def enqueue(callback: Callable[[], Any]) -> None:
@@ -150,6 +154,37 @@ class Game:
         Returns
         -------
         None
+        """
+        ...
+        
+    @staticmethod
+    def enqueue_and_wait(callback: Callable[[], T]) -> T:
+        """
+        Execute a Python callable on the Guild Wars game thread and wait
+        for its return value.
+
+        This function is THREAD-SAFE.
+
+        Behavior:
+            - If called FROM the game thread, the callback executes immediately.
+            - If called FROM another thread, the callback is enqueued and this
+              function blocks until execution completes.
+            - The Python GIL is released while waiting, avoiding deadlocks.
+
+        NOTE:
+            - `callback` MUST be a zero-argument function or lambda.
+            - Any Python object returned by the callback is returned here.
+            - Exceptions raised inside the callback are re-raised to the caller.
+
+        Parameters
+        ----------
+        callback : Callable[[], T]
+            A zero-argument Python function or lambda to run on the game thread.
+
+        Returns
+        -------
+        T
+            The value returned by the callback.
         """
         ...
         

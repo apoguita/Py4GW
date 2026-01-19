@@ -6,6 +6,7 @@ from ...enums_src.UI_enums import UIMessage
 from ..context.GuildContext import Guild, GuildContext, GHKey
 import ctypes
 from typing import List
+from Py4GW import Game
 
 
 SkipCinematic_Func = NativeFunction(
@@ -90,4 +91,11 @@ class MapMethods:
             [0],
             False
         )
+        
+    @staticmethod
+    def LogouttoCharacterSelect() -> None:
+        def _action():
+            UIManager.SendUIMessage(UIMessage.kLogout,[0,0])
+        
+        Game.enqueue(_action)
         

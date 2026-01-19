@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import Utils
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -43,7 +43,7 @@ class DistractingShotUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
-        player_position: tuple[float, float] = GLOBAL_CACHE.Player.GetXY()
+        player_position: tuple[float, float] = Player.GetXY()
 
         action: Callable[[], Generator[Any, Any, BehaviorResult]] = lambda: (yield from custom_behavior_helpers.Actions.cast_skill_to_lambda(
             skill=self.custom_skill,

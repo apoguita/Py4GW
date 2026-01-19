@@ -2,7 +2,7 @@ import math
 from typing import Any, Generator, override
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils, VectorFields
 from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.AgentArray import AgentArray
@@ -69,7 +69,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
         # Don't follow leader if this player has a defined flag position (should follow flag instead)
-        if CustomBehaviorParty().party_flagging_manager.is_flag_defined(GLOBAL_CACHE.Player.GetAccountEmail()): return False
+        if CustomBehaviorParty().party_flagging_manager.is_flag_defined(Player.GetAccountEmail()): return False
         return True
 
     def _get_party_leader_position(self) -> tuple[float, float] | None:
@@ -232,7 +232,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         follow_distance, spread_threshold, repulsion_weight = self._get_parameters_for_state(state)
 
         Overlay().BeginDraw()
-        my_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        my_agent_id = Player.GetAgentID()
         _, _, my_z = Agent.GetXYZ(my_agent_id)
 
         # Determine state color for visual feedback
@@ -362,7 +362,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         if not self.throttle_timer.IsExpired():
             return None
 
-        my_pos = GLOBAL_CACHE.Player.GetXY()
+        my_pos = Player.GetXY()
         if my_pos is None or len(my_pos) != 2:
             return None
 
@@ -407,7 +407,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
         try:
             self.last_state = state
             
-            my_pos = GLOBAL_CACHE.Player.GetXY()
+            my_pos = Player.GetXY()
             if my_pos is None or len(my_pos) != 2:
                 yield
                 return BehaviorResult.ACTION_SKIPPED
@@ -434,7 +434,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
             
             # Move if we have a valid target
             if target_pos is not None:
-                GLOBAL_CACHE.Player.Move(target_pos[0], target_pos[1])
+                Player.Move(target_pos[0], target_pos[1])
                 self.throttle_timer.Reset()
                 yield from custom_behavior_helpers.Helpers.wait_for(1000)
                 return BehaviorResult.ACTION_PERFORMED
@@ -458,7 +458,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
 
         try:
             # Get current positions
-            my_pos = GLOBAL_CACHE.Player.GetXY()
+            my_pos = Player.GetXY()
             if my_pos is None or len(my_pos) != 2:
                 return
 
@@ -523,7 +523,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
             if not self._am_i_party_leader():
                 leader_pos = self._get_party_leader_position()
                 if leader_pos:
-                    my_pos = GLOBAL_CACHE.Player.GetXY()
+                    my_pos = Player.GetXY()
                     if my_pos and len(my_pos) == 2:
                         dx = leader_pos[0] - my_pos[0]
                         dy = leader_pos[1] - my_pos[1]

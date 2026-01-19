@@ -118,7 +118,7 @@ def CheckSpellcasterDanger(custom_distance=2000):
     global last_spellcaster_check, last_scan_time_spellcaster, scan_throttle_ms, spell_caster_check_cooldown
     checkdistance = custom_distance
 
-    player_pos = GLOBAL_CACHE.Player.GetXY()
+    player_pos = Player.GetXY()
     special_casters = [6481, 6482, 6483, 6634, 4316, 4315, 4317]
 
     now_spellcaster = time.time()
@@ -150,7 +150,7 @@ def BodyBlockDetection(seconds=2.0):
     nearby_enemies = Routines.Agents.GetNearestEnemy(Range.Touch.value)
     global last_move_time, prev_pos
     if nearby_enemies:
-        pos = GLOBAL_CACHE.Player.GetXY()
+        pos = Player.GetXY()
         if not pos:
             return False
     

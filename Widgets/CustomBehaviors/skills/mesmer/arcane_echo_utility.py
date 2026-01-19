@@ -4,7 +4,7 @@ from typing import Any, Generator, Callable, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -61,7 +61,7 @@ class ArcaneEchoUtility(CustomSkillUtilityBase):
     def _get_arcane_echo_state(self, current_state: BehaviorState) -> ArcaneEchoState:
 
         # if under ArcaneEcho effect, we are top priority to cast the skill we want to copy
-        if Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id):
+        if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.custom_skill.skill_id):
             return ArcaneEchoState.CAST_SKILL_TO_COPY
 
         # arcane echo + skill to copy are available, and we have enough resources

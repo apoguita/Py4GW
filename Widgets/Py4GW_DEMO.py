@@ -425,7 +425,7 @@ def ShowPy4GW_Window_main():
 
                 mark_target = PyImGui.checkbox("Mark Target", mark_target)
                 if mark_target:
-                    target_id = GLOBAL_CACHE.Player.GetTargetID()
+                    target_id = Player.GetTargetID()
                     if target_id:
                         target_x, target_y, target_z = Agent.GetXYZ(target_id)
                         Overlay().DrawPoly3D(target_x, target_y, target_z, radius=72, color=0xFFFF0000,numsegments=32,thickness=5.0)
@@ -439,7 +439,7 @@ def ShowPy4GW_Window_main():
                     PyImGui.text_colored("Do not abuse this function!",(1, 0, 0, 1))
                     PyImGui.text_colored("it is unstable on some conditions",(1, 0, 0, 1))
                     x,y,z = Overlay().GetMouseWorldPos()
-                    agent_id = GLOBAL_CACHE.Player.GetAgentID()
+                    agent_id = Player.GetAgentID()
                     player_x, player_y, player_z = Agent.GetXYZ(agent_id)
                     
                     headers = ["X", "Y", "Z"]
@@ -461,7 +461,7 @@ def ShowPy4GW_Window_main():
 
                 show_area_rings = PyImGui.checkbox("Show Area Rings", show_area_rings)
                 if show_area_rings:
-                    player_x, player_y, player_z = Agent.GetXYZ(GLOBAL_CACHE.Player.GetAgentID())
+                    player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID())
 
                     #GW Areas
                     Touch = 144
@@ -495,8 +495,8 @@ def ShowEffectsWindow():
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Buffs and Effects"):
 
-            buff_list = GLOBAL_CACHE.Effects.GetBuffs(GLOBAL_CACHE.Player.GetAgentID())
-            effect_list = GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID())
+            buff_list = GLOBAL_CACHE.Effects.GetBuffs(Player.GetAgentID())
+            effect_list = GLOBAL_CACHE.Effects.GetEffects(Player.GetAgentID())
 
             effects_headers = ["Effect ID", "Skill ID", "Skill Name", "Duration", "Attr. Level", "Time Remaining"]
             effects_data = [(effect.effect_id, effect.skill_id, PySkill.Skill(effect.skill_id).id.GetName(), 
@@ -1385,7 +1385,7 @@ def ShowPartyWindow():
                 if PyImGui.button("Set Pet Behavior Avoid"):
                     GLOBAL_CACHE.Party.Pets.SetPetBehavior(2,lock_target_id)
 
-                pet = GLOBAL_CACHE.Party.Pets.GetPetInfo(GLOBAL_CACHE.Player.GetAgentID())
+                pet = GLOBAL_CACHE.Party.Pets.GetPetInfo(Player.GetAgentID())
 
                 headers = ["Pet"]
                 data = [
@@ -1419,39 +1419,38 @@ def ShowPlayerWindow():
             description = "The player class is in charge of handling the player agent.\nIt provides methods to retrieve player data, like name, position, target, etc.\nIt has methods pertinent to the  controlled player and related to controlling game actions from the player perspective.\nThe Player itself is an agent, and as such, its data is retrieved from the Agent object."
             ImGui.DrawTextWithTitle("Player class", description)
 
-            posx, posy = GLOBAL_CACHE.Player.GetXY()
+            posx, posy = Player.GetXY()
 
             headers = ["Info", "Value"]
             data = [
-                ("Agent ID:", GLOBAL_CACHE.Player.GetAgentID()),
-                ("Name:", GLOBAL_CACHE.Player.GetName()),
+                ("Agent ID:", Player.GetAgentID()),
+                ("Name:", Player.GetName()),
                 ("XY:", f"({posx:.2f}, {posy:.2f})"),
-                ("Target ID:", GLOBAL_CACHE.Player.GetTargetID()),
-                ("MouseOver ID:", GLOBAL_CACHE.Player.GetMouseOverID()),
-                ("Observing ID:", GLOBAL_CACHE.Player.GetObservingID())
+                ("Target ID:", Player.GetTargetID()),
+                ("Observing ID:", Player.GetObservingID())
             ]
 
             ImGui.table("player info", headers, data)
             PyPlayer_window_state.values[0] = PyImGui.checkbox("Show agent data", PyPlayer_window_state.values[0])
 
             if PyPlayer_window_state.values[0]:
-                draw_agent_window(GLOBAL_CACHE.Player.GetAgentID())
+                draw_agent_window(Player.GetAgentID())
 
             PyImGui.separator()
             if PyImGui.collapsing_header("Player data"):
                 headers = ["Info", "Value"]
                 
-                rank, rating, qualifier_points, wins, losses = GLOBAL_CACHE.Player.GetRankData()
-                tournament_reward_points = GLOBAL_CACHE.Player.GetTournamentRewardPoints()
-                morale = GLOBAL_CACHE.Player.GetMorale()
-                experience = GLOBAL_CACHE.Player.GetExperience()
-                current_skill_points, total_earned_skill_points = GLOBAL_CACHE.Player.GetSkillPointData()
-                current_kurzick, total_earned_kurzick, max_kurzick = GLOBAL_CACHE.Player.GetKurzickData()
-                current_luxon, total_earned_luxon, max_luxon = GLOBAL_CACHE.Player.GetLuxonData()
-                current_imperial, total_earned_imperial, max_imperial = GLOBAL_CACHE.Player.GetImperialData()
-                current_balthazar, total_earned_balthazar, max_balthazar = GLOBAL_CACHE.Player.GetBalthazarData()
-                account_name = GLOBAL_CACHE.Player.GetAccountName()
-                account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+                rank, rating, qualifier_points, wins, losses = Player.GetRankData()
+                tournament_reward_points = Player.GetTournamentRewardPoints()
+                morale = Player.GetMorale()
+                experience = Player.GetExperience()
+                current_skill_points, total_earned_skill_points = Player.GetSkillPointData()
+                current_kurzick, total_earned_kurzick, max_kurzick = Player.GetKurzickData()
+                current_luxon, total_earned_luxon, max_luxon = Player.GetLuxonData()
+                current_imperial, total_earned_imperial, max_imperial = Player.GetImperialData()
+                current_balthazar, total_earned_balthazar, max_balthazar = Player.GetBalthazarData()
+                account_name = Player.GetAccountName()
+                account_email = Player.GetAccountEmail()
                 
                 data = [
                     ("account_name:", account_name),
@@ -1482,11 +1481,11 @@ def ShowPlayerWindow():
                 ImGui.table("PlayerData info", headers, data)
                                 
                 if PyImGui.button("Deposit Faction"):
-                    GLOBAL_CACHE.Player.DepositFaction(FactionAllegiance.Kurzick.value) 
+                    Player.DepositFaction(FactionAllegiance.Kurzick.value) 
                     
             if PyImGui.collapsing_header("Titles"):
-                current_title = GLOBAL_CACHE.Player.GetActiveTitleID()
-                title_data = GLOBAL_CACHE.Player.GetTitle(current_title)
+                current_title = Player.GetActiveTitleID()
+                title_data = Player.GetTitle(current_title)
                 if title_data is None:
                     PyImGui.text("No active title")
                     PyImGui.end()
@@ -1523,11 +1522,10 @@ def ShowPlayerWindow():
                 ImGui.table("Title info", headers, data)
                 
                 if PyImGui.button("remove Current Title"):
-                    GLOBAL_CACHE.Player.RemoveActiveTitle()
+                    Player.RemoveActiveTitle()
                     
                 if PyImGui.button("Set Norn Title"):
-                    GLOBAL_CACHE.Player.SetActiveTitle(TitleID.Norn.value)
-                
+                    Player.SetActiveTitle(TitleID.Norn.value)
                 
             if PyImGui.collapsing_header("Methods"):
 
@@ -1543,28 +1541,28 @@ def ShowPlayerWindow():
                     #The values recieved by this function are in hex, so we need to convert them to int
                     #toolbox data shows Hex values, hex(0x84) = 0x84, int(0x84) = 132
                     #Player.SendDialog(0x84)
-                    GLOBAL_CACHE.Player.SendDialog(dialog_value)
+                    Player.SendDialog(dialog_value)
 
                 if PyImGui.button("dialog take (SendChatCommand preferred method)"):
-                    GLOBAL_CACHE.Player.SendChatCommand("dialog take")
+                    Player.SendChatCommand("dialog take")
                 
                 PyImGui.separator()
                 if PyImGui.button("SendChat command"):
-                    GLOBAL_CACHE.Player.SendChatCommand('target Adept Nai')
+                    Player.SendChatCommand('target Adept Nai')
 
                 if PyImGui.button("SendChat"):
-                    GLOBAL_CACHE.Player.SendChat('#',PyPlayer_window_state.values[2])
+                    Player.SendChat('#',PyPlayer_window_state.values[2])
 
                 if PyImGui.button("Send Whisper"):
-                    GLOBAL_CACHE.Player.SendWhisper(PyPlayer_window_state.values[2],"Hello")
+                    Player.SendWhisper(PyPlayer_window_state.values[2],"Hello")
 
                 PyImGui.separator()
 
                 if PyImGui.button("change target"):
-                    GLOBAL_CACHE.Player.ChangeTarget(PyPlayer_window_state.values[1])
+                    Player.ChangeTarget(PyPlayer_window_state.values[1])
 
                 if PyImGui.button("Interact"):
-                    GLOBAL_CACHE.Player.Interact(PyPlayer_window_state.values[1], call_target=False)
+                    Player.Interact(PyPlayer_window_state.values[1], call_target=False)
 
                 PyImGui.text("Note: it it preferred to disable key use from toolbox")
 
@@ -1574,7 +1572,7 @@ def ShowPlayerWindow():
                 if PyImGui.button("Move"):
                     x = PyPlayer_window_state.values[3]
                     y = PyPlayer_window_state.values[4]
-                    GLOBAL_CACHE.Player.Move(x, y)
+                    Player.Move(x, y)
 
         PyImGui.end()
     except Exception as e:
@@ -2012,8 +2010,8 @@ def ShowPyAgentWindow():
 
             if Map.IsMapReady():
                 # Fetch nearest entities
-                player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-                player_id = GLOBAL_CACHE.Player.GetAgentID()
+                player_x, player_y = Player.GetXY()
+                player_id = Player.GetAgentID()
                 
                 enemy_array = AgentArray.GetEnemyArray()
                 enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x,player_y))
@@ -2036,7 +2034,7 @@ def ShowPyAgentWindow():
                 npc_array = AgentArray.Sort.ByDistance(npc_array, (player_x,player_y))
                 closest_npc = next(iter(npc_array), 0)
 
-                player_target = GLOBAL_CACHE.Player.GetTargetID()
+                player_target = Player.GetTargetID()
 
                 # Display table headers
                 PyImGui.text("Nearest Entities:")
@@ -2199,7 +2197,7 @@ def ShowPyImGuiTravelWindow():
 
                 PyImGui.text("Travel trough toolbox chat command")
                 if PyImGui.button("Eye Of The North"):
-                    GLOBAL_CACHE.Player.SendChatCommand("tp eotn")
+                    Player.SendChatCommand("tp eotn")
 
         PyImGui.end()
 

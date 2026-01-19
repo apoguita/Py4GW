@@ -58,7 +58,7 @@ class UI:
                     
                     if current_map_id == map_id:
                         if PyImGui.button("Move to Polymock Registration", width):
-                            GLOBAL_CACHE.Player.Move(position[0], position[1])
+                            Player.Move(position[0], position[1])
                     else:
                         if PyImGui.button("Travel to Rata Sum", width):
                             Map.Travel(map_id)
@@ -76,7 +76,7 @@ class UI:
                                 if PyImGui.button("Move to Quest Marker", width):
                                     position = (quest_data.marker_x, quest_data.marker_y) if quest_data.marker_x < 100000 and quest_data.marker_y < 100000 else (self.widget_state.quest.marker_x, self.widget_state.quest.marker_y)
                                     # ConsoleLog("Polymock", f"Moving to quest marker at {position}")
-                                    GLOBAL_CACHE.Player.Move(position[0], position[1])
+                                    Player.Move(position[0], position[1])
                         else:
                             if PyImGui.button(f"Travel to {map_name}", width):
                                 Map.Travel(quest_data.map_to)   
@@ -121,7 +121,7 @@ class UI:
                 if current_map_id == data.Polymock_Registration[0]:
                     if PyImGui.button("Move to Master Hoff", width):
                         position = data.Polymock_Registration[1]
-                        GLOBAL_CACHE.Player.Move(data.Polymock_Quests.Master_Hoff.value.marker_x, data.Polymock_Quests.Master_Hoff.value.marker_y)
+                        Player.Move(data.Polymock_Quests.Master_Hoff.value.marker_x, data.Polymock_Quests.Master_Hoff.value.marker_y)
                 
                 elif PyImGui.button("Travel to Rata Sum", width):
                     Map.Travel(data.Polymock_Registration[0])

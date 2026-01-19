@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import Range, GLOBAL_CACHE, Agent
+from Py4GWCoreLib import Range, GLOBAL_CACHE, Agent, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -40,7 +40,7 @@ class ProtectorsDefenseUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        is_moving = Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
+        is_moving = Agent.IsMoving(Player.GetAgentID())
         if is_moving: return None
 
         allies = self._get_allies()

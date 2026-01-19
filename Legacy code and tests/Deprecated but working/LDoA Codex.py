@@ -33,7 +33,7 @@ class QuestData:
    
 def FirstTimeAscalon(bot: Botting) -> None:
     def _get_quest_with_sir_tydius():
-        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
         quest_with_sir_tydius: dict[str, int] = {
             "Warrior": 0x80DD01,
             "Ranger": 0x80DE01,
@@ -115,7 +115,7 @@ QUEST_MAP: dict[str, QuestData] = {
     
 def PrimaryProfessionQuest(bot: Botting) -> None:
     def _handle_primary_quest(bot: Botting):
-        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
         quest_data = QUEST_MAP.get(profession)
         if quest_data is None:
             print(f"No primary profession quest data for profession: {profession}")

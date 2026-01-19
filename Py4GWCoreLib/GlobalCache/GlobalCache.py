@@ -5,9 +5,6 @@ from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 from Py4GWCoreLib import Map
 from Py4GWCoreLib import Agent
 
-from .PlayerCache import PlayerCache
-
-
 from .CameraCache import CameraCache
 from .EffectCache import EffectsCache
 from .ItemCache import RawItemCache, ItemCache, ItemArray
@@ -35,7 +32,6 @@ class GlobalCache:
         self._TrottleTimers = self.TrottleTimers()
 
         self._RawItemCache = RawItemCache()
-        self.Player = PlayerCache(self._ActionQueueManager)
 
         self.Camera = CameraCache(self._ActionQueueManager)
         self.Effects = EffectsCache()
@@ -43,7 +39,7 @@ class GlobalCache:
         self.ItemArray = ItemArray()
         self.Inventory = InventoryCache(self._ActionQueueManager, self._RawItemCache, self.Item)
         self.Trading = TradingCache(self._ActionQueueManager)
-        self.Party = PartyCache(self._ActionQueueManager, self.Player)
+        self.Party = PartyCache(self._ActionQueueManager)
         self.Quest = QuestCache(self._ActionQueueManager)
         self.Skill = SkillCache()
         self.SkillBar = SkillbarCache(self._ActionQueueManager)
@@ -63,7 +59,7 @@ class GlobalCache:
         #to default everything to 0 
         if Map.IsMapLoading() or Map.IsInCinematic():
             self.Party._update_cache()
-            self.Player._update_cache()
+
             self._RawItemCache.update()
             self.Item._update_cache()
 
@@ -76,13 +72,11 @@ class GlobalCache:
             self._TrottleTimers._75ms.Reset()
             if self._TrottleTimers._500ms.IsExpired():
                 self._TrottleTimers._500ms.Reset()
-                
-   
             
             if self._TrottleTimers._150ms.IsExpired():   
                 self._TrottleTimers._150ms.Reset()
                 self.Party._update_cache()
-                self.Player._update_cache()
+
                 self._RawItemCache.update()
                 self.Item._update_cache()
                 self.Camera._update_cache()
@@ -91,9 +85,7 @@ class GlobalCache:
             Agent._update_cache()
 
             self.SkillBar._update_cache()
-            
-            
-                  
+                       
 
     class TrottleTimers:
         def __init__(self):

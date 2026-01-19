@@ -1,5 +1,5 @@
 from cProfile import label
-from Py4GWCoreLib import IconsFontAwesome5, Color, ColorPalette, GLOBAL_CACHE, SharedCommandType, ConsoleLog, Utils
+from Py4GWCoreLib import Player, IconsFontAwesome5, Color, ColorPalette, GLOBAL_CACHE, SharedCommandType, ConsoleLog, Utils
 import PyImGui
 import Py4GW
 import PyOverlay
@@ -17,7 +17,7 @@ screen_width, screen_height = screen_overlay.get_desktop_size()
 import ctypes as ct
 
 def _send_message_to(command: SharedCommandType, receiver_email: str, params=(0.0, 0.0, 0.0, 0.0), ExtraData=("", "", "", "")):
-    sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    sender_email = Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     if not any(acc.AccountEmail == receiver_email for acc in accounts):
         ConsoleLog("Messaging", f"Account with email {receiver_email} not found. Message not sent.", log=True)

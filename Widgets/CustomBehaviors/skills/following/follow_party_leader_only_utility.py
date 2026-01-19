@@ -2,7 +2,7 @@ import math
 from typing import Any, Generator, override
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils
 from Py4GWCoreLib.Overlay import Overlay
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -147,7 +147,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
         follow_distance = self._get_follow_distance_for_state(state)
 
         Overlay().BeginDraw()
-        my_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        my_agent_id = Player.GetAgentID()
         _, _, my_z = Agent.GetXYZ(my_agent_id)
 
         # Determine state color for visual feedback
@@ -234,7 +234,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
         if not self.throttle_timer.IsExpired():
             return None
 
-        my_pos = GLOBAL_CACHE.Player.GetXY()
+        my_pos = Player.GetXY()
         if my_pos is None or len(my_pos) != 2:
             return None
 
@@ -270,7 +270,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
         try:
             self.last_state = state
             
-            my_pos = GLOBAL_CACHE.Player.GetXY()
+            my_pos = Player.GetXY()
             if my_pos is None or len(my_pos) != 2:
                 yield
                 return BehaviorResult.ACTION_SKIPPED
@@ -293,7 +293,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
             
             # Move if we have a valid target
             if target_pos is not None:
-                GLOBAL_CACHE.Player.Move(target_pos[0], target_pos[1])
+                Player.Move(target_pos[0], target_pos[1])
                 self.throttle_timer.Reset()
                 yield from custom_behavior_helpers.Helpers.wait_for(1000)
                 return BehaviorResult.ACTION_PERFORMED
@@ -321,7 +321,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
 
         try:
             # Get current positions
-            my_pos = GLOBAL_CACHE.Player.GetXY()
+            my_pos = Player.GetXY()
             if my_pos is None or len(my_pos) != 2:
                 return
 
@@ -395,7 +395,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
             if not self._am_i_party_leader():
                 leader_pos = self._get_party_leader_position()
                 if leader_pos:
-                    my_pos = GLOBAL_CACHE.Player.GetXY()
+                    my_pos = Player.GetXY()
                     if my_pos and len(my_pos) == 2:
                         dx = leader_pos[0] - my_pos[0]
                         dy = leader_pos[1] - my_pos[1]

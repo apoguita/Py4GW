@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Py4GWCoreLib.Overlay import Overlay
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -66,7 +66,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
         """Get the flag position assigned to this player from shared memory"""
         try:
             # Use account email as stable identifier (agent ID changes across maps)
-            my_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            my_email = Player.GetAccountEmail()
             if not my_email:
                 return None
 
@@ -98,7 +98,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
         if flag_pos is None:
             return None
 
-        my_pos = GLOBAL_CACHE.Player.GetXY()
+        my_pos = Player.GetXY()
         if my_pos is None:
             return None
 
@@ -137,7 +137,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
         # Move to assigned flag position
         ActionQueueManager().ResetQueue("ACTION")
-        GLOBAL_CACHE.Player.Move(flag_pos[0], flag_pos[1])
+        Player.Move(flag_pos[0], flag_pos[1])
         self.throttle_timer.Reset()
 
         yield from custom_behavior_helpers.Helpers.wait_for(1000)
@@ -154,18 +154,18 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
         try:
             # Get my position for Z coordinate
-            my_pos = GLOBAL_CACHE.Player.GetXY()
+            my_pos = Player.GetXY()
             if my_pos is None or len(my_pos) != 2:
                 return
 
-            my_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            my_agent_id = Player.GetAgentID()
             if my_agent_id is None:
                 return
 
             _, _, my_z = Agent.GetXYZ(my_agent_id)
 
             # Get my account email to highlight my assigned flag
-            my_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            my_email = Player.GetAccountEmail()
             if not my_email:
                 return
 

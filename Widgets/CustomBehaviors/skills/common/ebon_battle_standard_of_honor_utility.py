@@ -1,5 +1,5 @@
 from typing import Any, Callable, Generator, override
-from Py4GWCoreLib import Routines, Agent
+from Py4GWCoreLib import Routines, Agent, Player
 from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
@@ -54,9 +54,9 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
 
         agent_array = AgentArray.GetAllyArray()
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.IsAlive(agent_id))
-        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != GLOBAL_CACHE.Player.GetAgentID())
+        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != Player.GetAgentID())
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: self.buff_configuration.get_agent_id_predicate()(agent_id))
-        agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+        agent_array = AgentArray.Filter.ByDistance(agent_array, Player.GetXY(), Range.Spellcast.value)
         return [agent_id for agent_id in agent_array]
 
     @override

@@ -901,16 +901,16 @@ def reset_state_variables(state: Optional[str] = None):
     clear_dialog_tracking()
 
 def in_character_select():
-    return Player.InCharacterSelectScreen()
+    return Map.Pregame.InCharacterSelectScreen()
 
 def is_char_select_context_ready():
-    return in_character_select() and (pregame := Player.GetPreGameContext()) and pregame.chars is not None
+    return in_character_select() and len(Map.Pregame.GetCharList()) > 0
      
 def is_char_select_ready():
     return is_char_select_context_ready()
 
 def is_target_selected():
-    return is_char_select_context_ready() and Player.GetPreGameContext().chosen_character_index == bot_vars.character_index
+    return is_char_select_context_ready() and Map.Pregame.GetChosenCharacterIndex() == bot_vars.character_index
 
 def initiate_logout(debug: bool = False):
     if not bot_vars.character_to_delete_name:
@@ -920,7 +920,7 @@ def initiate_logout(debug: bool = False):
         return
     if debug:
         ConsoleLog("initiate_logout", f"Initiating logout to select '{bot_vars.character_to_delete_name}' for deletion...", Console.MessageType.Info)
-    Player.LogoutToCharacterSelect()
+    Map.Pregame.LogoutToCharacterSelect()
     bot_vars.character_index = bot_vars.char_select_current_index = -99
 
 def find_target_character(debug: bool = False):
@@ -929,20 +929,20 @@ def find_target_character(debug: bool = False):
             ConsoleLog("find_target_character", "Char select context not ready during find action.", Console.MessageType.Warning)
         return
 
-    pregame = Player.GetPreGameContext()
     target_name = bot_vars.character_to_delete_name
     
     try:
-        if not pregame.chars:
+        if len(Map.Pregame.GetCharList()) == 0:
             if debug:
                 ConsoleLog("find_target_character", "Character list (pregame.chars) is None or empty.", Console.MessageType.Warning)
             return
         
         target_lower = target_name.lower()
-        for i, char_name in enumerate(pregame.chars):
-            if target_lower == char_name.character_name.lower():
+        for i, char_name in enumerate(Map.Pregame.GetCharList()):
+            char_name_str:str = char_name.character_name or ""
+            if target_lower == char_name_str.lower():
                 bot_vars.character_index = i
-                bot_vars.char_select_current_index = pregame.chosen_character_index
+                bot_vars.char_select_current_index = Map.Pregame.GetChosenCharacterIndex()
                 if debug:
                     ConsoleLog("find_target_character", f"Found deletion target '{target_name}' at index {i}. Current selection: {bot_vars.char_select_current_index}", Console.MessageType.Info)
                 return
@@ -957,8 +957,8 @@ def navigate_char_select(debug: bool = False):
             ConsoleLog("navigate_char_select", "Char select context not ready during navigate action.", Console.MessageType.Warning)
         return
 
-    pregame = Player.GetPreGameContext()
-    current_index = pregame.chosen_character_index
+
+    current_index = Map.Pregame.GetChosenCharacterIndex()
 
     if current_index == bot_vars.character_index:
         if debug:
@@ -1075,13 +1075,13 @@ def press_key_repeat(key_value: int, times: int, debug: bool = False):
         bot_vars.press_key_aq.add_action(Keystroke.PressAndRelease, key_value)
 
 def is_char_name_gone(name: str, debug: bool = False):
-    if not Player.InCharacterSelectScreen():
+    if not Map.Pregame.InCharacterSelectScreen():
         if debug:
             ConsoleLog("is_char_name_gone", "Not in char select screen.", Console.MessageType.Debug)
         return False
     
     try:
-        characters = Player.GetLoginCharacters()
+        characters = Map.Pregame.GetAvailableCharacterList()
         if not characters:
             if debug:
                 ConsoleLog("is_char_name_gone", "Character list is None.", Console.MessageType.Warning)
@@ -1115,16 +1115,15 @@ def _is_target_character_selected(target_name: str, debug: bool = False):
             ConsoleLog("_is_target_character_selected", "Context not ready.", Console.MessageType.Debug)
         return False
 
-    pregame = Player.GetPreGameContext()
-    current_index = pregame.chosen_character_index
+    current_index = Map.Pregame.GetChosenCharacterIndex()
 
-    if not (pregame.chars and 0 <= current_index < len(pregame.chars)):
+    if not (Map.Pregame.GetCharList() and 0 <= current_index < len(Map.Pregame.GetCharList())):
         if debug:
             ConsoleLog("_is_target_character_selected", f"Current index {current_index} out of bounds or chars list empty/None.", Console.MessageType.Warning)
         return False
 
-    selected_name = pregame.chars[current_index].character_name.lower()
-    is_correct = selected_name == target_name.lower()
+    selected_name = Map.Pregame.GetCharList()[current_index].character_name or ""
+    is_correct = selected_name.lower() == target_name.lower()
 
     if debug:
         if is_correct:
@@ -2291,7 +2290,7 @@ fsm_vars.delete_character.SetLogBehavior(False)
 fsm_vars.delete_character.AddState(
     name="Check: In Char Select",
     execute_fn=lambda: None,
-    exit_condition=lambda: Player.InCharacterSelectScreen(),
+    exit_condition=lambda: Map.Pregame.InCharacterSelectScreen(),
     run_once=True,
     transition_delay_ms=1000)
 fsm_vars.delete_character.AddState(
@@ -2341,7 +2340,7 @@ fsm_vars.create_character.SetLogBehavior(False)
 fsm_vars.create_character.AddState(
     name="Check: In Char Select",
     execute_fn=lambda: None,
-    exit_condition=lambda: Player.InCharacterSelectScreen(),
+    exit_condition=lambda: Map.Pregame.InCharacterSelectScreen(),
     transition_delay_ms=1000,
     run_once=False)
 fsm_vars.create_character.AddState(

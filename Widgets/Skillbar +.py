@@ -112,7 +112,7 @@ class SkillBarPlus:
                     skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i+1)
                     duration = 0
                     remaining = 0
-                    for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):
+                    for effect in GLOBAL_CACHE.Effects.GetEffects(Player.GetAgentID()):
                         if effect.skill_id == skill_id:
                             duration = effect.duration
                             remaining = effect.time_remaining/1000
@@ -200,7 +200,7 @@ class SkillBarPlus:
         def Draw(self):
             active = []
 
-            for effect in GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID()):
+            for effect in GLOBAL_CACHE.Effects.GetEffects(Player.GetAgentID()):
                 frame_id = UIManager.GetChildFrameID(1726357791, [effect.skill_id + 4])
                 if not UIManager.FrameExists(frame_id): 
                     continue
@@ -250,7 +250,7 @@ class SkillBarPlus:
         def Cast(self):
             for i in range(8):
                 if self.slots[i] and self.CanQueue(i + 1):
-                    player_id = GLOBAL_CACHE.Player.GetAgentID()
+                    player_id = Player.GetAgentID()
                     skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i + 1)
                     if (Routines.Checks.Skills.HasEnoughEnergy(player_id, skill_id)     and 
                         Routines.Checks.Skills.HasEnoughAdrenaline(player_id, skill_id) and 

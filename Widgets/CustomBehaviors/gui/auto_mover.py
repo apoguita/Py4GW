@@ -1,6 +1,6 @@
 from collections import deque
 from typing import Any, Callable, Dict, Generator
-from Py4GWCoreLib import IconsFontAwesome5, Map, PyImGui
+from Py4GWCoreLib import IconsFontAwesome5, Map, PyImGui, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
@@ -205,7 +205,7 @@ def render():
 
         if True:
             PyImGui.text(f"CurrentMap: {Map.GetMapID()}")
-            coordinate = GLOBAL_CACHE.Player.GetXY()
+            coordinate = Player.GetXY()
             PyImGui.text(f"CurrentPos: {int(coordinate[0])}, {int(coordinate[1])}") 
             PyImGui.same_line(0,5)
             if PyImGui.small_button("Copy"):
@@ -214,7 +214,7 @@ def render():
             PyImGui.same_line(0,5)
 
             if PyImGui.small_button("Insert as waypoint"):
-                coordinate = GLOBAL_CACHE.Player.GetXY()
+                coordinate = Player.GetXY()
                 auto_follow_path.add_raw_waypoint(coordinate)
 
         PyImGui.tree_pop()

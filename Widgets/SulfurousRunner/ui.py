@@ -1,7 +1,7 @@
 
 import math
 import PyImGui
-from Py4GWCoreLib import Camera, ImGui
+from Py4GWCoreLib import Camera, ImGui, Player
 from Py4GWCoreLib.DXOverlay import DXOverlay
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
@@ -63,7 +63,7 @@ def draw_flags(waypoints : list[Waypoint3D], flag_color : Color = Color(0, 204, 
 def draw_paths(paths : dict[int, list[Waypoint3D]], path_color : Color, closest_waypoint : int, collision : bool = False):
     if paths:
         # Draw paths
-        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        player_x, player_y = Player.GetXY()
         
         for idx, path in paths.items():
             if idx < closest_waypoint:

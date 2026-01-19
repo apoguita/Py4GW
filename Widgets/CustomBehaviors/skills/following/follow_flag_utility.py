@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 from HeroAI.cache_data import CacheData
 from HeroAI.types import PlayerStruct
-from Py4GWCoreLib import GLOBAL_CACHE, Party, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Party, Routines, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -58,7 +58,7 @@ class FollowFlagUtility(CustomSkillUtilityBase):
         follow_x = all_player_struct[party_number].FlagPosX
         follow_y = all_player_struct[party_number].FlagPosY
 
-        distance_from_flag = Utils.Distance((follow_x, follow_y), GLOBAL_CACHE.Player.GetXY())
+        distance_from_flag = Utils.Distance((follow_x, follow_y), Player.GetXY())
 
         if distance_from_flag < 10: return None
         if distance_from_flag > 100: return CommonScore.FOLLOW_FLAG_REQUIRED.value
@@ -85,6 +85,6 @@ class FollowFlagUtility(CustomSkillUtilityBase):
 
         position:tuple[float, float] = (follow_x, follow_y)
         ActionQueueManager().ResetQueue("ACTION")
-        GLOBAL_CACHE.Player.Move(position[0], position[1])
+        Player.Move(position[0], position[1])
         self.throttle_timer.Reset()
         return BehaviorResult.ACTION_PERFORMED

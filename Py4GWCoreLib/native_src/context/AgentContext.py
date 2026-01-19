@@ -4,6 +4,10 @@ from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar,
 from ctypes import Union
 import ctypes
 from ..context.AccAgentContext import AccAgentContext, AccAgentContextStruct
+from .MapContext import MapContext, MapContextStruct
+from .CharContext import CharContext, CharContextStruct
+from .InstanceInfoContext import InstanceInfo, InstanceInfoStruct
+from .WorldContext import WorldContext, WorldContextStruct
 from ..internals.types import Vec2f, Vec3f, GamePos
 from ..internals.gw_array import GW_Array, GW_Array_Value_View, GW_Array_View
 from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
@@ -12,6 +16,17 @@ from ..internals.helpers import read_wstr, encoded_wstr_to_str
 from ..internals.native_symbol import NativeSymbol
 from ...Scanner import Scanner, ScannerSection
 
+def _amputate_tlink(link: "GW_TLink") -> None:
+    """Make the link a safe, self-contained, empty sentinel."""
+    addr = ctypes.addressof(link)
+    link.prev_link = addr          # IsLinked() => False
+    link.next_node = 0             # iterator stops immediately
+
+
+def _amputate_tlist(lst: "GW_TList") -> None:
+    """Make the list safely empty (no traversal possible)."""
+    lst.offset = 0
+    _amputate_tlink(lst.link)
 
 
 class DyeInfoStruct(Structure):
@@ -23,6 +38,12 @@ class DyeInfoStruct(Structure):
         ("dye3", c_uint8, 4),         # 0x02 low nibble
         ("dye4", c_uint8, 4),         # 0x02 high nibble
     ]
+    def snapshot(self) -> "DyeInfoStruct":
+        """
+        Return a safe, Python-owned copy of this DyeInfoStruct.
+        No pointers involved — always safe.
+        """
+        return DyeInfoStruct.from_buffer_copy(self)
 
 class ItemDataStruct(Structure):
     _pack_ = 1
@@ -33,6 +54,11 @@ class ItemDataStruct(Structure):
         ("value", c_uint32),             # 0x0B / actually 0x0C aligned
         ("interaction", c_uint32),       # 0x10
     ]
+    
+    def snapshot(self) -> "ItemDataStruct":
+        snap = ItemDataStruct.from_buffer_copy(self)
+        snap.dye = self.dye.snapshot()
+        return snap
 
 class EquipmentItemsUnion(Union):
     _pack_ = 1
@@ -48,6 +74,14 @@ class EquipmentItemsUnion(Union):
         ("costume_body", ItemDataStruct),      # 0x0094
         ("costume_head", ItemDataStruct),      # 0x00A4
     ]
+    
+    def snapshot(self) -> "EquipmentItemsUnion":
+        snap = EquipmentItemsUnion()
+
+        for i in range(9):
+            snap.items[i] = self.items[i].snapshot()
+
+        return snap
 
 class EquipmentItemIDsUnion(Union):
     _pack_ = 1
@@ -63,6 +97,9 @@ class EquipmentItemIDsUnion(Union):
         ("item_id_costume_body", c_uint32),    # 0x00D0
         ("item_id_costume_head", c_uint32),    # 0x00D4
     ]
+    
+    def snapshot(self) -> "EquipmentItemIDsUnion":
+        return EquipmentItemIDsUnion.from_buffer_copy(self)
     
 class EquipmentStruct(Structure):
     _pack_ = 1
@@ -86,26 +123,44 @@ class EquipmentStruct(Structure):
         # ---- 0x00B4 .. 0x00D7 ----
         ("ids_union", EquipmentItemIDsUnion),
     ]
-    @property 
+    # ---------- SNAPSHOT ----------
+    def snapshot(self) -> "EquipmentStruct":
+        snap = EquipmentStruct.from_buffer_copy(self)
+
+        # ---- snapshot unions recursively ----
+        snap.items_union = self.items_union.snapshot()
+        snap.ids_union = self.ids_union.snapshot()
+
+        # ---- pointers are INVALID in snapshots ----
+        snap.left_hand_ptr = POINTER(ItemDataStruct)()
+        snap.right_hand_ptr = POINTER(ItemDataStruct)()
+        snap.shield_ptr = POINTER(ItemDataStruct)()
+
+        return snap
+    # ---------- SAFE ACCESSORS ----------
+    @property
     def left_hand(self) -> Optional[ItemDataStruct]:
-        """Return the left hand item data if available."""
-        if self.left_hand_ptr:
-            return self.left_hand_ptr.contents
+        # example mapping logic – adapt to your map values
+        idx = self.left_hand_map
+        if 0 <= idx < 9:
+            return self.items_union.items[idx]
         return None
+
     
     @property
     def right_hand(self) -> Optional[ItemDataStruct]:
         """Return the right hand item data if available."""
-        if self.right_hand_ptr:
-            return self.right_hand_ptr.contents
+        idx = self.right_hand_map
+        if 0 <= idx < 9:
+            return self.items_union.items[idx]
         return None
     
     @property
     def shield(self) -> Optional[ItemDataStruct]:
         """Return the shield item data if available."""
-        if self.shield_ptr:
-            return self.shield_ptr.contents
-        return None
+        idx = self.shield_map
+        if 0 <= idx < 9:
+            return self.items_union.items[idx]
 
 
 
@@ -118,6 +173,8 @@ class TagInfoStruct (Structure):
         ("level", c_uint16),       # +0x0004
         # ... (possible more fields)
     ]
+    def snapshot(self) -> "TagInfoStruct":
+        return TagInfoStruct.from_buffer_copy(self)
 
 
 class VisibleEffectStruct (Structure):
@@ -127,6 +184,13 @@ class VisibleEffectStruct (Structure):
         ("id", c_uint32),  # Constants::EffectID
         ("has_ended", c_uint32), #effect no longer active, effect ending animation plays.
     ]
+    
+    def snapshot(self) -> "VisibleEffectStruct":
+        """
+        Fully static snapshot.
+        Effect lifecycle is logical, not pointer-based.
+        """
+        return VisibleEffectStruct.from_buffer_copy(self)
 
 
 class AgentStruct(Structure):
@@ -174,10 +238,17 @@ class AgentStruct(Structure):
         ("rotation_sin2", c_float),        # 0x00B0
         ("h00B4", c_uint32 * 4),           # 0x00B4
     ]
+    _is_snapshot: bool = False
+    
     @property
     def vtable(self) -> int:
         """Return the vtable pointer of the Agent."""
+        if getattr(self, "_is_snapshot", False):
+            return 0
+        if not self.vtable_ptr:
+            return 0
         return ctypes.addressof(self.vtable_ptr.contents)
+
       
     @property 
     def is_item_type(self) -> bool:
@@ -194,6 +265,38 @@ class AgentStruct(Structure):
         """Return True if this Agent is a Living being (Player, NPC, Monster)."""
         return (self.type & 0xDB) != 0
     
+    def snapshot(self) -> "AgentStruct":
+        # choose derived size to copy correctly
+        if self.is_living_type:
+            cls = AgentLivingStruct
+        elif self.is_item_type:
+            cls = AgentItemStruct
+        elif self.is_gadget_type:
+            cls = AgentGadgetStruct
+        else:
+            cls = AgentStruct
+
+        size = ctypes.sizeof(cls)
+        buf = ctypes.create_string_buffer(size)
+        ctypes.memmove(buf, ctypes.addressof(self), size)
+
+        snap = cls.from_buffer(buf)
+        snap._is_snapshot = True
+
+        # ---- amputate common dangerous fields (STATIC snapshot) ----
+        snap.vtable_ptr = POINTER(c_uint32)()
+        _amputate_tlink(snap.link_link)
+        _amputate_tlink(snap.link2_link)
+
+        # ---- derived-specific deep snapshot / amputations ----
+        if isinstance(snap, AgentLivingStruct):
+            snap._finalize_snapshot()
+
+        return snap
+
+
+
+        
     # ---------------------------------------------------------
     # ---  reinterpret this Agent as its derived type       ---
     # ---  identical semantics to C++ static_cast<T*>(this) ---
@@ -294,22 +397,71 @@ class AgentLivingStruct(AgentStruct):
         ("weapon_item_id", c_uint16),
         ("offhand_item_id", c_uint16),
     ]
+    
+    def _finalize_snapshot(self) -> None:
+        """
+        Convert a byte-copy living snapshot into a STATIC snapshot:
+        - deep copy tags/equipment/effects into Python-owned memory
+        - amputate pointers and intrusive list heads so no later deref happens
+        """
+        # snapshot-only storage (python attributes, not ctypes fields)
+        self._tags_snapshot: Optional[TagInfoStruct] = None
+        self._equipment_snapshot: Optional[EquipmentStruct] = None
+        self._visible_effects_snapshot: list[VisibleEffectStruct] = []
+
+        # ---- tags_ptr (TagInfo*) ----
+        if self.tags_ptr:
+            try:
+                self._tags_snapshot = self.tags_ptr.contents.snapshot()
+            except ValueError:
+                self._tags_snapshot = None
+
+        # ---- equipment_ptr_ptr (Equipment**) ----
+        if self.equipment_ptr_ptr:
+            try:
+                eq_ptr = self.equipment_ptr_ptr.contents  # Equipment*
+                if eq_ptr:
+                    # IMPORTANT: use YOUR EquipmentStruct.snapshot() that removes pointers
+                    self._equipment_snapshot = eq_ptr.contents.snapshot()
+            except ValueError:
+                self._equipment_snapshot = None
+
+        # ---- visible_effects_list (TList<VisibleEffect>) ----
+        # Must be materialized NOW, before we amputate list head.
+        try:
+            live = GW_TList_View(self.visible_effects_list, VisibleEffectStruct).to_list()
+            if live:
+                self._visible_effects_snapshot = [e.snapshot() for e in live]
+        except Exception:
+            self._visible_effects_snapshot = []
+
+        # ---- amputate all live pointers/list heads in the snapshot ----
+        self.equipment_ptr_ptr = POINTER(POINTER(EquipmentStruct))()
+        self.tags_ptr = POINTER(TagInfoStruct)()
+        _amputate_tlist(self.visible_effects_list)
+    
+    
+    # ---- snapshot-safe properties ----
     @property
-    def equipment(self) -> Optional[EquipmentStruct]:
-        """Return the Equipment of the AgentLiving if available."""
+    def equipment(self) -> Optional["EquipmentStruct"]:
+        if getattr(self, "_is_snapshot", False):
+            return getattr(self, "_equipment_snapshot", None)
         if self.equipment_ptr_ptr and self.equipment_ptr_ptr.contents:
             return self.equipment_ptr_ptr.contents.contents
         return None
     
     @property
-    def tags(self) ->  Optional[TagInfoStruct]:
-        """Return the TagInfo of the AgentLiving if available."""
+    def tags(self) -> Optional["TagInfoStruct"]:
+        if getattr(self, "_is_snapshot", False):
+            return getattr(self, "_tags_snapshot", None)
         if self.tags_ptr:
             return self.tags_ptr.contents
         return None
-    
+
     @property
-    def visible_effects(self) -> List[VisibleEffectStruct]:
+    def visible_effects(self) -> List["VisibleEffectStruct"]:
+        if getattr(self, "_is_snapshot", False):
+            return getattr(self, "_visible_effects_snapshot", [])
         return GW_TList_View(self.visible_effects_list, VisibleEffectStruct).to_list()
 
     @property
@@ -437,10 +589,15 @@ class AgentArrayStruct(Structure):
     def _ensure_fields(self):
         if not hasattr(self, "_allegiance_cache"):
             self._allegiance_cache = None
+        if not hasattr(self, "_agent_by_id"):
+            self._agent_by_id = {}
         if not hasattr(self, "_last_instance_timer"):
             self._last_instance_timer = 0
-        if not hasattr(self, "raw_agent_list"):
-            self.raw_agent_list = []
+        if not hasattr(self, "frame_counter"):
+            self.frame_counter = 0
+        if not hasattr(self, "frame_throttle"):
+            self.frame_throttle = 2
+
         
     @property
     def raw_agents(self) -> list[AgentStruct | None]:
@@ -473,6 +630,11 @@ class AgentArrayStruct(Structure):
 
         return out
     
+    def _drop_cache(self) -> None:
+        self._allegiance_cache = None
+        self._agent_by_id = {}
+        self._last_instance_timer = 0
+    
     def _ensure_cache_up_to_date(self):
         """
         Uses instance_timer to detect map changes, same logic as GWCA.
@@ -480,16 +642,28 @@ class AgentArrayStruct(Structure):
         """
         self._ensure_fields()
         
+        # ---- validity checks ----
+        map_ctx = MapContext.get_context()
+        char_ctx = CharContext.get_context()
+        instance_info_ctx = InstanceInfo.get_context()
+        world_ctx = WorldContext.get_context()
         acc_agent_ctx = AccAgentContext.get_context()
-        if not acc_agent_ctx:
-            return
-        instance_timer = acc_agent_ctx.instance_timer
 
-        if self._last_instance_timer == instance_timer:
-            # cache still valid
+        if not (map_ctx and char_ctx and instance_info_ctx and world_ctx and acc_agent_ctx):
+            self._drop_cache()
             return
-
-        self._last_instance_timer = instance_timer
+        
+        instance_type = instance_info_ctx.instance_type
+        if instance_type not in (0, 1):  # explorable, story, pvp
+            self._drop_cache()
+            return
+        
+        self.frame_counter += 3
+        if self.frame_counter < self.frame_throttle:
+            return
+        
+        self.frame_counter = 0
+        
         self._build_allegiance_cache()
         
     def _iter_valid_agents(self):
@@ -498,67 +672,56 @@ class AgentArrayStruct(Structure):
                 continue
             if agent.agent_id != 0:
                 yield agent
+                
+    
 
     def _build_allegiance_cache(self):
         """Populate ALL allegiance/type lists in a single traversal."""
-        import PyAgent
-
-        self._allegiance_cache = {
-            "ally": [],#-
-            "ally_raw": [],
-            "neutral": [], #-
-            "neutral_raw": [],
-            "enemy": [], #-
-            "enemy_raw": [],
-            "spirit_pet": [],#-
-            "spirit_pet_raw": [],
-            "minion": [], #-
-            "minion_raw": [],
-            "npc_minipet": [], #-
-            "npc_minipet_raw": [],
-            "living": [],#-
-            "living_raw": [],
-            "item": [], #-
-            "item_raw": [],
-            "owned_item": [], # -
-            "owned_item_raw": [],
-            "gadget": [], #-
-            "gadget_raw": [],
-            "dead_ally": [],
-            "dead_ally_raw": [],
-            "dead_enemy": [],
-            "dead_enemy_raw": [],
-            "all": [], #-
-            "all_raw": [],
-        }
+        self._ensure_fields()
         
-        self.raw_agent_list = []
-
         acc_agent_ctx = AccAgentContext.get_context()
         if not acc_agent_ctx:
-            self._allegiance_cache = {}
+            self._drop_cache()
             return
-        
+
         valid_agents_ids = acc_agent_ctx.valid_agents_ids
         if not valid_agents_ids:
-            self._allegiance_cache = {}
-            return 
+            self._drop_cache()
+            return
 
+        cache = {
+            "ally": [],
+            "neutral": [],
+            "enemy": [],
+            "spirit_pet": [],
+            "minion": [],
+            "npc_minipet": [],
+            "living": [],
+            "item": [],
+            "owned_item": [],
+            "gadget": [],
+            "dead_ally": [],
+            "dead_enemy": [],
+            "all": [],
+        }
+        
+        agent_by_id: dict[int, "AgentStruct"] = {}
+        
         # Single iteration — uses movement-valid agents only
         for agent in self._iter_valid_agents():
             if agent.agent_id not in valid_agents_ids:
                 continue
             
-            #PyAgent.PyAgent.GetNameByID(agent.agent_id)  # Warm up name cache
-            self.raw_agent_list.append(agent)
-            
+            # ---- CRITICAL: snapshot NOW (Python-owned) ----
             aid = agent.agent_id
-            self._allegiance_cache["all"].append(aid)
-            self._allegiance_cache["all_raw"].append(agent)
+            if aid == 0:
+                continue
+            
+            cache["all"].append(aid)
+            agent_by_id[aid] = agent.snapshot()
             
             if agent.is_gadget_type:
-                self._allegiance_cache["gadget"].append(aid)
-                self._allegiance_cache["gadget_raw"].append(agent)
+                cache["gadget"].append(aid)
                 continue
             
             if agent.is_item_type:
@@ -567,11 +730,9 @@ class AgentArrayStruct(Structure):
                     continue
 
                 if item and item.owner!= 0:
-                    self._allegiance_cache["owned_item"].append(aid)
-                    self._allegiance_cache["owned_item_raw"].append(agent)
+                    cache["owned_item"].append(aid)
                 
-                self._allegiance_cache["item"].append(aid)
-                self._allegiance_cache["item_raw"].append(agent)
+                cache["item"].append(aid)
                 continue
             
             # ---------- LIVING types ----------
@@ -582,8 +743,7 @@ class AgentArrayStruct(Structure):
             if not living:
                 continue
             
-            self._allegiance_cache["living"].append(aid)
-            self._allegiance_cache["living_raw"].append(agent)
+            cache["living"].append(aid)
 
             """ 1: "ally",
                 2: "neutral",
@@ -591,129 +751,101 @@ class AgentArrayStruct(Structure):
                 4: "spirit_pet",
                 5: "minion",
                 6: "npc_minipet","""
-
                    
             match living.allegiance:
                 case 1:
-                    self._allegiance_cache["ally"].append(aid)
-                    self._allegiance_cache["ally_raw"].append(agent)
+                    cache["ally"].append(aid)
                     if living.is_dead:
-                        self._allegiance_cache["dead_ally"].append(aid)
-                        self._allegiance_cache["dead_ally_raw"].append(agent)
+                        cache["dead_ally"].append(aid)
                 case 2:
-                    self._allegiance_cache["neutral"].append(aid)
-                    self._allegiance_cache["neutral_raw"].append(agent)
+                    cache["neutral"].append(aid)
                 case 3:
-                    self._allegiance_cache["enemy"].append(aid)
-                    self._allegiance_cache["enemy_raw"].append(agent)
+                    cache["enemy"].append(aid)
                     if living.is_dead:
-                        self._allegiance_cache["dead_enemy"].append(aid)
-                        self._allegiance_cache["dead_enemy_raw"].append(agent)
+                        cache["dead_enemy"].append(aid)
                 case 4:
-                    self._allegiance_cache["spirit_pet"].append(aid)
-                    self._allegiance_cache["spirit_pet_raw"].append(agent)
+                    cache["spirit_pet"].append(aid)
                 case 5:
-                    self._allegiance_cache["minion"].append(aid)
-                    self._allegiance_cache["minion_raw"].append(agent)
+                    cache["minion"].append(aid)
                 case 6:
-                    self._allegiance_cache["npc_minipet"].append(aid)
-                    self._allegiance_cache["npc_minipet_raw"].append(agent)
+                    cache["npc_minipet"].append(aid)
+            
+        self._allegiance_cache = cache
+        self._agent_by_id = agent_by_id
+
 
     
-    def GetAgentByID(self, agent_id: int) -> Optional[AgentStruct]:
-        """Retrieve an Agent by its AgentID."""
-        self._ensure_cache_up_to_date()
-        for agent in self.raw_agent_list:
-            if agent.agent_id == agent_id:
-                return agent
-        return None
+    # ------------------------------------------------------------
+    # O(1) lookup (uses the snapshot dictionary built per frame)
+    # ------------------------------------------------------------
+    def GetAgentByID(self, agent_id: int) -> Optional["AgentStruct"]:
+        self._ensure_fields()
+        
+        map_ctx = MapContext.get_context()
+        char_ctx = CharContext.get_context()
+        instance_info_ctx = InstanceInfo.get_context()
+        world_ctx = WorldContext.get_context()
+        acc_agent_ctx = AccAgentContext.get_context()
+
+        if not (map_ctx and char_ctx and instance_info_ctx and world_ctx and acc_agent_ctx):
+            self._drop_cache()
+            return
+        
+        instance_type = instance_info_ctx.instance_type
+        if instance_type not in (0, 1):  # explorable, story, pvp
+            self._drop_cache()
+            return
+        
+        agent =  self._agent_by_id.get(agent_id)
+        return agent
+
+
     
     #AgentArray
     def GetAgentArray(self) -> list[int]:
         """Retrieve the raw agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("all", [])
     
-    def GetAgentArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the raw agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("all_raw", [])
-    
     #AllyArray
     def GetAllyArray(self) -> list[int]:
         """Retrieve the ally agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("ally", [])
     
-    def GetAllyArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the ally agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("ally_raw", [])
-    
     #neutral
     def GetNeutralArray(self) -> list[int]:
         """Retrieve the neutral agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("neutral", [])
     
-    def GetNeutralArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the neutral agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("neutral_raw", [])
-    
     #enemy
     def GetEnemyArray(self) -> list[int]:
         """Retrieve the enemy agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("enemy", [])
     
-    def GetEnemyArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the enemy agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("enemy_raw", [])
-    
     #spirit_pet
     def GetSpiritPetArray(self) -> list[int]:
         """Retrieve the spirit/pet agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("spirit_pet", [])
     
-    def GetSpiritPetArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the spirit/pet agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("spirit_pet_raw", [])
-    
     #minion
-    def GetMinionArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the minion agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("minion_raw", [])
     
     def GetMinionArray(self) -> list[int]:
         """Retrieve the minion agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("minion", [])
@@ -721,92 +853,54 @@ class AgentArrayStruct(Structure):
     #npc-minipet
     def GetNPCMinipetArray(self) -> list[int]:
         """Retrieve the NPC/minipet agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("npc_minipet", [])
     
-    def GetNPCMinipetArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the NPC/minipet agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("npc_minipet_raw", [])
     
     #item
     def GetItemAgentArray(self) -> list[int]:
         """Retrieve the item agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("item", [])
     
-    def GetItemAgentArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the item agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("item_raw", [])
-    
     #owned item
     def GetOwnedItemAgentArray(self) -> list[int]:
         """Retrieve the owned item agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("owned_item", [])
     
-    def GetOwnedItemAgentArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the owned item agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("owned_item_raw", [])
-    
     #gadget
     def GetGadgetAgentArray(self) -> list[int]:
         """Retrieve the gadget agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("gadget", [])
     
-    def GetGadgetAgentArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the gadget agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("gadget_raw", [])
-    
+
     #dead ally/enemy
     def GetDeadAllyArray(self) -> list[int]:
         """Retrieve the dead ally agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("dead_ally", [])
     
-    def GetDeadEnemyArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the dead enemy agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("dead_enemy_raw", [])
-    
+
     def GetDeadEnemyArray(self) -> list[int]:
         """Retrieve the dead enemy agent array as a list of AgentIDs."""
-        self._ensure_cache_up_to_date()
+        #self._ensure_cache_up_to_date()
         if not self._allegiance_cache:
             return []
         return self._allegiance_cache.get("dead_enemy", [])
     
-    def GetDeadAllyArrayRaw(self) -> list[AgentStruct]:
-        """Retrieve the dead ally agent array as a list of AgentStructs."""
-        self._ensure_cache_up_to_date()
-        if not self._allegiance_cache:
-            return []
-        return self._allegiance_cache.get("dead_ally_raw", [])
-    
+
     
     
     
@@ -823,7 +917,8 @@ class AgentArray:
     _ptr: int = 0
     _cached_ptr: int = 0
     _cached_ctx: AgentArrayStruct | None = None
-    _callback_name = "AgentArray.UpdateAgentArrayPtr"
+    _callback_name_ptr = "AgentArray.UpdatePtr"
+    _callback_name_cache = "AgentArray.UpdateCache"
 
     @staticmethod
     def get_ptr() -> int:
@@ -831,17 +926,23 @@ class AgentArray:
     @staticmethod
     def _update_ptr():
         AgentArray._ptr = AgentArray_GetPtr.read_ptr()
+        
+    @staticmethod
+    def _update_cache():
+        ctx = AgentArray.get_context()
+        if not ctx:
+            return
+        ctx._ensure_cache_up_to_date()
 
     @staticmethod
     def enable():
-        Game.register_callback(
-            AgentArray._callback_name,
-            AgentArray._update_ptr
-        )
+        Game.register_callback(AgentArray._callback_name_ptr, AgentArray._update_ptr)
+        Game.register_callback(AgentArray._callback_name_cache, AgentArray._update_cache)
 
     @staticmethod
     def disable():
-        Game.remove_callback(AgentArray._callback_name)
+        Game.remove_callback(AgentArray._callback_name_ptr)
+        Game.remove_callback(AgentArray._callback_name_cache)
         AgentArray._ptr = 0
         AgentArray._cached_ptr = 0
         AgentArray._cached_ctx = None
@@ -865,7 +966,6 @@ class AgentArray:
 
         return AgentArray._cached_ctx
     
-    
-        
-        
+          
 AgentArray.enable()
+

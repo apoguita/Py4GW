@@ -9,7 +9,7 @@ from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Player
 
 
 # region SFMesmerVaettir
@@ -83,7 +83,7 @@ class SF_Mes_vaettir(BuildMgr):
         return result
 
     def DefensiveActions(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         player_hp = Agent.GetHealth(player_agent_id)
         has_deadly_paradox = Routines.Checks.Effects.HasBuff(player_agent_id, self.deadly_paradox)
         if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)):
@@ -109,7 +109,7 @@ class SF_Mes_vaettir(BuildMgr):
             yield from self.CastHeartOfShadow()
 
     def CastShroudOfDistress(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         if Agent.GetHealth(player_agent_id) < 0.45:
             ConsoleLog(self.build_name, "Casting Shroud of Distress.", Py4GW.Console.MessageType.Info, log=False)
             # ** Cast Shroud of Distress **
@@ -128,7 +128,7 @@ class SF_Mes_vaettir(BuildMgr):
     def CastHeartOfShadow(self):
         center_point1 = (10980, -21532)
         center_point2 = (11461, -17282)
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
 
         distance_to_center1 = Utils.Distance(player_pos, center_point1)
         distance_to_center2 = Utils.Distance(player_pos, center_point2)
@@ -162,7 +162,7 @@ class SF_Mes_vaettir(BuildMgr):
 
     def ProcessSkillCasting(self):
         def GetNotHexedEnemy():
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_pos = Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
             for enemy in enemy_array:
                 if Agent.IsDead(enemy):
@@ -185,7 +185,7 @@ class SF_Mes_vaettir(BuildMgr):
                 lambda agent: Agent.GetModelID(agent)
                 in (AgentModelID.FROZEN_ELEMENTAL.value, AgentModelID.FROST_WURM.value),
             )
-            agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+            agent_array = AgentArray.Filter.ByDistance(agent_array, Player.GetXY(), Range.Spellcast.value)
             if len(agent_array) > 0:
                 yield from self.DefensiveActions()
 
@@ -194,7 +194,7 @@ class SF_Mes_vaettir(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             return
 
@@ -206,7 +206,7 @@ class SF_Mes_vaettir(BuildMgr):
             yield from Routines.Yield.wait(1000)
             return
 
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_form)
         shadow_form_buff_time_remaining = (
             GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shadow_form) if has_shadow_form else 0
@@ -252,7 +252,7 @@ class SF_Mes_vaettir(BuildMgr):
         if not self.in_killing_routine:
             player_hp = Agent.GetHealth(player_agent_id)
             kill_spot_x, kill_spot_y = (12684, -17184)
-            player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+            player_x, player_y = Player.GetXY()
             dx = kill_spot_x - player_x
             dy = kill_spot_y - player_y
             distance_threshold = Range.Area.value * 1.5
@@ -260,7 +260,7 @@ class SF_Mes_vaettir(BuildMgr):
             if (player_hp < 0.35 and not within_range_distance) or self.stuck_signal:
                 center_point1 = (10980, -21532)
                 center_point2 = (11461, -17282)
-                player_pos = GLOBAL_CACHE.Player.GetXY()
+                player_pos = Player.GetXY()
 
                 distance_to_center1 = Utils.Distance(player_pos, center_point1)
                 distance_to_center2 = Utils.Distance(player_pos, center_point2)
@@ -296,26 +296,26 @@ class SF_Mes_vaettir(BuildMgr):
             is_wastrels_slot_ready = Routines.Checks.Skills.IsSkillSlotReady(self.wastrels_demise_slot)
             is_arcane_echo_slot_ready = Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot)
             target = GetNotHexedEnemy()
-            px, py = GLOBAL_CACHE.Player.GetXY()
+            px, py = Player.GetXY()
             num_enemies = len(Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value))
             if target and shadow_form_buff_time_remaining >= 4000 and num_enemies >= 3:
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                GLOBAL_CACHE.Player.ChangeTarget(target)
+                Player.ChangeTarget(target)
                 if is_wastrels_slot_ready and is_arcane_echo_slot_ready:
                     yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=1200)
-                    GLOBAL_CACHE.Player.Interact(target, False)
+                    Player.Interact(target, False)
                     ConsoleLog(self.build_name, "Casting Arcane Echo.", Py4GW.Console.MessageType.Info, log=False)
                 elif is_arcane_echo_slot_ready:
                     yield from self._CastSkillSlot(self.arcane_echo_slot, log=False, aftercast_delay=500)
-                    GLOBAL_CACHE.Player.Interact(target, False)
+                    Player.Interact(target, False)
                     ConsoleLog(self.build_name, "Casting Echoed Wastrel.", Py4GW.Console.MessageType.Info, log=False)
 
             target = GetNotHexedEnemy()
             if target and not Routines.Checks.Skills.IsSkillSlotReady(self.arcane_echo_slot):
                 GLOBAL_CACHE._ActionQueueManager.ResetQueue("ACTION")
-                GLOBAL_CACHE.Player.ChangeTarget(target)
+                Player.ChangeTarget(target)
                 if (yield from self._CastSkillSlot(self.wastrels_demise_slot, log=False, aftercast_delay=500)):
-                    GLOBAL_CACHE.Player.Interact(target, False)
+                    Player.Interact(target, False)
 
         yield from Routines.Yield.wait(100)
 

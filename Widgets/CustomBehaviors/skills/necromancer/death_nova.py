@@ -1,6 +1,6 @@
 from typing import Any, Generator, override, Tuple
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent, Player
 from Py4GWCoreLib.AgentArray import AgentArray
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -34,7 +34,7 @@ class DeathNovaUtility(CustomSkillUtilityBase):
     @staticmethod
     def _get_target() -> int | None:
         minion_array = AgentArray.GetMinionArray()
-        minion_array = AgentArray.Filter.ByDistance(minion_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+        minion_array = AgentArray.Filter.ByDistance(minion_array, Player.GetXY(), Range.Spellcast.value)
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) > 0.05 and not Agent.IsEnchanted(agent_id))
         minion_array = AgentArray.Sort.ByCondition(minion_array, lambda agent_id: Agent.GetHealth(agent_id))
 

@@ -5,7 +5,7 @@ import traceback
 from typing import List, Generator, Any, override
 import time
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -324,7 +324,7 @@ class CustomBehaviorBaseUtility():
             return
 
         # if self.get_final_is_enabled():
-        #     account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        #     account_email = Player.GetAccountEmail()
         #     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
         #     if hero_ai_options is not None:
         #         hero_ai_options.Combat = False
@@ -373,7 +373,7 @@ class CustomBehaviorBaseUtility():
             if Map.IsOutpost():
                 return BehaviorState.IDLE
 
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 return BehaviorState.IDLE
 
             if custom_behavior_helpers.Targets.is_player_in_aggro():

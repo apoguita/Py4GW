@@ -74,7 +74,7 @@ def is_valid_item(item_id):
 
 def get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=False):
     loot_array = AgentArray.GetItemArray()
-    loot_array = AgentArray.Filter.ByDistance(loot_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value * 3.00)
+    loot_array = AgentArray.Filter.ByDistance(loot_array, Player.GetXY(), Range.Spellcast.value * 3.00)
 
     agent_array = AgentArray.GetItemArray()
 
@@ -89,7 +89,7 @@ def get_valid_loot_array(viable_loot=VIABLE_LOOT, loot_salvagables=False):
         )
 
     item_array = list(set(item_array_model + item_array_salv))
-    item_array = AgentArray.Sort.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY())
+    item_array = AgentArray.Sort.ByDistance(item_array, Player.GetXY())
 
     # return item_array
     filtered_agent_ids = []

@@ -1,13 +1,13 @@
 import Py4GW
 from Py4GWCoreLib import *
-from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoidStruct
+from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoidStruct, PortalStruct
 import heapq
 import math
 from typing import List, Tuple, Optional, Dict
 
 
 PathingTrapezoid = PathingTrapezoidStruct
-PathingPortal = PyPathing.Portal
+PathingPortal = PortalStruct
 MODULE_NAME = "Portal Pathfinding"
 
 class AABB:
@@ -637,7 +637,7 @@ def main():
             print(f"[INFO] NavMesh loaded in {time.time() - start_process_time:.2f} seconds")
 
         if navmesh:
-            start_pos = GLOBAL_CACHE.Player.GetXY()
+            start_pos = Player.GetXY()
         
             x = PyImGui.input_int("Start X", x)
             y = PyImGui.input_int("Start Y", y)

@@ -1,5 +1,6 @@
 
 import importlib
+from ..Player import Player
 
 class _RProxy:
     def __getattr__(self, name: str):
@@ -79,7 +80,7 @@ class Movement:
             self.following = True
             self.arrived = False
 
-            GLOBAL_CACHE.Player.Move(x, y)
+            Player.Move(x, y)
 
             self.timer.Start()
 
@@ -105,11 +106,11 @@ class Movement:
                 return
             
             if self.following:
-                current_position = GLOBAL_CACHE.Player.GetXY()
-                is_casting = Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
-                is_moving = Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
-                is_knocked_down = Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
-                is_dead = Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+                current_position = Player.GetXY()
+                is_casting = Agent.IsCasting(Player.GetAgentID())
+                is_moving = Agent.IsMoving(Player.GetAgentID())
+                is_knocked_down = Agent.IsKnockedDown(Player.GetAgentID())
+                is_dead = Agent.IsDead(Player.GetAgentID())
 
                 if is_casting or is_moving or is_knocked_down or is_dead:
                     return 
@@ -129,8 +130,8 @@ class Movement:
                 if self.wait_timer_run_once:
                     # Use the move_to_waypoint function to reissue movement
 
-                    GLOBAL_CACHE.Player.Move(0,0) #reset movement pointer?
-                    GLOBAL_CACHE.Player.Move(self.waypoint[0], self.waypoint[1])
+                    Player.Move(0,0) #reset movement pointer?
+                    Player.Move(self.waypoint[0], self.waypoint[1])
 
                     self.wait_timer_run_once  = False  # Disable immediate re-issue
                     self.wait_timer.Start()  # Start the wait timer to prevent spamming movement
@@ -149,7 +150,7 @@ class Movement:
             """
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import Utils
-            current_position = GLOBAL_CACHE.Player.GetXY()
+            current_position = Player.GetXY()
             return Utils.Distance(current_position, self.waypoint)
 
         def is_following(self):

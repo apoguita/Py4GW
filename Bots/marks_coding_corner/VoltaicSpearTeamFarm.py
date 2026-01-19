@@ -15,7 +15,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import LootConfig
-from Py4GWCoreLib import Map, Agent
+from Py4GWCoreLib import Map, Agent, Player
 
 from Py4GWCoreLib import ChatChannel
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import AssassinShadowTheftDaggerSpammer
@@ -92,7 +92,7 @@ at_final_chest = False
 
 
 def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid → release FSM and exit
@@ -101,7 +101,7 @@ def _on_party_wipe(bot: "Botting"):
 
     ConsoleLog("Res Check", "We ressed retrying!")
     yield from bot.Wait._coro_for_time(3000)
-    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+    player_x, player_y = Player.GetXY()
     shrine_2_x, shrine_2_y = (-18673, -7701)
 
     # Compute distances
@@ -153,12 +153,12 @@ def open_final_chest():
 
     yield from Routines.Yield.Agents.TargetNearestGadgetXY(-17461.00, -14258.00, 100)
     at_final_chest = True
-    target = GLOBAL_CACHE.Player.GetTargetID()
+    target = Player.GetTargetID()
     if target == 0:
         ConsoleLog("Messaging", "No target to interact with.")
         return
 
-    sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    sender_email = Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     while command_type_routine_in_message_is_active(sender_email, SharedCommandType.InteractWithTarget):
         yield from Routines.Yield.wait(250)
@@ -196,10 +196,10 @@ def open_final_chest():
 
 def clear_item_id_blacklist_and_attempt_open_chest_again():
     LootConfig().ClearItemIDBlacklist()
-    sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    sender_email = Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     yield from Routines.Yield.Agents.InteractWithGadgetXY(-17461.00, -14258.00, 100)
-    target = GLOBAL_CACHE.Player.GetTargetID()
+    target = Player.GetTargetID()
 
     if target == 0:
         ConsoleLog("Messaging", "No target to interact with.")
@@ -232,7 +232,7 @@ def clear_item_id_blacklist_and_attempt_open_chest_again():
 
 
 def team_loot_items():
-    sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    sender_email = Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     for account in accounts:
         if not account.AccountEmail or sender_email == account.AccountEmail:
@@ -262,7 +262,7 @@ def handle_on_danger_flagging(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        player_x, player_y = Player.GetXY()
         map_id = Map.GetMapID()
 
         # === Determine nearest enemy for facing angle ===
@@ -343,7 +343,7 @@ def handle_on_danger_flagging(bot: Botting):
 def disable_hero_ai_leader_combat(bot: Botting):
     bot.OverrideBuild(AssassinShadowTheftDaggerSpammer())
     if isinstance(bot.config.build_handler, AssassinShadowTheftDaggerSpammer):
-        acount_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        acount_email = Player.GetAccountEmail()
         hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acount_email)
 
         if hero_ai_options is None:
@@ -372,9 +372,9 @@ def setup_hero_ai_and_custom_builds(bot: Botting):
         yield
         return
 
-    primary_profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary_profession != "Assassin" and use_assassin_skillbar:
-        GLOBAL_CACHE.Player.SendFakeChat(
+        Player.SendFakeChat(
             ChatChannel.CHANNEL_WARNING, "You are not allowed to use this skill bar! Not Assassin main"
         )
         yield

@@ -1,5 +1,5 @@
 import PyImGui
-from Py4GWCoreLib import Utils, ColorPalette, GLOBAL_CACHE
+from Py4GWCoreLib import Utils, ColorPalette, Player
 
 class ExperienceData:
     def __init__(self):
@@ -10,10 +10,10 @@ class ExperienceData:
         self.total_earned_skill_points = 0
 
     def update(self):
-        self.level = GLOBAL_CACHE.Player.GetLevel()
-        self.experience = GLOBAL_CACHE.Player.GetExperience()
+        self.level = Player.GetLevel()
+        self.experience = Player.GetExperience()
         self.progress_pct = Utils.GetExperienceProgression(self.experience)
-        skill_data = GLOBAL_CACHE.Player.GetSkillPointData()
+        skill_data = Player.GetSkillPointData()
         self.current_skill_points = skill_data[0]
         self.total_earned_skill_points = skill_data[1]
 

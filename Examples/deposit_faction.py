@@ -10,7 +10,7 @@ def main():
         window_flags=PyImGui.WindowFlags.AlwaysAutoResize #| PyImGui.WindowFlags.MenuBar
         if PyImGui.begin("move", window_flags):
             if PyImGui.button("donate"):
-                GLOBAL_CACHE.Player.DepositFaction(0)
+                Player.DepositFaction(0)
             
             
         PyImGui.end()

@@ -22,17 +22,6 @@ class AgentArray:
         
         return agent_array
     
-    @staticmethod
-    def GetAgentArrayRaw() -> list[AgentStruct]:
-        """Purpose: Get the unfiltered full agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-
-        agent_array = agent_array_ctx.GetAgentArrayRaw()
-        
-        return agent_array
-    
     #region Ally
     @staticmethod
     def GetAllyArray() -> list[int]:
@@ -42,16 +31,6 @@ class AgentArray:
             return []
 
         agent_array = agent_array_ctx.GetAllyArray()
-        return agent_array
-    
-    @staticmethod
-    def GetAllyArrayRaw() -> list[AgentStruct]:
-        """Purpose: Get the unfiltered full ally agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-
-        agent_array = agent_array_ctx.GetAllyArrayRaw()
         return agent_array
     
     #region Neutral
@@ -64,15 +43,6 @@ class AgentArray:
         agent_array = agent_array_ctx.GetNeutralArray()
         return agent_array
     
-    @staticmethod
-    def GetNeutralArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the neutral agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetNeutralArrayRaw()
-        return agent_array
-    
     #region Enemy
     @staticmethod
     def GetEnemyArray() -> list[int]:
@@ -81,15 +51,6 @@ class AgentArray:
         if not agent_array_ctx:
             return []
         agent_array = agent_array_ctx.GetEnemyArray()
-        return agent_array
-
-    @staticmethod
-    def GetEnemyArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the enemy agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetEnemyArrayRaw()
         return agent_array
 
     #region SpiritPet
@@ -102,14 +63,6 @@ class AgentArray:
         agent_array = agent_array_ctx.GetSpiritPetArray()
         return agent_array
     
-    @staticmethod
-    def GetSpiritPetArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the spirit & pet agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetSpiritPetArrayRaw()
-        return agent_array
     
     #region Minion
     @staticmethod
@@ -121,15 +74,6 @@ class AgentArray:
         agent_array = agent_array_ctx.GetMinionArray()
         return agent_array
     
-    @staticmethod
-    def GetMinionArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the minion agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetMinionArrayRaw()
-        return agent_array
-
     #region NPCMinipet
     @staticmethod
     def GetNPCMinipetArray() -> list[int]:
@@ -140,15 +84,6 @@ class AgentArray:
         agent_array = agent_array_ctx.GetNPCMinipetArray()
         return agent_array
     
-    @staticmethod
-    def GetNPCMinipetArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the NPC & minipet agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetNPCMinipetArrayRaw()
-        return agent_array
-
     #region Item
     @staticmethod
     def GetItemArray() -> list[int]:
@@ -157,15 +92,6 @@ class AgentArray:
         if not agent_array_ctx:
             return []
         agent_array = agent_array_ctx.GetItemAgentArray()
-        return agent_array
-    
-    @staticmethod
-    def GetItemArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the item agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetItemAgentArrayRaw()
         return agent_array
     
     #region OwnedItem
@@ -178,15 +104,7 @@ class AgentArray:
         agent_array = agent_array_ctx.GetOwnedItemAgentArray()
         return agent_array
     
-    @staticmethod
-    def GetOwnedItemArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the owned item agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetOwnedItemAgentArrayRaw()
-        return agent_array
-    
+
     #region Gadget
     @staticmethod
     def GetGadgetArray() -> list[int]:
@@ -197,14 +115,6 @@ class AgentArray:
         agent_array = agent_array_ctx.GetGadgetAgentArray()
         return agent_array
     
-    @staticmethod
-    def GetGadgetArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the gadget agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetGadgetAgentArrayRaw()
-        return agent_array
     
     #region DeadAlly
     @staticmethod
@@ -216,14 +126,6 @@ class AgentArray:
         agent_array = agent_array_ctx.GetDeadAllyArray()
         return agent_array
     
-    @staticmethod
-    def GetDeadAllyArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the dead ally agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetDeadAllyArrayRaw()
-        return agent_array
     
     #region DeadEnemy
     @staticmethod
@@ -234,16 +136,6 @@ class AgentArray:
             return []
         agent_array = agent_array_ctx.GetDeadEnemyArray()
         return agent_array
-    
-    @staticmethod
-    def GetDeadEnemyArrayRaw() -> list[AgentStruct]:
-        """Purpose: Retrieve the dead enemy agent array as AgentStructs."""
-        agent_array_ctx = GWContext.AgentArray.GetContext()
-        if not agent_array_ctx:
-            return []
-        agent_array = agent_array_ctx.GetDeadEnemyArrayRaw()
-        return agent_array
-    
     
     @staticmethod
     def GetAgentByID(agent_id: int) -> AgentStruct | None:
@@ -498,232 +390,3 @@ class AgentArray:
                 closest_agent_id = min(largest_cluster, key=dist)
                 return closest_agent_id
 
-
-#region RawAgentArray
-#DEPRECATED
-"""
-class RawAgentArray:
-    _instance = None
-
-    def __new__(cls, throttle: int = 35):
-        if cls._instance is None:
-            cls._instance = super(RawAgentArray, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self, throttle: int = 35):
-        from .Py4GWcorelib import ThrottledTimer
-        if self._initialized:
-            self.throttle = throttle
-            return
-
-        # === Agent arrays ===
-        self.agent_array = []
-        self.ally_array = []
-        self.neutral_array = []
-        self.enemy_array = []
-        self.spirit_pet_array = []
-        self.minion_array = []
-        self.npc_minipet_array = []
-        self.item_array = []
-        self.gadget_array = []
-
-        # === Cache and indexing ===
-        self.agent_dict = {}            # id -> agent
-        self.agent_cache = {}           # id -> agent instance
-        self.current_map_id = 0
-        self.owner_cache = {}            # id -> owner_id (for items)
-
-        # === Name handling ===
-        self.agent_name_map: dict[int, Tuple[str, float]] = {}  # id -> (name, timestamp)
-        self.name_requested: set[int] = set()                   # agents whose names are being requested
-        self.name_timeout_ms = 2_500                           # refresh name every 10s
-
-
-        # === Throttling ===
-        self.throttle = throttle
-        self.update_throttle = ThrottledTimer(self.throttle)
-
-        self._initialized = True
-        self.map_valid = False
-
-    def update(self):
-        from .Routines import Routines
-        from .Map import Map
-
-        # === Check map validity ===
-        self.map_valid = Routines.Checks.Map.MapValid()
-
-        if not self.map_valid:
-            self.reset()
-            return
-
-        if not self.update_throttle.IsExpired():
-            return
-
-        self.update_throttle.Reset()
-
-        # === Step 1: Get current agent ids ===
-        current_agent_ids = set(AgentArray.GetAgentArray())
-
-        # === Step 2: Resolve names for requested agents ===
-
-        # === Step 3: Refresh or create agents ===
-        self.agent_array = []
-        for agent_id in current_agent_ids:
-            if agent_id not in self.agent_cache:
-                agent_instance =  Agent.agent_instance(agent_id)
-                self.agent_cache[agent_id] = agent_instance
-                if agent_instance.is_item:
-                    self.owner_cache[agent_id] = agent_instance.item_agent.owner_id
-            else:
-                self.agent_cache[agent_id].GetContext()
-                agent_instance = self.agent_cache[agent_id]
-
-                if agent_instance.is_item:
-                    current_owner = agent_instance.item_agent.owner_id
-                    cached_owner = self.owner_cache.get(agent_id, 0)
-
-                    # Only update if we discover the real owner (0 → non-zero)
-                    # Never overwrite a valid owner with 0
-                    if current_owner != 0 and current_owner != cached_owner:
-                        self.owner_cache[agent_id] = current_owner
-            
-            agent = self.agent_cache[agent_id]
-            self.agent_array.append(agent)
-
-        # === Step 4: Remove stale agents and name data ===
-        
-        for agent_id in list(self.agent_cache.keys()):
-            if not Agent.IsValid(agent_id):
-                self.agent_name_map.pop(agent_id, None)
-                self.name_requested.discard(agent_id)
-                
-            if agent_id not in current_agent_ids:
-                agent_instance = self.agent_cache[agent_id]
-                if agent_instance.is_item:
-                    # Remove item owner cache if the item is no longer valid
-                    self.owner_cache.pop(agent_id, None)
-                
-                del self.agent_cache[agent_id]
-                self.agent_name_map.pop(agent_id, None)
-                self.name_requested.discard(agent_id)
-
-        # === Step 5: Build id → agent map ===
-        self.agent_dict = {agent.id: agent for agent in self.agent_array}
-
-        # === Step 6: Rebuild filtered arrays ===
-        self.ally_array.clear()
-        self.neutral_array.clear()
-        self.enemy_array.clear()
-        self.spirit_pet_array.clear()
-        self.minion_array.clear()
-        self.npc_minipet_array.clear()
-        self.item_array.clear()
-        self.gadget_array.clear()
-
-        for agent in self.agent_array:
-            if agent.id:
-                if agent.is_gadget:
-                    self.gadget_array.append(agent)
-                elif agent.is_item:
-                    self.item_array.append(agent)
-                elif agent.is_living:
-                    allegiance = agent.living_agent.allegiance.ToInt()
-                    if allegiance == Allegiance.Ally:
-                        self.ally_array.append(agent)
-                    elif allegiance == Allegiance.Neutral:
-                        self.neutral_array.append(agent)
-                    elif allegiance == Allegiance.Enemy:
-                        self.enemy_array.append(agent)
-                    elif allegiance == Allegiance.SpiritPet:
-                        self.spirit_pet_array.append(agent)
-                    elif allegiance == Allegiance.Minion:
-                        self.minion_array.append(agent)
-                    elif allegiance == Allegiance.NpcMinipet:
-                        self.npc_minipet_array.append(agent)
-                    else:
-                        self.neutral_array.append(agent)
-
-        # === Step 7: Clear names if map changes ===
-        map_id = Map.GetMapID()
-        if self.current_map_id != map_id:
-            self.current_map_id = map_id
-            self.agent_name_map.clear()
-            self.name_requested.clear()
-
-
-    def reset(self):
-        # === Reset throttles ===
-        self.update_throttle.Reset()
-
-        # === Clear agent and name data ===
-        self.agent_array.clear()
-        self.ally_array.clear()
-        self.neutral_array.clear()
-        self.enemy_array.clear()
-        self.spirit_pet_array.clear()
-        self.minion_array.clear()
-        self.npc_minipet_array.clear()
-        self.item_array.clear()
-        self.gadget_array.clear()
-
-        # === Clear caches and mappings ===
-        self.agent_dict.clear()
-        self.agent_cache.clear()
-        self.agent_name_map.clear()
-        self.name_requested.clear()
-
-        # === Reset map state ===
-        self.current_map_id = 0
-  
-
-    def get_array(self) -> list[PyAgent.PyAgent]:
-        self.update()
-        return self.agent_array
-    
-    def get_ally_array(self):
-        self.update()
-        return self.ally_array
-    
-    def get_neutral_array(self):
-        self.update()
-        return self.neutral_array
-    
-    def get_enemy_array(self):
-        self.update()
-        return self.enemy_array
-    
-    def get_spirit_pet_array(self):
-        self.update()
-        return self.spirit_pet_array
-    
-    def get_minion_array(self):
-        self.update()
-        return self.minion_array
-    
-    def get_npc_minipet_array(self):
-        self.update()
-        return self.npc_minipet_array
-    
-    def get_item_array(self):
-        self.update()
-        return self.item_array
-    
-    def get_gadget_array(self):
-        self.update()
-        return self.gadget_array
-
-    def get_agent(self, agent_id: int) -> PyAgent.PyAgent:
-        self.update()
-        return self.agent_dict.get(agent_id) or PyAgent.PyAgent(agent_id)
-    
-    def get_item_owner(self, item_id: int) -> int:
-        self.update()
-        if Agent.IsValid(item_id) is False:
-            return 999
-        agent = PyAgent.PyAgent(item_id)
-        owner = agent.item_agent.owner_id if agent.is_item else 999
-        return owner
-
-"""

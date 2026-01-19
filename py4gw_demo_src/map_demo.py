@@ -6,6 +6,7 @@ from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.py4gwcorelib_src.Color import ColorPalette, Color
 from Py4GWCoreLib.py4gwcorelib_src.Timer import FormatTime
 from Py4GWCoreLib.Overlay import Overlay
+from Py4GWCoreLib import Profession_Names, Profession, Campaign, CampaignName
 
 #region main_map_tab
 def draw_main_map_tab():
@@ -596,10 +597,30 @@ def draw_world_map_tab():
                     PyImGui.end_table()
                     
 def draw_pregame_tab():
+    available_character_list = Map.Pregame.GetAvailableCharacterList()
+    if PyImGui.collapsing_header("Available Characters:"):
+        for char in available_character_list:
+            PyImGui.indent(20.0)
+            if PyImGui.collapsing_header(f"Character: {char.player_name}"):
+                rows: list[tuple[str, str | int | float]] = [
+                    ("Player Name", f"{char.player_name}"),
+                    ("uuid",  f"{char.uuid}"),
+                    ("map_id", f"{char.map_id} - {Map.GetMapName(char.map_id)}"),
+                    ("primary", f"{char.primary} - {Profession_Names.get(Profession(char.primary), 'Unknown')}"),
+                    ("secondary", f"{char.secondary} - {Profession_Names.get(Profession(char.secondary), 'Unknown')}"),
+                    ("campaign", f"{char.campaign} - {CampaignName.get(Campaign(char.campaign).value, 'Unknown')}"),
+                    ("level", f"{char.level}"),
+                    ("is_pvp", f"{char.is_pvp}"),   
+                ]
+
+                draw_kv_table("WorldMapPrimary", rows)
+                PyImGui.separator()
+            PyImGui.unindent(20.0)
+    
     if not Map.Pregame.IsWindowOpen():
         PyImGui.text("Pregame context not ready.")
         if PyImGui.button("Log Out to Character Select"):
-            Map.Pregame.LogOutToCharachterSelect()
+            Map.Pregame.LogoutToCharacterSelect()
             print ("clicked")
     else:
         if PyImGui.collapsing_header("Pregame Data:"):

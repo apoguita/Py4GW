@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Party, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Party, Routines, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums import SharedCommandType
 from Widgets.CustomBehaviors.primitives import constants
@@ -116,7 +116,7 @@ class LootUtility(CustomSkillUtilityBase):
                 yield from custom_behavior_helpers.Helpers.wait_for(100)
                 continue
 
-            GLOBAL_CACHE.Player.Interact(item_id, call_target=False)
+            Player.Interact(item_id, call_target=False)
             yield from custom_behavior_helpers.Helpers.wait_for(100)
 
             # 2) check if loot has been looted

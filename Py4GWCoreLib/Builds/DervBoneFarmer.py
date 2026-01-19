@@ -98,7 +98,7 @@ class DervBoneFarmer(BuildMgr):
             yield from Routines.Yield.wait(100)
             return
 
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         has_signet_of_mystic_speed = Routines.Checks.Effects.HasBuff(player_agent_id, self.signet_of_mystic_speed)
         has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
         has_vow_of_silence = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_silence)
@@ -153,14 +153,14 @@ class DervBoneFarmer(BuildMgr):
                         ActionQueueManager().ResetAllQueues()
                 return
 
-            px, py = GLOBAL_CACHE.Player.GetXY()
+            px, py = Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Spellcast.value)
             filtered_enemy_array = [agent_id for agent_id in enemy_array if Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
 
             if filtered_enemy_array:
                 nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)
                 vos_buff_time_remaining = (
-                    GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.vow_of_silence)
+                    GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.vow_of_silence)
                     if has_vow_of_silence
                     else 0
                 )

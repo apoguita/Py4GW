@@ -14,7 +14,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Range
-from Py4GWCoreLib import Map, Agent
+from Py4GWCoreLib import Map, Agent, Player
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import Timer
@@ -235,7 +235,7 @@ def is_hotkey_pressed_once(vk_code=0x35):
 
 class CombatPrep:
     def __init__(self, cached_data, module_icon_size, module_layout):
-        self.is_party_leader = GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+        self.is_party_leader = Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
         self.formations = load_formations_from_json()
         self.cached_data = cached_data
         self.module_icon_size = module_icon_size
@@ -413,7 +413,7 @@ class CombatPrep:
         if self.is_party_leader:
             enemy_agent = Routines.Agents.GetNearestEnemy(max_distance=1850)
             center_x, center_y = self.get_party_leader_x_y()
-            player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+            player_x, player_y = Player.GetXY()
 
             dist_x = center_x - player_x
             dist_y = center_y - player_y

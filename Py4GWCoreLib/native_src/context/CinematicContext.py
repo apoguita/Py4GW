@@ -1,4 +1,4 @@
-import PyPlayer
+import PyPointers
 from Py4GW import Game
 from ctypes import Structure, POINTER,c_uint32, cast
 
@@ -22,7 +22,7 @@ class Cinematic:
         return Cinematic._ptr    
     @staticmethod
     def _update_ptr():
-        Cinematic._ptr = PyPlayer.PyPlayer().GetCinematicPtr()
+        Cinematic._ptr = PyPointers.PyPointers.GetCinematicPtr()
 
     @staticmethod
     def enable():

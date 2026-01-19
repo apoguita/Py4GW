@@ -358,7 +358,7 @@ def draw_widget_ui():
         else:
             handler.resume_widgets()
             
-        own_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        own_email = Player.GetAccountEmail()
         for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
             if acc.AccountEmail == own_email:
                 continue

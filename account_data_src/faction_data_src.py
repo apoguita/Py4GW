@@ -1,7 +1,7 @@
 import Py4GW
 import PyImGui
 from typing import Callable
-from Py4GWCoreLib import ImGui, ColorPalette, GLOBAL_CACHE
+from Py4GWCoreLib import ImGui, ColorPalette, Player
 #region FactionData
 BASE_PATH = Py4GW.Console.get_projects_path()
 TEXTURE_BASE_PATH = BASE_PATH + "\\Textures\\Faction_Icons\\"
@@ -66,10 +66,10 @@ class FactionData:
     """Container for all faction nodes."""
     def __init__(self):
         self.nodes = [
-            FactionNode("Balthazar", GLOBAL_CACHE.Player.GetBalthazarData),
-            FactionNode("Kurzick",   GLOBAL_CACHE.Player.GetKurzickData),
-            FactionNode("Luxon",     GLOBAL_CACHE.Player.GetLuxonData),
-            FactionNode("Imperial",  GLOBAL_CACHE.Player.GetImperialData),
+            FactionNode("Balthazar", Player.GetBalthazarData),
+            FactionNode("Kurzick",   Player.GetKurzickData),
+            FactionNode("Luxon",     Player.GetLuxonData),
+            FactionNode("Imperial",  Player.GetImperialData),
         ]
         self.update()
 

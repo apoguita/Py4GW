@@ -1,4 +1,4 @@
-import PyPlayer
+import PyPointers
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from ..internals.types import Vec2f
@@ -71,7 +71,7 @@ class PreGameContext:
 
     @staticmethod
     def _update_ptr():
-        PreGameContext._ptr = PyPlayer.PyPlayer().GetPreGameContextPtr()
+        PreGameContext._ptr = PyPointers.PyPointers.GetPreGameContextPtr()
 
     @staticmethod
     def enable():

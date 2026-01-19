@@ -1,7 +1,7 @@
 import re
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -72,9 +72,9 @@ class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
         enemy_id = self.__get_enemy_to_fight()
         if enemy_id is None: return BehaviorResult.ACTION_SKIPPED
 
-        GLOBAL_CACHE.Player.ChangeTarget(enemy_id)
+        Player.ChangeTarget(enemy_id)
         yield from custom_behavior_helpers.Helpers.wait_for(100) 
-        GLOBAL_CACHE.Player.Interact(enemy_id, False)
+        Player.Interact(enemy_id, False)
         yield from custom_behavior_helpers.Helpers.wait_for(5_000)
 
         self.throttle_timer.Reset()

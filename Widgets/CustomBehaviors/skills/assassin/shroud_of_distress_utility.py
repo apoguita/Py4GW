@@ -1,7 +1,7 @@
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Agent, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -34,17 +34,17 @@ class ShroudOfDistressUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        has_shroud_of_distress_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
+        has_shroud_of_distress_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.custom_skill.skill_id)
         if has_shroud_of_distress_buff: 
             return None
 
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         current_health_percent = Agent.GetHealth(player_agent_id)
 
         if current_health_percent > 0.55: 
             return None
 
-        buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
+        buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.custom_skill.skill_id)
         if buff_time_remaining > self.renew_before_expiration_in_milliseconds: return None
 
         return self.score_definition.get_score() 

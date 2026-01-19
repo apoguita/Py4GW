@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     
 from ..helpers_src.decorators import _yield_step
 from ...Py4GWcorelib import ActionQueueManager
+from ...Player import Player
 
 #region INTERACT
 class _INTERACT:
@@ -23,7 +24,7 @@ class _INTERACT:
         from ...Agent import Agent
         #ConsoleLog(MODULE_NAME, f"Interacting with agent at {coords} with dialog_id {dialog_id}", Py4GW.Console.MessageType.Info)
         while True:
-            if Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsCasting(Player.GetAgentID()):
                 yield from Routines.Yield.wait(500)
                 break
             else:
@@ -42,7 +43,7 @@ class _INTERACT:
             return False
 
         if dialog_id != 0:
-            GLOBAL_CACHE.Player.SendDialog(dialog_id)
+            Player.SendDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
         self._config.config_properties.dialog_at_succeeded.set_now("value", True)
@@ -54,7 +55,7 @@ class _INTERACT:
         from ...Agent import Agent
         #ConsoleLog(MODULE_NAME, f"Interacting with gadget at {coords}", Py4GW.Console.MessageType.Info)
         while True:
-            if Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsCasting(Player.GetAgentID()):
                 yield from Routines.Yield.wait(500)
                 break
             else:
@@ -78,7 +79,7 @@ class _INTERACT:
         from ...GlobalCache import GLOBAL_CACHE
         from ...Agent import Agent
         while True:
-            if Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsCasting(Player.GetAgentID()):
                 yield from Routines.Yield.wait(500)
                 break
             else:

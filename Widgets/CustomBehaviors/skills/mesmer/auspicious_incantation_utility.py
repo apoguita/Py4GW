@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -51,7 +51,7 @@ class AuspiciousIncantationUtility(CustomSkillUtilityBase):
     def _get_auspicious_state(self, current_state: BehaviorState) -> AuspiciousIncantationState:
 
         # If under Auspicious buff, priority is to cast the target skill immediately
-        if Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id):
+        if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.custom_skill.skill_id):
             return AuspiciousIncantationState.CAST_SKILL
 
         # If Auspicious and the target skill are both ready and resources/prechecks ok -> cast Auspicious first

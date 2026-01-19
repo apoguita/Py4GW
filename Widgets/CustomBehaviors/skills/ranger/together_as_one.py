@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Routines, Range, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Routines, Range, Agent, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -43,8 +43,8 @@ class TogetherAsOneUtility(CustomSkillUtilityBase):
         if state is BehaviorState.IN_AGGRO:
             agent_array = AgentArray.GetAllyArray()
             agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.IsAlive(agent_id))
-            agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != GLOBAL_CACHE.Player.GetAgentID())
-            agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+            agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != Player.GetAgentID())
+            agent_array = AgentArray.Filter.ByDistance(agent_array, Player.GetXY(), Range.Spellcast.value)
 
             agent_ids: list[int] = [agent_id for agent_id in agent_array]
 

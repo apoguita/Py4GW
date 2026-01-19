@@ -22,8 +22,8 @@ def main():
     try:
         # Get positions
         mouse_x, mouse_y, mouse_z = Overlay().GetMouseWorldPos()
-        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-        player_z_plane = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+        player_x, player_y = Player.GetXY()
+        player_z_plane = Agent.GetZPlane(Player.GetAgentID())
 
         if PyImGui.begin("PathPlanner Test", PyImGui.WindowFlags.AlwaysAutoResize):
             PyImGui.text(f"Player: ({player_x:.0f}, {player_y:.0f}, {player_z_plane:.0f})")

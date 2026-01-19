@@ -86,7 +86,7 @@ def farm_fog_nightmares(bot):
     start_time = Utils.GetBaseTimestamp()
     timeout = 120000  # 2 minutes max
 
-    player_id = GLOBAL_CACHE.Player.GetAgentID()
+    player_id = Player.GetAgentID()
 
     while True:
         fog_nightmare_array = get_fog_nightmare_array(custom_range=Range.Earshot.value)
@@ -134,7 +134,7 @@ def loot_items():
 
 # region Helper Methods
 def get_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
-    px, py = GLOBAL_CACHE.Player.GetXY()
+    px, py = Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
     return [
         agent_id
@@ -144,7 +144,7 @@ def get_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
 
 
 def get_non_fog_nightmare_array(custom_range=Range.Area.value * 1.50):
-    px, py = GLOBAL_CACHE.Player.GetXY()
+    px, py = Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
     return [
         agent_id
@@ -256,7 +256,7 @@ def handle_stuck(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             yield from Routines.Yield.Player.Resign()
             continue
@@ -266,19 +266,19 @@ def handle_stuck(bot: Botting):
             and bot.config.build_handler.status == DervBuildFarmStatus.Move  # type: ignore
         ):
             if stuck_timer.IsExpired():
-                GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                Player.SendChatCommand("stuck")
                 stuck_timer.Reset()
 
             # Check if character hasn't moved
             if movement_check_timer.IsExpired():
-                current_player_pos = GLOBAL_CACHE.Player.GetXY()
+                current_player_pos = Player.GetXY()
                 if is_within_tolerance(old_player_position, current_player_pos) and not bot.config.pause_on_danger_fn():
                     unstuck_counter += 1
                     ConsoleLog(DUST_FARMER, "Farmer is stuck, attempting unstuck procedure...")
                     stuck_counter += 1
-                    GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                    player_pos = GLOBAL_CACHE.Player.GetXY()
-                    facing_direction = Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
+                    Player.SendChatCommand("stuck")
+                    player_pos = Player.GetXY()
+                    facing_direction = Agent.GetRotationAngle(Player.GetAgentID())
                     # --- Backpedal (opposite facing direction) ---
                     back_angle = facing_direction + math.pi  # 180° behind
                     back_distance = 200
@@ -287,7 +287,7 @@ def handle_stuck(bot: Botting):
 
                     backpedal_pos = (player_pos[0] + back_offset_x, player_pos[1] + back_offset_y)
                     for _ in range(9):
-                        GLOBAL_CACHE.Player.Move(backpedal_pos[0], backpedal_pos[1])
+                        Player.Move(backpedal_pos[0], backpedal_pos[1])
 
                     # --- Sidestep (random left or right) ---
                     side_direction = random.choice([-1, 1])  # -1 = right, 1 = left
@@ -298,7 +298,7 @@ def handle_stuck(bot: Botting):
 
                     sidestep_pos = (player_pos[0] + offset_x, player_pos[1] + offset_y)  # type: ignore
                     for _ in range(9):
-                        GLOBAL_CACHE.Player.Move(sidestep_pos[0], sidestep_pos[1])
+                        Player.Move(sidestep_pos[0], sidestep_pos[1])
 
                     yield
                 else:
@@ -320,7 +320,7 @@ def handle_stuck(bot: Botting):
             and bot.config.build_handler.status == DervBuildFarmStatus.Loot  # type: ignore
         ):
             if movement_check_timer.IsExpired():
-                current_player_pos = GLOBAL_CACHE.Player.GetXY()
+                current_player_pos = Player.GetXY()
                 if is_within_tolerance(old_player_position, current_player_pos) and not bot.config.pause_on_danger_fn():
                     ConsoleLog(DUST_FARMER, "Looting is stuck, attempting unstuck procedure...")
                     stuck_counter += 1
@@ -348,7 +348,7 @@ def handle_fog_nightmare_danger(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             continue
 
@@ -359,10 +359,10 @@ def handle_fog_nightmare_danger(bot: Botting):
             if bot.config.pause_on_danger_fn() and get_fog_nightmare_array(Range.Earshot.value):
                 # Deal with local enemies before resuming
                 yield from farm_fog_nightmares(bot)
-                player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                player_hp = Agent.GetHealth(Player.GetAgentID())
                 while player_hp < 0.99:
                     ConsoleLog(DUST_FARMER, 'Dying, Need recovery...')
-                    player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+                    player_hp = Agent.GetHealth(Player.GetAgentID())
                     yield from Routines.Yield.wait(2000)
         yield from Routines.Yield.wait(500)
 
@@ -375,7 +375,7 @@ def handle_loot(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)
             continue
 
@@ -489,7 +489,7 @@ def dust_farm_bot(bot: Botting):
 
     bot.Party.Resign()
     bot.Wait.ForTime(3000)
-    bot.Wait.UntilCondition(lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
+    bot.Wait.UntilCondition(lambda: Agent.IsDead(Player.GetAgentID()))
 
 
 bot.SetMainRoutine(dust_farm_bot)

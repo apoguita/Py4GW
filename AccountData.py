@@ -1,13 +1,15 @@
 from turtle import title
 
 from PyParty import Hero
-from Py4GWCoreLib import Map, Agent, TITLE_TIERS, TITLE_NAME, GLOBAL_CACHE, TITLE_CATEGORIES
+from Py4GWCoreLib import Map, Agent, Player, GLOBAL_CACHE
 from Py4GWCoreLib import ProfessionShort, Campaign, Routines, Utils
+from Py4GWCoreLib.native_src.context.WorldContext import AttributeStruct
+from Py4GWCoreLib.native_src.context.AvailableCharacterContext import AvailableCharacterStruct
 import PyImGui
 import PyPlayer
 import PyAgent
 import PySkillbar
-from PyPlayer import PyTitle
+
 from typing import Optional, Dict, List, Tuple
 import account_data_src
 from account_data_src.rank_data_src import RankData
@@ -34,7 +36,7 @@ class AgentData:
             self.hp_data: tuple[float, float, float] = (0.0, 0.0, 0.0) #hp, max_hp, hp_regen
             self.dager_status: int = 0
             self.weapon_type: int = 0
-            self.attributes: list[PyAgent.AttributeClass] = []
+            self.attributes: list[AttributeStruct] = []
             self.model_id: int = 0
             self.coords: Tuple[float, float, float] = (0.0, 0.0, 0.0)
             self.zplane: int = 0
@@ -149,7 +151,7 @@ class AgentData:
 
             
     def __init__(self):
-        self.agent_id: int = GLOBAL_CACHE.Player.GetAgentID()
+        self.agent_id: int = Player.GetAgentID()
         self.general_data = AgentData.GeneralData(self.agent_id)
         self.flags = AgentData.Flags()
         self.skillbar_data = AgentData.SkillbarData()
@@ -173,16 +175,16 @@ class PlayerData:
         self.show_details: dict[str, bool] = {}
         
     def update(self):
-        self.target_id = GLOBAL_CACHE.Player.GetTargetID()
-        self.observing_id = GLOBAL_CACHE.Player.GetObservingID()
-        self.player_uuid = GLOBAL_CACHE.Player.GetPlayerUUID()
-        self.missions_completed = GLOBAL_CACHE.Player.GetMissionsCompleted()
-        self.missions_bonus = GLOBAL_CACHE.Player.GetMissionsBonusCompleted()
-        self.missions_completed_hm = GLOBAL_CACHE.Player.GetMissionsCompletedHM()
-        self.missions_bonus_hm = GLOBAL_CACHE.Player.GetMissionsBonusCompletedHM()
-        self.controlled_minions = GLOBAL_CACHE.Player.GetControlledMinions()
-        self.learnable_character_skills = GLOBAL_CACHE.Player.GetLearnableCharacterSkills()
-        self.unlocked_character_skills = GLOBAL_CACHE.Player.GetUnlockedCharacterSkills()
+        self.target_id = Player.GetTargetID()
+        self.observing_id = Player.GetObservingID()
+        self.player_uuid = Player.GetPlayerUUID()
+        self.missions_completed = Player.GetMissionsCompleted()
+        self.missions_bonus = Player.GetMissionsBonusCompleted()
+        self.missions_completed_hm = Player.GetMissionsCompletedHM()
+        self.missions_bonus_hm = Player.GetMissionsBonusCompletedHM()
+        self.controlled_minions = Player.GetControlledMinions()
+        self.learnable_character_skills = Player.GetLearnableCharacterSkills()
+        self.unlocked_character_skills = Player.GetUnlockedCharacterSkills()
         
     def draw_content(self):
         PyImGui.text(f"Target ID: {self.target_id}")
@@ -341,10 +343,10 @@ class PlayerData:
 class AccountInfo: 
     #region AccountData
     class AccountData:
-        def __init__(self, account_name: str ="", account_email: str ="", available_characters: List[PyPlayer.LoginCharacterInfo] = []):
+        def __init__(self, account_name: str ="", account_email: str ="", available_characters: List[AvailableCharacterStruct] = []):
             self.account_name: str = account_name
             self.account_email: str = account_email
-            self.available_characters: List[PyPlayer.LoginCharacterInfo] = available_characters
+            self.available_characters: List[AvailableCharacterStruct] = available_characters
 
         def draw_content(self):
             PyImGui.text(f"Account Name: {self.account_name}")
@@ -408,9 +410,9 @@ class AccountInfo:
         self.player_data = PlayerData()
         
     def update(self):
-        account_name = GLOBAL_CACHE.Player.GetAccountName()
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
-        available_characters = GLOBAL_CACHE.Player.GetLoginCharacters()
+        account_name = Player.GetAccountName()
+        account_email = Player.GetAccountEmail()
+        available_characters = Map.Pregame.GetAvailableCharacterList()
         self.account_data = AccountInfo.AccountData(account_name, account_email, available_characters)
         self.rank_data.update()
         self.faction_data.update()

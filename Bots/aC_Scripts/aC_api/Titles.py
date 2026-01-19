@@ -7,6 +7,8 @@ text_color        = Color(139, 131, 99, 255).to_tuple_normalized()  # off-white 
 
 def display_title_track(title_name, title_id, tiers):
     title = Player.GetTitle(title_id)
+    if title is None:
+        return
     points = title.current_points
 
     # Find current tier
@@ -73,6 +75,8 @@ def display_title_progress(title_name, title_id, tiers):
     whose overlay text is horizontally centered.
     """
     title = Player.GetTitle(title_id)
+    if title is None:
+        return
     points = title.current_points
 
     # 1) Determine current tier
@@ -129,6 +133,8 @@ def display_faction(title_name, title_id, get_data_func, tier_list):
     # 1) Retrieve data from the game API
     current_unspent, total_earned, max_unspent = get_data_func()
     title = Player.GetTitle(title_id)
+    if title is None:
+        return
     points = title.current_points  # equals total_earned
 
     # 2) Determine current campaign tier

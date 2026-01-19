@@ -3,7 +3,6 @@ import PyPlayer
 import PyQuest
 from PyParty import HeroPartyMember
 from PyEffects import BuffType, EffectType
-from PyPlayer import LoginCharacterInfo
 from typing import Tuple, List
 from Py4GWCoreLib import ConsoleLog, Map, Party, Player, Agent, Effects, SharedCommandType, Skill, ThrottledTimer
 from Py4GWCoreLib.enums import FactionType
@@ -13,6 +12,7 @@ import ctypes
 from ctypes import sizeof
 from datetime import datetime, timezone
 from ..native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
+from ..native_src.context.WorldContext import TitleStruct as NAtiveTitleStruct
 from ..native_src.internals.helpers import encoded_wstr_to_str
 
 from Py4GWCoreLib.Skillbar import SkillBar
@@ -565,7 +565,7 @@ class Py4GWSharedMemoryManager:
             self.player_instance = None #Player.player_instance()
             self.agent_instance: AgentStruct | None = None
             self.effects_instance = None
-            self._title_instances: dict[int, PyPlayer.PyTitle] = {}
+            self._title_instances: dict[int, NAtiveTitleStruct] = {}
             self.quest_instance = None
             self._quest_instances: dict[int, PyQuest.PyQuest] = {}
             self.throttle_timer_150 = ThrottledTimer(150)
@@ -1020,12 +1020,11 @@ class Py4GWSharedMemoryManager:
             self.player_instance.GetContext()
 
             
-            title_array = self.player_instance.GetTitleArray()
+            title_array = Player.GetTitleArray()
             for title_id in title_array:
                 if title_id in self._title_instances:
-                    self._title_instances[title_id].GetContext()
                     continue
-                title = PyPlayer.PyTitle(title_id)
+                title = Player.GetTitle(title_id)
                 if title:
                     self._title_instances[title_id] = title
                     
@@ -1266,7 +1265,7 @@ class Py4GWSharedMemoryManager:
             player : AccountData = self.GetStruct().AccountData[index]
             if self.player_instance is None:
                 return
-            available_characters: list [LoginCharacterInfo]= self.player_instance.GetAvailableCharacters()
+            available_characters= Map.Pregame.GetAvailableCharacterList()
             for j in range(SHMEM_MAX_AVAILABLE_CHARS):
                 char = available_characters[j] if j < len(available_characters) else None
                 if char:

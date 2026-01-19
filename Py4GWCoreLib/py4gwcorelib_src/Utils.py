@@ -5,6 +5,7 @@ import time
 import PyImGui
 import re
 from .Color import Color
+from ..Player import Player
 from datetime import datetime, timezone
 from ..enums import CAP_EXPERIENCE, CAP_STEP, EXPERIENCE_PROGRESSION
 class Utils:
@@ -15,14 +16,15 @@ class Utils:
 
     @staticmethod
     def Distance(pos1, pos2):
-        """
-        Purpose: Calculate the distance between two positions.
-        Args:
-            pos1 (tuple): The first position (x, y).
-            pos2 (tuple): The second position (x, y).
-        Returns: float
-        """
-        return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
+        if not pos1 or not pos2:
+            return 0.0
+        try:
+            dx = pos1[0] - pos2[0]
+            dy = pos1[1] - pos2[1]
+            return math.hypot(dx, dy)
+        except Exception:
+            return 0.0
+
     
     @staticmethod
     def point_in_circle(px: float, py: float, cx: float, cy: float, r: float) -> bool:
@@ -623,7 +625,7 @@ class Utils:
         try:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
-            from PyAgent import AttributeClass
+            from ..native_src.context.WorldContext import AttributeStruct
             # Get skill IDs for all 8 slots
             skills = []
             for slot in range(1, 9):  # Slots 1-8
@@ -631,14 +633,14 @@ class Utils:
                 skills.append(skill_id if skill_id else 0)
 
             # Get profession IDs
-            prof_primary, prof_secondary = Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
+            prof_primary, prof_secondary = Agent.GetProfessionIDs(Player.GetAgentID())
             if prof_primary is None:
                 prof_primary = 0
             if prof_secondary is None:
                 prof_secondary = 0
 
             # Get attributes
-            attributes_raw:list[AttributeClass] = Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
+            attributes_raw:list[AttributeStruct] = Agent.GetAttributes(Player.GetAgentID())
             attributes = {}
 
             # Convert attributes to dictionary format

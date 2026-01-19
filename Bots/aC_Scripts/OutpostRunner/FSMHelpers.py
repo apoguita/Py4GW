@@ -55,7 +55,7 @@ class OutpostRunnerFSMHelpers:
         if Map.IsExplorable():
             # === STEP 1: Broadcast resign command to other accounts ===
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            sender_email = Player.GetAccountEmail()
             for account in accounts:
                 ConsoleLog("OutpostRunnerFSM", f"Resigning account: {account.AccountEmail}")
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0))
@@ -244,7 +244,7 @@ class OutpostRunnerFSMHelpers:
         # Insert intermediate waypoints if there are large gaps (prevents long straight jumps)
         expanded_path = []
         try:
-            player_xy = GLOBAL_CACHE.Player.GetXY()
+            player_xy = Player.GetXY()
         except Exception:
             player_xy = None
 
@@ -270,7 +270,7 @@ class OutpostRunnerFSMHelpers:
         # Always prepend the player's current position as the first waypoint (outpost and segments)
         # to ensure movement starts from the actual location.
         try:
-            cur_player_xy = GLOBAL_CACHE.Player.GetXY()
+            cur_player_xy = Player.GetXY()
         except Exception:
             cur_player_xy = None
 
@@ -355,7 +355,7 @@ class OutpostRunnerFSMHelpers:
                     ConsoleLog("OutpostRunnerFSM", f"[MAP ARRIVAL] Successfully arrived in expected map {expected_map_id}", Console.MessageType.Info)
                     # Insert player's current position as an immediate waypoint to avoid a large jump from previous map
                     try:
-                        player_xy = GLOBAL_CACHE.Player.GetXY()
+                        player_xy = Player.GetXY()
                     except Exception:
                         player_xy = None
                     if player_xy:
@@ -529,7 +529,7 @@ class OutpostRunnerFSMHelpers:
                     try:
                         tick += 1
                         if tick % 40 == 0:
-                            px, py = GLOBAL_CACHE.Player.GetXY()
+                            px, py = Player.GetXY()
                             ConsoleLog("OutpostRunnerFSM", f"follow loop idx={index} tick={tick} player=({int(px)},{int(py)}) target={point}", Console.MessageType.Debug)
                     except Exception:
                         pass
@@ -545,7 +545,7 @@ class OutpostRunnerFSMHelpers:
                 if attempt <= max_attempts:
                     # Insert player current position as intermediate waypoint and retry
                     try:
-                        px, py = GLOBAL_CACHE.Player.GetXY()
+                        px, py = Player.GetXY()
                         ConsoleLog("OutpostRunnerFSM", f"Retry: inserting current player pos ({int(px)},{int(py)}) before index {index} and retrying (attempt={attempt})", Console.MessageType.Info)
                         expanded_path.insert(index, (float(px), float(py)))
                         # set point to the newly inserted waypoint for next loop

@@ -1,5 +1,6 @@
 from typing import Generator, Any
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.routines_src.Yield import Yield
 from Widgets.CustomBehaviors.primitives import constants
@@ -9,7 +10,7 @@ class PartyCommandConstants:
 
     @staticmethod    
     def summon_all_to_current_map() -> Generator[Any, None, None]:
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
         if self_account is not None:
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
@@ -22,7 +23,7 @@ class PartyCommandConstants:
 
     @staticmethod    
     def travel_gh() -> Generator[Any, None, None]:
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
         if self_account is not None:
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
@@ -33,7 +34,7 @@ class PartyCommandConstants:
 
     @staticmethod
     def invite_all_to_leader_party() -> Generator[Any, None, None]:
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
         if self_account is not None:
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
@@ -51,7 +52,7 @@ class PartyCommandConstants:
     
     @staticmethod
     def leave_current_party() -> Generator[Any, None, None]:
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
@@ -64,7 +65,7 @@ class PartyCommandConstants:
     
     @staticmethod
     def resign() -> Generator[Any, None, None]:
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
@@ -75,9 +76,9 @@ class PartyCommandConstants:
     @staticmethod
     def interract_with_target() -> Generator[Any, None, None]:
         # todo with a random.
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        target = GLOBAL_CACHE.Player.GetTargetID()
+        target = Player.GetTargetID()
         for account in accounts:
             if account.AccountEmail == account_email:
                 continue
@@ -88,7 +89,7 @@ class PartyCommandConstants:
 
     @staticmethod
     def rename_gw_windows() -> Generator[Any, None, None]:
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")

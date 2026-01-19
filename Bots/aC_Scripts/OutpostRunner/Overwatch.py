@@ -40,7 +40,7 @@ class OutpostRunnerOverwatch:
     def _loop(self):
         """Coroutine that yields and monitors player state"""
         
-        prev_pos = GLOBAL_CACHE.Player.GetXY() or (0.0, 0.0)
+        prev_pos = Player.GetXY() or (0.0, 0.0)
         last_move_time = time.time()
 
         def _generator():
@@ -55,20 +55,20 @@ class OutpostRunnerOverwatch:
                 if not Routines.Checks.Map.MapValid():
                     yield from Routines.Yield.wait(1000)
                     # After zoning, reinitialize movement tracking
-                    new_pos = GLOBAL_CACHE.Player.GetXY()
+                    new_pos = Player.GetXY()
                     if new_pos:
                         prev_pos = new_pos
                     last_move_time = time.time()
                     continue
 
                 # --- Death detection ---
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     ConsoleLog("Overwatch", f"Overwatch: Player died - resetting run.", Console.MessageType.Warning)
                     yield from self._trigger_resign_and_restart()
                     continue
 
                 # --- Stuck detection ---
-                current_pos = GLOBAL_CACHE.Player.GetXY() or prev_pos
+                current_pos = Player.GetXY() or prev_pos
                 if current_pos == prev_pos:
                     if time.time() - last_move_time > self._stuck_threshold:
                         ConsoleLog("Overwatch", f"Overwatch: Player stuck >{self._stuck_threshold}s - resetting run.", Console.MessageType.Warning)
@@ -95,7 +95,7 @@ class OutpostRunnerOverwatch:
 
         # Broadcast resign for multi-box team
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        sender_email = Player.GetAccountEmail()
         for account in accounts:
             ConsoleLog("Messaging", "Resigning account: " + account.AccountEmail)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))

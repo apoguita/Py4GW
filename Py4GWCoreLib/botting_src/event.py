@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from typing import Any, Optional, TYPE_CHECKING
+from ..Player import Player
 
 if TYPE_CHECKING:
     from .config import BotConfig  # for type checkers only
@@ -59,7 +60,7 @@ class OnDeathEvent(Event):
         from Py4GWCoreLib import GLOBAL_CACHE  # local import!
         from Py4GWCoreLib import Routines
         from Py4GWCoreLib import Agent
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable() or not player_agent_id:
             return False
         dead = Agent.IsDead(player_agent_id)
@@ -72,7 +73,7 @@ class OnDeathEvent(Event):
         if not Routines.Checks.Map.MapValid():
             return True
         
-        return not Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+        return not Agent.IsDead(Player.GetAgentID())
 
 class OnPartyDefeated(Event):
     def should_trigger(self) -> bool:
@@ -234,7 +235,7 @@ class OnStuck(Event):
 
         if not Routines.Checks.Map.MapValid():
             return _reset_counter()
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             return _reset_counter()
 
         if self.in_waiting_routine or self.finished_routine or self.in_killing_routine:
@@ -243,15 +244,15 @@ class OnStuck(Event):
             return False
 
         if self.stuck_timer.IsExpired():
-            GLOBAL_CACHE.Player.SendChatCommand("stuck")
+            Player.SendChatCommand("stuck")
             self.stuck_timer.Reset()
 
         if self.movement_check_timer.IsExpired():
-            current_player_pos = GLOBAL_CACHE.Player.GetXY()
+            current_player_pos = Player.GetXY()
             self.timer_was_expired = True
             self.movement_check_timer.Reset()
             if self.old_player_position == current_player_pos:
-                GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                Player.SendChatCommand("stuck")
                 self.stuck_counter += 1
                 return True   # stuck
             else:

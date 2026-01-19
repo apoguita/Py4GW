@@ -20,10 +20,10 @@ class _Move:
         follow_range: float,
         exit_condition: Optional[Callable[[], bool]],
     ) -> Generator[Any, Any, bool]:
-        from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
         from ...Py4GWcorelib import Utils
         from ...Agent import Agent
+        from ...Player import Player
 
         # default exit if none provided
         if exit_condition is None:
@@ -42,7 +42,7 @@ class _Move:
 
             agent = Routines.Agents.GetAgentIDByModelID(model_id=model_id)
             agent_pos = Agent.GetXY(agent)
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_pos = Player.GetXY()
             distance = Utils.Distance(agent_pos, player_pos)
 
             if distance > follow_range:

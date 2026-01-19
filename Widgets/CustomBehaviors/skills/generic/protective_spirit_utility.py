@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent, Player
 from Py4GWCoreLib.enums import SpiritModelID
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 
@@ -42,11 +42,11 @@ class ProtectiveSpiritUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
         # Check if we have Soul Twisting active
-        has_soul_twisting = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.soul_twisting_skill.skill_id)
+        has_soul_twisting = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.soul_twisting_skill.skill_id)
         if not has_soul_twisting:
             return None  # Don't cast without Soul Twisting
 
-        buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.soul_twisting_skill.skill_id)
+        buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.soul_twisting_skill.skill_id)
 
         if buff_time_remaining <= 1200:  # Don't cast if Soul Twisting is about to expire
             return None

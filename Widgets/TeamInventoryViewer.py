@@ -17,6 +17,7 @@ from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Timer
+from Py4GWCoreLib import Map, Player
 from Py4GWCoreLib import get_texture_for_model
 from Py4GWCoreLib.enums import Bags
 from Py4GWCoreLib.enums import ModelID
@@ -828,8 +829,8 @@ def _collect_bag_items(bag, bag_id, email, storage_name=None, char_name=None):
 def record_account_data():
     global current_character_name
 
-    current_email = GLOBAL_CACHE.Player.GetAccountEmail()
-    login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(GLOBAL_CACHE.Player.GetAgentID())
+    current_email = Player.GetAccountEmail()
+    login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(Player.GetAgentID())
     char_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
 
     if not current_email or not char_name:
@@ -1392,8 +1393,8 @@ def draw_widget():
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_hover)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, green_active)
                 if PyImGui.button("Clear Character", width=col_width):
-                    current_email = GLOBAL_CACHE.Player.GetAccountEmail()
-                    login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(GLOBAL_CACHE.Player.GetAgentID())
+                    current_email = Player.GetAccountEmail()
+                    login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(Player.GetAgentID())
                     char_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
                     if current_email and char_name:
                         store = AccountJSONStore(current_email)
@@ -1409,7 +1410,7 @@ def draw_widget():
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, orange_hover)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, orange_active)
                 if PyImGui.button("Clear Current account", width=col_width):
-                    current_email = GLOBAL_CACHE.Player.GetAccountEmail()
+                    current_email = Player.GetAccountEmail()
                     if current_email:
                         store = AccountJSONStore(current_email)
                         store.clear_account()
@@ -1463,7 +1464,7 @@ def json_tree_view(data):
 
 def main():
     try:
-        if not Routines.Checks.Map.MapValid() or GLOBAL_CACHE.Player.InCharacterSelectScreen():
+        if not Routines.Checks.Map.MapValid() or Map.Pregame.InCharacterSelectScreen():
             # When swapping characters, reset everything
             return
 

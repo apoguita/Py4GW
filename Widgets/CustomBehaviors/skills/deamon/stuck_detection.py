@@ -3,7 +3,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils
 
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -83,14 +83,14 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
 
         # Initialize the previous position on first run and wait for next tick
         if self.__previous_player_position == (0, 0):
-            self.__previous_player_position = GLOBAL_CACHE.Player.GetXY()
+            self.__previous_player_position = Player.GetXY()
             throttle_timer.Reset()
             return None
 
         if not throttle_timer.IsExpired():
             return None
 
-        current_player_pos = GLOBAL_CACHE.Player.GetXY()
+        current_player_pos = Player.GetXY()
         distance_moved = Utils.Distance(self.__previous_player_position, current_player_pos)
 
         if distance_moved < self.movement_threshold:  # likely stuck

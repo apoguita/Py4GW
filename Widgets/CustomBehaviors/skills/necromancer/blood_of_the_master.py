@@ -3,7 +3,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, AgentArray, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, AgentArray, Routines, Range, Player
 from Py4GWCoreLib.enums import Profession
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -46,7 +46,7 @@ class BloodOfTheMasterUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         minion_array = AgentArray.GetMinionArray()
-        minion_array = AgentArray.Filter.ByDistance(minion_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+        minion_array = AgentArray.Filter.ByDistance(minion_array, Player.GetXY(), Range.Spellcast.value)
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.IsAlive(agent_id))
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.GetHealth(agent_id) < 0.70)
 

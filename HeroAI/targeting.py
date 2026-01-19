@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines, Agent, Player
 from .constants import (
     Range,
     BLOOD_IS_POWER,
@@ -14,11 +14,11 @@ def GetAllAlliesArray(distance=Range.SafeCompass.value):
 def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
     #this is multibox!
     from .utils import CheckForEffect
-    array = AgentArray.Filter.ByDistance(array, GLOBAL_CACHE.Player.GetXY(), distance)
+    array = AgentArray.Filter.ByDistance(array, Player.GetXY(), distance)
     array = AgentArray.Filter.ByCondition(array, lambda agent_id: Agent.IsAlive(agent_id))
         
     if other_ally:
-        array = AgentArray.Filter.ByCondition(array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id)
+        array = AgentArray.Filter.ByCondition(array, lambda agent_id: Player.GetAgentID() != agent_id)
     
     if filter_skill_id != 0:
         array = AgentArray.Filter.ByCondition(array, lambda agent_id: not CheckForEffect(agent_id, filter_skill_id))

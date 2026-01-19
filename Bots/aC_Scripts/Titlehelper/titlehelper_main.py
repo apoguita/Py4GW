@@ -59,12 +59,12 @@ class TitleHelper:
 
     def _cache_starting_points(self):
         for title_id in self.start_points:
-            title = GLOBAL_CACHE.Player.GetTitle(title_id)
+            title = Player.GetTitle(title_id)
             if title:
                 self.start_points[title_id] = title.current_points
 
     def _is_title_maxed(self, title_id):
-        title = GLOBAL_CACHE.Player.GetTitle(title_id)
+        title = Player.GetTitle(title_id)
         if title:
             return title.current_points >= 10_000
         return False
@@ -72,7 +72,7 @@ class TitleHelper:
     def get_points_gained(self, title_id: int) -> int:
         if not self.started:
             return 0
-        current = GLOBAL_CACHE.Player.GetTitle(title_id)
+        current = Player.GetTitle(title_id)
         if current:
             return max(0, current.current_points - self.start_points.get(title_id, 0))
         return 0
@@ -100,7 +100,7 @@ class TitleHelper:
                 yield from Routines.Yield.wait(50)
                 continue
 
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(50)
                 continue
 

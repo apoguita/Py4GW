@@ -3,6 +3,7 @@ from typing import Optional, TypeVar, Type, Generic, Any
 # native context structs + facades
 from .native_src.context.AccAgentContext import AccAgentContext, AccAgentContextStruct
 from .native_src.context.AgentContext import AgentArray, AgentArrayStruct
+from .native_src.context.AvailableCharacterContext import AvailableCharacterArray, AvailableCharacterArrayStruct
 from .native_src.context.CharContext import CharContext, CharContextStruct
 from .native_src.context.CinematicContext import Cinematic, CinematicStruct
 from .native_src.context.GameplayContext import GameplayContext, GameplayContextStruct
@@ -53,6 +54,10 @@ class GWContext:
     class AgentArray(_GWContextBase[AgentArrayStruct]):
         _struct_type = AgentArrayStruct
         _facade = AgentArray
+        
+    class AvailableCharacterArray(_GWContextBase[AvailableCharacterArrayStruct]):
+        _struct_type = AvailableCharacterArrayStruct
+        _facade = AvailableCharacterArray
         
     class Char(_GWContextBase[CharContextStruct]):
         _struct_type = CharContextStruct

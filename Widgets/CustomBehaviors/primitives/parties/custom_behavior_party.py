@@ -7,7 +7,7 @@ from typing import Callable, Generator, Any, List
 
 from PyAgent import AttributeClass
 
-from Py4GWCoreLib import Routines, Map, Agent
+from Py4GWCoreLib import Routines, Map, Agent, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
@@ -72,7 +72,7 @@ class CustomBehaviorParty:
                 players = GLOBAL_CACHE.Party.GetPlayers()
                 for player in players:
                     agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-                    if agent_id != GLOBAL_CACHE.Player.GetAgentID(): continue
+                    if agent_id != Player.GetAgentID(): continue
                     called_target_id = player.called_target_id
                     if called_target_id != 0:
                         self.set_party_custom_target(called_target_id)
@@ -105,7 +105,7 @@ class CustomBehaviorParty:
 
     def messaging_process(self):
 
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         index, message = GLOBAL_CACHE.ShMem.GetNextMessage(account_email)
 
         if index == -1 or message is None:

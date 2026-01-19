@@ -10,7 +10,7 @@ from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Item
 from Py4GWCoreLib import Agent
-from Py4GWCoreLib import Agent
+from Py4GWCoreLib import Player
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
@@ -174,7 +174,7 @@ class YAVB_GUI:
                     
                     map_valid = Routines.Checks.Map.MapValid()
                     if map_valid:
-                        prof1, prof2 = Agent.GetProfessionIDs(GLOBAL_CACHE.Player.GetAgentID())
+                        prof1, prof2 = Agent.GetProfessionIDs(Player.GetAgentID())
                         if prof1 is None:
                             prof1 = 0
                         if prof2 is None:

@@ -224,7 +224,7 @@ def configure():
 
 def Get_Blessed():
     """External API trigger."""
-    me = GLOBAL_CACHE.Player.GetAgentID()
+    me = Player.GetAgentID()
     if AUTO_RUN_ALL and GLOBAL_CACHE.Party.GetPartyLeaderID() == me:
         write_run_flag(True)
     _runner.start()
@@ -234,7 +234,7 @@ def Get_Blessed():
 def main():
     if not Routines.Checks.Map.MapValid():
         return
-    me = GLOBAL_CACHE.Player.GetAgentID()
+    me = Player.GetAgentID()
     _scan_flag_files()
     _update_party_cache()
     _blessing_logic_tick(me)

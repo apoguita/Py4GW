@@ -1,6 +1,6 @@
 from typing import Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -48,10 +48,10 @@ class SignetUnderKeystoneUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        has_keystone_signet_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.keystone_signet_skill.skill_id)
+        has_keystone_signet_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
         if not has_keystone_signet_buff: return None
 
-        keystone_signet_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.keystone_signet_skill.skill_id)
+        keystone_signet_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
         if keystone_signet_buff_time_remaining <= 4000:
             return self.score_definition.get_score(999) #let's just cast everything we can before buff ends
 
@@ -66,7 +66,7 @@ class SignetUnderKeystoneUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
 
-        keystone_signet_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.keystone_signet_skill.skill_id)
+        keystone_signet_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
         if keystone_signet_buff_time_remaining <= 4000:
             target = custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
                 within_range=Range.Spellcast,

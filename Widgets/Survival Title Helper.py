@@ -8,7 +8,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Keystroke
 from Py4GWCoreLib import Key
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Player
 from Py4GWCoreLib import ActionQueueManager
 
 import os
@@ -95,7 +95,7 @@ class Global_Vars:
             
     def update_cache(self):
         if self.cache_timer.IsExpired():
-            self.player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            self.player_agent_id = Player.GetAgentID()
             self.party_players =  GLOBAL_CACHE.Party.GetPlayers()
             self.plarty_leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
             if GLOBAL_CACHE.Party.IsPartyLeader():

@@ -1,10 +1,11 @@
 from typing import Any, Generator, override
 
-from PyAgent import AttributeClass
+from Py4GWCoreLib.native_src.context.WorldContext import AttributeStruct
 import PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.enums import Profession, Range
+from Py4GWCoreLib import Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -40,10 +41,10 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
         # it will cause issue if you don't have 16 leadership base. can be dactivated through UI(customized_debug_ui & detailled mode)
 
         if self.should_reach_leadership_attribute_score_of_20:
-            attributes: list[AttributeClass] = Agent.GetAttributes(GLOBAL_CACHE.Player.GetAgentID())
-            leadership_attribute:AttributeClass|None = next((attribute for attribute in attributes if attribute.GetName() == 'Leadership'), None)
+            attributes: list[AttributeStruct] = Agent.GetAttributes(Player.GetAgentID())
+            leadership_attribute:AttributeStruct|None = next((attribute for attribute in attributes if attribute.GetName() == 'Leadership'), None)
             if leadership_attribute is not None and leadership_attribute.level < 20:
-                return GLOBAL_CACHE.Player.GetAgentID()
+                return Player.GetAgentID()
 
         # PHASE 2 - CAST ON PARTY
 
@@ -59,7 +60,7 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
 
         # take player first.
         for target in targets:
-            if target.agent_id == GLOBAL_CACHE.Player.GetAgentID():
+            if target.agent_id == Player.GetAgentID():
                 return target.agent_id
 
         # then take party, no priority atm

@@ -7,6 +7,8 @@ class _RProxy:
 
 Routines = _RProxy()
 
+from ..Player import Player
+
 #region Agents
 class Party:   
     @staticmethod
@@ -81,7 +83,7 @@ class Party:
         if not Checks.Map.MapValid():
             return 0
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         players = GLOBAL_CACHE.Party.GetPlayers()
         henchmen = GLOBAL_CACHE.Party.GetHenchmen()
         heroes = GLOBAL_CACHE.Party.GetHeroes()

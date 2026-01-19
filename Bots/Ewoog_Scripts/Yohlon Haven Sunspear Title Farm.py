@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, Agent, Range, Utils, ConsoleLog
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, Agent, Range, Utils, ConsoleLog, Player
 import Py4GW
 import os
 
@@ -49,7 +49,7 @@ def main():
 
 
 def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid → release FSM and exit

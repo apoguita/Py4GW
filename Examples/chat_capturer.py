@@ -48,7 +48,7 @@ def main():
     global text_input, chat_text_frame_hash, focus_set
     try:
         chat_text_frame_id = UIManager.GetFrameIDByHash(chat_text_frame_hash)
-        if UIManager.FrameExists(chat_text_frame_id) and GLOBAL_CACHE.Player.IsTyping():
+        if UIManager.FrameExists(chat_text_frame_id) and Player.IsTyping():
             #UIManager().DrawFrame(chat_text_frame_id, ColorPalette.GetColor("GW_White").to_color())
             left,top, right, bottom = UIManager.GetFrameCoords(chat_text_frame_id)
             width = right - left
@@ -60,7 +60,7 @@ def main():
 
         window_flags=PyImGui.WindowFlags.AlwaysAutoResize #| PyImGui.WindowFlags.MenuBar
         if PyImGui.begin("chat status", window_flags):
-            PyImGui.text(GLOBAL_CACHE.Player.IsTyping() and "Player is typing..." or "Player is not typing")
+            PyImGui.text(Player.IsTyping() and "Player is typing..." or "Player is not typing")
         PyImGui.end()
         
 

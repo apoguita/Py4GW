@@ -1,21 +1,23 @@
 
 import PyImGui
-from PyPlayer import PyTitle
-from Py4GWCoreLib import  ColorPalette, GLOBAL_CACHE, TITLE_TIERS, TITLE_NAME, TITLE_CATEGORIES
+
+from Py4GWCoreLib.native_src.context.WorldContext import TitleStruct
+from Py4GWCoreLib import Player,ColorPalette, GLOBAL_CACHE, TITLE_TIERS, TITLE_NAME, TITLE_CATEGORIES
 from typing import Optional
+from Py4GWCoreLib.native_src.context.WorldContext import TitleStruct
 #region TitleData 
 class TitleData:
     def __init__(self):
-        self.titles: dict[int, PyTitle] = {}
+        self.titles: dict[int, TitleStruct] = {}
         self.active_title_id: Optional[int] = None
 
     def update(self):
-        title_array = GLOBAL_CACHE.Player.GetTitleArray()
+        title_array = Player.GetTitleArray()
         for title_id in title_array:
-            title = GLOBAL_CACHE.Player.GetTitle(title_id)
+            title = Player.GetTitle(title_id)
             if title:
                 self.titles[title_id] = title
-        self.active_title_id = GLOBAL_CACHE.Player.GetActiveTitleID()
+        self.active_title_id = Player.GetActiveTitleID()
 
     def get_current_tier(self, title_id: int, current_points: int):
         tiers = TITLE_TIERS.get(title_id, [])
@@ -38,7 +40,7 @@ class TitleData:
 
         return current_tier, next_tier
     
-    def _get_total_completion_ratio(self, title: PyTitle) -> float:
+    def _get_total_completion_ratio(self, title: TitleStruct) -> float:
         tiers = TITLE_TIERS.get(title.title_id, [])
         if not tiers:
             return 0.0
@@ -49,7 +51,7 @@ class TitleData:
 
 
 
-    def _draw_title(self, title: PyTitle, managed: bool):
+    def _draw_title(self, title: TitleStruct, managed: bool):
         title_name = TITLE_NAME.get(title.title_id, f"Unknown ({title.title_id})")
 
         if not managed:

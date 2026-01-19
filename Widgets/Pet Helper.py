@@ -11,7 +11,7 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import PetBehavior
 from Py4GWCoreLib import Keystroke
 from Py4GWCoreLib import Key
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Player
 
 
 module_name = "PetHelper"
@@ -57,7 +57,7 @@ class Global_Vars:
         players_dead = {player: False for player in players}
         wipe = False
         all_dead = True
-        if Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) == 1.0 or Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.GetHealth(Player.GetAgentID()) == 1.0 or Agent.IsAlive(Player.GetAgentID()):
             if not self.wipe_log:
                 self.wipe_log = True
 
@@ -80,7 +80,7 @@ class Global_Vars:
         return wipe
 
     def update(self):
-        self.player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        self.player_agent_id = Player.GetAgentID()
         self.pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(self.player_agent_id)
 
         if not Agent.IsValid(self.pet_id):
@@ -113,7 +113,7 @@ class Global_Vars:
         if Agent.IsDead(self.party_target_id):
             self.party_target_id = 0
         
-        self.owner_target_id = GLOBAL_CACHE.Player.GetTargetID()
+        self.owner_target_id = Player.GetTargetID()
         _, alliegance = Agent.GetAllegiance(self.owner_target_id)
         if not (alliegance == "Enemy"):
             self.owner_target_id = 0

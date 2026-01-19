@@ -21,7 +21,7 @@ def main():
                 Player.Move(x, y)
                             
             if PyImGui.button("Move trough ActionQueue"):
-                GLOBAL_CACHE.Player.Move(x, y)
+                Player.Move(x, y)
            
             
         PyImGui.end()

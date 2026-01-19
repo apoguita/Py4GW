@@ -1,5 +1,6 @@
 from time import sleep
 from typing import List, Tuple, Callable
+from ..Player import Player
 
 import importlib
 
@@ -16,36 +17,36 @@ class Sequential:
         @staticmethod
         def InteractAgent(agent_id:int):
             from ..GlobalCache import GLOBAL_CACHE
-            GLOBAL_CACHE.Player.Interact(agent_id, False)
+            Player.Interact(agent_id, False)
             sleep(0.1)
             
         @staticmethod
         def InteractTarget():
             from ..GlobalCache import GLOBAL_CACHE
-            target_id = GLOBAL_CACHE.Player.GetTargetID()
+            target_id = Player.GetTargetID()
             if target_id != 0:
                 Sequential.Player.InteractAgent(target_id)
 
         @staticmethod
         def SendDialog(dialog_id:str):
             from ..GlobalCache import GLOBAL_CACHE
-            GLOBAL_CACHE.Player.SendDialog(int(dialog_id, 16))
+            Player.SendDialog(int(dialog_id, 16))
             sleep(0.3)
 
         @staticmethod
         def SetTitle(title_id:int, log=False):
-            from ..GlobalCache import GLOBAL_CACHE
+            from ..Player import Player
             from ..Py4GWcorelib import ConsoleLog, Console
-            GLOBAL_CACHE.Player.SetActiveTitle(title_id)
+            Player.SetActiveTitle(title_id)
             sleep(0.3)   
             if log:
                 ConsoleLog("SetTitle", f"Setting title to {title_id}", Console.MessageType.Info) 
 
         @staticmethod
         def SendChatCommand(command:str, log=False):
-            from ..GlobalCache import GLOBAL_CACHE
+            from ..Player import Player
             from ..Py4GWcorelib import ConsoleLog, Console
-            GLOBAL_CACHE.Player.SendChatCommand(command)
+            Player.SendChatCommand(command)
             sleep(0.3)
             if log:
                 ConsoleLog("SendChatCommand", f"Sending chat command {command}", Console.MessageType.Info)
@@ -54,7 +55,7 @@ class Sequential:
         def Move(x:float, y:float, log=False):
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog, Console
-            GLOBAL_CACHE.Player.Move(x, y)
+            Player.Move(x, y)
             sleep(0.1)
             if log:
                 ConsoleLog("MoveTo", f"Moving to {x}, {y}", Console.MessageType.Info)
@@ -72,7 +73,7 @@ class Sequential:
                 if not Checks.Map.MapValid():
                     return []
                     
-                GLOBAL_CACHE.Player.Move(target_x, target_y)
+                Player.Move(target_x, target_y)
                     
                 current_x, current_y = Player.GetXY()
                 previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
@@ -93,7 +94,7 @@ class Sequential:
                         # Inside reissue logic
                         offset_x = random.uniform(-5, 5)
                         offset_y = random.uniform(-5, 5)
-                        GLOBAL_CACHE.Player.Move(target_x + offset_x, target_y + offset_y)
+                        Player.Move(target_x + offset_x, target_y + offset_y)
                     previous_distance = current_distance                    
                     
                     # Check if arrived
@@ -126,7 +127,7 @@ class Sequential:
             from ..Map import Map
             if not Map.IsMapReady():
                 return False
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            player_agent_id = Player.GetAgentID()
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
             skill_ready = Checks.Skills.IsSkillIDReady(skill_id)
             
@@ -143,7 +144,7 @@ class Sequential:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Py4GWcorelib import ConsoleLog, Console
             from .Checks import Checks
-            player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            player_agent_id = Player.GetAgentID()
             skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
             enough_energy = Checks.Skills.HasEnoughEnergy(player_agent_id,skill_id)
             skill_ready = Checks.Skills.IsSkillSlotReady(slot)
@@ -286,7 +287,7 @@ class Sequential:
         def ChangeTarget(agent_id):
             from ..GlobalCache import GLOBAL_CACHE
             if agent_id != 0:
-                GLOBAL_CACHE.Player.ChangeTarget(agent_id)
+                Player.ChangeTarget(agent_id)
                 sleep(0.25)    
             
         @staticmethod
@@ -349,7 +350,7 @@ class Sequential:
         
             Sequential.Player.InteractAgent(nearest_chest)
             sleep(0.5)
-            ActionQueueManager().AddAction("ACTION",GLOBAL_CACHE.Player.SendDialog, 2)
+            ActionQueueManager().AddAction("ACTION",Player.SendDialog, 2)
             sleep(1)
 
             Sequential.Agents.TargetNearestItem(distance=300)
@@ -364,7 +365,7 @@ class Sequential:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
             Sequential.Agents.TargetAgentByName(agent_name)
-            agent_x, agent_y = Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
+            agent_x, agent_y = Agent.GetXY(Player.GetTargetID())
 
             Sequential.Movement.FollowPath([(agent_x, agent_y)])
             sleep(0.5)
@@ -377,7 +378,7 @@ class Sequential:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
             Sequential.Agents.TargetNearestNPCXY(x, y, 100)
-            agent_x, agent_y = Agent.GetXY(GLOBAL_CACHE.Player.GetTargetID())
+            agent_x, agent_y = Agent.GetXY(Player.GetTargetID())
 
             Sequential.Movement.FollowPath([(agent_x, agent_y)])
             sleep(1)
@@ -605,7 +606,7 @@ class Sequential:
                     ActionQueueManager().ResetAllQueues()
                     return
                 if Agent.IsValid(item_id):
-                    GLOBAL_CACHE.Player.Interact(item_id, False)
+                    Player.Interact(item_id, False)
                     sleep(1.250)
                 
             if log and len(item_array) > 0:

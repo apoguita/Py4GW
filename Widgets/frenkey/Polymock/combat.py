@@ -1,6 +1,4 @@
 from datetime import datetime
-import math
-from PyAgent import PyAgent
 from PySkillbar import SkillbarSkill
 import PySkillbar
 from Py4GWCoreLib import AgentArray, Agent
@@ -9,6 +7,7 @@ from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Keystroke, Utils
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.Skillbar import SkillBar
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums import Allegiance, Key
 from Widgets.frenkey.Polymock import state
 from Widgets.frenkey.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockBar, PolymockPieces, SkillReaction
@@ -284,8 +283,8 @@ class Combat:
         if self.target_hp <= 0.0:
             self.target_hp = 4000            
 
-        self.player_id = GLOBAL_CACHE.Player.GetAgentID()
-        self.player_name = GLOBAL_CACHE.Player.GetName() or "Unknown Player"
+        self.player_id = Player.GetAgentID()
+        self.player_name = Player.GetName() or "Unknown Player"
         self.player_energy = round(Agent.GetEnergy(
             self.player_id) * Agent.GetMaxEnergy(self.player_id))
         self.player_hp = Agent.GetHealth(
@@ -302,8 +301,8 @@ class Combat:
         
         is_casting =  Agent.IsCasting(self.player_id)
 
-        if self.target_id > 0 and GLOBAL_CACHE.Player.GetTargetID() != self.target_id and self.target_allegiance == Allegiance.Enemy:
-            GLOBAL_CACHE.Player.ChangeTarget(self.target_id)
+        if self.target_id > 0 and Player.GetTargetID() != self.target_id and self.target_allegiance == Allegiance.Enemy:
+            Player.ChangeTarget(self.target_id)
         
         if self.target_skill_id == GLOBAL_CACHE.Skill.GetID("Polymock_Block"):
             self.target_casted_block = datetime.now()
