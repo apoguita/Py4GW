@@ -3,10 +3,10 @@ from Py4GWCoreLib import *
 import heapq
 import math
 from typing import List, Tuple, Optional, Dict
+from Py4GWCoreLib.native_src.context.MapContext import PortalStruct, PathingTrapezoidStruct
 
-Tuple[float, float] = Tuple[float, float]
-PathingTrapezoid = PyPathing.PathingTrapezoid
-PathingPortal = PyPathing.Portal
+PathingTrapezoid = PathingTrapezoidStruct
+PathingPortal = PortalStruct
 MODULE_NAME = "Portal Pathfinding"
 
 class AABB:
@@ -340,7 +340,7 @@ def main():
             navmesh = NavMesh(Map.Pathing.GetPathingMaps())
 
         if navmesh:
-            start_pos = GLOBAL_CACHE.Player.GetXY()
+            start_pos = Player.GetXY()
             goal_pos = (0, 0)
 
             if PyImGui.button("Search Path (Raw A*)"):

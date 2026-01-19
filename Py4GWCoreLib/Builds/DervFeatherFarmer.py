@@ -106,12 +106,12 @@ class DervFeatherFarmer(BuildMgr):
             yield from self.swap_to_shield_set()
             self.spiked = False
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and Agent.IsMoving(
-                GLOBAL_CACHE.Player.GetAgentID()
+                Player.GetAgentID()
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
                 return
 
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         has_dwarven_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
         has_mystic_regen = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_regen)
         has_intimidating_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.intimidating_aura)
@@ -132,7 +132,7 @@ class DervFeatherFarmer(BuildMgr):
             yield from Routines.Yield.Skills.CastSkillID(self.dwarven_stability, aftercast_delay=250)
             return
 
-        player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        player_hp = Agent.GetHealth(Player.GetAgentID())
         if (
             (yield from Routines.Yield.Skills.IsSkillIDUsable(self.mystic_regen))
             and not has_mystic_regen
@@ -148,7 +148,7 @@ class DervFeatherFarmer(BuildMgr):
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
                 and has_dwarven_stability
                 and has_intimidating_aura
-                and Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
+                and Agent.IsMoving(Player.GetAgentID())
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
                 return
@@ -158,7 +158,7 @@ class DervFeatherFarmer(BuildMgr):
             self.spiked = False
 
         if self.status == DervBuildFarmStatus.Kill:
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_pos = Player.GetXY()
             enemies = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
             target_sensali = self.get_sensali_target(enemies)
 

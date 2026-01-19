@@ -5,8 +5,6 @@ from Py4GWCoreLib import ImGui, ColorPalette, TITLE_TIERS, TITLE_NAME, GLOBAL_CA
 from Py4GWCoreLib import Routines, Map
 import PyImGui
 import Py4GW
-import PyQuest
-from PyPlayer import PyTitle
 from typing import Optional, Dict, List, Tuple
 import re
 import time

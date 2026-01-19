@@ -9,7 +9,9 @@ from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Timer
+from Py4GWCoreLib import Player
 import Py4GWCoreLib as GW
+from Py4GWCoreLib.native_src.context.WorldContext import AttributeStruct
 import time
 from typing import List
 import Py4GWCoreLib.dNodes.dNodes as dNodes
@@ -921,7 +923,7 @@ def MaintainRefrains(player_id, now):
     refrains = [heroic, bladeturn, aggressive, burning, hasty, mending]
     refrains = [x for x in refrains if x is not None]
     help_me_slot = GW.SkillBar.GetSlotBySkillID(help_me_skill.id.id)
-    attributes: List[GW.AttributeClass] = GW.Agent.GetAttributes(player_id)
+    attributes: List[AttributeStruct] = GW.Agent.GetAttributes(player_id)
     command = next((attr for attr in attributes if attr.attribute_id == GW.PyAgent.SafeAttribute.Command), None)
     if command is None:
         help_me_duration = help_me_skill.duration_0pts
@@ -930,7 +932,8 @@ def MaintainRefrains(player_id, now):
     help_me_duration = round(help_me_duration)
     dont_trip_slot = GW.SkillBar.GetSlotBySkillID(GW.Skill.GetID("Dont_Trip"))
     iau_slot = GW.SkillBar.GetSlotBySkillID(GW.Skill.GetID("I_Am_Unstoppable"))
-    deld : GW.PyPlayer.PyTitle = GW.Player.GetTitle(GW.TitleID.Deldrimor)
+    deld = GW.Player.GetTitle(GW.TitleID.Deldrimor)
+    if deld is None: return False
     dont_trip_dur = 0
     match deld.current_title_tier_index:
         case 0: dont_trip_dur = 3
@@ -938,7 +941,8 @@ def MaintainRefrains(player_id, now):
         case 2: dont_trip_dur = 4
         case 3: dont_trip_dur = 4
         case _: dont_trip_dur = 5
-    norn : GW.PyPlayer.PyTitle = GW.Player.GetTitle(GW.TitleID.Norn)
+    norn = GW.Player.GetTitle(GW.TitleID.Norn)
+    if norn is None: return False
     iau_dur = 0
     match norn.current_title_tier_index:
         case 0: iau_dur = 16

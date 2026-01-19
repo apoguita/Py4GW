@@ -84,7 +84,7 @@ class VectorFields:
 
 
     def process_agent_array(self, agent_array, radius, is_dangerous):
-        import PyAgent
+        from Py4GWCoreLib import Agent
         """
         Process a given agent array and calculate its total vector (either repulsion or attraction).
         Args:
@@ -99,8 +99,8 @@ class VectorFields:
             return (0, 0)  # Ignore if radius is 0
 
         for agent_id in agent_array:
-            agent_instance = PyAgent.PyAgent(agent_id)
-            target_position = (agent_instance.x, agent_instance.y)
+            pos_x, pos_y = Agent.GetXY(agent_id)
+            target_position = (pos_x, pos_y)
             distance = Utils.Distance(self.probe_position, target_position)
 
             if distance <= radius:

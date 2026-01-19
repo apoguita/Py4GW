@@ -9,7 +9,7 @@ from Py4GWCoreLib import PyImGui, ImGui, Color
 from Py4GWCoreLib import FSM
 from Py4GWCoreLib import AutoInventoryHandler
 from Py4GWCoreLib import IniHandler
-from Py4GWCoreLib import GLOBAL_CACHE, Agent
+from Py4GWCoreLib import Agent, Player
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib.Builds import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
 
@@ -335,7 +335,7 @@ class YAVB:
                 yield from Routines.Yield.wait(1000)
                 continue
                 
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 return
             
             if self.in_waiting_routine:
@@ -354,16 +354,16 @@ class YAVB:
 
             if Map.GetMapID() == self.BJORA_MARCHES:
                 if self.stuck_timer.IsExpired():
-                    GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                    Player.SendChatCommand("stuck")
                     self.stuck_timer.Reset()
 
                 if self.movement_check_timer.IsExpired():
-                    current_player_pos = GLOBAL_CACHE.Player.GetXY()
+                    current_player_pos = Player.GetXY()
                     if self.old_player_position == current_player_pos:
                         self.LogMessage("Stuck Detection", "Player is stuck, sending stuck command.", LogConsole.LogSeverity.WARNING)
-                        GLOBAL_CACHE.Player.SendChatCommand("stuck")
-                        player_pos = GLOBAL_CACHE.Player.GetXY() #(x,y)
-                        facing_direction = Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
+                        Player.SendChatCommand("stuck")
+                        player_pos = Player.GetXY() #(x,y)
+                        facing_direction = Agent.GetRotationAngle(Player.GetAgentID())
                         left_angle = facing_direction + math.pi / 2
                         distance = 200
                         offset_x = math.cos(left_angle) * distance
@@ -371,7 +371,7 @@ class YAVB:
 
                         sidestep_pos = (player_pos[0] + offset_x, player_pos[1] + offset_y)
                         for i in range(3):
-                            GLOBAL_CACHE.Player.Move(sidestep_pos[0], sidestep_pos[1])
+                            Player.Move(sidestep_pos[0], sidestep_pos[1])
                         self.stuck_timer.Reset()
                     else:
                         self.old_player_position = current_player_pos
@@ -383,7 +383,7 @@ class YAVB:
                     
                 agent_array = AgentArray.GetEnemyArray()
                 agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent: Agent.GetModelID(agent) in (AgentModelID.FROZEN_ELEMENTAL.value, AgentModelID.FROST_WURM.value))
-                agent_array = AgentArray.Filter.ByDistance(agent_array, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+                agent_array = AgentArray.Filter.ByDistance(agent_array, Player.GetXY(), Range.Spellcast.value)
                 if len(agent_array) > 0:
                     yield from build.DefensiveActions()  
             else:
@@ -403,7 +403,7 @@ class YAVB:
                 yield from Routines.Yield.wait(1000)
                 continue
                 
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 return
             
             if self.current_run_node and self.current_run_node.GetRunDuration() > 30000:
@@ -436,14 +436,14 @@ class YAVB:
 
             if Map.GetMapID() == self.JAGA_MORAINE:
                 if self.stuck_timer.IsExpired():
-                    GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                    Player.SendChatCommand("stuck")
                     self.stuck_timer.Reset()
                   
                 if self.movement_check_timer.IsExpired():
-                    current_player_pos = GLOBAL_CACHE.Player.GetXY()
+                    current_player_pos = Player.GetXY()
                     if self.old_player_position == current_player_pos:
                         self.LogMessage("Stuck Detection", "Player is stuck, sending stuck command.", LogConsole.LogSeverity.WARNING)
-                        GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                        Player.SendChatCommand("stuck")
                         self.stuck_counter += 1
                         build.SetStuckCounter(self.stuck_counter)
                         self.stuck_timer.Reset()

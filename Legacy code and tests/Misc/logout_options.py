@@ -9,19 +9,17 @@ def main():
     
     if PyImGui.begin("timer test"):
         if PyImGui.button("logout"):
-            Player.LogoutToCharacterSelect()
+            Map.Pregame.LogoutToCharacterSelect()
             
         if PyImGui.button("get characters"):
-            characters = Player.GetLoginCharacters()
+            characters = Map.Pregame.GetAvailableCharacterList()
             
-        if PyImGui.button("get pregame"):
-            pregame = Player.GetPreGameContext()
             
         PyImGui.same_line(0,-1)
         PyImGui.text_colored(f"info only available in character select screen", Color(255, 0, 0, 255).to_tuple())
             
-        PyImGui.text_colored(f"is in character select screen : {Player.InCharacterSelectScreen()}", 
-                             Color(0, 255, 0,255).to_tuple() if Player.InCharacterSelectScreen() else Color(255, 0, 0, 255).to_tuple())
+        PyImGui.text_colored(f"is in character select screen : {Map.Pregame.InCharacterSelectScreen()}", 
+                             Color(0, 255, 0,255).to_tuple() if Map.Pregame.InCharacterSelectScreen() else Color(255, 0, 0, 255).to_tuple())
         
         
             
@@ -48,24 +46,17 @@ def main():
                         PyImGui.text(f"{i} -level: {character.level}")
                         PyImGui.text(f"{i} -is_pvp: {character.is_pvp}")
 
-        if pregame:
+        if Map.Pregame.InCharacterSelectScreen():
             if PyImGui.collapsing_header("pregame"):
-                PyImGui.text(f"frame_id: {pregame.frame_id}")
+                PyImGui.text(f"frame_id: {Map.Pregame.GetFrameID()}")
 
-                PyImGui.text(f"chosen_character_index: {pregame.chosen_character_index}")
+                PyImGui.text(f"chosen_character_index: {Map.Pregame.GetChosenCharacterIndex()}")
 
-                PyImGui.text(f"index_1: {pregame.index_1}")
-                PyImGui.text(f"index_2: {pregame.index_2}")
-                if PyImGui.collapsing_header(f"chars: {pregame.chars}"):
-                    for char in pregame.chars:
+                PyImGui.text(f"chosen_character_index: {Map.Pregame.GetChosenCharacterIndex()}")
+                if PyImGui.collapsing_header(f"chars: {Map.Pregame.GetCharList()}"):
+                    for char in Map.Pregame.GetCharList():
                         PyImGui.text(f"{char}")
-                        
-                if PyImGui.collapsing_header(f"h0004: {pregame.h0004}"):
-                    for h0004 in pregame.h0004:
-                        PyImGui.text(f"{h0004}")
-                if PyImGui.collapsing_header(f"h0128: {pregame.h0128}"):
-                    for h0128 in pregame.h0128:
-                        PyImGui.text(f"{h0128}")
+
         
     PyImGui.end()
     

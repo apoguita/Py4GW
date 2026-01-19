@@ -7,6 +7,8 @@ class _RProxy:
 
 Routines = _RProxy()
 
+from ..Player import Player
+
 #region Agents
 class Agents:    
     @staticmethod
@@ -48,7 +50,7 @@ class Agents:
     @staticmethod
     def GetNearestNPC(distance:float = 4500.0):
         from ..GlobalCache import GLOBAL_CACHE
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         return Agents.GetNearestNPCXY(player_pos[0], player_pos[1], distance)
     
     @staticmethod
@@ -66,7 +68,7 @@ class Agents:
         from ..Agent import Agent
 
         agent_ids = AgentArray.GetAgentArray()
-        px, py = GLOBAL_CACHE.Player.GetXY()
+        px, py = Player.GetXY()
 
         best_id = 0
         best_dist = float("inf")
@@ -103,7 +105,7 @@ class Agents:
         ZERO_BITS = (1 << 0) | (1 << 1) | (1 << 31)   # bits 0,1,31 must be 0
 
         item_ids = AgentArray.GetItemArray()
-        px, py = GLOBAL_CACHE.Player.GetXY()
+        px, py = Player.GetXY()
 
         best_id = 0
         best_dist = float("inf")
@@ -147,7 +149,7 @@ class Agents:
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance((x,y), Agent.GetXY(agent_id)) <= max_distance)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
         if aggressive_only:
             enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
         return enemy_array
@@ -158,7 +160,7 @@ class Agents:
         from ..Py4GWcorelib import Utils
         from ..GlobalCache import GLOBAL_CACHE
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
@@ -170,7 +172,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsCaster(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
@@ -183,7 +185,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsMartial(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
@@ -196,7 +198,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsMelee(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
@@ -209,7 +211,7 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsRanged(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
@@ -231,7 +233,7 @@ class Agents:
         ally_array = AgentArray.Filter.ByDistance(ally_array, (x,y), max_distance)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsAlive(agent_id))
         if other_ally:
-            ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id)
+            ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Player.GetAgentID() != agent_id)
             
         return ally_array
 
@@ -243,8 +245,8 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
 
-        self_id = GLOBAL_CACHE.Player.GetAgentID()
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        self_id = Player.GetAgentID()
+        player_pos = Player.GetXY()
         ally_array = AgentArray.GetAllyArray()
         ally_array = AgentArray.Filter.ByDistance(ally_array, player_pos, max_distance)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsAlive(agent_id))
@@ -262,9 +264,9 @@ class Agents:
 
         distance = max_distance
         ally_array = AgentArray.GetAllyArray()
-        ally_array = AgentArray.Filter.ByDistance(ally_array, GLOBAL_CACHE.Player.GetXY(), distance)
+        ally_array = AgentArray.Filter.ByDistance(ally_array, Player.GetXY(), distance)
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsDead(agent_id))
-        ally_array = AgentArray.Sort.ByDistance(ally_array, GLOBAL_CACHE.Player.GetXY())
+        ally_array = AgentArray.Sort.ByDistance(ally_array, Player.GetXY())
         return Utils.GetFirstFromArray(ally_array)
     
     @staticmethod
@@ -287,10 +289,10 @@ class Agents:
 
         distance = max_distance
         corpse_array = AgentArray.GetAgentArray()
-        corpse_array = AgentArray.Filter.ByDistance(corpse_array, GLOBAL_CACHE.Player.GetXY(), distance)
+        corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), distance)
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsDead(agent_id))
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
-        corpse_array = AgentArray.Sort.ByDistance(corpse_array, GLOBAL_CACHE.Player.GetXY())
+        corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
         return Utils.GetFirstFromArray(corpse_array)
         
     @staticmethod
@@ -302,10 +304,10 @@ class Agents:
         
         distance = max_distance
         spirit_array = AgentArray.GetSpiritPetArray()
-        spirit_array = AgentArray.Filter.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY(), distance)
+        spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), distance)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsSpawned(agent_id))
-        spirit_array = AgentArray.Sort.ByDistance(spirit_array, GLOBAL_CACHE.Player.GetXY())
+        spirit_array = AgentArray.Sort.ByDistance(spirit_array, Player.GetXY())
         return Utils.GetFirstFromArray(spirit_array)
     
     @staticmethod
@@ -334,7 +336,7 @@ class Agents:
         
         distance = max_distance
         minion_array = AgentArray.GetMinionArray()
-        minion_array = AgentArray.Filter.ByDistance(minion_array, GLOBAL_CACHE.Player.GetXY(), distance)
+        minion_array = AgentArray.Filter.ByDistance(minion_array, Player.GetXY(), distance)
         minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.IsAlive(agent_id))
         minion_array = AgentArray.Sort.ByHealth(minion_array)
         return Utils.GetFirstFromArray(minion_array)            
@@ -363,8 +365,8 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
 
         item_array = AgentArray.GetItemArray()
-        item_array = AgentArray.Filter.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
-        item_array = AgentArray.Sort.ByDistance(item_array,GLOBAL_CACHE.Player.GetXY())
+        item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), max_distance)
+        item_array = AgentArray.Sort.ByDistance(item_array,Player.GetXY())
         return Utils.GetFirstFromArray(item_array)   
 
     @staticmethod
@@ -374,8 +376,8 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
 
         gadget_array = AgentArray.GetGadgetArray()
-        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
-        gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, Player.GetXY(), max_distance)
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array,Player.GetXY())
         return Utils.GetFirstFromArray(gadget_array)
     
     @staticmethod
@@ -387,8 +389,8 @@ class Agents:
 
         gadget_array = AgentArray.GetGadgetArray()
         gadget_array = AgentArray.Filter.ByCondition(gadget_array, lambda agent_id: Agent.GetGadgetID(agent_id) == gadget_id)
-        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
-        gadget_array = AgentArray.Sort.ByDistance(gadget_array,GLOBAL_CACHE.Player.GetXY())
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, Player.GetXY(), max_distance)
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array,Player.GetXY())
         return Utils.GetFirstFromArray(gadget_array)
         
     @staticmethod
@@ -407,8 +409,8 @@ class Agents:
         valid_chest_ids = {e.value for e in GadgetModelID if e.name.startswith("CHEST_")}
 
         gadget_array = AgentArray.GetGadgetArray()
-        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), max_distance)
-        gadget_array = AgentArray.Sort.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY())
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, Player.GetXY(), max_distance)
+        gadget_array = AgentArray.Sort.ByDistance(gadget_array, Player.GetXY())
 
         for agent_id in gadget_array:
             gadget_id = Agent.GetGadgetID(agent_id)
@@ -441,7 +443,7 @@ class Agents:
         lowest_hp_target = None
         lowest_hp = float('inf')
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         agents = AgentArray.GetEnemyArray()
         agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsAlive(agent_id))
         agents = AgentArray.Filter.ByDistance(agents, player_pos, a_range)
@@ -456,10 +458,10 @@ class Agents:
             agents = AgentArray.Filter.ByCondition(agents, lambda agent_id: Agent.IsCasting(agent_id))
 
         for agent_id in agents:
-            agent = GLOBAL_CACHE.Player.GetAgentID()
+            agent = Player.GetAgentID()
             x,y = Agent.GetXY(agent)
 
-            distance_to_self = Utils.Distance(GLOBAL_CACHE.Player.GetXY(), (x, y))
+            distance_to_self = Utils.Distance(Player.GetXY(), (x, y))
 
             # Track the nearest enemy
             if distance_to_self < nearest_distance:
@@ -509,7 +511,7 @@ class Agents:
         lowest_hp_target = None
         lowest_hp = float('inf')
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         agents = AgentArray.GetEnemyArray()
 
         # Filter out dead, distant, and non-melee agents
@@ -532,7 +534,7 @@ class Agents:
             
             x, y = Agent.GetXY(agent_id)
 
-            distance_to_self = Utils.Distance(GLOBAL_CACHE.Player.GetXY(), (x, y))
+            distance_to_self = Utils.Distance(Player.GetXY(), (x, y))
 
             # Track the nearest melee enemy
             if distance_to_self < nearest_distance:
@@ -567,6 +569,6 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
         if Agent.IsValid(target_id):
-            GLOBAL_CACHE.Player.ChangeTarget(target_id)
-            GLOBAL_CACHE.Player.Interact(target_id, False)
+            Player.ChangeTarget(target_id)
+            Player.Interact(target_id, False)
 

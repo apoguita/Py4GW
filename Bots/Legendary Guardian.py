@@ -210,8 +210,6 @@ class BotVars:
 bot_vars = BotVars() 
 bot_vars.window_module = ImGui.WindowModule(module_name, window_name="TH3KUM1KO'S LEGENDARY GUARDIAN BOT", window_size=(800, 800), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
-PyPlayer.PyPlayer()
-player_instance = PyPlayer.PyPlayer()
 timer_instance = Timer()
 elapsed_time = timer_instance.GetElapsedTime()
 follow_delay_timer = Timer()

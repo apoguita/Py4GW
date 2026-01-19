@@ -2,7 +2,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, AgentArray, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, AgentArray, Range, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -46,13 +46,13 @@ class MinionInvocationFromCorpseUtility(CustomSkillUtilityBase):
             return False
 
         agent_ids: list[int] = AgentArray.GetAgentArray()
-        agent_ids = AgentArray.Filter.ByDistance(agent_ids, GLOBAL_CACHE.Player.GetXY(), Range.Spellcast.value)
+        agent_ids = AgentArray.Filter.ByDistance(agent_ids, Player.GetXY(), Range.Spellcast.value)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: not Agent.HasBossGlow(agent_id)) # filter out boss minions (that corpses never disappear)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsDead(agent_id) and not Agent.IsSpirit(agent_id) and not Agent.IsSpawned(agent_id))
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, _AllowedAlliegance)
 
         # we order by distance ASC
-        agent_ids = AgentArray.Sort.ByDistance(agent_ids, GLOBAL_CACHE.Player.GetXY())
+        agent_ids = AgentArray.Sort.ByDistance(agent_ids, Player.GetXY())
 
         return agent_ids
 

@@ -1,6 +1,6 @@
 from typing import Any, Generator, override, Tuple
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -45,8 +45,8 @@ class SignetOfLostSoulsUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         target = self._get_target()
 
-        player_health_percent = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
-        player_energy_percent = Agent.GetEnergy(GLOBAL_CACHE.Player.GetAgentID())
+        player_health_percent = Agent.GetHealth(Player.GetAgentID())
+        player_energy_percent = Agent.GetEnergy(Player.GetAgentID())
 
         if not target:
             return None

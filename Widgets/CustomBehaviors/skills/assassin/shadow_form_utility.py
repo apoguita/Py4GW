@@ -1,7 +1,7 @@
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -38,19 +38,19 @@ class ShadowFormUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        has_shadow_form_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
-        has_deadly_paradox_buff = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.deadly_paradox_skill.skill_id)
+        has_shadow_form_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.custom_skill.skill_id)
+        has_deadly_paradox_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.deadly_paradox_skill.skill_id)
 
         if self.is_deadly_paradox_required:
             if not has_deadly_paradox_buff: return None
 
-        deadly_paradox_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.deadly_paradox_skill.skill_id)
+        deadly_paradox_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.deadly_paradox_skill.skill_id)
         if deadly_paradox_buff_time_remaining <= self.renew_before_expiration_in_milliseconds: return None # we wait for deadly paradox refresh to be buffed
 
         if not has_shadow_form_buff: 
             return self.score_definition.get_score() 
 
-        shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
+        shadow_form_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.custom_skill.skill_id)
         if shadow_form_buff_time_remaining <= self.renew_before_expiration_in_milliseconds: return self.score_definition.get_score()
         
         return None

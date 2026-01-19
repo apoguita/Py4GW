@@ -8,7 +8,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib import AgentArray
 from Py4GWCoreLib import Range
-from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Utils, Player
 #from dangerous_models_runtime import can_cripple, can_knockdown
 
 class Build:
@@ -100,7 +100,7 @@ class OutpostRunnerDA(Build):
                 yield from Routines.Yield.wait(1000)
                 continue
             
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
             
@@ -108,7 +108,7 @@ class OutpostRunnerDA(Build):
                 yield from Routines.Yield.wait(100)
                 continue
             
-            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            player_id = Player.GetAgentID()
             # === BUFF STATE ===
             total_range = Range.Spellcast
             in_danger = Routines.Checks.Agents.InDanger(total_range)
@@ -120,9 +120,9 @@ class OutpostRunnerDA(Build):
             has_dwarven = Routines.Checks.Effects.HasBuff(player_id, self.dwarven_stability)
             hp = Agent.GetHealth(player_id)
             
-            current_target = GLOBAL_CACHE.Player.GetTargetID()
+            current_target = Player.GetTargetID()
             if current_target != player_id:
-                GLOBAL_CACHE.Player.ChangeTarget(player_id)
+                Player.ChangeTarget(player_id)
                 yield from Routines.Yield.wait(250)
 
             # === 1. SHADOW FORM + PARADOX MAINTENANCE ===

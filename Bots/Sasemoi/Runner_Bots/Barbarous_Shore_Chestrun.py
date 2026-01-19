@@ -1,5 +1,5 @@
 import Py4GW
-from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, GLOBAL_CACHE, Agent, HeroType)
+from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, Player, GLOBAL_CACHE, Agent, HeroType)
 from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, SF_Derv_Barbarous
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
 from Bots.Sasemoi.bot_helpers import BotStuckHelper
@@ -91,7 +91,7 @@ def InitializeBot(bot: Botting) -> None:
 
 # Only support assassin build for now
 def AssignBuild(bot: Botting):
-    profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
     match profession:
         case "Assassin":
             bot.OverrideBuild(SF_Assassin_Barbarous())
@@ -232,7 +232,7 @@ def ManageInventory(bot: Botting):
 
 def DetectChestAndOpen(bot: Botting, max_distance=4000):
     # Log
-    coord = GLOBAL_CACHE.Player.GetXY()
+    coord = Player.GetXY()
     ConsoleLog(BARB_SHORE_RUNNER, f"Arrived at point coordinates ::: {coord}", Py4GW.Console.MessageType.Info)
     # Checker for inventory
     nearby_chest_id = Routines.Agents.GetNearestChest(max_distance)

@@ -7,7 +7,7 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import PyImGui
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib import Timer
+from Py4GWCoreLib import Timer, Player
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
@@ -151,7 +151,7 @@ def draw_widget():
                         for dialog_id, label in dialogs:
                             button_label = f"{label} [0x{dialog_id:X}]"
                             if PyImGui.button(button_label):
-                                GLOBAL_CACHE.Player.SendDialog(dialog_id)
+                                Player.SendDialog(dialog_id)
 
                         if note:
                             PyImGui.spacing()

@@ -52,7 +52,7 @@ def initialize_bot():
 
 
 def get_other_accounts():
-    me = GLOBAL_CACHE.Player.GetAccountEmail()
+    me = Player.GetAccountEmail()
     out = []
     for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
         if not acc or not getattr(acc, "AccountEmail", None):
@@ -64,7 +64,7 @@ def get_other_accounts():
 
 
 def broadcast_item(model_id: int, repeat=5, use_locally=True, delay=100):
-    sender = GLOBAL_CACHE.Player.GetAccountEmail()
+    sender = Player.GetAccountEmail()
     for email in get_other_accounts():
         GLOBAL_CACHE.ShMem.SendMessage(sender_email=sender, receiver_email=email, command=SharedCommandType.UseItem,
                                        params=(float(model_id), float(repeat)), )
@@ -94,7 +94,7 @@ def broadcast_skill(skill_name: str, cast_locally=True, delay=300):
         ConsoleLog("SkillBroadCaster", "No current target on main account.", Py4GW.Console.MessageType.Warning)
         return
 
-    sender = GLOBAL_CACHE.Player.GetAccountEmail()
+    sender = Player.GetAccountEmail()
     for email in get_other_accounts():
         GLOBAL_CACHE.ShMem.SendMessage(sender_email=sender, receiver_email=email, command=SharedCommandType.UseSkill,
                                        params=(float(target_id), float(skill_id)), )
@@ -242,7 +242,7 @@ bot.SetMainRoutine(create_bot_routine)
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path=None)
+    bot.UI.draw_window(icon_path="")
 
 
 if __name__ == "__main__":

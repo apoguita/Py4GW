@@ -54,7 +54,7 @@ def main():
     global widget_config
 
     GLOBAL_CACHE._update_cache()
-    account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    account_email = Player.GetAccountEmail()
     GLOBAL_CACHE.ShMem.SetPlayerData(account_email)
     GLOBAL_CACHE.ShMem.SetHeroesData()
     GLOBAL_CACHE.ShMem.SetPetData()
@@ -70,7 +70,7 @@ def main():
         except StopIteration:
             GLOBAL_CACHE.Coroutines.remove(routine)
     
-    if Map.IsMapLoading() or Map.IsInCinematic():
+    if not Routines.Checks.Map.MapValid():
         if widget_config.throttle_transition_queue.IsExpired():
             widget_config.action_queue_manager.ProcessQueue("TRANSITION")
             widget_config.throttle_transition_queue.Reset()

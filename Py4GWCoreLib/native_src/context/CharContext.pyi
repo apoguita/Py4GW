@@ -58,7 +58,7 @@ class CharContextStruct():
     h0034_array: GW_Array
     h0044_array: GW_Array
     h0054: List[int]
-    player_uuid: List[int]
+    player_uuid_ptr: tuple[int, int, int, int]
     player_name_enc: str
     h009C: List[int]
     h00EC_array: GW_Array
@@ -86,6 +86,8 @@ class CharContextStruct():
     h034C: List[int]
     player_email_ptr: str
 
+    @property
+    def player_uuid(self) -> tuple[int, int, int, int]: ...
     @property
     def h0000_ptrs(self) -> list[int] | None:...
     @property

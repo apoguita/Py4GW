@@ -21,6 +21,7 @@ from Py4GWCoreLib import (
     Timer,
     ThrottledTimer,
     IniHandler,
+Player
 )
 from Widgets.Messaging import ProcessMessages, InteractWithTarget
 from Bots.aC_Scripts.aC_api import (
@@ -101,7 +102,7 @@ def broadcast_target_to_party(agent_id: int):
     Leader calls this to notify all followers: “NPC agent_id is our next target.”
     We put agent_id into Params[0] so that InteractWithTarget can pick it up.
     """
-    leader_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    leader_email = Player.GetAccountEmail()
     if not leader_email:
         return
 
@@ -129,7 +130,7 @@ def broadcast_choice_to_party(choice_idx: int):
     """
     Leader calls this to notify all followers: “Click dialog button = choice_idx.”
     """
-    leader_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    leader_email = Player.GetAccountEmail()
     if not leader_email:
         return
 
@@ -161,7 +162,7 @@ def broadcast_position_to_party(x: float, y: float):
     if x == 0.0 and y == 0.0:
         return
 
-    leader_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    leader_email = Player.GetAccountEmail()
     if not leader_email:
         return
 
@@ -224,7 +225,7 @@ def run_logic_if_needed():
     global last_choice_time, state, last_leader_pos, last_processed_lts
     global leader_target_agent, leader_choice, leader_position
 
-    me        = GLOBAL_CACHE.Player.GetAgentID()
+    me        = Player.GetAgentID()
     is_leader = (GLOBAL_CACHE.Party.GetPartyLeaderID() == me)
 
     # ── 1) If I am the leader, skip the follower FSM entirely ──
@@ -245,14 +246,14 @@ def run_logic_if_needed():
         if not (lx == 0.0 and ly == 0.0):
             if state == IDLE and lts > last_processed_lts:
                 last_leader_pos   = (lx, ly, lts)
-                GLOBAL_CACHE.Player.Move(lx, ly)
+                Player.Move(lx, ly)
                 time.sleep(0.125)   # let the movement begin
                 ConsoleLog("NPCSync", f"Follower moving to leader at ({lx:.1f},{ly:.1f})", Console.MessageType.Info)
                 state = MOVING_LEADER
                 last_processed_lts = lts
 
             elif state == MOVING_LEADER and last_leader_pos is not None:
-                cx, cy    = GLOBAL_CACHE.Player.GetXY()
+                cx, cy    = Player.GetXY()
                 tx, ty, _ = last_leader_pos
                 if math.dist((cx, cy), (tx, ty)) < 50.0:
                     ConsoleLog("NPCSync", "Arrived at leader’s spot", Console.MessageType.Info)
@@ -290,7 +291,7 @@ def render_ui():
     global win_x, win_y, win_collapsed, first_run_window
     global leader_target_agent, leader_choice, leader_position
 
-    me        = GLOBAL_CACHE.Player.GetAgentID()
+    me        = Player.GetAgentID()
     is_leader = (GLOBAL_CACHE.Party.GetPartyLeaderID() == me)
     if not is_leader:
         return
@@ -308,7 +309,7 @@ def render_ui():
     # ── Leader UI: “Come Here” (Running Man) ──
     if PyImGui.button(IconsFontAwesome5.ICON_RUNNING):
         if Routines.Checks.Map.MapValid():
-            x, y = GLOBAL_CACHE.Player.GetXY()
+            x, y = Player.GetXY()
             if not (x == 0.0 and y == 0.0):
                 leader_position    = (x, y, time.time())
                 leader_position_ts = leader_position[2]
@@ -320,7 +321,7 @@ def render_ui():
 
     # ── Leader UI: “Go Interact” (Phone) ──
     if PyImGui.button(IconsFontAwesome5.ICON_PHONE):
-        tid = GLOBAL_CACHE.Player.GetTargetID()
+        tid = Player.GetTargetID()
         if tid:
             # 1) Update module‐level variable
             leader_target_agent = tid
@@ -330,8 +331,8 @@ def render_ui():
 
             # 3) Also have leader walk+interact via InteractWithTarget coroutine
             fake_msg = SimpleNamespace(
-                SenderEmail   = GLOBAL_CACHE.Player.GetAccountEmail(),
-                ReceiverEmail = GLOBAL_CACHE.Player.GetAccountEmail(),
+                SenderEmail   = Player.GetAccountEmail(),
+                ReceiverEmail = Player.GetAccountEmail(),
                 Params        = (str(tid), "0", "0", "0")
             )
             GLOBAL_CACHE.Coroutines.append(InteractWithTarget(-1, fake_msg))

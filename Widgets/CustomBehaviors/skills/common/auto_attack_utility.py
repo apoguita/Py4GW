@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -60,7 +60,7 @@ class AutoAttackUtility(CustomSkillUtilityBase):
         target_agent_id = self.__get_target_agent_id()
         if target_agent_id == 0: return None
 
-        if Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsAttacking(Player.GetAgentID()):
             self.throttle_timer.Reset()
             return None
 
@@ -72,22 +72,22 @@ class AutoAttackUtility(CustomSkillUtilityBase):
         target_agent_id: int = self.__get_target_agent_id()
         if target_agent_id == 0: return BehaviorResult.ACTION_SKIPPED
 
-        current_target_agent_id = GLOBAL_CACHE.Player.GetTargetID()
+        current_target_agent_id = Player.GetTargetID()
         if current_target_agent_id != target_agent_id:
             yield from Routines.Yield.Keybinds.ClearTarget()
-            GLOBAL_CACHE.Player.ChangeTarget(target_agent_id)
+            Player.ChangeTarget(target_agent_id)
             yield from custom_behavior_helpers.Helpers.wait_for(300)
-            GLOBAL_CACHE.Player.Interact(target_agent_id, False)
+            Player.Interact(target_agent_id, False)
             yield from custom_behavior_helpers.Helpers.wait_for(300)
         else:
-            if not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
-                GLOBAL_CACHE.Player.Interact(target_agent_id, False)
+            if not Agent.IsAttacking(Player.GetAgentID()):
+                Player.Interact(target_agent_id, False)
                 yield from custom_behavior_helpers.Helpers.wait_for(300)
 
         self.throttle_timer.Reset()
         return BehaviorResult.ACTION_PERFORMED
 
-        # if Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()):
+        # if Agent.IsAttacking(Player.GetAgentID()):
         #     if target_agent_id == 0: return BehaviorResult.ACTION_SKIPPED
         #     yield
         #     return BehaviorResult.ACTION_SKIPPED
@@ -98,9 +98,9 @@ class AutoAttackUtility(CustomSkillUtilityBase):
         # if not Agent.IsValid(target_id):
         #     return None
 
-        # GLOBAL_CACHE.Player.ChangeTarget(target_id)
+        # Player.ChangeTarget(target_id)
         # yield from Helpers.wait_for(100) 
-        # GLOBAL_CACHE.Player.Interact(target_id, False)
+        # Player.Interact(target_id, False)
         # yield from Helpers.wait_for(100)
         # return BehaviorResult.ACTION_PERFORMED
 

@@ -61,7 +61,7 @@ def configure():
 
 def DrawWindow():
     if PyImGui.begin(MODULE_NAME):
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         PyImGui.text(f"Account Email: {account_email}")
         PyImGui.separator()
         PyImGui.text("Messages for you:")
@@ -259,7 +259,7 @@ def Resign(index, message):
     # ConsoleLog(MODULE_NAME, f"Processing Resign message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     for i in range(2):
-        GLOBAL_CACHE.Player.SendChatCommand("resign")
+        Player.SendChatCommand("resign")
         yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info, False)
@@ -278,7 +278,7 @@ def PixelStack(index, message):
     try:
         yield from DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-        GLOBAL_CACHE.Player.SendChatCommand("stuck")
+        Player.SendChatCommand("stuck")
         yield from Routines.Yield.wait(250)
         result = (yield from Routines.Yield.Movement.FollowPath(
             [(message.Params[0], message.Params[1])],
@@ -291,8 +291,8 @@ def PixelStack(index, message):
             ConsoleLog(MODULE_NAME, "PixelStack movement failed or timed out.", Console.MessageType.Warning, log=True)
 
             # --- Recovery sequence ---
-            start_x, start_y = GLOBAL_CACHE.Player.GetXY()
-            GLOBAL_CACHE.Player.SendChatCommand("stuck")
+            start_x, start_y = Player.GetXY()
+            Player.SendChatCommand("stuck")
             # Step 1: Always walk backwards
             ConsoleLog(MODULE_NAME, "Recovery: walking backwards.", Console.MessageType.Info)
             yield from Routines.Yield.Movement.WalkBackwards(1500)
@@ -300,7 +300,7 @@ def PixelStack(index, message):
             ConsoleLog(MODULE_NAME, "Recovery: strafing left.", Console.MessageType.Info)
             yield from Routines.Yield.Movement.StrafeLeft(1500)
             # Step 3: If no movement after strafing left, strafe right
-            left_x, left_y = GLOBAL_CACHE.Player.GetXY()
+            left_x, left_y = Player.GetXY()
             if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
                 ConsoleLog(MODULE_NAME, "No movement detected, strafing right.", Console.MessageType.Info)
                 yield from Routines.Yield.Movement.StrafeRight(3500)  # we need to get away from that wall
@@ -330,11 +330,11 @@ def BruteForceUnstuck(index, message):
         yield from Routines.Yield.wait(100)
 
         # Initial stuck command
-        GLOBAL_CACHE.Player.SendChatCommand("stuck")
+        Player.SendChatCommand("stuck")
         yield from Routines.Yield.wait(250)
 
         # --- Recovery sequence attempts ---
-        start_x, start_y = GLOBAL_CACHE.Player.GetXY()
+        start_x, start_y = Player.GetXY()
 
         # --- define wiggle helpers ---
         def wiggle_back_left():
@@ -361,7 +361,7 @@ def BruteForceUnstuck(index, message):
             yield from attempt["action"]()
 
             # Check movement
-            cur_x, cur_y = GLOBAL_CACHE.Player.GetXY()
+            cur_x, cur_y = Player.GetXY()
             if Utils.Distance((start_x, start_y), (cur_x, cur_y)) > 50:
                 ConsoleLog(MODULE_NAME, f"Unstuck successful with {attempt['name']}.", Console.MessageType.Info)
                 break
@@ -466,7 +466,7 @@ def SendDialogToTarget(index, message):
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
         yield from Routines.Yield.wait(500)
-        GLOBAL_CACHE.Player.SendDialog(dialog)
+        Player.SendDialog(dialog)
         yield from Routines.Yield.wait(500)
 
         ConsoleLog(MODULE_NAME, "SendDialogToTarget message processed and finished.", Console.MessageType.Info, False)
@@ -610,14 +610,14 @@ def DonateToGuild(index, message):
     if map_id == 77:  # House zu Heltzer
         faction = 0  # Kurzick
         npc_pos = (5408, 1494)
-        CURRENT_FACTION = GLOBAL_CACHE.Player.GetKurzickData()[0]
-        title = GLOBAL_CACHE.Player.GetTitle(TitleID.Kurzick)
+        CURRENT_FACTION = Player.GetKurzickData()[0]
+        title = Player.GetTitle(TitleID.Kurzick)
         TOTAL_CUMULATIVE = title.current_points if title else 0
     elif map_id == 193:  # Cavalon
         faction = 1  # Luxon
         npc_pos = (9074, -1124)
-        CURRENT_FACTION = GLOBAL_CACHE.Player.GetLuxonData()[0]
-        title = GLOBAL_CACHE.Player.GetTitle(TitleID.Luxon)
+        CURRENT_FACTION = Player.GetLuxonData()[0]
+        title = Player.GetTitle(TitleID.Luxon)
         TOTAL_CUMULATIVE = title.current_points if title else 0
     else:
         ConsoleLog(MODULE, "Not in a valid outpost for donation.", Console.MessageType.Warning)
@@ -625,8 +625,8 @@ def DonateToGuild(index, message):
         return
 
     # --- Move to NPC ---
-    px, py = GLOBAL_CACHE.Player.GetXY()
-    z = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+    px, py = Player.GetXY()
+    z = Agent.GetZPlane(Player.GetAgentID())
     try:
         path3d = yield from AutoPathing().get_path(
             (px, py, z), (npc_pos[0], npc_pos[1], z), smooth_by_los=True, margin=100.0, step_dist=500.0
@@ -651,7 +651,7 @@ def DonateToGuild(index, message):
                 yield from Routines.Yield.wait(300)
                 if not UIManager.IsNPCDialogVisible():
                     break
-            GLOBAL_CACHE.Player.DepositFaction(faction)
+            Player.DepositFaction(faction)
             yield from Routines.Yield.wait(300)
     else:  # swap faction points for mats if title is maxed
         swapped = 0
@@ -678,7 +678,7 @@ def OpenChest(index, message):
     cascade = int(message.Params[1]) == 1
     chest_id = int(message.Params[0])
     
-    email_owner = message.ReceiverEmail or GLOBAL_CACHE.Player.GetAccountEmail()
+    email_owner = message.ReceiverEmail or Player.GetAccountEmail()
     
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(email_owner, index)
     yield from SnapshotHeroAIOptions(email_owner)
@@ -1297,7 +1297,7 @@ def SwitchCharacter(index, message):
     extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
     character_name = extra[0] if extra else ""
     
-    if character_name and character_name != GLOBAL_CACHE.Player.GetName():
+    if character_name and character_name != Player.GetName():
         yield from Routines.Yield.RerollCharacter.Reroll(character_name)  
     
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -1362,7 +1362,7 @@ def TravelToGuildHall(index, message):
 
 # region ProcessMessages
 def ProcessMessages():
-    account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    account_email = Player.GetAccountEmail()
     index, message = GLOBAL_CACHE.ShMem.GetNextMessage(account_email)
 
     if index == -1 or message is None:

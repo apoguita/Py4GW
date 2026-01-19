@@ -16,8 +16,8 @@ def eat_items(model_id: int, quantity: int):
             
 def exchange_pumpkins_for_pie(quantity: int):
     for _ in range(quantity):
-        target = GLOBAL_CACHE.Player.GetTargetID()
-        GLOBAL_CACHE.Player.Interact(target, False)
+        target = Player.GetTargetID()
+        Player.Interact(target, False)
         yield from Routines.Yield.wait(250)
         UIManager.ClickDialogButton(int(2))
         yield from Routines.Yield.wait(100)

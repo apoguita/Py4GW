@@ -1,4 +1,4 @@
-import PyPlayer
+import PyPointers
 from Py4GW import Game
 import math
 
@@ -97,6 +97,14 @@ class AttributeStruct(Structure):
         ("decrement_points", c_uint32),
         ("increment_points", c_uint32),
     ]
+    @property
+    def name(self) -> str:
+        from ...enums_src.GameData_enums import AttributeNames
+        return AttributeNames.get(self.attribute_id, "Unknown")
+    
+    #retro code compatibility
+    def GetName(self) -> str:
+        return self.name
 
 #region PartyAttribute
 class PartyAttributeStruct(Structure):
@@ -109,6 +117,7 @@ class PartyAttributeStruct(Structure):
     @property
     def attributes(self) -> list[AttributeStruct]:
         return [self.attribute_array[i] for i in range(54)]
+    
     
 #region Effect and Buff
 class EffectStruct(Structure):
@@ -840,6 +849,61 @@ class WorldContextStruct(Structure):
             return None
         return [attr for attr in attrs]
     
+    @staticmethod
+    def _is_valid_attribute(attribute: AttributeStruct) -> bool:
+        return (
+            attribute.level_base > 0 or
+            attribute.level > 0 or
+            attribute.decrement_points > 0 or
+            attribute.increment_points > 0
+        )
+    
+    def get_attributes_by_agent_id(self, agent_id: int) -> list[AttributeStruct]:
+        party_attributes = self.party_attributes
+        if not party_attributes:
+            return []
+
+        for attr in party_attributes:
+            if attr.agent_id != agent_id:
+                continue
+
+            result: list[AttributeStruct] = []
+
+            for i, attribute in enumerate(attr.attributes):
+                if i >= 45:  # soft upper bound
+                    break
+
+                if self._is_valid_attribute(attribute):
+                    result.append(attribute)
+
+            return result
+
+        return []
+    
+    def get_party_attributes(self) -> dict[int, list[AttributeStruct]]:
+        party_attributes = self.party_attributes
+        if not party_attributes:
+            return {}
+
+        result: dict[int, list[AttributeStruct]] = {}
+
+        for attr in party_attributes:
+            valid_attrs = []
+
+            for i, attribute in enumerate(attr.attributes):
+                if i >= 45: # soft upper bound
+                    break
+                if self._is_valid_attribute(attribute):
+                    valid_attrs.append(attribute)
+
+            if valid_attrs:
+                result[attr.agent_id] = valid_attrs
+
+        return result
+
+
+                    
+    
     @property
     def all_flag(self) -> Vec3f | None:
         x, y, z = self.all_flag_array
@@ -1088,6 +1152,15 @@ class WorldContextStruct(Structure):
             return None
         return [player for player in players]
     
+    def GetPlayerById(self, player_id: int) -> PlayerStruct | None:
+        players = self.players
+        if not players:
+            return None
+        for player in players:
+            if player.player_number == player_id:
+                return player
+        return None
+    
     @property
     def titles(self) -> list[TitleStruct] | None:
         titles = GW_Array_Value_View(self.titles_array, TitleStruct).to_list()
@@ -1123,7 +1196,7 @@ class WorldContext:
 
     @staticmethod
     def _update_ptr():
-        WorldContext._ptr = PyPlayer.PyPlayer().GetWorldContextPtr()
+        WorldContext._ptr = PyPointers.PyPointers.GetWorldContextPtr()
 
     @staticmethod
     def enable():

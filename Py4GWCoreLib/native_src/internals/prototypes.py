@@ -34,17 +34,29 @@ Prototypes = {
         None,
         ctypes.c_uint32,
     ),
-
+    "Void_U32_U32": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
+    "Void_U32_U32_U32": NativeFunctionPrototype(
+        None,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+    ),
     "Void_NoArgs": NativeFunctionPrototype(
         None,
     ),
-
     "Bool_U32": NativeFunctionPrototype(
         ctypes.c_bool,
         ctypes.c_uint32,
     ),
-    
     "U32_NoArgs": NativeFunctionPrototype(
         ctypes.c_uint32,
+    ),
+    "Void_FloatPtr": NativeFunctionPrototype(
+        None,
+        ctypes.POINTER(ctypes.c_float),
     ),
 }

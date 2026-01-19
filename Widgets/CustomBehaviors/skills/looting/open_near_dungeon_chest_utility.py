@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Party, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Party, Routines, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Widgets.CustomBehaviors.primitives import constants
@@ -97,7 +97,7 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
             if constants.DEBUG: print(f"open_near_dungeon_chest_utility LOCK AQUIRED")
             yield from custom_behavior_helpers.Helpers.wait_for(1500) # we must wait until the chest closing animation is finalized
             ActionQueueManager().ResetAllQueues()
-            GLOBAL_CACHE.Player.Interact(chest_agent_id, call_target=False)
+            Player.Interact(chest_agent_id, call_target=False)
             yield from custom_behavior_helpers.Helpers.wait_for(1500)
             if constants.DEBUG: print("CHEST_OPENED")
             # Only mark chest as opened and publish the event upon successful interaction
@@ -126,7 +126,7 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
         return
         # debug mode
         gadget_array = AgentArray.GetGadgetArray()
-        gadget_array = AgentArray.Filter.ByDistance(gadget_array, GLOBAL_CACHE.Player.GetXY(), 100)
+        gadget_array = AgentArray.Filter.ByDistance(gadget_array, Player.GetXY(), 100)
         for agent_id in gadget_array:
             gadget_id = Agent.GetGadgetID(agent_id)
             PyImGui.bullet_text(f"gadget_id close to my position : {gadget_id}")

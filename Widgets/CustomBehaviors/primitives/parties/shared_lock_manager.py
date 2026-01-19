@@ -4,7 +4,7 @@ import time
 from collections import deque
 from ctypes import Structure, c_uint, c_wchar
 from typing import Generator
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Player
 
 # Constants for the shared lock table
 MAX_LOCKS = 64
@@ -226,7 +226,7 @@ class SharedLockManager:
         mem.LockEntries[idx].AcquiredAt = int(time.time())
         mem.LockEntries[idx].ReleasedAt = 0
         mem.LockEntries[idx].TTLSeconds = timeout_seconds
-        mem.LockEntries[idx].SenderEmail = f"{GLOBAL_CACHE.Player.GetAccountEmail()} | {GLOBAL_CACHE.Player.GetName()}"
+        mem.LockEntries[idx].SenderEmail = f"{Player.GetAccountEmail()} | {Player.GetName()}"
         # final dedupe to collapse any rare duplicates due to races
         self.__dedupe_locks()
         # record history in shared memory ring

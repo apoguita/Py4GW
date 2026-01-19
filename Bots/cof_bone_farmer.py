@@ -221,7 +221,7 @@ class Combat:
         yield from Routines.Yield.Skills.CastSkillSlot(skill_slot, aftercast_delay=aftercast_delay)
 
     def CanCast(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
 
         if (
             Agent.IsCasting(player_agent_id)
@@ -251,7 +251,7 @@ class Combat:
         return GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot).adrenaline_a >= Skill.Data.GetAdrenaline(skill_id)
 
     def GetEnergy(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         energy = Agent.GetEnergy(player_agent_id)
         max_energy = Agent.GetMaxEnergy(player_agent_id)
         energy_points = int(energy * max_energy)
@@ -259,7 +259,7 @@ class Combat:
         return energy_points
 
     def HasEnoughEnergy(self, skill_slot):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         energy = Agent.GetEnergy(player_agent_id)
         max_energy = Agent.GetMaxEnergy(player_agent_id)
         energy_points = int(energy * max_energy)
@@ -638,7 +638,7 @@ class Loot:
             )
 
         item_array = list(set(item_array_model + item_array_salv))
-        item_array = AgentArray.Sort.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY())
+        item_array = AgentArray.Sort.ByDistance(item_array, Player.GetXY())
 
         return item_array
 
@@ -648,7 +648,7 @@ class Loot:
         if ActionIsPending():
             return False
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             return True
 
         if not bot_vars.inv.log:
@@ -901,7 +901,7 @@ def InteractNPCWithDialog(x, y, dialog_id):
         return False
 
     if dialog_id != 0:
-        GLOBAL_CACHE.Player.SendDialog(dialog_id)
+        Player.SendDialog(dialog_id)
         _dialog_run_to_end(Routines.Yield.wait(500))
 
     return True
@@ -998,7 +998,7 @@ def KillRotation():
         return
 
     # target
-    target_id = GLOBAL_CACHE.Player.GetTargetID()
+    target_id = Player.GetTargetID()
     if target_id == 0 or Agent.GetAllegiance(target_id)[0] != 3 or Agent.IsDead(target_id):
 
         enemy_array = AgentArray.GetEnemyArray()

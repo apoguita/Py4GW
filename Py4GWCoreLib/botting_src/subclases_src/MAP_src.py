@@ -19,7 +19,7 @@ class _MAP:
     def _coro_travel(self, target_map_id:int =0, target_map_name:str ="") -> Generator:
         from ...Routines import Routines
         
-        if Map.IsMapLoading():
+        if not Map.IsMapReady():
             yield from Routines.Yield.wait(1000)
             return
         
@@ -27,6 +27,7 @@ class _MAP:
             target_map_id = Map.GetMapIDByName(target_map_name)
         
         current_map_id = Map.GetMapID()
+
         if current_map_id == target_map_id:
             yield from Routines.Yield.wait(1000)
             return

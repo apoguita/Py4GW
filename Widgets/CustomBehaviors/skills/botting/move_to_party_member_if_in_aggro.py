@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -40,7 +40,7 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
             if custom_behavior_helpers.Targets.is_party_member_in_aggro(agent_id):
                 agent_id_position: tuple[float, float] = Agent.GetXY(agent_id)
-                player_agent_id_position: tuple[float, float] = Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID())
+                player_agent_id_position: tuple[float, float] = Agent.GetXY(Player.GetAgentID())
                 if Utils.Distance(player_agent_id_position , agent_id_position) < 2500: #todo constant
                     return agent_id
         return None
@@ -58,7 +58,7 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
         agent_id_in_aggro = self._get_first_party_member_in_aggro()
 
         if agent_id_in_aggro is None: return None
-        if agent_id_in_aggro == GLOBAL_CACHE.Player.GetAgentID(): return None
+        if agent_id_in_aggro == Player.GetAgentID(): return None
         
         return self.score_definition.get_score()
 
@@ -68,7 +68,7 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
         if agent_id_in_aggro is None: return BehaviorResult.ACTION_SKIPPED
 
         agent_id_position: tuple[float, float] = Agent.GetXY(agent_id_in_aggro)
-        GLOBAL_CACHE.Player.Move(agent_id_position[0], agent_id_position[1])
+        Player.Move(agent_id_position[0], agent_id_position[1])
         yield from custom_behavior_helpers.Helpers.wait_for(100)
         self.throttle_timer.Reset()
         yield

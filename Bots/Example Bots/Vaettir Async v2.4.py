@@ -1733,6 +1733,8 @@ def assign_skill_ids():
 
 def check_norn_title():
     norntitle = Player.GetTitle(41)
+    if norntitle is None:
+        return
     if norntitle.current_points > 160000:
         FSM_vars.state_machine.jump_to_state_by_name("Route Aggro Left")
 

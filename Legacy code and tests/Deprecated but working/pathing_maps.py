@@ -61,7 +61,7 @@ def initialize_map_boundaries(map_boundaries_vector):
             unk=map_boundaries_vector[0],  # Any additional data in the vector
         )
 
-initialize_map_boundaries(PyPathing.get_map_boundaries())
+initialize_map_boundaries(Map.GetMapBoundaries())
 
 def scale_coords(x, y, width, height, primary_layer_boundaries):
     """Scale (x, y) from game coordinates to window coordinates using layer boundaries."""

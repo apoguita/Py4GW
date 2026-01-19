@@ -1,6 +1,9 @@
 
 import PyParty
 from .Player import Player
+from .Agent import Agent
+from typing import List, Tuple
+from .Context import GWContext
 
 class Party:
     @staticmethod
@@ -159,7 +162,45 @@ class Party:
         Args: None
         Returns: bool
         """
+        from .Map import Map
+        if not Map.IsMapReady():
+            return False
+        if not Player.IsPlayerLoaded():
+            return False
         return Party.party_instance().is_party_loaded
+    
+    @staticmethod
+    def GetPartyMorale() -> List[Tuple[int, int]]:
+        """
+        Purpose: Retrieve the player's current party morale.
+        Args: None
+        Returns: list of tuples (current_morale, max_morale)
+        """
+        if (world_ctx := GWContext.World.GetContext()) is None:
+            return []
+        if (party_morale := world_ctx.party_morale) is None:
+            return []
+        
+        result = []
+        for morale in party_morale:
+            if (party_member_info := morale.party_member_info) is None:
+                continue    
+            if not Agent.IsValid(party_member_info.agent_id):
+                continue
+        
+            _tuple = (party_member_info.agent_id, party_member_info.morale)
+            result.append(_tuple)
+        return result
+            
+    
+    @staticmethod
+    def IsPlayerLoaded():
+        """
+        Purpose: Check if the player is loaded in the party.
+        Args: None
+        Returns: bool
+        """
+        pass
 
     @staticmethod
     def IsPartyLeader():

@@ -9,7 +9,7 @@ from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Map
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Agent, DXOverlay
+from Py4GWCoreLib import Agent, DXOverlay, Player
 
 from typing import List, Tuple
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper
@@ -83,7 +83,7 @@ class SF_Assassin_Barbarous(BuildMgr):
     # Shroud of Distress watcher
     def ShroudOfDistressWatcher(self):
         # Initial vars
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         has_sod = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress)
         is_sod_ready = Routines.Checks.Skills.IsSkillIDReady(self.shroud_of_distress)
         is_sod_about_to_expire = has_sod and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) <= 2000
@@ -101,7 +101,7 @@ class SF_Assassin_Barbarous(BuildMgr):
     def CastHeartOfShadow(self):
         center_point1 = (10980, -21532)
         center_point2 = (11461, -17282)
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         
         distance_to_center1 = Utils.Distance(player_pos, center_point1)
         distance_to_center2 = Utils.Distance(player_pos, center_point2)
@@ -136,7 +136,7 @@ class SF_Assassin_Barbarous(BuildMgr):
 
     def ShadowFormWatcher(self):
         # Initial vars
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         has_shadow_form = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_form)
         is_sf_about_to_expire = has_shadow_form and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shadow_form) <= 4000
         is_sf_ready = Routines.Checks.Skills.IsSkillIDReady(self.shadow_form)
@@ -148,7 +148,7 @@ class SF_Assassin_Barbarous(BuildMgr):
 
     def StanceWatcher(self):
         # Initial vars
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         is_sf_about_to_expire = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_form) and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shadow_form) <= 4000
         has_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
         has_stance = Routines.Checks.Effects.HasBuff(player_agent_id, self.dark_escape)
@@ -176,8 +176,8 @@ class SF_Assassin_Barbarous(BuildMgr):
 
 
     def IAUWatcher(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        (px, py) = GLOBAL_CACHE.Player.GetXY()
+        player_agent_id = Player.GetAgentID()
+        (px, py) = Player.GetXY()
 
         if Agent.IsCrippled(player_agent_id) or self.build_danger_helper.check_cripple_kd(px, py):
             has_iau = Routines.Checks.Effects.HasBuff(player_agent_id, self.i_am_unstoppable)
@@ -188,7 +188,7 @@ class SF_Assassin_Barbarous(BuildMgr):
 
 
     def DefensiveWatcher(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         is_ss_ready = Routines.Checks.Skills.IsSkillIDReady(self.shadow_sanctuary)
         is_hos_ready = Routines.Checks.Skills.IsSkillIDReady(self.heart_of_shadow)
         is_poisoned = Agent.IsPoisoned(player_agent_id)
@@ -214,7 +214,7 @@ class SF_Assassin_Barbarous(BuildMgr):
 
     def ProcessSkillCasting(self):
         current_map_id = Map.GetMapID()
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
 
         while True:
             # Check basic conditions where skill handling should be skipped
@@ -225,7 +225,7 @@ class SF_Assassin_Barbarous(BuildMgr):
                 continue
             
             # Player is dead
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
 
@@ -289,9 +289,9 @@ class SF_Assassin_Barbarous(BuildMgr):
         
 
     #     SPELLCAST_RANGE = 1248.0
-    #     px, py = GLOBAL_CACHE.Player.GetXY()
+    #     px, py = Player.GetXY()
     #     pz = Overlay().FindZ(px, py)
-    #     heading = Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
+    #     heading = Agent.GetRotationAngle(Player.GetAgentID())
     #     facing_vec = (math.cos(heading), math.sin(heading))
 
     #     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, max_distance=SPELLCAST_RANGE)

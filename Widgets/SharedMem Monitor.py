@@ -1,6 +1,6 @@
 from datetime import datetime
 import PyImGui
-from PyPlayer import PyTitle
+
 from Py4GWCoreLib import *
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, FactionsStruct, TitleStruct
 from typing import Callable
@@ -278,7 +278,11 @@ class TitleData:
 
     def _draw_title(self, title: TitleStruct, managed: bool):
         title_name = TITLE_NAME.get(title.TitleID, f"Unknown ({title.TitleID})")
-        py_title = PyTitle(title_id=title.TitleID)
+        py_title = Player.GetTitle(title.TitleID)
+        if py_title is None:
+            PyImGui.text(f"{title_name} - (Title data not found in Player)")
+            PyImGui.separator()
+            return
 
         if not managed:
             PyImGui.text(f"{title_name}")

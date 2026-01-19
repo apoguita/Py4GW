@@ -7,6 +7,7 @@ import Py4GW
 MODULE_NAME = "HeroAI"
 
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 
 from HeroAI.cache_data import CacheData
@@ -46,7 +47,7 @@ def HandleCombatFlagging(cached_data: CacheData):
         own_follow_y = all_player_struct[party_number].FlagPosY
         own_flag_coords = (own_follow_x, own_follow_y)
         if (
-            Utils.Distance(own_flag_coords, Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+            Utils.Distance(own_flag_coords, Agent.GetXY(Player.GetAgentID()))
             >= FOLLOW_COMBAT_DISTANCE
         ):
             return True  # Forces a reset on autoattack timer
@@ -55,7 +56,7 @@ def HandleCombatFlagging(cached_data: CacheData):
         leader_follow_y = all_player_struct[0].FlagPosY
         leader_flag_coords = (leader_follow_x, leader_follow_y)
         if (
-            Utils.Distance(leader_flag_coords, Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+            Utils.Distance(leader_flag_coords, Agent.GetXY(Player.GetAgentID()))
             >= LEADER_FLAG_TOUCH_RANGE_THRESHOLD_VALUE
         ):
             return True  # Forces a reset on autoattack timer
@@ -74,15 +75,15 @@ def HandleCombat(cached_data: CacheData):
     return cached_data.combat_handler.HandleCombat(ooc=False)
 
 def HandleAutoAttack(cached_data: CacheData) -> bool:
-    target_id = GLOBAL_CACHE.Player.GetTargetID()
+    target_id = Player.GetTargetID()
     _, target_aliegance = Agent.GetAllegiance(target_id)
 
     if target_id == 0 or Agent.IsDead(target_id) or (target_aliegance != "Enemy"):
         if (
             cached_data.data.is_combat_enabled
-            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsAttacking(Player.GetAgentID()))
+            and (not Agent.IsCasting(Player.GetAgentID()))
+            and (not Agent.IsMoving(Player.GetAgentID()))
         ):
             cached_data.combat_handler.ChooseTarget()
             cached_data.auto_attack_timer.Reset()
@@ -92,9 +93,9 @@ def HandleAutoAttack(cached_data: CacheData) -> bool:
     if cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time) and cached_data.data.weapon_type != 0:
         if (
             cached_data.data.is_combat_enabled
-            and (not Agent.IsAttacking(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID()))
-            and (not Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()))
+            and (not Agent.IsAttacking(Player.GetAgentID()))
+            and (not Agent.IsCasting(Player.GetAgentID()))
+            and (not Agent.IsMoving(Player.GetAgentID()))
         ):
             cached_data.combat_handler.ChooseTarget()
         cached_data.auto_attack_timer.Reset()
@@ -107,7 +108,7 @@ cached_data.in_looting_routine = False
 
 #region Looting
 def LootingRoutineActive():
-    account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    account_email = Player.GetAccountEmail()
     index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
 
     if index == -1 or message is None:
@@ -180,7 +181,7 @@ def Follow(cached_data: CacheData):
     if not map_quads:
         map_quads = Map.Pathing.GetMapQuads()
 
-    if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+    if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
         return False
 
@@ -210,7 +211,7 @@ def Follow(cached_data: CacheData):
 
     if following_flag:
         FOLLOW_DISTANCE_ON_COMBAT = FOLLOW_COMBAT_DISTANCE
-    elif Agent.IsMelee(GLOBAL_CACHE.Player.GetAgentID()):
+    elif Agent.IsMelee(Player.GetAgentID()):
         FOLLOW_DISTANCE_ON_COMBAT = MELEE_RANGE_VALUE
     else:
         FOLLOW_DISTANCE_ON_COMBAT = RANGED_RANGE_VALUE
@@ -256,7 +257,7 @@ def Follow(cached_data: CacheData):
     
     cached_data.data.angle_changed = False
     ActionQueueManager().ResetQueue("ACTION")
-    GLOBAL_CACHE.Player.Move(xx, yy)
+    Player.Move(xx, yy)
     return True
 
 
@@ -271,7 +272,7 @@ def register_data(cached_data: CacheData):
     cached_data.UpdateGameOptions()
     
     
-show_debug = True
+show_debug = False
 
 def draw_debug_window(cached_data: CacheData):
     global HeroAI_BT, show_debug
@@ -288,36 +289,37 @@ def handle_UI (cached_data: CacheData):
     if not cached_data.ui_state_data.show_classic_controls:   
         HeroAI_FloatingWindows.DrawEmbeddedWindow(cached_data)
     else:
-        HeroAI_Windows.DrawControlPanelWindow(cached_data)           
-        HeroAI_Windows.DrawFollowerUI(cached_data)
+        HeroAI_Windows.DrawControlPanelWindow(cached_data)  
+        if HeroAI_FloatingWindows.settings.ShowPartyPanelUI:         
+            HeroAI_Windows.DrawFollowerUI(cached_data)
         
     if show_debug:
         draw_debug_window(cached_data)
         
     HeroAI_FloatingWindows.show_ui(cached_data) 
    
-def initialize(cached_data: CacheData) -> bool:
-    if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded():
+def initialize(cached_data: CacheData) -> bool:  
+    if not Map.IsMapReady():
+        return False
     
-        register_data(cached_data)
-
-        HeroAI_FloatingWindows.disable_main_automation(cached_data)
-        
-        handle_UI(cached_data)
-        
-        if not Map.IsExplorable():  # halt operation if not in explorable area
-            return False
-
-        if Map.IsInCinematic():  # halt operation during cinematic
-            return False
-        
-        HeroAI_Windows.DrawFlags(cached_data)
-        HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
-        cached_data.UpdateCombat()
-        
-        
+    if not GLOBAL_CACHE.Party.IsPartyLoaded():
+        return False
     
+    register_data(cached_data)
+    HeroAI_FloatingWindows.disable_main_automation(cached_data)    
+    handle_UI(cached_data)
+        
+    if not Map.IsExplorable():  # halt operation if not in explorable area
+        return False
+
+    if Map.IsInCinematic():  # halt operation during cinematic
+        return False
+        
+    HeroAI_Windows.DrawFlags(cached_data)
+    HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
+    cached_data.UpdateCombat()
     return True
+
         
 #region main  
 #DEPRECATED FOR BEHAVIOUR TREE IMPLEMENTATION
@@ -325,11 +327,11 @@ def initialize(cached_data: CacheData) -> bool:
 """def UpdateStatus(cached_data: CacheData) -> bool:
     
     if (
-            not Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
+            not Agent.IsAlive(Player.GetAgentID())
             or (HeroAI_FloatingWindows.DistanceToDestination(cached_data) >= Range.SafeCompass.value)
-            or Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
+            or Agent.IsKnockedDown(Player.GetAgentID())
             or cached_data.combat_handler.InCastingRoutine()
-            or Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+            or Agent.IsCasting(Player.GetAgentID())
         ):
             return False
 
@@ -339,7 +341,7 @@ def initialize(cached_data: CacheData) -> bool:
     if HandleOutOfCombat(cached_data):
         return True
 
-    if Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
+    if Agent.IsMoving(Player.GetAgentID()):
         return False
 
     if Loot(cached_data):
@@ -368,7 +370,7 @@ GlobalGuardNode = BehaviorTree.SequenceNode(
         BehaviorTree.ConditionNode(
             name="IsAlive",
             condition_fn=lambda:
-                Agent.IsAlive(GLOBAL_CACHE.Player.GetAgentID())
+                Agent.IsAlive(Player.GetAgentID())
         ),
 
         BehaviorTree.ConditionNode(
@@ -381,7 +383,7 @@ GlobalGuardNode = BehaviorTree.SequenceNode(
         BehaviorTree.ConditionNode(
             name="NotKnockedDown",
             condition_fn=lambda:
-                not Agent.IsKnockedDown(GLOBAL_CACHE.Player.GetAgentID())
+                not Agent.IsKnockedDown(Player.GetAgentID())
         ),
     ],
 )
@@ -392,7 +394,7 @@ CastingBlockNode = BehaviorTree.ConditionNode(
         BehaviorTree.NodeState.RUNNING
         if (
             cached_data.combat_handler.InCastingRoutine()
-            or Agent.IsCasting(GLOBAL_CACHE.Player.GetAgentID())
+            or Agent.IsCasting(Player.GetAgentID())
         )
         else BehaviorTree.NodeState.SUCCESS
 )
@@ -400,7 +402,7 @@ CastingBlockNode = BehaviorTree.ConditionNode(
     
     
 def movement_interrupt() -> BehaviorTree.NodeState:
-    if Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID()):
+    if Agent.IsMoving(Player.GetAgentID()):
         return BehaviorTree.NodeState.RUNNING   # block automation
     return BehaviorTree.NodeState.FAILURE      # allow next branch
 

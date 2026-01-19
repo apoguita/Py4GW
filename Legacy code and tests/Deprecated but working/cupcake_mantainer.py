@@ -1,6 +1,6 @@
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, AutoPathing, Py4GW, FSM, ConsoleLog, Color, DXOverlay,
-                          UIManager,ModelID, Agent, SkillManager, Map
+                          UIManager,ModelID, Agent, SkillManager, Map, Player
                          )
 from typing import List, Tuple, Any, Generator, Callable
 import PyImGui
@@ -85,7 +85,7 @@ class GeneralHelpers:
     
     @staticmethod
     def is_player_dead():
-        return Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID())
+        return Agent.IsDead(Player.GetAgentID())
 
 
 class StepNameCounters:
@@ -164,10 +164,10 @@ class LiveData:
         self.map_max_party_size = 0
 
     def update(self):
-        primary, secondary = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        primary, secondary = Agent.GetProfessionNames(Player.GetAgentID())
         self.player_profession_primary = primary
         self.player_profession_secondary = secondary
-        self.level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+        self.level = Agent.GetLevel(Player.GetAgentID())
         self.current_map_id = Map.GetMapID()
         self.map_max_party_size = Map.GetMaxPartySize()
         
@@ -326,7 +326,7 @@ class BottingHelpers:
             return False
 
         if dialog_id != 0:
-            GLOBAL_CACHE.Player.SendDialog(dialog_id)
+            Player.SendDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
         self.parent.config.dialog_at_succeeded._apply(True)
@@ -361,7 +361,7 @@ class BottingHelpers:
     def _alive_explorable(self) -> bool:
         return (Routines.Checks.Map.MapValid()
                 and Map.IsExplorable()
-                and not Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
+                and not Agent.IsDead(Player.GetAgentID()))
 
     def _use_first(self, model_list) -> bool:
         for m in model_list:
@@ -405,10 +405,10 @@ class BottingHelpers:
             if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
                 return
 
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 return
 
-            level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+            level = Agent.GetLevel(Player.GetAgentID())
 
             if level >= 20:
                 return
@@ -416,7 +416,7 @@ class BottingHelpers:
             summoning_stone = ModelID.Igneous_Summoning_Stone.value
             stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summoning_stone)
             imp_effect_id = 2886
-            has_effect = GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), imp_effect_id)
+            has_effect = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), imp_effect_id)
 
             imp_model_id = 513
             others = GLOBAL_CACHE.Party.GetOthers()
@@ -439,27 +439,27 @@ class BottingHelpers:
                 yield from Routines.Yield.wait(500)
                 continue
             
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(500)
                 continue
 
             cupcake__id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Birthday_Cupcake.value)
             cupcake_effect = GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")
             
-            if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), cupcake_effect) and cupcake__id:
+            if not GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), cupcake_effect) and cupcake__id:
                 GLOBAL_CACHE.Inventory.UseItem(cupcake__id)
                 yield from Routines.Yield.wait(500)
             
     def maintain_honeycomb(self):
         while True:
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(500)
                 continue
             
             target_morale = 110
             
             while True:
-                morale = GLOBAL_CACHE.Player.GetMorale()
+                morale = Player.GetMorale()
                 if morale >= target_morale:
                     yield from Routines.Yield.wait(500)
                     break
@@ -477,12 +477,12 @@ class BottingHelpers:
             if self.parent.config.use_grail.get():
                 if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
                     yield; continue
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     yield; continue
 
                 grail_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Grail_Of_Might.value)
                 grail_effect = GLOBAL_CACHE.Skill.GetID("Grail_Of_Might_skill")  # correct skill name
-                if grail_id and not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), grail_effect):
+                if grail_id and not GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), grail_effect):
                     GLOBAL_CACHE.Inventory.UseItem(grail_id)
                     yield from Routines.Yield.wait(500)
             yield from Routines.Yield.wait(500)
@@ -493,12 +493,12 @@ class BottingHelpers:
             if self.parent.config.use_salvation.get():
                 if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
                     yield; continue
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     yield; continue
 
                 salvation_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Armor_Of_Salvation.value)
                 salvation_effect = GLOBAL_CACHE.Skill.GetID("Armor_Of_Salvation_skill")  # correct skill name
-                if salvation_id and not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), salvation_effect):
+                if salvation_id and not GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), salvation_effect):
                     GLOBAL_CACHE.Inventory.UseItem(salvation_id)
                     yield from Routines.Yield.wait(500)
             yield from Routines.Yield.wait(500)
@@ -509,12 +509,12 @@ class BottingHelpers:
             if self.parent.config.use_celerity.get():
                 if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
                     yield; continue
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     yield; continue
 
                 celerity_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Essence_Of_Celerity.value)
                 celerity_effect = GLOBAL_CACHE.Skill.GetID("Essence_Of_Celerity_skill")  # correct skill name
-                if celerity_id and not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), celerity_effect):
+                if celerity_id and not GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), celerity_effect):
                     GLOBAL_CACHE.Inventory.UseItem(celerity_id)
                     yield from Routines.Yield.wait(500)
             yield from Routines.Yield.wait(500)
@@ -590,7 +590,7 @@ class BottingHelpers:
             if not self._alive_explorable():
                 yield; continue
 
-            if GLOBAL_CACHE.Player.GetMorale() >= target:
+            if Player.GetMorale() >= target:
                 yield; continue
 
             if self._use_first(self.MORALE_ITEMS):
@@ -606,7 +606,7 @@ class BottingHelpers:
             if not self._alive_explorable():
                 yield; continue
 
-            if GLOBAL_CACHE.Player.GetMorale() >= target:
+            if Player.GetMorale() >= target:
                 yield; continue
 
             if self._use_first(self.DP_REMOVAL):
@@ -803,7 +803,7 @@ class BottingHelpers:
     def get_path_to(self, x: float, y: float):
         path = yield from AutoPathing().get_path_to(x, y)
         self.parent.config.path = path.copy()
-        current_pos = GLOBAL_CACHE.Player.GetXY()
+        current_pos = Player.GetXY()
         self.parent.config.path_to_draw.clear()
         self.parent.config.path_to_draw.append((current_pos[0], current_pos[1]))
         self.parent.config.path_to_draw.extend(path.copy())
@@ -909,7 +909,7 @@ class BottingHelpers:
     def equip_item(self, model_id: int):
         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
         if item_id:
-            GLOBAL_CACHE.Inventory.EquipItem(item_id, GLOBAL_CACHE.Player.GetAgentID())
+            GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
             yield from Routines.Yield.wait(500)
         else:
             Py4GW.Console.Log(MODULE_NAME, "Crafted weapon not found in inventory.", Py4GW.Console.MessageType.Error)
@@ -925,7 +925,7 @@ class BottingHelpers:
     def spawn_bonus_items(self):
         summoning_stone_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Igneous_Summoning_Stone.value)
         if summoning_stone_in_bags < 1:
-            GLOBAL_CACHE.Player.SendChatCommand("bonus")
+            Player.SendChatCommand("bonus")
             yield from Routines.Yield.wait(250)
 
 

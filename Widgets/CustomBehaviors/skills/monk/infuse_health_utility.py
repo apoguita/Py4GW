@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range, Routines, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Routines, Agent, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -53,7 +53,7 @@ class InfuseHealthUtility(CustomSkillUtilityBase):
         Return allies ordered by priority (lowest HP, then distance) within spellcast range,
         excluding the player (caster) and only including allies that are injured (health < 1.0).
         """
-        player_agent = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent = Player.GetAgentID()
 
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast,
@@ -73,7 +73,7 @@ class InfuseHealthUtility(CustomSkillUtilityBase):
           and Life_Attunement (both must be True to proceed).
         - If buff checks pass, pick top injured ally and return emergency/damaged score as in SeedOfLife.
         """
-        player_agent = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent = Player.GetAgentID()
 
         # Simple, direct buff checks using Routines.Checks.Effects.HasBuff as requested
         try:
@@ -103,7 +103,7 @@ class InfuseHealthUtility(CustomSkillUtilityBase):
         """
         Execution path re-checks buffs defensively and then casts on the top target.
         """
-        player_agent = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent = Player.GetAgentID()
         try:
             has_aura = bool(Routines.Checks.Effects.HasBuff(player_agent, self._aura_skill.skill_id))
             has_life = bool(Routines.Checks.Effects.HasBuff(player_agent, self._life_skill.skill_id))

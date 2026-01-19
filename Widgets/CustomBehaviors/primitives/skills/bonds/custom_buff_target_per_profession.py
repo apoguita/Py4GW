@@ -3,7 +3,7 @@ from enum import IntEnum
 from typing import Callable, override
 
 import PyImGui
-from Py4GWCoreLib import GLOBAL_CACHE, ImGui, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, ImGui, Agent, Player
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.enums import Profession, Range
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
@@ -78,9 +78,9 @@ class BuffConfigurationPerProfession(CustomBuffTarget):
         if profession_id != profession.value:
             return False
 
-        if agent_id == GLOBAL_CACHE.Player.GetAgentID() :
+        if agent_id == Player.GetAgentID() :
             # if target is the player, check if the player has the effect
-            has_buff: bool = Routines.Checks.Effects.HasBuff(GLOBAL_CACHE.Player.GetAgentID(), self.custom_skill.skill_id)
+            has_buff: bool = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.custom_skill.skill_id)
             return not has_buff
         else:
             # else check if the party target has the effect

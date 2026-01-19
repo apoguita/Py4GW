@@ -1,6 +1,7 @@
 from typing import Any, Generator, override
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums import Profession, Range
+from Py4GWCoreLib import Agent, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -39,7 +40,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
                 within_range=Range.Spellcast,
                 condition=lambda agent_id: 
-                    agent_id != GLOBAL_CACHE.Player.GetAgentID() and 
+                    agent_id != Player.GetAgentID() and 
                     self.buff_configuration.get_agent_id_predicate()(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,

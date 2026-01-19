@@ -142,11 +142,11 @@ def attackRoutine(bot: "Botting"):
                     target = _find_best_target()
                     if target != None:
                         Player.ChangeTarget(target)
-                    if fortSkill.recharge == 0 and Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.80:
+                    if fortSkill.recharge == 0 and Agent.GetHealth(Player.GetAgentID()) < 0.80:
                         GLOBAL_CACHE.SkillBar.UseSkill(7)
                         yield from Routines.Yield.wait(1200)
                         continue
-                    if healSkill.recharge == 0 and Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
+                    if healSkill.recharge == 0 and Agent.GetHealth(Player.GetAgentID()) < 0.35:
                         GLOBAL_CACHE.SkillBar.UseSkill(8)
                         yield from Routines.Yield.Movement.FollowPath([(2496.01, -210.70)])
                         yield from Routines.Yield.wait(8000)
@@ -284,10 +284,10 @@ def Use_Frosty_Tonics():
         if ((not Routines.Checks.Map.MapValid()) and (Map.IsExplorable())):
             yield
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             yield
 
-        if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), Tonic_cooldown_effect) and Frost_Tonic_id:
+        if not GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), Tonic_cooldown_effect) and Frost_Tonic_id:
             GLOBAL_CACHE.Inventory.UseItem(Frost_Tonic_id)
             yield
 

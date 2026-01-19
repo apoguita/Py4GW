@@ -24,6 +24,8 @@ class DyeInfoStruct():
     dye3: int
     dye4: int
     
+    def snapshot(self) -> "DyeInfoStruct": ...
+    
 
 class ItemDataStruct():
     model_file_id: int
@@ -31,6 +33,8 @@ class ItemDataStruct():
     dye: DyeInfoStruct
     value: int
     interaction: int
+    
+    def snapshot(self) -> "ItemDataStruct": ...
 
 class EquipmentItemsUnion():
     items : list[ItemDataStruct]
@@ -43,6 +47,8 @@ class EquipmentItemsUnion():
     hands : ItemDataStruct
     costume_body : ItemDataStruct
     costume_head : ItemDataStruct
+    
+    def snapshot(self) -> "EquipmentItemsUnion": ...
 
 class EquipmentItemIDsUnion():
     item_ids: list[int]
@@ -55,6 +61,8 @@ class EquipmentItemIDsUnion():
     item_id_hands: int
     item_id_costume_body: int
     item_id_costume_head: int
+    
+    def snapshot(self) -> "EquipmentItemIDsUnion": ...
     
 class EquipmentStruct():
     vtable : int
@@ -71,6 +79,8 @@ class EquipmentStruct():
     shield_map : int
     items_union : EquipmentItemsUnion
     ids_union : EquipmentItemIDsUnion
+    
+    def snapshot(self) -> "EquipmentStruct": ...
 
     @property 
     def left_hand(self) -> Optional[ItemDataStruct]:...
@@ -88,13 +98,14 @@ class TagInfoStruct ():
     secondary: int
     level: int
     # ... (possible more fields)
-
-
+    def snapshot(self) -> "TagInfoStruct": ...
 
 class VisibleEffectStruct ():
     unk : int
     id : int  # Constants::EffectID
     has_ended : int
+    
+    def snapshot(self) -> "VisibleEffectStruct": ...
     
 class AgentLivingStruct(AgentStruct):
     owner : int
@@ -274,6 +285,8 @@ class AgentStruct():
     
     @property
     def is_living_type(self) -> bool:...
+    
+    def snapshot(self) -> "AgentStruct": ...
     
     def GetAsAgentItem(self) -> Optional[AgentItemStruct]:...
 

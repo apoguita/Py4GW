@@ -5,7 +5,7 @@ import sys
 import time
 from typing import Any
 
-from Py4GWCoreLib import Map, Routines, Agent
+from Py4GWCoreLib import Map, Routines, Agent, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import LootConfig
 from Py4GWCoreLib.enums import Range, SharedCommandType
@@ -166,7 +166,7 @@ class SimpleBot4Steps:
         loop_counter = 0
         while not GLOBAL_CACHE.Party.IsPartyDefeated():
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            sender_email = Player.GetAccountEmail()
             for account in accounts:
                 print("Resigning account: " + account.AccountEmail)
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))

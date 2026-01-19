@@ -26,65 +26,52 @@ Key functionalities include:
     PyImGui.text_wrapped(info)
     PyImGui.separator()
     
-    def _display_array_data(array:list[int], raw_array:list[AgentStruct], title:str):
+    def _display_array_data(array:list[int], title:str):
         # Display AgentArray data
-        if len(array) == 0 or len(raw_array) == 0:
+        if len(array) == 0:
             PyImGui.text(f"No {title} data available.")
             return
         PyImGui.text(f"--- {title} ---")
         PyImGui.indent(20.0)
         PyImGui.text(f"Total Agents in {title}: {len(array)}")
-        PyImGui.text(f"Total Raw Agents in {title}: {len(raw_array)}")
         PyImGui.separator()
         PyImGui.unindent(20.0)
         
     array = AgentArray.GetAgentArray()
-    raw_array = AgentArray.GetAgentArrayRaw()
-    _display_array_data(array, raw_array, "All Agents")
+    _display_array_data(array, "All Agents")
     
     ally_array = AgentArray.GetAllyArray()
-    raw_ally_array = AgentArray.GetAllyArrayRaw()
-    _display_array_data(ally_array, raw_ally_array, "Ally Agents")
+    _display_array_data(ally_array, "Ally Agents")
     
     neutral_array = AgentArray.GetNeutralArray()
-    raw_neutral_array = AgentArray.GetNeutralArrayRaw()
-    _display_array_data(neutral_array, raw_neutral_array, "Neutral Agents")
+    _display_array_data(neutral_array, "Neutral Agents")
     
     enemy_array = AgentArray.GetEnemyArray()
-    raw_enemy_array = AgentArray.GetEnemyArrayRaw()
-    _display_array_data(enemy_array, raw_enemy_array, "Enemy Agents")
+    _display_array_data(enemy_array, "Enemy Agents")
     
     spirit_pet_array = AgentArray.GetSpiritPetArray()
-    raw_spirit_pet_array = AgentArray.GetSpiritPetArrayRaw()
-    _display_array_data(spirit_pet_array, raw_spirit_pet_array, "Spirit/Pet Agents")
+    _display_array_data(spirit_pet_array, "Spirit/Pet Agents")
     
     minion_array = AgentArray.GetMinionArray()
-    raw_minion_array = AgentArray.GetMinionArrayRaw()
-    _display_array_data(minion_array, raw_minion_array, "Minion Agents")
+    _display_array_data(minion_array, "Minion Agents")
     
     npc_minipet_array = AgentArray.GetNPCMinipetArray()
-    raw_npc_minipet_array = AgentArray.GetNPCMinipetArrayRaw()
-    _display_array_data(npc_minipet_array, raw_npc_minipet_array, "NPC Minipet Agents")
+    _display_array_data(npc_minipet_array, "NPC Minipet Agents")
     
     item_array = AgentArray.GetItemArray()
-    raw_item_array = AgentArray.GetItemArrayRaw()
-    _display_array_data(item_array, raw_item_array, "Item Agents")
+    _display_array_data(item_array, "Item Agents")
     
     owned_item_array = AgentArray.GetOwnedItemArray()
-    raw_owned_item_array = AgentArray.GetOwnedItemArrayRaw()
-    _display_array_data(owned_item_array, raw_owned_item_array, "Owned Item Agents")
+    _display_array_data(owned_item_array, "Owned Item Agents")
     
     gadget_array = AgentArray.GetGadgetArray()
-    raw_gadget_array = AgentArray.GetGadgetArrayRaw()
-    _display_array_data(gadget_array, raw_gadget_array, "Gadget Agents")
+    _display_array_data(gadget_array, "Gadget Agents")
     
     dead_ally_array = AgentArray.GetDeadAllyArray()
-    raw_dead_ally_array = AgentArray.GetDeadAllyArrayRaw()
-    _display_array_data(dead_ally_array, raw_dead_ally_array, "Dead Ally Agents")
+    _display_array_data(dead_ally_array, "Dead Ally Agents")
     
     dead_enemy_array = AgentArray.GetDeadEnemyArray()
-    raw_dead_enemy_array = AgentArray.GetDeadEnemyArrayRaw()
-    _display_array_data(dead_enemy_array, raw_dead_enemy_array, "Dead Enemy Agents")
+    _display_array_data(dead_enemy_array, "Dead Enemy Agents")
 
 #region Main Window
 def draw_window():

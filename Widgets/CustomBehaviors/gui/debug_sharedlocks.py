@@ -1,7 +1,7 @@
 import os
 from collections import deque
 from datetime import datetime
-from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
+from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
@@ -15,7 +15,7 @@ py4gw_root_directory = project_root + f"\\..\\..\\"
 @staticmethod
 def render():
     
-    PyImGui.text(f"Current user : {GLOBAL_CACHE.Player.GetAccountEmail()} | {GLOBAL_CACHE.Player.GetName()}")
+    PyImGui.text(f"Current user : {Player.GetAccountEmail()} | {Player.GetName()}")
     PyImGui.text(f"History (newest on top) : ")
     if PyImGui.begin_child("x", size=(400, 600),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
 

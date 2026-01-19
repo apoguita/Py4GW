@@ -1,7 +1,7 @@
 from collections.abc import Callable, Generator
 import time
 from typing import Any, List
-from Py4GWCoreLib import Map, Agent, ItemArray, Bags, Routines
+from Py4GWCoreLib import Map, Agent, ItemArray, Bags, Routines, Player
 from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.GameData_enums import Range
@@ -51,7 +51,7 @@ class BottingHelpers:
 
         def search_item_id_by_name(item_name: str) -> int | None:
             item_array = AgentArray.GetItemArray()
-            item_array = AgentArray.Filter.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY(), Range.Spirit.value)
+            item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), Range.Spirit.value)
             for item_id in item_array:
                 name = Agent.GetNameByID(item_id)
                 # print(f"item {name}")
@@ -83,7 +83,7 @@ class BottingHelpers:
                 yield from custom_behavior_helpers.Helpers.wait_for(1000)
                 continue
             
-            GLOBAL_CACHE.Player.Interact(item_id, call_target=False)
+            Player.Interact(item_id, call_target=False)
             yield from custom_behavior_helpers.Helpers.wait_for(100)
 
             # ENSURE LOOT IS LOOTED
@@ -110,7 +110,7 @@ class BottingHelpers:
             if GLOBAL_CACHE.Party.IsPartyDefeated(): return True
 
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-            sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            sender_email = Player.GetAccountEmail()
             for account in accounts:
                 print("Resigning account: " + account.AccountEmail)
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.Resign, (0,0,0,0))

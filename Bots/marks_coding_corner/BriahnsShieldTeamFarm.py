@@ -9,7 +9,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Map, Agent
+from Py4GWCoreLib import Map, Agent, Player
 
 BOT_NAME = "Briahn's Shield Farm"
 TEXTURE = os.path.join(
@@ -72,11 +72,11 @@ def is_briahn_killed_or_time_elapsed():
     enemy_array = AgentArray.GetEnemyArray()
     enemy_array = AgentArray.Filter.ByCondition(
         enemy_array,
-        lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), Agent.GetXY(agent_id))
+        lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id))
         <= Range.SafeCompass.value,
     )
     enemy_array = AgentArray.Filter.ByCondition(
-        enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id
+        enemy_array, lambda agent_id: Player.GetAgentID() != agent_id
     )
     for enemy_id in enemy_array:
         if Agent.GetModelID(enemy_id) == BRIAHNS_MODEL_ID:
@@ -98,7 +98,7 @@ def reset_farm_flags():
 
 
 def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid → release FSM and exit
@@ -140,11 +140,11 @@ def handle_briahn_killed_en_route():
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByCondition(
             enemy_array,
-            lambda agent_id: Utils.Distance(GLOBAL_CACHE.Player.GetXY(), Agent.GetXY(agent_id))
+            lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id))
             <= Range.SafeCompass.value,
         )
         enemy_array = AgentArray.Filter.ByCondition(
-            enemy_array, lambda agent_id: GLOBAL_CACHE.Player.GetAgentID() != agent_id
+            enemy_array, lambda agent_id: Player.GetAgentID() != agent_id
         )
         for enemy_id in enemy_array:
             if Agent.GetModelID(enemy_id) == BRIAHNS_MODEL_ID:

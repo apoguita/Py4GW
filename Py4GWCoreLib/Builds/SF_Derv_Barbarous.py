@@ -10,7 +10,7 @@ from Py4GWCoreLib import Map
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ThrottledTimer
-from Py4GWCoreLib import Agent, DXOverlay
+from Py4GWCoreLib import Agent, DXOverlay, Player
 
 from typing import List, Tuple
 from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper
@@ -88,7 +88,7 @@ class SF_Derv_Barbarous(BuildMgr):
     def _CastHeartOfShadow(self):
         center_point1 = (10980, -21532)
         center_point2 = (11461, -17282)
-        player_pos = GLOBAL_CACHE.Player.GetXY()
+        player_pos = Player.GetXY()
         
         distance_to_center1 = Utils.Distance(player_pos, center_point1)
         distance_to_center2 = Utils.Distance(player_pos, center_point2)
@@ -123,7 +123,7 @@ class SF_Derv_Barbarous(BuildMgr):
     # Shroud of Distress watcher
     def _ShroudOfDistressWatcher(self):
         # Initial vars
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         has_sod = Routines.Checks.Effects.HasBuff(player_agent_id, self.shroud_of_distress)
         is_sod_ready = Routines.Checks.Skills.IsSkillIDReady(self.shroud_of_distress)
         is_sod_about_to_expire = has_sod and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shroud_of_distress) <= 2000
@@ -138,7 +138,7 @@ class SF_Derv_Barbarous(BuildMgr):
 
     def _ShadowFormWatcher(self):
         # Initial vars
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         self._has_sf = Routines.Checks.Effects.HasBuff(player_agent_id, self.shadow_form)
         is_sf_ready = yield from Routines.Yield.Skills.IsSkillIDUsable(self.shadow_form)
         self._is_sf_about_to_expire = self._has_sf and GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, self.shadow_form) <= 3000
@@ -160,7 +160,7 @@ class SF_Derv_Barbarous(BuildMgr):
 
     def _StabilityWatcher(self):
         # Initial vars
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         is_stability_ready = Routines.Checks.Skills.IsSkillIDReady(self.dwarven_stability)
         has_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
 
@@ -171,7 +171,7 @@ class SF_Derv_Barbarous(BuildMgr):
 
     def _StanceWatcher(self):
         # Initial vars
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
 
         is_pious_haste_ready = Routines.Checks.Skills.IsSkillIDReady(self.pious_haste)
         is_zealous_renewal_ready = Routines.Checks.Skills.IsSkillIDReady(self.zealous_renewal)
@@ -188,8 +188,8 @@ class SF_Derv_Barbarous(BuildMgr):
 
 
     def _IAUWatcher(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
-        (px, py) = GLOBAL_CACHE.Player.GetXY()
+        player_agent_id = Player.GetAgentID()
+        (px, py) = Player.GetXY()
 
         if Agent.IsCrippled(player_agent_id) or self.build_danger_helper.check_cripple_kd(px, py):
             has_iau = Routines.Checks.Effects.HasBuff(player_agent_id, self.i_am_unstoppable)
@@ -200,7 +200,7 @@ class SF_Derv_Barbarous(BuildMgr):
 
 
     def _DefensiveWatcher(self):
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         is_hos_ready = Routines.Checks.Skills.IsSkillIDReady(self.heart_of_shadow)
         is_emergency_health = Agent.GetHealth(player_agent_id) <= 0.2
 
@@ -228,7 +228,7 @@ class SF_Derv_Barbarous(BuildMgr):
                 continue
             
             # Player is dead
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
 
@@ -295,9 +295,9 @@ class SF_Derv_Barbarous(BuildMgr):
         
 
     #     SPELLCAST_RANGE = 1248.0
-    #     px, py = GLOBAL_CACHE.Player.GetXY()
+    #     px, py = Player.GetXY()
     #     pz = Overlay().FindZ(px, py)
-    #     heading = Agent.GetRotationAngle(GLOBAL_CACHE.Player.GetAgentID())
+    #     heading = Agent.GetRotationAngle(Player.GetAgentID())
     #     facing_vec = (math.cos(heading), math.sin(heading))
 
     #     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, max_distance=SPELLCAST_RANGE)

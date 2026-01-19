@@ -1,7 +1,7 @@
 from Py4GWCoreLib import*
 import time, Py4GW
 import traceback
-from Py4GWCoreLib import Key,  Map, ImGui, Botting, PyPlayer, ActionQueue, Agent
+from Py4GWCoreLib import Key,  Map, ImGui, Botting, ActionQueue, Agent
 
 
 #VARIABLES
@@ -44,8 +44,7 @@ text_input = "resign"
 text_bonus = "bonus"
 text_dialog = "dialog take"
 area_distance = GameAreas()
-PyPlayer.PyPlayer()
-player_instance = PyPlayer.PyPlayer()
+
 action_queue = ActionQueue()
 
 bot_vars = BotVars(map_id=148) #ASCALON
@@ -1801,7 +1800,7 @@ FSM_vars = StateMachineVars()
 #region Warrior
 #___________________________ WARRIOR LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
-FSM_vars.state_machine_warrior.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_warrior.AddState(name="COMMAND BONUS", execute_fn=lambda: Player.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_warrior.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_warrior.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_warrior.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
@@ -1846,7 +1845,7 @@ FSM_vars.state_machine_warrior.AddState(name="TAKING QUEST", execute_fn=lambda: 
 #region Ranger
 #___________________________ RANGER LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
-FSM_vars.state_machine_ranger.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_ranger.AddState(name="COMMAND BONUS", execute_fn=lambda: Player.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_ranger.AddState(name="EQUIP BOW", execute_fn=lambda: equipitem(5831, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_ranger.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_ranger.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
@@ -1892,7 +1891,7 @@ FSM_vars.state_machine_ranger.AddState(name="EQUIP WAND", execute_fn=lambda: equ
 #region Monk
 #___________________________ MONK LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
-FSM_vars.state_machine_monk.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_monk.AddState(name="COMMAND BONUS", execute_fn=lambda: Player.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_monk.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_monk.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_monk.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
@@ -1933,7 +1932,7 @@ FSM_vars.state_machine_monk.AddState(name="TAKING QUEST", execute_fn=lambda: Pla
 #region Necromancer
 #___________________________ NECROMANCER LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
-FSM_vars.state_machine_necromancer.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_necromancer.AddState(name="COMMAND BONUS", execute_fn=lambda: Player.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_necromancer.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_necromancer.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_necromancer.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
@@ -1978,7 +1977,7 @@ FSM_vars.state_machine_necromancer.AddState(name="TAKING QUEST", execute_fn=lamb
 #region Mesmer
 #___________________________ MESMER LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
-FSM_vars.state_machine_mesmer.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_mesmer.AddState(name="COMMAND BONUS", execute_fn=lambda: Player.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_mesmer.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_mesmer.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_mesmer.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)
@@ -2023,7 +2022,7 @@ FSM_vars.state_machine_mesmer.AddState(name="TAKING QUEST", execute_fn=lambda: P
 #region Elementalist
 #___________________________ ELEMENTALIST LVL 1 ___________________________#
 #START COMMON ROUTINE PART ONE
-FSM_vars.state_machine_elementalist.AddState(name="COMMAND BONUS", execute_fn=lambda: player_instance.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
+FSM_vars.state_machine_elementalist.AddState(name="COMMAND BONUS", execute_fn=lambda: Player.SendChatCommand(text_bonus), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_elementalist.AddState(name="EQUIP WAND", execute_fn=lambda: equipitem(6508, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_elementalist.AddState(name="EQUIP SHIELD", execute_fn=lambda: equipitem(6514, agent_id), exit_condition=lambda: LDoA_IsOutpost(), transition_delay_ms=1000, run_once=True)
 FSM_vars.state_machine_elementalist.AddState(name="GOING NEAR TOWN CRIER", execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.town_crier_pathing, FSM_vars.movement_handler), run_once=False)

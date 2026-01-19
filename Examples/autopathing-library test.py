@@ -37,15 +37,15 @@ def main():
 
     if PyImGui.begin("Pathing Test", PyImGui.WindowFlags.AlwaysAutoResize):
 
-        player_pos = GLOBAL_CACHE.Player.GetXY()
-        player_z = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+        player_pos = Player.GetXY()
+        player_z = Agent.GetZPlane(Player.GetAgentID())
         map_id = Map.GetMapID()
 
         x = PyImGui.input_int("Target X", x)
         y = PyImGui.input_int("Target Y", y)
 
         if PyImGui.button("Capture Start Position"):
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_pos = Player.GetXY()
             x = int(player_pos[0])
             y = int(player_pos[1])
             print(f"Captured start position: ({x}, {y})")
@@ -62,7 +62,7 @@ def main():
             path_requested = True
             def search_path_coroutine():
                 global result_path, path_requested, elapsed_time
-                zplane = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+                zplane = Agent.GetZPlane(Player.GetAgentID())
                 result_path = yield from pathing_object.get_path(
                     (player_pos[0], player_pos[1], zplane),
                     (x, y, zplane),

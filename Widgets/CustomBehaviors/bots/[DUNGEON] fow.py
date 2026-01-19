@@ -1,5 +1,5 @@
 from Py4GWCoreLib import Botting
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Player import Player
 from Widgets.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 
@@ -38,7 +38,7 @@ def bot_routine(bot_instance: Botting):
 def enter_fow(bot_instance: Botting):
     bot_instance.States.AddHeader("ENTER_FOW")
     bot_instance.Move.XY(-9943, 1052, "go to Statue of Balthazar")
-    bot_instance.States.AddCustomState(lambda: GLOBAL_CACHE.Player.SendChatCommand("kneel"), "kneel")
+    bot_instance.States.AddCustomState(lambda: Player.SendChatCommand("kneel"), "kneel")
     bot_instance.Wait.ForTime(6_000)
     bot_instance.Dialogs.AtXY(-9943, 1052, 0x85, "ask to enter")
     bot_instance.Dialogs.AtXY(-9943, 1052, 0x86, "accept to enter")

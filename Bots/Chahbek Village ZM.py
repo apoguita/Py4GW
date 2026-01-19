@@ -3,10 +3,12 @@ from typing import List, Tuple, Generator, Any
 import os
 from Py4GW import Console
 import PyImGui
-from Py4GWCoreLib import Key, Keystroke, Map, CHAR_MAP
+from Py4GWCoreLib import Key, Keystroke, Map, CHAR_MAP, Player
 from AccountData import MODULE_NAME
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager,)
+from Py4GWCoreLib.Context import GWContext
+
 LAST_CHARACTER_NAME: str = ""
 LAST_PRIMARY_PROF: str = ""
 LAST_CAMPAIGN: str = "Nightfall"
@@ -16,9 +18,9 @@ bot = Botting("Chahbek Village ZM")
 def create_bot_routine(bot: Botting) -> None:
     global LAST_CHARACTER_NAME, LAST_PRIMARY_PROF, LAST_CAMPAIGN
     # capture early while still in game
-    LAST_CHARACTER_NAME = GLOBAL_CACHE.Player.GetName() or LAST_CHARACTER_NAME
+    LAST_CHARACTER_NAME = Player.GetName() or LAST_CHARACTER_NAME
     try:
-        p, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        p, _ = Agent.GetProfessionNames(Player.GetAgentID())
         if p:
             LAST_PRIMARY_PROF = p
     except Exception:
@@ -83,7 +85,7 @@ def Meeting_First_Spear_Jahdugar(bot: Botting):
 
 def Equip_Weapon():
         global bot
-        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
         if profession == "Dervish":
             bot.Items.Equip(15591)  # starter scythe
         elif profession == "Paragon":
@@ -188,7 +190,7 @@ def _resolve_character_name():
     global LAST_CHARACTER_NAME
 
     # 1) In game
-    login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(GLOBAL_CACHE.Player.GetAgentID())
+    login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(Player.GetAgentID())
     name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
     if name:
         LAST_CHARACTER_NAME = name
@@ -199,12 +201,12 @@ def _resolve_character_name():
 
     # 2) Character selection screen
     try:
-        if GLOBAL_CACHE.Player.InCharacterSelectScreen():
-            pregame = GLOBAL_CACHE.Player.GetPreGameContext()
-            if pregame and hasattr(pregame, "chars") and hasattr(pregame, "index_1"):
+        if Map.Pregame.InCharacterSelectScreen():
+            pregame = GWContext.PreGame.GetContext()
+            if pregame and hasattr(pregame, "chars_list") and hasattr(pregame, "chosen_character_index"):
                 idx = int(pregame.chosen_character_index)
-                if 0 <= idx < len(pregame.chars):
-                    name = str(pregame.chars[idx])
+                if 0 <= idx < len(pregame.chars_list):
+                    name = str(pregame.chars_list[idx])
                     if name:
                         LAST_CHARACTER_NAME = name
                         yield from Routines.Yield.wait(100)
@@ -227,9 +229,9 @@ def _has(obj, name: str) -> bool:
 def _pregame_character_list() -> list[str]:
     """Best-effort: returns the list of characters seen in selection screen."""
     try:
-        pregame = GLOBAL_CACHE.Player.GetPreGameContext()
-        if pregame and hasattr(pregame, "chars"):
-            return [str(x) for x in list(getattr(pregame, "chars"))]
+        pregame = GWContext.PreGame.GetContext()
+        if pregame and hasattr(pregame, "chars_list"):
+            return [str(x) for x in list(getattr(pregame, "chars_list"))]
     except Exception:
         pass
     return []
@@ -329,7 +331,7 @@ def LogoutAndDeleteState():
         ConsoleLog("Reroll", "Unable to resolve character name. Abort.", Console.MessageType.Error)
         return
 
-    primary_prof, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary_prof, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if not primary_prof:
         primary_prof = LAST_PRIMARY_PROF or "Warrior"
     campaign_name = "Nightfall"
@@ -348,7 +350,7 @@ def LogoutAndDeleteState():
     # ------------------------------------------------------------
     # 2) LOGOUT
     # ------------------------------------------------------------
-    GLOBAL_CACHE.Player.LogoutToCharacterSelect()
+    Map.Pregame.LogoutToCharacterSelect()
     yield from Routines.Yield.wait(7000)
 
     # ------------------------------------------------------------
@@ -376,7 +378,7 @@ def LogoutAndDeleteState():
     # 4) Decide name immediately (no long wait)
     # ------------------------------------------------------------
     try:
-        names = [c.player_name for c in GLOBAL_CACHE.Player.GetLoginCharacters()]
+        names = [c.player_name for c in Map.Pregame.GetAvailableCharacterList()]
     except Exception:
         names = []
 
@@ -546,7 +548,7 @@ iconwidth = 96
 
 def _draw_texture():
     global iconwidth
-    level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    level = Agent.GetLevel(Player.GetAgentID())
 
     path = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "Leveling", "Nightfall","Nightfall_leveler-art.png")
     size = (float(iconwidth), float(iconwidth))
@@ -624,7 +626,7 @@ def ScheduleNextRun():
     """State: waits to be in game, then re-adds the entire routine (infinite loop)."""
     # If we just rerolled, we might be in character selection screen for a few seconds.
     for _ in range(200):  # ~20s max
-        if not GLOBAL_CACHE.Player.InCharacterSelectScreen():
+        if not Map.Pregame.InCharacterSelectScreen():
             # we're either loading or in game
             break
         yield from Routines.Yield.wait(100)

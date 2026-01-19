@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, Generator, List
 
 from Bots.aC_Scripts.aC_api import Blessing_dialog_helper, Verify_Blessing
-from Py4GWCoreLib import AgentArray
+from Py4GWCoreLib import AgentArray, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.enums import Allegiance, Range
@@ -30,7 +30,7 @@ class BlessingNpc(Enum):
 
 def find_first_blessing_npc(within_range:float)  -> tuple[BlessingNpc,int] | None:
     
-    player_pos = GLOBAL_CACHE.Player.GetXY()
+    player_pos = Player.GetXY()
 
     agent_ids: list[int] = AgentArray.GetAgentArray()
     agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsValid(agent_id))
@@ -75,7 +75,7 @@ def __norn_sequence(npc_result:tuple[BlessingNpc,int], timeout_ms:int) -> Genera
 
     # Stage 2: either already blessed or wait for hostility
     yield from custom_behavior_helpers.Helpers.wait_for(1000)
-    if Verify_Blessing.has_any_blessing(GLOBAL_CACHE.Player.GetAgentID()):
+    if Verify_Blessing.has_any_blessing(Player.GetAgentID()):
         return True
 
     # Stage 3: wait until friendly again
@@ -150,7 +150,7 @@ def __kurzick_luxon_sequence(npc_result:tuple[BlessingNpc,int], timeout_ms:int) 
         return False
     yield from custom_behavior_helpers.Helpers.wait_for(500)
 
-    if Verify_Blessing.has_any_blessing(GLOBAL_CACHE.Player.GetAgentID()):
+    if Verify_Blessing.has_any_blessing(Player.GetAgentID()):
         if constants.DEBUG: print("has_any_blessing=True")
         return True
     else:

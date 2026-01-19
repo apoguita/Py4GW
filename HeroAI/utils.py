@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Map, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Map, Agent, Player
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from .constants import MAX_NUM_PLAYERS
 from .targeting import *
@@ -13,10 +13,10 @@ def SameMapAsAccount(account : AccountData):
     return own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
 
 def DistanceFromLeader(cached_data:CacheData):
-    return Utils.Distance(Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),Agent.GetXY(GLOBAL_CACHE.Player.GetAgentID()))
+    return Utils.Distance(Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),Agent.GetXY(Player.GetAgentID()))
 
 def DistanceFromWaypoint(posX,posY):
-    distance = Utils.Distance((posX,posY), GLOBAL_CACHE.Player.GetXY())
+    distance = Utils.Distance((posX,posY), Player.GetXY())
     return distance if distance > 200 else 0
 
 

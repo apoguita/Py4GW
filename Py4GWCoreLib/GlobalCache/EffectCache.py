@@ -1,5 +1,4 @@
 import PyEffects
-import PyPlayer
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 
 class EffectsCache:
@@ -25,9 +24,9 @@ class EffectsCache:
 
     @classmethod
     def DropBuff(cls, buff_id: int):
+        from ..Player import Player
         _action_queue_manager:ActionQueueManager = ActionQueueManager()
-        player_instance = PyPlayer.PyPlayer()
-        agent_id = player_instance.id
+        agent_id = Player.GetAgentID()
         effect_instance = PyEffects.PyEffects(agent_id)
 
         def drop_and_update():
@@ -82,8 +81,8 @@ class EffectsCache:
 
     @classmethod
     def GetBuffID(cls, skill_id: int) -> int:
-        player_instance = PyPlayer.PyPlayer()
-        agent_id = player_instance.id
+        from ..Player import Player
+        agent_id = Player.GetAgentID()
         for buff in cls.GetBuffs(agent_id):
             if buff.skill_id == skill_id:
                 return buff.buff_id

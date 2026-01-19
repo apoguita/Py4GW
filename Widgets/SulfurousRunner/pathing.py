@@ -6,6 +6,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Agent import Agent
+from Py4GWCoreLib.Player import Player
 from .waypoint import Waypoint3D, Waypoints
 from .globals import Global
 
@@ -17,7 +18,7 @@ def update_waypoints():
     if not waypoints:
         return
     
-    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+    player_x, player_y = Player.GetXY()
     closest_distance = float("inf")
     
     for idx, wp in enumerate(waypoints):
@@ -48,8 +49,8 @@ def search_path_generator(waypoints : list[Waypoint3D] | None = None) -> Generat
     
     g = Global()        
             
-    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
-    zplane = Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID())
+    player_x, player_y = Player.GetXY()
+    zplane = Agent.GetZPlane(Player.GetAgentID())
     
     for idx in range(g.closest_waypoint, len(waypoints)):                
         if idx in g.paths and idx != g.closest_waypoint:

@@ -54,7 +54,7 @@ class OutpostRunnerDA:
             if not Routines.Checks.Map.MapValid():
                 yield from Routines.Yield.wait(1000)
                 continue
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(1000)
                 continue
             if not Routines.Checks.Skills.CanCast():
@@ -62,8 +62,8 @@ class OutpostRunnerDA:
                 yield from Routines.Yield.wait(100)
                 continue
 
-            player_id = GLOBAL_CACHE.Player.GetAgentID()
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_id = Player.GetAgentID()
+            player_pos = Player.GetXY()
             px, py = player_pos[0], player_pos[1]
             # Unit vector for player's facing direction (to evaluate front/back for targeting)
             facing_angle = Agent.GetRotationAngle(player_id)
@@ -142,7 +142,7 @@ class OutpostRunnerDA:
             # Count alive hostiles in close proximity
             close_count = 0
             for eid in close_enemies:
-                if Agent.IsAlive(eid) and GLOBAL_CACHE.Player.GetAgentID() != eid:
+                if Agent.IsAlive(eid) and Player.GetAgentID() != eid:
                     # Only count distinct living enemies
                     close_count += 1
                     if close_count >= 3:
@@ -171,7 +171,7 @@ class OutpostRunnerDA:
                     if Routines.Yield.Skills.CastSkillID(self.deaths_charge, log=False, aftercast_delay=1000):
                         yield from Routines.Yield.wait(1000)
                         # After teleporting, drop target to avoid fighting
-                        GLOBAL_CACHE.Player.ChangeTarget(0)
+                        Player.ChangeTarget(0)
                         continue
 
             # **6. Shadow Step for Distance (Heart of Shadow):** use on rear enemy for forward escape
@@ -196,7 +196,7 @@ class OutpostRunnerDA:
                                Py4GW.Console.MessageType.Info, log=False)
                     if Routines.Yield.Skills.CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=500):
                         yield from Routines.Yield.wait(500)
-                        GLOBAL_CACHE.Player.ChangeTarget(0)
+                        Player.ChangeTarget(0)
                         # (Heart of Shadow heals as well, providing sustain during the run)
                         continue
                 

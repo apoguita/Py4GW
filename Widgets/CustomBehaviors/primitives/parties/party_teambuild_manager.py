@@ -9,7 +9,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.routines_src.Yield import Yield
-from Py4GWCoreLib import Utils
+from Py4GWCoreLib import Utils, Player
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.parties.pawned2.Pawned2TeamBuild import Pawned2TeamBuild
@@ -211,7 +211,7 @@ class PartyTeamBuildManager:
                 return False
 
             # Get my account email
-            my_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            my_email = Player.GetAccountEmail()
             if not my_email:
                 return False
 
@@ -254,7 +254,7 @@ class PartyTeamBuildManager:
         self.throttler.Reset()
 
         # Update In-memory
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         template = Utils.GenerateSkillbarTemplate()
         self.set_template_for_account(account_email, template)
 
@@ -287,7 +287,7 @@ class PartyTeamBuildManager:
 
     def apply_skillbar_template(self, template_code: str, account_email: str):
         # let's ask a specific account to apply a skillbar template.
-        sender_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        sender_email = Player.GetAccountEmail()
         if constants.DEBUG: print(f"SendMessage {account_email} to {account_email}")
         extra_data: tuple[str, str, str, str] = self.__build_extra_data(template_code)
         GLOBAL_CACHE.ShMem.SendMessage(sender_email, account_email, SharedCommandType.LoadSkillTemplate, ExtraData = extra_data)

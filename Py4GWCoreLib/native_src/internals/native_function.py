@@ -1,8 +1,12 @@
 from enum import IntEnum
-from typing import Optional, Union
+from typing import Optional, Union, TypeVar
+import ctypes
 from .prototypes import NativeFunctionPrototype, Prototypes
 import Py4GW
 from ...Scanner import Scanner
+
+T = TypeVar("T")
+
 class ScannerSection(IntEnum):
     TEXT = 0
     RDATA = 1
@@ -71,12 +75,54 @@ class NativeFunction:
         except Exception as e:
             print(f"Error initializing function {self.name}: {e}")
             return None
+        
+    @classmethod
+    def from_address(
+            cls,
+            name: str,
+            address: int,
+            prototype: NativeFunctionPrototype,
+            report_success: bool = False,
+        ):
+            nf = cls.__new__(cls)
+
+            nf.name = name
+            nf.pattern = b""
+            nf.mask = ""
+            nf.offset = 0
+            nf.section = ScannerSection.TEXT
+            nf.prototype = prototype
+            nf.use_near_call = False
+            nf.near_call_offset = 0
+            nf.report_success = report_success
+
+            nf.func_ptr = prototype.build()(address)
+            nf.initialized = True
+
+            if report_success:
+                print(f"Function {name} bound directly at {hex(address)}")
+
+            return nf
 
     def is_valid(self) -> bool:
         return self.initialized and self.func_ptr is not None
     
     def get_pointer(self):
         return self.func_ptr
+    
+    def get_address(self) -> int:
+        if not self.is_valid():
+            raise RuntimeError(f"{self.name} not initialized")
+
+        if callable(self.func_ptr):
+            value =  ctypes.cast(self.func_ptr, ctypes.c_void_p).value
+            return value if value is not None else 0
+
+        if isinstance(self.func_ptr, int):
+            return self.func_ptr
+
+        raise RuntimeError("Invalid function pointer state")
+    
     
     # -------------------------------------------------------------
     # UNSAFE — direct native call
@@ -129,3 +175,4 @@ class NativeFunction:
         status = "Initialized" if self.is_valid() else "Not Initialized"
         return f"<NativeFunction {self.name}: {status}>"
     
+

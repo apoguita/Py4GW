@@ -1,6 +1,6 @@
 from typing import Any, Generator
 
-from Py4GWCoreLib import Map, Agent
+from Py4GWCoreLib import Map, Agent, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 
@@ -37,6 +37,6 @@ class PathHelper:
 
     @staticmethod
     def build_valid_path(path_2d: list[tuple[float, float]]) -> Generator[Any, None, list[tuple[float, float]]]:
-        z = float(Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID()))
+        z = float(Agent.GetZPlane(Player.GetAgentID()))
         result = yield from PathHelper.__chain_paths(path_2d, z)
         return result

@@ -1,7 +1,7 @@
 from tkinter.constants import N
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -55,10 +55,10 @@ class HeartofShadowUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        if Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.05:
+        if Agent.GetHealth(Player.GetAgentID()) < 0.05:
             return 97
 
-        if Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID()) < 0.35:
+        if Agent.GetHealth(Player.GetAgentID()) < 0.35:
             return 97
 
         if self.is_player_stuck:

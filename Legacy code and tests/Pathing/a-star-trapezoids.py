@@ -208,7 +208,7 @@ def main():
                 navmesh = NavMesh(pathing_maps)
 
             if navmesh:
-                start_pos = GLOBAL_CACHE.Player.GetXY()
+                start_pos = Player.GetXY()
                 goal_pos = (0.0, 0.0)
                 
 

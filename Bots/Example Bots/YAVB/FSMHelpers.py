@@ -5,7 +5,7 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib.enums import ModelID, TitleID, SharedCommandType, Range
 from Py4GWCoreLib import ItemArray
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Player
 from typing import List, Tuple
 from Py4GWCoreLib import LootConfig
 from Py4GWCoreLib import Profession
@@ -110,7 +110,7 @@ class _FSM_Helpers:
             yield from Routines.Yield.wait(100)
             
         def _send_message(self,message:SharedCommandType, params: tuple = ()):
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            account_email = Player.GetAccountEmail()
             GLOBAL_CACHE.ShMem.SendMessage(account_email,account_email, message, params)
             
         def _get_materials_to_sell(self):
@@ -205,7 +205,7 @@ class _FSM_Helpers:
             if not self._parent.script_running:
                 return True
             
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 return True
             
             return False
@@ -432,7 +432,7 @@ class _FSM_Helpers:
                 if Map.IsMapLoading():
                     return
  
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     self._parent.run_to_jaga_stats.EndCurrentRun(failed=True, deaths=1)
                     self._parent.running_to_jaga = False
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
@@ -519,7 +519,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()
                 
@@ -529,7 +529,7 @@ class _FSM_Helpers:
             self._parent.SetCurrentStep("Wait for Left Aggro Ball", 0.05)
             self._parent.in_waiting_routine = True
 
-            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            player_id = Player.GetAgentID()
             start_time = 0
 
             while start_time < 150:  # 150 * 100ms = 15 seconds
@@ -539,7 +539,7 @@ class _FSM_Helpers:
                 self._parent.AdvanceProgress(start_time / 150.0)
 
                 # Get current player position
-                player_pos = GLOBAL_CACHE.Player.GetXY()
+                player_pos = Player.GetXY()
                 px, py = player_pos[0], player_pos[1]
 
                 # Get nearby enemies
@@ -584,7 +584,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()
                     
@@ -594,7 +594,7 @@ class _FSM_Helpers:
             self._parent.SetCurrentStep("Wait for Right Aggro Ball", 0.05)
             self._parent.in_waiting_routine = True
 
-            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            player_id = Player.GetAgentID()
             elapsed = 0
 
             while elapsed < 150:  # 150 * 100ms = 15s max
@@ -603,7 +603,7 @@ class _FSM_Helpers:
                 self._parent.AdvanceProgress(elapsed / 150.0)
 
                 # Get player position
-                px, py = GLOBAL_CACHE.Player.GetXY()
+                px, py = Player.GetXY()
 
                 # Get enemies within earshot
                 enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
@@ -646,7 +646,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
 
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                 yield from self._reset_execution()
                 
@@ -657,7 +657,7 @@ class _FSM_Helpers:
                     build = self._parent.build  # now Pylance sees it as non-Optional
                     build.SetKillingRoutine(self._parent.in_killing_routine)
 
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_pos = Player.GetXY()
             enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0],player_pos[1],Range.Spellcast.value)
             
             start_time = Utils.GetBaseTimestamp()
@@ -674,7 +674,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                     
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()   
                 yield from Routines.Yield.wait(1000)
@@ -734,7 +734,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from Routines.Yield.wait(1000)
                     yield from self._reset_execution()
@@ -764,7 +764,7 @@ class _FSM_Helpers:
                 if not self._parent.script_running:
                     return
                 
-                if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+                if Agent.IsDead(Player.GetAgentID()):
                     self._parent.LogMessage("Death", "Player is dead, restarting.", LogConsole.LogSeverity.WARNING)
                     yield from self._reset_execution()
             

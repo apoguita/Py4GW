@@ -325,7 +325,7 @@ def DrawWindow():
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
     
     try:    
-        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not GLOBAL_CACHE.Player.InCharacterSelectScreen()
+        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen()
         
         if not show_ui:
             return

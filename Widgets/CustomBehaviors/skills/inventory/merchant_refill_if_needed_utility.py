@@ -5,7 +5,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, ItemArray, Routines, Range, Map, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, ItemArray, Routines, Range, Map, Agent, Player
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import Utils
 from Widgets.CustomBehaviors.primitives import constants
@@ -109,7 +109,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
 
     def _get_target(self, merchant_type: MerchantType) -> int | None:
         agent_ids = AgentArray.GetNPCMinipetArray()
-        agent_ids = AgentArray.Filter.ByDistance(agent_ids, GLOBAL_CACHE.Player.GetXY(), Range.Compass.value)
+        agent_ids = AgentArray.Filter.ByDistance(agent_ids, Player.GetXY(), Range.Compass.value)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id) and Agent.IsValid(agent_id))
 
         if merchant_type == MerchantType.MERCHANT:
@@ -142,13 +142,13 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
 
         print(f"Visiting {merchant_type.name}...")
         target_position : tuple[float, float] = Agent.GetXY(target_agent_id)
-        if Utils.Distance(target_position, GLOBAL_CACHE.Player.GetXY()) > 150:
+        if Utils.Distance(target_position, Player.GetXY()) > 150:
             path3d = yield from AutoPathing().get_path_to(target_position[0], target_position[1], smooth_by_los=True, margin=100.0, step_dist=300.0)
             path2d:list[tuple[float, float]]  = [(x, y) for (x, y, *_ ) in path3d]
 
             yield from Routines.Yield.Movement.FollowPath(
                     path_points= path2d,
-                    custom_exit_condition=lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()),
+                    custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
                     tolerance=150,
                     log=constants.DEBUG,
                     timeout=10_000,
@@ -156,7 +156,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
                     custom_pause_fn=lambda: False)
 
         print(f"Merchant reached.")
-        GLOBAL_CACHE.Player.Interact(target_agent_id, call_target=True)
+        Player.Interact(target_agent_id, call_target=True)
         visit_duration_in_seconds = self.visit_duration_in_seconds_config[merchant_type]
         yield from custom_behavior_helpers.Helpers.wait_for(visit_duration_in_seconds * 1000)
         self.npc_visited[merchant_type] = True
@@ -253,7 +253,7 @@ class MerchantRefillIfNeededUtility(CustomSkillUtilityBase):
                 agent_id = self._get_target(merchant_type)
                 if agent_id is not None:
                     target_pos = Agent.GetXY(agent_id)
-                    player_pos = GLOBAL_CACHE.Player.GetXY()
+                    player_pos = Player.GetXY()
                     distance = Utils.Distance(target_pos, player_pos)
                     PyImGui.bullet_text(f"{merchant_type.name}: (ID: {agent_id}, dist: {distance:.0f})")
                 else:

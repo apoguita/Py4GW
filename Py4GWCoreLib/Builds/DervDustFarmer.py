@@ -120,16 +120,16 @@ class DervDustFarmer(BuildMgr):
             yield from self.swap_to_shield_set()
             self.spiked = False
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and Agent.IsMoving(
-                GLOBAL_CACHE.Player.GetAgentID()
+                Player.GetAgentID()
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
                 return
 
-        player_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        player_agent_id = Player.GetAgentID()
         has_dwarven_stability = Routines.Checks.Effects.HasBuff(player_agent_id, self.dwarven_stability)
         has_mystic_regen = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_regen)
         has_mystic_vigor = Routines.Checks.Effects.HasBuff(player_agent_id, self.mystic_vigor)
-        player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        player_hp = Agent.GetHealth(Player.GetAgentID())
 
         if (
             (yield from Routines.Yield.Skills.IsSkillIDUsable(self.mystic_vigor))
@@ -162,7 +162,7 @@ class DervDustFarmer(BuildMgr):
             if (
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
                 and has_dwarven_stability
-                and Agent.IsMoving(GLOBAL_CACHE.Player.GetAgentID())
+                and Agent.IsMoving(Player.GetAgentID())
             ):
                 yield from Routines.Yield.Skills.CastSkillID(self.dash, aftercast_delay=100)
                 return
@@ -172,7 +172,7 @@ class DervDustFarmer(BuildMgr):
             self.spiked = False
 
         if self.status == DervBuildFarmStatus.Kill:
-            player_pos = GLOBAL_CACHE.Player.GetXY()
+            player_pos = Player.GetXY()
             player_current_energy = Agent.GetEnergy(player_agent_id) * Agent.GetMaxEnergy(
                 player_agent_id
             )
@@ -183,7 +183,7 @@ class DervDustFarmer(BuildMgr):
                 yield from self.swap_to_scythe()
                 if self.is_target_correct_model_id(next_target, AgentModelID.SPINED_ALOE):
                     agent_x, agent_y = Agent.GetXY(next_target)
-                    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+                    player_x, player_y = Player.GetXY()
 
                     # === Step 1: Calculate vector from player -> target ===
                     dx = agent_x - player_x
@@ -205,7 +205,7 @@ class DervDustFarmer(BuildMgr):
                         sidestep_y = player_y + sy * sidestep_distance
 
                         # === Step 4: Move to sidestep position first ===
-                        GLOBAL_CACHE.Player.Move(sidestep_x, sidestep_y)
+                        Player.Move(sidestep_x, sidestep_y)
                         yield from Routines.Yield.wait(1000)  # small wait
 
                         # === Step 5: Move to a point within Adjacent range of target ===
@@ -213,7 +213,7 @@ class DervDustFarmer(BuildMgr):
                         final_x = agent_x - nx * stop_distance
                         final_y = agent_y - ny * stop_distance
 
-                        GLOBAL_CACHE.Player.Move(final_x, final_y)
+                        Player.Move(final_x, final_y)
                         yield from Routines.Yield.wait(2000)  # allow move to finish
 
                 yield from Routines.Yield.Agents.InteractAgent(next_target)

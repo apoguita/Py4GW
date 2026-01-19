@@ -4,7 +4,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils
 
 from Widgets.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -39,13 +39,13 @@ class MoveIfStuckUtility(CustomSkillUtilityBase):
     def player_stuck(self, message: EventMessage)-> Generator[Any, Any, Any]:
         if not self.are_common_pre_checks_valid(message.current_state): return
 
-        current_x, current_y = GLOBAL_CACHE.Player.GetXY()
+        current_x, current_y = Player.GetXY()
         # Keep the nudge smaller than the threshold so it doesn't falsely clear stuck state
         threshold:float = message.data
         max_nudge = max(1.0, (threshold / 2) - 2.0)
         offset_x = random.uniform(-max_nudge, max_nudge)
         offset_y = random.uniform(-max_nudge, max_nudge)
-        GLOBAL_CACHE.Player.Move(current_x + offset_x, current_y + offset_y)
+        Player.Move(current_x + offset_x, current_y + offset_y)
         yield from custom_behavior_helpers.Helpers.wait_for(500)
 
     @override

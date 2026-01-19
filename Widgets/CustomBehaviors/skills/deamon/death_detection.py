@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Map, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Map, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -57,7 +57,7 @@ class DeathDetectionUtility(CustomSkillUtilityBase):
         if custom_behavior_helpers.Resources.is_party_dead():
             return self.score_definition.get_score()
         
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             return self.score_definition.get_score()
         
         # Player/Party is alive again; clear any pending death timer
@@ -73,7 +73,7 @@ class DeathDetectionUtility(CustomSkillUtilityBase):
                 yield from self.event_bus.publish(EventType.PARTY_DEATH, state)
                 return BehaviorResult.ACTION_PERFORMED
             
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             if self.__death_timer.IsExpired():
                 yield from self.event_bus.publish(EventType.PLAYER_CRITICAL_DEATH, state)
                 return BehaviorResult.ACTION_PERFORMED

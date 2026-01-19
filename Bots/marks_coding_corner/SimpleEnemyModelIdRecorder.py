@@ -27,7 +27,7 @@ def record_current_enemies():
     """Scan nearby enemies and record their names + model IDs."""
     global recorded_agents
 
-    player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+    player_x, player_y = Player.GetXY()
     enemy_agent_ids = Routines.Agents.GetFilteredEnemyArray(
         player_x, player_y, Range.SafeCompass.value
     )

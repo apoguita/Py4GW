@@ -436,22 +436,21 @@ class Compass():
             hit = mouse[0] and Utils.point_in_polygon(mouse[1], mouse[2], quad)
 
         if hit:
-            GLOBAL_CACHE.Player.ChangeTarget(id)
+            Player.ChangeTarget(id)
         
     def DrawAgents(self):
         io = self.imgui.get_io()
         mouse = (PyImGui.is_mouse_clicked(0), io.mouse_pos_x, io.mouse_pos_y)
 
-        def GetAgentValid(agent):
-            if agent.agent_id and Utils.Distance((agent.pos.x, agent.pos.y), self.position.player_pos) <= self.position.culling:
+        def GetAgentValid(agent_id):
+            if agent_id and Utils.Distance((Agent.GetXY(agent_id)), self.position.player_pos) <= self.position.culling:
                 return True
             return False
         
-        def GetAgentParams(agent):
-            living_obj = agent.GetAsAgentLiving()
-            if living_obj is None:
-                return 0.0, agent.agent_id == self.target_id, False
-            return self.position.rotation - agent.rotation_angle, agent.agent_id == self.target_id, living_obj.is_alive
+        def GetAgentParams(agent_id):
+            if not Agent.IsLiving(agent_id):
+                return 0.0, agent_id == self.target_id, False
+            return self.position.rotation - Agent.GetRotationAngle(agent_id), agent_id == self.target_id, Agent.IsAlive(agent_id)
         
         def GetSpiritParams(model_id):
             fill_color = None
@@ -506,151 +505,146 @@ class Compass():
                 
             return (False, None, None, None, None, None)
         
-        def CheckCustomMarkers(agent):
-            living_obj = agent.GetAsAgentLiving()
-            if living_obj is None:
+        def CheckCustomMarkers(agent_id):
+            if not Agent.IsLiving(agent_id):
                 return False
             
-            model_id = living_obj.player_number
+            model_id = Agent.GetPlayerNumber(agent_id)
             for marker in self.config.custom_markers.values():
                 if marker.visible and model_id == marker.model_id:
-                    rot, is_target, is_alive = GetAgentParams(agent)
+                    rot, is_target, is_alive = GetAgentParams(agent_id)
                     if marker.fill_range > 0:
                         color = Utils.ColorToTuple(marker.color)
                         fill_color = Utils.TupleToColor((color[0],color[1],color[2],self.config.spirit_alpha/255))
                     else:
                         fill_color = None
-                    self.DrawAgent(agent.agent_id, mouse, marker.visible, marker.size, marker.shape, marker.color, marker.fill_range, fill_color, agent.pos.x, agent.pos.y, rot, is_alive, is_target)
+                    self.DrawAgent(agent_id, mouse, marker.visible, marker.size, marker.shape, marker.color, marker.fill_range, fill_color, *Agent.GetXY(agent_id), rot, is_alive, is_target)
                     return True
             return False
 
-        player_agent = None
-        self.player_id = GLOBAL_CACHE.Player.GetAgentID()
-        self.target_id = GLOBAL_CACHE.Player.GetTargetID()
+        self.player_id = Player.GetAgentID()
+        self.target_id = Player.GetTargetID()
 
-        for agent in AgentArray.GetGadgetArrayRaw():
-            if not GetAgentValid(agent): continue
-            rot, is_target, _ = GetAgentParams(agent)
+        for agent_id in AgentArray.GetGadgetArray():
+            if not GetAgentValid(agent_id): continue
+            rot, is_target, _ = GetAgentParams(agent_id)
 
-            self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Signpost'].values(), agent.pos.x, agent.pos.y, rot, True, is_target) # type: ignore
+            self.DrawAgent(agent_id, mouse, *self.config.markers['Signpost'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
 
-        for agent in AgentArray.GetSpiritPetArrayRaw():
-            if not GetAgentValid(agent): continue
-            if CheckCustomMarkers(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
+        for agent_id in AgentArray.GetSpiritPetArray():
+            if not GetAgentValid(agent_id): continue
+            if CheckCustomMarkers(agent_id): continue
+            rot, is_target, is_alive = GetAgentParams(agent_id)
             
-            living_obj = agent.GetAsAgentLiving()
-            if living_obj is None:
+            if not Agent.IsLiving(agent_id):
                 continue
 
-            if living_obj.is_spawned:
+            if Agent.IsSpawned(agent_id):
                 if not is_alive:
                     continue
 
-                model_id = living_obj.player_number
+                model_id = Agent.GetPlayerNumber(agent_id)
                 spirit_params = GetSpiritParams(model_id)
 
-                self.DrawAgent(agent.agent_id, mouse, *spirit_params, agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent_id, mouse, *spirit_params, *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
             else:
-                self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Ally (Pet)'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent_id, mouse, *self.config.markers['Ally (Pet)'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
 
-        for agent in AgentArray.GetNeutralArrayRaw():
-            if not GetAgentValid(agent): continue
-            if CheckCustomMarkers(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
+        for agent_id in AgentArray.GetNeutralArray():
+            if not GetAgentValid(agent_id): continue
+            if CheckCustomMarkers(agent_id): continue
+            rot, is_target, is_alive = GetAgentParams(agent_id)
 
-            self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Neutral'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+            self.DrawAgent(agent_id, mouse, *self.config.markers['Neutral'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
 
-        for agent in AgentArray.GetMinionArrayRaw():
-            if not GetAgentValid(agent): continue
-            if CheckCustomMarkers(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
+        for agent_id in AgentArray.GetMinionArray():
+            if not GetAgentValid(agent_id): continue
+            if CheckCustomMarkers(agent_id): continue
+            rot, is_target, is_alive = GetAgentParams(agent_id)
 
-            self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Ally (Minion)'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+            self.DrawAgent(agent_id, mouse, *self.config.markers['Ally (Minion)'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
 
-        for agent in AgentArray.GetEnemyArrayRaw():
-            if not GetAgentValid(agent): continue
-            if CheckCustomMarkers(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
+        for agent_id in AgentArray.GetEnemyArray():
+            if not GetAgentValid(agent_id): continue
+            if CheckCustomMarkers(agent_id): continue
+            rot, is_target, is_alive = GetAgentParams(agent_id)
             
-            living_obj = agent.GetAsAgentLiving()
-            if living_obj is None:
+            if not Agent.IsLiving(agent_id):
                 continue
 
-            if living_obj.has_boss_glow:
-                self.DrawAgent(agent.agent_id, mouse, self.config.markers['Enemy'].visible, self.config.markers['Enemy'].size*1.2, self.config.markers['Enemy'].shape, self.config.profession[living_obj.primary],
-                                            self.config.markers['Enemy'].fill_range, self.config.markers['Enemy'].fill_color, agent.pos.x, agent.pos.y, rot, is_alive, is_target)
-            elif living_obj.is_spawned:
+            if Agent.HasBossGlow(agent_id):
+                self.DrawAgent(agent_id, mouse, self.config.markers['Enemy'].visible, self.config.markers['Enemy'].size*1.2, 
+                               self.config.markers['Enemy'].shape, self.config.profession[Agent.GetProfessionIDs(agent_id)[0]],
+                               self.config.markers['Enemy'].fill_range, self.config.markers['Enemy'].fill_color, *Agent.GetXY(agent_id), rot, is_alive, is_target)
+                
+            elif Agent.IsSpawned(agent_id):
                 if not is_alive:
                     continue
 
-                model_id = living_obj.player_number
+                model_id = Agent.GetPlayerNumber(agent_id)
                 visible, size, shape, _, range, fill_color = GetSpiritParams(model_id)
 
                 if visible:  # It's actually a spirit
-                    self.DrawAgent(agent.agent_id, mouse, visible, size, shape, self.config.markers['Enemy'].color, range, fill_color, agent.pos.x, agent.pos.y, rot, is_alive, is_target)
+                    self.DrawAgent(agent_id, mouse, visible, size, shape, self.config.markers['Enemy'].color, range, fill_color, *Agent.GetXY(agent_id), rot, is_alive, is_target)
                 else:  # Not a spirit, draw as regular enemy
-                    self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Enemy'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+                    self.DrawAgent(agent_id, mouse, *self.config.markers['Enemy'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
             else:
-                self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Enemy'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent_id, mouse, *self.config.markers['Enemy'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
 
-        for agent in AgentArray.GetAllyArrayRaw():
-            if not GetAgentValid(agent): continue
-            if CheckCustomMarkers(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
+        for agent_id in AgentArray.GetAllyArray():
+            if not GetAgentValid(agent_id): continue
+            if CheckCustomMarkers(agent_id): continue
+            rot, is_target, is_alive = GetAgentParams(agent_id)
             
-            living_obj = agent.GetAsAgentLiving()
-            if living_obj is None:
+            if not Agent.IsLiving(agent_id):
                 continue
 
-            if living_obj.is_npc:
-                self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Ally'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
-            elif agent.agent_id == self.player_id:
-                player_agent = agent
-            else:
-                self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Players'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+            if Agent.IsNPC(agent_id):
+                self.DrawAgent(agent_id, mouse, *self.config.markers['Ally'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
+            elif agent_id == self.player_id:
+                pass #removed due to not handling raw objects
+            else:   
+                self.DrawAgent(agent_id, mouse, *self.config.markers['Players'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
                 
-        for agent in AgentArray.GetNPCMinipetArrayRaw():
-            if not GetAgentValid(agent): continue
-            if CheckCustomMarkers(agent): continue
-            rot, is_target, is_alive = GetAgentParams(agent)
+        for agent_id in AgentArray.GetNPCMinipetArray():
+            if not GetAgentValid(agent_id): continue
+            if CheckCustomMarkers(agent_id): continue
+            rot, is_target, is_alive = GetAgentParams(agent_id)
             
-            living_obj = agent.GetAsAgentLiving()
-            if living_obj is None:
+            if not Agent.IsLiving(agent_id):
                 continue
 
-            if living_obj.has_quest:
-                self.DrawAgent(agent.agent_id, mouse, self.config.markers['Ally (NPC)'].visible, self.config.markers['Ally (NPC)'].size, 'Star', self.config.markers['Ally (NPC)'].color,
-                                            self.config.markers['Ally (NPC)'].fill_range, self.config.markers['Ally (NPC)'].fill_color, agent.pos.x, agent.pos.y, rot, is_alive, is_target)
-            elif living_obj.level > 1:
-                self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Ally (NPC)'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+            if Agent.HasQuest(agent_id):
+                self.DrawAgent(agent_id, mouse, self.config.markers['Ally (NPC)'].visible, self.config.markers['Ally (NPC)'].size, 'Star', self.config.markers['Ally (NPC)'].color,
+                                            self.config.markers['Ally (NPC)'].fill_range, self.config.markers['Ally (NPC)'].fill_color, *Agent.GetXY(agent_id), rot, is_alive, is_target)
+            elif Agent.GetLevel(agent_id) > 1:
+                self.DrawAgent(agent_id, mouse, *self.config.markers['Ally (NPC)'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
             else:
-                self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Minipet'].values(), agent.pos.x, agent.pos.y, rot, is_alive, is_target) # type: ignore
+                self.DrawAgent(agent_id, mouse, *self.config.markers['Minipet'].values(), *Agent.GetXY(agent_id), rot, is_alive, is_target) # type: ignore
 
-        if player_agent and GetAgentValid(player_agent):
-            rot, is_target, is_alive = GetAgentParams(player_agent)
+        if Agent.IsValid(Player.GetAgentID()) and GetAgentValid(Player.GetAgentID()):
+            rot, is_target, is_alive = GetAgentParams(Player.GetAgentID())
 
-            self.DrawAgent(player_agent.agent_id, mouse, *self.config.markers['Player'].values(), player_agent.pos.x, player_agent.pos.y, rot, is_alive, is_target) # type: ignore
+            self.DrawAgent(Player.GetAgentID(), mouse, *self.config.markers['Player'].values(), *Agent.GetXY(Player.GetAgentID()), rot, is_alive, is_target) # type: ignore
 
-        for agent in AgentArray.GetItemArrayRaw():
-            if not GetAgentValid(agent): continue
-            rot, is_target, _ = GetAgentParams(agent)
+        for agent_id in AgentArray.GetItemArray():
+            if not GetAgentValid(agent_id): continue
+            rot, is_target, _ = GetAgentParams(agent_id)
             
-            item_obj = agent.GetAsAgentItem()
-            if item_obj is None:
+            if not Agent.IsItem(agent_id):
                 continue
 
-            match Item.item_instance(item_obj.item_id).rarity.value:
+            match Item.item_instance(Agent.GetItemAgentItemID(agent_id)).rarity.value:
                 case 1:
-                    self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Item (Blue)'].values(), agent.pos.x, agent.pos.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent_id, mouse, *self.config.markers['Item (Blue)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
                 case 2:
-                    self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Item (Purple)'].values(), agent.pos.x, agent.pos.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent_id, mouse, *self.config.markers['Item (Purple)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
                 case 3:
-                    self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Item (Gold)'].values(), agent.pos.x, agent.pos.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent_id, mouse, *self.config.markers['Item (Gold)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
                 case 4:
-                    self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Item (Green)'].values(), agent.pos.x, agent.pos.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent_id, mouse, *self.config.markers['Item (Green)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
                 case _:
-                    self.DrawAgent(agent.agent_id, mouse, *self.config.markers['Item (White)'].values(), agent.pos.x, agent.pos.y, rot, True, is_target) # type: ignore
+                    self.DrawAgent(agent_id, mouse, *self.config.markers['Item (White)'].values(), *Agent.GetXY(agent_id), rot, True, is_target) # type: ignore
     def Draw(self):
         self.UpdateOrientation()
     
@@ -706,14 +700,14 @@ class Compass():
                                                                       self.position.current_pos.x, self.position.current_pos.y,
                                                                       self.position.current_size, 
                                                                       self.position.rotation)
-                GLOBAL_CACHE.Player.Move(*world_pos)
+                Player.Move(*world_pos)
 
     def Update(self):
         if not self.config_loaded:
             self.LoadConfig()
             self.config_loaded = True
 
-        if Map.IsMapLoading() or Player.InCharacterSelectScreen():
+        if Map.IsMapLoading() or Map.Pregame.InCharacterSelectScreen():
             self.reset = True
             return
 

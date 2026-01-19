@@ -42,8 +42,6 @@ class HenchmanPartyMember(Structure):
     ]
 
 
-
-
 class PartyInfoStruct(Structure):
     _pack_ = 1
     _fields_ = [
@@ -55,7 +53,6 @@ class PartyInfoStruct(Structure):
         ("h0044", c_uint32 * 14),  # 0x44
         ("invite_link", GW_TLink),  # 0x7C TLink<PartyInfo>
     ]
-
 
     @property
     def players(self) -> list[PlayerPartyMember]:
@@ -202,6 +199,7 @@ class PartyContextStruct(Structure):
         if not ptr:
             return None
         return ptr.contents
+    
     @property
     def party_searches(self) -> List[PartySearchStruct] | None:
         searches = GW_Array_Value_View(self.party_search_array, PartySearchStruct).to_list()

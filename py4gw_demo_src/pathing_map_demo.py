@@ -410,7 +410,7 @@ class PathingMapRenderer:
         max_radius: int = 20
     ):
         try:
-            player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+            player_x, player_y = Player.GetXY()
         except Exception:
             return
 

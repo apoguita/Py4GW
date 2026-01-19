@@ -9,7 +9,7 @@ Start the bot on the correct quest map/outpost.
 from __future__ import annotations
 import time
 import os
-from Py4GWCoreLib import Botting, Quest, Map, ConsoleLog, Console, Routines, IniHandler, Timer, ImGui
+from Py4GWCoreLib import Botting, Quest, Map, Player, ConsoleLog, Console, Routines, IniHandler, Timer, ImGui
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Agent import Agent
@@ -19,7 +19,7 @@ import PyImGui
 
 def LootingRoutineActive() -> bool:
     """Check if a looting command is currently active in shared memory."""
-    account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    account_email = Player.GetAccountEmail()
     index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
 
     if index == -1 or message is None:
@@ -239,7 +239,7 @@ def bot_routine(bot: Botting) -> None:
                     return True
 
                 # Check for combat
-                player_id = GLOBAL_CACHE.Player.GetAgentID()
+                player_id = Player.GetAgentID()
                 in_combat = Agent.IsInCombatStance(player_id)
                 in_danger = Routines.Checks.Agents.InDanger()
 

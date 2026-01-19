@@ -1,7 +1,7 @@
-import PyPlayer
+import PyPointers
 from Py4GW import Game
 from typing import Optional
-import ctypes
+
 from ctypes import Structure, POINTER,c_uint32, c_wchar, c_uint8, cast, c_void_p
 from ..internals.helpers import read_wstr, encoded_wstr_to_str
 from ..internals.types import Vec3f
@@ -222,7 +222,7 @@ class AccAgentContext:
         return AccAgentContext._ptr    
     @staticmethod
     def _update_ptr():
-        AccAgentContext._ptr = PyPlayer.PyPlayer().GetAgentContextPtr()
+        AccAgentContext._ptr = PyPointers.PyPointers.GetAgentContextPtr()
 
     @staticmethod
     def enable():

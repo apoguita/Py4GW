@@ -17,7 +17,7 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Utils
-from Py4GWCoreLib import Map, Agent
+from Py4GWCoreLib import Map, Agent, Player
 from Py4GWCoreLib.BuildMgr import BuildMgr
 from Py4GWCoreLib.Builds import SF_Ass_vaettir
 from Py4GWCoreLib.Builds import SF_Mes_vaettir
@@ -300,7 +300,7 @@ def kill_enemies(bot: Botting):
     if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
         build.SetKillingRoutine(in_killing_routine)
 
-    player_pos = GLOBAL_CACHE.Player.GetXY()
+    player_pos = Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
 
     start_time = Utils.GetBaseTimestamp()
@@ -315,7 +315,7 @@ def kill_enemies(bot: Botting):
             fsm.jump_to_state_by_name("[H]Town Routines_1")
             return
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             ConsoleLog("Killing Routine", "Player is dead, restarting.", Py4GW.Console.MessageType.Warning)
             fsm = bot.config.FSM
             fsm.jump_to_state_by_name("[H]Town Routines_1")
@@ -332,7 +332,7 @@ def kill_enemies(bot: Botting):
 
 
 def assign_build(bot: Botting):
-    profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
     match profession:
         case "Assassin":
             bot.OverrideBuild(SF_Ass_vaettir())
@@ -392,7 +392,7 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
             elapsed += 1
 
             # hard exit if player dies
-            if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+            if Agent.IsDead(Player.GetAgentID()):
                 ConsoleLog(
                     f"{side_label} Aggro Ball Wait", "Player is dead, exiting wait.", Py4GW.Console.MessageType.Warning
                 )
@@ -400,7 +400,7 @@ def _wait_for_aggro_ball(bot: Botting, side_label: str, cycle_timeout: int = 150
                 return
 
             # Get player position
-            px, py = GLOBAL_CACHE.Player.GetXY()
+            px, py = Player.GetXY()
 
             # Get enemies within earshot
             enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
@@ -459,7 +459,7 @@ def wait_for_right_aggro_ball(bot: Botting, use_hos_after=True):
         elapsed += 1
 
         # Get player position
-        px, py = GLOBAL_CACHE.Player.GetXY()
+        px, py = Player.GetXY()
 
         # Get enemies within earshot
         enemies_ids = Routines.Agents.GetFilteredEnemyArray(px, py, Range.Earshot.value)
@@ -476,7 +476,7 @@ def wait_for_right_aggro_ball(bot: Botting, use_hos_after=True):
                 all_in_adjacent = False
                 break
 
-        player_hp = Agent.GetHealth(GLOBAL_CACHE.Player.GetAgentID())
+        player_hp = Agent.GetHealth(Player.GetAgentID())
         if all_in_adjacent and player_hp > 0.45:
             break  # Exit early if enemies are balled up
 
@@ -541,7 +541,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
             yield from Routines.Yield.wait(1000)
             continue
 
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             ConsoleLog(
                 "Stuck Detection", "Player is dead, exiting stuck handler.", Py4GW.Console.MessageType.Debug, False
             )
@@ -562,7 +562,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
             if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                 build.SetStuckSignal(stuck_counter)
 
-            GLOBAL_CACHE.Player.SendChatCommand("resign")
+            Player.SendChatCommand("resign")
 
             yield from Routines.Yield.wait(500)
             return
@@ -618,11 +618,11 @@ def handle_stuck_jaga_moraine(bot: Botting):
                     Py4GW.Console.MessageType.Debug,
                     False,
                 )
-                GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                Player.SendChatCommand("stuck")
                 stuck_timer.Reset()
 
             if movement_check_timer.IsExpired():
-                current_player_pos = GLOBAL_CACHE.Player.GetXY()
+                current_player_pos = Player.GetXY()
                 ConsoleLog(
                     "Stuck Detection",
                     f"Checking movement. Old pos: {old_player_position}, Current pos: {current_player_pos}",
@@ -634,7 +634,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
                     ConsoleLog(
                         "Stuck Detection", "Player is stuck, sending /stuck command.", Py4GW.Console.MessageType.Warning
                     )
-                    GLOBAL_CACHE.Player.SendChatCommand("stuck")
+                    Player.SendChatCommand("stuck")
                     stuck_counter += 1
                     ConsoleLog(
                         "Stuck Detection",
@@ -666,7 +666,7 @@ def handle_stuck_jaga_moraine(bot: Botting):
                 stuck_counter = 0
                 if isinstance(build, SF_Ass_vaettir) or isinstance(build, SF_Mes_vaettir):
                     build.SetStuckSignal(stuck_counter)
-                GLOBAL_CACHE.Player.SendChatCommand("resign")
+                Player.SendChatCommand("resign")
                 continue
         else:
             ConsoleLog("Stuck Detection", "Not in Jaga Moraine", Py4GW.Console.MessageType.Info, False)

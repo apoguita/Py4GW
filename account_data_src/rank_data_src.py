@@ -1,4 +1,4 @@
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import Player
 import PyImGui
 #region RankData
 class RankData:
@@ -11,13 +11,13 @@ class RankData:
         self.tournament_reward_points = 0
     
     def update(self):
-        rank_data = GLOBAL_CACHE.Player.GetRankData()
+        rank_data = Player.GetRankData()
         self.rank = rank_data[0]
         self.rating = rank_data[1]
         self.qualifier_points = rank_data[2]
         self.wins = rank_data[3]
         self.losses = rank_data[4]
-        self.tournament_reward_points = GLOBAL_CACHE.Player.GetTournamentRewardPoints()
+        self.tournament_reward_points = Player.GetTournamentRewardPoints()
 
     def draw_content(self):
         PyImGui.text(f"Rank: {self.rank}")

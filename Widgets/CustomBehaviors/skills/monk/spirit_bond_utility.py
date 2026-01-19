@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Agent, Player
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -48,7 +48,7 @@ class SpiritBondUtility(CustomSkillUtilityBase):
         target: int | None = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
             within_range=Range.Spellcast,
             condition=lambda agent_id:
-                agent_id != GLOBAL_CACHE.Player.GetAgentID() and
+                agent_id != Player.GetAgentID() and
                 (Agent.GetHealth(agent_id) is not None and Agent.GetHealth(agent_id) > 0.0),
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
             range_to_count_enemies=None,
@@ -67,7 +67,7 @@ class SpiritBondUtility(CustomSkillUtilityBase):
         - If both true, return configured static score, otherwise None
         """
         try:
-            player_agent = GLOBAL_CACHE.Player.GetAgentID()
+            player_agent = Player.GetAgentID()
             player_energy = Agent.GetEnergy(player_agent)
         except Exception:
             # If we cannot read player energy, do not attempt

@@ -481,7 +481,9 @@ class UIManager:
     
     @staticmethod
     def ColorFrames(parent_hash: int, child_offsets: List[int], debug: bool = False):
-        from .Py4GWcorelib import Utils
+        def RGBToColor(r, g, b, a) -> int:
+            return (a << 24) | (b << 16) | (g << 8) | r
+
         option_offsets = child_offsets
         all_ids = UIManager.GetAllChildFrameIDs(parent_hash, option_offsets)
         
@@ -493,13 +495,13 @@ class UIManager:
                 print(f"Frame ID: {fid}, Top Y: {top_y}")
             
         colors = [
-        Utils.RGBToColor(0, 255, 0, 200),     # green
-        Utils.RGBToColor(255, 0, 0, 200),     # red
-        Utils.RGBToColor(0, 128, 255, 200),   # blue
-        Utils.RGBToColor(255, 255, 0, 200),   # yellow
-        Utils.RGBToColor(128, 0, 255, 200),   # purple
-        Utils.RGBToColor(255, 128, 0, 200),   # orange
-        Utils.RGBToColor(0, 255, 255, 200),   # cyan
+        RGBToColor(0, 255, 0, 200),     # green
+        RGBToColor(255, 0, 0, 200),     # red
+        RGBToColor(0, 128, 255, 200),   # blue
+        RGBToColor(255, 255, 0, 200),   # yellow
+        RGBToColor(128, 0, 255, 200),   # purple
+        RGBToColor(255, 128, 0, 200),   # orange
+        RGBToColor(0, 255, 255, 200),   # cyan
         ]
         for i, (frame_id, _) in enumerate(sorted_frames):
             if i >= len(colors):
@@ -1253,4 +1255,4 @@ WindowFrames["FinalCreateCharacterButton"] = FinalCreateCharacterButtonFrame
 
 
 #region Callbacks
-UIManager.RegisterFrameIOCallbacks()
+#UIManager.RegisterFrameIOCallbacks()

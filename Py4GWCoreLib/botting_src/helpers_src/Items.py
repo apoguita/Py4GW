@@ -8,6 +8,7 @@ from .decorators import _yield_step, _fsm_step
 from typing import Any, Generator, TYPE_CHECKING, Tuple, List, Optional, Callable
 
 from ...Py4GWcorelib import ConsoleLog, Console
+from ...Player import Player
 from ...enums_src.Model_enums import ModelID
 
 #region ITEMS
@@ -29,7 +30,7 @@ class _Items:
             yield from Routines.Yield.wait(1000)  # Wait for map to be valid
             return
             
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             yield from Routines.Yield.wait(1000)  # Wait if dead
             return 
         

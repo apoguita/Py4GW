@@ -1,6 +1,6 @@
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Timer
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Player
 module_name = "Drop Unyielding Aura"
 
 class config:
@@ -37,7 +37,7 @@ def main():
         widget_config.map_valid = widget_config.is_map_ready and widget_config.is_party_loaded and widget_config.is_explorable
         
         if widget_config.map_valid:
-            player_id = GLOBAL_CACHE.Player.GetAgentID()
+            player_id = Player.GetAgentID()
             widget_config.buff_exists = GLOBAL_CACHE.Effects.EffectExists(player_id, unyielding_aura) or GLOBAL_CACHE.Effects.BuffExists(player_id, unyielding_aura)
         widget_config.game_throttle_timer.Start()
         

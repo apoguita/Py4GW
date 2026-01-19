@@ -7,7 +7,7 @@ from typing import Any, Generator, override
 import PyImGui
 
 from HeroAI.types import PlayerStruct
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Routines, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -50,7 +50,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
         # Don't follow leader if this player has a defined flag position (should follow flag instead)
-        if CustomBehaviorParty().party_flagging_manager.is_flag_defined(GLOBAL_CACHE.Player.GetAccountEmail()): return False
+        if CustomBehaviorParty().party_flagging_manager.is_flag_defined(Player.GetAccountEmail()): return False
 
         return True
 
@@ -60,7 +60,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
         if self.allowed_states is not None and current_state not in self.allowed_states:
             return None
 
-        if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+        if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
             return None
 
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
@@ -78,7 +78,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
             is_party_leader_angle_changed = True
             self.old_angle = party_leader_rotation_angle
 
-        distance_from_leader = Utils.Distance((party_leader_position[0], party_leader_position[1]), GLOBAL_CACHE.Player.GetXY())
+        distance_from_leader = Utils.Distance((party_leader_position[0], party_leader_position[1]), Player.GetXY())
         # print(f"is_party_leader_in_aggro {custom_behavior_helpers.Targets.is_party_leader_in_aggro()}")
         # print(f"distance_from_leader {distance_from_leader}")
         # print(f"max_distance_to_party_leader {max_distance_to_party_leader}")
@@ -142,7 +142,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
         position:tuple[float, float] = self._get_position_near_leader(state)
 
         ActionQueueManager().ResetQueue("ACTION")
-        GLOBAL_CACHE.Player.Move(position[0], position[1])
+        Player.Move(position[0], position[1])
         self.throttle_timer.Reset()
         yield
         return BehaviorResult.ACTION_PERFORMED

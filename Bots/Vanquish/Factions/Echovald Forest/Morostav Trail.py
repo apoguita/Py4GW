@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Utils, ConsoleLog
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog
 import Py4GW
 import os
 BOT_NAME = "VQ Morostav Trail"
@@ -182,7 +182,7 @@ def _upkeep_multibox_consumables(bot: "Botting"):
 def _on_party_wipe(bot: "Botting"):
     global party_wiped
     party_wiped = True
-    while Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+    while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             # Map invalid - release FSM and exit

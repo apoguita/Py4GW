@@ -498,7 +498,7 @@ def get_skill_target(account_data: AccountData, cached_skill: CachedSkillInfo) -
     if not cached_skill or cached_skill.skill_id == 0:
         return None
     
-    target_id = GLOBAL_CACHE.Player.GetTargetID()
+    target_id = Player.GetTargetID()
     is_gadget = Agent.IsGadget(target_id)
     is_item = Agent.IsItem(target_id)
     
@@ -508,9 +508,9 @@ def get_skill_target(account_data: AccountData, cached_skill: CachedSkillInfo) -
         if allegiance in [Allegiance.Ally, Allegiance.Minion, Allegiance.SpiritPet]:
             return target_id
         else:
-            return GLOBAL_CACHE.Player.GetAgentID() if py_io.key_ctrl else account_data.PlayerID
+            return Player.GetAgentID() if py_io.key_ctrl else account_data.PlayerID
     else:
-        return GLOBAL_CACHE.Player.GetAgentID() if py_io.key_ctrl else target_id if not is_item and target_id else account_data.PlayerID
+        return Player.GetAgentID() if py_io.key_ctrl else target_id if not is_item and target_id else account_data.PlayerID
 
 def draw_casting_animation(
     pos: tuple[float, float],
@@ -659,7 +659,7 @@ def draw_skill_bar(height: float, account_data: AccountData, cached_data: CacheD
                 state=TextureState.Hovered if hovered else TextureState.Normal
             )
 
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         queued_skill_messages = message_cache.get(account_email, {}).get(SharedCommandType.UseSkill, {})
         if queued_skill_messages:
             queued_skill_usage = {index: msg for index, msg in message_queue if msg.Command == SharedCommandType.UseSkill and msg.ReceiverEmail == account_email and msg.Params[1] == float(skill.skill_id) and index in queued_skill_messages}
@@ -689,7 +689,7 @@ def draw_skill_bar(height: float, account_data: AccountData, cached_data: CacheD
                 target_id = get_skill_target(account_data, skill)
                 
                 if target_id is not None:
-                    message_index = GLOBAL_CACHE.ShMem.SendMessage(GLOBAL_CACHE.Player.GetAccountEmail(
+                    message_index = GLOBAL_CACHE.ShMem.SendMessage(Player.GetAccountEmail(
                     ), account_data.AccountEmail, SharedCommandType.UseSkill, (target_id, int(skill.skill_id)))
 
                     if account_data.AccountEmail not in message_cache:
@@ -1007,7 +1007,7 @@ def enter_skill_template_code(account_data : AccountData):
 
         if ImGui.button("Load"):
             GLOBAL_CACHE.ShMem.SendMessage(
-                GLOBAL_CACHE.Player.GetAccountEmail(),
+                Player.GetAccountEmail(),
                 account_data.AccountEmail,           
                 SharedCommandType.LoadSkillTemplate,
                 ExtraData=(template_code, 0, 0, 0)
@@ -1041,7 +1041,7 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
 
     style = ImGui.get_style()
     same_map = Map.GetMapID() == account_data.MapID and Map.GetRegion()[0] == account_data.MapRegion and Map.GetDistrict() == account_data.MapDistrict
-    player_email = GLOBAL_CACHE.Player.GetAccountEmail()
+    player_email = Player.GetAccountEmail()
     account_email = account_data.AccountEmail
 
     btn_size = btn_size if draw_textures else btn_size - 1
@@ -1108,7 +1108,7 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
             PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 4)
 
     if not is_explorable:
-        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        player_x, player_y = Player.GetXY()
         target_id = Player.GetTargetID() or Player.GetAgentID()
 
         def invite_player():            
@@ -1200,7 +1200,7 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
             enter_skill_template_code(account_data)  
 
     else:        
-        player_x, player_y = GLOBAL_CACHE.Player.GetXY()
+        player_x, player_y = Player.GetXY()
         target_id = Player.GetTargetID() or Player.GetAgentID()
         
         def flag_hero_account():
@@ -1358,7 +1358,7 @@ def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, 
                 
                 if health_clicked or energy_clicked:
                             if Map.GetMapID() == account_data.MapID:
-                                GLOBAL_CACHE.Player.ChangeTarget(account_data.PlayerID)
+                                Player.ChangeTarget(account_data.PlayerID)
                                 
             if settings.ShowHeroSkills:
                 if settings.ShowHeroBars:
@@ -1389,7 +1389,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data
     style.WindowPadding.push_style_var(4, 1)
     
     collapsed = window.collapse
-    player_pos = GLOBAL_CACHE.Player.GetXY()
+    player_pos = Player.GetXY()
     hero_pos = (account_data.PlayerPosX, account_data.PlayerPosY)
     outside_compass_range = Utils.Distance(player_pos, hero_pos) > Range.Compass.value + 10
     
@@ -1452,7 +1452,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data
                                                        account_data.PlayerEnergy, account_data.PlayerEnergyRegen)
                     if health_clicked or energy_clicked:
                         if Map.GetMapID() == account_data.MapID:
-                            GLOBAL_CACHE.Player.ChangeTarget(account_data.PlayerID)
+                            Player.ChangeTarget(account_data.PlayerID)
                             
                 if settings.ShowHeroSkills:
                     if settings.ShowHeroBars:
@@ -1519,7 +1519,7 @@ def draw_button(id_suffix: str, icon: str, w : float = 0, h : float = 0, active 
     return clicked and enabled
 
 def send_command_to_all_heroes(accounts: list[AccountData], command: SharedCommandType, param: tuple = (), extra_data: tuple = (), include_self: bool = False):
-    account_mail = GLOBAL_CACHE.Player.GetAccountEmail()
+    account_mail = Player.GetAccountEmail()
     for account in accounts:
         if not include_self and account.AccountEmail == account_mail:
             continue
@@ -2198,7 +2198,7 @@ def draw_skip_cutscene_overlay():
             
             if ImGui.is_mouse_in_rect((frame[0], frame[1], frame[2] - frame[0], frame[3] - frame[1]), mouse):                            
                 if is_left_mouse_clicked() and pyimgui_io.key_ctrl:
-                    current_account = GLOBAL_CACHE.Player.GetAccountEmail()
+                    current_account = Player.GetAccountEmail()
                     
                     if current_account:                
                         for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
@@ -2219,7 +2219,7 @@ def draw_skip_cutscene_overlay():
 def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, WindowModule]):
     global party_member_frames
     
-    main_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(GLOBAL_CACHE.Player.GetAccountEmail())
+    main_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(Player.GetAccountEmail())
     if not main_account or not main_account.PlayerIsPartyLeader:
         return
     
@@ -2253,7 +2253,7 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
     for i, frame_info in enumerate(party_member_frames, start=1):      
         account = next((acc for acc in accounts if acc.PartyPosition == i - 1), None)
         
-        if account and account.AccountEmail != GLOBAL_CACHE.Player.GetAccountEmail():
+        if account and account.AccountEmail != Player.GetAccountEmail():
             if account.PartyID != main_account.PartyID or not SameMapAsAccount(account):
                 continue
             
@@ -2576,7 +2576,7 @@ def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheDat
                                 sender_email,
                                 account.AccountEmail,
                                 SharedCommandType.InviteToParty,
-                                (GLOBAL_CACHE.Player.GetAgentID(), 0, 0, 0)
+                                (Player.GetAgentID(), 0, 0, 0)
                             )
                             
                         else:

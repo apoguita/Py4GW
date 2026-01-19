@@ -9,7 +9,7 @@ import traceback
 
 import Py4GW  # type: ignore
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE
+from Py4GWCoreLib import GLOBAL_CACHE, Player
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import Effects
 from Py4GWCoreLib import IconsFontAwesome5
@@ -230,7 +230,7 @@ def keyboard_hook(nCode, wParam, lParam):
         kb = ctypes.cast(lParam, ctypes.POINTER(KBDLLHOOKSTRUCT)).contents
         if (
             is_my_instance_focused()
-            and not GLOBAL_CACHE.Player.IsTyping()
+            and not Player.IsTyping()
             and kb.vkCode in suppressed_key_callbacks
             and should_suppress_key
         ):

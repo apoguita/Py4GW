@@ -1,0 +1,49 @@
+from typing import List, Optional
+from ..internals.types import CPointer
+from ..internals.gw_array import GW_Array
+from ..internals.gw_list import GW_TList, GW_TLink
+from ..internals.types import Vec2f, Vec3f, GamePos
+
+
+class AvailableCharacterStruct():
+    h0000: List[int]
+    uuid_ptr: tuple [int, int, int, int]
+    player_name_enc: str
+    props: List[int]
+
+    @property
+    def uuid(self) -> tuple[int, int, int, int]: ...
+    @property
+    def player_name_encoded_string(self) -> str | None:...
+    @property
+    def player_name(self) -> str:...
+    @property
+    def map_id(self) -> int:...
+    @property
+    def primary(self) -> int:...
+    @property
+    def secondary(self) -> int:...
+    @property
+    def campaign(self) -> int:...
+    @property
+    def level(self) -> int:...
+    @property
+    def is_pvp(self) -> bool:...
+
+class AvailableCharacterArrayStruct():
+    available_characters_array: GW_Array
+
+    @property
+    def available_characters_list(self) -> list[AvailableCharacterStruct]: ...
+
+class AvailableCharacterArray:
+    @staticmethod
+    def get_ptr() -> int:...
+    @staticmethod   
+    def _update_ptr():...
+    @staticmethod
+    def enable():...
+    @staticmethod
+    def disable():...
+    @staticmethod
+    def get_context() -> AvailableCharacterArrayStruct | None:...

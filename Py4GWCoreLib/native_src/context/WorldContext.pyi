@@ -64,6 +64,10 @@ class AttributeStruct(Structure):
     decrement_points: int
     increment_points: int
     
+    @property
+    def name(self) -> str: ...
+    def GetName(self) -> str: ...
+    
 class PartyAttributeStruct(Structure):
     agent_id: int
     attribute_array: list[AttributeStruct]   # fixed-size array [54]
@@ -480,6 +484,7 @@ class WorldContextStruct(Structure):
     h00A8: int
 
     party_attributes_array: GW_Array
+    
     h00BC: list[int]                    # fixed-size array [255]
 
     h04B8_array: GW_Array
@@ -611,6 +616,9 @@ class WorldContextStruct(Structure):
     def party_allies(self) -> list[PartyAllyStruct] | None: ...
     @property
     def party_attributes(self) -> list[PartyAttributeStruct] | None: ...
+
+    def get_attributes_by_agent_id(self, agent_id: int) -> list[AttributeStruct]:...
+    
     @property
     def all_flag(self) -> Vec3f | None: ...
     @property
@@ -687,6 +695,7 @@ class WorldContextStruct(Structure):
     def title_tiers(self) -> list[TitleTierStruct] | None: ...
     @property
     def vanquished_areas(self) -> list[int] | None: ...
+    def GetPlayerById(self, player_id: int) -> PlayerStruct | None:...
 # ----------------------------------------------------------------------
 # PreGameContext facade
 # ----------------------------------------------------------------------

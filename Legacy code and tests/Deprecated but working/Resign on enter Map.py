@@ -1,7 +1,7 @@
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Map
+from Py4GWCoreLib import Map, Player
 
 module_name = "Resign on enter Map"
 
@@ -20,7 +20,7 @@ def main():
         explorable_loaded_timer.Reset()
         return
     
-    if GLOBAL_CACHE.Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+    if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         resigned = True
         explorable_loaded_timer.Reset()
         return
@@ -28,7 +28,7 @@ def main():
     if not resigned and explorable_loaded_timer.IsExpired():
         resigned = True
         explorable_loaded_timer.Reset()
-        GLOBAL_CACHE.Player.SendChatCommand("resign")
+        Player.SendChatCommand("resign")
         
 def configure():
     pass

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, ModelID, Botting)
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, ModelID, Botting, Player)
 
 MARKETPLACE = 303
 
@@ -37,10 +37,10 @@ def TravelToMarketplace(bot: Botting):
 def WajjunBazaar(bot: Botting):
     bot.Templates.Aggressive()
     bot.States.AddHeader("Phase 2: Wajjun Bazaar - Finding Master Togo")
-    WAJJUNBAZAARTOTOGO = [ (9366, 14052), (4233, 13003), (3937, 6315), (-1526, 6795) ]
+    WAJJUNBAZAARTOTOGO = [ (9366.0, 14052), (4233, 13003), (3937, 6315), (-1526, 6795) ]
     bot.Move.FollowAutoPath(WAJJUNBAZAARTOTOGO, "Wajjun Bazaar to Master Togo")
     bot.Move.XYAndDialog(-1813, 6920, 0x815D04) # Master Togo
-    TOGOTOJIA= [ (-2078, -3217), (4732, -4583), (9585, -5196), (12657, -5690), (15548, -9503), (16364, -9887) ]
+    TOGOTOJIA= [ (-2078.0, -3217), (4732, -4583), (9585, -5196), (12657, -5690), (15548, -9503), (16364, -9887) ]
     bot.Move.FollowAutoPath(TOGOTOJIA, "Master Togo to Jia")
     bot.Move.XYAndDialog(10808.49, -6569, 0x815D04)
     bot.Wait.ForTime(400)
@@ -62,7 +62,7 @@ def KainengDocks(bot: Botting):
 def WajjunBazaarMayhem(bot: Botting):
     bot.Templates.Aggressive()
     bot.States.AddHeader("Phase 4: Wajjun Bazaar - Mayhem in the Market")
-    WAJJUNBAZAARTOKISAI = [ (8728, 13952), (3160, 12596), (-4562, 12037), (-7724, 10410) ]
+    WAJJUNBAZAARTOKISAI = [ (8728.0, 13952), (3160, 12596), (-4562, 12037), (-7724, 10410) ]
     bot.Move.FollowAutoPath(WAJJUNBAZAARTOKISAI, "Wajjun Bazaar to Kisai")
     bot.Move.XYAndDialog(-8459, 10312, 0x817804)
     bot.Wait.ForTime(1000)
@@ -73,17 +73,17 @@ def WajjunBazaarMayhem(bot: Botting):
     bot.Move.XYAndDialog(-3809, -1779, 0x817804)
     bot.Wait.ForTime(1000)
     bot.Move.XYAndDialog(-4446, -1166, 0x817804)
-    PATH2 = [ (-2078, -3217), (4732, -4583), (14892, -9447), (16815, -9739) ]
+    PATH2 = [ (-2078.0, -3217), (4732, -4583), (14892, -9447), (16815, -9739) ]
     bot.Move.FollowAutoPath(PATH2, "To Kisai to Turn in Quest")
     bot.Move.XYAndExitMap(18654, -10012, 241) #Exit to the Undercity
     bot.Wait.ForMapLoad(241)
-    PATH3 = [ (-14284, -5899), (-14272, 960), (-10521, 2585), (-10318, 10272), (-6000, 5087), (-1943, 7392), (283, 5556) ]
+    PATH3 = [ (-14284.0, -5899), (-14272, 960), (-10521, 2585), (-10318, 10272), (-6000, 5087), (-1943, 7392), (283, 5556) ]
     bot.Move.FollowAutoPath(PATH3, "Traverse Undercity")
     bot.Move.XYAndDialog(1479, 6122, 0x817804) # Talk to Jinzo
     bot.Wait.ForTime(1000)
     bot.Move.XYAndDialog(1389, 6119, 0x817804) # Talk to Togo
     bot.Dialogs.WithModel(54, 0x817804)
-    PATH4 = [ (2728, 5888), (11567, 6911), (17882, 10144), (17799, 14667) ]
+    PATH4 = [ (2728.0, 5888), (11567, 6911), (17882, 10144), (17799, 14667) ]
     bot.Move.FollowAutoPath(PATH4, "To Guardsman Pai")
     bot.Move.XYAndDialog(18081, 15275, 0x817804)
     bot.Wait.ForTime(500)
@@ -105,7 +105,7 @@ def VizunahSquareLocalQuarter(bot: Botting):
     bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
     bot.Move.XY(-3921, -6560)
     def _exit_condition():
-        pos = GLOBAL_CACHE.Player.GetXY()
+        pos = Player.GetXY()
         if not pos:
             return False
         dx = pos[0] - 3131.0
@@ -124,10 +124,10 @@ def DragonsThroat(bot: Botting):
     bot.Move.XYAndDialog(-11951, 5967, 0x816401)
     bot.Move.XYAndExitMap(-12042, 10529, 232) #Shadow's Passage
     bot.Move.XYAndDialog(3477, 14804, 0x816404)
-    PATH1 = [ (3306, 14156), (3243, 18509), (-932, 13805), (-4580, 16829), (-8219, 18340), (-12197, 17652), (-12916, 15574) ]
+    PATH1 = [ (3306.0, 14156), (3243, 18509), (-932, 13805), (-4580, 16829), (-8219, 18340), (-12197, 17652), (-12916, 15574) ]
     bot.Move.FollowAutoPath(PATH1, "Traverse Shadow's Passage")
     bot.Move.XYAndExitMap(-15537, 15682, 240) #Enter Budek Byway
-    PATH2 = [ (10726, 12554), (5503, 9252), (7524, 6065), (7620, 1889), (5196, -2510), (7264, -4200) ]
+    PATH2 = [ (10726, 12554.0), (5503, 9252), (7524, 6065), (7620, 1889), (5196, -2510), (7264, -4200) ]
     bot.Move.FollowAutoPath(PATH2, "Traverse Budek Byway")
     bot.Move.XYAndDialog(7539, -4371, 0x816407)
     bot.Move.XYAndDialog(7539, -4371, 0x816501)
@@ -138,14 +138,14 @@ def CloserToTheStars(bot: Botting):
     bot.Templates.Aggressive()
     bot.States.AddHeader("Phase 8: Closer to the Stars")
     bot.Move.XYAndExitMap(10672, 14376, 239)  # Wajjun Bazaar
-    PATH1 = [ (10263, 13994), (3794, 12941), (199, 12616), (199, 11128) ]
+    PATH1 = [ (10263, 13994.0), (3794, 12941), (199, 12616), (199, 11128) ]
     bot.Move.FollowAutoPath(PATH1, "Wajjun Bazaar to Closer to the Stars")
     bot.Move.XYAndDialog(-247, 10751, 0x816504)
     bot.Move.XY(-153, 11496)
     bot.Wait.ForTime(90000)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XYAndDialog(-247, 10751, 0x816504)
-    PATH2 = [ (-250, 12360), (-5665, 12360), (-7470, 10133), (-7424, 6603), (-9003, 3753), (-8844, -969), (-12948, -4148), (-6635, -6166), (-827, -8374), (2405, -13958), (4181, -16694), (8261, -18470) ]
+    PATH2 = [ (-250, 12360.0), (-5665, 12360), (-7470, 10133), (-7424, 6603), (-9003, 3753), (-8844, -969), (-12948, -4148), (-6635, -6166), (-827, -8374), (2405, -13958), (4181, -16694), (8261, -18470) ]
     bot.Move.FollowAutoPath(PATH2, "Closer to the Stars Pt.2")
     bot.Move.XYAndDialog(9001, -19742, 0x816504)
     bot.Move.XYAndDialog(9001, -19742, 0x800008)
@@ -165,7 +165,7 @@ def NapuiQuarter(bot: Botting):
     bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
     bot.Move.XY(-14221, 3156,forced_timeout=10000)
     bot.Wait.ForTime(2600)
-    PATH1 = [ (-8566, 4177), (-7872, 5528), (-8804, 7997), (-7597, 9889), (-6391, 9834), (-4282, 7208), (-1067, 8828), (2636, 8892), (1612, 6076), (564, 5372), (1524, 4412), (564, 1580), (-1115, -3075), (-4571, -7299), (-6687, -7390), (-6971, -4891), (-7353, -2042), (-12105, -2138), (-12968, -6362), (-17768, -8853) ]
+    PATH1 = [ (-8566, 4177.0), (-7872, 5528), (-8804, 7997), (-7597, 9889), (-6391, 9834), (-4282, 7208), (-1067, 8828), (2636, 8892), (1612, 6076), (564, 5372), (1524, 4412), (564, 1580), (-1115, -3075), (-4571, -7299), (-6687, -7390), (-6971, -4891), (-7353, -2042), (-12105, -2138), (-12968, -6362), (-17768, -8853) ]
     bot.Move.FollowAutoPath(PATH1, "Napui Quarter Mission Path")
     bot.States.RemoveManagedCoroutine("Upkeep Multibox Consumables")
     bot.Wait.ForMapLoad(51)

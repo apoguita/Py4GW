@@ -1,4 +1,4 @@
-import PyPlayer
+import PyPointers
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_uint8, c_wchar, POINTER, cast, c_int32
 from ..internals.helpers import read_wstr, encoded_wstr_to_str
@@ -98,7 +98,7 @@ class CharContextStruct(Structure):
         ("h0034_array", GW_Array),          # +0x0034 Array<void*>
         ("h0044_array", GW_Array),          # +0x0044 Array<void*>
         ("h0054", c_uint32 * 4),            # +0x0054
-        ("player_uuid", c_uint32 * 4),      # +0x0064 uuid
+        ("player_uuid_ptr", c_uint32 * 4),      # +0x0064 uuid
         ("player_name_enc", c_wchar * 0x14),    # +0x0074 wchar_t[20]
         ("h009C", c_uint32 * 20),           # +0x009C
         ("h00EC_array", GW_Array),          # +0x00EC Array<void*>
@@ -126,6 +126,11 @@ class CharContextStruct(Structure):
         ("h034C", c_uint32 * 27),           # +0x034C
         ("player_email_ptr", c_wchar * 0x40),   # +0x03B8 wchar_t[64]
     ]
+    @property
+    def player_uuid(self) -> tuple[int, int, int, int]:
+        """Get the player UUID as a tuple of four integers."""
+        return tuple(self.player_uuid_ptr)
+    
     @property
     def h0000_ptrs(self) -> list[int] | None:
         """Get the list of pointers from h0000_array."""
@@ -213,7 +218,7 @@ class CharContext:
 
     @staticmethod
     def _update_ptr():
-        CharContext._ptr = PyPlayer.PyPlayer().GetCharContextPtr()
+        CharContext._ptr = PyPointers.PyPointers.GetCharContextPtr()
 
     @staticmethod
     def enable():

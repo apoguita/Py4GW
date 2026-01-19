@@ -1,7 +1,7 @@
 
 
 import Py4GW
-from Py4GWCoreLib import GLOBAL_CACHE, Agent
+from Py4GWCoreLib import Player, Agent
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import ConsoleLog
@@ -68,7 +68,7 @@ class BotStuckHelper:
         return None
 
     def _check_player_dead(self):
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             ConsoleLog(self.name, "Player is dead, waiting...", Py4GW.Console.MessageType.Debug, self.log_enabled)
             yield from Routines.Yield.wait(1000)
         # Generator completes (returns None) when player is alive
@@ -93,14 +93,14 @@ class BotStuckHelper:
     def _scheduled_stuck_command(self):
         if self.stuck_timer.IsExpired():
             ConsoleLog(self.name, "Stuck timer expired, issuing scheduled stuck command...", Py4GW.Console.MessageType.Debug, self.log_enabled)
-            GLOBAL_CACHE.Player.SendChatCommand("stuck")
+            Player.SendChatCommand("stuck")
             self.stuck_timer.Reset()
 
         yield None
 
     def _scheduled_movement_check(self):
         if self.movement_timer.IsExpired():
-            current_player_pos = GLOBAL_CACHE.Player.GetXY()
+            current_player_pos = Player.GetXY()
             ConsoleLog(self.name, f"Checking movement. Old pos: {self.prev_pos}, Current pos: {current_player_pos}", Py4GW.Console.MessageType.Debug, self.log_enabled)
 
             # Check if player has not moved significantly

@@ -6,7 +6,7 @@ Manages flag positions for up to 12 party members.
 
 import math
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib import Map, Agent
+from Py4GWCoreLib import Map, Agent, Player
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 class PartyFlaggingManager:
@@ -88,12 +88,12 @@ class PartyFlaggingManager:
                 return
 
             # Get leader position and angle
-            leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
-            leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+            leader_x, leader_y = Player.GetXY()
+            leader_agent_id = Player.GetAgentID()
             leader_angle = Agent.GetRotationAngle(leader_agent_id)
 
             # Get all party members (excluding leader)
-            account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+            account_email = Player.GetAccountEmail()
             all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
 
             # Filter to same map and party, excluding leader
@@ -250,7 +250,7 @@ class PartyFlaggingManager:
                 return False
 
         # Determine leader and party members in same map
-        my_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        my_email = Player.GetAccountEmail()
         my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(my_email)
         if my_account is None:
             return False
@@ -506,12 +506,12 @@ class PartyFlaggingManager:
             return False, "You must be party leader to set flags"
 
         # Get leader position and angle
-        leader_x, leader_y = GLOBAL_CACHE.Player.GetXY()
-        leader_agent_id = GLOBAL_CACHE.Player.GetAgentID()
+        leader_x, leader_y = Player.GetXY()
+        leader_agent_id = Player.GetAgentID()
         leader_angle = Agent.GetRotationAngle(leader_agent_id)
 
         # Get all party members (excluding leader)
-        account_email = GLOBAL_CACHE.Player.GetAccountEmail()
+        account_email = Player.GetAccountEmail()
         all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
 
         # Filter to same map and party, excluding leader

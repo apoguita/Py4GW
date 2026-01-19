@@ -1,4 +1,4 @@
-import PyPlayer
+import PyPointers
 from Py4GW import Game
 from ctypes import Structure, c_uint32, c_uint8, c_wchar, POINTER, cast, c_int32, c_void_p
 from typing import List, Optional
@@ -295,7 +295,7 @@ class GuildContext:
         return GuildContext._ptr
     @staticmethod
     def _update_ptr():
-        GuildContext._ptr = PyPlayer.PyPlayer().GetGuildContextPtr()
+        GuildContext._ptr = PyPointers.PyPointers.GetGuildContextPtr()
 
     @staticmethod
     def enable():

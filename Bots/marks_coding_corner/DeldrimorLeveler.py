@@ -34,7 +34,7 @@ def wait_until_item_looted(item_name: str, timeout_ms: int):
 
     def search_item_id_by_name(item_name: str) -> int | None:
         item_array = AgentArray.GetItemArray()
-        item_array = AgentArray.Filter.ByDistance(item_array, GLOBAL_CACHE.Player.GetXY(), Range.Spirit.value)
+        item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), Range.Spirit.value)
         for item_id in item_array:
             name = Agent.GetNameByID(item_id)
             # print(f"item {name}")
@@ -66,7 +66,7 @@ def wait_until_item_looted(item_name: str, timeout_ms: int):
             yield from Routines.Yield.wait(1000)
             continue
 
-        GLOBAL_CACHE.Player.Interact(item_id, call_target=False)
+        Player.Interact(item_id, call_target=False)
         yield from Routines.Yield.wait(100)
 
         # ENSURE LOOT IS LOOTED

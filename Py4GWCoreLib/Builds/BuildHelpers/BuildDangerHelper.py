@@ -169,7 +169,7 @@ class BuildDangerHelper:
         self._last_scan_time_spellcaster = now
 
         # Get player position coordinates
-        (x, y) = GLOBAL_CACHE.Player.GetXY()
+        (x, y) = Player.GetXY()
         if not (x and y):
             return False
 
@@ -203,7 +203,7 @@ class BuildDangerHelper:
         if not nearby_enemies:
             return False
 
-        pos = GLOBAL_CACHE.Player.GetXY()
+        pos = Player.GetXY()
         if not pos:
             return False
 

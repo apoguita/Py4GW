@@ -9,13 +9,13 @@ def main():
      
     if PyImGui.begin(MODULE_NAME):
         if PyImGui.collapsing_header("Player"):
-            PyImGui.text(f"Player ID: {GLOBAL_CACHE.Player.GetAgentID()}")
-            PyImGui.text(f"Player Name: {GLOBAL_CACHE.Player.GetName()}")
-            PyImGui.text(f"Player Position: {GLOBAL_CACHE.Player.GetXY()}")
+            PyImGui.text(f"Player ID: {Player.GetAgentID()}")
+            PyImGui.text(f"Player Name: {Player.GetName()}")
+            PyImGui.text(f"Player Position: {Player.GetXY()}")
             
             if PyImGui.button("move to 100,100"):
                 x, y = 100, 100
-                GLOBAL_CACHE.Player.Move(x, y)
+                Player.Move(x, y)
         if PyImGui.collapsing_header("Map"):
             PyImGui.text(f"Map ID: {Map.GetMapID()}")
             PyImGui.text(f"Map Name: {Map.GetMapName()}")
@@ -24,7 +24,7 @@ def main():
                 Map.Travel(map_id)
         
         if PyImGui.collapsing_header("Agent"):
-            agent_id = GLOBAL_CACHE.Player.GetTargetID() if GLOBAL_CACHE.Player.GetTargetID() != 0 else GLOBAL_CACHE.Player.GetAgentID()
+            agent_id = Player.GetTargetID() if Player.GetTargetID() != 0 else Player.GetAgentID()
             PyImGui.text(f"Agent ID: {agent_id}")
             PyImGui.text(f"Agent Name: {Agent.GetNameByID(agent_id)}")
             PyImGui.text(f"Agent Position: {Agent.GetXY(agent_id)}")
@@ -41,8 +41,8 @@ def main():
             PyImGui.text(f"Time in the map: {time_in_the_map}")
             
         if PyImGui.collapsing_header("Effects"):
-            buffs = GLOBAL_CACHE.Effects.GetBuffs(GLOBAL_CACHE.Player.GetAgentID())
-            effects = GLOBAL_CACHE.Effects.GetEffects(GLOBAL_CACHE.Player.GetAgentID())
+            buffs = GLOBAL_CACHE.Effects.GetBuffs(Player.GetAgentID())
+            effects = GLOBAL_CACHE.Effects.GetEffects(Player.GetAgentID())
             
             for buff in buffs:
                 buff_id = buff.buff_id

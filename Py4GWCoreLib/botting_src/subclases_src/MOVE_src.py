@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 from ..helpers_src.decorators import _yield_step
 from typing import Any, Generator
 
+
 #region MOVE
 class _MOVE:
     def __init__(self, parent: "BottingClass"):
@@ -18,10 +19,10 @@ class _MOVE:
     #region Coroutines (_coro_)
     def _coro_get_path_to(self, x: float, y: float) -> Generator[Any, Any, None]:
         from ...Pathing import AutoPathing
-        from ...GlobalCache import GLOBAL_CACHE
+        from ...Player import Player
         path = yield from AutoPathing().get_path_to(x, y)
         self._config.path = path.copy()
-        current_pos = GLOBAL_CACHE.Player.GetXY()
+        current_pos = Player.GetXY()
         self._config.path_to_draw.clear()
         self._config.path_to_draw.append((current_pos[0], current_pos[1]))
         self._config.path_to_draw.extend(path.copy())
@@ -39,7 +40,7 @@ class _MOVE:
         path = self._config.path
 
         exit_condition = (
-            (lambda: Routines.Checks.Player.IsDead() or not Routines.Checks.Map.MapValid())
+            (lambda: not Routines.Checks.Map.MapValid() or Routines.Checks.Player.IsDead())
             if self._config.config_properties.halt_on_death.is_active()
             else (lambda: not Routines.Checks.Map.MapValid())
         )
@@ -93,7 +94,7 @@ class _MOVE:
 
         self._config.config_properties.follow_path_succeeded.set_now("value", success_movement)
         if not success_movement:
-            if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+            if (Routines.Checks.Map.MapValid() and (Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())):
                 ConsoleLog("_follow_path", "halting movement due to party wipe", Console.MessageType.Warning, log=True)
                 self._config.FSM.pause()
                 return True  # continue FSM without halting

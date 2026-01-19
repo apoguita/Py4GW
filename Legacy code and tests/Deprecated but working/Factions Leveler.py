@@ -84,7 +84,7 @@ class FSM_Config:
         
     def _prepare_for_battle(self):
         
-        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
         if profession == "Warrior":
             yield from Routines.Yield.Skills.LoadSkillbar("OQcUEvq0jvIClLHAAAAAAAAAAA",log=False)
         elif profession == "Ranger":
@@ -154,7 +154,7 @@ class FSM_Config:
 
         summoning_stone_in_bags = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Igneous_Summoning_Stone.value)
         if summoning_stone_in_bags < 1:
-            GLOBAL_CACHE.Player.SendChatCommand("bonus")
+            Player.SendChatCommand("bonus")
             yield from Routines.Yield.wait(200)
             
         target_cupcake_count = self.amount_of_cupcakes 
@@ -205,7 +205,7 @@ class FSM_Config:
         summoning_stone = ModelID.Igneous_Summoning_Stone.value
         stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summoning_stone)
         imp_effect_id = 2886
-        has_effect = GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), imp_effect_id)
+        has_effect = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), imp_effect_id)
 
         imp_model_id = 513
         others = GLOBAL_CACHE.Party.GetOthers()
@@ -229,13 +229,13 @@ class FSM_Config:
         if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
             return
         
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             return
 
         cupcake__id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Birthday_Cupcake.value)
         cupcake_effect = GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")
         
-        if not GLOBAL_CACHE.Effects.HasEffect(GLOBAL_CACHE.Player.GetAgentID(), cupcake_effect) and cupcake__id:
+        if not GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), cupcake_effect) and cupcake__id:
             GLOBAL_CACHE.Inventory.UseItem(cupcake__id)
             yield from Routines.Yield.wait(500)
             
@@ -246,13 +246,13 @@ class FSM_Config:
         if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
             return
         
-        if Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()):
+        if Agent.IsDead(Player.GetAgentID()):
             return
         
         target_morale = 110
         
         while True:
-            morale = GLOBAL_CACHE.Player.GetMorale()
+            morale = Player.GetMorale()
             if morale >= target_morale:
                 break
 
@@ -365,7 +365,7 @@ class FSM_Config:
             return False
 
         if dialog_id is not None:
-            GLOBAL_CACHE.Player.SendDialog(dialog_id)
+            Player.SendDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
         return True
@@ -437,7 +437,7 @@ class FSM_Config:
         if not (yield from self.follow_path(path_to_togo)):
             return
         
-        profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
         UNLOCK_SECONDARY = 0x813D08 if profession != "Assassin" else 0x813D0E
 
         if not (yield from self.interact_with_agent((-92, 9217), dialog_id=UNLOCK_SECONDARY)):
@@ -499,7 +499,7 @@ class FSM_Config:
             return
     
         MELEE_CLASSES = ["Warrior", "Ranger", "Assassin"]
-        profession,_ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        profession,_ = Agent.GetProfessionNames(Player.GetAgentID())
         
         if profession in MELEE_CLASSES:
             if not (yield from self.interact_with_agent((-6519, 12335))):
@@ -537,7 +537,7 @@ class FSM_Config:
             #equip crafted weapon
             crafted_weapon = GLOBAL_CACHE.Inventory.GetFirstModelID(SAI_MODEL_ID)
             if crafted_weapon:
-                GLOBAL_CACHE.Inventory.EquipItem(crafted_weapon, GLOBAL_CACHE.Player.GetAgentID())
+                GLOBAL_CACHE.Inventory.EquipItem(crafted_weapon, Player.GetAgentID())
                 yield from Routines.Yield.wait(500)
             else:
                 Py4GW.Console.Log(MODULE_NAME, "Crafted weapon not found in inventory.", Py4GW.Console.MessageType.Error)
@@ -546,10 +546,10 @@ class FSM_Config:
         else:
             yield from self._prepare_for_battle()
             wand = GLOBAL_CACHE.Inventory.GetFirstModelID(6508) #wand
-            GLOBAL_CACHE.Inventory.EquipItem(wand, GLOBAL_CACHE.Player.GetAgentID())
+            GLOBAL_CACHE.Inventory.EquipItem(wand, Player.GetAgentID())
             yield from Routines.Yield.wait(100)
             shield = GLOBAL_CACHE.Inventory.GetFirstModelID(6514) #shield
-            GLOBAL_CACHE.Inventory.EquipItem(shield, GLOBAL_CACHE.Player.GetAgentID())
+            GLOBAL_CACHE.Inventory.EquipItem(shield, Player.GetAgentID())
             yield from Routines.Yield.wait(100)
         
     def ExitShingJeaMonastery(self):
@@ -585,7 +585,7 @@ class FSM_Config:
         GLOBAL_CACHE.Coroutines.append(autocombat)
 
         try:
-            z = float(Agent.GetZPlane(GLOBAL_CACHE.Player.GetAgentID()))
+            z = float(Agent.GetZPlane(Player.GetAgentID()))
 
             waypoints: list[tuple[float, float]] = [
                 (6358, -7348),     # Start
@@ -687,7 +687,7 @@ class FSM_Config:
                 return
 
             TAKE_THE_THREAT_GROWS = 0x815401
-            GLOBAL_CACHE.Player.SendDialog(TAKE_THE_THREAT_GROWS)
+            Player.SendDialog(TAKE_THE_THREAT_GROWS)
             yield from Routines.Yield.wait(500)
         finally:
             if autocombat in GLOBAL_CACHE.Coroutines:
@@ -759,7 +759,7 @@ class FSM_Config:
             return
         
         TAKE_QUEST = 0x815501
-        GLOBAL_CACHE.Player.SendDialog(TAKE_QUEST)
+        Player.SendDialog(TAKE_QUEST)
         yield from Routines.Yield.wait(500)
         
         Map.Travel(Map.GetMapIDByName("Shing Jea Monastery"))
@@ -958,7 +958,7 @@ class FSM_Config:
                 yield from Routines.Yield.wait(3000)
                 
     def EvaluateLevel10(self):
-        level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+        level = Agent.GetLevel(Player.GetAgentID())
         if level < 10:
             zen_daijun_map_id = 213
             Map.Travel(zen_daijun_map_id)
@@ -975,7 +975,7 @@ class FSM_Config:
             return
         
         I_AM_SURE = 0x84
-        GLOBAL_CACHE.Player.SendDialog(I_AM_SURE)  # Accept the quest to book passage
+        Player.SendDialog(I_AM_SURE)  # Accept the quest to book passage
 
 
 main_FSM = FSM_Config()

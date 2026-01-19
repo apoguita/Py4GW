@@ -64,7 +64,7 @@ def farm(bot):
     bot.config.build_handler.status = DervBuildFarmStatus.Kill
 
     ConsoleLog(COF_FARMER, 'Killing all! None shall survive!')
-    player_id = GLOBAL_CACHE.Player.GetAgentID()
+    player_id = Player.GetAgentID()
 
     while True:
         enemy_array = get_enemy_array(custom_range=Range.Spellcast.value)
@@ -113,7 +113,7 @@ def loot_items():
 
 # region Helper Methods
 def get_enemy_array(custom_range=Range.Area.value * 1.50):
-    px, py = GLOBAL_CACHE.Player.GetXY()
+    px, py = Player.GetXY()
     enemy_array = Routines.Agents.GetFilteredEnemyArray(px, py, custom_range)
     return [agent_id for agent_id in enemy_array if Agent.GetModelID(agent_id) not in ENEMY_BLACKLIST]
 
@@ -262,7 +262,7 @@ def cof_farm_bot(bot: Botting):
     bot.States.AddCustomState(identify_and_salvage_items, 'Salvaging Items')
     bot.Party.Resign()
     bot.Wait.ForTime(60000)
-    bot.Wait.UntilCondition(lambda: Agent.IsDead(GLOBAL_CACHE.Player.GetAgentID()))
+    bot.Wait.UntilCondition(lambda: Agent.IsDead(Player.GetAgentID()))
 
 
 bot.SetMainRoutine(cof_farm_bot)

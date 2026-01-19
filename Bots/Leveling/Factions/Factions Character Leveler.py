@@ -3,7 +3,7 @@ from typing import List, Tuple, Generator, Any
 import PyImGui
 import os
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager, Map, Agent)
+                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player)
 
 bot = Botting("Factions Leveler",
               upkeep_birthday_cupcake_restock=10,
@@ -87,8 +87,8 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
 
     
 def EquipSkillBar(skillbar = ""): 
-    profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
-    level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    level = Agent.GetLevel(Player.GetAgentID())
 
     if profession == "Warrior":
         if level <= 3: #10 attribute points available
@@ -127,7 +127,7 @@ def EquipSkillBar(skillbar = ""):
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
 def EquipCaptureSkillBar(skillbar = ""): 
-    profession, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if profession == "Warrior": skillbar = "OQIAEbGAAAAAAAAAAA"
     elif profession == "Ranger": skillbar = "OgAAEbGAAAAAAAAAAA"
     elif profession == "Monk": skillbar = "OwIAEbGAAAAAAAAAAA"
@@ -226,7 +226,7 @@ def PrepareForBattle(bot: Botting):
     bot.Items.Restock.WarSupplies()
   
 def GetArmorMaterialPerProfession(headpiece = False) -> int:
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary == "Warrior":
         return ModelID.Bolt_Of_Cloth.value
     elif primary == "Ranger":
@@ -257,7 +257,7 @@ def BuyMaterials():
         yield from Routines.Yield.Merchant.BuyMaterial(GetArmorMaterialPerProfession())
 
 def GetArmorPiecesByProfession(bot: Botting):
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     HEAD,CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
 
     if primary == "Warrior":
@@ -378,7 +378,7 @@ def CraftRemainingArmor():
 
 def GetMaxArmorCommonMaterial() -> int:
     """Returns the common material type for max armor crafting in Kaineng."""
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary == "Warrior":
         return ModelID.Tanned_Hide_Square.value
     elif primary == "Ranger":
@@ -401,7 +401,7 @@ def GetMaxArmorCommonMaterial() -> int:
 def GetMaxArmorRareMaterial() -> int | None:
     """Returns the rare material type for max armor, None if not needed.
     Note: Necromancer and Monk need 2 rare materials (handled in BuyMaxArmorMaterials and DoCraftMaxArmor)."""
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary == "Warrior":
         return ModelID.Steel_Ingot.value
     elif primary == "Ranger":
@@ -423,7 +423,7 @@ def GetMaxArmorRareMaterial() -> int | None:
 
 def GetArmorCrafterCoords() -> tuple[float, float]:
     """Returns the armor crafter coordinates based on profession."""
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary == "Warrior":
         return (-891.00, -5382.00) #Suki armor npc
     elif primary == "Ranger":
@@ -445,7 +445,7 @@ def GetArmorCrafterCoords() -> tuple[float, float]:
 
 def GetMaxArmorPiecesByProfession(bot: Botting):
     """Returns model IDs for max armor pieces in Kaineng."""
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     HEAD, CHEST, GLOVES, PANTS, BOOTS = 0, 0, 0, 0, 0
 
     if primary == "Warrior":
@@ -501,7 +501,7 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
 
 def BuyMaxArmorMaterials(material_type: str = "common"):
     """Buy max armor materials. Pass 'common' or 'rare' to specify which type."""
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
     if material_type == "common":
         # Necromancer needs two common materials: Tanned Hide and Bone
@@ -573,7 +573,7 @@ def BuyMaxArmorMaterials(material_type: str = "common"):
 def DoCraftMaxArmor(bot: Botting):
     """Core max armor crafting logic - assumes already at armor crafter NPC."""
     HEAD, CHEST, GLOVES, PANTS, BOOTS = GetMaxArmorPiecesByProfession(bot)
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
     # Max armor needs both common and rare materials
     rare_mat = GetMaxArmorRareMaterial()
@@ -720,7 +720,7 @@ def withdraw_gold_weapon(target_gold=500, deposit_all=True):
 def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     """Destroy starter armor pieces based on profession and useless items."""
     global starter_armor
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
     # Profession-specific starter armor model IDs
     if primary == "Assassin":
@@ -794,7 +794,7 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
 def destroy_seitung_armor() -> Generator[Any, Any, None]:
     """Destroy Seitung armor pieces based on profession."""
     global seitung_armor
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
     # Profession-specific Seitung armor model IDs
     if primary == "Warrior":
@@ -852,7 +852,7 @@ def ExitToCourtyard(bot: Botting) -> None:
 def UnlockSecondaryProfession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
         global bot
-        primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+        primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
         if primary == "Ranger":
             yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0A)
         else:
@@ -907,7 +907,7 @@ def ExitToSunquaVale(bot: Botting) -> None:
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     
 def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     #ConsoleLog("RangerCapturePet", f"Primary Profession: {primary}", Py4GW.Console.MessageType.Info)
     if primary != "Ranger": return
     yield from bot.Move._coro_get_path_to(-7782.00, 6687.00)
@@ -917,7 +917,7 @@ def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
     yield from bot.helpers.UI._cancel_skill_reward_window()
 
 def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary != "Ranger": return
     yield from bot.Move._coro_get_path_to(5103.00, -4769.00)
     yield from bot.Move._coro_follow_path_to()
@@ -1744,7 +1744,7 @@ def UnlockRemainingSecondaryProfessions(bot: Botting):
     bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
     bot.Move.XY(-5540.40, -5733.11)
     bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
-    primary, _ = Agent.GetProfessionNames(GLOBAL_CACHE.Player.GetAgentID())
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
     if primary == "Warrior":
         bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
@@ -1831,7 +1831,7 @@ def UnlockMercenaryHeroes(bot: Botting) -> None:
 
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     # optional but typical for wipe flow:
-    GLOBAL_CACHE.Player.SendChatCommand("resign")
+    Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(8000)
 
     fsm = bot.config.FSM
@@ -1916,7 +1916,7 @@ iconwidth = 96
 
 def _draw_texture():
     global iconwidth
-    level = Agent.GetLevel(GLOBAL_CACHE.Player.GetAgentID())
+    level = Agent.GetLevel(Player.GetAgentID())
     path = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "Leveling", "Factions","factions_leveler_art.png")
     size = (float(iconwidth), float(iconwidth))
     tint = (255, 255, 255, 255)

@@ -1,3 +1,4 @@
+from typing import Optional
 import PyScanner
 from enum import IntEnum
 
@@ -35,6 +36,30 @@ class Scanner:
         Returns the found address or 0.
         """
         return Scanner._Scanner.FindInRange(pattern, mask, offset, start, end)
+    
+    @staticmethod
+    def FindAssertion(assertion_file: str,
+                      assertion_msg: str,
+                      line_number: int = 0,
+                      offset: int = 0) -> int:
+        """
+        Find an assertion in the binary by its file name and message.
+        Optionally specify line number and offset.
+        Returns the found address or 0.
+        """
+        return Scanner._Scanner.FindAssertion(assertion_file,
+                                              assertion_msg,
+                                              line_number,
+                                              offset)
+  
+    @staticmethod
+    def GetSectionAddressRange(section: int) -> Optional[tuple[int, int]]:
+        """
+        Get the start and end addresses of a memory section.
+        Returns a tuple (start, end) or None if section is invalid.
+        """
+        return Scanner._Scanner.GetSectionAddressRange(section)
+
     
     @staticmethod
     def FunctionFromNearCall(call_instruction_address: int,

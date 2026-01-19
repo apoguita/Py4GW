@@ -331,7 +331,7 @@ def main():
                     navmesh.debug_filtered_trapezoids(filter_ids)
 
             if navmesh:
-                start_pos = GLOBAL_CACHE.Player.GetXY()
+                start_pos = Player.GetXY()
                 goal_pos = (0.0, 0.0)
                 
 
