@@ -100,8 +100,8 @@ def render():
                         # PyImGui.table_headers_row()
                         for score in scores_by_typology:
                             def label_generic_utility(utility: CustomSkillUtilityBase) -> str:
-                                if utility.__class__.__name__ == "HeroAiUtility":
-                                    return f"HeroAI: "
+                                if utility.__class__.__name__ == "AutoCombatUtility":
+                                    return f" AutoCombat"
                                 return ""
                             score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
                             texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
@@ -154,7 +154,7 @@ def render():
                             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, UtilitySkillTypologyColor.get_color_from_typology(score[0].utility_skill_typology))
                             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, UtilitySkillTypologyColor.get_color_from_typology(score[0].utility_skill_typology))
                             PyImGui.push_style_color(PyImGui.ImGuiCol.Text, black_color.to_tuple_normalized())
-                            PyImGui.button(f"score : {label_generic_utility(skill)}{score_text}")
+                            PyImGui.button(f"score{label_generic_utility(skill)} : {score_text}")
 
                             PyImGui.pop_style_color(4)
 

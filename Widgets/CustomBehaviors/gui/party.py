@@ -545,17 +545,15 @@ def render():
 
     PyImGui.separator()
 
-    if PyImGui.tree_node_ex("[TEAM UI] HeroAI UI :", 0):
-        from Widgets.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
-
-        hero_ai = HeroAiWrapping()
-        all_panels_visible = hero_ai.are_all_panels_visible()
-
-        new_state = PyImGui.checkbox("Show All Hero Panels", all_panels_visible)
-        if new_state != all_panels_visible:
-            hero_ai.toggle_all_panels(visible=new_state)
-
-        PyImGui.tree_pop()
+    if GLOBAL_CACHE.Party.IsPartyLeader():
+        if PyImGui.tree_node_ex("[TEAM UI] HeroAI UI :", 0):
+            from Widgets.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
+            hero_ai = HeroAiWrapping()
+            heroai_ui_visible = hero_ai.is_heroai_ui_visible()
+            new_state = PyImGui.checkbox("Show All Hero Panels", heroai_ui_visible)
+            if new_state != heroai_ui_visible:
+                hero_ai.change_heroai_ui_visibility(is_visible=new_state)
+            PyImGui.tree_pop()
 
     PyImGui.separator()
 

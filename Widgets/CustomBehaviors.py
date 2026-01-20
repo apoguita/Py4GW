@@ -19,7 +19,7 @@ for module_name in list(sys.modules.keys()):
     if module_name not in ("sys", "importlib", "cache_data"):
         try:
             if "behavior" in module_name.lower():
-                Py4GW.Console.Log("CustomBehaviors", f"Reloading module: {module_name}")
+                # Py4GW.Console.Log("CustomBehaviors", f"Reloading module: {module_name}")
                 del sys.modules[module_name]
                 # importlib.reload(module_name)
                 pass
@@ -54,12 +54,11 @@ def gui():
 
     global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
-    window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 600), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    # window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 600), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
-    if PyImGui.begin(window_module.window_name, window_module.window_flags):
+    if PyImGui.begin("Custom behaviors - Multiboxing over utility-ai algorithm.", PyImGui.WindowFlags.AlwaysAutoResize):
         widget_window_size = PyImGui.get_window_size()
         widget_window_pos = PyImGui.get_window_pos()
-        
 
         PyImGui.begin_tab_bar("tabs")
         if PyImGui.begin_tab_item("party"):

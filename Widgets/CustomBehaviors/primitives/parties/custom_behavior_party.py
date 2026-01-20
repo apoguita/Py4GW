@@ -19,6 +19,7 @@ from Widgets.CustomBehaviors.primitives import constants
 
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
+from Widgets.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
 from Widgets.CustomBehaviors.primitives.parties.party_command_handler_manager import PartyCommandHandlerManager
 from Widgets.CustomBehaviors.primitives.parties.party_flagging_manager import PartyFlaggingManager
 from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager

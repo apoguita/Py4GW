@@ -6,7 +6,6 @@ from typing import Any, Callable, Optional, Tuple
 
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.enums_src.Model_enums import GadgetModelID
-from Py4GWCoreLib.py4gwcorelib_src.Timer import Timer
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -325,7 +324,7 @@ class Actions:
         return BehaviorResult.ACTION_SKIPPED
 
     @staticmethod
-    def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int]]) -> Generator[Any, Any, BehaviorResult]:
+    def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int | None]]) -> Generator[Any, Any, BehaviorResult]:
 
         if not Routines.Checks.Skills.IsSkillSlotReady(skill.skill_slot):
             yield
@@ -360,49 +359,6 @@ class Actions:
     @staticmethod
     def cast_skill(skill: CustomSkill) -> Generator[Any, Any, BehaviorResult]:
         return (yield from Actions.cast_skill_to_lambda(skill, select_target=None))
-
-    @staticmethod
-    def cast_skill_generic_heroai(skill: CustomSkill) -> Generator[Any, Any, BehaviorResult]:
-        from HeroAI.cache_data import CacheData
-        cached_data = CacheData()
-        if cached_data.combat_handler is None: print("combat_handler is None")
-        if cached_data.combat_handler.skills is None:
-            try:
-                cached_data.combat_handler.PrioritizeSkills()
-                print(f"PrioritizeSkills")
-            except Exception as e:
-                print(f"echec {e}")
-        if cached_data.combat_handler.skills is None:
-            print("combat_handler.skills is None")
-            yield
-            return BehaviorResult.ACTION_SKIPPED
-
-        def find_order():
-            for index, generic_skill in enumerate(cached_data.combat_handler.skills):
-                if generic_skill.skill_id == skill.skill_id:
-                    return index  # Returning order (1-based index)
-            return -1  # Return -1 if skill_id not found
-
-        order = find_order()
-        is_ready_to_cast, target_agent_id = cached_data.combat_handler.IsReadyToCast(order)
-        
-
-        if not is_ready_to_cast:
-            yield
-            return BehaviorResult.ACTION_SKIPPED
-
-        # option1
-        if target_agent_id is not None: 
-            Player.ChangeTarget(target_agent_id)
-            yield from Helpers.wait_for(50)
-
-
-        Routines.Sequential.Skills.CastSkillID(skill.skill_id)
-        # option2
-        # ActionQueueManager().AddAction("ACTION", SkillBar.UseSkill, skill_slot, target_agent_id)
-        if constants.DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
-        yield from Helpers.delay_aftercast(skill)
-        return BehaviorResult.ACTION_PERFORMED
 
     @staticmethod
     def cast_effect_before_expiration(skill: CustomSkill, time_before_expire: int) -> Generator[Any, Any, BehaviorResult]:

@@ -61,10 +61,11 @@ def render():
             PyImGui.text_colored(f"To manage waypoints & path, you must have MissionMap+ openned", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
 
         if Map.MissionMap.IsWindowOpen():
+            PyImGui.text_colored(f"Right click on MissionMap+ to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
+
             auto_follow_path.render()
 
             if len(auto_follow_path.get_list_of_waypoints()) == 0:
-                PyImGui.text_colored(f"Right click on MissionMap+ to start build a path.", Utils.ColorToTuple(Utils.RGBToColor(131, 250, 146, 255)))
                 if PyImGui.button("or paste an array of tuple[float, float] from clipboard"):
                     clipboard_array:str = PyImGui.get_clipboard_text()
                     auto_follow_path.try_inject_waypoint_coordinates_from_clipboard(clipboard_array)

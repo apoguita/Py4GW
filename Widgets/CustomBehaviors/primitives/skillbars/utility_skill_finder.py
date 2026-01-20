@@ -9,6 +9,7 @@ from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.skills.generic.implementations.generic_utility_skills_list import GenericUtilitySkillsList
 
 # Default skill packages to scan for utility skills
 DEFAULT_SKILL_PACKAGES = [
@@ -62,6 +63,17 @@ def discover_all_utility_skills(
         except Exception as e:
             if debug or constants.DEBUG:
                 print(f"Failed to load utilities from {package_name}: {e}")
+
+    # Gather skills from GenericUtilitySkillsList (pre-configured generic utilities)
+    try:
+        generic_skills = GenericUtilitySkillsList.get_generic_utility_skills_list(event_bus, in_game_build)
+        for utility in generic_skills:
+            # Only add if not already overridden or discovered
+            if utility.custom_skill.skill_id not in utilities_by_skill_id:
+                utilities_by_skill_id[utility.custom_skill.skill_id] = utility
+    except Exception as e:
+        if debug or constants.DEBUG:
+            print(f"Failed to load utilities from GenericUtilitySkillsList: {e}")
 
     if debug or constants.DEBUG:
         override_count = len(custom_overrides) if custom_overrides else 0

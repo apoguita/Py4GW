@@ -33,7 +33,7 @@ from Widgets.CustomBehaviors.skills.following.follow_party_leader_only_utility i
 from Widgets.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
 from Widgets.CustomBehaviors.skills.following.follow_party_leader_new_utility import FollowPartyLeaderNewUtility
 from Widgets.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
-from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
+from Widgets.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
@@ -120,7 +120,7 @@ class CustomBehaviorBaseUtility():
         self.__is_enabled = True
 
     def disable(self):
-        self.__is_enabled = False        
+        self.__is_enabled = False
 
     # computed
 
@@ -246,7 +246,7 @@ class CustomBehaviorBaseUtility():
                 if skill.skill_id in generic_utility_skills_by_skill_id.keys():
                     final_list.append(generic_utility_skills_by_skill_id[skill.skill_id])
                 else:
-                    final_list.append(HeroAiUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values())))
+                    final_list.append(AutoCombatUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values())))
 
         for skill in self.additional_autonomous_skills:
             final_list.append(skill)
