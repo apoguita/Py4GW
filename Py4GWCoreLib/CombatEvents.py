@@ -793,8 +793,14 @@ def _enable():
     if _update_registered:
         return
     try:
-        from Py4GW import Game
-        Game.register_callback("CombatEvents.Update", CombatEvents.update)
+        
+        import PyCallback
+        """PyCallback.PyCallback.Register(
+            "CombatEvents.Update",
+            PyCallback.Phase.Data,
+            CombatEvents.update,
+            priority=99
+        )"""
         _update_registered = True
     except Exception as e:
         Py4GW.Console.Log("CombatEvents", f"Failed to register update callback: {e}", Py4GW.Console.MessageType.Error)

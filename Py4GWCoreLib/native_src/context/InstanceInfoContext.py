@@ -1,6 +1,4 @@
-import PyPlayer
-from Py4GW import Game
-import math
+
 from typing import ClassVar, Optional
 from ctypes import (
     Structure, POINTER,
@@ -132,45 +130,44 @@ InstanceInfo_GetPtr = NativeSymbol(
 #region facade
 class InstanceInfo:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: InstanceInfoStruct | None = None
-    _callback_name = "InstanceInfo.UpdateInstanceInfoPtr"
+    _callback_name = "InstanceInfoContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
         return InstanceInfo._ptr    
     @staticmethod
     def _update_ptr():
-        InstanceInfo._ptr = InstanceInfo_GetPtr.read_ptr()
+        ptr = InstanceInfo_GetPtr.read_ptr()
+        InstanceInfo._ptr = ptr
+        if not ptr:
+            InstanceInfo._cached_ctx = None
+            return
+        InstanceInfo._cached_ctx = cast(
+            ptr,
+            POINTER(InstanceInfoStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             InstanceInfo._callback_name,
-            InstanceInfo._update_ptr
+            PyCallback.Phase.PreUpdate,
+            InstanceInfo._update_ptr,
+            priority=3
         )
+
 
     @staticmethod
     def disable():
-        Game.remove_callback(InstanceInfo._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(InstanceInfo._callback_name)
         InstanceInfo._ptr = 0
-        InstanceInfo._cached_ptr = 0
         InstanceInfo._cached_ctx = None
 
     @staticmethod
     def get_context() -> InstanceInfoStruct | None:
-        ptr = InstanceInfo._ptr
-        if not ptr:
-            InstanceInfo._cached_ptr = 0
-            InstanceInfo._cached_ctx = None
-            return None
-        
-        if ptr != InstanceInfo._cached_ptr:
-            InstanceInfo._cached_ptr = ptr
-            InstanceInfo._cached_ctx = cast(
-                ptr,
-                POINTER(InstanceInfoStruct)
-            ).contents
         return InstanceInfo._cached_ctx
  
 InstanceInfo.enable()

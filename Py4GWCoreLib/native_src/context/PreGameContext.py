@@ -1,5 +1,4 @@
 import PyPointers
-from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from ..internals.types import Vec2f
 from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
@@ -61,9 +60,8 @@ class PreGameContextStruct(Structure):
 
 class PreGameContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: PreGameContextStruct | None = None
-    _callback_name = "PreGameContext.UpdatePreGameContextPtr"
+    _callback_name = "PreGameContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -71,36 +69,35 @@ class PreGameContext:
 
     @staticmethod
     def _update_ptr():
-        PreGameContext._ptr = PyPointers.PyPointers.GetPreGameContextPtr()
+        ptr = PyPointers.PyPointers.GetPreGameContextPtr()
+        PreGameContext._ptr = ptr
+        if not ptr:
+            PreGameContext._cached_ctx = None
+            return
+        PreGameContext._cached_ctx = cast(
+            ptr,
+            POINTER(PreGameContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             PreGameContext._callback_name,
-            PreGameContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            PreGameContext._update_ptr,
+            priority=99
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(PreGameContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(PreGameContext._callback_name)
         PreGameContext._ptr = 0
-        PreGameContext._cached_ptr = 0
         PreGameContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> PreGameContextStruct | None:
-        ptr = PreGameContext._ptr
-        if not ptr:
-            PreGameContext._cached_ptr = 0
-            PreGameContext._cached_ctx = None
-            return None
-        
-        if ptr != PreGameContext._cached_ptr:
-            PreGameContext._cached_ptr = ptr
-            PreGameContext._cached_ctx = cast(
-                ptr,
-                POINTER(PreGameContextStruct)
-            ).contents
-            
         return PreGameContext._cached_ctx
+    
 PreGameContext.enable()

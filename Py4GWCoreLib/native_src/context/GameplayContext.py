@@ -15,9 +15,8 @@ assert sizeof(GameplayContextStruct) == 0x78
 
 class GameplayContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: GameplayContextStruct | None = None
-    _callback_name = "GameplayContext.UpdateGameplayContextPtr"
+    _callback_name = "GameplayContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -25,35 +24,36 @@ class GameplayContext:
 
     @staticmethod
     def _update_ptr():
-        GameplayContext._ptr = PyPointers.PyPointers.GetGameplayContextPtr()
-
+        ptr = PyPointers.PyPointers.GetGameplayContextPtr()
+        GameplayContext._ptr = ptr
+        if not ptr:
+            GameplayContext._cached_ctx = None
+            return
+        
+        GameplayContext._cached_ctx = cast(
+            ptr,
+            POINTER(GameplayContextStruct)
+        ).contents
+        
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             GameplayContext._callback_name,
-            GameplayContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            GameplayContext._update_ptr,
+            priority=7
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(GameplayContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(GameplayContext._callback_name)
         GameplayContext._ptr = 0
-        GameplayContext._cached_ptr = 0
         GameplayContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> GameplayContextStruct | None:
-        ptr = GameplayContext._ptr
-        if not ptr:
-            GameplayContext._cached_ptr = 0
-            GameplayContext._cached_ctx = None
-            return None
-        if ptr != GameplayContext._cached_ptr:
-            GameplayContext._cached_ptr = ptr
-            GameplayContext._cached_ctx = cast(
-                ptr,
-                POINTER(GameplayContextStruct)
-            ).contents
         return GameplayContext._cached_ctx
         
 GameplayContext.enable()

@@ -1,5 +1,4 @@
 import PyPointers
-from Py4GW import Game
 from typing import Optional
 
 from ctypes import Structure, POINTER,c_uint32, c_wchar, c_uint8, cast, c_void_p
@@ -212,9 +211,8 @@ class AccAgentContextStruct(Structure):
 #region AgentContext facade
 class AccAgentContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: AccAgentContextStruct | None = None
-    _callback_name = "AgentContext.UpdateAgentContextPtr"
+    _callback_name = "AccAgentContext.UpdatePtr"
     
     
     @staticmethod
@@ -222,43 +220,34 @@ class AccAgentContext:
         return AccAgentContext._ptr    
     @staticmethod
     def _update_ptr():
-        AccAgentContext._ptr = PyPointers.PyPointers.GetAgentContextPtr()
+        ptr = PyPointers.PyPointers.GetAgentContextPtr()
+        AccAgentContext._ptr = ptr
+        if not ptr:
+            AccAgentContext._cached_ctx = None
+            return
+        AccAgentContext._cached_ctx = cast(
+            ptr,
+            POINTER(AccAgentContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             AccAgentContext._callback_name,
-            AccAgentContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            AccAgentContext._update_ptr,
+            priority=5
         )
+
 
     @staticmethod
     def disable():
-        Game.remove_callback(AccAgentContext._callback_name)
-        AccAgentContext._ptr = 0
-        AccAgentContext._cached_ptr = 0
-        AccAgentContext._cached_ctx = None
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(AccAgentContext._callback_name)
 
     @staticmethod
     def get_context() -> AccAgentContextStruct | None:
-        """
-        Returns a cached ctypes struct wrapper for AccAgentContextStruct.
-        Rebuilds it ONLY when the raw pointer changes.
-        """
-        ptr = AccAgentContext._ptr
-        if not ptr:
-            # context lost → drop cache
-            AccAgentContext._cached_ctx = None
-            AccAgentContext._cached_ptr = 0
-            return None
-
-        # pointer changed? (map load, zone change, etc.)
-        if ptr != AccAgentContext._cached_ptr:
-            AccAgentContext._cached_ptr = ptr
-            AccAgentContext._cached_ctx = cast(
-                ptr,
-                POINTER(AccAgentContextStruct)
-            ).contents
-
         return AccAgentContext._cached_ctx
     
     

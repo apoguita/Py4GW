@@ -24,7 +24,7 @@ class ServerRegionStruct(Structure):
     ]
     
 ServerRegion_GetPtr = NativeSymbol(
-    name="GetInstanceInfoPtr",
+    name="ServerRegion_GetPtr",
     pattern=b"\x6a\x54\x8d\x46\x24\x89\x08",
     mask="xxxxxxx",
     offset=-0x4,  
@@ -34,46 +34,44 @@ ServerRegion_GetPtr = NativeSymbol(
 #region facade
 class ServerRegion:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: ServerRegionStruct | None = None
-    _callback_name = "ServerRegion.UpdateServerRegionPtr"
+    _callback_name = "ServerRegion.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
         return ServerRegion._ptr    
     @staticmethod
     def _update_ptr():
-        ServerRegion._ptr = ServerRegion_GetPtr.read_ptr()
+        ptr = ServerRegion_GetPtr.read_ptr()
+        ServerRegion._ptr = ptr
+        if not ptr:
+            ServerRegion._cached_ctx = None
+            return
+        
+        ServerRegion._cached_ctx = cast(
+            ptr,
+            POINTER(ServerRegionStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             ServerRegion._callback_name,
-            ServerRegion._update_ptr
+            PyCallback.Phase.PreUpdate,
+            ServerRegion._update_ptr,
+            priority = 0
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(ServerRegion._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(ServerRegion._callback_name)
         ServerRegion._ptr = 0
-        ServerRegion._cached_ptr = 0
         ServerRegion._cached_ctx = None
 
     @staticmethod
     def get_context() -> ServerRegionStruct | None:
-        ptr = ServerRegion._ptr
-        if not ptr:
-            ServerRegion._cached_ptr = 0
-            ServerRegion._cached_ctx = None
-            return None
-        
-        if ptr != ServerRegion._cached_ptr:
-            ServerRegion._cached_ptr = ptr
-            ServerRegion._cached_ctx = cast(
-                ptr,
-                POINTER(ServerRegionStruct)
-            ).contents
-            
         return ServerRegion._cached_ctx
         
         

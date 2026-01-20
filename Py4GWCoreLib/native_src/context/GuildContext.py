@@ -1,5 +1,4 @@
 import PyPointers
-from Py4GW import Game
 from ctypes import Structure, c_uint32, c_uint8, c_wchar, POINTER, cast, c_int32, c_void_p
 from typing import List, Optional
 from ..internals.helpers import read_wstr, encoded_wstr_to_str
@@ -286,46 +285,43 @@ class GuildContextStruct(Structure):
 #region Facade
 class GuildContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: GuildContextStruct | None = None
-    _callback_name = "GuildContext.UpdateGuildContextPtr"
+    _callback_name = "GuildContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
         return GuildContext._ptr
     @staticmethod
     def _update_ptr():
-        GuildContext._ptr = PyPointers.PyPointers.GetGuildContextPtr()
+        ptr = PyPointers.PyPointers.GetGuildContextPtr()
+        GuildContext._ptr = ptr
+        if not ptr:
+            GuildContext._cached_ctx = None
+            return
+        GuildContext._cached_ctx = cast(
+            ptr,
+            POINTER(GuildContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             GuildContext._callback_name,
-            GuildContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            GuildContext._update_ptr,
+            priority=99
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(GuildContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(GuildContext._callback_name)
         GuildContext._ptr = 0
-        GuildContext._cached_ptr = 0
         GuildContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> GuildContextStruct | None:
-        ptr = GuildContext._ptr
-        if not ptr:
-            GuildContext._cached_ptr = 0
-            GuildContext._cached_ctx = None
-            return None
-        
-        if ptr != GuildContext._cached_ptr:
-            GuildContext._cached_ptr = ptr
-            GuildContext._cached_ctx = cast(
-                ptr,
-                POINTER(GuildContextStruct)
-            ).contents
-            
         return GuildContext._cached_ctx
         
         

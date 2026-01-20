@@ -1,5 +1,4 @@
 import PyPointers
-from Py4GW import Game
 from ctypes import Structure, c_uint32, c_uint8, c_wchar, POINTER, cast, c_int32
 from ..internals.helpers import read_wstr, encoded_wstr_to_str
 from ..internals.gw_array import GW_Array, GW_Array_Value_View
@@ -208,9 +207,8 @@ class CharContextStruct(Structure):
 #region CharContext Facade
 class CharContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: CharContextStruct | None = None
-    _callback_name = "CharContext.UpdateCharContextPtr"
+    _callback_name = "CharContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -218,37 +216,36 @@ class CharContext:
 
     @staticmethod
     def _update_ptr():
-        CharContext._ptr = PyPointers.PyPointers.GetCharContextPtr()
+        ptr = PyPointers.PyPointers.GetCharContextPtr()
+        CharContext._ptr = ptr
+        if not ptr:
+            CharContext._cached_ctx = None
+            return
+        
+        CharContext._cached_ctx = cast(
+            ptr,
+            POINTER(CharContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             CharContext._callback_name,
-            CharContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            CharContext._update_ptr,
+            priority=2
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(CharContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(CharContext._callback_name)
         CharContext._ptr = 0
-        CharContext._cached_ptr = 0
         CharContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> CharContextStruct | None:
-        ptr = CharContext._ptr
-        if not ptr:
-            CharContext._cached_ptr = 0
-            CharContext._cached_ctx = None
-            return None
-        
-        if ptr != CharContext._cached_ptr:
-            CharContext._cached_ptr = ptr
-            CharContext._cached_ctx = cast(
-                ptr,
-                POINTER(CharContextStruct)
-            ).contents
-        
         return CharContext._cached_ctx
         
 CharContext.enable()

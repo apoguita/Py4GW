@@ -15,15 +15,6 @@ from ctypes import sizeof
 import PyPointers
 from Py4GW import Game
 
-world_map_ptr = 0
-def get_world_map_context_ptr():
-    global world_map_ptr
-    world_map_ptr = PyPointers.PyPointers.GetWorldMapContextPtr()
-    
-#Game.clear_callbacks()
-CallbackID = Game.register_callback("get_world_map_context_ptr", lambda: get_world_map_context_ptr())
-
-
 SetDifficulty_Func = NativeFunction(
     name="SetDifficulty_Func", #GWCA name
     pattern=b"\x83\x3B\x00\x0F\x85\x00\x00\x00\x00\xFF\x70\x20",

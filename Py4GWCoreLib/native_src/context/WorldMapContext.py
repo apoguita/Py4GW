@@ -40,9 +40,8 @@ assert sizeof(WorldMapContextStruct) == 0x224
 
 class WorldMapContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: WorldMapContextStruct | None = None
-    _callback_name = "WorldMapContext.UpdateWorldMapContextPtr"
+    _callback_name = "WorldMapContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -50,37 +49,35 @@ class WorldMapContext:
     
     @staticmethod
     def _update_ptr():
-        WorldMapContext._ptr = PyPointers.PyPointers.GetWorldMapContextPtr()
+        ptr = PyPointers.PyPointers.GetWorldMapContextPtr()
+        WorldMapContext._ptr = ptr
+        if not ptr:
+            WorldMapContext._cached_ctx = None
+            return
+        WorldMapContext._cached_ctx = cast(
+            ptr,
+            POINTER(WorldMapContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             WorldMapContext._callback_name,
-            WorldMapContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            WorldMapContext._update_ptr,
+            priority=99
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(WorldMapContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(WorldMapContext._callback_name)
         WorldMapContext._ptr = 0
-        WorldMapContext._cached_ptr = 0
         WorldMapContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> WorldMapContextStruct | None:
-        ptr = WorldMapContext._ptr
-        if not ptr:
-            WorldMapContext._cached_ptr = 0
-            WorldMapContext._cached_ctx = None
-            return None
-        
-        if ptr != WorldMapContext._cached_ptr:
-            WorldMapContext._cached_ptr = ptr
-            WorldMapContext._cached_ctx = cast(
-                ptr,
-                POINTER(WorldMapContextStruct)
-            ).contents
-            
         return WorldMapContext._cached_ctx
 
 WorldMapContext.enable()

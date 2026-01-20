@@ -418,12 +418,12 @@ class Yield:
             max_stuck_commands = 2  # after this, do PixelStack recovery
 
             ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
-
+            
 
             for idx, (target_x, target_y) in enumerate(path_points):
                 start_time = Utils.GetBaseTimestamp()
                 
-                ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y})", Console.MessageType.Info, log=detailed_log)
+                ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y}) distance {Utils.Distance(Player.GetXY(), (target_x, target_y))}", Console.MessageType.Info, log=detailed_log)
 
 
                 if not Checks.Map.MapValid():
@@ -492,7 +492,7 @@ class Yield:
                     current_time = Utils.GetBaseTimestamp()
                     delta = current_time - start_time
                     if delta > timeout and timeout > 0:
-                        ConsoleLog("FollowPath", "Timeout reached, stopping movement.", Console.MessageType.Warning, log=log)
+                        ConsoleLog("FollowPath", f"Timeout reached, stopping movement. distance to failes point {Utils.Distance(Player.GetXY(), (target_x, target_y))}", Console.MessageType.Warning, log=log)
                         return False
 
                     current_x, current_y = Player.GetXY()

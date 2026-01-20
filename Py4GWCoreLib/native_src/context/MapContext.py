@@ -490,47 +490,47 @@ class MapContextStruct(Structure):
 #region MapContext Facade
 class MapContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: MapContextStruct | None = None
-    _callback_name = "MapContext.UpdateMapContextPtr"
+    _callback_name = "MapContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
         return MapContext._ptr
+
     @staticmethod
     def _update_ptr():
-        
-        MapContext._ptr = PyPointers.PyPointers.GetMapContextPtr()
+        ptr = PyPointers.PyPointers.GetMapContextPtr()
+        MapContext._ptr = ptr
+
+        if not ptr:
+            MapContext._cached_ctx = None
+            return
+
+        MapContext._cached_ctx = cast(
+            ptr,
+            POINTER(MapContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             MapContext._callback_name,
-            MapContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            MapContext._update_ptr,
+            priority=1
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(MapContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(MapContext._callback_name)
+    
         MapContext._ptr = 0
-        MapContext._cached_ptr = 0
         MapContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> MapContextStruct | None:
-        ptr = MapContext._ptr
-        if not ptr:
-            MapContext._cached_ptr = 0
-            MapContext._cached_ctx = None
-            return None
-        
-        if ptr != MapContext._cached_ptr:
-            MapContext._cached_ptr = ptr
-            MapContext._cached_ctx = cast(
-                ptr,
-                POINTER(MapContextStruct)
-            ).contents
-            
         return MapContext._cached_ctx
 
               
