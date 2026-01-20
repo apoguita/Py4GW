@@ -8,6 +8,7 @@ from .MapContext import MapContext, MapContextStruct
 from .CharContext import CharContext, CharContextStruct
 from .InstanceInfoContext import InstanceInfo, InstanceInfoStruct
 from .WorldContext import WorldContext, WorldContextStruct
+from .PartyContext import PartyContext, PartyContextStruct
 from ..internals.types import Vec2f, Vec3f, GamePos
 from ..internals.gw_array import GW_Array, GW_Array_Value_View, GW_Array_View
 from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
@@ -649,6 +650,7 @@ class AgentArrayStruct(Structure):
         world_ctx = WorldContext.get_context()
         acc_agent_ctx = AccAgentContext.get_context()
 
+
         if not (map_ctx and char_ctx and instance_info_ctx and world_ctx and acc_agent_ctx):
             self._drop_cache()
             return
@@ -658,11 +660,15 @@ class AgentArrayStruct(Structure):
             self._drop_cache()
             return
         
-        self.frame_counter += 3
-        if self.frame_counter < self.frame_throttle:
+        if (char_ctx.player_number is None):
+            self._drop_cache()
             return
         
-        self.frame_counter = 0
+        #per frame cache, not throttling
+        #self.frame_counter += 3
+        #if self.frame_counter < self.frame_throttle:
+        #    return
+        #self.frame_counter = 0
         
         self._build_allegiance_cache()
         
@@ -789,12 +795,12 @@ class AgentArrayStruct(Structure):
 
         if not (map_ctx and char_ctx and instance_info_ctx and world_ctx and acc_agent_ctx):
             self._drop_cache()
-            return
+            return None
         
         instance_type = instance_info_ctx.instance_type
         if instance_type not in (0, 1):  # explorable, story, pvp
             self._drop_cache()
-            return
+            return None
         
         agent =  self._agent_by_id.get(agent_id)
         return agent
@@ -925,8 +931,16 @@ class AgentArray:
         return AgentArray._ptr    
     @staticmethod
     def _update_ptr():
-        AgentArray._ptr = AgentArray_GetPtr.read_ptr()
-        
+        ptr = AgentArray_GetPtr.read_ptr()
+        AgentArray._ptr = ptr
+        if not ptr:
+            AgentArray._cached_ctx = None
+            return
+        AgentArray._cached_ctx = cast(
+            ptr,
+            POINTER(AgentArrayStruct)
+        ).contents
+
     @staticmethod
     def _update_cache():
         ctx = AgentArray.get_context()
@@ -936,34 +950,32 @@ class AgentArray:
 
     @staticmethod
     def enable():
-        Game.register_callback(AgentArray._callback_name_ptr, AgentArray._update_ptr)
-        Game.register_callback(AgentArray._callback_name_cache, AgentArray._update_cache)
+        import PyCallback
+        PyCallback.PyCallback.Register(
+            AgentArray._callback_name_ptr,
+            PyCallback.Phase.PreUpdate,
+            AgentArray._update_ptr,
+            priority=6
+        )
+
+        PyCallback.PyCallback.Register(
+            AgentArray._callback_name_cache,
+            PyCallback.Phase.Data,
+            AgentArray._update_cache,
+            priority=0
+        )  
+
 
     @staticmethod
     def disable():
-        Game.remove_callback(AgentArray._callback_name_ptr)
-        Game.remove_callback(AgentArray._callback_name_cache)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(AgentArray._callback_name_ptr)
+        PyCallback.PyCallback.RemoveByName(AgentArray._callback_name_cache)
         AgentArray._ptr = 0
-        AgentArray._cached_ptr = 0
         AgentArray._cached_ctx = None
 
     @staticmethod
     def get_context() -> AgentArrayStruct | None:
-        ptr = AgentArray._ptr
-        if not ptr:
-            # context lost → drop cache
-            AgentArray._cached_ctx = None
-            AgentArray._cached_ptr = 0
-            return None
-
-        # pointer changed? (map load, zone change, etc.)
-        if ptr != AgentArray._cached_ptr:
-            AgentArray._cached_ptr = ptr
-            AgentArray._cached_ctx = cast(
-                ptr,
-                POINTER(AgentArrayStruct)
-            ).contents
-
         return AgentArray._cached_ctx
     
           

@@ -1186,9 +1186,8 @@ class WorldContextStruct(Structure):
 #region Facade
 class WorldContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: WorldContextStruct | None = None
-    _callback_name = "WorldContext.UpdateWorldContextPtr"
+    _callback_name = "WorldContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -1196,37 +1195,35 @@ class WorldContext:
 
     @staticmethod
     def _update_ptr():
-        WorldContext._ptr = PyPointers.PyPointers.GetWorldContextPtr()
+        ptr = PyPointers.PyPointers.GetWorldContextPtr()
+        WorldContext._ptr = ptr
+        if not ptr:
+            WorldContext._cached_ctx = None
+            return
+        WorldContext._cached_ctx = cast(
+            ptr,
+            POINTER(WorldContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             WorldContext._callback_name,
-            WorldContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            WorldContext._update_ptr,
+            priority=4
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(WorldContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(WorldContext._callback_name)
         WorldContext._ptr = 0
-        WorldContext._cached_ptr = 0
         WorldContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> WorldContextStruct | None:
-        ptr = WorldContext._ptr
-        if not ptr:
-            WorldContext._cached_ptr = 0
-            WorldContext._cached_ctx = None
-            return None
-        
-        if ptr != WorldContext._cached_ptr:
-            WorldContext._cached_ptr = ptr
-            WorldContext._cached_ctx = cast(
-                ptr,
-                POINTER(WorldContextStruct)
-            ).contents
-            
         return WorldContext._cached_ctx
         
         

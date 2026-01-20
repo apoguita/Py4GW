@@ -154,10 +154,12 @@ class UIManager:
         """
         Register the frame IO event update callback.
         """
-        from Py4GW import Game
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             "UIManager.UpdateFrameIOEvents",
-            UIManager._UpdateFrameIOEvents
+            PyCallback.Phase.Data,
+            UIManager._UpdateFrameIOEvents,
+            priority=2
         )
    
     @staticmethod

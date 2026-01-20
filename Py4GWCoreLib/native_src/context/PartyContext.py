@@ -211,7 +211,7 @@ class PartyContext:
     _ptr: int = 0
     _cached_ptr: int = 0
     _cached_ctx: PartyContextStruct | None = None
-    _callback_name = "PartyContext.UpdatePartyContextPtr"
+    _callback_name = "PartyContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -219,37 +219,36 @@ class PartyContext:
 
     @staticmethod
     def _update_ptr():
-        PartyContext._ptr = PyParty.PyParty().GetPartyContextPtr()
+        ptr = PyParty.PyParty().GetPartyContextPtr()
+        PartyContext._ptr = ptr
+        if not ptr:
+            PartyContext._cached_ctx = None
+            return
+        PartyContext._cached_ctx = cast(
+            ptr,
+            POINTER(PartyContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             PartyContext._callback_name,
-            PartyContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            PartyContext._update_ptr,
+            priority=6
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(PartyContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(PartyContext._callback_name)
         PartyContext._ptr = 0
         PartyContext._cached_ptr = 0
         PartyContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> PartyContextStruct | None:
-        ptr = PartyContext._ptr
-        if not ptr:
-            PartyContext._cached_ptr = 0
-            PartyContext._cached_ctx = None
-            return None
-        
-        if ptr != PartyContext._cached_ptr:
-            PartyContext._cached_ptr = ptr
-            PartyContext._cached_ctx = cast(
-                ptr,
-                POINTER(PartyContextStruct)
-            ).contents
-            
         return PartyContext._cached_ctx
 
 PartyContext.enable()

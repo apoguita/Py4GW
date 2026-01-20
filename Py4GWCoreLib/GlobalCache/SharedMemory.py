@@ -1,5 +1,4 @@
 import Py4GW
-import PyPlayer
 import PyQuest
 from PyParty import HeroPartyMember
 from PyEffects import BuffType, EffectType

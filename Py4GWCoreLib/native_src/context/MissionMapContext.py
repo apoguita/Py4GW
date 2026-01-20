@@ -1,6 +1,5 @@
 
 import PyPointers
-from Py4GW import Game
 from ctypes import Structure, c_uint32, c_float, sizeof, POINTER, cast
 from ..internals.types import Vec2f
 from ..internals.gw_array import GW_Array, GW_Array_View
@@ -57,9 +56,8 @@ assert sizeof(MissionMapContextStruct) == 0x48
 
 class MissionMapContext:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: MissionMapContextStruct | None = None
-    _callback_name = "MissionMapContext.UpdateMissionMapContextPtr"
+    _callback_name = "MissionMapContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -67,37 +65,35 @@ class MissionMapContext:
     
     @staticmethod
     def _update_ptr():
-        MissionMapContext._ptr = PyPointers.PyPointers.GetMissionMapContextPtr()
+        ptr = PyPointers.PyPointers.GetMissionMapContextPtr()
+        MissionMapContext._ptr = ptr
+        if not ptr:
+            MissionMapContext._cached_ctx = None
+            return
+        MissionMapContext._cached_ctx = cast(
+            ptr,
+            POINTER(MissionMapContextStruct)
+        ).contents
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             MissionMapContext._callback_name,
-            MissionMapContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            MissionMapContext._update_ptr,
+            priority=99
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(MissionMapContext._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(MissionMapContext._callback_name)
         MissionMapContext._ptr = 0
-        MissionMapContext._cached_ptr = 0
         MissionMapContext._cached_ctx = None
 
     @staticmethod
     def get_context() -> MissionMapContextStruct | None:
-        ptr = MissionMapContext._ptr
-        if not ptr:
-            MissionMapContext._cached_ptr = 0
-            MissionMapContext._cached_ctx = None
-            return None
-        
-        if ptr != MissionMapContext._cached_ptr:
-            MissionMapContext._cached_ptr = ptr
-            MissionMapContext._cached_ctx = cast(
-                ptr,
-                POINTER(MissionMapContextStruct)
-            ).contents
-            
         return MissionMapContext._cached_ctx
 
 MissionMapContext.enable()

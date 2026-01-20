@@ -1,5 +1,4 @@
-import PyPlayer
-from Py4GW import Game
+
 from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar
 from ..internals.types import Vec2f
 from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
@@ -71,9 +70,8 @@ available_chars_ptr = NativeSymbol(
 
 class AvailableCharacterArray:
     _ptr: int = 0
-    _cached_ptr: int = 0
     _cached_ctx: AvailableCharacterArrayStruct | None = None
-    _callback_name = "AvailableCharacterArray.UpdateArrayPtr"
+    _callback_name = "AvailableCharacterArrayContext.UpdatePtr"
 
     @staticmethod
     def get_ptr() -> int:
@@ -81,36 +79,35 @@ class AvailableCharacterArray:
 
     @staticmethod
     def _update_ptr():
-        AvailableCharacterArray._ptr = available_chars_ptr.read_ptr()
+        ptr = available_chars_ptr.read_ptr()
+        AvailableCharacterArray._ptr = ptr
+        if not ptr:
+            AvailableCharacterArray._cached_ctx = None
+            return
+        AvailableCharacterArray._cached_ctx = cast(
+            ptr,
+            POINTER(AvailableCharacterArrayStruct)
+        ).contents
+        
     @staticmethod
     def enable():
-        Game.register_callback(
+        import PyCallback
+        PyCallback.PyCallback.Register(
             AvailableCharacterArray._callback_name,
-            AvailableCharacterArray._update_ptr
+            PyCallback.Phase.PreUpdate,
+            AvailableCharacterArray._update_ptr,
+            priority=99
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(AvailableCharacterArray._callback_name)
+        import PyCallback
+        PyCallback.PyCallback.RemoveByName(AvailableCharacterArray._callback_name)
         AvailableCharacterArray._ptr = 0
-        AvailableCharacterArray._cached_ptr = 0
         AvailableCharacterArray._cached_ctx = None
 
     @staticmethod
     def get_context() -> AvailableCharacterArrayStruct | None:
-        ptr = AvailableCharacterArray._ptr
-        if not ptr:
-            AvailableCharacterArray._cached_ptr = 0
-            AvailableCharacterArray._cached_ctx = None
-            return None
-        
-        if ptr != AvailableCharacterArray._cached_ptr:
-            AvailableCharacterArray._cached_ptr = ptr
-            AvailableCharacterArray._cached_ctx = cast(
-                ptr,
-                POINTER(AvailableCharacterArrayStruct)
-            ).contents
-            
         return AvailableCharacterArray._cached_ctx
     
 AvailableCharacterArray.enable()
