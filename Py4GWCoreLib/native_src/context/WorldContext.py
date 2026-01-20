@@ -1163,6 +1163,7 @@ class WorldContextStruct(Structure):
     
     @property
     def titles(self) -> list[TitleStruct] | None:
+        return None
         titles = GW_Array_Value_View(self.titles_array, TitleStruct).to_list()
         if not titles:
             return None
@@ -1170,6 +1171,7 @@ class WorldContextStruct(Structure):
     
     @property
     def title_tiers(self) -> list[TitleTierStruct] | None:
+        return None
         tiers = GW_Array_Value_View(self.title_tiers_array, TitleTierStruct).to_list()
         if not tiers:
             return None
@@ -1177,6 +1179,7 @@ class WorldContextStruct(Structure):
     
     @property
     def vanquished_areas(self) -> list[int] | None:
+        return None
         areas = GW_Array_Value_View(self.vanquished_areas_array, c_uint32).to_list()
         if not areas:
             return None
