@@ -9,10 +9,10 @@ KURZICK_ENUM = 2
 CHUNK         = 5000
 
 def get_luxon_unspent():
-    return Player.player_instance().current_luxon
+    return Player.GetLuxonData()[0]
 
 def get_kurzick_unspent():
-    return Player.player_instance().current_kurzick
+    return Player.GetKurzickData()[0]
 
 def _do_deposit(faction_enum, chunks):
     for _ in range(chunks):
