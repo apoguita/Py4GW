@@ -1950,7 +1950,8 @@ class Map:
     class Pathing:
         @staticmethod
         def GetPathingMaps() -> List[PathingMapStruct]:
-            if not Map.IsMapReady():
+            from .Routines import Checks
+            if not Checks.Map.MapValid():
                 return []
             if (map_ctx := GWContext.Map.GetContext()) is None:
                 return []

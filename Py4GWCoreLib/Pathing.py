@@ -613,6 +613,12 @@ class AutoPathing:
         navmesh = NavMesh(pathing_maps, map_id)
         self.pathing_map_cache[group_key] = navmesh
         yield
+        
+        """try:
+            navmesh = NavMesh.load_from_file(pathing_maps, map_id, folder="NavMeshCache")
+        except FileNotFoundError:
+            navmesh = NavMesh(pathing_maps, map_id)
+            navmesh.save_to_file("NavMeshCache")"""
 
 
     def get_navmesh(self) -> Optional[NavMesh]:
@@ -641,38 +647,17 @@ class AutoPathing:
                  chaikin_iterations: int = 1):
         from . import Routines
 
-        def _project_start_onto_path(path2d: list[tuple[float, float]], sx: float, sy: float):
-            if len(path2d) < 2:
-                return path2d
+        def _prepend_start(path2d, sx, sy):
+            if not path2d:
+                return [(sx, sy)]
 
-            # Point A (previous target) and point B (next target)
-            ax, ay = path2d[0]
-            bx, by = path2d[1]
+            dx = path2d[0][0] - sx
+            dy = path2d[0][1] - sy
+            d2 = dx*dx + dy*dy
 
-            # Vector AB
-            dx, dy = bx - ax, by - ay
-            mag_sq = dx * dx + dy * dy
-
-            if mag_sq == 0:
-                return path2d
-
-            # Project the current position (sx, sy) onto the line AB
-            # Formula: t = [(P - A) · (B - A)] / |B - A|^2
-            t = ((sx - ax) * dx + (sy - ay) * dy) / mag_sq
-
-            # Clamp t between 0 and 1 to stay on segment AB
-            t = max(0, min(1, t))
-
-            # The new start point S on the line
-            nx = ax + t * dx
-            ny = ay + t * dy
-
-            # Replace the old point A with the projected point S
-            path2d[0] = (nx, ny)
-
-            # Optional: If we are very close to B, remove A entirely
-            if math.dist((nx, ny), (bx, by)) < 100:
-                path2d.pop(0)
+            # Only prepend if it is REALLY far (path clearly doesn't start at player)
+            if d2 > 750*750:
+                return [(sx, sy)] + path2d
 
             return path2d
 
@@ -698,7 +683,7 @@ class AutoPathing:
                 raw_path = path_planner.get_path()
                 path2d = [(pt[0], pt[1]) for pt in raw_path]
                 
-                path2d = _project_start_onto_path(path2d, start[0], start[1])
+                path2d = _prepend_start(path2d, start[0], start[1])
                 
                 if smooth_by_chaikin:
                     path2d = chaikin_smooth_path(path2d, chaikin_iterations)
@@ -728,7 +713,7 @@ class AutoPathing:
         if success:
             raw_path = astar.get_path()
             yield
-            raw_path = _project_start_onto_path(raw_path, start[0], start[1])
+            raw_path = _prepend_start(raw_path, start[0], start[1])
             if smooth_by_los:
                 smoothed = navmesh.smooth_path_by_los(raw_path, margin, step_dist)
             else:

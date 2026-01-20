@@ -724,7 +724,7 @@ class AgentArrayStruct(Structure):
                 continue
             
             cache["all"].append(aid)
-            agent_by_id[aid] = agent.snapshot()
+            agent_by_id[aid] = agent
             
             if agent.is_gadget_type:
                 cache["gadget"].append(aid)

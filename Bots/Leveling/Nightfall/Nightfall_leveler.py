@@ -870,14 +870,14 @@ def Honing_Combat_Skills(bot: Botting):
 #region Initial Quests and Progression
 def A_Personal_Vault(bot: Botting):
     bot.States.AddHeader("Quest: A Personal Vault")
-    bot.Map.Travel(target_map_name="Kamadan")
+    bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-9251, 11826, 0x82A101)
     bot.Move.XYAndDialog(-7761, 14393, 0x84)
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107)
 
 def Extend_Inventory_Space(bot: Botting):
     bot.States.AddHeader("Extend Inventory Space")
-    bot.Map.Travel(target_map_name="Kamadan")
+    bot.Map.Travel(target_map_id=449) # Kamadan
     bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
     bot.helpers.UI.open_all_bags()
     bot.Move.XYAndInteractNPC(-10597.11, 8742.66) # Merchant NPC in Kamadan
