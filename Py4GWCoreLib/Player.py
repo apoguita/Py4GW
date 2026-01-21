@@ -526,7 +526,11 @@ class Player:
             agent_id (int): The ID of the agent to target.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",PlayerMethods.ChangeTarget,agent_id)
+        def _do_action():
+            Player.player_instance().ChangeTarget(agent_id)
+        #ActionQueueManager().AddAction("ACTION",PlayerMethods.ChangeTarget,agent_id)
+        ActionQueueManager().AddAction("ACTION",_do_action)
+        
                
     @staticmethod
     def Interact(agent_id, call_target=False):
@@ -537,8 +541,13 @@ class Player:
             call_target (bool, optional): Whether to call the agent as a target.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.InteractAgent,agent_id, call_target)
+        def _do_action():
+            Player.player_instance().InteractAgent(agent_id, call_target)
+
+        ActionQueueManager().AddAction("ACTION",_do_action)
+        
+        #ActionQueueManager().AddAction("ACTION",
+        #PlayerMethods.InteractAgent,agent_id, call_target)
 
     @staticmethod
     def Move(x:float, y:float, zPlane:int=0):

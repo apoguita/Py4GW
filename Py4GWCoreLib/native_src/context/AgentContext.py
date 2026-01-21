@@ -1,34 +1,30 @@
 
-from Py4GW import Game
-from ctypes import Structure, c_uint32, c_float, sizeof, cast, POINTER, c_wchar, c_uint8, c_uint16, c_void_p
+from ctypes import Structure, c_uint32, c_float, cast, POINTER, c_uint8, c_uint16, c_void_p
 from ctypes import Union
 import ctypes
-from ..context.AccAgentContext import AccAgentContext, AccAgentContextStruct
-from .MapContext import MapContext, MapContextStruct
-from .CharContext import CharContext, CharContextStruct
-from .InstanceInfoContext import InstanceInfo, InstanceInfoStruct
-from .WorldContext import WorldContext, WorldContextStruct
-from .PartyContext import PartyContext, PartyContextStruct
+from ..context.AccAgentContext import AccAgentContext
+from ..context.MapContext import MapContext
+from ..context.CharContext import CharContext
+from ..context.InstanceInfoContext import InstanceInfo
+from ..context.WorldContext import WorldContext
 from ..internals.types import Vec2f, Vec3f, GamePos
-from ..internals.gw_array import GW_Array, GW_Array_Value_View, GW_Array_View
+from ..internals.gw_array import GW_Array, GW_Array_Value_View
 from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
-from typing import List, Optional, Dict
-from ..internals.helpers import read_wstr, encoded_wstr_to_str
+from typing import List, Optional
 from ..internals.native_symbol import NativeSymbol
-from ...Scanner import Scanner, ScannerSection
+from ...Scanner import ScannerSection
+from dataclasses import dataclass
 
-def _amputate_tlink(link: "GW_TLink") -> None:
-    """Make the link a safe, self-contained, empty sentinel."""
-    addr = ctypes.addressof(link)
-    link.prev_link = addr          # IsLinked() => False
-    link.next_node = 0             # iterator stops immediately
-
-
-def _amputate_tlist(lst: "GW_TList") -> None:
-    """Make the list safely empty (no traversal possible)."""
-    lst.offset = 0
-    _amputate_tlink(lst.link)
-
+# ---------------------------------------------------------------------
+# ------------------ DyeInfo ------------------------------------------
+# ---------------------------------------------------------------------
+@dataclass(slots=True)
+class DyeInfo:
+    dye_tint: int
+    dye1: int
+    dye2: int
+    dye3: int
+    dye4: int
 
 class DyeInfoStruct(Structure):
     _pack_ = 1
@@ -39,13 +35,27 @@ class DyeInfoStruct(Structure):
         ("dye3", c_uint8, 4),         # 0x02 low nibble
         ("dye4", c_uint8, 4),         # 0x02 high nibble
     ]
-    def snapshot(self) -> "DyeInfoStruct":
-        """
-        Return a safe, Python-owned copy of this DyeInfoStruct.
-        No pointers involved — always safe.
-        """
-        return DyeInfoStruct.from_buffer_copy(self)
+    def snapshot(self) -> DyeInfo:
+        return DyeInfo(
+            dye_tint=int(self.dye_tint),
+            dye1=int(self.dye1),
+            dye2=int(self.dye2),
+            dye3=int(self.dye3),
+            dye4=int(self.dye4),
+        )
 
+# ---------------------------------------------------------------------
+# ------------------ ItemData -----------------------------------------
+# ---------------------------------------------------------------------
+
+@dataclass(slots=True)
+class ItemData:
+    model_file_id: int
+    type: int
+    dye: DyeInfo
+    value: int
+    interaction: int
+    
 class ItemDataStruct(Structure):
     _pack_ = 1
     _fields_ = [
@@ -56,12 +66,34 @@ class ItemDataStruct(Structure):
         ("interaction", c_uint32),       # 0x10
     ]
     
-    def snapshot(self) -> "ItemDataStruct":
-        snap = ItemDataStruct.from_buffer_copy(self)
-        snap.dye = self.dye.snapshot()
-        return snap
+    def snapshot(self) -> ItemData:
+        return ItemData(
+            model_file_id=int(self.model_file_id),
+            type=int(self.type),
+            dye=self.dye.snapshot(),   # nested snapshot
+            value=int(self.value),
+            interaction=int(self.interaction),
+        )
 
-class EquipmentItemsUnion(Union):
+# ---------------------------------------------------------------------
+# ------------------ EquipmentItemsUnion ------------------------------
+# ---------------------------------------------------------------------
+@dataclass(slots=True)
+class EquipmentItemsUnion:
+    items: tuple[ItemData, ItemData, ItemData, ItemData, ItemData,
+                 ItemData, ItemData, ItemData, ItemData]
+    weapon: ItemData
+    offhand: ItemData
+    chest: ItemData
+    legs: ItemData
+    head: ItemData
+    feet: ItemData
+    hands: ItemData
+    costume_body: ItemData
+    costume_head: ItemData
+
+
+class EquipmentItemsUnionStruct(Union):
     _pack_ = 1
     _fields_ = [
         ("items", ItemDataStruct * 9),
@@ -76,15 +108,49 @@ class EquipmentItemsUnion(Union):
         ("costume_head", ItemDataStruct),      # 0x00A4
     ]
     
-    def snapshot(self) -> "EquipmentItemsUnion":
-        snap = EquipmentItemsUnion()
+    def snapshot(self) -> EquipmentItemsUnion:
+        items = (
+            self.items[0].snapshot(),
+            self.items[1].snapshot(),
+            self.items[2].snapshot(),
+            self.items[3].snapshot(),
+            self.items[4].snapshot(),
+            self.items[5].snapshot(),
+            self.items[6].snapshot(),
+            self.items[7].snapshot(),
+            self.items[8].snapshot(),
+        )
 
-        for i in range(9):
-            snap.items[i] = self.items[i].snapshot()
+        return EquipmentItemsUnion(
+            items=tuple(items),
+            weapon=self.weapon.snapshot(),
+            offhand=self.offhand.snapshot(),
+            chest=self.chest.snapshot(),
+            legs=self.legs.snapshot(),
+            head=self.head.snapshot(),
+            feet=self.feet.snapshot(),
+            hands=self.hands.snapshot(),
+            costume_body=self.costume_body.snapshot(),
+            costume_head=self.costume_head.snapshot(),
+        )
 
-        return snap
-
-class EquipmentItemIDsUnion(Union):
+# ---------------------------------------------------------------------
+# ------------------ EquipmentItemIDsUnion ----------------------------
+# ---------------------------------------------------------------------
+@dataclass(slots=True)
+class EquipmentItemIDsUnion:
+    item_ids: tuple[int, int, int, int, int, int, int, int, int]
+    item_id_weapon: int
+    item_id_offhand: int
+    item_id_chest: int
+    item_id_legs: int
+    item_id_head: int
+    item_id_feet: int
+    item_id_hands: int
+    item_id_costume_body: int
+    item_id_costume_head: int
+    
+class EquipmentItemIDsUnionStruct(Union):
     _pack_ = 1
     _fields_ = [
         ("item_ids", c_uint32 * 9),
@@ -99,9 +165,55 @@ class EquipmentItemIDsUnion(Union):
         ("item_id_costume_head", c_uint32),    # 0x00D4
     ]
     
-    def snapshot(self) -> "EquipmentItemIDsUnion":
-        return EquipmentItemIDsUnion.from_buffer_copy(self)
+    def snapshot(self) -> EquipmentItemIDsUnion:
+        item_ids = (
+            int(self.item_ids[0]),
+            int(self.item_ids[1]),
+            int(self.item_ids[2]),
+            int(self.item_ids[3]),
+            int(self.item_ids[4]),
+            int(self.item_ids[5]),
+            int(self.item_ids[6]),
+            int(self.item_ids[7]),
+            int(self.item_ids[8]),
+        )
+
+        return EquipmentItemIDsUnion(
+            item_ids=item_ids,
+            item_id_weapon=int(self.item_id_weapon),
+            item_id_offhand=int(self.item_id_offhand),
+            item_id_chest=int(self.item_id_chest),
+            item_id_legs=int(self.item_id_legs),
+            item_id_head=int(self.item_id_head),
+            item_id_feet=int(self.item_id_feet),
+            item_id_hands=int(self.item_id_hands),
+            item_id_costume_body=int(self.item_id_costume_body),
+            item_id_costume_head=int(self.item_id_costume_head),
+        )
+        
+# ---------------------------------------------------------------------
+# ----------------------- Equipment -----------------------------------
+# ---------------------------------------------------------------------
+
+@dataclass(slots=True)
+class Equipment:
+    vtable: int
+    h0004: int
+    h0008: int
+    h000C: int
+    h0018: int
+    left_hand_map: int
+    right_hand_map: int
+    head_map: int
+    shield_map: int
+    items_union: EquipmentItemsUnion
+    ids_union: EquipmentItemIDsUnion
     
+    #accessors
+    left_hand: Optional[ItemData]
+    right_hand: Optional[ItemData]
+    shield:Optional[ItemData]
+
 class EquipmentStruct(Structure):
     _pack_ = 1
     _fields_ = [
@@ -119,25 +231,12 @@ class EquipmentStruct(Structure):
         ("shield_map", c_uint8),            # 0x0023
 
         # ---- 0x0024 .. 0x00B3 ----
-        ("items_union", EquipmentItemsUnion),
+        ("items_union", EquipmentItemsUnionStruct),
 
         # ---- 0x00B4 .. 0x00D7 ----
-        ("ids_union", EquipmentItemIDsUnion),
+        ("ids_union", EquipmentItemIDsUnionStruct),
     ]
-    # ---------- SNAPSHOT ----------
-    def snapshot(self) -> "EquipmentStruct":
-        snap = EquipmentStruct.from_buffer_copy(self)
-
-        # ---- snapshot unions recursively ----
-        snap.items_union = self.items_union.snapshot()
-        snap.ids_union = self.ids_union.snapshot()
-
-        # ---- pointers are INVALID in snapshots ----
-        snap.left_hand_ptr = POINTER(ItemDataStruct)()
-        snap.right_hand_ptr = POINTER(ItemDataStruct)()
-        snap.shield_ptr = POINTER(ItemDataStruct)()
-
-        return snap
+    
     # ---------- SAFE ACCESSORS ----------
     @property
     def left_hand(self) -> Optional[ItemDataStruct]:
@@ -162,8 +261,38 @@ class EquipmentStruct(Structure):
         idx = self.shield_map
         if 0 <= idx < 9:
             return self.items_union.items[idx]
+        
+    # ---------- SNAPSHOT ----------
+    def snapshot(self) -> Equipment:
+        return Equipment(
+            vtable=int(self.vtable) if self.vtable else 0,
+            h0004=int(self.h0004),
+            h0008=int(self.h0008),
+            h000C=int(self.h000C),
+            h0018=int(self.h0018),
+            left_hand_map=int(self.left_hand_map),
+            right_hand_map=int(self.right_hand_map),
+            head_map=int(self.head_map),
+            shield_map=int(self.shield_map),
 
+            items_union=self.items_union.snapshot(),
+            ids_union=self.ids_union.snapshot(),
+            
+            left_hand=self.left_hand.snapshot() if self.left_hand else None,
+            right_hand=self.right_hand.snapshot() if self.right_hand else None,
+            shield=self.shield.snapshot() if self.shield else None,
 
+        )
+
+# ---------------------------------------------------------------------
+# ----------------------- TagInfo -------------------------------------
+# ---------------------------------------------------------------------
+@dataclass(slots=True)
+class TagInfo:
+    guild_id: int
+    primary: int
+    secondary: int
+    level: int
 
 class TagInfoStruct (Structure):
     _pack_ = 1
@@ -174,24 +303,101 @@ class TagInfoStruct (Structure):
         ("level", c_uint16),       # +0x0004
         # ... (possible more fields)
     ]
-    def snapshot(self) -> "TagInfoStruct":
-        return TagInfoStruct.from_buffer_copy(self)
+    def snapshot(self) -> TagInfo:
+        return TagInfo(
+            guild_id=int(self.guild_id),
+            primary=int(self.primary),
+            secondary=int(self.secondary),
+            level=int(self.level),
+        )
+
+# ---------------------------------------------------------------------
+# ------------------ VisibleEffect ------------------------------------
+# ---------------------------------------------------------------------
+
+@dataclass(slots=True)
+class VisibleEffect:
+    unk: int
+    id: int
+    has_ended: int
 
 
-class VisibleEffectStruct (Structure):
+class VisibleEffectStruct(Structure):
     _pack_ = 1
     _fields_ = [
-        ("unk", c_uint32), #enchantment = 1, weapon spell = 9
-        ("id", c_uint32),  # Constants::EffectID
-        ("has_ended", c_uint32), #effect no longer active, effect ending animation plays.
+        ("unk", c_uint32),        # enchantment = 1, weapon spell = 9
+        ("id", c_uint32),         # Constants::EffectID
+        ("has_ended", c_uint32),  # effect no longer active
     ]
+
+    def snapshot(self) -> VisibleEffect:
+        return VisibleEffect(
+            unk=int(self.unk),
+            id=int(self.id),
+            has_ended=int(self.has_ended),
+        )
+        
     
-    def snapshot(self) -> "VisibleEffectStruct":
-        """
-        Fully static snapshot.
-        Effect lifecycle is logical, not pointer-based.
-        """
-        return VisibleEffectStruct.from_buffer_copy(self)
+# ---------------------------------------------------------------------
+# ------------------------ Agent --------------------------------------
+# --------------------------------------------------------------------- 
+@dataclass(slots=True) 
+class AgentNative():
+    h0004: int
+    h0008: int
+    h000C: list[int]
+    timer: int  # Agent Instance Timer (in Frames)
+    timer2: int
+    agent_id: int
+    z: float  # Z coord in float
+    width1: float  # Width of the model's box
+    height1: float  # Height of the model's box
+    width2: float  # Width of the model's box (same as 1)
+    height2: float  # Height of the model's box (same as 1)
+    width3: float  # Width of the model's box (same as 1)
+    height3: float  # Height of the model's box (same as 1)
+    rotation_angle: float  # Rotation in radians from East (-pi to pi)
+    rotation_cos: float  # Cosine of rotation
+    rotation_sin: float  # Sine of rotation
+    name_properties: int  # Bitmap basically telling what the agent is
+    ground: int
+    h0060: int
+    terrain_normal: Vec3f
+    h0070: list[int]
+    pos : GamePos
+    h0080: list[int]
+    name_tag_x: float
+    name_tag_y: float
+    name_tag_z: float
+    visual_effects: int
+    h0092: int
+    h0094: list[int]
+    type: int  # Key field to determine the type of agent
+    velocity: Vec2f
+    h00A8: int
+    rotation_cos2: float
+    rotation_sin2: float
+    h00B4: list[int]
+
+    vtable: int
+      
+    is_item_type : bool 
+    is_gadget_type : bool
+    is_living_type : bool
+    
+    _item_agent: Optional["AgentItem"] = None
+    _gadget_agent: Optional["AgentGadget"] = None
+    _living_agent: Optional["AgentLiving"] = None
+    
+    def GetAsAgentItem(self) -> Optional["AgentItem"]:
+        return self._item_agent
+
+    def GetAsAgentGadget(self) -> Optional["AgentGadget"]:
+        return self._gadget_agent
+
+    def GetAsAgentLiving(self) -> Optional["AgentLiving"]:
+        return self._living_agent
+    
 
 
 class AgentStruct(Structure):
@@ -239,7 +445,6 @@ class AgentStruct(Structure):
         ("rotation_sin2", c_float),        # 0x00B0
         ("h00B4", c_uint32 * 4),           # 0x00B4
     ]
-    _is_snapshot: bool = False
     
     @property
     def vtable(self) -> int:
@@ -265,38 +470,78 @@ class AgentStruct(Structure):
     def is_living_type(self) -> bool:
         """Return True if this Agent is a Living being (Player, NPC, Monster)."""
         return (self.type & 0xDB) != 0
-    
-    def snapshot(self) -> "AgentStruct":
-        # choose derived size to copy correctly
+
+    def snapshot(self) -> AgentNative:
+        item_snapshot: Optional[AgentItem] = None
+        if self.is_item_type:
+            item = self.GetAsAgentItem()
+            if item:
+                item_snapshot = item.snapshot_item()
+                
+        gadget_snapshot: Optional[AgentGadget] = None
+        if self.is_gadget_type:
+            gadget = self.GetAsAgentGadget()
+            if gadget:
+                gadget_snapshot = gadget.snapshot_gadget()
+                
+        living_snapshot: Optional[AgentLiving] = None
         if self.is_living_type:
-            cls = AgentLivingStruct
-        elif self.is_item_type:
-            cls = AgentItemStruct
-        elif self.is_gadget_type:
-            cls = AgentGadgetStruct
-        else:
-            cls = AgentStruct
-
-        size = ctypes.sizeof(cls)
-        buf = ctypes.create_string_buffer(size)
-        ctypes.memmove(buf, ctypes.addressof(self), size)
-
-        snap = cls.from_buffer(buf)
-        snap._is_snapshot = True
-
-        # ---- amputate common dangerous fields (STATIC snapshot) ----
-        snap.vtable_ptr = POINTER(c_uint32)()
-        _amputate_tlink(snap.link_link)
-        _amputate_tlink(snap.link2_link)
-
-        # ---- derived-specific deep snapshot / amputations ----
-        if isinstance(snap, AgentLivingStruct):
-            snap._finalize_snapshot()
-
-        return snap
-
-
-
+            living = self.GetAsAgentLiving()
+            if living:
+                living_snapshot = living.snapshot_living()
+        
+        return AgentNative(
+            h0004=int(self.h0004),
+            h0008=int(self.h0008),
+            h000C=[int(x) for x in self.h000C],
+            timer=int(self.timer),
+            timer2=int(self.timer2),
+            agent_id=int(self.agent_id),
+            z=float(self.z),
+            width1=float(self.width1),
+            height1=float(self.height1),
+            width2=float(self.width2),
+            height2=float(self.height2),
+            width3=float(self.width3),
+            height3=float(self.height3),
+            rotation_angle=float(self.rotation_angle),
+            rotation_cos=float(self.rotation_cos),
+            rotation_sin=float(self.rotation_sin),
+            name_properties=int(self.name_properties),
+            ground=int(self.ground),
+            h0060=int(self.h0060),
+            terrain_normal=Vec3f(
+                float(self.terrain_normal.x),
+                float(self.terrain_normal.y),
+                float(self.terrain_normal.z),
+            ),
+            h0070=[int(x) for x in self.h0070],
+            pos=self.pos,
+            h0080=[int(x) for x in self.h0080],
+            name_tag_x=float(self.name_tag_x),
+            name_tag_y=float(self.name_tag_y),
+            name_tag_z=float(self.name_tag_z),
+            visual_effects=int(self.visual_effects),
+            h0092=int(self.h0092),
+            h0094=[int(x) for x in self.h0094],
+            type=int(self.type),
+            velocity=Vec2f(
+                float(self.velocity.x),
+                float(self.velocity.y),
+            ),
+            h00A8=int(self.h00A8),
+            rotation_cos2=float(self.rotation_cos2),
+            rotation_sin2=float(self.rotation_sin2),
+            h00B4=[int(x) for x in self.h00B4],
+            vtable=self.vtable,
+            is_item_type=self.is_item_type,
+            is_gadget_type=self.is_gadget_type,
+            is_living_type=self.is_living_type,
+        
+            _item_agent=item_snapshot,
+            _gadget_agent=gadget_snapshot,
+            _living_agent=living_snapshot,
+        )
         
     # ---------------------------------------------------------
     # ---  reinterpret this Agent as its derived type       ---
@@ -318,25 +563,98 @@ class AgentStruct(Structure):
             return ctypes.cast(ctypes.pointer(self), ctypes.POINTER(AgentLivingStruct)).contents
         return None
     
-class AgentItemStruct(AgentStruct):
-    _pack_ = 1
-    _fields_ = [
-        ("owner", c_uint32),        # +0x00C4 AgentID
-        ("item_id", c_uint32),      # +0x00C8 ItemID
-        ("h00CC", c_uint32),        # +0x00CC
-        ("extra_type", c_uint32),   # +0x00D0
-    ]
+# ---------------------------------------------------------------------
+# ------------------ AgentLiving --------------------------------------
+# ---------------------------------------------------------------------
+@dataclass(slots=True)
+class AgentLiving:
+    owner : int
+    h00C8 : int
+    h00CC : int
+    h00D0 : int
+    h00D4 : list[int]
+    animation_type : float
+    h00E4 : list[int]
+    weapon_attack_speed : float  # The base attack speed in float of last attacks weapon. 1.33 = axe, sWORD, daggers etc.
+    attack_speed_modifier : float  # Attack speed modifier of the last attack. 0.67 = 33% increase (1-.33)
+    player_number : int  # player number / modelnumber
+    agent_model_type : int  # Player = 0x3000, NPC = 0x2000
+    transmog_npc_id : int  # Actually, it's 0x20000000 | npc_id, It's not defined for npc, minipet, etc...
+    h0100 : int
+    h0104 : int  # New variable added here
+    h010C : int
+    primary : int  # Primary profession 0-10 (None,W,R,Mo
+    secondary : int # Secondary profession 0-10 (None,W,R,Mo,N,Me,E,A,Rt,P,D)
+    level : int
+    team_id : int # 0=None, 1=Blue, 2=Red, 3=Yellow
+    h0112 : list[int]
+    h0114 : int
+    energy_regen : float
+    h011C : int
+    energy : float
+    max_energy : int
+    h0128 : int
+    hp_pips : float
+    h0130 : int
+    hp : float
+    max_hp : int
+    effects : int #Bitmap for effects to display when targetted. DOES include hexes
+    h0140 : int
+    hex : int # Bitmap for the hex effect when targetted (apparently obsolete!) (
+    h0145 : list[int]
+    model_state : int
+    type_map : int #Odd variable! 0x08 = dead, 0xC00 = boss, 0x40000 = spirit, 0x400000 = player
+    h0160 : list[int]
+    in_spirit_range : int #Tells if agent is within spirit range of you. Doesn't work anymore?
+    h0180 : int
+    login_number : int #Unique number in instance that only works for players
+    animation_speed : float #Speed of the current animation
+    animation_code : int #related to animations
+    animation_id : int   #Id of the current animation
+    h0194 : list[int]
+    dagger_status : int            #0x1 = used lead attack, 0x2
+    allegiance : int               #Constants::Allegiance; 0x1 = ally/non-attackable, 0x2 = neutral, 0x3 = enemy, 0x4 = spirit/pet, 0x5 = minion, 0x6 = npc/minipet
+    weapon_type : int             #1=bow, 2=axe, 3=hammer, 4=daggers, 5=scythe, 6=spear, 7=sWORD, 10=wand, 12=staff, 14=staff
+    skill : int                   #0 = not using a skill. Anything else is the Id of
+    h01BA : int
+    weapon_item_type : int
+    offhand_item_type : int
+    weapon_item_id : int
+    offhand_item_id : int
 
-class AgentGadgetStruct(AgentStruct):
-    _pack_ = 1
-    _fields_ = [
-        ("h00C4", c_uint32),        # +0x00C4
-        ("h00C8", c_uint32),        # +0x00C8
-        ("extra_type", c_uint32),   # +0x00CC
-        ("gadget_id", c_uint32),    # +0x00D0
-        ("h00D4", c_uint32 * 4),    # +0x00D4
-    ]
+    equipment: Optional[Equipment]
+    tags: Optional[TagInfo]
+    visible_effects: List[VisibleEffect]
+    is_bleeding: bool
+    is_conditioned: bool
+    is_crippled: bool
+    is_dead: bool
+    is_deep_wounded: bool
+    is_poisoned: bool
+    is_enchanted: bool
+    is_degen_hexed: bool
+    is_hexed: bool
+    is_weapon_spelled: bool
+    is_in_combat_stance: bool
+    has_quest: bool
+    is_dead_by_type_map: bool
+    is_female: bool
+    has_boss_glow: bool
+    is_hiding_cape: bool
+    can_be_viewed_in_party_window: bool
+    is_spawned: bool
+    is_being_observed: bool
     
+    is_knocked_down: bool
+    is_moving: bool
+    
+    is_attacking: bool
+    is_casting: bool
+    is_idle: bool
+    is_alive: bool
+    is_player: bool
+    is_npc: bool
+
 class AgentLivingStruct(AgentStruct):
     _pack_ = 1
     _fields_ = [
@@ -398,49 +716,6 @@ class AgentLivingStruct(AgentStruct):
         ("weapon_item_id", c_uint16),
         ("offhand_item_id", c_uint16),
     ]
-    
-    def _finalize_snapshot(self) -> None:
-        """
-        Convert a byte-copy living snapshot into a STATIC snapshot:
-        - deep copy tags/equipment/effects into Python-owned memory
-        - amputate pointers and intrusive list heads so no later deref happens
-        """
-        # snapshot-only storage (python attributes, not ctypes fields)
-        self._tags_snapshot: Optional[TagInfoStruct] = None
-        self._equipment_snapshot: Optional[EquipmentStruct] = None
-        self._visible_effects_snapshot: list[VisibleEffectStruct] = []
-
-        # ---- tags_ptr (TagInfo*) ----
-        if self.tags_ptr:
-            try:
-                self._tags_snapshot = self.tags_ptr.contents.snapshot()
-            except ValueError:
-                self._tags_snapshot = None
-
-        # ---- equipment_ptr_ptr (Equipment**) ----
-        if self.equipment_ptr_ptr:
-            try:
-                eq_ptr = self.equipment_ptr_ptr.contents  # Equipment*
-                if eq_ptr:
-                    # IMPORTANT: use YOUR EquipmentStruct.snapshot() that removes pointers
-                    self._equipment_snapshot = eq_ptr.contents.snapshot()
-            except ValueError:
-                self._equipment_snapshot = None
-
-        # ---- visible_effects_list (TList<VisibleEffect>) ----
-        # Must be materialized NOW, before we amputate list head.
-        try:
-            live = GW_TList_View(self.visible_effects_list, VisibleEffectStruct).to_list()
-            if live:
-                self._visible_effects_snapshot = [e.snapshot() for e in live]
-        except Exception:
-            self._visible_effects_snapshot = []
-
-        # ---- amputate all live pointers/list heads in the snapshot ----
-        self.equipment_ptr_ptr = POINTER(POINTER(EquipmentStruct))()
-        self.tags_ptr = POINTER(TagInfoStruct)()
-        _amputate_tlist(self.visible_effects_list)
-    
     
     # ---- snapshot-safe properties ----
     @property
@@ -580,6 +855,161 @@ class AgentLivingStruct(AgentStruct):
     def is_npc(self) -> bool:
         """Return True if the agent is an NPC."""
         return self.login_number == 0  
+
+    def snapshot_living(self) -> AgentLiving:
+
+        return AgentLiving(
+            owner=int(self.owner),
+            h00C8=int(self.h00C8),
+            h00CC=int(self.h00CC),
+            h00D0=int(self.h00D0),
+            h00D4=[int(self.h00D4[i]) for i in range(3)],
+            animation_type=float(self.animation_type),
+            h00E4=[int(self.h00E4[i]) for i in range(2)],
+            weapon_attack_speed=float(self.weapon_attack_speed),
+            attack_speed_modifier=float(self.attack_speed_modifier),
+            player_number=int(self.player_number),
+            agent_model_type=int(self.agent_model_type),
+            transmog_npc_id=int(self.transmog_npc_id),
+            h0100=int(self.h0100),
+            h0104=int(self.h0104),
+            h010C=int(self.h010C),
+            primary=int(self.primary),
+            secondary=int(self.secondary),
+            level=int(self.level),
+            team_id=int(self.team_id),
+            h0112=[int(self.h0112[i]) for i in range(2)],
+            h0114=int(self.h0114),
+            energy_regen=float(self.energy_regen),
+            h011C=int(self.h011C),
+            energy=float(self.energy),
+            max_energy=int(self.max_energy),
+            h0128=int(self.h0128),
+            hp_pips=float(self.hp_pips),
+            h0130=int(self.h0130),
+            hp=float(self.hp),
+            max_hp=int(self.max_hp),
+            effects=int(self.effects),
+            h0140=int(self.h0140),
+            hex=int(self.hex),
+            h0145=[int(self.h0145[i]) for i in range(19)],
+            model_state=int(self.model_state),
+            type_map=int(self.type_map),
+            h0160=[int(self.h0160[i]) for i in range(4)],
+            in_spirit_range=int(self.in_spirit_range),
+            h0180=int(self.h0180),
+            login_number=int(self.login_number),
+            animation_speed=float(self.animation_speed),
+            animation_code=int(self.animation_code),
+            animation_id=int(self.animation_id),
+            h0194=[int(self.h0194[i]) for i in range(32)],
+            dagger_status=int(self.dagger_status),
+            allegiance=int(self.allegiance),
+            weapon_type=int(self.weapon_type),
+            skill=int(self.skill),
+            h01BA=int(self.h01BA),
+            weapon_item_type=int(self.weapon_item_type),
+            offhand_item_type=int(self.offhand_item_type),
+            weapon_item_id=int(self.weapon_item_id),
+            offhand_item_id=int(self.offhand_item_id),
+            equipment= self.equipment.snapshot() if self.equipment else None,   
+            tags= self.tags.snapshot() if self.tags else None,
+            visible_effects= [ve.snapshot() for ve in self.visible_effects] if self.visible_effects else [],
+            is_bleeding=self.is_bleeding,
+            is_conditioned=self.is_conditioned,
+            is_crippled=self.is_crippled,
+            is_dead=self.is_dead,
+            is_deep_wounded=self.is_deep_wounded,
+            is_poisoned=self.is_poisoned,
+            is_enchanted=self.is_enchanted,
+            is_degen_hexed=self.is_degen_hexed,
+            is_hexed=self.is_hexed,
+            is_weapon_spelled=self.is_weapon_spelled,
+            is_in_combat_stance=self.is_in_combat_stance,
+            has_quest=self.has_quest,
+            is_dead_by_type_map=self.is_dead_by_type_map,
+            is_female=self.is_female,
+            has_boss_glow=self.has_boss_glow,
+            is_hiding_cape=self.is_hiding_cape,
+            can_be_viewed_in_party_window=self.can_be_viewed_in_party_window,
+            is_spawned=self.is_spawned,
+            is_being_observed=self.is_being_observed,
+            is_knocked_down=self.is_knocked_down,
+            is_moving=self.is_moving,
+            is_attacking=self.is_attacking,
+            is_casting=self.is_casting,
+            is_idle=self.is_idle,
+            is_alive=self.is_alive,
+            is_player=self.is_player,
+            is_npc=self.is_npc,
+        )
+
+# ---------------------------------------------------------------------
+# ------------------ AgentItem ----------------------------------------
+# ---------------------------------------------------------------------
+
+@dataclass(slots=True)
+class AgentItem:
+    owner: int
+    item_id: int
+    h00CC: int
+    extra_type: int
+
+class AgentItemStruct(AgentStruct):
+    _pack_ = 1
+    _fields_ = [
+        ("owner", c_uint32),        # +0x00C4 AgentID
+        ("item_id", c_uint32),      # +0x00C8 ItemID
+        ("h00CC", c_uint32),        # +0x00CC
+        ("extra_type", c_uint32),   # +0x00D0
+    ]
+
+    def snapshot_item(self) -> AgentItem:
+        return AgentItem(
+            owner=int(self.owner),
+            item_id=int(self.item_id),
+            h00CC=int(self.h00CC),
+            extra_type=int(self.extra_type),
+        )
+
+# ---------------------------------------------------------------------
+# ------------------ AgentGadget --------------------------------------
+# ---------------------------------------------------------------------
+
+@dataclass(slots=True)
+class AgentGadget:
+    h00C4: int
+    h00C8: int
+    extra_type: int
+    gadget_id: int
+    h00D4: tuple[int, int, int, int]
+
+
+class AgentGadgetStruct(AgentStruct):
+    _pack_ = 1
+    _fields_ = [
+        ("h00C4", c_uint32),        # +0x00C4
+        ("h00C8", c_uint32),        # +0x00C8
+        ("extra_type", c_uint32),   # +0x00CC
+        ("gadget_id", c_uint32),    # +0x00D0
+        ("h00D4", c_uint32 * 4),    # +0x00D4
+    ]
+
+    def snapshot_gadget(self) -> AgentGadget:
+        return AgentGadget(
+            h00C4=int(self.h00C4),
+            h00C8=int(self.h00C8),
+            extra_type=int(self.extra_type),
+            gadget_id=int(self.gadget_id),
+            h00D4=(
+                int(self.h00D4[0]),
+                int(self.h00D4[1]),
+                int(self.h00D4[2]),
+                int(self.h00D4[3]),
+            ),
+        )
+        
+
  
    
 class AgentArrayStruct(Structure):

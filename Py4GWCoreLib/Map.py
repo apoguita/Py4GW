@@ -1950,13 +1950,11 @@ class Map:
     class Pathing:
         @staticmethod
         def GetPathingMaps() -> List[PathingMapStruct]:
+            from .native_src.context.MapContext import MapContext
             from .Routines import Checks
             if not Checks.Map.MapValid():
                 return []
-            if (map_ctx := GWContext.Map.GetContext()) is None:
-                return []
-            
-            return map_ctx.pathing_maps
+            return MapContext.GetPathingMaps()
 
         @staticmethod
         def WorldToScreen(x: float, y: float, z: float = 0.0) -> tuple[float, float]:
