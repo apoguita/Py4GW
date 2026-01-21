@@ -3,13 +3,13 @@ import PySkill
 
 class AgentModelID(IntEnum):
     CHARR_AXEMASTER = 6630
-    FOG_NIGHTMARE = 1729
+    FOG_NIGHTMARE = 1732
     FROST_WURM = 6491
     FROZEN_ELEMENTAL = 6478
     SENSALI_DARKFEATHER = 3946 + 51
     SENSALI_CLAW = 3944 + 51
     SENSALI_CUTTER = 3948 + 51
-    SPINED_ALOE = 1731
+    SPINED_ALOE = 1734
     
 class GadgetModelID(IntEnum):
     CHEST_HIDDEN_STASH = 9 #ID for Hidden Stash (Pre-Searing)
