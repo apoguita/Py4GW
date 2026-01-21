@@ -5,8 +5,10 @@ from Py4GWCoreLib import *
 show_consumables_selector = False
 consumable_state = {
     "Cupcake": False,
+    "CandyApple": False,
     "Alcohol": False,
     "Morale": False,
+    "WarSupplies": False,
     "CitySpeed": False,
 }
 
@@ -33,10 +35,10 @@ def draw_consumables_selector_window():
 
     items = [
         ("Cupcake",   ICON_MODEL["Cupcake"],   "Birthday Cupcake"),
-        ("CandyApple", ICON_MODEL["CandyApple"], "Candy Apple"),        
+        ("CandyApple", ICON_MODEL["CandyApple"], "Candy Apple"),    
         ("Alcohol",   ICON_MODEL["Alcohol"],   "Any Alcohol"),
         ("Morale",    ICON_MODEL["Morale"],    "Any Morale Boost"),
-        ("WarSupplies", ICON_MODEL["WarSupplies"], "War Supplies"),
+        ("WarSupplies", ICON_MODEL["WarSupplies"], "War Supplies"),  
         ("CitySpeed", ICON_MODEL["CitySpeed"], "Any City Speed"),
     ]
 
