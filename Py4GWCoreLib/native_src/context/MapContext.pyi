@@ -5,13 +5,26 @@ import ctypes
 from ..internals.types import Vec2f, Vec3f, CPointer
 from ..internals.gw_array import GW_Array
 from ..internals.gw_list import GW_TList
+from dataclasses import dataclass
 # (scanner_facade import is just symbolic; replace with your actual location)
 
 
 # -------------------------------------------------------------
 # Core Pathing Types
 # -------------------------------------------------------------
-
+@dataclass(slots=True)
+class PathingTrapezoid:
+    id: int
+    portal_left: int
+    portal_right: int
+    XTL: float
+    XTR: float
+    YT: float
+    XBL: float
+    XBR: float
+    YB: float
+    neighbor_ids: list[int]
+    
 class PathingTrapezoidStruct(Structure):
     id: int
     adjacent_ptr: list[CPointer["PathingTrapezoidStruct"]]   # PathingTrapezoid* adjacent[4]
@@ -28,20 +41,42 @@ class PathingTrapezoidStruct(Structure):
     def adjacent(self) -> List[Optional["PathingTrapezoidStruct"]]: ...
     @property
     def neighbor_ids(self) -> list[int]: ...
+    def snapshot(self) -> PathingTrapezoid: ...
 
+@dataclass(slots=True)
+class Node:
+    type: int
+    id: int
 
 class NodeStruct(Structure):
     type: c_uint32
     id:   c_uint32
+    def snapshot(self) -> Node: ...
 
-
+@dataclass(slots=True)
+class SinkNode:
+    type: int
+    id: int
+    trapezoid_ids: list[int]
+    
 class SinkNodeStruct(NodeStruct):
     trapezoid_ptr_ptr: Optional[CPointer[PathingTrapezoidStruct]]
 
     @property
     def trapezoid(self) -> Optional[PathingTrapezoidStruct]: ...
+    @property
+    def trapezoid_ids(self) -> list[int]: ...
+    def snapshot_sinknode(self) -> SinkNode: ...
 
-
+@dataclass(slots=True)
+class XNode:
+    type: int
+    id: int
+    pos: Vec2f
+    dir: Vec2f
+    left_id: Optional[int]
+    right_id: Optional[int]
+    
 class XNodeStruct(NodeStruct):
     pos: Vec2f
     dir: Vec2f
@@ -52,7 +87,15 @@ class XNodeStruct(NodeStruct):
     def left(self) -> Optional[NodeStruct]: ...
     @property
     def right(self) -> Optional[NodeStruct]: ...
+    def snapshot_xnode(self) -> XNode: ...
 
+@dataclass(slots=True)
+class YNode:
+    type: int
+    id: int
+    pos: Vec2f
+    left_id: Optional[int]
+    right_id: Optional[int]
 
 class YNodeStruct(NodeStruct):
     pos: Vec2f
@@ -63,7 +106,15 @@ class YNodeStruct(NodeStruct):
     def left(self) -> Optional[NodeStruct]: ...
     @property
     def right(self) -> Optional[NodeStruct]: ...
+    def snapshot_ynode(self) -> YNode: ...
 
+class Portal:
+    left_layer_id: int
+    right_layer_id: int
+    h0004: int
+    pair_index: int          # index of paired portal, or UINT32_MAX
+    count: int
+    trapezoid_indices: list[int]
 
 class PortalStruct(Structure):
     left_layer_id: int
@@ -78,6 +129,38 @@ class PortalStruct(Structure):
 
     @property
     def trapezoids(self) -> Optional[PathingTrapezoidStruct]: ...
+    def snapshot(self, all_portals: list["PortalStruct"]) -> Portal: ...
+
+@dataclass(slots=True)
+class PathingMap:
+    # ---- exact fields from PathingMapStruct ----
+    zplane: int
+    h0004: int
+    h0008: int
+    h000C: int
+    h0010: int
+
+    trapezoid_count: int
+    sink_node_count: int
+    x_node_count: int
+    y_node_count: int
+    portal_count: int
+
+    trapezoids: list[PathingTrapezoid]
+    sink_nodes: list[SinkNode]
+    x_nodes: list[XNode]
+    y_nodes: list[YNode]
+    portals: list[Portal]
+
+    h0034: int
+    h0038: int
+
+    root_node: Node
+    root_node_id: int        # UINT32_MAX if null
+
+    h0048: Optional[int]
+    h004C: Optional[int]
+    h0050: Optional[int]
 
 
 class PathingMapStruct(Structure):
@@ -121,6 +204,7 @@ class PathingMapStruct(Structure):
     def h004C(self) -> Optional[c_uint32]: ...
     @property
     def h0050(self) -> Optional[c_uint32]: ...
+    def snapshot(self) -> PathingMap: ...
 
 
 # -------------------------------------------------------------
@@ -199,6 +283,8 @@ class MapContext_sub1_sub2Struct(Structure):
 
     @property
     def pathing_maps(self) -> List[PathingMapStruct]: ...
+    @property
+    def pathing_maps_snapshot(self) -> list[PathingMap]:...
 
 
 class MapContext_sub1Struct(Structure):
@@ -242,6 +328,8 @@ class MapContextStruct(Structure):
     @property
     def pathing_maps(self) -> list[PathingMapStruct]: ...
     @property
+    def pathing_maps_snapshot(self) -> list[PathingMap]: ...
+    @property
     def props(self) -> Optional[PropsContextStruct]: ...
 
 
@@ -263,3 +351,5 @@ class MapContext:
     def disable() -> None: ...
     @staticmethod
     def get_context() -> Optional[MapContextStruct]: ...
+    @staticmethod
+    def GetPathingMaps() -> list[PathingMapStruct]: ...

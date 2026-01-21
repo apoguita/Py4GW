@@ -20,6 +20,7 @@ from .enums import Range
 from .Effect import Effects
 from HeroAI.players import *
 from .Agent import Agent
+from .Player import Player
 
 MAX_SKILLS = 8
 MAX_NUM_PLAYERS = 8
