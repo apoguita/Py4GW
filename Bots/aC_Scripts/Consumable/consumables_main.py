@@ -28,7 +28,7 @@ class ConsumablesHelper:
                 yield from Routines.Yield.Upkeepers.Upkeep_BirthdayCupcake()
             if s.get("CandyApple", False):
                 # uses ModelID.Candy_Apple under the hood 
-                yield from Routines.Yield.Upkeepers.Upkeep_CandyApple() 
+                yield from Routines.Yield.Upkeepers.Upkeep_CandyApple()  
             if s.get("Alcohol", False):
                 # scans ALCOHOL_ITEMS and tops up drunk level :contentReference[oaicite:5]{index=5}
                 yield from Routines.Yield.Upkeepers.Upkeep_Alcohol(target_alc_level=1,disable_drunk_effects=True)
