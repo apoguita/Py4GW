@@ -207,10 +207,14 @@ class ConsumablesHelper:
 
             if s.get("Cupcake", False):
                 yield from Routines.Yield.Upkeepers.Upkeep_BirthdayCupcake()
+            if s.get("CandyApple", False):
+                yield from Routines.Yield.Upkeepers.Upkeep_CandyApple()    
             if s.get("Alcohol", False):
                 yield from Routines.Yield.Upkeepers.Upkeep_Alcohol(target_alc_level=1 , disable_drunk_effects=True)
             if s.get("Morale", False):
                 yield from Routines.Yield.Upkeepers.Upkeep_Morale(110)
+            if s.get("WarSupplies", False):
+                yield from Routines.Yield.Upkeepers.Upkeep_WarSupplies()
             if s.get("CitySpeed", False):
                 yield from Routines.Yield.Upkeepers.Upkeep_City_Speed()
 
