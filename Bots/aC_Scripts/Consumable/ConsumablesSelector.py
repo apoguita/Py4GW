@@ -13,8 +13,10 @@ consumable_state = {
 # one icon per category, reusing your existing item-texture convention
 ICON_MODEL = {
     "Cupcake":   ModelID.Birthday_Cupcake,
+    "CandyApple": ModelID.Candy_Apple,
     "Alcohol":   ModelID.Hunters_Ale,
     "Morale":    ModelID.Honeycomb,
+    "WarSupplies": ModelID.War_Supplies,
     "CitySpeed": ModelID.Sugary_Blue_Drink,
 }
 # === Paths and Constants ===
@@ -31,8 +33,10 @@ def draw_consumables_selector_window():
 
     items = [
         ("Cupcake",   ICON_MODEL["Cupcake"],   "Birthday Cupcake"),
+        ("CandyApple", ICON_MODEL["CandyApple"], "Candy Apple"),        
         ("Alcohol",   ICON_MODEL["Alcohol"],   "Any Alcohol"),
         ("Morale",    ICON_MODEL["Morale"],    "Any Morale Boost"),
+        ("WarSupplies", ICON_MODEL["WarSupplies"], "War Supplies"),
         ("CitySpeed", ICON_MODEL["CitySpeed"], "Any City Speed"),
     ]
 
