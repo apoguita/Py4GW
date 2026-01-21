@@ -44,6 +44,9 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         self.window_open_timeout = ThrottledTimer(10_000)
         self.window_open_timeout.Stop()
 
+        self.window_close_timeout = ThrottledTimer(10_000)
+        self.window_close_timeout.Stop()
+
         self.dedicated_debug = False
 
         self.event_bus.subscribe(EventType.MAP_CHANGED, self.map_changed, subscriber_name=self.custom_skill.skill_name)
@@ -118,9 +121,10 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                 yield
                 return BehaviorResult.ACTION_SKIPPED
             
-            # ----------- 2 SEND DIALOG PHASE ------------
-            if self.dedicated_debug: print(f"open_near_chest_utility_ SendDialog")
-            Player.SendDialog(2)
+            # ----------- 2 SEND DIALOG AND WAIT FOR CHEST WINDOW TO CLOSE PHASE ------------
+            if self.dedicated_debug: print(f"open_near_chest_utility_ wait_for_chest_window_to_close")
+            is_chest_window_closed = yield from self.wait_for_chest_window_to_close()
+            print(f"open_near_chest_utility_ wait_for_chest_window_to_close is_successful:{is_chest_window_closed}")
 
             # ----------- 3 SUCCESS ------------
             self.opened_chest_agent_ids.add(chest_agent_id)
@@ -163,6 +167,31 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         # 3) timeout
         print(f"open_near_chest_utility_ TIMEOUT waiting for chest window to open (chest_agent_id={chest_agent_id})")
         self.window_open_timeout.Stop()
+        return False
+
+    def wait_for_chest_window_to_close(self) -> Generator[Any, None, bool]:
+
+        # 1) reset the timer if not running
+        if self.window_close_timeout.IsStopped():
+            self.window_close_timeout.Reset()
+
+        # 2) now repeat those step until timeout
+        while not self.window_close_timeout.IsExpired():
+
+            # 2.a) send dialog to close the chest window
+            if self.dedicated_debug: print(f"open_near_chest_utility_ SendDialog")
+            Player.SendDialog(2)
+            yield from custom_behavior_helpers.Helpers.wait_for(150)
+
+            # 2.b) check if the chest window is closed
+            if self.dedicated_debug: print(f"open_near_chest_utility_ wait_for_chest_window_to_close")
+            if not UIManager.IsLockedChestWindowVisible():
+                self.window_close_timeout.Stop()
+                return True
+
+        # 3) timeout
+        print(f"open_near_chest_utility_ TIMEOUT waiting for chest window to close")
+        self.window_close_timeout.Stop()
         return False
 
     @override

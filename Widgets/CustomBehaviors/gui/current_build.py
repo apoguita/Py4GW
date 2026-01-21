@@ -159,6 +159,7 @@ def render():
                             PyImGui.pop_style_color(4)
 
                             if unique_key in EXPANDED_SKILL_IDS:
+                                PyImGui.bullet_text(f"{skill.__class__.__name__}")
                                 PyImGui.bullet_text("required ressource")
                                 PyImGui.same_line(0, -1)
                                 PyImGui.text_colored(f"{skill.mana_required_to_cast}",  Utils.RGBToNormal(27, 126, 246, 255))
