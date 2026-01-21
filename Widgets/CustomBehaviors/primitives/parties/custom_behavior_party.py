@@ -51,9 +51,6 @@ class CustomBehaviorParty:
             self.party_following_manager = PartyFollowingManager()
             self.party_shared_lock_manager = CustomBehaviorWidgetMemoryManager().GetSharedLockManager()
             self.party_flagging_manager = PartyFlaggingManager()
-            # Rename GW windows to match custom behavior party names on load
-            print("CustomBehaviorParty: Renaming GW windows")
-            CustomBehaviorParty().schedule_action(PartyCommandConstants.rename_gw_windows)
             self.throttler = ThrottledTimer(50)
 
     def _handle(self) -> Generator[Any | None, Any | None, None]:
