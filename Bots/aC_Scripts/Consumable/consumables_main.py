@@ -26,12 +26,18 @@ class ConsumablesHelper:
             if s.get("Cupcake", False):
                 # uses ModelID.Birthday_Cupcake under the hood :contentReference[oaicite:4]{index=4}
                 yield from Routines.Yield.Upkeepers.Upkeep_BirthdayCupcake()
+            if s.get("CandyApple", False):
+                # uses ModelID.Candy_Apple under the hood 
+                yield from Routines.Yield.Upkeepers.Upkeep_CandyApple()  
             if s.get("Alcohol", False):
                 # scans ALCOHOL_ITEMS and tops up drunk level :contentReference[oaicite:5]{index=5}
                 yield from Routines.Yield.Upkeepers.Upkeep_Alcohol(target_alc_level=1,disable_drunk_effects=True)
             if s.get("Morale", False):
                 # scans MORALE_ITEMS until morale >= 110 :contentReference[oaicite:6]{index=6}
                 yield from Routines.Yield.Upkeepers.Upkeep_Morale(110)
+            if s.get("WarSupplies", False):
+                # uses ModelID.War_Supplies under the hood 
+                yield from Routines.Yield.Upkeepers.Upkeep_WarSupplies()
             if s.get("CitySpeed", False):
                 # outpost-only sugar rush/jolt upkeep via CITY_SPEED_ITEMS/EFFECTS :contentReference[oaicite:7]{index=7}
                 yield from Routines.Yield.Upkeepers.Upkeep_City_Speed()
