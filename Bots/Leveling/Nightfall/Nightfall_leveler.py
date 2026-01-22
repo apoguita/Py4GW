@@ -19,6 +19,7 @@ def create_bot_routine(bot: Botting) -> None:
     Into_Chahbek_Village(bot)
     Quiz_the_Recruits(bot)
     Configure_First_Battle(bot)
+    Never_Fight_Alone(bot)
     Chahbek_Village_Mission(bot)
     Primary_Training(bot)
     Honing_Combat_Skills(bot)
@@ -737,8 +738,6 @@ def Quiz_the_Recruits(bot: Botting):
     bot.Wait.ForTime(1000)
     bot.Move.XY(3485, -5246)
     bot.Dialogs.AtXY(3485, -5246, 0x82C507)
-    bot.Move.XYAndDialog(3433, -5900, 0x82C701)
-    bot.Dialogs.AtXY(3433, -5900, 0x82C707)
 
 def Equip_Weapon():
         global bot
@@ -779,6 +778,11 @@ def Configure_First_Battle(bot: Botting):
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
     bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
     Equip_Weapon()
+
+def Never_Fight_Alone(bot: Botting):
+    bot.States.AddHeader("Quest: Never Fight Alone")
+    bot.Move.XYAndDialog(3433, -5900, 0x82C701)
+    bot.Dialogs.AtXY(3433, -5900, 0x82C707)
 
 def Chahbek_Village_Mission(bot: Botting):
     bot.States.AddHeader("Chahbek Village Mission")
