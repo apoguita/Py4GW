@@ -934,7 +934,7 @@ def Material_Girl(bot: Botting):
     bot.Wait.ForTime(2000)
      
 def To_Champions_Dawn(bot: Botting): 
-    bot.States.AddHeader("To Champions Dawn")
+    bot.States.AddHeader("To Champion's Dawn")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
