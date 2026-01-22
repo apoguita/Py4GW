@@ -18,11 +18,9 @@ def create_bot_routine(bot: Botting) -> None:
     Skip_Tutorial(bot)
     Into_Chahbek_Village(bot)
     Quiz_the_Recruits(bot)
-    Configure_First_Battle(bot)
     Never_Fight_Alone(bot)
     Chahbek_Village_Mission(bot)
     Primary_Training(bot)
-    Honing_Combat_Skills(bot)
     # === INITIAL QUESTS AND PROGRESSION ===
     A_Personal_Vault(bot)
     Extend_Inventory_Space(bot)
@@ -36,9 +34,10 @@ def create_bot_routine(bot: Botting) -> None:
     A_Hidden_Threat(bot)
     Identity_Theft(bot) 
     # === PROFESSION AND CHARACTER DEVELOPMENT ===
-    Unlock_Secondary_Profession(bot)
     Configure_Player_Build(bot)
+    Honing_your_Skills(bot)
     Command_Training(bot)
+    Secondary_Training(bot)
     Leaving_A_Legacy(bot)  
     # === EQUIPMENT CRAFTING ===
     if Agent.GetProfessionNames(Player.GetAgentID())[0] in ["Paragon", "Elementalist", "Monk", "Necromancer"]:
@@ -717,8 +716,7 @@ def Craft1stWeapon(bot: Botting):
 
 def Skip_Tutorial(bot: Botting) -> None:
     bot.States.AddHeader("Skip Tutorial")
-    bot.Move.XYAndDialog(10289, 6405, 0x82A503)
-    bot.Dialogs.AtXY(10289, 6405, 0x82A501)
+    bot.Move.XYAndDialog(10289, 6405, 0x82A501)
     bot.Map.LeaveGH()
     bot.Wait.ForMapToChange(target_map_id=544)
 
@@ -735,9 +733,7 @@ def Quiz_the_Recruits(bot: Botting):
     bot.Move.XYAndDialog(4750, -6105, 0x82C504)
     bot.Move.XYAndDialog(5019, -6940, 0x82C504)
     bot.Move.XYAndDialog(3540, -6253, 0x82C504)
-    bot.Wait.ForTime(1000)
-    bot.Move.XY(3485, -5246)
-    bot.Dialogs.AtXY(3485, -5246, 0x82C507)
+    bot.Move.XYAndDialog(3485, -5246, 0x82C507)
 
 def Equip_Weapon():
         global bot
@@ -772,15 +768,12 @@ def Equip_Weapon():
             #bot.Wait.ForTime(1000)
             #bot.Items.Equip(6514)   
   
-def Configure_First_Battle(bot: Botting):
-    bot.States.AddHeader("Battle Setup")
+def Never_Fight_Alone(bot: Botting):
+    bot.States.AddHeader("Quest: Never Fight Alone")
     bot.Map.Travel(target_map_id=544)
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
     bot.Items.SpawnAndDestroyBonusItems(exclude_list=[ModelID.Igneous_Summoning_Stone.value])
     Equip_Weapon()
-
-def Never_Fight_Alone(bot: Botting):
-    bot.States.AddHeader("Quest: Never Fight Alone")
     bot.Move.XYAndDialog(3433, -5900, 0x82C701)
     bot.Dialogs.AtXY(3433, -5900, 0x82C707)
 
@@ -854,21 +847,12 @@ def Get_Skills():
 def Primary_Training(bot: Botting):
     bot.States.AddHeader("Quest: Primary Training")
     bot.Properties.Disable("hero_ai")
-    
-    bot.Move.XY(-7234.90, 4793.62)
     bot.Move.XYAndDialog(-7234.90, 4793.62, 0x825801)
     Get_Skills()
     bot.Move.XYAndDialog(-7234.90, 4793.62, 0x825807)
-
-def Honing_Combat_Skills(bot: Botting):
-    bot.States.AddHeader("Quest: Honing your Skills")
-    bot.Move.XY(-7234.90, 4793.62)
     bot.Move.XYAndDialog(-7234.90, 4793.62, 0x828901)
     bot.UI.CancelSkillRewardWindow()
     bot.Dialogs.AtXY(-7183, 4904, 0x828901)
-    bot.Move.XYAndDialog(-7383, 5706, 0x81)
-    bot.Dialogs.AtXY(-7383, 5706, 0x84)
-    bot.Wait.ForMapToChange(target_map_id=449)
 
 def A_Personal_Vault(bot: Botting):
     bot.States.AddHeader("Quest: A Personal Vault")
@@ -880,7 +864,7 @@ def A_Personal_Vault(bot: Botting):
 def Extend_Inventory_Space(bot: Botting):
     bot.States.AddHeader("Extend Inventory Space")
     bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
     bot.helpers.UI.open_all_bags()
     bot.Move.XYAndInteractNPC(-10597.11, 8742.66) # Merchant NPC in Kamadan
     bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
@@ -920,43 +904,6 @@ def Armored_Transport(bot: Botting):
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-11202, 9346,0x825F07)
 
-def Identity_Theft(bot: Botting):
-    bot.States.AddHeader("Quest: Identity Theft")
-    bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.Move.XY(-7519.91, 14468.26)
-    bot.Move.XYAndDialog(-10461, 15229, 0x827201) #take quest
-    bot.Map.Travel(target_map_id=479) #Champions Dawn
-    bot.Move.XYAndDialog(25345, 8604, 0x827204)
-    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,6,7])
-    bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
-    ConfigureAggressiveEnv(bot)
-    bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
-    bot.Items.AddModelToLootWhitelist(15850)
-    bot.Move.XY(14429, 10337) #kill boss
-    bot.Wait.UntilOutOfCombat()
-    ConfigurePacifistEnv(bot) #To Stop all combat to loot item without timeout
-    bot.Items.LootItems()
-    bot.Wait.ForTime(1000)
-    bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.Move.XY(-7519.91, 14468.26)
-    bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
-
-def Command_Training(bot: Botting):
-    bot.States.AddHeader("Quest: Command Training")
-    bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.Move.XYAndDialog(-7874, 9799, 0x82C801)
-    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
-    bot.Move.XY(-4383, -2078)
-    bot.Move.XYAndDialog(-7525, 6288, 0x81, step_name="Churrhir Fields") 
-    bot.Dialogs.AtXY(-7525, 6288, 0x84, step_name="We are ready")
-    bot.Wait.ForMapToChange(target_map_id=456)
-    bot.Move.XYAndDialog(-2000, -2825,0x8B) #Command Training
-    bot.Party.FlagAllHeroes(1110, -4175); bot.Wait.ForTime(35000) #Flag 2
-    bot.Party.FlagAllHeroes(-2362, -6126); bot.Wait.ForTime(35000) #Flag 3
-    bot.Party.FlagAllHeroes(-222, -5832); bot.Wait.ForTime(7000) #Flag 1. use this order to avoid mob spawns
-    bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.Move.XYAndDialog(-7874, 9799, 0x82C807)
-
 def Material_Girl(bot: Botting):
     bot.States.AddHeader("Quest: Quality Steel")
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -990,7 +937,19 @@ def Material_Girl(bot: Botting):
     bot.Dialogs.AtXY(-10024, 8590, 0x828807)
     bot.Move.XYAndDialog(-11356, 9066, 0x826107)
     bot.Wait.ForTime(2000)
-   
+     
+def To_Champions_Dawn(bot: Botting): 
+    bot.States.AddHeader("To Champions Dawn")
+    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
+    bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndDialog(-1237.25, 3188.38, 0x85) #Blessing 
+    bot.Move.XY(-4507, 616)
+    bot.Move.XY(-7611, -5953)
+    bot.Move.XY(-18083, -11907) 
+    bot.Move.XYAndExitMap(-19518, -13021, target_map_id=479) #Champions Dawn
+
 def Quality_Steel(bot: Botting):
     bot.States.AddHeader("Quest: Quality Steel")
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -1028,25 +987,12 @@ def Missing_Shipment(bot: Botting):
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[2,3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
-    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3128, 2037)
     bot.Move.XY(-7005, 2178)
     bot.Move.XY(-9360, 16311) #gets me in range
     bot.Interact.WithGadgetID(7458)
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10235, 16557, 0x827507) # +500xp +30 health rune
-            
-def To_Champions_Dawn(bot: Botting): 
-    bot.States.AddHeader("To Champions Dawn")
-    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
-    bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
-    ConfigureAggressiveEnv(bot)
-    bot.Move.XYAndDialog(-1237.25, 3188.38, 0x85) #Blessing 
-    bot.Move.XY(-4507, 616)
-    bot.Move.XY(-7611, -5953)
-    bot.Move.XY(-18083, -11907) 
-    bot.Move.XYAndExitMap(-19518, -13021, target_map_id=479) #unlockChampions Dawn
 
 def Proof_of_Courage_and_Suwash_the_Pirate(bot: Botting):
     bot.States.AddHeader("Quests: Proof of Courage and Suwash the Pirate")
@@ -1080,59 +1026,43 @@ def Proof_of_Courage_and_Suwash_the_Pirate(bot: Botting):
 def A_Hidden_Threat(bot: Botting):
     bot.States.AddHeader("Quest: A Hidden Threat")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Wait.ForMapToChange(target_map_id=431)
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,4])
     bot.Move.XYAndDialog(-1835, 6505, 0x825A01) #Shaurom
-    bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
+    bot.Move.XY(-3172, 3271)
+    bot.Wait.ForMapToChange(target_map_id=430) #Plains of Jarin
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(-3133.28, 1979.03)
-    bot.Move.XY(-13230, -148) 
-    bot.Move.XY(-16920, 746) 
-    bot.Move.XY(-17706, 3259)
-    bot.Move.XYAndDialog(-17706, 3259, 0x85) #Blessing 
-    bot.Wait.ForTime(2000)
-    bot.Move.XY(-19751, 8180) 
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(-17673, 11492) 
-    bot.Move.XY(-18751, 14973) 
-    bot.Move.XY(-17535.23, 18600) 
+    bot.Move.XY(-4680.29, 1867.42)
+    bot.Move.XY(-13276.00, -151.00)
+    bot.Move.XY(-17946.33, 2426.69)
+    bot.Move.XY(-17614.74, 11699.77)
+    bot.Move.XY(-18657.45, 14601.87)
+    bot.Move.XY(-16911.47, 19039.31)
     bot.Wait.UntilOnCombat()
     bot.Wait.UntilOutOfCombat()
     bot.Move.XYAndExitMap(-20136, 16757, target_map_id=502) #The Astralarium
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Move.XYAndDialog(-1835, 6505, 0x825A07) #A Hidden Threat reward
 
-def Unlock_Secondary_Profession(bot: Botting):  
-    bot.States.AddHeader("Unlock Secondary  Profession")
-    bot.Map.Travel(target_map_id=449) #Kamadan
-    bot.Party.LeaveParty()
-    bot.Move.XYAndDialog(-7910, 9740, 0x828907)
-    bot.Dialogs.AtXY(-7910, 9740, 0x825901)
-    bot.Move.XYAndDialog(-7525, 6288, 0x81)
-    bot.Dialogs.AtXY(-7525, 6288, 0x84)
-    bot.Wait.ForMapToChange(target_map_id=456)
-    ConfigurePacifistEnv(bot)
-    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if profession == "Necromancer": 
-        bot.Move.XYAndDialog(-7149, 1830, 0x7F) #Mesmer
-        bot.Move.XYAndDialog(-7161, 4808, 0x825907)
-    else:    
-        bot.Move.XYAndDialog(-6557.00, 1837, 0x7F) #this is fine, need minimal skill bar for level 4 to avoid skill equip window
-        bot.Move.XYAndDialog(-7161, 4808, 0x825907)
-    
-    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if profession == "Warrior":
-        bot.Move.XYAndDialog(-7161, 4808, 0x8A) #Dervish 2nd
-        bot.Dialogs.AtXY(-7161, 4808, 0x825407)
-        bot.Dialogs.AtXY(-7161, 4808, 0x827801)
-    elif profession in ["Necromancer", "Monk", "Elementalist"]:
-        bot.Move.XYAndDialog(-7161, 4808, 0x84) #Mes 2nd
-        bot.Dialogs.AtXY(-7161, 4808, 0x825407)
-        bot.Dialogs.AtXY(-7161, 4808, 0x827801)  
-    else:   
-        bot.Dialogs.AtXY(-7161, 4808, 0x88) #change to Warrior
-        bot.Dialogs.AtXY(-7161, 4808, 0x825407)
-        bot.Dialogs.AtXY(-7161, 4808, 0x827801)
+def Identity_Theft(bot: Botting):
+    bot.States.AddHeader("Quest: Identity Theft")
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XY(-7519.91, 14468.26)
+    bot.Move.XYAndDialog(-10461, 15229, 0x827201) #take quest
+    bot.Map.Travel(target_map_id=479) #Champions Dawn
+    bot.Move.XYAndDialog(25345, 8604, 0x827204)
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,6,7])
+    bot.Move.XYAndExitMap(22483, 6115, target_map_id=432) #Cliffs of Dohjok
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XYAndDialog(20215, 5285, 0x85) #Blessing 
+    bot.Items.AddModelToLootWhitelist(15850)
+    bot.Move.XY(14429, 10337) #kill boss
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot) #To Stop all combat to loot item without timeout
+    bot.Items.LootItems()
+    bot.Wait.ForTime(1000)
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XY(-7519.91, 14468.26)
+    bot.Move.XYAndDialog(-10461, 15229, 0x827207) # +500xp
 
 def Configure_Player_Build(bot: Botting):
     bot.States.AddHeader("Configure Player Build")
@@ -1197,10 +1127,64 @@ def Configure_Player_Build(bot: Botting):
     elif profession == "Ranger":
         bot.Move.XYAndDialog(-3317, 7053, 0x883B03) #Whirlwind Attack"
         
-
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC03)
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01)
+
+def Honing_your_Skills(bot: Botting):
+    bot.States.AddHeader("Quest: Honing your Skills")
+    bot.Map.Travel(target_map_id=449)
+    bot.Move.XYAndDialog(-7874.00, 9799.00, 0x828901)
+    bot.Wait.ForTime(1000)
+    bot.Move.XYAndDialog(-7874.00, 9799.00, 0x828907)
+
+def Command_Training(bot: Botting):
+    bot.States.AddHeader("Quest: Command Training")
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-7874, 9799, 0x82C801)
+    PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
+    bot.Move.XY(-4383, -2078)
+    bot.Move.XYAndDialog(-7525, 6288, 0x84, step_name="Churrhir Fields") 
+    bot.Wait.ForMapToChange(target_map_id=456)
+    bot.Move.XYAndDialog(-2000, -2825,0x8B) #Command Training
+    bot.Party.FlagAllHeroes(1110, -4175)
+    bot.Wait.ForTime(35000) #Flag 2
+    bot.Party.FlagAllHeroes(-2362, -6126)
+    bot.Wait.ForTime(35000) #Flag 3
+    bot.Party.FlagAllHeroes(-222, -5832)
+    bot.Wait.ForTime(7000) #Flag 1. use this order to avoid mob spawns
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XYAndDialog(-7874, 9799, 0x82C807)
+
+def Secondary_Training(bot: Botting):  
+    bot.States.AddHeader("Quest: Secondary Training")
+    bot.Map.Travel(target_map_id=449) #Kamadan
+    bot.Party.LeaveParty()
+    bot.Move.XYAndDialog(-7910, 9740, 0x825901)
+    bot.Move.XYAndDialog(-7525, 6288, 0x84)
+    bot.Wait.ForMapToChange(target_map_id=456)
+    ConfigurePacifistEnv(bot)
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if profession == "Necromancer": 
+        bot.Move.XYAndDialog(-7149, 1830, 0x7F) #Mesmer
+        bot.Move.XYAndDialog(-7161, 4808, 0x825907)
+    else:    
+        bot.Move.XYAndDialog(-6557.00, 1837, 0x7F) #this is fine, need minimal skill bar for level 4 to avoid skill equip window
+        bot.Move.XYAndDialog(-7161, 4808, 0x825907)
+    
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if profession == "Warrior":
+        bot.Move.XYAndDialog(-7161, 4808, 0x8A) #Dervish 2nd
+        bot.Dialogs.AtXY(-7161, 4808, 0x825407)
+        bot.Dialogs.AtXY(-7161, 4808, 0x827801)
+    elif profession in ["Necromancer", "Monk", "Elementalist"]:
+        bot.Move.XYAndDialog(-7161, 4808, 0x84) #Mes 2nd
+        bot.Dialogs.AtXY(-7161, 4808, 0x825407)
+        bot.Dialogs.AtXY(-7161, 4808, 0x827801)  
+    else:   
+        bot.Dialogs.AtXY(-7161, 4808, 0x88) #change to Warrior
+        bot.Dialogs.AtXY(-7161, 4808, 0x825407)
+        bot.Dialogs.AtXY(-7161, 4808, 0x827801)
 
 def Leaving_A_Legacy(bot: Botting):
     bot.States.AddHeader("Quest: Leaving A Legacy")
