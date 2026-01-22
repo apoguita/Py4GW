@@ -1213,8 +1213,7 @@ def Leaving_A_Legacy(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-25149, 12787)
     bot.Move.XYAndExitMap(-27657, 14482, target_map_id=491) #Jokanur Diggings
-    bot.Move.XYAndDialog(2888, 2207, 0x827807)
-    bot.Dialogs.AtXY(2888, 2207, 0x827901)
+    bot.Move.XYAndDialog(2888, 2207, 0x827807) #Reward
 
 def Craft_Player_Armor(bot: Botting):
     bot.States.AddHeader("Craft Player Armor")
