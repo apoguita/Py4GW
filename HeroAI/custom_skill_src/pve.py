@@ -517,7 +517,7 @@ class PVESkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Great_Dwarf_Weapon")
         skill.SkillType = SkillType.WeaponSpell.value
         skill.TargetAllegiance = Skilltarget.AllyMartial.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.CustomA.value
         skill.Conditions.TargetingStrict = True
         skill.Conditions.IsOutOfCombat = False
         skill_data[skill.SkillID] = skill

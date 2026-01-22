@@ -10,6 +10,9 @@ class DXOverlay:
 
         def set_primitives(self, shapes, color):
             self.renderer.set_primitives(shapes, color)
+            
+        def build_pathing_trapezoid_geometry(self, color: int) -> None:
+            self.renderer.build_pathing_trapezoid_geometry(color)
 
         def render(self):
             self.renderer.render()

@@ -345,7 +345,8 @@ class Compass():
         
         if not self.primitives_set:
             color = Utils.ColorToTuple(self.pathing.color)
-            self.renderer.set_primitives(self.geometry, Utils.RGBToDXColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)))
+            #self.renderer.set_primitives(self.geometry, Utils.RGBToDXColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)))
+            self.renderer.build_pathing_trapezoid_geometry(Utils.RGBToDXColor(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)))
             self.primitives_set = True
 
         self.renderer.world_space.set_zoom(zoom)
