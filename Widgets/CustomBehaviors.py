@@ -3,8 +3,9 @@ import pathlib
 import sys
 
 import Py4GW
-from Py4GWCoreLib import ImGui, PyImGui, Routines
+from Py4GWCoreLib import ImGui, Map, PyImGui, Routines
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Py4GWCoreLib.UIManager import UIManager
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.fps_monitor import FPSMonitor
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -134,7 +135,10 @@ def main():
         if constants.DEBUG: print("map changed - throttling.")
 
     if map_change_throttler.IsExpired():
-        gui()
+        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and Py4GW.Console.is_window_active()
+        if show_ui:
+            gui()
+
         daemon()
 
 def configure():

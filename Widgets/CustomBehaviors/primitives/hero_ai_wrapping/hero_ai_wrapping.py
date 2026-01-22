@@ -129,6 +129,7 @@ class HeroAiWrapping:
         UpdateGameOptions(self._cached_data)
 
         # Update combat and game options from local cache
+        self._cached_data.Update()
         self._cached_data.UpdateCombat()
         self._cached_data.UpdateGameOptions()
 
@@ -214,5 +215,5 @@ class HeroAiWrapping:
 
             # Draw the hero panel
             draw_hero_panel(window, account, cached_data, messages)
-
+        
         draw_dialog_overlay(accounts, cached_data, messages)
