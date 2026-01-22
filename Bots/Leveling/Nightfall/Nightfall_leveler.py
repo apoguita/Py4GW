@@ -905,7 +905,7 @@ def Armored_Transport(bot: Botting):
     bot.Move.XYAndDialog(-11202, 9346,0x825F07)
 
 def Material_Girl(bot: Botting):
-    bot.States.AddHeader("Quest: Quality Steel")
+    bot.States.AddHeader("Quest: Material Girl")
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-11363, 9066, 0x826103)
     bot.Dialogs.AtXY(-11363, 9066, 0x826101)
