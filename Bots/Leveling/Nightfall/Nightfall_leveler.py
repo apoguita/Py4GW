@@ -26,6 +26,7 @@ def create_bot_routine(bot: Botting) -> None:
     Material_Girl(bot)
     To_Champions_Dawn(bot)
     Quality_Steel(bot)
+    Attribute_Points_Quest_1(bot)
     Craft_First_Weapon(bot)
     Missing_Shipment(bot)
     Proof_of_Courage_and_Suwash_the_Pirate(bot)
@@ -894,7 +895,7 @@ def Armored_Transport(bot: Botting):
         dy = pos[1] - 1741.0
         return (dx * dx + dy * dy) <= (1000.0 * 1000.0)
     exit_condition = lambda: _exit_condition()
-    bot.Move.FollowModel(4881, 100, exit_condition) #Dec New ID
+    bot.Move.FollowModel(4881, 100, exit_condition) #Model ID updated after GW reforged
     bot.Move.XY(-2963, 1813)
     bot.Wait.ForTime(10000)
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -948,27 +949,29 @@ def To_Champions_Dawn(bot: Botting):
 def Quality_Steel(bot: Botting):
     bot.States.AddHeader("Quest: Quality Steel")
     bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.Move.XYAndDialog(-11208, 8815, 0x826003, step_name="Quality Steel")
-    bot.Dialogs.AtXY(-11208, 8815, 0x826001)
+    bot.Move.XYAndDialog(-11208, 8815, 0x826001)
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Move.XYAndDialog(-4076, 5362, 0x826004, step_name="Quality Steel")
-    bot.Move.XYAndDialog(-2888, 7024, 0x84, step_name="SS rebirth Signet")
-    bot.Dialogs.AtXY(-2888, 7024, 0x82CB03, step_name="Attribute Points Quest 1")
-    bot.Dialogs.AtXY(-2888, 7024, 0x82CB01)
+    bot.Move.XYAndDialog(-4076, 5362, 0x826004)
+    bot.Move.XYAndDialog(-2888, 7024, 0x84)
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     ConfigureAggressiveEnv(bot)
-    bot.Move.XYAndDialog(-1237.25, 3188.38, 0x85) #Blessing 
+    bot.Move.XYAndDialog(-1237.25, 3188.38, 0x85) #Blessing
     bot.Move.XY(-3225, 1749)
-    bot.Move.XY(-995, -2423) #fight
-    bot.Move.XY(-513, 67) #fight more
+    bot.Move.XY(-995, -2423)
+    bot.Move.XY(-513, 67)
     bot.Wait.UntilOutOfCombat()
     bot.Map.Travel(target_map_id=449) #Kamadan
-    bot.Move.XYAndDialog(-11208, 8815, 0x826007, step_name="Accept reward")
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar") # Level 4 skill bar
+    bot.Move.XYAndDialog(-11208, 8815, 0x826007)
+
+def Attribute_Points_Quest_1(bot: Botting):
+    bot.States.AddHeader("Attribute points quest n. 1")
+    bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
+    bot.Move.XYAndDialog(-2888, 7024, 0x82CB01)
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
 
 def Craft_First_Weapon(bot: Botting):
-    bot.States.AddHeader("Craft First Weapon")
+    bot.States.AddHeader("Craft first weapon")
     bot.Map.Travel(target_map_id=449) #Kamadan
     bot.Move.XYAndInteractNPC(-11270.00, 8785.00)
     bot.Wait.ForTime(1000)
@@ -978,16 +981,16 @@ def Craft_First_Weapon(bot: Botting):
 def Missing_Shipment(bot: Botting):
     bot.States.AddHeader("Quest: Missing Shipment")
     bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.Move.XYAndDialog(-10235, 16557, 0x827501) #need the ink crate
+    bot.Move.XYAndDialog(-10235, 16557, 0x827501)
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[2,3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     bot.Move.XY(-3128, 2037)
     bot.Move.XY(-7005, 2178)
-    bot.Move.XY(-9360, 16311) #gets me in range
+    bot.Move.XY(-9360, 16311)
     bot.Interact.WithGadgetID(7458)
     bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.Move.XYAndDialog(-10235, 16557, 0x827507) # +500xp +30 health rune
+    bot.Move.XYAndDialog(-10235, 16557, 0x827507)
 
 def Proof_of_Courage_and_Suwash_the_Pirate(bot: Botting):
     bot.States.AddHeader("Quests: Proof of Courage and Suwash the Pirate")
@@ -1449,7 +1452,7 @@ def Unlock_Xunlai_Material_Storage(bot: Botting) -> None:
     bot.Dialogs.WithModel(221, 0x800002)  # Unlock Material Storage Panel
 
 def Attribute_Points_Quest_2(bot: Botting):
-    bot.States.AddHeader("Attribute Points Quest n. 2")
+    bot.States.AddHeader("Attribute points quest n. 2")
     bot.States.AddCustomState(lambda: None, "SecondAttPoints_JumpHere")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07)
