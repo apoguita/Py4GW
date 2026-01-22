@@ -30,10 +30,10 @@ def create_bot_routine(bot: Botting) -> None:
     To_Champions_Dawn(bot)
     Quality_Steel(bot)
     Craft_First_Weapon(bot)
-    Missing_Shipment_Quest(bot)
+    Missing_Shipment(bot)
     Proof_of_Courage_and_Suwash_the_Pirate(bot)
     A_Hidden_Threat(bot)
-    Identity_Theft_Quest(bot) 
+    Identity_Theft(bot) 
     # === PROFESSION AND CHARACTER DEVELOPMENT ===
     Unlock_Secondary_Profession(bot)
     Configure_Player_Build(bot)
@@ -69,14 +69,14 @@ def create_bot_routine(bot: Botting) -> None:
     To_Consulate_Docks(bot)
     To_Kaineng_Center(bot)
     #To_Vizunah_Square_Foreign_Quarter(bot)
-    To_Marketplace_Outpost(bot)
+    To_Marketplace(bot)
     To_Seitung_Harbor(bot)
     To_Shinjea_Monastery(bot)
     To_Tsumei_Village(bot)
     To_Minister_Cho(bot)
     # === PROPHECIES CONTENT ===
     To_Lions_Arch(bot) 
-    To_Temple_Of_Ages(bot)
+    To_Temple_Of_The_Ages(bot)
 #region Helpers
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
@@ -718,7 +718,6 @@ def Skip_Tutorial(bot: Botting) -> None:
     bot.States.AddHeader("Skip Tutorial")
     bot.Move.XYAndDialog(10289, 6405, 0x82A503)
     bot.Dialogs.AtXY(10289, 6405, 0x82A501)
-    bot.Map.TravelGH()
     bot.Map.LeaveGH()
     bot.Wait.ForMapToChange(target_map_id=544)
 
@@ -866,8 +865,7 @@ def Honing_Combat_Skills(bot: Botting):
     bot.Move.XYAndDialog(-7383, 5706, 0x81)
     bot.Dialogs.AtXY(-7383, 5706, 0x84)
     bot.Wait.ForMapToChange(target_map_id=449)
-#endregion
-#region Initial Quests and Progression
+
 def A_Personal_Vault(bot: Botting):
     bot.States.AddHeader("Quest: A Personal Vault")
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -918,7 +916,7 @@ def Armored_Transport(bot: Botting):
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-11202, 9346,0x825F07)
 
-def Identity_Theft_Quest(bot: Botting):
+def Identity_Theft(bot: Botting):
     bot.States.AddHeader("Quest: Identity Theft")
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XY(-7519.91, 14468.26)
@@ -1019,7 +1017,7 @@ def Craft_First_Weapon(bot: Botting):
     exec_fn = lambda: Craft1stWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft 1st Weapon") 
 
-def Missing_Shipment_Quest(bot: Botting):
+def Missing_Shipment(bot: Botting):
     bot.States.AddHeader("Quest: Missing Shipment")
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10235, 16557, 0x827501) #need the ink crate
@@ -1099,8 +1097,7 @@ def A_Hidden_Threat(bot: Botting):
     bot.Move.XYAndExitMap(-20136, 16757, target_map_id=502) #The Astralarium
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Move.XYAndDialog(-1835, 6505, 0x825A07) #A Hidden Threat reward
-#endregion
-#region Profession and Character Development
+
 def Unlock_Secondary_Profession(bot: Botting):  
     bot.States.AddHeader("Unlock Secondary  Profession")
     bot.Map.Travel(target_map_id=449) #Kamadan
@@ -1232,8 +1229,7 @@ def Leaving_A_Legacy(bot: Botting):
     bot.Move.XYAndExitMap(-27657, 14482, target_map_id=491) #Jokanur Diggings
     bot.Move.XYAndDialog(2888, 2207, 0x827807)
     bot.Dialogs.AtXY(2888, 2207, 0x827901)
-#endregion
-#region Equipment Crafting
+
 def Craft_Player_Armor(bot: Botting):
     bot.States.AddHeader("Craft Player Armor")
     bot.Map.Travel(target_map_id=491)
@@ -1341,8 +1337,7 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     
     for model in useless_items:
         result = yield from Routines.Yield.Items.DestroyItem(model)
-#endregion
-#region Leveling
+
 def Farm_Until_Level_10(bot):
     bot.States.AddHeader("Farm Until Level 10")
     bot.Map.Travel(target_map_id=491) #Jokanur Diggings
@@ -1493,8 +1488,7 @@ def Unlock_Sunspear_Skills(bot: Botting):
     bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883D03) # Learn Sunspear Dervish Skill
     bot.Dialogs.AtXY(-3307.00, 6997.56, 0x883E03) # Learn Sunspear Ritualist Skill
     bot.Dialogs.AtXY(-3307.00, 6997.56, 0x884003) # Learn Sunspear Paragon Skill
-#endregion
-#region Eye of the North Expansion
+
 def To_Boreal_Station(bot: Botting): 
     bot.States.AddHeader("To Boreal Station")
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -1560,7 +1554,7 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) #vekk dialog
 
 def To_Gunnars_Hold(bot: Botting):
-    bot.States.AddHeader("To Gunnars Hold")
+    bot.States.AddHeader("To Gunnar's Hold")
     bot.Map.Travel(target_map_id=642) # eotn_outpost_id
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
@@ -1607,8 +1601,8 @@ def Unlock_Kilroy_Stonekin(bot: Botting):
     elif profession == "Monk":
         bot.Items.Equip(18926)
         
-def To_Longeye_Edge(bot: Botting):
-    bot.States.AddHeader("To Longeye Edge")
+def To_Longeyes_Edge(bot: Botting):
+    bot.States.AddHeader("To Longeye's Edge")
     bot.Map.Travel(target_map_id=644) # Gunnar's Hold
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     bot.Move.XY(15886.204101, -6687.815917)
@@ -1673,8 +1667,8 @@ def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
     bot.Map.Travel(target_map_id=650)
     bot.Party.LeaveParty()
 
-def To_Doomlore(bot: Botting):
-    bot.States.AddHeader("To Doomlore")
+def To_Doomlore_Shrine(bot: Botting):
+    bot.States.AddHeader("To Doomlore Shrine")
     bot.Map.Travel(target_map_id=650) # Longeyes Ledge
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[5, 6, 7, 9, 4, 3, 2])
     bot.Move.XY(-22469.261718, 13327.513671)
@@ -1812,8 +1806,7 @@ def To_Umbral_Grotto(bot: Botting):
     bot.Move.XY(-22423.933593, 6339.730468)
     bot.Move.XY(-22984.621093, 6892.540527)
     bot.Wait.ForMapLoad(target_map_name="Umbral Grotto")  
-#endregion
-#region Factions Content
+
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
     bot.Party.LeaveParty()
@@ -1880,8 +1873,8 @@ def To_Vizunah_Square_Foreign_Quarter(bot: Botting):
     bot.Dialogs.WithModel(3279, 0x80000B)  # talk to the guard Dec New ID
     bot.Wait.ForMapToChange(target_map_id=292) #Vizunah Square Foreign
 
-def To_Marketplace_Outpost(bot: Botting):
-    bot.States.AddHeader("To Marketplace Outpost")
+def To_Marketplace(bot: Botting):
+    bot.States.AddHeader("To Marketplace")
     bot.Map.Travel(target_map_id=194)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
@@ -1958,7 +1951,7 @@ def To_Minister_Cho(bot: Botting):
     bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
 
 def To_Lions_Arch(bot: Botting):
-    bot.States.AddHeader("To Lions Arch")
+    bot.States.AddHeader("To Lion's Arch")
     bot.Map.Travel(target_map_id=493)  # Consulate Docks
     bot.Wait.ForMapLoad(target_map_id=493)
     bot.Move.XYAndDialog(-2546.09, 16203.26, 0x89)
@@ -1968,22 +1961,19 @@ def To_Lions_Arch(bot: Botting):
     bot.Move.XY(-1856.86, 1434.14)
     bot.Move.FollowPath([(-2144, 1450)])
     bot.Wait.ForMapLoad(target_map_id=55) #has built in wait time now
-#endregion
-#region Prophecies Content
-def To_Temple_Of_Ages(bot: Botting):
+
+def To_Temple_Of_The_Ages(bot: Botting):
     bot.States.AddHeader("To Temple of the Ages")
     bot.Map.Travel(target_map_id=55)  # Lion's Arch
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.AddHenchmanList([1, 3])
-    # Exit Lion's Arch towards D'Alessio Seaboard
     bot.Move.XY(1219, 7222)
     bot.Move.XY(1021, 10651)
     bot.Move.XY(250, 12350)
     bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
     ConfigureAggressiveEnv(bot)
-    # Path to D'Alessio Seaboard outpost
     bot.Move.XY(5116.0, -17415.0)
     bot.Move.XY(2346.0, -17307.0)
     bot.Move.XY(757.0, -16768.0)
@@ -1998,13 +1988,10 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(-11600.0, -19500.0)
     bot.Move.XY(-11708, -19957)
     bot.Wait.ForMapLoad(target_map_id=15)  # D'Alessio Seaboard outpost
-    
-    # Exit D'Alessio Seaboard towards Bergen Hot Springs
     bot.Move.XY(16000, 17080)
     bot.Move.XY(16030, 17200)
     bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
     ConfigureAggressiveEnv(bot)
-    # Path through North Kryta Province to Nebo Terrace
     bot.Move.XY(-11453.0, -18065.0)
     bot.Move.XY(-10991.0, -16776.0)
     bot.Move.XY(-10791.0, -15737.0)
@@ -2030,7 +2017,6 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(-19550.0, 15625.0)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
     ConfigureAggressiveEnv(bot)
-    # Path through Nebo Terrace
     bot.Move.XY(19271.0, 5207.0)
     bot.Move.XY(18307.0, 5369.0)
     bot.Move.XY(17704.0, 4786.0)
@@ -2049,14 +2035,12 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([1, 3])
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    # Exit Bergen Hot Springs
     bot.Move.XY(15521, -15378)
     bot.Move.XY(15450, -15050)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
     bot.Move.XY(15378, -14794)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
     ConfigureAggressiveEnv(bot)
-    # Path through Nebo Terrace to Cursed Lands
     bot.Move.XY(13276.0, -14317.0)
     bot.Move.XY(10761.0, -14522.0)
     bot.Move.XY(8660.0, -12109.0)
@@ -2069,7 +2053,6 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(-4290.0, -11599.0)
     bot.Wait.ForMapLoad(target_map_id=56)  # Cursed Lands
     ConfigureAggressiveEnv(bot)
-    # Path through Cursed Lands to The Black Curtain
     bot.Move.XY(-4523.0, -9755.0)
     bot.Move.XY(-4067.0, -8786.0)
     bot.Move.XY(-4207.0, -7806.0)
@@ -2088,7 +2071,6 @@ def To_Temple_Of_Ages(bot: Botting):
     bot.Move.XY(-20100.0, 9025.0)
     bot.Wait.ForMapLoad(target_map_id=18)  # The Black Curtain 
     ConfigureAggressiveEnv(bot)
-    # Path through The Black Curtain to Temple of the Ages
     bot.Move.XY(8716.0, 18587.0)
     bot.Move.XY(5616.0, 17732.0)
     bot.Move.XY(3795.0, 17750.0)
@@ -2107,7 +2089,6 @@ selected_step = 0
 filter_header_steps = True
 
 iconwidth = 96
-
 
 def _draw_texture():
     global iconwidth
