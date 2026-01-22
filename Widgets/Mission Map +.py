@@ -717,16 +717,18 @@ class MissionMap:
             return
         self.throttle_timer.Reset()    
 
-        if not self.geometry:
-            self.boundaries = Map.GetMapBoundaries()
-            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
-            
-            self.geometry = Map.Pathing.GetComputedGeometry()
-            self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 80).to_dx_color())
-            self.mega_zoom_renderer.set_primitives(self.geometry, Color(255, 255, 255, 100).to_dx_color())
-            
-            self.renderer.mask.set_rectangle_mask(True)
-            self.mega_zoom_renderer.mask.set_rectangle_mask(True)
+        
+        self.boundaries = Map.GetMapBoundaries()
+        self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
+        
+        #self.geometry = Map.Pathing.GetComputedGeometry()
+        #self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 80).to_dx_color())
+        #self.mega_zoom_renderer.set_primitives(self.geometry, Color(255, 255, 255, 100).to_dx_color())
+        self.renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 80).to_dx_color())
+        self.mega_zoom_renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 100).to_dx_color())
+        
+        self.renderer.mask.set_rectangle_mask(True)
+        self.mega_zoom_renderer.mask.set_rectangle_mask(True)
             
         coords = Map.MissionMap.GetMissionMapContentsCoords()
         self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])

@@ -440,15 +440,15 @@ def snapshot(self) -> PathingMap:
     UINT32_MAX = 0xFFFFFFFF
     trapezoid_structs: list[PathingTrapezoidStruct] = self.trapezoids
     #sink_structs: list[SinkNodeStruct] = self.sink_nodes
-    x_structs: list[XNodeStruct] = self.x_nodes
-    y_structs: list[YNodeStruct] = self.y_nodes
+    #x_structs: list[XNodeStruct] = self.x_nodes
+    #y_structs: list[YNodeStruct] = self.y_nodes
     portal_structs: list[PortalStruct] = self.portals
 
     # snapshots (python-owned)
     trapezoids = [t.snapshot() for t in trapezoid_structs]
     #sink_nodes = [s.snapshot_sinknode() for s in sink_structs]
-    x_nodes = [x.snapshot_xnode() for x in x_structs]
-    y_nodes = [y.snapshot_ynode() for y in y_structs]
+    #x_nodes = [x.snapshot_xnode() for x in x_structs]
+    #y_nodes = [y.snapshot_ynode() for y in y_structs]
     portals = [p.snapshot(portal_structs) for p in portal_structs]
 
     # root node id (C++ uses root_node_id in PathingMap; you have root_node_ptr)
@@ -476,8 +476,8 @@ def snapshot(self) -> PathingMap:
 
         trapezoids=trapezoids,
         sink_nodes=[], #sink_nodes,
-        x_nodes=x_nodes,
-        y_nodes=y_nodes,
+        x_nodes=[], #x_nodes,
+        y_nodes=[], #y_nodes,
         portals=portals,
 
         h0034=int(self.h0034),
@@ -750,7 +750,7 @@ class MapContext:
     _ptr: int = 0
     _cached_ctx: MapContextStruct | None = None
     _callback_name = "MapContext.UpdatePtr"
-    _pathing_maps_cache: dict[int, list[PathingMap]] = {}
+    _pathing_maps_cache: dict[int, list[PathingMapStruct]] = {}
 
     @staticmethod
     def get_ptr() -> int:
@@ -793,7 +793,7 @@ class MapContext:
         return MapContext._cached_ctx
     
     @staticmethod
-    def GetPathingMaps() -> list[PathingMap]:
+    def GetPathingMaps() -> list[PathingMapStruct]:
         map_ctx = MapContext._cached_ctx
         char_ctx = CharContext.get_context()
         instance_info_ctx = InstanceInfo.get_context()
@@ -810,7 +810,8 @@ class MapContext:
         map_id = char_ctx.current_map_id
         if map_id in MapContext._pathing_maps_cache:
             return MapContext._pathing_maps_cache[map_id]
-        pathing_maps = map_ctx.pathing_maps_snapshot
+        #pathing_maps = map_ctx.pathing_maps_snapshot
+        pathing_maps = map_ctx.pathing_maps
         MapContext._pathing_maps_cache[map_id] = pathing_maps
         return pathing_maps
 
