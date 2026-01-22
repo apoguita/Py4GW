@@ -968,7 +968,6 @@ def Attribute_Points_Quest_1(bot: Botting):
     bot.States.AddHeader("Attribute points quest n. 1")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Move.XYAndDialog(-2888, 7024, 0x82CB01)
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
 
 def Craft_First_Weapon(bot: Botting):
     bot.States.AddHeader("Craft first weapon")
@@ -976,7 +975,8 @@ def Craft_First_Weapon(bot: Botting):
     bot.Move.XYAndInteractNPC(-11270.00, 8785.00)
     bot.Wait.ForTime(1000)
     exec_fn = lambda: Craft1stWeapon(bot)
-    bot.States.AddCustomState(exec_fn, "Craft 1st Weapon") 
+    bot.States.AddCustomState(exec_fn, "Craft 1st Weapon")
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
 
 def Missing_Shipment(bot: Botting):
     bot.States.AddHeader("Quest: Missing Shipment")
@@ -1001,7 +1001,7 @@ def Proof_of_Courage_and_Suwash_the_Pirate(bot: Botting):
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(-1237.25, 3188.38, 0x85) #Blessing 
-    bot.Move.XY(-3972, 1703) #proof of courage
+    bot.Move.XY(-3972, 1703) #Proof of courage
     bot.Move.XY(-6784, -3484)
     bot.Wait.UntilOutOfCombat()
     bot.Interact.WithGadgetAtXY(-6418, -3759) #Corsair Chest
@@ -1012,7 +1012,7 @@ def Proof_of_Courage_and_Suwash_the_Pirate(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(-10581, -11798) #Suwash the Pirate 3
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XYAndDialog(-16795, -12217, 0x85) #plant blessing
+    bot.Move.XYAndDialog(-16795, -12217, 0x85) #Blessing
     bot.Move.XY(-15896, -10190) #Suwash the Pirate 4
     bot.Wait.UntilOutOfCombat()
     bot.Move.XYAndDialog(-15573, -9638, 0x826204) #Suwash the Pirate turnin
