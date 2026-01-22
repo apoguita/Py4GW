@@ -59,7 +59,7 @@ def create_bot_routine(bot: Botting) -> None:
     Unlock_Eye_Of_The_North_Pool(bot)
     To_Gunnars_Hold(bot)
     Unlock_Kilroy_Stonekin(bot)
-    #To_Longeye_Edge(bot)
+    #To_Longeyes_Edge(bot)
     #Unlock_NPC_For_Vaettir_Farm(bot)
     #To_Doomlore_Shrine(bot)
     #To_Sifhalla(bot)
