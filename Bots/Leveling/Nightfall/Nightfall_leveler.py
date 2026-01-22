@@ -61,7 +61,7 @@ def create_bot_routine(bot: Botting) -> None:
     Unlock_Kilroy_Stonekin(bot)
     #To_Longeye_Edge(bot)
     #Unlock_NPC_For_Vaettir_Farm(bot)
-    #To_Doomlore(bot)
+    #To_Doomlore_Shrine(bot)
     #To_Sifhalla(bot)
     #To_Olafstead(bot)
     #To_Umbral_Grotto(bot)
