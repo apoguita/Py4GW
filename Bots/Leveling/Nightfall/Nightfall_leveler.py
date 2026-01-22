@@ -14,14 +14,12 @@ bot = Botting("Nightfall Leveler",
               upkeep_auto_loot_active=True)
  
 def create_bot_routine(bot: Botting) -> None:
-    # === TUTORIAL AND INITIAL SETUP ===
     Skip_Tutorial(bot)
     Into_Chahbek_Village(bot)
     Quiz_the_Recruits(bot)
     Never_Fight_Alone(bot)
     Chahbek_Village_Mission(bot)
     Primary_Training(bot)
-    # === INITIAL QUESTS AND PROGRESSION ===
     A_Personal_Vault(bot)
     Extend_Inventory_Space(bot)
     Armored_Transport(bot)
@@ -33,7 +31,6 @@ def create_bot_routine(bot: Botting) -> None:
     Proof_of_Courage_and_Suwash_the_Pirate(bot)
     A_Hidden_Threat(bot)
     Identity_Theft(bot) 
-    # === PROFESSION AND CHARACTER DEVELOPMENT ===
     Configure_Player_Build(bot)
     Honing_your_Skills(bot)
     Command_Training(bot)
@@ -46,7 +43,7 @@ def create_bot_routine(bot: Botting) -> None:
         Craft_Player_Armor(bot)
     Craft_Player_Weapon(bot)
     Destroy_Starter_Armor_And_Useless_Items(bot)
-    # === MID-GAME LEVELING ===
+    # === LEVELING ===
     Farm_Until_Level_10(bot)
     Unlock_Remaining_Secondary_Professions(bot)
     Unlock_Mercenary_Heroes(bot)
@@ -77,7 +74,6 @@ def create_bot_routine(bot: Botting) -> None:
     # === PROPHECIES CONTENT ===
     To_Lions_Arch(bot) 
     To_Temple_Of_The_Ages(bot)
-#region Helpers
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Templates.Pacifist()
