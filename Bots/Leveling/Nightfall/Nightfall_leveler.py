@@ -1127,7 +1127,6 @@ def Configure_Player_Build(bot: Botting):
         bot.Move.XYAndDialog(-3317, 7053, 0x883B03) #Whirlwind Attack"
         
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    bot.Dialogs.AtXY(-2864, 7031, 0x82CC03)
     bot.Dialogs.AtXY(-2864, 7031, 0x82CC01)
 
 def Honing_your_Skills(bot: Botting):
