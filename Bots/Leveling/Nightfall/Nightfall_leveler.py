@@ -21,9 +21,9 @@ def create_bot_routine(bot: Botting) -> None:
     Chahbek_Village_Mission(bot)
     Primary_Training(bot)
     A_Personal_Vault(bot)
-    Extend_Inventory_Space(bot)
     Armored_Transport(bot)
     Material_Girl(bot)
+    Extend_Inventory_Space(bot)
     To_Champions_Dawn(bot)
     Quality_Steel(bot)
     Attribute_Points_Quest_1(bot)
@@ -856,27 +856,6 @@ def A_Personal_Vault(bot: Botting):
     bot.Move.XYAndDialog(-7761, 14393, 0x84)
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107)
 
-def Extend_Inventory_Space(bot: Botting):
-    bot.States.AddHeader("Extend Inventory Space")
-    bot.Map.Travel(target_map_id=449) # Kamadan
-    bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
-    bot.helpers.UI.open_all_bags()
-    bot.Move.XYAndInteractNPC(-10597.11, 8742.66) # Merchant NPC in Kamadan
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
-    bot.Wait.ForTime(250)
-    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
-    bot.Wait.ForTime(500) # Wait for equip to complete
-    bot.Items.MoveModelToBagSlot(35, 1, 0) 
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
-    bot.Wait.ForTime(500)
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
-
 def Armored_Transport(bot: Botting):
     bot.States.AddHeader("Quest: Armored Transport")
     bot.Map.Travel(target_map_id=449) # Kamadan
@@ -930,7 +909,27 @@ def Material_Girl(bot: Botting):
     bot.Move.XYAndDialog(-10024, 8590, 0x828804)
     bot.Dialogs.AtXY(-10024, 8590, 0x828807)
     bot.Move.XYAndDialog(-11356, 9066, 0x826107)
-    bot.Wait.ForTime(2000)
+
+def Extend_Inventory_Space(bot: Botting):
+    bot.States.AddHeader("Extend Inventory Space")
+    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
+    bot.helpers.UI.open_all_bags()
+    bot.Move.XYAndInteractNPC(-10597.11, 8742.66) # Merchant NPC in Kamadan
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
+    bot.Wait.ForTime(250)
+    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
+    bot.Wait.ForTime(500) # Wait for equip to complete
+    bot.Items.MoveModelToBagSlot(35, 1, 0) 
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
+    bot.Wait.ForTime(500)
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
      
 def To_Champions_Dawn(bot: Botting): 
     bot.States.AddHeader("To Champion's Dawn")
