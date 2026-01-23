@@ -1452,7 +1452,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.States.AddHeader("Attribute points quest n. 2")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC01)
-    bot.Wait.ForTime(2000)
+    bot.Wait.ForTime(3000)
     bot.Move.XYAndDialog(-2864, 7031, 0x82CC07)
 
 def Unlock_Sunspear_Skills(bot: Botting):
