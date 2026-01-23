@@ -847,9 +847,7 @@ def Primary_Training(bot: Botting):
     bot.Move.XYAndDialog(-7234.90, 4793.62, 0x825801)
     Get_Skills()
     bot.Move.XYAndDialog(-7234.90, 4793.62, 0x825807)
-    bot.Move.XYAndDialog(-7234.90, 4793.62, 0x828901)
     bot.UI.CancelSkillRewardWindow()
-    bot.Dialogs.AtXY(-7183, 4904, 0x828901)
 
 def A_Personal_Vault(bot: Botting):
     bot.States.AddHeader("Quest: A Personal Vault")
