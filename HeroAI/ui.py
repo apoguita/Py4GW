@@ -1611,7 +1611,7 @@ def draw_consumables_window(cached_data: CacheData):
             
         style.CellPadding.pop_style_var()
                 
-        if PyImGui.is_mouse_clicked(0) and not PyImGui.is_any_item_hovered() and not PyImGui.is_window_hovered():
+        if (PyImGui.is_mouse_clicked(0) or PyImGui.is_mouse_clicked(1)) and not PyImGui.is_any_item_hovered() and not PyImGui.is_window_hovered():
             configure_consumables_window_open = False
             PyImGui.close_current_popup()
             
