@@ -194,9 +194,9 @@ class HeroAICommands:
                 def send_invite(name = char_name):
                     ConsoleLog("HeroAI", f"Inviting {name} to party.")
                     Player.SendChatCommand("invite " + name)
-                    SetWaitingActions(250)              
-                
-                GLOBAL_CACHE._ActionQueueManager.AddAction("ACTION", send_invite)
+                    SetWaitingActions(250)
+                    
+                send_invite()
                 
                 
             GLOBAL_CACHE.ShMem.SendMessage(
