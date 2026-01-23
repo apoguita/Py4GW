@@ -961,9 +961,11 @@ def Missing_Shipment(bot: Botting):
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[2,3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
-    bot.Move.XY(-3128, 2037)
-    bot.Move.XY(-7005, 2178)
-    bot.Move.XY(-9360, 16311)
+    bot.Move.XY(-4638.69, 1484.08)
+    bot.Move.XY(-7226.91, 3327.59)
+    bot.Move.XY(-8478.89, 9617.20)
+    bot.Move.XY(-9389.65, 16276.98)
+    bot.Wait.UntilOutOfCombat()
     bot.Interact.WithGadgetID(7458)
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-10235, 16557, 0x827507)
