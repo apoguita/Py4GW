@@ -375,7 +375,7 @@ def draw_widget_ui():
         categorized_widgets.setdefault(cat, {}).setdefault(sub, []).append(name)
 
     for cat, subs in categorized_widgets.items():
-        open = ImGui.collapsing_header(cat)
+        open = ImGui.collapsing_header(f"{cat}##CategoryHeader")
         
         if not open:
             continue
@@ -387,7 +387,7 @@ def draw_widget_ui():
             if style.Theme not in ImGui.Textured_Themes:
                 style.TextTreeNode.push_color((255, 200, 100, 255))
                 
-            open = ImGui.tree_node(sub)
+            open = ImGui.tree_node(f"{sub}##{cat} Subcategory")
             
             if style.Theme not in ImGui.Textured_Themes:
                 style.TextTreeNode.pop_color()
