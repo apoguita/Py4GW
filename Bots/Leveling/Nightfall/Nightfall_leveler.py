@@ -1124,7 +1124,6 @@ def Configure_Player_Build(bot: Botting):
         bot.Move.XYAndDialog(-3317, 7053, 0x883B03) #Whirlwind Attack"
         
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
-    bot.Dialogs.AtXY(-2864, 7031, 0x82CC01)
 
 def Honing_your_Skills(bot: Botting):
     bot.States.AddHeader("Quest: Honing your Skills")
@@ -1451,10 +1450,10 @@ def Unlock_Xunlai_Material_Storage(bot: Botting) -> None:
 
 def Attribute_Points_Quest_2(bot: Botting):
     bot.States.AddHeader("Attribute points quest n. 2")
-    bot.States.AddCustomState(lambda: None, "SecondAttPoints_JumpHere")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07)
+    bot.Move.XYAndDialog(-2864, 7031, 0x82CC01)
     bot.Wait.ForTime(2000)
+    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07)
 
 def Unlock_Sunspear_Skills(bot: Botting):
     bot.States.AddHeader("Unlock Sunspear Skills")
