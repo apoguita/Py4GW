@@ -1,8 +1,8 @@
 import Py4GW
 import PyQuest
-from PyParty import HeroPartyMember
+from PyParty import HeroPartyMember, PetInfo
 from PyEffects import BuffType, EffectType
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 from Py4GWCoreLib import ConsoleLog, Map, Party, Player, Agent, Effects, SharedCommandType, Skill, ThrottledTimer
 from Py4GWCoreLib.enums import FactionType
 from ctypes import Array, Structure, addressof, c_int, c_uint, c_float, c_bool, c_wchar, memmove
@@ -541,8 +541,8 @@ class AllAccounts(Structure):
     ]
     
     # Type hints for IntelliSense
-    AccountData: list[AccountData]
-    SharedMessage: list[SharedMessage]
+    AccountData: list["AccountData"]
+    SharedMessage: list["SharedMessage"]
     HeroAIOptions: list[HeroAIOptionStruct]
     
     
@@ -573,13 +573,19 @@ class Py4GWSharedMemoryManager:
         try:
             self.shm = shared_memory.SharedMemory(name=self.shm_name)
             ConsoleLog(SMM_MODULE_NAME, "Attached to existing shared memory.", Py4GW.Console.MessageType.Info)
+            
         except FileNotFoundError:
             self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
+            self.ResetAllData()  # Initialize all player data
+            
             ConsoleLog(SMM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Success)
+            
+        except BufferError:
+            ConsoleLog(SMM_MODULE_NAME, "Shared memory area already exists but could not be attached.", Py4GW.Console.MessageType.Error)
+            raise
 
         # Attach the shared memory structure
         #self.game_struct = AllAccounts.from_buffer(self.shm.buf)
-        self.ResetAllData()  # Initialize all player data
         
         self._initialized = True
     
@@ -892,17 +898,21 @@ class Py4GWSharedMemoryManager:
 
     #region Find and Get Slot Methods
     def FindAccount(self, account_email: str) -> int:
+        if not account_email:
+            return -1
+        
         """Find the index of the account with the given email."""
         for i in range(self.max_num_players):
-            player = self.GetStruct().AccountData[i]
-            #if not player.IsSlotActive:
             if not self._is_slot_active(i):
                 continue
+            
+            player = self.GetStruct().AccountData[i]
             if self.GetStruct().AccountData[i].AccountEmail == account_email and player.IsAccount:
                 return i
+            
         return -1
     
-    def FindHero(self, hero_data) -> int:
+    def FindHero(self, hero_data:HeroPartyMember) -> int:
         """Find the index of the hero with the given ID."""
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
@@ -913,7 +923,7 @@ class Py4GWSharedMemoryManager:
                 return i
         return -1
     
-    def FindPet(self, pet_data) -> int:
+    def FindPet(self, pet_data:PetInfo) -> int:
         """Find the index of the pet with the given ID."""
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
@@ -925,31 +935,50 @@ class Py4GWSharedMemoryManager:
         return -1
 
     def FindEmptySlot(self) -> int:
-        """Find the first empty slot in shared memory."""
-        for i in range(self.max_num_players):
-            slot_active = self.GetStruct().AccountData[i].IsSlotActive    
-            last_updated = self.GetStruct().AccountData[i].LastUpdated
+        """Find the first empty slot in shared memory."""        
+        for clean_slot in [True, False]:
+            for i in range(self.max_num_players):
+                if not self._is_slot_active(i) and (not clean_slot or not self.GetStruct().AccountData[i].IsAccount):
+                    if not clean_slot:
+                        ConsoleLog(SMM_MODULE_NAME, f"Reusing occupied slot {i} for new data.", Py4GW.Console.MessageType.Warning)
+                    return i
             
-            base_timestamp = self.GetBaseTimestamp()
-            if ( not self.GetStruct().AccountData[i].IsSlotActive or 
-                (slot_active and (base_timestamp - last_updated) > SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS)):
-                return i
         return -1
+    
+    def FindExistingAccountSlot(self, account_email: str = "") -> Optional[int]:
+        """Find the first empty slot in shared memory."""
+        if not account_email:
+            return None
+                    
+        for i in range(self.max_num_players):
+            existing_email = self.GetStruct().AccountData[i].AccountEmail
+            is_account = self.GetStruct().AccountData[i].IsAccount
+            
+            if (existing_email == account_email and is_account):
+                return i
+            
+        return None
     
     def GetAccountSlot(self, account_email: str) -> int:
         """Get the slot index for the account with the given email."""
         if not account_email:
             return -1
+        
         index = self.FindAccount(account_email)
+        
         if index == -1:
-            index = self.FindEmptySlot()
+            existing_index = self.FindExistingAccountSlot(account_email)
+            index = existing_index if existing_index is not None else self.FindEmptySlot()
+            ConsoleLog(SMM_MODULE_NAME, f"No active slot found for account email '{account_email}'." +
+                       (f"Reusing previously used slot {index}." if existing_index is not None else f"Using empty slot {index}."), Py4GW.Console.MessageType.Info)
             player = self.GetStruct().AccountData[index]
             player.IsSlotActive = True
             player.AccountEmail = account_email
             player.LastUpdated = self.GetBaseTimestamp()
+        
         return index
     
-    def GetHeroSlot(self, hero_data) -> int:
+    def GetHeroSlot(self, hero_data:HeroPartyMember) -> int:
         """Get the slot index for the hero with the given owner ID and hero ID."""
         index = self.FindHero(hero_data)
         if index == -1:
@@ -962,7 +991,7 @@ class Py4GWSharedMemoryManager:
             hero.LastUpdated = self.GetBaseTimestamp()
         return index
     
-    def GetPetSlot(self, pet_data) -> int:
+    def GetPetSlot(self, pet_data:PetInfo) -> int:
         """Get the slot index for the pet with the given owner ID and agent ID."""
         index = self.FindPet(pet_data)
         if index == -1:
@@ -1644,7 +1673,8 @@ class Py4GWSharedMemoryManager:
         owner_agent_id = Player.GetAgentID()
         
         pet_info = self.party_instance.GetPetInfo(owner_agent_id) if self.party_instance else None
-        if not pet_info:
+        # if not pet_info or pet_info.agent_id == 102298104:
+        if not pet_info or not self.party_instance or (not pet_info.agent_id in self.party_instance.others):
             return
         
         index = self.GetPetSlot(pet_info)
@@ -1763,7 +1793,7 @@ class Py4GWSharedMemoryManager:
     #region GetAllActivePlayers   
     def GetAllActivePlayers(self) -> list[AccountData]:
         """Get all active players in shared memory."""
-        players = []
+        players : list[AccountData] = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
             if self._is_slot_active(i) and player.IsAccount:
@@ -1789,7 +1819,7 @@ class Py4GWSharedMemoryManager:
         
     def GetAllAccountData(self) -> list[AccountData]:
         """Get all player data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
-        players = []
+        players : list[AccountData] = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
             if self._is_slot_active(i) and player.IsAccount:
@@ -1809,7 +1839,7 @@ class Py4GWSharedMemoryManager:
 
         return players
     
-    def GetAccountDataFromEmail(self, account_email: str) -> AccountData | None:
+    def GetAccountDataFromEmail(self, account_email: str, log : bool = False) -> AccountData | None:
         """Get player data for the account with the given email."""
         if not account_email:
             return None
@@ -1817,16 +1847,17 @@ class Py4GWSharedMemoryManager:
         if index != -1:
             return self.GetStruct().AccountData[index]
         else:
-            ConsoleLog(SMM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error)
+            ConsoleLog(SMM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = log)
             return None
      
-    def GetAccountDataFromPartyNumber(self, party_number: int) -> AccountData | None:
+    def GetAccountDataFromPartyNumber(self, party_number: int, log : bool = False) -> AccountData | None:
         """Get player data for the account with the given party number."""
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
             if self._is_slot_active(i) and player.PartyPosition == party_number:
                 return player
-        ConsoleLog(SMM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error)
+        
+        ConsoleLog(SMM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error, log = log)
         return None
     
     def HasEffect(self, account_email: str, effect_id: int) -> bool:
@@ -1942,9 +1973,9 @@ class Py4GWSharedMemoryManager:
                 players.append(player)
         return players
     
-    def GetHeroesFromPlayers(self, owner_player_id: int):
+    def GetHeroesFromPlayers(self, owner_player_id: int) -> list[AccountData]:
         """Get a list of heroes owned by the specified player."""
-        heroes = []
+        heroes : list[AccountData] = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
             if (self._is_slot_active(i) and player.IsHero and
@@ -1956,9 +1987,9 @@ class Py4GWSharedMemoryManager:
         """Get the number of heroes owned by the specified player."""
         return self.GetHeroesFromPlayers(owner_player_id).__len__()
     
-    def GetPetsFromPlayers(self, owner_agent_id: int):
+    def GetPetsFromPlayers(self, owner_agent_id: int) -> list[AccountData]:
         """Get a list of pets owned by the specified player."""
-        pets = []
+        pets : list[AccountData] = []
         for i in range(self.max_num_players):
             player = self.GetStruct().AccountData[i]
             if (self._is_slot_active(i) and player.IsPet and
