@@ -843,7 +843,6 @@ def Get_Skills():
 
 def Primary_Training(bot: Botting):
     bot.States.AddHeader("Quest: Primary Training")
-    bot.Properties.Disable("hero_ai")
     bot.Move.XYAndDialog(-7234.90, 4793.62, 0x825801)
     Get_Skills()
     bot.Move.XYAndDialog(-7234.90, 4793.62, 0x825807)
