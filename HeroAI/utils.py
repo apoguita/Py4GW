@@ -1,4 +1,5 @@
-from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Map, Agent, Player
+from typing import Optional
+from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Map, Agent
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from .constants import MAX_NUM_PLAYERS
 from .targeting import *
@@ -12,54 +13,75 @@ def SameMapAsAccount(account : AccountData):
     own_language = Map.GetLanguage()[0]
     return own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
 
-def DistanceFromLeader(cached_data:CacheData):
+def DistanceFromLeader():
     return Utils.Distance(Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),Agent.GetXY(Player.GetAgentID()))
 
-def DistanceFromWaypoint(posX,posY):
-    distance = Utils.Distance((posX,posY), Player.GetXY())
+def DistanceFromWaypoint(posX, posY):
+    distance = Utils.Distance((posX, posY), Player.GetXY())
     return distance if distance > 200 else 0
 
 
 """ main configuration helpers """
 
-def CheckForEffect(agent_id, skill_id):
-    """this function needs to be expanded as more functionality is added"""
-    import HeroAI.shared_memory_manager as shared_memory_manager
-    shared_memory_handler = shared_memory_manager.SharedMemoryManager()   
-    
-    def _IsPartyMember(agent_id):
-        for i in range(MAX_NUM_PLAYERS):
-            player_data = shared_memory_handler.get_player(i)
-            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
-                return True
-            
-        allegiance , _ = Agent.GetAllegiance(agent_id)
-        if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
+def IsPartyMember(agent_id, cached_data : Optional[CacheData] = None) -> bool:
+    cached_data = cached_data if cached_data is not None else CacheData()
+                
+    for acc in cached_data.party:
+        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
             return True
         
-        return False
-
-    """
     allegiance , _ = Agent.GetAllegiance(agent_id)
-    if allegiance == Allegiance.NpcMinipet.value:
+    if (allegiance == Allegiance.SpiritPet.value and 
+        not Agent.IsSpawned(agent_id)):
         return True
-    """
-    result = False
-    if _IsPartyMember(agent_id):
-        player_buffs = shared_memory_handler.get_agent_buffs(agent_id)
-        for buff in player_buffs:
-            if buff == skill_id:
-                result = True
-    else:
-        result = GLOBAL_CACHE.Effects.BuffExists(agent_id, skill_id) or GLOBAL_CACHE.Effects.EffectExists(agent_id, skill_id)
     
-    return result
+    return False
 
-def IsHeroFlagged(cached_data:CacheData,index):
+def GetEnergyValues(agent_id, cached_data : Optional[CacheData] = None):
+    cached_data = cached_data if cached_data is not None else CacheData()
+                
+    for acc in cached_data.party:
+        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
+            return acc.PlayerEnergy
+        
+    return 1.0 #default return full energy to prevent issues
+
+def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None) -> bool:
+    """
+    check if the given agent has the effect or buff with the given skill id
+    """    
+    cached_data = cached_data if cached_data is not None else CacheData()
+    
+    for acc in cached_data.party:
+        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
+            return any(buff.SkillId == skill_id for buff in acc.PlayerBuffs)        
+
+    allegiance , _ = Agent.GetAllegiance(agent_id)
+    if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
+        ## spirit pets do not have buffs in shared memory, so we check effects only
+        return True 
+    
+    return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
+
+def GetEffectAndBuffIds(agent_id, cached_data : Optional[CacheData] = None) -> list[int]:
+    """
+    get all effect and buff skill ids for the given agent
+    """
+    cached_data = cached_data if cached_data is not None else CacheData()
+    
+    for acc in cached_data.party:
+        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
+            return [buff.SkillId for buff in acc.PlayerBuffs]
+    
+    return [effect.skill_id for effect in GLOBAL_CACHE.Effects.GetBuffs(agent_id) + GLOBAL_CACHE.Effects.GetEffects(agent_id)]
+
+
+def IsHeroFlagged(index):    
     if  index != 0 and index <= GLOBAL_CACHE.Party.GetHeroCount():
         return GLOBAL_CACHE.Party.Heroes.IsHeroFlagged(index)
     else:
-        return cached_data.HeroAI_vars.all_player_struct[index-GLOBAL_CACHE.Party.GetHeroCount()].IsFlagged and cached_data.HeroAI_vars.all_player_struct[index-GLOBAL_CACHE.Party.GetHeroCount()].IsActive
+        acc = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(index)
+        return acc is not None and acc.IsFlagged 
 
 
 def DrawFlagAll(pos_x, pos_y):

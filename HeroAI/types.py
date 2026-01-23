@@ -1,8 +1,10 @@
-from ctypes import Structure, c_int, c_float, c_bool
+from ctypes import Structure, c_int, c_float, c_bool, c_wchar
 from enum import Enum, IntEnum, auto
 
 from PyUIManager import UIFrame
 from PyUIManager import FramePosition as UIFramePosition
+
+from Py4GWCoreLib.GlobalCache.SharedMemory import SHMEM_MAX_EMAIL_LEN
 
 from .constants import (
     MAX_NUM_PLAYERS,
@@ -26,6 +28,7 @@ class PlayerBuff(Structure):
 
 class PlayerStruct(Structure):
     _fields_ = [
+        ("AccountEmail", c_wchar * SHMEM_MAX_EMAIL_LEN),
         ("PlayerID", c_int),
         ("Energy_Regen", c_float),
         ("Energy", c_float),
@@ -39,6 +42,7 @@ class PlayerStruct(Structure):
     ]
     
     # Type hints for IntelliSense
+    AccountEmail: str
     PlayerID: int
     Energy_Regen: float
     Energy: float
@@ -80,39 +84,16 @@ class MemSkill(Structure):
     # Type hints for IntelliSense
     Active: bool
 
-class GameOptionStruct(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("Following", c_bool),
-        ("Avoidance", c_bool), 
-        ("Looting", c_bool), 
-        ("Targeting", c_bool),
-        ("Combat", c_bool),
-        ("Skills", MemSkill * NUMBER_OF_SKILLS),
-        ("WindowVisible", c_bool),
-    ]
-    
-    # Type hints for IntelliSense
-    Following: bool
-    Avoidance: bool 
-    Looting: bool
-    Targeting: bool
-    Combat: bool
-    Skills: list[MemSkill]
-    WindowVisible: bool
-
 class GameStruct(Structure):
     _fields_ = [
         ("Players", PlayerStruct * MAX_NUM_PLAYERS),
         ("Candidates", CandidateStruct * MAX_NUM_PLAYERS),
-        ("GameOptions", GameOptionStruct * MAX_NUM_PLAYERS),
         ("PlayerBuffs", PlayerBuff * MAX_NUMBER_OF_BUFFS),
     ]    
     
     # Type hints for IntelliSense
     Players: list[PlayerStruct]
     Candidates: list[CandidateStruct]
-    GameOptions: list[GameOptionStruct]
     PlayerBuffs: list[PlayerBuff]
 
 
