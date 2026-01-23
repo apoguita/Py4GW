@@ -1363,12 +1363,9 @@ def TravelToGuildHall(index, message):
 # region ProcessMessages
 def ProcessMessages():
     account_email = Player.GetAccountEmail()
-    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email, include_running=True)
+    index, message = GLOBAL_CACHE.ShMem.GetNextMessage(account_email)
 
     if index == -1 or message is None:
-        return
-    
-    if message.Running:
         return
 
     match message.Command:
