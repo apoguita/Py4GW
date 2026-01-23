@@ -173,7 +173,7 @@ class CacheData:
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
         return Routines.Checks.Agents.InAggro(aggro_range) 
         
-    def UdpateCombat(self):
+    def UpdateCombat(self):
         self.combat_handler.Update(self)
         self.combat_handler.PrioritizeSkills()
         
