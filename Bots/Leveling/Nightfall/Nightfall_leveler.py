@@ -880,6 +880,7 @@ def Armored_Transport(bot: Botting):
 def Material_Girl(bot: Botting):
     bot.States.AddHeader("Quest: Material Girl")
     bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Move.XY(-10839.96, 9197.05)
     bot.Move.XYAndDialog(-11363, 9066, 0x826101)
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) #Plains of Jarin
