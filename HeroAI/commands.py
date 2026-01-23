@@ -159,7 +159,8 @@ class HeroAICommands:
         sender_email = Player.GetAccountEmail()        
         
         for account in accounts:
-            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.UseSkillCombatPrep, (0, 0, 0, 0))
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.UseSkillCombatPrep, (1, 0, 0, 0))
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.UseSkillCombatPrep, (2, 0, 0, 0))
     
     def __pick_up_loot_command(self, accounts: list[AccountData]):
         sender_email = Player.GetAccountEmail()        
@@ -181,9 +182,7 @@ class HeroAICommands:
             delays = math.ceil(delay_ms // 50)
             for _ in range(delays):
                 GLOBAL_CACHE._ActionQueueManager.AddAction("ACTION", lambda: None)  # Adding a no-op to ensure spacing between invites
-        
-        party_members = GLOBAL_CACHE.Party.GetPlayers()
-        
+                
         for account in accounts:
             if account.AccountEmail == sender_email:
                 continue
@@ -197,7 +196,7 @@ class HeroAICommands:
                     Player.SendChatCommand("invite " + name)
                     
                 GLOBAL_CACHE._ActionQueueManager.AddAction("ACTION", send_invite)
-                SetWaitingActions(250)              
+                SetWaitingActions(350)              
                 
             GLOBAL_CACHE.ShMem.SendMessage(
                 sender_email,
@@ -274,14 +273,12 @@ class HeroAICommands:
         ui.show_configure_consumables_window()
 
     def __flag_heroes_command(self, accounts: list[AccountData]):
-        from HeroAI import ui, windows
-        windows.capture_flag_all = True
-        windows.capture_hero_flag = True
-        windows.capture_hero_index = 0
-        windows.one_time_set_flag = False      
+        from HeroAI import windows
+        windows.HeroAI_Windows.capture_flag_all = True
+        windows.HeroAI_Windows.capture_hero_flag = True
+        windows.HeroAI_Windows.capture_hero_index = 0
+        windows.HeroAI_Windows.one_time_set_flag = False    
     
     def __unflag_heroes_command(self, accounts: list[AccountData]):
-        from HeroAI import ui, windows
-        pass
-        #ClearFlags does not exists!?
-        #windows.ClearFlags = True
+        from HeroAI import windows
+        windows.HeroAI_Windows.ClearFlags = True

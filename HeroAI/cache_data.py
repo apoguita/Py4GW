@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from HeroAI.party_cache import PartyCache
+from Py4GWCoreLib.GlobalCache.SharedMemory import SHMEM_NUMBER_OF_SKILLS, AccountData, HeroAIOptionStruct
 
 from .constants import SHARED_MEMORY_FILE_NAME, STAY_ALERT_TIME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .globals import HeroAI_varsClass, HeroAI_Window_varsClass
@@ -34,15 +36,7 @@ class GameData:
         #combat field data
         self.in_aggro = False
         self.weapon_type = 0
-        
-        #control status vars
-        self.is_following_enabled = True
-        self.is_avoidance_enabled = True
-        self.is_looting_enabled = True
-        self.is_targeting_enabled = True
-        self.is_combat_enabled = True
-        self.is_skill_enabled = [True for _ in range(NUMBER_OF_SKILLS)]
-      
+              
         
     def update(self):
         
@@ -130,8 +124,14 @@ class CacheData:
     def __init__(self, throttle_time=75):
         if not self._initialized:
             self.account_email = ""
+            
+            self.party_position : int = -1
+            self.party : PartyCache = PartyCache()
+            self.account_data : AccountData = AccountData()
+            self.account_options : HeroAIOptionStruct = HeroAIOptionStruct()
+            
             self.combat_handler = CombatClass()
-            self.HeroAI_vars: HeroAI_varsClass = HeroAI_varsClass()
+            # self.HeroAI_vars: HeroAI_varsClass = HeroAI_varsClass()
             self.HeroAI_windows: HeroAI_Window_varsClass = HeroAI_Window_varsClass()
             self.name_refresh_throttle = ThrottledTimer(1000)
             self.game_throttle_time = throttle_time
@@ -152,31 +152,29 @@ class CacheData:
             self.follow_throttle_timer = ThrottledTimer(1000)
             self.follow_throttle_timer.Start()
             self.option_show_floating_targets = True
+            self.global_options = HeroAIOptionStruct()
             
-            self._initialized = True 
+            for i in range(SHMEM_NUMBER_OF_SKILLS):
+                self.global_options.Skills[i] = True
+                
+            self.global_options.Following = True
+            self.global_options.Avoidance = True
+            self.global_options.Looting = True
+            self.global_options.Targeting = True
+            self.global_options.Combat = True
             
+            self._initialized = True             
             self.in_looting_routine = False
+            
         
     def reset(self):
         self.data.reset()   
         
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
-        return Routines.Checks.Agents.InAggro(aggro_range)
+        return Routines.Checks.Agents.InAggro(aggro_range) 
         
-        
-    def UpdateGameOptions(self):
-        #control status vars
-        self.data.is_following_enabled = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Following
-        self.data.is_avoidance_enabled = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Avoidance
-        self.data.is_looting_enabled = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Looting
-        self.data.is_targeting_enabled = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Targeting
-        self.data.is_combat_enabled = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Combat
-        for i in range(NUMBER_OF_SKILLS):
-            self.data.is_skill_enabled[i] = self.HeroAI_vars.all_game_option_struct[GLOBAL_CACHE.Party.GetOwnPartyNumber()].Skills[i].Active
-  
-        
-    def UpdateCombat(self):
-        self.combat_handler.Update(self.data)
+    def UdpateCombat(self):
+        self.combat_handler.Update(self)
         self.combat_handler.PrioritizeSkills()
         
     def Update(self):
@@ -186,6 +184,12 @@ class CacheData:
                 self.account_email = Player.GetAccountEmail()
                 self.data.reset()
                 self.data.update()
+                
+                self.party.reset()
+                self.party.update()
+                
+                self.account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self.account_email) or self.account_data
+                self.account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(self.account_email) or self.account_options
                 
                 if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
                     self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)

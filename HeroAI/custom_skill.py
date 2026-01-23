@@ -33,7 +33,7 @@ class CustomSkillClass:
         self.PVE_Skills = PVESkills(self.skill_data)
         
 
-    def get_skill(self, skill_id):
+    def get_skill(self, skill_id) -> CustomSkill:
         """Fetch skill by ID."""
         if 0 <= skill_id < self.MaxSkillData:
             return self.skill_data[skill_id]
