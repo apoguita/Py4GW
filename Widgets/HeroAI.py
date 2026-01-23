@@ -315,6 +315,9 @@ def handle_UI (cached_data: CacheData):
         if HeroAI_FloatingWindows.settings.ShowPartyPanelUI:         
             HeroAI_Windows.DrawFollowerUI(cached_data)
         
+    if show_debug:
+        draw_debug_window(cached_data)
+        
     HeroAI_FloatingWindows.show_ui(cached_data) 
    
 def initialize(cached_data: CacheData) -> bool:  
@@ -333,12 +336,16 @@ def initialize(cached_data: CacheData) -> bool:
         return False
         
     HeroAI_Windows.DrawFlags(cached_data)
-    HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)
+    HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
+    cached_data.UpdateCombat()
     return True
 
         
 #region main  
-def UpdateStatus(cached_data: CacheData) -> bool:
+#DEPRECATED FOR BEHAVIOUR TREE IMPLEMENTATION
+#KEPT FOR REFERENCE
+"""def UpdateStatus(cached_data: CacheData) -> bool:
+    
     if (
             not Agent.IsAlive(Player.GetAgentID())
             or (HeroAI_FloatingWindows.DistanceToDestination(cached_data) >= Range.SafeCompass.value)
@@ -374,7 +381,7 @@ def UpdateStatus(cached_data: CacheData) -> bool:
     if HandleAutoAttack(cached_data):
         return True
     
-    return False
+    return False"""
 
     
 GlobalGuardNode = BehaviorTree.SequenceNode(
@@ -520,16 +527,16 @@ def main():
     global cached_data, map_quads
     
     try:        
-        cached_data.Update()
+        cached_data.Update()    
         HeroAI_FloatingWindows.update()
         
         if initialize(cached_data):
-            UpdateStatus(cached_data)
+            #UpdateStatus(cached_data)
+            HeroAI_BT.tick()
         else:
             map_quads.clear()
-        
-        if HeroAI_FloatingWindows.settings.ShowDebugWindow:
-            HeroAI_Windows.DrawMultiboxTools(cached_data)
+            HeroAI_BT.reset()
+
 
 
     except ImportError as e:

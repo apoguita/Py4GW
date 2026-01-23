@@ -182,7 +182,8 @@ class HeroAICommands:
             delays = math.ceil(delay_ms // 50)
             for _ in range(delays):
                 GLOBAL_CACHE._ActionQueueManager.AddAction("ACTION", lambda: None)  # Adding a no-op to ensure spacing between invites
-                
+        
+        first_account = True
         for account in accounts:
             if account.AccountEmail == sender_email:
                 continue
@@ -194,8 +195,13 @@ class HeroAICommands:
                 def send_invite(name = char_name):
                     ConsoleLog("HeroAI", f"Inviting {name} to party.")
                     Player.SendChatCommand("invite " + name)
-                    
-                GLOBAL_CACHE._ActionQueueManager.AddAction("ACTION", send_invite)
+                
+                if first_account:
+                    send_invite()
+                    first_account = False
+                else:
+                    GLOBAL_CACHE._ActionQueueManager.AddAction("ACTION", send_invite)
+                
                 SetWaitingActions(350)              
                 
             GLOBAL_CACHE.ShMem.SendMessage(
