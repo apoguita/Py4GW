@@ -848,8 +848,8 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
     bot.States.AddCustomState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
     bot.UI.CancelSkillRewardWindow()
     bot.UI.CancelSkillRewardWindow()
-    bot.Dialogs.AtXY(-92, 9217,  0x813D07) #TAKE_SECONDARY_REWARD
-    bot.Dialogs.AtXY(-92, 9217,  0x813E01) #TAKE_MINISTER_CHO_QUEST
+    bot.Dialogs.AtXY(-92, 9217,  0x813D07) #Reward
+    bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
     bot.Move.XYAndExitMap(-3762, 9471, target_map_name="Shing Jea Monastery")
 
 def Unlock_Xunlai_Storage(bot: Botting) -> None:
@@ -861,14 +861,14 @@ def Craft_Weapon(bot: Botting):
     bot.States.AddHeader("Craft weapon")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     bot.States.AddCustomState(withdraw_gold_weapon, "Withdraw 500 Gold")
-    bot.Move.XY(-10896.94, 10807.54)  # Move to storage/merchant area
+    bot.Move.XY(-10896.94, 10807.54)
     bot.Move.XYAndInteractNPC(-10614.00, 10996.00)  # Common material merchant
     exec_fn_wood = lambda: BuyWeaponMaterials()
     bot.States.AddCustomState(exec_fn_wood, "Buy Wood Planks")
     bot.Move.XY(-10896.94, 10807.54) 
     bot.Move.XY(-6519.00, 12335.00)
     bot.Move.XYAndInteractNPC(-6519.00, 12335.00)  # Weapon crafter in Shing Jea Monastery
-    bot.Wait.ForTime(1000)  # Small delay to let the window open
+    bot.Wait.ForTime(1000)
     exec_fn = lambda: DoCraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapons")
     bot.Items.SpawnAndDestroyBonusItems()
@@ -876,7 +876,6 @@ def Craft_Weapon(bot: Botting):
 
 def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    #ConsoleLog("RangerCapturePet", f"Primary Profession: {primary}", Py4GW.Console.MessageType.Info)
     if primary != "Ranger": return
     yield from bot.Move._coro_get_path_to(-7782.00, 6687.00)
     yield from bot.Move._coro_follow_path_to()
@@ -898,10 +897,10 @@ def Charm_Pet(bot: Botting) -> None:
     bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     bot.Move.XY(13970.94, -13085.83)
-    bot.Move.ToModel(3005) #Tiger model id updated 20.12.2025
+    bot.Move.ToModel(3005) #Tiger model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(500)
-    bot.Target.Model(3005) #Tiger model id updated 20.12.2025
-    bot.SkillBar.UseSkill(411) #Capture Pet
+    bot.Target.Model(3005) #Tiger model id updated 20.12.2025 GW Reforged
+    bot.SkillBar.UseSkill(411)
     bot.Wait.ForTime(14000)
     bot.States.AddHeader("Ranger Get Skills")
     bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
@@ -909,7 +908,7 @@ def Charm_Pet(bot: Botting) -> None:
     
 def To_Minister_Chos_Estate(bot: Botting):
     bot.States.AddHeader("To Minister Cho's Estate")
-    bot.Map.Travel(target_map_id=242) #Shinjea Monastery
+    bot.Map.Travel(target_map_id=242) #Shing Jea Monastery
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     ConfigurePacifistEnv(bot)
@@ -988,7 +987,7 @@ def The_Threat_Grows(bot: Botting):
     bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #Tsumei Village
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(-11600,-17400, target_map_name="Panjiang Peninsula")
-    bot.Move.XY(9691.49, 7922.29) #Killspot
+    bot.Move.XY(9691.49, 7922.29) #Kill spot
     bot.Wait.UntilOnCombat()
     bot.Wait.UntilOutOfCombat()
     #bot.Wait.UntilModelHasQuest(3367) #Sister Tai model id updated 20.12.2025 GW Reforged
@@ -1025,15 +1024,15 @@ def To_Zen_Daijun(bot: Botting):
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(16777, 17540, target_map_name="Jaya Bluffs")
     bot.Move.XYAndExitMap(23616, 1587, target_map_name="Haiju Lagoon")
-    bot.Move.XYAndDialog(16489, -22213, 0x80000B) # CONTINUE
+    bot.Move.XYAndDialog(16489, -22213, 0x80000B)
     bot.Wait.ForTime(7000)
-    bot.Wait.ForMapLoad(target_map_id=213) #zen_daijun_map_id
+    bot.Wait.ForMapLoad(target_map_id=213) #Zen Daijun
     
 def Zen_Daijun_Mission(bot:Botting):
     bot.States.AddHeader("Zen Daijun Mission")
     bot.Map.Travel(target_map_id=213)
     PrepareForBattle(bot)
-    bot.Map.EnterChallenge(6000, target_map_id=213) #zen_daijun_map_id
+    bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(11775.22, 11310.60)
     bot.Interact.WithGadgetAtXY(11665, 11386)
@@ -1075,69 +1074,69 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Dialogs.WithModel(4009,0x815C01) #Zunraa model id updated 20.12.2025 GW Reforged
     PrepareForBattle(bot)
     bot.Dialogs.AtXY(20350.00, 9087.00, 0x80000B)
-    bot.Wait.ForMapLoad(target_map_id=246)  # zen_daijun_map_id
+    bot.Wait.ForMapLoad(target_map_id=246)  #Zen Daijun
     auto_path_list:List[Tuple[float, float]] = [
-    (-13959.50, 6375.26), #half the temple
-    (-14567.47, 1775.31), #side of road
-    (-12310.05, 2417.60), #across road
-    (-12071.83, 294.29),  #bridge and patrol
-    (-9972.85, 4141.29), #miasma passtrough
-    (-9331.86, 7932.66), #in front of bridge
-    (-6353.09, 9385.63), #past he miasma on way to waterfall
-    (247.80, 12070.21), #waterfall
-    (-8180.59, 12189.97), #back to kill patrols
-    (-9540.45, 7760.86), #in front of bridge 2
-    (-5038.08, 2977.42)] #to shrine
+    (-13959.50, 6375.26), #Half the temple
+    (-14567.47, 1775.31), #Side of road
+    (-12310.05, 2417.60), #Across road
+    (-12071.83, 294.29),  #Bridge and patrol
+    (-9972.85, 4141.29), #Miasma passtrough
+    (-9331.86, 7932.66), #In front of bridge
+    (-6353.09, 9385.63), #Past he miasma on way to waterfall
+    (247.80, 12070.21), #Waterfall
+    (-8180.59, 12189.97), #Back to kill patrols
+    (-9540.45, 7760.86), #In front of bridge 2
+    (-5038.08, 2977.42)] #To shrine
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
-    bot.Move.XY(-9643.93, 7759.69) #front of bridge 3
+    bot.Move.XY(-9643.93, 7759.69) #Front of bridge 3
     bot.Wait.ForTime(5000)
     bot.Properties.Disable("auto_combat")
-    path =[(-8294.21, 10061.62)] #position zunraa
+    path =[(-8294.21, 10061.62)] #Position Zunraa
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    path = [(-6473.26, 8771.21)] #clear miasma
+    path = [(-6473.26, 8771.21)] #Clear miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    path =[(-6365.32, 10234.20)] #position zunraa2
+    path =[(-6365.32, 10234.20)] #Position Zunraa2
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
-    bot.Move.XY(-8655.04, -769.98) # to next Miasma on temple
+    bot.Move.XY(-8655.04, -769.98) # To next Miasma on temple
     bot.Wait.ForTime(5000)
     bot.Properties.Disable("auto_combat")
-    path = [(-6744.75, -1842.97)] #clear half the miasma 
+    path = [(-6744.75, -1842.97)] #Clear half the miasma 
     bot.Move.FollowPath(path)
     enable_combat_and_wait(10000)
-    path = [(-7720.80, -905.19)] #finish miasma
+    path = [(-7720.80, -905.19)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
     auto_path_list:List[Tuple[float, float]] = [
-    (-5016.76, -8800.93), #half the map
-    (3268.68, -6118.96), #passtrough miasma
-    (3808.16, -830.31), #back of bell
-    (536.95, 2452.17), #yard
-    (599.18, 12088.79), #waterfall
-    (3605.82, 2336.79), #patrol kill
-    (5509.49, 1978.54), #bell
-    (11313.49, 3755.03), #side path (90)
-    (12442.71, 8301.94), #middle aggro
-    (8133.23, 7540.54), #enemies on the side
-    (15029.96, 10187.60), #enemies on the loop
-    (14062.33, 13088.72), #corner
+    (-5016.76, -8800.93), #Half the map
+    (3268.68, -6118.96), #Passtrough miasma
+    (3808.16, -830.31), #Back of bell
+    (536.95, 2452.17), #Yard
+    (599.18, 12088.79), #Waterfall
+    (3605.82, 2336.79), #Patrol kill
+    (5509.49, 1978.54), #Bell
+    (11313.49, 3755.03), #Side path (90)
+    (12442.71, 8301.94), #Middle aggro
+    (8133.23, 7540.54), #Enemies on the side
+    (15029.96, 10187.60), #Enemies on the loop
+    (14062.33, 13088.72), #Corner
     (11775.22, 11310.60)] #Zunraa
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(11665, 11386)
     bot.Properties.Disable("auto_combat")
-    path = [(12954.96, 9288.47)] #miasma
+    path = [(12954.96, 9288.47)] #Miasma
     bot.Move.FollowPath(path) 
     enable_combat_and_wait(5000)
-    path = [(12507.05, 11450.91)] #finish miasma
+    path = [(12507.05, 11450.91)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
-    bot.Move.XY(7709.06, 4550.47) #past bridge trough miasma
+    bot.Move.XY(7709.06, 4550.47) #Past bridge trough miasma
     bot.Wait.ForTime(5000)
     bot.Properties.Disable("auto_combat")
     path = [(9334.25, 5746.98)] #1/3 miasma
@@ -1146,7 +1145,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     path = [(7554.94, 6159.84)] #2/3 miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    path =[(9242.30, 6127.45)] #finish miasma
+    path =[(9242.30, 6127.45)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
@@ -1154,10 +1153,10 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Interact.WithGadgetAtXY(4754,1451)
     bot.Move.XY(2958.13, 6410.57)  
     bot.Properties.Disable("auto_combat")
-    path = [(2683.69, 8036.28)] #clear miasma
+    path = [(2683.69, 8036.28)] #Clear miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(8000)
-    bot.Move.XY(3366.55, -5996.11) #to the other miasma at the middle 
+    bot.Move.XY(3366.55, -5996.11) #To the other miasma at the middle 
     enable_combat_and_wait(10000)
     path =[(1866.87, -5454.60)]
     bot.Move.FollowPath(path)
@@ -1184,8 +1183,8 @@ def Attribute_Points_Quest_2(bot: Botting):
     
 def To_Marketplace(bot: Botting):
     bot.States.AddHeader("To Marketplace")
-    bot.Move.XYAndDialog(16927, 9004, 0x815D01)  # "I Will Set Sail Immediately"
-    bot.Dialogs.AtXY(16927, 9004, 0x815D05)  # "a Master burden"
+    bot.Map.Travel(target_map_id=250) #Seitung Harbor
+    bot.Move.XYAndDialog(16927, 9004, 0x815D01)
     bot.Dialogs.AtXY(16927, 9004, 0x84)  # i am sure
     bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
     bot.Move.XYAndDialog(9955, 20033, 0x815D04)  # a masters burden
