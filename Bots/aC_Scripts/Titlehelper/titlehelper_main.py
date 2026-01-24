@@ -17,10 +17,15 @@ drunkard_tiers = [
     (10_000, "Incorrigible Ale-Hound")
 ]
 
+tricks_or_treats_tiers = [
+    (1, "Tricks or Treats Bags")
+]
+
 # Define title IDs for the game API
 TITLE_SWEET_TOOTH = 34
 TITLE_PARTY_ANIMAL = 43
 TITLE_DRUNKARD = 7
+TITLE_TRICKS_OR_TREATS = -1
 
 
 class TitleHelper:
@@ -32,10 +37,12 @@ class TitleHelper:
         self.alcohol_used_count = 0
         self.sweets_used_count = 0
         self.party_used_count = 0
+        self.tricks_or_treats_used_count = 0
 
         self.alcohol_empty = False
         self.sweets_empty = False
         self.party_empty = False
+        self.tricks_or_treats_empty = False
 
         self.start_points = {
             TITLE_DRUNKARD: 0,
@@ -47,11 +54,13 @@ class TitleHelper:
         self.alcohol_used_count = 0
         self.sweets_used_count = 0
         self.party_used_count = 0
+        self.tricks_or_treats_used_count = 0
 
         self.started = True
         self.alcohol_empty = False
         self.sweets_empty = False
         self.party_empty = False
+        self.tricks_or_treats_empty = False
 
         self._cache_starting_points()
 
@@ -110,6 +119,7 @@ class TitleHelper:
             alcohol_selected = [model_id for model_id, selected in ItemSelector.toggle_state["Alcohol"].items() if selected]
             sweets_selected = [model_id for model_id, selected in ItemSelector.toggle_state["Sweets"].items() if selected]
             party_selected = [model_id for model_id, selected in ItemSelector.toggle_state["Party"].items() if selected]
+            tricks_or_treats_selected = [model_id for model_id, selected in ItemSelector.toggle_state["Tricks or Treats"].items() if selected]
 
             if not self.alcohol_empty and not self._is_title_maxed(TITLE_DRUNKARD):
                 did_something |= self._use_item_group(alcohol_selected, "alcohol_used_count", "alcohol_empty")
@@ -125,6 +135,11 @@ class TitleHelper:
                 did_something |= self._use_item_group(party_selected, "party_used_count", "party_empty")
             else:
                 self.party_empty = True
+
+            if not self.tricks_or_treats_empty:
+                did_something |= self._use_item_group(tricks_or_treats_selected, "tricks_or_treats_used_count", "tricks_or_treats_empty")
+            else:
+                self.tricks_or_treats_empty = True
 
             yield from Routines.Yield.wait(50 if did_something else 100)
 
@@ -167,6 +182,10 @@ def draw_title_helper_window(helper: TitleHelper):
     display_title_progress("Party Animal", TITLE_PARTY_ANIMAL, party_animal_tiers)
     if helper.party_empty:
         PyImGui.text_colored("No more party items!", (1.0, 0.3, 0.3, 1.0))
+
+    PyImGui.text_colored(f"Tricks or Treats Used: {helper.tricks_or_treats_used_count}", (0.6, 0.9, 1.0, 1.0))
+    if helper.tricks_or_treats_empty:
+        PyImGui.text_colored("No more tricks or treats items!", (1.0, 0.3, 0.3, 1.0))
   
     PyImGui.end()
 

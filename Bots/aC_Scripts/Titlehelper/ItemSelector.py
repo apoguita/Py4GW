@@ -7,7 +7,8 @@ show_item_selector = False
 toggle_state = {
     "Alcohol": {},
     "Sweets": {},
-    "Party": {}
+    "Party": {},
+    "Tricks or Treats": {}
 }
 
 alcohol_items = {
@@ -73,8 +74,14 @@ party_items = {
     ],
 }
 
+tricks_or_treats_items = {
+    "Trick or Treat Bags": [
+        ModelID.Trick_Or_Treat_Bag,
+    ],
+}
+
 def init_toggle_state():
-    for cat, items in [("Alcohol", alcohol_items), ("Sweets", sweets_items), ("Party", party_items)]:
+    for cat, items in [("Alcohol", alcohol_items), ("Sweets", sweets_items), ("Party", party_items), ("Tricks or Treats", tricks_or_treats_items)]:
         for model_id in items:
             toggle_state[cat][model_id] = False
 
@@ -90,7 +97,8 @@ def draw_item_selector_window():
     for group_name, group_items in [
         ("Alcohol", alcohol_items),
         ("Sweets", sweets_items),
-        ("Party", party_items)
+        ("Party", party_items),
+        ("Tricks or Treats", tricks_or_treats_items)
     ]:
         if group_name not in toggle_state:
             toggle_state[group_name] = {}
@@ -104,7 +112,8 @@ def draw_item_selector_window():
     for group_name, group_items in [
         ("Alcohol", alcohol_items),
         ("Sweets", sweets_items),
-        ("Party", party_items)
+        ("Party", party_items),
+        ("Tricks or Treats", tricks_or_treats_items)
     ]:
         #PyImGui.text_colored(group_name, (0.9, 0.8, 0.3, 1.0))
 
