@@ -91,7 +91,7 @@ def HandleCombat(cached_data: CacheData):
 
 def HandleAutoAttack(cached_data: CacheData) -> bool:
     options = cached_data.account_options
-    if not options:  # halt operation if combat is disabled
+    if not options.Combat:  # halt operation if combat is disabled
         return False
     
     target_id = Player.GetTargetID()
@@ -196,23 +196,26 @@ following_flag = False
 def Follow(cached_data: CacheData):
     global FOLLOW_DISTANCE_ON_COMBAT, following_flag, map_quads
     
+    options = cached_data.account_options
+    if not options or not options.Following:  # halt operation if following is disabled
+        return False
+    
     if not cached_data.follow_throttle_timer.IsExpired():
         return False
     
     if not map_quads:
-        map_quads = Map.Pathing.GetMapQuads()
+        # DISABLED SINCE IT CASUSES ISSUES IN CERTAIN MAPS
+        # map_quads = Map.Pathing.GetMapQuads()
+        map_quads = []
+        
 
     if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
         return False
 
     party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-    options = cached_data.account_options
     leader_options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(0)
-    
-    if not options or not options.Following:  # halt operation if following is disabled
-        return False
-    
+        
     follow_x = 0.0
     follow_y = 0.0
     follow_angle = -1.0
@@ -259,6 +262,8 @@ def Follow(cached_data: CacheData):
     angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
 
     def is_position_on_map(x, y) -> bool:
+        return True  # DISABLED FOR NOW DUE TO ISSUES IN CERTAIN MAPS
+    
         if not HeroAI_FloatingWindows.settings.ConfirmFollowPoint:
             return True
         
@@ -321,20 +326,18 @@ def handle_UI (cached_data: CacheData):
     HeroAI_FloatingWindows.show_ui(cached_data) 
    
 def initialize(cached_data: CacheData) -> bool:  
-    if not Map.IsMapReady():
+    if not Routines.Checks.Map.MapValid():
         return False
     
     if not GLOBAL_CACHE.Party.IsPartyLoaded():
         return False
-    
-    handle_UI(cached_data)
         
     if not Map.IsExplorable():  # halt operation if not in explorable area
         return False
 
     if Map.IsInCinematic():  # halt operation during cinematic
         return False
-        
+    
     HeroAI_Windows.DrawFlags(cached_data)
     HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
     cached_data.UpdateCombat()
@@ -355,6 +358,7 @@ def initialize(cached_data: CacheData) -> bool:
         ):
             return False
 
+    
     if LootingRoutineActive():
         return True
 
@@ -527,12 +531,14 @@ def main():
     global cached_data, map_quads
     
     try:        
-        cached_data.Update()    
+        cached_data.Update()  
         HeroAI_FloatingWindows.update()
+        handle_UI(cached_data)  
         
         if initialize(cached_data):
-            #UpdateStatus(cached_data)
+            # UpdateStatus(cached_data)
             HeroAI_BT.tick()
+            pass
         else:
             map_quads.clear()
             HeroAI_BT.reset()
