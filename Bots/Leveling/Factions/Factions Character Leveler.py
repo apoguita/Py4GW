@@ -1184,10 +1184,10 @@ def Attribute_Points_Quest_2(bot: Botting):
 def To_Marketplace(bot: Botting):
     bot.States.AddHeader("To Marketplace")
     bot.Map.Travel(target_map_id=250) #Seitung Harbor
-    bot.Move.XYAndDialog(16927, 9004, 0x815D01)
+    bot.Move.XYAndDialog(16927, 9004, 0x815D01) #A Master's Burden pt. 1
     bot.Dialogs.AtXY(16927, 9004, 0x84)
     bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
-    bot.Move.XYAndDialog(9955, 20033, 0x815D04)
+    bot.Move.XYAndDialog(9955, 20033, 0x815D04) #A Master's Burden pt. 2
     bot.Move.XYAndExitMap(12003, 18529, target_map_name="The Marketplace")
 
 def To_Kaineng_Center(bot: Botting):
