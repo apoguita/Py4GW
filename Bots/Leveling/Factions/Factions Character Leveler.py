@@ -1217,7 +1217,6 @@ def Craft_Max_Armor(bot: Botting):
         exec_fn_rare = lambda: BuyMaxArmorMaterials("rare")
         bot.States.AddCustomState(exec_fn_rare, "Buy Rare Materials")
         bot.Wait.ForTime(2000)  # Wait for rare material purchases to complete
-    # Travel to armor crafter and craft armor
     crafter_x, crafter_y = GetArmorCrafterCoords()
     bot.Move.XY(crafter_x, crafter_y)
     bot.Move.XYAndInteractNPC(crafter_x, crafter_y)  # Armor crafter in Kaineng Center
