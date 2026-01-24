@@ -21,8 +21,8 @@ def create_bot_routine(bot: Botting) -> None:
     Unlock_Xunlai_Storage(bot)
     Craft_Weapon(bot)
     Charm_Pet(bot)
-    To_Minister_Cho_Estate(bot)
-    Minister_Cho_Mission(bot)
+    To_Minister_Chos_Estate(bot)
+    Minister_Chos_Estate_Mission(bot)
     Attribute_Points_Quest_1(bot)
     Warning_The_Tengu(bot)
     The_Threat_Grows(bot)
@@ -907,7 +907,7 @@ def Charm_Pet(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     
-def To_Minister_Cho_Estate(bot: Botting):
+def To_Minister_Chos_Estate(bot: Botting):
     bot.States.AddHeader("To Minister Cho's Estate")
     bot.Map.Travel(target_map_id=242) #Shinjea Monastery
     PrepareForBattle(bot)
@@ -919,7 +919,7 @@ def To_Minister_Cho_Estate(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=214)
     bot.Move.XYAndDialog(7884, -10029, 0x813E07)
     
-def Minister_Cho_Mission(bot: Botting) -> None:
+def Minister_Chos_Estate_Mission(bot: Botting) -> None:
     bot.States.AddHeader("Minister Cho's Estate mission")
     bot.Map.Travel(target_map_id=214)
     PrepareForBattle(bot)
