@@ -1252,15 +1252,15 @@ def Extend_Inventory_Space(bot: Botting):
 
 def To_Boreal_Station(bot: Botting):
     bot.States.AddHeader("To Boreal Station")
-    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+    bot.Map.Travel(target_map_id=194)
     bot.Move.XY(3444.90, -1728.31)
-    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)  # limitless monetary resources
+    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)
     bot.Move.XY(3444.90, -1728.31)
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
     bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
-    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)  # yes
-    bot.Wait.ForMapLoad(target_map_id=692)  # tunnels_below_cantha_id
+    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
+    bot.Wait.ForMapLoad(target_map_id=692)
     auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
                       (3918.55, 10383.79), (8435, 14378), (10134,16742)]    
     bot.Move.FollowAutoPath(auto_path_list)
@@ -1270,11 +1270,11 @@ def To_Boreal_Station(bot: Botting):
                       (-17917.68, 18480.57), (-18775, 19097)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(8000)
-    bot.Wait.ForMapLoad(target_map_id=675)  # boreal_station_id
+    bot.Wait.ForMapLoad(target_map_id=675)
 
 def To_Eye_of_the_North(bot: Botting):
     bot.States.AddHeader("To Eye of the North")
-    bot.Map.Travel(target_map_id=675) #boreal_station_id
+    bot.Map.Travel(target_map_id=675) #Boreal Station
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
     bot.Move.XY(3579.07, -22007.27)
@@ -1287,22 +1287,22 @@ def To_Eye_of_the_North(bot: Botting):
 
 def Unlock_Eotn_Pool(bot: Botting):
     bot.States.AddHeader("Unlock Eotn Pool")
-    bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
+    bot.Map.Travel(target_map_id=642)
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForMapToChange(target_map_id=646)  # Hall of monuments id
+    bot.Wait.ForMapToChange(target_map_id=646)
     bot.Move.XY(-6572.70, 6588.83)
-    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x632) # Eotn_pool_cinematic. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(5959, 0x632) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Wait.ForMapToChange(target_map_id=646)  # Hall of monuments id
-    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025
-    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025
-    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025
-    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025
+    bot.Wait.ForMapToChange(target_map_id=646)
+    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
 
 def To_Gunnars_Hold(bot: Botting):
     bot.States.AddHeader("To Gunnar's Hold")
@@ -1313,22 +1313,22 @@ def To_Gunnars_Hold(bot: Botting):
     path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
             (1522.0, 464.0)]
     bot.Move.FollowPath(path)
-    bot.Wait.ForMapLoad(target_map_id=499)  # Ice Cliff Chasms
-    bot.Move.XYAndDialog(2825, -481, 0x832801)  # Talk to Jora
+    bot.Wait.ForMapLoad(target_map_id=499)
+    bot.Move.XYAndDialog(2825, -481, 0x832801)
     path = [(2548.84, 7266.08),
             (1233.76, 13803.42),
             (978.88, 21837.26),
             (-4031.0, 27872.0),]
     bot.Move.FollowAutoPath(path)
-    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+    bot.Wait.ForMapLoad(target_map_id=548)
     bot.Move.XY(14546.0, -6043.0)
-    bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
-    bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
+    bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)
+    bot.Wait.ForMapLoad(target_map_id=644)
 
 def Unlock_Kilroy_Stonekin(bot: Botting):
     bot.States.AddHeader("Unlock Kilroy Stonekin")
     bot.Templates.Aggressive(enable_imp=False)
-    bot.Map.Travel(target_map_id=644)  #Gunnar's Hold
+    bot.Map.Travel(target_map_id=644)
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)
@@ -1340,14 +1340,14 @@ def Unlock_Kilroy_Stonekin(bot: Botting):
 
 def To_Longeyes_Edge(bot: Botting):
     bot.States.AddHeader("To Longeye's Edge")
-    bot.Map.Travel(target_map_id=644) # Gunnar's Hold
+    bot.Map.Travel(target_map_id=644)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([5, 6, 7, 9])
     bot.Items.Equip(35829)
     bot.Move.XY(15886.204101, -6687.815917)
     bot.Move.XY(15183.199218, -6381.958984)
-    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+    bot.Wait.ForMapLoad(target_map_id=548)
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(14233.820312, -3638.702636)
     bot.Move.XY(14944.690429,  1197.740966)
@@ -1358,7 +1358,7 @@ def To_Longeyes_Edge(bot: Botting):
     bot.Move.XY(19933.869140, 15609.059570)
     bot.Move.XY(16294.676757, 16369.736328)
     bot.Move.XY(16392.476562, 16768.855468)
-    bot.Wait.ForMapLoad(target_map_id=482)  # Bjora Marches
+    bot.Wait.ForMapLoad(target_map_id=482)
     bot.Move.XY(-11232.550781, -16722.859375)
     bot.Move.XY(-7655.780273 , -13250.316406)
     bot.Move.XY(-6672.132324 , -13080.853515)
@@ -1372,11 +1372,11 @@ def To_Longeyes_Edge(bot: Botting):
     bot.Move.XY(17305.523437 , -17686.404296)
     bot.Move.XY(19048.208984 , -18813.695312)
     bot.Move.XY(19634.173828, -19118.777343)
-    bot.Wait.ForMapLoad(target_map_id=650)  # Longeyes Ledge
+    bot.Wait.ForMapLoad(target_map_id=650)
 
 def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
     bot.States.AddHeader("Unlock NPC for vaettir farm")
-    bot.Map.Travel(target_map_id=650)  # longeyes_ledge_id
+    bot.Map.Travel(target_map_id=650)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([5, 6, 7, 9])
@@ -1408,25 +1408,25 @@ def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
 
 def To_Lions_Arch(bot: Botting):
     bot.States.AddHeader("To Lion's Arch")
-    bot.Map.Travel(target_map_id=194)  # kaineng_center_id
+    bot.Map.Travel(target_map_id=194)
     auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)  # Chienpo dialog la
+    bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
     auto_path_list =[(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
                      (-2396.20, 5260.67), (-5031.77, 6001.52)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)  # Menhlo dialog model ID 3216
-    bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)  # Armian dialog model ID 1970
+    bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)
+    bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
-    bot.Dialogs.WithModel(2021, 0x85)  # Neiro dialog model id 2021. Model id updated 20.12.2025
-    bot.Map.Travel(target_map_id=55)  # lions_arch_id)
+    bot.Dialogs.WithModel(2021, 0x85) #Model id updated 20.12.2025 GW Reforged
+    bot.Map.Travel(target_map_id=55) 
 
 def To_Temple_of_The_Ages(bot: Botting):
     bot.States.AddHeader("To Temple of the Ages")
-    bot.Map.Travel(target_map_id=55)  # Lion's Arch
+    bot.Map.Travel(target_map_id=55)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([1, 3])
@@ -1495,9 +1495,9 @@ def To_Temple_of_The_Ages(bot: Botting):
     bot.Party.AddHenchmanList([1, 3])
     bot.Move.XY(15521, -15378)
     bot.Move.XY(15450, -15050)
-    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    bot.Wait.ForMapLoad(target_map_id=59) # Nebo Terrace
     bot.Move.XY(15378, -14794)
-    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    bot.Wait.ForMapLoad(target_map_id=59) # Nebo Terrace
     bot.Move.XY(13276.0, -14317.0)
     bot.Move.XY(10761.0, -14522.0)
     bot.Move.XY(8660.0, -12109.0)
@@ -1508,7 +1508,7 @@ def To_Temple_of_The_Ages(bot: Botting):
     bot.Move.XY(-3489.0, -11607.0)
     bot.Move.XY(-4086.0, -11692.0)
     bot.Move.XY(-4290.0, -11599.0)
-    bot.Wait.ForMapLoad(target_map_id=56)  # Cursed Lands
+    bot.Wait.ForMapLoad(target_map_id=56) # Cursed Lands
     bot.Move.XY(-4523.0, -9755.0)
     bot.Move.XY(-4067.0, -8786.0)
     bot.Move.XY(-4207.0, -7806.0)
@@ -1525,7 +1525,7 @@ def To_Temple_of_The_Ages(bot: Botting):
     bot.Move.XY(-18717.0, 7537.0)
     bot.Move.XY(-19896.0, 8964.0)
     bot.Move.XY(-20100.0, 9025.0)
-    bot.Wait.ForMapLoad(target_map_id=18)  # The Black Curtain
+    bot.Wait.ForMapLoad(target_map_id=18) # The Black Curtain
     bot.Move.XY(8716.0, 18587.0)
     bot.Move.XY(5616.0, 17732.0)
     bot.Move.XY(3795.0, 17750.0)
@@ -1538,24 +1538,24 @@ def To_Temple_of_The_Ages(bot: Botting):
     bot.Move.XY(-5004.0, 15424.0)
     bot.Move.XY(-5207.0, 15882.0)
     bot.Move.XY(-5180.0, 16000.0)
-    bot.Wait.ForMapLoad(target_map_id=138)  # Temple of the Ages
+    bot.Wait.ForMapLoad(target_map_id=138) # Temple of the Ages
 
 def To_Kamadan(bot: Botting):
     bot.States.AddHeader("To Kamadan")
-    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+    bot.Map.Travel(target_map_id=194)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([2, 9, 10, 12])
     auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-1131.99, 818.35, 0x82D401)  # Linro dialog la
+    bot.Move.XYAndDialog(-1131.99, 818.35, 0x82D401)
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
     auto_path_list = [(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
                      (-2396.20, 5260.67), (-5031.77, 6001.52)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)  # Kormir dialog kormir model ID
-    bot.Dialogs.WithModel(4914, 0x87)  # Kormir dialog model id 4914. Model id updated 20.12.2025
+    bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)
+    bot.Dialogs.WithModel(4914, 0x87)  # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForMapToChange(target_map_id=400)
     ConfigureAggressiveEnv(bot)
     auto_path_list = [(-1712.16, -700.23), (-907.97, -2862.29), (742.42, -4167.73)] 
@@ -1563,13 +1563,13 @@ def To_Kamadan(bot: Botting):
     bot.Wait.ForTime(10000)
     auto_path_list = [(1352.94, -3694.75),
                       (2547.49, -3667.82),
-                      (2541.67, -2582.88)] #critical part, high aggro area
+                      (2541.67, -2582.88)] # Critical part, high aggro area
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(10000)
     bot.Move.XY(1990.27, -1636.21)
     bot.Wait.ForTime(15000)
     auto_path_list = [(2651.48, -3750.63),
-                      (3355.63, -2151.82)] #critical part, high aggro area
+                      (3355.63, -2151.82)] # Critical part, high aggro area
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(10000)
     bot.Move.XY(4565.37, -1630.73)
@@ -1578,15 +1578,14 @@ def To_Kamadan(bot: Botting):
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapToChange(target_map_id=290)
     bot.Wait.ForTime(2000)
-    bot.Dialogs.WithModel(4914, 0x84)  # Kormir dialog model id 4914. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(4914, 0x84)  # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForMapToChange(target_map_id=543)
     bot.Wait.ForTime(2000)
-    bot.Dialogs.WithModel(4829, 0x82D407)  # Bendro take reward. Model id updated 20.12.2025
-    bot.Dialogs.WithModel(4829, 0x82E101)  # Bendro battle preparation. Model id updated 20.12.2025
-
+    bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(4829, 0x82E101)  # Model id updated 20.12.2025 GW Reforged
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
-    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+    bot.Map.Travel(target_map_id=194)
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8075.89, 14592.47)
@@ -1594,7 +1593,7 @@ def To_Consulate_Docks(bot: Botting):
     bot.Move.XY(-5271.00, 16740.00)
     bot.Wait.ForMapLoad(target_map_id=429)
     bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
-    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
+    bot.Wait.ForMapToChange(target_map_id=493)
 
 def Unlock_Olias(bot:Botting):
     bot.States.AddHeader("Unlock Olias")
@@ -1625,98 +1624,98 @@ def Unlock_Xunlai_Material_Panel(bot: Botting) -> None:
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=248)  # GTOB
     path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
-    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
-    bot.Dialogs.WithModel(221, 0x800001) # Model id updated 20.12.2025
-    bot.Dialogs.WithModel(221, 0x800002) # Model id updated 20.12.2025
+    bot.Move.FollowPath(path_to_xunlai)
+    bot.Dialogs.WithModel(221, 0x800001) # Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(221, 0x800002) # Model id updated 20.12.2025 GW Reforged
 
 def Unlock_Remaining_Secondary_Professions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
     bot.Map.Travel(target_map_id=248)  # GTOB
     bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
     bot.Move.XY(-5540.40, -5733.11)
-    bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
+    bot.Move.XY(-3151.22, -7255.13)
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
     if primary == "Warrior":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Ranger":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201 . Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201 . Model id updated 20.12.2025 GW Reforged
     elif primary == "Monk":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Assassin":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Mesmer":
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201.  Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201.  Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Necromancer":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Ritualist":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Elementalist":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
 
 def Unlock_Mercenary_Heroes(bot: Botting) -> None:
     bot.States.AddHeader(" Unlock Mercenary Heroes")
     bot.Party.LeaveParty()
-    bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.Map.Travel(target_map_id=248)
     bot.Move.XY(-4231.87, -8965.95)
-    bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(225, 0x800004) # Model id updated 20.12.2025 GW Reforged
     
 #region event handlers
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
