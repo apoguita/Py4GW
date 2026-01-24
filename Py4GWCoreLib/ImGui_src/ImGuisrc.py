@@ -3065,11 +3065,12 @@ class ImGui:
         PyImGui.pop_style_color(3)
         
         return clicked
-
+    
     @staticmethod
     def keybinding(label : str, key: Key, modifiers: ModifierKey):
         assigned_key = key
         assigned_modifiers = modifiers
+        is_hotkey_captured = False
         
         ImGui.input_text(f"{label}", f"{modifiers.name}+{key.name.replace('VK_','')}")
         if PyImGui.is_item_focused():
@@ -3087,23 +3088,25 @@ class ImGui:
                 modifiers |= ModifierKey.Alt
                 
             for key in Key:                
+                if key == Key.Ctrl or key == Key.LCtrl or key == Key.RCtrl or \
+                    key == Key.Shift or key == Key.LShift or key == Key.RShift or \
+                    key == Key.Alt or key == Key.LAlt or key == Key.RAlt or \
+                    key == Key.Unmapped:                              
+                    continue         
+                
                 if PyImGui.is_key_down(key.value): 
-                    if key == Key.Ctrl or key == Key.LCtrl or key == Key.RCtrl or \
-                        key == Key.Shift or key == Key.LShift or key == Key.RShift or \
-                        key == Key.Alt or key == Key.LAlt or key == Key.RAlt:          
-                        continue         
                     
                     assigned_key = key
                     assigned_modifiers = modifiers
                     
-                    is_hotkey_captured = True
+                    is_hotkey_captured = True                
                     break
-            
-            if is_hotkey_captured:
-                PyImGui.set_keyboard_focus_here(1)
-                
+                            
         PyImGui.same_line(0, 0)
         ImGui.invisible_button("##HotkeyCapture",0,0)
+        if is_hotkey_captured:
+            PyImGui.set_keyboard_focus_here(-1)
+            
         return assigned_key, assigned_modifiers
 
     
