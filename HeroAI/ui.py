@@ -13,7 +13,7 @@ from HeroAI.commands import HeroAICommands
 from HeroAI.constants import NUMBER_OF_SKILLS, PARTY_WINDOW_HASH, SKILLBAR_WINDOW_HASH
 from HeroAI.settings import Settings
 from HeroAI.types import Docked, FramePosition
-from HeroAI.utils import IsHeroFlagged, SameMapAsAccount
+from HeroAI.utils import IsHeroFlagged, SameMapAsAccount, SameMapOrPartyAsAccount
 
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
@@ -1953,7 +1953,7 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, cached_data: CacheData):
                                     if Map.IsExplorable():
                                         accounts = [acct for acct in cached_data.party.accounts.values()]
                                     else:
-                                        accounts = [acct for acct in GLOBAL_CACHE.ShMem.GetAllAccountData() if SameMapAsAccount(acct)]
+                                        accounts = [acct for acct in GLOBAL_CACHE.ShMem.GetAllAccountData() if SameMapOrPartyAsAccount(acct)]
                                         
                                     cmd(accounts)
                                 
@@ -2237,7 +2237,7 @@ def draw_party_overlay(cached_data: CacheData, hero_windows : dict[str, WindowMo
         account = next((acc for acc in cached_data.party.accounts.values() if acc.PartyPosition == i - 1), None)
         
         if account and account.AccountEmail != Player.GetAccountEmail():
-            if account.PartyID != main_account.PartyID or not SameMapAsAccount(account):
+            if account.PartyID != main_account.PartyID or not SameMapOrPartyAsAccount(account):
                 continue
             
             window_info = settings.get_hero_panel_info(account.AccountEmail)

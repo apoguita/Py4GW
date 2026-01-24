@@ -37,20 +37,13 @@ class PartyCache():
         
     def update(self):
         """ Update the party cache from shared memory. """
-        
+        from HeroAI.utils import SameMapOrPartyAsAccount
         self.party_id = GLOBAL_CACHE.Party.GetPartyID()
-        own_map_id = Map.GetMapID()
-        own_region = Map.GetRegion()[0]
-        own_district = Map.GetDistrict()
-        own_language = Map.GetLanguage()[0]
-        
-        def SameMapAsAccount(account : AccountData):    
-            return own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
         
         shmem_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         
         for acc in shmem_accounts:
-            if acc.IsSlotActive and acc.PartyID == self.party_id and SameMapAsAccount(acc):
+            if acc.IsSlotActive and SameMapOrPartyAsAccount(acc):
                 self.accounts[acc.PlayerID] = acc
                 
                 options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acc.AccountEmail)
