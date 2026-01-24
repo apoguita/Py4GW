@@ -1185,9 +1185,9 @@ def To_Marketplace(bot: Botting):
     bot.States.AddHeader("To Marketplace")
     bot.Map.Travel(target_map_id=250) #Seitung Harbor
     bot.Move.XYAndDialog(16927, 9004, 0x815D01)
-    bot.Dialogs.AtXY(16927, 9004, 0x84)  # i am sure
+    bot.Dialogs.AtXY(16927, 9004, 0x84)
     bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
-    bot.Move.XYAndDialog(9955, 20033, 0x815D04)  # a masters burden
+    bot.Move.XYAndDialog(9955, 20033, 0x815D04)
     bot.Move.XYAndExitMap(12003, 18529, target_map_name="The Marketplace")
 
 def To_Kaineng_Center(bot: Botting):
