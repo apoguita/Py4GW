@@ -129,6 +129,7 @@ def draw_account_info(player: AccountData):
             lrow("IsPet",          player.IsPet)
             lrow("IsNPC",          player.IsNPC)
             lrow("HeroID",         player.HeroID)
+            lrow("PartyID",         player.PartyID)
 
             lrow(
                 "Player HP",
