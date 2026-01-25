@@ -13,12 +13,11 @@ class MapBoundaries:
     """
     Class to hold map boundaries.
     """
-    def __init__(self, x_min, x_max, y_min, y_max, unk):
+    def __init__(self, x_min, x_max, y_min, y_max):
         self.x_min = x_min
         self.x_max = x_max
         self.y_min = y_min
         self.y_max = y_max
-        self.unk = unk
 
 map_boundaries = None
 
@@ -30,11 +29,11 @@ def initialize_map_boundaries(map_boundaries_vector):
     global map_boundaries
     if map_boundaries_vector is not None:
         map_boundaries = MapBoundaries(
-            x_min=map_boundaries_vector[1],
-            y_min=map_boundaries_vector[2],
-            x_max=map_boundaries_vector[3],
-            y_max=map_boundaries_vector[4],
-            unk=map_boundaries_vector[0],  # Any additional data in the vector
+            x_min=map_boundaries_vector[0],
+            y_min=map_boundaries_vector[1],
+            x_max=map_boundaries_vector[2],
+            y_max=map_boundaries_vector[3],
+             # Any additional data in the vector
         )
 
 initialize_map_boundaries(Map.GetMapBoundaries())
