@@ -1,7 +1,7 @@
 
 from .Context import GWContext
 from .native_src.methods.MapMethods import MapMethods
-from .native_src.context.MapContext import PathingMapStruct, PathingTrapezoidStruct
+from .native_src.context.MapContext import PathingMap, PathingTrapezoid
 from .native_src.context.AvailableCharacterContext import AvailableCharacterStruct
 from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, RegionTypeName, 
                                      ContinentName, CampaignName,)
@@ -1949,7 +1949,7 @@ class Map:
     #region Pathing
     class Pathing:
         @staticmethod
-        def GetPathingMaps() -> List[PathingMapStruct]:
+        def GetPathingMaps() -> List[PathingMap]:
             from .native_src.context.MapContext import MapContext
             from .Routines import Checks
             if not Checks.Map.MapValid():
@@ -1965,7 +1965,7 @@ class Map:
             return screen_pos.x, screen_pos.y
 
         class Quad:
-            def __init__(self, trapezoid: PathingTrapezoidStruct):
+            def __init__(self, trapezoid: PathingTrapezoid):
                 self.trapezoid = trapezoid
 
                 self.top_left: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTL), int(trapezoid.YT))

@@ -340,6 +340,7 @@ class MapContextStruct(Structure):
 class MapContext:
     _ptr: int
     _callback_name: str
+    _cached_ctx: Optional[MapContextStruct]
 
     @staticmethod
     def get_ptr() -> int: ...
@@ -352,4 +353,4 @@ class MapContext:
     @staticmethod
     def get_context() -> Optional[MapContextStruct]: ...
     @staticmethod
-    def GetPathingMaps() -> list[PathingMapStruct]: ...
+    def GetPathingMaps() -> list[PathingMap]: ...

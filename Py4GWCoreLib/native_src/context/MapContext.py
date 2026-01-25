@@ -390,11 +390,6 @@ class PathingMapStruct(Structure):
         ("h0050_ptr",       POINTER(c_uint32)),              # +0x0050 uint32_t*
     ]
     @property
-    def trapezoids(self) -> list[PathingTrapezoidStruct]:
-        if not self.trapezoids_ptr or self.trapezoid_count == 0:
-            return []
-        return [self.trapezoids_ptr[i] for i in range(self.trapezoid_count)]
-    @property
     def sink_nodes(self) -> list[SinkNodeStruct]:
         if not self.sink_nodes_ptr or self.sink_node_count == 0:
             return []
@@ -750,7 +745,7 @@ class MapContext:
     _ptr: int = 0
     _cached_ctx: MapContextStruct | None = None
     _callback_name = "MapContext.UpdatePtr"
-    _pathing_maps_cache: dict[int, list[PathingMapStruct]] = {}
+    _pathing_maps_cache: dict[int, list[PathingMap]] = {}
 
     @staticmethod
     def get_ptr() -> int:
@@ -793,7 +788,7 @@ class MapContext:
         return MapContext._cached_ctx
     
     @staticmethod
-    def GetPathingMaps() -> list[PathingMapStruct]:
+    def GetPathingMaps() -> list[PathingMap]:
         map_ctx = MapContext._cached_ctx
         char_ctx = CharContext.get_context()
         instance_info_ctx = InstanceInfo.get_context()
@@ -810,10 +805,17 @@ class MapContext:
         map_id = char_ctx.current_map_id
         if map_id in MapContext._pathing_maps_cache:
             return MapContext._pathing_maps_cache[map_id]
-        #pathing_maps = map_ctx.pathing_maps_snapshot
-        pathing_maps = map_ctx.pathing_maps
-        MapContext._pathing_maps_cache[map_id] = pathing_maps
-        return pathing_maps
+        pathing_maps_structs = map_ctx.pathing_maps
+
+        safe_maps: list[PathingMap] = []
+
+        for pm in pathing_maps_structs:
+            try:
+                safe_maps.append(pm.snapshot())
+            except Exception:
+                continue
+        MapContext._pathing_maps_cache[map_id] = safe_maps
+        return safe_maps
 
               
 MapContext.enable()

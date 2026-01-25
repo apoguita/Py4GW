@@ -2,6 +2,7 @@
 from typing import Tuple
 
 import importlib
+from Py4GWCoreLib.native_src.context import MapContext
 
 class _RProxy:
     def __getattr__(self, name: str):
@@ -233,6 +234,7 @@ class Checks:
         def MapValid():
             from ..Map import Map
             from ..Party import Party
+            from Py4GWCoreLib.native_src.context.MapContext import MapContext
 
             if not Map.IsMapReady():
                 return False
@@ -241,6 +243,17 @@ class Checks:
                 return False
             
             if not Party.IsPartyLoaded():
+                return False
+            
+            map_ctx = MapContext._cached_ctx
+            if map_ctx is None:
+                return False
+            
+            if map_ctx.pathing_maps is None:
+                return False
+            
+            pathing_maps = map_ctx.pathing_maps
+            if not pathing_maps:
                 return False
             
             return True
