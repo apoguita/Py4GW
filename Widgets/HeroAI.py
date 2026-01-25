@@ -261,8 +261,6 @@ def Follow(cached_data: CacheData):
     angle_on_hero_grid = follow_angle + Utils.DegToRad(hero_formation[hero_grid_pos])
 
     def is_position_on_map(x, y) -> bool:
-        return True  # DISABLED FOR NOW DUE TO ISSUES IN CERTAIN MAPS
-    
         if not HeroAI_FloatingWindows.settings.ConfirmFollowPoint:
             return True
         

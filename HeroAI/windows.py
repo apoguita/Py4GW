@@ -1299,7 +1299,7 @@ class HeroAI_Windows():
          
         own_party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
         
-        if own_party_number < 0:
+        if own_party_number <= 0:
             return
         
         party_window_frame = WindowFrames["PartyWindow"]
