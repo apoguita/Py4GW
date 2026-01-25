@@ -976,8 +976,9 @@ def The_Threat_Grows(bot: Botting):
     bot.Dialogs.AtXY(-1023, 4844, 0x815401)
     bot.Map.Travel(target_map_id=242) #Shin Jea Monastery
     PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_id=238)
     ConfigurePacifistEnv(bot)
+    bot.Move.XY(2082.23, -9749.75)
     bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #Tsumei Village
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(-11600,-17400, target_map_name="Panjiang Peninsula")

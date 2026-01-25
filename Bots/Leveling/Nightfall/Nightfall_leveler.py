@@ -1929,6 +1929,7 @@ def To_Minister_Cho(bot: Botting):
     bot.States.AddCustomState(AddHenchmenFC, "Add Henchmen")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     ConfigurePacifistEnv(bot)
+    bot.Move.XY(16182.62, -7841.86)
     bot.Move.XY(6611.58, 15847.51)
     bot.Move.FollowPath([(6874, 16391)])
     bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
