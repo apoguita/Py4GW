@@ -3,9 +3,8 @@ from Py4GWCoreLib import *
 import heapq
 import math
 from typing import List, Tuple, Optional, Dict
-from Py4GWCoreLib.native_src.context.MapContext import PortalStruct, PathingTrapezoidStruct
+from Py4GWCoreLib.native_src.context.MapContext import PortalStruct, PathingTrapezoid
 
-PathingTrapezoid = PathingTrapezoidStruct
 PathingPortal = PortalStruct
 MODULE_NAME = "Portal Pathfinding"
 

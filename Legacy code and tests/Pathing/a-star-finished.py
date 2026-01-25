@@ -1,12 +1,11 @@
 import Py4GW
 from Py4GWCoreLib import *
-from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoidStruct, PortalStruct
+from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoid, PortalStruct
 import heapq
 import math
 from typing import List, Tuple, Optional, Dict
 
 
-PathingTrapezoid = PathingTrapezoidStruct
 PathingPortal = PortalStruct
 MODULE_NAME = "Portal Pathfinding"
 

@@ -2,12 +2,10 @@ import Py4GW
 from Py4GWCoreLib import *
 from typing import List, Tuple, Dict
 import math
-from Py4GWCoreLib.native_src.context.MapContext import PortalStruct, PathingTrapezoidStruct
 
 MODULE_NAME = "NavMesh Diagnostics"
 
 Point2D = Tuple[float, float]
-PathingTrapezoid = PathingTrapezoidStruct
 
 
 
