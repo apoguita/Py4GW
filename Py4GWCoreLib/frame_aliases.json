@@ -206,7 +206,7 @@
     "3032516301": "Trade Window.View Button",
     "3557937288": "Trade Window.Decline Button",
     "224642225": "Trade Window.Caption",
-    "2315448754": "Xunlai Window",    
+    "2315448754": "Xunlai Window",
     "140452905,6,109": "Salvage Materials Dialog",
     "140452905,6,109,4": "Salvage Materials Dialog.No Button",
     "140452905,6,109,0": "Salvage Materials Dialog.Question Frame",
@@ -1157,5 +1157,9 @@
     "140452905,12,6": "Yes Leave your party Button",
     "140452905,12": "Leave your party Dialog",
     "140452905,6,1,0": "Skip Cutscene Button",
-    "1431953425,1,4294967290": "Gamepad Options Tab"
+    "1431953425,1,4294967290": "Gamepad Options Tab",
+    "3332025202,1,8,0,0,0,0": "PartyMembersParent",
+    "3332025202,1,8,0,0,0,0,7": "PartyMember7",
+    "3332025202,1,8,0,0,0,0,1,1": "PartyReadyToggle",
+    "3332025202,0,0,0,0": "PartyMembersParentExplorable"
 }

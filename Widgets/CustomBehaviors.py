@@ -19,7 +19,6 @@ for module_name in list(sys.modules.keys()):
     if module_name not in ("sys", "importlib", "cache_data"):
         try:
             if "behavior" in module_name.lower():
-                Py4GW.Console.Log("CustomBehaviors", f"Reloading module: {module_name}")
                 del sys.modules[module_name]
                 # importlib.reload(module_name)
                 pass

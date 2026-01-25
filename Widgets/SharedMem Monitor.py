@@ -1,4 +1,5 @@
 from datetime import datetime
+from Py4GW import PingHandler
 import PyImGui
 
 from Py4GWCoreLib import *
@@ -152,7 +153,38 @@ def draw_account_info(player: AccountData):
             lrow("Is Ticked",    player.PlayerIsTicked)
 
             end_striped_table()
-  
+
+#region HeroAI Info
+def draw_heroai_info(player: AccountData):
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(player.AccountEmail)
+    if hero_ai_options is None:
+        PyImGui.text("No HeroAI options found for this account.")
+        return
+
+    if begin_striped_table("HeroAIOptionsTable", 2):
+
+        def row(label, value):
+            PyImGui.table_next_row()
+            PyImGui.table_set_column_index(0); PyImGui.text(label)
+            PyImGui.table_set_column_index(1); value()
+
+        row("Following", lambda: PyImGui.text(str(hero_ai_options.Following)))
+        row("Avoidance", lambda: PyImGui.text(str(hero_ai_options.Avoidance)))
+        row("Looting",   lambda: PyImGui.text(str(hero_ai_options.Looting)))
+        row("Targeting", lambda: PyImGui.text(str(hero_ai_options.Targeting)))
+        row("Combat",    lambda: PyImGui.text(str(hero_ai_options.Combat)))
+
+        # Skills
+        PyImGui.table_next_row()
+        PyImGui.table_set_column_index(0); PyImGui.text("Skills")
+        PyImGui.table_set_column_index(1)
+        for idx, enabled in enumerate(hero_ai_options.Skills):
+            PyImGui.text(f"Skill Slot {idx + 1}: {'Enabled' if enabled else 'Disabled'}")
+
+        end_striped_table()
+
+#endregion HeroAI Info
+
 #region Rank Info          
 def draw_rank_info(player: AccountData):
     if PyImGui.collapsing_header("Rank Data", PyImGui.TreeNodeFlags.NoFlag):
@@ -893,6 +925,7 @@ def main():
             PyImGui.text(f"Max Number of Players: {SMM.max_num_players}")
             PyImGui.text(f"Number of Active Players: {SMM.GetNumActivePlayers()}")
             PyImGui.text(f"Number of active Slots: {SMM.GetNumActiveSlots()}")
+            ImGui.show_tooltip("\n".join([f"{i}. | Slot:{acc.SlotNumber} {acc.AccountEmail} | {acc.CharacterName}" for i, acc in enumerate(SMM.GetStruct().AccountData) if SMM._is_slot_active(i)]))                        
         
         MIN_WIDTH = 500
         MIN_HEIGHT = 700
@@ -920,7 +953,13 @@ def main():
                             #Account Info Tab
                             if PyImGui.begin_tab_item("Account Info"):
                                 draw_account_info(player)  # Draw Account Info
-                                PyImGui.end_tab_item()
+                                PyImGui.end_tab_item()                            
+                            #Hero AI Tab
+                            if PyImGui.begin_tab_item("Hero AI"):
+                                if PyImGui.begin_child("HeroAIChild", (0, 0), False, PyImGui.WindowFlags.NoFlag):
+                                    draw_heroai_info(player)
+                                    PyImGui.end_child()
+                                PyImGui.end_tab_item()                            
                             #Rank/Faction Info Tab
                             if PyImGui.begin_tab_item("Faction"):
                                 if PyImGui.begin_child("FactionsChild", (0, 0), False, PyImGui.WindowFlags.NoFlag):
