@@ -985,8 +985,7 @@ def The_Threat_Grows(bot: Botting):
     bot.Move.XY(9691.49, 7922.29) #Kill spot
     bot.Wait.UntilOnCombat()
     bot.Wait.UntilOutOfCombat()
-    #bot.Wait.UntilModelHasQuest(3367) #Sister Tai model id updated 20.12.2025 GW Reforged
-    #ConfigurePacifistEnv(bot)
+    bot.Wait.ForTime(10000)
     bot.Dialogs.WithModel(3367, 0x815407) #Sister Tai model id updated 20.12.2025 GW Reforged
     bot.Dialogs.WithModel(3367, 0x815501) #Sister Tai model id updated 20.12.2025 GW Reforged
      
