@@ -862,25 +862,24 @@ def Craft_Weapon(bot: Botting):
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     bot.States.AddCustomState(withdraw_gold_weapon, "Withdraw 500 Gold")
     bot.Move.XY(-10896.94, 10807.54)
+    bot.Move.XY(-10942.73, 10783.19)
     bot.Move.XYAndInteractNPC(-10614.00, 10996.00)  # Common material merchant
     exec_fn_wood = lambda: BuyWeaponMaterials()
     bot.States.AddCustomState(exec_fn_wood, "Buy Wood Planks")
-    bot.Move.XY(-10896.94, 10807.54) 
+    bot.Move.XY(-10896.94, 10807.54)
     bot.Move.XY(-6519.00, 12335.00)
     bot.Move.XYAndInteractNPC(-6519.00, 12335.00)  # Weapon crafter in Shing Jea Monastery
     bot.Wait.ForTime(1000)
     exec_fn = lambda: DoCraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapons")
-    bot.Items.SpawnAndDestroyBonusItems()
-    bot.Items.Equip(11641)
 
-def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
+def Locate_Sujun(bot: Botting) -> Generator[Any, Any, None]:
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary != "Ranger": return
     yield from bot.Move._coro_get_path_to(-7782.00, 6687.00)
     yield from bot.Move._coro_follow_path_to()
     yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810403) #Locate Sujun
-    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810401) #Accept Quest
+    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810401)
     yield from bot.helpers.UI._cancel_skill_reward_window()
 
 def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
@@ -893,7 +892,7 @@ def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
 
 def Charm_Pet(bot: Botting) -> None:
     bot.States.AddHeader("Charm Pet")
-    bot.States.AddCustomState(lambda:RangerCapturePet(bot), "Unlock Skills")
+    bot.States.AddCustomState(lambda:Locate_Sujun(bot), "Unlock Skills")
     bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     bot.Move.XY(13970.94, -13085.83)
@@ -902,15 +901,10 @@ def Charm_Pet(bot: Botting) -> None:
     bot.Target.Model(3005) #Tiger model id updated 20.12.2025 GW Reforged
     bot.SkillBar.UseSkill(411)
     bot.Wait.ForTime(14000)
-    bot.States.AddHeader("Ranger Get Skills")
     bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
-    bot.Map.Travel(target_map_name="Shing Jea Monastery")
-    
+
 def To_Minister_Chos_Estate(bot: Botting):
     bot.States.AddHeader("To Minister Cho's Estate")
-    bot.Map.Travel(target_map_id=242) #Shing Jea Monastery
-    PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     ConfigurePacifistEnv(bot)
     bot.Move.XY(16182.62, -7841.86)
     bot.Move.XY(6611.58, 15847.51)
