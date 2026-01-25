@@ -1950,8 +1950,8 @@ def To_Temple_Of_The_Ages(bot: Botting):
     bot.Map.Travel(target_map_id=55)  # Lion's Arch
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.AddHenchmanList([1, 3])
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Move.XY(1219, 7222)
     bot.Move.XY(1021, 10651)
     bot.Move.XY(250, 12350)
