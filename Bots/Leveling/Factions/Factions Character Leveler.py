@@ -15,56 +15,44 @@ bot = Botting("Factions Leveler",
 
 #region MainRoutine
 def create_bot_routine(bot: Botting) -> None:
-    InitializeBot(bot) #revisited
-    ExitMonasteryOverlook(bot) #revisited
-    ExitToCourtyard(bot) #revisited
-    UnlockSecondaryProfession(bot) #revisited
-    UnlockXunlaiStorage(bot) #revisited
-    CraftWeaponShingJea(bot) #revisited
-    #EquipWeapons(bot) #revisited
-    CapturePet(bot) #revisited
-    ExitToSunquaVale(bot) #revisited
-    TravelToMinisterCho(bot) 
-    EnterMinisterChoMission(bot) 
-    MinisterChoMission(bot) 
-    AttributePointQuest1(bot) 
-    TakeWarningTheTenguQuest(bot) 
-    WarningTheTenguQuest(bot) 
-    ExitToSunquaVale(bot) 
-    ExitToTsumeiVillage(bot) 
-    ExitToPanjiangPeninsula(bot) 
-    TheThreatGrows(bot) 
-    ExitToCourtyardAggressive(bot) 
-    AdvanceToSaoshangTrail(bot) 
-    TraverseSaoshangTrail(bot) 
-    TakeRewardAndCraftArmor(bot)  
-    ExitSeitungHarbor(bot) 
-    GoToZenDaijun(bot) 
-    EnterZenDaijunMission(bot) 
-    ZenDaijunMission(bot) 
-    CraftRemainingArmorFSM(bot)
+    InitializeBot(bot)
+    Exit_Monastery_Overlook(bot)
+    Unlock_Secondary_Profession(bot)
+    Unlock_Xunlai_Storage(bot)
+    Craft_Weapon(bot)
+    Charm_Pet(bot)
+    To_Minister_Chos_Estate(bot)
+    Minister_Chos_Estate_Mission(bot)
+    Attribute_Points_Quest_1(bot)
+    Warning_The_Tengu(bot)
+    The_Threat_Grows(bot)
+    The_Road_Less_Traveled(bot)
+    Craft_Seitung_Armor(bot)
+    To_Zen_Daijun(bot)
+    Zen_Daijun_Mission(bot)
+    Craft_Remaining_Seitung_Armor(bot)
     Destroy_Starter_Armor_And_Useless_Items(bot)
-    AttributePointQuest2(bot)
-    AdvanceToMarketplace(bot) 
-    AdvanceToKainengCenter(bot)
-    CraftMaxArmor(bot)
-    DestroySeitungArmor(bot)
-    AdvanceToEOTN(bot) 
-    ExitBorealStation(bot) 
-    TraverseToEOTNOutpost(bot)
-    UnlockEotnPool(bot)
-    AdvanceToGunnarsHold(bot)
-    UnlockKilroy(bot)
-    AdvanceToLongeyeEdge(bot)
-    UnlockNPCForVaettirFarm(bot)
-    AdvanceToLA(bot)
-    AdvanceToTempleOfAges(bot)
-    AdvanceToKamadan(bot)
-    AdvanceToConsulateDocks(bot)
-    UnlockOlias(bot)
-    UnlockXunlaiMaterialPanel(bot)
-    UnlockRemainingSecondaryProfessions(bot)
-    UnlockMercenaryHeroes(bot)
+    Attribute_Points_Quest_2(bot)
+    To_Marketplace(bot)
+    To_Kaineng_Center(bot)
+    Craft_Max_Armor(bot)
+    Destroy_Seitung_Armor(bot)
+    Extend_Inventory_Space(bot)
+    To_Boreal_Station(bot)
+    To_Eye_of_the_North(bot)
+    Unlock_Eotn_Pool(bot)
+    To_Gunnars_Hold(bot)
+    Unlock_Kilroy_Stonekin(bot)
+    To_Longeyes_Edge(bot)
+    Unlock_NPC_For_Vaettir_Farm(bot)
+    To_Lions_Arch(bot)
+    To_Temple_of_The_Ages(bot)
+    To_Kamadan(bot)
+    To_Consulate_Docks(bot)
+    Unlock_Olias(bot)
+    Unlock_Xunlai_Material_Panel(bot)
+    Unlock_Remaining_Secondary_Professions(bot)
+    Unlock_Mercenary_Heroes(bot)
     bot.States.AddHeader("Final Step")
     bot.Stop()
 
@@ -122,7 +110,7 @@ def EquipSkillBar(skillbar = ""):
     elif profession == "Ritualist":
         skillbar = "OAKkYRYRWCGjiB24b+mAAAAtRAA"
     elif profession == "Assassin":
-        skillbar = "OwJkYRZ5XMGiiBbuMAAAAAtJAA"
+        skillbar = "OwJkYRZzXMGii5yAAAAAAAtJAA"
 
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
@@ -467,7 +455,7 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
         PANTS = 23379
         BOOTS = 23376
     elif primary == "Assassin":
-        HEAD = 23435    # Canthan
+        HEAD = 23432    # Canthan
         CHEST = 23441
         GLOVES = 23442
         PANTS = 23443
@@ -839,17 +827,12 @@ def InitializeBot(bot: Botting) -> None:
     condition = lambda: on_death(bot)
     bot.Events.OnDeathCallback(condition)
 
-def ExitMonasteryOverlook(bot: Botting) -> None:
+def Exit_Monastery_Overlook(bot: Botting) -> None:
     bot.States.AddHeader("Exit Monastery Overlook")
-    bot.Move.XYAndDialog(-7048,5817,0x85) #Move to Ludo I_AM_SURE = 0x85
+    bot.Move.XYAndDialog(-7048,5817,0x85)
     bot.Wait.ForMapLoad(target_map_name="Shing Jea Monastery")
     
-def ExitToCourtyard(bot: Botting) -> None:
-    bot.States.AddHeader("Exit To Courtyard")
-    ConfigurePacifistEnv(bot)
-    bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
-    
-def UnlockSecondaryProfession(bot: Botting) -> None:
+def Unlock_Secondary_Profession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
         global bot
         primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
@@ -859,56 +842,40 @@ def UnlockSecondaryProfession(bot: Botting) -> None:
             yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0F)
 
     bot.States.AddHeader("Unlock Secondary Profession")
+    ConfigurePacifistEnv(bot)
+    bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
     bot.Move.XY(-159, 9174)
     bot.States.AddCustomState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
     bot.UI.CancelSkillRewardWindow()
     bot.UI.CancelSkillRewardWindow()
-    bot.Dialogs.AtXY(-92, 9217,  0x813D07) #TAKE_SECONDARY_REWARD
-    bot.Dialogs.AtXY(-92, 9217,  0x813E01) #TAKE_MINISTER_CHO_QUEST
-    #ExitCourtyard
+    bot.Dialogs.AtXY(-92, 9217,  0x813D07) #Reward
+    bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
     bot.Move.XYAndExitMap(-3762, 9471, target_map_name="Shing Jea Monastery")
 
-def UnlockXunlaiStorage(bot: Botting) -> None:
+def Unlock_Xunlai_Storage(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Xunlai Storage")
     path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
-    bot.Move.FollowPathAndDialog(path_to_xunlai, 0x84) #UNLOCK_XUNLAI_STORAGE
+    bot.Move.FollowPathAndDialog(path_to_xunlai, 0x84)
 
-def CraftWeaponShingJea(bot: Botting):
-    """Complete workflow to craft weapons in Shing Jea Monastery."""
-    bot.States.AddHeader("Craft Weapon in Shing Jea Monastery")
-    
-    # Travel to Shing Jea Monastery
+def Craft_Weapon(bot: Botting):
+    bot.States.AddHeader("Craft weapon")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     bot.States.AddCustomState(withdraw_gold_weapon, "Withdraw 500 Gold")
-    
-    # Withdraw gold for materials
-    bot.Move.XY(-10896.94, 10807.54)  # Move to storage/merchant area
-    
-    # Buy Wood Planks (common material)
+    bot.Move.XY(-10896.94, 10807.54)
     bot.Move.XYAndInteractNPC(-10614.00, 10996.00)  # Common material merchant
     exec_fn_wood = lambda: BuyWeaponMaterials()
     bot.States.AddCustomState(exec_fn_wood, "Buy Wood Planks")
-    
-    # Travel to weapon crafter and craft weapons
     bot.Move.XY(-10896.94, 10807.54) 
     bot.Move.XY(-6519.00, 12335.00)
     bot.Move.XYAndInteractNPC(-6519.00, 12335.00)  # Weapon crafter in Shing Jea Monastery
-    bot.Wait.ForTime(1000)  # Small delay to let the window open
+    bot.Wait.ForTime(1000)
     exec_fn = lambda: DoCraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapons")
-
-def EquipWeapons(bot: Botting):
     bot.Items.SpawnAndDestroyBonusItems()
     bot.Items.Equip(11641)
-     
-def ExitToSunquaVale(bot: Botting) -> None:
-    bot.States.AddHeader("Exit To Sunqua Vale")
-    ConfigurePacifistEnv(bot)
-    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
-    
+
 def RangerCapturePet(bot: Botting) -> Generator[Any, Any, None]:
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    #ConsoleLog("RangerCapturePet", f"Primary Profession: {primary}", Py4GW.Console.MessageType.Info)
     if primary != "Ranger": return
     yield from bot.Move._coro_get_path_to(-7782.00, 6687.00)
     yield from bot.Move._coro_follow_path_to()
@@ -924,139 +891,127 @@ def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
     yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
     yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x811401) #of course i will help
 
-
-def CapturePet(bot: Botting) -> None:
-    bot.States.AddHeader("Capture Pet")
-    bot.States.AddHeader("Ranger Pet Evaluation")
+def Charm_Pet(bot: Botting) -> None:
+    bot.States.AddHeader("Charm Pet")
     bot.States.AddCustomState(lambda:RangerCapturePet(bot), "Unlock Skills")
-     
     bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
-
     bot.Move.XY(13970.94, -13085.83)
-    bot.Move.ToModel(3005) #Tiger model id updated 20.12.2025
+    bot.Move.ToModel(3005) #Tiger model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(500)
-    bot.Target.Model(3005) #Tiger model id updated 20.12.2025
-    bot.SkillBar.UseSkill(411) #Capture Pet
+    bot.Target.Model(3005) #Tiger model id updated 20.12.2025 GW Reforged
+    bot.SkillBar.UseSkill(411)
     bot.Wait.ForTime(14000)
-    
     bot.States.AddHeader("Ranger Get Skills")
     bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
-         
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     
-def TravelToMinisterCho(bot: Botting) -> None:
-    bot.States.AddHeader("Travel To Minister Cho")
-    bot.Move.XYAndDialog(6637, 16147, 0x80000B, step_name="Talk to Guardman Zui")
-    bot.Wait.ForTime(7000)
-    bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
-    bot.Move.XYAndDialog(7884, -10029, 0x813E07, step_name="Accept Minister Cho Reward")
+def To_Minister_Chos_Estate(bot: Botting):
+    bot.States.AddHeader("To Minister Cho's Estate")
+    bot.Map.Travel(target_map_id=242) #Shing Jea Monastery
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    ConfigurePacifistEnv(bot)
+    bot.Move.XY(16182.62, -7841.86)
+    bot.Move.XY(6611.58, 15847.51)
+    bot.Move.XYAndDialog(6637, 16147, 0x80000B)
+    bot.Wait.ForMapToChange(target_map_id=214)
+    bot.Move.XYAndDialog(7884, -10029, 0x813E07)
     
-def EnterMinisterChoMission(bot: Botting):
-    bot.States.AddHeader("Enter Minister Cho Mission")
+def Minister_Chos_Estate_Mission(bot: Botting) -> None:
+    bot.States.AddHeader("Minister Cho's Estate mission")
     bot.Map.Travel(target_map_id=214)
     PrepareForBattle(bot)
-    bot.Map.EnterChallenge(delay=4500, target_map_id=214) #minister_cho_map_id
-
-def MinisterChoMission(bot: Botting) -> None:
-    bot.States.AddHeader("Minister Cho Mission")
-    ConfigureAggressiveEnv(bot)
-    auto_path_list:List[Tuple[float, float]] = [
-            (6358, -7348),   # Move to Activate Mission
-            (507, -8910),    # Move to First Door
-            (4889, -5043),   # Move to Map Tutorial
-            (6216, -1108),   # Move to Bridge Corner
-            (2617, 642),     # Move to Past Bridge
-            (0, 1137),       # Move to Fight Area
-            (-7454, -7384),  # Move to Zoo Entrance
-            (-9138, -4191),  # Move to First Zoo Fight
-            (-7109, -25),    # Move to Bridge Waypoint
-            (-7443, 2243),   # Move to Zoo Exit
-            (-16924, 2445),  # Move to Final Destination
-    ]
-    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Map.EnterChallenge(delay=4500, target_map_id=214)
+    bot.Move.XY(6220.76, -7360.73)
+    bot.Move.XY(5523.95, -7746.41)
+    bot.Wait.ForTime(15000)
+    bot.Move.XY(591.21, -9071.10)
+    bot.Wait.ForTime(30000)
+    bot.Move.XY(4889, -5043)   # Move to Map Tutorial
+    bot.Move.XY(4268.49, -3621.66)
+    bot.Wait.ForTime(20000)
+    bot.Move.XY(6216, -1108)   # Move to Bridge Corner
+    bot.Move.XY(2617, 642)     # Move to Past Bridge
+    bot.Move.XY(1706.90, 1711.44)
+    bot.Wait.ForTime(30000)
+    bot.Move.XY(333.32, 1124.44)
+    bot.Move.XY(-3337.14, -4741.27)
+    bot.Wait.ForTime(35000)
+    bot.Move.XY(-4661.99, -6285.81)
+    bot.Move.XY(-7454, -7384)  # Move to Zoo Entrance
+    bot.Move.XY(-9138, -4191)  # Move to First Zoo Fight
+    bot.Move.XY(-7109, -25)    # Move to Bridge Waypoint
+    bot.Move.XY(-7443, 2243)   # Move to Zoo Exit
+    bot.Move.XY(-16924, 2445)  # Move to Final Destination
     bot.Interact.WithNpcAtXY(-17031, 2448) #"Interact with Minister Cho"
-    bot.Wait.ForMapToChange(target_map_name="Ran Musu Gardens")
+    bot.Wait.ForMapToChange(target_map_id=251) #Ran Musu Gardens
     
-def AttributePointQuest1(bot: Botting):
-    bot.States.AddHeader("Attribute Point Quest 1")
-    bot.Map.Travel(target_map_id=251)
+def Attribute_Points_Quest_1(bot: Botting):
+    bot.States.AddHeader("Attribute points quest n. 1")
+    bot.Map.Travel(target_map_id=251) #Ran Musu Gardens
     bot.Move.XY(16184.75, 19001.78)
     bot.Move.XYAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
     PrepareForBattle(bot)
     path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90),(17005, 19787)]
     bot.Move.FollowPathAndExitMap(path, target_map_id=245)
     bot.Move.XY(-17979.38, -493.08)
-    GUARD_MODEL= 3093 #Guard model id updated 20.12.2025
-    bot.Dialogs.WithModel(GUARD_MODEL, 0x815A04)
+    bot.Dialogs.WithModel(3093, 0x815A04) #Guard model id updated 20.12.2025 GW Reforged
     exit_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
-        Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(GUARD_MODEL))
+        Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(3093))
     )
-    bot.Move.FollowModel(GUARD_MODEL, follow_range=(Range.Area.value), exit_condition=exit_function)
-    bot.Dialogs.WithModel(GUARD_MODEL, 0x815A07)
-    bot.Map.Travel(target_map_name="Ran Musu Gardens")
+    bot.Move.FollowModel(3093, follow_range=(Range.Area.value), exit_condition=exit_function) #Guard model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(3093, 0x815A07) #Guard model id updated 20.12.2025 GW Reforged
+    bot.Map.Travel(target_map_id=251) #Ran Musu Gardens
     
-def TakeWarningTheTenguQuest(bot: Botting):
-    bot.States.AddHeader("Take Warning the Tengu Quest")
-    bot.Map.Travel(target_map_id=251)
-    bot.Move.XYAndDialog(15846, 19013, 0x815301, step_name="Take Warning the Tengu Quest")
+def Warning_The_Tengu(bot: Botting):
+    bot.States.AddHeader("Quest: Warning the Tengu")
+    bot.Map.Travel(target_map_id=251) #Ran Musu Gardens
+    bot.Move.XYAndDialog(15846, 19013, 0x815301)
     PrepareForBattle(bot)
-    ConfigurePacifistEnv(bot)
     bot.Move.XYAndExitMap(14730, 15176, target_map_name="Kinya Province")
-    
-def WarningTheTenguQuest(bot: Botting):
-    bot.States.AddHeader("Warning The Tengu Quest")
-    bot.Move.XY(1429, 12768, "Move to Tengu Part2")
-    ConfigureAggressiveEnv(bot)
-    bot.Move.XYAndDialog(-1023, 4844, 0x815304, step_name="Continue Warning the Tengu Quest")
+    bot.Move.XY(1429, 12768)
+    bot.Move.XYAndDialog(-1023, 4844, 0x815304)
     bot.Move.XY(-5011, 732, "Move to Tengu Killspot")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XYAndDialog(-1023, 4844, 0x815307, step_name="Take Warning the Tengu Reward")
-    bot.Dialogs.AtXY(-1023, 4844, 0x815401, step_name="Take The Threat Grows Quest")
-    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.Move.XYAndDialog(-1023, 4844, 0x815307)
 
-def ExitToTsumeiVillage(bot: Botting):
-    bot.States.AddHeader("Exit To Tsumei Village")
-    bot.Move.XYAndExitMap(-4900, -13900, target_map_name="Tsumei Village")
-    
-def ExitToPanjiangPeninsula(bot: Botting):
-    bot.States.AddHeader("Exit To Panjiang Peninsula")
+def The_Threat_Grows(bot: Botting):
+    bot.States.AddHeader("Quest: The Threat Grows")
+    bot.Dialogs.AtXY(-1023, 4844, 0x815401)
+    bot.Map.Travel(target_map_id=242) #Shin Jea Monastery
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    ConfigurePacifistEnv(bot)
+    bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #Tsumei Village
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(-11600,-17400, target_map_name="Panjiang Peninsula")
-
-def TheThreatGrows(bot: Botting):
-    bot.States.AddHeader("The Threat Grows")
-    bot.Move.XY(9793.73, 7470.04, "Move to The Threat Grows Killspot")
-    SISTER_TAI_MODEL_ID = 3367 #Sister Tai model id updated 20.12.2025
-    bot.Wait.UntilModelHasQuest(SISTER_TAI_MODEL_ID)
-    ConfigurePacifistEnv(bot)
-    bot.Dialogs.WithModel(SISTER_TAI_MODEL_ID, 0x815407, step_name="Accept The Threat Grows Reward")
-    bot.Dialogs.WithModel(SISTER_TAI_MODEL_ID, 0x815501, step_name="Take Go to Togo Quest")
-    
-def ExitToCourtyardAggressive(bot: Botting) -> None:
-    bot.States.AddHeader("Exit To Courtyard")
-    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.Move.XY(9691.49, 7922.29) #Kill spot
+    bot.Wait.UntilOnCombat()
+    bot.Wait.UntilOutOfCombat()
+    #bot.Wait.UntilModelHasQuest(3367) #Sister Tai model id updated 20.12.2025 GW Reforged
+    #ConfigurePacifistEnv(bot)
+    bot.Dialogs.WithModel(3367, 0x815407) #Sister Tai model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(3367, 0x815501) #Sister Tai model id updated 20.12.2025 GW Reforged
+     
+def The_Road_Less_Traveled(bot: Botting):
+    bot.States.AddHeader("Quest: The Road Less Traveled")
+    bot.Map.Travel(target_map_id=242) #Shin Jea Monastery
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
-    
-def AdvanceToSaoshangTrail(bot: Botting):
-    bot.States.AddHeader("Advance To Saoshang Trail")
-    bot.Move.XYAndDialog(-92, 9217, 0x815507, step_name="Move to Togo 002")
-    bot.Dialogs.AtXY(-92, 9217, 0x815601, step_name="Take Exit Quest")
-    bot.Move.XYAndDialog(538, 10125, 0x80000B, step_name="Continue")
-    bot.Wait.ForMapLoad(target_map_id=313) #saoshang_trail_map_id
-    
-def TraverseSaoshangTrail(bot: Botting):
-    bot.States.AddHeader("Traverse Saoshang Trail")
-    bot.Move.XYAndDialog(1254, 10875, 0x815604) # Continue
+    bot.Move.XYAndDialog(-92, 9217, 0x815507)
+    bot.Dialogs.AtXY(-92, 9217, 0x815601)
+    bot.Move.XYAndDialog(538, 10125, 0x80000B)
+    bot.Wait.ForMapToChange(target_map_id=313)
+    bot.Move.XYAndDialog(1254, 10875, 0x815604)
     bot.Move.XYAndExitMap(16600, 13150, target_map_name="Seitung Harbor")
-    
-def TakeRewardAndCraftArmor(bot: Botting):
-    bot.States.AddHeader("Take Reward And Craft Armor")
-    bot.Map.Travel(target_map_name="Seitung Harbor")
     bot.Move.XY(16852, 12812)
-    bot.Move.XYAndDialog(16435, 12047, 0x815607) #TAKE_REWARD
+    bot.Move.XYAndDialog(16435, 12047, 0x815607)
+    
+def Craft_Seitung_Armor(bot: Botting):
+    bot.States.AddHeader("Craft Seitung armor")
+    bot.Map.Travel(target_map_id=250) #Seitung Harbor
     bot.Move.XYAndInteractNPC(17520.00, 13805.00)
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
     bot.Move.XY(19823.66, 9547.78)
@@ -1064,25 +1019,20 @@ def TakeRewardAndCraftArmor(bot: Botting):
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
     
-def ExitSeitungHarbor(bot: Botting):
+def To_Zen_Daijun(bot: Botting):
+    bot.States.AddHeader("To Zen Daijun")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(16777, 17540, target_map_name="Jaya Bluffs")
-    
-def GoToZenDaijun(bot: Botting):
-    bot.States.AddHeader("Go To Zen Daijun")
     bot.Move.XYAndExitMap(23616, 1587, target_map_name="Haiju Lagoon")
-    bot.Move.XYAndDialog(16489, -22213, 0x80000B) # CONTINUE
+    bot.Move.XYAndDialog(16489, -22213, 0x80000B)
     bot.Wait.ForTime(7000)
-    bot.Wait.ForMapLoad(target_map_id=213) #zen_daijun_map_id
+    bot.Wait.ForMapLoad(target_map_id=213) #Zen Daijun
     
-def EnterZenDaijunMission(bot:Botting):
-    bot.States.AddHeader("Enter Zen Daijun Mission")
+def Zen_Daijun_Mission(bot:Botting):
+    bot.States.AddHeader("Zen Daijun Mission")
     bot.Map.Travel(target_map_id=213)
     PrepareForBattle(bot)
-    bot.Map.EnterChallenge(6000, target_map_id=213) #zen_daijun_map_id
-    
-def ZenDaijunMission(bot: Botting):
-    bot.States.AddHeader("Zen Daijun Mission")
+    bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(11775.22, 11310.60)
     bot.Interact.WithGadgetAtXY(11665, 11386)
@@ -1094,132 +1044,119 @@ def ZenDaijunMission(bot: Botting):
     bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
     auto_path_list:List[Tuple[float, float]] = [(-12983, 2191),(-12362, -263),(-9813, -114)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Party.FlagAllHeroes(-8222, -1078)
+    bot.Party.FlagAllHeroes(-7688.63, -1538.34)
     bot.Move.XY(-7681.58, -1509.00)
     bot.Wait.ForMapToChange(target_map_name="Seitung Harbor")
 
-def CraftRemainingArmorFSM(bot: Botting):
-    bot.States.AddHeader("Craft Remaining Armor")
+def Craft_Remaining_Seitung_Armor(bot: Botting):
+    bot.States.AddHeader("Craft remaining Seitung armor")
     bot.Map.Travel(target_map_name="Seitung Harbor")
-    bot.States.AddCustomState(CraftRemainingArmor, "Craft Remaining Armor")
+    bot.States.AddCustomState(CraftRemainingArmor, "Craft Remaining Seitung Armor")
 
 def Destroy_Starter_Armor_And_Useless_Items(bot: Botting):
     bot.States.AddHeader("Destroy starter armor and useless items")
     bot.States.AddCustomState(destroy_starter_armor_and_useless_items, "Destroy starter armor and useless items")
 
-def AttributePointQuest2(bot: Botting):
+def Attribute_Points_Quest_2(bot: Botting):
     def enable_combat_and_wait(ms:int):
         global bot
         bot.Properties.Enable("auto_combat")
         bot.Wait.ForTime(ms)
         bot.Properties.Disable("auto_combat")
  
-    bot.States.AddHeader("Attribute Point Quest 2")
+    bot.States.AddHeader("Attribute points quest n. 2")
     bot.Map.Travel(target_map_name="Seitung Harbor")
     auto_path_list = [(16602.23, 11612.10), (16886.80, 9577.24), (16940.28, 9860.90), 
                       (19243.22, 9093.26), (19840.55, 7956.64)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
-    bot.Dialogs.WithModel(4009,0x815C01) #Take Quest from Zunraa. #Model id updated 20.12.2025
+    bot.Dialogs.WithModel(4009,0x815C01) #Zunraa model id updated 20.12.2025 GW Reforged
     PrepareForBattle(bot)
     bot.Dialogs.AtXY(20350.00, 9087.00, 0x80000B)
-    bot.Wait.ForMapLoad(target_map_id=246)  # zen_daijun_map_id
+    bot.Wait.ForMapLoad(target_map_id=246)  #Zen Daijun
     auto_path_list:List[Tuple[float, float]] = [
-    (-13959.50, 6375.26), #half the temple
-    (-14567.47, 1775.31), #side of road
-    (-12310.05, 2417.60), #across road
-    (-12071.83, 294.29),  #bridge and patrol
-    (-9972.85, 4141.29), #miasma passtrough
-    (-9331.86, 7932.66), #in front of bridge
-    (-6353.09, 9385.63), #past he miasma on way to waterfall
-    (247.80, 12070.21), #waterfall
-    (-8180.59, 12189.97), #back to kill patrols
-    (-9540.45, 7760.86), #in front of bridge 2
-    (-5038.08, 2977.42)] #to shrine
+    (-13959.50, 6375.26), #Half the temple
+    (-14567.47, 1775.31), #Side of road
+    (-12310.05, 2417.60), #Across road
+    (-12071.83, 294.29),  #Bridge and patrol
+    (-9972.85, 4141.29), #Miasma passtrough
+    (-9331.86, 7932.66), #In front of bridge
+    (-6353.09, 9385.63), #Past he miasma on way to waterfall
+    (247.80, 12070.21), #Waterfall
+    (-8180.59, 12189.97), #Back to kill patrols
+    (-9540.45, 7760.86), #In front of bridge 2
+    (-5038.08, 2977.42)] #To shrine
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
-    bot.Move.XY(-9643.93, 7759.69) #front of bridge 3
+    bot.Move.XY(-9643.93, 7759.69) #Front of bridge 3
     bot.Wait.ForTime(5000)
-
     bot.Properties.Disable("auto_combat")
-    path =[(-8294.21, 10061.62)] #position zunraa
+    path =[(-8294.21, 10061.62)] #Position Zunraa
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    path = [(-6473.26, 8771.21)] #clear miasma
+    path = [(-6473.26, 8771.21)] #Clear miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    path =[(-6365.32, 10234.20)] #position zunraa2
+    path =[(-6365.32, 10234.20)] #Position Zunraa2
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
-    
-    bot.Move.XY(-8655.04, -769.98) # to next Miasma on temple
+    bot.Move.XY(-8655.04, -769.98) # To next Miasma on temple
     bot.Wait.ForTime(5000)
     bot.Properties.Disable("auto_combat")
-    
-    path = [(-6744.75, -1842.97)] #clear half the miasma 
+    path = [(-6744.75, -1842.97)] #Clear half the miasma 
     bot.Move.FollowPath(path)
     enable_combat_and_wait(10000)
-    path = [(-7720.80, -905.19)] #finish miasma
+    path = [(-7720.80, -905.19)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
-    
     auto_path_list:List[Tuple[float, float]] = [
-    (-5016.76, -8800.93), #half the map
-    (3268.68, -6118.96), #passtrough miasma
-    (3808.16, -830.31), #back of bell
-    (536.95, 2452.17), #yard
-    (599.18, 12088.79), #waterfall
-    (3605.82, 2336.79), #patrol kill
-    (5509.49, 1978.54), #bell
-    (11313.49, 3755.03), #side path (90)
-    (12442.71, 8301.94), #middle aggro
-    (8133.23, 7540.54), #enemies on the side
-    (15029.96, 10187.60), #enemies on the loop
-    (14062.33, 13088.72), #corner
+    (-5016.76, -8800.93), #Half the map
+    (3268.68, -6118.96), #Passtrough miasma
+    (3808.16, -830.31), #Back of bell
+    (536.95, 2452.17), #Yard
+    (599.18, 12088.79), #Waterfall
+    (3605.82, 2336.79), #Patrol kill
+    (5509.49, 1978.54), #Bell
+    (11313.49, 3755.03), #Side path (90)
+    (12442.71, 8301.94), #Middle aggro
+    (8133.23, 7540.54), #Enemies on the side
+    (15029.96, 10187.60), #Enemies on the loop
+    (14062.33, 13088.72), #Corner
     (11775.22, 11310.60)] #Zunraa
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(11665, 11386)
-    
     bot.Properties.Disable("auto_combat")
-    path = [(12954.96, 9288.47)] #miasma
+    path = [(12954.96, 9288.47)] #Miasma
     bot.Move.FollowPath(path) 
     enable_combat_and_wait(5000)
-
-    path = [(12507.05, 11450.91)] #finish miasma
+    path = [(12507.05, 11450.91)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
-    
-    bot.Move.XY(7709.06, 4550.47) #past bridge trough miasma
+    bot.Move.XY(7709.06, 4550.47) #Past bridge trough miasma
     bot.Wait.ForTime(5000)
-    
     bot.Properties.Disable("auto_combat")
     path = [(9334.25, 5746.98)] #1/3 miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    
     path = [(7554.94, 6159.84)] #2/3 miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-
-    path =[(9242.30, 6127.45)] #finish miasma
+    path =[(9242.30, 6127.45)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
-    
     bot.Move.XY(4855.66, 1521.21)
     bot.Interact.WithGadgetAtXY(4754,1451)
-    bot.Move.XY(2958.13, 6410.57)
-    
+    bot.Move.XY(2958.13, 6410.57)  
     bot.Properties.Disable("auto_combat")
-    path = [(2683.69, 8036.28)] #clear miasma
+    path = [(2683.69, 8036.28)] #Clear miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(8000)
-    bot.Move.XY(3366.55, -5996.11) #to the other miasma at the middle
-    
+    bot.Move.XY(3366.55, -5996.11) #To the other miasma at the middle 
     enable_combat_and_wait(10000)
     path =[(1866.87, -5454.60)]
     bot.Move.FollowPath(path)
@@ -1231,33 +1168,30 @@ def AttributePointQuest2(bot: Botting):
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
     bot.Properties.Enable("auto_combat")
-
     bot.Move.XY(-8655.04, -769.98)
     bot.Move.XY(-7453.22, -1483.71)
     wait_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)))
     bot.Wait.UntilCondition(wait_function)
-    
     bot.Map.Travel(target_map_name="Seitung Harbor")
     auto_path_list = [(16602.23, 11612.10), (16886.80, 9577.24), (16940.28, 9860.90),
                       (19243.22, 9093.26), (19840.55, 7956.64)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
-    ZUNRAA_MODEL_ID = 4009 #Zunraa model id updated 20.12.2025
-    bot.Dialogs.WithModel(ZUNRAA_MODEL_ID,0x815C07) #Complete Quest from Zunraa
+    bot.Dialogs.WithModel(4009,0x815C07) #Zunraa model id updated 20.12.2025 GW Reforged
     
-def AdvanceToMarketplace(bot: Botting):
-    bot.States.AddHeader("Advance To Marketplace")
-    bot.Move.XYAndDialog(16927, 9004, 0x815D01)  # "I Will Set Sail Immediately"
-    bot.Dialogs.AtXY(16927, 9004, 0x815D05)  # "a Master burden"
-    bot.Dialogs.AtXY(16927, 9004, 0x84)  # i am sure
+def To_Marketplace(bot: Botting):
+    bot.States.AddHeader("To Marketplace")
+    bot.Map.Travel(target_map_id=250) #Seitung Harbor
+    bot.Move.XYAndDialog(16927, 9004, 0x815D01) #A Master's Burden pt. 1
+    bot.Dialogs.AtXY(16927, 9004, 0x84)
     bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
-    bot.Move.XYAndDialog(9955, 20033, 0x815D04)  # a masters burden
+    bot.Move.XYAndDialog(9955, 20033, 0x815D04) #A Master's Burden pt. 2
     bot.Move.XYAndExitMap(12003, 18529, target_map_name="The Marketplace")
 
-def AdvanceToKainengCenter(bot: Botting):
-    bot.States.AddHeader("Advance To Kaineng Center")
+def To_Kaineng_Center(bot: Botting):
+    bot.States.AddHeader("To Kaineng Center")
     bot.Map.Travel(target_map_name="The Marketplace")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(16640,19882, target_map_name="Bukdek Byway")
@@ -1266,8 +1200,36 @@ def AdvanceToKainengCenter(bot: Botting):
     path_to_kc = [(-8601.28, 17419.64),(-6857.17, 19098.28),(-6706,20388)]
     bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
 
-def ExtendInventorySpace(bot: Botting):
-    bot.States.AddHeader("Preparation: Extending Inventory Space")
+def Craft_Max_Armor(bot: Botting):
+    bot.States.AddHeader("Craft max armor")
+    # Buy common materials (cloth or hide)
+    bot.Map.Travel(194)
+    bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
+    bot.States.AddCustomState(withdraw_gold, "Withdraw 20k Gold")
+    bot.Move.XYAndInteractNPC(1592.00, -796.00)  # Common material merchant
+    exec_fn_common = lambda: BuyMaxArmorMaterials("common")
+    bot.States.AddCustomState(exec_fn_common, "Buy Common Materials")
+    bot.Wait.ForTime(1500)  # Wait for common material purchases to complete
+    # Buy rare materials (steel ingot, linen, or damask)
+    rare_material = GetMaxArmorRareMaterial()
+    if rare_material is not None:
+        bot.Move.XYAndInteractNPC(1495.00, -1315.00)  # Rare material merchant
+        exec_fn_rare = lambda: BuyMaxArmorMaterials("rare")
+        bot.States.AddCustomState(exec_fn_rare, "Buy Rare Materials")
+        bot.Wait.ForTime(2000)  # Wait for rare material purchases to complete
+    crafter_x, crafter_y = GetArmorCrafterCoords()
+    bot.Move.XY(crafter_x, crafter_y)
+    bot.Move.XYAndInteractNPC(crafter_x, crafter_y)  # Armor crafter in Kaineng Center
+    bot.Wait.ForTime(1000)  # Small delay to let the window open
+    exec_fn = lambda: DoCraftMaxArmor(bot)
+    bot.States.AddCustomState(exec_fn, "Craft Max Armor")
+
+def Destroy_Seitung_Armor(bot: Botting):
+    bot.States.AddHeader("Destroy old armor")
+    bot.States.AddCustomState(destroy_seitung_armor, "Destroy Seitung Armor")
+
+def Extend_Inventory_Space(bot: Botting):
+    bot.States.AddHeader("Extend Inventory Space")
     bot.Map.Travel(194)
     bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
     bot.helpers.UI.open_all_bags()
@@ -1288,50 +1250,17 @@ def ExtendInventorySpace(bot: Botting):
     bot.Items.MoveModelToBagSlot(35, 1, 0)
     bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
 
-def CraftMaxArmor(bot: Botting):
-    """Complete workflow to craft max armor in Kaineng Center."""
-    bot.States.AddHeader("Craft Max Armor in Kaineng")
-
-    # Buy common materials (cloth or hide)
-    bot.Map.Travel(194)
-    bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
-    bot.States.AddCustomState(withdraw_gold, "Withdraw 20k Gold")
-    bot.Move.XYAndInteractNPC(1592.00, -796.00)  # Common material merchant
-    exec_fn_common = lambda: BuyMaxArmorMaterials("common")
-    bot.States.AddCustomState(exec_fn_common, "Buy Common Materials")
-    bot.Wait.ForTime(1500)  # Wait for common material purchases to complete
-    
-    # Buy rare materials (steel ingot, linen, or damask)
-    rare_material = GetMaxArmorRareMaterial()
-    if rare_material is not None:
-        bot.Move.XYAndInteractNPC(1495.00, -1315.00)  # Rare material merchant
-        exec_fn_rare = lambda: BuyMaxArmorMaterials("rare")
-        bot.States.AddCustomState(exec_fn_rare, "Buy Rare Materials")
-        bot.Wait.ForTime(2000)  # Wait for rare material purchases to complete
-    
-    # Travel to armor crafter and craft armor
-    crafter_x, crafter_y = GetArmorCrafterCoords()
-    bot.Move.XY(crafter_x, crafter_y)
-    bot.Move.XYAndInteractNPC(crafter_x, crafter_y)  # Armor crafter in Kaineng Center
-    bot.Wait.ForTime(1000)  # Small delay to let the window open
-    exec_fn = lambda: DoCraftMaxArmor(bot)
-    bot.States.AddCustomState(exec_fn, "Craft Max Armor")
-
-def DestroySeitungArmor(bot: Botting):
-    bot.States.AddHeader("Destroy Old Armor")
-    bot.States.AddCustomState(destroy_seitung_armor, "Destroy Seitung Armor")
-
-def AdvanceToEOTN(bot: Botting):
-    bot.States.AddHeader("Advance To Eye of the North")
-    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+def To_Boreal_Station(bot: Botting):
+    bot.States.AddHeader("To Boreal Station")
+    bot.Map.Travel(target_map_id=194)
     bot.Move.XY(3444.90, -1728.31)
-    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)  # limitless monetary resources
+    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)
     bot.Move.XY(3444.90, -1728.31)
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
     bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
-    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)  # yes
-    bot.Wait.ForMapLoad(target_map_id=692)  # tunnels_below_cantha_id
+    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
+    bot.Wait.ForMapLoad(target_map_id=692)
     auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
                       (3918.55, 10383.79), (8435, 14378), (10134,16742)]    
     bot.Move.FollowAutoPath(auto_path_list)
@@ -1341,16 +1270,13 @@ def AdvanceToEOTN(bot: Botting):
                       (-17917.68, 18480.57), (-18775, 19097)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(8000)
-    bot.Wait.ForMapLoad(target_map_id=675)  # boreal_station_id
+    bot.Wait.ForMapLoad(target_map_id=675)
 
-def ExitBorealStation(bot: Botting):
-    bot.States.AddHeader("Exit Boreal Station")
-    bot.Map.Travel(target_map_id=675) #boreal_station_id
+def To_Eye_of_the_North(bot: Botting):
+    bot.States.AddHeader("To Eye of the North")
+    bot.Map.Travel(target_map_id=675) #Boreal Station
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
-    
-def TraverseToEOTNOutpost(bot: Botting):
-    bot.States.AddHeader("Traverse To Eye of the North Outpost")
     bot.Move.XY(3579.07, -22007.27)
     bot.Wait.ForTime(15000)
     bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
@@ -1359,82 +1285,70 @@ def TraverseToEOTNOutpost(bot: Botting):
     bot.Move.XY(-641.25, 2069.27)
     bot.Wait.ForMapToChange(target_map_id=642)
 
-def UnlockEotnPool(bot: Botting):
-    bot.States.AddHeader("Unlock EOTN Pool")
-    bot.Map.Travel(target_map_id=642)  # eotn_outpost_id
+def Unlock_Eotn_Pool(bot: Botting):
+    bot.States.AddHeader("Unlock Eotn Pool")
+    bot.Map.Travel(target_map_id=642)
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForMapToChange(target_map_id=646)  # Hall of monuments id
+    bot.Wait.ForMapToChange(target_map_id=646)
     bot.Move.XY(-6572.70, 6588.83)
-    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x632) # Eotn_pool_cinematic. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(5959, 0x632) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Wait.ForMapToChange(target_map_id=646)  # Hall of monuments id
-    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025
-    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025
-    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025
-    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025
+    bot.Wait.ForMapToChange(target_map_id=646)
+    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
 
-def AdvanceToGunnarsHold(bot: Botting):
-    bot.States.AddHeader("Advance To Gunnar's Hold")
-    bot.Map.Travel(target_map_id=642) # eotn_outpost_id
-    #PrepareForBattle(bot)
+def To_Gunnars_Hold(bot: Botting):
+    bot.States.AddHeader("To Gunnar's Hold")
+    bot.Map.Travel(target_map_id=642)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([5, 6, 7, 9])
-    
-    # Follow outpost exit path
     path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
             (1522.0, 464.0)]
     bot.Move.FollowPath(path)
-    bot.Wait.ForMapLoad(target_map_id=499)  # Ice Cliff Chasms
-    
-    # Traverse through Ice Cliff Chasms
-    bot.Move.XYAndDialog(2825, -481, 0x832801)  # Talk to Jora
+    bot.Wait.ForMapLoad(target_map_id=499)
+    bot.Move.XYAndDialog(2825, -481, 0x832801)
     path = [(2548.84, 7266.08),
             (1233.76, 13803.42),
             (978.88, 21837.26),
             (-4031.0, 27872.0),]
     bot.Move.FollowAutoPath(path)
-    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
- 
-    # Traverse through Norrhart Domains
+    bot.Wait.ForMapLoad(target_map_id=548)
     bot.Move.XY(14546.0, -6043.0)
-    bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)  # Gunnar's Hold
-    bot.Wait.ForMapLoad(target_map_id=644)  # Gunnar's Hold
+    bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)
+    bot.Wait.ForMapLoad(target_map_id=644)
 
-def UnlockKilroy(bot: Botting):
-    bot.States.AddHeader("Unlock Kilroy")
+def Unlock_Kilroy_Stonekin(bot: Botting):
+    bot.States.AddHeader("Unlock Kilroy Stonekin")
     bot.Templates.Aggressive(enable_imp=False)
-    bot.Map.Travel(target_map_id=644)  # gunnars_hold_id
+    bot.Map.Travel(target_map_id=644)
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
-    bot.Wait.ForMapLoad(target_map_id=703)  # kilroy_map_id
-    bot.Items.Equip(24897) #brass_knuckles_item_id
+    bot.Wait.ForMapLoad(target_map_id=703)
+    bot.Items.Equip(24897) #Brass_knuckles_item_id
     bot.Wait.ForTime(3000)
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
-    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)  # take reward
+    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)
 
-def AdvanceToLongeyeEdge(bot: Botting):
-    bot.States.AddHeader("Advancing to Longeye's Edge")
-    bot.Map.Travel(target_map_id=644) # Gunnar's Hold
-    #PrepareForBattle(bot)
+def To_Longeyes_Edge(bot: Botting):
+    bot.States.AddHeader("To Longeye's Edge")
+    bot.Map.Travel(target_map_id=644)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([5, 6, 7, 9])
     bot.Items.Equip(35829)
-    
-    # Exit Gunnar's Hold outpost
     bot.Move.XY(15886.204101, -6687.815917)
     bot.Move.XY(15183.199218, -6381.958984)
-    bot.Wait.ForMapLoad(target_map_id=548)  # Norrhart Domains
+    bot.Wait.ForMapLoad(target_map_id=548)
     ConfigureAggressiveEnv(bot)
-    
-    # Traverse through Norrhart Domains to Bjora Marches
     bot.Move.XY(14233.820312, -3638.702636)
     bot.Move.XY(14944.690429,  1197.740966)
     bot.Move.XY(14855.548828,  4450.144531)
@@ -1444,9 +1358,7 @@ def AdvanceToLongeyeEdge(bot: Botting):
     bot.Move.XY(19933.869140, 15609.059570)
     bot.Move.XY(16294.676757, 16369.736328)
     bot.Move.XY(16392.476562, 16768.855468)
-    bot.Wait.ForMapLoad(target_map_id=482)  # Bjora Marches
-    
-    # Traverse through Bjora Marches to Longeyes Ledge
+    bot.Wait.ForMapLoad(target_map_id=482)
     bot.Move.XY(-11232.550781, -16722.859375)
     bot.Move.XY(-7655.780273 , -13250.316406)
     bot.Move.XY(-6672.132324 , -13080.853515)
@@ -1460,12 +1372,11 @@ def AdvanceToLongeyeEdge(bot: Botting):
     bot.Move.XY(17305.523437 , -17686.404296)
     bot.Move.XY(19048.208984 , -18813.695312)
     bot.Move.XY(19634.173828, -19118.777343)
-    bot.Wait.ForMapLoad(target_map_id=650)  # Longeyes Ledge
+    bot.Wait.ForMapLoad(target_map_id=650)
 
-def UnlockNPCForVaettirFarm(bot: Botting):
-    bot.States.AddHeader("Unlocking NPC for Vaettir Farm")
-    bot.Map.Travel(target_map_id=650)  # longeyes_ledge_id
-    #PrepareForBattle(bot)
+def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
+    bot.States.AddHeader("Unlock NPC for vaettir farm")
+    bot.Map.Travel(target_map_id=650)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([5, 6, 7, 9])
@@ -1495,40 +1406,35 @@ def UnlockNPCForVaettirFarm(bot: Botting):
     bot.Wait.UntilOutOfCombat()
     bot.Dialogs.AtXY(13367, -20771,0x84)
 
-def AdvanceToLA(bot: Botting):
-    bot.States.AddHeader("Advance To Lion's Arch")
-    bot.Map.Travel(target_map_id=194)  # kaineng_center_id
+def To_Lions_Arch(bot: Botting):
+    bot.States.AddHeader("To Lion's Arch")
+    bot.Map.Travel(target_map_id=194)
     auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)  # Chienpo dialog la
+    bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
     auto_path_list =[(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
                      (-2396.20, 5260.67), (-5031.77, 6001.52)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)  # Menhlo dialog model ID 3216
-    bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)  # Armian dialog model ID 1970
+    bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)
+    bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
-    bot.Dialogs.WithModel(2021, 0x85)  # Neiro dialog model id 2021. Model id updated 20.12.2025
-    bot.Map.Travel(target_map_id=55)  # lions_arch_id)
+    bot.Dialogs.WithModel(2021, 0x85) #Model id updated 20.12.2025 GW Reforged
+    bot.Map.Travel(target_map_id=55) 
 
-def AdvanceToTempleOfAges(bot: Botting):
-    bot.States.AddHeader("Advance To Temple of the Ages")
-    bot.Map.Travel(target_map_id=55)  # Lion's Arch
+def To_Temple_of_The_Ages(bot: Botting):
+    bot.States.AddHeader("To Temple of the Ages")
+    bot.Map.Travel(target_map_id=55)
     bot.Party.LeaveParty()
-    #PrepareForBattle(bot)
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([1, 3])
-    
-    # Exit Lion's Arch towards D'Alessio Seaboard
     bot.Move.XY(1219, 7222)
     bot.Move.XY(1021, 10651)
     bot.Move.XY(250, 12350)
     bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
     ConfigureAggressiveEnv(bot)
-    
-    # Path to D'Alessio Seaboard outpost
     bot.Move.XY(5116.0, -17415.0)
     bot.Move.XY(2346.0, -17307.0)
     bot.Move.XY(757.0, -16768.0)
@@ -1543,13 +1449,9 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Move.XY(-11600.0, -19500.0)
     bot.Move.XY(-11708, -19957)
     bot.Wait.ForMapLoad(target_map_id=15)  # D'Alessio Seaboard outpost
-    
-    # Exit D'Alessio Seaboard towards Bergen Hot Springs
     bot.Move.XY(16000, 17080)
     bot.Move.XY(16030, 17200)
     bot.Wait.ForMapLoad(target_map_id=58)  # North Kryta Province
-    
-    # Path through North Kryta Province to Nebo Terrace
     bot.Move.XY(-11453.0, -18065.0)
     bot.Move.XY(-10991.0, -16776.0)
     bot.Move.XY(-10791.0, -15737.0)
@@ -1574,8 +1476,6 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Move.XY(-19468.0, 15449.0)
     bot.Move.XY(-19550.0, 15625.0)
     bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
-    
-    # Path through Nebo Terrace
     bot.Move.XY(19271.0, 5207.0)
     bot.Move.XY(18307.0, 5369.0)
     bot.Move.XY(17704.0, 4786.0)
@@ -1593,15 +1493,11 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([1, 3])
-    
-    # Exit Bergen Hot Springs
     bot.Move.XY(15521, -15378)
     bot.Move.XY(15450, -15050)
-    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
+    bot.Wait.ForMapLoad(target_map_id=59) # Nebo Terrace
     bot.Move.XY(15378, -14794)
-    bot.Wait.ForMapLoad(target_map_id=59)  # Nebo Terrace
-    
-    # Path through Nebo Terrace to Cursed Lands
+    bot.Wait.ForMapLoad(target_map_id=59) # Nebo Terrace
     bot.Move.XY(13276.0, -14317.0)
     bot.Move.XY(10761.0, -14522.0)
     bot.Move.XY(8660.0, -12109.0)
@@ -1612,9 +1508,7 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Move.XY(-3489.0, -11607.0)
     bot.Move.XY(-4086.0, -11692.0)
     bot.Move.XY(-4290.0, -11599.0)
-    bot.Wait.ForMapLoad(target_map_id=56)  # Cursed Lands
-    
-    # Path through Cursed Lands to The Black Curtain
+    bot.Wait.ForMapLoad(target_map_id=56) # Cursed Lands
     bot.Move.XY(-4523.0, -9755.0)
     bot.Move.XY(-4067.0, -8786.0)
     bot.Move.XY(-4207.0, -7806.0)
@@ -1631,9 +1525,7 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Move.XY(-18717.0, 7537.0)
     bot.Move.XY(-19896.0, 8964.0)
     bot.Move.XY(-20100.0, 9025.0)
-    bot.Wait.ForMapLoad(target_map_id=18)  # The Black Curtain
-    
-    # Path through The Black Curtain to Temple of the Ages
+    bot.Wait.ForMapLoad(target_map_id=18) # The Black Curtain
     bot.Move.XY(8716.0, 18587.0)
     bot.Move.XY(5616.0, 17732.0)
     bot.Move.XY(3795.0, 17750.0)
@@ -1646,25 +1538,24 @@ def AdvanceToTempleOfAges(bot: Botting):
     bot.Move.XY(-5004.0, 15424.0)
     bot.Move.XY(-5207.0, 15882.0)
     bot.Move.XY(-5180.0, 16000.0)
-    bot.Wait.ForMapLoad(target_map_id=138)  # Temple of the Ages
+    bot.Wait.ForMapLoad(target_map_id=138) # Temple of the Ages
 
-def AdvanceToKamadan(bot: Botting):
-    bot.States.AddHeader("Advance To Kamadan")
-    bot.Map.Travel(target_map_id=194) #kaineng_center_id
-    #PrepareForBattle(bot)
+def To_Kamadan(bot: Botting):
+    bot.States.AddHeader("To Kamadan")
+    bot.Map.Travel(target_map_id=194)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([2, 9, 10, 12])
     auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-1131.99, 818.35, 0x82D401)  # Linro dialog la
+    bot.Move.XYAndDialog(-1131.99, 818.35, 0x82D401)
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
     auto_path_list = [(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
                      (-2396.20, 5260.67), (-5031.77, 6001.52)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)  # Kormir dialog kormir model ID
-    bot.Dialogs.WithModel(4914, 0x87)  # Kormir dialog model id 4914. Model id updated 20.12.2025
+    bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)
+    bot.Dialogs.WithModel(4914, 0x87)  # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForMapToChange(target_map_id=400)
     ConfigureAggressiveEnv(bot)
     auto_path_list = [(-1712.16, -700.23), (-907.97, -2862.29), (742.42, -4167.73)] 
@@ -1672,13 +1563,13 @@ def AdvanceToKamadan(bot: Botting):
     bot.Wait.ForTime(10000)
     auto_path_list = [(1352.94, -3694.75),
                       (2547.49, -3667.82),
-                      (2541.67, -2582.88)] #critical part, high aggro area
+                      (2541.67, -2582.88)] # Critical part, high aggro area
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(10000)
     bot.Move.XY(1990.27, -1636.21)
     bot.Wait.ForTime(15000)
     auto_path_list = [(2651.48, -3750.63),
-                      (3355.63, -2151.82)] #critical part, high aggro area
+                      (3355.63, -2151.82)] # Critical part, high aggro area
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(10000)
     bot.Move.XY(4565.37, -1630.73)
@@ -1687,15 +1578,14 @@ def AdvanceToKamadan(bot: Botting):
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapToChange(target_map_id=290)
     bot.Wait.ForTime(2000)
-    bot.Dialogs.WithModel(4914, 0x84)  # Kormir dialog model id 4914. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(4914, 0x84)  # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForMapToChange(target_map_id=543)
     bot.Wait.ForTime(2000)
-    bot.Dialogs.WithModel(4829, 0x82D407)  # Bendro take reward. Model id updated 20.12.2025
-    bot.Dialogs.WithModel(4829, 0x82E101)  # Bendro battle preparation. Model id updated 20.12.2025
-
-def AdvanceToConsulateDocks(bot: Botting):
-    bot.States.AddHeader("Advance To Consulate Docks")
-    bot.Map.Travel(target_map_id=194) #kaineng_center_id
+    bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(4829, 0x82E101)  # Model id updated 20.12.2025 GW Reforged
+def To_Consulate_Docks(bot: Botting):
+    bot.States.AddHeader("To Consulate Docks")
+    bot.Map.Travel(target_map_id=194)
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8075.89, 14592.47)
@@ -1703,9 +1593,9 @@ def AdvanceToConsulateDocks(bot: Botting):
     bot.Move.XY(-5271.00, 16740.00)
     bot.Wait.ForMapLoad(target_map_id=429)
     bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
-    bot.Wait.ForMapToChange(target_map_id=493)  # Consulate Docks
+    bot.Wait.ForMapToChange(target_map_id=493)
 
-def UnlockOlias(bot:Botting):
+def Unlock_Olias(bot:Botting):
     bot.States.AddHeader("Unlock Olias")
     bot.Map.Travel(target_map_id=493)  # Consulate Docks
     bot.Move.XYAndDialog(-2367.00, 16796.00, 0x830E01)
@@ -1729,106 +1619,105 @@ def UnlockOlias(bot:Botting):
     bot.Map.Travel(target_map_id=449)
     bot.Move.XYAndDialog(-6480.00, 16331.00, 0x830E07)
     
-def UnlockXunlaiMaterialPanel(bot: Botting) -> None:
+def Unlock_Xunlai_Material_Panel(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Xunlai Material Panel")
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=248)  # GTOB
     path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
-    bot.Move.FollowPath(path_to_xunlai) #UNLOCK_XUNLAI_STORAGE_MATERIAL_PANEL
-    bot.Dialogs.WithModel(221, 0x800001) # Model id updated 20.12.2025
-    bot.Dialogs.WithModel(221, 0x800002) # Model id updated 20.12.2025
+    bot.Move.FollowPath(path_to_xunlai)
+    bot.Dialogs.WithModel(221, 0x800001) # Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(221, 0x800002) # Model id updated 20.12.2025 GW Reforged
 
-def UnlockRemainingSecondaryProfessions(bot: Botting):
+def Unlock_Remaining_Secondary_Professions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
     bot.Map.Travel(target_map_id=248)  # GTOB
     bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
     bot.Move.XY(-5540.40, -5733.11)
-    bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
+    bot.Move.XY(-3151.22, -7255.13)
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
     if primary == "Warrior":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Ranger":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201 . Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201 . Model id updated 20.12.2025 GW Reforged
     elif primary == "Monk":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x284)  # Ranger trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Assassin":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Mesmer":
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201.  Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201.  Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Necromancer":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Ritualist":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x684)  # Elementalist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
     elif primary == "Elementalist":
-        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025
-        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025
+        bot.Dialogs.WithModel(201, 0x584)  # Mesmer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x484)  # Necromancer trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x384)  # Monk trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x184)  # Warrior trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x884)  # Ritualist trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x784)  # Assassin trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0x984)  # Paragon trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
+        bot.Dialogs.WithModel(201, 0xA84)  # Dervish trainer - Model ID 201. Model id updated 20.12.2025 GW Reforged
 
-def UnlockMercenaryHeroes(bot: Botting) -> None:
-    bot.States.AddHeader("Phase 7: Unlocking Mercenary Heroes")
+def Unlock_Mercenary_Heroes(bot: Botting) -> None:
+    bot.States.AddHeader(" Unlock Mercenary Heroes")
     bot.Party.LeaveParty()
-    bot.Map.Travel(target_map_id=248)  # GTOB
+    bot.Map.Travel(target_map_id=248)
     bot.Move.XY(-4231.87, -8965.95)
-    bot.Dialogs.WithModel(225, 0x800004) # Unlock Mercenary Heroes. Model id updated 20.12.2025
+    bot.Dialogs.WithModel(225, 0x800004) # Model id updated 20.12.2025 GW Reforged
     
 #region event handlers
-
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     # optional but typical for wipe flow:
     Player.SendChatCommand("resign")
@@ -1839,7 +1728,6 @@ def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     fsm.resume()                            # <— important: unpause so next tick runs the target state
     yield                                    # keep coroutine semantics
 
-
 class WaypointData:
     def __init__(self, label: str, MapID: int,step_name: str):
         self.step_name = step_name
@@ -1847,26 +1735,25 @@ class WaypointData:
         self.label = label
         
 WAYPOINTS: dict[int, WaypointData] = {
-    # step_name: WaypointData(step_name, MapID, step_num, label, description)
-    19: WaypointData(label="Unlock Secondary Mission", MapID=242, step_name="[H]Unlock Secondary Profession_3"),
-    27: WaypointData(label="Unlock Xunlai Storage", MapID=242, step_name="[H]Unlock Xunlai Storage_4"),
-    32: WaypointData(label="Capture Pet", MapID=242, step_name="[H]Capture Pet_6"),
-    67: WaypointData(label="Enter Minister Cho Mission", MapID=214, step_name="[H]Enter Minister Cho Mission_11"),
-    103: WaypointData(label="First Attribute Mission", MapID=251, step_name="[H]Attribute Point Quest 1_13"),
-    130: WaypointData(label="Warning the Tengu Quest", MapID=251, step_name="[H]Take Warning the Tengu Quest_14"),
-    203: WaypointData(label="The Threat Grows", MapID=249, step_name="[H]Exit to Panjiang Peninsula_18"),
-    249: WaypointData(label="Traverse Shaoshang Trail", MapID=242, step_name="[H]Exit To Courtyard_20"),
-    271: WaypointData(label="Take reward and Craft Armor", MapID=250, step_name="[H]Take Reward And Craft Armor_23"),
-    298: WaypointData(label="Go to Zen Daijun", MapID=250, step_name="[H]Go To Zen Daijun_24"),
-    303: WaypointData(label="Enter Zen Daijun Mission", MapID=213, step_name="[H]Enter Zen Daijun Mission_25"),
-    348: WaypointData(label="Second Attribute Mission", MapID=250, step_name="[H]Attribute Point Quest 2_29"),
-    465: WaypointData(label="Advance to Marketplace", MapID=250, step_name="[H]Advance To Marketplace_30"),
-    472: WaypointData(label="Advance to Kaineng Center", MapID=303, step_name="[H]Advance To Kaineng Center_31"),
-    494: WaypointData(label="Advance to LA", MapID=303, step_name="[H]Advance To Lion's Arch_42"),
-    505: WaypointData(label="Advance to Kamadan", MapID=303, step_name="[H]Advance To Kamadan_44"),
-    550: WaypointData(label="Advance to Consulate Docks", MapID=303, step_name="[H]Advance To Consulate Docks_45"),
+    # step_num: WaypointData(label, MapID, step_name)
+    # Based on actual AddHeader calls in the bot routine
+    3: WaypointData(label="Unlock Secondary Profession", MapID=242, step_name="[H]Unlock Secondary Profession_2"),
+    4: WaypointData(label="Unlock Xunlai Storage", MapID=242, step_name="[H]Unlock Xunlai Storage_3"),
+    6: WaypointData(label="Capture Pet", MapID=242, step_name="[H]Capture Pet_5"),
+    10: WaypointData(label="Minister Cho's Estate Mission", MapID=214, step_name="[H]Minister Cho's Estate mission_9"),
+    12: WaypointData(label="Attribute point quest n. 1", MapID=251, step_name="[H]Attribute points quest n. 1_10"),
+    17: WaypointData(label="Craft Seitung armor", MapID=250, step_name="[H]Craft Seitung armor_14"),
+    19: WaypointData(label="Zen Daijun Mission", MapID=213, step_name="[H]Zen Daijun Mission_16"),
+    22: WaypointData(label="Attribute point quest n. 2", MapID=250, step_name="[H]Attribute points quest n. 2_19"),
+    23: WaypointData(label="To Marketplace", MapID=250, step_name="[H]To Marketplace_20"),
+    24: WaypointData(label="To Kaineng Center", MapID=303, step_name="[H]To Kaineng Center_21"),
+    26: WaypointData(label="Craft max armor", MapID=194, step_name="[H]Craft max armor_23"),
+    34: WaypointData(label="To LA", MapID=194, step_name="[H]To Lion's Arch_32"),
+    35: WaypointData(label="To Temple of Ages", MapID=55, step_name="[H]To Temple of the Ages_33"),
+    36: WaypointData(label="To Kamadan", MapID=194, step_name="[H]To Kamadan_34"),
+    37: WaypointData(label="To Consulate Docks", MapID=194, step_name="[H]To Consulate Docks_35"),
+    38: WaypointData(label="Unlock Olias", MapID=493, step_name="[H]Unlock Olias_36"),
 }
-
 
 def on_party_wipe(bot: "Botting"):
     """
@@ -1912,7 +1799,6 @@ selected_step = 0
 filter_header_steps = True
 
 iconwidth = 96
-
 
 def _draw_texture():
     global iconwidth
