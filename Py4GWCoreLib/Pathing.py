@@ -609,7 +609,7 @@ class AutoPathing:
             return  # Already loaded for this map
 
         # Otherwise rebuild (even if group_key matches) to avoid stale trapezoid IDs
-        pathing_maps = Map.Pathing.GetPathingMaps()
+        pathing_maps = Map.Pathing.GetPathingMapsRaw()
         navmesh = NavMesh(pathing_maps, map_id)
         self.pathing_map_cache[group_key] = navmesh
         yield

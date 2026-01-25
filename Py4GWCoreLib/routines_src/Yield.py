@@ -408,7 +408,7 @@ class Yield:
             import random
             from .Checks import Checks
         
-            log = True #force logging
+            #log = True #force logging
             detailed_log = False #always detailed log for now
             
             total_points = len(path_points)

@@ -204,9 +204,8 @@ def Follow(cached_data: CacheData):
         return False
     
     if not map_quads:
-        # DISABLED SINCE IT CASUSES ISSUES IN CERTAIN MAPS
-        # map_quads = Map.Pathing.GetMapQuads()
-        map_quads = []
+        map_quads = Map.Pathing.GetMapQuads()
+
         
 
     if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
