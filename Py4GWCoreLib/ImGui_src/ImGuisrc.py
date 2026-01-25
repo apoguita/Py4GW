@@ -276,6 +276,20 @@ class ImGui:
     def _is_textured_theme() -> bool: return ImGui.get_style().Theme in ImGui.Textured_Themes
     
     @staticmethod
+    def Begin(ini_key: str, name: str, p_open=None, flags=PyImGui.WindowFlags.NoFlag, ini_filename="imgui.ini") -> bool:
+        from Py4GWCoreLib.IniManager import IniManager
+        IniManager().begin_window_config(ini_key)
+
+        result = ImGui.begin(name, p_open, flags)
+
+        # mark only if window is active
+        IniManager().track_window_collapsed(ini_key, result)
+        if result:
+            IniManager().mark_begin_success(ini_key)
+
+        return result
+    
+    @staticmethod
     def begin (name: str, p_open: Optional[bool] = None, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:
         if not ImGui._is_textured_theme(): 
             return PyImGui.begin(name, p_open, flags)
@@ -315,6 +329,14 @@ class ImGui:
     
     @staticmethod
     def end(): return PyImGui.end()
+    
+    @staticmethod
+    def End(ini_key: str):
+        from Py4GWCoreLib.IniManager import IniManager
+        # End must be callable always, but IniManager.end_window_config will no-op if Begin was not active
+        IniManager().end_window_config(ini_key)
+        PyImGui.end()
+        IniManager().save_vars(ini_key)
 
     @staticmethod
     def new_line(): return PyImGui.new_line()

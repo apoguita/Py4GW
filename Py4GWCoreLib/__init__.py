@@ -61,6 +61,7 @@ from .BuildMgr import BuildMgr
 from .Botting import BottingClass as Botting
 from .Context import GWContext
 from .CombatEvents import CombatEvents
+from .IniManager import IniManager
 
 traceback = traceback
 math = math
@@ -95,6 +96,7 @@ PyCombatEvents = PyCombatEvents
 GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
 IconsFontAwesome5 = IconsFontAwesome5
+IniManager = IniManager
 
 
 

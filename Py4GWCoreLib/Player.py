@@ -184,6 +184,9 @@ class Player:
         Returns: str
         """
         try:
+            if not Player.IsPlayerLoaded():
+                return ""
+            
             if (char_ctx := GWContext.Char.GetContext()) is None:
                 return ""
             account_email = char_ctx.player_email_str
@@ -192,7 +195,8 @@ class Player:
             player_uuid = Player.GetPlayerUUID()
             if all(part == 0 for part in player_uuid):
                 return ""
-            return Player._format_uuid_as_email(player_uuid)
+            #return Player._format_uuid_as_email(player_uuid)
+            return "steam_account"  # Placeholder for Steam accounts
         except Exception:
             return ""
     
