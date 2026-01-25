@@ -225,6 +225,12 @@ class ActionQueueManager:
             self.queues[queue_name].clear()
 
     # Reset all queues
+    def ResetNonTransitionQueues(self):
+        for queue_name, queue in self.queues.items():
+            if queue_name != "TRANSITION":
+                queue.clear()
+
+    # Reset all queues
     def ResetAllQueues(self):
         for queue in self.queues.values():
             queue.clear()
