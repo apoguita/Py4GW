@@ -27,11 +27,8 @@ class HeroAiWrapping:
         """Update HeroAI player registration and status"""
         if self.heroai_fallack_mecanism_throttler.IsExpired():
             self.heroai_fallack_mecanism_throttler.Reset()
-
-            from HeroAI.players import RegisterHeroes, RegisterPlayer, UpdatePlayers
-            RegisterPlayer(cached_data)
-            RegisterHeroes(cached_data)
-            UpdatePlayers(cached_data)
+            
+            ##TODO: this is not needed anymore with the new shared memory changes
 
     def _initialize_and_persist_settings(self, settings:Settings):
         """
@@ -88,9 +85,10 @@ class HeroAiWrapping:
         # Update HeroAI player registration
         self._update_hero_ai_players(self._cached_data)
 
+        ##TODO: this is not needed anymore with the new shared memory changes
         # Update combat and game options
-        self._cached_data.UpdateCombat()
-        self._cached_data.UpdateGameOptions()
+        # self._cached_data.UpdateCombat()
+        # self._cached_data.UpdateGameOptions()
 
         # Initialize and persist settings (abort if not ready)
         if not self._initialize_and_persist_settings(self._settings):

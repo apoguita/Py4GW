@@ -40,18 +40,10 @@ def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     return Utils.GetFirstFromArray(ally_array)
     
 
-def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0):
+def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0, less_energy=1.0):
     global BLOOD_IS_POWER, BLOOD_RITUAL
-    from .utils import (CheckForEffect)
-    def GetEnergyValues(agent_id):
-        import HeroAI.shared_memory_manager as shared_memory_manager
-        shared_memory_handler = shared_memory_manager.SharedMemoryManager()
-
-        for i in range(MAX_NUM_PLAYERS):
-            player_data = shared_memory_handler.get_player(i)
-            if player_data and player_data["IsActive"] and player_data["PlayerID"] == agent_id:
-                return player_data["Energy"]
-        return 1.0 #default return full energy to prevent issues
+    from .utils import (CheckForEffect, GetEnergyValues)
+    
     
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
@@ -59,8 +51,11 @@ def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0):
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not CheckForEffect(agent_id, BLOOD_IS_POWER))
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not CheckForEffect(agent_id, BLOOD_RITUAL))
     
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GetEnergyValues(agent_id) <= less_energy)
     ally_array = AgentArray.Sort.ByCondition(ally_array, lambda agent_id: GetEnergyValues(agent_id))
-    return Utils.GetFirstFromArray(ally_array)
+    
+    ally = Utils.GetFirstFromArray(ally_array)
+    return ally
 
 
 def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
