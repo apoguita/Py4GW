@@ -618,17 +618,8 @@ class Py4GWSharedMemoryManager:
     def _get_account_email(self) -> str:
         if not Player.IsPlayerLoaded():
             return ""
-        account_email = Player.GetAccountEmail()
-        if account_email:
-            return account_email
-        player_uuid = Player.GetPlayerUUID()
-        if all(part == 0 for part in player_uuid):
-            return ""
-        try:
-            result =  encoded_wstr_to_str("uuid_" + "_".join(str(part) for part in player_uuid))
-            return result if result else "INVALID"
-        except TypeError:
-            return str(player_uuid)
+        return Player.GetAccountEmail()
+
     
     def _pack_extra_data_for_sendmessage(self, extra_tuple, maxlen=128):
         out = []
