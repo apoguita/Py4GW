@@ -2,7 +2,7 @@ import os
 from Py4GWCoreLib import Botting
 
 # QUEST TO INCREASE SPAWNS 
-BOT_NAME = "The Mindsquall_Farm"
+BOT_NAME = "The Mindsquall Farm"
 OUTPOST_TO_TRAVEL = 640  # Rata Sum
 COORD_TO_EXIT_MAP = (16429.57, 13491.29)  # Rata Sum exit to Magus Stones
 EXPLORABLE_TO_TRAVEL = 569  # Magus Stones
