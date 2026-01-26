@@ -453,7 +453,7 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
         PANTS = 23379
         BOOTS = 23376
     elif primary == "Assassin":
-        HEAD = 23432    # Canthan
+        HEAD = 23435    # Canthan
         CHEST = 23441
         GLOVES = 23442
         PANTS = 23443
