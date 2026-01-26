@@ -1,4 +1,4 @@
-Automated farming bot for green weapon.
+Automated farming bots for weapons.
 
 📍 Requirements
 
