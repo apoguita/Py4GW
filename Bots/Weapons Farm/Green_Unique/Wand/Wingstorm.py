@@ -14,7 +14,7 @@ KILLING_PATH = [
     (-5383.67, -10481.91),
     (-5094.75, -8604.45),
     (-6231.31, -9035.03),
-    (-6776.77, -8431.52),
+    (-7788.61, -9345.19),
 ]
 
 bot = Botting(BOT_NAME)
@@ -26,7 +26,7 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader(f"{BOT_NAME}_loop")
     bot.Party.SetHardMode(False)
     bot.Move.XYAndExitMap(*COORD_TO_EXIT_MAP, target_map_id=EXPLORABLE_TO_TRAVEL)
-    bot.Wait.ForTime(4000)
+    bot.Wait.ForTime(1000)
     bot.Move.FollowAutoPath(KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
     bot.Multibox.ResignParty()
