@@ -14,26 +14,59 @@ bot = Botting(BOT_NAME)
 
 # ==================== FONCTIONS ====================
 
-def OpenChest1_Test():
-    chest_id = Routines.Agents.GetNearestGadget(200)
-    yield from Routines.Yield.wait(1000)
-    yield from Routines.Yield.Player.ChangeTarget(chest_id)
-    yield from Routines.Yield.Player.InteractAgent(chest_id)
+def DetectChestAndOpen(bot: Botting, max_distance=1000, max_attempts=3):
+    """Detecte et ouvre les coffres via GetNearestGadget avec tentatives multiples"""
+    coord = Player.GetXY()
+    ConsoleLog(BOT_NAME, f"[DEBUG] Position: {coord}", Py4GW.Console.MessageType.Info)
+    
+    yield from Routines.Yield.wait(2000)
+    
+    for attempt in range(max_attempts):
+        chest_id = Routines.Agents.GetNearestGadget(max_distance)
+        
+        ConsoleLog(BOT_NAME, f"[DEBUG] Tentative {attempt + 1}/{max_attempts} - GetNearestGadget = {chest_id}", Py4GW.Console.MessageType.Warning)
+        
+        if chest_id == 0:
+            ConsoleLog(BOT_NAME, f"[INFO] Aucun coffre trouve (tentative {attempt + 1})", Py4GW.Console.MessageType.Info)
+            if attempt < max_attempts - 1:
+                yield from Routines.Yield.wait(1000)
+                continue
+            else:
+                break
+        
+        if chest_id in opened_chests:
+            ConsoleLog(BOT_NAME, f"[INFO] Coffre {chest_id} deja traite", Py4GW.Console.MessageType.Info)
+            break
+        
+        chest_pos = Agent.GetXY(chest_id)
+        player_num = Agent.GetPlayerNumber(chest_id)
+        ConsoleLog(BOT_NAME, f"[SUCCESS] Coffre trouve - ID:{chest_id}, PlayerNum:{player_num}", Py4GW.Console.MessageType.Warning)
+        
+        if chest_pos:
+            chest_x, chest_y = chest_pos
+            ConsoleLog(BOT_NAME, f"[ACTION] Deplacement vers ({chest_x:.0f}, {chest_y:.0f})", Py4GW.Console.MessageType.Info)
+            yield from Routines.Yield.Movement.FollowPath(path_points=[(chest_x, chest_y)])
+            yield from Routines.Yield.wait(500)
+            
+            ConsoleLog(BOT_NAME, f"[ACTION] Interaction avec coffre {chest_id}...", Py4GW.Console.MessageType.Info)
+            yield from Routines.Yield.Agents.InteractWithAgentXY(chest_x, chest_y)
+            yield from Routines.Yield.wait(1500)
+            
+            chest_still_exists = Agent.GetXY(chest_id)
+            if not chest_still_exists:
+                ConsoleLog(BOT_NAME, f"[SUCCESS] Coffre {chest_id} ouvert avec succes!", Py4GW.Console.MessageType.Info)
+                opened_chests.add(chest_id)
+                break
+            else:
+                ConsoleLog(BOT_NAME, f"[WARNING] Coffre {chest_id} toujours present, nouvelle tentative...", Py4GW.Console.MessageType.Warning)
+                if attempt < max_attempts - 1:
+                    yield from Routines.Yield.wait(500)
+                else:
+                    ConsoleLog(BOT_NAME, f"[WARNING] Abandon apres {max_attempts} tentatives, passage au suivant", Py4GW.Console.MessageType.Warning)
+                    opened_chests.add(chest_id)
+    
     yield
 
-def OpenChest2_Test():
-    chest_id = Routines.Agents.GetNearestGadget(200)
-    yield from Routines.Yield.wait(1000)
-    yield from Routines.Yield.Player.ChangeTarget(chest_id)
-    yield from Routines.Yield.Player.InteractAgent(chest_id)
-    yield
-
-def OpenChest3_Test():
-    chest_id = Routines.Agents.GetNearestGadget(200)
-    yield from Routines.Yield.wait(1000)
-    yield from Routines.Yield.Player.ChangeTarget(chest_id)
-    yield from Routines.Yield.Player.InteractAgent(chest_id)
-    yield
 
 def CheckIfStuck(last_position, current_position, threshold=50):
     """Verifie si le joueur est bloque en comparant les positions"""
@@ -160,20 +193,12 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-889.62, 15426.97)
     bot.Move.XY(328.98, 16636.02)
     bot.Move.XY(-730.90, 18166.77)  # XY24
-    bot.Party.FlagAllHeroes(-235, 17959)
-    bot.Wait.ForTime(1000)
-    bot.Party.FlagAllHeroes(-19, 16849)
-    bot.Wait.ForTime(2000)
-    bot.Party.FlagAllHeroes(3273, 13441)
-    bot.Wait.ForTime(15000)
     
     # PREMIER COFFRE
-    bot.Move.XY(-821,18310,500)
-    bot.Wait.ForTime(1000)
-    bot.States.AddCustomState(OpenChest1_Test, "TEST OUVERTURE COFFRE 1")
+    bot.Move.XY(-732.62, 18188.91)
+    bot.States.AddCustomState(lambda: DetectChestAndOpen(bot, max_distance=1000), "Ouvrir Premier Coffre")
     
     bot.Move.XY(3107.73, 13533.00)
-    bot.Party.UnflagAllHeroes()
     bot.Move.XY(6993.74, 12703.58)
     bot.Move.XY(12059.48, 16139.21)
     bot.Move.XY(14444.08, 16538.68)
@@ -182,14 +207,10 @@ def bot_routine(bot: Botting) -> None:
     
     # DEUXIEME COFFRE
     bot.Move.XY(16740.12, 16897.12)
-    bot.Party.FlagAllHeroes(18814, 11860)
-    bot.Wait.ForTime(20000)
-    bot.Move.XY(16894, 16975,500)  # Point plus proche du coffre
-    bot.Wait.ForTime(1000)
-    bot.States.AddCustomState(OpenChest2_Test, "TEST OUVERTURE COFFRE 2")
+    bot.Move.XY(17000, 17000)  # Point plus proche du coffre
+    bot.States.AddCustomState(lambda: DetectChestAndOpen(bot, max_distance=1000), "Ouvrir Deuxieme Coffre")
     
     bot.Move.XY(18162.17, 13624.02)
-    bot.Party.UnflagAllHeroes()
     bot.Move.XY(17290.40, 10190.77)  # Pont start
     bot.Move.XY(13950.53, 7026.81)
     bot.Wait.ForTime(9000)  # Regroupement
@@ -212,11 +233,8 @@ def bot_routine(bot: Botting) -> None:
     
     # TROISIEME COFFRE
     bot.Move.XY(-3795.37, 9128.38)
-    bot.Party.FlagAllHeroes(-5140, 3127)
-    bot.Wait.ForTime(15000)
-    bot.Move.XY(-3489, 8996,500)  # Point plus proche du coffre
-    bot.Wait.ForTime(1000)
-    bot.States.AddCustomState(OpenChest3_Test, "TEST OUVERTURE COFFRE 3")
+    bot.Move.XY(-3800, 9200)  # Point plus proche du coffre
+    bot.States.AddCustomState(lambda: DetectChestAndOpen(bot, max_distance=1000), "Ouvrir Troisieme Coffre")
     
     bot.Move.XYAndInteractNPC(-4763.24, 9548.95)
     bot.Multibox.SendDialogToTarget(0x80ED07)  # Turn in quest
