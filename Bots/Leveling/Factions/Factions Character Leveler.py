@@ -53,8 +53,6 @@ def create_bot_routine(bot: Botting) -> None:
     Unlock_Xunlai_Material_Panel(bot)
     Unlock_Remaining_Secondary_Professions(bot)
     Unlock_Mercenary_Heroes(bot)
-    bot.States.AddHeader("Final Step")
-    bot.Stop()
 
 #region Helpers
 def ConfigurePacifistEnv(bot: Botting) -> None:
@@ -455,7 +453,7 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
         PANTS = 23379
         BOOTS = 23376
     elif primary == "Assassin":
-        HEAD = 23432    # Canthan
+        HEAD = 23435    # Canthan
         CHEST = 23441
         GLOVES = 23442
         PANTS = 23443
@@ -770,7 +768,9 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     
     useless_items = [5819,  # Monastery Credit
                      6387,  # Starter Daggers
-                     477    # Starter Bow
+                     477,    # Starter Bow
+                     30853, # MOX Manual
+                     24897 #Brass Knuckles
                     ]
     
     for model in starter_armor:
@@ -892,6 +892,7 @@ def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
 
 def Charm_Pet(bot: Botting) -> None:
     bot.States.AddHeader("Charm Pet")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
     bot.States.AddCustomState(lambda:Locate_Sujun(bot), "Unlock Skills")
     bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
@@ -1295,6 +1296,7 @@ def Unlock_Eotn_Pool(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=646)
     bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
     bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x0000008A) # Gwen dialog to obtain Keiran's bow. Model id updated 20.12.2025 GW Reforged
     bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
     bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
 
@@ -1304,6 +1306,7 @@ def To_Gunnars_Hold(bot: Botting):
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([5, 6, 7, 9])
+    bot.Items.Equip(35829)
     path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
             (1522.0, 464.0)]
     bot.Move.FollowPath(path)
@@ -1415,8 +1418,9 @@ def To_Lions_Arch(bot: Botting):
     bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
-    bot.Dialogs.WithModel(2021, 0x85) #Model id updated 20.12.2025 GW Reforged
-    bot.Map.Travel(target_map_id=55) 
+    bot.Dialogs.WithModel(2011, 0x85) #Model id updated 20.12.2025 GW Reforged
+    bot.Map.Travel(target_map_id=55)
+    bot.Move.XYAndDialog(328.00, 9594.00, 0x81DF07)
 
 def To_Temple_of_The_Ages(bot: Botting):
     bot.States.AddHeader("To Temple of the Ages")
@@ -1577,6 +1581,7 @@ def To_Kamadan(bot: Botting):
     bot.Wait.ForTime(2000)
     bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
     bot.Dialogs.WithModel(4829, 0x82E101)  # Model id updated 20.12.2025 GW Reforged
+
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
     bot.Map.Travel(target_map_id=194)
@@ -1595,11 +1600,14 @@ def Unlock_Olias(bot:Botting):
     bot.Move.XYAndDialog(-2367.00, 16796.00, 0x830E01)
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=55)
-    bot.States.AddCustomState(AddHenchmenLA, "Add Henchmen")
+    bot.Party.LeaveParty()
+    bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
+    bot.Party.AddHenchmanList([1, 3])
     bot.Move.XY(1413.11, 9255.51)
     bot.Move.XY(242.96, 6130.82)
     bot.Move.XYAndDialog(-1137.00, 2501.00, 0x84)
     bot.Wait.ForMapToChange(target_map_id=471)
+    bot.Wait.ForTime(3000)
     bot.Move.XYAndDialog(5117.00, 10515.00, 0x830E04)
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8518.10, 9309.66)
@@ -1710,6 +1718,7 @@ def Unlock_Mercenary_Heroes(bot: Botting) -> None:
     bot.Map.Travel(target_map_id=248)
     bot.Move.XY(-4231.87, -8965.95)
     bot.Dialogs.WithModel(225, 0x800004) # Model id updated 20.12.2025 GW Reforged
+    #bot.States.AddCustomState(destroy_starter_armor_and_useless_items, "Destroy starter armor and useless items")
     
 #region event handlers
 def on_party_wipe_coroutine(bot: "Botting", target_name: str):
@@ -1733,20 +1742,20 @@ WAYPOINTS: dict[int, WaypointData] = {
     # Based on actual AddHeader calls in the bot routine
     3: WaypointData(label="Unlock Secondary Profession", MapID=242, step_name="[H]Unlock Secondary Profession_2"),
     4: WaypointData(label="Unlock Xunlai Storage", MapID=242, step_name="[H]Unlock Xunlai Storage_3"),
-    6: WaypointData(label="Capture Pet", MapID=242, step_name="[H]Capture Pet_5"),
-    10: WaypointData(label="Minister Cho's Estate Mission", MapID=214, step_name="[H]Minister Cho's Estate mission_9"),
-    12: WaypointData(label="Attribute point quest n. 1", MapID=251, step_name="[H]Attribute points quest n. 1_10"),
+    6: WaypointData(label="Charm Pet", MapID=242, step_name="[H]Charm Pet_5"),
+    10: WaypointData(label="Minister Cho's Estate Mission", MapID=214, step_name="[H]Minister Cho's Estate mission_7"),
+    12: WaypointData(label="Attribute point quest n. 1", MapID=251, step_name="[H]Attribute points quest n. 1_8"),
     17: WaypointData(label="Craft Seitung armor", MapID=250, step_name="[H]Craft Seitung armor_14"),
     19: WaypointData(label="Zen Daijun Mission", MapID=213, step_name="[H]Zen Daijun Mission_16"),
-    22: WaypointData(label="Attribute point quest n. 2", MapID=250, step_name="[H]Attribute points quest n. 2_19"),
-    23: WaypointData(label="To Marketplace", MapID=250, step_name="[H]To Marketplace_20"),
-    24: WaypointData(label="To Kaineng Center", MapID=303, step_name="[H]To Kaineng Center_21"),
-    26: WaypointData(label="Craft max armor", MapID=194, step_name="[H]Craft max armor_23"),
-    34: WaypointData(label="To LA", MapID=194, step_name="[H]To Lion's Arch_32"),
-    35: WaypointData(label="To Temple of Ages", MapID=55, step_name="[H]To Temple of the Ages_33"),
-    36: WaypointData(label="To Kamadan", MapID=194, step_name="[H]To Kamadan_34"),
-    37: WaypointData(label="To Consulate Docks", MapID=194, step_name="[H]To Consulate Docks_35"),
-    38: WaypointData(label="Unlock Olias", MapID=493, step_name="[H]Unlock Olias_36"),
+    22: WaypointData(label="Attribute point quest n. 2", MapID=250, step_name="[H]Attribute points quest n. 2_12"),
+    23: WaypointData(label="To Marketplace", MapID=250, step_name="[H]To Marketplace_18"),
+    24: WaypointData(label="To Kaineng Center", MapID=303, step_name="[H]To Kaineng Center_19"),
+    26: WaypointData(label="Craft max armor", MapID=194, step_name="[H]Craft max armor_20"),
+    34: WaypointData(label="To LA", MapID=194, step_name="[H]To Lion's Arch_30"),
+    35: WaypointData(label="To Temple of Ages", MapID=55, step_name="[H]To Temple of the Ages_31"),
+    36: WaypointData(label="To Kamadan", MapID=194, step_name="[H]To Kamadan_32"),
+    37: WaypointData(label="To Consulate Docks", MapID=194, step_name="[H]To Consulate Docks_33"),
+    38: WaypointData(label="Unlock Olias", MapID=493, step_name="[H]Unlock Olias_34"),
 }
 
 def on_party_wipe(bot: "Botting"):
