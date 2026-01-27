@@ -69,6 +69,7 @@ from .Item import *
 from .ItemArray import *
 from .Inventory import *
 from .Skill import *
+from .SkillProperties import *
 from .Skillbar import *
 from .Effect import *
 from .Merchant import *

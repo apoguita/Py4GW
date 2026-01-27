@@ -28,9 +28,12 @@ from Py4GWCoreLib import SkillBar
 if SkillBar.IsSkillReady(1):
     SkillBar.UseSkill(1, target_id)
 
-# Get detailed reason why skill can't be used
-reason = SkillBar.GetSkillUsabilityReason(1)
-print(f"Slot 1: {reason}")  # "Ready", "Recharging (5.2s)", "No Energy", etc.
+# Get detailed reason why skill can't be used (structured result)
+result = SkillBar.GetSkillUsability(1)
+if result.status == SkillUsability.READY:
+    print("Skill is ready!")
+elif result.status == SkillUsability.RECHARGING:
+    print(f"Recharging: {result.value:.1f}s remaining")
 
 # Combined check (recharge, energy, adrenaline, disabled)
 if SkillBar.CanUseSkill(1):
@@ -135,6 +138,8 @@ See Also:
 """
 
 from Py4GWCoreLib import *
+from Py4GWCoreLib.enums import Profession_Names, AttributeNames
+from Py4GWCoreLib.Skillbar import SkillUsability
 from typing import List, Optional, Dict
 import time
 
@@ -182,71 +187,13 @@ def get_skill_name_safe(skill_id: int) -> str:
 
 
 def get_profession_name(prof_id: int) -> str:
-    """Get profession name from ID."""
-    names = {
-        0: "None",
-        1: "Warrior",
-        2: "Ranger",
-        3: "Monk",
-        4: "Necromancer",
-        5: "Mesmer",
-        6: "Elementalist",
-        7: "Assassin",
-        8: "Ritualist",
-        9: "Paragon",
-        10: "Dervish",
-    }
-    return names.get(prof_id, f"Unknown ({prof_id})")
+    """Get profession name from ID using existing enum dictionary."""
+    return Profession_Names.get(prof_id, f"Unknown ({prof_id})")
 
 
 def get_attribute_name(attr_id: int) -> str:
-    """Get attribute name from ID."""
-    # Common attribute IDs
-    names = {
-        0: "Fast Casting",
-        1: "Illusion Magic",
-        2: "Domination Magic",
-        3: "Inspiration Magic",
-        4: "Blood Magic",
-        5: "Death Magic",
-        6: "Soul Reaping",
-        7: "Curses",
-        8: "Air Magic",
-        9: "Earth Magic",
-        10: "Fire Magic",
-        11: "Water Magic",
-        12: "Energy Storage",
-        13: "Healing Prayers",
-        14: "Smiting Prayers",
-        15: "Protection Prayers",
-        16: "Divine Favor",
-        17: "Strength",
-        18: "Axe Mastery",
-        19: "Hammer Mastery",
-        20: "Swordsmanship",
-        21: "Tactics",
-        22: "Beast Mastery",
-        23: "Expertise",
-        24: "Wilderness Survival",
-        25: "Marksmanship",
-        29: "Dagger Mastery",
-        30: "Deadly Arts",
-        31: "Shadow Arts",
-        32: "Communing",
-        33: "Restoration Magic",
-        34: "Channeling Magic",
-        35: "Critical Strikes",
-        36: "Spawning Power",
-        37: "Spear Mastery",
-        38: "Command",
-        39: "Motivation",
-        40: "Leadership",
-        41: "Scythe Mastery",
-        42: "Wind Prayers",
-        43: "Earth Prayers",
-        44: "Mysticism",
-    }
-    return names.get(attr_id, f"Attr#{attr_id}")
+    """Get attribute name from ID using existing enum dictionary."""
+    return AttributeNames.get(attr_id, f"Attr#{attr_id}")
 
 
 # ============================================================================
@@ -287,7 +234,7 @@ def draw_skillbar_tab():
                 is_ready = SkillBar.IsSkillReady(slot)
                 adrenaline_a, adrenaline_b = SkillBar.GetSkillAdrenaline(slot)
                 can_use = SkillBar.CanUseSkill(slot) if skill_id != 0 else False
-                usability = SkillBar.GetSkillUsabilityReason(slot)
+                usability = SkillBar.GetSkillUsability(slot)
 
                 # Header with slot number and skill name
                 if PyImGui.collapsing_header(f"[{slot}] {skill_name} - {usability}", 0):

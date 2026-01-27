@@ -1,8 +1,66 @@
 from PyAgent import AttributeClass
 import PySkillbar
 from typing import Dict, List, Tuple, Optional
+from enum import IntEnum
+from dataclasses import dataclass
 
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+
+
+# ============================================================================
+# Skill Usability Enum and Result (structured return instead of bare string)
+# ============================================================================
+
+class SkillUsability(IntEnum):
+    """
+    Enum for skill usability status.
+
+    Use this instead of comparing strings to check why a skill can't be used.
+
+    Example:
+        result = SkillBar.GetSkillUsability(1)
+        if result.status == SkillUsability.READY:
+            SkillBar.UseSkill(1)
+        elif result.status == SkillUsability.RECHARGING:
+            print(f"Skill recharging, {result.value:.1f}s remaining")
+    """
+    READY = 0           # Skill can be used
+    RECHARGING = 1      # Skill is on cooldown (value = remaining seconds)
+    DISABLED = 2        # Player is disabled (casting/aftercast)
+    NO_ENERGY = 3       # Not enough energy (value = current energy)
+    NO_ADRENALINE = 4   # Not enough adrenaline (value = current adrenaline)
+    EMPTY_SLOT = 5      # No skill in this slot
+
+
+@dataclass
+class SkillUsabilityResult:
+    """
+    Structured result for skill usability check.
+
+    Attributes:
+        status: SkillUsability enum indicating the reason
+        value: Optional numeric value (e.g., remaining recharge seconds, current energy)
+        required: Optional required value (e.g., energy cost, adrenaline cost)
+    """
+    status: SkillUsability
+    value: Optional[float] = None
+    required: Optional[float] = None
+
+    def __str__(self) -> str:
+        """Human-readable string representation."""
+        if self.status == SkillUsability.READY:
+            return "Ready"
+        elif self.status == SkillUsability.RECHARGING:
+            return f"Recharging ({self.value:.1f}s)"
+        elif self.status == SkillUsability.DISABLED:
+            return "Disabled"
+        elif self.status == SkillUsability.NO_ENERGY:
+            return f"No Energy ({int(self.value)}/{int(self.required)})"
+        elif self.status == SkillUsability.NO_ADRENALINE:
+            return f"No Adrenaline ({int(self.value)}/{int(self.required)})"
+        elif self.status == SkillUsability.EMPTY_SLOT:
+            return "Empty Slot"
+        return "Unknown"
 
 
 class SkillBar:
@@ -419,21 +477,27 @@ class SkillBar:
         return True
 
     @staticmethod
-    def GetSkillUsabilityReason(slot: int) -> str:
+    def GetSkillUsability(slot: int) -> SkillUsabilityResult:
         """
-        Get the reason why a skill cannot be used.
+        Get structured information about why a skill can or cannot be used.
 
         Args:
             slot: Skill slot (1-8)
 
         Returns:
-            String describing the skill state:
-            - "Ready" if skill can be used
-            - "Recharging" if on cooldown
-            - "Disabled" if player is disabled
-            - "No Energy" if not enough energy
-            - "No Adrenaline" if not enough adrenaline
-            - "Empty Slot" if no skill in slot
+            SkillUsabilityResult with:
+                - status: SkillUsability enum (READY, RECHARGING, NO_ENERGY, etc.)
+                - value: Current value (e.g., current energy, remaining recharge)
+                - required: Required value (e.g., energy cost, adrenaline cost)
+
+        Example:
+            result = SkillBar.GetSkillUsability(1)
+            if result.status == SkillUsability.READY:
+                SkillBar.UseSkill(1)
+            elif result.status == SkillUsability.RECHARGING:
+                print(f"Wait {result.value:.1f}s")
+            elif result.status == SkillUsability.NO_ENERGY:
+                print(f"Need {result.required - result.value:.0f} more energy")
         """
         from .Skill import Skill
         from .Agent import Agent
@@ -441,14 +505,14 @@ class SkillBar:
 
         skill_id = SkillBar.GetSkillIDBySlot(slot)
         if skill_id == 0:
-            return "Empty Slot"
+            return SkillUsabilityResult(SkillUsability.EMPTY_SLOT)
 
         if not SkillBar.IsSkillReady(slot):
             remaining = SkillBar.GetSkillRechargeRemaining(slot)
-            return f"Recharging ({remaining / 1000:.1f}s)"
+            return SkillUsabilityResult(SkillUsability.RECHARGING, value=remaining / 1000.0)
 
         if SkillBar.GetDisabled():
-            return "Disabled"
+            return SkillUsabilityResult(SkillUsability.DISABLED)
 
         # Check energy
         energy_cost = Skill.Data.GetEnergyCost(skill_id)
@@ -459,19 +523,27 @@ class SkillBar:
             if max_energy > 0:
                 actual_energy = current_energy * max_energy
                 if actual_energy < energy_cost:
-                    return f"No Energy ({int(actual_energy)}/{energy_cost})"
+                    return SkillUsabilityResult(
+                        SkillUsability.NO_ENERGY,
+                        value=actual_energy,
+                        required=float(energy_cost)
+                    )
 
         # Check adrenaline
         adrenaline_cost = Skill.Data.GetAdrenaline(skill_id)
         if adrenaline_cost > 0:
             adrenaline_a, _ = SkillBar.GetSkillAdrenaline(slot)
             if adrenaline_a < adrenaline_cost:
-                return f"No Adrenaline ({adrenaline_a}/{adrenaline_cost})"
+                return SkillUsabilityResult(
+                    SkillUsability.NO_ADRENALINE,
+                    value=float(adrenaline_a),
+                    required=float(adrenaline_cost)
+                )
 
-        return "Ready"
+        return SkillUsabilityResult(SkillUsability.READY)
 
     # =========================================================================
-    # Template Encode/Decode
+    # Template Encode/Decode (using Utils functions)
     # =========================================================================
 
     @staticmethod
@@ -490,7 +562,20 @@ class SkillBar:
                 - attributes: List[Tuple[int, int]] (attribute_id, points)
             Returns None if decode fails.
         """
-        return _decode_template(template_code)
+        try:
+            primary, secondary, attributes_dict, skills = Utils.ParseSkillbarTemplate(template_code)
+            if primary is None:
+                return None
+            # Convert attributes dict to list of tuples for consistency
+            attributes = [(attr_id, points) for attr_id, points in attributes_dict.items()]
+            return {
+                'primary': primary,
+                'secondary': secondary,
+                'skills': skills,
+                'attributes': attributes
+            }
+        except Exception:
+            return None
 
     @staticmethod
     def EncodeTemplate(primary: int, secondary: int, skills: List[int],
@@ -507,7 +592,12 @@ class SkillBar:
         Returns:
             Template code string, or None if encoding fails.
         """
-        return _encode_template(primary, secondary, skills, attributes)
+        try:
+            # Convert list of tuples to dict for Utils
+            attributes_dict = {attr_id: points for attr_id, points in attributes}
+            return Utils.encode_skill_template(primary, secondary, attributes_dict, skills)
+        except Exception:
+            return None
 
     @staticmethod
     def GetCurrentTemplate(hero_index: int = 0) -> Optional[str]:
@@ -520,180 +610,11 @@ class SkillBar:
         Returns:
             Template code string for the current build, or None if failed.
         """
-        from .Agent import Agent
-        from .Player import Player
-
-        # Get skills
         if hero_index == 0:
-            skills = []
-            for slot in range(1, 9):
-                skills.append(SkillBar.GetSkillIDBySlot(slot))
-            agent_id = Player.GetAgentID()
+            # Use the existing Utils function for player
+            return Utils.GenerateSkillbarTemplate()
         else:
-            skillbar_instance = PySkillbar.Skillbar()
-            hero_skills = skillbar_instance.GetHeroSkillbar(hero_index)
-            skills = [s.id.id for s in hero_skills]
-            # Pad to 8 if needed
-            while len(skills) < 8:
-                skills.append(0)
             # For heroes, we'd need hero agent ID - this is more complex
             # For now, return None for heroes (would need party context)
             return None
 
-        # Get professions
-        primary, secondary = Agent.GetProfessions(agent_id)
-
-        # Get attributes
-        attributes_raw = Agent.GetAttributes(agent_id)
-        attributes = []
-        for attr in attributes_raw:
-            attr_id = int(attr.attribute_id)
-            level = attr.level_base
-            if level > 0:
-                attributes.append((attr_id, level))
-
-        return _encode_template(primary, secondary, skills, attributes)
-
-
-# =============================================================================
-# Internal: Skill Template Codec (not for direct use)
-# =============================================================================
-
-_BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-_BASE64_VALUES = {c: i for i, c in enumerate(_BASE64_CHARS)}
-
-
-def _write_bits(value: int, count: int = 6) -> List[int]:
-    """Write value as count bits (LSB first)."""
-    return [(value >> i) & 1 for i in range(count)]
-
-
-def _read_bits(bits: List[int], offset: int, count: int) -> Tuple[int, int]:
-    """Read count bits from offset, return (value, new_offset)."""
-    value = 0
-    for i in range(count):
-        if offset + i < len(bits):
-            value |= bits[offset + i] << i
-    return value, offset + count
-
-
-def _decode_template(template_code: str) -> Optional[Dict]:
-    """Decode a skill template code into its components."""
-    if not template_code:
-        return None
-
-    bits = []
-    for char in template_code:
-        if char not in _BASE64_VALUES:
-            return None
-        value = _BASE64_VALUES[char]
-        bits.extend(_write_bits(value, 6))
-
-    offset = 0
-    header, offset = _read_bits(bits, offset, 4)
-    if header != 0 and header != 14:
-        return None
-
-    if header == 14:
-        _, offset = _read_bits(bits, offset, 4)
-
-    prof_bits_code, offset = _read_bits(bits, offset, 2)
-    bits_per_prof = 2 * prof_bits_code + 4
-
-    primary, offset = _read_bits(bits, offset, bits_per_prof)
-    secondary, offset = _read_bits(bits, offset, bits_per_prof)
-
-    if primary < 1 or primary > 10 or secondary > 10:
-        return None
-
-    attr_count, offset = _read_bits(bits, offset, 4)
-    attr_bits_code, offset = _read_bits(bits, offset, 4)
-    bits_per_attr = attr_bits_code + 4
-
-    attributes = []
-    for _ in range(attr_count):
-        attr_id, offset = _read_bits(bits, offset, bits_per_attr)
-        attr_val, offset = _read_bits(bits, offset, 4)
-        if attr_val > 0:
-            attributes.append((attr_id, attr_val))
-
-    skill_bits_code, offset = _read_bits(bits, offset, 4)
-    bits_per_skill = skill_bits_code + 8
-
-    skills = []
-    for _ in range(8):
-        if offset + bits_per_skill > len(bits):
-            skills.append(0)
-        else:
-            skill_id, offset = _read_bits(bits, offset, bits_per_skill)
-            skills.append(skill_id)
-
-    return {
-        'primary': primary,
-        'secondary': secondary,
-        'skills': skills,
-        'attributes': attributes
-    }
-
-
-def _encode_template(primary: int, secondary: int, skills: List[int],
-                     attributes: List[Tuple[int, int]]) -> Optional[str]:
-    """Encode professions, skills, and attributes into a template code."""
-    if primary < 1 or primary > 10 or secondary > 10:
-        return None
-    if len(skills) != 8:
-        return None
-
-    bits = []
-    bits.extend(_write_bits(14, 4))
-    bits.extend(_write_bits(0, 4))
-
-    bits_per_prof = 4
-    bits.extend(_write_bits((bits_per_prof - 4) // 2, 2))
-    bits.extend(_write_bits(primary, bits_per_prof))
-    bits.extend(_write_bits(secondary, bits_per_prof))
-
-    valid_attrs = [(a, p) for a, p in attributes if p > 0]
-
-    bits_per_attr = 4
-    for attr_id, _ in valid_attrs:
-        needed = attr_id.bit_length() if attr_id > 0 else 1
-        if needed > bits_per_attr:
-            bits_per_attr = needed
-
-    bits.extend(_write_bits(len(valid_attrs), 4))
-    bits.extend(_write_bits(bits_per_attr - 4, 4))
-
-    for attr_id, attr_val in valid_attrs:
-        bits.extend(_write_bits(attr_id, bits_per_attr))
-        bits.extend(_write_bits(attr_val, 4))
-
-    bits_per_skill = 8
-    for skill_id in skills:
-        if skill_id > 0:
-            needed = skill_id.bit_length()
-            if needed > bits_per_skill:
-                bits_per_skill = needed
-
-    bits.extend(_write_bits(bits_per_skill - 8, 4))
-
-    for skill_id in skills:
-        bits.extend(_write_bits(skill_id, bits_per_skill))
-
-    bits.extend(_write_bits(0, 1))
-
-    while len(bits) < 162:
-        bits.append(0)
-
-    while len(bits) % 6 != 0:
-        bits.append(0)
-
-    result = []
-    for i in range(0, len(bits), 6):
-        value = 0
-        for j in range(6):
-            if i + j < len(bits):
-                value |= bits[i + j] << j
-        result.append(_BASE64_CHARS[value])
-
-    return ''.join(result)
