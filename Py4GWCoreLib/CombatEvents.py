@@ -328,6 +328,9 @@ class CombatEvents:
         cancel an auto-attack by using a skill. The game sends DISABLED
         packets during auto-attacks, but those don't actually prevent
         skill usage, so we check for actual casting state instead.
+
+        Changed from the previous simple check (not disabled and not knocked down)
+        to properly distinguish aftercast from auto-attack animation.
         """
         # Knocked down = definitely can't act
         if CombatEvents.is_knocked_down(agent_id):

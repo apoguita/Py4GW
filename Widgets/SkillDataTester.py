@@ -88,7 +88,7 @@ from Py4GWCoreLib import Skill
 print(f"Target type: {Skill.Target.GetTargetTypeName(skill_id)}")  # "Foe", "Ally", "Self/Ally", etc.
 
 # Check specific target capabilities
-if Skill.Target.CanTargetFoe(skill_id):
+if Skill.Target.AffectsFoe(skill_id):
     print("Can target enemies")
 if Skill.Target.RequiresTarget(skill_id):
     print("Needs a target selected")
@@ -665,15 +665,17 @@ def draw_reference_tab():
 
         if PyImGui.begin_tab_item("Range Constants"):
             if PyImGui.begin_child("RangeRefChild", (0, 300), True, 0):
-                PyImGui.text("Range Constants (game units):")
+                PyImGui.text("Detectable Range Constants (game units):")
                 PyImGui.text(f"  TOUCH = {Skill.Range.TOUCH}")
-                PyImGui.text(f"  ADJACENT = {Skill.Range.ADJACENT}")
-                PyImGui.text(f"  NEARBY = {Skill.Range.NEARBY}")
-                PyImGui.text(f"  IN_THE_AREA = {Skill.Range.IN_THE_AREA}")
-                PyImGui.text(f"  EARSHOT = {Skill.Range.EARSHOT}")
                 PyImGui.text(f"  HALF_RANGE = {Skill.Range.HALF_RANGE}")
                 PyImGui.text(f"  FULL_RANGE = {Skill.Range.FULL_RANGE}")
-                PyImGui.text(f"  SPIRIT_RANGE = {Skill.Range.SPIRIT_RANGE}")
+                PyImGui.text("")
+                PyImGui.text("Reference values (not detectable from flags):")
+                PyImGui.text("  ADJACENT ~ 166")
+                PyImGui.text("  NEARBY ~ 252")
+                PyImGui.text("  IN_THE_AREA ~ 322")
+                PyImGui.text("  EARSHOT ~ 1010")
+                PyImGui.text("  SPIRIT_RANGE ~ 2500")
                 PyImGui.end_child()
             PyImGui.end_tab_item()
 

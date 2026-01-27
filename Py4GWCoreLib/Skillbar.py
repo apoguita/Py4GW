@@ -600,21 +600,12 @@ class SkillBar:
             return None
 
     @staticmethod
-    def GetCurrentTemplate(hero_index: int = 0) -> Optional[str]:
+    def GetCurrentTemplate() -> Optional[str]:
         """
-        Get the current skillbar as a template code.
-
-        Args:
-            hero_index: 0 for player, 1-7 for heroes
+        Get the current player skillbar as a template code.
 
         Returns:
             Template code string for the current build, or None if failed.
         """
-        if hero_index == 0:
-            # Use the existing Utils function for player
-            return Utils.GenerateSkillbarTemplate()
-        else:
-            # For heroes, we'd need hero agent ID - this is more complex
-            # For now, return None for heroes (would need party context)
-            return None
+        return Utils.GenerateSkillbarTemplate()
 

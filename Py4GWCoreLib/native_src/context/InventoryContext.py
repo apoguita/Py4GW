@@ -1,5 +1,5 @@
 import PyPlayer
-from Py4GW import Game
+import PyCallback
 from ctypes import (
     Structure, POINTER,
     c_uint32, c_uint16, c_uint8, c_float, c_void_p,
@@ -400,7 +400,7 @@ def _read_ptr_at_offset(base_ptr: int, offset: int) -> int:
 class ItemContext:
     _ptr: int = 0
     _cached_ptr: int = 0
-    _cached_ctx: ItemContextStruct | None = None
+    _cached_ctx: Optional[ItemContextStruct] = None
     _callback_name = "ItemContext.UpdateItemContextPtr"
 
     @staticmethod
@@ -417,20 +417,21 @@ class ItemContext:
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        PyCallback.PyCallback.Register(
             ItemContext._callback_name,
-            ItemContext._update_ptr
+            PyCallback.Phase.PreUpdate,
+            ItemContext._update_ptr,
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(ItemContext._callback_name)
+        PyCallback.PyCallback.RemoveByName(ItemContext._callback_name)
         ItemContext._ptr = 0
         ItemContext._cached_ptr = 0
         ItemContext._cached_ctx = None
 
     @staticmethod
-    def get_context() -> ItemContextStruct | None:
+    def get_context() -> Optional[ItemContextStruct]:
         ptr = ItemContext._ptr
         if not ptr:
             ItemContext._cached_ptr = 0
@@ -450,7 +451,7 @@ class ItemContext:
 class Inventory:
     _ptr: int = 0
     _cached_ptr: int = 0
-    _cached_ctx: InventoryStruct | None = None
+    _cached_ctx: Optional[InventoryStruct] = None
     _callback_name = "InventoryContext.UpdateInventoryPtr"
 
     @staticmethod
@@ -471,20 +472,21 @@ class Inventory:
 
     @staticmethod
     def enable():
-        Game.register_callback(
+        PyCallback.PyCallback.Register(
             Inventory._callback_name,
-            Inventory._update_ptr
+            PyCallback.Phase.PreUpdate,
+            Inventory._update_ptr,
         )
 
     @staticmethod
     def disable():
-        Game.remove_callback(Inventory._callback_name)
+        PyCallback.PyCallback.RemoveByName(Inventory._callback_name)
         Inventory._ptr = 0
         Inventory._cached_ptr = 0
         Inventory._cached_ctx = None
 
     @staticmethod
-    def get_context() -> InventoryStruct | None:
+    def get_context() -> Optional[InventoryStruct]:
         ptr = Inventory._ptr
         if not ptr:
             Inventory._cached_ptr = 0

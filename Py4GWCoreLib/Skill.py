@@ -622,12 +622,6 @@ class Skill:
             target = Skill.Target.GetTargetType(skill_id)
             return (target & Skill.Target.SPIRIT) != 0
 
-        # Keep old names as aliases for backwards compatibility
-        CanTargetSelf = AffectsSelf
-        CanTargetAlly = AffectsAlly
-        CanTargetFoe = AffectsFoe
-        CanTargetDead = AffectsDead
-        CanTargetSpirit = AffectsSpirit
 
     # =========================================================================
     # Combo Chain 
@@ -836,46 +830,35 @@ class Skill:
 
     class Range:
         """
-        Skill range.
+        Skill range detection based on available game data flags.
 
-        Guild Wars uses several standard range values (in game units):
+        Only Touch and Half Range are detectable from PySkill flags.
+        Other range categories (Adjacent, Nearby, etc.) are description-level
+        concepts not exposed as structured data.
+
+        Reference range values (in game units, approximate):
             - Touch: ~144 (adjacent)
             - Adjacent: ~166
             - Nearby: ~252
             - In the Area: ~322
-            - Earshot: ~1010
-            - Half Range (Shortbow): ~1010
+            - Earshot/Half Range: ~1010
             - Full Range (Flatbow): ~1245
             - Spirit Range: ~2500
         """
 
-        # Range constants (in game units, approximate)
+        # Detectable range constants (in game units, approximate)
         TOUCH = 144
-        ADJACENT = 166
-        NEARBY = 252
-        IN_THE_AREA = 322
-        EARSHOT = 1010
         HALF_RANGE = 1010
         FULL_RANGE = 1245
-        SPIRIT_RANGE = 2500
-
-        _RANGE_TYPES = {
-            "Touch": 144,
-            "Adjacent": 166,
-            "Nearby": 252,
-            "In the Area": 322,
-            "Earshot": 1010,
-            "Half Range": 1010,
-            "Full Range": 1245,
-            "Spirit Range": 2500,
-        }
 
         @staticmethod
         def GetRangeType(skill_id: int) -> str:
             """
-            Get the range type name for a skill.
+            Get the range type name for a skill based on available flags.
 
             Returns one of: "Touch", "Half Range", "Full Range", "Self"
+            Note: Finer distinctions (Adjacent, Nearby, etc.) are not
+            detectable from game data flags alone.
             """
             if Skill.Flags.IsTouchRange(skill_id):
                 return "Touch"

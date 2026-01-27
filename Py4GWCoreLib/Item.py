@@ -441,6 +441,9 @@ class Item:
                 WeaponType.Scepter:  1200,
             }
 
+            # Reverse lookup dict built once for O(1) string -> enum resolution
+            _NAME_TO_ENUM = {name: enum_val for enum_val, name in Weapon_Names.items()}
+
             @staticmethod
             def _resolve_key(weapon_type) -> WeaponType:
                 """Resolve a string or enum to a WeaponType enum value."""
@@ -449,10 +452,7 @@ class Item:
                 if isinstance(weapon_type, int):
                     return WeaponType(weapon_type)
                 if isinstance(weapon_type, str):
-                    # Look up by name from Weapon_Names (reverse lookup)
-                    for enum_val, name in Weapon_Names.items():
-                        if name == weapon_type:
-                            return enum_val
+                    return Item.Weapon._NAME_TO_ENUM.get(weapon_type, WeaponType.Unknown)
                 return WeaponType.Unknown
 
             @staticmethod
