@@ -4,7 +4,8 @@ MODULE_NAME = "Disable Camera Smoothing"
 
 def main():
     computed = Camera.ComputeCameraPos()
-    Camera.SetCameraPosition(computed.x, computed.y, computed.z)
+    current = Camera.GetPosition()
+    Camera.SetCameraPosition(computed.x, computed.y, current[2])
 
 def configure():
     pass
