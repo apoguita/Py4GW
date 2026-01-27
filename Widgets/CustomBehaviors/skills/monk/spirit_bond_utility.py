@@ -46,7 +46,7 @@ class SpiritBondUtility(CustomSkillUtilityBase):
         or None if none match.
         """
         target: int | None = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
-            within_range=Range.Spellcast,
+            within_range=Range.Spellcast.value,
             condition=lambda agent_id:
                 agent_id != Player.GetAgentID() and
                 (Agent.GetHealth(agent_id) is not None and Agent.GetHealth(agent_id) > 0.0),

@@ -261,6 +261,10 @@ class Resources:
                 and health_after_sacrifice / player_max_health > min_health_percent_left)
 
     @staticmethod
+    def get_skill_recharge_time_remaining_in_milliseconds(skill: CustomSkill) -> float:
+        return GLOBAL_CACHE.SkillBar.GetSkillData(skill.skill_slot).get_recharge
+
+    @staticmethod
     def is_spirit_exist(
             within_range: Range,
             associated_to_skill: Optional[CustomSkill] = None,
@@ -538,18 +542,18 @@ class Targets:
 
     @staticmethod
     def get_all_possible_allies_ordered_by_priority_raw(
-            within_range: Range,
+            within_range: float,
             condition: Callable[[int], bool] | None = None,
             sort_key: tuple[TargetingOrder, ...] | None = None,
             range_to_count_enemies: float | None = None,
             range_to_count_allies: float | None = None) -> list[SortableAgentData]:
 
         player_pos: tuple[float, float] = Player.GetXY()
-        agent_ids: list[int] = AgentArray.GetAllyArray()
+        all_agent_ids: list[int] = AgentArray.GetAllyArray()
         all_enemies_ids: list[int] = AgentArray.GetEnemyArray()
 
+        agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, player_pos, within_range)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id))
-        agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, within_range.value)
         if condition is not None: agent_ids = AgentArray.Filter.ByCondition(agent_ids, condition)
 
         def build_sortable_array(agent_id):
@@ -557,7 +561,7 @@ class Targets:
 
             # scan enemies within range
             enemies_ids = AgentArray.Filter.ByCondition(all_enemies_ids, lambda agent_id: Agent.IsAlive(agent_id))
-            enemies_ids = AgentArray.Filter.ByDistance(enemies_ids, player_pos, within_range.value)
+            enemies_ids = AgentArray.Filter.ByDistance(enemies_ids, player_pos, within_range)
             enemies_quantity_within_range = 0
 
             if range_to_count_enemies is not None:
@@ -620,33 +624,16 @@ class Targets:
         return data_to_sort
 
     @staticmethod
-    def get_all_possible_allies_ordered_by_priority(
-            within_range: Range,
-            condition: Callable[[int], bool] | None = None,
-            sort_key: tuple[TargetingOrder, ...] | None = None,
-            range_to_count_enemies: float | None = None,
-            range_to_count_allies: float | None = None) -> tuple[int, ...]:
-
-        data = Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=within_range,
-            condition=condition,
-            sort_key=sort_key,
-            range_to_count_enemies=range_to_count_enemies,
-            range_to_count_allies=range_to_count_allies
-        )
-        return tuple(entry.agent_id for entry in data)
-
-    @staticmethod
     def get_first_or_default_from_allies_ordered_by_priority(
-            within_range: Range,
+            within_range: float,
             condition: Callable[[int], bool] | None = None,
             sort_key: tuple[TargetingOrder, ...] | None = None,
             range_to_count_enemies: float | None = None,
             range_to_count_allies: float | None = None) -> int | None:
 
-        allies = Targets.get_all_possible_allies_ordered_by_priority(within_range=within_range, condition=condition, sort_key=sort_key, range_to_count_enemies=range_to_count_enemies, range_to_count_allies=range_to_count_allies)
+        allies = Targets.get_all_possible_allies_ordered_by_priority_raw(within_range=within_range, condition=condition, sort_key=sort_key, range_to_count_enemies=range_to_count_enemies, range_to_count_allies=range_to_count_allies)
         if len(allies) == 0: return None
-        return allies[0]
+        return allies[0].agent_id
 
     # enemy 
 
@@ -839,9 +826,9 @@ class Targets:
 class Heals:
 
     @staticmethod
-    def is_party_damaged(within_range:Range, min_allies_count:int, less_health_than_percent:float) -> bool:
+    def is_party_damaged(within_range:float, min_allies_count:int, less_health_than_percent:float) -> bool:
 
-        allies = Targets.get_all_possible_allies_ordered_by_priority(
+        allies = Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=within_range,
             condition= lambda agent_id: Agent.GetHealth(agent_id) < less_health_than_percent,
             sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
@@ -852,18 +839,18 @@ class Heals:
         return True
 
     @staticmethod
-    def party_average_health(within_range:Range) -> float:
-        allies = Targets.get_all_possible_allies_ordered_by_priority(
+    def party_average_health(within_range:float) -> float:
+        allies : list[SortableAgentData] = Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=within_range,
             condition= lambda agent_id: True,
             sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
-        return reduce(lambda acc, ally: acc + Agent.GetHealth(ally), allies, 0) / len(allies)
+        return reduce(lambda acc, ally: acc + Agent.GetHealth(ally.agent_id), allies, 0) / len(allies)
 
     @staticmethod
-    def get_first_member_damaged(within_range: Range, less_health_than_percent: float, exclude_player:bool, condition: Optional[Callable[[int], bool]] = None) -> int | None:
+    def get_first_member_damaged(within_range: float, less_health_than_percent: float, exclude_player:bool, condition: Optional[Callable[[int], bool]] = None) -> int | None:
 
-        allies = Targets.get_all_possible_allies_ordered_by_priority(
+        allies = Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=within_range,
             condition=lambda agent_id: Agent.GetHealth(agent_id) < less_health_than_percent,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
@@ -877,4 +864,4 @@ class Heals:
             allies = AgentArray.Filter.ByCondition(allies, condition)
 
         if len(allies) == 0: return None
-        return allies[0]
+        return allies[0].agent_id

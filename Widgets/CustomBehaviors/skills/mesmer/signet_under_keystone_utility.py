@@ -43,7 +43,21 @@ class SignetUnderKeystoneUtility(CustomSkillUtilityBase):
                 within_range=Range.Spellcast,
                 condition=lambda agent_id: condition(agent_id),
                 sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.DISTANCE_ASC),
-                range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
+                range_to_count_enemies=Range.Adjacent.value) # keystone signet is doing dmg to adjacents
+    
+    def should_spam_all_signets(self) -> bool:
+
+        has_keystone_signet_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
+        if not has_keystone_signet_buff: return False
+
+        keystone_signet_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
+        if keystone_signet_buff_time_remaining <= 4000: return True
+        
+        keystone_signet_recharge_time_remaining = custom_behavior_helpers.Resources.get_skill_recharge_time_remaining_in_milliseconds(self.keystone_signet_skill)
+        if keystone_signet_recharge_time_remaining <= 4000: return True
+        
+        return False
+        
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
@@ -51,9 +65,7 @@ class SignetUnderKeystoneUtility(CustomSkillUtilityBase):
         has_keystone_signet_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
         if not has_keystone_signet_buff: return None
 
-        keystone_signet_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
-        if keystone_signet_buff_time_remaining <= 4000:
-            return self.score_definition.get_score(999) #let's just cast everything we can before buff ends
+        if self.should_spam_all_signets(): return self.score_definition.get_score(80)
 
         targets: list[custom_behavior_helpers.SortableAgentData] = self._get_targets(self.condition)
         if len(targets) == 0: return None
@@ -66,8 +78,7 @@ class SignetUnderKeystoneUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
 
-        keystone_signet_buff_time_remaining = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(Player.GetAgentID(), self.keystone_signet_skill.skill_id)
-        if keystone_signet_buff_time_remaining <= 4000:
+        if self.should_spam_all_signets():
             target = custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
                 within_range=Range.Spellcast,
                 condition=lambda agent_id: True,
@@ -77,7 +88,7 @@ class SignetUnderKeystoneUtility(CustomSkillUtilityBase):
             if target is None: return BehaviorResult.ACTION_SKIPPED
             result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target)
             return result
-
+        
         enemies = self._get_targets(self.condition)
         if len(enemies) == 0: return BehaviorResult.ACTION_SKIPPED
         target = enemies[0]

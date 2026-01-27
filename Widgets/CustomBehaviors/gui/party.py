@@ -1,5 +1,4 @@
 import os
-import pathlib
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
 from Py4GWCoreLib.Overlay import Overlay
 
@@ -9,6 +8,7 @@ from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums import SharedCommandType
+from Py4GWCoreLib.enums_src.GameData_enums import ProfessionShort, ProfessionShort_Names
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
@@ -547,12 +547,76 @@ def render():
 
     if GLOBAL_CACHE.Party.IsPartyLeader():
         if PyImGui.tree_node_ex("[TEAM UI] HeroAI UI :", 0):
+
             from Widgets.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
             hero_ai = HeroAiWrapping()
             heroai_ui_visible = hero_ai.is_heroai_ui_visible()
             new_state = PyImGui.checkbox("Show All Hero Panels", heroai_ui_visible)
             if new_state != heroai_ui_visible:
                 hero_ai.change_heroai_ui_visibility(is_visible=new_state)
+            PyImGui.tree_pop()
+
+    if GLOBAL_CACHE.Party.IsPartyLeader():
+        if PyImGui.tree_node_ex("[TEAM] Manager :", 0):
+
+            PyImGui.text(f"Default PartyLeader is {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
+            PyImGui.text(f"Overriden PartyLeader is {CustomBehaviorParty.get_party_leader_email()}")
+            if CustomBehaviorParty.get_party_leader_email() is not None:
+                PyImGui.text(f"CharacterName {GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(CustomBehaviorParty.get_party_leader_email()).CharacterName}")
+
+            # Table listing all players from shared memory
+            account_email = Player.GetAccountEmail()
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+
+            if accounts and len(accounts) > 0:
+                if PyImGui.begin_table("party_players_table", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg):
+                    PyImGui.table_setup_column("Character Name", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("PartyID", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Invite", PyImGui.TableColumnFlags.WidthFixed, 80.0)
+                    PyImGui.table_headers_row()
+
+                    for account in accounts:
+
+                        character_name = account.CharacterName if account.CharacterName else "Unknown"
+
+                        # Get profession short names (e.g., "Me/Mo")
+                        primary_prof_id = account.PlayerProfession[0] if account.PlayerProfession else 0
+                        secondary_prof_id = account.PlayerProfession[1] if account.PlayerProfession else 0
+                        primary_short = ProfessionShort_Names.get(ProfessionShort(primary_prof_id), "?") if primary_prof_id > 0 else "?"
+                        secondary_short = ProfessionShort_Names.get(ProfessionShort(secondary_prof_id), "") if secondary_prof_id > 0 else ""
+                        class_text = f"{primary_short}/{secondary_short}" if secondary_short else primary_short
+
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        # Show yellow crown icon if this account is the party leader
+                        party_leader_email = CustomBehaviorParty.get_party_leader_email()
+                        if party_leader_email and account.AccountEmail == party_leader_email:
+                            PyImGui.text_colored(f"{IconsFontAwesome5.ICON_CROWN}", (1.0, 0.85, 0.0, 1.0))  # Yellow crown
+                            PyImGui.same_line(0, 5)
+                        PyImGui.text(f"[{class_text}] {character_name}")
+
+                        PyImGui.table_next_column()
+                        PyImGui.text(f"{account.PartyID} / AgentId {account.PlayerID} / PartyLeader {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
+
+                        PyImGui.table_next_column()
+                        if PyImGui.button(f"Focus window##{account.AccountEmail}"):
+                            CustomBehaviorParty().schedule_action(lambda email=account.AccountEmail: PartyCommandConstants.focus_window(email))
+
+                        PyImGui.table_next_column()
+                        if PyImGui.button(f"Invite##{account.AccountEmail}"):
+                            if character_name and character_name != "Unknown":
+                                CustomBehaviorParty().schedule_action(lambda email=account.AccountEmail, name=character_name: PartyCommandConstants.invite_player(email, name))
+
+                        PyImGui.table_next_column()
+                        if PyImGui.button(f"Promote as leader##{account.AccountEmail}"):
+                            CustomBehaviorParty().set_party_leader_email(account.AccountEmail)
+                            pass
+
+                    PyImGui.end_table()
+            else:
+                PyImGui.text("No players in shared memory")
+
             PyImGui.tree_pop()
 
     PyImGui.separator()

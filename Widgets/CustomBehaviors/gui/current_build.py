@@ -17,6 +17,15 @@ py4gw_root_directory = project_root + f"\\..\\..\\"
 WITH_DETAIL = False
 EXPANDED_SKILL_IDS: set[str] = set()
 
+# Fallback texture for skills without a valid texture
+FALLBACK_SKILL_TEXTURE = py4gw_root_directory + "Widgets\\CustomBehaviors\\gui\\textures\\no_bg.png"
+
+def get_skill_texture_with_fallback(texture_path: str) -> str:
+    """Returns the texture path if it exists, otherwise returns the fallback texture."""
+    if texture_path and os.path.exists(texture_path):
+        return texture_path
+    return FALLBACK_SKILL_TEXTURE
+
 
 
 
@@ -104,7 +113,7 @@ def render():
                                     return f" AutoCombat"
                                 return ""
                             score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
-                            texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
+                            texture_file = get_skill_texture_with_fallback(score[0].custom_skill.get_texture(py4gw_root_directory, project_root))
 
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
@@ -187,7 +196,7 @@ def render():
                         PyImGui.table_setup_column("Score", PyImGui.TableColumnFlags.WidthFixed, 70)
                         PyImGui.table_headers_row()
                         for util, sc in sorted_scores:
-                            texture_file = util.custom_skill.get_texture(py4gw_root_directory, project_root)
+                            texture_file = get_skill_texture_with_fallback(util.custom_skill.get_texture(py4gw_root_directory, project_root))
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
                             ImGui.DrawTexture(texture_file, 35, 35)

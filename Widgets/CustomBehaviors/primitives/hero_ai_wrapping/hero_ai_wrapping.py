@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, SharedMessage
+from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessage
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 
@@ -25,6 +25,7 @@ class HeroAiWrapping:
             self.hero_windows: dict[str, WindowModule] = {}
             self.heroai_fallack_mecanism_throttler = ThrottledTimer(500)
             self._is_heroai_ui_visible:bool = False
+            self.dialog_throttle = ThrottledTimer(500)
 
     def _update_hero_ai_players(self, cached_data:CacheData):
         """Update HeroAI player registration and status"""
@@ -63,42 +64,6 @@ class HeroAiWrapping:
             settings.write_settings()
 
         return True
-
-    def _force_account_heroai_game_options(self, settings:Settings, cached_data:CacheData, accounts:list[AccountData]):
-        """Initialize game options for each account"""
-        from HeroAI.constants import NUMBER_OF_SKILLS
-
-        for account in accounts:
-            # Ensure account has a panel position entry
-            if account.AccountEmail not in settings.HeroPanelPositions:
-                # New entries respect current visibility state
-                new_info = settings.HeroPanelInfo()
-                new_info.open = self._is_heroai_ui_visible
-                settings.HeroPanelPositions[account.AccountEmail] = new_info
-
-            # Initialize game options for this account's party position
-            party_pos = account.PartyPosition
-            if party_pos >= 0 and party_pos < len(cached_data.HeroAI_vars.all_game_option_struct):
-                # Update local cache
-                local_game_options = cached_data.HeroAI_vars.all_game_option_struct[party_pos]
-                local_game_options.Following = False
-                local_game_options.Avoidance = False
-                local_game_options.Looting = False
-                local_game_options.Targeting = False
-                local_game_options.Combat = False
-
-                # Set all skills to active if not already initialized
-                for i in range(NUMBER_OF_SKILLS):
-                    local_game_options.Skills[i].Active = True
-
-            # Also update shared memory (HeroAIOptionStruct)
-            hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
-            if hero_ai_options is not None:
-                hero_ai_options.Following = False
-                hero_ai_options.Avoidance = False
-                hero_ai_options.Looting = False
-                hero_ai_options.Targeting = False
-                hero_ai_options.Combat = False
 
     def act(self):
         """
@@ -140,6 +105,9 @@ class HeroAiWrapping:
 
         # Get messages for GUI
         messages:list[tuple[int, SharedMessage]] = GLOBAL_CACHE.ShMem.GetAllMessages()
+
+        # Get accounts from cached party data
+        accounts = list(self._cached_data.party.accounts.values())
 
         # Render GUI
         self._render_gui(self._settings, self._cached_data, accounts, messages)
@@ -213,4 +181,4 @@ class HeroAiWrapping:
             # Draw the hero panel
             draw_hero_panel(window, account, cached_data, messages)
         
-        draw_dialog_overlay(accounts, cached_data, messages)
+        draw_dialog_overlay(cached_data, messages)

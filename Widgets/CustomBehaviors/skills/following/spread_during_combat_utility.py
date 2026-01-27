@@ -113,7 +113,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
 
         try:
             # Get nearby enemies
-            enemy_array = AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.GetEnemyArray() # todo bad, we should use the agent array from helpers
             for enemy_id in enemy_array:
                 if not Agent.IsAlive(enemy_id) or not Agent.IsValid(enemy_id):
                     continue

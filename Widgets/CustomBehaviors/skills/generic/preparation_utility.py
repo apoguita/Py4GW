@@ -49,7 +49,7 @@ class PreparationUtility(CustomSkillUtilityBase):
         # If any target utility currently evaluates to a score, allow the prep skill
         for util in self.target_utilities:
             try:
-                score = util._evaluate(current_state, previously_attempted_skills)
+                score = util.evaluate(current_state, previously_attempted_skills)
             except Exception:
                 # safety: if a target utility throws, treat it as not available
                 score = None
