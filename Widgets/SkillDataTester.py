@@ -296,13 +296,12 @@ def _get_dmg_type_name(dmg_id: int) -> str:
         return f"Unknown({dmg_id})"
 
 
-def _format_mod(identifier: int, arg1: int, arg2: int, item_attr: str = "") -> str:
+def _format_mod(identifier: int, arg1: int, arg2: int, weapon_attr: Optional[int] = None) -> str:
     """Format a single item modifier into a human-readable string.
 
     Args:
-        item_attr: The item's requirement attribute name, used for
-                   attribute-linked mods (HCT/HSR) where the attribute
-                   comes from the requirement, not the mod itself.
+        weapon_attr: The weapon's required attribute ID (from requirement mod),
+                     used for HCT/HSR mods that apply to the weapon's attribute.
     """
     # Weapon base stats
     if identifier == 42920:  # Damage range
@@ -340,12 +339,11 @@ def _format_mod(identifier: int, arg1: int, arg2: int, item_attr: str = "") -> s
     if identifier == 8376:   return f"Energy -{arg2}"
     if identifier == 26568:  return f"Energy +{arg1}"
 
-    # Casting / recharge (attribute-linked: attribute comes from item requirement)
-    attr = item_attr or "item's attribute"
-    if identifier == 10248:  return f"Halves casting time of {attr} spells (Chance: {arg1}%)"
-    if identifier == 10280:  return f"Halves skill recharge of {attr} spells (Chance: {arg1}%)"
-    # Generic (non-attribute-linked)
+    # Casting / recharge (these use the weapon's required attribute)
+    attr_name = _get_attr_name(weapon_attr) if weapon_attr is not None else "[Weapon Attribute]"
+    if identifier == 10248:  return f"Halves casting time of {attr_name} spells (Chance: {arg1}%)"
     if identifier == 8712:   return f"Halves casting time of spells (Chance: {arg1}%)"
+    if identifier == 10280:  return f"Halves skill recharge of {attr_name} spells (Chance: {arg1}%)"
     if identifier == 9112:   return f"Halves skill recharge of spells (Chance: {arg1}%)"
     if identifier == 9128:   return f"Halves skill recharge of spells (Chance: {arg1}%)"
 
@@ -381,7 +379,7 @@ def _format_mod(identifier: int, arg1: int, arg2: int, item_attr: str = "") -> s
     if identifier == 9512:   return f"Life draining: {arg1}"
     if identifier == 8888:   return f"Enchantments last {arg2}% longer"
     if identifier == 9240:   return f"{_get_attr_name(arg1)} +1 ({arg2}% chance while using skills)"
-    if identifier == 10296:  return f"{_get_attr_name(arg1)} +1 (Chance: {arg2}%)"
+    if identifier == 10296:  return f"{attr_name} +1 (Chance: {arg1}%)"
     if identifier == 9320:   return f"Lengthens condition duration on foes by 33%"
     if identifier == 9336:   return f"Reduces condition duration on you by 20%"
     if identifier == 10328:  return f"Reduces condition duration on you by 20%"
@@ -405,9 +403,19 @@ def _format_item_mods(item):
         return
 
     mod_array = ct_cast(item.mod_struct_ptr, CT_POINTER(ItemModifierStruct * item.mod_struct_size))
+
+    # First pass: find the weapon's required attribute (from requirement mod 10136 or 32784)
+    weapon_attr = None
     for mi in range(item.mod_struct_size):
         m = mod_array.contents[mi]
-        desc = _format_mod(m.identifier, m.arg1, m.arg2)
+        if m.identifier in (10136, 32784):  # Requirement modifiers
+            weapon_attr = m.arg1  # arg1 = attribute ID
+            break
+
+    # Second pass: format and display all mods
+    for mi in range(item.mod_struct_size):
+        m = mod_array.contents[mi]
+        desc = _format_mod(m.identifier, m.arg1, m.arg2, weapon_attr)
         PyImGui.text(f"    {desc}")
 
 
