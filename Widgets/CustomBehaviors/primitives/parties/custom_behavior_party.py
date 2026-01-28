@@ -64,9 +64,9 @@ class CustomBehaviorParty:
             self.party_command_handler_manager.execute_next_step()
             self.__messaging_process()
             self.party_teambuild_manager.act()
-
-            # ------------------------------ Custom party target ------------------------------
-            if GLOBAL_CACHE.Party.IsPartyLeader():
+            
+            # # ------------------------------ Custom party target ------------------------------
+            if custom_behavior_helpers.Party.is_party_leader():
                 if Map.IsExplorable():
                     current_party_target_id = self.get_party_custom_target()
                     if current_party_target_id is not None:
@@ -76,31 +76,13 @@ class CustomBehaviorParty:
                     players = GLOBAL_CACHE.Party.GetPlayers()
                     for player in players:
                         agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-                        if agent_id != Player.GetAgentID(): continue
-                        called_target_id = player.called_target_id
-                        if called_target_id != 0:
-                            self.set_party_custom_target(called_target_id)
+                        if agent_id == Player.GetAgentID():
+                            called_target_id = player.called_target_id
+                            if called_target_id != 0:
+                                self.set_party_custom_target(called_target_id)
+                            break
                 else:
                     self.set_party_custom_target(None)
-                
-            # ------------------------------ Custom party target ------------------------------
-        
-            if self.get_party_leader_email() is None:
-                # affect a default one 
-                default_leader_email =  None
-                all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-                for account in all_accounts:
-                    if account.PlayerIsPartyLeader:
-                        default_leader_email = account.AccountEmail
-                        self.set_party_leader_email(default_leader_email)
-                        break
-            else:
-                # verify the leader is still there
-                leader_email = self.get_party_leader_email()
-                if leader_email is not None:
-                    account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(leader_email)
-                    if account is None:
-                        self.set_party_leader_email(None)
                 
             yield
     

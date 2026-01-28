@@ -9,10 +9,9 @@ from Py4GWCoreLib.enums_src.Model_enums import GadgetModelID
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
-from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
-from Py4GWCoreLib import GLOBAL_CACHE,Agent, Player, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
+from Py4GWCoreLib import GLOBAL_CACHE,Agent, Map, Player, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives import constants
 
 MODULE_NAME = "Custom Combat Behavior Helpers"
@@ -156,7 +155,6 @@ class Resources:
                 return agent_id
 
         return None
-
 
     @staticmethod
     def is_player_holding_an_item() -> bool:
@@ -488,7 +486,7 @@ class Targets:
     @staticmethod
     def is_party_leader_in_aggro() -> bool:
         
-        party_leader_id:int = GLOBAL_CACHE.Party.GetPartyLeaderID()
+        party_leader_id:int = Party.get_party_leader_id()
         if Targets.is_party_member_in_aggro(party_leader_id): return True
         return False
 
@@ -710,8 +708,8 @@ class Targets:
         agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, source_agent_pos, within_range)
 
         # we add leader's area too
-        if not GLOBAL_CACHE.Party.IsPartyLeader():
-            party_leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if not Party.is_party_leader():
+            party_leader_agent_id = Party.get_party_leader_id()
             party_leader_pos = Agent.GetXY(party_leader_agent_id)
             leader_agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, party_leader_pos, within_range)
             agent_ids.extend(leader_agent_ids)
@@ -767,7 +765,7 @@ class Targets:
                 raise ValueError(f"Invalid sorting criterion: {criterion}")
 
         if should_prioritize_party_target:
-            party_forced_target_agent_id: int | None = CustomBehaviorParty().get_party_custom_target()
+            party_forced_target_agent_id: int | None = Party.get_party_custom_target()
 
             # Final sort: move party forced target to the front if it exists in the array
             if party_forced_target_agent_id is not None:
@@ -865,3 +863,53 @@ class Heals:
 
         if len(allies) == 0: return None
         return allies[0].agent_id
+    
+
+class Party:
+
+    @staticmethod
+    def get_party_custom_target() -> int | None:
+        # todo: rework need better abstraction
+        from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+        party_target_id: int | None = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData().party_target_id
+        return party_target_id
+
+    @staticmethod
+    def get_party_leader_email() -> str | None:
+        # todo: rework need better abstraction
+        from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+        party_leader_email = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData().party_leader_email
+        
+        # very bad perf...
+        def get_account_email_from_agent_id(agent_id: int) -> str | None:
+            for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+                if int(account.PlayerID) == agent_id:
+                    return account.AccountEmail
+            return None
+
+        if party_leader_email is None: 
+            return get_account_email_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        else:
+            # if custom_leader_email is not in my party, simple use default one
+            leader_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(party_leader_email)
+            if leader_account is None: return get_account_email_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+            if leader_account.PartyID != GLOBAL_CACHE.Party.GetPartyID(): return get_account_email_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+            return party_leader_email
+
+    @staticmethod
+    def is_party_leader() -> bool:
+        if Party.get_party_leader_email() == Player.GetAccountEmail():
+            return True
+        return False
+    
+    @staticmethod
+    def get_party_leader_id() -> int:
+        leader_email = Party.get_party_leader_email()
+
+        if leader_email is not None: 
+            account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(leader_email)
+            if account is not None:
+                return int(account.PlayerID)
+
+        return GLOBAL_CACHE.Party.GetPartyLeaderID()
+    

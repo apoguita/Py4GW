@@ -7,8 +7,6 @@ import time
 from threading import Lock
 from typing import Generator
 
-from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives import constants
 
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import (
     SharedLockEntry,

@@ -9,6 +9,7 @@ from Widgets.CustomBehaviors.primitives.auto_mover.auto_follow_agent import Auto
 from Widgets.CustomBehaviors.primitives.auto_mover.auto_follow_path import AutoFollowPath
 from Widgets.CustomBehaviors.primitives.auto_mover.waypoint_builder import WaypointBuilder
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 
@@ -23,7 +24,7 @@ def render():
     PyImGui.text(f"so the leader account will be able to act as a bot - fully autonomous")
     PyImGui.separator()
 
-    if not GLOBAL_CACHE.Party.IsPartyLeader():
+    if not custom_behavior_helpers.Party.is_party_leader():
         PyImGui.text(f"feature restricted to party leader.")
         return
 

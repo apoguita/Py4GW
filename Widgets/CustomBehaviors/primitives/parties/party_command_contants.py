@@ -114,7 +114,7 @@ class PartyCommandConstants:
         """Invite a specific player to the party using chat command and messaging."""
         account_email = Player.GetAccountEmail()
         if constants.DEBUG: print(f"Inviting {character_name} ({target_account_email}) to party")
-        Player.SendChatCommand("invite " + character_name)
+        GLOBAL_CACHE.Party.Players.InvitePlayer(character_name)
         GLOBAL_CACHE.ShMem.SendMessage(account_email, target_account_email, SharedCommandType.InviteToParty, (0, 0, 0, 0))
         yield from custom_behavior_helpers.Helpers.wait_for(300)
         yield

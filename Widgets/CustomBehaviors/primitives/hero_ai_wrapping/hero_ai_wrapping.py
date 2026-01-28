@@ -6,6 +6,7 @@ from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 
 from HeroAI.cache_data import CacheData
 from HeroAI.settings import Settings
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
 class HeroAiWrapping:
     _instance = None  # Singleton instance
@@ -97,7 +98,7 @@ class HeroAiWrapping:
 
         # ----------------- MANAGE HERO AI UI -----------------
         if not self._is_heroai_ui_visible: return
-        if GLOBAL_CACHE.Party.GetPartyLeaderID() != Player.GetAgentID(): return
+        if not custom_behavior_helpers.Party.is_party_leader(): return
 
         # Initialize and persist settings (abort if not ready)
         if not self._initialize_and_persist_settings(self._settings):
@@ -157,7 +158,7 @@ class HeroAiWrapping:
         for account in accounts:
             # Skip leader's own panel if ShowLeaderPanel is False
             is_own_panel = account.AccountEmail == cached_data.account_email
-            if is_own_panel and GLOBAL_CACHE.Party.IsPartyLeader() and not settings.ShowLeaderPanel:
+            if is_own_panel and custom_behavior_helpers.Party.is_party_leader() and not settings.ShowLeaderPanel:
                 continue
 
             """Create WindowModule for account if it doesn't exist"""
