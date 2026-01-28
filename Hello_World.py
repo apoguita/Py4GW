@@ -1,35 +1,9 @@
 from Py4GWCoreLib import *
-import time
-import sys
-import os
 import ctypes
-import subprocess
-
-#*******************************************************************************
-#********* Start of manual import of external libraries  ***********************
-#*******************************************************************************
-def find_system_python():
-    try:
-        python_path = subprocess.check_output("where python", shell=True).decode().split("\n")[0].strip()
-        if python_path and os.path.exists(python_path):
-            return os.path.dirname(python_path)
-    except Exception:
-        pass
-    return sys.prefix if sys.prefix and os.path.exists(sys.prefix) else None
-
-system_python_path = find_system_python()
-if system_python_path:
-    site_packages_path = os.path.join(system_python_path, "Lib", "site-packages")
-    if site_packages_path not in sys.path:
-        sys.path.append(site_packages_path)
-    os.environ["PATH"] = site_packages_path + os.pathsep + os.environ["PATH"]
 
 import glfw
 from imgui_bundle import imgui
 from imgui_bundle.python_backends.glfw_backend import GlfwRenderer
-#*******************************************************************************
-#********* End of manual import of external libraries  ***********************
-#*******************************************************************************
 
 class OverlayApp:
     def __init__(self):
