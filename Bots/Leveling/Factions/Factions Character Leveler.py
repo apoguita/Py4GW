@@ -933,6 +933,7 @@ def Minister_Chos_Estate_Mission(bot: Botting) -> None:
     bot.Move.XY(333.32, 1124.44)
     bot.Move.XY(-3337.14, -4741.27)
     bot.Wait.ForTime(35000)
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4661.99, -6285.81)
     bot.Move.XY(-7454, -7384)  # Move to Zoo Entrance
     bot.Move.XY(-9138, -4191)  # Move to First Zoo Fight
@@ -977,16 +978,18 @@ def The_Threat_Grows(bot: Botting):
     bot.Dialogs.AtXY(-1023, 4844, 0x815401)
     bot.Map.Travel(target_map_id=242) #Shin Jea Monastery
     PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(-14961, 11453, target_map_id=238)
+    bot.Move.XY(-14961, 11453)
+    bot.Wait.ForMapToChange(target_map_name="Sunqua Vale")
     ConfigurePacifistEnv(bot)
-    bot.Move.XY(2082.23, -9749.75)
-    bot.Move.XYAndExitMap(-4842, -13267, target_map_id=249) #Tsumei Village
+    bot.Move.XY(18245.78, -9448.29)
+    bot.Move.FollowAutoPath([(-4842, -13267)])
+    bot.Wait.ForMapToChange(target_map_id=249) # Tsumei Village
     PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(-11600,-17400, target_map_name="Panjiang Peninsula")
+    bot.Move.XY(-11600,-17400)
+    bot.Wait.ForMapToChange(target_map_name="Panjiang Peninsula")
     bot.Move.XY(9691.49, 7922.29) #Kill spot
-    bot.Wait.UntilOnCombat()
-    bot.Wait.UntilOutOfCombat()
-    bot.Wait.ForTime(10000)
+    bot.Wait.UntilModelHasQuest(3367) #Sister Tai model id updated 20.12.2025 GW Reforged
+    ConfigurePacifistEnv(bot)
     bot.Dialogs.WithModel(3367, 0x815407) #Sister Tai model id updated 20.12.2025 GW Reforged
     bot.Dialogs.WithModel(3367, 0x815501) #Sister Tai model id updated 20.12.2025 GW Reforged
      
