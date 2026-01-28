@@ -11,9 +11,12 @@ Features:
 ---------
 1. Skillbar Tab: View current skillbar with recharge/adrenaline states
 2. Skill Info Tab: Query detailed skill data by ID or name
-3. Target/Combo/Weapon Tab: Test new skill interpretation helpers
-4. Template Tab: Test template encode/decode functions
-5. Hero Skills Tab: View hero skillbars
+3. Skill Properties Tab: Test SkillProperties classification (interrupts, KD, conditions, etc.)
+4. Weapon Sets Tab: View equipped weapon sets with damage types and mods
+5. Item Weapons Tab: Base damage, attack speed, DPS reference for all weapon types
+6. Template Tab: Test template encode/decode functions
+7. Hero Skills Tab: View hero skillbars
+8. Reference Tab: Quick reference for target/combo/weapon/range constants
 
 ================================================================================
 EXAMPLE CODE PATTERNS - Copy these into your own bots!
@@ -131,15 +134,83 @@ if Skill.Range.IsInRange(skill_id, distance):
     print("Target is in range!")
 ```
 
+8. Skill Properties (what a skill DOES):
+-----------------------------------------
+```python
+from Py4GWCoreLib import SkillProperties
+
+# Classification
+role = SkillProperties.Classification.GetSkillRole(skill_id)  # "interrupt", "damage", "heal", etc.
+roles = SkillProperties.Classification.GetSkillRoles(skill_id)  # All roles
+
+# Interrupt detection
+if SkillProperties.Interrupt.CausesInterrupt(skill_id):
+    print("This skill interrupts!")
+
+# Condition detection
+conditions = SkillProperties.Conditions.GetAppliedConditions(skill_id)
+print(f"Applies: {', '.join(conditions)}")
+
+# Buff detection
+if SkillProperties.Buffs.IsBuffSkill(skill_id):
+    print("This is a buff")
+
+# Defense detection
+if SkillProperties.Defense.IsBlockingSkill(skill_id):
+    print(f"Defense type: {SkillProperties.Defense.GetDefenseType(skill_id)}")
+```
+
+9. Weapon Sets (native inventory):
+-----------------------------------
+```python
+from Py4GWCoreLib import Inventory
+
+# Get active weapon set
+active = Inventory.GetActiveWeaponSet()
+if active:
+    print(f"Weapon damage type: {active.weapon_damage_type}")
+
+# Find weapon set for Conjure Lightning
+ws = Inventory.GetConjureWeaponSet("Conjure Lightning")
+if ws:
+    print(f"Use Set {ws.set_index + 1}")
+
+# Find defensive set (shield)
+shield_set = Inventory.GetDefensiveWeaponSet()
+```
+
+10. Item Weapon Stats:
+----------------------
+```python
+from Py4GWCoreLib import Item
+
+# Get base damage for a weapon type
+min_dmg, max_dmg = Item.Weapon.GetBaseDamageRange("Sword")
+print(f"Sword: {min_dmg}-{max_dmg}")
+
+# Get DPS
+dps = Item.Weapon.GetDPS("Sword")
+print(f"Sword DPS: {dps}")
+
+# Check melee/ranged
+if Item.Weapon.IsMelee("Sword"):
+    print("Melee weapon")
+```
+
 See Also:
 ---------
 - Skillbar.py: SkillBar class with live data and template functions
 - Skill.py: Skill class with Target, Combo, Weapon, Range helpers
+- SkillProperties.py: Skill behavior classification (interrupt, KD, conditions, etc.)
+- Inventory.py: Weapon set methods
+- Item.py: Item.Weapon for base damage stats
+- CombatEvents.py: Combat state tracking (see CombatEventsTester widget)
 """
 
 from Py4GWCoreLib import *
 from Py4GWCoreLib.enums import Profession_Names, AttributeNames
 from Py4GWCoreLib.Skillbar import SkillUsability
+from Py4GWCoreLib.SkillProperties import SkillProperties
 from typing import List, Optional, Dict
 import time
 
@@ -168,6 +239,13 @@ class TesterState:
         # Hero selection
         self.selected_hero_index = 1
 
+        # Skill Properties lookup
+        self.properties_skill_id = 0
+
+        # Weapon sets cache
+        self.weapon_sets_cache = None
+        self.weapon_sets_last_update = 0.0
+
 
 state = TesterState()
 
@@ -194,6 +272,143 @@ def get_profession_name(prof_id: int) -> str:
 def get_attribute_name(attr_id: int) -> str:
     """Get attribute name from ID using existing enum dictionary."""
     return AttributeNames.get(attr_id, f"Attr#{attr_id}")
+
+
+def bool_colored(label: str, value: bool):
+    """Draw a bool value with green/red color."""
+    if value:
+        PyImGui.text_colored(f"{label}: Yes", (100, 255, 100, 255))
+    else:
+        PyImGui.text(f"{label}: No")
+
+
+def _get_attr_name(attr_id: int) -> str:
+    """Resolve attribute ID to name."""
+    return AttributeNames.get(attr_id, f"Attribute({attr_id})")
+
+
+def _get_dmg_type_name(dmg_id: int) -> str:
+    """Resolve damage type ID to name."""
+    from Py4GWCoreLib.native_src.context.InventoryContext import DamageType as DT_Enum
+    try:
+        return DT_Enum(dmg_id).name
+    except ValueError:
+        return f"Unknown({dmg_id})"
+
+
+def _format_mod(identifier: int, arg1: int, arg2: int, item_attr: str = "") -> str:
+    """Format a single item modifier into a human-readable string.
+
+    Args:
+        item_attr: The item's requirement attribute name, used for
+                   attribute-linked mods (HCT/HSR) where the attribute
+                   comes from the requirement, not the mod itself.
+    """
+    # Weapon base stats
+    if identifier == 42920:  # Damage range
+        return f"{arg2}-{arg1} damage"
+    if identifier == 42936:  # Shield armor
+        return f"Armor: {arg1}"
+    if identifier == 9400:   # Damage type
+        return f"Damage type: {_get_dmg_type_name(arg1)}"
+    if identifier == 10136 or identifier == 32784:  # Requires
+        return f"Requires {arg2} {_get_attr_name(arg1)}"
+
+    # Inherent / upgrade mods
+    if identifier == 8760:   # Damage +X%
+        return f"Damage +{arg2}%"
+    if identifier == 9032:   # Health +X
+        return f"Health +{arg1}"
+    if identifier == 8392:   # Energy regen
+        return f"Energy regeneration -{arg2}"
+
+    # Inscription: damage conditionals
+    if identifier == 8808:   return f"Damage +{arg2}% (while Enchanted)"
+    if identifier == 8872:   return f"Damage +{arg2}% (while in a Stance)"
+    if identifier == 8792:   return f"Damage +{arg2}% (vs. Hexed foes)"
+    if identifier == 8824:   return f"Damage +{arg2}% (while Health is above {arg1}%)"
+    if identifier == 8840:   return f"Damage +{arg2}% (while Health is below {arg1}%)"
+    if identifier == 8856:   return f"Damage +{arg2}% (while Hexed)"
+    if identifier == 8216:   return f"Armor -{arg2} (while attacking)"
+
+    # Energy inscriptions
+    if identifier == 8920:   return f"Energy +{arg2}"
+    if identifier == 8952:   return f"Energy +{arg2} (while Enchanted)"
+    if identifier == 8968:   return f"Energy +{arg2} (while Health is above {arg1}%)"
+    if identifier == 8984:   return f"Energy +{arg2} (while Health is below {arg1}%)"
+    if identifier == 9000:   return f"Energy +{arg2} (while Hexed)"
+    if identifier == 8376:   return f"Energy -{arg2}"
+    if identifier == 26568:  return f"Energy +{arg1}"
+
+    # Casting / recharge (attribute-linked: attribute comes from item requirement)
+    attr = item_attr or "item's attribute"
+    if identifier == 10248:  return f"Halves casting time of {attr} spells (Chance: {arg1}%)"
+    if identifier == 10280:  return f"Halves skill recharge of {attr} spells (Chance: {arg1}%)"
+    # Generic (non-attribute-linked)
+    if identifier == 8712:   return f"Halves casting time of spells (Chance: {arg1}%)"
+    if identifier == 9112:   return f"Halves skill recharge of spells (Chance: {arg1}%)"
+    if identifier == 9128:   return f"Halves skill recharge of spells (Chance: {arg1}%)"
+
+    # Armor inscriptions
+    if identifier == 8456:   return f"Armor +{arg2}"
+    if identifier == 8488:   return f"Armor +{arg2} (vs. elemental damage)"
+    if identifier == 8536:   return f"Armor +{arg2} (vs. physical damage)"
+    if identifier == 8568:   return f"Armor +{arg2} (while attacking)"
+    if identifier == 8584:   return f"Armor +{arg2} (while casting)"
+    if identifier == 8600:   return f"Armor +{arg2} (while Enchanted)"
+    if identifier == 8616:   return f"Armor +{arg2} (while Health is above {arg1}%)"
+    if identifier == 8632:   return f"Armor +{arg2} (while Health is below {arg1}%)"
+    if identifier == 8648:   return f"Armor +{arg2} (while Hexed)"
+    if identifier == 41240:  return f"Armor +{arg2} (vs. {_get_dmg_type_name(arg1)} damage)"
+
+    # Damage reduction
+    if identifier == 8312:   return f"Received physical damage -{arg2} (Chance: {arg1}%)"
+    if identifier == 8328:   return f"Received physical damage -{arg2} (while Enchanted)"
+    if identifier == 8344:   return f"Received physical damage -{arg2} (while Hexed)"
+    if identifier == 8360:   return f"Received physical damage -{arg2} (while in a Stance)"
+
+    # Health
+    if identifier == 8408:   return f"Health +{arg2}"
+    if identifier == 8424:   return f"Health regeneration -{arg2}"
+    if identifier == 9064:   return f"Health +{arg1} (while Enchanted)"
+    if identifier == 9080:   return f"Health +{arg1} (while Hexed)"
+    if identifier == 9096:   return f"Health +{arg1} (while in a Stance)"
+
+    # Weapon upgrades
+    if identifier == 9144:   return f"Double adrenaline gain (Chance: {arg2}%)"
+    if identifier == 9208:   return f"Armor penetration +{arg2}% (Chance: {arg1}%)"
+    if identifier == 9496:   return f"Energy gain on hit: {arg2}"
+    if identifier == 9512:   return f"Life draining: {arg1}"
+    if identifier == 8888:   return f"Enchantments last {arg2}% longer"
+    if identifier == 9240:   return f"{_get_attr_name(arg1)} +1 ({arg2}% chance while using skills)"
+    if identifier == 10296:  return f"{_get_attr_name(arg1)} +1 (Chance: {arg2}%)"
+    if identifier == 9320:   return f"Lengthens condition duration on foes by 33%"
+    if identifier == 9336:   return f"Reduces condition duration on you by 20%"
+    if identifier == 10328:  return f"Reduces condition duration on you by 20%"
+    if identifier == 41544:  return f"Damage +{arg1}% (vs. Undead)"
+
+    # Sale / salvage
+    if identifier == 9720:   return "Improved sale value"
+    if identifier == 9736:   return "Highly salvageable"
+
+    # Fallback: show raw identifier
+    return f"[0x{identifier:04X}] arg1={arg1} arg2={arg2}"
+
+
+def _format_item_mods(item):
+    """Draw all modifiers for an item as human-readable lines."""
+    from ctypes import cast as ct_cast, POINTER as CT_POINTER
+    from Py4GWCoreLib.native_src.context.InventoryContext import ItemModifierStruct
+
+    if not item.mod_struct_ptr or item.mod_struct_size == 0:
+        PyImGui.text("    (no modifiers)")
+        return
+
+    mod_array = ct_cast(item.mod_struct_ptr, CT_POINTER(ItemModifierStruct * item.mod_struct_size))
+    for mi in range(item.mod_struct_size):
+        m = mod_array.contents[mi]
+        desc = _format_mod(m.identifier, m.arg1, m.arg2)
+        PyImGui.text(f"    {desc}")
 
 
 # ============================================================================
@@ -302,7 +517,7 @@ def draw_skill_info_tab():
 
     skill_id = state.lookup_skill_id
     if skill_id <= 0:
-        PyImGui.text("Enter a skill ID or hover over a skill and click 'From Hovered'")
+        PyImGui.text("Enter a skill ID or click a slot button above.")
         return
 
     if PyImGui.begin_child("SkillInfoChild", (0, 450), True, 0):
@@ -392,6 +607,319 @@ def draw_skill_info_tab():
 
         except Exception as e:
             PyImGui.text_colored(f"Error loading skill data: {e}", (255, 0, 0, 255))
+
+        PyImGui.end_child()
+
+
+# ============================================================================
+# UI Drawing - Skill Properties Tab
+# ============================================================================
+
+def draw_skill_properties_tab():
+    """Draw the SkillProperties classification tab."""
+    PyImGui.text("Skill Properties (behavior detection)")
+    PyImGui.separator()
+
+    # Lookup controls
+    PyImGui.text("Lookup by ID:")
+    state.properties_skill_id = PyImGui.input_int("Skill ID##props", state.properties_skill_id)
+
+    # Buttons to quickly select skills from skillbar
+    PyImGui.text("From Skillbar Slot:")
+    for slot in range(1, 9):
+        if PyImGui.button(f"{slot}##propslot"):
+            skill_id = SkillBar.GetSkillIDBySlot(slot)
+            if skill_id > 0:
+                state.properties_skill_id = skill_id
+        if slot < 8:
+            PyImGui.same_line(0, -1)
+
+    # Sync button
+    if state.lookup_skill_id > 0:
+        PyImGui.same_line(0, 20)
+        if PyImGui.button("Use Skill Info ID"):
+            state.properties_skill_id = state.lookup_skill_id
+
+    PyImGui.separator()
+
+    skill_id = state.properties_skill_id
+    if skill_id <= 0:
+        PyImGui.text("Enter a skill ID or click a slot button above.")
+        return
+
+    if PyImGui.begin_child("PropsChild", (0, 500), True, 0):
+        try:
+            skill_name = get_skill_name_safe(skill_id)
+            PyImGui.text_colored(f"{skill_name} (ID: {skill_id})", (100, 200, 255, 255))
+            PyImGui.separator()
+
+            # Raw description (what the regex patterns match against)
+            if PyImGui.collapsing_header("Raw Description (regex input)##props"):
+                concise = Skill.GetConciseDescription(skill_id)
+                full = Skill.GetDescription(skill_id)
+                PyImGui.text_colored("Concise:", (200, 200, 100, 255))
+                PyImGui.text_wrapped(concise)
+                PyImGui.text("")
+                PyImGui.text_colored("Full:", (200, 200, 100, 255))
+                PyImGui.text_wrapped(full)
+
+            # Classification
+            if PyImGui.collapsing_header("Classification##props", PyImGui.TreeNodeFlags.DefaultOpen):
+                role = SkillProperties.Classification.GetSkillRole(skill_id)
+                roles = SkillProperties.Classification.GetSkillRoles(skill_id)
+
+                PyImGui.text(f"Primary Role: {role}")
+                PyImGui.text(f"All Roles: {', '.join(roles)}")
+                bool_colored("Is Offensive", SkillProperties.Classification.IsOffensiveSkill(skill_id))
+                bool_colored("Is Defensive", SkillProperties.Classification.IsDefensiveSkill(skill_id))
+                bool_colored("Is Support", SkillProperties.Classification.IsSupportSkill(skill_id))
+
+            # Interrupt
+            if PyImGui.collapsing_header("Interrupt##props"):
+                bool_colored("Causes Interrupt", SkillProperties.Interrupt.CausesInterrupt(skill_id))
+                bool_colored("Conditional Interrupt", SkillProperties.Interrupt.IsConditionalInterrupt(skill_id))
+                condition = SkillProperties.Interrupt.GetInterruptCondition(skill_id)
+                if condition:
+                    PyImGui.text(f"Condition: {condition}")
+
+            # Knockdown
+            if PyImGui.collapsing_header("Knockdown##props"):
+                causes_kd = SkillProperties.Knockdown.CausesKnockdown(skill_id)
+                bool_colored("Causes Knockdown", causes_kd)
+                if causes_kd:
+                    dur_min, dur_max = SkillProperties.Knockdown.GetKnockdownDuration(skill_id)
+                    PyImGui.text(f"Duration: {dur_min:.1f}s - {dur_max:.1f}s")
+
+            # Conditions
+            if PyImGui.collapsing_header("Conditions##props"):
+                bool_colored("Applies Condition", SkillProperties.Conditions.AppliesCondition(skill_id))
+                applied = SkillProperties.Conditions.GetAppliedConditions(skill_id)
+                if applied:
+                    PyImGui.text(f"Applies: {', '.join(applied)}")
+                bool_colored("Removes Condition", SkillProperties.Conditions.RemovesCondition(skill_id))
+
+            # Hexes
+            if PyImGui.collapsing_header("Hexes##props"):
+                bool_colored("Applies Hex", SkillProperties.Hexes.AppliesHex(skill_id))
+                bool_colored("Removes Hex", SkillProperties.Hexes.RemovesHex(skill_id))
+                bool_colored("Is Degen Hex", SkillProperties.Hexes.IsDegenerationHex(skill_id))
+
+            # Healing
+            if PyImGui.collapsing_header("Healing##props"):
+                bool_colored("Is Healing Skill", SkillProperties.Healing.IsHealingSkill(skill_id))
+                bool_colored("Is Resurrection", SkillProperties.Healing.IsResurrectionSkill(skill_id))
+
+            # Buffs
+            if PyImGui.collapsing_header("Buffs / Enchantments##props"):
+                bool_colored("Is Buff Skill", SkillProperties.Buffs.IsBuffSkill(skill_id))
+                bool_colored("Is Self Buff", SkillProperties.Buffs.IsSelfBuff(skill_id))
+                bool_colored("Removes Enchantment", SkillProperties.Buffs.RemovesEnchantment(skill_id))
+
+            # Damage
+            if PyImGui.collapsing_header("Damage##props"):
+                bool_colored("Deals Damage", SkillProperties.Damage.DealsDamage(skill_id))
+                if SkillProperties.Damage.DealsDamage(skill_id):
+                    dmg_type = SkillProperties.Damage.GetDamageType(skill_id)
+                    PyImGui.text(f"Damage Type: {dmg_type}")
+                bool_colored("Is AoE", SkillProperties.Damage.IsAoE(skill_id))
+
+            # Conditional Effects
+            if PyImGui.collapsing_header("Conditional Effects##props"):
+                bool_colored("Has Conditional Effect", SkillProperties.ConditionalEffects.HasConditionalEffect(skill_id))
+                if SkillProperties.ConditionalEffects.HasConditionalEffect(skill_id):
+                    reqs = SkillProperties.ConditionalEffects.GetConditionalRequirements(skill_id)
+                    if reqs:
+                        for req in reqs:
+                            PyImGui.text(f"  - {req}")
+                bool_colored("Has Bonus Damage", SkillProperties.ConditionalEffects.HasBonusDamage(skill_id))
+
+            # Defense
+            if PyImGui.collapsing_header("Defense##props"):
+                bool_colored("Is Blocking Skill", SkillProperties.Defense.IsBlockingSkill(skill_id))
+                if SkillProperties.Defense.IsBlockingSkill(skill_id):
+                    bool_colored("  Blocks Melee", SkillProperties.Defense.BlocksMelee(skill_id))
+                    bool_colored("  Blocks Projectiles", SkillProperties.Defense.BlocksProjectiles(skill_id))
+                bool_colored("Is Evasion Skill", SkillProperties.Defense.IsEvasionSkill(skill_id))
+                bool_colored("Damage Reduction", SkillProperties.Defense.ProvidesDamageReduction(skill_id))
+                bool_colored("Prevents Enchanting", SkillProperties.Defense.PreventsEnchanting(skill_id))
+                bool_colored("Is Anti-Melee", SkillProperties.Defense.IsAntiMelee(skill_id))
+                bool_colored("Is Anti-Caster", SkillProperties.Defense.IsAntiCaster(skill_id))
+                defense_type = SkillProperties.Defense.GetDefenseType(skill_id)
+                if defense_type != "none":
+                    PyImGui.text(f"Defense Type: {defense_type}")
+
+        except Exception as e:
+            PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
+
+        PyImGui.end_child()
+
+
+# ============================================================================
+# UI Drawing - Weapon Sets Tab
+# ============================================================================
+
+def draw_weapon_sets_tab():
+    """Draw the weapon sets tab showing equipped weapon data."""
+    PyImGui.text("Weapon Sets (Native Inventory Context)")
+    PyImGui.separator()
+
+    try:
+        active_index = Inventory.GetActiveWeaponSetIndex()
+        if active_index < 0:
+            PyImGui.text_colored("Inventory context not available.", (255, 100, 100, 255))
+            PyImGui.text("Must be loaded into a map (not loading screen or char select).")
+            # Diagnostics
+            PyImGui.separator()
+            PyImGui.text_colored("Diagnostics:", (255, 200, 100, 255))
+            from Py4GWCoreLib.native_src.context.InventoryContext import (
+                Inventory as NativeInv, ItemContext as NativeItemCtx
+            )
+            PyImGui.text(f"  Inventory._ptr:   {NativeInv.get_ptr()}")
+            PyImGui.text(f"  ItemContext._ptr:  {NativeItemCtx.get_ptr()}")
+            try:
+                game_ctx = PyPlayer.PyPlayer().GetGameContextPtr()
+                PyImGui.text(f"  GameContextPtr:   {game_ctx}")
+            except Exception:
+                PyImGui.text("  GameContextPtr:   (error getting)")
+            return
+
+        PyImGui.text(f"Active Weapon Set: {active_index + 1} (index {active_index})")
+        PyImGui.separator()
+
+        # Show all 4 weapon sets
+        if PyImGui.begin_child("WeaponSetsChild", (0, 400), True, 0):
+            all_sets = Inventory.GetAllWeaponSets()
+            for ws in all_sets:
+                if ws is None:
+                    continue
+
+                # Header with active indicator
+                active_marker = " [ACTIVE]" if ws.is_active else ""
+                header_label = f"Set {ws.set_index + 1}{active_marker}##ws{ws.set_index}"
+
+                if PyImGui.collapsing_header(header_label, PyImGui.TreeNodeFlags.DefaultOpen):
+                    PyImGui.indent(20)
+
+                    # Main hand
+                    if ws.has_weapon:
+                        two_h = " (2H)" if ws.is_two_handed else ""
+                        PyImGui.text_colored(f"Main Hand ({ws.weapon_type_name}{two_h}):", (100, 200, 255, 255))
+                        PyImGui.text(f"  Item ID: {ws.weapon_item_id}")
+                        PyImGui.text(f"  Damage Type: {ws.weapon_damage_type} ({ws.weapon_damage_type_id})")
+                    else:
+                        PyImGui.text("Main Hand: (empty)")
+
+                    # Off-hand (hidden for 2-handed weapons)
+                    if ws.is_two_handed:
+                        PyImGui.text("Off-Hand: (N/A - two-handed weapon)")
+                    elif ws.has_offhand:
+                        offhand_type = "Shield" if ws.is_shield else "Focus" if ws.is_focus else "Off-Hand"
+                        PyImGui.text_colored(f"Off-Hand ({offhand_type}):", (100, 200, 255, 255))
+                        PyImGui.text(f"  Item ID: {ws.offhand_item_id}")
+                        if ws.offhand_damage_type:
+                            PyImGui.text(f"  Damage Type: {ws.offhand_damage_type} ({ws.offhand_damage_type_id})")
+                    else:
+                        PyImGui.text("Off-Hand: (empty)")
+
+                    # Collapsible human-readable modifier display
+                    raw_ws = Inventory.GetWeaponSetRaw(ws.set_index)
+                    if raw_ws and PyImGui.tree_node(f"Item Modifiers##rawmods{ws.set_index}"):
+                        items_to_show = [("Weapon", raw_ws.weapon)]
+                        if not ws.is_two_handed:
+                            items_to_show.append(("Offhand", raw_ws.offhand))
+                        for label, item in items_to_show:
+                            if item and item.mod_struct_ptr and item.mod_struct_size > 0:
+                                type_name = ws.weapon_type_name if label == "Weapon" else ""
+                                PyImGui.text_colored(f"  {label} ({type_name}):", (100, 200, 255, 255))
+                                _format_item_mods(item)
+                        PyImGui.tree_pop()
+
+                    PyImGui.unindent(20)
+
+            PyImGui.separator()
+
+            # Quick lookup helpers
+            PyImGui.text_colored("Quick Lookups:", (255, 200, 100, 255))
+
+            defensive = Inventory.GetDefensiveWeaponSet()
+            if defensive:
+                PyImGui.text(f"  Shield Set: Set {defensive.set_index + 1}")
+            else:
+                PyImGui.text("  Shield Set: (none found)")
+
+            casting = Inventory.GetCastingWeaponSet()
+            if casting:
+                PyImGui.text(f"  Casting Set (Focus): Set {casting.set_index + 1}")
+            else:
+                PyImGui.text("  Casting Set (Focus): (none found)")
+
+            # Conjure lookups - only show if the skill is on the skillbar
+            conjure_map = {
+                "Conjure Lightning": False,
+                "Conjure Frost": False,
+                "Conjure Flame": False,
+            }
+            for slot in range(1, 9):
+                skill_id = SkillBar.GetSkillIDBySlot(slot)
+                if skill_id > 0:
+                    name = get_skill_name_safe(skill_id)
+                    if name in conjure_map:
+                        conjure_map[name] = True
+
+            for conjure_name, is_equipped in conjure_map.items():
+                if is_equipped:
+                    conjure_ws = Inventory.GetConjureWeaponSet(conjure_name)
+                    if conjure_ws:
+                        PyImGui.text(f"  {conjure_name}: Set {conjure_ws.set_index + 1} ({conjure_ws.weapon_damage_type})")
+                    else:
+                        PyImGui.text(f"  {conjure_name}: (no matching weapon set)")
+
+            PyImGui.end_child()
+
+    except Exception as e:
+        PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
+
+
+# ============================================================================
+# UI Drawing - Item Weapons Tab
+# ============================================================================
+
+def draw_item_weapons_tab():
+    """Draw the Item.Weapon reference tab with base damage, speed, DPS."""
+    PyImGui.text("Weapon Type Reference (Item.Weapon)")
+    PyImGui.separator()
+
+    if PyImGui.begin_child("ItemWeaponsChild", (0, 450), True, 0):
+        try:
+            all_types = Item.Weapon.GetAllWeaponTypes()
+
+            # Header
+            PyImGui.text_colored(
+                f"{'Type':<10} {'Damage':<12} {'Speed':<8} {'DPS':<8} {'Range':<8} {'Category'}",
+                (100, 200, 255, 255)
+            )
+            PyImGui.separator()
+
+            for wtype in all_types:
+                min_dmg, max_dmg = Item.Weapon.GetBaseDamageRange(wtype)
+                speed = Item.Weapon.GetAttackSpeed(wtype)
+                dps = Item.Weapon.GetDPS(wtype)
+                wrange = Item.Weapon.GetWeaponRange(wtype)
+                category = "Melee" if Item.Weapon.IsMelee(wtype) else "Ranged"
+
+                PyImGui.text(
+                    f"{wtype.name:<10} {min_dmg:>3}-{max_dmg:<3}       {speed:<8.2f} {dps:<8.1f} {wrange:<8} {category}"
+                )
+
+            PyImGui.separator()
+            PyImGui.text_colored("Notes:", (255, 200, 100, 255))
+            PyImGui.text("  Daggers: DPS doubled (double strike per cycle)")
+            PyImGui.text("  Damage values are at max weapon requirement")
+            PyImGui.text("  Speed is base (no IAS buffs)")
+            PyImGui.text("  Aggro bubble ~ 1010 units")
+
+        except Exception as e:
+            PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
 
         PyImGui.end_child()
 
@@ -679,6 +1207,24 @@ def draw_reference_tab():
                 PyImGui.end_child()
             PyImGui.end_tab_item()
 
+        if PyImGui.begin_tab_item("SkillUsability"):
+            if PyImGui.begin_child("UsabilityRefChild", (0, 300), True, 0):
+                PyImGui.text("SkillUsability IntEnum values:")
+                PyImGui.text(f"  READY = {int(SkillUsability.READY)}")
+                PyImGui.text(f"  RECHARGING = {int(SkillUsability.RECHARGING)}")
+                PyImGui.text(f"  DISABLED = {int(SkillUsability.DISABLED)}")
+                PyImGui.text(f"  NO_ENERGY = {int(SkillUsability.NO_ENERGY)}")
+                PyImGui.text(f"  NO_ADRENALINE = {int(SkillUsability.NO_ADRENALINE)}")
+                PyImGui.text(f"  EMPTY_SLOT = {int(SkillUsability.EMPTY_SLOT)}")
+                PyImGui.separator()
+                PyImGui.text("Usage:")
+                PyImGui.text("  result = SkillBar.GetSkillUsability(slot)")
+                PyImGui.text("  result.status  -> SkillUsability enum")
+                PyImGui.text("  result.value    -> e.g. remaining recharge seconds")
+                PyImGui.text("  result.required -> e.g. energy cost")
+                PyImGui.end_child()
+            PyImGui.end_tab_item()
+
         PyImGui.end_tab_bar()
 
 
@@ -698,6 +1244,19 @@ def draw_main_window():
             if PyImGui.begin_tab_item("Skill Info"):
                 draw_skill_info_tab()
                 PyImGui.end_tab_item()
+
+            if PyImGui.begin_tab_item("Skill Properties"):
+                draw_skill_properties_tab()
+                PyImGui.end_tab_item()
+
+            if PyImGui.begin_tab_item("Weapon Sets"):
+                draw_weapon_sets_tab()
+                PyImGui.end_tab_item()
+
+            if PyImGui.begin_tab_item("Item Weapons"):
+                draw_item_weapons_tab()
+                PyImGui.end_tab_item()
+
 
             if PyImGui.begin_tab_item("Templates"):
                 draw_template_tab()

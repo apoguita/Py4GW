@@ -1,4 +1,4 @@
-import PyPlayer
+import PyPointers
 import PyCallback
 from ctypes import (
     Structure, POINTER,
@@ -254,9 +254,8 @@ class WeaponSetStruct(Structure):
         """Get the damage type of the off-hand (-1 if none or not applicable)."""
         offhand = self.offhand
         if offhand:
-            # Check if it's a weapon (dual wield) not a shield/focus
-            # Shield = type 24, Focus = type 26
-            if offhand.type not in (24, 26):
+            # Exclude shield (24) and focus/offhand (12) - they don't have damage types
+            if offhand.type not in (24, 12):
                 return offhand.get_damage_type()
         return -1
 
@@ -264,9 +263,33 @@ class WeaponSetStruct(Structure):
     def offhand_damage_type_name(self) -> str:
         """Get the damage type name of the off-hand weapon."""
         offhand = self.offhand
-        if offhand and offhand.type not in (24, 26):
+        if offhand and offhand.type not in (24, 12):
             return offhand.get_damage_type_name()
         return ""
+
+    # Two-handed weapon types: Staff, Hammer, Bow, Scythe, Daggers
+    _TWO_HANDED_TYPES = {26, 15, 5, 35, 32}
+
+    # Weapon type names for display
+    _WEAPON_TYPE_NAMES = {
+        2: "Axe", 5: "Bow", 15: "Hammer", 22: "Wand",
+        26: "Staff", 27: "Sword", 32: "Daggers",
+        35: "Scythe", 36: "Spear",
+    }
+
+    @property
+    def weapon_type_name(self) -> str:
+        """Get the weapon type name (Sword, Wand, Staff, etc.)."""
+        weapon = self.weapon
+        if weapon:
+            return self._WEAPON_TYPE_NAMES.get(weapon.type, f"Unknown({weapon.type})")
+        return ""
+
+    @property
+    def is_two_handed(self) -> bool:
+        """Check if main hand weapon is two-handed (Staff, Hammer, Bow, Scythe, Daggers)."""
+        weapon = self.weapon
+        return weapon is not None and weapon.type in self._TWO_HANDED_TYPES
 
     @property
     def is_shield(self) -> bool:
@@ -276,9 +299,9 @@ class WeaponSetStruct(Structure):
 
     @property
     def is_focus(self) -> bool:
-        """Check if off-hand is a focus."""
+        """Check if off-hand is a focus (ItemType.Offhand = 12)."""
         offhand = self.offhand
-        return offhand is not None and offhand.type == 26
+        return offhand is not None and offhand.type == 12
 
     @property
     def weapon_mods_summary(self) -> str:
@@ -409,7 +432,7 @@ class ItemContext:
 
     @staticmethod
     def _update_ptr():
-        game_ctx_ptr = PyPlayer.PyPlayer().GetGameContextPtr()
+        game_ctx_ptr = PyPointers.PyPointers.GetGameContextPtr()
         if game_ctx_ptr:
             ItemContext._ptr = _read_ptr_at_offset(game_ctx_ptr, GAMECONTEXT_ITEMCONTEXT_OFFSET)
         else:
@@ -460,7 +483,7 @@ class Inventory:
 
     @staticmethod
     def _update_ptr():
-        game_ctx_ptr = PyPlayer.PyPlayer().GetGameContextPtr()
+        game_ctx_ptr = PyPointers.PyPointers.GetGameContextPtr()
         if game_ctx_ptr:
             item_ctx_ptr = _read_ptr_at_offset(game_ctx_ptr, GAMECONTEXT_ITEMCONTEXT_OFFSET)
             if item_ctx_ptr:

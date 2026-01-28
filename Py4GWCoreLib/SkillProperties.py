@@ -546,8 +546,9 @@ class SkillProperties:
             desc = Skill.GetConciseDescription(skill_id).lower()
 
             conditional_patterns = [
-                r'\bif\s+target\b',                # "if target has..."
-                r'\bif\s+foe\b',                   # "if foe is..."
+                r'\bif\s+(the\s+)?target\b',       # "if target..." / "if the target..."
+                r'\bif\s+(the\s+)?foe\b',          # "if foe..." / "if the foe..."
+                r'\bif\s+that\s+foe\b',            # "if that foe..."
                 r'\bif\s+this\s+attack\b',         # "if this attack hits..."
                 r'\bif\s+you\b',                   # "if you are..."
                 r'\bwhen\s+target\b',              # "when target..."
@@ -581,17 +582,18 @@ class SkillProperties:
 
             # Common conditional requirements
             condition_map = {
-                r'if target.*hexed': "Target must be hexed",
-                r'if target.*enchanted': "Target must be enchanted",
-                r'if target.*condition': "Target must have a condition",
-                r'if target.*bleeding': "Target must be bleeding",
-                r'if target.*poisoned': "Target must be poisoned",
-                r'if target.*burning': "Target must be burning",
-                r'if target.*deep wound': "Target must have Deep Wound",
-                r'if target.*knocked down': "Target must be knocked down",
-                r'if target.*moving': "Target must be moving",
-                r'if target.*attacking': "Target must be attacking",
-                r'if target.*casting': "Target must be casting",
+                r'if (the |that )?target.*hexed': "Target must be hexed",
+                r'if (the |that )?(target|foe).*enchanted': "Target must be enchanted",
+                r'if (the |that )?(target|foe).*hexed or enchanted': "Target must be hexed or enchanted",
+                r'if (the |that )?(target|foe).*condition': "Target must have a condition",
+                r'if (the |that )?(target|foe).*bleeding': "Target must be bleeding",
+                r'if (the |that )?(target|foe).*poisoned': "Target must be poisoned",
+                r'if (the |that )?(target|foe).*burning': "Target must be burning",
+                r'if (the |that )?(target|foe).*deep wound': "Target must have Deep Wound",
+                r'if (the |that )?(target|foe).*knocked down': "Target must be knocked down",
+                r'if (the |that )?(target|foe).*moving': "Target must be moving",
+                r'if (the |that )?(target|foe).*attacking': "Target must be attacking",
+                r'if (the |that )?(target|foe).*casting': "Target must be casting",
                 r'if you.*enchanted': "You must be enchanted",
                 r'if you.*moving': "You must be moving",
                 r'while attacking': "Must be attacking",
@@ -676,10 +678,12 @@ class SkillProperties:
                 skill_id: The skill ID to check.
 
             Returns:
-                Damage type name, or "physical" if not elemental.
+                Damage type name (e.g. "fire", "lightning", "physical"),
+                or "untyped" if no specific type can be determined.
             """
             desc = Skill.GetConciseDescription(skill_id).lower()
 
+            # Check for explicit damage type keywords
             for damage_type in SkillProperties.Damage.DAMAGE_TYPES:
                 if f"{damage_type} damage" in desc:
                     return damage_type
@@ -687,7 +691,6 @@ class SkillProperties:
             # Check profession for default damage type
             _, profession = Skill.GetProfession(skill_id)
             if profession == "Elementalist":
-                # Check for element keywords
                 if "fire" in desc or "burning" in desc:
                     return "fire"
                 if "cold" in desc or "water" in desc or "ice" in desc:
@@ -697,7 +700,16 @@ class SkillProperties:
                 if "earth" in desc or "stone" in desc:
                     return "earth"
 
-            return "physical"
+            # Check if this is a weapon attack (likely physical damage)
+            _, skill_type = Skill.GetType(skill_id)
+            if skill_type in ("Attack", "Melee Attack", "Ranged Attack",
+                              "Bow Attack", "Axe Attack", "Sword Attack",
+                              "Hammer Attack", "Scythe Attack", "Spear Attack",
+                              "Dagger Attack", "Lead Attack", "Off-Hand Attack",
+                              "Dual Attack", "Pet Attack"):
+                return "physical"
+
+            return "untyped"
 
         @staticmethod
         def IsAoE(skill_id: int) -> bool:

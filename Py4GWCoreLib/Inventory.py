@@ -730,15 +730,25 @@ class Inventory:
         info.weapon_item_id = weapon.item_id if weapon else 0
         info.weapon_damage_type_id = ws.weapon_damage_type
         info.weapon_damage_type = ws.weapon_damage_type_name
+        info.weapon_type_name = ws.weapon_type_name
+        info.is_two_handed = ws.is_two_handed
 
-        # Off-hand
-        offhand = ws.offhand
-        info.has_offhand = offhand is not None
-        info.offhand_item_id = offhand.item_id if offhand else 0
-        info.offhand_damage_type_id = ws.offhand_damage_type
-        info.offhand_damage_type = ws.offhand_damage_type_name
-        info.is_shield = ws.is_shield
-        info.is_focus = ws.is_focus
+        # Off-hand (suppressed for two-handed weapons)
+        if ws.is_two_handed:
+            info.has_offhand = False
+            info.offhand_item_id = 0
+            info.offhand_damage_type_id = -1
+            info.offhand_damage_type = ""
+            info.is_shield = False
+            info.is_focus = False
+        else:
+            offhand = ws.offhand
+            info.has_offhand = offhand is not None
+            info.offhand_item_id = offhand.item_id if offhand else 0
+            info.offhand_damage_type_id = ws.offhand_damage_type
+            info.offhand_damage_type = ws.offhand_damage_type_name
+            info.is_shield = ws.is_shield
+            info.is_focus = ws.is_focus
 
         return info
 
