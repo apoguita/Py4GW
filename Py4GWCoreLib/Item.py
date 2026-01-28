@@ -2,6 +2,7 @@ import PyItem
 import PyInventory
 
 from enum import Enum
+from .enums_src.GameData_enums import Weapon as WeaponType, Weapon_Names
 
 class Bag(Enum):
     NoBag = 0
@@ -390,23 +391,151 @@ class Item:
                 """Purpose: Check if an item is tradable by its ID."""
                 return Item.item_instance(item_id).is_tradable
 
-        
-       
+        class Weapon:
+            """Weapon-specific data including base damage ranges.
 
-        
+            All lookups accept either a WeaponType enum value (from GameData_enums.Weapon)
+            or a string name (e.g. "Sword"). Using the enum is preferred.
+            """
 
-        
+            # Base damage ranges at max requirement
+            # Format: WeaponType enum -> (min_damage, max_damage)
+            BASE_DAMAGE = {
+                WeaponType.Sword:    (15, 22),
+                WeaponType.Axe:      (6, 28),
+                WeaponType.Hammer:   (19, 35),
+                WeaponType.Scythe:   (9, 41),
+                WeaponType.Daggers:  (7, 17),   # Per hit, strikes twice
+                WeaponType.Spear:    (14, 27),
+                WeaponType.Bow:      (15, 28),
+                WeaponType.Wand:     (11, 22),
+                WeaponType.Staff:    (11, 22),
+                WeaponType.Scepter:  (11, 22),
+            }
 
-        
+            # Attack speed (seconds per attack) at base speed (no IAS)
+            ATTACK_SPEED = {
+                WeaponType.Sword:    1.33,
+                WeaponType.Axe:      1.33,
+                WeaponType.Hammer:   1.75,
+                WeaponType.Scythe:   1.50,
+                WeaponType.Daggers:  1.33,  # Per strike, but double-strike
+                WeaponType.Spear:    1.50,
+                WeaponType.Bow:      2.00,
+                WeaponType.Wand:     1.75,
+                WeaponType.Staff:    1.75,
+                WeaponType.Scepter:  1.75,
+            }
 
-        
+            # Weapon range in game units (aggro bubble is ~1010)
+            WEAPON_RANGE = {
+                WeaponType.Sword:    144,     # Melee
+                WeaponType.Axe:      144,
+                WeaponType.Hammer:   144,
+                WeaponType.Scythe:   144,     # Hits multiple adjacent foes
+                WeaponType.Daggers:  144,
+                WeaponType.Spear:    1200,    # Ranged
+                WeaponType.Bow:      1200,    # Varies by bow type in practice
+                WeaponType.Wand:     1200,    # Spellcasting range
+                WeaponType.Staff:    1200,
+                WeaponType.Scepter:  1200,
+            }
 
-        
+            # Reverse lookup dict built once for O(1) string -> enum resolution
+            _NAME_TO_ENUM = {name: enum_val for enum_val, name in Weapon_Names.items()}
 
-        
+            @staticmethod
+            def _resolve_key(weapon_type) -> WeaponType:
+                """Resolve a string or enum to a WeaponType enum value."""
+                if isinstance(weapon_type, WeaponType):
+                    return weapon_type
+                if isinstance(weapon_type, int):
+                    return WeaponType(weapon_type)
+                if isinstance(weapon_type, str):
+                    return Item.Weapon._NAME_TO_ENUM.get(weapon_type, WeaponType.Unknown)
+                return WeaponType.Unknown
 
-        
+            @staticmethod
+            def GetBaseDamageRange(weapon_type) -> tuple:
+                """
+                Get the base min/max damage for a weapon type.
 
-        
+                Args:
+                    weapon_type: WeaponType enum, int, or string name
+
+                Returns:
+                    tuple: (min_damage, max_damage) or (0, 0) if unknown
+                """
+                key = Item.Weapon._resolve_key(weapon_type)
+                return Item.Weapon.BASE_DAMAGE.get(key, (0, 0))
+
+            @staticmethod
+            def GetAttackSpeed(weapon_type) -> float:
+                """
+                Get the base attack speed for a weapon type (seconds per attack).
+
+                Args:
+                    weapon_type: WeaponType enum, int, or string name
+
+                Returns:
+                    float: Seconds per attack, or 1.5 if unknown
+                """
+                key = Item.Weapon._resolve_key(weapon_type)
+                return Item.Weapon.ATTACK_SPEED.get(key, 1.5)
+
+            @staticmethod
+            def GetWeaponRange(weapon_type) -> int:
+                """
+                Get the attack range for a weapon type in game units.
+
+                Args:
+                    weapon_type: WeaponType enum, int, or string name
+
+                Returns:
+                    int: Range in game units (144 = melee/adjacent)
+                """
+                key = Item.Weapon._resolve_key(weapon_type)
+                return Item.Weapon.WEAPON_RANGE.get(key, 144)
+
+            @staticmethod
+            def GetAverageDamage(weapon_type) -> float:
+                """Get the average base damage for a weapon type."""
+                min_dmg, max_dmg = Item.Weapon.GetBaseDamageRange(weapon_type)
+                return (min_dmg + max_dmg) / 2.0
+
+            @staticmethod
+            def GetDPS(weapon_type) -> float:
+                """
+                Get the theoretical base DPS for a weapon type (no skills, no IAS).
+                Daggers strike twice per attack cycle, so their DPS is doubled.
+                """
+                avg_damage = Item.Weapon.GetAverageDamage(weapon_type)
+                attack_speed = Item.Weapon.GetAttackSpeed(weapon_type)
+
+                if attack_speed <= 0:
+                    return 0.0
+
+                dps = avg_damage / attack_speed
+
+                key = Item.Weapon._resolve_key(weapon_type)
+                if key == WeaponType.Daggers:
+                    dps *= 2
+
+                return round(dps, 1)
+
+            @staticmethod
+            def IsMelee(weapon_type) -> bool:
+                """Check if a weapon type is melee range."""
+                return Item.Weapon.GetWeaponRange(weapon_type) <= 144
+
+            @staticmethod
+            def IsRanged(weapon_type) -> bool:
+                """Check if a weapon type is ranged."""
+                return Item.Weapon.GetWeaponRange(weapon_type) > 144
+
+            @staticmethod
+            def GetAllWeaponTypes() -> list:
+                """Get a list of all known weapon types as WeaponType enums."""
+                return list(Item.Weapon.BASE_DAMAGE.keys())
 
         

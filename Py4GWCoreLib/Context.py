@@ -16,6 +16,15 @@ from .native_src.context.PreGameContext import PreGameContext, PreGameContextStr
 from .native_src.context.ServerRegionContext import ServerRegion, ServerRegionStruct
 from .native_src.context.WorldContext import WorldContext, WorldContextStruct
 from .native_src.context.WorldMapContext import WorldMapContext, WorldMapContextStruct
+from .native_src.context.InventoryContext import (
+    Inventory as InventoryFacade,
+    ItemContext as ItemContextFacade,
+    InventoryStruct,
+    ItemContextStruct,
+    WeaponSetStruct,
+    ItemStruct,
+    DamageType,
+)
 
 
 
@@ -112,3 +121,11 @@ class GWContext:
     class WorldMap(_GWContextBase[WorldMapContextStruct]):
         _struct_type = WorldMapContextStruct
         _facade = WorldMapContext
+
+    class Inventory(_GWContextBase[InventoryStruct]):
+        _struct_type = InventoryStruct
+        _facade = InventoryFacade
+
+    class ItemContext(_GWContextBase[ItemContextStruct]):
+        _struct_type = ItemContextStruct
+        _facade = ItemContextFacade

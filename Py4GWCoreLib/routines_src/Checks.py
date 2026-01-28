@@ -523,11 +523,12 @@ class Checks:
 
         @staticmethod
         def IsSkillSlotReady(skill_slot):
-            from ..GlobalCache import GLOBAL_CACHE
-            if skill_slot <= 0 or skill_slot > 8:
-                return False
-            skill = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
-            return skill.recharge == 0
+            """Check if a skill slot is ready (not on cooldown).
+
+            Note: Delegates to SkillBar.IsSkillReady() to avoid duplicate logic.
+            """
+            from ..Skillbar import SkillBar
+            return SkillBar.IsSkillReady(skill_slot)
         
         @staticmethod    
         def CanCast():
