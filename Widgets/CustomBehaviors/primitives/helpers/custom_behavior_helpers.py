@@ -795,11 +795,7 @@ class Targets:
             sort_key=sort_key,
             range_to_count_enemies=range_to_count_enemies
         )
-        
 
-        let's cache things that are common between skills
-
-        
     @staticmethod
     def get_all_possible_enemies_ordered_by_priority(
             within_range: Range,
