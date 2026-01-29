@@ -154,5 +154,4 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
         PyImGui.bullet_text(f"agent_id : {Player.GetAgentID()}")
         PyImGui.bullet_text(f"party_leader_id : {custom_behavior_helpers.Party.get_party_leader_id()}")
         PyImGui.bullet_text(f"email : {Player.GetAccountEmail()}")
-        PyImGui.bullet_text(f"party_leader_email : {custom_behavior_helpers.Party.get_party_leader_email()}")
         return

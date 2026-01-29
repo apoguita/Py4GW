@@ -714,6 +714,11 @@ class Targets:
             leader_agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, party_leader_pos, within_range)
             agent_ids.extend(leader_agent_ids)
 
+        # let's add aggressive enemies a bit further away
+        further_agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, source_agent_pos, Range.Spellcast.value * 1.5)
+        further_agent_ids = AgentArray.Filter.ByCondition(further_agent_ids, lambda agent_id: Agent.IsAggressive(agent_id))
+        agent_ids.extend(further_agent_ids)
+
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id))
         if condition is not None: agent_ids = AgentArray.Filter.ByCondition(agent_ids, condition)
 
@@ -790,6 +795,10 @@ class Targets:
             sort_key=sort_key,
             range_to_count_enemies=range_to_count_enemies
         )
+        
+
+        let's cache things that are common between skills
+
         
     @staticmethod
     def get_all_possible_enemies_ordered_by_priority(
@@ -873,38 +882,55 @@ class Party:
         from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
         party_target_id: int | None = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData().party_target_id
         return party_target_id
+    
+    @staticmethod
+    def is_account_in_same_map_as_current_account(account : AccountData):
+        current_map_id = Map.GetMapID()
+        current_region = Map.GetRegion()[0]
+        current_district = Map.GetDistrict()
+        current_language = Map.GetLanguage()[0]
+        current_party_id = GLOBAL_CACHE.Party.GetPartyID()
+
+        if current_map_id != account.MapID: return False
+        if current_region != account.MapRegion: return False
+        if current_district != account.MapDistrict: return False
+        if current_language != account.MapLanguage: return False
+        if account.PartyID != current_party_id: return False
+
+        return True
 
     @staticmethod
-    def get_party_leader_email() -> str | None:
+    def __get_party_leader_email() -> str | None:
         # todo: rework need better abstraction
         from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
         party_leader_email = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData().party_leader_email
         
-        # very bad perf...
-        def get_account_email_from_agent_id(agent_id: int) -> str | None:
+        # bad perf...
+        def get_account_from_agent_id(agent_id: int) -> AccountData:
             for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
                 if int(account.PlayerID) == agent_id:
-                    return account.AccountEmail
-            return None
-
+                    return account
+            raise ValueError(f"Account not found for agent_id: {agent_id}")
+        
         if party_leader_email is None: 
-            return get_account_email_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+            return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
         else:
             # if custom_leader_email is not in my party, simple use default one
             leader_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(party_leader_email)
-            if leader_account is None: return get_account_email_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
-            if leader_account.PartyID != GLOBAL_CACHE.Party.GetPartyID(): return get_account_email_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+            if leader_account is None: return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
+            if not Party.is_account_in_same_map_as_current_account(leader_account): return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
+            if leader_account.PartyID != GLOBAL_CACHE.Party.GetPartyID(): return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
             return party_leader_email
 
     @staticmethod
     def is_party_leader() -> bool:
-        if Party.get_party_leader_email() == Player.GetAccountEmail():
+        if Party.__get_party_leader_email() == Player.GetAccountEmail():
             return True
         return False
     
     @staticmethod
     def get_party_leader_id() -> int:
-        leader_email = Party.get_party_leader_email()
+        leader_email = Party.__get_party_leader_email()
 
         if leader_email is not None: 
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(leader_email)

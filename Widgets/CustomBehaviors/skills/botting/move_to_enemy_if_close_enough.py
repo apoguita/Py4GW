@@ -38,7 +38,7 @@ class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
         self.throttle_timer = ThrottledTimer(1000)
 
     def __get_enemy_to_fight(self) -> int | None:
-        enemy_aggressive_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value + 400, aggressive_only=True)
+        enemy_aggressive_id = Routines.Agents.GetNearestEnemy(Range.Spellcast.value * 1.5, aggressive_only=True)
         if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and Agent.IsValid(enemy_aggressive_id): 
             return enemy_aggressive_id
 

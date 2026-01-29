@@ -95,9 +95,8 @@ class MinionInvocationFromCorpseUtility(CustomSkillUtilityBase):
     
     @override
     def customized_debug_ui(self, current_state):
-        targets = self._get_targets()
+            PyImGui.bullet_text(f"timer : {self.far_from_aggro_timer.GetTimeRemaining()}")
+            PyImGui.bullet_text(f"is in timeout : {self.far_from_aggro_timer.IsExpired()}")
+        # targets = self._get_targets()
 
-        for agent_id in targets:
-            PyImGui.bullet_text(f"agent_id : {agent_id} | name : {Agent.GetNameByID(agent_id)} | is_spawned : {Agent.IsSpawned(agent_id)}")
-
-        return
+        # for agent_id in targets:
