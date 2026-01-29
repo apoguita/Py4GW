@@ -3,8 +3,8 @@ from Py4GWCoreLib import *
 MODULE_NAME = "Disable Camera Smoothing"
 
 def main():
-    computed = Camera.ComputeCameraPos()
-    Camera.SetCameraPosition(computed.x, computed.y, computed.z)
+    pos = Camera.GetCameraPositionToGo()
+    Camera.SetCameraPosition(pos[0], pos[1], pos[2])
 
 def configure():
     pass
