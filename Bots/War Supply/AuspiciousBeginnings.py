@@ -244,7 +244,7 @@ def BuyMaterials(bot: Botting):
 
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
-    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63E) #enter quest with pool
+    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63F) #enter quest with pool
     bot.Wait.ForMapLoad(target_map_id=BotSettings.AUSPICIOUS_BEGINNINGS_MAP_ID)
     
 def RunQuest(bot: Botting) -> None:    
