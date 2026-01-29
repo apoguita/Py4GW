@@ -1522,19 +1522,19 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Map.Travel(target_map_id=642)
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForMapLoad(target_map_id=646)  # hall of monuments id
+    bot.Wait.ForMapLoad(target_map_id=646)
     bot.Move.XY(-6572.70, 6588.83)
-    bot.Dialogs.WithModel(6021, 0x800001) #eotn_pool_cinematic Gwen Dec New ID
+    bot.Dialogs.WithModel(6021, 0x800001) # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x630) #eotn_pool_cinematic Dec New ID
+    bot.Dialogs.WithModel(5959, 0x630) # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x632) #eotn_pool_cinematic Dec New ID
+    bot.Dialogs.WithModel(5959, 0x632) # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Wait.ForMapToChange(target_map_id=646)  # hall of monuments id
-    bot.Dialogs.WithModel(6021, 0x89) #gwen dialog Dec New ID
-    bot.Dialogs.WithModel(6021, 0x831904) #gwen dialog Dec New ID
-    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) #ogden dialog 
-    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) #vekk dialog
+    bot.Wait.ForMapToChange(target_map_id=646)
+    bot.Dialogs.WithModel(6021, 0x89) # Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x831904) # Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog 
+    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog
 
 def To_Gunnars_Hold(bot: Botting):
     bot.States.AddHeader("To Gunnar's Hold")
@@ -1931,7 +1931,7 @@ def To_Minister_Cho(bot: Botting):
     ConfigurePacifistEnv(bot)
     bot.Move.XY(16182.62, -7841.86)
     bot.Move.XY(6611.58, 15847.51)
-    bot.Move.FollowPath([(6874, 16391)])
+    bot.Move.FollowAutoPath([(6874, 16391)])
     bot.Wait.ForMapLoad(target_map_id=214) #minister_cho_map_id
 
 def To_Lions_Arch(bot: Botting):
