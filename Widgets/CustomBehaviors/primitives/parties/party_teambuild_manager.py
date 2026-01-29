@@ -260,7 +260,7 @@ class PartyTeamBuildManager:
         self.set_template_for_account(account_email, template)
 
         
-        if custom_behavior_helpers.Party.is_party_leader():
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
             # deal with cleanup
             all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             all_templates = self.__get_all_templates()

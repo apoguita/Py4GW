@@ -6,9 +6,10 @@ from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
-from Widgets.CustomBehaviors.primitives.helpers import cracked_armor_tracker, custom_behavior_helpers, glimmer_tracker
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Widgets.CustomBehaviors.primitives.helpers.trackers import cracked_armor_tracker, glimmer_tracker
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase

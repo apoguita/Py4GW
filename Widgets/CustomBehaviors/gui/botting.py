@@ -68,7 +68,7 @@ def render():
 
     PyImGui.text(f"Multiboxing Bot Collection")
     
-    if not custom_behavior_helpers.Party.is_party_leader():
+    if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         PyImGui.text(f"Feature restricted to party leader.")
         return
 

@@ -66,11 +66,11 @@ class CustomBehaviorParty:
             self.party_teambuild_manager.act()
             
             # # ------------------------------ Custom party target ------------------------------
-            if custom_behavior_helpers.Party.is_party_leader():
+            if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
                 if Map.IsExplorable():
                     current_party_target_id = self.get_party_custom_target()
                     if current_party_target_id is not None:
-                        if not Agent.IsValid(current_party_target_id): self.set_party_custom_target(None)
+                        # if not Agent.IsValid(current_party_target_id): self.set_party_custom_target(None)
                         if not Agent.IsAlive(current_party_target_id): self.set_party_custom_target(None)
                     
                     players = GLOBAL_CACHE.Party.GetPlayers()
@@ -83,6 +83,12 @@ class CustomBehaviorParty:
                             break
                 else:
                     self.set_party_custom_target(None)
+
+
+            # # ------------------------------ Party leader email ------------------------------
+
+
+
                 
             yield
     

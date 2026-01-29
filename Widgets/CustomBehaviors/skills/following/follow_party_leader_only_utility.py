@@ -65,13 +65,13 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
-        if custom_behavior_helpers.Party.is_party_leader(): return False
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader(): return False
         return True
 
     def _get_party_leader_position(self) -> tuple[float, float] | None:
         """Get position of party leader (first player in party)"""
         try:
-            leader_agent_id = custom_behavior_helpers.Party.get_party_leader_id()
+            leader_agent_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
             if leader_agent_id is None:
                 return None
             
@@ -88,7 +88,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
             return None
     
     def _am_i_party_leader(self) -> bool:
-        return custom_behavior_helpers.Party.is_party_leader()
+        return custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader()
 
     def _get_follow_distance_for_state(self, state: BehaviorState) -> float:
         """Get follow distance from shared memory"""

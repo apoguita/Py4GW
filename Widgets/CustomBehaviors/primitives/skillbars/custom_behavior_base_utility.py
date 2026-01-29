@@ -13,6 +13,7 @@ from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Widgets.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
 from Widgets.CustomBehaviors.primitives.skillbars import utility_skill_finder
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_skillbar_management import CustomBehaviorSkillbarManagement
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -311,6 +312,8 @@ class CustomBehaviorBaseUtility():
         if not Routines.Checks.Map.MapValid(): return
         if not self.get_final_is_enabled(): return
         self.timer.Reset()
+
+        MemoryCacheManager().refresh()
         # if (
         # not cached_data.data.player_is_alive
         # or DistanceFromLeader(cached_data) >= Range.SafeCompass.value

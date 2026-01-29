@@ -12,7 +12,7 @@ from Py4GWCoreLib.enums_src.GameData_enums import ProfessionShort, ProfessionSho
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers, custom_behavior_helpers_party
 from Widgets.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
@@ -40,7 +40,7 @@ def draw_party_target_vertical_line() -> None:
     - Screen-space vertical line aligned with the target's screen X, clamped to screen edges
     Draws nothing if no party custom target is set or it's invalid.
     """
-    target_id = custom_behavior_helpers.Party.get_party_custom_target()
+    target_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_custom_target()
     if not target_id or not Agent.IsValid(target_id):
         return
 
@@ -546,7 +546,7 @@ def render():
 
     PyImGui.separator()
 
-    if not custom_behavior_helpers.Party.is_party_leader():
+    if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         if PyImGui.tree_node_ex("[TEAM UI] HeroAI UI :", 0):
 
             from Widgets.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
@@ -557,11 +557,11 @@ def render():
                 hero_ai.change_heroai_ui_visibility(is_visible=new_state)
             PyImGui.tree_pop()
 
-    if True or custom_behavior_helpers.Party.is_party_leader():
+    if True or custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         if PyImGui.tree_node_ex("[TEAM] Manager :", 0):
 
             PyImGui.text(f"Default PartyLeader is {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
-            PyImGui.text(f"Overriden PartyLeader is {custom_behavior_helpers.Party.get_party_leader_id()}")
+            PyImGui.text(f"Overriden PartyLeader is {custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()}")
             # if CustomBehaviorParty.get_party_leader_email() is not None:
             #     PyImGui.text(f"CharacterName {GLOBAL_CACHE.ShMem.GetAccountDataFromEmail()).CharacterName}")
 
@@ -595,7 +595,7 @@ def render():
                             PyImGui.table_set_bg_color(2, light_blue, -1)
                         PyImGui.table_next_column()
                         # Show yellow crown icon if this account is the party leader
-                        party_leader_email = custom_behavior_helpers.Party.get_party_leader_email()
+                        party_leader_email = custom_behavior_helpers_party.CustomBehaviorHelperParty._get_party_leader_email()
                         if party_leader_email and account.AccountEmail == party_leader_email:
                             PyImGui.text_colored(f"{IconsFontAwesome5.ICON_CROWN}", (1.0, 0.85, 0.0, 1.0))  # Yellow crown
                             PyImGui.same_line(0, 5)

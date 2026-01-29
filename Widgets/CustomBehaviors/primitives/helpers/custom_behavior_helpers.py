@@ -6,27 +6,18 @@ from typing import Any, Callable, Optional, Tuple
 
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.enums_src.Model_enums import GadgetModelID
-from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
+from Widgets.CustomBehaviors.primitives.helpers.custom_behavior_helpers_target import CustomTargeting
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Widgets.CustomBehaviors.primitives.helpers.sortable_agent_data import SortableAgentData
+from Widgets.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
-from Py4GWCoreLib import GLOBAL_CACHE,Agent, Map, Player, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, Player, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.helpers.custom_behavior_helpers_party import CustomBehaviorHelperParty
 
 MODULE_NAME = "Custom Combat Behavior Helpers"
-
-@dataclass
-class SortableAgentData:
-    agent_id: int
-    distance_from_player: float
-    hp: float
-    is_caster: bool
-    is_melee: bool
-    is_martial: bool
-    enemy_quantity_within_range: int
-    agent_quantity_within_range: int
-    energy: float
 
 @dataclass
 class SpiritAgentData:
@@ -486,7 +477,7 @@ class Targets:
     @staticmethod
     def is_party_leader_in_aggro() -> bool:
         
-        party_leader_id:int = Party.get_party_leader_id()
+        party_leader_id:int = CustomBehaviorHelperParty.get_party_leader_id()
         if Targets.is_party_member_in_aggro(party_leader_id): return True
         return False
 
@@ -704,46 +695,40 @@ class Targets:
             range_to_count_enemies: float | None = None,
             should_prioritize_party_target:bool = True) -> list[SortableAgentData]:
         
-        all_agent_ids: list[int] = AgentArray.GetEnemyArray()
-        agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, source_agent_pos, within_range)
+        party_leader_id : int = MemoryCacheManager.get_or_set(MemoryCacheManager.PARTY_LEADER_ID, lambda: CustomBehaviorHelperParty.get_party_leader_id())
+        
+        agentDatas : list[SortableAgentData] = CustomTargeting().get_combined_enemy_targets(
+            source_pos=source_agent_pos,
+            within_range=within_range,
+            leader_agent_id=party_leader_id,
+            include_aggressive_further=True,
+            is_alive=True
+        )
 
-        # we add leader's area too
-        if not Party.is_party_leader():
-            party_leader_agent_id = Party.get_party_leader_id()
-            party_leader_pos = Agent.GetXY(party_leader_agent_id)
-            leader_agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, party_leader_pos, within_range)
-            agent_ids.extend(leader_agent_ids)
+        if condition is not None: agentDatas = [agent for agent in agentDatas if condition(agent.agent_id)]
 
-        # let's add aggressive enemies a bit further away
-        further_agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, source_agent_pos, Range.Spellcast.value * 1.5)
-        further_agent_ids = AgentArray.Filter.ByCondition(further_agent_ids, lambda agent_id: Agent.IsAggressive(agent_id))
-        agent_ids.extend(further_agent_ids)
-
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id))
-        if condition is not None: agent_ids = AgentArray.Filter.ByCondition(agent_ids, condition)
-
-        def build_sortable_array(agent_id):
-            agent_pos = Agent.GetXY(agent_id)
+        def build_sortable_array(agentData: SortableAgentData):
+            agent_pos = Agent.GetXY(agentData.agent_id)
             enemy_quantity_within_range = 0
 
             if range_to_count_enemies is not None:
-                for other_agent_id in agent_ids:  # complexity O(n^2) !
-                    if other_agent_id != agent_id and Utils.Distance(Agent.GetXY(other_agent_id), agent_pos) <= range_to_count_enemies:
+                for other_agent_data in agentDatas:  # complexity O(n^2) !
+                    if other_agent_data.agent_id != agentData.agent_id and Utils.Distance(Agent.GetXY(other_agent_data.agent_id), agent_pos) <= range_to_count_enemies:
                         enemy_quantity_within_range += 1
 
             return SortableAgentData(
-                agent_id=agent_id,
-                distance_from_player=Utils.Distance(agent_pos, source_agent_pos),
-                hp=Agent.GetHealth(agent_id),
-                is_caster=Agent.IsCaster(agent_id),
-                is_melee=Agent.IsMelee(agent_id),
-                is_martial=Agent.IsMartial(agent_id),
+                agent_id=agentData.agent_id,
+                distance_from_player=agentData.distance_from_player,
+                hp=agentData.hp,
+                is_caster=agentData.is_caster,
+                is_melee=agentData.is_melee,
+                is_martial=agentData.is_martial,
                 enemy_quantity_within_range=enemy_quantity_within_range,
                 agent_quantity_within_range=0,  # Not used for enemies
                 energy=0.0  # Not used for enemies
             )
 
-        data_to_sort = list(map(lambda agent_id: build_sortable_array(agent_id), agent_ids))
+        data_to_sort = list(map(lambda agentData: build_sortable_array(agentData), agentDatas))
 
         if not sort_key:  # If no sort_key is provided
             return data_to_sort
@@ -770,7 +755,7 @@ class Targets:
                 raise ValueError(f"Invalid sorting criterion: {criterion}")
 
         if should_prioritize_party_target:
-            party_forced_target_agent_id: int | None = Party.get_party_custom_target()
+            party_forced_target_agent_id: int | None = CustomBehaviorHelperParty.get_party_custom_target()
 
             # Final sort: move party forced target to the front if it exists in the array
             if party_forced_target_agent_id is not None:
@@ -870,68 +855,4 @@ class Heals:
         return allies[0].agent_id
     
 
-class Party:
 
-    @staticmethod
-    def get_party_custom_target() -> int | None:
-        # todo: rework need better abstraction
-        from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
-        party_target_id: int | None = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData().party_target_id
-        return party_target_id
-    
-    @staticmethod
-    def is_account_in_same_map_as_current_account(account : AccountData):
-        current_map_id = Map.GetMapID()
-        current_region = Map.GetRegion()[0]
-        current_district = Map.GetDistrict()
-        current_language = Map.GetLanguage()[0]
-        current_party_id = GLOBAL_CACHE.Party.GetPartyID()
-
-        if current_map_id != account.MapID: return False
-        if current_region != account.MapRegion: return False
-        if current_district != account.MapDistrict: return False
-        if current_language != account.MapLanguage: return False
-        if account.PartyID != current_party_id: return False
-
-        return True
-
-    @staticmethod
-    def __get_party_leader_email() -> str | None:
-        # todo: rework need better abstraction
-        from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
-        party_leader_email = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData().party_leader_email
-        
-        # bad perf...
-        def get_account_from_agent_id(agent_id: int) -> AccountData:
-            for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-                if int(account.PlayerID) == agent_id:
-                    return account
-            raise ValueError(f"Account not found for agent_id: {agent_id}")
-        
-        if party_leader_email is None: 
-            return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
-        else:
-            # if custom_leader_email is not in my party, simple use default one
-            leader_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(party_leader_email)
-            if leader_account is None: return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
-            if not Party.is_account_in_same_map_as_current_account(leader_account): return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
-            if leader_account.PartyID != GLOBAL_CACHE.Party.GetPartyID(): return get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID()).AccountEmail
-            return party_leader_email
-
-    @staticmethod
-    def is_party_leader() -> bool:
-        if Party.__get_party_leader_email() == Player.GetAccountEmail():
-            return True
-        return False
-    
-    @staticmethod
-    def get_party_leader_id() -> int:
-        leader_email = Party.__get_party_leader_email()
-
-        if leader_email is not None: 
-            account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(leader_email)
-            if account is not None:
-                return int(account.PlayerID)
-
-        return GLOBAL_CACHE.Party.GetPartyLeaderID()
-    

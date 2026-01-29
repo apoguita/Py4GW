@@ -72,7 +72,7 @@ class PartyFlaggingManager:
             if not Map.IsExplorable():
                 return
 
-            if not custom_behavior_helpers.Party.is_party_leader():
+            if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
                 return
 
             # Check if flags are already assigned (any flag has an email)

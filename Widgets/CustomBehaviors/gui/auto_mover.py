@@ -24,7 +24,7 @@ def render():
     PyImGui.text(f"so the leader account will be able to act as a bot - fully autonomous")
     PyImGui.separator()
 
-    if not custom_behavior_helpers.Party.is_party_leader():
+    if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         PyImGui.text(f"feature restricted to party leader.")
         return
 

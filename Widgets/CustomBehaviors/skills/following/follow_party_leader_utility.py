@@ -60,14 +60,14 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
         if self.allowed_states is not None and current_state not in self.allowed_states:
             return None
 
-        if custom_behavior_helpers.Party.is_party_leader():
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
             return None
         
         flag_index = CustomBehaviorParty().party_flagging_manager.get_my_flag_index(Player.GetAccountEmail())
         if flag_index is not None: 
             return None
 
-        party_leader_id = custom_behavior_helpers.Party.get_party_leader_id()
+        party_leader_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
         party_leader_position:tuple[float, float] = Agent.GetXY(party_leader_id)
         max_distance_to_party_leader = self._get_max_distance_to_party_leader(current_state)
 
@@ -119,7 +119,7 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
 
     def _get_position_near_leader(self, current_state) -> tuple[float, float]:
         
-        party_leader_id = custom_behavior_helpers.Party.get_party_leader_id()
+        party_leader_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
         follow_x, follow_y = Agent.GetXY(party_leader_id)
         follow_angle = Agent.GetRotationAngle(party_leader_id)
         party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
@@ -150,8 +150,8 @@ class FollowPartyLeaderUtility(CustomSkillUtilityBase):
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
 
-        PyImGui.bullet_text(f"is_party_leader : {custom_behavior_helpers.Party.is_party_leader()}")
+        PyImGui.bullet_text(f"is_party_leader : {custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader()}")
         PyImGui.bullet_text(f"agent_id : {Player.GetAgentID()}")
-        PyImGui.bullet_text(f"party_leader_id : {custom_behavior_helpers.Party.get_party_leader_id()}")
+        PyImGui.bullet_text(f"party_leader_id : {custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()}")
         PyImGui.bullet_text(f"email : {Player.GetAccountEmail()}")
         return
