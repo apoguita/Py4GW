@@ -126,7 +126,7 @@ def EquipSkillBar(skillbar = ""):
         elif level <= 9: #55 attribute points available
             skillbar = "OwVCI5MSOw1ZgGAAAAAIAA"
         elif level <= 10: #55 attribute points available
-            skillbar = "OwVCI5MSOw1ZgGAAAAAIAA"
+            skillbar = "OwVCI5QSOw1ZgGAAAAAIAA"
         else: #20 attribute points available
             skillbar = "OwVBIpkDcdGoBAAAAACA"
 
