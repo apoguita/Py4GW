@@ -562,6 +562,9 @@ def render():
 
             PyImGui.text(f"Default PartyLeader is {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
             PyImGui.text(f"Overriden PartyLeader is {custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()}")
+            if PyImGui.small_button("Reset PartyLeader"):
+                CustomBehaviorParty().set_party_leader_email(None)
+
             # if CustomBehaviorParty.get_party_leader_email() is not None:
             #     PyImGui.text(f"CharacterName {GLOBAL_CACHE.ShMem.GetAccountDataFromEmail()).CharacterName}")
 

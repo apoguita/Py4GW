@@ -21,10 +21,14 @@ class CustomBehaviorHelperParty:
         current_party_id = GLOBAL_CACHE.Party.GetPartyID()
 
         if current_map_id != account.MapID: return False
-        if current_region != account.MapRegion: return False
+
+        if not Map.IsExplorable():
+            # weird but in explorable, region can be different but still same map
+            if current_region != account.MapRegion: return False
+        
         if current_district != account.MapDistrict: return False
         if current_language != account.MapLanguage: return False
-        if account.PartyID != current_party_id: return False
+        if current_party_id != account.PartyID: return False
 
         return True
 
@@ -53,15 +57,22 @@ class CustomBehaviorHelperParty:
         else:
             leader_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(party_leader_email)
 
-            if leader_account is None or not CustomBehaviorHelperParty.is_account_in_same_map_as_current_account(leader_account): 
+            if leader_account is None: 
                 # if custom_leader_email is None, simple use default one
+                account : AccountData | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+                if account is None: return None
+                result = account.AccountEmail
+                MemoryCacheManager().set("party_leader_email", result)
+                return result
+
+            if not CustomBehaviorHelperParty.is_account_in_same_map_as_current_account(leader_account):
                 # if custom_leader_email is not in my party, simple use default one
                 account : AccountData | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
                 if account is None: return None
                 result = account.AccountEmail
                 MemoryCacheManager().set("party_leader_email", result)
                 return result
-            
+                        
             return party_leader_email
 
     @staticmethod
