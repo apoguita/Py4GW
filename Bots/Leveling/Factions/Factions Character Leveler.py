@@ -2,8 +2,10 @@ from __future__ import annotations
 from typing import List, Tuple, Generator, Any
 import PyImGui
 import os
+from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player)
+                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager)
+from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 
 bot = Botting("Factions Leveler",
               upkeep_birthday_cupcake_restock=10,
@@ -20,8 +22,9 @@ def create_bot_routine(bot: Botting) -> None:
     Unlock_Secondary_Profession(bot)
     Unlock_Xunlai_Storage(bot)
     Craft_Weapon(bot)
-    Charm_Pet(bot)
+    #Charm_Pet(bot)
     To_Minister_Chos_Estate(bot)
+    Unlock_Skills_Trainer(bot)
     Minister_Chos_Estate_Mission(bot)
     Attribute_Points_Quest_1(bot)
     Warning_The_Tengu(bot)
@@ -108,7 +111,24 @@ def EquipSkillBar(skillbar = ""):
     elif profession == "Ritualist":
         skillbar = "OAKkYRYRWCGjiB24b+mAAAAtRAA"
     elif profession == "Assassin":
-        skillbar = "OwJkYRZzXMGii5yAAAAAAAtJAA"
+        if level <= 3: #10 attribute points available
+            skillbar = "OwVBIkkDcdGoBAAAAACA"
+        elif level <= 4: #15 attribute points available
+            skillbar = "OwVBIlkDcdGoBAAAAACA"
+        elif level <= 5: #20 attribute points available
+            skillbar = "OwVBIlkDcdGoBAAAAACA"
+        elif level <= 6: #25 attribute points available
+            skillbar = "OwVBImkDcdGoBAAAAACA"
+        elif level <= 7: #45 attribute points available (including 15 attribute points from quests)
+            skillbar = "OwVBIokDcdGoBAAAAACA"
+        elif level <= 8: #50 attribute points available
+            skillbar = "OwVBIpkDcdGoBAAAAACA"
+        elif level <= 9: #55 attribute points available
+            skillbar = "OwVCI5MSOw1ZgGAAAAAIAA"
+        elif level <= 10: #55 attribute points available
+            skillbar = "OwVCI5MSOw1ZgGAAAAAIAA"
+        else: #20 attribute points available
+            skillbar = "OwVBIpkDcdGoBAAAAACA"
 
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
@@ -135,14 +155,14 @@ def AddHenchmen():
 
     henchmen_list = []
     if party_size <= 4:
-        henchmen_list.extend([1, 5, 2]) 
+        henchmen_list.extend([2, 3, 1]) 
     elif Map.GetMapID() == Map.GetMapIDByName("Seitung Harbor"):
-        henchmen_list.extend([2, 3, 1, 4, 5]) 
+        henchmen_list.extend([2, 3, 1, 6, 5]) 
+    elif Map.GetMapID() == 213: # Zen_daijun_map_id
+        henchmen_list.extend([2,3,1,8,5])
     elif Map.GetMapID() == Map.GetMapIDByName("The Marketplace"):
         henchmen_list.extend([6,9,5,1,4,7,3])
-    elif Map.GetMapID() == 213: #zen_daijun_map_id
-        henchmen_list.extend([3,1,6,8,5])
-    elif Map.GetMapID() == 194: #kaineng_map_id
+    elif Map.GetMapID() == 194: # Kaineng_map_id
         henchmen_list.extend([2,10,4,8,7,9,12])
     elif Map.GetMapID() == Map.GetMapIDByName("Boreal Station"):
         henchmen_list.extend([7,9,2,3,4,6,5])
@@ -813,7 +833,9 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("auto_combat","active", False)
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
-    fsm.resume()                           
+    fsm.resume()
+    bot.Properties.ApplyNow("auto_combat","active", True)
+    bot.Templates.Aggressive()
     yield  
     
 def on_death(bot: "Botting"):
@@ -839,7 +861,7 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
         if primary == "Ranger":
             yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0A)
         else:
-            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0F)
+            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0E)
 
     bot.States.AddHeader("Unlock Secondary Profession")
     ConfigurePacifistEnv(bot)
@@ -890,6 +912,36 @@ def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
     yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
     yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x811401) #of course i will help
 
+def switchFilter():
+    # Switch to profession sort
+    Game.enqueue(lambda: UIManager.SendUIMessage(UIMessage.kPreferenceValueChanged,[18,2], False))
+    Game.enqueue(lambda: UIManager.SendUIMessage(UIMessage.kPreferenceValueChanged,[17,4], False))
+    yield from Routines.Yield.wait(500)
+    return
+
+def TrainSkills():
+    secondary_skills_grandparent = 1746895597
+    secondary_skills_offset = [0,0,0,5,1]
+    skills_to_train_frames = [
+        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [57,0]), # Cry of Pain
+        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [25,0]), # Power Drain
+        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [860,0]), # Signet of Disruption
+    ]
+    for skill_frame_id in skills_to_train_frames:
+        Game.enqueue(lambda: UIManager.TestMouseClickAction(skill_frame_id, 0, 0))
+        yield from Routines.Yield.wait(200)
+        Game.enqueue(lambda: UIManager.FrameClick(UIManager.GetFrameIDByHash(4162812990)))
+        yield from Routines.Yield.wait(200)
+    return
+
+def Unlock_Skills_Trainer(bot: Botting) -> None:
+    bot.States.AddHeader("Unlock Skills Trainer")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.Move.XYAndDialog(-8790.00, 10366.00, 0x84)
+    bot.States.AddCustomState(switchFilter, "Switch Skill Filter")
+    bot.Wait.ForTime(3000)
+    bot.States.AddCustomState(TrainSkills, "Train Skills")
+
 def Charm_Pet(bot: Botting) -> None:
     bot.States.AddHeader("Charm Pet")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
@@ -906,6 +958,8 @@ def Charm_Pet(bot: Botting) -> None:
 
 def To_Minister_Chos_Estate(bot: Botting):
     bot.States.AddHeader("To Minister Cho's Estate")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     ConfigurePacifistEnv(bot)
     bot.Move.XY(16182.62, -7841.86)
     bot.Move.XY(6611.58, 15847.51)
@@ -987,7 +1041,7 @@ def The_Threat_Grows(bot: Botting):
     PrepareForBattle(bot)
     bot.Move.XY(-11600,-17400)
     bot.Wait.ForMapToChange(target_map_name="Panjiang Peninsula")
-    bot.Move.XY(9691.49, 7922.29) #Kill spot
+    bot.Move.XY(10077.84, 8047.69) #Kill spot
     bot.Wait.UntilModelHasQuest(3367) #Sister Tai model id updated 20.12.2025 GW Reforged
     ConfigurePacifistEnv(bot)
     bot.Dialogs.WithModel(3367, 0x815407) #Sister Tai model id updated 20.12.2025 GW Reforged
@@ -1031,19 +1085,36 @@ def Zen_Daijun_Mission(bot:Botting):
     bot.Map.Travel(target_map_id=213)
     PrepareForBattle(bot)
     bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
-    ConfigureAggressiveEnv(bot)
-    bot.Move.XY(11775.22, 11310.60)
-    bot.Interact.WithGadgetAtXY(11665, 11386)
-    auto_path_list:List[Tuple[float, float]] = [(10549,8070),(10945,3436),(7551,3810),(4855.66, 1521.21)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    bot.Interact.WithGadgetAtXY(4754,1451)
-    auto_path_list:List[Tuple[float, float]] = [(4508, -1084),(528, 6271),(-9833, 7579),(-5057.49, 3021.30)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
-    auto_path_list:List[Tuple[float, float]] = [(-12983, 2191),(-12362, -263),(-9813, -114)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    bot.Party.FlagAllHeroes(-7688.63, -1538.34)
-    bot.Move.XY(-7681.58, -1509.00)
+    bot.Move.XY(15120.68, 10456.73)
+    bot.Wait.ForTime(15000)
+    bot.Move.XY(11990.38, 10782.05)
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(10161.92, 9751.41)
+    bot.Move.XY(9723.10, 7968.76)
+    bot.Wait.UntilOutOfCombat()
+    bot.Interact.WithGadgetAtXY(9632.00, 8058.00)
+    bot.Move.XY(9412.15, 7257.83)
+    bot.Move.XY(9183.47, 6653.42)
+    bot.Move.XY(8966.42, 6203.29)
+    bot.Move.XY(3510.94, 2724.63)
+    bot.Move.XY(2120.18, 1690.91)
+    bot.Move.XY(928.27, 2782.67)
+    bot.Move.XY(744.67, 4187.17)
+    bot.Move.XY(242.27, 6558.48)
+    bot.Move.XY(-4565.76, 8326.51)
+    bot.Move.XY(-5374.88, 8626.30)
+    bot.Move.XY(-10291.65, 8519.68)
+    bot.Move.XY(-11009.76, 6292.73)
+    bot.Move.XY(-12762.20, 6112.31)
+    bot.Move.XY(-14029.90, 3699.97)
+    bot.Move.XY(-13243.47, 1253.06)
+    bot.Move.XY(-11306.09, 802.47)
+    bot.Wait.ForTime(5000)
+    bot.Move.XY(-10255.23, 178.48)
+    bot.Move.XY(-9068.41, -553.94)
+    bot.Wait.ForTime(5000)
+    bot.Move.XY(-7949.79, -1376.02)
+    bot.Move.XY(-7688.63, -1538.34)
     bot.Wait.ForMapToChange(target_map_name="Seitung Harbor")
 
 def Craft_Remaining_Seitung_Armor(bot: Botting):
