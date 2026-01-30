@@ -77,8 +77,8 @@ class RitualistSos_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
-            self.signet_of_spirits_utility.custom_skill,
-            self.vampirism_utility.custom_skill,
+            # self.signet_of_spirits_utility.custom_skill,
+            # self.vampirism_utility.custom_skill,
             self.bloodsong_utility.custom_skill,
             self.gaze_of_fury_utility.custom_skill,
         ]

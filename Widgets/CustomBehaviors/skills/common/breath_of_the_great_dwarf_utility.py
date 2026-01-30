@@ -32,22 +32,22 @@ class BreathOfTheGreatDwarfUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit, min_allies_count=3, less_health_than_percent=0.4):
+        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit.value, min_allies_count=3, less_health_than_percent=0.4):
             return self.score_definition.get_score(HealingScore.PARTY_DAMAGE_EMERGENCY)
 
-        first_member_damaged: int | None = custom_behavior_helpers.Heals.get_first_member_damaged(within_range=Range.Spirit, less_health_than_percent=0.4, exclude_player=False)
+        first_member_damaged: int | None = custom_behavior_helpers.Heals.get_first_member_damaged(within_range=Range.Spirit.value, less_health_than_percent=0.4, exclude_player=False)
         if first_member_damaged is not None:
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED_EMERGENCY)
 
-        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit, min_allies_count=3, less_health_than_percent=0.75):
+        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit.value, min_allies_count=3, less_health_than_percent=0.75):
             return self.score_definition.get_score(HealingScore.PARTY_DAMAGE)
 
         # more than X allies burning
 
         burning_skill_id:int = GLOBAL_CACHE.Skill.GetID("Burning")
 
-        allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority(
-            within_range=Range.Spirit,
+        allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
+            within_range=Range.Spirit.value,
             condition= lambda agent_id: Agent.GetHealth(agent_id) < 0.85 
                 and custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, burning_skill_id),
             sort_key= (TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),

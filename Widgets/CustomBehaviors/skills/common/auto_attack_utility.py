@@ -60,7 +60,7 @@ class AutoAttackUtility(CustomSkillUtilityBase):
         target_agent_id = self.__get_target_agent_id()
         if target_agent_id == 0: return None
 
-        if Agent.IsAttacking(Player.GetAgentID()):
+        if Agent.IsAttacking(Player.GetAgentID()) and Player.GetTargetID() == target_agent_id:
             self.throttle_timer.Reset()
             return None
 

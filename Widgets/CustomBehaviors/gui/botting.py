@@ -5,6 +5,7 @@ import os
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Widgets.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
 # Global state for bot selection and control
 _selected_bot_index = 0
@@ -67,7 +68,7 @@ def render():
 
     PyImGui.text(f"Multiboxing Bot Collection")
     
-    if not GLOBAL_CACHE.Party.IsPartyLeader():
+    if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         PyImGui.text(f"Feature restricted to party leader.")
         return
 

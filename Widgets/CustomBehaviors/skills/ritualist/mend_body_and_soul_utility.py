@@ -36,7 +36,7 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
     def _get_lowest_hp_target() -> custom_behavior_helpers.SortableAgentData | None:
 
             targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-                within_range=Range.Spirit,
+                within_range=Range.Spirit.value,
                 condition=lambda agent_id: True,
                 sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
             return targets[0] if len(targets) > 0 else None
@@ -47,7 +47,7 @@ class MendBodyAndSoulUtility(CustomSkillUtilityBase):
         crippled_skill_id = GLOBAL_CACHE.Skill.GetID("Crippled")
         
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Spirit,
+            within_range=Range.Spirit.value,
             condition=lambda agent_id: 
                 self.cure_effect_configuration.get_agent_id_predicate()(agent_id) and
                 custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, blind_skill_id) and

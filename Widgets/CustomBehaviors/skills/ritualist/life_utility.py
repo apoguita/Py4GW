@@ -3,6 +3,7 @@ from typing import Any, Generator, override
 from Py4GWCoreLib import Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
+from Widgets.CustomBehaviors.primitives.bus.event_type import EventType
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.scores.healing_score import HealingScore
@@ -48,13 +49,8 @@ class LifeUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        is_skill_ready: bool = Routines.Checks.Skills.IsSkillIDReady(self.custom_skill.skill_id) and custom_behavior_helpers.Resources.has_enough_resources(self.custom_skill)
 
-        if is_skill_ready:
-            result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
-            return result 
-        else:
-            result = yield from custom_behavior_helpers.Actions.player_drop_item_if_possible()
-            if result is BehaviorResult.ACTION_PERFORMED: return result
-
-        return BehaviorResult.ACTION_SKIPPED
+        result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
+        if result is BehaviorResult.ACTION_PERFORMED:
+            yield from self.event_bus.publish(EventType.SPIRIT_CREATED, state, data=self.custom_skill.skill_id)
+        return result

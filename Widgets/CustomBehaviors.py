@@ -3,8 +3,9 @@ import pathlib
 import sys
 
 import Py4GW
-from Py4GWCoreLib import ImGui, PyImGui, Routines
+from Py4GWCoreLib import ImGui, Map, PyImGui, Routines
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Py4GWCoreLib.UIManager import UIManager
 from Widgets.CustomBehaviors.primitives import constants
 from Widgets.CustomBehaviors.primitives.fps_monitor import FPSMonitor
 from Widgets.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -19,6 +20,7 @@ for module_name in list(sys.modules.keys()):
     if module_name not in ("sys", "importlib", "cache_data"):
         try:
             if "behavior" in module_name.lower():
+                # Py4GW.Console.Log("CustomBehaviors", f"Reloading module: {module_name}")
                 del sys.modules[module_name]
                 # importlib.reload(module_name)
                 pass
@@ -53,12 +55,11 @@ def gui():
 
     global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
-    window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 600), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+    # window_module:ImGui.WindowModule = ImGui.WindowModule("Custom behaviors", window_name="Custom behaviors - Multiboxing over utility-ai algorithm.", window_size=(0, 600), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
-    if PyImGui.begin(window_module.window_name, window_module.window_flags):
+    if PyImGui.begin("Custom behaviors - Multiboxing over utility-ai algorithm.", PyImGui.WindowFlags.AlwaysAutoResize):
         widget_window_size = PyImGui.get_window_size()
         widget_window_pos = PyImGui.get_window_pos()
-        
 
         PyImGui.begin_tab_bar("tabs")
         if PyImGui.begin_tab_item("party"):
@@ -134,7 +135,10 @@ def main():
         if constants.DEBUG: print("map changed - throttling.")
 
     if map_change_throttler.IsExpired():
-        gui()
+        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and Py4GW.Console.is_window_active()
+        if show_ui:
+            gui()
+
         daemon()
 
 def configure():
