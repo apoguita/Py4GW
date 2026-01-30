@@ -936,6 +936,9 @@ def TrainSkills():
 
 def Unlock_Skills_Trainer(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Skills Trainer")
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if profession == "Mesmer":
+        return
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     bot.Move.XYAndDialog(-8790.00, 10366.00, 0x84)
     bot.States.AddCustomState(switchFilter, "Switch Skill Filter")
