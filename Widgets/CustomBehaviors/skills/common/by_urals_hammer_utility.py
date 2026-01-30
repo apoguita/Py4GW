@@ -43,7 +43,7 @@ class ByUralsHammerUtility(CustomSkillUtilityBase):
         player_agent_id = Player.GetAgentID()
 
         allies_qte = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Earshot,
+            within_range=Range.Earshot.value,
             condition=lambda agent_id: not Agent.IsAlive(agent_id) and agent_id != player_agent_id,
             sort_key=(TargetingOrder.DISTANCE_ASC, )
         )

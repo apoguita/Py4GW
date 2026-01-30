@@ -17,6 +17,15 @@ py4gw_root_directory = project_root + f"\\..\\..\\"
 WITH_DETAIL = False
 EXPANDED_SKILL_IDS: set[str] = set()
 
+# Fallback texture for skills without a valid texture
+FALLBACK_SKILL_TEXTURE = py4gw_root_directory + "Widgets\\CustomBehaviors\\gui\\textures\\no_bg.png"
+
+def get_skill_texture_with_fallback(texture_path: str) -> str:
+    """Returns the texture path if it exists, otherwise returns the fallback texture."""
+    if texture_path and os.path.exists(texture_path):
+        return texture_path
+    return FALLBACK_SKILL_TEXTURE
+
 
 
 
@@ -100,11 +109,11 @@ def render():
                         # PyImGui.table_headers_row()
                         for score in scores_by_typology:
                             def label_generic_utility(utility: CustomSkillUtilityBase) -> str:
-                                if utility.__class__.__name__ == "HeroAiUtility":
-                                    return f"HeroAI: "
+                                if utility.__class__.__name__ == "AutoCombatUtility":
+                                    return f" AutoCombat"
                                 return ""
                             score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
-                            texture_file = score[0].custom_skill.get_texture(py4gw_root_directory, project_root)
+                            texture_file = get_skill_texture_with_fallback(score[0].custom_skill.get_texture(py4gw_root_directory, project_root))
 
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
@@ -154,11 +163,12 @@ def render():
                             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, UtilitySkillTypologyColor.get_color_from_typology(score[0].utility_skill_typology))
                             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, UtilitySkillTypologyColor.get_color_from_typology(score[0].utility_skill_typology))
                             PyImGui.push_style_color(PyImGui.ImGuiCol.Text, black_color.to_tuple_normalized())
-                            PyImGui.button(f"score : {label_generic_utility(skill)}{score_text}")
+                            PyImGui.button(f"score{label_generic_utility(skill)} : {score_text}")
 
                             PyImGui.pop_style_color(4)
 
                             if unique_key in EXPANDED_SKILL_IDS:
+                                PyImGui.bullet_text(f"{skill.__class__.__name__}")
                                 PyImGui.bullet_text("required ressource")
                                 PyImGui.same_line(0, -1)
                                 PyImGui.text_colored(f"{skill.mana_required_to_cast}",  Utils.RGBToNormal(27, 126, 246, 255))
@@ -186,7 +196,7 @@ def render():
                         PyImGui.table_setup_column("Score", PyImGui.TableColumnFlags.WidthFixed, 70)
                         PyImGui.table_headers_row()
                         for util, sc in sorted_scores:
-                            texture_file = util.custom_skill.get_texture(py4gw_root_directory, project_root)
+                            texture_file = get_skill_texture_with_fallback(util.custom_skill.get_texture(py4gw_root_directory, project_root))
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
                             ImGui.DrawTexture(texture_file, 35, 35)

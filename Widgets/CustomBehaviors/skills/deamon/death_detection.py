@@ -52,7 +52,7 @@ class DeathDetectionUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         del current_state, previously_attempted_skills  # Unused parameters
         if not Map.IsExplorable(): return None
-        if not GLOBAL_CACHE.Party.IsPartyLeader(): return None
+        if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader(): return None
 
         if custom_behavior_helpers.Resources.is_party_dead():
             return self.score_definition.get_score()

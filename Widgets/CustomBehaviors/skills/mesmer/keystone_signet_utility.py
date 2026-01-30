@@ -31,18 +31,20 @@ class KeystoneSignetUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
         self.symbolic_posture_skill: CustomSkill = CustomSkill("Symbolic_Posture")
 
-
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        has_symbolic_posture_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.symbolic_posture_skill.skill_id)
+        # no keystone signet buff, let's cast it.
         has_keystone_signet_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.custom_skill.skill_id)
+        if not has_keystone_signet_buff: return self.score_definition.get_score() 
 
-        if not has_symbolic_posture_buff: 
-            return None
-
-        if not has_keystone_signet_buff: 
-            return self.score_definition.get_score() 
+        # if we have symbolic posture buff, just force refresh keystone signet.
+        has_symbolic_posture_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.symbolic_posture_skill.skill_id)
+        if has_symbolic_posture_buff: return self.score_definition.get_score()
+        
+        # if we have keystone signet buff, let's check if it is worth to refresh it.
+        symbolic_posture_recharge_time_remaining = custom_behavior_helpers.Resources.get_skill_recharge_time_remaining_in_milliseconds(self.symbolic_posture_skill)
+        if symbolic_posture_recharge_time_remaining <= 15_000: return self.score_definition.get_score()
 
         return None
 

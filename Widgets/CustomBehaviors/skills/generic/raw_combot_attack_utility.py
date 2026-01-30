@@ -74,7 +74,7 @@ class RawCombotAttackUtility(CustomSkillUtilityBase):
         if target_id is None: return None
 
         party_forced_target_prioritized = False
-        if target_id == CustomBehaviorParty().get_party_custom_target():
+        if target_id == custom_behavior_helpers.CustomBehaviorHelperParty.get_party_custom_target():
             party_forced_target_prioritized = True
 
         return self.score_definition.get_score(self.combot_type, party_forced_target_prioritized = party_forced_target_prioritized)
