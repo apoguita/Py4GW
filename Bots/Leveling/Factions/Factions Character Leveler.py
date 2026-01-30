@@ -1108,6 +1108,7 @@ def Zen_Daijun_Mission(bot:Botting):
     bot.Move.XY(-12762.20, 6112.31)
     bot.Move.XY(-14029.90, 3699.97)
     bot.Move.XY(-13243.47, 1253.06)
+    bot.Move.XY(-11907.05, 28.87)
     bot.Move.XY(-11306.09, 802.47)
     bot.Wait.ForTime(5000)
     bot.Move.XY(-10255.23, 178.48)
