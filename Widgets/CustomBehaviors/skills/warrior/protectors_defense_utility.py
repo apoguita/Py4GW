@@ -33,7 +33,7 @@ class ProtectorsDefenseUtility(CustomSkillUtilityBase):
     @staticmethod
     def _get_allies() -> list[custom_behavior_helpers.SortableAgentData]:
         return custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Adjacent,
+            within_range=Range.Adjacent.value,
             condition=lambda agent_id: True,
             sort_key=(TargetingOrder.DISTANCE_ASC,)
         )

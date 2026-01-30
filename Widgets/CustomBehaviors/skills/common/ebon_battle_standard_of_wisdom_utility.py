@@ -11,6 +11,8 @@ from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorR
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Widgets.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
+from Widgets.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Widgets.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -32,6 +34,7 @@ class EbonBattleStandardOfWisdom(CustomSkillUtilityBase):
             allowed_states=allowed_states)
         
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
+        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_CASTERS)
 
     def _get_agent_array(self) -> list[int]:
         allowed_classes = [Profession.Mesmer.value, Profession.Necromancer.value, Profession.Ritualist.value]
@@ -39,7 +42,7 @@ class EbonBattleStandardOfWisdom(CustomSkillUtilityBase):
         agent_array = AgentArray.GetAllyArray()
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.IsAlive(agent_id))
         agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != Player.GetAgentID())
-        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.GetProfessionIDs(agent_id)[0] in allowed_classes)
+        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: self.buff_configuration.get_agent_id_predicate()(agent_id))
         agent_array = AgentArray.Filter.ByDistance(agent_array, Player.GetXY(), Range.Spellcast.value)
         return [agent_id for agent_id in agent_array]
 
@@ -80,3 +83,8 @@ class EbonBattleStandardOfWisdom(CustomSkillUtilityBase):
         
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result 
+    
+
+    @override
+    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
+        return self.buff_configuration

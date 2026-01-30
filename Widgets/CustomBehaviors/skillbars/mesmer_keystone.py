@@ -15,9 +15,11 @@ from Widgets.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utilit
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Widgets.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
-from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
+from Widgets.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
 from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
+from Widgets.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility
 from Widgets.CustomBehaviors.skills.generic.raw_aoe_attack_utility import RawAoeAttackUtility
+from Widgets.CustomBehaviors.skills.mesmer import keystone_signet_utility
 from Widgets.CustomBehaviors.skills.mesmer.cry_of_frustration_utility import CryOfFrustrationUtility
 from Widgets.CustomBehaviors.skills.mesmer.cry_of_pain_utility import CryOfPainUtility
 from Widgets.CustomBehaviors.skills.mesmer.drain_enchantment_utility import DrainEnchantmentUtility
@@ -38,12 +40,21 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # core
-        self.symbolic_celerity_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Symbolic_Celerity"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85), renew_before_expiration_in_milliseconds=1500, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
-        self.symabolic_posture_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Symbolic_Posture"), current_build=in_game_build, score_definition=ScoreStaticDefinition(84), renew_before_expiration_in_milliseconds=1500, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
         self.keystone_signet_utility: CustomSkillUtilityBase = KeystoneSignetUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(83))
+
+        self.symbolic_celerity_utility: CustomSkillUtilityBase = PreparationUtility(event_bus=self.event_bus, 
+                                                                                    prep_skill=CustomSkill("Symbolic_Celerity"), 
+                                                                                    target_utilities=[self.keystone_signet_utility],
+                                                                                    current_build=in_game_build, score_definition=ScoreStaticDefinition(85), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        
+        self.symabolic_posture_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Symbolic_Posture"), current_build=in_game_build, score_definition=ScoreStaticDefinition(84), renew_before_expiration_in_milliseconds=1500, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
 
         # signets
 
+        self.leech_signet_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
+            event_bus=self.event_bus, skill=CustomSkill("Leech_Signet"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 75 if enemy_qte >= 2 else 40 if enemy_qte <= 2 else 0),
+            condition = lambda agent_id:(Agent.IsCasting(agent_id) and GLOBAL_CACHE.Skill.Flags.IsSpell(Agent.GetCastingSkillID(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkillID(agent_id)) >= 0.200)))
+        
         self.unnatural_signet_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
             event_bus=self.event_bus, skill=CustomSkill("Unnatural_Signet"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 75 if enemy_qte >= 2 else 40 if enemy_qte <= 2 else 0),
             condition = lambda agent_id: Agent.IsHexed(agent_id))
@@ -86,6 +97,7 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.spiritual_pain_utility,
             self.symbolic_celerity_utility,
             self.symabolic_posture_utility,
+            self.leech_signet_utility,
             self.keystone_signet_utility,
             self.signet_of_clumsiness_utility,
             self.unnatural_signet_utility,

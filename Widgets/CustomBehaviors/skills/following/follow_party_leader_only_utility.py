@@ -8,6 +8,7 @@ from Py4GWCoreLib.Overlay import Overlay
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 from Widgets.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Widgets.CustomBehaviors.primitives.scores.score_per_status_definition import ScorePerStatusDefinition
@@ -64,13 +65,13 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
-        if GLOBAL_CACHE.Party.IsPartyLeader(): return False
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader(): return False
         return True
 
     def _get_party_leader_position(self) -> tuple[float, float] | None:
         """Get position of party leader (first player in party)"""
         try:
-            leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            leader_agent_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
             if leader_agent_id is None:
                 return None
             
@@ -87,7 +88,7 @@ class FollowPartyLeaderOnlyUtility(CustomSkillUtilityBase):
             return None
     
     def _am_i_party_leader(self) -> bool:
-        return GLOBAL_CACHE.Party.IsPartyLeader()
+        return custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader()
 
     def _get_follow_distance_for_state(self, state: BehaviorState) -> float:
         """Get follow distance from shared memory"""

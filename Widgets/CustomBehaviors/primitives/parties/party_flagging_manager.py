@@ -7,6 +7,7 @@ Manages flag positions for up to 12 party members.
 import math
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib import Map, Agent, Player
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 class PartyFlaggingManager:
@@ -71,7 +72,7 @@ class PartyFlaggingManager:
             if not Map.IsExplorable():
                 return
 
-            if not GLOBAL_CACHE.Party.IsPartyLeader():
+            if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
                 return
 
             # Check if flags are already assigned (any flag has an email)
@@ -502,7 +503,7 @@ class PartyFlaggingManager:
                 - message: Error message if failed, empty string if succeeded
         """
         # Check if current player is party leader
-        if not GLOBAL_CACHE.Party.IsPartyLeader():
+        if True == False:
             return False, "You must be party leader to set flags"
 
         # Get leader position and angle

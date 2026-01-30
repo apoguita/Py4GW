@@ -47,7 +47,7 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
     def _get_target(self) -> int | None:
  
         target: int | None = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
-                within_range=Range.Spellcast,
+                within_range=Range.Spellcast.value,
                 condition=lambda agent_id:
                     agent_id != Player.GetAgentID() and
                     custom_behavior_helpers.Resources.get_energy_percent_in_party(agent_id) < self.required_target_mana_lower_than_percent and

@@ -45,12 +45,12 @@ class ProtectiveWasKaolaiUtility(CustomSkillUtilityBase):
         if not is_player_holding_an_item and is_skill_ready: return 90
 
         # 3 allies or more with less than 40% health or average group health lower than 75%
-        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit, min_allies_count=3, less_health_than_percent=0.4) \
-            or custom_behavior_helpers.Heals.party_average_health(within_range=Range.Spirit) < 0.75:
+        if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit.value, min_allies_count=3, less_health_than_percent=0.4) \
+            or custom_behavior_helpers.Heals.party_average_health(within_range=Range.Spirit.value) < 0.75:
             return self.score_definition.get_score(HealingScore.PARTY_DAMAGE_EMERGENCY)
 
         #one ally with less than 40%
-        first_member_damaged: int | None = custom_behavior_helpers.Heals.get_first_member_damaged(within_range=Range.Spirit, less_health_than_percent=0.4, exclude_player=False)
+        first_member_damaged: int | None = custom_behavior_helpers.Heals.get_first_member_damaged(within_range=Range.Spirit.value, less_health_than_percent=0.4, exclude_player=False)
         if first_member_damaged is not None:
             return self.score_definition.get_score(HealingScore.MEMBER_DAMAGED_EMERGENCY)
 

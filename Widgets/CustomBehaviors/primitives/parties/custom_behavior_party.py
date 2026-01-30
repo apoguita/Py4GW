@@ -19,6 +19,7 @@ from Widgets.CustomBehaviors.primitives import constants
 
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
+from Widgets.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
 from Widgets.CustomBehaviors.primitives.parties.party_command_handler_manager import PartyCommandHandlerManager
 from Widgets.CustomBehaviors.primitives.parties.party_flagging_manager import PartyFlaggingManager
 from Widgets.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
@@ -51,28 +52,43 @@ class CustomBehaviorParty:
             self.party_following_manager = PartyFollowingManager()
             self.party_shared_lock_manager = CustomBehaviorWidgetMemoryManager().GetSharedLockManager()
             self.party_flagging_manager = PartyFlaggingManager()
+
+            # Rename GW windows to match custom behavior party names on load
+            print("CustomBehaviorParty: Renaming GW windows")
+            CustomBehaviorParty().schedule_action(PartyCommandConstants.rename_gw_windows)
+
             self.throttler = ThrottledTimer(50)
 
     def _handle(self) -> Generator[Any | None, Any | None, None]:
         while True:
             self.party_command_handler_manager.execute_next_step()
-            self.messaging_process()
-            self.party_teambuild_manager.act() # todo only if idle ?
+            self.__messaging_process()
+            self.party_teambuild_manager.act()
+            
+            # # ------------------------------ Custom party target ------------------------------
+            if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
+                if Map.IsExplorable():
+                    current_party_target_id = self.get_party_custom_target()
+                    if current_party_target_id is not None:
+                        # if not Agent.IsValid(current_party_target_id): self.set_party_custom_target(None)
+                        if not Agent.IsAlive(current_party_target_id): self.set_party_custom_target(None)
+                    
+                    players = GLOBAL_CACHE.Party.GetPlayers()
+                    for player in players:
+                        agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+                        if agent_id == Player.GetAgentID():
+                            called_target_id = player.called_target_id
+                            if called_target_id != 0:
+                                self.set_party_custom_target(called_target_id)
+                            break
+                else:
+                    self.set_party_custom_target(None)
 
-            if GLOBAL_CACHE.Party.IsPartyLeader() and Map.IsExplorable():
-                
-                current_party_target_id = self.get_party_custom_target()
-                if current_party_target_id is not None:
-                    # if not Agent.IsValid(current_party_target_id): self.set_party_custom_target(None)
-                    if not Agent.IsAlive(current_party_target_id): self.set_party_custom_target(None)
 
-                players = GLOBAL_CACHE.Party.GetPlayers()
-                for player in players:
-                    agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-                    if agent_id != Player.GetAgentID(): continue
-                    called_target_id = player.called_target_id
-                    if called_target_id != 0:
-                        self.set_party_custom_target(called_target_id)
+            # # ------------------------------ Party leader email ------------------------------
+
+
+
                 
             yield
     
@@ -99,8 +115,7 @@ class CustomBehaviorParty:
 
     #---
 
-
-    def messaging_process(self):
+    def __messaging_process(self):
 
         account_email = Player.GetAccountEmail()
         index, message = GLOBAL_CACHE.ShMem.GetNextMessage(account_email)
@@ -142,14 +157,15 @@ class CustomBehaviorParty:
     def set_party_is_enabled(self, is_enabled: bool):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
-            is_following_enabled=shared_data.is_following_enabled, 
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_enabled=is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
+            is_following_enabled=shared_data.is_following_enabled,
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
-            party_target_id=shared_data.party_target_id, 
+            party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=shared_data.party_forced_state)
 
     #---
@@ -161,14 +177,15 @@ class CustomBehaviorParty:
     def set_party_is_combat_enabled(self, is_combat_enabled: bool):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
-            is_following_enabled=shared_data.is_following_enabled, 
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
+            is_following_enabled=shared_data.is_following_enabled,
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
             party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=shared_data.party_forced_state)
 
     #---
@@ -180,14 +197,15 @@ class CustomBehaviorParty:
     def set_party_is_looting_enabled(self, is_looting_enabled: bool):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
-            is_following_enabled=shared_data.is_following_enabled, 
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
+            is_following_enabled=shared_data.is_following_enabled,
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
             party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=shared_data.party_forced_state)
 
     #---
@@ -199,18 +217,19 @@ class CustomBehaviorParty:
     def set_party_is_chesting_enabled(self, is_chesting_enabled: bool):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=is_chesting_enabled, 
-            is_following_enabled=shared_data.is_following_enabled, 
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=is_chesting_enabled,
+            is_following_enabled=shared_data.is_following_enabled,
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
             party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=shared_data.party_forced_state)
 
     #---
-    
+
     def get_party_is_following_enabled(self) -> bool:
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_following_enabled
@@ -218,14 +237,15 @@ class CustomBehaviorParty:
     def set_party_is_following_enabled(self, is_following_enabled: bool):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
-            is_following_enabled=is_following_enabled, 
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
+            is_following_enabled=is_following_enabled,
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
             party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=shared_data.party_forced_state)
 
     #---
@@ -237,14 +257,15 @@ class CustomBehaviorParty:
     def set_party_is_blessing_enabled(self, is_blessing_enabled: bool):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
-            is_following_enabled=shared_data.is_following_enabled, 
-            is_blessing_enabled=is_blessing_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
+            is_following_enabled=shared_data.is_following_enabled,
+            is_blessing_enabled=is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
             party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=shared_data.party_forced_state)
 
     #---
@@ -256,14 +277,15 @@ class CustomBehaviorParty:
     def set_party_is_inventory_enabled(self, is_inventory_enabled: bool):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
-            is_following_enabled=shared_data.is_following_enabled, 
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
+            is_following_enabled=shared_data.is_following_enabled,
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=is_inventory_enabled,
             party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=shared_data.party_forced_state)
 
     #---
@@ -276,14 +298,15 @@ class CustomBehaviorParty:
     def set_party_forced_state(self, state: BehaviorState | None):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
             is_following_enabled=shared_data.is_following_enabled,
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
             party_target_id=shared_data.party_target_id,
+            party_leader_email=shared_data.party_leader_email,
             party_forced_state=state.value if state is not None else None)
 
     #---
@@ -295,12 +318,34 @@ class CustomBehaviorParty:
     def set_party_custom_target(self, target: int | None):
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
-            is_enabled=shared_data.is_enabled, 
-            is_combat_enabled=shared_data.is_combat_enabled, 
-            is_looting_enabled=shared_data.is_looting_enabled, 
-            is_chesting_enabled=shared_data.is_chesting_enabled, 
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
             is_following_enabled=shared_data.is_following_enabled,
-            is_blessing_enabled=shared_data.is_blessing_enabled, 
+            is_blessing_enabled=shared_data.is_blessing_enabled,
             is_inventory_enabled=shared_data.is_inventory_enabled,
             party_target_id=target,
+            party_leader_email=shared_data.party_leader_email,
+            party_forced_state=shared_data.party_forced_state)
+
+    #---
+
+    @staticmethod
+    def get_party_leader_email() -> str | None:
+        shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+        return shared_data.party_leader_email
+
+    def set_party_leader_email(self, leader_email: str | None):
+        shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+        CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
+            is_enabled=shared_data.is_enabled,
+            is_combat_enabled=shared_data.is_combat_enabled,
+            is_looting_enabled=shared_data.is_looting_enabled,
+            is_chesting_enabled=shared_data.is_chesting_enabled,
+            is_following_enabled=shared_data.is_following_enabled,
+            is_blessing_enabled=shared_data.is_blessing_enabled,
+            is_inventory_enabled=shared_data.is_inventory_enabled,
+            party_target_id=shared_data.party_target_id,
+            party_leader_email=leader_email,
             party_forced_state=shared_data.party_forced_state)

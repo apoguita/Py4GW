@@ -39,7 +39,7 @@ class ProtectiveShoutUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Earshot,
+            within_range=Range.Earshot.value,
             condition=lambda agent_id: Agent.GetHealth(agent_id) < self.allies_health_less_than_percent,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
         

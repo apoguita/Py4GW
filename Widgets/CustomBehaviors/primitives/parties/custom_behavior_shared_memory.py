@@ -7,8 +7,6 @@ import time
 from threading import Lock
 from typing import Generator
 
-from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Widgets.CustomBehaviors.primitives import constants
 
 from Widgets.CustomBehaviors.primitives.parties.shared_lock_manager import (
     SharedLockEntry,
@@ -102,6 +100,7 @@ class CustomBehaviorWidgetStruct(Structure):
         ("IsBlessingEnabled", c_bool),
         ("IsInventoryEnabled", c_bool),
         ("PartyTargetId", c_uint),
+        ("PartyLeaderEmail", c_wchar * MAX_EMAIL_LEN),
         ("PartyForcedState", c_uint),
         ("LockEntries", SharedLockEntryStruct * MAX_LOCKS),
         ("LockHistoryEntries", SharedLockHistoryStruct * MAX_LOCK_HISTORY),
@@ -112,7 +111,7 @@ class CustomBehaviorWidgetStruct(Structure):
     ]
 
 class CustomBehaviorWidgetData:
-    def __init__(self, is_enabled: bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool,is_inventory_enabled:bool, party_target_id: int | None, party_forced_state: int | None):
+    def __init__(self, is_enabled: bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool,is_inventory_enabled:bool, party_target_id: int | None, party_leader_email: str | None, party_forced_state: int | None):
         self.is_enabled: bool = is_enabled
         self.is_combat_enabled: bool = is_combat_enabled
         self.is_looting_enabled: bool = is_looting_enabled
@@ -121,6 +120,7 @@ class CustomBehaviorWidgetData:
         self.is_blessing_enabled: bool = is_blessing_enabled
         self.is_inventory_enabled: bool = is_inventory_enabled
         self.party_target_id: int | None = party_target_id
+        self.party_leader_email: str | None = party_leader_email
         self.party_forced_state: int | None = party_forced_state
 
     # In-memory cooperative lock helpers (delegates to the singleton manager)
@@ -166,6 +166,7 @@ class CustomBehaviorWidgetMemoryManager:
     def __reset_all_data(self):
         mem = self._get_struct()
         mem.PartyTargetId = 0
+        mem.PartyLeaderEmail = ""
         mem.PartyForcedState = 0
         mem.IsEnabled = True
         mem.IsCombatEnabled = True
@@ -222,6 +223,9 @@ class CustomBehaviorWidgetMemoryManager:
 
     def GetCustomBehaviorWidgetData(self) -> CustomBehaviorWidgetData:
         mem = self._get_struct()
+        # Read party leader email, convert empty string to None
+        leader_email_raw = mem.PartyLeaderEmail if hasattr(mem, "PartyLeaderEmail") else ""
+        leader_email = leader_email_raw if leader_email_raw else None
         result = CustomBehaviorWidgetData(
             is_enabled= mem.IsEnabled if hasattr(mem, "IsEnabled") else True,
             is_looting_enabled= mem.IsLootingEnabled if hasattr(mem, "IsLootingEnabled") else True,
@@ -231,13 +235,14 @@ class CustomBehaviorWidgetMemoryManager:
             is_inventory_enabled= mem.IsInventoryEnabled if hasattr(mem, "IsInventoryEnabled") else True,
             is_combat_enabled= mem.IsCombatEnabled if hasattr(mem, "IsCombatEnabled") else True,
             party_target_id= mem.PartyTargetId if hasattr(mem, "PartyTargetId") and mem.PartyTargetId != 0 else None,
+            party_leader_email= leader_email,
             party_forced_state= mem.PartyForcedState if hasattr(mem, "PartyForcedState") and mem.PartyForcedState != 0 else None
         )
         # print(f"GetCustomBehaviorWidgetData: {result.is_enabled} {result.party_target_id} {result.party_forced_state}")
 
         return result
 
-    def SetCustomBehaviorWidgetData(self, is_enabled:bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool, is_inventory_enabled:bool, party_target_id:int|None, party_forced_state:int|None):
+    def SetCustomBehaviorWidgetData(self, is_enabled:bool, is_combat_enabled:bool, is_looting_enabled:bool, is_chesting_enabled:bool, is_following_enabled:bool, is_blessing_enabled:bool, is_inventory_enabled:bool, party_target_id:int|None, party_leader_email:str|None, party_forced_state:int|None):
         # print(f"SetCustomBehaviorWidgetData: {is_enabled}, {party_target_id}, {party_forced_state}")
         mem = self._get_struct()
         mem.IsEnabled = is_enabled
@@ -248,6 +253,7 @@ class CustomBehaviorWidgetMemoryManager:
         mem.IsInventoryEnabled = is_inventory_enabled
         mem.IsCombatEnabled = is_combat_enabled
         mem.PartyTargetId = party_target_id if party_target_id is not None else 0
+        mem.PartyLeaderEmail = party_leader_email if party_leader_email is not None else ""
         mem.PartyForcedState = party_forced_state if party_forced_state is not None else 0
 
     # --- Backwards-compatible delegates to shared_lock ---

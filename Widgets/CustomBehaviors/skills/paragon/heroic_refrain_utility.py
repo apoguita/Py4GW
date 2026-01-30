@@ -49,7 +49,7 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
         # PHASE 2 - CAST ON PARTY
 
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-                within_range=Range.Spellcast,
+                within_range=Range.Spellcast.value * 1.2,
                 condition=lambda agent_id: not custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.custom_skill.skill_id),
                 sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,

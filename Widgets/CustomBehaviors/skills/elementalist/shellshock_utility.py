@@ -5,9 +5,10 @@ import time
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
-from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers, glimmer_tracker
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Widgets.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Widgets.CustomBehaviors.primitives.helpers.trackers import cracked_armor_tracker, glimmer_tracker
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Widgets.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
@@ -47,7 +48,7 @@ class ShellShockUtility(CustomSkillUtilityBase):
         # single-target selection: avoid hexed foes and targets with Glimmering_Mark
         return custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
             within_range=Range.Spellcast,
-            condition=lambda agent_id: (not glimmer_tracker.had_glimmer_recently(agent_id)),
+            condition=lambda agent_id: (not glimmer_tracker.had_glimmer_recently(agent_id) and not cracked_armor_tracker.has_cracked_armor(agent_id)),
             sort_key=(TargetingOrder.HP_DESC,),
             range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id)
         )
@@ -80,6 +81,8 @@ class ShellShockUtility(CustomSkillUtilityBase):
 
         try:
             result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
+            if result == BehaviorResult.ACTION_PERFORMED:
+                cracked_armor_tracker.record_cracked_armor(target.agent_id, 17) # it's for 12 air magic
         finally:
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
         return result

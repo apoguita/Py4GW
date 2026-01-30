@@ -75,7 +75,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
     def _get_party_leader_position(self) -> tuple[float, float] | None:
         """Get position of party leader (first player in party)"""
         try:
-            leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            leader_agent_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
             if leader_agent_id is None:
                 return None
             
@@ -92,7 +92,7 @@ class FollowPartyLeaderNewUtility(CustomSkillUtilityBase):
             return None
     
     def _am_i_party_leader(self) -> bool:
-        return GLOBAL_CACHE.Party.IsPartyLeader()
+        return custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader()
 
     def _get_party_member_positions(self) -> list[tuple[float, float]]:
         

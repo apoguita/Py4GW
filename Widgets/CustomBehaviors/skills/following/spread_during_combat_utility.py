@@ -77,7 +77,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
 
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
-        if GLOBAL_CACHE.Party.IsPartyLeader(): return False
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader(): return False
         # Only run if this player has a defined flag position (spread around flag)
         if CustomBehaviorParty().party_flagging_manager.is_flag_defined(Player.GetAccountEmail()): return False
 
@@ -113,7 +113,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
 
         try:
             # Get nearby enemies
-            enemy_array = AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.GetEnemyArray() # todo bad, we should use the agent array from helpers
             for enemy_id in enemy_array:
                 if not Agent.IsAlive(enemy_id) or not Agent.IsValid(enemy_id):
                     continue
@@ -135,7 +135,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
     def _get_party_leader_position(self) -> tuple[float, float] | None:
         """Get the position of the party leader"""
         try:
-            leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            leader_agent_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
             if leader_agent_id is None:
                 return None
 
@@ -439,7 +439,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
         if self.allowed_states is not None and current_state not in self.allowed_states:
             return None
 
-        if GLOBAL_CACHE.Party.IsPartyLeader():
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
             return None
 
         if not self.throttle_timer.IsExpired():

@@ -8,6 +8,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Color import ColorPalette, Color
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.enums import Attribute
 
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Widgets.CustomBehaviors.primitives.parties.party_teambuild_manager import SkillbarData
 
@@ -265,7 +266,7 @@ def render():
 
         PyImGui.end_table()
 
-    if not GLOBAL_CACHE.Party.IsPartyLeader():
+    if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         PyImGui.text("Feature restricted to party leader.")
         return
 

@@ -1,3 +1,4 @@
+import random
 from typing import Generator, Any
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Player import Player
@@ -84,7 +85,8 @@ class PartyCommandConstants:
                 continue
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
             GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
-            yield from custom_behavior_helpers.Helpers.wait_for(100)
+            # randomize wait
+            yield from custom_behavior_helpers.Helpers.wait_for(random.randint(100, 800))
         yield
 
     @staticmethod
@@ -95,4 +97,24 @@ class PartyCommandConstants:
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
             GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.SetWindowTitle, ExtraData=(account.CharacterName, "", "", ""))
             yield from custom_behavior_helpers.Helpers.wait_for(100)
+        yield
+
+    @staticmethod
+    def focus_window(target_account_email: str) -> Generator[Any, None, None]:
+        """Focus/activate a specific game window by account email."""
+        yield from custom_behavior_helpers.Helpers.wait_for(1000)
+
+        account_email = Player.GetAccountEmail()
+        if constants.DEBUG: print(f"SendMessage {account_email} to {target_account_email} - SetWindowActive")
+        GLOBAL_CACHE.ShMem.SendMessage(account_email, target_account_email, SharedCommandType.SetWindowActive, (0, 0, 0, 0))
+        yield
+
+    @staticmethod
+    def invite_player(target_account_email: str, character_name: str) -> Generator[Any, None, None]:
+        """Invite a specific player to the party using chat command and messaging."""
+        account_email = Player.GetAccountEmail()
+        if constants.DEBUG: print(f"Inviting {character_name} ({target_account_email}) to party")
+        GLOBAL_CACHE.Party.Players.InvitePlayer(character_name)
+        GLOBAL_CACHE.ShMem.SendMessage(account_email, target_account_email, SharedCommandType.InviteToParty, (0, 0, 0, 0))
+        yield from custom_behavior_helpers.Helpers.wait_for(300)
         yield
