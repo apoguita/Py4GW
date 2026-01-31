@@ -3,6 +3,7 @@ from typing import Any, Generator, override
 import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, AgentArray, Range, Player
+from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Widgets.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Widgets.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -31,6 +32,8 @@ class MinionInvocationFromCorpseUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
 
         self.score_definition: ScoreStaticDefinition = score_definition
+        self.far_from_aggro_timer = ThrottledTimer(5_000)  # 5s max window for FAR_FROM_AGGRO
+        self._previous_state: BehaviorState | None = None
 
     def _get_targets(self) -> list[int]:
 
@@ -47,8 +50,14 @@ class MinionInvocationFromCorpseUtility(CustomSkillUtilityBase):
 
         agent_ids: list[int] = AgentArray.GetAgentArray()
         agent_ids = AgentArray.Filter.ByDistance(agent_ids, Player.GetXY(), Range.Spellcast.value)
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: not Agent.HasBossGlow(agent_id)) # filter out boss minions (that corpses never disappear)
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsDead(agent_id) and not Agent.IsSpirit(agent_id) and not Agent.IsSpawned(agent_id))
+        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: 
+                                                  Agent.IsDead(agent_id) and 
+                                                  not Agent.HasBossGlow(agent_id) and # filter out boss minions (that corpses never disappear)
+                                                  not Agent.IsSpirit(agent_id) and 
+                                                  not Agent.IsSpawned(agent_id) and 
+                                                  not Agent.IsMinion(agent_id)
+                                            )
+        
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, _AllowedAlliegance)
 
         # we order by distance ASC
@@ -58,6 +67,16 @@ class MinionInvocationFromCorpseUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+        # Track state transitions - reset timer when entering FAR_FROM_AGGRO
+        if self._previous_state != current_state:
+            if current_state == BehaviorState.FAR_FROM_AGGRO:
+                self.far_from_aggro_timer.Reset()
+            self._previous_state = current_state
+
+        # In FAR_FROM_AGGRO, only allow for 5s max
+        if current_state == BehaviorState.FAR_FROM_AGGRO:
+            if self.far_from_aggro_timer.IsExpired():
+                return None
 
         targets = self._get_targets()
         if len(targets) == 0: return None
@@ -76,9 +95,8 @@ class MinionInvocationFromCorpseUtility(CustomSkillUtilityBase):
     
     @override
     def customized_debug_ui(self, current_state):
-        targets = self._get_targets()
+            PyImGui.bullet_text(f"timer : {self.far_from_aggro_timer.GetTimeRemaining()}")
+            PyImGui.bullet_text(f"is in timeout : {self.far_from_aggro_timer.IsExpired()}")
+        # targets = self._get_targets()
 
-        for agent_id in targets:
-            PyImGui.bullet_text(f"agent_id : {agent_id} | name : {Agent.GetNameByID(agent_id)} | is_spawned : {Agent.IsSpawned(agent_id)}")
-
-        return
+        # for agent_id in targets:

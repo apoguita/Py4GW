@@ -45,7 +45,7 @@ class BlazingFinaleUtility(CustomSkillUtilityBase):
     def _get_target(self) -> int | None:
  
         target: int | None = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
-                within_range=Range.Spellcast,
+                within_range=Range.Spellcast.value * 1.2,
                 condition=lambda agent_id:
                     self.buff_configuration.get_agent_id_predicate()(agent_id),
                 sort_key=(TargetingOrder.ENERGY_ASC, TargetingOrder.DISTANCE_ASC),

@@ -6,6 +6,7 @@ import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Party, Routines, Range, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
+from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Widgets.CustomBehaviors.primitives import constants
 
@@ -38,6 +39,11 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)
         self.opened_chest_agent_ids: set[int] = set()
         self.cooldown_execution = ThrottledTimer(1000)
+
+        self.window_open_timeout = ThrottledTimer(10_000)
+        self.window_open_timeout.Stop()
+
+        self.dedicated_debug = False
 
         self.event_bus.subscribe(EventType.MAP_CHANGED, self.map_changed, subscriber_name=self.custom_skill.skill_name)
 
@@ -83,12 +89,12 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
             timeout=10_000)
 
         if result == False:
-            if constants.DEBUG: print(f"open_near_dungeon_chest_utility FAIL FollowPath")
+            # print(f"open_near_dungeon_chest_utility_ FAIL FollowPath")
             yield
             return BehaviorResult.ACTION_SKIPPED
 
         if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key) == False:
-            if constants.DEBUG: print(f"open_near_dungeon_chest_utility FAIL try_aquire_lock")
+            # print(f"open_near_dungeon_chest_utility_ FAIL try_aquire_lock")
             yield
             return BehaviorResult.ACTION_SKIPPED
 
@@ -117,7 +123,6 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
         finally:
             # Always release the lock, even if an exception occurs
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
-            pass
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:

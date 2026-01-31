@@ -59,7 +59,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
-        if GLOBAL_CACHE.Party.IsPartyLeader(): return False
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader(): return False
         return True
 
     def _get_my_assigned_flag_position(self) -> tuple[float, float] | None:

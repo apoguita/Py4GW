@@ -121,7 +121,7 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
         yield from self.event_bus.publish(EventType.PLAYER_STUCK, state, data=self.movement_threshold, publisher_name="stuck_detection") # we do through event as there is other skill that could subscribe to that, as heart_of_shadow
         self.__stuck_count += 1
 
-        if GLOBAL_CACHE.Party.IsPartyLeader():
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
             if self.__stuck_count > 20:
                 yield from self.event_bus.publish(EventType.PLAYER_CRITICAL_STUCK, state)
 

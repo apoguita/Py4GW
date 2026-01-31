@@ -1,9 +1,12 @@
+from Py4GWCoreLib import Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessage
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 
 from HeroAI.cache_data import CacheData
 from HeroAI.settings import Settings
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
 class HeroAiWrapping:
     _instance = None  # Singleton instance
@@ -22,6 +25,8 @@ class HeroAiWrapping:
             self._cached_data:CacheData = CacheData()
             self.hero_windows: dict[str, WindowModule] = {}
             self.heroai_fallack_mecanism_throttler = ThrottledTimer(500)
+            self._is_heroai_ui_visible:bool = False
+            self.dialog_throttle = ThrottledTimer(500)
 
     def _update_hero_ai_players(self, cached_data:CacheData):
         """Update HeroAI player registration and status"""
@@ -51,27 +56,15 @@ class HeroAiWrapping:
             settings.ShowLeaderPanel = True
             settings.ShowCommandPanel = False
 
+            # Re-apply current visibility state to all panel positions
+            # (in case load_settings() overwrote them with old values from disk)
+            for info in settings.HeroPanelPositions.values():
+                info.open = self._is_heroai_ui_visible
+
             # Write settings to disk
             settings.write_settings()
 
         return True
-
-    def _initialize_account_game_options(self, settings, cached_data, accounts):
-        """Initialize game options for each account"""
-        from HeroAI.constants import NUMBER_OF_SKILLS
-
-        for account in accounts:
-            # Ensure account has a panel position entry
-            if account.AccountEmail not in settings.HeroPanelPositions:
-                settings.HeroPanelPositions[account.AccountEmail] = settings.HeroPanelInfo()
-
-            # Initialize game options for this account's party position (set all skills to active)
-            party_pos = account.PartyPosition
-            if party_pos >= 0 and party_pos < len(cached_data.HeroAI_vars.all_game_option_struct):
-                game_options = cached_data.HeroAI_vars.all_game_option_struct[party_pos]
-                # Set all skills to active if not already initialized
-                for i in range(NUMBER_OF_SKILLS):
-                    game_options.Skills[i].Active = True
 
     def act(self):
         """
@@ -82,24 +75,40 @@ class HeroAiWrapping:
         - Renders GUI
         - Persists window positions
         """
+
+        # ----------------- MANAGE HERO SKILL FALLBACK -----------------
+
         # Update HeroAI player registration
         self._update_hero_ai_players(self._cached_data)
 
-        ##TODO: this is not needed anymore with the new shared memory changes
-        # Update combat and game options
+        # Get all accounts for forcing game options
+        # accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        # Force game options for each account (in shared memory) BEFORE syncing local cache
+        # self._force_account_heroai_game_options(self._settings, self._cached_data, accounts)
+
+        # Now sync local cache from shared memory (will read the forced values)
+        # from HeroAI.game_option import UpdateGameOptions
+        # UpdateGameOptions(self._cached_data)
+
+        # Update combat and game options from local cache
+        self._cached_data.Update()
         # self._cached_data.UpdateCombat()
         # self._cached_data.UpdateGameOptions()
+
+        # ----------------- MANAGE HERO AI UI -----------------
+        if not self._is_heroai_ui_visible: return
+        if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader(): return
 
         # Initialize and persist settings (abort if not ready)
         if not self._initialize_and_persist_settings(self._settings):
             return
 
-        # Get all accounts and messages
-        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        messages = GLOBAL_CACHE.ShMem.GetAllMessages()
+        # Get messages for GUI
+        messages:list[tuple[int, SharedMessage]] = GLOBAL_CACHE.ShMem.GetAllMessages()
 
-        # Initialize game options for each account
-        self._initialize_account_game_options(self._settings, self._cached_data, accounts)
+        # Get accounts from cached party data
+        accounts = list(self._cached_data.party.accounts.values())
 
         # Render GUI
         self._render_gui(self._settings, self._cached_data, accounts, messages)
@@ -123,44 +132,22 @@ class HeroAiWrapping:
                 window_info.open = window.open
                 settings.save_settings()
 
-    def are_all_panels_visible(self) -> bool:
-        """
-        Check if all hero panels are currently visible.
+    def is_heroai_ui_visible(self) -> bool:
+        return self._is_heroai_ui_visible
+    
+    def change_heroai_ui_visibility(self, is_visible: bool):
 
-        Returns:
-            True if all panels are visible, False otherwise
-        """
-        if not self._settings.HeroPanelPositions:
-            return False
+        self._is_heroai_ui_visible = is_visible
 
-        return all(
-            info.open
-            for info in self._settings.HeroPanelPositions.values()
-        )
-
-    def toggle_all_panels(self, visible: bool | None = None):
-        """
-        Toggle visibility of all hero panels.
-
-        Args:
-            visible: If True, show all panels. If False, hide all panels.
-                    If None, toggle based on current state (if any panel is hidden, show all; otherwise hide all)
-        """
         settings = self._settings
-
-        if visible is None:
-            # Auto-detect: if any panel is hidden, show all; otherwise hide all
-            any_hidden = any(
-                not info.open
-                for info in settings.HeroPanelPositions.values()
-            )
-            visible = any_hidden
-
-        # Update all panel positions
+        # Update all panel positions & save
         for info in settings.HeroPanelPositions.values():
-            info.open = visible
+            info.open = is_visible
 
-        # Save settings
+        # Also update all existing window.open states to prevent _persist_window_positions from overwriting
+        for window in self.hero_windows.values():
+            window.open = is_visible
+
         settings.save_settings()
 
     def _render_gui(self, settings, cached_data, accounts, messages):
@@ -169,9 +156,9 @@ class HeroAiWrapping:
 
         # Create windows and draw hero panels for each account
         for account in accounts:
-            # Skip leader's panel if ShowLeaderPanel is False
-            # if account.AccountEmail == cached_data.account_email:
-            if GLOBAL_CACHE.Party.IsPartyLeader() and not settings.ShowLeaderPanel:
+            # Skip leader's own panel if ShowLeaderPanel is False
+            is_own_panel = account.AccountEmail == cached_data.account_email
+            if is_own_panel and custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader() and not settings.ShowLeaderPanel:
                 continue
 
             """Create WindowModule for account if it doesn't exist"""
@@ -194,5 +181,5 @@ class HeroAiWrapping:
 
             # Draw the hero panel
             draw_hero_panel(window, account, cached_data, messages)
-
-        draw_dialog_overlay(accounts, cached_data, messages)
+        
+        draw_dialog_overlay(cached_data, messages)
