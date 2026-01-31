@@ -3,6 +3,7 @@ from ..internals.prototypes import Prototypes
 from ..internals.native_function import NativeFunction
 
 from ...enums_src.UI_enums import UIMessage
+from ...py4gwcorelib_src.Utils import Utils
 from ...Scanner import Scanner
 import ctypes
 from typing import List
@@ -415,7 +416,7 @@ class PlayerMethods:
         Buy/Learn a skill from a Skill Trainer.
 
         Args:
-            skill_id: The skill ID to purchase (will be OR'd with 0x0A000000)
+            skill_id: The skill ID to purchase
         """
-        SKILL_DIALOG_MASK = 0x0A000000
-        PlayerMethods.SendDialog(skill_id | SKILL_DIALOG_MASK)
+        dialog_skill_id = Utils.SkillIdToDialogId(skill_id)
+        PlayerMethods.SendDialog(dialog_skill_id)

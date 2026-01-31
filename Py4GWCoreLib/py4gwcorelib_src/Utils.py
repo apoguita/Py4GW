@@ -1,4 +1,4 @@
-#region Utils
+# region Utils
 # Utils
 import math
 import time
@@ -8,8 +8,11 @@ from .Color import Color
 from ..Player import Player
 from datetime import datetime, timezone
 from ..enums import CAP_EXPERIENCE, CAP_STEP, EXPERIENCE_PROGRESSION
+
+
 class Utils:
     from typing import Tuple
+
     @staticmethod
     def HasFlag(flags: int, flag: int) -> bool:
         return (int(flags) & int(flag)) == int(flag)
@@ -25,7 +28,6 @@ class Utils:
         except Exception:
             return 0.0
 
-    
     @staticmethod
     def point_in_circle(px: float, py: float, cx: float, cy: float, r: float) -> bool:
         dx = px - cx
@@ -45,10 +47,7 @@ class Utils:
             xi, yi = polygon[i]
             xj, yj = polygon[j]
 
-            intersect = (
-                ((yi > py) != (yj > py)) and
-                (px < (xj - xi) * (py - yi) / (yj - yi + 1e-12) + xi)
-            )
+            intersect = ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi + 1e-12) + xi)
             if intersect:
                 inside = not inside
 
@@ -58,31 +57,31 @@ class Utils:
 
     @staticmethod
     def format_bytes(num_bytes: int) -> str:
-            """
-            Convert a byte count to a human-readable string using
-            the closest magnitude: bytes, KB, MB, GB, TB.
-            """
-            units = ("bytes", "KB", "MB", "GB", "TB")
-            size = float(num_bytes)
-            unit_idx = 0
+        """
+        Convert a byte count to a human-readable string using
+        the closest magnitude: bytes, KB, MB, GB, TB.
+        """
+        units = ("bytes", "KB", "MB", "GB", "TB")
+        size = float(num_bytes)
+        unit_idx = 0
 
-            # Find the most appropriate unit
-            while size >= 1024.0 and unit_idx < len(units) - 1:
-                size /= 1024.0
-                unit_idx += 1
+        # Find the most appropriate unit
+        while size >= 1024.0 and unit_idx < len(units) - 1:
+            size /= 1024.0
+            unit_idx += 1
 
-            # For plain bytes, keep it as integer
-            if unit_idx == 0:
-                return f"{num_bytes} bytes"
+        # For plain bytes, keep it as integer
+        if unit_idx == 0:
+            return f"{num_bytes} bytes"
 
-            # For KB and above, show 2 decimals
-            return f"{size:.2f} {units[unit_idx]}"
-    
+        # For KB and above, show 2 decimals
+        return f"{size:.2f} {units[unit_idx]}"
+
     @staticmethod
     def RGBToNormal(r, g, b, a):
         """return a normalized RGBA tuple from 0-255 values"""
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0
-    
+
     @staticmethod
     def NormalToColor(color: Tuple[float, float, float, float]) -> "Color":
         """Convert a normalized RGBA float tuple (0.0–1.0) to 0–255 integer values."""
@@ -92,22 +91,21 @@ class Utils:
         a = int(color[3] * 255)
         return Color(r, g, b, a)
 
-    
     @staticmethod
     def RGBToDXColor(r, g, b, a) -> int:
         return (a << 24) | (r << 16) | (g << 8) | b
-    
+
     @staticmethod
     def RGBToColor(r, g, b, a) -> int:
         return (a << 24) | (b << 16) | (g << 8) | r
-    
+
     @staticmethod
     def ColorToTuple(color: int) -> Tuple[float, float, float, float]:
         """Convert a 32-bit integer color (ABGR) to a normalized (0.0 - 1.0) RGBA tuple."""
         a = (color >> 24) & 0xFF  # Extract Alpha (highest 8 bits)
         b = (color >> 16) & 0xFF  # Extract Blue  (next 8 bits)
-        g = (color >> 8) & 0xFF   # Extract Green (next 8 bits)
-        r = color & 0xFF          # Extract Red   (lowest 8 bits)
+        g = (color >> 8) & 0xFF  # Extract Green (next 8 bits)
+        r = color & 0xFF  # Extract Red   (lowest 8 bits)
         return r / 255.0, g / 255.0, b / 255.0, a / 255.0  # Convert to RGBA float
 
     @staticmethod
@@ -118,7 +116,7 @@ class Utils:
         b = int(color_tuple[2] * 255)  # Convert B back to 0-255
         a = int(color_tuple[3] * 255)  # Convert A back to 0-255
         return Utils.RGBToColor(r, g, b, a)  # Encode back as ABGR
-    
+
     @staticmethod
     def DegToRad(degrees):
         return degrees * (math.pi / 180)
@@ -126,23 +124,23 @@ class Utils:
     @staticmethod
     def RadToDeg(radians):
         return radians * (180 / math.pi)
-    
+
     @staticmethod
     def TrueFalseColor(condition):
         if condition:
             return Utils.RGBToNormal(0, 255, 0, 255)
         else:
             return Utils.RGBToNormal(255, 0, 0, 255)
-        
+
     @staticmethod
     def GetFirstFromArray(array):
         if array is None:
             return 0
-        
+
         if len(array) > 0:
             return array[0]
         return 0
-    
+
     @staticmethod
     def GwinchToPixels(gwinch_value: float, zoom_offset=0.0) -> float:
         from ..Map import Map
@@ -154,7 +152,6 @@ class Utils:
         pixels_per_gwinch = (scale_x * zoom) / gwinches
         return gwinch_value * pixels_per_gwinch
 
-        
     @staticmethod
     def PixelsToGwinch(pixel_value: float, zoom_offset=0.0) -> float:
         from ..Map import Map
@@ -165,9 +162,11 @@ class Utils:
 
         pixels_per_gwinch = (scale_x * zoom) / gwinches
         return pixel_value / pixels_per_gwinch
-    
+
     @staticmethod
-    def PixelsToUV(x: int, y: int, w: int, h: int, texture_width: int, texture_height: int) -> tuple[tuple[float, float], tuple[float, float]]:
+    def PixelsToUV(
+        x: int, y: int, w: int, h: int, texture_width: int, texture_height: int
+    ) -> tuple[tuple[float, float], tuple[float, float]]:
         uv0 = (x / texture_width, y / texture_height)
         uv1 = ((x + w) / texture_width, (y + h) / texture_height)
         return uv0, uv1
@@ -180,7 +179,7 @@ class Utils:
             return int(value)
         except (ValueError, TypeError, OverflowError):
             return fallback
-        
+
     @staticmethod
     def SafeFloat(value, fallback=0.0):
         try:
@@ -198,20 +197,21 @@ class Utils:
     @staticmethod
     def split_uppercase(s: str) -> str:
         import re
+
         return re.sub(r'(?<!^)(?=[A-Z])', ' ', s)
-    
+
     @staticmethod
     def humanize_string(string: str) -> str:
         """Convert a string like "Some_VariableName" to "Some Variable Name"."""
-        
+
         # Replace underscores with spaces
         string = string.replace('_', ' ')
-        
+
         # Insert spaces before uppercase letters (if not at start)
         string = re.sub(r'(?<!^)(?=[A-Z])', ' ', string)
-                
+
         return string
-    
+
     @staticmethod
     def GetExperienceProgression(xp: int) -> float:
         """
@@ -235,11 +235,11 @@ class Utils:
 
         # Skill points: from 21 onward
         # Level 21 = +1, Level 22 = +2, then +1 per 15k chunk
-        skill_points = (22 - 20)  # 2 from reaching 21 & 22
+        skill_points = 22 - 20  # 2 from reaching 21 & 22
         skill_points += extra_levels + (1 if remainder > 0 else 0)
 
         return pct
-    
+
     @staticmethod
     def StripMarkup(text: str) -> str:
         """
@@ -280,8 +280,8 @@ class Utils:
         style.Pull()
         _orig_cell = style.CellPadding
         _orig_item = style.ItemSpacing
-        style.CellPadding = (_orig_cell[0], 0.0)   # ↓ vertical padding inside table rows
-        style.ItemSpacing = (_orig_item[0], 0.0)   # ↓ spacing between stacked rows
+        style.CellPadding = (_orig_cell[0], 0.0)  # ↓ vertical padding inside table rows
+        style.ItemSpacing = (_orig_item[0], 0.0)  # ↓ spacing between stacked rows
         style.Push()
 
         atomic_blocks = re.findall(r"<c=@[^>]+>.*?</c>", text, flags=re.IGNORECASE)
@@ -347,11 +347,11 @@ class Utils:
                 current_line.append(part)
                 visible += part
                 continue
-            
+
             words = part.split(" ")
             for w in words:
                 if not w:
-                    #current_line.append(" ")
+                    # current_line.append(" ")
                     visible += ""
                     continue
                 test = (visible + " " + w).strip() if visible else w
@@ -367,7 +367,7 @@ class Utils:
 
         if current_line:
             flush_line()
-        
+
         # --- Tokenize each split line into markup tokens ---
         pattern = re.compile(r"(<[^>]+>|\{[^}]+\})")
         tokenized_lines = []
@@ -395,92 +395,156 @@ class Utils:
             if pos < len(line):
                 tokens.append({"type": "text", "value": line[pos:]})
             tokenized_lines.append(tokens)
-            
+
         style.CellPadding = _orig_cell
         style.ItemSpacing = _orig_item
         style.Push()
 
         return tokenized_lines
-    
-    @staticmethod  
-    def base64_to_bin64(char : str) -> str:
+
+    @staticmethod
+    def base64_to_bin64(char: str) -> str:
         """Convert base64 character to 6-bit binary string (Guild Wars LSB-first order)"""
         match char:
-            case 'A': return '000000'
-            case 'B': return '100000'
-            case 'C': return '010000'
-            case 'D': return '110000'
-            case 'E': return '001000'
-            case 'F': return '101000'
-            case 'G': return '011000'
-            case 'H': return '111000'
-            case 'I': return '000100'
-            case 'J': return '100100'
-            case 'K': return '010100'
-            case 'L': return '110100'
-            case 'M': return '001100'
-            case 'N': return '101100'
-            case 'O': return '011100'
-            case 'P': return '111100'
-            case 'Q': return '000010'
-            case 'R': return '100010'
-            case 'S': return '010010'
-            case 'T': return '110010'
-            case 'U': return '001010'
-            case 'V': return '101010'
-            case 'W': return '011010'
-            case 'X': return '111010'
-            case 'Y': return '000110'
-            case 'Z': return '100110'
-            case 'a': return '010110'
-            case 'b': return '110110'
-            case 'c': return '001110'
-            case 'd': return '101110'
-            case 'e': return '011110'
-            case 'f': return '111110'
-            case 'g': return '000001'
-            case 'h': return '100001'
-            case 'i': return '010001'
-            case 'j': return '110001'
-            case 'k': return '001001'
-            case 'l': return '101001'
-            case 'm': return '011001'
-            case 'n': return '111001'
-            case 'o': return '000101'
-            case 'p': return '100101'
-            case 'q': return '010101'
-            case 'r': return '110101'
-            case 's': return '001101'
-            case 't': return '101101'
-            case 'u': return '011101'
-            case 'v': return '111101'
-            case 'w': return '000011'
-            case 'x': return '100011'
-            case 'y': return '010011'
-            case 'z': return '110011'
-            case '0': return '001011'
-            case '1': return '101011'
-            case '2': return '011011'
-            case '3': return '111011'
-            case '4': return '000111'
-            case '5': return '100111'
-            case '6': return '010111'
-            case '7': return '110111'
-            case '8': return '001111'
-            case '9': return '101111'
-            case '+': return '011111'
-            case '/': return '111111'
+            case 'A':
+                return '000000'
+            case 'B':
+                return '100000'
+            case 'C':
+                return '010000'
+            case 'D':
+                return '110000'
+            case 'E':
+                return '001000'
+            case 'F':
+                return '101000'
+            case 'G':
+                return '011000'
+            case 'H':
+                return '111000'
+            case 'I':
+                return '000100'
+            case 'J':
+                return '100100'
+            case 'K':
+                return '010100'
+            case 'L':
+                return '110100'
+            case 'M':
+                return '001100'
+            case 'N':
+                return '101100'
+            case 'O':
+                return '011100'
+            case 'P':
+                return '111100'
+            case 'Q':
+                return '000010'
+            case 'R':
+                return '100010'
+            case 'S':
+                return '010010'
+            case 'T':
+                return '110010'
+            case 'U':
+                return '001010'
+            case 'V':
+                return '101010'
+            case 'W':
+                return '011010'
+            case 'X':
+                return '111010'
+            case 'Y':
+                return '000110'
+            case 'Z':
+                return '100110'
+            case 'a':
+                return '010110'
+            case 'b':
+                return '110110'
+            case 'c':
+                return '001110'
+            case 'd':
+                return '101110'
+            case 'e':
+                return '011110'
+            case 'f':
+                return '111110'
+            case 'g':
+                return '000001'
+            case 'h':
+                return '100001'
+            case 'i':
+                return '010001'
+            case 'j':
+                return '110001'
+            case 'k':
+                return '001001'
+            case 'l':
+                return '101001'
+            case 'm':
+                return '011001'
+            case 'n':
+                return '111001'
+            case 'o':
+                return '000101'
+            case 'p':
+                return '100101'
+            case 'q':
+                return '010101'
+            case 'r':
+                return '110101'
+            case 's':
+                return '001101'
+            case 't':
+                return '101101'
+            case 'u':
+                return '011101'
+            case 'v':
+                return '111101'
+            case 'w':
+                return '000011'
+            case 'x':
+                return '100011'
+            case 'y':
+                return '010011'
+            case 'z':
+                return '110011'
+            case '0':
+                return '001011'
+            case '1':
+                return '101011'
+            case '2':
+                return '011011'
+            case '3':
+                return '111011'
+            case '4':
+                return '000111'
+            case '5':
+                return '100111'
+            case '6':
+                return '010111'
+            case '7':
+                return '110111'
+            case '8':
+                return '001111'
+            case '9':
+                return '101111'
+            case '+':
+                return '011111'
+            case '/':
+                return '111111'
         return '000000'  # Default to 'A' if character is not found
 
     @staticmethod
-    def dec_to_bin64(decimal : int, bits : int) -> str:
+    def dec_to_bin64(decimal: int, bits: int) -> str:
         """Convert decimal to binary string with specified number of bits (LSB first order)"""
         binary = bin(decimal)[2:]  # Remove '0b' prefix
         binary = binary.zfill(bits)  # Pad with zeros to reach desired length
         return binary[::-1]  # Reverse to match LSB-first order used in Guild Wars
 
     @staticmethod
-    def bin64_to_base64(binary : str) -> str:
+    def bin64_to_base64(binary: str) -> str:
         """Convert binary string to base64 character using Guild Wars specific mapping"""
         # Pad binary to multiple of 6 bits
         while len(binary) % 6 != 0:
@@ -495,7 +559,7 @@ class Utils:
 
         result = ''
         for i in range(0, len(binary), 6):
-            chunk = binary[i:i+6]
+            chunk = binary[i : i + 6]
             if chunk in bin_to_char:
                 result += bin_to_char[chunk]
             else:
@@ -510,11 +574,13 @@ class Utils:
         decimal = 0
         for i in range(0, len(binary)):
             if binary[i] == '1':
-                decimal += 2**(i)
+                decimal += 2 ** (i)
         return decimal
-    
+
     @staticmethod
-    def encode_skill_template(prof_primary : int, prof_secondary : int, attributes : dict[int, int], skills : list[int]) -> str:
+    def encode_skill_template(
+        prof_primary: int, prof_secondary: int, attributes: dict[int, int], skills: list[int]
+    ) -> str:
         """Encode skill template data into template string"""
         binary_data = ''
 
@@ -621,11 +687,12 @@ class Utils:
         Args: None
         Returns: str: The current skillbar template.
         """
-        
+
         try:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
             from ..native_src.context.WorldContext import AttributeStruct
+
             # Get skill IDs for all 8 slots
             skills = []
             for slot in range(1, 9):  # Slots 1-8
@@ -640,7 +707,7 @@ class Utils:
                 prof_secondary = 0
 
             # Get attributes
-            attributes_raw:list[AttributeStruct] = Agent.GetAttributes(Player.GetAgentID())
+            attributes_raw: list[AttributeStruct] = Agent.GetAttributes(Player.GetAgentID())
             attributes = {}
 
             # Convert attributes to dictionary format
@@ -658,9 +725,11 @@ class Utils:
             # Return empty string if encoding fails
             print(f"Failed to encode skillbar template: {e}")
             return ""
-                
+
     @staticmethod
-    def GenerateSkillbarTemplateFrom(prof_primary : int, prof_secondary : int, attributes : dict[int, int], skills : list[int]) -> str:
+    def GenerateSkillbarTemplateFrom(
+        prof_primary: int, prof_secondary: int, attributes: dict[int, int], skills: list[int]
+    ) -> str:
         """
         Purpose: Generate template code for a specified skillbar from given data
         Args:
@@ -678,9 +747,9 @@ class Utils:
             # Return empty string if encoding fails
             print(f"Failed to encode skillbar template: {e}")
             return ""
-        
+
     @staticmethod
-    def ParseSkillbarTemplate(template:str) -> tuple[int, int, dict, list]:
+    def ParseSkillbarTemplate(template: str) -> tuple[int, int, dict, list]:
         '''
         Purpose: Parse a skillbar template into its components.
         Args:
@@ -696,7 +765,7 @@ class Utils:
 
         for char in template:
             enc_template = f'{enc_template}{Utils.base64_to_bin64(char)}'
-    
+
         template_type = Utils.bin64_to_dec(enc_template[:4])
         # if template_type != 14:
         #     return (None, None, None, None)
@@ -719,7 +788,7 @@ class Utils:
 
         attributes_bits = Utils.bin64_to_dec(enc_template[:4]) + 4
         enc_template = enc_template[4:]
-        
+
         attributes = {}
         for i in range(attributes_count):
             attr = Utils.bin64_to_dec(enc_template[:attributes_bits])
@@ -727,7 +796,7 @@ class Utils:
             value = Utils.bin64_to_dec(enc_template[:4])
             enc_template = enc_template[4:]
             attributes[attr] = value
-        
+
         skill_bits = Utils.bin64_to_dec(enc_template[:4]) + 8
         enc_template = enc_template[4:]
 
@@ -739,18 +808,38 @@ class Utils:
 
         return (prof_primary, prof_secondary, attributes, skills)
 
-
-
     @staticmethod
     def calculate_energy_pips(max_energy: float, energy_regen: float) -> int:
         """Calculate the number of energy pips based on max energy and regeneration rate."""
         pips = 3.0 / 0.99 * energy_regen * max_energy
         return int(pips)
-    
+
     @staticmethod
     def calculate_health_pips(max_health: float, health_regen: float) -> int:
         """Calculate the number of health pips based on max health and regeneration rate."""
         pips = (max_health * health_regen) / 2
         return int(pips)
 
-#endregion
+    @staticmethod
+    def SkillIdToDialogId(skill_id: int) -> int:
+        """
+        Convert a skill ID to the dialog ID used by Skill Trainers.
+
+        This ORs the skill ID with the skill dialog mask (0x0A000000) to create
+        the dialog ID that can be sent via Player.SendDialog() to learn a skill.
+
+        Args:
+            skill_id (int): The skill ID to convert.
+
+        Returns:
+            int: The dialog ID for the Skill Trainer (skill_id | 0x0A000000).
+
+        Example:
+            dialog_id = Utils.SkillIdToDialogId(42)  # Returns 0x0A00002A
+            Player.SendDialog(dialog_id)
+        """
+        SKILL_DIALOG_MASK = 0x0A000000
+        return skill_id | SKILL_DIALOG_MASK
+
+
+# endregion
