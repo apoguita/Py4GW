@@ -398,14 +398,14 @@ class PlayerMethods:
     @staticmethod
     def SendDialog(dialog_id: int) -> None:
         """
-        Send a dialog using kSendDialog (no agent context required).
-        Works for skill trainers and other dialogs.
+        Send a dialog using kSendAgentDialog.
+        Works for skill trainers, NPC dialogs, and merchant tabs.
         """
 
         def _action():
             from ...UIManager import UIManager
 
-            UIManager.SendUIMessageRaw(UIMessage.kSendDialog, dialog_id, 0)
+            UIManager.SendUIMessageRaw(UIMessage.kSendAgentDialog, dialog_id, 0)
 
         Game.enqueue(_action)
 

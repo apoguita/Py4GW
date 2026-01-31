@@ -616,11 +616,11 @@ class Player:
             cleaned = dialog_id.strip().lower().replace("0x", "")
             dialog = int(cleaned, 16)
 
-        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendDialog, dialog)
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendAgentDialog, dialog)
 
     @staticmethod
     def SendDialog(dialog_id: int):
-        """Send dialog using kSendDialog (no agent context needed)."""
+        """Send dialog using kSendAgentDialog. Works for NPC dialogs, skill trainers, etc."""
         PlayerMethods.SendDialog(dialog_id)
 
     @staticmethod
