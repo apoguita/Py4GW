@@ -35,7 +35,7 @@ class SoothingMemoriesUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Spirit,
+            within_range=Range.Spirit.value,
             condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.9,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC)
         )
@@ -53,7 +53,7 @@ class SoothingMemoriesUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
-            within_range=Range.Spirit,
+            within_range=Range.Spirit.value,
             condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.95,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC)
         )

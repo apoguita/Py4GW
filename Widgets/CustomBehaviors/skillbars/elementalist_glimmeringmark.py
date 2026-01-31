@@ -71,18 +71,6 @@ class ElementalistGlimmeringMark_UtilitySkillBar(CustomBehaviorBaseUtility):
             allowed_states=[BehaviorState.IN_AGGRO]
         )
 
-        # PreparationTargetedUtility that casts Shell Shock first, then Shock Arrow on same target
-        self.prep_shellshock_then_shockarrow: CustomSkillUtilityBase = PreparationTargetedUtility(
-            event_bus=self.event_bus,
-            prep_utility=self.shell_shock_utility,                # first cast Shell Shock
-            followup_skill=CustomSkill("Shock_Arrow"),            # then cast Shock Arrow
-            target_utilities=[self.shell_shock_utility, self.shock_arrow_utility],  # utilities that can provide targets
-            current_build=in_game_build,
-            score_definition=ScoreStaticDefinition(60),
-            mana_required_to_cast=0,
-            allowed_states=[BehaviorState.IN_AGGRO]
-        )
-
         # Preparation: Intensity should only be cast when a follow-up is available.
         # Priority: Chain Lightning first, Shell Shock second.
         # Intensity prep disabled for debugging:
@@ -141,7 +129,6 @@ class ElementalistGlimmeringMark_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.shock_arrow_utility,      # added Shock Arrow to allowed skills
             self.intensity_prep_utility,  # Intensity temporarily disabled
             self.chain_lightning_utility,
-            self.prep_shellshock_then_shockarrow,
         ]
 
     @property

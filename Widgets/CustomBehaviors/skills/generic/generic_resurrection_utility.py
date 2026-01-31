@@ -35,7 +35,7 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
     def _get_target(self) -> int | None:
         allies: list[int] = AgentArray.GetAllyArray()
         allies = AgentArray.Filter.ByCondition(allies, lambda agent_id: not Agent.IsAlive(agent_id))
-        allies = AgentArray.Filter.ByDistance(allies, Player.GetXY(), Range.Spellcast.value)
+        allies = AgentArray.Filter.ByDistance(allies, Player.GetXY(), Range.Spellcast.value * 1.5)
         if len(allies) == 0: return None
         return allies[0]
 

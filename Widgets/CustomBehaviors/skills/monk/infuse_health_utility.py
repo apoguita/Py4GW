@@ -56,7 +56,7 @@ class InfuseHealthUtility(CustomSkillUtilityBase):
         player_agent = Player.GetAgentID()
 
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Spellcast,
+            within_range=Range.Spellcast.value * 1.5,
             condition=lambda agent_id:
                 agent_id != player_agent and
                 (Agent.GetHealth(agent_id) is not None and Agent.GetHealth(agent_id) < 1.0),

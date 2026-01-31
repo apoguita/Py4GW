@@ -11,6 +11,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.routines_src.Yield import Yield
 from Py4GWCoreLib import Utils, Player
 from Widgets.CustomBehaviors.primitives import constants
+from Widgets.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Widgets.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Widgets.CustomBehaviors.primitives.parties.pawned2.Pawned2TeamBuild import Pawned2TeamBuild
 
@@ -258,7 +259,8 @@ class PartyTeamBuildManager:
         template = Utils.GenerateSkillbarTemplate()
         self.set_template_for_account(account_email, template)
 
-        if GLOBAL_CACHE.Party.IsPartyLeader():
+        
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
             # deal with cleanup
             all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             all_templates = self.__get_all_templates()

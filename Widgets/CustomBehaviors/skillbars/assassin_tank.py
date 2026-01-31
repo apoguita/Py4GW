@@ -13,7 +13,7 @@ from Widgets.CustomBehaviors.skills.assassin.shroud_of_distress_utility import S
 from Widgets.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Widgets.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Widgets.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
-from Widgets.CustomBehaviors.skills.generic.hero_ai_utility import HeroAiUtility
+from Widgets.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
 from Widgets.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Widgets.CustomBehaviors.skills.generic.raw_combot_attack_utility import RawCombotAttackUtility
 
