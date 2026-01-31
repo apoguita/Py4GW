@@ -122,6 +122,7 @@ See Also:
 import PyCombatEvents
 from typing import List, Set, Tuple, Optional, Callable
 from collections import deque
+from enum import IntEnum
 import Py4GW
 
 
@@ -131,10 +132,10 @@ def _get_tick_count() -> int:
     return ctypes.windll.kernel32.GetTickCount()
 
 
-# Event type constants
-class EventType:
+# Event type constants - proper IntEnum for type safety and introspection
+class EventType(IntEnum):
     """
-    Combat event type constants - mirrors C++ CombatEventTypes.
+    Combat event type constants - mirrors C++ CombatEventType enum class.
 
     Use these to identify event types when processing raw events:
         for ts, etype, agent, val, target, fval in CombatEvents.get_events():
@@ -149,6 +150,12 @@ class EventType:
         Effect Events (40-42): Visual effects applied/removed
         Energy Events (50-51): Energy gained/spent
         Skill Recharge (80-81): Skill cooldown tracking
+
+    IntEnum benefits:
+        - Type safety: comparisons with wrong types are caught
+        - Iteration: `for e in EventType: print(e.name, e.value)`
+        - Name lookup: `EventType(1).name` returns 'SKILL_ACTIVATED'
+        - Works with int comparisons for backwards compatibility
     """
     # -- Skill Events --
     SKILL_ACTIVATED = 1           # Non-attack skill started: agent=caster, val=skill_id, target=target
@@ -308,8 +315,46 @@ class CombatEvents:
 
     @staticmethod
     def can_act(agent_id: int) -> bool:
-        """Check if agent can use skills (not disabled, not knocked down)."""
-        return agent_id not in _disabled and not CombatEvents.is_knocked_down(agent_id)
+        """
+        Check if agent can use skills right now.
+
+        Returns True if the agent is able to initiate a new skill.
+        Returns False if:
+        - Agent is casting a skill (has active cast)
+        - Agent is in aftercast delay
+        - Agent is knocked down
+
+        Note: Auto-attacking does NOT prevent skill usage - you can always
+        cancel an auto-attack by using a skill. The game sends DISABLED
+        packets during auto-attacks, but those don't actually prevent
+        skill usage, so we check for actual casting state instead.
+
+        Changed from the previous simple check (not disabled and not knocked down)
+        to properly distinguish aftercast from auto-attack animation.
+        """
+        # Knocked down = definitely can't act
+        if CombatEvents.is_knocked_down(agent_id):
+            return False
+
+        # If casting a skill = can't act
+        if CombatEvents.is_casting(agent_id):
+            return False
+
+        # If disabled but NOT just auto-attacking = can't act (aftercast)
+        # The key insight: if we're in _disabled but NOT casting, it's either:
+        # 1. Aftercast delay (can't act)
+        # 2. Auto-attack animation (CAN act - auto-attack gets cancelled)
+        # We differentiate by checking if there's a recent skill finish
+        if agent_id in _disabled:
+            # Check if we're just auto-attacking (no recent skill use)
+            if CombatEvents.is_attacking(agent_id):
+                # We're auto-attacking - this doesn't prevent skill usage
+                # Skills will cancel the auto-attack
+                return True
+            # Otherwise we're in aftercast from a skill
+            return False
+
+        return True
 
     @staticmethod
     def is_disabled(agent_id: int) -> bool:

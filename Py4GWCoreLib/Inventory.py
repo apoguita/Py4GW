@@ -1,6 +1,13 @@
 import PyInventory
 
 from .ItemArray import *
+from .native_src.context.InventoryContext import (
+    Inventory as NativeInventory,
+    ItemContext as NativeItemContext,
+    WeaponSetStruct,
+    ItemStruct,
+    DamageType,
+)
 
 
 class Inventory:
@@ -647,7 +654,225 @@ class Inventory:
 
         return moved_any
 
+    # ==================== WEAPON SET METHODS (Native Python) ====================
 
+    @staticmethod
+    def GetActiveWeaponSetIndex():
+        """
+        Get the index of the currently active weapon set (0-3).
+
+        Returns:
+            int: The active weapon set index (0, 1, 2, or 3), or -1 if unavailable.
+        """
+        inv = NativeInventory.get_context()
+        if inv is None:
+            return -1
+        return inv.active_weapon_set_index
+
+    @staticmethod
+    def GetWeaponSetRaw(set_index: int):
+        """
+        Get raw WeaponSetStruct from native context for a specific weapon set.
+
+        Args:
+            set_index (int): The weapon set index (0-3).
+
+        Returns:
+            WeaponSetStruct or None: The raw native weapon set structure.
+        """
+        if set_index < 0 or set_index > 3:
+            return None
+        inv = NativeInventory.get_context()
+        if inv is None:
+            return None
+        return inv.get_weapon_set(set_index)
+
+    @staticmethod
+    def GetWeaponSet(set_index: int):
+        """
+        Get information about a specific weapon set.
+
+        Args:
+            set_index (int): The weapon set index (0-3).
+
+        Returns:
+            WeaponSetInfo object with properties:
+                - set_index: int (0-3)
+                - is_active: bool
+                - weapon_item_id: int
+                - weapon_damage_type: str ("Lightning", "Piercing", etc.)
+                - weapon_damage_type_id: int
+                - has_weapon: bool
+                - offhand_item_id: int
+                - offhand_damage_type: str
+                - offhand_damage_type_id: int
+                - has_offhand: bool
+                - is_shield: bool
+                - is_focus: bool
+        """
+        ws = Inventory.GetWeaponSetRaw(set_index)
+        if ws is None:
+            return None
+
+        active_index = Inventory.GetActiveWeaponSetIndex()
+
+        # Create a simple info object with all the properties
+        class WeaponSetInfo:
+            pass
+
+        info = WeaponSetInfo()
+        info.set_index = set_index
+        info.is_active = (set_index == active_index)
+
+        # Main hand weapon
+        weapon = ws.weapon
+        info.has_weapon = weapon is not None
+        info.weapon_item_id = weapon.item_id if weapon else 0
+        info.weapon_damage_type_id = ws.weapon_damage_type
+        info.weapon_damage_type = ws.weapon_damage_type_name
+        info.weapon_type_name = ws.weapon_type_name
+        info.is_two_handed = ws.is_two_handed
+
+        # Off-hand (suppressed for two-handed weapons)
+        if ws.is_two_handed:
+            info.has_offhand = False
+            info.offhand_item_id = 0
+            info.offhand_damage_type_id = -1
+            info.offhand_damage_type = ""
+            info.is_shield = False
+            info.is_focus = False
+        else:
+            offhand = ws.offhand
+            info.has_offhand = offhand is not None
+            info.offhand_item_id = offhand.item_id if offhand else 0
+            info.offhand_damage_type_id = ws.offhand_damage_type
+            info.offhand_damage_type = ws.offhand_damage_type_name
+            info.is_shield = ws.is_shield
+            info.is_focus = ws.is_focus
+
+        return info
+
+    @staticmethod
+    def GetActiveWeaponSet():
+        """
+        Get information about the currently active weapon set.
+
+        Returns:
+            WeaponSetInfo object (see GetWeaponSet for properties).
+        """
+        active_index = Inventory.GetActiveWeaponSetIndex()
+        if active_index < 0 or active_index > 3:
+            return None
+        return Inventory.GetWeaponSet(active_index)
+
+    @staticmethod
+    def GetAllWeaponSets():
+        """
+        Get information about all 4 weapon sets.
+
+        Returns:
+            List[WeaponSetInfo]: List of 4 WeaponSetInfo objects.
+
+        Example:
+            sets = Inventory.GetAllWeaponSets()
+            for ws in sets:
+                print(f"Set {ws.set_index}: {ws.weapon_damage_type}")
+                if ws.is_active:
+                    print("  ^ Currently active")
+        """
+        return [Inventory.GetWeaponSet(i) for i in range(4)]
+
+    @staticmethod
+    def GetAllWeaponSetsRaw():
+        """
+        Get all 4 raw WeaponSetStruct objects from native context.
+
+        Returns:
+            List[WeaponSetStruct]: List of 4 native WeaponSetStruct objects.
+        """
+        inv = NativeInventory.get_context()
+        if inv is None:
+            return []
+        return inv.get_all_weapon_sets()
+
+    @staticmethod
+    def GetWeaponSetWithDamageType(damage_type: str):
+        """
+        Find the first weapon set that has a weapon with the specified damage type.
+
+        Args:
+            damage_type (str): The damage type to search for (e.g., "Lightning", "Cold", "Fire").
+
+        Returns:
+            WeaponSetInfo or None: The weapon set with matching damage type, or None if not found.
+
+        Example:
+            # Find the set with Lightning damage for Conjure Lightning
+            lightning_set = Inventory.GetWeaponSetWithDamageType("Lightning")
+            if lightning_set:
+                print(f"Use Set {lightning_set.set_index + 1} for Conjure Lightning")
+        """
+        all_sets = Inventory.GetAllWeaponSets()
+        for ws in all_sets:
+            if ws and ws.has_weapon and ws.weapon_damage_type.lower() == damage_type.lower():
+                return ws
+        return None
+
+    @staticmethod
+    def GetConjureWeaponSet(conjure_skill_name: str):
+        """
+        Find the weapon set that matches a Conjure spell's required damage type.
+
+        Args:
+            conjure_skill_name (str): The name of the Conjure spell.
+
+        Returns:
+            WeaponSetInfo or None: The matching weapon set, or None if not found.
+
+        Example:
+            # Find the right weapon set for Conjure Lightning
+            ws = Inventory.GetConjureWeaponSet("Conjure Lightning")
+            if ws:
+                print(f"Switch to Set {ws.set_index + 1} for Conjure Lightning")
+        """
+        conjure_map = {
+            "conjure lightning": "Lightning",
+            "conjure frost": "Cold",
+            "conjure flame": "Fire",
+        }
+
+        required_type = conjure_map.get(conjure_skill_name.lower())
+        if required_type:
+            return Inventory.GetWeaponSetWithDamageType(required_type)
+        return None
+
+    @staticmethod
+    def GetDefensiveWeaponSet():
+        """
+        Find the first weapon set that has a shield equipped.
+
+        Returns:
+            WeaponSetInfo or None: The weapon set with a shield, or None if not found.
+        """
+        all_sets = Inventory.GetAllWeaponSets()
+        for ws in all_sets:
+            if ws and ws.has_offhand and ws.is_shield:
+                return ws
+        return None
+
+    @staticmethod
+    def GetCastingWeaponSet():
+        """
+        Find the first weapon set that has a focus equipped (likely a 40/40 set).
+
+        Returns:
+            WeaponSetInfo or None: The weapon set with a focus, or None if not found.
+        """
+        all_sets = Inventory.GetAllWeaponSets()
+        for ws in all_sets:
+            if ws and ws.has_offhand and ws.is_focus:
+                return ws
+        return None
 
 
 
