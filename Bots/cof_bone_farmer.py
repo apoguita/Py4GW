@@ -901,7 +901,7 @@ def InteractNPCWithDialog(x, y, dialog_id):
         return False
 
     if dialog_id != 0:
-        Player.SendDialog(dialog_id)
+        Player.SendAgentDialog(dialog_id)
         _dialog_run_to_end(Routines.Yield.wait(500))
 
     return True

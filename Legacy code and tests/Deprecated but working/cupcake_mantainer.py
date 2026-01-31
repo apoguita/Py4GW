@@ -326,7 +326,7 @@ class BottingHelpers:
             return False
 
         if dialog_id != 0:
-            Player.SendDialog(dialog_id)
+            Player.SendAgentDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
         self.parent.config.dialog_at_succeeded._apply(True)

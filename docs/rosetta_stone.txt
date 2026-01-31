@@ -790,7 +790,7 @@ GwA2 Function - AcceptQuest($aQuestID)
 				GetSunspearsBlessing($x, $y)
 				GetLightBringerBlessing($x, $y)
 	Py4GW Class or Method
-		CoreLib.Player.SendDialog(dialog_id) 
+		CoreLib.Player.SendAgentDialog(dialog_id) 
 		CoreLib.Player.SendChatCommand("dialog take") #will accept any dialog presented, more parameters available
 ================================================================================
 GwA2 Function - StartSalvage($aItem, $aCheap = False)

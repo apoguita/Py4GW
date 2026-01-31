@@ -728,7 +728,7 @@ def RunBotSequentialLogic():
         yield from Routines.Yield.Movement.FollowPath(path_points_to_npc, custom_exit_condition=lambda: player_is_dead() or not bot_variables.config.is_script_running)
         #take bounty
         yield from Routines.Yield.Agents.InteractWithAgentXY(13367, -20771)
-        yield from Routines.Yield.Player.SendDialog("0x84")
+        yield from Routines.Yield.Player.SendAgentDialog("0x84")
         bot_variables.config.pause_stuck_routine = False
         yield from Routines.Yield.Movement.FollowPath(path_points_to_farming_route1,custom_exit_condition=lambda: player_is_dead() or not bot_variables.config.is_script_running)
         if handle_death():

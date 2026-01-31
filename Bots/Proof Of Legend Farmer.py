@@ -840,7 +840,7 @@ def click_dialog_button(button: int, size: Optional[str] = None, backup: Optiona
     scroll_id = UIManager.IsVisible(UIManager.GetChildFrameID(npc_dialog_hash, [2, 3]))
     
     if scroll_id and backup:
-        ActionQueueManager().AddAction("ACTION", Player.SendDialog, int(backup, 16))
+        ActionQueueManager().AddAction("ACTION", Player.SendAgentDialog, int(backup, 16))
         return True
 
     ActionQueueManager().AddAction("ACTION", UIManager.FrameClick, target_id)

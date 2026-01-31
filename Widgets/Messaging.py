@@ -466,7 +466,7 @@ def SendDialogToTarget(index, message):
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
         yield from Routines.Yield.wait(500)
-        Player.SendDialog(dialog)
+        Player.SendAgentDialog(dialog)
         yield from Routines.Yield.wait(500)
 
         ConsoleLog(MODULE_NAME, "SendDialogToTarget message processed and finished.", Console.MessageType.Info, False)
@@ -475,9 +475,9 @@ def SendDialogToTarget(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
-# region SendDialog
-def SendDialog(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing SendDialog message: {message}", Console.MessageType.Info, False)
+# region SendAgentDialog
+def SendAgentDialog(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing SendAgentDialog message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -711,7 +711,7 @@ def OpenChest(index, message):
                     ConsoleLog(MODULE_NAME, "Timeout reached while opening chest, halting.", Console.MessageType.Warning)
                     return
             
-                Player.SendDialog(2)
+                Player.SendAgentDialog(2)
                 yield from Routines.Yield.wait(1500)    
             
                 if not UIManager.IsLockedChestWindowVisible():
@@ -1381,8 +1381,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(TakeDialogWithTarget(index, message))
         case SharedCommandType.SendDialogToTarget:
             GLOBAL_CACHE.Coroutines.append(SendDialogToTarget(index, message))
-        case SharedCommandType.SendDialog:
-            GLOBAL_CACHE.Coroutines.append(SendDialog(index, message))
+        case SharedCommandType.SendAgentDialog:
+            GLOBAL_CACHE.Coroutines.append(SendAgentDialog(index, message))
         case SharedCommandType.GetBlessing:
             pass
         case SharedCommandType.OpenChest:

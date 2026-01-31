@@ -179,8 +179,8 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         while not self.window_close_timeout.IsExpired():
 
             # 2.a) send dialog to close the chest window
-            if self.dedicated_debug: print(f"open_near_chest_utility_ SendDialog")
-            Player.SendDialog(2)
+            if self.dedicated_debug: print(f"open_near_chest_utility_ SendAgentDialog")
+            Player.SendAgentDialog(2)
             yield from custom_behavior_helpers.Helpers.wait_for(150)
 
             # 2.b) check if the chest window is closed

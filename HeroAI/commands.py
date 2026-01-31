@@ -140,7 +140,7 @@ class HeroAICommands:
             same_map = own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
             
             if same_map:
-                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendDialog, (dialog_option, 0, 0, 0))
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendAgentDialog, (dialog_option, 0, 0, 0))
                 
     def __leave_party_command(self, accounts: list[AccountData]):
         sender_email = Player.GetAccountEmail()        

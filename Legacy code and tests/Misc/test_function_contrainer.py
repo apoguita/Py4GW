@@ -174,7 +174,7 @@ def DrawWindow2():
 
             PyImGui.separator()
             if PyImGui.button("Send Dialog"):
-                CoreLib.Player.SendDialog(0x84)
+                CoreLib.Player.SendAgentDialog(0x84)
 
             if PyImGui.button("Send Dialog Take"):
                 CoreLib.Player.SendChatCommand("dialog take")

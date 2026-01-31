@@ -98,7 +98,7 @@ class ProUnlockWindow(BasicWindow):
                     value = int(dialog_id)
             else:
                 value = int(dialog_id)
-            Player.SendDialog(value)
+            Player.SendAgentDialog(value)
             pass
         except Exception as e:
             pass

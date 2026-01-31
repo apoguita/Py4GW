@@ -1540,8 +1540,8 @@ def ShowPlayerWindow():
                     dialog_value = int(hex_input, 16)
                     #The values recieved by this function are in hex, so we need to convert them to int
                     #toolbox data shows Hex values, hex(0x84) = 0x84, int(0x84) = 132
-                    #Player.SendDialog(0x84)
-                    Player.SendDialog(dialog_value)
+                    #Player.SendAgentDialog(0x84)
+                    Player.SendAgentDialog(dialog_value)
 
                 if PyImGui.button("dialog take (SendChatCommand preferred method)"):
                     Player.SendChatCommand("dialog take")

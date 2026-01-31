@@ -92,7 +92,7 @@ class ProUnlockWindow(BasicWindow):
                     value = int(dialog_id)
             else:
                 value = int(dialog_id)
-            Player.SendDialog(value)
+            Player.SendAgentDialog(value)
             self.log(f"Sent dialog ID: {dialog_id}")
         except Exception as e:
             self.log(f"Error sending dialog {dialog_id}: {e}")

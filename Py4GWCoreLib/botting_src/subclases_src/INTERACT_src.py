@@ -43,7 +43,7 @@ class _INTERACT:
             return False
 
         if dialog_id != 0:
-            Player.SendDialog(dialog_id)
+            Player.SendAgentDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
         self._config.config_properties.dialog_at_succeeded.set_now("value", True)

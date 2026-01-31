@@ -28,9 +28,9 @@ class Sequential:
                 Sequential.Player.InteractAgent(target_id)
 
         @staticmethod
-        def SendDialog(dialog_id:str):
+        def SendAgentDialog(dialog_id:str):
             from ..GlobalCache import GLOBAL_CACHE
-            Player.SendDialog(int(dialog_id, 16))
+            Player.SendAgentDialog(int(dialog_id, 16))
             sleep(0.3)
 
         @staticmethod
@@ -350,7 +350,7 @@ class Sequential:
         
             Sequential.Player.InteractAgent(nearest_chest)
             sleep(0.5)
-            ActionQueueManager().AddAction("ACTION",Player.SendDialog, 2)
+            ActionQueueManager().AddAction("ACTION",Player.SendAgentDialog, 2)
             sleep(1)
 
             Sequential.Agents.TargetNearestItem(distance=300)

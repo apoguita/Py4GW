@@ -92,7 +92,7 @@ class Yield:
             yield from _run_bt_tree(tree, throttle_ms=250)
 
         @staticmethod
-        def SendDialog(dialog_id:str, log:bool=False):
+        def SendAgentDialog(dialog_id:str, log:bool=False):
             """
             Purpose: Send a dialog to the specified dialog ID.
             Args:
@@ -100,7 +100,7 @@ class Yield:
                 log (bool) Optional: Whether to log the action. Default is False.
             Returns: None
             """
-            tree = BT.Player.SendDialog(dialog_id, log=log)
+            tree = BT.Player.SendAgentDialog(dialog_id, log=log)
             yield from _run_bt_tree(tree,throttle_ms=300)
 
         @staticmethod
@@ -722,7 +722,7 @@ class Yield:
 
             yield from Yield.Player.InteractAgent(nearest_chest)
             yield from Yield.wait(500)
-            Player.SendDialog(2)
+            Player.SendAgentDialog(2)
             yield from Yield.wait(500)
 
             yield from Yield.Agents.TargetNearestItem(distance=300)

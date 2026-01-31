@@ -747,7 +747,7 @@ def RunBotSequentialLogic():
         Routines.Sequential.Movement.FollowPath(path_points_to_npc, custom_exit_condition=lambda: player_is_dead_or_map_loading()) 
         #take bounty
         Routines.Sequential.Agents.InteractWithAgentXY(13367, -20771)
-        Routines.Sequential.Player.SendDialog("0x84")
+        Routines.Sequential.Player.SendAgentDialog("0x84")
         bot_variables.config.pause_stuck_routine = False
         Routines.Sequential.Movement.FollowPath(path_points_to_farming_route1,custom_exit_condition=lambda: player_is_dead())
         if handle_death():

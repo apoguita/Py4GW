@@ -101,7 +101,7 @@ class BT:
             return BehaviorTree(tree)
         
         @staticmethod
-        def SendDialog(dialog_id:str | int, log:bool=False):
+        def SendAgentDialog(dialog_id:str | int, log:bool=False):
             """
             Purpose: Send a dialog to the specified dialog ID.
             Args:
@@ -110,11 +110,11 @@ class BT:
             Returns: None
             """
             def _send_dialog(dialog_id):
-                Player.SendDialog(dialog_id)
-                ConsoleLog("SendDialog", f"Sent dialog {dialog_id}.", Console.MessageType.Info, log=log)
+                Player.SendAgentDialog(dialog_id)
+                ConsoleLog("SendAgentDialog", f"Sent dialog {dialog_id}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.ActionNode(name="SendDialog", action_fn=lambda: _send_dialog(dialog_id), aftercast_ms=300)
+            tree = BehaviorTree.ActionNode(name="SendAgentDialog", action_fn=lambda: _send_dialog(dialog_id), aftercast_ms=300)
             return BehaviorTree(tree)
         
         @staticmethod   

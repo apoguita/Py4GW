@@ -506,7 +506,7 @@ class _FSM_Helpers:
                 return
             
             self._parent.AdvanceProgress(0.33)
-            yield from Routines.Yield.Player.SendDialog("0x84")
+            yield from Routines.Yield.Player.SendAgentDialog("0x84")
             
         def FarmingRoute1(self):
             self._parent.SetCurrentStep("Farming Route 1", 0.25)

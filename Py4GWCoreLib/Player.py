@@ -524,11 +524,6 @@ class Player:
 
     # region Methods
     @staticmethod
-    def BuySkill(skill_id: int):
-        """Buy/Learn a skill from a Skill Trainer."""
-        PlayerMethods.SendSkillTrainerDialog(skill_id)
-
-    @staticmethod
     def ChangeTarget(agent_id):
         """
         Purpose: Change the player's target.
@@ -627,6 +622,11 @@ class Player:
     def SendDialog(dialog_id: int):
         """Send dialog using kSendDialog (no agent context needed)."""
         PlayerMethods.SendDialog(dialog_id)
+
+    @staticmethod
+    def BuySkill(skill_id: int):
+        """Buy/Learn a skill from a Skill Trainer."""
+        PlayerMethods.SendSkillTrainerDialog(skill_id)
 
     # region Not Worked
     @staticmethod

@@ -365,7 +365,7 @@ class FSM_Config:
             return False
 
         if dialog_id is not None:
-            Player.SendDialog(dialog_id)
+            Player.SendAgentDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
         return True
@@ -687,7 +687,7 @@ class FSM_Config:
                 return
 
             TAKE_THE_THREAT_GROWS = 0x815401
-            Player.SendDialog(TAKE_THE_THREAT_GROWS)
+            Player.SendAgentDialog(TAKE_THE_THREAT_GROWS)
             yield from Routines.Yield.wait(500)
         finally:
             if autocombat in GLOBAL_CACHE.Coroutines:
@@ -759,7 +759,7 @@ class FSM_Config:
             return
         
         TAKE_QUEST = 0x815501
-        Player.SendDialog(TAKE_QUEST)
+        Player.SendAgentDialog(TAKE_QUEST)
         yield from Routines.Yield.wait(500)
         
         Map.Travel(Map.GetMapIDByName("Shing Jea Monastery"))
@@ -975,7 +975,7 @@ class FSM_Config:
             return
         
         I_AM_SURE = 0x84
-        Player.SendDialog(I_AM_SURE)  # Accept the quest to book passage
+        Player.SendAgentDialog(I_AM_SURE)  # Accept the quest to book passage
 
 
 main_FSM = FSM_Config()
