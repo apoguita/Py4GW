@@ -8,6 +8,7 @@ import ctypes
 from typing import List
 from Py4GW import Game
 
+
 class WorldActionId:
     InteractEnemy = 0
     InteractPlayerOrOther = 1
@@ -15,13 +16,14 @@ class WorldActionId:
     InteractItem = 3
     InteractTrade = 4
     InteractGadget = 5
- 
+
+
 # ------------------------------
 # MoveTo
 # ------------------------------
 
 MoveTo_Func = NativeFunction(
-    name="MoveTo_Func", #GWCA name
+    name="MoveTo_Func",  # GWCA name
     pattern=b"\x83\xc4\x0c\x85\xff\x74\x0b\x56\x6a\x03",
     mask="xxxxxxxxxx",
     offset=-0x5,
@@ -46,10 +48,20 @@ DepositFaction_Func = NativeFunction(
 # ------------------------------
 # SetActiveTitle
 # ------------------------------
-sat_assertion = Scanner.FindAssertion("AttribTitles.cpp","!*hdr.param",0,0,)
-sat_function_start = Scanner.ToFunctionStart(sat_assertion) 
-sat_find_in_range = Scanner.FindInRange(b"\xff\x76\x08\xe8","xxxx",3,
-                                        sat_function_start,sat_function_start+ 0x3ff,)
+sat_assertion = Scanner.FindAssertion(
+    "AttribTitles.cpp",
+    "!*hdr.param",
+    0,
+    0,
+)
+sat_function_start = Scanner.ToFunctionStart(sat_assertion)
+sat_find_in_range = Scanner.FindInRange(
+    b"\xff\x76\x08\xe8",
+    "xxxx",
+    3,
+    sat_function_start,
+    sat_function_start + 0x3FF,
+)
 SetActiveTitle_Func_ptr = Scanner.FunctionFromNearCall(sat_find_in_range)
 
 SetActiveTitle_Func = NativeFunction.from_address(
@@ -61,36 +73,38 @@ SetActiveTitle_Func = NativeFunction.from_address(
 # ------------------------------
 # RemoveActiveTitle
 # ------------------------------
-RemoveActiveTitle_Func_ptr = Scanner.FindInRange(b"\x55\x8b\xec\x51","xxxx",0,
-                                        SetActiveTitle_Func_ptr + 0x10,SetActiveTitle_Func_ptr + 0xff)
+RemoveActiveTitle_Func_ptr = Scanner.FindInRange(
+    b"\x55\x8b\xec\x51", "xxxx", 0, SetActiveTitle_Func_ptr + 0x10, SetActiveTitle_Func_ptr + 0xFF
+)
 
 RemoveActiveTitle_Func = NativeFunction.from_address(
     name="RemoveActiveTitle_Func",
     address=RemoveActiveTitle_Func_ptr,
     prototype=Prototypes["Void_NoArgs"],
 )
-    
-            
+
+
 class PlayerMethods:
     @staticmethod
     def ChangeTarget(agent_id: int) -> None:
         def _action():
             from ...Agent import Agent
             from ...UIManager import UIManager
+
             if (target := Agent.GetAgentByID(agent_id)) is None:
-                return 
-            UIManager.SendUIMessage(UIMessage.kSendChangeTarget,[target.agent_id])
-        
+                return
+            UIManager.SendUIMessage(UIMessage.kSendChangeTarget, [target.agent_id])
+
         Game.enqueue(_action)
-        
+
     @staticmethod
     def InteractAgent(agent_id: int, call_target: bool = False) -> None:
         def _action():
             from ...Agent import Agent
             from ...UIManager import UIManager
-            
+
             if (agent := Agent.GetAgentByID(agent_id)) is None:
-                return 
+                return
 
             # Default packet values
             action_id = WorldActionId.InteractEnemy
@@ -104,7 +118,7 @@ class PlayerMethods:
             else:
                 if (living := agent.GetAsAgentLiving()) is None:
                     return
-                
+
                 """ 1: "ally",
                 2: "neutral",
                 3: "enemy",
@@ -119,13 +133,10 @@ class PlayerMethods:
                 else:
                     action_id = WorldActionId.InteractPlayerOrOther
 
-            UIManager.SendUIMessage(
-                UIMessage.kSendWorldAction,
-                [action_id, agent_id, call_target]
-            )
+            UIManager.SendUIMessage(UIMessage.kSendWorldAction, [action_id, agent_id, call_target])
 
         Game.enqueue(_action)
-        
+
     @staticmethod
     def Move(x: float, y: float, zPlane: int = 0) -> None:
         def _action():
@@ -139,36 +150,36 @@ class PlayerMethods:
             args[3] = 0.0  # unknown, but required
 
             MoveTo_Func.directCall(args)
-        
-        Game.enqueue(_action)   
-        
+
+        Game.enqueue(_action)
+
     @staticmethod
     def DepositFaction(allegiance: int) -> None:
         def _action():
             if not DepositFaction_Func.is_valid():
                 return
             DepositFaction_Func.directCall(0, allegiance, 5000)
-        
+
         Game.enqueue(_action)
-        
+
     @staticmethod
     def SetActiveTitle(title_id: int) -> None:
         def _action():
             if not SetActiveTitle_Func.is_valid():
                 return
             SetActiveTitle_Func.directCall(title_id)
-        
+
         Game.enqueue(_action)
-        
+
     @staticmethod
     def RemoveActiveTitle() -> None:
         def _action():
             if not RemoveActiveTitle_Func.is_valid():
                 return
             RemoveActiveTitle_Func.directCall()
-        
+
         Game.enqueue(_action)
-        
+
     @staticmethod
     def SendChat(channel: int | str, message: str) -> bool:
         """
@@ -192,7 +203,7 @@ class PlayerMethods:
             return False
 
         # Match GetChannel(channel) != CHANNEL_UNKNOW
-        if ch not in ('!', '@', '#', '$', '%', '"','/'):
+        if ch not in ('!', '@', '#', '$', '%', '"', '/'):
             return False
 
         # Mimic char* -> wchar_t* overload path
@@ -230,6 +241,7 @@ class PlayerMethods:
             )
 
             from ...UIManager import UIManager
+
             UIManager.SendUIMessageRaw(
                 UIMessage.kSendChatMessage,
                 ctypes.addressof(packet),
@@ -239,7 +251,7 @@ class PlayerMethods:
         Game.enqueue(_do_action)
 
         return True
-    
+
     @staticmethod
     def SendWhisper(name: str, message: str) -> bool:
         """
@@ -253,7 +265,7 @@ class PlayerMethods:
         # ---- Mimic char* -> wchar_t* via %S (ACP / mbcs) ----
         try:
             from_w = name.encode("utf-8").decode("mbcs", errors="replace")
-            msg_w  = message.encode("utf-8").decode("mbcs", errors="replace")
+            msg_w = message.encode("utf-8").decode("mbcs", errors="replace")
         except Exception:
             return False
 
@@ -287,6 +299,7 @@ class PlayerMethods:
             )
 
             from ...UIManager import UIManager
+
             UIManager.SendUIMessageRaw(
                 UIMessage.kSendChatMessage,
                 ctypes.addressof(packet),
@@ -366,7 +379,6 @@ class PlayerMethods:
                     ("channel2", ctypes.c_uint32),
                 ]
 
-
             param = UIChatMessage(
                 channel=channel,
                 message=final_message,
@@ -374,6 +386,7 @@ class PlayerMethods:
             )
 
             from ...UIManager import UIManager
+
             UIManager.SendUIMessageRaw(
                 UIMessage.kWriteToChatLog,
                 ctypes.addressof(param),
@@ -382,3 +395,27 @@ class PlayerMethods:
 
         Game.enqueue(_do_action)
 
+    @staticmethod
+    def SendDialog(dialog_id: int) -> None:
+        """
+        Send a dialog using kSendDialog (no agent context required).
+        Works for skill trainers and other dialogs.
+        """
+
+        def _action():
+            from ...UIManager import UIManager
+
+            UIManager.SendUIMessageRaw(UIMessage.kSendDialog, dialog_id, 0)
+
+        Game.enqueue(_action)
+
+    @staticmethod
+    def SendSkillTrainerDialog(skill_id: int) -> None:
+        """
+        Buy/Learn a skill from a Skill Trainer.
+
+        Args:
+            skill_id: The skill ID to purchase (will be OR'd with 0x0A000000)
+        """
+        SKILL_DIALOG_MASK = 0x0A000000
+        PlayerMethods.SendDialog(skill_id | SKILL_DIALOG_MASK)

@@ -10,6 +10,7 @@ from .native_src.context.WorldContext import TitleStruct
 from .native_src.methods.PlayerMethods import PlayerMethods
 from .py4gwcorelib_src.ActionQueue import ActionQueueManager
 
+
 # Player
 class Player:
     @staticmethod
@@ -21,7 +22,7 @@ class Player:
             return result if result else "INVALID"
         except TypeError:
             return str(player_uuid)
-    
+
     @staticmethod
     def player_instance():
         """
@@ -32,7 +33,7 @@ class Player:
             PyAgent: The PyAgent instance for the given ID.
         """
         return PyPlayer.PyPlayer()
-        
+
     @staticmethod
     def GetPlayerNumber() -> int | None:
         """
@@ -43,7 +44,7 @@ class Player:
         if (char_ctx := GWContext.Char.GetContext()) is None:
             return None
         return char_ctx.player_number
-    
+
     @staticmethod
     def IsPlayerLoaded() -> bool:
         """
@@ -52,21 +53,22 @@ class Player:
         Returns: bool
         """
         from .Map import Map
+
         if not Map.IsMapReady():
-            return False  
+            return False
         if (player_number := Player.GetPlayerNumber()) is None:
-            return False   
+            return False
         if (party_ctx := GWContext.Party.GetContext()) is None:
-            return False     
+            return False
         if (party_info := party_ctx.player_party) is None:
-            return False     
+            return False
         if (players := party_info.players) is None or len(players) == 0:
-            return False     
-         
+            return False
+
         for player in players:
             if player.login_number == player_number:
                 return player.is_connected
-            
+
         if (world_ctx := GWContext.World.GetContext()) is None:
             return False
         if (player_controlled_character := world_ctx.player_controlled_character) is None:
@@ -74,28 +76,31 @@ class Player:
         agent_id = player_controlled_character.agent_id
         if not Agent.IsValid(agent_id):
             return False
-        
+
         if not Agent.GetInstanceUptime(agent_id) > 750:
             return False
-            
+
         return False
-    
+
     @staticmethod
     def _require_player_loaded(default=None):
         """
         Decorator to ensure the player is loaded before executing the function.
         Returns `default` if not loaded.
         """
+
         def decorator(func):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 if not Player.IsPlayerLoaded():
                     return default
                 return func(*args, **kwargs)
+
             return wrapper
+
         return decorator
 
-    #region Data
+    # region Data
     @staticmethod
     def GetAgentID() -> int:
         """
@@ -110,7 +115,6 @@ class Player:
         if (player_controlled_character := world_ctx.player_controlled_character) is None:
             return 0
         return player_controlled_character.agent_id
-        
 
     @staticmethod
     def GetName() -> str:
@@ -130,7 +134,6 @@ class Player:
         """
         return Agent.GetXY(Player.GetAgentID())
 
-    
     @staticmethod
     def GetTargetID() -> int:
         """
@@ -149,7 +152,7 @@ class Player:
         """
         if not Player.IsPlayerLoaded():
             return None
-        
+
         return Agent.GetAgentByID(Player.GetAgentID())
 
     @staticmethod
@@ -160,7 +163,7 @@ class Player:
         Returns: int
         """
         return Player.player_instance().observing_id
-    
+
     @staticmethod
     def GetAccountName() -> str:
         """
@@ -175,7 +178,7 @@ class Player:
         if (account_name := account_info.account_name_str) is None:
             return ""
         return account_name
-    
+
     @staticmethod
     def GetAccountEmail() -> str:
         """
@@ -186,7 +189,7 @@ class Player:
         try:
             if not Player.IsPlayerLoaded():
                 return ""
-            
+
             if (char_ctx := GWContext.Char.GetContext()) is None:
                 return ""
             account_email = char_ctx.player_email_str
@@ -195,11 +198,11 @@ class Player:
             player_uuid = Player.GetPlayerUUID()
             if all(part == 0 for part in player_uuid):
                 return ""
-            #return Player._format_uuid_as_email(player_uuid)
+            # return Player._format_uuid_as_email(player_uuid)
             return "steam_account"  # Placeholder for Steam accounts
         except Exception:
             return ""
-    
+
     @staticmethod
     def GetPlayerUUID() -> tuple[int, int, int, int]:
         """
@@ -211,7 +214,7 @@ class Player:
             return (0, 0, 0, 0)
         player_uuid = char_ctx.player_uuid
         return player_uuid
-    
+
     @staticmethod
     def GetInstanceUptime() -> int:
         """
@@ -220,7 +223,7 @@ class Player:
         Returns: int
         """
         return Agent.GetInstanceUptime(Player.GetAgentID())
-    
+
     @staticmethod
     def GetRankData() -> tuple[int, int, int, int, int]:
         """
@@ -240,7 +243,7 @@ class Player:
         if any(value is None for value in (rank, rating, qualifier_points, wins, losses)):
             return 0, 0, 0, 0, 0
         return rank, rating, qualifier_points, wins, losses
-    
+
     @staticmethod
     def GetTournamentRewardPoints() -> int:
         """
@@ -253,7 +256,7 @@ class Player:
         if (account_info := world_ctx.account_info) is None:
             return 0
         return account_info.tournament_reward_points
-    
+
     @staticmethod
     def GetMorale() -> int:
         """
@@ -264,7 +267,7 @@ class Player:
         if (world_ctx := GWContext.World.GetContext()) is None:
             return 0
         return max(world_ctx.morale, world_ctx.morale_dupe)
-    
+
     @staticmethod
     def GetExperience() -> int:
         """
@@ -275,7 +278,7 @@ class Player:
         if (world_ctx := GWContext.World.GetContext()) is None:
             return 0
         return max(world_ctx.experience, world_ctx.experience_dupe)
-    
+
     @staticmethod
     def GetLevel() -> int:
         """
@@ -286,7 +289,7 @@ class Player:
         if (world_ctx := GWContext.World.GetContext()) is None:
             return 0
         return max(world_ctx.level, world_ctx.level_dupe)
-    
+
     @staticmethod
     def GetSkillPointData() -> tuple[int, int]:
         """
@@ -297,7 +300,7 @@ class Player:
         if (world_ctx := GWContext.World.GetContext()) is None:
             return 0, 0
         return world_ctx.current_skill_points, world_ctx.total_earned_skill_points
-    
+
     @staticmethod
     def GetMissionsCompleted() -> list[int]:
         """
@@ -310,7 +313,7 @@ class Player:
         if (missions_completed := world_ctx.missions_completed) is None:
             return []
         return missions_completed
-    
+
     @staticmethod
     def GetMissionsBonusCompleted() -> list[int]:
         """
@@ -323,7 +326,7 @@ class Player:
         if (missions_bonus := world_ctx.missions_bonus) is None:
             return []
         return missions_bonus
-    
+
     @staticmethod
     def GetMissionsCompletedHM() -> list[int]:
         """
@@ -336,7 +339,7 @@ class Player:
         if (missions_completed_hm := world_ctx.missions_completed_hm) is None:
             return []
         return missions_completed_hm
-    
+
     @staticmethod
     def GetMissionsBonusCompletedHM() -> list[int]:
         """
@@ -349,7 +352,7 @@ class Player:
         if (missions_bonus_hm := world_ctx.missions_bonus_hm) is None:
             return []
         return missions_bonus_hm
-    
+
     @staticmethod
     def GetControlledMinions() -> list[tuple[int, int]]:
         """
@@ -365,7 +368,7 @@ class Player:
         for controlled_minion in controlled_minions:
             result.append((controlled_minion.agent_id, controlled_minion.minion_count))
         return result
-    
+
     @staticmethod
     def GetLearnableCharacterSkills() -> list[int]:
         """
@@ -378,7 +381,7 @@ class Player:
         if (learnable_character_skills := world_ctx.learnable_character_skills) is None:
             return []
         return learnable_character_skills
-    
+
     @staticmethod
     def GetUnlockedCharacterSkills():
         """
@@ -391,7 +394,7 @@ class Player:
         if (unlocked_character_skills := world_ctx.unlocked_character_skills) is None:
             return []
         return unlocked_character_skills
-        
+
     @staticmethod
     def GetKurzickData():
         """
@@ -419,7 +422,7 @@ class Player:
         total_earned_luxon = max(world_ctx.total_earned_luxon, world_ctx.total_earned_luxon_dupe)
         max_luxon = world_ctx.max_luxon
         return current_luxon, total_earned_luxon, max_luxon
-    
+
     @staticmethod
     def GetImperialData():
         """
@@ -433,7 +436,7 @@ class Player:
         total_earned_imperial = max(world_ctx.total_earned_imperial, world_ctx.total_earned_imperial_dupe)
         max_imperial = world_ctx.max_imperial
         return current_imperial, total_earned_imperial, max_imperial
-    
+
     @staticmethod
     def GetBalthazarData():
         """
@@ -447,7 +450,7 @@ class Player:
         total_earned_balthazar = max(world_ctx.total_earned_balth, world_ctx.total_earned_balth_dupe)
         max_balthazar = world_ctx.max_balth
         return current_balthazar, total_earned_balthazar, max_balthazar
-    
+
     @staticmethod
     def GetActiveTitleID() -> int:
         """
@@ -469,7 +472,7 @@ class Player:
             if title.current_title_tier_index == active_title_tier:
                 return i
         return 0
-    
+
     @staticmethod
     def GetTitleArrayRaw():
         """
@@ -487,7 +490,6 @@ class Player:
             return []
         return titles
 
-    
     @staticmethod
     def GetTitleArray() -> list[int]:
         """
@@ -503,8 +505,8 @@ class Player:
             return []
         if (titles := world_ctx.titles) is None:
             return []
-        return [i for i,title in enumerate(titles)]
-    
+        return [i for i, title in enumerate(titles)]
+
     @staticmethod
     def GetTitle(title_id: int) -> TitleStruct | None:
         """
@@ -520,8 +522,12 @@ class Player:
 
         return titles[title_id]
 
+    # region Methods
+    @staticmethod
+    def BuySkill(skill_id: int):
+        """Buy/Learn a skill from a Skill Trainer."""
+        PlayerMethods.SendSkillTrainerDialog(skill_id)
 
-    #region Methods
     @staticmethod
     def ChangeTarget(agent_id):
         """
@@ -530,12 +536,13 @@ class Player:
             agent_id (int): The ID of the agent to target.
         Returns: None
         """
+
         def _do_action():
             Player.player_instance().ChangeTarget(agent_id)
-        #ActionQueueManager().AddAction("ACTION",PlayerMethods.ChangeTarget,agent_id)
-        ActionQueueManager().AddAction("ACTION",_do_action)
-        
-               
+
+        # ActionQueueManager().AddAction("ACTION",PlayerMethods.ChangeTarget,agent_id)
+        ActionQueueManager().AddAction("ACTION", _do_action)
+
     @staticmethod
     def Interact(agent_id, call_target=False):
         """
@@ -545,16 +552,17 @@ class Player:
             call_target (bool, optional): Whether to call the agent as a target.
         Returns: None
         """
+
         def _do_action():
             Player.player_instance().InteractAgent(agent_id, call_target)
 
-        ActionQueueManager().AddAction("ACTION",_do_action)
-        
-        #ActionQueueManager().AddAction("ACTION",
-        #PlayerMethods.InteractAgent,agent_id, call_target)
+        ActionQueueManager().AddAction("ACTION", _do_action)
+
+        # ActionQueueManager().AddAction("ACTION",
+        # PlayerMethods.InteractAgent,agent_id, call_target)
 
     @staticmethod
-    def Move(x:float, y:float, zPlane:int=0):
+    def Move(x: float, y: float, zPlane: int = 0):
         """
         Purpose: Move the player to specified X and Y coordinates.
         Args:
@@ -562,9 +570,8 @@ class Player:
             y (float): Y coordinate.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.Move, x, y, zPlane)
-        
+        ActionQueueManager().AddAction("ACTION", PlayerMethods.Move, x, y, zPlane)
+
     @staticmethod
     def DepositFaction(faction_id):
         """
@@ -573,8 +580,7 @@ class Player:
             faction_id (int): 0= Kurzick, 1= Luxon
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.DepositFaction,faction_id)
+        ActionQueueManager().AddAction("ACTION", PlayerMethods.DepositFaction, faction_id)
 
     @staticmethod
     def RemoveActiveTitle():
@@ -583,9 +589,8 @@ class Player:
         Args: None
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.RemoveActiveTitle)
-        
+        ActionQueueManager().AddAction("ACTION", PlayerMethods.RemoveActiveTitle)
+
     @staticmethod
     def SetActiveTitle(title_id):
         """
@@ -594,16 +599,17 @@ class Player:
             title_id (int): The ID of the title to set.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.SetActiveTitle,title_id)
-        
-        
-    
-    #region Not Worked
+        ActionQueueManager().AddAction("ACTION", PlayerMethods.SetActiveTitle, title_id)
+
+    # region Dialogs
     @staticmethod
-    def SendDialog(dialog_id: str | int):
+    def SendAgentDialog(dialog_id: str | int):
         """
-        Purpose: Send a dialog response.
+        Purpose: Send a dialog response using kSendAgentDialog (requires agent context).
+
+        Note: This uses the C++ binding which apparently handles race conditions for
+        looting and disappearing agents.
+
         Args:
             dialog_id (int): The ID of the dialog.
         Returns: None
@@ -614,10 +620,15 @@ class Player:
             # clean 0x or 0X and convert
             cleaned = dialog_id.strip().lower().replace("0x", "")
             dialog = int(cleaned, 16)
-            
-        ActionQueueManager().AddAction("ACTION",
-        Player.player_instance().SendDialog,dialog)
-        
+
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendDialog, dialog)
+
+    @staticmethod
+    def SendDialog(dialog_id: int):
+        """Send dialog using kSendDialog (no agent context needed)."""
+        PlayerMethods.SendDialog(dialog_id)
+
+    # region Not Worked
     @staticmethod
     def RequestChatHistory():
         """
@@ -625,9 +636,8 @@ class Player:
         Args: None
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        Player.player_instance().RequestChatHistory)
-    
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().RequestChatHistory)
+
     @staticmethod
     def IsChatHistoryReady():
         """
@@ -636,7 +646,7 @@ class Player:
         Returns: bool
         """
         return Player.player_instance().IsChatHistoryReady()
-    
+
     @staticmethod
     def GetChatHistory():
         """
@@ -645,7 +655,7 @@ class Player:
         Returns: list
         """
         return Player.player_instance().GetChatHistory()
-    
+
     @staticmethod
     def IsTyping():
         """
@@ -654,7 +664,7 @@ class Player:
         Returns: bool
         """
         return Player.player_instance().Istyping()
-    
+
     @staticmethod
     def SendChatCommand(command):
         """
@@ -663,8 +673,7 @@ class Player:
             command (str): The command to send.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        Player.player_instance().SendChatCommand,command)
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendChatCommand, command)
 
     @staticmethod
     def SendChat(channel, message):
@@ -675,8 +684,7 @@ class Player:
             message (str): The message to send.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        Player.player_instance().SendChat,channel, message)
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendChat, channel, message)
 
     @staticmethod
     def SendWhisper(target_name, message):
@@ -687,11 +695,10 @@ class Player:
             message (str): The message to send.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        Player.player_instance().SendWhisper,target_name, message)
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendWhisper, target_name, message)
 
     @staticmethod
-    def SendFakeChat(channel:ChatChannel, message):
+    def SendFakeChat(channel: ChatChannel, message):
         """
         Purpose: Send a fake chat message to a channel.
         Args:
@@ -699,11 +706,10 @@ class Player:
             message (str): The message to send.
         Returns: None
         """
-        ActionQueueManager().AddAction("ACTION",
-        Player.player_instance().SendFakeChat,channel.value, message)
-        
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendFakeChat, channel.value, message)
+
     @staticmethod
-    def SendFakeChatColored(channel:ChatChannel, message, r, g, b):
+    def SendFakeChatColored(channel: ChatChannel, message, r, g, b):
         """
         Purpose: Send a fake chat message to a channel with color.
         Args:
@@ -715,9 +721,10 @@ class Player:
         Returns: None
         """
         colored_msg = Player.FormatChatMessage(message, r, g, b)
-        ActionQueueManager().AddAction("ACTION",
-        Player.player_instance().SendFakeChat,channel.value, colored_msg, r, g, b)
-        
+        ActionQueueManager().AddAction(
+            "ACTION", Player.player_instance().SendFakeChat, channel.value, colored_msg, r, g, b
+        )
+
     @staticmethod
     def FormatChatMessage(message, r, g, b):
         """
