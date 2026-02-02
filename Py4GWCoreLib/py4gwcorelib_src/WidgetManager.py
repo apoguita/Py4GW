@@ -372,6 +372,19 @@ class WidgetHandler:
         except Exception as e:
             self._log_error(f"Failed to discover {widget_id}: {e}")
             
+    def _apply_ini_configuration(self):        
+        # Apply saved enabled states to runtime widgets
+        for wid, w in self.widgets.items():
+            vname = self._widget_var(wid, "enabled")
+            section = f"Widget:{wid}"
+            w.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=section, var_name=vname, default=False))
+            if w.enabled and w.on_enable:
+                try:
+                    w.on_enable()
+                except Exception as e:
+                    Py4GW.Console.Log("Widget Manager", f"Error in on_enable for widget '{wid}': {e}", Py4GW.Console.MessageType.Error)
+                
+            
     #region UI       
     def draw_node(self, INI_KEY: str, node: dict, depth: int = 0):
         style = ImGui.get_style()
