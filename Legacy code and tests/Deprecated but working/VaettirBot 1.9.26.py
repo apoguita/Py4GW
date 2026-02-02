@@ -5,44 +5,97 @@ module_name = "Vaettir Bot"
 outpost_coord_list = [(-24380, 15074), (-26375, 16180)]
 
 bjora_coord_list = [
-    (17810, -17649), (16582, -17136), (15257, -16568), (14084, -15748), (12940, -14873),
-    (11790, -14004), (10640, -13136), (9404 , -12411), (8677 , -11176), (8581 , -9742 ),
-    (7892 , -8494 ), (6989 , -7377 ), (6184 , -6180 ), (5384 , -4980 ), (4549 , -3809 ),
-    (3622 , -2710 ), (2601 , -1694 ), (1185 , -1535 ), (-251 , -1514 ), (-1690, -1626 ),
-    (-3122, -1771 ), (-4556, -1752 ), (-5809, -1109 ), (-6966,  -291 ), (-8390,  -142 ),
-    (-9831,  -138 ), (-11272, -156 ), (-12685, -198 ), (-13933,  267 ), (-14914, 1325 ),
-    (-15822, 2441 ), (-16917, 3375 ), (-18048, 4223 ), (-19196, 4986 ), (-20000, 5595 )
+    (17810, -17649),
+    (16582, -17136),
+    (15257, -16568),
+    (14084, -15748),
+    (12940, -14873),
+    (11790, -14004),
+    (10640, -13136),
+    (9404, -12411),
+    (8677, -11176),
+    (8581, -9742),
+    (7892, -8494),
+    (6989, -7377),
+    (6184, -6180),
+    (5384, -4980),
+    (4549, -3809),
+    (3622, -2710),
+    (2601, -1694),
+    (1185, -1535),
+    (-251, -1514),
+    (-1690, -1626),
+    (-3122, -1771),
+    (-4556, -1752),
+    (-5809, -1109),
+    (-6966, -291),
+    (-8390, -142),
+    (-9831, -138),
+    (-11272, -156),
+    (-12685, -198),
+    (-13933, 267),
+    (-14914, 1325),
+    (-15822, 2441),
+    (-16917, 3375),
+    (-18048, 4223),
+    (-19196, 4986),
+    (-20000, 5595),
 ]
 
 take_bounty_coord_list = [(13367, -20771)]
 
 farming_route = [
-    (12496, -22600), (11375, -22761), (10925, -23466), (10917, -24311), (9910, -24599),
-    (8995, -23177), (8307, -23187), (8213, -22829), (8307, -23187), (8213, -22829),
-    (8740, -22475), (8880, -21384), (8684, -20833), (9665, -20415)
+    (12496, -22600),
+    (11375, -22761),
+    (10925, -23466),
+    (10917, -24311),
+    (9910, -24599),
+    (8995, -23177),
+    (8307, -23187),
+    (8213, -22829),
+    (8307, -23187),
+    (8213, -22829),
+    (8740, -22475),
+    (8880, -21384),
+    (8684, -20833),
+    (9665, -20415),
 ]
 
 farming_route2 = [
-    (10196, -20124), (9976, -18338, 150), (11316, -18056), (10392, -17512), (10114, -16948),
-    (10729, -16273), (10810, -15058), (11120, -15105, 150), (11670, -15457), (12604, -15320),
-    (12476, -16157)
+    (10196, -20124),
+    (9976, -18338, 150),
+    (11316, -18056),
+    (10392, -17512),
+    (10114, -16948),
+    (10729, -16273),
+    (10810, -15058),
+    (11120, -15105, 150),
+    (11670, -15457),
+    (12604, -15320),
+    (12476, -16157),
 ]
 
 path_to_killing_spot = [
-    (13070, -16911), (12938, -17081), (12790, -17201), (12747, -17220),
-    (12703, -17239), (12684, -17184), (12518, -17305), (12445, -17327)
+    (13070, -16911),
+    (12938, -17081),
+    (12790, -17201),
+    (12747, -17220),
+    (12703, -17239),
+    (12684, -17184),
+    (12518, -17305),
+    (12445, -17327),
 ]
 
-path_to_merchant = [
-    (-23041, 14939)
-]
+path_to_merchant = [(-23041, 14939)]
 
-exit_jaga_moraine = [(12289, -17700) ,(15400, -20400),(15775,-20500),(15750,-20550)]
+exit_jaga_moraine = [(12289, -17700), (15400, -20400), (15775, -20500), (15750, -20550)]
 
-return_jaga_moraine = [(-18048, 4223 ), (-20000, 5595 )]
+return_jaga_moraine = [(-18048, 4223), (-20000, 5595)]
 
 
 follow_delay_timer = Timer()
+
+
 class WindowStatistics:
     def __init__(self):
         self.global_timer = Timer()
@@ -79,6 +132,7 @@ class WindowStatistics:
         self.glittering_dust = 0
         self.cloth = 0
         self.bones = 0
+
 
 class ConfigVarsClass:
     def __init__(self):
@@ -121,6 +175,7 @@ class ConfigVarsClass:
         self.keep_gold_amount = 5000
         self.leave_empty_inventory_slots = 3
 
+
 class BotVars:
     def __init__(self, map_id=0):
         self.starting_map = map_id
@@ -135,37 +190,48 @@ class BotVars:
         self.forced_restart = False
         self.show_visual_path = True
 
-bot_vars = BotVars(map_id=650) #Longeye's Ledge
-bot_vars.window_module = ImGui.WindowModule(module_name, window_name="Apoguita's Vaettir Bot", window_size=(300, 300), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+
+bot_vars = BotVars(map_id=650)  # Longeye's Ledge
+bot_vars.window_module = ImGui.WindowModule(
+    module_name,
+    window_name="Apoguita's Vaettir Bot",
+    window_size=(300, 300),
+    window_flags=PyImGui.WindowFlags.AlwaysAutoResize,
+)
+
 
 class StateMachineVars:
-        def __init__(self):
-            self.state_machine = FSM("Main")
-            self.sell_to_vendor = FSM("SellToVendor")
-            self.salvage_fsm = FSM("Salvage")
-            self.outpost_pathing = Routines.Movement.PathHandler(outpost_coord_list)
-            self.bjora_pathing = Routines.Movement.PathHandler(bjora_coord_list)
-            self.bounty_npc = Routines.Movement.PathHandler(take_bounty_coord_list)
-            self.farming_route = Routines.Movement.PathHandler(farming_route)
-            self.farming_route2 = Routines.Movement.PathHandler(farming_route2)
-            self.path_to_killing_spot = Routines.Movement.PathHandler(path_to_killing_spot)
-            self.exit_jaga_moraine = Routines.Movement.PathHandler(exit_jaga_moraine)
-            self.return_jaga_moraine = Routines.Movement.PathHandler(return_jaga_moraine)
-            self.in_waiting_routine = False
-            self.in_killing_routine = False
-            self.auto_stuck_command_timer = Timer()
-            self.auto_stuck_command_timer.Start()
-            self.old_player_x = 0
-            self.old_player_y = 0
-            self.stuck_count = 0
-            self.non_movement_timer = Timer()
-            self.non_movement_timer.Start()
-            self.looting_item_id = 0
-            self.movement_handler = Routines.Movement.FollowXY()
-            self.exact_movement_handler = Routines.Movement.FollowXY(tolerance=0) # Added by Markitosline: this movement routine has a 0 tolerance so that the final player location is exactly as per defined in waypoints
-            self.path_to_merchant = Routines.Movement.PathHandler(path_to_merchant)
+    def __init__(self):
+        self.state_machine = FSM("Main")
+        self.sell_to_vendor = FSM("SellToVendor")
+        self.salvage_fsm = FSM("Salvage")
+        self.outpost_pathing = Routines.Movement.PathHandler(outpost_coord_list)
+        self.bjora_pathing = Routines.Movement.PathHandler(bjora_coord_list)
+        self.bounty_npc = Routines.Movement.PathHandler(take_bounty_coord_list)
+        self.farming_route = Routines.Movement.PathHandler(farming_route)
+        self.farming_route2 = Routines.Movement.PathHandler(farming_route2)
+        self.path_to_killing_spot = Routines.Movement.PathHandler(path_to_killing_spot)
+        self.exit_jaga_moraine = Routines.Movement.PathHandler(exit_jaga_moraine)
+        self.return_jaga_moraine = Routines.Movement.PathHandler(return_jaga_moraine)
+        self.in_waiting_routine = False
+        self.in_killing_routine = False
+        self.auto_stuck_command_timer = Timer()
+        self.auto_stuck_command_timer.Start()
+        self.old_player_x = 0
+        self.old_player_y = 0
+        self.stuck_count = 0
+        self.non_movement_timer = Timer()
+        self.non_movement_timer.Start()
+        self.looting_item_id = 0
+        self.movement_handler = Routines.Movement.FollowXY()
+        self.exact_movement_handler = Routines.Movement.FollowXY(
+            tolerance=0
+        )  # Added by Markitosline: this movement routine has a 0 tolerance so that the final player location is exactly as per defined in waypoints
+        self.path_to_merchant = Routines.Movement.PathHandler(path_to_merchant)
+
 
 FSM_vars = StateMachineVars()
+
 
 def progress_bar_value():
     global FSM_vars
@@ -176,24 +242,25 @@ def progress_bar_value():
     first_phase_steps = 3 + FSM_vars.sell_to_vendor.get_state_count() + FSM_vars.outpost_pathing.get_state_count()
 
     if current_value < 3:
-        return current_value /first_phase_steps, "Initializing"
+        return current_value / first_phase_steps, "Initializing"
     if current_value == 4:
         sub_fsm_current_value = FSM_vars.sell_to_vendor.get_current_state_number()
         sub_fsm_max_value = FSM_vars.sell_to_vendor.get_state_count()
-        return 3 + sub_fsm_current_value/first_phase_steps, FSM_vars.sell_to_vendor.get_current_step_name()
+        return 3 + sub_fsm_current_value / first_phase_steps, FSM_vars.sell_to_vendor.get_current_step_name()
     if current_value == 5:
         sub_fsm_current_value = FSM_vars.outpost_pathing.get_current_state_number()
         sub_fsm_max_value = FSM_vars.outpost_pathing.get_state_count()
         offset = 3 + FSM_vars.sell_to_vendor.get_state_count()
-        return offset + sub_fsm_current_value/first_phase_steps, FSM_vars.outpost_pathing.get_current_step_name()
+        return offset + sub_fsm_current_value / first_phase_steps, FSM_vars.outpost_pathing.get_current_step_name()
 
 
-#Helper Functions
+# Helper Functions
 def StartBot():
     global bot_vars
     bot_vars.bot_started = True
     bot_vars.window_statistics.global_timer.Start()
     bot_vars.window_statistics.lap_timer.Start()
+
 
 def StopBot():
     global bot_vars
@@ -201,43 +268,52 @@ def StopBot():
     bot_vars.window_statistics.global_timer.Stop()
     bot_vars.window_statistics.lap_timer.Stop()
 
+
 def IsBotStarted():
     global bot_vars
     return bot_vars.bot_started
-	
+
+
 def IsMaterial(item_id):
     material_model_ids = {946, 948, 929, 921, 925, 955}  # Add all known material IDs
     return Item.GetModelID(item_id) in material_model_ids
-	
+
+
 def IsGranite(item_id):
     """Check if the item is granite."""
     granite_model_ids = {955}  # Granite ID
     return Item.GetModelID(item_id) in granite_model_ids
-	
+
+
 def IsWood(item_id):
     """Check if the item is wood."""
     wood_model_ids = {946}  # Replace with the correct IDs for wood
     return Item.GetModelID(item_id) in wood_model_ids
+
 
 def IsIron(item_id):
     """Check if the item is iron."""
     iron_model_ids = {948}  # Replace with the correct IDs for iron
     return Item.GetModelID(item_id) in iron_model_ids
 
+
 def IsDust(item_id):
     """Check if the item is glittering dust."""
     dust_model_ids = {929}  # Replace with the correct IDs for dust
     return Item.GetModelID(item_id) in dust_model_ids
+
 
 def IsBones(item_id):
     """Check if the item is bones."""
     bone_model_ids = {921}  # Replace with the correct IDs for bones
     return Item.GetModelID(item_id) in bone_model_ids
 
+
 def IsCloth(item_id):
     """Check if the item is cloth."""
     cloth_model_ids = {925}  # Replace with the correct IDs for cloth
     return Item.GetModelID(item_id) in cloth_model_ids
+
 
 def HasThingsToSell():
     global bot_vars
@@ -248,12 +324,20 @@ def HasThingsToSell():
 
     # Log initial items
     current_function = inspect.currentframe().f_code.co_name
-    Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - Initial items: {items_to_sell}", Py4GW.Console.MessageType.Info)
+    Py4GW.Console.Log(
+        bot_vars.window_module.module_name,
+        f"{current_function} - Initial items: {items_to_sell}",
+        Py4GW.Console.MessageType.Info,
+    )
 
     # General material filtering
     if not bot_vars.config_vars.sell_materials:
         items_to_sell = ItemArray.Filter.ByCondition(items_to_sell, lambda item_id: not Item.Type.IsMaterial(item_id))
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - After filtering out all materials: {items_to_sell}", Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"{current_function} - After filtering out all materials: {items_to_sell}",
+            Py4GW.Console.MessageType.Info,
+        )
     else:
         # Filter specific materials if 'sell_materials' is enabled
         filtered_items = []
@@ -273,24 +357,44 @@ def HasThingsToSell():
 
         # Replace 'items_to_sell' with filtered items
         items_to_sell = filtered_items
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - After filtering specific materials: {items_to_sell}", Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"{current_function} - After filtering specific materials: {items_to_sell}",
+            Py4GW.Console.MessageType.Info,
+        )
 
     # Filter based on rarity
     if not bot_vars.config_vars.sell_whites:
         items_to_sell = ItemArray.Filter.ByCondition(items_to_sell, lambda item_id: not Item.Rarity.IsWhite(item_id))
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - After filtering whites: {items_to_sell}", Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"{current_function} - After filtering whites: {items_to_sell}",
+            Py4GW.Console.MessageType.Info,
+        )
 
     if not bot_vars.config_vars.sell_blues:
         items_to_sell = ItemArray.Filter.ByCondition(items_to_sell, lambda item_id: not Item.Rarity.IsBlue(item_id))
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - After filtering blues: {items_to_sell}", Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"{current_function} - After filtering blues: {items_to_sell}",
+            Py4GW.Console.MessageType.Info,
+        )
 
     if not bot_vars.config_vars.sell_purples:
         items_to_sell = ItemArray.Filter.ByCondition(items_to_sell, lambda item_id: not Item.Rarity.IsPurple(item_id))
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - After filtering purples: {items_to_sell}", Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"{current_function} - After filtering purples: {items_to_sell}",
+            Py4GW.Console.MessageType.Info,
+        )
 
     if not bot_vars.config_vars.sell_golds:
         items_to_sell = ItemArray.Filter.ByCondition(items_to_sell, lambda item_id: not Item.Rarity.IsGold(item_id))
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - After filtering golds: {items_to_sell}", Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"{current_function} - After filtering golds: {items_to_sell}",
+            Py4GW.Console.MessageType.Info,
+        )
 
     # Check if there are any remaining items to sell
     if len(items_to_sell) > 0:
@@ -309,6 +413,7 @@ def DoesNeedInventoryHandling():
         return True
     return HasThingsToSell()
 
+
 def InventoryCheck():
     global bot_vars
     if bot_vars.config_vars.leave_empty_inventory_slots <= Inventory.GetFreeSlotCount():
@@ -322,7 +427,6 @@ def LoadSkillBar():
     if primary_profession == "Assassin":
         SkillBar.LoadSkillTemplate("OwVUI2h5lPP8Id2BkAiAvpLBTAA")
 
-    
 
 def IsSkillBarLoaded():
     global bot_vars
@@ -331,7 +435,11 @@ def IsSkillBarLoaded():
     primary_profession, secondary_profession = Agent.GetProfessionNames(Player.GetAgentID())
     if primary_profession != "Assassin" and secondary_profession != "Mesmer":
         current_function = inspect.currentframe().f_code.co_name
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"{current_function} - This bot requires A/Me to work, halting.", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"{current_function} - This bot requires A/Me to work, halting.",
+            Py4GW.Console.MessageType.Error,
+        )
         ResetEnvironment()
         StopBot()
         return False
@@ -344,25 +452,28 @@ def IsSkillBarLoaded():
     skillbar.wastrels_worry = SkillBar.GetSkillIDBySlot(6)
     skillbar.arcane_echo = SkillBar.GetSkillIDBySlot(7)
     skillbar.channeling = SkillBar.GetSkillIDBySlot(8)
-    
-    
-    #bot_vars.skill_caster.skills = SkillBar.GetSkillbar()
-    Py4GW.Console.Log(bot_vars.window_module.module_name, f"SkillBar Loaded.", Py4GW.Console.MessageType.Info)       
+
+    # bot_vars.skill_caster.skills = SkillBar.GetSkillbar()
+    Py4GW.Console.Log(bot_vars.window_module.module_name, f"SkillBar Loaded.", Py4GW.Console.MessageType.Info)
     return True
+
 
 def set_waiting_routine():
     global FSM_vars
     FSM_vars.in_waiting_routine = True
+
 
 def end_waiting_routine():
     global FSM_vars
     FSM_vars.in_waiting_routine = False
     return True
 
+
 def set_killing_routine():
     global FSM_vars
     FSM_vars.in_waiting_routine = True
     FSM_vars.in_killing_routine = True
+
 
 def end_killing_routine():
     global FSM_vars, bot_vars
@@ -372,24 +483,31 @@ def end_killing_routine():
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), Range.Area.value)
     enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
 
-
     if len(enemy_array) <= 3:
         FSM_vars.in_waiting_routine = False
         FSM_vars.in_killing_routine = False
 
         bot_vars.window_statistics.runs_completed += 1
-        bot_vars.window_statistics.success_rate = bot_vars.window_statistics.runs_completed / bot_vars.window_statistics.runs_attempted if bot_vars.window_statistics.runs_attempted > 0 else 1
+        bot_vars.window_statistics.success_rate = (
+            bot_vars.window_statistics.runs_completed / bot_vars.window_statistics.runs_attempted
+            if bot_vars.window_statistics.runs_attempted > 0
+            else 1
+        )
         lap_timer = bot_vars.window_statistics.lap_timer.GetElapsedTime()
         bot_vars.window_statistics.lap_timer.Stop()
 
         bot_vars.window_statistics.lap_history.append(lap_timer)
         bot_vars.window_statistics.min_time = min(bot_vars.window_statistics.lap_history)
         bot_vars.window_statistics.max_time = max(bot_vars.window_statistics.lap_history)
-        bot_vars.window_statistics.avg_time = sum(bot_vars.window_statistics.lap_history) / len(bot_vars.window_statistics.lap_history) if len(bot_vars.window_statistics.lap_history) > 0 else 1
+        bot_vars.window_statistics.avg_time = (
+            sum(bot_vars.window_statistics.lap_history) / len(bot_vars.window_statistics.lap_history)
+            if len(bot_vars.window_statistics.lap_history) > 0
+            else 1
+        )
 
         bot_vars.window_statistics.left_alive += 60 - len(enemy_array)
         bot_vars.window_statistics.kills += len(enemy_array)
-        
+
         take_bags_snapshot()
         take_item_array_snapshot()
 
@@ -397,21 +515,25 @@ def end_killing_routine():
 
     return False
 
+
 def log_run_start():
     global bot_vars
     bot_vars.window_statistics.runs_attempted += 1
     bot_vars.window_statistics.lap_timer.Reset()
 
+
 pick_up_item_timer = Timer()
 pick_up_item_timer.Start()
+
 
 def IsValidItem(item_id):
     item_agent = Agent.GetItemAgentByID(item_id)
     if not item_agent:
         return False
-    
+
     owner = item_agent.owner
     return owner == Player.GetAgentID() or owner == 0
+
 
 def get_filtered_loot_array():
     global bot_vars
@@ -420,12 +542,9 @@ def get_filtered_loot_array():
 
     item_array = AgentArray.Filter.ByDistance(item_array, Player.GetXY(), Range.Spellcast.value)
     item_array = AgentArray.Filter.ByCondition(item_array, lambda item_id: IsValidItem(item_id))
-    
+
     # Map agent IDs to item data
-    agent_to_item_map = {
-        agent_id: Agent.GetItemAgentItemID(agent_id)
-        for agent_id in item_array
-    }
+    agent_to_item_map = {agent_id: Agent.GetItemAgentItemID(agent_id) for agent_id in item_array}
 
     # Extract all item IDs for filtering
     filtered_items = list(agent_to_item_map.values())
@@ -439,7 +558,7 @@ def get_filtered_loot_array():
         "loot_black_dyes": {10},
         "loot_white_dyes": {12},
         "loot_tomes": {21797},
-        "loot_dyes": {146}
+        "loot_dyes": {146},
     }
 
     # Apply filters based on loot preferences
@@ -449,8 +568,6 @@ def get_filtered_loot_array():
                 filtered_items, lambda item_id: Item.GetModelID(item_id) not in banned_models
             )
 
-        
-        
     if not bot_vars.config_vars.loot_whites:
         filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
     if not bot_vars.config_vars.loot_blues:
@@ -460,24 +577,22 @@ def get_filtered_loot_array():
     if not bot_vars.config_vars.loot_golds:
         filtered_items = ItemArray.Filter.ByCondition(filtered_items, lambda item_id: not Item.Rarity.IsGold(item_id))
 
-
     # Get the agent IDs corresponding to the filtered item IDs
-    filtered_agent_ids = [
-        agent_id for agent_id, item_id in agent_to_item_map.items()
-        if item_id in filtered_items
-    ]
-    
+    filtered_agent_ids = [agent_id for agent_id, item_id in agent_to_item_map.items() if item_id in filtered_items]
+
     filtered_agent_ids = AgentArray.Sort.ByDistance(filtered_agent_ids, Player.GetXY())
 
     return filtered_agent_ids
 
 
-looting_item =0
+looting_item = 0
+
+
 def loot_items():
     global area_distance, bot_vars
     global pick_up_item_timer
     global looting_item
-    
+
     if Inventory.GetFreeSlotCount() <= bot_vars.config_vars.leave_empty_inventory_slots:
         return
 
@@ -485,23 +600,22 @@ def loot_items():
     filtered_agent_ids = get_filtered_loot_array()
     if len(filtered_agent_ids) == 0:
         return
-    
+
     item = filtered_agent_ids[0]
 
     if looting_item != item:
         looting_item = item
-    
+
     current_target = Player.GetTargetID()
-    
+
     if current_target != looting_item:
         Player.ChangeTarget(looting_item)
         return
-    
+
     if pick_up_item_timer.HasElapsed(500):
         Keystroke.PressAndRelease(Key.Space.value)
         pick_up_item_timer.Reset()
-        
-    
+
 
 def finished_looting():
     global area_distance, bot_vars
@@ -509,44 +623,47 @@ def finished_looting():
 
     filtered_agent_ids = get_filtered_loot_array()
 
-    if (
-        Inventory.GetFreeSlotCount() <= bot_vars.config_vars.leave_empty_inventory_slots 
-        or len(filtered_agent_ids) == 0
-    ):
+    if Inventory.GetFreeSlotCount() <= bot_vars.config_vars.leave_empty_inventory_slots or len(filtered_agent_ids) == 0:
         return True
 
     return False
 
+
 item_array_snapshot = []
 bag_array_snapshot = []
+
 
 def take_item_array_snapshot():
     global item_array_snapshot
     item_array_snapshot = get_filtered_loot_array()
-    
+
+
 def take_bags_snapshot():
     global bag_array_snapshot
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
     bag_array_snapshot = ItemArray.GetItemArray(bags_to_check)
+
 
 def compare_item_array_snapshot():
     global item_array_snapshot
-    current_item_array = get_filtered_loot_array() 
-    item_array_difference = AgentArray.Manipulation.Subtract(item_array_snapshot,current_item_array)
+    current_item_array = get_filtered_loot_array()
+    item_array_difference = AgentArray.Manipulation.Subtract(item_array_snapshot, current_item_array)
     return item_array_difference
+
 
 def compare_bag_array_snapshot():
     global bag_array_snapshot
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
     current_bag_array = ItemArray.GetItemArray(bags_to_check)
     bag_array_difference = AgentArray.Manipulation.Subtract(bag_array_snapshot, current_bag_array)
     return bag_array_difference
+
 
 def check_looted_items():
     global bot_vars
     item_array_difference = compare_item_array_snapshot()
     if len(item_array_difference) > 0:
-    # Create a dictionary of conditions to count different item types
+        # Create a dictionary of conditions to count different item types
         item_counters = {
             "whites": lambda item_id: Item.Rarity.IsWhite(item_id),
             "blues": lambda item_id: Item.Rarity.IsBlue(item_id),
@@ -585,8 +702,8 @@ def check_looted_items():
         bot_vars.window_statistics.event_items += item_counts["event_items"]
         bot_vars.window_statistics.map_pieces += item_counts["map_pieces"]
 
-        
-def check_salvaged_items(): 
+
+def check_salvaged_items():
     global bot_vars
     bag_array_difference = compare_bag_array_snapshot()
     if len(bag_array_difference) > 0:
@@ -603,25 +720,36 @@ def check_salvaged_items():
         bot_vars.window_statistics.cloth += len(cloth)
 
 
-
 def filter_identify_array():
     global bot_vars
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
     unidentified_items = ItemArray.GetItemArray(bags_to_check)
-    unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsWhite(item_id))
-    unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Usage.IsIdentified(item_id))
+    unidentified_items = ItemArray.Filter.ByCondition(
+        unidentified_items, lambda item_id: not Item.Rarity.IsWhite(item_id)
+    )
+    unidentified_items = ItemArray.Filter.ByCondition(
+        unidentified_items, lambda item_id: not Item.Usage.IsIdentified(item_id)
+    )
 
     if not bot_vars.config_vars.id_blues:
-        unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsBlue(item_id))
+        unidentified_items = ItemArray.Filter.ByCondition(
+            unidentified_items, lambda item_id: not Item.Rarity.IsBlue(item_id)
+        )
     if not bot_vars.config_vars.id_purples:
-        unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsPurple(item_id))
+        unidentified_items = ItemArray.Filter.ByCondition(
+            unidentified_items, lambda item_id: not Item.Rarity.IsPurple(item_id)
+        )
     if not bot_vars.config_vars.id_golds:
-        unidentified_items = ItemArray.Filter.ByCondition(unidentified_items, lambda item_id: not Item.Rarity.IsGold(item_id))          
+        unidentified_items = ItemArray.Filter.ByCondition(
+            unidentified_items, lambda item_id: not Item.Rarity.IsGold(item_id)
+        )
     return unidentified_items
 
 
 identify_timer = Timer()
 identify_timer.Start()
+
+
 def identify_items():
     global bot_vars, identify_timer
 
@@ -637,9 +765,10 @@ def identify_items():
         Inventory.IdentifyItem(item, first_id_kit)
         identify_timer.Reset()
 
+
 def finished_identifying():
     global bot_vars
-                     
+
     first_id_kit = Inventory.GetFirstIDKit()
     if first_id_kit == 0:
         return True
@@ -655,32 +784,44 @@ def finished_identifying():
 salvage_timer = Timer()
 salvage_timer.Start()
 
+
 def filter_salvage_array():
     global bot_vars
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
     salvageable_items = ItemArray.GetItemArray(bags_to_check)
-    salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: Item.Usage.IsIdentified(item_id))
-    salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: Item.Usage.IsSalvageable(item_id))
+    salvageable_items = ItemArray.Filter.ByCondition(
+        salvageable_items, lambda item_id: Item.Usage.IsIdentified(item_id)
+    )
+    salvageable_items = ItemArray.Filter.ByCondition(
+        salvageable_items, lambda item_id: Item.Usage.IsSalvageable(item_id)
+    )
 
     if not bot_vars.config_vars.salvage_blues:
-        salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: not Item.Rarity.IsBlue(item_id))
+        salvageable_items = ItemArray.Filter.ByCondition(
+            salvageable_items, lambda item_id: not Item.Rarity.IsBlue(item_id)
+        )
     if not bot_vars.config_vars.salvage_purples:
-        salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: not Item.Rarity.IsPurple(item_id))
+        salvageable_items = ItemArray.Filter.ByCondition(
+            salvageable_items, lambda item_id: not Item.Rarity.IsPurple(item_id)
+        )
     if not bot_vars.config_vars.salvage_golds:
-        salvageable_items = ItemArray.Filter.ByCondition(salvageable_items, lambda item_id: not Item.Rarity.IsGold(item_id))
+        salvageable_items = ItemArray.Filter.ByCondition(
+            salvageable_items, lambda item_id: not Item.Rarity.IsGold(item_id)
+        )
     return salvageable_items
-    
-    
+
+
 inventory_handler = PyInventory.PyInventory()
 
+
 def start_alvage():
-    global bot_vars,inventory_handler
+    global bot_vars, inventory_handler
 
     salvage_kit = Inventory.GetFirstSalvageKit()
     if salvage_kit == 0:
         return False
     salvage = filter_salvage_array()
-    if len(salvage) ==0:
+    if len(salvage) == 0:
         return False
     salvage_item_id = salvage[0]
     if salvage_item_id == 0:
@@ -688,13 +829,14 @@ def start_alvage():
 
     inventory_handler.StartSalvage(salvage_kit, salvage_item_id)
 
+
 def continue_salvage():
     global bot_vars, inventory_handler
     Keystroke.PressAndRelease(Key.Y.value)
-    #this is a fix for salvaging with a lesser kit, it will press Y to confirm the salvage
-    #this produces the default key for minions to open, need to implenet an IF statement 
-    #to check wich type of salvaging youre performing
-    #the game itself wont salvage an unidentified item, so be aware of that
+    # this is a fix for salvaging with a lesser kit, it will press Y to confirm the salvage
+    # this produces the default key for minions to open, need to implenet an IF statement
+    # to check wich type of salvaging youre performing
+    # the game itself wont salvage an unidentified item, so be aware of that
     inventory_handler.HandleSalvageUI()
 
 
@@ -712,6 +854,7 @@ def has_finished_salvaging():
 
     return False
 
+
 def handle_salvage_loop():
     global bot_vars
     if not has_finished_salvaging():
@@ -724,11 +867,11 @@ def salvage_items():
     salvage_kit = Inventory.GetFirstSalvageKit()
     if salvage_kit == 0:
         return
-  
+
     salvageable_items = filter_salvage_array()
     if len(salvageable_items) == 0:
         return
-    
+
     item = salvageable_items[0]
     if item == 0:
         return
@@ -736,6 +879,7 @@ def salvage_items():
     if salvage_timer.HasElapsed(1000):
         Inventory.SalvageItem(item, salvage_kit)
         salvage_timer.Reset()
+
 
 def finished_salvaging():
     salvageable_items = filter_salvage_array()
@@ -748,6 +892,7 @@ def finished_salvaging():
         return True
 
     return False
+
 
 def get_filtered_materials_to_sell():
     # Get items from the specified bags
@@ -771,12 +916,13 @@ def get_filtered_materials_to_sell():
         filtered_items.extend(ItemArray.Filter.ByCondition(items_to_sell, IsCloth))
     if bot_vars.config_vars.sell_granite:
         filtered_items.extend(ItemArray.Filter.ByCondition(items_to_sell, IsGranite))
-        
+
     return filtered_items
-    
-    
+
+
 sell_timer = Timer()
 sell_timer.Start()
+
 
 def SellMaterials():
     global bot_vars, sell_timer
@@ -799,11 +945,12 @@ def SellMaterials():
         Py4GW.Console.Log(
             bot_vars.window_module.module_name,
             f"SellMaterials - Selling item_id: {item_id}, quantity: {quantity}, value: {value}, total cost: {cost}",
-            Py4GW.Console.MessageType.Info
+            Py4GW.Console.MessageType.Info,
         )
 
         Trading.Merchant.SellItem(item_id, cost)
         sell_timer.Reset()
+
 
 def SellingMaterialsComplete():
     global bot_vars
@@ -815,7 +962,7 @@ def SellingMaterialsComplete():
         Py4GW.Console.Log(
             bot_vars.window_module.module_name,
             "SellingMaterialsComplete - Finished selling materials.",
-            Py4GW.Console.MessageType.Info
+            Py4GW.Console.MessageType.Info,
         )
         return True
     return False
@@ -823,25 +970,31 @@ def SellingMaterialsComplete():
 
 buy_id_kit_timer = Timer()
 buy_id_kit_timer.Start()
+
+
 def buy_id_kits():
-    global bot_vars,buy_id_kit_timer
+    global bot_vars, buy_id_kit_timer
     id_kits = bot_vars.config_vars.keep_id_kit
     kits_in_inv = Inventory.GetModelCount(5899)
 
     merchant_item_list = Trading.Merchant.GetOfferedItems()
-    merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 5899)
+    merchant_item_list = ItemArray.Filter.ByCondition(
+        merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 5899
+    )
 
     if len(merchant_item_list) > 0:
         if kits_in_inv <= id_kits and buy_id_kit_timer.HasElapsed(250):
             item_id = merchant_item_list[0]
-            value = Item.Properties.GetValue(item_id) * 2 # value reported is sell value not buy value
+            value = Item.Properties.GetValue(item_id) * 2  # value reported is sell value not buy value
             Trading.Merchant.BuyItem(item_id, value)
             buy_id_kit_timer.Reset()
     else:
-        Py4GW.Console.Log("Buy ID Kits", f"No ID kits available from merchant.",Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log("Buy ID Kits", f"No ID kits available from merchant.", Py4GW.Console.MessageType.Info)
+
 
 buy_salvage_kit_timer = Timer()
 buy_salvage_kit_timer.Start()
+
 
 def buy_id_kits_complete():
     global bot_vars
@@ -849,49 +1002,57 @@ def buy_id_kits_complete():
     kits_in_inv = Inventory.GetModelCount(5899)
 
     if kits_in_inv >= id_kits:
-        Py4GW.Console.Log("Buy Salvage Kits", f"Finished buying ID kits.",Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log("Buy Salvage Kits", f"Finished buying ID kits.", Py4GW.Console.MessageType.Info)
         return True
 
     return False
 
+
 def buy_salvage_kits():
-    global bot_vars,buy_salvage_kit_timer
-    salv_kits = bot_vars.config_vars.keep_salvage_kit 
+    global bot_vars, buy_salvage_kit_timer
+    salv_kits = bot_vars.config_vars.keep_salvage_kit
     kits_in_inv = Inventory.GetModelCount(2992)
 
     merchant_item_list = Trading.Merchant.GetOfferedItems()
-    merchant_item_list = ItemArray.Filter.ByCondition(merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 2992)
+    merchant_item_list = ItemArray.Filter.ByCondition(
+        merchant_item_list, lambda item_id: Item.GetModelID(item_id) == 2992
+    )
 
     if len(merchant_item_list) > 0:
         if kits_in_inv <= salv_kits and buy_salvage_kit_timer.HasElapsed(250):
             item_id = merchant_item_list[0]
             quantity = Item.Properties.GetQuantity(item_id)
-            value = Item.Properties.GetValue(item_id) *2 # value is reported is sell value not buy value
+            value = Item.Properties.GetValue(item_id) * 2  # value is reported is sell value not buy value
             Trading.Merchant.BuyItem(item_id, value)
             buy_salvage_kit_timer.Reset()
 
+
 def buy_salvage_kits_complete():
     global bot_vars
-    salv_kits = bot_vars.config_vars.keep_salvage_kit 
+    salv_kits = bot_vars.config_vars.keep_salvage_kit
     kits_in_inv = Inventory.GetModelCount(2992)
 
     if kits_in_inv >= salv_kits:
-        Py4GW.Console.Log("Buy Salvage Kits", f"Finished buying salvage kits.",Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log("Buy Salvage Kits", f"Finished buying salvage kits.", Py4GW.Console.MessageType.Info)
         return True
 
     return False
 
+
 deposit_item_timer = Timer()
 deposit_item_timer.Start()
+
 
 def DepositItems():
     global deposit_item_timer
 
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
     items_to_deposit = ItemArray.GetItemArray(bags_to_check)
 
-    banned_models = {2992,5899}
-    items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models)
+    banned_models = {2992, 5899}
+    items_to_deposit = ItemArray.Filter.ByCondition(
+        items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models
+    )
 
     total_items, total_capacity = Inventory.GetStorageSpace()
     free_slots = total_capacity - total_items
@@ -900,22 +1061,25 @@ def DepositItems():
         Inventory.DepositItemToStorage(items_to_deposit[0])
         deposit_item_timer.Reset()
 
+
 def DepositItemsComplete():
-    bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+    bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
     items_to_deposit = ItemArray.GetItemArray(bags_to_check)
 
-    banned_models = {2992,5899}
-    items_to_deposit = ItemArray.Filter.ByCondition(items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models)
+    banned_models = {2992, 5899}
+    items_to_deposit = ItemArray.Filter.ByCondition(
+        items_to_deposit, lambda item_id: Item.GetModelID(item_id) not in banned_models
+    )
 
     total_items, total_capacity = Inventory.GetStorageSpace()
     free_slots = total_capacity - total_items
 
-
     if len(items_to_deposit) == 0 or free_slots == 0:
-        Py4GW.Console.Log("Deposit Items", f"Finished depositing items.",Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log("Deposit Items", f"Finished depositing items.", Py4GW.Console.MessageType.Info)
         return True
 
     return False
+
 
 def DepositGold():
     gold_amount = Inventory.GetGoldOnCharacter()
@@ -942,6 +1106,7 @@ def reset_farming_loop():
     FSM_vars.salvage_fsm.reset()
     FSM_vars.state_machine.jump_to_state_by_name("Waiting for Jaga Explorable Map Load")
 
+
 def handle_end_state_machine():
     global bot_vars
     bot_vars.window_statistics.lap_timer.Reset()
@@ -950,33 +1115,33 @@ def handle_end_state_machine():
         FSM_vars.state_machine.jump_to_state_by_name("End State Machine Loop")
 
 
-def FollowPathwithDelayTimer(path_handler,follow_handler, log_actions=False, delay=50):
-            """
-            Purpose: Follow a path using the path handler and follow handler objects.
-            Args:
-                path_handler (PathHandler): The PathHandler object containing the path coordinates.
-                follow_handler (FollowXY): The FollowXY object for moving to waypoints.
-            Returns: None
-            """
-            global follow_delay_timer
-            
-            follow_handler.update()
+def FollowPathwithDelayTimer(path_handler, follow_handler, log_actions=False, delay=50):
+    """
+    Purpose: Follow a path using the path handler and follow handler objects.
+    Args:
+        path_handler (PathHandler): The PathHandler object containing the path coordinates.
+        follow_handler (FollowXY): The FollowXY object for moving to waypoints.
+    Returns: None
+    """
+    global follow_delay_timer
 
-            if follow_handler.is_following():
-                return
+    follow_handler.update()
 
-            if follow_delay_timer.IsStopped():
-                follow_delay_timer.Start()
-                return
+    if follow_handler.is_following():
+        return
 
-            if follow_delay_timer.HasElapsed(delay):
-                follow_delay_timer.Stop()
+    if follow_delay_timer.IsStopped():
+        follow_delay_timer.Start()
+        return
 
-                point = path_handler.advance()
-                if point is not None:
-                    follow_handler.move_to_waypoint(point[0], point[1])
-                    if log_actions:
-                        Py4GW.Console.Log("FollowPath", f"Moving to {point}", Py4GW.Console.MessageType.Info)
+    if follow_delay_timer.HasElapsed(delay):
+        follow_delay_timer.Stop()
+
+        point = path_handler.advance()
+        if point is not None:
+            follow_handler.move_to_waypoint(point[0], point[1])
+            if log_actions:
+                Py4GW.Console.Log("FollowPath", f"Moving to {point}", Py4GW.Console.MessageType.Info)
 
 
 class build:
@@ -989,164 +1154,210 @@ class build:
     arcane_echo = None
     channeling = None
 
+
 skillbar = build()
 
 
-FSM_vars.salvage_fsm.AddState("StartSalvage",
-                              execute_fn=lambda: start_alvage(),
-                              transition_delay_ms=350)
-FSM_vars.salvage_fsm.AddState("ContinueSalvage",
-                              execute_fn=lambda: continue_salvage(),
-                              transition_delay_ms=350)
-FSM_vars.salvage_fsm.AddState("FinishSalvage",
-                              execute_fn=lambda: finish_salvage(),
-                              transition_delay_ms=300)
-FSM_vars.salvage_fsm.AddState("HandleSalvageLoop",
-                              execute_fn=lambda: handle_salvage_loop())
+FSM_vars.salvage_fsm.AddState("StartSalvage", execute_fn=lambda: start_alvage(), transition_delay_ms=350)
+FSM_vars.salvage_fsm.AddState("ContinueSalvage", execute_fn=lambda: continue_salvage(), transition_delay_ms=350)
+FSM_vars.salvage_fsm.AddState("FinishSalvage", execute_fn=lambda: finish_salvage(), transition_delay_ms=300)
+FSM_vars.salvage_fsm.AddState("HandleSalvageLoop", execute_fn=lambda: handle_salvage_loop())
 
-#FSM Routine for Locating and following the merchant
-FSM_vars.sell_to_vendor.AddState(name="Go to Merchant",
-                        execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.path_to_merchant, FSM_vars.movement_handler),
-                        exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.path_to_merchant, FSM_vars.movement_handler),
-                        run_once=False)
-FSM_vars.sell_to_vendor.AddState(name="Target Merchant",
-                        execute_fn=lambda: TargetNearestNPC(),
-                        transition_delay_ms=1000)
-FSM_vars.sell_to_vendor.AddState(name="InteractMerchant",
-                        execute_fn=lambda: Routines.Targeting.InteractTarget(),
-                        exit_condition=lambda: Routines.Targeting.HasArrivedToTarget())
-FSM_vars.sell_to_vendor.AddState(name="Sell Materials to make Space",
-                        execute_fn=lambda: SellMaterials(),
-                        run_once=False,
-                        exit_condition=lambda: SellingMaterialsComplete())
-FSM_vars.sell_to_vendor.AddState(name="Buy ID Kits",
-                        execute_fn=lambda: buy_id_kits(),
-                        run_once=False,
-                        exit_condition=lambda: buy_id_kits_complete())
-FSM_vars.sell_to_vendor.AddState(name="Buy Salvage Kits",
-                        execute_fn=lambda: buy_salvage_kits(),
-                        run_once=False,
-                        exit_condition=lambda: buy_salvage_kits_complete())
-FSM_vars.sell_to_vendor.AddState(name="Identify routine",
-                        execute_fn=lambda: identify_items(),
-                        run_once=False,
-                        exit_condition=lambda: finished_identifying())
-FSM_vars.sell_to_vendor.AddSubroutine(name="Salvage Subroutine",
-                        sub_fsm = FSM_vars.salvage_fsm,
-                        condition_fn=lambda: not has_finished_salvaging())
-FSM_vars.sell_to_vendor.AddState(name="Reset Salvage Subroutine",
-                                 execute_fn=lambda: FSM_vars.salvage_fsm.reset())
-FSM_vars.sell_to_vendor.AddState(name="Sell Materials",
-                        execute_fn=lambda: SellMaterials(),
-                        run_once=False,
-                        exit_condition=lambda: SellingMaterialsComplete())
-FSM_vars.sell_to_vendor.AddState(name="Deposit Items",
-                        execute_fn=lambda: DepositItems(),
-                        run_once=False,
-                        exit_condition=lambda: DepositItemsComplete())
+# FSM Routine for Locating and following the merchant
+FSM_vars.sell_to_vendor.AddState(
+    name="Go to Merchant",
+    execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.path_to_merchant, FSM_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.path_to_merchant, FSM_vars.movement_handler),
+    run_once=False,
+)
+FSM_vars.sell_to_vendor.AddState(
+    name="Target Merchant", execute_fn=lambda: TargetNearestNPC(), transition_delay_ms=1000
+)
+FSM_vars.sell_to_vendor.AddState(
+    name="InteractMerchant",
+    execute_fn=lambda: Routines.Targeting.InteractTarget(),
+    exit_condition=lambda: Routines.Targeting.HasArrivedToTarget(),
+)
+FSM_vars.sell_to_vendor.AddState(
+    name="Sell Materials to make Space",
+    execute_fn=lambda: SellMaterials(),
+    run_once=False,
+    exit_condition=lambda: SellingMaterialsComplete(),
+)
+FSM_vars.sell_to_vendor.AddState(
+    name="Buy ID Kits", execute_fn=lambda: buy_id_kits(), run_once=False, exit_condition=lambda: buy_id_kits_complete()
+)
+FSM_vars.sell_to_vendor.AddState(
+    name="Buy Salvage Kits",
+    execute_fn=lambda: buy_salvage_kits(),
+    run_once=False,
+    exit_condition=lambda: buy_salvage_kits_complete(),
+)
+FSM_vars.sell_to_vendor.AddState(
+    name="Identify routine",
+    execute_fn=lambda: identify_items(),
+    run_once=False,
+    exit_condition=lambda: finished_identifying(),
+)
+FSM_vars.sell_to_vendor.AddSubroutine(
+    name="Salvage Subroutine", sub_fsm=FSM_vars.salvage_fsm, condition_fn=lambda: not has_finished_salvaging()
+)
+FSM_vars.sell_to_vendor.AddState(name="Reset Salvage Subroutine", execute_fn=lambda: FSM_vars.salvage_fsm.reset())
+FSM_vars.sell_to_vendor.AddState(
+    name="Sell Materials",
+    execute_fn=lambda: SellMaterials(),
+    run_once=False,
+    exit_condition=lambda: SellingMaterialsComplete(),
+)
+FSM_vars.sell_to_vendor.AddState(
+    name="Deposit Items",
+    execute_fn=lambda: DepositItems(),
+    run_once=False,
+    exit_condition=lambda: DepositItemsComplete(),
+)
 
-                        
 
-
-#MAIN STATE MACHINE CONFIGURATION
-FSM_vars.state_machine.AddState(name="Longeyes Ledge Map Check", 
-                       execute_fn=lambda: Routines.Transition.TravelToOutpost(bot_vars.starting_map), #the Code to run
-                       exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(bot_vars.starting_map), #the condition that needs to be true to continue
-                       transition_delay_ms=1000) #interval or delay to check the condition
-FSM_vars.state_machine.AddState(name="Load SkillBar",
-                       execute_fn=lambda: LoadSkillBar(),
-                       transition_delay_ms=1000,
-                       exit_condition=lambda: IsSkillBarLoaded())
-FSM_vars.state_machine.AddState(name="Set Hard Mode",
-                       execute_fn=lambda: Party.SetHardMode(),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddSubroutine(name="Inventory Handling",
-                       sub_fsm = FSM_vars.sell_to_vendor,
-                       condition_fn=lambda: DoesNeedInventoryHandling())
-FSM_vars.state_machine.AddState(name="Leaving Outpost",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.outpost_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.outpost_pathing, FSM_vars.movement_handler) or Map.IsMapLoading(),
-                       run_once=False) #run once is false because we want to keep updating the pathing objects
-FSM_vars.state_machine.AddState(name="Waiting for Bjora Explorable Map Load",
-                       exit_condition=lambda: Routines.Transition.IsExplorableLoaded(log_actions=True),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddState(name="Traverse Bjora Marches",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.bjora_pathing, FSM_vars.movement_handler),
-                       exit_condition=lambda: Map.IsMapLoading(),
-                       run_once=False)
-FSM_vars.state_machine.AddState(name="Waiting for Jaga Explorable Map Load",
-                       exit_condition=lambda: Routines.Transition.IsExplorableLoaded(log_actions=True) and (Map.GetMapID() == 546),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddState(name="Go to NPC",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.bounty_npc, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bounty_npc, FSM_vars.movement_handler),
-                       run_once=False)
-FSM_vars.state_machine.AddState(name="Target NPC",
-                       execute_fn=lambda: TargetNearestNPC(),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddState(name="Interact NPC",
-                       execute_fn=lambda: Routines.Targeting.InteractTarget(),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddState(name="Take Bounty",
-                       execute_fn=lambda: Player.SendAgentDialog(int("0x84", 16)),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddState(name="Route Aggro Left",
-                       execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.farming_route, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.farming_route, FSM_vars.movement_handler),
-                       run_once=False)
-FSM_vars.state_machine.AddState(name="Waiting for Left Aggro Ball",
-                       execute_fn=lambda: set_waiting_routine(),
-                       transition_delay_ms=15000,
-                       exit_condition=lambda: end_waiting_routine())
-FSM_vars.state_machine.AddState(name="Route Aggro Right",
-                       execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.farming_route2, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.farming_route2, FSM_vars.movement_handler),
-                       run_once=False)
-FSM_vars.state_machine.AddState(name="Waiting for Right Aggro Ball",
-                       execute_fn=lambda: set_waiting_routine(),
-                       transition_delay_ms=15000,
-                       exit_condition=lambda: end_waiting_routine())
-FSM_vars.state_machine.AddState(name="Moving to kill spot",
-                       execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.path_to_killing_spot, FSM_vars.exact_movement_handler,delay=500),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.path_to_killing_spot, FSM_vars.exact_movement_handler),
-                       run_once=False)
-FSM_vars.state_machine.AddState(name="Killing Routine",
-                       execute_fn=lambda: set_killing_routine(),
-                       transition_delay_ms=1000,
-                       exit_condition=lambda: end_killing_routine())
-FSM_vars.state_machine.AddState(name="Loot routine",
-                       execute_fn=lambda: loot_items(),
-                       run_once=False,
-                       exit_condition=lambda: finished_looting())
-FSM_vars.state_machine.AddState(name="Identify routine",
-                       execute_fn=lambda: identify_items(),
-                       run_once=False,
-                       exit_condition=lambda: finished_identifying())
-FSM_vars.state_machine.AddSubroutine(name="Salvage Subroutine",
-                       sub_fsm = FSM_vars.salvage_fsm,
-                       condition_fn=lambda: not has_finished_salvaging())
-FSM_vars.state_machine.AddState(name="Reset Salvage Subroutine",
-                       execute_fn=lambda: FSM_vars.salvage_fsm.reset())
-FSM_vars.state_machine.AddState(name="Need to return to Outpost?",
-                       execute_fn=lambda: handle_end_state_machine(),
-                       exit_condition=lambda: InventoryCheck())
-FSM_vars.state_machine.AddState(name="Exit Jaga Moraine",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.exit_jaga_moraine, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.exit_jaga_moraine, FSM_vars.movement_handler) or Map.IsMapLoading(),
-                       run_once=False)
-FSM_vars.state_machine.AddState(name="Waiting for Bjora Return Explorable Map Load",
-                       exit_condition=lambda: Routines.Transition.IsExplorableLoaded(log_actions=True),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddState(name="Return To Jaga Moraine",
-                       execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.return_jaga_moraine, FSM_vars.movement_handler),
-                       exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.return_jaga_moraine, FSM_vars.movement_handler) or Map.IsMapLoading() or (Map.GetMapID() == 482),
-                       run_once=False)
-FSM_vars.state_machine.AddState(name="reset Farming Loop",
-                       execute_fn=lambda: reset_farming_loop(),
-                       transition_delay_ms=1000)
-FSM_vars.state_machine.AddState(name="End State Machine Loop",
-                       execute_fn=lambda: reset_farming_loop(),
-                       transition_delay_ms=1000)
+# MAIN STATE MACHINE CONFIGURATION
+FSM_vars.state_machine.AddState(
+    name="Longeyes Ledge Map Check",
+    execute_fn=lambda: Routines.Transition.TravelToOutpost(bot_vars.starting_map),  # the Code to run
+    exit_condition=lambda: Routines.Transition.HasArrivedToOutpost(
+        bot_vars.starting_map
+    ),  # the condition that needs to be true to continue
+    transition_delay_ms=1000,
+)  # interval or delay to check the condition
+FSM_vars.state_machine.AddState(
+    name="Load SkillBar",
+    execute_fn=lambda: LoadSkillBar(),
+    transition_delay_ms=1000,
+    exit_condition=lambda: IsSkillBarLoaded(),
+)
+FSM_vars.state_machine.AddState(name="Set Hard Mode", execute_fn=lambda: Party.SetHardMode(), transition_delay_ms=1000)
+FSM_vars.state_machine.AddSubroutine(
+    name="Inventory Handling", sub_fsm=FSM_vars.sell_to_vendor, condition_fn=lambda: DoesNeedInventoryHandling()
+)
+FSM_vars.state_machine.AddState(
+    name="Leaving Outpost",
+    execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.outpost_pathing, FSM_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.outpost_pathing, FSM_vars.movement_handler)
+    or Map.IsMapLoading(),
+    run_once=False,
+)  # run once is false because we want to keep updating the pathing objects
+FSM_vars.state_machine.AddState(
+    name="Waiting for Bjora Explorable Map Load",
+    exit_condition=lambda: Routines.Transition.IsExplorableLoaded(log_actions=True),
+    transition_delay_ms=1000,
+)
+FSM_vars.state_machine.AddState(
+    name="Traverse Bjora Marches",
+    execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.bjora_pathing, FSM_vars.movement_handler),
+    exit_condition=lambda: Map.IsMapLoading(),
+    run_once=False,
+)
+FSM_vars.state_machine.AddState(
+    name="Waiting for Jaga Explorable Map Load",
+    exit_condition=lambda: Routines.Transition.IsExplorableLoaded(log_actions=True) and (Map.GetMapID() == 546),
+    transition_delay_ms=1000,
+)
+FSM_vars.state_machine.AddState(
+    name="Go to NPC",
+    execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.bounty_npc, FSM_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.bounty_npc, FSM_vars.movement_handler),
+    run_once=False,
+)
+FSM_vars.state_machine.AddState(name="Target NPC", execute_fn=lambda: TargetNearestNPC(), transition_delay_ms=1000)
+FSM_vars.state_machine.AddState(
+    name="Interact NPC", execute_fn=lambda: Routines.Targeting.InteractTarget(), transition_delay_ms=1000
+)
+FSM_vars.state_machine.AddState(
+    name="Take Bounty", execute_fn=lambda: Player.SendDialog(int("0x84", 16)), transition_delay_ms=1000
+)
+FSM_vars.state_machine.AddState(
+    name="Route Aggro Left",
+    execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.farming_route, FSM_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.farming_route, FSM_vars.movement_handler),
+    run_once=False,
+)
+FSM_vars.state_machine.AddState(
+    name="Waiting for Left Aggro Ball",
+    execute_fn=lambda: set_waiting_routine(),
+    transition_delay_ms=15000,
+    exit_condition=lambda: end_waiting_routine(),
+)
+FSM_vars.state_machine.AddState(
+    name="Route Aggro Right",
+    execute_fn=lambda: FollowPathwithDelayTimer(FSM_vars.farming_route2, FSM_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.farming_route2, FSM_vars.movement_handler),
+    run_once=False,
+)
+FSM_vars.state_machine.AddState(
+    name="Waiting for Right Aggro Ball",
+    execute_fn=lambda: set_waiting_routine(),
+    transition_delay_ms=15000,
+    exit_condition=lambda: end_waiting_routine(),
+)
+FSM_vars.state_machine.AddState(
+    name="Moving to kill spot",
+    execute_fn=lambda: FollowPathwithDelayTimer(
+        FSM_vars.path_to_killing_spot, FSM_vars.exact_movement_handler, delay=500
+    ),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(
+        FSM_vars.path_to_killing_spot, FSM_vars.exact_movement_handler
+    ),
+    run_once=False,
+)
+FSM_vars.state_machine.AddState(
+    name="Killing Routine",
+    execute_fn=lambda: set_killing_routine(),
+    transition_delay_ms=1000,
+    exit_condition=lambda: end_killing_routine(),
+)
+FSM_vars.state_machine.AddState(
+    name="Loot routine", execute_fn=lambda: loot_items(), run_once=False, exit_condition=lambda: finished_looting()
+)
+FSM_vars.state_machine.AddState(
+    name="Identify routine",
+    execute_fn=lambda: identify_items(),
+    run_once=False,
+    exit_condition=lambda: finished_identifying(),
+)
+FSM_vars.state_machine.AddSubroutine(
+    name="Salvage Subroutine", sub_fsm=FSM_vars.salvage_fsm, condition_fn=lambda: not has_finished_salvaging()
+)
+FSM_vars.state_machine.AddState(name="Reset Salvage Subroutine", execute_fn=lambda: FSM_vars.salvage_fsm.reset())
+FSM_vars.state_machine.AddState(
+    name="Need to return to Outpost?",
+    execute_fn=lambda: handle_end_state_machine(),
+    exit_condition=lambda: InventoryCheck(),
+)
+FSM_vars.state_machine.AddState(
+    name="Exit Jaga Moraine",
+    execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.exit_jaga_moraine, FSM_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(FSM_vars.exit_jaga_moraine, FSM_vars.movement_handler)
+    or Map.IsMapLoading(),
+    run_once=False,
+)
+FSM_vars.state_machine.AddState(
+    name="Waiting for Bjora Return Explorable Map Load",
+    exit_condition=lambda: Routines.Transition.IsExplorableLoaded(log_actions=True),
+    transition_delay_ms=1000,
+)
+FSM_vars.state_machine.AddState(
+    name="Return To Jaga Moraine",
+    execute_fn=lambda: Routines.Movement.FollowPath(FSM_vars.return_jaga_moraine, FSM_vars.movement_handler),
+    exit_condition=lambda: Routines.Movement.IsFollowPathFinished(
+        FSM_vars.return_jaga_moraine, FSM_vars.movement_handler
+    )
+    or Map.IsMapLoading()
+    or (Map.GetMapID() == 482),
+    run_once=False,
+)
+FSM_vars.state_machine.AddState(
+    name="reset Farming Loop", execute_fn=lambda: reset_farming_loop(), transition_delay_ms=1000
+)
+FSM_vars.state_machine.AddState(
+    name="End State Machine Loop", execute_fn=lambda: reset_farming_loop(), transition_delay_ms=1000
+)
 
 
 ################## SKILL HANDLING ROUTINES ##################
@@ -1156,20 +1367,20 @@ class GameAreas:
         self.Adjacent = 166
         self.Nearby = 252
         self.Area = 322
-        self.Earshot = 1012  #aggro bubble
+        self.Earshot = 1012  # aggro bubble
         self.Spellcast = 1248
         self.Spirit = 2500
         self.Compass = 5000
 
-area_distance = GameAreas()
 
+area_distance = GameAreas()
 
 
 def CanCast():
     player_agent_id = Player.GetAgentID()
 
     if (
-        Agent.IsCasting(player_agent_id) 
+        Agent.IsCasting(player_agent_id)
         or Agent.GetCastingSkillID(player_agent_id) != 0
         or Agent.IsKnockedDown(player_agent_id)
         or Agent.IsDead(player_agent_id)
@@ -1177,6 +1388,7 @@ def CanCast():
     ):
         return False
     return True
+
 
 def GetEnergyAgentCost(skill_id, agent_id):
     """Retrieve the actual energy cost of a skill by its ID and effects.
@@ -1195,9 +1407,9 @@ def GetEnergyAgentCost(skill_id, agent_id):
 
     # Adjust base cost for special cases (API inconsistencies)
     if cost == 11:
-        cost = 15    # True cost is 15
+        cost = 15  # True cost is 15
     elif cost == 12:
-        cost = 25    # True cost is 25
+        cost = 25  # True cost is 25
 
     # Get all active effects on the agent
     player_effects = Effects.GetEffects(agent_id)
@@ -1215,7 +1427,7 @@ def GetEnergyAgentCost(skill_id, agent_id):
                     continue  # Allow other effects to modify this cost
 
             case 475:  # Quickening Zephyr - Increases energy cost by 30%
-                cost *= 1.30   # Using multiplication instead of addition for better precision
+                cost *= 1.30  # Using multiplication instead of addition for better precision
                 continue
 
             case 1725:  # Roaring Winds - Increases Shout/Chant cost based on attribute level
@@ -1336,14 +1548,13 @@ def GetEnergyAgentCost(skill_id, agent_id):
                             cost -= 1
                         case a if a > 8:
                             cost -= 2
-                        
 
             case 199:  # Glyph of Energy
                 if Skill.Flags.IsSpell(skill_id):
                     if attr == 0:
                         cost -= 10
                     else:
-                        cost -= (10 + attr)
+                        cost -= 10 + attr
 
             case 200:  # Glyph of Lesser Energy
                 if Skill.Flags.IsSpell(skill_id):
@@ -1427,7 +1638,9 @@ def GetEnergyAgentCost(skill_id, agent_id):
                     cost = 10  # Fixe le coût à 10
 
             case 987:  # Way of the Empty Palm
-                if Skill.Data.GetCombo(skill_id) == 2 or Skill.Data.GetCombo(skill_id) == 3:  # Attaque double ou secondaire
+                if (
+                    Skill.Data.GetCombo(skill_id) == 2 or Skill.Data.GetCombo(skill_id) == 3
+                ):  # Attaque double ou secondaire
                     cost = 0
 
     cost = max(0, cost)
@@ -1448,17 +1661,22 @@ def HasBuff(agent_id, skill_id):
         return True
     return False
 
+
 def IsSkillReady(skill_id):
     skill = SkillBar.GetSkillData(SkillBar.GetSlotBySkillID(skill_id))
     recharge = skill.recharge
     return recharge == 0
 
+
 def IsSkillReady2(skill_slot):
     skill = SkillBar.GetSkillData(skill_slot)
     return skill.recharge == 0
 
+
 target = None
-def IsEnemyBehind (agent_id):
+
+
+def IsEnemyBehind(agent_id):
     global target
     player_agent_id = Player.GetAgentID()
     player_x, player_y = Agent.GetXY(player_agent_id)
@@ -1468,7 +1686,6 @@ def IsEnemyBehind (agent_id):
         Player.ChangeTarget(nearest_enemy)
         target = nearest_enemy
     nearest_enemy_x, nearest_enemy_y = Agent.GetXY(nearest_enemy)
-                
 
     # Calculate the angle between the player and the enemy
     dx = nearest_enemy_x - player_x
@@ -1484,15 +1701,18 @@ def IsEnemyBehind (agent_id):
         return True
     return False
 
-def CastSkill (skill_id):
+
+def CastSkill(skill_id):
     global bot_vars
     SkillBar.UseSkill(SkillBar.GetSlotBySkillID(skill_id))
-    #Py4GW.Console.Log(bot_vars.window_module.module_name, f"Cast {Skill.GetName(skill_id)}, slot: {SkillBar.GetSlotBySkillID(skill_id)}", Py4GW.Console.MessageType.Info)
- 
+    # Py4GW.Console.Log(bot_vars.window_module.module_name, f"Cast {Skill.GetName(skill_id)}, slot: {SkillBar.GetSlotBySkillID(skill_id)}", Py4GW.Console.MessageType.Info)
+
+
 def CastSkill2(skill_slot):
     global bot_vars
     SkillBar.UseSkill(skill_slot)
-    #Py4GW.Console.Log(bot_vars.window_module.module_name, f"Cast {Skill.GetName(SkillBar.GetSkillIDBySlot(skill_slot))}, slot: {skill_slot}", Py4GW.Console.MessageType.Info)
+    # Py4GW.Console.Log(bot_vars.window_module.module_name, f"Cast {Skill.GetName(SkillBar.GetSkillIDBySlot(skill_slot))}, slot: {skill_slot}", Py4GW.Console.MessageType.Info)
+
 
 def assign_skill_ids():
     global skillbar
@@ -1504,6 +1724,7 @@ def assign_skill_ids():
     skillbar.wastrels_worry = SkillBar.GetSkillIDBySlot(6)
     skillbar.arcane_echo = SkillBar.GetSkillIDBySlot(7)
     skillbar.channeling = SkillBar.GetSkillIDBySlot(8)
+
 
 def BjoraRunningSkillbar():
     global area_distance, skillbar, aftercast, target
@@ -1520,49 +1741,62 @@ def BjoraRunningSkillbar():
     sf_buff_remaining_time = 0
 
     player_buffs = Effects.GetEffects(player_agent_id)
-                
+
     for buff in player_buffs:
         if buff.skill_id == skillbar.shadow_form:
             sf_buff_remaining_time = buff.time_remaining
 
     if len(enemy_array) == 0:
         target = None
-                
+
     if len(enemy_array) > 0:
         # If we are in danger, use Deadly Paradox / Shadow Form
-            
+
         if sf_buff_remaining_time < 3500:
-            if HasEnoughEnergy(skillbar.deadly_paradox) and not HasBuff(player_agent_id,skillbar.deadly_paradox) and IsSkillReady(skillbar.deadly_paradox):
+            if (
+                HasEnoughEnergy(skillbar.deadly_paradox)
+                and not HasBuff(player_agent_id, skillbar.deadly_paradox)
+                and IsSkillReady(skillbar.deadly_paradox)
+            ):
                 CastSkill(skillbar.deadly_paradox)
                 return
-            
-        if HasEnoughEnergy(skillbar.deadly_paradox) and not HasBuff(player_agent_id,skillbar.deadly_paradox) and IsSkillReady(skillbar.deadly_paradox):
+
+        if (
+            HasEnoughEnergy(skillbar.deadly_paradox)
+            and not HasBuff(player_agent_id, skillbar.deadly_paradox)
+            and IsSkillReady(skillbar.deadly_paradox)
+        ):
             CastSkill(skillbar.deadly_paradox)
             return
 
-        if HasEnoughEnergy(skillbar.shadow_form) and not HasBuff(player_agent_id,skillbar.shadow_form) and IsSkillReady(skillbar.shadow_form):
+        if (
+            HasEnoughEnergy(skillbar.shadow_form)
+            and not HasBuff(player_agent_id, skillbar.shadow_form)
+            and IsSkillReady(skillbar.shadow_form)
+        ):
             CastSkill(skillbar.shadow_form)
             return
 
-        #check if nearest is behind us for escaping with Heart of Shadow
-                
-        if ((HasEnoughEnergy(skillbar.heart_of_shadow) and IsEnemyBehind(enemy_array[0]) and IsSkillReady(skillbar.heart_of_shadow))
-            or (HasEnoughEnergy(skillbar.heart_of_shadow)
-                and FSM_vars.non_movement_timer.HasElapsed(3000))):
+        # check if nearest is behind us for escaping with Heart of Shadow
+
+        if (
+            HasEnoughEnergy(skillbar.heart_of_shadow)
+            and IsEnemyBehind(enemy_array[0])
+            and IsSkillReady(skillbar.heart_of_shadow)
+        ) or (HasEnoughEnergy(skillbar.heart_of_shadow) and FSM_vars.non_movement_timer.HasElapsed(3000)):
             CastSkill(skillbar.heart_of_shadow)
-            return   
-                           
+            return
+
     # Keep Shroud of Distress up if Injured
     if (
-        not HasBuff(player_agent_id, skillbar.shroud_of_distress) 
+        not HasBuff(player_agent_id, skillbar.shroud_of_distress)
         and IsSkillReady(skillbar.shroud_of_distress)
         and Agent.GetHealth(player_agent_id) < 0.33
-        and HasEnoughEnergy(skillbar.shroud_of_distress) 
+        and HasEnoughEnergy(skillbar.shroud_of_distress)
     ):
         CastSkill(skillbar.shroud_of_distress)
         return
 
-            
 
 def FarmingSkillbar():
     global area_distance, skillbar, aftercast, target
@@ -1576,53 +1810,51 @@ def FarmingSkillbar():
     sf_buff_remaining_time = 0
 
     player_buffs = Effects.GetEffects(player_agent_id)
-                
+
     for buff in player_buffs:
         if buff.skill_id == skillbar.shadow_form:
             sf_buff_remaining_time = buff.time_remaining
 
-    #combat routine
+    # combat routine
     if FSM_vars.in_killing_routine:
         not_hexed_array = AgentArray.GetEnemyArray()
         not_hexed_array = AgentArray.Filter.ByDistance(not_hexed_array, (player_x, player_y), area_distance.Area)
         not_hexed_array = AgentArray.Filter.ByAttribute(not_hexed_array, 'IsAlive')
-        not_hexed_array = AgentArray.Filter.ByAttribute(not_hexed_array, 'IsHexed',negate=True)
+        not_hexed_array = AgentArray.Filter.ByAttribute(not_hexed_array, 'IsHexed', negate=True)
 
-        if (len(not_hexed_array) > 0 and sf_buff_remaining_time > 4000):
+        if len(not_hexed_array) > 0 and sf_buff_remaining_time > 4000:
             if (
-                    SkillBar.GetSkillIDBySlot(7) == skillbar.arcane_echo
-                    and IsSkillReady2(7)
-                    and IsSkillReady2(6)
-                    and HasEnoughEnergy(skillbar.arcane_echo)
-                ):
-                    CastSkill2(7)
-                    return
-                                              
-            if (
-                    IsSkillReady2(6)
-                    and HasEnoughEnergy(skillbar.wastrels_worry)
-                ):
+                SkillBar.GetSkillIDBySlot(7) == skillbar.arcane_echo
+                and IsSkillReady2(7)
+                and IsSkillReady2(6)
+                and HasEnoughEnergy(skillbar.arcane_echo)
+            ):
+                CastSkill2(7)
+                return
+
+            if IsSkillReady2(6) and HasEnoughEnergy(skillbar.wastrels_worry):
                 Player.ChangeTarget(not_hexed_array[0])
                 CastSkill2(6)
                 return
 
     # Are we in or about to be in danger?
-            
+
     enemy_array = AgentArray.GetEnemyArray()
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Spellcast)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-            
-
 
     if len(enemy_array) == 0:
         target = None
-                
+
     if len(enemy_array) > 0:
         # If we are in danger, use Deadly Paradox / Shadow Form
-                
 
         if sf_buff_remaining_time < 3500:
-            if HasEnoughEnergy(skillbar.deadly_paradox) and not HasBuff(player_agent_id,skillbar.deadly_paradox) and IsSkillReady(skillbar.deadly_paradox):
+            if (
+                HasEnoughEnergy(skillbar.deadly_paradox)
+                and not HasBuff(player_agent_id, skillbar.deadly_paradox)
+                and IsSkillReady(skillbar.deadly_paradox)
+            ):
                 CastSkill(skillbar.deadly_paradox)
                 return
 
@@ -1630,31 +1862,29 @@ def FarmingSkillbar():
                 CastSkill(skillbar.shadow_form)
                 return
 
-        if (not FSM_vars.in_killing_routine and (
-            (HasEnoughEnergy(skillbar.heart_of_shadow) 
+        if not FSM_vars.in_killing_routine and (
+            (
+                HasEnoughEnergy(skillbar.heart_of_shadow)
                 and Agent.GetHealth(player_agent_id) < 0.35
-                and IsSkillReady(skillbar.heart_of_shadow))
-            or (HasEnoughEnergy(skillbar.heart_of_shadow)
-                and FSM_vars.non_movement_timer.HasElapsed(3000))
-        )):
-                    
+                and IsSkillReady(skillbar.heart_of_shadow)
+            )
+            or (HasEnoughEnergy(skillbar.heart_of_shadow) and FSM_vars.non_movement_timer.HasElapsed(3000))
+        ):
+
             if FSM_vars.in_waiting_routine:
-                Player.ChangeTarget(Player.GetAgentID()) #hos self
+                Player.ChangeTarget(Player.GetAgentID())  # hos self
             else:
-                Player.ChangeTarget(enemy_array[0]) #hos enemy
+                Player.ChangeTarget(enemy_array[0])  # hos enemy
 
             CastSkill(skillbar.heart_of_shadow)
-            return       
-            
+            return
+
     # Keep Shroud of Distress up if Injured
-    if (
-        IsSkillReady(skillbar.shroud_of_distress)
-        and HasEnoughEnergy(skillbar.shroud_of_distress)
-    ):
+    if IsSkillReady(skillbar.shroud_of_distress) and HasEnoughEnergy(skillbar.shroud_of_distress):
         CastSkill(skillbar.shroud_of_distress)
         return
 
-    #keep Channeling up
+    # keep Channeling up
     if (
         not HasBuff(player_agent_id, skillbar.channeling)
         and IsSkillReady(skillbar.channeling)
@@ -1663,41 +1893,34 @@ def FarmingSkillbar():
         CastSkill(skillbar.channeling)
         return
 
-    #keep Way of Perfection up
-    if (
-        IsSkillReady(skillbar.way_of_perfection)
-        and HasEnoughEnergy(skillbar.way_of_perfection)
-    ): 
+    # keep Way of Perfection up
+    if IsSkillReady(skillbar.way_of_perfection) and HasEnoughEnergy(skillbar.way_of_perfection):
         CastSkill(skillbar.way_of_perfection)
         return
 
-            
+
 def HandleSkillbar():
-    if (Map.IsMapReady() and not Map.IsMapLoading()):
-        if (
-            Map.IsExplorable() 
-            and Party.IsPartyLoaded()
-            and CanCast()
-        ):
-            if Map.GetMapID() == 482: #Bjora Marches
+    if Map.IsMapReady() and not Map.IsMapLoading():
+        if Map.IsExplorable() and Party.IsPartyLoaded() and CanCast():
+            if Map.GetMapID() == 482:  # Bjora Marches
                 BjoraRunningSkillbar()
-            if Map.GetMapID() == 546: #Jaga Moraine 
+            if Map.GetMapID() == 546:  # Jaga Moraine
                 FarmingSkillbar()
 
 
 def get_escape_location(scaling_factor=50):
     """
     Moves the player to a calculated escape location based on enemy repulsion.
-    
+
     Args:
         scaling_factor (float): Factor to scale the escape vector magnitude. Default is 5.
-    
+
     Returns:
         tuple: The escape destination (x, y).
     """
     # Get the player's current position
     player_x, player_y = Player.GetXY()
-    
+
     # Initialize VectorFields with the player's position
     vector_fields = Utils.VectorFields(probe_position=(player_x, player_y))
 
@@ -1705,52 +1928,47 @@ def get_escape_location(scaling_factor=50):
     enemy_array = AgentArray.GetEnemyArray()
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Area)
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
-    
+
     # Configure the enemy array and add it to the vector fields
     agent_arrays = [
         {
             'name': 'enemies',
             'array': enemy_array,
             'radius': area_distance.Area,  # Use the appropriate range
-            'is_dangerous': True  # Enemies are repulsive (dangerous)
+            'is_dangerous': True,  # Enemies are repulsive (dangerous)
         }
     ]
-    
+
     # Generate the escape vector
     escape_vector = vector_fields.generate_escape_vector(agent_arrays)
-    
+
     # Scale the escape vector
-    scaled_escape_vector = (
-        escape_vector[0] * scaling_factor,
-        escape_vector[1] * scaling_factor
-    )
-    
+    scaled_escape_vector = (escape_vector[0] * scaling_factor, escape_vector[1] * scaling_factor)
+
     # Calculate the destination coordinates
-    destination = (
-        player_x - scaled_escape_vector[0],
-        player_y - scaled_escape_vector[1]
-    )
-    
-   
+    destination = (player_x - scaled_escape_vector[0], player_y - scaled_escape_vector[1])
+
     # Return the destination for reference
     return destination
-    
-    
+
+
 def TargetNearestNPC():
     npc_array = AgentArray.GetNPCMinipetArray()
-    npc_array = AgentArray.Filter.ByDistance(npc_array,Player.GetXY(), 200)
+    npc_array = AgentArray.Filter.ByDistance(npc_array, Player.GetXY(), 200)
     npc_array = AgentArray.Sort.ByDistance(npc_array, Player.GetXY())
     if len(npc_array) > 0:
         Player.ChangeTarget(npc_array[0])
 
+
 overlay = Overlay()
+
 
 def DrawWindow():
     global bot_vars, FSM_vars, overlay
 
     try:
         if bot_vars.window_module.first_run:
-            PyImGui.set_next_window_size(bot_vars.window_module.window_size[0], bot_vars.window_module.window_size[1])     
+            PyImGui.set_next_window_size(bot_vars.window_module.window_size[0], bot_vars.window_module.window_size[1])
             PyImGui.set_next_window_pos(bot_vars.window_module.window_pos[0], bot_vars.window_module.window_pos[1])
             bot_vars.window_module.first_run = False
 
@@ -1774,11 +1992,13 @@ def DrawWindow():
 
                 # Row 4: Progress
                 PyImGui.table_next_row()
-                PyImGui.table_next_column() 
+                PyImGui.table_next_column()
                 # End the nested ControlTable
                 PyImGui.end_table()
 
-                outpost_handling_target = FSM_vars.state_machine.get_state_number_by_name("Waiting for Bjora Explorable Map Load")
+                outpost_handling_target = FSM_vars.state_machine.get_state_number_by_name(
+                    "Waiting for Bjora Explorable Map Load"
+                )
                 current_state = FSM_vars.state_machine.get_current_state_number()
                 current_step_progress = 0
                 macro_step_name = "Outpost Handling"
@@ -1788,7 +2008,10 @@ def DrawWindow():
                     outpost_handling_target += FSM_vars.sell_to_vendor.get_state_count()
                     bar_name = FSM_vars.state_machine.get_current_step_name()
                     if FSM_vars.sell_to_vendor.is_started():
-                        current_step_progress = FSM_vars.state_machine.get_current_state_number() + FSM_vars.sell_to_vendor.get_current_state_number() 
+                        current_step_progress = (
+                            FSM_vars.state_machine.get_current_state_number()
+                            + FSM_vars.sell_to_vendor.get_current_state_number()
+                        )
                         bar_name = FSM_vars.sell_to_vendor.get_current_step_name()
                     if FSM_vars.sell_to_vendor.is_finished():
                         current_step_progress = outpost_handling_target + FSM_vars.sell_to_vendor.get_state_count()
@@ -1803,81 +2026,108 @@ def DrawWindow():
                         outpost_handling_target = FSM_vars.state_machine.get_state_number_by_name("Log Run Start")
                         if current_state >= outpost_handling_target:
                             macro_step_name = "Farming"
-                            current_step_progress = FSM_vars.state_machine.get_current_state_number() - outpost_handling_target
-                            outpost_handling_target = FSM_vars.state_machine.get_state_count() - outpost_handling_target -12 
+                            current_step_progress = (
+                                FSM_vars.state_machine.get_current_state_number() - outpost_handling_target
+                            )
+                            outpost_handling_target = (
+                                FSM_vars.state_machine.get_state_count() - outpost_handling_target - 12
+                            )
                             bar_name = FSM_vars.state_machine.get_current_step_name()
 
-
                 PyImGui.text(f"Current Step: {macro_step_name}")
-                PyImGui.progress_bar(current_step_progress/outpost_handling_target, -1, bar_name)
+                PyImGui.progress_bar(current_step_progress / outpost_handling_target, -1, bar_name)
 
-                #bot_vars.show_visual_path = PyImGui.checkbox("Show Visual Path", bot_vars.show_visual_path)
+                # bot_vars.show_visual_path = PyImGui.checkbox("Show Visual Path", bot_vars.show_visual_path)
                 bot_vars.show_visual_path = False
                 if bot_vars.show_visual_path:
                     start = FSM_vars.bjora_pathing.get_position()
                     end = FSM_vars.bjora_pathing.get_position_count()
                     drawing_path = bjora_coord_list[start:end]
                     for i in range(len(drawing_path) - 1):
-                        x1,y1 = drawing_path[i]
+                        x1, y1 = drawing_path[i]
                         z1 = overlay.FindZ(x1, y1)
-                        x2,y2 = drawing_path[i + 1]
+                        x2, y2 = drawing_path[i + 1]
                         z2 = overlay.FindZ(x2, y2)
                         overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, 0xFFFF00FF, 2.0)
 
             if PyImGui.collapsing_header("Config"):
                 # Loot Section
                 if PyImGui.tree_node("Loot"):
-                
-                        if PyImGui.tree_node("Lockpicks"):
-                            bot_vars.config_vars.loot_lockpicks = PyImGui.checkbox("Lockpicks", bot_vars.config_vars.loot_lockpicks)
-                            if bot_vars.config_vars.loot_lockpicks:  
-                                PyImGui.tree_pop()
-                            
-                        if PyImGui.tree_node("White Dyes"):
-                            bot_vars.config_vars.loot_white_dyes = PyImGui.checkbox("White Dyes", bot_vars.config_vars.loot_white_dyes)
-                            if bot_vars.config_vars.loot_white_dyes: 
-                                PyImGui.tree_pop()
-                            
-                        if PyImGui.tree_node("Black Dyes"):
-                            bot_vars.config_vars.loot_black_dyes = PyImGui.checkbox("Black Dyes", bot_vars.config_vars.loot_black_dyes)
-                            if bot_vars.config_vars.loot_black_dyes: 
-                                PyImGui.tree_pop()
-                                
-                        if PyImGui.tree_node("Map Pieces"):
-                            bot_vars.config_vars.loot_map_pieces = PyImGui.checkbox("Map Pieces", bot_vars.config_vars.loot_map_pieces)
-                            if bot_vars.config_vars.loot_map_pieces: 
-                                PyImGui.tree_pop()
-                                
-                                
-                    
+
+                    if PyImGui.tree_node("Lockpicks"):
+                        bot_vars.config_vars.loot_lockpicks = PyImGui.checkbox(
+                            "Lockpicks", bot_vars.config_vars.loot_lockpicks
+                        )
+                        if bot_vars.config_vars.loot_lockpicks:
+                            PyImGui.tree_pop()
+
+                    if PyImGui.tree_node("White Dyes"):
+                        bot_vars.config_vars.loot_white_dyes = PyImGui.checkbox(
+                            "White Dyes", bot_vars.config_vars.loot_white_dyes
+                        )
+                        if bot_vars.config_vars.loot_white_dyes:
+                            PyImGui.tree_pop()
+
+                    if PyImGui.tree_node("Black Dyes"):
+                        bot_vars.config_vars.loot_black_dyes = PyImGui.checkbox(
+                            "Black Dyes", bot_vars.config_vars.loot_black_dyes
+                        )
+                        if bot_vars.config_vars.loot_black_dyes:
+                            PyImGui.tree_pop()
+
+                    if PyImGui.tree_node("Map Pieces"):
+                        bot_vars.config_vars.loot_map_pieces = PyImGui.checkbox(
+                            "Map Pieces", bot_vars.config_vars.loot_map_pieces
+                        )
+                        if bot_vars.config_vars.loot_map_pieces:
+                            PyImGui.tree_pop()
+
                 if PyImGui.tree_node("Whites"):
-                            bot_vars.config_vars.loot_whites = PyImGui.checkbox("Items", bot_vars.config_vars.loot_whites)
-                            bot_vars.config_vars.loot_glacial_stones = PyImGui.checkbox("Glacial Stones", bot_vars.config_vars.loot_glacial_stones)
-                            bot_vars.config_vars.loot_tomes = PyImGui.checkbox("Tomes", bot_vars.config_vars.loot_tomes)
-                            bot_vars.config_vars.loot_dyes = PyImGui.checkbox("Dyes", bot_vars.config_vars.loot_dyes)
-                            bot_vars.config_vars.loot_event_items = PyImGui.checkbox("Event Items", bot_vars.config_vars.loot_event_items)
-                            PyImGui.tree_pop()
-                            bot_vars.config_vars.loot_blues = PyImGui.checkbox("Loot Blues", bot_vars.config_vars.loot_blues)
-                            bot_vars.config_vars.loot_purples = PyImGui.checkbox("Loot Purples", bot_vars.config_vars.loot_purples)
-                            bot_vars.config_vars.loot_golds = PyImGui.checkbox("Loot Golds", bot_vars.config_vars.loot_golds)
-                            PyImGui.tree_pop()
+                    bot_vars.config_vars.loot_whites = PyImGui.checkbox("Items", bot_vars.config_vars.loot_whites)
+                    bot_vars.config_vars.loot_glacial_stones = PyImGui.checkbox(
+                        "Glacial Stones", bot_vars.config_vars.loot_glacial_stones
+                    )
+                    bot_vars.config_vars.loot_tomes = PyImGui.checkbox("Tomes", bot_vars.config_vars.loot_tomes)
+                    bot_vars.config_vars.loot_dyes = PyImGui.checkbox("Dyes", bot_vars.config_vars.loot_dyes)
+                    bot_vars.config_vars.loot_event_items = PyImGui.checkbox(
+                        "Event Items", bot_vars.config_vars.loot_event_items
+                    )
+                    PyImGui.tree_pop()
+                    bot_vars.config_vars.loot_blues = PyImGui.checkbox("Loot Blues", bot_vars.config_vars.loot_blues)
+                    bot_vars.config_vars.loot_purples = PyImGui.checkbox(
+                        "Loot Purples", bot_vars.config_vars.loot_purples
+                    )
+                    bot_vars.config_vars.loot_golds = PyImGui.checkbox("Loot Golds", bot_vars.config_vars.loot_golds)
+                    PyImGui.tree_pop()
 
                 # Salvage Section
                 if PyImGui.tree_node("Salvage"):
                     if bot_vars.config_vars.salvage_whites:  # Nested options for Salvage Whites
                         if PyImGui.tree_node("Whites"):
-                            bot_vars.config_vars.salvage_whites = PyImGui.checkbox("Items", bot_vars.config_vars.salvage_whites)
-                            bot_vars.config_vars.salvage_glacial_stones = PyImGui.checkbox("Glacial Stones", bot_vars.config_vars.salvage_glacial_stones)
+                            bot_vars.config_vars.salvage_whites = PyImGui.checkbox(
+                                "Items", bot_vars.config_vars.salvage_whites
+                            )
+                            bot_vars.config_vars.salvage_glacial_stones = PyImGui.checkbox(
+                                "Glacial Stones", bot_vars.config_vars.salvage_glacial_stones
+                            )
                             PyImGui.tree_pop()
 
-                    bot_vars.config_vars.salvage_blues = PyImGui.checkbox("Salvage Blues", bot_vars.config_vars.salvage_blues)
-                    bot_vars.config_vars.salvage_purples = PyImGui.checkbox("Salvage Purples", bot_vars.config_vars.salvage_purples)
-                    bot_vars.config_vars.salvage_golds = PyImGui.checkbox("Salvage Golds", bot_vars.config_vars.salvage_golds)
+                    bot_vars.config_vars.salvage_blues = PyImGui.checkbox(
+                        "Salvage Blues", bot_vars.config_vars.salvage_blues
+                    )
+                    bot_vars.config_vars.salvage_purples = PyImGui.checkbox(
+                        "Salvage Purples", bot_vars.config_vars.salvage_purples
+                    )
+                    bot_vars.config_vars.salvage_golds = PyImGui.checkbox(
+                        "Salvage Golds", bot_vars.config_vars.salvage_golds
+                    )
                     PyImGui.tree_pop()
 
                 # Sell Section
                 if PyImGui.tree_node("Sell"):
-                    bot_vars.config_vars.sell_materials = PyImGui.checkbox("Materials", bot_vars.config_vars.sell_materials)
+                    bot_vars.config_vars.sell_materials = PyImGui.checkbox(
+                        "Materials", bot_vars.config_vars.sell_materials
+                    )
                     bot_vars.config_vars.sell_granite = PyImGui.checkbox("Granite", bot_vars.config_vars.sell_granite)
                     bot_vars.config_vars.sell_wood = PyImGui.checkbox("Wood", bot_vars.config_vars.sell_wood)
                     bot_vars.config_vars.sell_iron = PyImGui.checkbox("Iron", bot_vars.config_vars.sell_iron)
@@ -1888,10 +2138,18 @@ def DrawWindow():
 
                 # Misc Config Section
                 if PyImGui.tree_node("Misc"):
-                    bot_vars.config_vars.keep_id_kit = PyImGui.input_int("Keep ID Kits", bot_vars.config_vars.keep_id_kit)
-                    bot_vars.config_vars.keep_salvage_kit = PyImGui.input_int("Keep Salvage Kits", bot_vars.config_vars.keep_salvage_kit)
-                    bot_vars.config_vars.keep_gold_amount = PyImGui.input_int("Keep Gold", bot_vars.config_vars.keep_gold_amount)
-                    bot_vars.config_vars.leave_empty_inventory_slots = PyImGui.input_int("Leave Empty Inventory Slots", bot_vars.config_vars.leave_empty_inventory_slots)
+                    bot_vars.config_vars.keep_id_kit = PyImGui.input_int(
+                        "Keep ID Kits", bot_vars.config_vars.keep_id_kit
+                    )
+                    bot_vars.config_vars.keep_salvage_kit = PyImGui.input_int(
+                        "Keep Salvage Kits", bot_vars.config_vars.keep_salvage_kit
+                    )
+                    bot_vars.config_vars.keep_gold_amount = PyImGui.input_int(
+                        "Keep Gold", bot_vars.config_vars.keep_gold_amount
+                    )
+                    bot_vars.config_vars.leave_empty_inventory_slots = PyImGui.input_int(
+                        "Leave Empty Inventory Slots", bot_vars.config_vars.leave_empty_inventory_slots
+                    )
                     PyImGui.tree_pop()
 
             if PyImGui.collapsing_header("Statistics"):
@@ -1900,11 +2158,14 @@ def DrawWindow():
                         # Headers and data for statistics table
                         headers = ["Info", "Data"]
                         data = [
-                            ("Total Run Time", bot_vars.window_statistics.global_timer.FormatElapsedTime("hh:mm:ss:ms")),
+                            (
+                                "Total Run Time",
+                                bot_vars.window_statistics.global_timer.FormatElapsedTime("hh:mm:ss:ms"),
+                            ),
                             ("Current Run Time", bot_vars.window_statistics.lap_timer.FormatElapsedTime("mm:ss:ms")),
-                            ("Minimum Run Time", FormatTime(bot_vars.window_statistics.min_time,"mm:ss:ms")),
-                            ("Maximum Run Time", FormatTime(bot_vars.window_statistics.max_time,"mm:ss:ms")),
-                            ("Average Run Time", FormatTime(bot_vars.window_statistics.avg_time,"mm:ss:ms")),
+                            ("Minimum Run Time", FormatTime(bot_vars.window_statistics.min_time, "mm:ss:ms")),
+                            ("Maximum Run Time", FormatTime(bot_vars.window_statistics.max_time, "mm:ss:ms")),
+                            ("Average Run Time", FormatTime(bot_vars.window_statistics.avg_time, "mm:ss:ms")),
                             ("Current Step", FSM_vars.state_machine.get_current_step_name()),
                             ("Runs Attempted", bot_vars.window_statistics.runs_attempted),
                             ("Runs Completed", bot_vars.window_statistics.runs_completed),
@@ -1923,7 +2184,7 @@ def DrawWindow():
                     if PyImGui.begin_tab_item("Advanced Statistics"):
                         if PyImGui.begin_tab_bar("Advanced StatsTabBar"):
                             if PyImGui.begin_tab_item("Items"):
-                                headers = ["Info","Data"]
+                                headers = ["Info", "Data"]
                                 data = [
                                     ("Whites", f"{bot_vars.window_statistics.whites}"),
                                     ("Purples", f"{bot_vars.window_statistics.purples}"),
@@ -1944,7 +2205,7 @@ def DrawWindow():
                                 run_time = "00:00:00"
                                 fsm_current_step = FSM_vars.state_machine.get_current_step_name()
 
-                                headers = ["Info","Data"]
+                                headers = ["Info", "Data"]
                                 data = [
                                     ("Starting Gold", f"{bot_vars.window_statistics.starting_gold}"),
                                     ("Gold Gained", f"{bot_vars.window_statistics.gold_gained}"),
@@ -1958,8 +2219,6 @@ def DrawWindow():
                                 PyImGui.end_tab_item()
                             PyImGui.end_tab_bar()
                         PyImGui.end_tab_item()
-
-                
 
                     if PyImGui.begin_tab_item("Debug"):
                         if PyImGui.begin_tab_bar("DebugInfoTB"):
@@ -1983,7 +2242,9 @@ def DrawWindow():
 
                                 player_x, player_y = Player.GetXY()
                                 enemy_array = AgentArray.GetEnemyArray()
-                                enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), area_distance.Area)
+                                enemy_array = AgentArray.Filter.ByDistance(
+                                    enemy_array, (player_x, player_y), area_distance.Area
+                                )
                                 enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
 
                                 enemies_on_range = len(enemy_array)
@@ -1995,7 +2256,7 @@ def DrawWindow():
                                 id_kits = bot_vars.config_vars.keep_id_kit
                                 kits_in_inv = Inventory.GetModelCount(5899)
 
-                                headers = ["Info","Data"]
+                                headers = ["Info", "Data"]
                                 data = [
                                     ("PlayerXY", f"({int(player_x)},{int(player_y)})"),
                                     ("Stuck Timer", f"{FSM_vars.non_movement_timer.FormatElapsedTime('ss:ms')}"),
@@ -2005,7 +2266,6 @@ def DrawWindow():
                                     ("finished_looting?", f"{ finished_looting()}"),
                                     ("ID Kits in Inventory", f"{kits_in_inv}"),
                                     ("ID Kits to keep", f"{id_kits}"),
-
                                 ]
 
                                 ImGui.table("debuginfo table", headers, data)
@@ -2017,7 +2277,7 @@ def DrawWindow():
                                 fsm_current_step = FSM_vars.state_machine.get_current_step_name()
                                 fsm_next_step = FSM_vars.state_machine.get_next_step_name()
 
-                                headers = ["Value","Data"]
+                                headers = ["Value", "Data"]
                                 data = [
                                     ("Previous Step:", f"{fsm_previous_step}"),
                                     ("Current Step:", f"{fsm_current_step}"),
@@ -2029,15 +2289,36 @@ def DrawWindow():
                                 ImGui.table("state machine info", headers, data)
 
                                 PyImGui.text("FollowXY Pathing")
-                                headers = ["Value","Data"]
+                                headers = ["Value", "Data"]
                                 data = [
-                                    ("Waypoint:", f"{FSM_vars.movement_handler.waypoint}"), # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
-                                    ("Following:", f"{FSM_vars.movement_handler.is_following()}"), # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
-                                    ("Has Arrived:", f"{FSM_vars.movement_handler.has_arrived()}"), # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
-                                    ("Distance to Waypoint:", f"{FSM_vars.movement_handler.get_distance_to_waypoint()}"), # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
-                                    ("Time Elapsed:", f"{FSM_vars.movement_handler.get_time_elapsed()}"), # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
-                                    ("wait Timer:", f"{FSM_vars.movement_handler.wait_timer.GetElapsedTime()}"), # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
-                                    ("wait timer run once", f"{FSM_vars.movement_handler.wait_timer_run_once}"), # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
+                                    (
+                                        "Waypoint:",
+                                        f"{FSM_vars.movement_handler.waypoint}",
+                                    ),  # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
+                                    (
+                                        "Following:",
+                                        f"{FSM_vars.movement_handler.is_following()}",
+                                    ),  # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
+                                    (
+                                        "Has Arrived:",
+                                        f"{FSM_vars.movement_handler.has_arrived()}",
+                                    ),  # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
+                                    (
+                                        "Distance to Waypoint:",
+                                        f"{FSM_vars.movement_handler.get_distance_to_waypoint()}",
+                                    ),  # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
+                                    (
+                                        "Time Elapsed:",
+                                        f"{FSM_vars.movement_handler.get_time_elapsed()}",
+                                    ),  # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
+                                    (
+                                        "wait Timer:",
+                                        f"{FSM_vars.movement_handler.wait_timer.GetElapsedTime()}",
+                                    ),  # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
+                                    (
+                                        "wait timer run once",
+                                        f"{FSM_vars.movement_handler.wait_timer_run_once}",
+                                    ),  # Added by Markitosline: This needs fixing, as it only accounts for movement_handler but not for exact_movement_handler
                                     ("is casting", f"{Agent.IsCasting(Player.GetAgentID())}"),
                                     ("is moving", f"{Agent.IsMoving(Player.GetAgentID())}"),
                                 ]
@@ -2052,8 +2333,13 @@ def DrawWindow():
 
     except Exception as e:
         current_function = inspect.currentframe().f_code.co_name
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Error in {current_function}: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"Error in {current_function}: {str(e)}",
+            Py4GW.Console.MessageType.Error,
+        )
         raise
+
 
 def Handle_Stuck():
     """
@@ -2075,21 +2361,26 @@ def Handle_Stuck():
     else:
         handle_player_movement()
 
+
 def trigger_stuck_command():
     """Sends a 'stuck' chat command."""
     global FSM_vars
     Player.SendChatCommand("stuck")
     FSM_vars.auto_stuck_command_timer.Reset()
 
+
 def restart_due_to_stuck():
     """Logs and restarts the bot when recovery fails repeatedly."""
     global FSM_vars, bot_vars
-    Py4GW.Console.Log(bot_vars.window_module.module_name, 
-                      "Player is stuck, cannot recover, restarting.", 
-                      Py4GW.Console.MessageType.Error)
+    Py4GW.Console.Log(
+        bot_vars.window_module.module_name,
+        "Player is stuck, cannot recover, restarting.",
+        Py4GW.Console.MessageType.Error,
+    )
     FSM_vars.stuck_count = 0
     bot_vars.forced_restart = True
     ResetEnvironment()
+
 
 def handle_non_movement():
     """Attempts to recover from non-movement situations."""
@@ -2107,6 +2398,7 @@ def handle_non_movement():
         FSM_vars.stuck_count += 1
         log_stuck_attempt(escape_location)
 
+
 def handle_player_movement():
     """Tracks player movement and resets relevant timers if moving."""
     global FSM_vars
@@ -2117,16 +2409,19 @@ def handle_player_movement():
         FSM_vars.old_player_y = new_player_y
         FSM_vars.stuck_count = 0
 
+
 def log_stuck_attempt(escape_location):
     """Logs details of a recovery attempt."""
     global bot_vars
     player_x, player_y = Player.GetXY()
     distance = Utils.Distance((player_x, player_y), escape_location)
-    Py4GW.Console.Log(bot_vars.window_module.module_name, 
-                      f"Player is stuck, attempting to recover to {escape_location} (distance: {distance:.2f})", 
-                      Py4GW.Console.MessageType.Warning)
-            
-            
+    Py4GW.Console.Log(
+        bot_vars.window_module.module_name,
+        f"Player is stuck, attempting to recover to {escape_location} (distance: {distance:.2f})",
+        Py4GW.Console.MessageType.Warning,
+    )
+
+
 def ResetEnvironment():
     global FSM_vars
     FSM_vars.sell_to_vendor.reset()
@@ -2139,15 +2434,18 @@ def ResetEnvironment():
     FSM_vars.path_to_killing_spot.reset()
     FSM_vars.exit_jaga_moraine.reset()
     FSM_vars.return_jaga_moraine.reset()
-    FSM_vars.exact_movement_handler.reset() # Added by Markitosline: when the farm loop was done, this movement declaration was missing and therefore when entering for the second time the move to killing spot estate, it would not update waypoints and follow wrong path
-    FSM_vars.movement_handler.reset() 
+    FSM_vars.exact_movement_handler.reset()  # Added by Markitosline: when the farm loop was done, this movement declaration was missing and therefore when entering for the second time the move to killing spot estate, it would not update waypoints and follow wrong path
+    FSM_vars.movement_handler.reset()
     FSM_vars.stuck_count = 0
     FSM_vars.state_machine.reset()
     FSM_vars.state_machine.jump_to_state_by_name("Longeyes Ledge Map Check")
-    
+
+
 resigned = False
+
+
 def main():
-    global bot_vars,FSM_vars
+    global bot_vars, FSM_vars
     global resigned
     try:
         if Party.IsPartyLoaded():
@@ -2163,26 +2461,53 @@ def main():
                 FSM_vars.state_machine.update()
                 HandleSkillbar()
 
-                if (Map.IsExplorable() and Party.IsPartyLoaded()):
+                if Map.IsExplorable() and Party.IsPartyLoaded():
                     Handle_Stuck()
                 else:
                     FSM_vars.non_movement_timer.Stop()
                     resigned = False
 
     except ImportError as e:
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name, f"ImportError encountered: {str(e)}", Py4GW.Console.MessageType.Error
+        )
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
     except ValueError as e:
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"ValueError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name, f"ValueError encountered: {str(e)}", Py4GW.Console.MessageType.Error
+        )
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
     except TypeError as e:
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"TypeError encountered: {str(e)}", Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name, f"TypeError encountered: {str(e)}", Py4GW.Console.MessageType.Error
+        )
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
     except Exception as e:
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Unexpected error encountered: {str(e)}", Py4GW.Console.MessageType.Error)
-        Py4GW.Console.Log(bot_vars.window_module.module_name, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"Unexpected error encountered: {str(e)}",
+            Py4GW.Console.MessageType.Error,
+        )
+        Py4GW.Console.Log(
+            bot_vars.window_module.module_name,
+            f"Stack trace: {traceback.format_exc()}",
+            Py4GW.Console.MessageType.Error,
+        )
     finally:
         pass
+
 
 if __name__ == "__main__":
     main()

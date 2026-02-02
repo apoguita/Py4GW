@@ -1,7 +1,20 @@
-
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, AutoPathing, Py4GW, FSM, ConsoleLog, Color, DXOverlay,
-                          UIManager,ModelID, Agent, SkillManager, Map, Player
-                         )
+from Py4GWCoreLib import (
+    GLOBAL_CACHE,
+    Routines,
+    Range,
+    AutoPathing,
+    Py4GW,
+    FSM,
+    ConsoleLog,
+    Color,
+    DXOverlay,
+    UIManager,
+    ModelID,
+    Agent,
+    SkillManager,
+    Map,
+    Player,
+)
 from typing import List, Tuple, Any, Generator, Callable
 import PyImGui
 import time
@@ -53,9 +66,10 @@ STEP_NAMES: Final[tuple[str, ...]] = (
     "WAIT_FOR_MAP_LOAD",
     "WASTE_TIME",
     "WITHDRAW_ITEMS",
-    "UNKNOWN"
+    "UNKNOWN",
 )
 ALLOWED_STEPS: Final[frozenset[str]] = frozenset(STEP_NAMES)
+
 
 class GeneralHelpers:
     @staticmethod
@@ -64,7 +78,7 @@ class GeneralHelpers:
         players = GLOBAL_CACHE.Party.GetPlayers()
         henchmen = GLOBAL_CACHE.Party.GetHenchmen()
         heroes = GLOBAL_CACHE.Party.GetHeroes()
- 
+
         for player in players:
             agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
             if Agent.IsDead(agent_id):
@@ -74,23 +88,21 @@ class GeneralHelpers:
             if Agent.IsDead(henchman.agent_id):
                 is_someone_dead = True
                 break
-            
+
         for hero in heroes:
             if Agent.IsDead(hero.agent_id):
                 is_someone_dead = True
                 break
 
         return is_someone_dead
-    
-    
+
     @staticmethod
     def is_player_dead():
         return Agent.IsDead(Player.GetAgentID())
 
 
 class StepNameCounters:
-    def __init__(self, seed: Dict[str, int] | None = None,
-                 allowed: Iterable[str] = ALLOWED_STEPS) -> None:
+    def __init__(self, seed: Dict[str, int] | None = None, allowed: Iterable[str] = ALLOWED_STEPS) -> None:
         self._allowed = frozenset(s.upper() for s in allowed)
         self._counts: defaultdict[str, int] = defaultdict(int)
         if seed:
@@ -126,10 +138,10 @@ class StepNameCounters:
 
 class BotProperty:
     def __init__(self, parent: "BotConfig", name: str, default_value: Any):
-        self.parent = parent            # has FSM and get_counter(name: str) -> int
-        self.name = name                # string key (e.g., "movement_timeout")
+        self.parent = parent  # has FSM and get_counter(name: str) -> int
+        self.name = name  # string key (e.g., "movement_timeout")
         self._default = default_value
-        self._value = default_value     # committed value
+        self._value = default_value  # committed value
 
     # Read current committed value (no FSM)
     def get(self) -> Any:
@@ -155,6 +167,7 @@ class BotProperty:
             execute_fn=lambda: self._apply(self._default),
         )
 
+
 class LiveData:
     def __init__(self):
         self.player_profession_primary = "None"
@@ -170,28 +183,29 @@ class LiveData:
         self.level = Agent.GetLevel(Player.GetAgentID())
         self.current_map_id = Map.GetMapID()
         self.map_max_party_size = Map.GetMaxPartySize()
-        
-#region BotConfig
+
+
+# region BotConfig
 class BotConfig:
-    def __init__(self, parent: "Botting",  bot_name: str):
-        self.parent:"Botting" = parent
-        self.bot_name:str = bot_name
-        self.initialized:bool = False
+    def __init__(self, parent: "Botting", bot_name: str):
+        self.parent: "Botting" = parent
+        self.bot_name: str = bot_name
+        self.initialized: bool = False
         self.FSM = FSM(bot_name)
-        self.fsm_running:bool = False
-        self.auto_combat_handler:SkillManager.Autocombat = SkillManager.Autocombat()
+        self.fsm_running: bool = False
+        self.auto_combat_handler: SkillManager.Autocombat = SkillManager.Autocombat()
 
         self.counters = StepNameCounters()
 
         self.pause_on_danger_fn: Callable[[], bool] = lambda: False
         self._reset_pause_on_danger_fn()
-        
-        self.path:List[Tuple[float, float]] = []
-        self.path_to_draw:List[Tuple[float, float]] = []
-        
+
+        self.path: List[Tuple[float, float]] = []
+        self.path_to_draw: List[Tuple[float, float]] = []
+
         self.on_follow_path_failed: Callable[[], bool] = lambda: False
-        
-        #Properties
+
+        # Properties
         self.halt_on_death = BotProperty(self, "halt_on_death", True)
         self.pause_on_danger = BotProperty(self, "pause_on_danger", False)
         self.movement_timeout = BotProperty(self, "movement_timeout", 15000)
@@ -201,106 +215,120 @@ class BotConfig:
         self.log_actions = BotProperty(self, "log_actions", False)
         self.dialog_at_succeeded = BotProperty(self, "dialog_at_succeeded", False)
         # Consumable maintainers (default: disabled) - by aC
-        self.use_alcohol        = BotProperty(self, "use_alcohol", False)
-        self.use_city_speed     = BotProperty(self, "use_city_speed", False)
-        self.use_morale         = BotProperty(self, "use_morale", False)
-        self.use_dp_removal     = BotProperty(self, "use_dp_removal", False)
-        self.use_consets        = BotProperty(self, "use_consets", False)
-        self.use_grail          = BotProperty(self, "use_grail_of_might", False)
-        self.use_salvation      = BotProperty(self, "use_armor_of_salvation", False)
-        self.use_celerity       = BotProperty(self, "use_essence_of_celerity", False)
+        self.use_alcohol = BotProperty(self, "use_alcohol", False)
+        self.use_city_speed = BotProperty(self, "use_city_speed", False)
+        self.use_morale = BotProperty(self, "use_morale", False)
+        self.use_dp_removal = BotProperty(self, "use_dp_removal", False)
+        self.use_consets = BotProperty(self, "use_consets", False)
+        self.use_grail = BotProperty(self, "use_grail_of_might", False)
+        self.use_salvation = BotProperty(self, "use_armor_of_salvation", False)
+        self.use_celerity = BotProperty(self, "use_essence_of_celerity", False)
 
         self.live_data = LiveData()
-
 
     def get_counter(self, name: str) -> Optional[int]:
         return self.counters.next_index(name)
 
-     
     def _set_pause_on_danger_fn(self, executable_fn: Callable[[], bool]) -> None:
         self.pause_on_danger_fn = executable_fn
-               
-    def _reset_pause_on_danger_fn(self) -> None:
-        self._set_pause_on_danger_fn(lambda: Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot) or GeneralHelpers.is_party_member_dead())
 
+    def _reset_pause_on_danger_fn(self) -> None:
+        self._set_pause_on_danger_fn(
+            lambda: Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot) or GeneralHelpers.is_party_member_dead()
+        )
 
     def _set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]) -> None:
         self.on_follow_path_failed = on_follow_path_failed
         if self.log_actions:
-            ConsoleLog(MODULE_NAME, f"Set OnFollowPathFailed to {on_follow_path_failed}", Py4GW.Console.MessageType.Info)
+            ConsoleLog(
+                MODULE_NAME, f"Set OnFollowPathFailed to {on_follow_path_failed}", Py4GW.Console.MessageType.Info
+            )
 
     def _update_player_data(self) -> None:
         self.live_data.update()
 
-    #FSM HELPERS
+    # FSM HELPERS
     def set_pause_on_danger_fn(self, pause_on_combat_fn: Callable[[], bool]) -> None:
-        self.FSM.AddState(name=f"PauseOnDangerFn_{self.get_counter("PAUSE_ON_DANGER")}",
-                          execute_fn=lambda:self._set_pause_on_danger_fn(pause_on_combat_fn),)
+        self.FSM.AddState(
+            name=f"PauseOnDangerFn_{self.get_counter("PAUSE_ON_DANGER")}",
+            execute_fn=lambda: self._set_pause_on_danger_fn(pause_on_combat_fn),
+        )
 
     def reset_pause_on_danger_fn(self) -> None:
         self._reset_pause_on_danger_fn()
-        self.FSM.AddState(name=f"ResetPauseOnDangerFn_{self.get_counter("PAUSE_ON_DANGER")}",
-                          execute_fn=lambda:self._reset_pause_on_danger_fn(),)
+        self.FSM.AddState(
+            name=f"ResetPauseOnDangerFn_{self.get_counter("PAUSE_ON_DANGER")}",
+            execute_fn=lambda: self._reset_pause_on_danger_fn(),
+        )
 
     def set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]):
-        self.FSM.AddState(name=f"OnFollowPathFailed_{self.get_counter("ON_FOLLOW_PATH_FAILED")}",
-                          execute_fn=lambda:self._set_on_follow_path_failed(on_follow_path_failed),)
+        self.FSM.AddState(
+            name=f"OnFollowPathFailed_{self.get_counter("ON_FOLLOW_PATH_FAILED")}",
+            execute_fn=lambda: self._set_on_follow_path_failed(on_follow_path_failed),
+        )
 
     def reset_on_follow_path_failed(self) -> None:
         self.set_on_follow_path_failed(lambda: self.parent.helpers.default_on_unmanaged_fail())
 
     def update_player_data(self) -> None:
-        self.FSM.AddState(name=f"UpdatePlayerData_{self.get_counter("UPDATE_PLAYER_DATA")}",
-                          execute_fn=lambda:self._update_player_data(),)
+        self.FSM.AddState(
+            name=f"UpdatePlayerData_{self.get_counter("UPDATE_PLAYER_DATA")}",
+            execute_fn=lambda: self._update_player_data(),
+        )
+
 
 # Internal decorator factory (class-scope function)
-def _yield_step(label: str,counter_key: str):
+def _yield_step(label: str, counter_key: str):
     def deco(coro_method):
         @wraps(coro_method)
-        def wrapper(self:"BottingHelpers", *args, **kwargs):
+        def wrapper(self: "BottingHelpers", *args, **kwargs):
             step_name = f"{label}_{self.parent.config.get_counter(counter_key)}"
             self.parent.config.FSM.AddYieldRoutineStep(
-                name=step_name,
-                coroutine_fn=lambda: coro_method(self, *args, **kwargs)
+                name=step_name, coroutine_fn=lambda: coro_method(self, *args, **kwargs)
             )
             # Return immediately; FSM will run the coroutine later
+
         return wrapper
+
     return deco
+
 
 yield_step = staticmethod(_yield_step)
 
-def _fsm_step(label: str,counter_key: str):
+
+def _fsm_step(label: str, counter_key: str):
     def deco(fn):
         @wraps(fn)
-        def wrapper(self:"BottingHelpers", *args, **kwargs) -> None:
+        def wrapper(self: "BottingHelpers", *args, **kwargs) -> None:
             step_name = f"{label}_{self.parent.config.get_counter(counter_key)}"
             # Schedule a NORMAL FSM state (non-yield)
-            self.parent.config.FSM.AddState(
-                name=step_name,
-                execute_fn=lambda: fn(self, *args, **kwargs)
-            )
+            self.parent.config.FSM.AddState(name=step_name, execute_fn=lambda: fn(self, *args, **kwargs))
+
         return wrapper
+
     return deco
+
 
 fsm_step = staticmethod(_fsm_step)
 
-  #region BottingHelpers
+
+# region BottingHelpers
 class BottingHelpers:
     def __init__(self, parent: "Botting"):
         self.parent = parent
-        
+
     def is_map_loading(self):
         if Map.IsMapLoading():
             return True
         if not self.parent.config.fsm_running:
             return True
         return False
-    
+
     def on_unmanaged_fail(self) -> bool:
         ConsoleLog(MODULE_NAME, "there was an unmanaged failure, stopping bot.", Py4GW.Console.MessageType.Warning)
         self.parent.Stop()
         return True
-        
+
     def default_on_unmanaged_fail(self) -> bool:
         ConsoleLog(MODULE_NAME, "there was an unmanaged failure, stopping bot.", Py4GW.Console.MessageType.Warning)
         self.parent.Stop()
@@ -309,10 +337,9 @@ class BottingHelpers:
     def insert_header_step(self, step_name: str) -> None:
         counter = self.parent.config.get_counter("HEADER_COUNTER")
         self.parent.config.FSM.AddYieldRoutineStep(
-            name="[H] " + step_name + f"_[{counter}]",
-            coroutine_fn=lambda: Routines.Yield.wait(100)
+            name="[H] " + step_name + f"_[{counter}]", coroutine_fn=lambda: Routines.Yield.wait(100)
         )
-        
+
     def _interact_with_agent(self, coords: Tuple[float, float], dialog_id: int = 0):
         result = yield from Routines.Yield.Agents.InteractWithAgentXY(*coords)
         if not result:
@@ -326,13 +353,13 @@ class BottingHelpers:
             return False
 
         if dialog_id != 0:
-            Player.SendAgentDialog(dialog_id)
+            Player.SendDialog(dialog_id)
             yield from Routines.Yield.wait(500)
 
         self.parent.config.dialog_at_succeeded._apply(True)
         return True
-    
-    def draw_path(self, color:Color=Color(255, 255, 0, 255)) -> None:
+
+    def draw_path(self, color: Color = Color(255, 255, 0, 255)) -> None:
         overlay = DXOverlay()
 
         path = self.parent.config.path_to_draw
@@ -343,25 +370,25 @@ class BottingHelpers:
             z1 = DXOverlay.FindZ(x1, y1) - 125
             z2 = DXOverlay.FindZ(x2, y2) - 125
             overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, color.to_color(), False)
-            
+
     def auto_combat(self):
         self.parent.config.auto_combat_handler.SetWeaponAttackAftercast()
         while True:
-            if not (Routines.Checks.Map.MapValid() and 
-                    Routines.Checks.Player.CanAct() and
-                    Map.IsExplorable() and
-                    not self.parent.config.auto_combat_handler.InCastingRoutine()):
+            if not (
+                Routines.Checks.Map.MapValid()
+                and Routines.Checks.Player.CanAct()
+                and Map.IsExplorable()
+                and not self.parent.config.auto_combat_handler.InCastingRoutine()
+            ):
                 ActionQueueManager().ResetQueue("ACTION")
                 yield from Routines.Yield.wait(100)
             else:
                 self.parent.config.auto_combat_handler.HandleCombat()
             yield
-            
+
     # --- minimal helpers ---
     def _alive_explorable(self) -> bool:
-        return (Routines.Checks.Map.MapValid()
-                and Map.IsExplorable()
-                and not Agent.IsDead(Player.GetAgentID()))
+        return Routines.Checks.Map.MapValid() and Map.IsExplorable() and not Agent.IsDead(Player.GetAgentID())
 
     def _use_first(self, model_list) -> bool:
         for m in model_list:
@@ -373,36 +400,55 @@ class BottingHelpers:
 
     # --- item lists ---
     ALC_3P = [
-        ModelID.Aged_Dwarven_Ale, ModelID.Aged_Hunters_Ale, ModelID.Bottle_Of_Grog,
-        ModelID.Flask_Of_Firewater, ModelID.Keg_Of_Aged_Hunters_Ale,
-        ModelID.Krytan_Brandy, ModelID.Spiked_Eggnog,
+        ModelID.Aged_Dwarven_Ale,
+        ModelID.Aged_Hunters_Ale,
+        ModelID.Bottle_Of_Grog,
+        ModelID.Flask_Of_Firewater,
+        ModelID.Keg_Of_Aged_Hunters_Ale,
+        ModelID.Krytan_Brandy,
+        ModelID.Spiked_Eggnog,
     ]
     ALC_1P = [
-        ModelID.Bottle_Of_Rice_Wine, ModelID.Eggnog, ModelID.Dwarven_Ale,
-        ModelID.Hard_Apple_Cider, ModelID.Hunters_Ale, ModelID.Bottle_Of_Juniberry_Gin,
-        ModelID.Shamrock_Ale, ModelID.Bottle_Of_Vabbian_Wine, ModelID.Vial_Of_Absinthe,
-        ModelID.Witchs_Brew, ModelID.Zehtukas_Jug,
+        ModelID.Bottle_Of_Rice_Wine,
+        ModelID.Eggnog,
+        ModelID.Dwarven_Ale,
+        ModelID.Hard_Apple_Cider,
+        ModelID.Hunters_Ale,
+        ModelID.Bottle_Of_Juniberry_Gin,
+        ModelID.Shamrock_Ale,
+        ModelID.Bottle_Of_Vabbian_Wine,
+        ModelID.Vial_Of_Absinthe,
+        ModelID.Witchs_Brew,
+        ModelID.Zehtukas_Jug,
     ]
 
     CITY_10M = [ModelID.Creme_Brulee, ModelID.Jar_Of_Honey, ModelID.Krytan_Lokum]
-    CITY_5M  = [ModelID.Chocolate_Bunny, ModelID.Fruitcake, ModelID.Red_Bean_Cake]
-    CITY_3M  = [ModelID.Mandragor_Root_Cake]
-    CITY_2M  = [ModelID.Delicious_Cake, ModelID.Minitreat_Of_Purity, ModelID.Sugary_Blue_Drink]
+    CITY_5M = [ModelID.Chocolate_Bunny, ModelID.Fruitcake, ModelID.Red_Bean_Cake]
+    CITY_3M = [ModelID.Mandragor_Root_Cake]
+    CITY_2M = [ModelID.Delicious_Cake, ModelID.Minitreat_Of_Purity, ModelID.Sugary_Blue_Drink]
 
     CON_SET = [ModelID.Grail_Of_Might, ModelID.Armor_Of_Salvation, ModelID.Essence_Of_Celerity]
 
     MORALE_ITEMS = [
-        ModelID.Honeycomb, ModelID.Rainbow_Candy_Cane, ModelID.Elixir_Of_Valor,
-        ModelID.Pumpkin_Cookie, ModelID.Powerstone_Of_Courage, ModelID.Seal_Of_The_Dragon_Empire,
+        ModelID.Honeycomb,
+        ModelID.Rainbow_Candy_Cane,
+        ModelID.Elixir_Of_Valor,
+        ModelID.Pumpkin_Cookie,
+        ModelID.Powerstone_Of_Courage,
+        ModelID.Seal_Of_The_Dragon_Empire,
     ]
     DP_REMOVAL = [
-        ModelID.Four_Leaf_Clover, ModelID.Oath_Of_Purity, ModelID.Peppermint_Candy_Cane,
-        ModelID.Refined_Jelly, ModelID.Shining_Blade_Ration, ModelID.Wintergreen_Candy_Cane,
+        ModelID.Four_Leaf_Clover,
+        ModelID.Oath_Of_Purity,
+        ModelID.Peppermint_Candy_Cane,
+        ModelID.Refined_Jelly,
+        ModelID.Shining_Blade_Ration,
+        ModelID.Wintergreen_Candy_Cane,
     ]
-            
+
     def pop_imp(self):
         while True:
-            if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
+            if (not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable()):
                 return
 
             if Agent.IsDead(Player.GetAgentID()):
@@ -435,29 +481,29 @@ class BottingHelpers:
 
     def maintain_cupcake(self):
         while True:
-            if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
+            if (not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable()):
                 yield from Routines.Yield.wait(500)
                 continue
-            
+
             if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(500)
                 continue
 
             cupcake__id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Birthday_Cupcake.value)
             cupcake_effect = GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")
-            
+
             if not GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), cupcake_effect) and cupcake__id:
                 GLOBAL_CACHE.Inventory.UseItem(cupcake__id)
                 yield from Routines.Yield.wait(500)
-            
+
     def maintain_honeycomb(self):
         while True:
             if Agent.IsDead(Player.GetAgentID()):
                 yield from Routines.Yield.wait(500)
                 continue
-            
+
             target_morale = 110
-            
+
             while True:
                 morale = Player.GetMorale()
                 if morale >= target_morale:
@@ -471,14 +517,16 @@ class BottingHelpers:
 
                 GLOBAL_CACHE.Inventory.UseItem(honeycomb_id)
                 yield from Routines.Yield.wait(500)
-            
+
     def _maintain_grail(self):
         while True:
             if self.parent.config.use_grail.get():
-                if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
-                    yield; continue
+                if (not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable()):
+                    yield
+                    continue
                 if Agent.IsDead(Player.GetAgentID()):
-                    yield; continue
+                    yield
+                    continue
 
                 grail_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Grail_Of_Might.value)
                 grail_effect = GLOBAL_CACHE.Skill.GetID("Grail_Of_Might_skill")  # correct skill name
@@ -487,14 +535,15 @@ class BottingHelpers:
                     yield from Routines.Yield.wait(500)
             yield from Routines.Yield.wait(500)
 
-
     def _maintain_salvation(self):
         while True:
             if self.parent.config.use_salvation.get():
-                if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
-                    yield; continue
+                if (not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable()):
+                    yield
+                    continue
                 if Agent.IsDead(Player.GetAgentID()):
-                    yield; continue
+                    yield
+                    continue
 
                 salvation_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Armor_Of_Salvation.value)
                 salvation_effect = GLOBAL_CACHE.Skill.GetID("Armor_Of_Salvation_skill")  # correct skill name
@@ -503,14 +552,15 @@ class BottingHelpers:
                     yield from Routines.Yield.wait(500)
             yield from Routines.Yield.wait(500)
 
-
     def _maintain_celerity(self):
         while True:
             if self.parent.config.use_celerity.get():
-                if ((not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable())):
-                    yield; continue
+                if (not Routines.Checks.Map.MapValid()) and (not Map.IsExplorable()):
+                    yield
+                    continue
                 if Agent.IsDead(Player.GetAgentID()):
-                    yield; continue
+                    yield
+                    continue
 
                 celerity_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Essence_Of_Celerity.value)
                 celerity_effect = GLOBAL_CACHE.Skill.GetID("Essence_Of_Celerity_skill")  # correct skill name
@@ -524,20 +574,27 @@ class BottingHelpers:
         while True:
             # flag gate
             if not self.parent.config.use_alcohol.get():
-                yield from Routines.Yield.wait(250); continue
+                yield from Routines.Yield.wait(250)
+                continue
 
             if not self._alive_explorable():
-                next_ts = 0.0; yield; continue
+                next_ts = 0.0
+                yield
+                continue
 
             now = time.time()
-            if now < next_ts: yield; continue
+            if now < next_ts:
+                yield
+                continue
 
             if self._use_first(self.ALC_3P):
                 next_ts = now + 180  # 3 minutes
-                yield from Routines.Yield.wait(300); continue
+                yield from Routines.Yield.wait(300)
+                continue
             if self._use_first(self.ALC_1P):
-                next_ts = now + 60   # 1 minute
-                yield from Routines.Yield.wait(300); continue
+                next_ts = now + 60  # 1 minute
+                yield from Routines.Yield.wait(300)
+                continue
 
             yield from Routines.Yield.wait(750)
 
@@ -546,14 +603,19 @@ class BottingHelpers:
         options = [(self.CITY_10M, 600), (self.CITY_5M, 300), (self.CITY_3M, 180), (self.CITY_2M, 120)]
         while True:
             if not self.parent.config.use_city_speed.get():
-                yield from Routines.Yield.wait(250); continue
+                yield from Routines.Yield.wait(250)
+                continue
 
             # towns/outposts only
             if not Routines.Checks.Map.MapValid() or Map.IsExplorable():
-                next_ts = 0.0; yield; continue
+                next_ts = 0.0
+                yield
+                continue
 
             now = time.time()
-            if now < next_ts: yield; continue
+            if now < next_ts:
+                yield
+                continue
 
             used = False
             for group, cd in options:
@@ -568,68 +630,81 @@ class BottingHelpers:
         next_ts = 0.0
         while True:
             if not self.parent.config.use_consets.get():
-                yield from Routines.Yield.wait(250); continue
+                yield from Routines.Yield.wait(250)
+                continue
 
             if not self._alive_explorable():
-                next_ts = 0.0; yield; continue
+                next_ts = 0.0
+                yield
+                continue
 
             now = time.time()
-            if now < next_ts: yield; continue
+            if now < next_ts:
+                yield
+                continue
 
             if self._use_first(self.CON_SET):
                 next_ts = now + 1800  # 30 minutes
-                yield from Routines.Yield.wait(300); continue
+                yield from Routines.Yield.wait(300)
+                continue
 
             yield from Routines.Yield.wait(750)
 
     def _maintain_morale(self, target=110):
         while True:
             if not self.parent.config.use_morale.get():
-                yield from Routines.Yield.wait(250); continue
+                yield from Routines.Yield.wait(250)
+                continue
 
             if not self._alive_explorable():
-                yield; continue
+                yield
+                continue
 
             if Player.GetMorale() >= target:
-                yield; continue
+                yield
+                continue
 
             if self._use_first(self.MORALE_ITEMS):
-                yield from Routines.Yield.wait(500); continue
+                yield from Routines.Yield.wait(500)
+                continue
 
             yield from Routines.Yield.wait(750)
 
     def _maintain_dp_removal(self, target=100):
         while True:
             if not self.parent.config.use_dp_removal.get():
-                yield from Routines.Yield.wait(250); continue
+                yield from Routines.Yield.wait(250)
+                continue
 
             if not self._alive_explorable():
-                yield; continue
+                yield
+                continue
 
             if Player.GetMorale() >= target:
-                yield; continue
+                yield
+                continue
 
             if self._use_first(self.DP_REMOVAL):
-                yield from Routines.Yield.wait(500); continue
+                yield from Routines.Yield.wait(500)
+                continue
 
-            yield from Routines.Yield.wait(750)         
+            yield from Routines.Yield.wait(750)
 
-            
-    #FSM Maintained Steps
+    # FSM Maintained Steps
 
-    @_fsm_step("PopImp","IMP_COUNTER")
+    @_fsm_step("PopImp", "IMP_COUNTER")
     def add_pop_imp(self):
         pop_imp = self.pop_imp()
         if pop_imp not in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.append(pop_imp)
 
-    @_fsm_step("RemovePopImp","IMP_COUNTER")
+    @_fsm_step("RemovePopImp", "IMP_COUNTER")
     def remove_pop_imp(self):
         pop_imp = self.pop_imp()
         if pop_imp in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(pop_imp)
 
-    @_fsm_step("MaintainCupcake","CUPCAKES_COUNTER")
+    @_fsm_step("MaintainCupcake", "CUPCAKES_COUNTER")
     def add_maintain_cupcake(self):
         maintain_cupcake = self.maintain_cupcake()
         if maintain_cupcake not in GLOBAL_CACHE.Coroutines:
@@ -641,7 +716,7 @@ class BottingHelpers:
         if maintain_cupcake in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(maintain_cupcake)
 
-    @_fsm_step("MaintainHoneycomb","HONEYCOMBS_COUNTER")
+    @_fsm_step("MaintainHoneycomb", "HONEYCOMBS_COUNTER")
     def add_maintain_honeycomb(self):
         maintain_honeycomb = self.maintain_honeycomb()
         if maintain_honeycomb not in GLOBAL_CACHE.Coroutines:
@@ -652,19 +727,19 @@ class BottingHelpers:
         maintain_honeycomb = self.maintain_honeycomb()
         if maintain_honeycomb in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(maintain_honeycomb)
-            
+
     @_fsm_step("StartAutoCombat", "AUTO_COMBAT")
     def start_auto_combat(self):
-        autocombat = self.auto_combat()                 # generator
+        autocombat = self.auto_combat()  # generator
         if autocombat not in GLOBAL_CACHE.Coroutines:
-            GLOBAL_CACHE.Coroutines.append(autocombat)      # register it
-    
+            GLOBAL_CACHE.Coroutines.append(autocombat)  # register it
+
     @_fsm_step("StopAutoCombat", "AUTO_COMBAT")
     def stop_auto_combat(self):
         autocombat = self.auto_combat()
         if autocombat in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(autocombat)
-            
+
     @fsm_step("MaintainAlcohol", "ALCOHOL_COUNTER")  # counter key can be new; reused for brevity
     def add_maintain_alcohol(self):
         gen = self._maintain_alcohol()
@@ -708,7 +783,6 @@ class BottingHelpers:
         if gen in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(gen)
 
-
     @fsm_step("MaintainSalvation", "SALVATION_COUNTER")
     def add_maintain_salvation(self):
         if self.parent.config.use_salvation.get():
@@ -720,7 +794,6 @@ class BottingHelpers:
         if gen in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(gen)
 
-
     @fsm_step("MaintainCelerity", "CELERITY_COUNTER")
     def add_maintain_celerity(self):
         if self.parent.config.use_celerity.get():
@@ -731,7 +804,6 @@ class BottingHelpers:
         gen = self._maintain_celerity()
         if gen in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(gen)
-
 
     @fsm_step("MaintainMorale", "MORALE_COUNTER")
     def add_maintain_morale(self):
@@ -755,15 +827,14 @@ class BottingHelpers:
         if gen in GLOBAL_CACHE.Coroutines:
             GLOBAL_CACHE.Coroutines.remove(gen)
 
-
-    #Yield Steps
+    # Yield Steps
 
     @_yield_step(label="WasteTime", counter_key="WASTE_TIME")
     def waste_time(self, duration: int = 100):
         yield from Routines.Yield.wait(duration)
 
     @_yield_step(label="WasteTimeUntilConditionMet", counter_key="WASTE_TIME")
-    def waste_time_until_condition_met(self, condition: Callable[[], bool], duration: int=1000):
+    def waste_time_until_condition_met(self, condition: Callable[[], bool], duration: int = 1000):
         while True:
             yield from Routines.Yield.wait(duration)
             if condition():
@@ -776,9 +847,13 @@ class BottingHelpers:
 
     @_yield_step(label="FollowPath", counter_key="FOLLOW_PATH")
     def follow_path(self) -> Generator[Any, Any, bool]:
-        
+
         path = self.parent.config.path
-        exit_condition = lambda: GeneralHelpers.is_player_dead() or self.is_map_loading() if self.parent.config.halt_on_death.get() else self.is_map_loading()
+        exit_condition = lambda: (
+            GeneralHelpers.is_player_dead() or self.is_map_loading()
+            if self.parent.config.halt_on_death.get()
+            else self.is_map_loading()
+        )
         pause_condition = self.parent.config.pause_on_danger_fn if self.parent.config.pause_on_danger.get() else None
 
         success_movement = yield from Routines.Yield.Movement.FollowPath(
@@ -796,7 +871,7 @@ class BottingHelpers:
                 return True
             self.on_unmanaged_fail()
             return False
-        
+
         return True
 
     @_yield_step(label="GetPathTo", counter_key="GET_PATH_TO")
@@ -814,13 +889,13 @@ class BottingHelpers:
         self.parent.config.path_to_draw = path.copy()
 
     @_yield_step(label="InteractWithAgent", counter_key="DIALOG_AT")
-    def interact_with_agent(self,coords: Tuple[float, float],dialog_id: int=0) -> Generator[Any, Any, bool]:
+    def interact_with_agent(self, coords: Tuple[float, float], dialog_id: int = 0) -> Generator[Any, Any, bool]:
         return (yield from self._interact_with_agent(coords, dialog_id))
-    
+
     @_yield_step(label="InteractWithModel", counter_key="DIALOG_AT")
-    def interact_with_model(self, model_id: int, dialog_id: int=0) -> Generator[Any, Any, bool]:
+    def interact_with_model(self, model_id: int, dialog_id: int = 0) -> Generator[Any, Any, bool]:
         agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
-        x,y = Agent.GetXY(agent_id)
+        x, y = Agent.GetXY(agent_id)
         return (yield from self._interact_with_agent((x, y), dialog_id))
 
     @_yield_step(label="WaitForMapLoad", counter_key="WAIT_FOR_MAP_LOAD")
@@ -832,55 +907,56 @@ class BottingHelpers:
         yield from Routines.Yield.wait(1000)
 
     @_yield_step(label="EnterChallenge", counter_key="ENTER_CHALLENGE")
-    def enter_challenge(self, wait_for:int= 3000):
+    def enter_challenge(self, wait_for: int = 3000):
         Map.EnterChallenge()
         yield from Routines.Yield.wait(wait_for)
 
     @_yield_step(label="CancelSkillRewardWindow", counter_key="CANCEL_SKILL_REWARD_WINDOW")
     def cancel_skill_reward_window(self):
-        global bot  
+        global bot
         cancel_button_frame_id = UIManager.GetFrameIDByHash(784833442)  # Cancel button frame ID
         if not cancel_button_frame_id:
             Py4GW.Console.Log(MODULE_NAME, "Cancel button frame ID not found.", Py4GW.Console.MessageType.Error)
             bot.helpers.on_unmanaged_fail()
             return
-        
+
         while not UIManager.FrameExists(cancel_button_frame_id):
             yield from Routines.Yield.wait(1000)
             return
-        
+
         UIManager.FrameClick(cancel_button_frame_id)
         yield from Routines.Yield.wait(1000)
-            
-    
 
     @_yield_step(label="WithdrawItems", counter_key="WITHDRAW_ITEMS")
-    def withdraw_items(self, model_id:int, quantity:int) -> Generator[Any, Any, bool]:
+    def withdraw_items(self, model_id: int, quantity: int) -> Generator[Any, Any, bool]:
 
         item_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
         if item_in_storage < quantity:
-            Py4GW.Console.Log(MODULE_NAME, f"Not enough items ({quantity}) to withdraw.", Py4GW.Console.MessageType.Error)
+            Py4GW.Console.Log(
+                MODULE_NAME, f"Not enough items ({quantity}) to withdraw.", Py4GW.Console.MessageType.Error
+            )
             bot.helpers.on_unmanaged_fail()
             return False
 
         items_withdrawn = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, quantity)
         yield from Routines.Yield.wait(500)
         if not items_withdrawn:
-            Py4GW.Console.Log(MODULE_NAME, f"Failed to withdraw ({quantity}) items from storage.", Py4GW.Console.MessageType.Error)
+            Py4GW.Console.Log(
+                MODULE_NAME, f"Failed to withdraw ({quantity}) items from storage.", Py4GW.Console.MessageType.Error
+            )
             bot.helpers.on_unmanaged_fail()
             return False
 
         return True
 
     @_yield_step(label="CraftItem", counter_key="CRAFT_ITEM")
-    def craft_item(self, output_model_id: int, count: int,
-                trade_model_ids: list[int], quantity_list: list[int]):
+    def craft_item(self, output_model_id: int, count: int, trade_model_ids: list[int], quantity_list: list[int]):
         # Align lists (no exceptions; clamp to shortest)
         k = min(len(trade_model_ids), len(quantity_list))
         if k == 0:
             return
         trade_model_ids = trade_model_ids[:k]
-        quantity_list   = quantity_list[:k]
+        quantity_list = quantity_list[:k]
 
         # Resolve each model -> first matching item in inventory
         trade_item_ids: list[int] = []
@@ -929,13 +1005,13 @@ class BottingHelpers:
             yield from Routines.Yield.wait(250)
 
 
-#region Botting
+# region Botting
 class Botting:
     def __init__(self, bot_name="DefaultBot"):
         self.bot_name = bot_name
         self.helpers = BottingHelpers(self)
         self.config = BotConfig(self, bot_name)
-        
+
     def SetProperty(self, name: str, value: Any) -> bool:
         prop = getattr(self.config, name, None)
         if not isinstance(prop, BotProperty):
@@ -972,10 +1048,10 @@ class Botting:
             self.config.FSM.update()
             self.config.live_data.update()
 
-    def WasteTime(self, duration: int= 100) -> None:
+    def WasteTime(self, duration: int = 100) -> None:
         self.helpers.waste_time(duration)
 
-    def WasteTimeUntilConditionMet(self, condition: Callable[[], bool], duration: int=1000) -> None:
+    def WasteTimeUntilConditionMet(self, condition: Callable[[], bool], duration: int = 1000) -> None:
         self.helpers.waste_time_until_condition_met(condition, duration)
 
     def AddFSMCustomYieldState(self, execute_fn, name: str) -> None:
@@ -988,7 +1064,7 @@ class Botting:
 
         self.helpers.travel(target_map_id)
 
-    def MoveTo(self, x:float, y:float, step_name: str=""):
+    def MoveTo(self, x: float, y: float, step_name: str = ""):
         if step_name == "":
             step_name = f"MoveTo_{self.config.get_counter("MOVE_TO")}"
 
@@ -996,49 +1072,49 @@ class Botting:
         self.helpers.get_path_to(x, y)
         self.helpers.follow_path()
 
-    def FollowPath(self, path: List[Tuple[float, float]], step_name: str="") -> None:
+    def FollowPath(self, path: List[Tuple[float, float]], step_name: str = "") -> None:
         if step_name == "":
             step_name = f"FollowPath_{self.config.get_counter("FOLLOW_PATH")}"
 
         self.helpers.insert_header_step(step_name)
         self.helpers.set_path_to(path)
         self.helpers.follow_path()
-        
-    def DrawPath(self, color:Color=Color(255, 255, 0, 255)) -> None:
+
+    def DrawPath(self, color: Color = Color(255, 255, 0, 255)) -> None:
         if self.config.draw_path:
             self.helpers.draw_path(color)
 
-    def DialogAt(self, x: float, y: float, dialog:int, step_name: str="") -> None:
+    def DialogAt(self, x: float, y: float, dialog: int, step_name: str = "") -> None:
         if step_name == "":
             step_name = f"DialogAt_{self.config.get_counter("DIALOG_AT")}"
 
         self.helpers.insert_header_step(step_name)
         self.helpers.interact_with_agent((x, y), dialog_id=dialog)
-        
-    def DialogWithModel(self, model_id: int, dialog:int, step_name: str="") -> None:
+
+    def DialogWithModel(self, model_id: int, dialog: int, step_name: str = "") -> None:
         if step_name == "":
             step_name = f"DialogWithModel_{self.config.get_counter("DIALOG_AT")}"
 
         self.helpers.insert_header_step(step_name)
         self.helpers.interact_with_model(model_id=model_id, dialog_id=dialog)
 
-    def InteractAt(self, x: float, y: float, step_name: str="") -> None:
+    def InteractAt(self, x: float, y: float, step_name: str = "") -> None:
         self.helpers.insert_header_step(step_name)
         self.helpers.interact_with_agent((x, y))
-        
-    def InteractWithModel(self, model_id: int, step_name: str="") -> None:
+
+    def InteractWithModel(self, model_id: int, step_name: str = "") -> None:
         self.helpers.insert_header_step(step_name)
         self.helpers.interact_with_model(model_id=model_id)
 
     def WaitForMapLoad(self, target_map_id: int = 0, target_map_name: str = "") -> None:
         if target_map_name:
             target_map_id = Map.GetMapIDByName(target_map_name)
-            
+
         self.helpers.wait_for_map_load(target_map_id)
 
-    def EnterChallenge(self, wait_for:int= 4500):
+    def EnterChallenge(self, wait_for: int = 4500):
         self.helpers.enter_challenge(wait_for=wait_for)
-        
+
     def StartAutoCombat(self):
         self.helpers.start_auto_combat()
 
@@ -1050,7 +1126,7 @@ class Botting:
 
     def RemovePopImpRoutine(self):
         self.helpers.remove_pop_imp()
-        
+
     def AddMaintainCupcakeRoutine(self):
         self.helpers.add_maintain_cupcake()
 
@@ -1062,41 +1138,41 @@ class Botting:
 
     def RemoveMaintainHoneycombRoutine(self):
         self.helpers.remove_maintain_honeycomb()
-        
-    def AddMaintainAlcoholRoutine(self):        
+
+    def AddMaintainAlcoholRoutine(self):
         self.helpers.add_maintain_alcohol()
 
-    def RemoveMaintainAlcoholRoutine(self):     
+    def RemoveMaintainAlcoholRoutine(self):
         self.helpers.remove_maintain_alcohol()
 
-    def AddMaintainCitySpeedRoutine(self):      
+    def AddMaintainCitySpeedRoutine(self):
         self.helpers.add_maintain_city_speed()
 
-    def RemoveMaintainCitySpeedRoutine(self):   
+    def RemoveMaintainCitySpeedRoutine(self):
         self.helpers.remove_maintain_city_speed()
 
-    def AddMaintainConSetsRoutine(self):        
+    def AddMaintainConSetsRoutine(self):
         self.helpers.add_maintain_consets()
 
-    def RemoveMaintainConSetsRoutine(self):     
+    def RemoveMaintainConSetsRoutine(self):
         self.helpers.remove_maintain_consets()
 
-    def AddMaintainMoraleRoutine(self):         
+    def AddMaintainMoraleRoutine(self):
         self.helpers.add_maintain_morale()
 
-    def RemoveMaintainMoraleRoutine(self):      
+    def RemoveMaintainMoraleRoutine(self):
         self.helpers.remove_maintain_morale()
 
-    def AddMaintainDPRemovalRoutine(self):      
+    def AddMaintainDPRemovalRoutine(self):
         self.helpers.add_maintain_dp_removal()
 
-    def RemoveMaintainDPRemovalRoutine(self):   
+    def RemoveMaintainDPRemovalRoutine(self):
         self.helpers.remove_maintain_dp_removal()
 
     def CancelSkillRewardWindow(self):
         self.helpers.cancel_skill_reward_window()
-        
-    def WithdrawItems(self, model_id:int, quantity:int):
+
+    def WithdrawItems(self, model_id: int, quantity: int):
         self.helpers.withdraw_items(model_id, quantity)
 
     def CraftItem(self, model_id: int, value: int, trade_items_models: list[int], quantity_list: list[int]):
@@ -1104,22 +1180,23 @@ class Botting:
 
     def EquipItem(self, model_id: int):
         self.helpers.equip_item(model_id)
-        
+
     def LeaveParty(self):
         self.helpers.leave_party()
-        
+
     def SpawnBonusItems(self):
         self.helpers.spawn_bonus_items()
-        
-        
+
+
 # ----------------------- BOT CONFIGURATION --------------------------------------------
-#region BotConfig
+# region BotConfig
 
 bot = Botting("cupcake_bot")
 
-#region bot_helpers
+# region bot_helpers
 
 SCRIPT_RUNNING = False
+
 
 def create_bot_routine(bot: Botting) -> None:
     global SCRIPT_RUNNING
@@ -1128,17 +1205,20 @@ def create_bot_routine(bot: Botting) -> None:
     bot.WasteTimeUntilConditionMet(exit_fn)
     bot.RemoveMaintainCupcakeRoutine()
 
+
 bot.Routine = create_bot_routine.__get__(bot)
-    
+
 
 selected_step = 0
+
+
 def main():
     global SCRIPT_RUNNING, selected_step
     try:
         bot.Update()
-        
+
         if PyImGui.begin("Cupcake test", PyImGui.WindowFlags.AlwaysAutoResize):
-            
+
             if PyImGui.button("Start Botting"):
                 SCRIPT_RUNNING = True
                 bot.Start()
@@ -1146,24 +1226,24 @@ def main():
             if PyImGui.button("Stop Botting"):
                 SCRIPT_RUNNING = False
                 bot.Stop()
-                
+
             PyImGui.separator()
-            
+
             fsm_steps = bot.config.FSM.get_state_names()
-            selected_step = PyImGui.combo("FSM Steps",selected_step,  fsm_steps)
+            selected_step = PyImGui.combo("FSM Steps", selected_step, fsm_steps)
             if PyImGui.button("start at Step"):
                 if selected_step < len(fsm_steps):
                     bot.config.fsm_running = True
                     bot.config.FSM.reset()
                     bot.config.FSM.jump_to_state_by_name(fsm_steps[selected_step])
-                
+
             PyImGui.separator()
         PyImGui.end()
-
 
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
+
 
 if __name__ == "__main__":
     main()

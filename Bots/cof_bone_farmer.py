@@ -782,23 +782,13 @@ def Travel(outpost_id):
 
 
 def ArrivedOutpost(map_id):
-    if (
-        Map.IsMapReady()
-        and Map.GetMapID() == map_id
-        and Map.IsOutpost()
-        and GLOBAL_CACHE.Party.IsPartyLoaded()
-    ):
+    if Map.IsMapReady() and Map.GetMapID() == map_id and Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded():
         return True
     return False
 
 
 def ArrivedExplorable(map_id):
-    if (
-        Map.IsMapReady()
-        and Map.GetMapID() == map_id
-        and Map.IsExplorable()
-        and GLOBAL_CACHE.Party.IsPartyLoaded()
-    ):
+    if Map.IsMapReady() and Map.GetMapID() == map_id and Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
         return True
     return False
 
@@ -901,7 +891,7 @@ def InteractNPCWithDialog(x, y, dialog_id):
         return False
 
     if dialog_id != 0:
-        Player.SendAgentDialog(dialog_id)
+        Player.SendDialog(dialog_id)
         _dialog_run_to_end(Routines.Yield.wait(500))
 
     return True
@@ -1009,11 +999,7 @@ def KillRotation():
         close_array = AgentArray.Filter.ByDistance(enemy_array, (-15706, -9035), 100)
         new_target = 0
 
-        if (
-            Utils.Distance(Agent.GetXY(target_id), (-15706, -9035)) > 100
-            and close_array
-            and close_array[0]
-        ):
+        if Utils.Distance(Agent.GetXY(target_id), (-15706, -9035)) > 100 and close_array and close_array[0]:
             new_target = close_array[0]
         elif enemy_array and enemy_array[0]:
             new_target = enemy_array[0]
@@ -1053,12 +1039,7 @@ def KillRotation():
 
 def HandleSkillbar():
     global bot_vars
-    if (
-        Map.IsMapReady()
-        and not Map.IsMapLoading()
-        and Map.IsExplorable()
-        and GLOBAL_CACHE.Party.IsPartyLoaded()
-    ):
+    if Map.IsMapReady() and not Map.IsMapLoading() and Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
         if bot_vars.fsm.get_current_step_name() == 'waiting for enemies':
             WaitRotation()
         elif bot_vars.fsm.get_current_step_name() == 'killing enemies':
@@ -1067,12 +1048,7 @@ def HandleSkillbar():
 
 def HandleStuck():
     global bot_vars
-    if (
-        Map.IsMapReady()
-        and not Map.IsMapLoading()
-        and Map.IsExplorable()
-        and GLOBAL_CACHE.Party.IsPartyLoaded()
-    ):
+    if Map.IsMapReady() and not Map.IsMapLoading() and Map.IsExplorable() and GLOBAL_CACHE.Party.IsPartyLoaded():
         if bot_vars.fsm.get_current_step_name() == 'going to kill spot':
             if not Agent.IsMoving(Player.GetAgentID()):
                 if not bot_vars.timers.stuck.IsRunning():
@@ -1130,9 +1106,7 @@ def WaitForKill():
     enemy_array = AgentArray.Filter.ByAttribute(enemy_array, 'IsAlive')
     enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), 600)
 
-    if not enemy_array or (
-        len(enemy_array) < 2 and enemy_array[0] and Agent.GetHealth(enemy_array[0]) > 0.4
-    ):
+    if not enemy_array or (len(enemy_array) < 2 and enemy_array[0] and Agent.GetHealth(enemy_array[0]) > 0.4):
         bot_vars.gui.stats.runs += 1
         lap_time = bot_vars.timers.lap.GetElapsedTime()
         bot_vars.timers.lap_times.append(lap_time)
@@ -1172,7 +1146,10 @@ fsm_setup_states = [
             run_once=False,
         ),
     ),
-    ('take quest', dict(execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0x832101), transition_delay_ms=500)),
+    (
+        'take quest',
+        dict(execute_fn=lambda: InteractNPCWithDialog(-19166.00, 17980.00, 0x832101), transition_delay_ms=500),
+    ),
     (
         'entering dungeon',
         dict(
