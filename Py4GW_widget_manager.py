@@ -81,18 +81,7 @@ def main():
 
         # FIX 1: Explicitly load the global manager state into the handler
         widget_manager.enable_all = bool(IniManager().get(key=INI_KEY, var_name="enable_all", default=False, section="Configuration"))
-
-        # Apply saved enabled states to runtime widgets
-        for wid, w in widget_manager.widgets.items():
-            vname = widget_manager._widget_var(wid, "enabled")
-            section = f"Widget:{wid}"
-            w.enabled = bool(IniManager().get(key=INI_KEY, section=section, var_name=vname, default=False))
-            if w.enabled and w.on_enable:
-                try:
-                    w.on_enable()
-                except Exception as e:
-                    Py4GW.Console.Log(module_name, f"Error in on_enable for widget '{wid}': {e}", Py4GW.Console.MessageType.Error)
-                
+        widget_manager._apply_ini_configuration()
             
                 
     if INI_KEY:
