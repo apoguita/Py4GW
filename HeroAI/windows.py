@@ -7,7 +7,7 @@ from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, ME
                               PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, HeroAIOptionStruct, SharedMessage
-from Py4GW_widget_manager import WidgetHandler
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget
@@ -43,7 +43,7 @@ class HeroAI_FloatingWindows():
     ACCOUNT_THROTTLE = ThrottledTimer(500)
     hero_windows : dict[str, WindowModule] = {}
     messages : list[tuple[int, SharedMessage]] = []
-    widget_handler = WidgetHandler()
+    widget_handler = get_widget_handler()
     init_success:bool  = False
     module_info = None
     

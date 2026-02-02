@@ -10,7 +10,7 @@ BOT_NAME = "Chaar farm 4man"
 bot = Botting(BOT_NAME)
 
 KILLING_PATH = [
-    (-12603, -2389),
+    (-12603.0, -2389),
     (-13137, -4024),
     (-14936, -5728),
     (-13889, -6633),

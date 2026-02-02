@@ -960,8 +960,8 @@ class Py4GWSharedMemoryManager:
         if index == -1:
             existing_index = self.FindExistingAccountSlot(account_email)
             index = existing_index if existing_index is not None else self.FindEmptySlot()
-            ConsoleLog(SMM_MODULE_NAME, f"No active slot found for account email '{account_email}'." +
-                       (f"Reusing previously used slot {index}." if existing_index is not None else f"Using empty slot {index}."), Py4GW.Console.MessageType.Info)
+            #ConsoleLog(SMM_MODULE_NAME, f"No active slot found for account email '{account_email}'." +
+            #           (f"Reusing previously used slot {index}." if existing_index is not None else f"Using empty slot {index}."), Py4GW.Console.MessageType.Info)
             player = self.GetStruct().AccountData[index]
             player.IsSlotActive = True
             player.AccountEmail = account_email
