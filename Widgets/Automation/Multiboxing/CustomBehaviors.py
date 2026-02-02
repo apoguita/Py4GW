@@ -6,13 +6,13 @@ import Py4GW
 from Py4GWCoreLib import ImGui, Map, PyImGui, Routines, Color
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.UIManager import UIManager
-from Widgets.Config.CustomBehaviors.primitives import constants
-from Widgets.Config.CustomBehaviors.primitives.fps_monitor import FPSMonitor
-from Widgets.Config.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
-from Widgets.Config.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Widgets.Config.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
-from Widgets.Config.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Widgets.Config.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
+from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.primitives.fps_monitor import FPSMonitor
+from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
 
 # Iterate through all modules in sys.modules (already imported modules)
 # Iterate over all imported modules and reload them
@@ -27,19 +27,19 @@ for module_name in list(sys.modules.keys()):
         except Exception as e:
             Py4GW.Console.Log("CustomBehaviors", f"Error reloading module {module_name}: {e}")
 
-from Widgets.Config.CustomBehaviors.daemon import daemon
-from Widgets.Config.CustomBehaviors.primitives import constants
-from Widgets.Config.CustomBehaviors.primitives.fps_monitor import FPSMonitor
-from Widgets.Config.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
-from Widgets.Config.CustomBehaviors.gui.current_build import render as current_build_render
-from Widgets.Config.CustomBehaviors.gui.party import render as party
-from Widgets.Config.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
-from Widgets.Config.CustomBehaviors.gui.debug_execution import render as debug_execution
-from Widgets.Config.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
-from Widgets.Config.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
-from Widgets.Config.CustomBehaviors.gui.auto_mover import render as auto_mover
-from Widgets.Config.CustomBehaviors.gui.teambuild import render as teambuild
-from Widgets.Config.CustomBehaviors.gui.botting import render as botting
+from Sources.oazix.CustomBehaviors.daemon import daemon
+from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.primitives.fps_monitor import FPSMonitor
+from Sources.oazix.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
+from Sources.oazix.CustomBehaviors.gui.current_build import render as current_build_render
+from Sources.oazix.CustomBehaviors.gui.party import render as party
+from Sources.oazix.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
+from Sources.oazix.CustomBehaviors.gui.debug_execution import render as debug_execution
+from Sources.oazix.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
+from Sources.oazix.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
+from Sources.oazix.CustomBehaviors.gui.auto_mover import render as auto_mover
+from Sources.oazix.CustomBehaviors.gui.teambuild import render as teambuild
+from Sources.oazix.CustomBehaviors.gui.botting import render as botting
 
 party_forced_state_combo = 0
 current_path = pathlib.Path.cwd()
