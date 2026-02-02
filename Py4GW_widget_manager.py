@@ -1,4 +1,3 @@
-
 import PyImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
