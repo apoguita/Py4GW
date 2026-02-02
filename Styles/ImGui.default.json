@@ -49,6 +49,13 @@
             "b": 0,
             "a": 0
         },
+        "DragDropTarget": {
+            "img_color_enum": "DragDropTarget",
+            "r": 255,
+            "g": 255,
+            "b": 0,
+            "a": 230
+        },
         "FrameBg": {
             "img_color_enum": "FrameBg",
             "r": 26,
@@ -97,6 +104,34 @@
             "g": 23,
             "b": 30,
             "a": 255
+        },
+        "ModalWindowDimBg": {
+            "img_color_enum": "ModalWindowDimBg",
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 89
+        },
+        "NavHighlight": {
+            "img_color_enum": "NavHighlight",
+            "r": 66,
+            "g": 150,
+            "b": 250,
+            "a": 255
+        },
+        "NavWindowingDimBg": {
+            "img_color_enum": "NavWindowingDimBg",
+            "r": 204,
+            "g": 204,
+            "b": 204,
+            "a": 51
+        },
+        "NavWindowingHighlight": {
+            "img_color_enum": "NavWindowingHighlight",
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 179
         },
         "PlotHistogram": {
             "img_color_enum": "PlotHistogram",
@@ -182,6 +217,27 @@
             "b": 102,
             "a": 128
         },
+        "Separator": {
+            "img_color_enum": "Separator",
+            "r": 110,
+            "g": 110,
+            "b": 128,
+            "a": 128
+        },
+        "SeparatorActive": {
+            "img_color_enum": "SeparatorActive",
+            "r": 26,
+            "g": 102,
+            "b": 191,
+            "a": 255
+        },
+        "SeparatorHovered": {
+            "img_color_enum": "SeparatorHovered",
+            "r": 26,
+            "g": 102,
+            "b": 191,
+            "a": 199
+        },
         "SliderGrab": {
             "img_color_enum": "SliderGrab",
             "r": 51,
@@ -216,6 +272,55 @@
             "g": 76,
             "b": 102,
             "a": 255
+        },
+        "TabUnfocused": {
+            "img_color_enum": "TabUnfocused",
+            "r": 17,
+            "g": 26,
+            "b": 38,
+            "a": 248
+        },
+        "TabUnfocusedActive": {
+            "img_color_enum": "TabUnfocusedActive",
+            "r": 35,
+            "g": 67,
+            "b": 108,
+            "a": 255
+        },
+        "TableBorderLight": {
+            "img_color_enum": "TableBorderLight",
+            "r": 59,
+            "g": 59,
+            "b": 64,
+            "a": 255
+        },
+        "TableBorderStrong": {
+            "img_color_enum": "TableBorderStrong",
+            "r": 79,
+            "g": 79,
+            "b": 89,
+            "a": 255
+        },
+        "TableHeaderBg": {
+            "img_color_enum": "TableHeaderBg",
+            "r": 48,
+            "g": 48,
+            "b": 51,
+            "a": 255
+        },
+        "TableRowBg": {
+            "img_color_enum": "TableRowBg",
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0
+        },
+        "TableRowBgAlt": {
+            "img_color_enum": "TableRowBgAlt",
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 15
         },
         "Text": {
             "img_color_enum": "Text",
@@ -316,13 +421,6 @@
             "g": 166,
             "b": 46,
             "a": 200
-        },
-        "TextCollapsingHeader": {
-            "img_color_enum": "Text",
-            "r": 204,
-            "g": 204,
-            "b": 204,
-            "a": 255
         },
         "TextObjectiveCompleted": {
             "img_color_enum": "Text",
@@ -432,16 +530,32 @@
             "a": 255
         }
     },
-    "StyleVars": {
+    "StyleVars": {    
+        "Alpha": {
+            "value1": 1.0
+        },
         "ButtonPadding": {
-            "value1": 5.0,
+            "value1": 7.0,
             "value2": 5.0
+        },
+        "ButtonTextAlign": {
+            "value1": 0.5,
+            "value2": 0.5
         },
         "CellPadding": {
             "value1": 5.0,
             "value2": 5.0
         },
+        "ChildBorderSize": {
+            "value1": 1.0
+        },
         "ChildRounding": {
+            "value1": 0.0
+        },
+        "DisabledAlpha": {
+            "value1": 0.6
+        },
+        "FrameBorderSize": {
             "value1": 0.0
         },
         "FramePadding": {
@@ -468,6 +582,9 @@
             "value1": 10.0,
             "value2": 6.0
         },
+        "PopupBorderSize": {
+            "value1": 1.0
+        },
         "PopupRounding": {
             "value1": 4.0
         },
@@ -477,8 +594,26 @@
         "ScrollbarSize": {
             "value1": 20.0
         },
+        "SelectableTextAlign": {
+            "value1": 0.0,
+            "value2": 0.0
+        },
+        "SeparatorTextAlign": {
+            "value1": 0.0,
+            "value2": 0.5
+        },
+        "SeparatorTextBorderSize": {
+            "value1": 3.0
+        },
+        "SeparatorTextPadding": {
+            "value1": 20.0,
+            "value2": 3.0
+        },
         "TabRounding": {
             "value1": 4.0
+        },
+        "WindowBorderSize": {
+            "value1": 1.0
         },
         "WindowPadding": {
             "value1": 10.0,
@@ -486,6 +621,10 @@
         },
         "WindowRounding": {
             "value1": 4.0
+        },
+        "WindowTitleAlign": {
+            "value1": 0.0,
+            "value2": 0.5
         }
     }
 }

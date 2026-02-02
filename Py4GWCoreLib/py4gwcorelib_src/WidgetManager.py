@@ -1,4 +1,3 @@
-
 from typing import Callable
 from types import ModuleType
 import traceback
@@ -245,6 +244,16 @@ class WidgetHandler:
     def discover(self):
         if self.discovered:
             return
+        
+        """Phase 0: Unload currently enabled widgets"""
+        for widget in self.widgets.values():
+            if widget.on_disable and widget.enabled:
+                try:
+                    widget.on_disable()
+                except Exception as e:
+                    Py4GW.Console.Log("WidgetHandler", f"Error during on_disable of widget {widget.name}: {str(e)}", Py4GW.Console.MessageType.Error)
+                    Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+                                
         """Phase 1: Discover widgets without INI configuration"""
         self.widgets.clear()
         
@@ -343,13 +352,38 @@ class WidgetHandler:
                 widget_id=widget_id,
                 section=f"Widget:{widget_id}",
                 var_name=f"{widget_id}__optional"
-            ))
+            ))                    
+
+            cv = self._get_config_var(widget.name, self._widget_var(widget.name, "enabled"))
+            widget.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
+            
+            if widget.enabled and widget.on_enable:
+                try:
+                    widget.on_enable()
+                    
+                except Exception as e:
+                    Py4GW.Console.Log("WidgetHandler", f"Error during on_enable of widget {widget_id}: {str(e)}", Py4GW.Console.MessageType.Error)
+                    Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+                
 
             #keep logging minimal
             #self._log_success(f"Discovered: {widget_id}")
             
         except Exception as e:
             self._log_error(f"Failed to discover {widget_id}: {e}")
+            
+    def _apply_ini_configuration(self):        
+        # Apply saved enabled states to runtime widgets
+        for wid, w in self.widgets.items():
+            vname = self._widget_var(wid, "enabled")
+            section = f"Widget:{wid}"
+            w.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=section, var_name=vname, default=False))
+            if w.enabled and w.on_enable:
+                try:
+                    w.on_enable()
+                except Exception as e:
+                    Py4GW.Console.Log("Widget Manager", f"Error in on_enable for widget '{wid}': {e}", Py4GW.Console.MessageType.Error)
+                
             
     #region UI       
     def draw_node(self, INI_KEY: str, node: dict, depth: int = 0):
