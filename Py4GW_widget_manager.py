@@ -1,3 +1,4 @@
+import Py4GW
 import PyImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
@@ -86,6 +87,13 @@ def main():
             vname = widget_manager._widget_var(wid, "enabled")
             section = f"Widget:{wid}"
             w.enabled = bool(IniManager().get(key=INI_KEY, section=section, var_name=vname, default=False))
+            if w.enabled and w.on_enable:
+                try:
+                    w.on_enable()
+                except Exception as e:
+                    Py4GW.Console.Log(module_name, f"Error in on_enable for widget '{wid}': {e}", Py4GW.Console.MessageType.Error)
+                
+            
                 
     if INI_KEY:
         if ImGui.Begin(ini_key=INI_KEY, name="Widget Manager", flags=PyImGui.WindowFlags.AlwaysAutoResize):
