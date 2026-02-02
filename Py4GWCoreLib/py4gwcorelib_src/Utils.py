@@ -826,7 +826,7 @@ class Utils:
         Convert a skill ID to the dialog ID used by Skill Trainers.
 
         This ORs the skill ID with the skill dialog mask (0x0A000000) to create
-        the dialog ID that can be sent via Player.SendDialog() to learn a skill.
+        the dialog ID that can be sent via Player.SendRawDialog() to learn a skill.
 
         Args:
             skill_id (int): The skill ID to convert.
@@ -836,7 +836,7 @@ class Utils:
 
         Example:
             dialog_id = Utils.SkillIdToDialogId(42)  # Returns 0x0A00002A
-            Player.SendDialog(dialog_id)
+            Player.SendRawDialog(dialog_id)
         """
         SKILL_DIALOG_MASK = 0x0A000000
         return skill_id | SKILL_DIALOG_MASK

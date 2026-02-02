@@ -1,6 +1,7 @@
 from enum import Enum
 from enum import IntEnum
 
+
 class SharedCommandType(IntEnum):
     NoCommand = 0
     TravelToMap = 1
@@ -40,15 +41,13 @@ class SharedCommandType(IntEnum):
     SwitchCharacter = 35
     LoadSkillTemplate = 36
     SkipCutscene = 37
-    SendAgentDialog = 38
+    SendDialog = 38
     TravelToGuildHall = 39
 
-    MultiBoxing = 990 # privately Handled Command, by Frenkey
-    CustomBehaviors = 997 # privately Handled Command, used in CustomBehaviors widget
-    UseSkillCombatPrep = 998 #handled in CombatPrep only by Mark
-    LootEx = 999 # privately Handled Command, by Frenkey
-
-    
+    MultiBoxing = 990  # privately Handled Command, by Frenkey
+    CustomBehaviors = 997  # privately Handled Command, used in CustomBehaviors widget
+    UseSkillCombatPrep = 998  # handled in CombatPrep only by Mark
+    LootEx = 999  # privately Handled Command, by Frenkey
 
 
 class CombatPrepSkillsType(IntEnum):

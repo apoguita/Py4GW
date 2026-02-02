@@ -94,7 +94,7 @@ DIALOG_GROUPS = {
         "note": (
             "Make sure you have one character in team that has the quest Welcome to Cantha uncompleted in the quest log. "
             "Run from The Marketplace to Vizunah Square foreign Center."
-        )
+        ),
     },
     "Sunspears in Cantha": {
         "note": ("Take this quest from Imperial Guardsman Linro in Kaineng Center to spawn Kormir in Bejunkan Pier.")
@@ -151,7 +151,7 @@ def draw_widget():
                         for dialog_id, label in dialogs:
                             button_label = f"{label} [0x{dialog_id:X}]"
                             if PyImGui.button(button_label):
-                                Player.SendAgentDialog(dialog_id)
+                                Player.SendDialog(dialog_id)
 
                         if note:
                             PyImGui.spacing()

@@ -5,6 +5,7 @@ MODULE_NAME = "Skill Learner"
 skill_id_input = 0
 status_message = ""
 
+
 def main():
     global skill_id_input, status_message
 
@@ -17,7 +18,7 @@ def main():
         if PyImGui.button("Learn Skill"):
             if skill_id_input > 0:
                 SKILL_DIALOG_MASK = 0x0A000000
-                Player.SendAgentDialog(skill_id_input | SKILL_DIALOG_MASK)
+                Player.SendDialog(skill_id_input | SKILL_DIALOG_MASK)
                 status_message = f"Sent request to learn skill {skill_id_input}"
             else:
                 status_message = "Please enter a valid Skill ID"
@@ -26,6 +27,7 @@ def main():
             PyImGui.text(status_message)
 
     PyImGui.end()
+
 
 if __name__ == "__main__":
     main()

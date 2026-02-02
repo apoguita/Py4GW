@@ -6,12 +6,15 @@ import json
 try:
     from WindowUtilites import BasicWindow
 except ImportError:
+
     class BasicWindow:
         def __init__(self, window_name="Basic Window", window_size=(350.0, 400.0)):
             self.name = window_name
             self.size = window_size
+
         def Show(self):
             pass
+
 
 class ProUnlockWindow(BasicWindow):
     PROFESSION_PRESETS = [
@@ -72,7 +75,9 @@ class ProUnlockWindow(BasicWindow):
                 return True
             needed = minimum - gold_inv
             if gold_inv + gold_storage < minimum:
-                self.log(f"Warning: Not enough gold. Need {minimum}, have {gold_inv} in inventory and {gold_storage} in storage. The NPC will notify you in-game.")
+                self.log(
+                    f"Warning: Not enough gold. Need {minimum}, have {gold_inv} in inventory and {gold_storage} in storage. The NPC will notify you in-game."
+                )
                 return False
             self.log(f"Withdrawing {needed} gold from storage.")
             Inventory.WithdrawGold(needed)  # or try GLOBAL_CACHE.Inventory.WithdrawGold(needed)
@@ -92,7 +97,7 @@ class ProUnlockWindow(BasicWindow):
                     value = int(dialog_id)
             else:
                 value = int(dialog_id)
-            Player.SendAgentDialog(value)
+            Player.SendDialog(value)
             self.log(f"Sent dialog ID: {dialog_id}")
         except Exception as e:
             self.log(f"Error sending dialog {dialog_id}: {e}")
@@ -136,10 +141,14 @@ class ProUnlockWindow(BasicWindow):
             PyImGui.end()
         # Remove bot_running logic since Start/Pause is gone
 
+
 def configure():
     pass
 
+
 # Main entry for Py4GW
 window = ProUnlockWindow()
+
+
 def main():
-    window.Show() 
+    window.Show()

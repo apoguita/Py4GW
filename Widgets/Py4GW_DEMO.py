@@ -1,20 +1,21 @@
-
 from Py4GWCoreLib import *
 from Py4GWCoreLib.enums import FactionAllegiance
 
-#This script is intended to be a showcase of every Methos and all the data that can be accessed from Py4GW
-#current status, not complete
+# This script is intended to be a showcase of every Methos and all the data that can be accessed from Py4GW
+# current status, not complete
 
 module_name = "Py4GW DEMO"
+
 
 class WindowState:
     def __init__(self):
         self.window_name = ""
-        self.is_window_open =[]
+        self.is_window_open = []
         self.button_list = []
         self.description_list = []
         self.method_mapping = {}
         self.values = []
+
 
 main_window_state = WindowState()
 ImGui_window_state = WindowState()
@@ -54,14 +55,15 @@ mark_target = False
 
 quest_id = 0
 
+
 def ShowQuestWindow():
     global merchant_index, PyMerchant_descriptions, hovered_item
     global w_width, w_height
     global quest_id
-    try: 
+    try:
         PyImGui.set_next_window_size(w_width, height_list[merchant_index])
         if PyImGui.begin(f"Quests"):
-            
+
             PyImGui.text(f"Active Quest ID: {GLOBAL_CACHE.Quest.GetActiveQuest()}")
             quest_id = PyImGui.input_int("Quest ID", quest_id)
 
@@ -71,7 +73,6 @@ def ShowQuestWindow():
             if PyImGui.button("Abandon Quest"):
                 GLOBAL_CACHE.Quest.AbandonQuest(quest_id)
 
-
         PyImGui.end()
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
@@ -79,17 +80,22 @@ def ShowQuestWindow():
         raise
 
 
-    
-PyMerchant_descriptions.values = ["","","","","","","","","","","","",""]
-PyMerchant_descriptions.values[0] = "PyMerchant class is in charge of handling every type of merchant.\nIt has methods pertinent to the merchants, \nTraders, Crafters and Collectors."
-PyMerchant_descriptions.values[1] = """Traders
+PyMerchant_descriptions.values = ["", "", "", "", "", "", "", "", "", "", "", "", ""]
+PyMerchant_descriptions.values[0] = (
+    "PyMerchant class is in charge of handling every type of merchant.\nIt has methods pertinent to the merchants, \nTraders, Crafters and Collectors."
+)
+PyMerchant_descriptions.values[
+    1
+] = """Traders
 	    Material Trader
 	    Rare Material Trader
 	    Rune Trader
 	    Dye Trader
 	    Scroll Trader"""
 PyMerchant_descriptions.values[2] = "Merchants"
-PyMerchant_descriptions.values[3] = """Crafters
+PyMerchant_descriptions.values[
+    3
+] = """Crafters
 	    Weapon Crafters
 	    Armor Crafters
 	    Artisans [Material Crafters]
@@ -98,16 +104,17 @@ PyMerchant_descriptions.values[4] = "Collectors"
 merchant_index = 0
 hovered_item = 0
 
-w_width, w_height = 400,350
-height_list = [450,650,750,800,800,0,0,0,0,0,0,0]
+w_width, w_height = 400, 350
+height_list = [450, 650, 750, 800, 800, 0, 0, 0, 0, 0, 0, 0]
 
 item_id = 0
 item_to_pay = 0
-cost= 0 
+cost = 0
 quote_requested = False
 quantity = 0
 trade_item_list = []
 quantity_list = []
+
 
 def ShowMerchantWindow():
     global merchant_index, PyMerchant_descriptions, hovered_item
@@ -115,12 +122,17 @@ def ShowMerchantWindow():
     global item_id, cost
     global quote_requested, quantity, item_to_pay
     global trade_item_list, quantity_list
-    try: 
+    try:
         PyImGui.set_next_window_size(w_width, height_list[merchant_index])
         if PyImGui.begin(f"Merchants, Traders, Crafters and Collectors"):
-            #ImGui.DrawTextWithTitle("PyMerchant class", PyMerchant_descriptions.values[merchant_index],8)
+            # ImGui.DrawTextWithTitle("PyMerchant class", PyMerchant_descriptions.values[merchant_index],8)
 
-            if PyImGui.begin_child("Merchant Description Child", size=(w_width-20, 150),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+            if PyImGui.begin_child(
+                "Merchant Description Child",
+                size=(w_width - 20, 150),
+                border=True,
+                flags=PyImGui.WindowFlags.HorizontalScrollbar,
+            ):
                 PyImGui.text(f"{PyMerchant_descriptions.values[merchant_index]}")
                 PyImGui.end_child()
 
@@ -135,7 +147,7 @@ def ShowMerchantWindow():
             quoted_value = GLOBAL_CACHE.Trading.Trader.GetQuotedValue()
             transaction_complete = GLOBAL_CACHE.Trading.IsTransactionComplete()
             hover = GLOBAL_CACHE.Inventory.GetHoveredItemID()
-            if hover != 0 :
+            if hover != 0:
                 hovered_item = hover
 
             headers = ["Value", "Data"]
@@ -151,12 +163,20 @@ def ShowMerchantWindow():
 
             if merchant_index == 1:
                 PyImGui.text("Items Offered")
-                
 
                 if not item_list:
                     PyImGui.text("Interact with a trader to see their available Items")
                 else:
-                    if PyImGui.begin_table("Scrollable Table", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.ScrollX | PyImGui.TableFlags.ScrollY | PyImGui.TableFlags.SizingStretchSame, w_width - 20, 150):
+                    if PyImGui.begin_table(
+                        "Scrollable Table",
+                        5,
+                        PyImGui.TableFlags.Borders
+                        | PyImGui.TableFlags.ScrollX
+                        | PyImGui.TableFlags.ScrollY
+                        | PyImGui.TableFlags.SizingStretchSame,
+                        w_width - 20,
+                        150,
+                    ):
                         for index, item in enumerate(item_list):
                             if index % 5 == 0:
                                 PyImGui.table_next_row()
@@ -168,7 +188,16 @@ def ShowMerchantWindow():
                 if not merchant_item_list:
                     PyImGui.text("Interact with a merchant/crafter/collector to see their available Items")
                 else:
-                    if PyImGui.begin_table("Scrollable merchant Table", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.ScrollX | PyImGui.TableFlags.ScrollY | PyImGui.TableFlags.SizingStretchSame, w_width - 20, 150):
+                    if PyImGui.begin_table(
+                        "Scrollable merchant Table",
+                        5,
+                        PyImGui.TableFlags.Borders
+                        | PyImGui.TableFlags.ScrollX
+                        | PyImGui.TableFlags.ScrollY
+                        | PyImGui.TableFlags.SizingStretchSame,
+                        w_width - 20,
+                        150,
+                    ):
                         for index, item in enumerate(merchant_item_list):
                             if index % 5 == 0:
                                 PyImGui.table_next_row()
@@ -183,7 +212,7 @@ def ShowMerchantWindow():
                 PyImGui.text(f"Cost: {quoted_value}")
                 cost = quoted_value
             else:
-                if merchant_index in [1,2,3]:
+                if merchant_index in [1, 2, 3]:
                     cost = PyImGui.input_int("Cost", cost)
                 else:
                     cost = 0
@@ -194,7 +223,6 @@ def ShowMerchantWindow():
                 item_to_pay = PyImGui.input_int("Item to Pay with", item_to_pay)
                 quantity = PyImGui.input_int("Quantity", quantity)
 
-
             if merchant_index == 1:
                 if PyImGui.begin_table("QuoteButtonTable", 2):
                     PyImGui.table_next_row()
@@ -202,9 +230,9 @@ def ShowMerchantWindow():
 
                     if PyImGui.button("Request Trader Quote"):
                         GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
-                
+
                     PyImGui.table_set_column_index(1)
-                
+
                     if PyImGui.button("Request Trader Sell Quote"):
                         GLOBAL_CACHE.Trading.Trader.RequestSellQuote(item_id)
 
@@ -239,7 +267,7 @@ def ShowMerchantWindow():
 
                     PyImGui.end_table()
 
-            if merchant_index in [3,4]:
+            if merchant_index in [3, 4]:
                 if PyImGui.begin_table("CrafterButtonTable", 2):
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
@@ -256,7 +284,16 @@ def ShowMerchantWindow():
 
                     PyImGui.end_table()
 
-                if PyImGui.begin_table("Scrollable MultiItem Table", 2, PyImGui.TableFlags.Borders | PyImGui.TableFlags.ScrollX | PyImGui.TableFlags.ScrollY | PyImGui.TableFlags.SizingStretchSame, w_width - 20, 100):
+                if PyImGui.begin_table(
+                    "Scrollable MultiItem Table",
+                    2,
+                    PyImGui.TableFlags.Borders
+                    | PyImGui.TableFlags.ScrollX
+                    | PyImGui.TableFlags.ScrollY
+                    | PyImGui.TableFlags.SizingStretchSame,
+                    w_width - 20,
+                    100,
+                ):
                     for index, item in enumerate(trade_item_list):
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
@@ -291,31 +328,42 @@ def ShowMerchantWindow():
 
 
 Py4GW_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-Py4GW_descriptions.values = ["","","","","","","","","","","","",""]
-Py4GW_descriptions.values[0] = "Py4Gw Provides a set of complementary classes that will aid in the development of scripts.\nRefer to the code for the complete instruction set."
-Py4GW_descriptions.values[1] = "PyKeystroke class is in charge of handling the keystrokes.\nIt provides methods to send keystrokes aswell as key combos.\nIt has methods pertinent to the keystrokes and related to controlling key, keybind actions. \nYou can Interact with the game Keybind Engine aswell as controlling your character."
-Py4GW_descriptions.values[2] = "PingHandler class is in charge of getting latency data froim the game.\nIt stores a given number of ticks in history and can handle basic statistics."       
-Py4GW_descriptions.values[3] = "Timer class is in charge of handling timers.\n It provides methods to create, start, stop, and reset timers.\nIt has methods pertinent to the timers and related to controlling timer actions."
-Py4GW_descriptions.values[4] = "Overlay() class is in charge of handling the Overlay().\nIt provides methods to show, hide, and toggle the Overlay().\nIt has methods pertinent to the Overlay() and related to controlling Overlay() actions."
+Py4GW_descriptions.values = ["", "", "", "", "", "", "", "", "", "", "", "", ""]
+Py4GW_descriptions.values[0] = (
+    "Py4Gw Provides a set of complementary classes that will aid in the development of scripts.\nRefer to the code for the complete instruction set."
+)
+Py4GW_descriptions.values[1] = (
+    "PyKeystroke class is in charge of handling the keystrokes.\nIt provides methods to send keystrokes aswell as key combos.\nIt has methods pertinent to the keystrokes and related to controlling key, keybind actions. \nYou can Interact with the game Keybind Engine aswell as controlling your character."
+)
+Py4GW_descriptions.values[2] = (
+    "PingHandler class is in charge of getting latency data froim the game.\nIt stores a given number of ticks in history and can handle basic statistics."
+)
+Py4GW_descriptions.values[3] = (
+    "Timer class is in charge of handling timers.\n It provides methods to create, start, stop, and reset timers.\nIt has methods pertinent to the timers and related to controlling timer actions."
+)
+Py4GW_descriptions.values[4] = (
+    "Overlay() class is in charge of handling the Overlay().\nIt provides methods to show, hide, and toggle the Overlay().\nIt has methods pertinent to the Overlay() and related to controlling Overlay() actions."
+)
 
 description_index = 0
 
+
 def ShowPy4GW_Window_main():
     global Py4GW_window_state, Py4GW_descriptions, description_index, ping_handler, timer_instance
-    global show_mouse_world_pos, show_area_rings,mark_target
+    global show_mouse_world_pos, show_area_rings, mark_target
     global test_keystroke
-    try: 
-        width, height = 500,800
+    try:
+        width, height = 500, 800
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Py4GW"):
-           
-            ImGui.DrawTextWithTitle("Py4GW class", Py4GW_descriptions.values[description_index],7)   
+
+            ImGui.DrawTextWithTitle("Py4GW class", Py4GW_descriptions.values[description_index], 7)
 
             PyImGui.separator()
             if PyImGui.collapsing_header("PyKeystroke"):
                 if PyImGui.button("Show PyKeystroke Info"):
                     description_index = 1
-            
+
                 PyImGui.separator()
 
                 key_names = [key.name for key in Key]
@@ -325,7 +373,7 @@ def ShowPy4GW_Window_main():
                 Py4GW_window_state.values[1] = PyImGui.combo(
                     "Key Combo",
                     Py4GW_window_state.values[1],  # Current selected index
-                    key_names  # List of options to display
+                    key_names,  # List of options to display
                 )
 
                 selected_key_name = key_names[Py4GW_window_state.values[1]]
@@ -351,14 +399,13 @@ def ShowPy4GW_Window_main():
                     if PyImGui.button(f"Push Keystroke {selected_key_name}"):
                         Keystroke.PressAndRelease(selected_key.value)
 
-                    PyImGui.end_table() 
+                    PyImGui.end_table()
 
             PyImGui.separator()
 
             if PyImGui.collapsing_header("PingHandler"):
                 if PyImGui.button("Show PingHandler Info"):
                     description_index = 2
-
 
                 current_ping = ping_handler.GetCurrentPing()
                 average_ping = ping_handler.GetAveragePing()
@@ -371,8 +418,8 @@ def ShowPy4GW_Window_main():
                     ("Current Ping:", current_ping),
                     ("Average Ping:", average_ping),
                     ("Min Ping:", min_ping),
-                    ("Max Ping:", max_ping)
-                 ]
+                    ("Max Ping:", max_ping),
+                ]
 
                 ImGui.table("PingHandler info", headers, data)
 
@@ -393,8 +440,8 @@ def ShowPy4GW_Window_main():
                     ("Is Stopped:", is_stopped),
                     ("Is Running:", is_running),
                     ("Is Paused:", is_paused),
-                    ("Has Elapsed 5000ms:", has_elapsed_5000ms) 
-                 ]
+                    ("Has Elapsed 5000ms:", has_elapsed_5000ms),
+                ]
 
                 if PyImGui.button("Start Timer"):
                     timer_instance.Start()
@@ -417,9 +464,7 @@ def ShowPy4GW_Window_main():
                 mouse_x, mouse_y = Overlay().GetMouseCoords()
 
                 headers = ["Mouse X", "Mouse Y"]
-                data = [
-                    (mouse_x, mouse_y)
-                ]
+                data = [(mouse_x, mouse_y)]
 
                 ImGui.table("Overlay() info", headers, data)
 
@@ -428,20 +473,30 @@ def ShowPy4GW_Window_main():
                     target_id = Player.GetTargetID()
                     if target_id:
                         target_x, target_y, target_z = Agent.GetXYZ(target_id)
-                        Overlay().DrawPoly3D(target_x, target_y, target_z, radius=72, color=0xFFFF0000,numsegments=32,thickness=5.0)
+                        Overlay().DrawPoly3D(
+                            target_x, target_y, target_z, radius=72, color=0xFFFF0000, numsegments=32, thickness=5.0
+                        )
                         z_coord = Overlay().FindZ(target_x, target_y)
                         screen_x, screen_y = Overlay().WorldToScreen(target_x, target_y, z_coord)
-                        Overlay().DrawText3D(target_x, target_y, target_z-130, "TARGET", color=0xFFFF0000, autoZ=False, centered=True, scale=2.0)
+                        Overlay().DrawText3D(
+                            target_x,
+                            target_y,
+                            target_z - 130,
+                            "TARGET",
+                            color=0xFFFF0000,
+                            autoZ=False,
+                            centered=True,
+                            scale=2.0,
+                        )
 
-
-                show_mouse_world_pos= PyImGui.checkbox("Show Mouse World Position", show_mouse_world_pos)
+                show_mouse_world_pos = PyImGui.checkbox("Show Mouse World Position", show_mouse_world_pos)
                 if show_mouse_world_pos:
-                    PyImGui.text_colored("Do not abuse this function!",(1, 0, 0, 1))
-                    PyImGui.text_colored("it is unstable on some conditions",(1, 0, 0, 1))
-                    x,y,z = Overlay().GetMouseWorldPos()
+                    PyImGui.text_colored("Do not abuse this function!", (1, 0, 0, 1))
+                    PyImGui.text_colored("it is unstable on some conditions", (1, 0, 0, 1))
+                    x, y, z = Overlay().GetMouseWorldPos()
                     agent_id = Player.GetAgentID()
                     player_x, player_y, player_z = Agent.GetXYZ(agent_id)
-                    
+
                     headers = ["X", "Y", "Z"]
                     data = [
                         (f"{x:.2f}", f"{y:.2f}", f"{z:.2f}"),
@@ -450,9 +505,7 @@ def ShowPy4GW_Window_main():
                     ImGui.table("Mouse World Position", headers, data)
 
                     headers = ["PlayerX", "PlayerY", "PlayerZ"]
-                    data = [
-                        (f"{player_x:.2f}", f"{player_y:.2f}", f"{player_z:.2f}")
-                    ]
+                    data = [(f"{player_x:.2f}", f"{player_y:.2f}", f"{player_z:.2f}")]
 
                     ImGui.table("Player Position", headers, data)
 
@@ -463,7 +516,7 @@ def ShowPy4GW_Window_main():
                 if show_area_rings:
                     player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID())
 
-                    #GW Areas
+                    # GW Areas
                     Touch = 144
                     Adjacent = 166
                     Nearby = 252
@@ -474,12 +527,39 @@ def ShowPy4GW_Window_main():
                     Compass = 5000
 
                     segments = 64
-                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=72, color=0xFF1E90FF,numsegments=segments,thickness=5.0)
-                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Touch, color=0xAB5A1EFF,numsegments=segments,thickness=5.0)
-                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Adjacent, color=0x3BC154FF,numsegments=segments,thickness=5.0)
-                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Nearby, color=0xE39626FF,numsegments=segments,thickness=5.0)
-                    Overlay().DrawPoly3D(player_x, player_y, player_z, radius=Area, color=0xE3357EFF,numsegments=segments,thickness=5.0)
-
+                    Overlay().DrawPoly3D(
+                        player_x, player_y, player_z, radius=72, color=0xFF1E90FF, numsegments=segments, thickness=5.0
+                    )
+                    Overlay().DrawPoly3D(
+                        player_x,
+                        player_y,
+                        player_z,
+                        radius=Touch,
+                        color=0xAB5A1EFF,
+                        numsegments=segments,
+                        thickness=5.0,
+                    )
+                    Overlay().DrawPoly3D(
+                        player_x,
+                        player_y,
+                        player_z,
+                        radius=Adjacent,
+                        color=0x3BC154FF,
+                        numsegments=segments,
+                        thickness=5.0,
+                    )
+                    Overlay().DrawPoly3D(
+                        player_x,
+                        player_y,
+                        player_z,
+                        radius=Nearby,
+                        color=0xE39626FF,
+                        numsegments=segments,
+                        thickness=5.0,
+                    )
+                    Overlay().DrawPoly3D(
+                        player_x, player_y, player_z, radius=Area, color=0xE3357EFF, numsegments=segments, thickness=5.0
+                    )
 
         PyImGui.end()
     except Exception as e:
@@ -489,9 +569,11 @@ def ShowPy4GW_Window_main():
 
 
 PySkill_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+
 def ShowEffectsWindow():
-    try: 
-        width, height = 600,300
+    try:
+        width, height = 600, 300
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Buffs and Effects"):
 
@@ -499,18 +581,30 @@ def ShowEffectsWindow():
             effect_list = GLOBAL_CACHE.Effects.GetEffects(Player.GetAgentID())
 
             effects_headers = ["Effect ID", "Skill ID", "Skill Name", "Duration", "Attr. Level", "Time Remaining"]
-            effects_data = [(effect.effect_id, effect.skill_id, PySkill.Skill(effect.skill_id).id.GetName(), 
-                            effect.duration, effect.attribute_level, effect.time_remaining) for effect in effect_list]
+            effects_data = [
+                (
+                    effect.effect_id,
+                    effect.skill_id,
+                    PySkill.Skill(effect.skill_id).id.GetName(),
+                    effect.duration,
+                    effect.attribute_level,
+                    effect.time_remaining,
+                )
+                for effect in effect_list
+            ]
 
             ImGui.table("Effects", effects_headers, effects_data)
 
-            buffs_headers = ["Buff ID", "Skill ID","Name", "Target Agent"]
-            buffs_data = [(buff.buff_id, buff.skill_id,PySkill.Skill(buff.skill_id).id.GetName(), buff.target_agent_id) for buff in buff_list]
-            
+            buffs_headers = ["Buff ID", "Skill ID", "Name", "Target Agent"]
+            buffs_data = [
+                (buff.buff_id, buff.skill_id, PySkill.Skill(buff.skill_id).id.GetName(), buff.target_agent_id)
+                for buff in buff_list
+            ]
+
             ImGui.table("Buffs", buffs_headers, buffs_data)
 
             PySkill_window_state.values[0] = PyImGui.input_int("Buff ID", PySkill_window_state.values[0])
-            PySkill_window_state.values[1]  = ImGui.toggle_button("Drop Buff", PySkill_window_state.values[1])
+            PySkill_window_state.values[1] = ImGui.toggle_button("Drop Buff", PySkill_window_state.values[1])
 
             if PySkill_window_state.values[1]:
                 GLOBAL_CACHE.Effects.DropBuff(PySkill_window_state.values[0])
@@ -521,10 +615,11 @@ def ShowEffectsWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowEffectsWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 def ShowSkillbarWindow():
     global PyAgent_agent_window_state
-    try: 
-        width, height = 300,500
+    try:
+        width, height = 300, 500
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Skillbar"):
 
@@ -548,10 +643,10 @@ def ShowSkillbarWindow():
                             ("Adrenaline A:", adrenaline_a),
                             ("Adrenaline B:", adrenaline_b),
                             ("Recharge(cast timestamp):", recharge),
-                            ("Event:", event)
+                            ("Event:", event),
                         ]
                         ImGui.table("skillbar skill info" + str(skill_slot), headers, data)
-            
+
             if Party.GetHeroCount == 0:
                 PyImGui.text("No Heroes in Party")
             else:
@@ -568,9 +663,9 @@ def ShowSkillbarWindow():
 
                             hero_skillbar = GLOBAL_CACHE.SkillBar.GetHeroSkillbar(hero_index)
 
-                            for skill_slot in range(1, 9): 
+                            for skill_slot in range(1, 9):
                                 if skill_slot - 1 < len(hero_skillbar):  # Ensure the index is valid
-                                    skill = hero_skillbar[skill_slot-1]
+                                    skill = hero_skillbar[skill_slot - 1]
                                     skill_name = GLOBAL_CACHE.Skill.GetName(skill.id.id)
 
                                     if PyImGui.collapsing_header(skill_name):
@@ -588,11 +683,9 @@ def ShowSkillbarWindow():
                                             ("Adrenaline A:", adrenaline_a),
                                             ("Adrenaline B:", adrenaline_b),
                                             ("Recharge(cast timestamp):", recharge),
-                                            ("Event:", event)
+                                            ("Event:", event),
                                         ]
                                         ImGui.table("hero skillbar skill info" + str(skill_slot), headers, data)
-
-                    
 
         PyImGui.end()
     except Exception as e:
@@ -600,28 +693,28 @@ def ShowSkillbarWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowAgentArrayWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 def ShowSkillDataWindow(skill_id):
     global PyAgent_agent_window_state
-    try: 
-        width, height = 550,600
+    try:
+        width, height = 550, 600
         PyImGui.set_next_window_size(width, height)
-        if PyImGui.begin(f"Skill" + str(skill_id)):  
+        if PyImGui.begin(f"Skill" + str(skill_id)):
 
-            
             name = GLOBAL_CACHE.Skill.GetName(skill_id)
             type_id, type_name = GLOBAL_CACHE.Skill.GetType(skill_id)
             campaign_id, campaign_name = GLOBAL_CACHE.Skill.GetCampaign(skill_id)
             profession_id, profession_name = GLOBAL_CACHE.Skill.GetProfession(skill_id)
 
-            headers = ["Values","Data"]
+            headers = ["Values", "Data"]
             data = [
                 ("skill_id:", skill_id),
                 ("Name:", name),
                 ("Type:", f"{type_id} - {type_name}"),
                 ("Campaign:", f"{campaign_id} - {campaign_name}"),
-                ("Profession:", f"{profession_id} - {profession_name}")
+                ("Profession:", f"{profession_id} - {profession_name}"),
             ]
-            
+
             ImGui.table("skill comon info" + str(skill_id), headers, data)
 
             if PyImGui.collapsing_header("Skill Data"):
@@ -641,7 +734,7 @@ def ShowSkillDataWindow(skill_id):
                 recharge2 = GLOBAL_CACHE.Skill.Data.GetRecharge2(skill_id)
                 aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(skill_id)
 
-                headers = ["Values","Data"]
+                headers = ["Values", "Data"]
                 data = [
                     ("Combo:", combo),
                     ("Combo Req:", combo_req),
@@ -656,13 +749,13 @@ def ShowSkillDataWindow(skill_id):
                     ("Aftercast:", aftercast),
                     ("Recharge:", recharge),
                     ("Recharge2:", recharge2),
-                    ("Aoe Range:", aoe_range)
+                    ("Aoe Range:", aoe_range),
                 ]
-            
+
                 ImGui.table("skill data info" + str(skill_id), headers, data)
 
             if PyImGui.collapsing_header("Attribute"):
-                
+
                 attribute = GLOBAL_CACHE.Skill.Attribute.GetAttribute(skill_id)
                 attribute_name = attribute.GetName()
                 attribute_level = attribute.level
@@ -671,8 +764,7 @@ def ShowSkillDataWindow(skill_id):
                 bonus_ascale0, bonus_ascale15 = GLOBAL_CACHE.Skill.Attribute.GetBonusScale(skill_id)
                 duration_0, duration_15 = GLOBAL_CACHE.Skill.Attribute.GetDuration(skill_id)
 
-
-                headers = ["Values","Data"]
+                headers = ["Values", "Data"]
                 data = [
                     ("Name:", attribute_name),
                     ("Level:", attribute_level),
@@ -682,9 +774,9 @@ def ShowSkillDataWindow(skill_id):
                     ("Bonus Scale 0:", bonus_ascale0),
                     ("Bonus Scale 15:", bonus_ascale15),
                     ("Duration 0:", duration_0),
-                    ("Duration 15:", duration_15)
+                    ("Duration 15:", duration_15),
                 ]
-            
+
                 ImGui.table("skill attribute info" + str(skill_id), headers, data)
 
             if PyImGui.collapsing_header("Flags"):
@@ -727,8 +819,7 @@ def ShowSkillDataWindow(skill_id):
                 is_echo_refrain = GLOBAL_CACHE.Skill.Flags.IsEchoRefrain(skill_id)
                 is_disguise = GLOBAL_CACHE.Skill.Flags.IsDisguise(skill_id)
 
-
-                headers = ["Values","Data"]
+                headers = ["Values", "Data"]
                 data = [
                     ("Is Touch Range:", is_touch_range),
                     ("Is Elite:", is_elite),
@@ -767,9 +858,9 @@ def ShowSkillDataWindow(skill_id):
                     ("Is Form:", is_form),
                     ("Is Chant:", is_chant),
                     ("Is Echo Refrain:", is_echo_refrain),
-                    ("Is Disguise:", is_disguise)
+                    ("Is Disguise:", is_disguise),
                 ]
-                
+
                 ImGui.table("skill flags info" + str(skill_id), headers, data)
 
             if PyImGui.collapsing_header("Animations"):
@@ -781,10 +872,12 @@ def ShowSkillDataWindow(skill_id):
                 caster_body_animation_id = GLOBAL_CACHE.Skill.Animations.GetCasterBodyAnimationID(skill_id)
                 target_body_animation_id = GLOBAL_CACHE.Skill.Animations.GetTargetBodyAnimationID(skill_id)
                 target_overhead_animation_id = GLOBAL_CACHE.Skill.Animations.GetTargetOverheadAnimationID(skill_id)
-                projectile_animation_1,projectile_animation_2 = GLOBAL_CACHE.Skill.Animations.GetProjectileAnimationID(skill_id)
+                projectile_animation_1, projectile_animation_2 = GLOBAL_CACHE.Skill.Animations.GetProjectileAnimationID(
+                    skill_id
+                )
                 icon_file_id1, icon_file_id2 = GLOBAL_CACHE.Skill.Animations.GetIconFileID(skill_id)
 
-                headers = ["Values","Data"]
+                headers = ["Values", "Data"]
 
                 data = [
                     ("Effect 1:", effect1),
@@ -798,7 +891,7 @@ def ShowSkillDataWindow(skill_id):
                     ("Projectile Animation 1:", projectile_animation_1),
                     ("Projectile Animation 2:", projectile_animation_2),
                     ("Icon File ID 1:", icon_file_id1),
-                    ("Icon File ID 2:", icon_file_id2)
+                    ("Icon File ID 2:", icon_file_id2),
                 ]
 
                 ImGui.table("skill animations info" + str(skill_id), headers, data)
@@ -814,7 +907,7 @@ def ShowSkillDataWindow(skill_id):
                 concise = GLOBAL_CACHE.Skill.ExtraData.GetConcise(skill_id)
                 description_id = GLOBAL_CACHE.Skill.ExtraData.GetDescriptionID(skill_id)
 
-                headers = ["Values","Data"]
+                headers = ["Values", "Data"]
                 data = [
                     ("Condition:", condition),
                     ("Title:", title),
@@ -824,7 +917,7 @@ def ShowSkillDataWindow(skill_id):
                     ("Skill Arguments:", skill_arguments),
                     ("Name ID:", name_id),
                     ("Concise:", concise),
-                    ("Description ID:", description_id)
+                    ("Description ID:", description_id),
                 ]
 
                 ImGui.table("skill extra data info" + str(skill_id), headers, data)
@@ -835,29 +928,30 @@ def ShowSkillDataWindow(skill_id):
         Py4GW.Console.Log(module_name, f"Error in ShowSkillDataWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 PySkill_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+
 def ShowSkillWindow():
     global PyAgent_agent_window_state
-    try: 
-        width, height = 550,300
+    try:
+        width, height = 550, 300
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Skill"):
 
             description = "Skill class is in charge of handling the skills.\nIt provides methods to retrieve skill data, like skill name, description, type, etc.\nIt has methods pertinent to the skill and related to controlling skill actions."
-            ImGui.DrawTextWithTitle("AgentArray class", description,6)   
+            ImGui.DrawTextWithTitle("AgentArray class", description, 6)
 
             hovered_skill = GLOBAL_CACHE.SkillBar.GetHoveredSkillID()
-            headers = ["Hovered Skill","Name"]
-            data = [
-                (hovered_skill, GLOBAL_CACHE.Skill.GetName(hovered_skill).replace("_", " "))
-            ]
-            
+            headers = ["Hovered Skill", "Name"]
+            data = [(hovered_skill, GLOBAL_CACHE.Skill.GetName(hovered_skill).replace("_", " "))]
+
             ImGui.table("hovered info", headers, data)
 
             PySkill_window_state.values[0] = PyImGui.input_int("SkillID", PySkill_window_state.values[0])
-            PySkill_window_state.values[1]  = ImGui.toggle_button("Show Item Data", PySkill_window_state.values[1])
+            PySkill_window_state.values[1] = ImGui.toggle_button("Show Item Data", PySkill_window_state.values[1])
 
-            if  PySkill_window_state.values[1]:
+            if PySkill_window_state.values[1]:
                 ShowSkillDataWindow(PySkill_window_state.values[0])
 
         PyImGui.end()
@@ -866,31 +960,33 @@ def ShowSkillWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowSkillWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 inventory_handler = PyInventory.PyInventory()
+
 
 def ShowInventoryWindow():
     global PyAgent_agent_window_state, inventory_handler, salvage_timer
-    try: 
-        width, height = 500,500
+    try:
+        width, height = 500, 500
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Inventory"):
 
             description = """The ItemArray class is in charge of handling the items in the game.\nIt provides methods to retrieve item data, like item type, rarity, properties, etc.\n They can be filtered, sorted, and manipulated in a way that is useful for inventory analysis.\nRefer to code for complete instruction set."""
 
-            ImGui.DrawTextWithTitle("Inventory class", description,7) 
-            
+            ImGui.DrawTextWithTitle("Inventory class", description, 7)
+
             def format_currency(amount):
-                platinum = amount // 1000 
-                gold = amount % 1000 
+                platinum = amount // 1000
+                gold = amount % 1000
                 return f"{platinum} plat {gold} gold"
 
-            headers = ["Value","Data"]
+            headers = ["Value", "Data"]
             data = [
                 ("Hovered ItemID:", GLOBAL_CACHE.Inventory.GetHoveredItemID()),
                 ("ID Kit with lowest uses:", GLOBAL_CACHE.Inventory.GetFirstIDKit()),
                 ("Salvage Kit with lowest uses", GLOBAL_CACHE.Inventory.GetFirstSalvageKit()),
                 ("First Unidentified Item in bags:", GLOBAL_CACHE.Inventory.GetFirstUnidentifiedItem()),
-                ("Fisrt Unsalvaged Item on Bags",GLOBAL_CACHE.Inventory.GetFirstSalvageableItem()),
+                ("Fisrt Unsalvaged Item on Bags", GLOBAL_CACHE.Inventory.GetFirstSalvageableItem()),
                 ("Gold On Character:", format_currency(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())),
                 ("Gold In Storage:", format_currency(GLOBAL_CACHE.Inventory.GetGoldInStorage())),
             ]
@@ -917,26 +1013,24 @@ def ShowInventoryWindow():
                     return False
 
                 # Use the Salvage Kit to salvage the item
-                GLOBAL_CACHE.Inventory.SalvageItem(salvage_item_id,salvage_kit_id)
-                Py4GW.Console.Log("SalvageFirst", f"Started salvaging item with Item ID: {salvage_item_id} using Salvage Kit ID: {salvage_kit_id}")
+                GLOBAL_CACHE.Inventory.SalvageItem(salvage_item_id, salvage_kit_id)
+                Py4GW.Console.Log(
+                    "SalvageFirst",
+                    f"Started salvaging item with Item ID: {salvage_item_id} using Salvage Kit ID: {salvage_kit_id}",
+                )
 
             if PyImGui.button("Handle Salvage UI"):
                 inventory_handler.AcceptSalvageWindow()
-
 
             PyImGui.separator()
             if GLOBAL_CACHE.Inventory.IsStorageOpen():
                 button_caption = "Inventory Open"
             else:
                 button_caption = "Inventory Closed"
-            
+
             PyImGui.text(button_caption)
             if PyImGui.button("Open Xunlai Chest"):
                 GLOBAL_CACHE.Inventory.OpenXunlaiWindow()
-
-
-
-
 
         PyImGui.end()
     except Exception as e:
@@ -944,59 +1038,59 @@ def ShowInventoryWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowInventoryWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 def format_binary_grouped(value: int, group_size: int = 4) -> str:
     binary_str = bin(value)[2:]  # strip the "0b"
     pad_len = (group_size - len(binary_str) % group_size) % group_size
     binary_str = '0' * pad_len + binary_str
-    return ' '.join(binary_str[i:i + group_size] for i in range(0, len(binary_str), group_size))
+    return ' '.join(binary_str[i : i + group_size] for i in range(0, len(binary_str), group_size))
 
 
 _item_names = {}
 
+
 def ShowItemDataWindow(item_id):
     global _item_name
-    try: 
-        width, height = 700,700
+    try:
+        width, height = 700, 700
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Item: " + str(item_id)):
             pass
-            
+
             item_type_id, item_type_name = GLOBAL_CACHE.Item.GetItemType(item_id)
-            
+
             if item_id in _item_names:
                 item_name = _item_names[item_id]
             else:
-                #item_name = GLOBAL_CACHE.Item.GetName(item_id)
+                # item_name = GLOBAL_CACHE.Item.GetName(item_id)
                 item_name = ""
                 if item_name:  # Only cache if a valid (non-empty) name is returned
                     _item_names[item_id] = item_name
                 else:
                     item_name = "Not recieved"  # Show placeholder, don't cache yet
 
-                
-
-            headers = ["Value","Data"]
+            headers = ["Value", "Data"]
             data = [
                 ("Item Name:", item_name),
                 ("Item Type:", f"{item_type_id} - {item_type_name}"),
                 ("Model Id:", GLOBAL_CACHE.Item.GetModelID(item_id)),
                 ("Model File Id:", GLOBAL_CACHE.Item.GetModelFileID(item_id)),
                 ("Slot(pick up to see):", GLOBAL_CACHE.Item.GetSlot(item_id)),
-                ("AgentId(drop in ground to see)",GLOBAL_CACHE.Item.GetAgentID(item_id)),
-                ("AgentItemID",GLOBAL_CACHE.Item.GetAgentItemID(item_id)),
+                ("AgentId(drop in ground to see)", GLOBAL_CACHE.Item.GetAgentID(item_id)),
+                ("AgentItemID", GLOBAL_CACHE.Item.GetAgentItemID(item_id)),
             ]
 
             ImGui.table("Item common info", headers, data)
-            
+
             if PyImGui.collapsing_header("Rarity"):
-            
+
                 rarity_id, rarity_name = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
                 is_white = GLOBAL_CACHE.Item.Rarity.IsWhite(item_id)
                 is_blue = GLOBAL_CACHE.Item.Rarity.IsBlue(item_id)
                 is_purple = GLOBAL_CACHE.Item.Rarity.IsPurple(item_id)
                 is_gold = GLOBAL_CACHE.Item.Rarity.IsGold(item_id)
                 is_green = GLOBAL_CACHE.Item.Rarity.IsGreen(item_id)
-                
+
                 if is_white:
                     rarity_name = "White"
                 elif is_blue:
@@ -1007,28 +1101,25 @@ def ShowItemDataWindow(item_id):
                     rarity_name = "Gold"
                 elif is_green:
                     rarity_name = "Green"
-                    
+
                 PyImGui.text(f"Rarity: {rarity_name}")
 
                 headers = ["Rarity Type", "Rarity"]
-                data = [
-                    (rarity_id,rarity_name)
-                ]
+                data = [(rarity_id, rarity_name)]
 
                 ImGui.table("Item rarity common info", headers, data)
 
             if PyImGui.collapsing_header("Properties"):
-                
-   
+
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsCustomized:",GLOBAL_CACHE.Item.Properties.IsCustomized(item_id)),
-                    ("Value:",GLOBAL_CACHE.Item.Properties.GetValue(item_id)),
-                    ("Quantity:",GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)),
-                    ("IsEquipped:",GLOBAL_CACHE.Item.Properties.IsEquipped(item_id)),
-                    ("Profession:",GLOBAL_CACHE.Item.Properties.GetProfession(item_id)),
-                    ("Interaction:",GLOBAL_CACHE.Item.Properties.GetInteraction(item_id)),
-                    ("Interaction(Bin):",bin(GLOBAL_CACHE.Item.Properties.GetInteraction(item_id))),
+                    ("IsCustomized:", GLOBAL_CACHE.Item.Properties.IsCustomized(item_id)),
+                    ("Value:", GLOBAL_CACHE.Item.Properties.GetValue(item_id)),
+                    ("Quantity:", GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)),
+                    ("IsEquipped:", GLOBAL_CACHE.Item.Properties.IsEquipped(item_id)),
+                    ("Profession:", GLOBAL_CACHE.Item.Properties.GetProfession(item_id)),
+                    ("Interaction:", GLOBAL_CACHE.Item.Properties.GetInteraction(item_id)),
+                    ("Interaction(Bin):", bin(GLOBAL_CACHE.Item.Properties.GetInteraction(item_id))),
                 ]
                 ImGui.table("Item properties common info", headers, data)
 
@@ -1036,14 +1127,14 @@ def ShowItemDataWindow(item_id):
 
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsWeapon:",GLOBAL_CACHE.Item.Type.IsWeapon(item_id)),
-                    ("IsArmor:",GLOBAL_CACHE.Item.Type.IsArmor(item_id)),
-                    ("IsInventoryItem:",GLOBAL_CACHE.Item.Type.IsInventoryItem(item_id)),
-                    ("IsStorageItem:",GLOBAL_CACHE.Item.Type.IsStorageItem(item_id)),
-                    ("IsMaterial:",GLOBAL_CACHE.Item.Type.IsMaterial(item_id)),
-                    ("IsRareMaterial:",GLOBAL_CACHE.Item.Type.IsMaterial(item_id)),
-                    ("IsZCoin:",GLOBAL_CACHE.Item.Type.IsZCoin(item_id)),
-                    ("IsTome",GLOBAL_CACHE.Item.Type.IsTome(item_id)),
+                    ("IsWeapon:", GLOBAL_CACHE.Item.Type.IsWeapon(item_id)),
+                    ("IsArmor:", GLOBAL_CACHE.Item.Type.IsArmor(item_id)),
+                    ("IsInventoryItem:", GLOBAL_CACHE.Item.Type.IsInventoryItem(item_id)),
+                    ("IsStorageItem:", GLOBAL_CACHE.Item.Type.IsStorageItem(item_id)),
+                    ("IsMaterial:", GLOBAL_CACHE.Item.Type.IsMaterial(item_id)),
+                    ("IsRareMaterial:", GLOBAL_CACHE.Item.Type.IsMaterial(item_id)),
+                    ("IsZCoin:", GLOBAL_CACHE.Item.Type.IsZCoin(item_id)),
+                    ("IsTome", GLOBAL_CACHE.Item.Type.IsTome(item_id)),
                 ]
                 ImGui.table("Item properties common info", headers, data)
 
@@ -1051,17 +1142,16 @@ def ShowItemDataWindow(item_id):
 
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsUsable:",GLOBAL_CACHE.Item.Usage.IsUsable(item_id)),
-                    ("Uses:",GLOBAL_CACHE.Item.Usage.GetUses(item_id)),
-                    ("IsSalvageable:",GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)),
-                    ("IsMaterialSalvageable:",GLOBAL_CACHE.Item.Usage.IsMaterialSalvageable(item_id)),
-                    ("IsSalvageKit:",GLOBAL_CACHE.Item.Usage.IsSalvageKit(item_id)),
-                    ("IsLesserKit:",GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)),
-                    ("IsExpertSalvageKit:",GLOBAL_CACHE.Item.Usage.IsExpertSalvageKit(item_id)),
-                    ("IsPerfectSalvageKit:",GLOBAL_CACHE.Item.Usage.IsPerfectSalvageKit(item_id)),
-                    ("IsIDKit:",GLOBAL_CACHE.Item.Usage.IsIDKit(item_id)),
-                    ("IsIdentified:",GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)),
-
+                    ("IsUsable:", GLOBAL_CACHE.Item.Usage.IsUsable(item_id)),
+                    ("Uses:", GLOBAL_CACHE.Item.Usage.GetUses(item_id)),
+                    ("IsSalvageable:", GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id)),
+                    ("IsMaterialSalvageable:", GLOBAL_CACHE.Item.Usage.IsMaterialSalvageable(item_id)),
+                    ("IsSalvageKit:", GLOBAL_CACHE.Item.Usage.IsSalvageKit(item_id)),
+                    ("IsLesserKit:", GLOBAL_CACHE.Item.Usage.IsLesserKit(item_id)),
+                    ("IsExpertSalvageKit:", GLOBAL_CACHE.Item.Usage.IsExpertSalvageKit(item_id)),
+                    ("IsPerfectSalvageKit:", GLOBAL_CACHE.Item.Usage.IsPerfectSalvageKit(item_id)),
+                    ("IsIDKit:", GLOBAL_CACHE.Item.Usage.IsIDKit(item_id)),
+                    ("IsIdentified:", GLOBAL_CACHE.Item.Usage.IsIdentified(item_id)),
                 ]
                 ImGui.table("Item usage common info", headers, data)
 
@@ -1072,18 +1162,17 @@ def ShowItemDataWindow(item_id):
 
                 headers = ["Value", "Data"]
                 data = [
-                    ("IsInscription:",GLOBAL_CACHE.Item.Customization.IsInscription(item_id)),
-                    ("IsInscribable:",GLOBAL_CACHE.Item.Customization.IsInscribable(item_id)),
-                    ("IsPrefixUpgradable:",GLOBAL_CACHE.Item.Customization.IsPrefixUpgradable(item_id)),
-                    ("IsSuffixUpgradable:",GLOBAL_CACHE.Item.Customization.IsSuffixUpgradable(item_id)),
-                    ("Item Formula:",GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id)),
-                    ("Item Formula(Hex):",hex(GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id))),
-                    ("Item Formula(Bin):",bin(GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id))),
-                    ("Interaction:",GLOBAL_CACHE.Item.Properties.GetInteraction(item_id)),
-                    ("Interaction(Bin):",formatted_bin),
-                    
-                    ("IsStackable:",GLOBAL_CACHE.Item.Customization.IsStackable(item_id)),
-                    ("IsSparkly:",GLOBAL_CACHE.Item.Customization.IsSparkly(item_id)),
+                    ("IsInscription:", GLOBAL_CACHE.Item.Customization.IsInscription(item_id)),
+                    ("IsInscribable:", GLOBAL_CACHE.Item.Customization.IsInscribable(item_id)),
+                    ("IsPrefixUpgradable:", GLOBAL_CACHE.Item.Customization.IsPrefixUpgradable(item_id)),
+                    ("IsSuffixUpgradable:", GLOBAL_CACHE.Item.Customization.IsSuffixUpgradable(item_id)),
+                    ("Item Formula:", GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id)),
+                    ("Item Formula(Hex):", hex(GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id))),
+                    ("Item Formula(Bin):", bin(GLOBAL_CACHE.Item.Customization.GetItemFormula(item_id))),
+                    ("Interaction:", GLOBAL_CACHE.Item.Properties.GetInteraction(item_id)),
+                    ("Interaction(Bin):", formatted_bin),
+                    ("IsStackable:", GLOBAL_CACHE.Item.Customization.IsStackable(item_id)),
+                    ("IsSparkly:", GLOBAL_CACHE.Item.Customization.IsSparkly(item_id)),
                 ]
                 ImGui.table("Item customization common info", headers, data)
 
@@ -1093,7 +1182,6 @@ def ShowItemDataWindow(item_id):
                     modifier_count = GLOBAL_CACHE.Item.Customization.Modifiers.GetModifierCount(item_id)
 
                     PyImGui.text("Modifier Count: " + str(modifier_count))
-
 
                     if modifier_count == 0:
                         PyImGui.text("No Modifiers")
@@ -1106,20 +1194,20 @@ def ShowItemDataWindow(item_id):
                             arg2 = modifier.GetArg2()
                             headers = ["Value", "Dec", "Hex", "Bin"]
                             data = [
-                                ("Identifier:",identifier,hex(identifier),bin(identifier)),
-                                ("IsValid:",is_valid,hex(is_valid),bin(is_valid)),
-                                ("Arg:",arg,hex(arg),bin(arg)),
-                                ("Arg1:",arg1,hex(arg1),bin(arg1)),
-                                ("Arg2:",arg2,hex(arg2),bin(arg2)),
+                                ("Identifier:", identifier, hex(identifier), bin(identifier)),
+                                ("IsValid:", is_valid, hex(is_valid), bin(is_valid)),
+                                ("Arg:", arg, hex(arg), bin(arg)),
+                                ("Arg1:", arg1, hex(arg1), bin(arg1)),
+                                ("Arg2:", arg2, hex(arg2), bin(arg2)),
                             ]
-                            ImGui.table("Item modifier common info"+ str(idx + 1), headers, data)
+                            ImGui.table("Item modifier common info" + str(idx + 1), headers, data)
 
                 if PyImGui.collapsing_header("DyeInfo"):
                     dye_info = GLOBAL_CACHE.Item.Customization.GetDyeInfo(item_id)
                     dye_tint = dye_info.dye_tint
 
                     PyImGui.text(f"Dye Tint: {dye_tint}")
-                    
+
                     dye1 = dye_info.dye1
                     dye2 = dye_info.dye2
                     dye3 = dye_info.dye3
@@ -1127,10 +1215,10 @@ def ShowItemDataWindow(item_id):
 
                     headers = ["Value", "ID", "Name"]
                     data = [
-                    ("Dye1:",dye1.ToInt(),dye1.ToString()),
-                    ("Dye2:",dye2.ToInt(),dye2.ToString()),
-                    ("Dye3:",dye3.ToInt(),dye3.ToString()),
-                    ("Dye4:",dye4.ToInt(),dye4.ToString()),
+                        ("Dye1:", dye1.ToInt(), dye1.ToString()),
+                        ("Dye2:", dye2.ToInt(), dye2.ToString()),
+                        ("Dye3:", dye3.ToInt(), dye3.ToString()),
+                        ("Dye4:", dye4.ToInt(), dye4.ToString()),
                     ]
 
                     ImGui.table("Item Dye common info", headers, data)
@@ -1141,29 +1229,30 @@ def ShowItemDataWindow(item_id):
         Py4GW.Console.Log(module_name, f"Error in ShowItemWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 PyItem_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+
 def ShowItemWindow():
     global PyItem_window_state
-    try: 
-        width, height = 400,300
+    try:
+        width, height = 400, 300
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Items"):
 
             description = "Item class is in charge of handling the items.\nIt provides methods to retrieve ittem data. \nIn Py4GW Item Attributres are categorized in subclasses, \nbut this has no bearing on the actual item funciton."
-            ImGui.DrawTextWithTitle("Item class", description,7)   
+            ImGui.DrawTextWithTitle("Item class", description, 7)
 
             hovered_item = GLOBAL_CACHE.Inventory.GetHoveredItemID()
 
             headers = ["Hovered ItemID"]
-            data = [
-                (f"{hovered_item}")
-            ]
+            data = [f"{hovered_item}"]
 
             ImGui.table("Item info", headers, data)
 
             PyItem_window_state.values[0] = PyImGui.input_int("ItemID", PyItem_window_state.values[0])
 
-            PyItem_window_state.values[1]  = ImGui.toggle_button("Show Item Data",PyItem_window_state.values[1])
+            PyItem_window_state.values[1] = ImGui.toggle_button("Show Item Data", PyItem_window_state.values[1])
 
             if PyItem_window_state.values[1]:
                 GLOBAL_CACHE.Item.RequestName(PyItem_window_state.values[0])
@@ -1175,20 +1264,23 @@ def ShowItemWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowItemWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 PyParty_window_state.values = [0, 0, "Ogden Stonehealer", 0, 0, 0, 0, 0, 0, 0, 0]
+
+
 def ShowPartyWindow():
     global PyParty_window_state
-    try: 
-        width, height = 800,800
+    try:
+        width, height = 800, 800
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Party"):
 
-            #description = "Party class is in charge of handling the party members.\nIt provides methods to retrieve party data, like heroes, henchmen, players and pets.\nIt has methods pertinent to the party and related to controlling party actions.\nParty members are agents, and as such, their data is retrieved from the Agent object."
-            #ImGui.DrawTextWithTitle("Party class", description,7)  
+            # description = "Party class is in charge of handling the party members.\nIt provides methods to retrieve party data, like heroes, henchmen, players and pets.\nIt has methods pertinent to the party and related to controlling party actions.\nParty members are agents, and as such, their data is retrieved from the Agent object."
+            # ImGui.DrawTextWithTitle("Party class", description,7)
 
             login_number = GLOBAL_CACHE.Party.Players.GetLoginNumberByAgentID(Player.GetAgentID())
             party_number = GLOBAL_CACHE.Party.Players.GetPartyNumberFromLoginNumber(login_number)
-            
+
             headers = ["Info", "Value"]
             data = [
                 ("Party ID:", GLOBAL_CACHE.Party.GetPartyID()),
@@ -1207,7 +1299,7 @@ def ShowPartyWindow():
                 ("Is Party Loaded:", GLOBAL_CACHE.Party.IsPartyLoaded()),
                 ("Is Party Leader:", GLOBAL_CACHE.Party.IsPartyLeader()),
                 ("Is all party ticked:", GLOBAL_CACHE.Party.IsAllTicked()),
-                ("Is Player Ticked:", GLOBAL_CACHE.Party.IsPlayerTicked(party_number))
+                ("Is Player Ticked:", GLOBAL_CACHE.Party.IsPlayerTicked(party_number)),
             ]
 
             ImGui.table("party info", headers, data)
@@ -1251,16 +1343,18 @@ def ShowPartyWindow():
                         (f"Agent ID: {agent_id}"),
                         (f"Called Target ID: {player.called_target_id}"),
                         (f"Is Connected? {'Yes' if player.is_connected else 'No'}"),
-                        (f"Is Ticked? {'Yes' if player.is_ticked else 'No'}")
+                        (f"Is Ticked? {'Yes' if player.is_ticked else 'No'}"),
                     ]
 
-                    ImGui.table("player info"+ str(party_number), headers, data)
+                    ImGui.table("player info" + str(party_number), headers, data)
                     PyImGui.separator()
 
             if PyImGui.collapsing_header("Heroes"):
                 PyParty_window_state.values[1] = PyImGui.input_int("Hero ID to handle", PyParty_window_state.values[1])
-                PyParty_window_state.values[2] = PyImGui.input_text("Hero Name to handle", PyParty_window_state.values[2])
-                
+                PyParty_window_state.values[2] = PyImGui.input_text(
+                    "Hero Name to handle", PyParty_window_state.values[2]
+                )
+
                 hero = PyParty.Hero(PyParty_window_state.values[2])
                 PyImGui.text(f"Hero ID:  {hero.GetID()}")
 
@@ -1271,7 +1365,7 @@ def ShowPartyWindow():
                     GLOBAL_CACHE.Party.Heroes.KickHero(PyParty_window_state.values[1])
 
                 if PyImGui.button("Add Hero By Name"):
-                    #GLOBAL_CACHE.Party.Heroes.AddHeroByName(PyParty_window_state.values[2])
+                    # GLOBAL_CACHE.Party.Heroes.AddHeroByName(PyParty_window_state.values[2])
                     Party.Heroes.AddHeroByName(PyParty_window_state.values[2])
 
                 if PyImGui.button("Kick Hero By Name"):
@@ -1285,9 +1379,11 @@ def ShowPartyWindow():
 
                 if PyImGui.button("Hero Use Skill #4"):
                     hero_agent_id = PyParty_window_state.values[1]
-                    GLOBAL_CACHE.Party.Heroes.UseSkill(hero_agent_id, 4,hero_agent_id)
+                    GLOBAL_CACHE.Party.Heroes.UseSkill(hero_agent_id, 4, hero_agent_id)
                 if PyImGui.button("Flag Hero"):
-                    GLOBAL_CACHE.Party.Heroes.FlagHero(PyParty_window_state.values[1], PyParty_window_state.values[4], PyParty_window_state.values[5])
+                    GLOBAL_CACHE.Party.Heroes.FlagHero(
+                        PyParty_window_state.values[1], PyParty_window_state.values[4], PyParty_window_state.values[5]
+                    )
 
                 if PyImGui.button("Set Hero Behavior Fight"):
                     GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(PyParty_window_state.values[1], 0)
@@ -1318,22 +1414,23 @@ def ShowPartyWindow():
                         (f"Agent ID: {hero.agent_id}"),
                         (f"Owner Player ID: {hero.owner_player_id}"),
                         (f"Level: {hero.level}"),
-                        (f"Profession: {hero.primary.GetName()} / {hero.secondary.GetName()}")
+                        (f"Profession: {hero.primary.GetName()} / {hero.secondary.GetName()}"),
                     ]
 
-                    ImGui.table("hero info"+ str(hero_id), headers, data)
-                    
+                    ImGui.table("hero info" + str(hero_id), headers, data)
+
                     PyImGui.separator()
 
             if PyImGui.collapsing_header("Henchmen"):
-                PyParty_window_state.values[3] = PyImGui.input_int("Henchman ID to Handle", PyParty_window_state.values[3])
+                PyParty_window_state.values[3] = PyImGui.input_int(
+                    "Henchman ID to Handle", PyParty_window_state.values[3]
+                )
 
                 if PyImGui.button("Add Henchman"):
                     GLOBAL_CACHE.Party.Henchmen.AddHenchman(PyParty_window_state.values[3])
 
                 if PyImGui.button("Kick Henchman"):
                     GLOBAL_CACHE.Party.Henchmen.KickHenchman(PyParty_window_state.values[3])
-
 
                 PyImGui.separator()
 
@@ -1348,16 +1445,16 @@ def ShowPartyWindow():
                     data = [
                         (f"Agent ID: {agent_id}"),
                         (f"Level: {henchman.level}"),
-                        (f"Profession: {henchman.profession.GetName()}")
+                        (f"Profession: {henchman.profession.GetName()}"),
                     ]
 
-                    ImGui.table("henchman info"+ str(agent_id), headers, data)
-                    
+                    ImGui.table("henchman info" + str(agent_id), headers, data)
+
                     PyImGui.separator()
-                    
+
             if PyImGui.collapsing_header("Others"):
                 others = GLOBAL_CACHE.Party.GetOthers()
-                
+
                 for other in others:
                     agent_id = other
 
@@ -1367,8 +1464,8 @@ def ShowPartyWindow():
                         (f"Name: {Agent.GetNameByID(agent_id)}"),
                     ]
 
-                    ImGui.table("other info"+ str(agent_id), headers, data)
-                    
+                    ImGui.table("other info" + str(agent_id), headers, data)
+
                     PyImGui.separator()
 
             if PyImGui.collapsing_header("Pets"):
@@ -1377,13 +1474,13 @@ def ShowPartyWindow():
                 lock_target_id = 0
 
                 if PyImGui.button("Set Pet Behavior Fight"):
-                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(0,lock_target_id) #need an offensive target
+                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(0, lock_target_id)  # need an offensive target
 
                 if PyImGui.button("Set Pet Behavior Guard"):
-                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(1,lock_target_id)
+                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(1, lock_target_id)
 
                 if PyImGui.button("Set Pet Behavior Avoid"):
-                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(2,lock_target_id)
+                    GLOBAL_CACHE.Party.Pets.SetPetBehavior(2, lock_target_id)
 
                 pet = GLOBAL_CACHE.Party.Pets.GetPetInfo(Player.GetAgentID())
 
@@ -1395,11 +1492,10 @@ def ShowPartyWindow():
                     (f"Model File ID1: {pet.model_file_id1}"),
                     (f"Model File ID2: {pet.model_file_id2}"),
                     (f"Behavior: {pet.behavior}"),
-                    (f"Locked Target Id: {pet.locked_target_id}")
+                    (f"Locked Target Id: {pet.locked_target_id}"),
                 ]
 
                 ImGui.table("pet info", headers, data)
-            
 
         PyImGui.end()
     except Exception as e:
@@ -1407,12 +1503,14 @@ def ShowPartyWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowPartyWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 PyPlayer_window_state.values = [0, 0, "", 0.0, 0.0, 0, 0, 0, 0, 0, 0]
+
 
 def ShowPlayerWindow():
     global PyPlayer_window_state
-    try: 
-        width, height = 450,840
+    try:
+        width, height = 450, 840
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Player"):
 
@@ -1427,7 +1525,7 @@ def ShowPlayerWindow():
                 ("Name:", Player.GetName()),
                 ("XY:", f"({posx:.2f}, {posy:.2f})"),
                 ("Target ID:", Player.GetTargetID()),
-                ("Observing ID:", Player.GetObservingID())
+                ("Observing ID:", Player.GetObservingID()),
             ]
 
             ImGui.table("player info", headers, data)
@@ -1439,7 +1537,7 @@ def ShowPlayerWindow():
             PyImGui.separator()
             if PyImGui.collapsing_header("Player data"):
                 headers = ["Info", "Value"]
-                
+
                 rank, rating, qualifier_points, wins, losses = Player.GetRankData()
                 tournament_reward_points = Player.GetTournamentRewardPoints()
                 morale = Player.GetMorale()
@@ -1451,7 +1549,7 @@ def ShowPlayerWindow():
                 current_balthazar, total_earned_balthazar, max_balthazar = Player.GetBalthazarData()
                 account_name = Player.GetAccountName()
                 account_email = Player.GetAccountEmail()
-                
+
                 data = [
                     ("account_name:", account_name),
                     ("account_email:", account_email),
@@ -1476,13 +1574,13 @@ def ShowPlayerWindow():
                     ("Max Imperial:", max_imperial),
                     ("Current Balthazar:", current_balthazar),
                     ("Total Earned Balthazar:", total_earned_balthazar),
-                    ("Max Balthazar:", max_balthazar)
+                    ("Max Balthazar:", max_balthazar),
                 ]
                 ImGui.table("PlayerData info", headers, data)
-                                
+
                 if PyImGui.button("Deposit Faction"):
-                    Player.DepositFaction(FactionAllegiance.Kurzick.value) 
-                    
+                    Player.DepositFaction(FactionAllegiance.Kurzick.value)
+
             if PyImGui.collapsing_header("Titles"):
                 current_title = Player.GetActiveTitleID()
                 title_data = Player.GetTitle(current_title)
@@ -1491,7 +1589,7 @@ def ShowPlayerWindow():
                     PyImGui.end()
                     return
                 headers = ["Info", "Value"]
-                
+
                 props = title_data.props
                 current_points = title_data.current_points
                 current_title_tier_index = title_data.current_title_tier_index
@@ -1506,7 +1604,7 @@ def ShowPlayerWindow():
 
                 data = [
                     ("TitleID:", current_title),
-                    ("Name:",title_name),
+                    ("Name:", title_name),
                     ("Properties:", props),
                     ("Current Points:", current_points),
                     ("Current Tier Index:", current_title_tier_index),
@@ -1516,45 +1614,45 @@ def ShowPlayerWindow():
                     ("Max Title Rank:", max_title_rank),
                     ("Max Tier Index:", max_title_tier_index),
                     ("Is Percentage Based:", is_percentage_based),
-                    ("Has Tiers:", has_tiers)
+                    ("Has Tiers:", has_tiers),
                 ]
-                
+
                 ImGui.table("Title info", headers, data)
-                
+
                 if PyImGui.button("remove Current Title"):
                     Player.RemoveActiveTitle()
-                    
+
                 if PyImGui.button("Set Norn Title"):
                     Player.SetActiveTitle(TitleID.Norn.value)
-                
+
             if PyImGui.collapsing_header("Methods"):
 
                 PyImGui.text("test fields")
                 PyPlayer_window_state.values[1] = PyImGui.input_int("Number", PyPlayer_window_state.values[1])
                 PyPlayer_window_state.values[2] = PyImGui.input_text("Text", PyPlayer_window_state.values[2])
-                
+
                 PyImGui.separator()
 
                 if PyImGui.button("Send Dialog"):
-                    hex_input = PyPlayer_window_state.values[2] #if the number is 0x84, the text must be 84
+                    hex_input = PyPlayer_window_state.values[2]  # if the number is 0x84, the text must be 84
                     dialog_value = int(hex_input, 16)
-                    #The values recieved by this function are in hex, so we need to convert them to int
-                    #toolbox data shows Hex values, hex(0x84) = 0x84, int(0x84) = 132
-                    #Player.SendAgentDialog(0x84)
-                    Player.SendAgentDialog(dialog_value)
+                    # The values recieved by this function are in hex, so we need to convert them to int
+                    # toolbox data shows Hex values, hex(0x84) = 0x84, int(0x84) = 132
+                    # Player.SendDialog(0x84)
+                    Player.SendDialog(dialog_value)
 
                 if PyImGui.button("dialog take (SendChatCommand preferred method)"):
                     Player.SendChatCommand("dialog take")
-                
+
                 PyImGui.separator()
                 if PyImGui.button("SendChat command"):
                     Player.SendChatCommand('target Adept Nai')
 
                 if PyImGui.button("SendChat"):
-                    Player.SendChat('#',PyPlayer_window_state.values[2])
+                    Player.SendChat('#', PyPlayer_window_state.values[2])
 
                 if PyImGui.button("Send Whisper"):
-                    Player.SendWhisper(PyPlayer_window_state.values[2],"Hello")
+                    Player.SendWhisper(PyPlayer_window_state.values[2], "Hello")
 
                 PyImGui.separator()
 
@@ -1580,10 +1678,11 @@ def ShowPlayerWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowPlayerWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 def ShowAgentArrayWindow():
     global PyAgent_agent_window_state
-    try: 
-        width, height = 800,760
+    try:
+        width, height = 800, 760
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"AgenArray"):
 
@@ -1613,7 +1712,7 @@ def ShowAgentArrayWindow():
 
             Refer to the class documentation to see how to use the AgentArray class
             """
-            ImGui.DrawTextWithTitle("AgentArray class", description,35)   
+            ImGui.DrawTextWithTitle("AgentArray class", description, 35)
 
         PyImGui.end()
     except Exception as e:
@@ -1621,16 +1720,17 @@ def ShowAgentArrayWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowAgentArrayWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 def ShowGadgetAgentData(agent_id):
     global PyAgent_agent_window_state
-    try: 
-        width, height = 750,800
+    try:
+        width, height = 750, 800
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"AgentGadget: {agent_id}"):
 
             if agent_id != 0:
                 description = "here you can see all the item agent data available"
-                ImGui.DrawTextWithTitle("Agentgadget " + str(agent_id), description,3)
+                ImGui.DrawTextWithTitle("Agentgadget " + str(agent_id), description, 3)
 
                 PyImGui.text("Agent Item Data:")
 
@@ -1664,8 +1764,6 @@ def ShowGadgetAgentData(agent_id):
                 # Display the table using the provided table function
                 ImGui.table("gadget item info", headers, data)
 
-                
-
         PyImGui.end()
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
@@ -1675,14 +1773,14 @@ def ShowGadgetAgentData(agent_id):
 
 def ShowItemAgentData(agent_id):
     global PyAgent_agent_window_state
-    try: 
-        width, height = 750,800
+    try:
+        width, height = 750, 800
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"AgentItem: {agent_id}"):
 
             if agent_id != 0:
                 description = "here you can see all the item agent data available"
-                ImGui.DrawTextWithTitle("AgentItem " + str(agent_id), description,3)
+                ImGui.DrawTextWithTitle("AgentItem " + str(agent_id), description, 3)
 
                 PyImGui.text("Agent Item Data:")
 
@@ -1702,11 +1800,10 @@ def ShowItemAgentData(agent_id):
                     ("h00CC (binary):", bin(item_data.h00CC)),
                     ("ExtraType (decimal):", item_data.extra_type),
                     ("ExtraType (hex):", hex(item_data.extra_type)),
-                    ("ExtraType (binary):", bin(item_data.extra_type))
+                    ("ExtraType (binary):", bin(item_data.extra_type)),
                 ]
 
-                ImGui.table("agent common info",headers,data)
-                
+                ImGui.table("agent common info", headers, data)
 
         PyImGui.end()
     except Exception as e:
@@ -1717,14 +1814,14 @@ def ShowItemAgentData(agent_id):
 
 def ShowLivingAgentData(agent_id):
     global PyAgent_agent_window_state
-    try: 
-        width, height = 750,800
+    try:
+        width, height = 750, 800
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"AgentLiving: {agent_id}"):
 
             if agent_id != 0:
                 description = "here you can see all the living agent data available"
-                ImGui.DrawTextWithTitle("AgentLiving " + str(agent_id), description,3)
+                ImGui.DrawTextWithTitle("AgentLiving " + str(agent_id), description, 3)
 
                 PyImGui.text("Agent Living Data:")
 
@@ -1738,8 +1835,8 @@ def ShowLivingAgentData(agent_id):
 
                 alliegance_id, alliegance_name = Agent.GetAllegiance(agent_id)
                 alliegance = f"{alliegance_id}/{alliegance_name}"
-                
-                #Agent.RequestName(agent_id)
+
+                # Agent.RequestName(agent_id)
 
                 # Combine info and value into a single string
                 combined_data = [
@@ -1759,13 +1856,13 @@ def ShowLivingAgentData(agent_id):
                     f"Health Regen: {Agent.GetHealthRegen(agent_id):.2f}",
                     f"Name: {Agent.GetNameByID(agent_id)}",
                     f"Strike Dagger Status: {Agent.GetDaggerStatus(agent_id)}",
-                    f"Alliegance: {alliegance}"
+                    f"Alliegance: {alliegance}",
                 ]
 
                 # Format data into rows of 3 columns
                 formatted_data = []
                 for i in range(0, len(combined_data), 3):
-                    row = combined_data[i:i + 3]
+                    row = combined_data[i : i + 3]
                     # Pad the row with empty strings if it has less than 3 items
                     while len(row) < 3:
                         row.append("")
@@ -1782,21 +1879,27 @@ def ShowLivingAgentData(agent_id):
                 weapon_id, weapon_name = Agent.GetWeaponType(agent_id)
                 weapon = f"{weapon_id}/{weapon_name}"
                 PyImGui.text(f"Weapon Type: {weapon}")
-                weapon_item_id, weapon_item_type, offhand_item_id, offhand_item_type = Agent.GetWeaponExtraData(agent_id)
+                weapon_item_id, weapon_item_type, offhand_item_id, offhand_item_type = Agent.GetWeaponExtraData(
+                    agent_id
+                )
 
                 headers = ["Info", "Value"]
-                data = [(f"Weapon Item ID: {weapon_item_id}",f"Weapon Item Type: {weapon_item_type}"),
-                        (f"Offhand Item ID: {offhand_item_id}",f"Offhand Item Type: {offhand_item_type}")]
+                data = [
+                    (f"Weapon Item ID: {weapon_item_id}", f"Weapon Item Type: {weapon_item_type}"),
+                    (f"Offhand Item ID: {offhand_item_id}", f"Offhand Item Type: {offhand_item_type}"),
+                ]
 
-                ImGui.table("weapon data",headers,data)
+                ImGui.table("weapon data", headers, data)
 
                 PyImGui.text("Pve properties:")
                 PyImGui.text("State:")
 
                 headers = ["IsPlayer", "IsNpc"]
-                data = [(f"{Agent.IsPlayer(agent_id)}",f"{Agent.IsNPC(agent_id)}"),
-                        (f"IsDead: {Agent.IsDead(agent_id)}",f"IsAlive: {Agent.IsAlive(agent_id)}")]
-                ImGui.table("Agent state", headers, data)  
+                data = [
+                    (f"{Agent.IsPlayer(agent_id)}", f"{Agent.IsNPC(agent_id)}"),
+                    (f"IsDead: {Agent.IsDead(agent_id)}", f"IsAlive: {Agent.IsAlive(agent_id)}"),
+                ]
+                ImGui.table("Agent state", headers, data)
 
                 PyImGui.text("Model State:")
                 combined_data = [
@@ -1804,14 +1907,14 @@ def ShowLivingAgentData(agent_id):
                     f"IsAttacking: {Agent.IsAttacking(agent_id)}",
                     f"IsCasting: {Agent.IsCasting(agent_id)}",
                     f"IsIdle: {Agent.IsIdle(agent_id)}",
-                    f"IsKnockedDown: {Agent.IsKnockedDown(agent_id)}"  
+                    f"IsKnockedDown: {Agent.IsKnockedDown(agent_id)}",
                 ]
 
                 # Format data into rows of 3 columns
                 columns = 3
                 formatted_data = []
                 for i in range(0, len(combined_data), columns):
-                    row = combined_data[i:i + columns]
+                    row = combined_data[i : i + columns]
                     # Pad the row with empty strings if it has less than 3 items
                     while len(row) < columns:
                         row.append("")
@@ -1833,14 +1936,14 @@ def ShowLivingAgentData(agent_id):
                     f"IsHidingCape: {Agent.IsHidingCape(agent_id)}",
                     f"CanBeViewedInPartyWindow: {Agent.CanBeViewedInPartyWindow(agent_id)}",
                     f"IsSpawned: {Agent.IsSpawned(agent_id)}",
-                    f"IsBeingObserved: {Agent.IsBeingObserved(agent_id)}"
+                    f"IsBeingObserved: {Agent.IsBeingObserved(agent_id)}",
                 ]
 
                 # Format data into rows of 3 columns
                 columns = 3
                 formatted_data = []
                 for i in range(0, len(combined_data), columns):
-                    row = combined_data[i:i + columns]
+                    row = combined_data[i : i + columns]
                     # Pad the row with empty strings if it has less than 3 items
                     while len(row) < columns:
                         row.append("")
@@ -1864,14 +1967,14 @@ def ShowLivingAgentData(agent_id):
                     f"IsdegenHexed: {Agent.IsDegenHexed(agent_id)}",
                     f"IsWeaponSpelled: {Agent.IsWeaponSpelled(agent_id)}",
                     f"CastingSkillId: {Agent.GetCastingSkillID(agent_id)}",
-                    f"Overcast: {Agent.GetOvercast(agent_id)}"
+                    f"Overcast: {Agent.GetOvercast(agent_id)}",
                 ]
 
                 # Format data into rows of 3 columns
                 columns = 3
                 formatted_data = []
                 for i in range(0, len(combined_data), columns):
-                    row = combined_data[i:i + columns]
+                    row = combined_data[i : i + columns]
                     # Pad the row with empty strings if it has less than 3 items
                     while len(row) < columns:
                         row.append("")
@@ -1887,7 +1990,7 @@ def ShowLivingAgentData(agent_id):
                 columns = 5
                 formatted_data = []
                 for i in range(0, len(combined_data), columns):
-                    row = combined_data[i:i + columns]
+                    row = combined_data[i : i + columns]
                     # Pad the row with empty strings if it has less than 3 items
                     while len(row) < columns:
                         row.append("")
@@ -1907,26 +2010,30 @@ def ShowLivingAgentData(agent_id):
 
 
 PyAgent_agent_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+
 def draw_agent_window(agent_id):
     global PyAgent_agent_window_state
-    try: 
-        width, height = 450,700
+    try:
+        width, height = 450, 700
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(f"Agent: {agent_id}"):
 
             if agent_id != 0:
                 description = "in GWCA not all agents are trated equally, theres data that is not availble for some agent types, like enemies, in most cases youll have acces to all your private data and your own heroes, all the remaining agents have a limited set of data to query from"
-                ImGui.DrawTextWithTitle("Agent " + str(agent_id), description,5)
+                ImGui.DrawTextWithTitle("Agent " + str(agent_id), description, 5)
 
                 PyImGui.text("Agent common Data:")
-   
-                headers = ["Info", "Value"]
-                data = [("Agent ID:", agent_id),
-                        ("Is LivingAgent:", Agent.IsLiving(agent_id)),
-                        ("Is ItemAgent:", Agent.IsItem(agent_id)),
-                        ("Is GadgetAgent:", Agent.IsGadget(agent_id))]
 
-                ImGui.table("agent common info",headers,data)
+                headers = ["Info", "Value"]
+                data = [
+                    ("Agent ID:", agent_id),
+                    ("Is LivingAgent:", Agent.IsLiving(agent_id)),
+                    ("Is ItemAgent:", Agent.IsItem(agent_id)),
+                    ("Is GadgetAgent:", Agent.IsGadget(agent_id)),
+                ]
+
+                ImGui.table("agent common info", headers, data)
 
                 PyImGui.text("Positional Data:")
 
@@ -1937,14 +2044,16 @@ def draw_agent_window(agent_id):
                 vel_str = f"({vel_x:.2f}, {vel_y:.2f})"
 
                 headers = ["Info", "Value"]
-                data = [("(X,Y,Z):", pos_str),
-                        ("zplane:", Agent.IsLiving(agent_id)),
-                        ("Rotation Angle:", Agent.GetRotationAngle(agent_id)),
-                        ("Rotation cosine:", Agent.GetRotationCos(agent_id)),
-                        ("Rotation sine:", Agent.GetRotationSin(agent_id)),
-                        ("Velocity (X,Y):", vel_str)]
+                data = [
+                    ("(X,Y,Z):", pos_str),
+                    ("zplane:", Agent.IsLiving(agent_id)),
+                    ("Rotation Angle:", Agent.GetRotationAngle(agent_id)),
+                    ("Rotation cosine:", Agent.GetRotationCos(agent_id)),
+                    ("Rotation sine:", Agent.GetRotationSin(agent_id)),
+                    ("Velocity (X,Y):", vel_str),
+                ]
 
-                ImGui.table("agent positional common info",headers,data)
+                ImGui.table("agent positional common info", headers, data)
 
                 PyImGui.separator()
 
@@ -1962,14 +2071,19 @@ def draw_agent_window(agent_id):
                 PyImGui.text("Show Agent type Specific data")
 
                 if Agent.IsLiving(agent_id):
-                    PyAgent_agent_window_state.values[0] = ImGui.toggle_button("Show Living Agent Data", PyAgent_agent_window_state.values[0])
+                    PyAgent_agent_window_state.values[0] = ImGui.toggle_button(
+                        "Show Living Agent Data", PyAgent_agent_window_state.values[0]
+                    )
 
                 if Agent.IsItem(agent_id):
-                    PyAgent_agent_window_state.values[1] = ImGui.toggle_button("Show Item Agent Data", PyAgent_agent_window_state.values[1])
+                    PyAgent_agent_window_state.values[1] = ImGui.toggle_button(
+                        "Show Item Agent Data", PyAgent_agent_window_state.values[1]
+                    )
 
                 if Agent.IsGadget(agent_id):
-                    PyAgent_agent_window_state.values[2] = ImGui.toggle_button("Show Gadget Agent Data", PyAgent_agent_window_state.values[2])
-
+                    PyAgent_agent_window_state.values[2] = ImGui.toggle_button(
+                        "Show Gadget Agent Data", PyAgent_agent_window_state.values[2]
+                    )
 
                 if PyAgent_agent_window_state.values[0]:
                     ShowLivingAgentData(agent_id)
@@ -1980,8 +2094,6 @@ def draw_agent_window(agent_id):
                 if PyAgent_agent_window_state.values[2]:
                     ShowGadgetAgentData(agent_id)
 
- 
-
         PyImGui.end()
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
@@ -1989,70 +2101,74 @@ def draw_agent_window(agent_id):
         raise
 
 
-#PyAgent Demo Section
+# PyAgent Demo Section
 PyAgent_window_state.window_name = "PyAgent DEMO"
 PyAgent_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
 
 def ShowPyAgentWindow():
     global module_name
     global PyAgent_window_state
     description = "This section demonstrates the use of PyAgent functions in Py4GW. \nPyAgent provides access to in-game entities (agents) such as players, NPCs, gadgets, and items. \nIn this demo, you can see how to create and use PyAgent objects to interact with agents in the game."
 
-    try:     
-        width, height = 375,525
+    try:
+        width, height = 375, 525
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(PyAgent_window_state.window_name):
             # Show description text
             ImGui.DrawTextWithTitle(PyAgent_window_state.window_name, description)
 
             if not Map.IsMapReady():
-                    PyImGui.text_colored("Travel : Map is not ready",(1, 0, 0, 1))
+                PyImGui.text_colored("Travel : Map is not ready", (1, 0, 0, 1))
 
             if Map.IsMapReady():
                 # Fetch nearest entities
                 player_x, player_y = Player.GetXY()
                 player_id = Player.GetAgentID()
-                
+
                 enemy_array = AgentArray.GetEnemyArray()
-                enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x,player_y))
+                enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x, player_y))
                 closest_enemy = next(iter(enemy_array), 0)
 
                 ally_array = AgentArray.GetAllyArray()
-                ally_array = AgentArray.Manipulation.Subtract(ally_array, [player_id]) #remove player_id from ally array
-                ally_array = AgentArray.Sort.ByDistance(ally_array, (player_x,player_y))
+                ally_array = AgentArray.Manipulation.Subtract(
+                    ally_array, [player_id]
+                )  # remove player_id from ally array
+                ally_array = AgentArray.Sort.ByDistance(ally_array, (player_x, player_y))
                 closest_ally = next(iter(ally_array), 0)
 
                 item_array = AgentArray.GetItemArray()
-                item_array = AgentArray.Sort.ByDistance(item_array, (player_x,player_y))
+                item_array = AgentArray.Sort.ByDistance(item_array, (player_x, player_y))
                 closest_item = next(iter(item_array), 0)
-                
+
                 gadget_array = AgentArray.GetGadgetArray()
-                gadget_array = AgentArray.Sort.ByDistance(gadget_array, (player_x,player_y))
+                gadget_array = AgentArray.Sort.ByDistance(gadget_array, (player_x, player_y))
                 closest_gadget = next(iter(gadget_array), 0)
 
                 npc_array = AgentArray.GetNPCMinipetArray()
-                npc_array = AgentArray.Sort.ByDistance(npc_array, (player_x,player_y))
+                npc_array = AgentArray.Sort.ByDistance(npc_array, (player_x, player_y))
                 closest_npc = next(iter(npc_array), 0)
 
                 player_target = Player.GetTargetID()
 
                 # Display table headers
                 PyImGui.text("Nearest Entities:")
-                
+
                 merchant_id = Agent.GetAgentIDByName("[Merchant]")
-                
+
                 headers = ["Info", "Value"]
-                data = [("Enemy:", closest_enemy),
-                        ("Ally:", closest_ally),
-                        ("Item:", closest_item),
-                        ("Gadget:", closest_gadget),
-                        ("NPC/Minipet:", closest_npc),
-                        ("Player AgentID:", player_id),
-                        ("TargetID",player_target),
-                        ("Merchant ID:", merchant_id)]
+                data = [
+                    ("Enemy:", closest_enemy),
+                    ("Ally:", closest_ally),
+                    ("Item:", closest_item),
+                    ("Gadget:", closest_gadget),
+                    ("NPC/Minipet:", closest_npc),
+                    ("Player AgentID:", player_id),
+                    ("TargetID", player_target),
+                    ("Merchant ID:", merchant_id),
+                ]
 
-                ImGui.table("Nearest info Table",headers,data)
-
+                ImGui.table("Nearest info Table", headers, data)
 
             # Input field for Agent ID
             PyImGui.text("Input an Agent Id to see its data")
@@ -2076,31 +2192,34 @@ def ShowPyAgentWindow():
 PyMap_Extra_InfoWindow_state.window_name = "PyMap Extra Info DEMO"
 pathing_map = None
 
+
 def ShowPyImGuiExtraMaplWindow():
     global module_name
-    global PyMap_Extra_InfoWindow_state,pathing_map
+    global PyMap_Extra_InfoWindow_state, pathing_map
     description = "This section demonstrates the use of extra map information in PyMap. \nExtra map information includes region types, instance types, and map context. \nIn this demo, you can see how to create and use PyMap objects to interact with the map in the game."
 
     try:
-        width, height = 375,400
+        width, height = 375, 400
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(PyMap_Extra_InfoWindow_state.window_name, PyImGui.WindowFlags.NoResize):
-            #ImGui.DrawTextWithTitle(PyMap_Extra_InfoWindow_state.window_name, description)
+            # ImGui.DrawTextWithTitle(PyMap_Extra_InfoWindow_state.window_name, description)
 
             if not Map.IsOutpost():
                 PyImGui.text("Get to an Outpost to see this data")
                 PyImGui.separator()
-    
+
             if Map.IsOutpost():
 
                 headers = ["Info", "Value"]
-                data = [("Campaign:", Map.GetCampaign()[1]),
-                        ("Continent:", Map.GetContinent()[1]),
-                        ("Region:", f"{Map.GetRegion()[1]} ({Map.GetRegion()[0]})"),
-                        ("District:", Map.GetDistrict()),
-                        ("Language:", Map.GetLanguage()[1])]
+                data = [
+                    ("Campaign:", Map.GetCampaign()[1]),
+                    ("Continent:", Map.GetContinent()[1]),
+                    ("Region:", f"{Map.GetRegion()[1]} ({Map.GetRegion()[0]})"),
+                    ("District:", Map.GetDistrict()),
+                    ("Language:", Map.GetLanguage()[1]),
+                ]
 
-                ImGui.table("Instance Info Table",headers,data)
+                ImGui.table("Instance Info Table", headers, data)
 
                 PyImGui.separator()
 
@@ -2119,7 +2238,6 @@ def ShowPyImGuiExtraMaplWindow():
                     if not Map.HasEnterChallengeButton():
                         PyImGui.text("Get to an outpost with Enter Button to see this data")
 
-
                     if Map.HasEnterChallengeButton():
                         if PyImGui.begin_table("OutpostEnterMissionTable", 2, PyImGui.TableFlags.Borders):
                             PyImGui.table_next_row()
@@ -2129,8 +2247,8 @@ def ShowPyImGuiExtraMaplWindow():
 
                             PyImGui.table_set_column_index(1)
                             if PyImGui.button("Cancel Enter"):
-                               Map.CancelEnterChallenge()
-                    
+                                Map.CancelEnterChallenge()
+
                             PyImGui.end_table()
 
                 PyImGui.separator()
@@ -2142,7 +2260,7 @@ def ShowPyImGuiExtraMaplWindow():
 
             if Map.IsExplorable():
                 PyImGui.text("Explorable Zone Specific Information")
-           
+
                 if PyImGui.begin_table("ExplorableNormalTable", 2, PyImGui.TableFlags.Borders):
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
@@ -2160,16 +2278,20 @@ def ShowPyImGuiExtraMaplWindow():
                     headers = ["Foes Killed", "Foes To Kill"]
                     data = [(Map.GetFoesKilled(), Map.GetFoesToKill())]
 
-                    ImGui.table("Vanquish Info Table",headers,data)
+                    ImGui.table("Vanquish Info Table", headers, data)
 
         PyImGui.end()
 
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
-        Py4GW.Console.Log(module_name, f"Error in ShowPyImGuiExtraMaplWindow: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            module_name, f"Error in ShowPyImGuiExtraMaplWindow: {str(e)}", Py4GW.Console.MessageType.Error
+        )
         raise
 
+
 PyMap_Travel_Window_state.window_name = "PyMap Travel DEMO"
+
 
 def ShowPyImGuiTravelWindow():
     global module_name
@@ -2177,22 +2299,22 @@ def ShowPyImGuiTravelWindow():
     description = "This section demonstrates the use of travel functions in PyMap. \nTravel functions allow you to move between different locations in the game. \nIn this demo, you can see how to use travel functions to move to different districts and outposts."
 
     try:
-        width, height = 375,360
+        width, height = 375, 360
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(PyMap_Travel_Window_state.window_name, PyImGui.WindowFlags.NoResize):
-            ImGui.DrawTextWithTitle(PyMap_Travel_Window_state.window_name, description,8)
+            ImGui.DrawTextWithTitle(PyMap_Travel_Window_state.window_name, description, 8)
 
             if not Map.IsMapReady():
-                    PyImGui.text_colored("Travel : Map is not ready",(1, 0, 0, 1))
-               
+                PyImGui.text_colored("Travel : Map is not ready", (1, 0, 0, 1))
+
             if Map.IsMapReady():
 
                 PyImGui.text("Travel to default district")
-                if PyImGui.button(Map.GetMapName(857)): #Embark Beach
+                if PyImGui.button(Map.GetMapName(857)):  # Embark Beach
                     Map.Travel(857)
 
                 PyImGui.text("Travel to specific district")
-                if PyImGui.button(Map.GetMapName(248)): #Great Temple of Balthazar
+                if PyImGui.button(Map.GetMapName(248)):  # Great Temple of Balthazar
                     Map.TravelToDistrict(248, 0, 0)
 
                 PyImGui.text("Travel trough toolbox chat command")
@@ -2207,10 +2329,11 @@ def ShowPyImGuiTravelWindow():
         raise
 
 
-#PyMap Demo Section
+# PyMap Demo Section
 PyMap_window_state.window_name = "PyMap DEMO"
 PyMap_window_state.button_list = ["Travel", "Extra Info"]
 PyMap_window_state.is_window_open = [False, False]
+
 
 def ShowPyMapWindow():
     global module_name
@@ -2218,14 +2341,13 @@ def ShowPyMapWindow():
     description = "This section demonstrates the use of PyMap functions in Py4GW. \nPyMap provides access to map-related data such as region types, instance types, and map context. \nIn this demo, you can see how to create and use PyMap objects to interact with the map in the game."
 
     try:
-        width, height = 375,490
+        width, height = 375, 490
         PyImGui.set_next_window_size(width, height)
         if PyImGui.begin(PyMap_window_state.window_name, PyImGui.WindowFlags.NoResize):
-            ImGui.DrawTextWithTitle(PyMap_window_state.window_name, description,8)
+            ImGui.DrawTextWithTitle(PyMap_window_state.window_name, description, 8)
 
             # Instance Fields (General map data)
             PyImGui.text("Instance Information")
-
 
             instance_time = Map.GetInstanceUptime()
             instance_time_seconds = instance_time / 1000  # Convert to seconds
@@ -2235,34 +2357,36 @@ def ShowPyMapWindow():
             player_size = Map.GetMaxPlayerSize()
             min_party_size = Map.GetMinPartySize()
             min_player_size = Map.GetMinPlayerSize()
-            
 
             headers = ["Info", "Value"]
-            data = [("Instance ID:", Map.GetMapID()),
-                    ("Instance Name:", Map.GetMapName()),
-                    ("Instance Time:", time_text),
-                    ("Amount of Players in Instance:",Map.GetAmountOfPlayersInInstance()),
-                    ("Max Party Size:", party_size),
-                    ("Max Player Size:", player_size),
-                    ("Min Party Size:", min_party_size),
-                    ("Min Player Size:", min_player_size)
-                    ]
+            data = [
+                ("Instance ID:", Map.GetMapID()),
+                ("Instance Name:", Map.GetMapName()),
+                ("Instance Time:", time_text),
+                ("Amount of Players in Instance:", Map.GetAmountOfPlayersInInstance()),
+                ("Max Party Size:", party_size),
+                ("Max Player Size:", player_size),
+                ("Min Party Size:", min_party_size),
+                ("Min Player Size:", min_player_size),
+            ]
 
-            ImGui.table("Instance Info Table",headers,data)
+            ImGui.table("Instance Info Table", headers, data)
 
             PyImGui.separator()
 
             headers = ["Info", "Value"]
-            data = [("Outpost:", Map.IsOutpost()),
-                    ("Explorable:", Map.IsExplorable()),
-                    ("Loading:", Map.IsMapLoading()),
-                    ("Ready:", Map.IsMapReady())]
+            data = [
+                ("Outpost:", Map.IsOutpost()),
+                ("Explorable:", Map.IsExplorable()),
+                ("Loading:", Map.IsMapLoading()),
+                ("Ready:", Map.IsMapReady()),
+            ]
 
-            ImGui.table("Map Status Info Table",headers,data)
+            ImGui.table("Map Status Info Table", headers, data)
 
             PyImGui.separator()
 
-             # Calculate dynamic grid layout based on number of buttons
+            # Calculate dynamic grid layout based on number of buttons
             total_buttons = len(PyMap_window_state.button_list)
             columns, rows = calculate_grid_layout(total_buttons)
 
@@ -2272,25 +2396,22 @@ def ShowPyMapWindow():
                     PyImGui.table_next_column()  # Move to the next column
 
                     selected_button_index = button_index
-                    PyMap_window_state.is_window_open[selected_button_index] = ImGui.toggle_button(button_label, PyMap_window_state.is_window_open[selected_button_index])
-                    
+                    PyMap_window_state.is_window_open[selected_button_index] = ImGui.toggle_button(
+                        button_label, PyMap_window_state.is_window_open[selected_button_index]
+                    )
+
                     if PyMap_window_state.is_window_open[selected_button_index]:
                         title = PyMap_window_state.button_list[selected_button_index]
 
-                
                 PyImGui.end_table()  # End the table
-                
+
             PyImGui.separator()  # Separator between sections
 
-            
             if PyMap_window_state.is_window_open[0]:
                 ShowPyImGuiTravelWindow()
 
             if PyMap_window_state.is_window_open[1]:
                 ShowPyImGuiExtraMaplWindow()
-
-            
-
 
         PyImGui.end()
 
@@ -2298,35 +2419,39 @@ def ShowPyMapWindow():
         Py4GW.Console.Log(module_name, f"Error in ShowPyMapWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
-                    
 
-#ImGgui DEMO Section
+# ImGgui DEMO Section
 ImGui_misc_window_state.window_name = "PyImGui Miscelaneous DEMO"
 ImGui_misc_window_state.values = [
-        [0.0, 0.0, 0.0],  # RGB placeholder (3 floats)
-        [0.0, 0.0, 0.0, 1.0],  # RGBA placeholder (4 floats)
-        0.0  # Progress bar value
-    ]
+    [0.0, 0.0, 0.0],  # RGB placeholder (3 floats)
+    [0.0, 0.0, 0.0, 1.0],  # RGBA placeholder (4 floats)
+    0.0,  # Progress bar value
+]
+
 
 def ShowPyImGuiMiscelaneousWindow():
     global module_name
     global ImGui_misc_window_state
     description = "This section demonstrates the use of miscellaneous functions in PyImGui. \nThese functions include color pickers, progress bars, and tooltips. \nIn this demo, you can see how to create and use these functions in your interface."
 
-    try:  
-        width, height = 350,375
+    try:
+        width, height = 350, 375
         PyImGui.set_next_window_size(width, height)
-        if PyImGui.begin(ImGui_misc_window_state.window_name,PyImGui.WindowFlags.NoResize):
+        if PyImGui.begin(ImGui_misc_window_state.window_name, PyImGui.WindowFlags.NoResize):
 
-            ImGui.DrawTextWithTitle(ImGui_misc_window_state.window_name, description,8)
+            ImGui.DrawTextWithTitle(ImGui_misc_window_state.window_name, description, 8)
 
             # Color Picker for RGB values
-            ImGui_misc_window_state.values[0] = PyImGui.color_edit3("RGB Color Picker", ImGui_misc_window_state.values[0])
+            ImGui_misc_window_state.values[0] = PyImGui.color_edit3(
+                "RGB Color Picker", ImGui_misc_window_state.values[0]
+            )
             PyImGui.text(f"RGB Color: {ImGui_misc_window_state.values[0]}")
             PyImGui.separator()
-            
+
             # Color Picker for RGBA values
-            ImGui_misc_window_state.values[1] = PyImGui.color_edit4("RGBA Color Picker", ImGui_misc_window_state.values[1])
+            ImGui_misc_window_state.values[1] = PyImGui.color_edit4(
+                "RGBA Color Picker", ImGui_misc_window_state.values[1]
+            )
             PyImGui.text(f"RGBA Color: {ImGui_misc_window_state.values[1]}")
             PyImGui.separator()
 
@@ -2334,42 +2459,52 @@ def ShowPyImGuiMiscelaneousWindow():
             ImGui_misc_window_state.values[2] += 0.01  # Increment the progress by a small amount
             if ImGui_misc_window_state.values[2] > 1.0:  # If progress exceeds 1.0 (100%), reset to 0.0
                 ImGui_misc_window_state.values[2] = 0.0
-            PyImGui.progress_bar(ImGui_misc_window_state.values[2], 100.0, "Progress Bar") 
+            PyImGui.progress_bar(ImGui_misc_window_state.values[2], 100.0, "Progress Bar")
 
             # Tooltip
             PyImGui.text("Hover over the button to see a tooltip:")
             PyImGui.same_line(0.0, -1.0)
-            
+
             if PyImGui.button("Hover Me!"):
-                Py4GW.Console.Log(module_name,"Button clicked!")
+                Py4GW.Console.Log(module_name, "Button clicked!")
             PyImGui.show_tooltip("This is a tooltip for the button.")
 
         PyImGui.end()
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
-        Py4GW.Console.Log(module_name, f"Error in ShowPyImGuiMiscelaneousWindow: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            module_name, f"Error in ShowPyImGuiMiscelaneousWindow: {str(e)}", Py4GW.Console.MessageType.Error
+        )
         raise
+
 
 ImGui_tables_window_state.window_name = "PyImGui Tables DEMO"
 ImGui_tables_window_state.values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
 
 def ShowPyImGuiTablesWindow():
     global module_name
     global ImGui_tables_window_state
     description = "This section demonstrates the use of tables in PyImGui. \nTables allow users to display and interact with data in a structured format. \nIn this demo, you can see how to create and use tables in your interface. Tables can be customized with different columns, headers, and rows, can be sorted, and can contain various data types."
 
-    try:   
-       width, height = 600,430
-       PyImGui.set_next_window_size(width, height)
-       if PyImGui.begin(ImGui_tables_window_state.window_name,PyImGui.WindowFlags.NoResize):
+    try:
+        width, height = 600, 430
+        PyImGui.set_next_window_size(width, height)
+        if PyImGui.begin(ImGui_tables_window_state.window_name, PyImGui.WindowFlags.NoResize):
 
-            ImGui.DrawTextWithTitle(ImGui_tables_window_state.window_name, description,8)
+            ImGui.DrawTextWithTitle(ImGui_tables_window_state.window_name, description, 8)
 
             # Table with 3 columns and 5 rows
             if PyImGui.begin_table("Table1", 3):
-                PyImGui.table_setup_column("Column 1", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Column 2", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Column 3", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "Column 1", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
+                PyImGui.table_setup_column(
+                    "Column 2", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
+                PyImGui.table_setup_column(
+                    "Column 3", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
 
                 PyImGui.table_headers_row()
                 for row in range(5):
@@ -2383,11 +2518,21 @@ def ShowPyImGuiTablesWindow():
 
             # Table with 5 columns and 3 rows
             if PyImGui.begin_table("Table2", 5):
-                PyImGui.table_setup_column("Column 1", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Column 2", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Column 3", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Column 4", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Column 5", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column(
+                    "Column 1", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
+                PyImGui.table_setup_column(
+                    "Column 2", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
+                PyImGui.table_setup_column(
+                    "Column 3", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
+                PyImGui.table_setup_column(
+                    "Column 4", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
+                PyImGui.table_setup_column(
+                    "Column 5", PyImGui.TableColumnFlags.DefaultSort | PyImGui.TableColumnFlags.WidthStretch
+                )
 
                 PyImGui.table_headers_row()
                 for row in range(3):
@@ -2397,46 +2542,55 @@ def ShowPyImGuiTablesWindow():
                         PyImGui.text(f"Row {row}, Column {column}")
                 PyImGui.end_table()
 
-
-       PyImGui.end()
+        PyImGui.end()
 
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
         Py4GW.Console.Log(module_name, f"Error in ShowPyImGuiTablesWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 ImGui_input_fields_window_state.window_name = "PyImGui Input Fields DEMO"
 ImGui_input_fields_window_state.values = [0.0, 0, 0.0, 0, ""]
+
 
 def ShowPyImGuiInputFieldsWindow():
     global module_name
     global ImGui_input_fields_window_state
     description = "This section demonstrates the use of input \nfields in PyImGui. \nInput fields allow users to input values such \nas numbers, text, and colors. \nIn this demo, you can see how to create \nand use input fields in your interface."
 
-    try: 
-       width, height = 310,510
-       PyImGui.set_next_window_size(width, height)
-       if PyImGui.begin(ImGui_input_fields_window_state.window_name,PyImGui.WindowFlags.NoResize):
+    try:
+        width, height = 310, 510
+        PyImGui.set_next_window_size(width, height)
+        if PyImGui.begin(ImGui_input_fields_window_state.window_name, PyImGui.WindowFlags.NoResize):
 
             ImGui.DrawTextWithTitle(ImGui_input_fields_window_state.window_name, description)
 
             # Slider for float values
-            ImGui_input_fields_window_state.values[0] = PyImGui.slider_float("Adjust Float", ImGui_input_fields_window_state.values[0], 0.0, 1.0)
+            ImGui_input_fields_window_state.values[0] = PyImGui.slider_float(
+                "Adjust Float", ImGui_input_fields_window_state.values[0], 0.0, 1.0
+            )
             PyImGui.text(f"Float Value: {ImGui_input_fields_window_state.values[0]:.2f}")
             PyImGui.separator()
-            
+
             # Slider for integer values
-            ImGui_input_fields_window_state.values[1] = PyImGui.slider_int("Adjust Int", ImGui_input_fields_window_state.values[1], 0, 100)
+            ImGui_input_fields_window_state.values[1] = PyImGui.slider_int(
+                "Adjust Int", ImGui_input_fields_window_state.values[1], 0, 100
+            )
             PyImGui.text(f"Int Value: {ImGui_input_fields_window_state.values[1]}")
             PyImGui.separator()
 
             # Input for float values
-            ImGui_input_fields_window_state.values[2] = PyImGui.input_float("Float Input", ImGui_input_fields_window_state.values[2])
+            ImGui_input_fields_window_state.values[2] = PyImGui.input_float(
+                "Float Input", ImGui_input_fields_window_state.values[2]
+            )
             PyImGui.text(f"Float Input: {ImGui_input_fields_window_state.values[2]:.2f}")
             PyImGui.separator()
 
             # Input for integer values
-            ImGui_input_fields_window_state.values[3] = PyImGui.input_int("Int Input", ImGui_input_fields_window_state.values[3])
+            ImGui_input_fields_window_state.values[3] = PyImGui.input_int(
+                "Int Input", ImGui_input_fields_window_state.values[3]
+            )
 
             PyImGui.text(f"Int Input: {ImGui_input_fields_window_state.values[3]}")
             PyImGui.separator()
@@ -2444,59 +2598,78 @@ def ShowPyImGuiInputFieldsWindow():
             if not isinstance(ImGui_input_fields_window_state.values[4], str):
                 ImGui_input_fields_window_state.values[4] = "forced text value"
             # Text Input
-            ImGui_input_fields_window_state.values[4] = PyImGui.input_text("Enter Text", ImGui_input_fields_window_state.values[4])
+            ImGui_input_fields_window_state.values[4] = PyImGui.input_text(
+                "Enter Text", ImGui_input_fields_window_state.values[4]
+            )
             PyImGui.text(f"Entered Text: {ImGui_input_fields_window_state.values[4]}")
             PyImGui.separator()
 
-       PyImGui.end()
+        PyImGui.end()
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
-        Py4GW.Console.Log(module_name, f"Error in ShowPyImGuiInputFieldsWindow: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            module_name, f"Error in ShowPyImGuiInputFieldsWindow: {str(e)}", Py4GW.Console.MessageType.Error
+        )
         raise
+
 
 ImGui_selectables_window_state.window_name = "PyImGui Selectables DEMO"
 ImGui_selectables_window_state.values = [True, 0, 0]
+
 
 def ShowPyImGuiSelectablesWindow():
     global module_name
     global ImGui_selectables_window_state
     description = "This section demonstrates the use of selectables in PyImGui. \nSelectables allow users to interact with items by clicking on them. \nIn this demo, you can see how to create and use selectables in your interface."
 
-    try:  
-       width, height = 300,425
-       PyImGui.set_next_window_size(width, height)
-       if PyImGui.begin(ImGui_selectables_window_state.window_name,PyImGui.WindowFlags.NoResize):
+    try:
+        width, height = 300, 425
+        PyImGui.set_next_window_size(width, height)
+        if PyImGui.begin(ImGui_selectables_window_state.window_name, PyImGui.WindowFlags.NoResize):
 
             ImGui.DrawTextWithTitle(ImGui_selectables_window_state.window_name, description, 8)
 
-            ImGui_selectables_window_state.values[0] = PyImGui.checkbox("Check Me!", ImGui_selectables_window_state.values[0])
+            ImGui_selectables_window_state.values[0] = PyImGui.checkbox(
+                "Check Me!", ImGui_selectables_window_state.values[0]
+            )
             PyImGui.text(f"Checkbox is {'checked' if ImGui_selectables_window_state.values[0] else 'unchecked'}")
             PyImGui.separator()
-        
-            ImGui_selectables_window_state.values[1] = PyImGui.radio_button("Radio Button 1", ImGui_selectables_window_state.values[1], 0)
-            ImGui_selectables_window_state.values[1] = PyImGui.radio_button("Radio Button 2", ImGui_selectables_window_state.values[1], 1)
-            ImGui_selectables_window_state.values[1] = PyImGui.radio_button("Radio Button 3", ImGui_selectables_window_state.values[1], 2)
+
+            ImGui_selectables_window_state.values[1] = PyImGui.radio_button(
+                "Radio Button 1", ImGui_selectables_window_state.values[1], 0
+            )
+            ImGui_selectables_window_state.values[1] = PyImGui.radio_button(
+                "Radio Button 2", ImGui_selectables_window_state.values[1], 1
+            )
+            ImGui_selectables_window_state.values[1] = PyImGui.radio_button(
+                "Radio Button 3", ImGui_selectables_window_state.values[1], 2
+            )
 
             PyImGui.text(f"Selected Radio Button: {ImGui_selectables_window_state.values[1] + 1}")
             PyImGui.separator()
-                
+
             # Combo Box
             items = ["Item 1", "Item 2", "Item 3"]
-            ImGui_selectables_window_state.values[2] = PyImGui.combo("Combo Box", ImGui_selectables_window_state.values[2], items)
+            ImGui_selectables_window_state.values[2] = PyImGui.combo(
+                "Combo Box", ImGui_selectables_window_state.values[2], items
+            )
             PyImGui.text(f"Selected Combo Item: {items[ImGui_selectables_window_state.values[2]]}")
             PyImGui.separator()
 
-       PyImGui.end()
+        PyImGui.end()
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
-        Py4GW.Console.Log(module_name, f"Error in ShowPyImGuiSelectablesWindow: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(
+            module_name, f"Error in ShowPyImGuiSelectablesWindow: {str(e)}", Py4GW.Console.MessageType.Error
+        )
         raise
 
 
 ImGui_window_state.window_name = "PyImGui DEMO"
 ImGui_window_state.button_list = ["Selectables", "Input Fields", "Tables", "Miscelaneous", "Official DEMO"]
 ImGui_window_state.is_window_open = [False, False, False, False, False]
-    
+
+
 def ShowPyImGuiDemoWindow():
     global module_name
     global ImGui_window_state
@@ -2504,13 +2677,12 @@ def ShowPyImGuiDemoWindow():
 
     selected_button_index = 0
     try:
-        width, height = 460,340
+        width, height = 460, 340
         PyImGui.set_next_window_size(width, height)
 
-        if PyImGui.begin(ImGui_window_state.window_name,PyImGui.WindowFlags.NoResize):
+        if PyImGui.begin(ImGui_window_state.window_name, PyImGui.WindowFlags.NoResize):
             ImGui.DrawTextWithTitle("PyImGui ATTENTION", description)
 
-        
             # ----- Top Section: Dynamic Tileset of Buttons -----
             PyImGui.text("Select a Feature:")
 
@@ -2524,17 +2696,17 @@ def ShowPyImGuiDemoWindow():
                     PyImGui.table_next_column()  # Move to the next column
 
                     selected_button_index = button_index
-                    ImGui_window_state.is_window_open[selected_button_index] = ImGui.toggle_button(button_label, ImGui_window_state.is_window_open[selected_button_index])
-                    
+                    ImGui_window_state.is_window_open[selected_button_index] = ImGui.toggle_button(
+                        button_label, ImGui_window_state.is_window_open[selected_button_index]
+                    )
+
                     if ImGui_window_state.is_window_open[selected_button_index]:
                         title = ImGui_window_state.button_list[selected_button_index]
 
-                
                 PyImGui.end_table()  # End the table
-                
+
             PyImGui.separator()  # Separator between sections
 
-            
             if ImGui_window_state.is_window_open[0]:
                 ShowPyImGuiSelectablesWindow()
 
@@ -2550,8 +2722,6 @@ def ShowPyImGuiDemoWindow():
             if ImGui_window_state.is_window_open[4]:
                 PyImGui.show_demo_window()
 
-            
-
         PyImGui.end()
     except Exception as e:
         # Log and re-raise exception to ensure the main script can handle it
@@ -2561,36 +2731,78 @@ def ShowPyImGuiDemoWindow():
 
 main_window_state.window_name = "Py4GW Lib DEMO"
 
-main_window_state.is_window_open = [False, False, False, False, False, False, False, False, False, False, False, False, False,False]
+main_window_state.is_window_open = [
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+]
 
 main_window_state.button_list = [
-    "PyImGui", "PyMap", "PyAgent", "PyPlayer", "PyParty", 
-    "PyItem", "PyInventory", "PySkill", "PySkillbar", "PyEffects",
-    "PyMerchant","PyQuest","Py4GW"
+    "PyImGui",
+    "PyMap",
+    "PyAgent",
+    "PyPlayer",
+    "PyParty",
+    "PyItem",
+    "PyInventory",
+    "PySkill",
+    "PySkillbar",
+    "PyEffects",
+    "PyMerchant",
+    "PyQuest",
+    "Py4GW",
 ]
 
 main_window_state.description_list = [
-    "PyImGui: Provides bindings for creating and managing graphical user interfaces within the game using ImGui. \nIncludes support for text, buttons, tables, sliders, and other GUI elements.",   
-    "PyMap: Manages map-related functions such as handling travel, region data, instance types, and map context. \nIncludes functionality for interacting with server regions, campaigns, and continents.",    
-    "PyAgent: Handles in-game entities (agents) such as players, NPCs, gadgets, and items. \nProvides methods for manipulating and interacting with agents, including movement, targeting, and context updates.",    
-    "PyPlayer: Provides access to the player-specific operations.\nIncludes functionality for interacting with agents, changing targets, issuing chat commands, and other player-related actions such as moving or interacting with the game environment.",   
-    "PyParty: Manages party composition and party-related actions.\n This includes adding/kicking party members (players, heroes, henchmen), flagging heroes, and responding to party requests.\nAllows access to party details like members, size, and mode (e.g., Hard Mode).",   
+    "PyImGui: Provides bindings for creating and managing graphical user interfaces within the game using ImGui. \nIncludes support for text, buttons, tables, sliders, and other GUI elements.",
+    "PyMap: Manages map-related functions such as handling travel, region data, instance types, and map context. \nIncludes functionality for interacting with server regions, campaigns, and continents.",
+    "PyAgent: Handles in-game entities (agents) such as players, NPCs, gadgets, and items. \nProvides methods for manipulating and interacting with agents, including movement, targeting, and context updates.",
+    "PyPlayer: Provides access to the player-specific operations.\nIncludes functionality for interacting with agents, changing targets, issuing chat commands, and other player-related actions such as moving or interacting with the game environment.",
+    "PyParty: Manages party composition and party-related actions.\n This includes adding/kicking party members (players, heroes, henchmen), flagging heroes, and responding to party requests.\nAllows access to party details like members, size, and mode (e.g., Hard Mode).",
     "PyItem: Provides functions for handling in-game items.\nThis includes retrieving item information (modifiers, rarity, type), context updates, and operations like dyeing or identifying items.",
-    "PyInventory: Manages the player's inventory, including Xunlai storage interactions, item manipulation (pick up, drop, equip, destroy), and salvage operations. \nAlso includes functions for managing gold and moving items between inventory bags.", 
+    "PyInventory: Manages the player's inventory, including Xunlai storage interactions, item manipulation (pick up, drop, equip, destroy), and salvage operations. \nAlso includes functions for managing gold and moving items between inventory bags.",
     "PySkill: Handles in-game skills and their properties.\nProvides access to skill-related data such as skill effects, costs (energy, health, adrenaline), and professions.\nIncludes methods for interacting with individual skills and loading skill templates.",
     "PySkillbar: Manages the player's skillbar, including loading skill templates, using skills in specific slots, and refreshing the skillbar context. \nEach skill in the skillbar can be interacted with or updated.",
     "PyEffects: Provides functions for handling in-game effects, including conditions, hexes, enchantments, and other status effects. \nIncludes methods for removing, and updating effects on the player.",
     "PyMerchant: Manages interactions with in-game merchants, including buying and selling items, requesting price quotes, and checking transaction status. \nProvides methods to handle trade-related actions and merchant-specific functionality.",
     "PyQuest: Provides functions for handling in-game quests. \nIncludes methods for handling active quests and abandoning them, more info is yet to be shared.",
-    "Py4GW: Is a collection of miscellaneous functions that are not covered by the other modules. \nThis includes utility functions, helper methods, and additional features that enhance the Py4GW library."
+    "Py4GW: Is a collection of miscellaneous functions that are not covered by the other modules. \nThis includes utility functions, helper methods, and additional features that enhance the Py4GW library.",
 ]
 
-main_window_state.is_window_open = [False, False, False, False, False, False, False, False, False, False, False, False, False, False,False]
+main_window_state.is_window_open = [
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+    False,
+]
 
 title = "Welcome"
 explanation_text_content = "Select a feature to see its details here."
 
 test_button = False
+
 
 # Example of additional utility function
 def DrawWindow():
@@ -2603,10 +2815,10 @@ def DrawWindow():
 
     selected_button_index = 0
     try:
-        width, height = 400,360
+        width, height = 400, 360
         PyImGui.set_next_window_size(width, height)
-        if PyImGui.begin(main_window_state.window_name,PyImGui.WindowFlags.NoResize):
-        
+        if PyImGui.begin(main_window_state.window_name, PyImGui.WindowFlags.NoResize):
+
             # ----- Top Section: Dynamic Tileset of Buttons -----
             PyImGui.text("Select a Feature:")
 
@@ -2620,19 +2832,19 @@ def DrawWindow():
                     PyImGui.table_next_column()  # Move to the next column
 
                     selected_button_index = button_index
-                    main_window_state.is_window_open[selected_button_index] = ImGui.toggle_button(button_label, main_window_state.is_window_open[selected_button_index])
-                    
+                    main_window_state.is_window_open[selected_button_index] = ImGui.toggle_button(
+                        button_label, main_window_state.is_window_open[selected_button_index]
+                    )
+
                     if main_window_state.is_window_open[selected_button_index]:
                         title = main_window_state.button_list[selected_button_index]
                         explanation_text_content = main_window_state.description_list[selected_button_index]
 
-                
                 PyImGui.end_table()  # End the table
-                
+
             PyImGui.separator()  # Separator between sections
 
             ImGui.DrawTextWithTitle(title, explanation_text_content)
-            
 
             if main_window_state.is_window_open[0]:
                 ShowPyImGuiDemoWindow()
@@ -2679,10 +2891,11 @@ def DrawWindow():
         Py4GW.Console.Log(module_name, f"Error in DrawWindow: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+
 def CloseAllWindows():
     global main_window_state, ImGui_window_state, ImGui_selectables_window_state, ImGui_input_fields_window_state, ImGui_tables_window_state
     global ImGui_misc_window_state, PyMap_window_state, PyMap_Travel_Window_state, PyMap_Extra_InfoWindow_state, PyAgent_window_state
-    
+
     # List of all window states
     window_states = [
         main_window_state,
@@ -2694,23 +2907,25 @@ def CloseAllWindows():
         PyMap_window_state,
         PyMap_Travel_Window_state,
         PyMap_Extra_InfoWindow_state,
-        PyAgent_window_state
+        PyAgent_window_state,
     ]
-    
+
     # Iterate over each window state object
     for window_state in window_states:
         # Assuming each window_state has an attribute `is_window_open` that is a list
         for i in range(len(window_state.is_window_open)):
             window_state.is_window_open[i] = False  # Close each window
 
+
 def configure():
     pass
+
 
 # main function must exist in every script and is the entry point for your script's execution.
 def main():
     global module_name
     try:
-        if Map.IsMapReady():    
+        if Map.IsMapReady():
             DrawWindow()
         else:
             CloseAllWindows()
@@ -2731,12 +2946,11 @@ def main():
         Py4GW.Console.Log(module_name, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
     finally:
         # Optional: Code that will run whether an exception occurred or not
-        #Py4GW.Console.Log(module_name, "Execution of Main() completed", Py4GW.Console.MessageType.Info)
+        # Py4GW.Console.Log(module_name, "Execution of Main() completed", Py4GW.Console.MessageType.Info)
         # Place any cleanup tasks here
         pass
+
 
 # This ensures that Main() is called when the script is executed directly.
 if __name__ == "__main__":
     main()
-
-

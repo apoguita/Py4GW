@@ -7,12 +7,15 @@ from Py4GWCoreLib import ImGui
 try:
     from WindowUtilites import BasicWindow
 except ImportError:
+
     class BasicWindow:
         def __init__(self, window_name="Basic Window", window_size=(350.0, 400.0)):
             self.name = window_name
             self.size = window_size
+
         def Show(self):
             pass
+
 
 class ProUnlockWindow(BasicWindow):
     PROFESSION_PRESETS = [
@@ -98,7 +101,7 @@ class ProUnlockWindow(BasicWindow):
                     value = int(dialog_id)
             else:
                 value = int(dialog_id)
-            Player.SendAgentDialog(value)
+            Player.SendDialog(value)
             pass
         except Exception as e:
             pass
@@ -191,7 +194,10 @@ class ProUnlockWindow(BasicWindow):
 def configure():
     pass
 
+
 # Main entry for Py4GW
 window = ProUnlockWindow()
+
+
 def main():
-    window.Show() 
+    window.Show()

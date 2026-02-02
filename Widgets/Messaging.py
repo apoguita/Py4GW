@@ -249,6 +249,7 @@ def TravelToMap(index, message):
 
 # endregion
 
+
 # region Resign
 def Resign(index, message):
     if not Routines.Checks.Map.MapValid():
@@ -263,7 +264,10 @@ def Resign(index, message):
         yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "Resign message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
+
 
 # region PixelStack
 def PixelStack(index, message):
@@ -280,11 +284,11 @@ def PixelStack(index, message):
         yield from Routines.Yield.wait(100)
         Player.SendChatCommand("stuck")
         yield from Routines.Yield.wait(250)
-        result = (yield from Routines.Yield.Movement.FollowPath(
+        result = yield from Routines.Yield.Movement.FollowPath(
             [(message.Params[0], message.Params[1])],
             tolerance=10,
             timeout=10000,
-        ))
+        )
         yield from Routines.Yield.wait(100)
 
         if not result:
@@ -371,6 +375,8 @@ def BruteForceUnstuck(index, message):
     finally:
         yield from EnableHeroAIOptions(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
 # endregion
 
 # region InteractWithTarget
@@ -438,7 +444,10 @@ def TakeDialogWithTarget(index, message):
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
 # endregion
+
 
 # region SendDialogToTarget
 def SendDialogToTarget(index, message):
@@ -466,18 +475,21 @@ def SendDialogToTarget(index, message):
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
         yield from Routines.Yield.wait(500)
-        Player.SendAgentDialog(dialog)
+        Player.SendDialog(dialog)
         yield from Routines.Yield.wait(500)
 
         ConsoleLog(MODULE_NAME, "SendDialogToTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
 # endregion
 
-# region SendAgentDialog
-def SendAgentDialog(index, message):
-    ConsoleLog(MODULE_NAME, f"Processing SendAgentDialog message: {message}", Console.MessageType.Info, False)
+
+# region SendDialog
+def SendDialog(index, message):
+    ConsoleLog(MODULE_NAME, f"Processing SendDialog message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -486,10 +498,13 @@ def SendAgentDialog(index, message):
 
     if UIManager.IsNPCDialogVisible():
         UIManager.ClickDialogButton(int(message.Params[0]))
-        
+
     yield from Routines.Yield.wait(500)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
 # endregion
+
 
 # region GetBlessing
 def GetBlessing(index, message):
@@ -669,37 +684,40 @@ def DonateToGuild(index, message):
             swapped += 1
 
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
 # endregion
 
-#region Open Chest
+
+# region Open Chest
 def OpenChest(index, message):
     start_time = time.time()
-    
+
     cascade = int(message.Params[1]) == 1
     chest_id = int(message.Params[0])
-    
+
     email_owner = message.ReceiverEmail or Player.GetAccountEmail()
-    
+
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(email_owner, index)
     yield from SnapshotHeroAIOptions(email_owner)
-    
+
     def unlock_chest():
         has_lockpick = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Lockpick) > 0
-        
+
         if not has_lockpick:
             ConsoleLog(MODULE_NAME, "No lockpicks available, halting.", Console.MessageType.Warning)
             return
-            
+
         if not Agent.IsValid(chest_id):
             return
-                
+
         yield from DisableHeroAIOptions(email_owner)
         yield from Routines.Yield.wait(100)
         x, y = Agent.GetXY(chest_id)
         ConsoleLog(MODULE_NAME, f"Moving to chest at ({x}, {y})", Console.MessageType.Info)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
-        
+
         ConsoleLog(MODULE_NAME, f"Interacting with chest ID {chest_id}", Console.MessageType.Info)
         yield from Routines.Yield.Player.InteractAgent(chest_id)
         yield from Routines.Yield.wait(150)
@@ -708,56 +726,81 @@ def OpenChest(index, message):
         if UIManager.IsLockedChestWindowVisible():
             while True:
                 if time.time() - start_time > 30:
-                    ConsoleLog(MODULE_NAME, "Timeout reached while opening chest, halting.", Console.MessageType.Warning)
+                    ConsoleLog(
+                        MODULE_NAME, "Timeout reached while opening chest, halting.", Console.MessageType.Warning
+                    )
                     return
-            
-                Player.SendAgentDialog(2)
-                yield from Routines.Yield.wait(1500)    
-            
+
+                Player.SendDialog(2)
+                yield from Routines.Yield.wait(1500)
+
                 if not UIManager.IsLockedChestWindowVisible():
                     ConsoleLog(MODULE_NAME, "Chest successfully unlocked.", Console.MessageType.Info)
                     return
         else:
             ConsoleLog(MODULE_NAME, "Chest is not locked or already opened.", Console.MessageType.Info)
-                
+
     try:
-        yield from unlock_chest()  
-          
+        yield from unlock_chest()
+
     finally:
-        yield from RestoreHeroAISnapshot(email_owner)      
+        yield from RestoreHeroAISnapshot(email_owner)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(email_owner, index)
-          
-        #Get Party Index and cascade to the next party index
+
+        # Get Party Index and cascade to the next party index
         if cascade:
             ConsoleLog(MODULE_NAME, "Cascading OpenChest to next party member.", Console.MessageType.Info)
-            account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(email_owner)     
-                   
+            account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(email_owner)
+
             if account_data is not None:
-                ConsoleLog(MODULE_NAME, f"Current account party position: {account_data.PartyPosition}", Console.MessageType.Info)
-                
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"Current account party position: {account_data.PartyPosition}",
+                    Console.MessageType.Info,
+                )
+
                 party_id = account_data.PartyID
                 map_id = Map.GetMapID()
                 map_region = Map.GetRegion()[0]
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
-                def on_same_map_and_party(account : AccountData) -> bool:                    
-                    return (account.PartyID == party_id and
-                            account.MapID == map_id and
-                            account.MapRegion == map_region and
-                            account.MapDistrict == map_district and
-                            account.MapLanguage == map_language)
-                
-                all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.PartyPosition > account_data.PartyPosition]
+                def on_same_map_and_party(account: AccountData) -> bool:
+                    return (
+                        account.PartyID == party_id
+                        and account.MapID == map_id
+                        and account.MapRegion == map_region
+                        and account.MapDistrict == map_district
+                        and account.MapLanguage == map_language
+                    )
+
+                all_accounts = [
+                    account
+                    for account in GLOBAL_CACHE.ShMem.GetAllAccountData()
+                    if on_same_map_and_party(account) and account.PartyPosition > account_data.PartyPosition
+                ]
                 chest_pos = Agent.GetXY(chest_id)
-                                
-                sorted_by_party_index = sorted(
-                    [acc for acc in all_accounts if Utils.Distance((acc.PlayerPosX, acc.PlayerPosY), chest_pos) < 2500.0], 
-                key=lambda acc: acc.PartyPosition ) if all_accounts else []
-                
+
+                sorted_by_party_index = (
+                    sorted(
+                        [
+                            acc
+                            for acc in all_accounts
+                            if Utils.Distance((acc.PlayerPosX, acc.PlayerPosY), chest_pos) < 2500.0
+                        ],
+                        key=lambda acc: acc.PartyPosition,
+                    )
+                    if all_accounts
+                    else []
+                )
+
                 if sorted_by_party_index:
                     next_account = sorted_by_party_index[0]
-                    ConsoleLog(MODULE_NAME, f"Cascading OpenChest to next party member: {next_account.CharacterName} ({next_account.AccountEmail})", Console.MessageType.Info)
+                    ConsoleLog(
+                        MODULE_NAME,
+                        f"Cascading OpenChest to next party member: {next_account.CharacterName} ({next_account.AccountEmail})",
+                        Console.MessageType.Info,
+                    )
                     GLOBAL_CACHE.ShMem.SendMessage(
                         sender_email=email_owner,
                         receiver_email=next_account.AccountEmail,
@@ -765,11 +808,13 @@ def OpenChest(index, message):
                         params=(chest_id, 1 if cascade else 0, 0, 0),
                     )
             else:
-                ConsoleLog(MODULE_NAME, f"Account data of {email_owner} not found for cascading.", Console.MessageType.Warning)
-                    
+                ConsoleLog(
+                    MODULE_NAME, f"Account data of {email_owner} not found for cascading.", Console.MessageType.Warning
+                )
+
         else:
             ConsoleLog(MODULE_NAME, "OpenChest routine finished without cascading.", Console.MessageType.Info)
-    
+
 
 # region PickUpLoot
 def PickUpLoot(index, message):
@@ -883,7 +928,10 @@ def PickUpLoot(index, message):
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-#endregion
+
+
+# endregion
+
 
 # region DisableHeroAI / EnableHeroAI
 def MessageDisableHeroAI(index, message):
@@ -906,7 +954,10 @@ def MessageEnableHeroAI(index, message):
         yield from RestoreHeroAISnapshot(account_email)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
     ConsoleLog(MODULE_NAME, "EnableHeroAI message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
+
 
 # region SetWindowGeometry
 def SetWindowGeometry(index, message):
@@ -915,26 +966,32 @@ def SetWindowGeometry(index, message):
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    Py4GW.Console.set_window_geometry(int(message.Params[0]), int(message.Params[1]), int(message.Params[2]), int(message.Params[3]))
+    Py4GW.Console.set_window_geometry(
+        int(message.Params[0]), int(message.Params[1]), int(message.Params[2]), int(message.Params[3])
+    )
     yield from Routines.Yield.wait(1500)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "SetWindowGeometry message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
-#region SetWindowActive
+# region SetWindowActive
 def SetWindowActive(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+
     Py4GW.Console.set_window_active()
-    
+
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "SetWindowActive message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
-#region SetWindowTitle
+# region SetWindowTitle
 def SetWindowTitle(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -950,11 +1007,11 @@ def SetWindowTitle(index, message):
 
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "SetWindowTitle message processed and finished.",
-               Console.MessageType.Info, False)
+    ConsoleLog(MODULE_NAME, "SetWindowTitle message processed and finished.", Console.MessageType.Info, False)
+
 
 # endregion
-#region SetBorderless
+# region SetBorderless
 def SetBorderless(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -965,8 +1022,10 @@ def SetBorderless(index, message):
     yield from Routines.Yield.wait(1000)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "SetBorderless message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
-#region SetAlwaysOnTop
+# region SetAlwaysOnTop
 def SetAlwaysOnTop(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -977,8 +1036,10 @@ def SetAlwaysOnTop(index, message):
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "SetAlwaysOnTop message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
-#region FlashWindow
+# region FlashWindow
 def FlashWindow(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -989,8 +1050,10 @@ def FlashWindow(index, message):
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "FlashWindow message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
-#region RequestAttention
+# region RequestAttention
 def RequestAttention(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -1001,6 +1064,8 @@ def RequestAttention(index, message):
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "RequestAttention message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
 # region SetTransparentClickThrough
 def SetTransparentClickThrough(index, message):
@@ -1012,7 +1077,11 @@ def SetTransparentClickThrough(index, message):
     Py4GW.Console.transparent_click_through(bool(message.Params[0]))
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "SetTransparentClickThrough message processed and finished.", Console.MessageType.Info, False)
+    ConsoleLog(
+        MODULE_NAME, "SetTransparentClickThrough message processed and finished.", Console.MessageType.Info, False
+    )
+
+
 # endregion
 # region SetTransparency
 def SetOpacity(index, message):
@@ -1025,9 +1094,12 @@ def SetOpacity(index, message):
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "SetOpacity message processed and finished.", Console.MessageType.Info, False)
-#endregion
 
-#region UseSkill
+
+# endregion
+
+
+# region UseSkill
 def UseSkill(index, message):
     ConsoleLog(MODULE_NAME, f"Processing UseSkill message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -1044,7 +1116,6 @@ def UseSkill(index, message):
     yield from Routines.Yield.Agents.ChangeTarget(target)
     skill_id = int(message.Params[1])
     skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
-    
 
     if skill_slot < 1 or skill_slot > 8:
         ConsoleLog(MODULE_NAME, "Invalid skill slot.", Console.MessageType.Warning)
@@ -1064,6 +1135,7 @@ def UseSkill(index, message):
     finally:
         yield from RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
 
 # region UseItem (generic)
 def UseItem(index, message):
@@ -1091,7 +1163,9 @@ def UseItem(index, message):
 
     count = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
     if count < 1:
-        ConsoleLog(MODULE_NAME, f"UseItem: no items with model_id {model_id} in inventory.", Console.MessageType.Warning)
+        ConsoleLog(
+            MODULE_NAME, f"UseItem: no items with model_id {model_id} in inventory.", Console.MessageType.Warning
+        )
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -1103,7 +1177,9 @@ def UseItem(index, message):
 
         item_id = GLOBAL_CACHE.Item.GetItemIdFromModelID(model_id)
         if not item_id:
-            ConsoleLog(MODULE_NAME, f"UseItem: could not resolve item_id for model_id {model_id}.", Console.MessageType.Warning)
+            ConsoleLog(
+                MODULE_NAME, f"UseItem: could not resolve item_id for model_id {model_id}.", Console.MessageType.Warning
+            )
             break
 
         GLOBAL_CACHE.Inventory.UseItem(item_id)
@@ -1114,7 +1190,10 @@ def UseItem(index, message):
 
     ConsoleLog(MODULE_NAME, f"UseItem: finished. Requested {repeat}, actually used {used}.", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+
+
 # endregion
+
 
 # region UseSkillFromMessage
 def UseSkillCombatPrep(index, message):
@@ -1257,7 +1336,10 @@ def UseSkillCombatPrep(index, message):
 
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-#endregion
+
+
+# endregion
+
 
 # region Widget handling
 def PauseWidgets(index, message):
@@ -1266,11 +1348,12 @@ def PauseWidgets(index, message):
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+
     WidgetHandler().pause_widgets()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "PauseWidgets message processed and finished.", Console.MessageType.Info, False)
+
 
 def ResumeWidgets(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -1278,87 +1361,101 @@ def ResumeWidgets(index, message):
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+
     WidgetHandler().resume_widgets()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "ResumeWidgets message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
 
-#region SwitchCharacter
+
+# region SwitchCharacter
 def SwitchCharacter(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
 
     extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
     character_name = extra[0] if extra else ""
-    
+
     if character_name and character_name != Player.GetName():
-        yield from Routines.Yield.RerollCharacter.Reroll(character_name)  
-    
+        yield from Routines.Yield.RerollCharacter.Reroll(character_name)
+
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-    ConsoleLog(MODULE_NAME, "SwitchCharacter message processed and finished.", Console.MessageType.Info, False)    
+    ConsoleLog(MODULE_NAME, "SwitchCharacter message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
 
-#region LoadSkillTemplate
+
+# region LoadSkillTemplate
 def LoadSkillTemplate(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
-    
+
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+
     if Map.IsOutpost():
         extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
         template = extra[0] if extra else ""
-            
+
         if template:
             GLOBAL_CACHE.SkillBar.LoadSkillTemplate(template)
             yield from Routines.Yield.wait(100)
-    
+
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "LoadSkillTemplate message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
 
-#region SkipCutscene
+
+# region SkipCutscene
 def SkipCutscene(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
-    
+
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+
     if Map.IsInCinematic():
         Map.SkipCinematic()
         yield from Routines.Yield.wait(100)
-    
+
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "SkipCutscene message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
 
-#region TravelToGuildHall
+
+# region TravelToGuildHall
 def TravelToGuildHall(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+
     if Map.IsGuildHall():
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
-    
+
     Map.TravelGH()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "TravelToGuildHall message processed and finished.", Console.MessageType.Info, False)
+
+
 # endregion
+
 
 # region ProcessMessages
 def ProcessMessages():
@@ -1381,8 +1478,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(TakeDialogWithTarget(index, message))
         case SharedCommandType.SendDialogToTarget:
             GLOBAL_CACHE.Coroutines.append(SendDialogToTarget(index, message))
-        case SharedCommandType.SendAgentDialog:
-            GLOBAL_CACHE.Coroutines.append(SendAgentDialog(index, message))
+        case SharedCommandType.SendDialog:
+            GLOBAL_CACHE.Coroutines.append(SendDialog(index, message))
         case SharedCommandType.GetBlessing:
             pass
         case SharedCommandType.OpenChest:

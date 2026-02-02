@@ -226,7 +226,6 @@ DIALOG_GROUPS = {
 }
 
 
-
 def draw_widget():
     global window_x, window_y, window_collapsed, first_run
 
@@ -251,7 +250,7 @@ def draw_widget():
                         for dialog_id, label in dialogs:
                             button_label = f"{label} [0x{dialog_id:X}]"
                             if PyImGui.button(button_label):
-                                Player.SendAgentDialog(dialog_id)
+                                Player.SendDialog(dialog_id)
 
                         if note:
                             PyImGui.spacing()

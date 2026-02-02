@@ -598,7 +598,7 @@ class Player:
 
     # region Dialogs
     @staticmethod
-    def SendAgentDialog(dialog_id: str | int):
+    def SendDialog(dialog_id: str | int):
         """
         Purpose: Send a dialog response using kSendAgentDialog (requires agent context).
 
@@ -616,12 +616,12 @@ class Player:
             cleaned = dialog_id.strip().lower().replace("0x", "")
             dialog = int(cleaned, 16)
 
-        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendAgentDialog, dialog)
+        ActionQueueManager().AddAction("ACTION", Player.player_instance().SendDialog, dialog)
 
     @staticmethod
-    def SendDialog(dialog_id: int):
+    def SendRawDialog(dialog_id: int):
         """Send dialog using kSendAgentDialog. Works for NPC dialogs, skill trainers, etc."""
-        PlayerMethods.SendDialog(dialog_id)
+        PlayerMethods.SendRawDialog(dialog_id)
 
     @staticmethod
     def BuySkill(skill_id: int):
