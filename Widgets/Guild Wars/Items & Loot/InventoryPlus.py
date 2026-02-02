@@ -2,14 +2,14 @@ import Py4GW
 import PyImGui
 from Py4GWCoreLib import *
 
-from Widgets.Config.InvPlus.ColorizeModule import ColorizeModule
-from Widgets.Config.InvPlus.GUI_Helpers import (TabIcon,Frame,floating_game_button)
-from Widgets.Config.InvPlus.IdentifyModule import IdentifyModule
-from Widgets.Config.InvPlus.SalvageModule import SalvageModule
-from Widgets.Config.InvPlus.XunlaiModule import XunlaiModule
-from Widgets.Config.InvPlus.AutoHandlerModule import AutoHandlderModule
-from Widgets.Config.InvPlus.MerchantModule import MerchantModule
-from Widgets.Config.InvPlus.LootModule import LootModule
+from Sources.ApoSource.InvPlus.ColorizeModule import ColorizeModule
+from Sources.ApoSource.InvPlus.GUI_Helpers import (TabIcon,Frame,floating_game_button)
+from Sources.ApoSource.InvPlus.IdentifyModule import IdentifyModule
+from Sources.ApoSource.InvPlus.SalvageModule import SalvageModule
+from Sources.ApoSource.InvPlus.XunlaiModule import XunlaiModule
+from Sources.ApoSource.InvPlus.AutoHandlerModule import AutoHandlderModule
+from Sources.ApoSource.InvPlus.MerchantModule import MerchantModule
+from Sources.ApoSource.InvPlus.LootModule import LootModule
 
 MODULE_NAME = "Inventory +"
 
