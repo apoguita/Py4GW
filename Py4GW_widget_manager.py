@@ -1,4 +1,4 @@
-
+import Py4GW
 import PyImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
@@ -81,12 +81,8 @@ def main():
 
         # FIX 1: Explicitly load the global manager state into the handler
         widget_manager.enable_all = bool(IniManager().get(key=INI_KEY, var_name="enable_all", default=False, section="Configuration"))
-
-        # Apply saved enabled states to runtime widgets
-        for wid, w in widget_manager.widgets.items():
-            vname = widget_manager._widget_var(wid, "enabled")
-            section = f"Widget:{wid}"
-            w.enabled = bool(IniManager().get(key=INI_KEY, section=section, var_name=vname, default=False))
+        widget_manager._apply_ini_configuration()
+            
                 
     if INI_KEY:
         if ImGui.Begin(ini_key=INI_KEY, name="Widget Manager", flags=PyImGui.WindowFlags.AlwaysAutoResize):
