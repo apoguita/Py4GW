@@ -105,22 +105,47 @@ class Style:
         self.Theme : StyleTheme = theme
 
         #region Style Vars
+        self.Alpha : Style.StyleVar = Style.StyleVar(self, 1.0, None, ImGuiStyleVar.Alpha)
+        self.DisabledAlpha : Style.StyleVar = Style.StyleVar(self, 0.6, None, ImGuiStyleVar.DisabledAlpha)
+        
         self.WindowPadding : Style.StyleVar = Style.StyleVar(self, 10, 10, ImGuiStyleVar.WindowPadding)
-        self.CellPadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.CellPadding)
-        self.ChildRounding : Style.StyleVar = Style.StyleVar(self, 0, None, ImGuiStyleVar.ChildRounding)
-        self.TabRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.TabRounding)
-        self.PopupRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.PopupRounding)
-        self.WindowRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.WindowRounding)
         self.FramePadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.FramePadding)
-        self.ButtonPadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.FramePadding, "Button Padding")
-        self.FrameRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.FrameRounding)
+        self.CellPadding : Style.StyleVar = Style.StyleVar(self, 4, 2, ImGuiStyleVar.CellPadding)
         self.ItemSpacing : Style.StyleVar = Style.StyleVar(self, 10, 6, ImGuiStyleVar.ItemSpacing)
         self.ItemInnerSpacing : Style.StyleVar = Style.StyleVar(self, 6, 4, ImGuiStyleVar.ItemInnerSpacing)
+        # self.TouchExtraPadding : Style.StyleVar = Style.StyleVar(self, 0, 0, ImGuiStyleVar.TouchExtraPadding)
         self.IndentSpacing : Style.StyleVar = Style.StyleVar(self, 20, None, ImGuiStyleVar.IndentSpacing)
         self.ScrollbarSize : Style.StyleVar = Style.StyleVar(self, 20, None, ImGuiStyleVar.ScrollbarSize)
-        self.ScrollbarRounding : Style.StyleVar = Style.StyleVar(self, 9, None, ImGuiStyleVar.ScrollbarRounding)
         self.GrabMinSize : Style.StyleVar = Style.StyleVar(self, 5, None, ImGuiStyleVar.GrabMinSize)
+                
+        self.WindowBorderSize : Style.StyleVar = Style.StyleVar(self, 1, None, ImGuiStyleVar.WindowBorderSize)
+        self.ChildBorderSize : Style.StyleVar = Style.StyleVar(self, 1, None, ImGuiStyleVar.ChildBorderSize)
+        self.PopupBorderSize : Style.StyleVar = Style.StyleVar(self, 1, None, ImGuiStyleVar.PopupBorderSize)
+        self.FrameBorderSize : Style.StyleVar = Style.StyleVar(self, 0, None, ImGuiStyleVar.FrameBorderSize)
+        # self.TabBorderSize : Style.StyleVar = Style.StyleVar(self, 0, None, ImGuiStyleVar.TabBorderSize)
+        
+        self.WindowRounding : Style.StyleVar = Style.StyleVar(self, 5, None, ImGuiStyleVar.WindowRounding)
+        self.ChildRounding : Style.StyleVar = Style.StyleVar(self, 0, None, ImGuiStyleVar.ChildRounding)
+        self.FrameRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.FrameRounding)
+        self.PopupRounding : Style.StyleVar = Style.StyleVar(self, 0, None, ImGuiStyleVar.PopupRounding)
+        self.ScrollbarRounding : Style.StyleVar = Style.StyleVar(self, 9, None, ImGuiStyleVar.ScrollbarRounding)
         self.GrabRounding : Style.StyleVar = Style.StyleVar(self, 3, None, ImGuiStyleVar.GrabRounding)
+        self.TabRounding : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.TabRounding)
+        
+        self.WindowTitleAlign : Style.StyleVar = Style.StyleVar(self, 0.0, 0.5, ImGuiStyleVar.WindowTitleAlign)
+        # self.WindowMenuButtonPosition : Style.StyleVar = Style.StyleVar(self, 1, ImGuiStyleVar.WindowMenuButtonPosition)
+        # self.ColorButtonPosition : Style.StyleVar = Style.StyleVar(self, 1, None, ImGuiStyleVar.ColorButtonPosition)
+        self.ButtonTextAlign : Style.StyleVar = Style.StyleVar(self, 0.5, 0.5, ImGuiStyleVar.ButtonTextAlign)
+        self.SelectableTextAlign : Style.StyleVar = Style.StyleVar(self, 0.0, 0.0, ImGuiStyleVar.SelectableTextAlign)
+        self.SeparatorTextBorderSize : Style.StyleVar = Style.StyleVar(self, 3, None, ImGuiStyleVar.SeparatorTextBorderSize)
+        self.SeparatorTextAlign : Style.StyleVar = Style.StyleVar(self, 0, 0.5, ImGuiStyleVar.SeparatorTextAlign)
+        self.SeparatorTextPadding : Style.StyleVar = Style.StyleVar(self, 20, 3, ImGuiStyleVar.SeparatorTextPadding)
+        # self.LogSliderDeadzone : Style.StyleVar = Style.StyleVar(self, 4, None, ImGuiStyleVar.LogSliderDeadzone)
+        #endregion
+        
+        
+        #region Special Style Vars
+        self.ButtonPadding : Style.StyleVar = Style.StyleVar(self, 5, 5, ImGuiStyleVar.FramePadding, "Button Padding")
         #endregion
         
         #region Colors
