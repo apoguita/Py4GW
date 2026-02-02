@@ -397,7 +397,7 @@ class PlayerMethods:
         Game.enqueue(_do_action)
 
     @staticmethod
-    def SendDialog(dialog_id: int) -> None:
+    def SendRawDialog(dialog_id: int) -> None:
         """
         Send a dialog using kSendAgentDialog.
         Works for skill trainers, NPC dialogs, and merchant tabs.
@@ -419,4 +419,4 @@ class PlayerMethods:
             skill_id: The skill ID to purchase
         """
         dialog_skill_id = Utils.SkillIdToDialogId(skill_id)
-        PlayerMethods.SendDialog(dialog_skill_id)
+        PlayerMethods.SendRawDialog(dialog_skill_id)
