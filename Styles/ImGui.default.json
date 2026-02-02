@@ -530,16 +530,32 @@
             "a": 255
         }
     },
-    "StyleVars": {
+    "StyleVars": {    
+        "Alpha": {
+            "value1": 1.0
+        },
         "ButtonPadding": {
-            "value1": 5.0,
+            "value1": 7.0,
             "value2": 5.0
+        },
+        "ButtonTextAlign": {
+            "value1": 0.5,
+            "value2": 0.5
         },
         "CellPadding": {
             "value1": 5.0,
             "value2": 5.0
         },
+        "ChildBorderSize": {
+            "value1": 1.0
+        },
         "ChildRounding": {
+            "value1": 0.0
+        },
+        "DisabledAlpha": {
+            "value1": 0.6
+        },
+        "FrameBorderSize": {
             "value1": 0.0
         },
         "FramePadding": {
@@ -566,6 +582,9 @@
             "value1": 10.0,
             "value2": 6.0
         },
+        "PopupBorderSize": {
+            "value1": 1.0
+        },
         "PopupRounding": {
             "value1": 4.0
         },
@@ -575,8 +594,26 @@
         "ScrollbarSize": {
             "value1": 20.0
         },
+        "SelectableTextAlign": {
+            "value1": 0.0,
+            "value2": 0.0
+        },
+        "SeparatorTextAlign": {
+            "value1": 0.0,
+            "value2": 0.5
+        },
+        "SeparatorTextBorderSize": {
+            "value1": 3.0
+        },
+        "SeparatorTextPadding": {
+            "value1": 20.0,
+            "value2": 3.0
+        },
         "TabRounding": {
             "value1": 4.0
+        },
+        "WindowBorderSize": {
+            "value1": 1.0
         },
         "WindowPadding": {
             "value1": 10.0,
@@ -584,6 +621,10 @@
         },
         "WindowRounding": {
             "value1": 4.0
+        },
+        "WindowTitleAlign": {
+            "value1": 0.0,
+            "value2": 0.5
         }
     }
 }
