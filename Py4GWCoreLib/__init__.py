@@ -90,6 +90,8 @@ from .Context import GWContext
 from .CombatEvents import CombatEvents
 from .IniManager import IniManager
 
+from .py4gwcorelib_src.WidgetManager import WidgetHandler, Widget
+
 traceback = traceback
 math = math
 Enum = Enum
@@ -124,6 +126,8 @@ GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
 IconsFontAwesome5 = IconsFontAwesome5
 IniManager = IniManager
+WidgetHandler = WidgetHandler
+Widget = Widget
 
 
 

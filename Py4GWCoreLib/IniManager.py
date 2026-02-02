@@ -11,7 +11,15 @@ from typing import Any
 # ------------------------------------------------------------
 # Config Node
 # ------------------------------------------------------------
-
+@dataclass
+class IniVarDef:
+    var_name: str
+    section: str
+    key: str
+    default: Any
+    var_type: str  # "bool" | "int" | "float" | "str"
+    
+    
 @dataclass
 class ConfigNode:
     key: str
@@ -38,19 +46,13 @@ class ConfigNode:
     begin_returned_true: bool = False
 
     #varfactory
-    vars_defs: dict[str, tuple[str, str, Any, str]] = field(default_factory=dict)
-    vars_values: dict[str, Any] = field(default_factory=dict)
-    vars_dirty: set[str] = field(default_factory=set)
+    vars_defs: dict[str, IniVarDef] = field(default_factory=dict)
+    vars_values: dict[tuple[str, str], Any] = field(default_factory=dict)   # (section, var_name)
+    vars_dirty: set[tuple[str, str]] = field(default_factory=set)          # (section, var_name)
+
     vars_loaded: bool = False
 
-@dataclass
-class IniVarDef:
-    var_name: str
-    section: str
-    key: str
-    default: Any
-    var_type: str  # "bool" | "int" | "float" | "str"
-    
+
 # ------------------------------------------------------------
 # Config Manager (Singleton, Wrapper)
 # ------------------------------------------------------------
@@ -111,9 +113,7 @@ class IniManager:
         return self.base_path + email + "/"
     
     def _is_account_ready(self) -> bool:
-        email = self.get_account_email()
-        self.account_ready = email != ""
-        return self.account_ready
+        return self.get_account_email() != ""
 
     def _make_key(self, path: str, filename: str) -> str:
         path = path.strip("/")
@@ -219,11 +219,7 @@ class IniManager:
     # IniHandler API — WRAPPED
     # ----------------------------
     def _get_node(self, key: str) -> ConfigNode | None:
-        if not self._is_account_ready():
-            return None
-        if not key:
-            return None
-        return self._handlers.get(key, None)
+        return self._handlers.get(key)
     
     def _read_cached_str(self, key: str, section: str, name: str, default: str) -> str:
         node = self._get_node(key)
@@ -250,27 +246,11 @@ class IniManager:
     
     @staticmethod
     def _flush_callback(*args, **kwargs):
-        #per frame callback to flush throttled writes
-        
         cm = IniManager()
 
-        # don’t do anything until account ready
-        if not cm._is_account_ready():
-            return
-
-        # iterate all nodes and flush throttled writes
         for key, node in cm._handlers.items():
-            if not getattr(node, "needs_flush", False):
+            if not node.needs_flush or not node.pending_writes or not node.write_time.IsExpired():
                 continue
-
-            if not getattr(node, "pending_writes", None):
-                node.needs_flush = False
-                continue
-
-            if not node.write_time.IsExpired():
-                continue
-
-            #print(f"[ConfigManager.FlushCallback] flushing {len(node.pending_writes)} writes key='{key}'")
 
             for (section, name), value in node.pending_writes.items():
                 node.ini_handler.write_key(section, name, value)
@@ -278,58 +258,42 @@ class IniManager:
 
             node.pending_writes.clear()
             node.needs_flush = False
-
             node.write_time.Reset()
             node.write_time.Start()
 
 
     def reload(self, key: str):
-        if not self._is_account_ready():
-            return None
         node = self._handlers.get(key)
         return node.ini_handler.reload() if node else None
 
 
     def save(self, key: str, config):
-        if not self._is_account_ready():
-            return
         node = self._handlers.get(key)
         if node:
             node.ini_handler.save(config)
 
 
     def read_key(self, key: str, section: str, name: str, default=""):
-        if not self._is_account_ready():
-            return default
         node = self._handlers.get(key)
         return node.ini_handler.read_key(section, name, default) if node else default
 
 
     def read_int(self, key: str, section: str, name: str, default=0):
-        if not self._is_account_ready():
-            return default
         node = self._handlers.get(key)
         return node.ini_handler.read_int(section, name, default) if node else default
 
 
     def read_float(self, key: str, section: str, name: str, default=0.0):
-        if not self._is_account_ready():
-            return default
         node = self._handlers.get(key)
         return node.ini_handler.read_float(section, name, default) if node else default
 
 
     def read_bool(self, key: str, section: str, name: str, default=False):
-        if not self._is_account_ready():
-            return default
         node = self._handlers.get(key)
         return node.ini_handler.read_bool(section, name, default) if node else default
 
 
     def write_key(self, key: str, section: str, name: str, value):
-        if not self._is_account_ready():
-            return
-
         node = self._handlers.get(key)
         if not node:
             return
@@ -356,45 +320,33 @@ class IniManager:
 
 
     def delete_key(self, key: str, section: str, name: str):
-        if not self._is_account_ready():
-            return
         node = self._handlers.get(key)
         if node:
             node.ini_handler.delete_key(section, name)
 
 
     def delete_section(self, key: str, section: str):
-        if not self._is_account_ready():
-            return
         node = self._handlers.get(key)
         if node:
             node.ini_handler.delete_section(section)
 
 
     def list_sections(self, key: str) -> list:
-        if not self._is_account_ready():
-            return []
         node = self._handlers.get(key)
         return node.ini_handler.list_sections() if node else []
 
 
     def list_keys(self, key: str, section: str) -> dict:
-        if not self._is_account_ready():
-            return {}
         node = self._handlers.get(key)
         return node.ini_handler.list_keys(section) if node else {}
 
 
     def has_key(self, key: str, section: str, name: str) -> bool:
-        if not self._is_account_ready():
-            return False
         node = self._handlers.get(key)
         return node.ini_handler.has_key(section, name) if node else False
 
 
     def clone_section(self, key: str, src: str, dst: str):
-        if not self._is_account_ready():
-            return
         node = self._handlers.get(key)
         if node:
             node.ini_handler.clone_section(src, dst)
@@ -437,16 +389,18 @@ class IniManager:
         - assume collapsed=True always
         - if Begin returned True => collapsed=False
         """
-        if not key:
-            return
+        if not key: return
 
         node = self._handlers.get(key)
-        if node is None:
-            return
+        if node is None: return
 
         new_collapsed = True
         if begin_result:
             new_collapsed = False
+        else:
+            # if Begin returned False, we cannot query ImGui for collapsed state
+            # so we assume it is collapsed=True
+            new_collapsed = True
 
         if new_collapsed == node.collapsed:
             return
@@ -464,6 +418,15 @@ class IniManager:
         node.needs_update = False
 
 
+    def IsWindowCollapsed(self, key: str) -> bool:
+        if not key:
+            return False
+
+        node = self._handlers.get(key)
+        if node is None:
+            return False
+
+        return node.collapsed
 
 
     def end_window_config(self, key: str):
@@ -483,7 +446,7 @@ class IniManager:
         # ---- safe to read window values now ----
         end_pos = PyImGui.get_window_pos()
         end_size = PyImGui.get_window_size()
-        new_collapsed = PyImGui.is_window_collapsed()
+        new_collapsed = self.IsWindowCollapsed(key)
 
         changed_pos = (end_pos[0], end_pos[1]) != (node.x_pos, node.y_pos)
         changed_size = (end_size[0], end_size[1]) != (node.width, node.height)
@@ -529,36 +492,26 @@ class IniManager:
 
     def ensure_global_key(self, path: str, filename: str) -> str:
         return self.AddIniHandler(path, filename, is_global=True)
-
+    
+    def _add_var_def(self, key: str, var_name: str, section: str, name: str, default: Any, vtype: str):
+        node = self._get_node(key)
+        if node:
+            # The definition is stored by the variable name for lookup
+            node.vars_defs[var_name] = IniVarDef(var_name, section, name, default, vtype)
 
     def add_bool(self, key: str, var_name: str, section: str, name: str, default: bool = False):
-        node = self._handlers.get(key)
-        if not node:
-            return
-        node.vars_defs[var_name] = (section, name, default, "bool")
+        self._add_var_def(key, var_name, section, name, default, "bool")
 
     def add_int(self, key: str, var_name: str, section: str, name: str, default: int = 0):
-        node = self._handlers.get(key)
-        if not node:
-            return
-        node.vars_defs[var_name] = (section, name, default, "int")
+        self._add_var_def(key, var_name, section, name, default, "int")
 
     def add_float(self, key: str, var_name: str, section: str, name: str, default: float = 0.0):
-        node = self._handlers.get(key)
-        if not node:
-            return
-        node.vars_defs[var_name] = (section, name, default, "float")
+        self._add_var_def(key, var_name, section, name, default, "float")
 
     def add_str(self, key: str, var_name: str, section: str, name: str, default: str = ""):
-        node = self._handlers.get(key)
-        if not node:
-            return
-        node.vars_defs[var_name] = (section, name, default, "str")
+        self._add_var_def(key, var_name, section, name, default, "str")
 
     def load_once(self, key: str):
-        if not self._is_account_ready():
-            return
-        
         if not key:
             return
 
@@ -568,102 +521,57 @@ class IniManager:
         if node.vars_loaded:
             return
 
-        for var_name, (section, name, default, t) in node.vars_defs.items():
-            if t == "bool":
-                v = self.read_bool(key, section, name, bool(default))
-            elif t == "int":
-                v = self.read_int(key, section, name, int(default))
-            elif t == "float":
-                v = self.read_float(key, section, name, float(default))
+        for var_name, var_def in node.vars_defs.items():
+            if var_def.var_type == "bool":
+                v = self.read_bool(key, var_def.section, var_def.key, bool(var_def.default))
+            elif var_def.var_type == "int":
+                v = self.read_int(key, var_def.section, var_def.key, int(var_def.default))
+            elif var_def.var_type == "float":
+                v = self.read_float(key, var_def.section, var_def.key, float(var_def.default))
             else:
-                v = self.read_key(key, section, name, str(default))
+                v = self.read_key(key, var_def.section, var_def.key, str(var_def.default))
 
-            node.vars_values[var_name] = v
+            node.vars_values[(var_def.section, var_name)] = v
 
         node.vars_loaded = True
         
-    def get(self, key: str, var_name: str, default=None):
-        """
-        Get variable value.
-        If not loaded yet, falls back to declared default or provided default.
-        if loaded, returns current cached value or provided default if not found.
-        """
-        node = self._handlers.get(key)
+    def get(self, key: str, var_name: str, default=None, section: str = ""):
+        node = self._get_node(key)
         if not node:
             return default
 
-        if var_name in node.vars_values:
-            return node.vars_values[var_name]
+        k = (section, var_name)
+        if k in node.vars_values:
+            return node.vars_values[k]
 
-        # if not loaded yet, fall back to declared default
-        d = node.vars_defs.get(var_name)
-        if d:
-            return d[2]  # default
+        vd = node.vars_defs.get(var_name)
+        return vd.default if vd else default
 
-        return default
 
-    def set(self, key: str, var_name: str, value):
-        node = self._handlers.get(key)
+    def set(self, key: str, var_name: str, value, section: str = ""):
+        node = self._get_node(key)
         if not node:
             return
 
-        old = node.vars_values.get(var_name, None)
-        if old == value:
+        k = (section, var_name)
+        if node.vars_values.get(k) == value:
             return
 
-        node.vars_values[var_name] = value
-        node.vars_dirty.add(var_name)
+        node.vars_values[k] = value
+        node.vars_dirty.add(k)
 
     def save_vars(self, key: str):
-        if not self._is_account_ready():
-            return
-        
-        if not key:
-            return
+        node = self._get_node(key)
+        if not node or not node.vars_dirty: return
 
-        node = self._handlers.get(key)
-        if not node:
-            return
-
-        if not node.vars_dirty:
-            return
-
-        for var_name in list(node.vars_dirty):
-            if var_name not in node.vars_defs:
-                continue
-
-            section, name, default, t = node.vars_defs[var_name]
-            v = node.vars_values.get(var_name, default)
-
-            # stage to throttled writer
-            self.write_key(key, section, name, v)
+        for (section, var_name) in list(node.vars_dirty):
+            vd = node.vars_defs.get(var_name)
+            if vd:
+                val = node.vars_values.get((section, var_name), vd.default)
+                self.write_key(key, vd.section, vd.key, val)
 
         node.vars_dirty.clear()
+
         
-    def remove_var(self, key: str, var_name: str):
-        node = self._handlers.get(key)
-        if not node:
-            return
-
-        node.vars_defs.pop(var_name, None)
-        node.vars_values.pop(var_name, None)
-        node.vars_dirty.discard(var_name)
-        
-    def remove_all_vars(self, key: str):
-        node = self._handlers.get(key)
-        if not node:
-            return
-
-        node.vars_defs.clear()
-        node.vars_values.clear()
-        node.vars_dirty.clear()
-        
-
-
-
-
-
-
-
 
 IniManager.enable()
