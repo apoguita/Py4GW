@@ -1,6 +1,7 @@
 from ...Scanner import ScannerSection
 from ..internals.prototypes import Prototypes
 from ..internals.native_function import NativeFunction
+from ...py4gwcorelib_src.Utils import Utils
 
 from ...enums_src.UI_enums import UIMessage
 from ...Scanner import Scanner
@@ -382,3 +383,27 @@ class PlayerMethods:
 
         Game.enqueue(_do_action)
 
+    @staticmethod
+    def SendRawDialog(dialog_id: int) -> None:
+        """
+        Send a dialog using kSendAgentDialog.
+        Works for skill trainers, NPC dialogs, and merchant tabs.
+        """
+
+        def _action():
+            from ...UIManager import UIManager
+
+            UIManager.SendUIMessageRaw(UIMessage.kSendAgentDialog, dialog_id, 0)
+
+        Game.enqueue(_action)
+
+    @staticmethod
+    def SendSkillTrainerDialog(skill_id: int) -> None:
+        """
+        Buy/Learn a skill from a Skill Trainer.
+
+        Args:
+            skill_id: The skill ID to purchase
+        """
+        dialog_skill_id = Utils.SkillIdToDialogId(skill_id)
+        PlayerMethods.SendRawDialog(dialog_skill_id)

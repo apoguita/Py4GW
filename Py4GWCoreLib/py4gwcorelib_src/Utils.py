@@ -752,5 +752,26 @@ class Utils:
         """Calculate the number of health pips based on max health and regeneration rate."""
         pips = (max_health * health_regen) / 2
         return int(pips)
+    
+    @staticmethod
+    def SkillIdToDialogId(skill_id: int) -> int:
+        """
+        Convert a skill ID to the dialog ID used by Skill Trainers.
+
+        This ORs the skill ID with the skill dialog mask (0x0A000000) to create
+        the dialog ID that can be sent via Player.SendDialog() to learn a skill.
+
+        Args:
+            skill_id (int): The skill ID to convert.
+
+        Returns:
+            int: The dialog ID for the Skill Trainer (skill_id | 0x0A000000).
+
+        Example:
+            dialog_id = Utils.SkillIdToDialogId(42)  # Returns 0x0A00002A
+            Player.SendDialog(dialog_id)
+        """
+        SKILL_DIALOG_MASK = 0x0A000000
+        return skill_id | SKILL_DIALOG_MASK
 
 #endregion
