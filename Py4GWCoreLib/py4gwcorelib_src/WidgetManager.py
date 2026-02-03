@@ -40,11 +40,7 @@ class Widget:
     ini_key: str = ""             # "" or valid key
     ini_path: str = ""            # "Widgets/folder"
     ini_filename: str = ""        # "script_name.ini"
-    
-    # Runtime state (defaults)
-    enabled: bool = False
-    configuring: bool = False
-    
+        
     # Extracted callbacks (will be populated in __post_init__)
     main: Optional[Callable] = field(default=None, init=False)
     configure: Optional[Callable] = field(default=None, init=False)
@@ -57,7 +53,18 @@ class Widget:
     on_disable: Optional[Callable] = field(default=None, init=False)
     
     module: Optional[ModuleType] = field(default=None, init=False, repr=False)
+    __enabled: bool = field(default=False, init=False,)
+    __configuring: bool = field(default=False, init=False)
     
+    @property
+    def enabled(self) -> bool:
+        """Check if the widget is enabled"""
+        return self.__enabled
+    
+    @property
+    def configuring(self) -> bool:
+        """Check if the widget is in configuring state"""
+        return self.__configuring
     
     def load_module(self) -> bool:
         """Load the module if not already loaded"""
@@ -81,7 +88,7 @@ class Widget:
             spec.loader.exec_module(module)
         except Exception as e:
             del sys.modules[unique_name]
-            self.enabled = False
+            self.disable()
             Py4GW.Console.Log("WidgetManager", f"Failed to load widget module '{self.name}': {e}", Py4GW.Console.MessageType.Error)
             return False
         
@@ -108,9 +115,21 @@ class Widget:
             
         return True
     
+    def set_configuring(self, state: bool):
+        """Set configuring state"""
+        self.__configuring = state
+        
+    def enable_configuring(self):
+        """Enable configuring state"""
+        self.set_configuring(True)
+        
+    def disable_configuring(self):  
+        """Disable configuring state"""
+        self.set_configuring(False)
+        
     def disable(self):
         """Disable the widget"""
-        if self.enabled:
+        if self.__enabled:
             if self.module is not None:
                 try:
                     if self.on_disable:
@@ -120,7 +139,7 @@ class Widget:
                     Py4GW.Console.Log("WidgetManager", f"Error during on_disable of widget {self.name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     Py4GW.Console.Log("WidgetManager", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
                 
-            self.enabled = False
+            self.__enabled = False
         
     def enable(self):
         """Enable the widget"""
@@ -128,7 +147,7 @@ class Widget:
             return  # Already enabled
         
         # enable widget only if module loads successfully
-        self.enabled = self.load_module()
+        self.__enabled = self.load_module()
         
         if self.enabled:
             try:
@@ -291,7 +310,6 @@ class WidgetHandler:
             Py4GW.Console.Log("WidgetHandler", f"Widget '{name}' not found", Py4GW.Console.MessageType.Warning)
             return
         
-        widget.enabled = state
         if state:
             widget.enable()
         else:
@@ -366,8 +384,7 @@ class WidgetHandler:
                 script_path=script_path,
                 ini_key="",           # Empty - will be set later
                 ini_path="",          # Empty - will be set later  
-                ini_filename="",      # Empty - will be set later
-                enabled=False,        # Default disabled))
+                ini_filename="",      # Empty - will be set later                
             )
             
             # 3. Register
@@ -387,8 +404,8 @@ class WidgetHandler:
 
             cv = self._get_config_var(widget.name, self._widget_var(widget.name, "enabled"))
             
-            widget.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
-            if widget.enabled:
+            enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
+            if enabled:
                 widget.enable()
                 
             #keep logging minimal
@@ -402,8 +419,8 @@ class WidgetHandler:
         for wid, w in self.widgets.items():
             vname = self._widget_var(wid, "enabled")
             section = f"Widget:{wid}"
-            w.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=section, var_name=vname, default=False))
-            if w.enabled:
+            enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=section, var_name=vname, default=False))
+            if enabled:
                 w.enable()
                 
             
@@ -472,10 +489,13 @@ class WidgetHandler:
                         PyImGui.table_set_column_index(1)
                         
                         if widget.has_configure_property:
-                            widget.configuring = ImGui.toggle_icon_button(
+                            configuring = ImGui.toggle_icon_button(
                                 IconsFontAwesome5.ICON_COG + f"##Configure{widget_id}",
                                 widget.configuring
                             )
+                            if configuring != widget.configuring:
+                                widget.set_configuring(configuring)
+                                
                             if PyImGui.is_item_hovered():
                                 PyImGui.show_tooltip("Configure Widget")
                         else:
@@ -703,7 +723,7 @@ class WidgetHandler:
         if not widget:
             Py4GW.Console.Log("WidgetHandler", f"Widget '{name}' not found", Py4GW.Console.MessageType.Warning)
             return
-        widget.configuring = value
+        widget.set_configuring(value)
         
     def get_widget_info(self, name: str) -> Widget | None:
         # 1) direct full id lookup
