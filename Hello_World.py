@@ -1,44 +1,41 @@
 import PyImGui
+import PyAgent
 
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib.Map import Map
-from Py4GWCoreLib.Routines import Routines
+counter = 0
+
+"""def update():
+    global counter
+    counter += 1
 
 
-def _coro_travel_in_loop():
-    while True:
-        Map.TravelGH()
-        while True:
-            in_guild_hall = Map.IsGuildHall()
-            if not in_guild_hall:
-                yield from Routines.Yield.wait(1000)
-            else:
-                break
-        yield from Routines.Yield.wait(1500)
-        Map.LeaveGH()
-        while True:
-            in_guild_hall = Map.IsGuildHall()
-            if in_guild_hall or not Routines.Checks.Map.MapValid():
-                yield from Routines.Yield.wait(1000)
-            else:
-                break
-        yield from Routines.Yield.wait(1500)
+def draw():
+    global counter
+    if PyImGui.begin("hello world"):
+        PyImGui.text("Hello World from Python!")
+        PyImGui.text(f"Counter: {counter}")
+    PyImGui.end()"""
+    
+agent_id = 0
+agent_enc_name = []
+def main():
+    global agent_id, agent_enc_name
+    if PyImGui.begin("Hello World"):    
+        agent_id = PyImGui.input_int("Agent ID", agent_id)
+        if PyImGui.button("Get Agent Name"):
+            agent_enc_name = PyAgent.PyAgent.GetAgentEncName(agent_id)   
 
-input_string = ""
-
-def draw_window():
-    global input_string
-    if PyImGui.begin("player test"): 
-        if PyImGui.button("Start Travel GH Loop"):
-            GLOBAL_CACHE.Coroutines.append(_coro_travel_in_loop())
-
-        if PyImGui.button("Stop All Coroutines"):
-            GLOBAL_CACHE.Coroutines.clear()
+        for byte in agent_enc_name:
+            PyImGui.text(f"{byte} ")
+            PyImGui.same_line(0,-1)
+            
+        PyImGui.new_line()
+        PyImGui.separator()
+        for byte in agent_enc_name:
+            PyImGui.text(f"{chr(byte)} ")
+            PyImGui.same_line(0,-1)
+            
 
     PyImGui.end()
-
-def main():
-    draw_window()
 
 if __name__ == "__main__":
     main()

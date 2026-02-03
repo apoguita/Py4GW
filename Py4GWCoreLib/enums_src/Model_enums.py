@@ -678,6 +678,177 @@ class PetModelID(IntEnum):
 
 # region ItemModels
 class ModelID(IntEnum):
+    LesserStoneBlade = 1955
+    GreaterStoneBlade = 1956
+    ScorpionsBow = 2008
+    ScorpionsLust = 2009
+    BlackHawksLust = 2010
+    IthasBow = 2011
+    
+    ChimericPrismFastcasting = 2012
+    ChimericPrismSoulReaping = 2013  # Needs confirmation
+    ChimericPrismEnergyStorage = 2014
+    ChimericPrismDivineFavor = 2015
+    ChimericPrismSpawningPower = 2016  # Needs confirmation
+    
+    BoneIdolSoulReaping = 2017
+    BoneIdolBloodMagic = 2018
+    BoneIdolCurses = 2019
+    BoneIdolDeathMagic = 2020  # Needs confirmation
+    
+    StormEmberAirMagic = 2021
+    StormEmberEarthMagic = 2022
+    StormEmberEnergyStorage = 2023
+    StormEmberFireMagic = 2024
+    StormEmberWaterMagic = 2025
+    
+    LionsPrideAirMagic = 2026
+    LionsPrideEarthMagic = 2027
+    LionsPrideEnergyStorage = 2028
+    LionsPrideFireMagic = 2029
+    LionsPrideWaterMagic = 2030
+    
+    TigersPrideFastcasting = 2031
+    TigersPrideSoulReaping = 2045
+    TigersPrideEnergyStorage = 2047
+    TigersPrideDivineFavor = 2054
+    TigersPrideCommuning = 2055
+    
+    HeavensArchDivineFavor = 2056
+    HeavensArchHealingPrayers = 2057
+    HeavensArchProtectionPrayers = 2066
+    HeavensArchSmitingPrayers = 2067
+    
+    FoxsGreedDivineFavor = 2068
+    FoxsGreedHealingPrayers = 2069
+    FoxsGreedProtectionPrayers = 2070
+    FoxsGreedSmitingPrayers = 2080
+    FoxsGreedCommuning = 2081
+    FoxsGreedSpawningPower = 2082
+    FoxsGreedRestoration = 2083
+    FoxsGreedChanneling = 2084
+    
+    WolfsGreedDivineFavor = 2085
+    WolfsGreedHealingPrayers = 2087
+    WolfsGreedProtectionPrayers = 2088
+    WolfsGreedSmitingPrayers = 2090
+    WolfsGreedCommuning = 2091
+    WolfsGreedSpawningPower = 2092
+    WolfsGreedRestoration = 2094
+    WolfsGreedChanneling = 2095
+    
+    CensorsIconProtectionPrayers = 2096  # Needs confirmation
+    CensorsIconSmitingPrayers = 2097  # Needs confirmation
+    CensorsIconDivineFavor = 2100
+    CensorsIconHealingPrayers = 2101
+    
+    LesserEtchedSword = 2102
+    GreaterEtchedSword = 2103
+    
+    LesserGraniteEdge = 2116
+    GreaterGraniteEdge = 2117
+    
+    Stoneblade = 2125
+    FuriousBonecrusher = 2133
+    EtchedSword = 2134
+    
+    BearsSloth = 2239
+    RhinosSloth = 2240
+    
+    QuicksilverDomination = 2242
+    QuicksilverFastcasting = 2243
+    QuicksilverIllusion = 2244
+    QuicksilverInspiration = 2245
+    
+    UnicornsWrathDomination = 2246
+    UnicornsWrathFastcasting = 2424
+    UnicornsWrathIllusion = 2425
+    UnicornsWrathInspiration = 2426
+    UnicornsWrathSoulReaping = 2427
+    UnicornsWrathEnergyStorage = 2428
+    UnicornsWrathDivineFavor = 2429
+    UnicornsWrathCommuning = 2430
+    
+    PeacocksWrathDomination = 2431
+    PeacocksWrathFastcasting = 2432
+    PeacocksWrathIllusion = 2433
+    PeacocksWrathInspiration = 2434
+    
+    BronzeGuardianTactics = 2435
+    BronzeGuardianStrength = 2436
+    BronzeGuardianLeadership = 2437
+    
+    HogsGluttonyTactics = 2438
+    HogsGluttonyStrength = 2439
+    HogsGluttonyLeadership = 2440
+    
+    SpidersGluttonyTactics = 2441
+    SpidersGluttonyStrength = 2442
+    SpidersGluttonyLeadership = 2443
+    
+    CanthanTargeTactics = 2444
+    CanthanTargeStrength = 2445  # Need confirmation
+    CanthanTargeLeadership = 2446 
+    
+    DeathsHeadSoulReaping = 2447
+    DeathsHeadBloodMagic = 2448
+    DeathsHeadCurses = 2449
+    DeathsHeadDeathMagic = 2450
+    
+    SnakesEnvySoulReaping = 2451
+    SnakesEnvyBloodMagic = 2452
+    SnakesEnvyCurses = 2453
+    SnakesEnvyDeathMagic = 2454
+    
+    DragonsEnvyFastcasting = 2455
+    DragonsEnvySoulReaping = 2456
+    DragonsEnvyEnergyStorage = 2457
+    DragonsEnvyDivineFavor = 2458
+    DragonsEnvyCommuning = 2459
+    
+    DragonFangs = 2460
+    
+    OminousAegisTactics = 2461
+    OminousAegisStrength = 2462
+    OminousAegisLeadership = 2463
+    
+    SpiritbinderCommuning = 2464
+    SpiritbinderSpawningPower = 2465
+    SpiritbinderRestoration = 2466  # Needs confirmation
+    SpiritbinderChanneling = 2467
+    
+    Soulbreaker = 2468
+    JapanAnniversaryShieldStrength = 2469
+    JapanAnniversaryShieldLeadership = 2470
+    
+    Sunspear = 2471
+    DarksteelLongbow = 2472
+    GlacialBlade = 2473
+    GlacialBlades = 2474
+    
+    HourglassStaffDomination = 2475
+    HourglassStaffFastcasting = 2476
+    HourglassStaffIllusion = 2477
+    HourglassStaffInspiration = 2478
+    HourglassStaffSoulReaping = 2479
+    HourglassStaffBloodMagic = 2480
+    HourglassStaffCurses = 2481
+    HourglassStaffDeathMagic = 2482
+    HourglassStaffAirMagic = 2483
+    HourglassStaffEarthMagic = 2484
+    HourglassStaffEnergyStorage = 2485
+    HourglassStaffFireMagic = 2486
+    HourglassStaffWaterMagic = 2487
+    HourglassStaffDivineFavor = 2488
+    HourglassStaffHealingPrayers = 2489
+    HourglassStaffProtectionPrayers = 2490
+    HourglassStaffSmitingPrayers = 2491
+    HourglassStaffCommuning = 2492
+    HourglassStaffSpawningPower = 2493
+    HourglassStaffRestoration = 2494
+    HourglassStaffChanneling = 2495
+    
+    
     Roaring_Ether_Heart = 12345678910
     Charr_Hide = 1234567891
     Herring = 9876543210
@@ -1598,4 +1769,3 @@ class ModelID(IntEnum):
 
 
 # region AgentModels
-

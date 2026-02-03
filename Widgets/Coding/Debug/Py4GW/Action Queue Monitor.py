@@ -1,0 +1,100 @@
+from Py4GWCoreLib import *
+
+MODULE_NAME = "A"
+
+action_queue_manager = ActionQueueManager()
+
+def tooltip():
+    PyImGui.begin_tooltip()
+
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.push_font("Regular", 20)
+    PyImGui.text_colored("Action Queue Monitor", title_color.to_tuple_normalized())
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.separator()
+
+    # Description
+    PyImGui.text("A real-time monitoring utility for the Py4GW Action Queue system.")
+    PyImGui.text("This tool tracks pending automation tasks and keeps a detailed")
+    PyImGui.text("history of executed game actions across various subsystems.")
+    PyImGui.spacing()
+
+    # Features
+    PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Multi-Queue Tracking: Monitor specialized queues including Action, Loot, Merchant, and Salvage")
+    PyImGui.bullet_text("Live Action View: See currently pending actions that are waiting to be processed")
+    PyImGui.bullet_text("Execution History: View a persistent, reversible log of all completed actions per category")
+    PyImGui.bullet_text("Queue Management: Tools to manually reset active queues or clear history logs")
+    PyImGui.bullet_text("Developer Export: Quickly copy the entire action history to the clipboard for debugging")
+
+    PyImGui.spacing()
+    PyImGui.separator()
+    PyImGui.spacing()
+
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Apo")
+    PyImGui.bullet_text("Contributors: frenkey, Torx")
+
+    PyImGui.end_tooltip()
+
+def main():
+    global action_queue_manager
+    
+    all_queues = {
+            "ACTION",
+            "LOOT",
+            "MERCHANT",
+            "SALVAGE",
+            "IDENTIFY", 
+            "FAST", 
+            "TRANSITION",
+        }
+    
+    if not Routines.Checks.Map.MapValid():
+        return
+    
+    if PyImGui.begin("ActionQueue Monitor", PyImGui.WindowFlags.AlwaysAutoResize):
+        if PyImGui.begin_tab_bar("InfoTabBar"):
+            for queue_name in all_queues:
+                if PyImGui.begin_tab_item(queue_name):
+                    action_queue = action_queue_manager.GetAllActionNames(queue_name)
+                    if action_queue:
+                        PyImGui.text(f"Number of actions in {queue_name}: {len(action_queue)}")
+                    else:
+                        PyImGui.text(f"No actions in {queue_name}.")
+                     
+                    if PyImGui.begin_child("InfoCurrentActions", size=(0, 100),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+                        for action in action_queue:
+                            PyImGui.text(f"Action: {action}")
+                        PyImGui.end_child()
+                        
+                    PyImGui.separator()
+                    action_history = action_queue_manager.GetHistoryNames(queue_name)
+                    if action_history:
+                        PyImGui.text(f"Number of actions in {queue_name} history: {len(action_history)}")
+                    else:
+                        PyImGui.text(f"No actions in {queue_name} history.")
+                      
+                    if PyImGui.button("Clear Action Queue"):
+                        action_queue_manager.ResetQueue(queue_name)
+                        
+                    if PyImGui.button("Clear History"):
+                        action_queue_manager.ClearHistory(queue_name)
+                        
+                    if PyImGui.button("Copy to Clipboard"):
+                        PyImGui.set_clipboard_text("\n".join(action_history))
+                        
+                    if PyImGui.begin_child("InfoHistoryActions", size=(0, 300),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+                        for action in reversed(action_history):
+                            PyImGui.text(f"Action: {action}")
+                        PyImGui.end_child()
+                    PyImGui.end_tab_item() 
+            PyImGui.end_tab_bar() 
+    PyImGui.end()
+    
+    
+if __name__ == "__main__":
+    main()

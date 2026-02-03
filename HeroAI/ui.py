@@ -12,12 +12,12 @@ from HeroAI.cache_data import CacheData
 from HeroAI.commands import HeroAICommands
 from HeroAI.constants import NUMBER_OF_SKILLS, PARTY_WINDOW_HASH, SKILLBAR_WINDOW_HASH
 from HeroAI.settings import Settings
-from HeroAI.types import Docked, GameOptionStruct, FramePosition
-from HeroAI.utils import IsHeroFlagged, SameMapAsAccount
+from HeroAI.types import Docked, FramePosition
+from HeroAI.utils import IsHeroFlagged, SameMapAsAccount, SameMapOrPartyAsAccount
 
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, SharedMessage
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, HeroAIOptionStruct, SharedMessage
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.ImGui_src.Style import Style
 from Py4GWCoreLib.ImGui_src.Textures import GameTexture, GameTexture, TextureState, ThemeTexture, ThemeTextures
@@ -36,7 +36,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer, Timer
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
-from Py4GW_widget_manager import WidgetHandler
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 class CachedSkillInfo:
     def __init__(self, skill_id: int):
@@ -77,7 +77,7 @@ template_account: str = ""
 template_code = ""
 configure_consumables_window_open: bool = False
 
-widget_handler = WidgetHandler()
+widget_handler = get_widget_handler()
 module_info = None
 
 settings = Settings()
@@ -559,7 +559,7 @@ def draw_casting_animation(
         PyImGui.draw_list_add_circle(cx, cy, radius, color.color_int, 36, 6.0)
         PyImGui.pop_clip_rect()
 
-def draw_skill_bar(height: float, account_data: AccountData, cached_data: CacheData, message_queue: list[tuple[int, SharedMessage]]):
+def draw_skill_bar(height: float, account_data: AccountData, hero_options: Optional[HeroAIOptionStruct], message_queue: list[tuple[int, SharedMessage]]):
     global skill_cache, messages
     style = ImGui.get_style()
     draw_textures = style.Theme in ImGui.Textured_Themes
@@ -650,8 +650,7 @@ def draw_skill_bar(height: float, account_data: AccountData, cached_data: CacheD
                 1
             )
                 
-        hero_options = cached_data.HeroAI_vars.all_game_option_struct[account_data.PartyPosition]
-        if not hero_options.Skills[slot].Active:
+        if hero_options and not hero_options.Skills[slot]:
             hovered = PyImGui.is_item_hovered()
             ThemeTextures.Cancel.value.get_texture(texture_theme).draw_in_drawlist(
                 PyImGui.get_item_rect_min(),
@@ -680,10 +679,8 @@ def draw_skill_bar(height: float, account_data: AccountData, cached_data: CacheD
         if PyImGui.is_item_clicked(0) and enough_adrenaline:
             io = PyImGui.get_io()
             if io.key_shift:
-                hero_ai_data = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(
-                    account_data.PartyPosition)
-                if hero_ai_data:
-                    hero_ai_data.Skills[slot] = not hero_options.Skills[slot].Active
+                if hero_options:
+                    hero_options.Skills[slot] = not hero_options.Skills[slot]
 
             else:
                 target_id = get_skill_target(account_data, skill)
@@ -1204,16 +1201,20 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
         target_id = Player.GetTargetID() or Player.GetAgentID()
         
         def flag_hero_account():
-            windows.capture_flag_all = False
-            windows.capture_hero_flag = True
-            windows.capture_hero_index = account_data.PartyPosition  
+            windows.HeroAI_Windows.capture_flag_all = False
+            windows.HeroAI_Windows.capture_hero_flag = True
+            windows.HeroAI_Windows.capture_hero_index = account_data.PartyPosition  
             return -1
         
         def clear_hero_flag():
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(account_data.PartyPosition, "IsFlagged", False)
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(account_data.PartyPosition, "FlagPosX", 0.0)
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(account_data.PartyPosition, "FlagPosY", 0.0)
-            cached_data.HeroAI_vars.shared_memory_handler.set_player_property(account_data.PartyPosition, "FollowAngle", 0.0)
+            options = cached_data.party.options.get(account_data.PlayerID)
+            if not options:
+                return -1
+            
+            options.IsFlagged = False
+            options.FlagPosX = 0.0
+            options.FlagPosY = 0.0
+            options.FlagFacingAngle = 0.0
             return -1
         
         buttons = [
@@ -1228,7 +1229,7 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
              SharedCommandType.TakeDialogWithTarget, lambda: GLOBAL_CACHE.ShMem.SendMessage(player_email, account_email, SharedCommandType.TakeDialogWithTarget, (target_id, 1, 0, 0)), lambda: is_queued(SharedCommandType.TakeDialogWithTarget), True),
 
             ("flag", IconsFontAwesome5.ICON_FLAG, "Flag Target",
-             SharedCommandType.NoCommand, flag_hero_account, lambda: IsHeroFlagged(cached_data, account_data.PartyPosition)),
+             SharedCommandType.NoCommand, flag_hero_account, lambda: IsHeroFlagged(account_data.PartyPosition)),
 
             ("clear flag", IconsFontAwesome5.ICON_CIRCLE_XMARK, "Clear Flag",
              SharedCommandType.NoCommand, clear_hero_flag, lambda: False),
@@ -1308,10 +1309,11 @@ def get_conditioned(account_data: AccountData) -> tuple[HealthState, bool, bool,
     return HealthState.Normal, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
 
 def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, messages: list[tuple[int, SharedMessage]], open: bool = True):
-    window_info = settings.HeroPanelPositions.get(account_data.AccountEmail, None)
+    window_info = settings.get_hero_panel_info(account_data.AccountEmail)
     if not window_info or not window_info.open:
         return
     
+    options = cached_data.party.options.get(account_data.PlayerID)
     name = get_display_name(account_data)
     
     style = ImGui.get_style()
@@ -1364,7 +1366,7 @@ def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, 
                 if settings.ShowHeroBars:
                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 4)
                 
-                draw_skill_bar(28, account_data, cached_data, messages)
+                draw_skill_bar(28, account_data, options, messages)
 
         ImGui.end_child()
 
@@ -1377,12 +1379,13 @@ def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, 
     draw_buffs_and_upkeeps(account_data, 28)    
 
 def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data: CacheData, messages: list[tuple[int, SharedMessage]]):   
-    window_info = settings.HeroPanelPositions.get(account_data.AccountEmail, None)
+    window_info = settings.get_hero_panel_info(account_data.AccountEmail)
     if not window_info or not window_info.open:
         return
     
     window.open = window_info.open
     window.collapse = window_info.collapsed
+    options = cached_data.party.options.get(account_data.PlayerID)
     
     global title_names
     style = ImGui.get_style()
@@ -1396,7 +1399,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data
     if outside_compass_range:
         style.TitleBg.push_color((100, 0, 0, 150))
         style.WindowBg.push_color((100, 0, 0, 150))
-    PyImGui.set_next_window_size(319, 69 if style.Theme is StyleTheme.Guild_Wars else 86)
+    PyImGui.set_next_window_size(319, (69 if style.Theme is StyleTheme.Guild_Wars else 86) + 26 if options else 0)
     open = window.begin(None, PyImGui.WindowFlags.NoResize)
     # ConsoleLog("HeroAI", f"{window.window_size}")
     if outside_compass_range:
@@ -1458,7 +1461,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data
                     if settings.ShowHeroBars:
                         PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 4)
                     
-                    draw_skill_bar(28, account_data, cached_data, messages)
+                    draw_skill_bar(28, account_data, options, messages)
 
             ImGui.end_child()
 
@@ -1467,7 +1470,25 @@ def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data
             
         if settings.ShowHeroButtons:
             draw_buttons(account_data, cached_data, messages, 28)
+        
+        
+        if options:
+            opt_dict = {"Following" : options.Following, "Avoidance" : options.Avoidance, "Looting" : options.Looting, "Targeting" : options.Targeting, "Combat" : options.Combat}
+        
+            PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 2)
+            
+            for name, value in opt_dict.items():
+                ImGui.push_font("Regular", 10)
+                active = ImGui.toggle_button(name + f"##{account_data.AccountEmail}", value, 319 / len(opt_dict) - 3, 20)
+                ImGui.pop_font()
+                
+                if active != value:
+                    ConsoleLog("HeroAI", f"Set {name} to {active} for hero {account_data.CharacterName} | Party Position {account_data.PartyPosition}")
+                    setattr(options, name, active)
+                
+                PyImGui.same_line(0, 2)
 
+        
         draw_buffs_bar(account_data, win_pos, win_size, messages, 28)
         window.process_window()
     
@@ -1559,7 +1580,7 @@ def _post_pcon_message(params, cached_data: CacheData):
     if not self_account:
         return
     
-    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    accounts = cached_data.party.accounts.values()
     sender_email = cached_data.account_email
     for account in accounts:        
         GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
@@ -1620,79 +1641,36 @@ def draw_consumables_window(cached_data: CacheData):
     
     pass  # Implementation of consumables window drawing logic goes here
 
-def draw_command_panel(window: WindowModule, accounts : list[AccountData], cached_data: CacheData):
+def draw_command_panel(window: WindowModule, cached_data: CacheData):
     style = ImGui.get_style()
 
     size = window.window_size
     style.WindowPadding.push_style_var(5, 5)
     
-    info = settings.HeroPanelPositions.get(window.window_name, None)
+    info = settings.get_hero_panel_info(window.window_name)
     # if info:
     #     PyImGui.set_next_window_pos((info.x, info.y), PyImGui.ImGuiCond.Always)
         
-    if window.begin():
-        source_game_option = cached_data.HeroAI_vars.global_control_game_struct
-        game_options = GameOptionStruct()
-        
+    ##TODO: Fix global options
+    if window.begin():        
         avail = PyImGui.get_content_region_avail()
         avail_x = avail[0]
-        btn_size = 32
-        table_width = btn_size * 5 + 30
-        if ImGui.begin_child("##GlobalHeroOptionsChild",( table_width, (btn_size  * 2) - 6), False, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
-            style.ItemSpacing.push_style_var(0, 0)
-            style.CellPadding.push_style_var(2, 2)
-            if PyImGui.begin_table("GameOptionTable", 5, 0, table_width, btn_size + 2):                 
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
-                
-                game_options.Following = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_RUNNING + "##Following", source_game_option.Following, btn_size, btn_size)
-                ImGui.show_tooltip("Following")
-                PyImGui.table_next_column()
-                game_options.Avoidance = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_PODCAST + "##Avoidance", source_game_option.Avoidance, btn_size, btn_size)
-                ImGui.show_tooltip("Avoidance")
-                PyImGui.table_next_column()
-                game_options.Looting = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COINS + "##Looting", source_game_option.Looting, btn_size, btn_size)
-                ImGui.show_tooltip("Looting")
-                PyImGui.table_next_column()
-                game_options.Targeting = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_BULLSEYE + "##Targeting", source_game_option.Targeting, btn_size, btn_size)
-                ImGui.show_tooltip("Targeting")
-                PyImGui.table_next_column()
-                game_options.Combat = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_SKULL_CROSSBONES + "##Combat", source_game_option.Combat, btn_size, btn_size)
-                ImGui.show_tooltip("Combat")        
-                
-                PyImGui.end_table()
-
-
-            style.ButtonPadding.push_style_var(5 if style.Theme not in ImGui.Textured_Themes else 0, 3 if style.Theme not in ImGui.Textured_Themes else 2)
-            if PyImGui.begin_table("SkillsTable", NUMBER_OF_SKILLS, 0, table_width, (btn_size / 3)):
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
-                skill_size = table_width / NUMBER_OF_SKILLS - 6
-                
-                for i in range(NUMBER_OF_SKILLS):
-                    game_options.Skills[i].Active = ImGui.toggle_button(f"{i + 1}##Skill{i}", source_game_option.Skills[i].Active, skill_size, skill_size)
-                    ImGui.show_tooltip(f"Skill {i + 1}")
-                    PyImGui.table_next_column()
-                        
-                PyImGui.end_table()
-            style.ButtonPadding.pop_style_var()
-                    
-            style.ButtonPadding.pop_style_var()
-            style.ItemSpacing.pop_style_var()
-            style.CellPadding.pop_style_var()
-
-        ImGui.end_child()
-                
-        # is_window_active = Console.is_window_active()
-        # if is_window_active:
+        
+        table_width = avail_x
+        btn_size = (table_width / 5) - 4
+        
         from HeroAI.windows import HeroAI_Windows
-        HeroAI_Windows.CompareAndSubmitGameOptions(cached_data, game_options)
+        
+        if ImGui.begin_child("##GlobalHeroOptionsChild",( table_width, (btn_size  * 2) - 6), False, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
+            HeroAI_Windows.DrawPanelButtons("command_panel", cached_data.global_options, set_global=True)
+
+        ImGui.end_child()                
 
         window.process_window()
         
         if window.changed:                
             if Console.is_window_active():                
-                window_info = settings.HeroPanelPositions.get(window.window_name, Settings.HeroPanelInfo())
+                window_info = settings.get_hero_panel_info(window.window_name)
                 
                 if window_info:
                     if not window_info in settings.HeroPanelPositions.values():
@@ -1791,7 +1769,7 @@ hotbar_offsets : dict[StyleTheme, dict[str, dict]] = {
     },
 }
     
-def draw_hotbar(hotbar: Settings.CommandHotBar, accounts: list[AccountData]):
+def draw_hotbar(hotbar: Settings.CommandHotBar, cached_data: CacheData):
     global configure_hotbar
     style = ImGui.get_style()
     window = hotbars.get(hotbar.identifier, None)
@@ -1972,6 +1950,11 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, accounts: list[AccountData]):
                                     valid_map_type = "Outpost" in cmd.map_types
                                     
                                 if draw_button(cmd.name, cmd.icon, btn_size, btn_size, False, valid_map_type):
+                                    if Map.IsExplorable():
+                                        accounts = [acct for acct in cached_data.party.accounts.values()]
+                                    else:
+                                        accounts = [acct for acct in GLOBAL_CACHE.ShMem.GetAllAccountData() if SameMapOrPartyAsAccount(acct)]
+                                        
                                     cmd(accounts)
                                 
 
@@ -2102,10 +2085,10 @@ def draw_configure_hotbar():
             
         PyImGui.end_popup()
 
-def draw_hotbars(accounts: list[AccountData], cached_data: CacheData):
+def draw_hotbars(cached_data: CacheData):
     for _, hotbar in settings.CommandHotBars.items():
         if hotbar.visible:
-            draw_hotbar(hotbar, accounts)
+            draw_hotbar(hotbar, cached_data)
             
     
     draw_configure_hotbar()
@@ -2146,7 +2129,7 @@ def is_left_mouse_clicked() -> bool:
 
     return clicked
     
-def draw_dialog_overlay(accounts: list[AccountData], cached_data: CacheData, messages: list[tuple[int, SharedMessage]]):
+def draw_dialog_overlay(cached_data: CacheData, messages: list[tuple[int, SharedMessage]]):
     global frame_coords, dialog_open, dialog_coords
     if not settings.ShowDialogOverlay:
         return
@@ -2172,7 +2155,7 @@ def draw_dialog_overlay(accounts: list[AccountData], cached_data: CacheData, mes
         for i, (frame_id, frame) in enumerate(sorted_frames):                
             if ImGui.is_mouse_in_rect((frame[0], frame[1], frame[2] - frame[0], frame[3] - frame[1]), mouse_pos):                                
                 if is_left_mouse_clicked() and pyimgui_io.key_ctrl:
-                    accounts = [acc for acc in accounts if acc.AccountEmail != cached_data.account_email]
+                    accounts = [acc for acc in cached_data.party.accounts.values() if acc.AccountEmail != cached_data.account_email]
                     commands.send_dialog(accounts, i + 1)
                     return
                 else:
@@ -2216,7 +2199,7 @@ def draw_skip_cutscene_overlay():
                     ImGui.text_colored(f"Ctrl + Click to skip cutscene on all accounts.", gray_color.color_tuple, 12)
                     ImGui.end_tooltip()                          
 
-def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, WindowModule]):
+def draw_party_overlay(cached_data: CacheData, hero_windows : dict[str, WindowModule]):
     global party_member_frames
     
     main_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(Player.GetAccountEmail())
@@ -2251,13 +2234,13 @@ def draw_party_overlay(accounts: list[AccountData], hero_windows : dict[str, Win
         return
     
     for i, frame_info in enumerate(party_member_frames, start=1):      
-        account = next((acc for acc in accounts if acc.PartyPosition == i - 1), None)
+        account = next((acc for acc in cached_data.party.accounts.values() if acc.PartyPosition == i - 1), None)
         
         if account and account.AccountEmail != Player.GetAccountEmail():
-            if account.PartyID != main_account.PartyID or not SameMapAsAccount(account):
+            if account.PartyID != main_account.PartyID or not SameMapOrPartyAsAccount(account):
                 continue
             
-            window_info = settings.HeroPanelPositions.get(account.AccountEmail, None)
+            window_info = settings.get_hero_panel_info(account.AccountEmail)
             
             if window_info:        
                 is_minimalus = style.Theme is StyleTheme.Minimalus  
@@ -2408,7 +2391,7 @@ def draw_tab_control(rect : tuple[float, float, float, float], label: str = "Acc
     PyImGui.pop_clip_rect()
     return show_accounts_in_party_search
 
-def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheData):
+def draw_party_search_overlay(cached_data: CacheData):
     global show_accounts_in_party_search, last_active_tab, selected_account
     global party_search, player_tab, hero_tab, henchmen_tab, active_tab, is_player_tab
     
@@ -2506,13 +2489,13 @@ def draw_party_search_overlay(accounts: list[AccountData], cached_data: CacheDat
             0,
         )
         
-        sorted_by_profession = sorted(accounts, key=lambda acc: (acc.PlayerProfession[0], get_display_name(acc)), reverse=False)
+        sorted_by_profession = sorted(GLOBAL_CACHE.ShMem.GetAllAccountData(), key=lambda acc: (acc.PlayerProfession[0], get_display_name(acc)), reverse=False)
         button_size  = 20
         texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture()
         mapid = Map.GetMapID()
         
         for i, account in enumerate(sorted_by_profession):
-            window_info = settings.HeroPanelPositions.get(account.AccountEmail, None)
+            window_info = settings.get_hero_panel_info(account.AccountEmail)
             
             if not window_info:
                 continue
@@ -2634,11 +2617,6 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                     show_floating_targets = ImGui.checkbox("Show Floating Target Buttons", settings.ShowFloatingTargets)
                     if show_floating_targets != settings.ShowFloatingTargets:
                         settings.ShowFloatingTargets = show_floating_targets
-                        settings.save_settings()
-
-                    disable_automation = ImGui.checkbox("Disable Leader Automation", settings.DisableAutomationOnLeaderAccount)
-                    if disable_automation != settings.DisableAutomationOnLeaderAccount:
-                        settings.DisableAutomationOnLeaderAccount = disable_automation
                         settings.save_settings()
 
                     show_command_panel = ImGui.checkbox("Show Global Config Panel", settings.ShowCommandPanel)
@@ -2849,6 +2827,21 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                         
                 ImGui.end_child()
                 ImGui.end_tab_item()
+            
+            if ImGui.begin_tab_item("Debug"):
+                if ImGui.begin_child("##DebugSettingsChild", (0, 0)):
+                    show_debug = ImGui.checkbox("Show Debug Window", settings.ShowDebugWindow)
+                    if show_debug != settings.ShowDebugWindow:
+                        settings.ShowDebugWindow = show_debug
+                        settings.save_settings()
+                        
+                    print_debug = ImGui.checkbox("Print Debug Messages", settings.PrintDebug)
+                    if print_debug != settings.PrintDebug:
+                        settings.PrintDebug = print_debug
+                        settings.save_settings()
+                        
+                ImGui.end_child()
+                ImGui.end_tab_item()
                 
             ImGui.end_tab_bar()
             
@@ -2858,6 +2851,7 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
     configure_window.end()  
     
     if not configure_window.open:
-        WidgetHandler().set_widget_configuring(module_name, False)
+        wh = get_widget_handler()
+        wh.set_widget_configuring(module_name, False)
           
     pass

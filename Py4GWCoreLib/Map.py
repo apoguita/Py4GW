@@ -1,7 +1,7 @@
 
 from .Context import GWContext
 from .native_src.methods.MapMethods import MapMethods
-from .native_src.context.MapContext import PathingMapStruct, PathingTrapezoidStruct
+from .native_src.context.MapContext import PathingMap, PathingMapStruct, PathingTrapezoid
 from .native_src.context.AvailableCharacterContext import AvailableCharacterStruct
 from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, RegionTypeName, 
                                      ContinentName, CampaignName,)
@@ -1949,12 +1949,20 @@ class Map:
     #region Pathing
     class Pathing:
         @staticmethod
-        def GetPathingMaps() -> List[PathingMapStruct]:
+        def GetPathingMaps() -> List[PathingMap]:
             from .native_src.context.MapContext import MapContext
             from .Routines import Checks
             if not Checks.Map.MapValid():
                 return []
             return MapContext.GetPathingMaps()
+        
+        @staticmethod
+        def GetPathingMapsRaw() -> List[PathingMapStruct]:
+            from .native_src.context.MapContext import MapContext
+            from .Routines import Checks
+            if not Checks.Map.MapValid():
+                return []
+            return MapContext.GetPathingMapsRaw()
 
         @staticmethod
         def WorldToScreen(x: float, y: float, z: float = 0.0) -> tuple[float, float]:
@@ -1965,7 +1973,7 @@ class Map:
             return screen_pos.x, screen_pos.y
 
         class Quad:
-            def __init__(self, trapezoid: PathingTrapezoidStruct):
+            def __init__(self, trapezoid: PathingTrapezoid):
                 self.trapezoid = trapezoid
 
                 self.top_left: PyOverlay.Point2D = PyOverlay.Point2D(int(trapezoid.XTL), int(trapezoid.YT))
@@ -2012,7 +2020,7 @@ class Map:
 
         @staticmethod
         def GetComputedGeometry() -> List[List[PyOverlay.Point2D]]:
-            pathing_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:
@@ -2021,7 +2029,7 @@ class Map:
 
         @staticmethod
         def GetScreenComputedGeometry() -> List[List[PyOverlay.Point2D]]:
-            pathing_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:
@@ -2030,7 +2038,7 @@ class Map:
 
         @staticmethod
         def GetShiftedComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Point2D]]:
-            pathing_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:
@@ -2040,7 +2048,7 @@ class Map:
 
         @staticmethod
         def GetshiftedScreenComputedGeometry(origin_x: float, origin_y: float) -> List[List[PyOverlay.Point2D]]:
-            pathing_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             geometry = []
             for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:
@@ -2066,7 +2074,7 @@ class Map:
         @staticmethod
         def GetMapQuads() -> List['Map.Pathing.Quad']:
             '''Retrieve all pathing quads in the current map.'''
-            pathing_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
             quads = []
             
             for layer in pathing_maps:
@@ -2079,7 +2087,7 @@ class Map:
         @staticmethod
         def IsPointInPathing(px: float, py: float) -> bool:
             '''Check if a given x,y-point is inside any pathing area.'''
-            pathing_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
 
             for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:
@@ -2092,7 +2100,7 @@ class Map:
         @staticmethod
         def IsScreenPointInPathing(screen_x: float, screen_y: float) -> bool:
             '''Check if a given screen x,y-point is inside any pathing area.'''
-            pathing_maps = Map.Pathing.GetPathingMaps()
+            pathing_maps: List[PathingMap] = Map.Pathing.GetPathingMaps()
 
             for layer in pathing_maps:
                 for trapezoid in layer.trapezoids:

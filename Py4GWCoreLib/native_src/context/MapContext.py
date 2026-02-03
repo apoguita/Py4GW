@@ -750,7 +750,8 @@ class MapContext:
     _ptr: int = 0
     _cached_ctx: MapContextStruct | None = None
     _callback_name = "MapContext.UpdatePtr"
-    _pathing_maps_cache: dict[int, list[PathingMapStruct]] = {}
+    _pathing_maps_cache: dict[int, list[PathingMap]] = {}
+    _pathing_maps_cache_raw: dict[int, list[PathingMapStruct]] = {}
 
     @staticmethod
     def get_ptr() -> int:
@@ -793,7 +794,7 @@ class MapContext:
         return MapContext._cached_ctx
     
     @staticmethod
-    def GetPathingMaps() -> list[PathingMapStruct]:
+    def GetPathingMaps() -> list[PathingMap]:
         map_ctx = MapContext._cached_ctx
         char_ctx = CharContext.get_context()
         instance_info_ctx = InstanceInfo.get_context()
@@ -810,9 +811,31 @@ class MapContext:
         map_id = char_ctx.current_map_id
         if map_id in MapContext._pathing_maps_cache:
             return MapContext._pathing_maps_cache[map_id]
-        #pathing_maps = map_ctx.pathing_maps_snapshot
-        pathing_maps = map_ctx.pathing_maps
+        pathing_maps = map_ctx.pathing_maps_snapshot
         MapContext._pathing_maps_cache[map_id] = pathing_maps
+        return pathing_maps
+    
+    @staticmethod
+    def GetPathingMapsRaw() -> list[PathingMapStruct]:
+        map_ctx = MapContext._cached_ctx
+        char_ctx = CharContext.get_context()
+        instance_info_ctx = InstanceInfo.get_context()
+        world_ctx = WorldContext.get_context()
+        acc_agent_ctx = AccAgentContext.get_context()
+
+        if not (map_ctx and char_ctx and instance_info_ctx and world_ctx and acc_agent_ctx):
+            return []
+        
+        instance_type = instance_info_ctx.instance_type
+        if instance_type not in (0, 1):  # explorable, story, pvp
+            return []
+
+        map_id = char_ctx.current_map_id
+        if map_id in MapContext._pathing_maps_cache_raw:
+            return MapContext._pathing_maps_cache_raw[map_id]
+
+        pathing_maps = map_ctx.pathing_maps
+        MapContext._pathing_maps_cache_raw[map_id] = pathing_maps
         return pathing_maps
 
               
