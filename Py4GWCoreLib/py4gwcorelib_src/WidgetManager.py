@@ -706,6 +706,12 @@ class WidgetHandler:
         widget.configuring = value
         
     def get_widget_info(self, name: str) -> Widget | None:
+        # 1) direct full id lookup
+        w = self.widgets.get(name, None)
+        if w:
+            return w
+
+        # 2) fallback to plain_name lookup
         return self._get_widget_by_plain_name(name)
 
 _widget_handler = WidgetHandler()
