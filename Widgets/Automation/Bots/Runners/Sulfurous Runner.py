@@ -6,10 +6,10 @@ from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 
-from Sources.Frenkey.SulfurousRunner.settings import Settings
-from Sources.Frenkey.SulfurousRunner.pathing import search_paths, update_waypoints
-from Sources.Frenkey.SulfurousRunner.ui import draw_configure, draw_flags, draw_paths
-from Sources.Frenkey.SulfurousRunner.globals import Global
+from Sources.frenkey.SulfurousRunner.settings import Settings
+from Sources.frenkey.SulfurousRunner.pathing import search_paths, update_waypoints
+from Sources.frenkey.SulfurousRunner.ui import draw_configure, draw_flags, draw_paths
+from Sources.frenkey.SulfurousRunner.globals import Global
 import PyImGui
 
 MODULE_NAME = "Sulfurous Runner"
@@ -58,7 +58,7 @@ def tooltip():
 
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Developed by Frenkey")
+    PyImGui.bullet_text("Developed by frenkey")
 
     PyImGui.end_tooltip()
 

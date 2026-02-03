@@ -166,7 +166,7 @@ def tooltip():
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by SikroK")
-    PyImGui.bullet_text("Contributors: Mnemonicide, Apo, Frenkey")
+    PyImGui.bullet_text("Contributors: Mnemonicide, Apo, frenkey")
 
     PyImGui.end_tooltip()
 

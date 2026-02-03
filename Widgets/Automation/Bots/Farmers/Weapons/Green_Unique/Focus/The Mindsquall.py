@@ -51,7 +51,7 @@ def _iter_parents(start_dir: str):
 def _find_shared_textures_folder() -> str:
     """
     Looks for a shared textures folder at:
-      <some parent>\Bots\Weapons Farm\Textures
+      <some parent>\\Bots\\Weapons Farm\\Textures
     (or 'textures'), starting from cwd (Py4GW-safe).
     """
     weapons = "Weapons Farm"

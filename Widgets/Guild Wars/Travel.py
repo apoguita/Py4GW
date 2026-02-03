@@ -153,7 +153,7 @@ def tooltip():
     PyImGui.spacing()
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Developed by Frenkey")
+    PyImGui.bullet_text("Developed by frenkey")
     
     PyImGui.end_tooltip()
 
