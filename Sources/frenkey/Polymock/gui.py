@@ -3,9 +3,9 @@ from Py4GWCoreLib import *
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog
-from Sources.Frenkey.Core import utility
-from Sources.Frenkey.Core.gui import GUI
-from Sources.Frenkey.Polymock import combat, data, state
+from Sources.frenkey.Core import utility
+from Sources.frenkey.Core.gui import GUI
+from Sources.frenkey.Polymock import combat, data, state
 from datetime import datetime
 
 importlib.reload(combat)

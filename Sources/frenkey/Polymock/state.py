@@ -5,7 +5,7 @@ from Py4GWCoreLib.Item import Bag
 from Py4GWCoreLib import Map, Agent
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Utils
 from Py4GWCoreLib.enums import Allegiance, Bags, ItemType
-from Sources.Frenkey.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockPieces
+from Sources.frenkey.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockPieces
 
 
 class WidgetState:
