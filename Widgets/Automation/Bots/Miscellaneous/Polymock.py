@@ -3,7 +3,7 @@
 import importlib
 import os
 import PyImGui
-from Sources.Frenkey.Polymock import gui, combat, state
+from Sources.frenkey.Polymock import gui, combat, state
 
 from Py4GWCoreLib import Map, Routines, ImGui, Color
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
@@ -51,7 +51,7 @@ def tooltip():
 
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Developed by Frenkey")
+    PyImGui.bullet_text("Developed by frenkey")
 
     PyImGui.end_tooltip()
 

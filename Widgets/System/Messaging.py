@@ -92,7 +92,7 @@ def tooltip():
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Apo")
-    PyImGui.bullet_text("Contributors: Mark, Frenkey, aC")
+    PyImGui.bullet_text("Contributors: Mark, frenkey, aC")
 
     PyImGui.end_tooltip()
 
@@ -1490,7 +1490,7 @@ def ProcessMessages():
         case SharedCommandType.UseSkillCombatPrep:
             GLOBAL_CACHE.Coroutines.append(UseSkillCombatPrep(index, message))
         case SharedCommandType.LootEx:
-            # privately Handled Command, by Frenkey
+            # privately Handled Command, by frenkey
             pass
         case SharedCommandType.CustomBehaviors:
             # privately Handled Command, used in CustomBehaviors widget
