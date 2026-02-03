@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Callable, Dict, Generator, List
 
-from Bots.aC_Scripts.aC_api import Blessing_dialog_helper, Verify_Blessing
+from Sources.aC_Scripts.aC_api import Blessing_dialog_helper, Verify_Blessing
 from Py4GWCoreLib import AgentArray, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer

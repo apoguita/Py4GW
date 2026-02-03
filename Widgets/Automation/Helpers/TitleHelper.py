@@ -5,8 +5,8 @@ import Py4GW
 from Py4GWCoreLib import PyImGui, IniHandler, Routines, Timer, Color, ImGui
 from HeroAI.cache_data import CacheData
 
-from Bots.aC_Scripts.Titlehelper.titlehelper_main import TitleHelper, draw_title_helper_window
-from Bots.aC_Scripts.Titlehelper import ItemSelector
+from Sources.aC_Scripts.Titlehelper.titlehelper_main import TitleHelper, draw_title_helper_window
+from Sources.aC_Scripts.Titlehelper import ItemSelector
 
 # === Paths and Constants ===
 script_directory = os.path.dirname(os.path.abspath(__file__))

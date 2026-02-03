@@ -4,7 +4,7 @@ import configparser
 from typing import Set
 
 from Py4GWCoreLib import *
-from Bots.aC_Scripts.aC_api import has_any_blessing, BlessingRunner, FLAG_DIR
+from Sources.aC_Scripts.aC_api import has_any_blessing, BlessingRunner, FLAG_DIR
 
 # ─── Paths & Configuration ─────────────────────────────────────────────────
 script_directory = os.getcwd()
