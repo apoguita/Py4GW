@@ -11,7 +11,6 @@ from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 import importlib.util
 import os
-import types
 import sys
 import PyImGui
 from dataclasses import dataclass, field
@@ -26,9 +25,9 @@ class Widget:
     """
     # Core identity (passed to __init__)
     name: str                     # "folder/script_name"
-    module: ModuleType            # Loaded Python module
     plain_name: str = ""          # script without extension
     widget_path: str = ""         # folder relative path (no script)
+    script_path: str = ""         # script full path
     
     #Extra_execution data
     has_update_property: bool = False
@@ -45,7 +44,6 @@ class Widget:
     # Runtime state (defaults)
     enabled: bool = False
     configuring: bool = False
-    optional: bool = True
     
     # Extracted callbacks (will be populated in __post_init__)
     main: Optional[Callable] = field(default=None, init=False)
@@ -58,26 +56,111 @@ class Widget:
     on_enable: Optional[Callable] = field(default=None, init=False)
     on_disable: Optional[Callable] = field(default=None, init=False)
     
+    module: Optional[ModuleType] = field(default=None, init=False, repr=False)
+    
+    
+    def load_module(self) -> bool:
+        """Load the module if not already loaded"""
+        if self.module is not None:
+            return True  # Already loaded
+        
+        if not os.path.isfile(self.script_path):
+            Py4GW.Console.Log("WidgetManager", f"Widget script not found: {self.script_path}", Py4GW.Console.MessageType.Error)
+            return False
+        
+        unique_name = f"py4gw_widget_{self.name.replace('/', '_').replace('.', '_')}"
+        
+        spec = importlib.util.spec_from_file_location(unique_name, self.script_path)
+        if spec is None or spec.loader is None:
+            raise ValueError(f"Invalid module spec: {self.script_path}")
+        
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[unique_name] = module
+        
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:
+            del sys.modules[unique_name]
+            self.enabled = False
+            Py4GW.Console.Log("WidgetManager", f"Failed to load widget module '{self.name}': {e}", Py4GW.Console.MessageType.Error)
+            return False
+        
+        self.module = module
+        
+        if self.module:                
+            # --- capability flags (what exists in the widget module) ---
+            self.has_main_property      = callable(getattr(self.module, "main", None))
+            self.has_configure_property = callable(getattr(self.module, "configure", None))
+            self.has_update_property    = callable(getattr(self.module, "update", None))
+            self.has_draw_property      = callable(getattr(self.module, "draw", None))
+            self.has_tooltip_property   = callable(getattr(self.module, "tooltip", None))
+            
+            # Extract main callback
+            self.main = getattr(self.module, "main", None) if self.has_main_property else None
+            self.configure = getattr(self.module, "configure", None) if self.has_configure_property else None
+            self.update = getattr(self.module, "update", None) if self.has_update_property else None
+            self.draw = getattr(self.module, "draw", None) if self.has_draw_property else None
+            self.tooltip = getattr(self.module, "tooltip", None) if self.has_tooltip_property else None
+            self.minimal = getattr(self.module, "minimal", None) if callable(getattr(self.module, "minimal", None)) else None
+            self.on_enable = getattr(self.module, "on_enable", None) if callable(getattr(self.module, "on_enable", None)) else None
+            self.on_disable = getattr(self.module, "on_disable", None) if callable(getattr(self.module, "on_disable", None)) else None
+            self.optional = getattr(self.module, 'OPTIONAL', True) if hasattr(self.module, 'OPTIONAL') else True
+            
+        return True
+    
+    def disable(self):
+        """Disable the widget"""
+        if self.enabled:
+            if self.module is not None:
+                try:
+                    if self.on_disable:
+                        self.on_disable()
+                    
+                except Exception as e:
+                    Py4GW.Console.Log("WidgetManager", f"Error during on_disable of widget {self.name}: {str(e)}", Py4GW.Console.MessageType.Error)
+                    Py4GW.Console.Log("WidgetManager", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+                
+            self.enabled = False
+        
+    def enable(self):
+        """Enable the widget"""
+        if self.enabled and self.module is not None:
+            return  # Already enabled
+        
+        # enable widget only if module loads successfully
+        self.enabled = self.load_module()
+        
+        if self.enabled:
+            try:
+                if self.on_enable:
+                    self.on_enable()
+                
+            except Exception as e:
+                Py4GW.Console.Log("WidgetManager", f"Error during on_enable of widget {self.name}: {str(e)}", Py4GW.Console.MessageType.Error)
+                Py4GW.Console.Log("WidgetManager", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+                
     def __post_init__(self):
-        """Extract callbacks from module after initialization"""
+        """Extract callbacks from module after initialization"""      
+        
         # --- capability flags (what exists in the widget module) ---
-        self.has_main_property      = callable(getattr(self.module, "main", None))
-        self.has_configure_property = callable(getattr(self.module, "configure", None))
-        self.has_update_property    = callable(getattr(self.module, "update", None))
-        self.has_draw_property      = callable(getattr(self.module, "draw", None))
-        self.has_tooltip_property   = callable(getattr(self.module, "tooltip", None))
+        self.has_main_property      = False
+        self.has_configure_property = False
+        self.has_update_property    = False
+        self.has_draw_property      = False
+        self.has_tooltip_property   = False
         
         # Extract main callback
-        self.main = getattr(self.module, "main", None) if self.has_main_property else None
-        self.configure = getattr(self.module, "configure", None) if self.has_configure_property else None
-        self.update = getattr(self.module, "update", None) if self.has_update_property else None
-        self.draw = getattr(self.module, "draw", None) if self.has_draw_property else None
-        self.tooltip = getattr(self.module, "tooltip", None) if self.has_tooltip_property else None
-        self.minimal = getattr(self.module, "minimal", None) if callable(getattr(self.module, "minimal", None)) else None
-        self.on_enable = getattr(self.module, "on_enable", None) if callable(getattr(self.module, "on_enable", None)) else None
-        self.on_disable = getattr(self.module, "on_disable", None) if callable(getattr(self.module, "on_disable", None)) else None
-        self.optional = getattr(self.module, 'OPTIONAL', True)
+        self.main : Optional[Callable] = None
+        self.configure : Optional[Callable] = None
+        self.update : Optional[Callable] = None
+        self.draw : Optional[Callable] = None
+        self.tooltip : Optional[Callable] = None
+        self.minimal : Optional[Callable] = None
+        self.on_enable : Optional[Callable] = None
+        self.on_disable : Optional[Callable] = None
+        self.optional = True  
         
+        self.load_module()
         
             
     @property
@@ -209,6 +292,10 @@ class WidgetHandler:
             return
         
         widget.enabled = state
+        if state:
+            widget.enable()
+        else:
+            widget.disable()
         
         widget_id = widget.name  # full id: "folder/file.py"
         v_enabled = self._widget_var(widget_id, "enabled")  # "folder/file.py__enabled"
@@ -219,24 +306,7 @@ class WidgetHandler:
             # Correct order: key, section, var_name, value
             IniManager().set(key=INI_KEY, section=cv.section, var_name=cv.var_name, value=state)
             IniManager().save_vars(INI_KEY)
-            
-
-        if state:
-            if widget.on_enable:
-                try:
-                    widget.on_enable()
-                except Exception as e:
-                    Py4GW.Console.Log("WidgetHandler", f"Error during on_enable of widget {name}: {str(e)}", Py4GW.Console.MessageType.Error)
-                    Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
-                                
-        elif not state:
-            if widget.on_disable:
-                try:
-                    widget.on_disable()
-                except Exception as e:
-                    Py4GW.Console.Log("WidgetHandler", f"Error during on_disable of widget {name}: {str(e)}", Py4GW.Console.MessageType.Error)
-                    Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
-            
+                        
 
         
     # --------------------------------------------
@@ -247,12 +317,8 @@ class WidgetHandler:
         
         """Phase 0: Unload currently enabled widgets"""
         for widget in self.widgets.values():
-            if widget.on_disable and widget.enabled:
-                try:
-                    widget.on_disable()
-                except Exception as e:
-                    Py4GW.Console.Log("WidgetHandler", f"Error during on_disable of widget {widget.name}: {str(e)}", Py4GW.Console.MessageType.Error)
-                    Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+            if widget.enabled:
+                widget.disable()
                                 
         """Phase 1: Discover widgets without INI configuration"""
         self.widgets.clear()
@@ -274,37 +340,6 @@ class WidgetHandler:
             if ".widget" in files:
                 for py_file in [f for f in files if f.endswith(".py")]:
                     self._load_widget_module(current_dir, py_file)
-            
-
-            
-    def _import_widget_module(self, script_path: str, widget_id: str) -> ModuleType:
-        """Load Python module with unique name"""
-        # Generate unique module name
-        unique_name = f"py4gw_widget_{widget_id.replace('/', '_').replace('.', '_')}"
-        
-        spec = importlib.util.spec_from_file_location(unique_name, script_path)
-        if spec is None or spec.loader is None:
-            raise ValueError(f"Invalid module spec: {script_path}")
-        
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[unique_name] = module
-        
-        try:
-            spec.loader.exec_module(module)
-        except Exception as e:
-            del sys.modules[unique_name]
-            raise
-        
-        # Validate required functions
-        has_main = hasattr(module, "main") and callable(module.main)
-        has_update = hasattr(module, "update") and callable(module.update)
-        has_draw = hasattr(module, "draw") and callable(module.draw)
-        
-        if not (has_main or has_update or has_draw):
-            raise ValueError(f"Widget module must have at least one of 'main', 'update', or 'draw' functions: {script_path}")
-
-        
-        return module
     
             
     def _load_widget_module(self, folder: str, filename: str):
@@ -323,20 +358,16 @@ class WidgetHandler:
         script_path = os.path.join(folder, filename)
         
         try:
-            # 1. Load Python module only
-            module = self._import_widget_module(script_path, widget_id)
-            
-            # 2. Create Widget with EMPTY INI data
+            # 1. Create Widget with EMPTY INI data
             widget = Widget(
                 name=widget_id,
-                module=module,
                 plain_name=plain,
                 widget_path=widget_path,
+                script_path=script_path,
                 ini_key="",           # Empty - will be set later
                 ini_path="",          # Empty - will be set later  
                 ini_filename="",      # Empty - will be set later
-                enabled=False,        # Default disabled
-                optional=bool(getattr(module, "OPTIONAL", True))
+                enabled=False,        # Default disabled))
             )
             
             # 3. Register
@@ -355,34 +386,25 @@ class WidgetHandler:
             ))                    
 
             cv = self._get_config_var(widget.name, self._widget_var(widget.name, "enabled"))
-            widget.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
             
-            if widget.enabled and widget.on_enable:
-                try:
-                    widget.on_enable()
-                    
-                except Exception as e:
-                    Py4GW.Console.Log("WidgetHandler", f"Error during on_enable of widget {widget_id}: {str(e)}", Py4GW.Console.MessageType.Error)
-                    Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
+            widget.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
+            if widget.enabled:
+                widget.enable()
                 
-
             #keep logging minimal
             #self._log_success(f"Discovered: {widget_id}")
             
         except Exception as e:
             self._log_error(f"Failed to discover {widget_id}: {e}")
-            
+                            
     def _apply_ini_configuration(self):        
         # Apply saved enabled states to runtime widgets
         for wid, w in self.widgets.items():
             vname = self._widget_var(wid, "enabled")
             section = f"Widget:{wid}"
             w.enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=section, var_name=vname, default=False))
-            if w.enabled and w.on_enable:
-                try:
-                    w.on_enable()
-                except Exception as e:
-                    Py4GW.Console.Log("Widget Manager", f"Error in on_enable for widget '{wid}': {e}", Py4GW.Console.MessageType.Error)
+            if w.enabled:
+                w.enable()
                 
             
     #region UI       
@@ -438,9 +460,13 @@ class WidgetHandler:
                                 PyImGui.show_tooltip(f"Enable/Disable {display_name} widget")
 
                         if new_enabled != val:
-                            widget.enabled = new_enabled
                             # Using consistent section name
-                            IniManager().set(key=INI_KEY, var_name=v_enabled, value=new_enabled, section=section_name)
+                            if new_enabled:
+                                widget.enable()
+                            else:
+                                widget.disable()
+                                
+                            IniManager().set(key=INI_KEY, var_name=v_enabled, value=widget.enabled, section=section_name)
                             IniManager().save_vars(INI_KEY)
 
                         PyImGui.table_set_column_index(1)
@@ -482,6 +508,8 @@ class WidgetHandler:
     def draw_ui(self, INI_KEY: str):
         if ImGui.icon_button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets", 40):
             Py4GW.Console.Log("Widget Manager", "Reloading Widgets...", Py4GW.Console.MessageType.Info)
+            
+            
             self.widget_initialized = False
             self.discovered = False
             self.discover()
