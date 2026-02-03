@@ -117,14 +117,7 @@ def set_client_to_region(region: Region | None):
 def main():    
     global throttle_timer, last_character_name, last_rename_type, last_append_gw, is_on_main, toggled_widget_ui, screen_size_changed, initial_resized, module_info
     
-    try:        
-        
-        # if not module_info:
-        #     module_info = widget_handler.get_widget_info(MODULE_NAME)
-            
-        # if module_info:
-        #     module_info["configuring"] = True
-            
+    try:                    
         if settings.accounts:
             draw()
         
