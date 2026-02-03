@@ -412,7 +412,7 @@ class AutoInventoryHandler():
     def IDSalvageDepositItems(self):
         from ..Routines import Routines
 
-        ConsoleLog("AutoInventoryHandler", "Starting ID, Salvage and Deposit routine", Console.MessageType.Info)
+        #ConsoleLog("AutoInventoryHandler", "Starting ID, Salvage and Deposit routine", Console.MessageType.Info)
         self.status = "Identifying"
         yield from self.IdentifyItems()
         
@@ -427,7 +427,7 @@ class AutoInventoryHandler():
         yield from Routines.Yield.Items.DepositGold(self.keep_gold, log =False)
         
         self.status = "Idle"
-        ConsoleLog("AutoInventoryHandler", "ID, Salvage and Deposit routine completed", Console.MessageType.Success)
+        #ConsoleLog("AutoInventoryHandler", "ID, Salvage and Deposit routine completed", Console.MessageType.Success)
 
 
 #endregion

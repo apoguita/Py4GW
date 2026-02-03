@@ -11,10 +11,10 @@ def main():
         if PyImGui.button("get quest log"):
             quest_log = Quest.GetQuestLog()
 
-    for quest_id in quest_log:
+    for quest in quest_log:
+        quest_id = quest.quest_id
         if PyImGui.collapsing_header(f"Quest ID: {quest_id}"):
             Quest.RequestQuestInfo(quest_id, update_marker=True)
-            quest = Quest.GetQuestData(quest_id)
 
             PyImGui.text(f"Quest ID: {quest.quest_id}")
             PyImGui.text(f"Log State: {quest.log_state}")

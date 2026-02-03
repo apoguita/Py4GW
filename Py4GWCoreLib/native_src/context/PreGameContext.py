@@ -17,7 +17,7 @@ class LoginCharacter(Structure):
         ("Unk01", c_uint32  * 0x4),
         ("level", c_uint32),
         ("current_map_id", c_uint32),
-        ("Unk02", c_uint32  * 0x7),     # unknown / flags / padding
+        ("Unk02", c_uint32  * 0x8),     # unknown / flags / padding
         ("character_name_enc", c_wchar * 20),
     ]
     @property

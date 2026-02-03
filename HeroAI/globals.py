@@ -1,29 +1,14 @@
 from Py4GWCoreLib import ImGui, PyImGui, Timer
 from .constants import MODULE_NAME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
-from .types import PlayerStruct, CandidateStruct, GameOptionStruct
-from .shared_memory_manager import SharedMemoryManager
+from .types import PlayerStruct, CandidateStruct
 
 class HeroAI_varsClass:
     global MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
     def __init__(self):
-        self.shared_memory_handler = SharedMemoryManager()
         self.all_candidate_struct = [CandidateStruct() for _ in range(MAX_NUM_PLAYERS)]
         self.submit_candidate_struct = CandidateStruct()
         self.all_player_struct = [PlayerStruct() for _ in range(MAX_NUM_PLAYERS)]
-        self.submit_player_struct = PlayerStruct()
-        self.all_game_option_struct = [GameOptionStruct() for _ in range(MAX_NUM_PLAYERS)]
-        self.global_control_game_struct = GameOptionStruct()
-        self.submit_game_option_struct = GameOptionStruct()
-        self.global_control_game_struct.Following = True
-        self.global_control_game_struct.Avoidance = True
-        self.global_control_game_struct.Looting = True
-        self.global_control_game_struct.Targeting = True
-        self.global_control_game_struct.Combat = True
-        self.global_control_game_struct.WindowVisible = True
         
-        for i in range(NUMBER_OF_SKILLS):
-            self.global_control_game_struct.Skills[i].Active = True
-
 
 class HeroAI_Window_varsClass:
     global MODULE_NAME

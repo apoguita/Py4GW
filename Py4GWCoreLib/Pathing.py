@@ -11,11 +11,8 @@ from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib.Map import Map
-from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoidStruct, PathingMapStruct, PortalStruct
+from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoid, PortalStruct
 
-PathingMap = PathingMapStruct
-PathingTrapezoid = PathingTrapezoidStruct
-PathingPortal = PortalStruct
 Point2D = PyOverlay.Point2D
 
 class AABB:
@@ -24,7 +21,7 @@ class AABB:
         self.m_min = (min(t.XTL, t.XBL), t.YB)
         self.m_max = (max(t.XTR, t.XBR), t.YT)
 
-class Portal:
+class PathingPortal:
     def __init__(self, p1: Point2D, p2: Point2D, a: AABB, b: AABB):
         self.p1 = p1
         self.p2 = p2
@@ -33,14 +30,14 @@ class Portal:
         
 #region NavMesh
 class NavMesh:
-    def __init__(self, pathing_maps, map_id: int, GRID_SIZE:float = 1000):
+    def __init__(self, pathing_maps,pathing_maps_raw, map_id: int, GRID_SIZE:float = 1000):
         self.map_id = map_id
         self.GRID_SIZE = GRID_SIZE
         self.trapezoids: Dict[int, PathingTrapezoid] = {}
-        self.portals: List[Portal] = []
+        self.portals: List[PathingPortal] = []
         self.portal_graph: Dict[int, List[int]] = {}
         self.trap_id_to_layer: Dict[int, int] = {}         # trap id -> layer z
-        self.layer_portals: Dict[int, List[PathingPortal]] = {}
+        self.layer_portals: Dict[int, List[PortalStruct]] = {}
         self.spatial_grid: Dict[Tuple[float, float], List[PathingTrapezoid]] = {}
 
         # Index data — use index, not pmap.zplane
@@ -48,15 +45,18 @@ class NavMesh:
             plane_index = i  # actual plane ID
             traps = layer.trapezoids
 
-            self.layer_portals[plane_index] = layer.portals
+            #self.layer_portals[plane_index] = layer.portals
             self.trapezoids.update({t.id: t for t in traps})
             self.trap_id_to_layer.update({t.id: plane_index for t in traps})
+            
+        for i, layer in enumerate(pathing_maps_raw):
+            plane_index = i  # actual plane ID
+            self.layer_portals[plane_index] = layer.portals
 
         self.create_all_local_portals()
         self.create_all_cross_layer_portals()
         self._populate_spatial_grid()
 
-    
     def get_adjacent_side(self, a: PathingTrapezoid, b: PathingTrapezoid) -> Optional[str]:
         if abs(a.YB - b.YT) < 1.0: return 'bottom_top'
         if abs(a.YT - b.YB) < 1.0: return 'top_bottom'
@@ -112,7 +112,7 @@ class NavMesh:
 
         _p1 = Point2D(int(p1[0]), int(p1[1]))
         _p2 = Point2D(int(p2[0]), int(p2[1]))
-        self.portals.append(Portal(_p1, _p2, box1, box2))
+        self.portals.append(PathingPortal(_p1, _p2, box1, box2))
         self.portal_graph.setdefault(pt1.id, []).append(pt2.id)
         self.portal_graph.setdefault(pt2.id, []).append(pt1.id)
         return True
@@ -163,7 +163,7 @@ class NavMesh:
         from collections import defaultdict
         import ctypes
 
-        # pair_key -> zplane -> list[PathingTrapezoid]
+        # pair_key -> zplane -> list[PathingTrapezoidStruct]
         portal_groups = defaultdict(lambda: defaultdict(list))
 
         for z, portal_list in self.layer_portals.items():
@@ -357,7 +357,7 @@ class NavMesh:
             b = AABB(nav.trapezoids[b_id])
             p1 = Point2D(x1, y1)
             p2 = Point2D(x2, y2)
-            nav.portals.append(Portal(p1, p2, a, b))
+            nav.portals.append(PathingPortal(p1, p2, a, b))
 
         nav.portal_graph = data["portal_graph"]
 
@@ -610,7 +610,8 @@ class AutoPathing:
 
         # Otherwise rebuild (even if group_key matches) to avoid stale trapezoid IDs
         pathing_maps = Map.Pathing.GetPathingMaps()
-        navmesh = NavMesh(pathing_maps, map_id)
+        pathing_maps_raw = Map.Pathing.GetPathingMapsRaw()
+        navmesh = NavMesh(pathing_maps, pathing_maps_raw, map_id)
         self.pathing_map_cache[group_key] = navmesh
         yield
         

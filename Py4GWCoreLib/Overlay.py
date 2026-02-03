@@ -129,6 +129,23 @@ class Overlay:
         center = PyOverlay.Point2D(Utils.SafeInt(center_x), Utils.SafeInt(center_y))
         self.overlay_instance.DrawPolyFilled(center, radius, color, numsegments)
         
+    def DrawPolyFilledRelative(self, center_x, center_y, radius, color=0xFFFFFFFF, numsegments=32):
+        import PyImGui
+        # 1. Get the current window position in Screen Space
+        # This is the top-left corner (x, y) of the 'Radial Menu Overlay' window
+        win_pos = PyImGui.get_window_pos() 
+        
+        # 2. Convert Local coordinates to Screen Space coordinates
+        # Screen X = Window X + Local X
+        screen_x = win_pos[0] + Utils.SafeInt(center_x)
+        screen_y = win_pos[1] + Utils.SafeInt(center_y)
+        
+        # 3. Create the Point2D object using Screen Space
+        center = PyOverlay.Point2D(int(screen_x), int(screen_y))
+        
+        # 4. Call the existing C++ bound method
+        self.overlay_instance.DrawPolyFilled(center, radius, color, numsegments)
+        
     def DrawPolyFilled3D(self, center_x, center_y, center_z, radius, color=0xFFFFFFFF,numsegments =32):
         center = PyOverlay.Point3D(center_x, center_y, center_z)
         self.overlay_instance.DrawPolyFilled3D(center, radius, color, numsegments)

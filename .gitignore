@@ -5,6 +5,16 @@ Py4GW_Launcher.exe
 
 GodTools.py
 god_tools_src/*
+
+# 1. Ignore ALL .ini files in Settings and subfolders
+Settings/**/*.ini
+# 2. Ignore ALL directories in Settings root
+Settings/*/
+# 3. BUT keep the Defaults directory
+!Settings/Defaults/
+# 4. Keep ALL contents of Defaults directory
+!Settings/Defaults/**
+
 imgui.ini
 Inject.au3
 AlcoholProc.ini

@@ -54,10 +54,11 @@ class WindowFlags(IntEnum):
     NoFocusOnAppearing = 1 << 12
     NoBringToFrontOnFocus = 1 << 13
     AlwaysVerticalScrollbar = 1 << 14
-    AlwaysHorizontalScrollbar = 1 << 15
-    NoNavInputs = 1 << 16
-    NoNavFocus = 1 << 17
-    UnsavedDocument = 1 << 18
+    AlwaysHorizontalScrollbar = 1 << 1
+    NoInputs = 1 << 16
+    NoNavInputs = 1 << 17
+    NoNavFocus = 1 << 18
+    UnsavedDocument = 1 << 19
 
 class InputTextFlags(IntEnum):
     NoFlag = 0
@@ -660,6 +661,18 @@ def draw_list_add_triangle_filled(x1: float, y1: float, x2: float, y2: float, x3
 def draw_list_add_quad(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float, col: int, thickness: float) -> None: ...
 @staticmethod
 def draw_list_add_quad_filled(x1: float, y1: float, x2: float, y2: float, x3: float, y3: float, x4: float, y4: float, col: int) -> None: ...
+
+#Arcs
+@staticmethod
+def path_clear() -> None: ...
+@staticmethod
+def path_line_to(x: float, y: float) -> None: ...
+@staticmethod
+def path_arc_to(x: float, y: float, radius: float, a_min: float, a_max: float, num_segments: int = 0) -> None: ...
+@staticmethod
+def path_fill_convex(col: int) -> None: ...
+@staticmethod
+def path_stroke(col: int, closed: bool = False, thickness: float = 1.0) -> None: ...
 
 
 # Windows
