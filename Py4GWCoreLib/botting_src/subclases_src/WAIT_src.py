@@ -73,7 +73,7 @@ class _WAIT:
         wait_condition = lambda: (
             not Map.IsMapLoading()
             and Routines.Checks.Map.MapValid()
-            and Map.GetMapID() == (
+            and Map.IsMapIDMatch(Map.GetMapID(), 
                 target_map_id if target_map_id else Map.GetMapIDByName(target_map_name)
             )
         )
