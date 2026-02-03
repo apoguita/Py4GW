@@ -518,6 +518,7 @@ def on_enable():
     global selected_theme
     selected_theme = StyleTheme[py4_gw_ini_handler.read_key(
         "settings", "style_theme", StyleTheme.ImGui.name)]
+    Py4GW.Console.Log(MODULE_NAME, f"Enabled Style Manager with theme: {selected_theme.name}", Py4GW.Console.MessageType.Info)
     set_theme(selected_theme)
         
 def DrawWindow():
@@ -849,7 +850,7 @@ def main():
     """Required main function for the widget"""
     global game_throttle_timer, game_throttle_time, window_module, module_info
 
-    window_module.open = module_info["configuring"] if module_info else False
+    window_module.open = module_info.configuring if module_info else False
     
     try:
         if window_module.open:
