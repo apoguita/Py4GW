@@ -364,9 +364,9 @@ def BuyDoubleMaterials(material_type: str = "common"):
     if material_type == "common":
         # Buy primary common materials (bought in x10 units)
         if primary == "Paragon":
-            # Paragon needs 20 Iron Ingots + 10 Pile of Glittering Dust
-            for _ in range(2):  # Buy 20 Iron Ingots (2 * 10)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Iron_Ingot.value)
+            # Paragon needs 20 Tanned Hide Squares + 10 Pile of Glittering Dust
+            for _ in range(2):  # Buy 20 Tanned Hide Squares (2 * 10)
+                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Tanned_Hide_Square.value)
             yield from Routines.Yield.wait(500)  # Wait between material types
             for _ in range(1):  # Buy 10 Pile of Glittering Dust (1 * 10)
                 yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Pile_Of_Glittering_Dust.value)

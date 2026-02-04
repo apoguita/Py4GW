@@ -17,7 +17,7 @@ TEXTURE = os.path.join(
 )
 OUTPOST_TO_TRAVEL = Map.GetMapIDByName('Olafstead')
 VARAJAR_FELLS_MAP_ID = 553
-ASTERIUS_MODEL_ID = 6458
+ASTERIUS_MODEL_ID = 6509
 
 TRAVEL_PATH: list[tuple[float, float]] = [
     (-3357, -741),
