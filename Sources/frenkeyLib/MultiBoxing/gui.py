@@ -13,11 +13,11 @@ from Py4GWCoreLib.py4gwcorelib_src import Utils
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-from Sources.frenkey.MultiBoxing.enum import RenameClientType
-from Sources.frenkey.MultiBoxing.messaging import position_clients
-from Sources.frenkey.MultiBoxing.region import Region
-from Sources.frenkey.MultiBoxing.settings import Settings
-from Sources.frenkey.MultiBoxing.window_handling import set_window_active
+from Sources.frenkeyLib.MultiBoxing.enum import RenameClientType
+from Sources.frenkeyLib.MultiBoxing.messaging import position_clients
+from Sources.frenkeyLib.MultiBoxing.region import Region
+from Sources.frenkeyLib.MultiBoxing.settings import Settings
+from Sources.frenkeyLib.MultiBoxing.window_handling import set_window_active
 
 ## Set the MODULE_NAME to the folder
 MODULE_NAME = __file__.split("\\")[-2]
@@ -310,7 +310,7 @@ class GUI:
                                         if layout_name != "None":
                                             self.settings.load_layout(layout_name)
                                             
-                                            from Sources.frenkey.MultiBoxing.messaging import send_reload_settings
+                                            from Sources.frenkeyLib.MultiBoxing.messaging import send_reload_settings
                                             send_reload_settings(self.settings)
                                             
                                             self.layout_name = layout_name

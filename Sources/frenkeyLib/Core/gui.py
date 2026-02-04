@@ -6,9 +6,9 @@ import PyImGui
 from Py4GWCoreLib import IconsFontAwesome5, ImGui
 from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Utils
 from Py4GWCoreLib.enums import Profession, Rarity
-from Sources.frenkey.Core import ex_style
-from Sources.frenkey.Core import texture_map
-from Sources.frenkey.Core.texture_map import CoreTextures
+from Sources.frenkeyLib.Core import ex_style
+from Sources.frenkeyLib.Core import texture_map
+from Sources.frenkeyLib.Core.texture_map import CoreTextures
 
 class GUI:
     @staticmethod
