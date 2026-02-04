@@ -34,7 +34,7 @@ class Transition:
         if not Map.IsMapReady():
             return
 
-        if Map.GetMapID() == outpost_id:
+        if Map.IsMapIDMatch(None, outpost_id):
             if log_actions and arrived_timer.IsStopped():
                 ConsoleLog("TravelToOutpost", f"Already at outpost: {Map.GetMapName(outpost_id)}.")
             return
@@ -58,7 +58,7 @@ class Transition:
         from ..Py4GWcorelib import ConsoleLog
         global arrived_timer
 
-        has_arrived = Map.GetMapID() == outpost_id and Transition.IsOutpostLoaded()
+        has_arrived = Map.IsMapIDMatch(None, outpost_id) and Transition.IsOutpostLoaded()
 
         if has_arrived:
             arrived_timer.Stop()

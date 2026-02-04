@@ -689,5 +689,45 @@ name_to_map_id = {
     **explorable_name_to_id
 }
 
+#region Map Variants (Seasonal Events)
+# Maps seasonal/event variants to their base map ID
+# This allows checking if you're in Kamadan regardless of whether it's Halloween, Wintersday, etc.
+map_variants_to_base: dict[int, int] = {
+    # Lions Arch variants -> base Lions Arch (55)
+    808: 55,  # Lions Arch - Halloween
+    809: 55,  # Lions Arch - Wintersday
+    810: 55,  # Lions Arch - Canthan New Year
+    
+    # Ascalon City variants -> base Ascalon City (81)
+    811: 81,  # Ascalon City - Wintersday
+    
+    # Droknars Forge variants -> base Droknars Forge (20)
+    812: 20,  # Droknars Forge - Halloween
+    813: 20,  # Droknars Forge - Wintersday
+    
+    # Tomb of the Primeval Kings variants -> base Tomb (82)
+    814: 82,  # Tomb of the Primeval Kings - Halloween
+    
+    # Shing Jea Monastery variants -> base Shing Jea (242)
+    815: 242,  # Shing Jea Monastery - Dragon Festival
+    816: 242,  # Shing Jea Monastery - Canthan New Year
+    
+    # Kamadan variants -> base Kamadan (449)
+    818: 449,  # Kamadan Jewel of Istan - Halloween
+    819: 449,  # Kamadan Jewel of Istan - Wintersday
+    820: 449,  # Kamadan Jewel of Istan - Canthan New Year
+    
+    # Eye of the North variants -> base EotN (642)
+    821: 642,  # Eye of the North outpost - Wintersday
+}
+
+# Reverse mapping: base map ID -> list of all variants (including base)
+base_to_all_variants: dict[int, list[int]] = {}
+for variant_id, base_id in map_variants_to_base.items():
+    if base_id not in base_to_all_variants:
+        base_to_all_variants[base_id] = [base_id]  # Include base itself
+    base_to_all_variants[base_id].append(variant_id)
+
+# endregion
 
 # endregion
