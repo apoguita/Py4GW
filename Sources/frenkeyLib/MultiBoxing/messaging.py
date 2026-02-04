@@ -3,7 +3,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
-from Sources.frenkey.MultiBoxing.enum import MultiBoxingMessageType
+from Sources.frenkeyLib.MultiBoxing.enum import MultiBoxingMessageType
 
 MODULE_NAME = __file__.split("\\")[-2]
 
@@ -24,7 +24,7 @@ def position_clients(account_mail, regions, accounts):
 
 
 def set_borderless_clients(borderless: bool):
-    from Sources.frenkey.MultiBoxing.settings import Settings
+    from Sources.frenkeyLib.MultiBoxing.settings import Settings
     settings = Settings()
     
     regions = settings.regions
@@ -50,7 +50,7 @@ def send_reload_settings(settings):
 current_account = ""
 
 def handle_reload_settings(index, message):
-    from Sources.frenkey.MultiBoxing.settings import Settings
+    from Sources.frenkeyLib.MultiBoxing.settings import Settings
             
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(current_account, index)
     Settings().load_settings()

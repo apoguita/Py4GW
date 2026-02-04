@@ -6,10 +6,10 @@ from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 
-from Sources.frenkey.SulfurousRunner.settings import Settings
-from Sources.frenkey.SulfurousRunner.pathing import search_paths, update_waypoints
-from Sources.frenkey.SulfurousRunner.ui import draw_configure, draw_flags, draw_paths
-from Sources.frenkey.SulfurousRunner.globals import Global
+from Sources.frenkeyLib.SulfurousRunner.settings import Settings
+from Sources.frenkeyLib.SulfurousRunner.pathing import search_paths, update_waypoints
+from Sources.frenkeyLib.SulfurousRunner.ui import draw_configure, draw_flags, draw_paths
+from Sources.frenkeyLib.SulfurousRunner.globals import Global
 import PyImGui
 
 MODULE_NAME = "Sulfurous Runner"
