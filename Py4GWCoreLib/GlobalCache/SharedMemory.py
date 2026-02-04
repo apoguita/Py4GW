@@ -1731,7 +1731,7 @@ class Py4GWSharedMemoryManager:
             pet.PlayerFacingAngle = agent_instance.rotation_angle
             pet.PlayerTargetID = pet_info.locked_target_id
             
-            effects_instance = Effects.get_instance(Player.GetAgentID())
+            effects_instance = Effects.get_instance(agent_id)
             buffs = effects_instance.GetEffects() + effects_instance.GetBuffs()
             for j in range(SHMEM_MAX_NUMBER_OF_BUFFS):
                 buff = buffs[j] if j < len(buffs) else None
@@ -1808,6 +1808,28 @@ class Py4GWSharedMemoryManager:
                 count += 1
         return count
         
+    def GetAllActiveSlotsData(self) -> list[AccountData]:
+        """Get all active slot data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
+        accs : list[AccountData] = []
+        for i in range(self.max_num_players):
+            acc = self.GetStruct().AccountData[i]
+            if self._is_slot_active(i):
+                accs.append(acc)
+
+        # Sort by PartyID, then PartyPosition, then PlayerLoginNumber, then CharacterName
+        accs.sort(key=lambda p: (
+            p.MapID,
+            p.MapRegion,
+            p.MapDistrict,
+            p.MapLanguage,
+            p.PartyID,
+            p.PartyPosition,
+            p.PlayerLoginNumber,
+            p.CharacterName
+        ))
+
+        return accs
+    
     def GetAllAccountData(self) -> list[AccountData]:
         """Get all player data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
         players : list[AccountData] = []

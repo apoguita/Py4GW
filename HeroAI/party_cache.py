@@ -40,7 +40,7 @@ class PartyCache():
         from HeroAI.utils import SameMapOrPartyAsAccount
         self.party_id = GLOBAL_CACHE.Party.GetPartyID()
         
-        shmem_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        shmem_accounts = GLOBAL_CACHE.ShMem.GetAllActiveSlotsData()
         
         for acc in shmem_accounts:
             if acc.IsSlotActive and SameMapOrPartyAsAccount(acc):
