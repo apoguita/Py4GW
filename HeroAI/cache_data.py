@@ -39,7 +39,7 @@ class GameData:
               
         
     def update(self):
-        from Py4GWCoreLib import Map
+        from Py4GWCoreLib.Map import Map
         if not Map.IsMapReady():
                 return False
             
