@@ -39,10 +39,10 @@ KILLING_PATH = [
                 
                 ]
 
-NICK_OUTPOST = 117 #Thirsty River
-COORDS_TO_EXIT_OUTPOST = (13104,13755)
-EXPLORABLE_AREA = 108 #the scar
-NICK_COORDS = [(-4510.0, -6737.0),] #Nicholas the Traveler Location
+NICK_OUTPOST = 376  #Camp Hojanu
+COORDS_TO_EXIT_OUTPOST = (-13986, 18223)
+EXPLORABLE_AREA = 375 #Barbarous Shore
+NICK_COORDS = [(-5203.44, -2907.11),] #Nicholas the Traveler Location
 
 bot = Botting(BOT_NAME)
                 
