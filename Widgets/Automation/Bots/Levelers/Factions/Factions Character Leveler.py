@@ -43,7 +43,7 @@ def create_bot_routine(bot: Botting) -> None:
     Extend_Inventory_Space(bot)
     To_Boreal_Station(bot)
     To_Eye_of_the_North(bot)
-    Unlock_Eotn_Pool(bot)
+    Unlock_Eye_Of_The_North_Pool(bot)
     Attribute_Points_Quest_2(bot)
     To_Gunnars_Hold(bot)
     Unlock_Kilroy_Stonekin(bot)
@@ -1244,8 +1244,8 @@ def To_Eye_of_the_North(bot: Botting):
     bot.Move.XY(-641.25, 2069.27)
     bot.Wait.ForMapToChange(target_map_id=642)
 
-def Unlock_Eotn_Pool(bot: Botting):
-    bot.States.AddHeader("Unlock Eotn Pool")
+def Unlock_Eye_Of_The_North_Pool(bot: Botting):
+    bot.States.AddHeader("Unlock Eye Of The North Pool")
     bot.Map.Travel(target_map_id=642)
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
