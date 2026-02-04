@@ -3,9 +3,9 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
-from Sources.frenkey.MultiBoxing.enum import RenameClientType
-from Sources.frenkey.MultiBoxing.messaging import position_clients
-from Sources.frenkey.MultiBoxing.region import Region
+from Sources.frenkeyLib.MultiBoxing.enum import RenameClientType
+from Sources.frenkeyLib.MultiBoxing.messaging import position_clients
+from Sources.frenkeyLib.MultiBoxing.region import Region
 
 MODULE_NAME = __file__.split("\\")[-2]
 

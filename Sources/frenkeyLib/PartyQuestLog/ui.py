@@ -22,7 +22,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-from Sources.frenkey.PartyQuestLog.settings import Settings
+from Sources.frenkeyLib.PartyQuestLog.settings import Settings
 from Sources.ApoSource.account_data_src.quest_data_src import QuestData, QuestNode
 
 class UI():

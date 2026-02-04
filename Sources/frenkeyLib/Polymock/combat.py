@@ -9,8 +9,8 @@ from Py4GWCoreLib.Skillbar import SkillBar
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums import Allegiance, Key
-from Sources.frenkey.Polymock import state
-from Sources.frenkey.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockBar, PolymockPieces, SkillReaction
+from Sources.frenkeyLib.Polymock import state
+from Sources.frenkeyLib.Polymock.data import Polymock_Quest, Polymock_Quests, Polymock_Spawns, PolymockBar, PolymockPieces, SkillReaction
 
 # Check how many times we have used a skill with the same Energy. If Energy does not change we have to set a new energy base level
 # If we had no target and now have the first target, we have to use our opener

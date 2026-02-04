@@ -8,7 +8,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
-from Sources.frenkey.MultiBoxing.settings import Settings
+from Sources.frenkeyLib.MultiBoxing.settings import Settings
 
 MODULE_NAME = __file__.split("\\")[-2]
 
