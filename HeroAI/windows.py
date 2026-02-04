@@ -261,7 +261,7 @@ class HeroAI_FloatingWindows():
                     open = HeroAI_FloatingWindows.hero_windows[combined_identifier].begin(True, PyImGui.WindowFlags.AlwaysAutoResize)
                 
                 for account in accounts:
-                    if not account.AccountEmail:
+                    if not account.AccountEmail or not account.IsAccount:
                         continue
                 
                     if account.AccountEmail == Player.GetAccountEmail() and not HeroAI_FloatingWindows.settings.ShowLeaderPanel:
