@@ -198,7 +198,7 @@ def Follow(cached_data: CacheData):
     
     if not cached_data.follow_throttle_timer.IsExpired():
         return False
-    
+
     if not map_quads:
         map_quads = Map.Pathing.GetMapQuads()
 

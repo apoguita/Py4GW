@@ -39,6 +39,12 @@ class GameData:
               
         
     def update(self):
+        from Py4GWCoreLib import Map
+        if not Map.IsMapReady():
+                return False
+            
+        if Map.IsInCinematic():
+            return False
         
         #Player data
         attributes = Agent.GetAttributes(Player.GetAgentID())
