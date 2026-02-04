@@ -108,7 +108,7 @@ class GUI:
 
     def draw_configure_window(self):
         module_info = self.get_module_info(MODULE_NAME)
-        self.configure_window.open = module_info["configuring"] if module_info else False
+        self.configure_window.open = module_info.configuring if module_info else False
 
         if self.configure_window.begin(None):
             self.configure_window.window_flags = PyImGui.WindowFlags.NoFlag
@@ -450,7 +450,7 @@ class GUI:
             self.settings.remove_region(self.settings.active_region)
             self.settings.active_region = None
 
-        if not self.configure_window.open and module_info and module_info["configuring"]:
+        if not self.configure_window.open and module_info and module_info.configuring:
             self.widget_handler.set_widget_configuring(MODULE_NAME, False)
 
         self.configure_window.end()
