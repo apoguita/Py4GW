@@ -167,7 +167,7 @@ class Map:
         return int(catalog.get(key, 0))
     
     @staticmethod
-    def GetBaseMapID(map_id: int = None) -> int:
+    def GetBaseMapID(map_id: int = 0) -> int:
         """
         Get the base map ID for a given map, handling seasonal variants.
         
@@ -175,14 +175,14 @@ class Map:
         it will return the normal Lions Arch ID (55).
         
         Args:
-            map_id: The map ID to look up. If None, uses current map ID.
+            map_id: The map ID to look up. If 0, uses current map ID.
             
         Returns:
             The base map ID (returns the input if it's already a base map or not a known variant)
         """
         from .enums_src.Map_enums import map_variants_to_base
         
-        if map_id is None:
+        if map_id == 0:
             map_id = Map.GetMapID()
         
         # Return the base map ID if this is a variant, otherwise return the map itself
@@ -208,22 +208,22 @@ class Map:
         return base_to_all_variants.get(base_id, [base_id])
     
     @staticmethod
-    def IsMapIDMatch(current_map: int = None, target_map: int = None) -> bool:
+    def IsMapIDMatch(current_map: int = 0, target_map: int = 0) -> bool:
         """
         Check if two map IDs match, accounting for seasonal variants.
         
         For example, Halloween Lions Arch (808) will match normal Lions Arch (55).
         
         Args:
-            current_map: The first map ID to compare. If None, uses current map ID.
-            target_map: The second map ID to compare. If None, uses current map ID.
+            current_map: The first map ID to compare. If 0, uses current map ID.
+            target_map: The second map ID to compare. If 0, uses current map ID.
             
         Returns:
             True if the maps match (including variant matches), False otherwise
         """
-        if current_map is None:
+        if current_map == 0:
             current_map = Map.GetMapID()
-        if target_map is None:
+        if target_map == 0:
             target_map = Map.GetMapID()
         
         # Compare base map IDs

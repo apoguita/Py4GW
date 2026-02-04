@@ -1,5 +1,7 @@
 import PyPlayer
 
+from Py4GWCoreLib.routines_src.BehaviourTrees import Routines
+
 from .enums import *
 from .Agent import Agent
 from .native_src.internals.helpers import encoded_wstr_to_str
@@ -183,7 +185,14 @@ class Player:
         Args: None
         Returns: str
         """
+        from .Map import Map
         try:
+            if not Map.IsMapReady():
+                return ""
+            
+            if Map.IsInCinematic():
+                return ""
+            
             if not Player.IsPlayerLoaded():
                 return ""
             
