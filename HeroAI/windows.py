@@ -1,7 +1,7 @@
 from operator import index
 from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
 from Py4GWCoreLib import UIManager, ModelID, GLOBAL_CACHE, WindowFrames
-from Py4GWCoreLib import Agent, Player, Party
+from Py4GWCoreLib import Agent, Player
 from Py4GWCoreLib import (Routines, ActionQueueManager,Key, Keystroke, ThrottledTimer)
 from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, MELEE_RANGE_VALUE, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS,
                               PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
@@ -299,6 +299,7 @@ class HeroAI_FloatingWindows():
         
     @staticmethod
     def show_ui(cached_data: CacheData):
+        from Py4GWCoreLib.Party import Party
         show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and not Party.IsPartyLoaded()
         if show_ui:  
             own_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
