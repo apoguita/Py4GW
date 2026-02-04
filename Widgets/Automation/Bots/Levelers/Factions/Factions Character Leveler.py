@@ -19,6 +19,7 @@ bot = Botting("Factions Leveler",
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)
     Exit_Monastery_Overlook(bot)
+    Forming_A_Party(bot)
     Unlock_Secondary_Profession(bot)
     Unlock_Xunlai_Storage(bot)
     Craft_Weapon(bot)
@@ -35,7 +36,6 @@ def create_bot_routine(bot: Botting) -> None:
     Zen_Daijun_Mission(bot)
     Craft_Remaining_Seitung_Armor(bot)
     Destroy_Starter_Armor_And_Useless_Items(bot)
-    Attribute_Points_Quest_2(bot)
     To_Marketplace(bot)
     To_Kaineng_Center(bot)
     Craft_Max_Armor(bot)
@@ -43,7 +43,8 @@ def create_bot_routine(bot: Botting) -> None:
     Extend_Inventory_Space(bot)
     To_Boreal_Station(bot)
     To_Eye_of_the_North(bot)
-    Unlock_Eotn_Pool(bot)
+    Unlock_Eye_Of_The_North_Pool(bot)
+    Attribute_Points_Quest_2(bot)
     To_Gunnars_Hold(bot)
     Unlock_Kilroy_Stonekin(bot)
     To_Longeyes_Edge(bot)
@@ -853,6 +854,14 @@ def Exit_Monastery_Overlook(bot: Botting) -> None:
     bot.States.AddHeader("Exit Monastery Overlook")
     bot.Move.XYAndDialog(-7048,5817,0x85)
     bot.Wait.ForMapLoad(target_map_name="Shing Jea Monastery")
+
+def Forming_A_Party(bot: Botting) -> None:
+    bot.States.AddHeader("Quest: Forming A Party")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    PrepareForBattle(bot)
+    bot.Move.XYAndDialog(-14063.00, 10044.00, 0x81B801)
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    bot.Move.XYAndDialog(19673.00, -6982.00, 0x81B807)
     
 def Unlock_Secondary_Profession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
@@ -1085,41 +1094,42 @@ def To_Zen_Daijun(bot: Botting):
     
 def Zen_Daijun_Mission(bot:Botting):
     bot.States.AddHeader("Zen Daijun Mission")
-    bot.Map.Travel(target_map_id=213)
-    PrepareForBattle(bot)
-    bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
-    bot.Move.XY(15120.68, 10456.73)
-    bot.Wait.ForTime(15000)
-    bot.Move.XY(11990.38, 10782.05)
-    bot.Wait.ForTime(10000)
-    bot.Move.XY(10161.92, 9751.41)
-    bot.Move.XY(9723.10, 7968.76)
-    bot.Wait.UntilOutOfCombat()
-    bot.Interact.WithGadgetAtXY(9632.00, 8058.00)
-    bot.Move.XY(9412.15, 7257.83)
-    bot.Move.XY(9183.47, 6653.42)
-    bot.Move.XY(8966.42, 6203.29)
-    bot.Move.XY(3510.94, 2724.63)
-    bot.Move.XY(2120.18, 1690.91)
-    bot.Move.XY(928.27, 2782.67)
-    bot.Move.XY(744.67, 4187.17)
-    bot.Move.XY(242.27, 6558.48)
-    bot.Move.XY(-4565.76, 8326.51)
-    bot.Move.XY(-5374.88, 8626.30)
-    bot.Move.XY(-10291.65, 8519.68)
-    bot.Move.XY(-11009.76, 6292.73)
-    bot.Move.XY(-12762.20, 6112.31)
-    bot.Move.XY(-14029.90, 3699.97)
-    bot.Move.XY(-13243.47, 1253.06)
-    bot.Move.XY(-11907.05, 28.87)
-    bot.Move.XY(-11306.09, 802.47)
-    bot.Wait.ForTime(5000)
-    bot.Move.XY(-10255.23, 178.48)
-    bot.Move.XY(-9068.41, -553.94)
-    bot.Wait.ForTime(5000)
-    bot.Move.XY(-7949.79, -1376.02)
-    bot.Move.XY(-7688.63, -1538.34)
-    bot.Wait.ForMapToChange(target_map_name="Seitung Harbor")
+    for _ in range (4):
+        bot.Map.Travel(target_map_id=213)
+        PrepareForBattle(bot)
+        bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
+        bot.Move.XY(15120.68, 10456.73)
+        bot.Wait.ForTime(15000)
+        bot.Move.XY(11990.38, 10782.05)
+        bot.Wait.ForTime(10000)
+        bot.Move.XY(10161.92, 9751.41)
+        bot.Move.XY(9723.10, 7968.76)
+        bot.Wait.UntilOutOfCombat()
+        bot.Interact.WithGadgetAtXY(9632.00, 8058.00)
+        bot.Move.XY(9412.15, 7257.83)
+        bot.Move.XY(9183.47, 6653.42)
+        bot.Move.XY(8966.42, 6203.29)
+        bot.Move.XY(3510.94, 2724.63)
+        bot.Move.XY(2120.18, 1690.91)
+        bot.Move.XY(928.27, 2782.67)
+        bot.Move.XY(744.67, 4187.17)
+        bot.Move.XY(242.27, 6558.48)
+        bot.Move.XY(-4565.76, 8326.51)
+        bot.Move.XY(-5374.88, 8626.30)
+        bot.Move.XY(-10291.65, 8519.68)
+        bot.Move.XY(-11009.76, 6292.73)
+        bot.Move.XY(-12762.20, 6112.31)
+        bot.Move.XY(-14029.90, 3699.97)
+        bot.Move.XY(-13243.47, 1253.06)
+        bot.Move.XY(-11907.05, 28.87)
+        bot.Move.XY(-11306.09, 802.47)
+        bot.Wait.ForTime(5000)
+        bot.Move.XY(-10255.23, 178.48)
+        bot.Move.XY(-9068.41, -553.94)
+        bot.Wait.ForTime(5000)
+        bot.Move.XY(-7949.79, -1376.02)
+        bot.Move.XY(-7688.63, -1538.34)
+        bot.Wait.ForMapToChange(target_map_name="Seitung Harbor")
 
 def Craft_Remaining_Seitung_Armor(bot: Botting):
     bot.States.AddHeader("Craft remaining Seitung armor")
@@ -1129,6 +1139,130 @@ def Craft_Remaining_Seitung_Armor(bot: Botting):
 def Destroy_Starter_Armor_And_Useless_Items(bot: Botting):
     bot.States.AddHeader("Destroy starter armor and useless items")
     bot.States.AddCustomState(destroy_starter_armor_and_useless_items, "Destroy starter armor and useless items")
+
+def To_Marketplace(bot: Botting):
+    bot.States.AddHeader("To Marketplace")
+    bot.Map.Travel(target_map_id=250) #Seitung Harbor
+    bot.Move.XYAndDialog(16927, 9004, 0x815D01) #A Master's Burden pt. 1
+    bot.Dialogs.AtXY(16927, 9004, 0x84)
+    bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
+    bot.Move.XYAndDialog(9955, 20033, 0x815D04) #A Master's Burden pt. 2
+    bot.Move.XYAndExitMap(12003, 18529, target_map_name="The Marketplace")
+
+def To_Kaineng_Center(bot: Botting):
+    bot.States.AddHeader("To Kaineng Center")
+    bot.Map.Travel(target_map_name="The Marketplace")
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(16640,19882, target_map_name="Bukdek Byway")
+    auto_path_list = [(-10254.0,-1759.0), (-10332.0,1442.0), (-10965.0,9309.0), (-9467.0,14207.0)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    path_to_kc = [(-8601.28, 17419.64),(-6857.17, 19098.28),(-6706,20388)]
+    bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
+
+def Craft_Max_Armor(bot: Botting):
+    bot.States.AddHeader("Craft max armor")
+    # Buy common materials (cloth or hide)
+    bot.Map.Travel(194)
+    bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
+    bot.States.AddCustomState(withdraw_gold, "Withdraw 20k Gold")
+    bot.Move.XYAndInteractNPC(1592.00, -796.00)  # Common material merchant
+    exec_fn_common = lambda: BuyMaxArmorMaterials("common")
+    bot.States.AddCustomState(exec_fn_common, "Buy Common Materials")
+    bot.Wait.ForTime(1500)  # Wait for common material purchases to complete
+    # Buy rare materials (steel ingot, linen, or damask)
+    rare_material = GetMaxArmorRareMaterial()
+    if rare_material is not None:
+        bot.Move.XYAndInteractNPC(1495.00, -1315.00)  # Rare material merchant
+        exec_fn_rare = lambda: BuyMaxArmorMaterials("rare")
+        bot.States.AddCustomState(exec_fn_rare, "Buy Rare Materials")
+        bot.Wait.ForTime(2000)  # Wait for rare material purchases to complete
+    crafter_x, crafter_y = GetArmorCrafterCoords()
+    bot.Move.XY(crafter_x, crafter_y)
+    bot.Move.XYAndInteractNPC(crafter_x, crafter_y)  # Armor crafter in Kaineng Center
+    bot.Wait.ForTime(1000)  # Small delay to let the window open
+    exec_fn = lambda: DoCraftMaxArmor(bot)
+    bot.States.AddCustomState(exec_fn, "Craft Max Armor")
+
+def Destroy_Seitung_Armor(bot: Botting):
+    bot.States.AddHeader("Destroy old armor")
+    bot.States.AddCustomState(destroy_seitung_armor, "Destroy Seitung Armor")
+
+def Extend_Inventory_Space(bot: Botting):
+    bot.States.AddHeader("Extend Inventory Space")
+    bot.Map.Travel(194)
+    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.helpers.UI.open_all_bags()
+    bot.Move.XY(1448.00, -2024.00)
+    bot.Move.XYAndInteractNPC(1448.00, -2024.00) # Merchant NPC in Kaineng Center
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
+    bot.Wait.ForTime(250)
+    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
+    bot.Wait.ForTime(500) # Wait for equip to complete
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.Wait.ForTime(500)
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+
+def To_Boreal_Station(bot: Botting):
+    bot.States.AddHeader("To Boreal Station")
+    bot.Map.Travel(target_map_id=194)
+    bot.Move.XY(3444.90, -1728.31)
+    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)
+    bot.Move.XY(3444.90, -1728.31)
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
+    bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
+    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
+    bot.Wait.ForMapLoad(target_map_id=692)
+    auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
+                      (3918.55, 10383.79), (8435, 14378), (10134,16742)]    
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Wait.ForTime(3000)
+    ConfigurePacifistEnv(bot)    
+    auto_path_list = [(4523.25, 15448.03), (-43.80, 18365.45), (-10234.92, 16691.96),
+                      (-17917.68, 18480.57), (-18775, 19097)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Wait.ForTime(8000)
+    bot.Wait.ForMapLoad(target_map_id=675)
+
+def To_Eye_of_the_North(bot: Botting):
+    bot.States.AddHeader("To Eye of the North")
+    bot.Map.Travel(target_map_id=675) #Boreal Station
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
+    bot.Move.XY(3579.07, -22007.27)
+    bot.Wait.ForTime(15000)
+    bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
+    auto_path_list = [(3743.31, -15862.36), (3607.21, -6937.32),(2557.23, -275.97)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Move.XY(-641.25, 2069.27)
+    bot.Wait.ForMapToChange(target_map_id=642)
+
+def Unlock_Eye_Of_The_North_Pool(bot: Botting):
+    bot.States.AddHeader("Unlock Eye Of The North Pool")
+    bot.Map.Travel(target_map_id=642)
+    auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
+    bot.Move.FollowAutoPath(auto_path_list)
+    bot.Wait.ForMapToChange(target_map_id=646)
+    bot.Move.XY(-6572.70, 6588.83)
+    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    bot.Wait.ForTime(1000)
+    #bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    #bot.Wait.ForTime(1000)
+    bot.Dialogs.WithModel(5959, 0x633) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    bot.Wait.ForTime(1000)
+    bot.Wait.ForMapToChange(target_map_id=646)
+    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x0000008A) # Gwen dialog to obtain Keiran's bow. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
 
 def Attribute_Points_Quest_2(bot: Botting):
     def enable_combat_and_wait(ms:int):
@@ -1253,130 +1387,6 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
     bot.Dialogs.WithModel(4009,0x815C07) #Zunraa model id updated 20.12.2025 GW Reforged
-    
-def To_Marketplace(bot: Botting):
-    bot.States.AddHeader("To Marketplace")
-    bot.Map.Travel(target_map_id=250) #Seitung Harbor
-    bot.Move.XYAndDialog(16927, 9004, 0x815D01) #A Master's Burden pt. 1
-    bot.Dialogs.AtXY(16927, 9004, 0x84)
-    bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
-    bot.Move.XYAndDialog(9955, 20033, 0x815D04) #A Master's Burden pt. 2
-    bot.Move.XYAndExitMap(12003, 18529, target_map_name="The Marketplace")
-
-def To_Kaineng_Center(bot: Botting):
-    bot.States.AddHeader("To Kaineng Center")
-    bot.Map.Travel(target_map_name="The Marketplace")
-    PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(16640,19882, target_map_name="Bukdek Byway")
-    auto_path_list = [(-10254.0,-1759.0), (-10332.0,1442.0), (-10965.0,9309.0), (-9467.0,14207.0)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    path_to_kc = [(-8601.28, 17419.64),(-6857.17, 19098.28),(-6706,20388)]
-    bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
-
-def Craft_Max_Armor(bot: Botting):
-    bot.States.AddHeader("Craft max armor")
-    # Buy common materials (cloth or hide)
-    bot.Map.Travel(194)
-    bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
-    bot.States.AddCustomState(withdraw_gold, "Withdraw 20k Gold")
-    bot.Move.XYAndInteractNPC(1592.00, -796.00)  # Common material merchant
-    exec_fn_common = lambda: BuyMaxArmorMaterials("common")
-    bot.States.AddCustomState(exec_fn_common, "Buy Common Materials")
-    bot.Wait.ForTime(1500)  # Wait for common material purchases to complete
-    # Buy rare materials (steel ingot, linen, or damask)
-    rare_material = GetMaxArmorRareMaterial()
-    if rare_material is not None:
-        bot.Move.XYAndInteractNPC(1495.00, -1315.00)  # Rare material merchant
-        exec_fn_rare = lambda: BuyMaxArmorMaterials("rare")
-        bot.States.AddCustomState(exec_fn_rare, "Buy Rare Materials")
-        bot.Wait.ForTime(2000)  # Wait for rare material purchases to complete
-    crafter_x, crafter_y = GetArmorCrafterCoords()
-    bot.Move.XY(crafter_x, crafter_y)
-    bot.Move.XYAndInteractNPC(crafter_x, crafter_y)  # Armor crafter in Kaineng Center
-    bot.Wait.ForTime(1000)  # Small delay to let the window open
-    exec_fn = lambda: DoCraftMaxArmor(bot)
-    bot.States.AddCustomState(exec_fn, "Craft Max Armor")
-
-def Destroy_Seitung_Armor(bot: Botting):
-    bot.States.AddHeader("Destroy old armor")
-    bot.States.AddCustomState(destroy_seitung_armor, "Destroy Seitung Armor")
-
-def Extend_Inventory_Space(bot: Botting):
-    bot.States.AddHeader("Extend Inventory Space")
-    bot.Map.Travel(194)
-    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
-    bot.helpers.UI.open_all_bags()
-    bot.Move.XY(1448.00, -2024.00)
-    bot.Move.XYAndInteractNPC(1448.00, -2024.00) # Merchant NPC in Kaineng Center
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
-    bot.Wait.ForTime(250)
-    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
-    bot.Wait.ForTime(500) # Wait for equip to complete
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-    bot.Wait.ForTime(500)
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-
-def To_Boreal_Station(bot: Botting):
-    bot.States.AddHeader("To Boreal Station")
-    bot.Map.Travel(target_map_id=194)
-    bot.Move.XY(3444.90, -1728.31)
-    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)
-    bot.Move.XY(3444.90, -1728.31)
-    PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
-    bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
-    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
-    bot.Wait.ForMapLoad(target_map_id=692)
-    auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
-                      (3918.55, 10383.79), (8435, 14378), (10134,16742)]    
-    bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForTime(3000)
-    ConfigurePacifistEnv(bot)    
-    auto_path_list = [(4523.25, 15448.03), (-43.80, 18365.45), (-10234.92, 16691.96),
-                      (-17917.68, 18480.57), (-18775, 19097)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForTime(8000)
-    bot.Wait.ForMapLoad(target_map_id=675)
-
-def To_Eye_of_the_North(bot: Botting):
-    bot.States.AddHeader("To Eye of the North")
-    bot.Map.Travel(target_map_id=675) #Boreal Station
-    PrepareForBattle(bot)
-    bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
-    bot.Move.XY(3579.07, -22007.27)
-    bot.Wait.ForTime(15000)
-    bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
-    auto_path_list = [(3743.31, -15862.36), (3607.21, -6937.32),(2557.23, -275.97)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XY(-641.25, 2069.27)
-    bot.Wait.ForMapToChange(target_map_id=642)
-
-def Unlock_Eotn_Pool(bot: Botting):
-    bot.States.AddHeader("Unlock Eotn Pool")
-    bot.Map.Travel(target_map_id=642)
-    auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
-    bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForMapToChange(target_map_id=646)
-    bot.Move.XY(-6572.70, 6588.83)
-    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
-    bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
-    bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x632) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
-    bot.Wait.ForTime(1000)
-    bot.Wait.ForMapToChange(target_map_id=646)
-    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(6021, 0x0000008A) # Gwen dialog to obtain Keiran's bow. Model id updated 20.12.2025 GW Reforged
-    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
-    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
 
 def To_Gunnars_Hold(bot: Botting):
     bot.States.AddHeader("To Gunnar's Hold")
