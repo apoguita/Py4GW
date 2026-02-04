@@ -1522,19 +1522,20 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Map.Travel(target_map_id=642)
     auto_path_list = [(-4416.39, 4932.36), (-5198.00, 5595.00)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Wait.ForMapLoad(target_map_id=646)
+    bot.Wait.ForMapToChange(target_map_id=646)
     bot.Move.XY(-6572.70, 6588.83)
-    bot.Dialogs.WithModel(6021, 0x800001) # Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x630) # Model id updated 20.12.2025 GW Reforged
-    bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x632) # Model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    #bot.Wait.ForTime(1000)
+    bot.Dialogs.WithModel(5959, 0x633) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
     bot.Wait.ForMapToChange(target_map_id=646)
-    bot.Dialogs.WithModel(6021, 0x89) # Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(6021, 0x831904) # Model id updated 20.12.2025 GW Reforged
-    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog 
-    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog
+    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x0000008A) # Gwen dialog to obtain Keiran's bow. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
 
 def To_Gunnars_Hold(bot: Botting):
     bot.States.AddHeader("To Gunnar's Hold")
