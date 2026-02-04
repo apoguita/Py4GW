@@ -28,7 +28,8 @@ class _MAP:
         
         current_map_id = Map.GetMapID()
 
-        if current_map_id == target_map_id:
+        # Check if we're already in the target map (or a variant of it)
+        if Map.IsMapIDMatch(current_map_id, target_map_id):
             yield from Routines.Yield.wait(1000)
             return
         

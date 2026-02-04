@@ -167,6 +167,69 @@ class Map:
         return int(catalog.get(key, 0))
     
     @staticmethod
+    def GetBaseMapID(map_id: int = None) -> int:
+        """
+        Get the base map ID for a given map, handling seasonal variants.
+        
+        For example, if you pass in the Halloween Lions Arch ID (808), 
+        it will return the normal Lions Arch ID (55).
+        
+        Args:
+            map_id: The map ID to look up. If None, uses current map ID.
+            
+        Returns:
+            The base map ID (returns the input if it's already a base map or not a known variant)
+        """
+        from .enums_src.Map_enums import map_variants_to_base
+        
+        if map_id is None:
+            map_id = Map.GetMapID()
+        
+        # Return the base map ID if this is a variant, otherwise return the map itself
+        return map_variants_to_base.get(map_id, map_id)
+    
+    @staticmethod
+    def GetAllMapVariants(map_id: int) -> list[int]:
+        """
+        Get all variants (including base) for a given map ID.
+        
+        Args:
+            map_id: The base map ID or any variant of it.
+            
+        Returns:
+            List of all map IDs that are variants of the given map (includes the base)
+        """
+        from .enums_src.Map_enums import base_to_all_variants
+        
+        # First normalize to base ID
+        base_id = Map.GetBaseMapID(map_id)
+        
+        # Return all variants for this base (or just the base if no variants)
+        return base_to_all_variants.get(base_id, [base_id])
+    
+    @staticmethod
+    def IsMapIDMatch(current_map: int = None, target_map: int = None) -> bool:
+        """
+        Check if two map IDs match, accounting for seasonal variants.
+        
+        For example, Halloween Lions Arch (808) will match normal Lions Arch (55).
+        
+        Args:
+            current_map: The first map ID to compare. If None, uses current map ID.
+            target_map: The second map ID to compare. If None, uses current map ID.
+            
+        Returns:
+            True if the maps match (including variant matches), False otherwise
+        """
+        if current_map is None:
+            current_map = Map.GetMapID()
+        if target_map is None:
+            target_map = Map.GetMapID()
+        
+        # Compare base map IDs
+        return Map.GetBaseMapID(current_map) == Map.GetBaseMapID(target_map)
+    
+    @staticmethod
     def GetInstanceUptime() -> int:
         """Retrieve the uptime of the current instance."""
         if not (agent_context := GWContext.AccAgent.GetContext()):

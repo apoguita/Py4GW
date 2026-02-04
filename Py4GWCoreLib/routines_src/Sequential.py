@@ -183,13 +183,13 @@ class Sequential:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Map import Map
             from ..Py4GWcorelib import ConsoleLog, Console
-            if Map.GetMapID() != outpost_id:
+            if not Map.IsMapIDMatch(None, outpost_id):
                 ConsoleLog("TravelToOutpost", f"Travelling to {Map.GetMapName(outpost_id)}", log=log)
                 Map.Travel(outpost_id)
                 sleep(3)
                 waititng_for_map_load = True
                 while waititng_for_map_load:
-                    if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.GetMapID() == outpost_id:
+                    if Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.IsMapIDMatch(None, outpost_id):
                         waititng_for_map_load = False
                         break
                     sleep(1)
@@ -212,7 +212,7 @@ class Sequential:
             from ..Map import Map
             waititng_for_map_load = True
             while waititng_for_map_load:
-                if not (Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.GetMapID() == map_id):
+                if not (Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.IsMapIDMatch(None, map_id)):
                     sleep(1)
                 else:
                     waititng_for_map_load = False
