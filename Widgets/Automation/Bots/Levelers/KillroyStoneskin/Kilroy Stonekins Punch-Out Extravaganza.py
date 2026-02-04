@@ -106,7 +106,7 @@ def configure():
 def main():
     bot.Update()
     draw_window(bot)
-    path = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "Leveling", "KillroyStoneskin","Kilroy Stonekins Punch-Out Extravaganza-art.png")
+    path = os.path.join(Py4GW.Console.get_projects_path(),"Sources", "ApoSource", "textures","Kilroy Stonekins Punch-Out Extravaganza-art.png")
     bot.UI.draw_window(icon_path=path)
 
 if __name__ == "__main__":
