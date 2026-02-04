@@ -1884,7 +1884,7 @@ iconwidth = 96
 def _draw_texture():
     global iconwidth
     level = Agent.GetLevel(Player.GetAgentID())
-    path = os.path.join(Py4GW.Console.get_projects_path(),"Bots", "Leveling", "Factions","factions_leveler_art.png")
+    path = os.path.join(Py4GW.Console.get_projects_path(),"Sources", "ApoSource", "textures","factions_leveler_art.png")
     size = (float(iconwidth), float(iconwidth))
     tint = (255, 255, 255, 255)
     border_col = (0, 0, 0, 0)  # <- ints, not normalized floats
