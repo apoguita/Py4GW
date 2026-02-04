@@ -3,7 +3,7 @@
 import importlib
 import os
 import PyImGui
-from Sources.frenkey.Polymock import gui, combat, state
+from Sources.frenkeyLib.Polymock import gui, combat, state
 
 from Py4GWCoreLib import Map, Routines, ImGui, Color
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer

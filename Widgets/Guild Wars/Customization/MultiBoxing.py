@@ -24,12 +24,12 @@ for module_name in list(sys.modules.keys()):
         except Exception as e:
             Py4GW.Console.Log(MODULE_NAME, f"Error reloading module {module_name}: {e}")
             
-from Sources.frenkey.MultiBoxing.messaging import HandleReceivedMessages
-from Sources.frenkey.MultiBoxing.enum import RenameClientType
-from Sources.frenkey.MultiBoxing.settings import Settings
-from Sources.frenkey.MultiBoxing.region import Region
-from Sources.frenkey.MultiBoxing.window_handling import is_window_active, set_window_title
-from Sources.frenkey.MultiBoxing.gui import GUI
+from Sources.frenkeyLib.MultiBoxing.messaging import HandleReceivedMessages
+from Sources.frenkeyLib.MultiBoxing.enum import RenameClientType
+from Sources.frenkeyLib.MultiBoxing.settings import Settings
+from Sources.frenkeyLib.MultiBoxing.region import Region
+from Sources.frenkeyLib.MultiBoxing.window_handling import is_window_active, set_window_title
+from Sources.frenkeyLib.MultiBoxing.gui import GUI
 
 throttle_timer = ThrottledTimer(250)
 script_directory = os.path.dirname(os.path.abspath(__file__))
