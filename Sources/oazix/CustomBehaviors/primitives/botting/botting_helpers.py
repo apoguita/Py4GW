@@ -10,11 +10,11 @@ from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
 from Py4GWCoreLib.py4gwcorelib_src.Lootconfig_src import LootConfig
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 
-from Widgets.Config.CustomBehaviors.primitives.bus.event_type import EventType
-from Widgets.Config.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Widgets.Config.CustomBehaviors.primitives.helpers import custom_behavior_helpers
-from Widgets.Config.CustomBehaviors.primitives.skillbars import custom_behavior_base_utility
-from Widgets.Config.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
+from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
+from Sources.oazix.CustomBehaviors.primitives.skillbars import custom_behavior_base_utility
+from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
 class BottingHelpers:
