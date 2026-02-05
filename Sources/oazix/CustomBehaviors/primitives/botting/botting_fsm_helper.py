@@ -7,18 +7,18 @@ from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
 from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
-from Widgets.Config.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
-from Widgets.Config.CustomBehaviors.primitives.bus.event_bus import EventBus
-from Widgets.Config.CustomBehaviors.primitives.bus.event_message import EventMessage
-from Widgets.Config.CustomBehaviors.primitives.bus.event_type import EventType
-from Widgets.Config.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Widgets.Config.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
+from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
+from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
+from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 
 class BottingFsmHelpers:
 
     @staticmethod
     def __custom_behaviors_botting_daemon(fsm: FSM):
-        from Widgets.Config.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+        from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
         print("CustomBehaviors_FSM_Daemon added")
         injected = False
         while True:
@@ -54,8 +54,8 @@ class BottingFsmHelpers:
         if instance is None: pass
 
         # Local imports to avoid circular import with resign_if_needed -> botting_helpers
-        from Widgets.Config.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
 
         instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
@@ -72,15 +72,15 @@ class BottingFsmHelpers:
         if instance is None: pass
 
         # Local imports to avoid circular import with resign_if_needed -> botting_helpers
-        from Widgets.Config.CustomBehaviors.skills.botting.move_to_distant_chest_if_path_exists import MoveToDistantChestIfPathExistsUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.move_to_enemy_if_close_enough import MoveToEnemyIfCloseEnoughUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.move_to_party_member_if_dead import MoveToPartyMemberIfDeadUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.move_to_party_member_if_in_aggro import MoveToPartyMemberIfInAggroUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.wait_if_in_aggro import WaitIfInAggroUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.wait_if_lock_taken import WaitIfLockTakenUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low import WaitIfPartyMemberManaTooLowUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
-        from Widgets.Config.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.move_to_distant_chest_if_path_exists import MoveToDistantChestIfPathExistsUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.move_to_enemy_if_close_enough import MoveToEnemyIfCloseEnoughUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.move_to_party_member_if_dead import MoveToPartyMemberIfDeadUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.move_to_party_member_if_in_aggro import MoveToPartyMemberIfInAggroUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_in_aggro import WaitIfInAggroUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_lock_taken import WaitIfLockTakenUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low import WaitIfPartyMemberManaTooLowUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
+        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
 
         instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
