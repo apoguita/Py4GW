@@ -235,6 +235,7 @@ class AgentArray:
         @staticmethod
         def ByDistance(agent_array, pos, descending=False):
             from .GlobalCache import GLOBAL_CACHE
+            from .Agent import Agent
             """
             Sorts agents by their distance to a given (x, y) position.
             sorted_agents_by_distance = Sort.ByDistance(agent_array, (100, 200))
@@ -253,6 +254,7 @@ class AgentArray:
         @staticmethod
         def ByHealth(agent_array, descending=False):
             from .GlobalCache import GLOBAL_CACHE
+            from .Agent import Agent
             """
             Sorts agents by their health (HP).
             sorted_agents_by_health_desc = Sort.ByHealth(agent_array, descending=True)
@@ -307,6 +309,7 @@ class AgentArray:
         @staticmethod
         def ByDistance(agent_array, pos, max_distance, negate=False):
             from .GlobalCache import GLOBAL_CACHE
+            from .Agent import Agent
             """
             Filters agents based on their distance from a given position.
             agents_within_range = AgentArray.Filter.ByDistance(agent_array, (100, 200), 500)
@@ -326,6 +329,7 @@ class AgentArray:
             def DetectLargestAgentCluster(agent_array, cluster_radius):
                 from .GlobalCache import GLOBAL_CACHE
                 from .Py4GWcorelib import Utils
+                from .Agent import Agent
 
                 """
                 Detects the largest cluster of agents based on proximity and returns
