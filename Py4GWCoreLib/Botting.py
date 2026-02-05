@@ -22,6 +22,7 @@ from .botting_src.subclases_src.MULTIBOX_src import _MULTIBOX
 from .botting_src.subclases_src.MERCHANT_src import _MERCHANTS
 from .botting_src.subclases_src.PLAYER_src import _PLAYER
 from .botting_src.subclases_src.TEMPLATES_src import _TEMPLATES
+from .botting_src.subclases_src.QUEST_src import _QUEST
 
 class BottingClass:
     def __init__(self, bot_name="DefaultBot",
@@ -210,6 +211,7 @@ class BottingClass:
         self.SkillBar = _SKILLBAR(self)
         self.Multibox = _MULTIBOX(self)
         self.Templates = _TEMPLATES(self)
+        self.Quest = _QUEST(self)
 
     #region internal Helpers
     def _start_coroutines(self):
