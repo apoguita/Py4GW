@@ -7,18 +7,18 @@ from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
 from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
-from Widgets.Config.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
-from Widgets.Config.CustomBehaviors.primitives.bus.event_bus import EventBus
-from Widgets.Config.CustomBehaviors.primitives.bus.event_message import EventMessage
-from Widgets.Config.CustomBehaviors.primitives.bus.event_type import EventType
-from Widgets.Config.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Widgets.Config.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
+from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
+from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
+from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 
 class BottingFsmHelpers:
 
     @staticmethod
     def __custom_behaviors_botting_daemon(fsm: FSM):
-        from Widgets.Config.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+        from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
         print("CustomBehaviors_FSM_Daemon added")
         injected = False
         while True:
