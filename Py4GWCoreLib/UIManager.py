@@ -1257,4 +1257,4 @@ WindowFrames["FinalCreateCharacterButton"] = FinalCreateCharacterButtonFrame
 
 
 #region Callbacks
-#UIManager.RegisterFrameIOCallbacks()
+UIManager.RegisterFrameIOCallbacks()
