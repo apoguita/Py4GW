@@ -103,6 +103,8 @@ class BotConfig:
         self.parent:"BottingClass" = parent
         self.bot_name:str = bot_name
         self.initialized:bool = False
+        self.ini_key_initialized:bool = False
+        self.ini_key:str = ""
         self.FSM = FSM(bot_name)
         self.fsm_running:bool = False
         self.state_description: str = "Idle"
