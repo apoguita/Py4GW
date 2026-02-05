@@ -1710,6 +1710,7 @@ def Unlock_Olias(bot:Botting):
     bot.Wait.ForMapToChange(target_map_id=55)
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
+    bot.Move.XY(-8149.02, 14900.65)
     bot.Move.XYAndDialog(-6480.00, 16331.00, 0x830E07)
     
 def Unlock_Xunlai_Material_Panel(bot: Botting) -> None:
