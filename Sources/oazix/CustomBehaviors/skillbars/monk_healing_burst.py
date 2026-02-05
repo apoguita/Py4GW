@@ -1,0 +1,94 @@
+from typing import override
+
+from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
+from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
+from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
+from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
+from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
+from Sources.oazix.CustomBehaviors.skills.common.finish_him_utility import FinishHimUtility
+from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
+from Sources.oazix.CustomBehaviors.skills.dervich.scythe_requiring_enchantment_utility import ScytheRequiringEnchantmentUtility
+from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
+from Sources.oazix.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility
+from Sources.oazix.CustomBehaviors.skills.generic.raw_simple_heal_utility import RawSimpleHealUtility
+from Sources.oazix.CustomBehaviors.skills.monk.cure_hex_utility import CureHexUtility
+from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import ProtectiveSpiritUtility
+from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
+from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility import ShieldOfAbsorptionUtility
+from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
+from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
+
+
+class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
+
+    def __init__(self):
+        super().__init__()
+        in_game_build = list(self.skillbar_management.get_in_game_build().values())
+
+        # Party-wide damage conditions
+        # PARTY_DAMAGE_EMERGENCY = 80.0  # Critical party-wide damage
+        # PARTY_DAMAGE = 60.0            # Significant party-wide damage
+        # PARTY_HEALTHY = 10.0           # Party is healthy
+        
+        # # Individual member damage conditions
+        # MEMBER_DAMAGED_EMERGENCY = 70.0  # Critical damage to a party member
+        # MEMBER_DAMAGED = 50.0           # Significant damage to a party member
+        
+        # # Condition-based priorities
+        # MEMBER_CONDITIONED = 40.0       # Party member has harmful conditions
+
+
+        # core skills
+
+        self.patient_spirit_utility: CustomSkillUtilityBase = RawSimpleHealUtility(event_bus=self.event_bus, skill=CustomSkill("Patient_Spirit"), current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
+        self.healing_burst_utility: CustomSkillUtilityBase = RawSimpleHealUtility(event_bus=self.event_bus, skill=CustomSkill("Healing_Burst"), current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
+
+        self.seed_of_life_utility: CustomSkillUtilityBase = SeedOfLifeUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(1))
+       
+        self.protective_spirit_utility: CustomSkillUtilityBase = ProtectiveSpiritUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
+        self.shield_of_absorption_utility: CustomSkillUtilityBase = ShieldOfAbsorptionUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
+
+        self.cure_hex_utility: CustomSkillUtilityBase = CureHexUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
+
+        self.selfless_spirit_luxon_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_luxon"), score_definition=ScoreStaticDefinition(88))
+        self.selfless_spirit_kurzick_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_kurzick"), score_definition=ScoreStaticDefinition(88))
+        self.serpents_quickness_prep_utility: CustomSkillUtilityBase = PreparationUtility(event_bus=self.event_bus, 
+                                                             prep_skill=CustomSkill("Serpents_Quickness"), 
+                                                             target_utilities=[self.seed_of_life_utility, self.selfless_spirit_luxon_utility, self.selfless_spirit_kurzick_utility], current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
+
+        # common
+        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
+        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.finish_him_utility: CustomSkillUtilityBase = FinishHimUtility(event_bus=self.event_bus, current_build=in_game_build)
+
+    @property
+    @override
+    def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
+        return [
+            self.i_am_unstopabble,
+            self.fall_back_utility,
+            self.signet_of_lost_souls_utility,
+            self.by_urals_hammer_utility,
+            self.finish_him_utility,
+
+            self.patient_spirit_utility,
+            self.healing_burst_utility,
+            self.seed_of_life_utility,
+            self.protective_spirit_utility,
+            self.shield_of_absorption_utility,
+            self.cure_hex_utility,
+            self.serpents_quickness_prep_utility,
+            self.selfless_spirit_luxon_utility,
+            self.selfless_spirit_kurzick_utility,
+        ]
+
+    @property
+    @override
+    def skills_required_in_behavior(self) -> list[CustomSkill]:
+        return [
+            self.seed_of_life_utility.custom_skill,
+        ]

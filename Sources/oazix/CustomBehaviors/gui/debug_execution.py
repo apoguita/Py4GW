@@ -7,9 +7,6 @@ from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_mem
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
-script_directory = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-py4gw_root_directory = project_root + f"\\..\\..\\"
 
 @staticmethod
 def render():
@@ -27,7 +24,7 @@ def render():
             PyImGui.table_setup_column("Name")
             for result in reversed(results):
 
-                texture_file = result.skill.custom_skill.get_texture(py4gw_root_directory, project_root)
+                texture_file = result.skill.custom_skill.get_texture()
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 ImGui.DrawTexture(texture_file, 30, 30)
