@@ -255,7 +255,6 @@ class AgentArray:
         def ByHealth(agent_array, descending=False):
             from .GlobalCache import GLOBAL_CACHE
             from .Agent import Agent
-
             """
             Sorts agents by their health (HP).
             sorted_agents_by_health_desc = Sort.ByHealth(agent_array, descending=True)
@@ -311,7 +310,6 @@ class AgentArray:
         def ByDistance(agent_array, pos, max_distance, negate=False):
             from .GlobalCache import GLOBAL_CACHE
             from .Agent import Agent
-
             """
             Filters agents based on their distance from a given position.
             agents_within_range = AgentArray.Filter.ByDistance(agent_array, (100, 200), 500)
