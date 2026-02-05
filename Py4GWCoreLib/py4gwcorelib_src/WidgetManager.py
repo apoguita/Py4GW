@@ -329,6 +329,27 @@ class WidgetHandler:
         
     # --------------------------------------------
     # region discovery
+    def _coro_discover(self):
+        if self.discovered:
+            return
+        
+        """Phase 0: Unload currently enabled widgets"""
+        for widget in self.widgets.values():
+            if widget.enabled:
+                widget.disable()
+                yield
+                                
+        """Phase 1: Discover widgets without INI configuration"""
+        self.widgets.clear()
+        
+        try:
+            yield from self._coro_scan_widget_folders()
+            self.discovered = True
+        except Exception as e:
+            self._log_error(f"Discovery failed: {e}")
+            raise 
+        
+        
     def discover(self):
         if self.discovered:
             return
@@ -348,6 +369,21 @@ class WidgetHandler:
             self._log_error(f"Discovery failed: {e}")
             raise
     
+    def _coro_scan_widget_folders(self):
+        """Find .widget folders and load .py files throughout the entire tree"""
+        if not os.path.isdir(self.widgets_path):
+            raise FileNotFoundError(f"Widgets folder missing: {self.widgets_path}")
+        
+        for current_dir, dirs, files in os.walk(self.widgets_path):
+            # Check if this specific folder is marked as a widget container
+            if ".widget" in files:
+                for py_file in [f for f in files if f.endswith(".py")]:
+                    yield from self._coro_load_widget_module(current_dir, py_file)
+                    
+        yield
+                    
+    
+    
     def _scan_widget_folders(self):
         """Find .widget folders and load .py files throughout the entire tree"""
         if not os.path.isdir(self.widgets_path):
@@ -358,6 +394,65 @@ class WidgetHandler:
             if ".widget" in files:
                 for py_file in [f for f in files if f.endswith(".py")]:
                     self._load_widget_module(current_dir, py_file)
+    
+    def _coro_load_widget_module(self, folder: str, filename: str):
+        """Load a widget module without INI configuration"""
+        # Create widget ID
+        rel_folder = os.path.relpath(folder, self.widgets_path)
+        widget_id = f"{rel_folder}/{filename}" if rel_folder != "." else filename
+
+        plain = os.path.splitext(filename)[0]
+        widget_path = "" if rel_folder == "." else rel_folder.replace("\\", "/")
+
+                
+        if widget_id in self.widgets:
+            yield
+            return
+        
+        script_path = os.path.join(folder, filename)
+        
+        try:
+            # 1. Create Widget with EMPTY INI data
+            widget = Widget(
+                name=widget_id,
+                plain_name=plain,
+                widget_path=widget_path,
+                script_path=script_path,
+                ini_key="",           # Empty - will be set later
+                ini_path="",          # Empty - will be set later  
+                ini_filename="",      # Empty - will be set later                
+            )
+            
+            # 3. Register
+            self.widgets[widget_id] = widget
+            
+            #4. Ini handling (SECTION PER WIDGET)
+            self.config_vars.append(WidgetConfigVars(
+                widget_id=widget_id,
+                section=f"Widget:{widget_id}",
+                var_name=f"{widget_id}__enabled"
+            ))
+            self.config_vars.append(WidgetConfigVars(
+                widget_id=widget_id,
+                section=f"Widget:{widget_id}",
+                var_name=f"{widget_id}__optional"
+            ))                    
+
+            yield
+            
+            cv = self._get_config_var(widget.name, self._widget_var(widget.name, "enabled"))
+            
+            enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
+            if enabled:
+                widget.enable()
+            
+            yield
+                
+            #keep logging minimal
+            #self._log_success(f"Discovered: {widget_id}")
+            
+        except Exception as e:
+            self._log_error(f"Failed to discover {widget_id}: {e}")
     
             
     def _load_widget_module(self, folder: str, filename: str):
