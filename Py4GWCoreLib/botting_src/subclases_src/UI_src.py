@@ -588,8 +588,19 @@ class _UI:
         iconwidth: int = 96,
         additional_ui: Optional[Callable[[], None]] = None
     ):
-
-        if PyImGui.begin(self._config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
+        from ...IniManager import IniManager
+        from ...Routines import Routines
+        from ...ImGui import ImGui
+        
+        if not self._config.ini_key_initialized:
+            self._config.ini_key = IniManager().ensure_key(f"BottingClass/bot_{self._config.bot_name}", f"bot_{self._config.bot_name}.ini")
+            IniManager().load_once(self._config.ini_key)
+            self._config.ini_key_initialized = True
+        
+        if not self._config.ini_key:
+            return
+        
+        if ImGui.Begin(ini_key=self._config.ini_key, name=self._config.bot_name, p_open=True, flags= PyImGui.WindowFlags.AlwaysAutoResize):
             if PyImGui.begin_tab_bar(self._config.bot_name + "_tabs"):
                 if PyImGui.begin_tab_item("Main"):
                     if PyImGui.begin_child(f"{self._config.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
@@ -622,9 +633,9 @@ class _UI:
                     
                 PyImGui.end_tab_bar()
 
-        PyImGui.end()
+        ImGui.End(self._config.ini_key)
         
-        if Map.IsMapReady():
+        if Routines.Checks.Map.MapValid():
             self.parent.UI.DrawPath(
                 self._config.config_properties.follow_path_color.get("value"), 
                 self._config.config_properties.use_occlusion.is_active(), 

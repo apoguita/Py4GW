@@ -9,6 +9,10 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Timer, ThrottledTimer
 from Py4GWCoreLib import Range, Agent, ConsoleLog, Player
 from Py4GWCoreLib import AgentArray, Weapon, Routines
+from Py4GWCoreLib.IniManager import IniManager
+
+INI_DIR = "HeroAI"
+MAIN_WINDOW_INI = "main_window.ini"
 
 @dataclass
 class GameData:
@@ -130,6 +134,7 @@ class CacheData:
     def __init__(self, throttle_time=75):
         if not self._initialized:
             self.account_email = ""
+            self.ini_key : str = ""
             
             self.party_position : int = -1
             self.party : PartyCache = PartyCache()
@@ -185,6 +190,12 @@ class CacheData:
         
     def Update(self):
         try:
+            if not self.ini_key:
+                self.ini_key = IniManager().ensure_key(f"{INI_DIR}/", MAIN_WINDOW_INI)
+                
+            if not self.ini_key:
+                return
+                
             if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
                 self.game_throttle_timer.Reset()
                 self.account_email = Player.GetAccountEmail()

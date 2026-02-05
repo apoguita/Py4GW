@@ -1511,8 +1511,7 @@ class HeroAI_Windows():
             PyImGui.dummy(0,dummy_spacing)
 
         
-        cached_data.HeroAI_windows.control_window.initialize()
-        if cached_data.HeroAI_windows.control_window.begin(True, PyImGui.WindowFlags.AlwaysAutoResize):
+        if ImGui.Begin(ini_key=cached_data.ini_key, name="HeroAI Control Panel", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
             if PyImGui.begin_child("ControlPanelChild", (200, 110), False, PyImGui.WindowFlags.AlwaysAutoResize):
                 style = ImGui.get_style()
                 style.ItemSpacing.push_style_var(2, 2)
@@ -1550,7 +1549,5 @@ class HeroAI_Windows():
                 style.CellPadding.pop_style_var()
                 style.ItemSpacing.pop_style_var()
                 
-            cached_data.HeroAI_windows.control_window.process_window()
-            
-        cached_data.HeroAI_windows.control_window.end()
+        ImGui.End(cached_data.ini_key)
     
