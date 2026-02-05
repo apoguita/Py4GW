@@ -53,8 +53,10 @@ try:
         GLOBAL_CACHE,
         ModelID,
         Map,
+        ImGui,          # NEW: needed for persisted windows
     )
     from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player
+    from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
 
     BOT_NAME = "Pycons"
     INI_SECTION = "Pycons"
@@ -73,6 +75,39 @@ try:
 
     # Scan only these bags, and only on-demand
     SCAN_BAGS = [Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2]
+
+    # -------------------------
+    # Window position persistence (minimal)
+    # -------------------------
+    _ini_ready = False
+    INI_KEY_MAIN = ""
+    INI_KEY_SETTINGS = ""
+    _INI_PATH = "Widgets/Pycons"
+    _INI_MAIN_FILE = "Pycons.MainWindow.ini"
+    _INI_SETTINGS_FILE = "Pycons.SettingsWindow.ini"
+
+    def _init_window_persistence_once() -> bool:
+        """Create/load separate ImGui ini files for main + settings windows (runs once)."""
+        global _ini_ready, INI_KEY_MAIN, INI_KEY_SETTINGS
+        if _ini_ready:
+            return True
+        if not Routines.Checks.Map.MapValid():
+            return False
+
+        ini = IniManager()
+
+        INI_KEY_MAIN = ini.ensure_key(_INI_PATH, _INI_MAIN_FILE)
+        if not INI_KEY_MAIN:
+            return False
+        ini.load_once(INI_KEY_MAIN)
+
+        INI_KEY_SETTINGS = ini.ensure_key(_INI_PATH, _INI_SETTINGS_FILE)
+        if not INI_KEY_SETTINGS:
+            return False
+        ini.load_once(INI_KEY_SETTINGS)
+
+        _ini_ready = True
+        return True
 
     # -------------------------
     # UI helpers (tuple/non-tuple returns)
@@ -323,120 +358,6 @@ try:
     # Config (dirty-save throttled)
     # -------------------------
     ini_handler = IniHandler("Widgets/Config/Pycons.ini")
-    # -------------------------
-    # Window position persistence (main + settings)
-    # -------------------------
-    _WIN_MAIN_X_KEY = "window_main_x"
-    _WIN_MAIN_Y_KEY = "window_main_y"
-    _WIN_SETTINGS_X_KEY = "window_settings_x"
-    _WIN_SETTINGS_Y_KEY = "window_settings_y"
-
-    _saved_main_pos = (
-        int(ini_handler.read_int(INI_SECTION, _WIN_MAIN_X_KEY, -1)),
-        int(ini_handler.read_int(INI_SECTION, _WIN_MAIN_Y_KEY, -1)),
-    )
-    _saved_settings_pos = (
-        int(ini_handler.read_int(INI_SECTION, _WIN_SETTINGS_X_KEY, -1)),
-        int(ini_handler.read_int(INI_SECTION, _WIN_SETTINGS_Y_KEY, -1)),
-    )
-
-    _applied_main_pos = False
-    _applied_settings_pos = False
-
-    _pos_save_timer = Timer()
-    _pos_save_timer.Start()
-    _pos_save_timer.Stop()
-
-    _last_main_pos = _saved_main_pos
-    _last_settings_pos = _saved_settings_pos
-
-    def _imgui_set_next_window_pos(x: int, y: int) -> bool:
-        fn = None
-        for nm in ("set_next_window_pos", "set_next_window_position"):
-            cand = getattr(PyImGui, nm, None)
-            if callable(cand):
-                fn = cand
-                break
-        if not fn:
-            return False
-
-        # Prefer "Always" so it restores every load, but we apply it only once per run.
-        cond = getattr(PyImGui, "ImGuiCond_Always", None)
-
-        for args in (
-            (float(x), float(y), cond),
-            (float(x), float(y)),
-            ((float(x), float(y)), cond),
-            ((float(x), float(y)),),
-        ):
-            try:
-                # Some bindings don't like passing None as cond
-                if len(args) == 3 and args[2] is None:
-                    continue
-                fn(*args)
-                return True
-            except Exception:
-                continue
-        return False
-
-    def _imgui_get_window_pos():
-        for nm in ("get_window_pos", "get_window_position"):
-            fn = getattr(PyImGui, nm, None)
-            if callable(fn):
-                try:
-                    return fn()
-                except Exception:
-                    continue
-        return None
-
-    def _apply_saved_window_pos(is_settings: bool):
-        global _applied_main_pos, _applied_settings_pos
-        if is_settings:
-            if _applied_settings_pos:
-                return
-            x, y = _saved_settings_pos
-            if int(x) >= 0 and int(y) >= 0:
-                _imgui_set_next_window_pos(int(x), int(y))
-            _applied_settings_pos = True
-            return
-
-        if _applied_main_pos:
-            return
-        x, y = _saved_main_pos
-        if int(x) >= 0 and int(y) >= 0:
-            _imgui_set_next_window_pos(int(x), int(y))
-        _applied_main_pos = True
-
-    def _capture_and_save_window_pos(is_settings: bool):
-        global _last_main_pos, _last_settings_pos, _pos_save_timer
-        pos = _imgui_get_window_pos()
-        if not pos:
-            return
-
-        try:
-            x = int(pos[0])
-            y = int(pos[1])
-        except Exception:
-            return
-
-        # Only write if it actually moved, and throttle writes.
-        if not (_pos_save_timer.IsStopped() or _pos_save_timer.HasElapsed(500)):
-            return
-
-        if is_settings:
-            if (x, y) == tuple(_last_settings_pos):
-                return
-            _last_settings_pos = (x, y)
-            ini_handler.write_key(INI_SECTION, _WIN_SETTINGS_X_KEY, str(int(x)))
-            ini_handler.write_key(INI_SECTION, _WIN_SETTINGS_Y_KEY, str(int(y)))
-        else:
-            if (x, y) == tuple(_last_main_pos):
-                return
-            _last_main_pos = (x, y)
-            ini_handler.write_key(INI_SECTION, _WIN_MAIN_X_KEY, str(int(x)))
-            ini_handler.write_key(INI_SECTION, _WIN_MAIN_Y_KEY, str(int(y)))
-
-        _pos_save_timer.Start()
 
     class Config:
         def __init__(self):
@@ -1057,12 +978,9 @@ try:
     # Main Window
     # -------------------------
     def _draw_main_window():
-        _apply_saved_window_pos(is_settings=False)
-        if not PyImGui.begin(BOT_NAME, PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.end()
+        if not ImGui.Begin(INI_KEY_MAIN, BOT_NAME, flags=PyImGui.WindowFlags.AlwaysAutoResize):
+            ImGui.End(INI_KEY_MAIN)
             return
-
-        _capture_and_save_window_pos(is_settings=False)
 
         if PyImGui.button("Settings##pycons_settings"):
             show_settings[0] = not show_settings[0]
@@ -1244,7 +1162,7 @@ try:
                             cfg.alcohol_enabled_items[k] = bool(new_enabled)
                             cfg.mark_dirty()
 
-        PyImGui.end()
+        ImGui.End(INI_KEY_MAIN)
 
     # -------------------------
     # Settings Window
@@ -1337,13 +1255,9 @@ try:
         if not show_settings[0]:
             return
 
-        _apply_saved_window_pos(is_settings=True)
-
-        if not PyImGui.begin("Pycons - Settings##PyconsSettings", PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.end()
+        if not ImGui.Begin(INI_KEY_SETTINGS, "Pycons - Settings##PyconsSettings", flags=PyImGui.WindowFlags.AlwaysAutoResize):
+            ImGui.End(INI_KEY_SETTINGS)
             return
-
-        _capture_and_save_window_pos(is_settings=True)
 
         changed, v = ui_checkbox("Debug logging##pycons_debug", bool(cfg.debug_logging))
         if changed:
@@ -1454,21 +1368,21 @@ try:
             _same_line(10)
 
             changed, v = ui_checkbox("Smooth##pycons_alc_pref_smooth_settings", int(cfg.alcohol_preference) == 0)
-            _tooltip_if_hovered("Default Best all around. Keeps you near the target without burning high-point alcohol unnecessarily")
+            _tooltip_if_hovered("Best default — keeps you near the target without burning high-point alcohol unnecessarily.")
             if changed and bool(v):
                 cfg.alcohol_preference = 0
                 cfg.mark_dirty()
 
             _same_line(10)
             changed, v = ui_checkbox("Strong-first##pycons_alc_pref_strong_settings", int(cfg.alcohol_preference) == 1)
-            _tooltip_if_hovered("Good when you just want to be drunk ASAP (e.g., you zone in and want max level quickly)")
+            _tooltip_if_hovered("Good when you just want to be drunk ASAP (e.g., you zone in and want max level quickly).")
             if changed and bool(v):
                 cfg.alcohol_preference = 1
                 cfg.mark_dirty()
 
             _same_line(10)
             changed, v = ui_checkbox("Weak-first##pycons_alc_pref_weak_settings", int(cfg.alcohol_preference) == 2)
-            _tooltip_if_hovered("Good if you are trying to stretch rare/valuable alcohol and do not mind it taking longer to climb")
+            _tooltip_if_hovered("Good if you’re trying to stretch rare/valuable alcohol and don’t mind it taking longer to climb.")
             if changed and bool(v):
                 cfg.alcohol_preference = 2
                 cfg.mark_dirty()
@@ -1549,12 +1463,15 @@ try:
 
                 cfg.mark_dirty()
 
-        PyImGui.end()
+        ImGui.End(INI_KEY_SETTINGS)
 
     def configure():
         pass
 
     def main():
+        if not _init_window_persistence_once():  # NEW: ensure both window INIs are ready
+            return
+
         _draw_main_window()
         _draw_settings_window()
 
