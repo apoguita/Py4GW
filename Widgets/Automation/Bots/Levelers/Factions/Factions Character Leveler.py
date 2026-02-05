@@ -1279,9 +1279,12 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
     bot.Dialogs.WithModel(4009,0x815C01) #Zunraa model id updated 20.12.2025 GW Reforged
-    PrepareForBattle(bot)
+    bot.Party.LeaveParty()
+    bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
+    bot.Party.AddHenchmanList([1, 5])
     bot.Dialogs.AtXY(20350.00, 9087.00, 0x80000B)
     bot.Wait.ForMapLoad(target_map_id=246)  #Zen Daijun
+    ConfigureAggressiveEnv(bot)
     auto_path_list:List[Tuple[float, float]] = [
     (-13959.50, 6375.26), #Half the temple
     (-14567.47, 1775.31), #Side of road
