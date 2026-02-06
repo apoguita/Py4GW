@@ -33,6 +33,10 @@ class BotSettings:
     DEBUG: bool = False
 
 
+# Precomputed spread points keep Servants of Grenth flags spaced without extra imports.
+
+
+
 def _enqueue_section(bot_instance: Botting, attr_name: str, label: str, section_fn):
     def _queue_section():
         if getattr(BotSettings, attr_name, False):
@@ -63,6 +67,29 @@ def _restart_main_loop(bot_instance: Botting, reason: str) -> None:
         fsm.jump_to_state_by_step_number(0)
     finally:
         fsm.resume()
+
+def _ensure_minimum_gold(bot_instance: Botting, minimum_gold: int = 1000, withdraw_amount: int = 10000) -> None:
+    def _check_and_restock():
+        gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+        if gold_on_char >= minimum_gold:
+            return
+
+        gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+        amount_to_withdraw = min(withdraw_amount, gold_in_storage)
+
+        if amount_to_withdraw <= 0:
+            ConsoleLog(BOT_NAME, "[GOLD] Storage empty – cannot restock gold.", Py4GW.Console.MessageType.Warning)
+            return
+
+        ConsoleLog(
+            BOT_NAME,
+            f"[GOLD] Inventory only has {gold_on_char}g. Withdrawing {amount_to_withdraw}g from storage.",
+            Py4GW.Console.MessageType.Info,
+        )
+        GLOBAL_CACHE.Inventory.WithdrawGold(amount_to_withdraw)
+
+    bot_instance.States.AddCustomState(_check_and_restock, "Ensure Minimum Gold")
+    bot_instance.Wait.ForTime(1000)
 
 def bot_routine(bot: Botting):
 
@@ -105,11 +132,12 @@ def bot_routine(bot: Botting):
 
 def Enter_UW(bot_instance: Botting):
     bot_instance.States.AddHeader("Enter Underworld")
+    _ensure_minimum_gold(bot_instance)
     CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
     bot_instance.Move.XY(-4199, 19845, "go to Statue")
     bot_instance.States.AddCustomState(lambda: Player.SendChatCommand("kneel"), "kneel")
     bot_instance.Wait.ForTime(3000)
-    bot_instance.Dialogs.AtXY(-4199, 19845, 0x85, "ask to enter")
+    #bot_instance.Dialogs.AtXY(-4199, 19845, 0x85, "ask to enter")
     bot_instance.Dialogs.AtXY(-4199, 19845, 0x86, "accept to enter")
     bot_instance.Wait.ForMapLoad(target_map_id=72) # we are in the dungeon
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
@@ -125,9 +153,7 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Move.XY(-755, 8982, "Mid")
     bot_instance.Move.XY(1259, 10214, "Right")
     bot_instance.Move.XY(-3729, 13414, "Right")
-
     bot_instance.Move.XY(-5855, 11202, "Clear the Room")
-    #bot_instance.Move.XY(5755, 12769, "Clear the Room")
     bot_instance.Wait.ForTime(3000)
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
     bot_instance.Wait.ForTime(3000)
@@ -147,10 +173,12 @@ def Restore_Vale(bot_instance: Botting):
         bot_instance.Move.XY(-13085, 849 , "To the Vale")
         bot_instance.Move.XY(-15274, 1432 , "To the Vale")
         bot_instance.Move.XY(-13246, 5110 , "To the Vale")
+        
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
-        #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
+        if BotSettings.WrathfullSpirits == False:
+            bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
         bot_instance.Wait.ForTime(3000)
 
 def Wrathfull_Spirits(bot_instance: Botting):
@@ -201,9 +229,10 @@ def Restore_Wastes(bot_instance: Botting):
         bot_instance.Move.XY(-1452, 21202, "To the Vale")
         bot_instance.Move.XY(542, 18310, "To the Vale")
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
-        bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
-        bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
-        bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
+        if BotSettings.ServantsOfGrenth == False:
+            bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
         bot_instance.Wait.ForTime(3000)
 
 def Servants_of_Grenth(bot_instance: Botting):
@@ -211,8 +240,25 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
         bot_instance.Move.XY(2700, 19952, "To the Vale")
-        bot_instance.Wait.ForTime(10000)
-        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
+
+        SERVANTS_OF_GRENTH_FLAG_POINTS = [
+            (2559, 20301),
+            (3032, 20148),
+            (2813, 20590),
+            (2516, 19665),
+            (3231, 19472),
+            (3691, 19979),
+            (2039, 20175),
+            ]
+        bot_instance.States.AddCustomState(
+            lambda: CustomBehaviorParty().party_flagging_manager.auto_assign_emails_if_none_assigned(),
+            "Set Flag",
+        )
+        for idx, (flag_x, flag_y) in enumerate(SERVANTS_OF_GRENTH_FLAG_POINTS, start=1):
+            bot_instance.States.AddCustomState(
+                lambda i=idx, x=flag_x, y=flag_y: CustomBehaviorParty().party_flagging_manager.set_flag_position(i, x, y),
+                f"Set Flag {idx}",
+            )
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
@@ -306,10 +352,11 @@ def Restore_Pools(bot_instance: Botting):
         bot_instance.Move.XY(-12703, -10990, "To the Vale")
         bot_instance.Move.XY(-11849, -11986, "To the Vale")
         bot_instance.Move.XY(-7217, -19394, "To the Vale")
-        #bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
-        #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
+        if BotSettings.TerrorwebQueen == False:
+            bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
+            bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
         bot_instance.Wait.ForTime(3000)
 
 def Terrorweb_Queen(bot_instance: Botting):
@@ -332,10 +379,12 @@ def Restore_Pit(bot_instance: Botting):
         bot_instance.Move.XY(14959, 4851, "To the Vale")
         bot_instance.Move.XY(15460, 3125, "To the Vale")
         bot_instance.Move.XY(8970, 6813, "To the Vale")
-        #bot_instance.Move.XYAndInteractNPC(8698, 6324, "go to NPC")
-        #bot_instance.Dialogs.AtXY(8698, 6324, 0x7F, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(8698, 6324, 0x86, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(8698, 6324, 0x8D, "Back to Chamber")
+        if BotSettings.ImprisonedSpirits == False:
+            bot_instance.Move.XYAndInteractNPC(8698, 6324, "go to NPC")
+            bot_instance.Dialogs.AtXY(8698, 6324, 0x7F, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(8698, 6324, 0x86, "Back to Chamber")
+            bot_instance.Dialogs.AtXY(8698, 6324, 0x8D, "Back to Chamber")
+        bot_instance.Wait.ForTime(3000)
 
 def Imprisoned_Spirits(bot_instance: Botting):
     if BotSettings.ImprisonedSpirits:
@@ -347,7 +396,6 @@ def Imprisoned_Spirits(bot_instance: Botting):
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
         bot_instance.Move.XY(12329, 4632, "To the Vale")
-#def c_a_gift_of_griffons(bot_instance: Botting):
 
 def Wait_for_Spawns(bot_instance: Botting,x,y):
     # 1. Die Logik-Funktion definieren (Das hier läuft erst zur LAUFZEIT im Loop)
@@ -366,6 +414,7 @@ def Wait_for_Spawns(bot_instance: Botting,x,y):
 
     # 2. Den Schritt zur Bot-Liste hinzufügen (Das passiert beim LADEN)
     # "ForCondition" ist das Äquivalent zu AddCustomState, aber speziell für Warteschleifen.
+    
     bot_instance.Wait.UntilCondition(runtime_check_logic)
     bot_instance.Wait.ForTime(5000)
     bot_instance.Move.XY(x, y, "To the Vale")
@@ -383,7 +432,7 @@ def _draw_help():
     PyImGui.text("Hey, this is my first bot in Python, be gentle :)")
     PyImGui.separator()
     PyImGui.text_wrapped("This Bot automates the Underworld")
-    PyImGui.text("I personally use it with 8x Custom Behaviors, but it should work with HeroAi and Heros too")
+    PyImGui.text("It is optimized for 8x Custom Behaviors, but it should work with HeroAi and Heros too")
     PyImGui.text_wrapped("Some quests are not easy to automate, so I recommend to watch the bot at least the first time to see how it works")
     PyImGui.text_wrapped("Some quests are missing, I will add them when I have time, but feel free to contribute :)")
     PyImGui.text_wrapped("Some quests are just not easy, because its the Underworld")
