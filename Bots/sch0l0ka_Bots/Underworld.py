@@ -2,6 +2,7 @@ from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, Au
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 import PyImGui
+import Py4GW
 
 
 
@@ -11,6 +12,7 @@ bot = Botting(BOT_NAME, config_draw_path=True)
 # Override the help window
 bot.UI.override_draw_help(lambda: _draw_help())
 bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config window
+MAIN_LOOP_HEADER_NAME = ""
 
 class BotSettings:
     RestoreVale: bool = True
@@ -36,8 +38,35 @@ def _enqueue_section(bot_instance: Botting, attr_name: str, label: str, section_
             section_fn(bot_instance)
     bot_instance.States.AddCustomState(_queue_section, f"[Toggle] {label}")
 
+def _add_header_with_name(bot_instance: Botting, step_name: str) -> str:
+    header_name = f"[H]{step_name}_{bot_instance.config.get_counter('HEADER_COUNTER')}"
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name=header_name,
+        coroutine_fn=lambda: Routines.Yield.wait(100),
+    )
+    return header_name
+
+def _restart_main_loop(bot_instance: Botting, reason: str) -> None:
+    target = MAIN_LOOP_HEADER_NAME
+    fsm = bot_instance.config.FSM
+    fsm.pause()
+    try:
+        if target:
+            fsm.jump_to_state_by_name(target)
+            ConsoleLog(BOT_NAME, f"[WIPE] {reason} – restarting at {target}.", Py4GW.Console.MessageType.Info)
+        else:
+            ConsoleLog(BOT_NAME, "[WIPE] MAIN_LOOP header missing, restarting from first state.", Py4GW.Console.MessageType.Warning)
+            fsm.jump_to_state_by_step_number(0)
+    except ValueError:
+        ConsoleLog(BOT_NAME, f"[WIPE] Header '{target}' not found, restarting from first state.", Py4GW.Console.MessageType.Error)
+        fsm.jump_to_state_by_step_number(0)
+    finally:
+        fsm.resume()
+
 def bot_routine(bot: Botting):
 
+    global MAIN_LOOP_HEADER_NAME
+    bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
 
     bot.Templates.Routines.UseCustomBehaviors(
@@ -49,7 +78,7 @@ def bot_routine(bot: Botting):
 
 
     # Set up the FSM states properly
-    bot.States.AddHeader("MAIN_LOOP")
+    MAIN_LOOP_HEADER_NAME = _add_header_with_name(bot, "MAIN_LOOP")
 
     bot.Map.Travel(target_map_id=138)
     bot.Party.SetHardMode(False)
@@ -240,6 +269,7 @@ def The_Four_Horsemen(bot_instance: Botting):
         bot_instance.States.AddHeader("The Four Horseman")
         bot_instance.Move.XY(13473, -12091, "To the Vale")
         bot_instance.Wait.ForTime(10000)
+        bot_instance.Party.FlagAllHeroes(13473, -12091)
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
 
         bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
@@ -259,8 +289,9 @@ def The_Four_Horsemen(bot_instance: Botting):
         bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
         bot_instance.Dialogs.AtXY(11371, -17990, 0x84, "take quest") 
         bot_instance.Dialogs.AtXY(11371, -17990, 0x8B, "take quest") 
-        bot_instance.Wait.ForTime(5000)
+        bot_instance.Wait.ForTime(1000)
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
+        bot_instance.Party.UnflagAllHeroes()
         bot_instance.Wait.ForTime(5000)
         bot_instance.Move.XY(11371, -17990, "To the Vale")
         bot_instance.Wait.ForTime(30000)
@@ -310,6 +341,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
         bot_instance.States.AddHeader("Imprisoned Spirits")
         bot_instance.Move.XY(12329, 4632, "To the Vale")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().party_flagging_manager.assign_formation_for_current_party("preset_1"), "Set Flag")
+        bot_instance.Party.FlagAllHeroes(12329, 4632)
         bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
@@ -388,15 +420,26 @@ def _draw_settings():
 #bot = Botting("[DUNGEON] FoW")
 bot.SetMainRoutine(bot_routine)
 
+def OnPartyWipe(bot: "Botting"):
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_Underworld", lambda: _on_party_wipe(bot))
+
+
 def _on_party_wipe(bot: "Botting"):
+    ConsoleLog(BOT_NAME, "[WIPE] Party wipe detected!", Py4GW.Console.MessageType.Warning)
+
     while Agent.IsDead(Player.GetAgentID()):
-        yield from bot.Wait._coro_for_time(1000)
+        yield from Routines.Yield.wait(1000)
+
         if not Routines.Checks.Map.MapValid():
-            bot.config.FSM.resume()
+            ConsoleLog(BOT_NAME, "[WIPE] Returned to outpost after wipe, restarting run...", Py4GW.Console.MessageType.Warning)
+            yield from Routines.Yield.wait(3000)
+            _restart_main_loop(bot, "Returned to outpost after wipe")
             return
-    # Quand le joueur est ressuscité, reprendre au combat
-    bot.States.JumpToStepName("[29] MAIN_LOOP")
-    bot.config.FSM.resume()
+
+    ConsoleLog(BOT_NAME, "[WIPE] Player resurrected in instance, resuming...", Py4GW.Console.MessageType.Info)
+    _restart_main_loop(bot, "Player resurrected in instance")
 
 
 def main():
