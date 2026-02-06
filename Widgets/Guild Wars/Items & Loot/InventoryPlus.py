@@ -844,12 +844,6 @@ class InventoryPlusWidget:
 
 
         io = PyImGui.get_io()
-        
-        """inventory_frame = WindowFrames["Inventory Bags"]
-        if inventory_frame.IsMouseOver():
-            inventory_frame.DrawFrameOutline(Color(0,255,0,255).to_color())  # Green outline for debugging)
-        else:
-            inventory_frame.DrawFrameOutline(Color(255,0,0,255).to_color())  # Red outline for debugging)"""
 
         # Detect right click
         if PyImGui.is_mouse_released(MouseButton.Right.value):
