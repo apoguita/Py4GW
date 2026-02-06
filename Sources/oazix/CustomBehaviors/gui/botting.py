@@ -4,6 +4,7 @@ import os
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
@@ -25,7 +26,7 @@ def _scan_bot_scripts():
     if _bot_scripts_cache is not None and (current_time - _last_scan_time) < 5:
         return _bot_scripts_cache
 
-    bots_folder = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "CustomBehaviors", "bots")
+    bots_folder = PathLocator.get_custom_behaviors_root_directory() + "\\bots"
     bot_scripts = []
 
     try:
