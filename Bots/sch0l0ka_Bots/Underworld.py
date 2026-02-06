@@ -1,6 +1,7 @@
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from pathlib import Path
 import PyImGui
 import Py4GW
 
@@ -379,22 +380,29 @@ def Wait_for_Spawns(bot_instance: Botting,x,y):
 
 def _draw_help():
     import PyImGui
-    PyImGui.text("Snowball Dominance Farmer")
+    PyImGui.text("Hey, this is my first bot in Python, be gentle :)")
     PyImGui.separator()
-    PyImGui.text_wrapped("This bot automates the repeatable 'Snowball Dominance' quest.")
-    PyImGui.text("QUEST REWARDS:")
-    PyImGui.bullet_text("500 Gold")
-    PyImGui.bullet_text("Wintersday Gifts")
-    PyImGui.bullet_text("Tonics")
+    PyImGui.text_wrapped("This Bot automates the Underworld")
+    PyImGui.text("I personally use it with 8x Custom Behaviors, but it should work with HeroAi and Heros too")
+    PyImGui.text_wrapped("Some quests are not easy to automate, so I recommend to watch the bot at least the first time to see how it works")
+    PyImGui.text_wrapped("Some quests are missing, I will add them when I have time, but feel free to contribute :)")
+    PyImGui.text_wrapped("Some quests are just not easy, because its the Underworld")
     PyImGui.separator()
-    PyImGui.text("PREREQUISITES:")
-    PyImGui.text_wrapped("Must complete: 'The Three Wise Norn' & 'Charr-broiled Plans'.")
+    PyImGui.text("What is working Well:")
+    PyImGui.bullet_text("Restoring Grenth's Monuments (exept Pits)")
+    PyImGui.bullet_text("Wrathfull Spirits, Escort of Souls, Servants of Grenth(hard), Deamon Assassin, The Four Horsemen, Terrorweb Queen")
+    PyImGui.text("What is working Bad:")
+    PyImGui.bullet_text("Imprisoned Spirits, Restore Pits")
+    PyImGui.text("What is not implemented::")
+    PyImGui.bullet_text("Unwanted Guests, The Nightman Cometh (Dhuum)")
     PyImGui.separator()
-    PyImGui.text("REQUIREMENTS:")
-    PyImGui.bullet_text("Olias (Necromancer) MUST be unlocked.")
-    PyImGui.bullet_text("Strategy: Olias with 'Charm Animal' + Polar Bear.")
-    PyImGui.bullet_text("Weapon: 20/20 HCT Set recommended.")
-    PyImGui.text(f"Instance Time: {Map.GetInstanceUptime()}")
+    PyImGui.text("Req:")
+    PyImGui.bullet_text("Highend Team")
+    PyImGui.bullet_text("Cons (via Pcons widget)")
+    PyImGui.bullet_text("You have to do the missing quests manually")
+    PyImGui.bullet_text("Main Account sometimes leaves the team. Dont be the Healer")
+    PyImGui.bullet_text("You should either have some evas or 1 melee char to trigger traps in the mountains")
+
 
 def _draw_settings():
     BotSettings.RestoreVale = PyImGui.checkbox("Restore Vale", BotSettings.RestoreVale)
