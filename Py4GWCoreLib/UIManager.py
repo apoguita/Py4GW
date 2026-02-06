@@ -67,7 +67,10 @@ class UIManager:
         io = PyImGui.get_io()
         
         left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
-        return ImGui.is_mouse_in_rect((left, top, right, bottom),(io.mouse_pos_x, io.mouse_pos_y))
+        width = right - left
+        height = bottom - top
+        
+        return ImGui.is_mouse_in_rect((left, top, width, height),(io.mouse_pos_x, io.mouse_pos_y))
     
     @staticmethod
     def _UpdateFrameIOEvents():
