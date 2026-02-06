@@ -9,11 +9,11 @@ from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums import SharedCommandType
 from Py4GWCoreLib.enums_src.GameData_enums import ProfessionShort, ProfessionShort_Names
+from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers, custom_behavior_helpers_party
-from Sources.oazix.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
@@ -23,16 +23,11 @@ from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology_colo
 from Sources.oazix.CustomBehaviors.gui.flags import FlagsUI
 from Sources.oazix.CustomBehaviors.gui.expandable_section import ExpandableSection
 
-
-script_directory = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-py4gw_root_directory = project_root + f"\\..\\..\\"
-
 # Create expandable sections for different UI panels
 inventory_expandable = ExpandableSection(initially_expanded=False)
 flag_expandable = ExpandableSection(initially_expanded=False)
 following_expandable = ExpandableSection(initially_expanded=False)
-
+project_root = PathLocator.get_custom_behaviors_root_directory()
 
 def draw_party_target_vertical_line() -> None:
     """Draw a vertical indicator for the Party Custom Target only:
@@ -546,7 +541,7 @@ def render():
 
     PyImGui.separator()
 
-    if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
+    if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         if PyImGui.tree_node_ex("[TEAM UI] HeroAI UI :", 0):
 
             from Sources.oazix.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
