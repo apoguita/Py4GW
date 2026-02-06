@@ -47,7 +47,7 @@ class OutpostRunnerFSMHelpers:
 
     @staticmethod
     def travel_to_outpost(outpost_id):
-        if Map.GetMapID() == outpost_id:
+        if Map.IsMapIDMatch(Map.GetMapID(), outpost_id):
             ConsoleLog("OutpostRunnerFSM", "Already at outpost. Skipping travel.", Console.MessageType.Info)
             return
 
@@ -109,7 +109,7 @@ class OutpostRunnerFSMHelpers:
                         final_map_id = last_seg.get("map_id")
                         try:
                             current_map = Map.GetMapID()
-                            if current_map == final_map_id:
+                            if Map.IsMapIDMatch(current_map, final_map_id):
                                 # Already on the destination outpost - done with this run
                                 ConsoleLog("OutpostRunnerFSM", f"★★★ FINAL SEGMENT CONFIRMED: Arrived at outpost map {final_map_id} ★★★", Console.MessageType.Info)
                                 self.followxy.reset()
@@ -127,7 +127,7 @@ class OutpostRunnerFSMHelpers:
                                         last_check = current_time
                                         try:
                                             current_map = Map.GetMapID()
-                                            if current_map == final_map_id:
+                                            if Map.IsMapIDMatch(current_map, final_map_id):
                                                 # Arrived at destination
                                                 ConsoleLog("OutpostRunnerFSM", f"★★★ FINAL SEGMENT COMPLETE: Arrived at outpost {final_map_id} ★★★", Console.MessageType.Info)
                                                 self.followxy.reset()
@@ -230,7 +230,7 @@ class OutpostRunnerFSMHelpers:
                 segments = self.current_map_data.get("segments", [])
                 if segments and len(segments) > 0:
                     first_explorable_map = segments[0].get("map_id")
-                    if current_map == first_explorable_map:
+                    if Map.IsMapIDMatch(current_map, first_explorable_map):
                         ConsoleLog("OutpostRunnerFSM", f"OUTPOST SHORTCUT: Already transitioned to explorable map {first_explorable_map} during outpost walk; skipping remaining outpost path", Console.MessageType.Info)
                         yield from Routines.Yield.wait(100)
                         return
@@ -312,7 +312,7 @@ class OutpostRunnerFSMHelpers:
             # If we know which map this path belongs to, ensure we're on that map first
             if expected_map_id:
                 current_map = Map.GetMapID()
-                if current_map != expected_map_id:
+                if not Map.IsMapIDMatch(current_map, expected_map_id):
                     # OUTPOST PATH SPECIAL CASE: If we're walking an outpost_path and we've transitioned to the explorable,
                     # this is SUCCESS - exit immediately, don't wait for the outpost map to return
                     if is_outpost_path and self.current_map_data:
@@ -320,7 +320,7 @@ class OutpostRunnerFSMHelpers:
                             segments = self.current_map_data.get("segments", [])
                             if segments and len(segments) > 0:
                                 first_explorable_map = segments[0].get("map_id")
-                                if current_map == first_explorable_map:
+                                if Map.IsMapIDMatch(current_map, first_explorable_map):
                                     ConsoleLog("OutpostRunnerFSM", f"MAP TRANSITION SUCCESS: Outpost path successfully led to explorable {first_explorable_map}. Exiting outpost_path walk.", Console.MessageType.Info)
                                     self.followxy.reset()
                                     return  # Exit follow_path entirely - mission accomplished!
@@ -336,7 +336,7 @@ class OutpostRunnerFSMHelpers:
                             if expected_seg_index + 1 < len(segments):
                                 next_segment = segments[expected_seg_index + 1]
                                 next_map_id = next_segment.get("map_id")
-                                if current_map == next_map_id:
+                                if Map.IsMapIDMatch(current_map, next_map_id):
                                     ConsoleLog("OutpostRunnerFSM", f"SEGMENT TRANSITION DETECTED: Transitioned from segment {expected_seg_index} (map {expected_map_id}) to segment {expected_seg_index + 1} (map {next_map_id}). Exiting current segment walk.", Console.MessageType.Info)
                                     self.followxy.reset()
                                     return  # Exit follow_path - FSM will handle next segment
@@ -347,7 +347,7 @@ class OutpostRunnerFSMHelpers:
                     # Wait for the expected map to load (short timeout)
                     yield from self.wait_for_map_load(expected_map_id, timeout=15000)
                     current_map = Map.GetMapID()
-                    if current_map != expected_map_id:
+                    if not Map.IsMapIDMatch(current_map, expected_map_id):
                         ConsoleLog("OutpostRunnerFSM", f"Still not on expected map {expected_map_id}; skipping waypoint {point}", Console.MessageType.Warning)
                         index += 1
                         continue
@@ -441,7 +441,7 @@ class OutpostRunnerFSMHelpers:
                                         # Determine which segment we're currently in by checking current map against all segments
                                         current_seg_idx = None
                                         for seg_idx, seg in enumerate(segments):
-                                            if seg.get("map_id") == current_map:
+                                            if Map.IsMapIDMatch(seg.get("map_id"), current_map):
                                                 current_seg_idx = seg_idx
                                                 break
                                         
@@ -457,7 +457,7 @@ class OutpostRunnerFSMHelpers:
                                             elif current_seg_idx + 1 < len(segments):
                                                 next_segment = segments[current_seg_idx + 1]
                                                 next_map_id = next_segment.get("map_id")
-                                                if current_map == next_map_id:
+                                                if Map.IsMapIDMatch(current_map, next_map_id):
                                                     # We've transitioned to the next segment!
                                                     current_seg_map = segments[current_seg_idx].get("map_id")
                                                     ConsoleLog("OutpostRunnerFSM", f"★★★ MAP TRANSITION DETECTED: {current_seg_map} → {next_map_id} ★★★", Console.MessageType.Info)
@@ -468,8 +468,8 @@ class OutpostRunnerFSMHelpers:
                                                 # Check if we've transitioned INTO this segment
                                                 current_seg = segments[current_seg_idx]
                                                 seg_map_id = current_seg.get("map_id")
-                                                ConsoleLog("OutpostRunnerFSM", f"[RAPID CHECK] Final segment: current_map={current_map}, seg_map_id={seg_map_id}, match={current_map == seg_map_id}", Console.MessageType.Info)
-                                                if current_map == seg_map_id:
+                                                ConsoleLog("OutpostRunnerFSM", f"[RAPID CHECK] Final segment: current_map={current_map}, seg_map_id={seg_map_id}, match={Map.IsMapIDMatch(current_map, seg_map_id)}", Console.MessageType.Info)
+                                                if Map.IsMapIDMatch(current_map, seg_map_id):
                                                     # We're on the final segment - run is complete!
                                                     ConsoleLog("OutpostRunnerFSM", f"★★★ FINAL SEGMENT REACHED: Arrived at destination map {current_map} ★★★", Console.MessageType.Info)
                                                     self.followxy.reset()
@@ -492,7 +492,7 @@ class OutpostRunnerFSMHelpers:
                                 segments = self.current_map_data.get("segments", [])
                                 if segments and len(segments) > 0:
                                     first_explorable_map = segments[0].get("map_id")
-                                    if current_map == first_explorable_map:
+                                    if Map.IsMapIDMatch(current_map, first_explorable_map):
                                         ConsoleLog("OutpostRunnerFSM", f"★★★ MAP TRANSITION DETECTED: {expected_map_id} → explorable {first_explorable_map} ★★★", Console.MessageType.Info)
                                         self.followxy.reset()
                                         return
@@ -511,7 +511,7 @@ class OutpostRunnerFSMHelpers:
                                 if expected_seg_index is not None and expected_seg_index >= 0 and expected_seg_index + 1 < len(segments):
                                     next_segment = segments[expected_seg_index + 1]
                                     next_map_id = next_segment.get("map_id")
-                                    if current_map == next_map_id:
+                                    if Map.IsMapIDMatch(current_map, next_map_id):
                                         ConsoleLog("OutpostRunnerFSM", f"MAP TRANSITION ON TIMEOUT: Detected transition to map {next_map_id} during timeout. Exiting segment.", Console.MessageType.Info)
                                         self.followxy.reset()
                                         return  # Exit immediately - we've transitioned!
@@ -565,7 +565,7 @@ class OutpostRunnerFSMHelpers:
                 # Find which segment we're in by matching expected_map_id
                 current_seg_idx = None
                 for seg_idx, seg in enumerate(segments):
-                    if seg.get("map_id") == expected_map_id:
+                    if Map.IsMapIDMatch(seg.get("map_id"), expected_map_id):
                         current_seg_idx = seg_idx
                         break
                 
@@ -592,9 +592,9 @@ class OutpostRunnerFSMHelpers:
                                     
                                     # Only process if map ID is not 0 (loading state)
                                     if current_map != 0:
-                                        if current_map != expected_map_id:
+                                        if not Map.IsMapIDMatch(current_map, expected_map_id):
                                             # Map changed! Check if it's the expected next map
-                                            if current_map == next_map_id:
+                                            if Map.IsMapIDMatch(current_map, next_map_id):
                                                 ConsoleLog("OutpostRunnerFSM", f"★★★ MAP TRANSITION DETECTED: {expected_map_id} → {next_map_id} ★★★", Console.MessageType.Info)
                                                 self.followxy.reset()
                                                 return
@@ -626,9 +626,9 @@ class OutpostRunnerFSMHelpers:
                                 if current_time - last_check >= 0.5:
                                     last_check = current_time
                                     current_map = Map.GetMapID()
-                                    
+
                                     # Only process if map ID is not 0 (loading state)
-                                    if current_map != 0 and current_map != expected_map_id:
+                                    if current_map != 0 and not Map.IsMapIDMatch(current_map, expected_map_id):
                                         # Any map change = run completion
                                         ConsoleLog("OutpostRunnerFSM", f"★★★ FINAL SEGMENT COMPLETE: Left map {expected_map_id}, now on map {current_map} ★★★", Console.MessageType.Info)
                                         self.followxy.reset()

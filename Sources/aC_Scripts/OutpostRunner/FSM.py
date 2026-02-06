@@ -2,6 +2,7 @@ from Py4GWCoreLib import *
 from Sources.aC_Scripts.OutpostRunner.FSMHelpers import OutpostRunnerFSMHelpers
 from Sources.aC_Scripts.OutpostRunner.Build_Manager import OutpostRunnerDA
 from Sources.aC_Scripts.OutpostRunner.Overwatch import OutpostRunnerOverwatch
+from Sources.aC_Scripts.OutpostRunner.StatsManager import ChainStatistics
 
 class OutpostRunnerFSM:
     def __init__(self):
@@ -127,7 +128,6 @@ class OutpostRunnerFSM:
         self.helpers.cache_and_disable_all_widgets()
         self.helpers.enable_custom_widget_list()
 
-        from OutpostRunner.StatsManager import ChainStatistics
         self.chain_stats = ChainStatistics(self.map_chain)
         self.chain_stats.start_chain()
 
