@@ -5,7 +5,6 @@ import time
 import PyImGui
 import re
 from .Color import Color
-from ..Player import Player
 from datetime import datetime, timezone
 from ..enums import CAP_EXPERIENCE, CAP_STEP, EXPERIENCE_PROGRESSION
 class Utils:
@@ -621,7 +620,7 @@ class Utils:
         Args: None
         Returns: str: The current skillbar template.
         """
-        
+        from ..Player import Player
         try:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
