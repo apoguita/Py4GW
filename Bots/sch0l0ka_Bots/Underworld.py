@@ -7,19 +7,34 @@ import PyImGui
 
 # Override the help window
 BOT_NAME = "Underworld Helper"
-bot = Botting(BOT_NAME)
+bot = Botting(BOT_NAME, config_draw_path=True)
 # Override the help window
 bot.UI.override_draw_help(lambda: _draw_help())
 bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config window
 
 class BotSettings:
-    RestoreVale : bool = True
+    RestoreVale: bool = True
+    WrathfullSpirits: bool = True
+    EscortOfSouls: bool = True
     RestoreWastes: bool = True
+    ServantsOfGrenth: bool = True
+    PassTheMountains: bool = True
     RestoreMountains: bool = True
+    DeamonAssassin: bool = True
     RestorePlanes: bool = True
+    TheFourHorsemen: bool = True
     RestorePools: bool = True
+    TerrorwebQueen: bool = True
     RestorePit: bool = True
+    ImprisonedSpirits: bool = True
     DEBUG: bool = False
+
+
+def _enqueue_section(bot_instance: Botting, attr_name: str, label: str, section_fn):
+    def _queue_section():
+        if getattr(BotSettings, attr_name, False):
+            section_fn(bot_instance)
+    bot_instance.States.AddCustomState(_queue_section, f"[Toggle] {label}")
 
 def bot_routine(bot: Botting):
 
@@ -41,31 +56,31 @@ def bot_routine(bot: Botting):
 
     Enter_UW(bot)
     Clear_the_Chamber(bot)
-    #Restore_Vale(bot)
-    #Wrathfull_Spirits(bot)
-    #Escort_of_Souls(bot)
-    #Restore_Wastes(bot)
-    #Servants_of_Grenth(bot)
-    Pass_The_Mountains(bot)
-    #Restore_Mountains(bot)
-    #Deamon_Assassin(bot)
-    Restore_Planes(bot)
-    The_Four_Horsemen(bot)
-    Restore_Pools(bot)
-    Terrorweb_Queen(bot)
-    Restore_Pit(bot)
-    Imprisoned_Spirits(bot)
+    _enqueue_section(bot, "RestoreVale", "Restore Vale", Restore_Vale)
+    _enqueue_section(bot, "WrathfullSpirits", "Wrathfull Spirits", Wrathfull_Spirits)
+    _enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
+    _enqueue_section(bot, "RestoreWastes", "Restore Wastes", Restore_Wastes)
+    _enqueue_section(bot, "ServantsOfGrenth", "Servants of Grenth", Servants_of_Grenth)
+    _enqueue_section(bot, "PassTheMountains", "Pass the Mountains", Pass_The_Mountains)
+    _enqueue_section(bot, "RestoreMountains", "Restore Mountains", Restore_Mountains)
+    _enqueue_section(bot, "DeamonAssassin", "Deamon Assassin", Deamon_Assassin)
+    _enqueue_section(bot, "RestorePlanes", "Restore Planes", Restore_Planes)
+    _enqueue_section(bot, "TheFourHorsemen", "The Four Horsemen", The_Four_Horsemen)
+    _enqueue_section(bot, "RestorePools", "Restore Pools", Restore_Pools)
+    _enqueue_section(bot, "TerrorwebQueen", "Terrorweb Queen", Terrorweb_Queen)
+    _enqueue_section(bot, "RestorePit", "Restore Pit", Restore_Pit)
+    _enqueue_section(bot, "ImprisonedSpirits", "Imprisoned Spirits", Imprisoned_Spirits)
 
     bot.States.AddHeader("END")
 
 def Enter_UW(bot_instance: Botting):
     bot_instance.States.AddHeader("Enter Underworld")
-    #CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
+    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
     bot_instance.Move.XY(-4199, 19845, "go to Statue")
     bot_instance.States.AddCustomState(lambda: Player.SendChatCommand("kneel"), "kneel")
     bot_instance.Wait.ForTime(3000)
     bot_instance.Dialogs.AtXY(-4199, 19845, 0x85, "ask to enter")
-    #bot_instance.Dialogs.AtXY(-4199, 19845, 0x86, "accept to enter")
+    bot_instance.Dialogs.AtXY(-4199, 19845, 0x86, "accept to enter")
     bot_instance.Wait.ForMapLoad(target_map_id=72) # we are in the dungeon
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
 
@@ -109,7 +124,7 @@ def Restore_Vale(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Wrathfull_Spirits(bot_instance: Botting):
-    if BotSettings.RestoreVale:
+    if BotSettings.WrathfullSpirits:
         bot_instance.States.AddHeader("Wrathfull_Spirits")
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806E03, "Back to Chamber")
@@ -129,7 +144,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Escort_of_Souls(bot_instance: Botting):
-    if BotSettings.RestoreVale:
+    if BotSettings.EscortOfSouls:
         bot_instance.States.AddHeader("Escord of Souls")
         bot_instance.Wait.ForTime(5000)
         bot_instance.Move.XY(-4764, 11845, "To the Vale")
@@ -162,7 +177,7 @@ def Restore_Wastes(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Servants_of_Grenth(bot_instance: Botting):
-    if BotSettings.RestoreWastes:
+    if BotSettings.ServantsOfGrenth:
         bot.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
         bot_instance.Move.XY(2700, 19952, "To the Vale")
@@ -181,11 +196,12 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Pass_The_Mountains(bot_instance: Botting):
-    bot_instance.States.AddHeader("Pass the Mountains")
-    bot_instance.Move.XY(-220, 1691, "To the Vale")
-    bot_instance.Move.XY(7035, 1973, "To the Vale")
-    bot_instance.Move.XY(8089, -3303, "To the Vale")
-    bot_instance.Move.XY(8121, -6054, "To the Vale")
+    if BotSettings.PassTheMountains:
+        bot_instance.States.AddHeader("Pass the Mountains")
+        bot_instance.Move.XY(-220, 1691, "To the Vale")
+        bot_instance.Move.XY(7035, 1973, "To the Vale")
+        bot_instance.Move.XY(8089, -3303, "To the Vale")
+        bot_instance.Move.XY(8121, -6054, "To the Vale")
     
 
 def Restore_Mountains(bot_instance: Botting):
@@ -196,7 +212,7 @@ def Restore_Mountains(bot_instance: Botting):
         bot_instance.Move.XY(-8373, -5016, "To the Vale")
 
 def Deamon_Assassin(bot_instance: Botting):
-    if BotSettings.RestoreMountains:
+    if BotSettings.DeamonAssassin:
         bot_instance.States.AddHeader("Deamon Assassin")
         bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
         bot_instance.Wait.ForTime(3000)
@@ -207,91 +223,97 @@ def Deamon_Assassin(bot_instance: Botting):
         #ModelID Slayer 2391
 
 def Restore_Planes(bot_instance: Botting):
-    bot_instance.States.AddHeader("Restore Planes")
-    Wait_for_Spawns(bot,10371, -10510)
-    Wait_for_Spawns(bot,12795, -8811)
-    Wait_for_Spawns(bot,11180, -13780)
-    Wait_for_Spawns(bot,13740, -15087)
-    bot_instance.Move.XY(11546, -13787, "To the Vale")
-    bot_instance.Move.XY(8530, -11585, "To the Vale")
-    Wait_for_Spawns(bot,8533, -13394)
-    Wait_for_Spawns(bot,8579, -20627)
-    Wait_for_Spawns(bot,11218, -17404)
+    if BotSettings.RestorePlanes:
+        bot_instance.States.AddHeader("Restore Planes")
+        Wait_for_Spawns(bot,10371, -10510)
+        Wait_for_Spawns(bot,12795, -8811)
+        Wait_for_Spawns(bot,11180, -13780)
+        Wait_for_Spawns(bot,13740, -15087)
+        bot_instance.Move.XY(11546, -13787, "To the Vale")
+        bot_instance.Move.XY(8530, -11585, "To the Vale")
+        Wait_for_Spawns(bot,8533, -13394)
+        Wait_for_Spawns(bot,8579, -20627)
+        Wait_for_Spawns(bot,11218, -17404)
 
 def The_Four_Horsemen(bot_instance: Botting):
-    bot_instance.States.AddHeader("The Four Horseman")
-    bot_instance.Move.XY(13473, -12091, "To the Vale")
-    bot_instance.Wait.ForTime(10000)
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
+    if BotSettings.TheFourHorsemen:
+        bot_instance.States.AddHeader("The Four Horseman")
+        bot_instance.Move.XY(13473, -12091, "To the Vale")
+        bot_instance.Wait.ForTime(10000)
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
 
-    bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A03, "take quest")
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A01, "take quest")  
+        bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
+        bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A03, "take quest")
+        bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A01, "take quest")  
 
-    bot_instance.Wait.ForTime(30000)
+        bot_instance.Wait.ForTime(30000)
 
-    bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x86, "take quest") 
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x8D, "take quest") 
+        bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
+        bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
+        bot_instance.Dialogs.AtXY(11371, -17990, 0x86, "take quest") 
+        bot_instance.Dialogs.AtXY(11371, -17990, 0x8D, "take quest") 
 
-    bot_instance.Wait.ForTime(1000)
+        bot_instance.Wait.ForTime(1000)
 
-    bot_instance.Move.XYAndInteractNPC(-5782, 12819, "TP back to Chaos")
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x84, "take quest") 
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x8B, "take quest") 
-    bot_instance.Wait.ForTime(5000)
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
-    bot_instance.Wait.ForTime(5000)
-    bot_instance.Move.XY(11371, -17990, "To the Vale")
-    bot_instance.Wait.ForTime(30000)
-    bot_instance.Move.XY(11371, -17990, "To the Vale")
+        bot_instance.Move.XYAndInteractNPC(-5782, 12819, "TP back to Chaos")
+        bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
+        bot_instance.Dialogs.AtXY(11371, -17990, 0x84, "take quest") 
+        bot_instance.Dialogs.AtXY(11371, -17990, 0x8B, "take quest") 
+        bot_instance.Wait.ForTime(5000)
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
+        bot_instance.Wait.ForTime(5000)
+        bot_instance.Move.XY(11371, -17990, "To the Vale")
+        bot_instance.Wait.ForTime(30000)
+        bot_instance.Move.XY(11371, -17990, "To the Vale")
 
 def Restore_Pools(bot_instance: Botting):
-    bot_instance.States.AddHeader("Restore Pools")
-    Wait_for_Spawns(bot,4647, -16833)
-    Wait_for_Spawns(bot,2098, -15543)
-    bot_instance.Move.XY(-12703, -10990, "To the Vale")
-    bot_instance.Move.XY(-11849, -11986, "To the Vale")
-    bot_instance.Move.XY(-7217, -19394, "To the Vale")
-    #bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
-    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
-    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
-    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
-    bot_instance.Wait.ForTime(3000)
+    if BotSettings.RestorePools:
+        bot_instance.States.AddHeader("Restore Pools")
+        Wait_for_Spawns(bot,4647, -16833)
+        Wait_for_Spawns(bot,2098, -15543)
+        bot_instance.Move.XY(-12703, -10990, "To the Vale")
+        bot_instance.Move.XY(-11849, -11986, "To the Vale")
+        bot_instance.Move.XY(-7217, -19394, "To the Vale")
+        #bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
+        #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
+        #bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
+        #bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
+        bot_instance.Wait.ForTime(3000)
 
 def Terrorweb_Queen(bot_instance: Botting):
-    bot_instance.States.AddHeader("Terrorweb Queen")
-    bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
-    bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B03, "take quest")
-    bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B01, "take quest")   
-    bot_instance.Move.XY(-12303, -15213, "To the Vale")
-    bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
-    bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
+    if BotSettings.TerrorwebQueen:
+        bot_instance.States.AddHeader("Terrorweb Queen")
+        bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
+        bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B03, "take quest")
+        bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B01, "take quest")   
+        bot_instance.Move.XY(-12303, -15213, "To the Vale")
+        bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
+        bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
+        bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
+        bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
     
 def Restore_Pit(bot_instance: Botting):
-    bot_instance.States.AddHeader("Restore Pit")
-    bot_instance.Move.XY(13145, -8740, "To the Vale")
-    bot_instance.Move.XY(12188, 4249, "To the Vale")
-    bot_instance.Move.XY(14959, 4851, "To the Vale")
-    bot_instance.Move.XY(15460, 3125, "To the Vale")
-    bot_instance.Move.XY(8970, 6813, "To the Vale")
-    #bot_instance.Move.XYAndInteractNPC(8698, 6324, "go to NPC")
-    #bot_instance.Dialogs.AtXY(8698, 6324, 0x7F, "Back to Chamber")
-    #bot_instance.Dialogs.AtXY(8698, 6324, 0x86, "Back to Chamber")
-    #bot_instance.Dialogs.AtXY(8698, 6324, 0x8D, "Back to Chamber")
+    if BotSettings.RestorePit:
+        bot_instance.States.AddHeader("Restore Pit")
+        bot_instance.Move.XY(13145, -8740, "To the Vale")
+        bot_instance.Move.XY(12188, 4249, "To the Vale")
+        bot_instance.Move.XY(14959, 4851, "To the Vale")
+        bot_instance.Move.XY(15460, 3125, "To the Vale")
+        bot_instance.Move.XY(8970, 6813, "To the Vale")
+        #bot_instance.Move.XYAndInteractNPC(8698, 6324, "go to NPC")
+        #bot_instance.Dialogs.AtXY(8698, 6324, 0x7F, "Back to Chamber")
+        #bot_instance.Dialogs.AtXY(8698, 6324, 0x86, "Back to Chamber")
+        #bot_instance.Dialogs.AtXY(8698, 6324, 0x8D, "Back to Chamber")
 
 def Imprisoned_Spirits(bot_instance: Botting):
-    bot_instance.States.AddHeader("Imprisoned Spirits")
-    bot_instance.Move.XY(12329, 4632, "To the Vale")
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().party_flagging_manager.assign_formation_for_current_party("preset_1"), "Set Flag")
-    bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
-    bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
-    bot_instance.Move.XY(12329, 4632, "To the Vale")
+    if BotSettings.ImprisonedSpirits:
+        bot_instance.States.AddHeader("Imprisoned Spirits")
+        bot_instance.Move.XY(12329, 4632, "To the Vale")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().party_flagging_manager.assign_formation_for_current_party("preset_1"), "Set Flag")
+        bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
+        bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
+        bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
+        bot_instance.Move.XY(12329, 4632, "To the Vale")
 #def c_a_gift_of_griffons(bot_instance: Botting):
 
 def Wait_for_Spawns(bot_instance: Botting,x,y):
@@ -344,11 +366,20 @@ def _draw_help():
 
 def _draw_settings():
     BotSettings.RestoreVale = PyImGui.checkbox("Restore Vale", BotSettings.RestoreVale)
+    BotSettings.WrathfullSpirits = PyImGui.checkbox("Wrathfull Spirits", BotSettings.WrathfullSpirits)
+    BotSettings.EscortOfSouls = PyImGui.checkbox("Escort of Souls", BotSettings.EscortOfSouls)
     BotSettings.RestoreWastes = PyImGui.checkbox("Restore Wastes", BotSettings.RestoreWastes)
+    BotSettings.ServantsOfGrenth = PyImGui.checkbox("Servants of Grenth", BotSettings.ServantsOfGrenth)
+    BotSettings.PassTheMountains = PyImGui.checkbox("Pass the Mountains", BotSettings.PassTheMountains)
     BotSettings.RestoreMountains = PyImGui.checkbox("Restore Mountains", BotSettings.RestoreMountains)
+    BotSettings.DeamonAssassin = PyImGui.checkbox("Deamon Assassin", BotSettings.DeamonAssassin)
     BotSettings.RestorePlanes = PyImGui.checkbox("Restore Planes", BotSettings.RestorePlanes)
+    BotSettings.TheFourHorsemen = PyImGui.checkbox("The Four Horsemen", BotSettings.TheFourHorsemen)
     BotSettings.RestorePools = PyImGui.checkbox("Restore Pools", BotSettings.RestorePools)
+    BotSettings.TerrorwebQueen = PyImGui.checkbox("Terrorweb Queen", BotSettings.TerrorwebQueen)
     BotSettings.RestorePit = PyImGui.checkbox("Restore Pit", BotSettings.RestorePit)
+    BotSettings.ImprisonedSpirits = PyImGui.checkbox("Imprisoned Spirits", BotSettings.ImprisonedSpirits)
+    PyImGui.separator()
     BotSettings.DEBUG = PyImGui.checkbox("Enable Debug Logs", BotSettings.DEBUG)
 
 
