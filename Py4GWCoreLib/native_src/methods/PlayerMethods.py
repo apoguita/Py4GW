@@ -1,7 +1,6 @@
 from ...Scanner import ScannerSection
 from ..internals.prototypes import Prototypes
 from ..internals.native_function import NativeFunction
-from ...py4gwcorelib_src.Utils import Utils
 
 from ...enums_src.UI_enums import UIMessage
 from ...Scanner import Scanner
@@ -405,5 +404,6 @@ class PlayerMethods:
         Args:
             skill_id: The skill ID to purchase
         """
+        from ...py4gwcorelib_src.Utils import Utils
         dialog_skill_id = Utils.SkillIdToDialogId(skill_id)
         PlayerMethods.SendRawDialog(dialog_skill_id)

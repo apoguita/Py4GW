@@ -6,7 +6,6 @@ from .Context import GWContext
 from functools import wraps
 from .native_src.context.AgentContext import AgentStruct
 from .native_src.context.WorldContext import TitleStruct
-from .native_src.methods.PlayerMethods import PlayerMethods
 from .py4gwcorelib_src.ActionQueue import ActionQueueManager
 
 # Player
@@ -574,6 +573,7 @@ class Player:
             y (float): Y coordinate.
         Returns: None
         """
+        from .native_src.methods.PlayerMethods import PlayerMethods
         ActionQueueManager().AddAction("ACTION",
         PlayerMethods.Move, x, y, zPlane)
         
@@ -585,6 +585,7 @@ class Player:
             faction_id (int): 0= Kurzick, 1= Luxon
         Returns: None
         """
+        from .native_src.methods.PlayerMethods import PlayerMethods
         ActionQueueManager().AddAction("ACTION",
         PlayerMethods.DepositFaction,faction_id)
 
@@ -595,6 +596,7 @@ class Player:
         Args: None
         Returns: None
         """
+        from .native_src.methods.PlayerMethods import PlayerMethods
         ActionQueueManager().AddAction("ACTION",
         PlayerMethods.RemoveActiveTitle)
         
@@ -606,18 +608,25 @@ class Player:
             title_id (int): The ID of the title to set.
         Returns: None
         """
+        from .native_src.methods.PlayerMethods import PlayerMethods
         ActionQueueManager().AddAction("ACTION",
         PlayerMethods.SetActiveTitle,title_id)
     
     @staticmethod
     def SendRawDialog(dialog_id: int):
         """Send dialog using kSendAgentDialog. Works for NPC dialogs, skill trainers, etc."""
-        PlayerMethods.SendRawDialog(dialog_id)
+        from .native_src.methods.PlayerMethods import PlayerMethods
+        
+        ActionQueueManager().AddAction("ACTION",
+        PlayerMethods.SendRawDialog(dialog_id))
 
     @staticmethod
     def BuySkill(skill_id: int):
         """Buy/Learn a skill from a Skill Trainer."""
-        PlayerMethods.SendSkillTrainerDialog(skill_id)
+        from .native_src.methods.PlayerMethods import PlayerMethods
+        
+        ActionQueueManager().AddAction("ACTION",
+        PlayerMethods.SendSkillTrainerDialog(skill_id))
         
     
     #region Not Worked
