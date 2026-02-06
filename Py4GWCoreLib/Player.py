@@ -608,7 +608,16 @@ class Player:
         """
         ActionQueueManager().AddAction("ACTION",
         PlayerMethods.SetActiveTitle,title_id)
-        
+    
+    @staticmethod
+    def SendRawDialog(dialog_id: int):
+        """Send dialog using kSendAgentDialog. Works for NPC dialogs, skill trainers, etc."""
+        PlayerMethods.SendRawDialog(dialog_id)
+
+    @staticmethod
+    def BuySkill(skill_id: int):
+        """Buy/Learn a skill from a Skill Trainer."""
+        PlayerMethods.SendSkillTrainerDialog(skill_id)
         
     
     #region Not Worked
