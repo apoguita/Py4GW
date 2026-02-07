@@ -14,5 +14,5 @@ class CustomBuffTarget:
         pass
 
     @abstractmethod
-    def render_buff_configuration(self, py4gw_root_directory: str):
+    def render_buff_configuration(self):
         pass

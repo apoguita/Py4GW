@@ -1,11 +1,12 @@
 #region Utils
 # Utils
 import math
+import sys
 import time
 import PyImGui
 import re
+
 from .Color import Color
-from ..Player import Player
 from datetime import datetime, timezone
 from ..enums import CAP_EXPERIENCE, CAP_STEP, EXPERIENCE_PROGRESSION
 class Utils:
@@ -621,7 +622,7 @@ class Utils:
         Args: None
         Returns: str: The current skillbar template.
         """
-        
+        from ..Player import Player
         try:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
@@ -752,5 +753,54 @@ class Utils:
         """Calculate the number of health pips based on max health and regeneration rate."""
         pips = (max_health * health_regen) / 2
         return int(pips)
+    
+    @staticmethod
+    def SkillIdToDialogId(skill_id: int) -> int:
+        """
+        Convert a skill ID to the dialog ID used by Skill Trainers.
+
+        This ORs the skill ID with the skill dialog mask (0x0A000000) to create
+        the dialog ID that can be sent via Player.SendDialog() to learn a skill.
+
+        Args:
+            skill_id (int): The skill ID to convert.
+
+        Returns:
+            int: The dialog ID for the Skill Trainer (skill_id | 0x0A000000).
+
+        Example:
+            dialog_id = Utils.SkillIdToDialogId(42)  # Returns 0x0A00002A
+            Player.SendDialog(dialog_id)
+        """
+        SKILL_DIALOG_MASK = 0x0A000000
+        return skill_id | SKILL_DIALOG_MASK
+
+    @staticmethod
+    def ClearSubModules(module_name: str, log: bool = False):
+        import sys
+        from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
+        
+        module_names = list(sys.modules.keys())
+        for name in module_names:    
+            if module_name not in name:
+                continue
+
+            module = sys.modules.get(name, None)
+            if module is None:
+                continue
+
+            # Check persistence flag (proper bugfix)
+            is_persistent = getattr(module, "PERSISTENT", False)
+
+            if is_persistent:
+                ConsoleLog(module_name, f"Skipping reloading for persistent module: {name}", Console.MessageType.Info, log)
+                continue
+
+            try:
+                del sys.modules[name]
+                ConsoleLog(module_name, f"Unloaded module: {name}", Console.MessageType.Info, log)
+                
+            except Exception as e:
+                ConsoleLog(module_name, f"Error unloading {name}: {e}", Console.MessageType.Error)
 
 #endregion

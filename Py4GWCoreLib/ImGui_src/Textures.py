@@ -148,6 +148,64 @@ class GameTexture:
             for state, (ox, oy) in self.state_map.items():
                 self.slicing_state_uvs[mode][state] = self._build_state_uv(mode, ox, oy)
 
+    def _can_edges_cover(self, w: float, h: float, mode: TextureSliceMode) -> bool:
+        ml, mt, mr, mb = (
+            self.margin_left,
+            self.margin_top,
+            self.margin_right,
+            self.margin_bottom,
+        )
+
+        match mode:
+            case TextureSliceMode.NINE:
+                return w <= (ml + mr) or h <= (mt + mb)
+
+            case TextureSliceMode.THREE_HORIZONTAL:
+                return w <= (ml + mr)
+
+            case TextureSliceMode.THREE_VERTICAL:
+                return h <= (mt + mb)
+
+            case _:
+                return False
+    
+    def _compute_scaled_margins_for_size(
+    self,
+    w: float,
+    h: float,
+    min_preserve_size: float = 60.0,
+    ) -> tuple[float, float, float, float]:
+        """
+        Dynamically scale margins if the draw size becomes too small.
+        Works for ALL slice modes.
+        """
+
+        ml, mt, mr, mb = (
+            self.margin_left,
+            self.margin_top,
+            self.margin_right,
+            self.margin_bottom,
+        )
+
+        if w <= 1.0 or h <= 1.0:
+            return 0.0, 0.0, 0.0, 0.0
+
+        # Preserve margins when reasonably sized
+        if w >= min_preserve_size and h >= min_preserve_size:
+            return ml, mt, mr, mb
+
+        # Prevent margin sum from exceeding available space
+        scale_w = min(1.0, w / max(1.0, (ml + mr)))
+        scale_h = min(1.0, h / max(1.0, (mt + mb)))
+        scale = min(scale_w, scale_h)
+
+        return (
+            ml * scale,
+            mt * scale,
+            mr * scale,
+            mb * scale,
+        )
+
     # --- drawing ---------------------------------------------------------------
 
     def draw_in_drawlist(
@@ -163,7 +221,8 @@ class GameTexture:
         mode = mode or self.mode
         x, y = pos
         w, h = size
-        ml, mt, mr, mb = self.margin_left, self.margin_top, self.margin_right, self.margin_bottom
+
+        ml, mt, mr, mb = self._compute_scaled_margins_for_size(w, h)
 
         state_uvs = self.slicing_state_uvs.get(mode) or {}
         uvs = state_uvs.get(state)
@@ -172,53 +231,100 @@ class GameTexture:
 
 
         def draw(region: RegionFlags, dx: float, dy: float, dw: float, dh: float):
+            if dw <= 0 or dh <= 0:
+                return
+
             uv_region = uvs.get(region)
-            if uv_region:
-                # Replace with your engine's texture drawing call
-                ImGui.DrawTextureInDrawList(
-                    pos=(x + dx, y + dy),
-                    size=(dw, dh),
-                    texture_path=self.texture,
-                    uv0=uv_region.uv0(),
-                    uv1=uv_region.uv1(),
-                    tint=tint
-                )
+            if not uv_region:
+                return
+
+            ImGui.DrawTextureInDrawList(
+                pos=(x + dx, y + dy),
+                size=(dw, dh),
+                texture_path=self.texture,
+                uv0=uv_region.uv0(),
+                uv1=uv_region.uv1(),
+                tint=tint
+            )
 
         match mode:
             case TextureSliceMode.FULL:
                 draw(RegionFlags.FULL, 0, 0, w, h)
 
             case TextureSliceMode.THREE_HORIZONTAL:
-                lw, rw = ml, mr
-                mw = max(0, w - lw - rw)
-                draw(RegionFlags.LEFT, 0, 0, lw, h)
-                draw(RegionFlags.CENTER, lw, 0, mw, h)
-                draw(RegionFlags.RIGHT, lw + mw, 0, rw, h)
+                if self._can_edges_cover(w, h, mode):
+                    lw = max(w / 2.0, ml)
+                    rw = max(w - lw, mr)
+                    draw(RegionFlags.LEFT,  0,       0, lw, h)
+                    draw(RegionFlags.RIGHT, w - rw,  0, rw, h)
+                else:
+                    lw, rw = ml, mr
+                    mw = max(0.0, w - lw - rw)
+                    draw(RegionFlags.LEFT,  0, 0, lw, h)
+                    draw(RegionFlags.CENTER,lw,0, mw, h)
+                    draw(RegionFlags.RIGHT, lw + mw, 0, rw, h)
 
             case TextureSliceMode.THREE_VERTICAL:
-                th, bh = mt, mb
-                mh = max(0, h - th - bh)
-                draw(RegionFlags.TOP, 0, 0, w, th)
-                draw(RegionFlags.MIDDLE, 0, th, w, mh)
-                draw(RegionFlags.BOTTOM, 0, th + mh, w, bh)
+                if self._can_edges_cover(w, h, mode):
+                    th = max(h / 2.0, mt)
+                    bh = max(h - th, mb)
+                    draw(RegionFlags.TOP,    0, 0, w, th)
+                    draw(RegionFlags.BOTTOM, 0, h - bh, w, bh)
+                else:
+                    th, bh = mt, mb
+                    mh = max(0.0, h - th - bh)
+                    draw(RegionFlags.TOP,    0, 0, w, th)
+                    draw(RegionFlags.MIDDLE, 0, th, w, mh)
+                    draw(RegionFlags.BOTTOM, 0, th + mh, w, bh)
 
             case TextureSliceMode.NINE:
-                # Each slice uses individual margin values
-                cw, ch = ml, mt
-                rw, bh = mr, mb
-                mw = max(0, w - cw - rw)
-                mh = max(0, h - ch - bh)
-
-                draw(RegionFlags.TOP | RegionFlags.LEFT, 0, 0, cw, ch)
-                draw(RegionFlags.TOP | RegionFlags.CENTER, cw, 0, mw, ch)
-                draw(RegionFlags.TOP | RegionFlags.RIGHT, cw + mw, 0, rw, ch)
-                draw(RegionFlags.MIDDLE | RegionFlags.LEFT, 0, ch, cw, mh)
-                draw(RegionFlags.MIDDLE | RegionFlags.CENTER, cw, ch, mw, mh)
-                draw(RegionFlags.MIDDLE | RegionFlags.RIGHT, cw + mw, ch, rw, mh)
-                draw(RegionFlags.BOTTOM | RegionFlags.LEFT, 0, ch + mh, cw, bh)
-                draw(RegionFlags.BOTTOM | RegionFlags.CENTER, cw, ch + mh, mw, bh)
-                draw(RegionFlags.BOTTOM | RegionFlags.RIGHT, cw + mw, ch + mh, rw, bh)
+                collapse_x = w < (ml + mr)
+                collapse_y = h < (mt + mb)
                 
+                edge_only = self._can_edges_cover(w, h, mode)
+                
+                if collapse_x and collapse_y:
+                    lw = max(w / 2.0, ml)
+                    rw = max(w - lw, mr)
+                    th = max(h / 2.0, mt)
+                    bh = max(h - th, mb)
+
+                    draw(RegionFlags.TOP | RegionFlags.LEFT,    0,      0,      lw, th)
+                    draw(RegionFlags.TOP | RegionFlags.RIGHT,   w-rw,   0,      rw, th)
+                    draw(RegionFlags.BOTTOM | RegionFlags.LEFT, 0,      h-bh,   lw, bh)
+                    draw(RegionFlags.BOTTOM | RegionFlags.RIGHT,w-rw,   h-bh,   rw, bh)
+                elif collapse_x:
+                    th, bh = mt, mb
+                    mh = max(0.0, h - th - bh)
+
+                    draw(RegionFlags.TOP | RegionFlags.LEFT,    0, 0, w, th)
+                    draw(RegionFlags.MIDDLE | RegionFlags.LEFT, 0, th, w, mh)
+                    draw(RegionFlags.BOTTOM | RegionFlags.LEFT, 0, th + mh, w, bh)
+                elif collapse_y:
+                    lw, rw = ml, mr
+                    mw = max(0.0, w - lw - rw)
+
+                    draw(RegionFlags.TOP | RegionFlags.LEFT,  0, 0, lw, h)
+                    draw(RegionFlags.TOP | RegionFlags.CENTER,lw,0, mw, h)
+                    draw(RegionFlags.TOP | RegionFlags.RIGHT, lw + mw, 0, rw, h)
+                else:
+                    lw, rw = ml, mr
+                    th, bh = mt, mb
+                    mw = max(0.0, w - lw - rw)
+                    mh = max(0.0, h - th - bh)
+
+                    draw(RegionFlags.TOP | RegionFlags.LEFT,    0,        0,        lw, th)
+                    draw(RegionFlags.TOP | RegionFlags.CENTER,  lw,       0,        mw, th)
+                    draw(RegionFlags.TOP | RegionFlags.RIGHT,   lw + mw,  0,        rw, th)
+
+                    draw(RegionFlags.MIDDLE | RegionFlags.LEFT, 0,        th,       lw, mh)
+                    draw(RegionFlags.MIDDLE | RegionFlags.CENTER,lw,      th,       mw, mh)
+                    draw(RegionFlags.MIDDLE | RegionFlags.RIGHT,lw + mw,  th,       rw, mh)
+
+                    draw(RegionFlags.BOTTOM | RegionFlags.LEFT, 0,        th + mh,  lw, bh)
+                    draw(RegionFlags.BOTTOM | RegionFlags.CENTER,lw,      th + mh,  mw, bh)
+                    draw(RegionFlags.BOTTOM | RegionFlags.RIGHT,lw + mw,  th + mh,  rw, bh)
+
 class ThemeTexture:
     PlaceHolderTexture = GameTexture(
         texture=os.path.join(TEXTURE_FOLDER, "missing_texture.png"),

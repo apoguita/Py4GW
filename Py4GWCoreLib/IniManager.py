@@ -155,21 +155,46 @@ class IniManager:
             file_exists = os.path.exists(full_filename)
 
             if not file_exists:
-                template = self.get_defaults_path() + "default_template.cfg"
-                template_exists = os.path.exists(template)
 
-                if template_exists:
-                    with open(template, "r", encoding="utf-8") as src:
+                # -------------------------------------------------
+                # Specialized template lookup
+                # defaults/<path>/<filename>.cfg
+                # -------------------------------------------------
+
+                defaults_base = self.get_defaults_path()
+
+                key_cfg = key.replace(".ini", ".cfg")
+
+                specialized_template = os.path.join(
+                    defaults_base,
+                    key_cfg
+                )
+
+                fallback_template = os.path.join(
+                    defaults_base,
+                    "default_template.cfg"
+                )
+
+                content = ""
+                #print(f"specialized_template: {specialized_template}")
+                if os.path.exists(specialized_template):
+                    with open(specialized_template, "r", encoding="utf-8") as src:
                         content = src.read()
-                else:
-                    content = ""
 
-                # Ensure directory exists
+                elif os.path.exists(fallback_template):
+                    with open(fallback_template, "r", encoding="utf-8") as src:
+                        content = src.read()
+
+                # -------------------------------------------------
+                # Ensure directory exists + write file
+                # -------------------------------------------------
+
                 dir_name = os.path.dirname(full_filename)
                 os.makedirs(dir_name, exist_ok=True)
 
                 with open(full_filename, "w", encoding="utf-8") as dst:
                     dst.write(content)
+
 
             # Create IniHandler
             ini = IniHandler(full_filename)
@@ -546,7 +571,34 @@ class IniManager:
 
         vd = node.vars_defs.get(var_name)
         return vd.default if vd else default
+    
+    def getInt(self, key: str, var_name: str, default=0, section: str = "") -> int:
+        val = self.get(key, var_name, default, section)
+        try:
+            return int(val) if val is not None else default
+        except Exception:
+            return default
+        
+    def getFloat(self, key: str, var_name: str, default=0.0, section: str = "") -> float:
+        val = self.get(key, var_name, default, section)
+        try:
+            return float(val) if val is not None else default
+        except Exception:
+            return default
+        
+    def getBool(self, key: str, var_name: str, default=False, section: str = "") -> bool:
+        val = self.get(key, var_name, default, section)
+        try:
+            return bool(val) if val is not None else default
+        except Exception:
+            return default
 
+    def getStr(self, key: str, var_name: str, default="", section: str = "") -> str:
+        val = self.get(key, var_name, default, section)
+        try:
+            return str(val) if val is not None else default
+        except Exception:
+            return default
 
     def set(self, key: str, var_name: str, value, section: str = ""):
         node = self._get_node(key)

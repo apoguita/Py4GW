@@ -334,7 +334,7 @@ class Inventory:
         from .UIManager import UIManager
 
         parent_hash = 140452905
-        yes_button_offsets = [6,109,6]
+        yes_button_offsets = [6,110,6]
         
         salvage_material_window = UIManager.GetChildFrameID(parent_hash, yes_button_offsets)
         UIManager.FrameClick(salvage_material_window)

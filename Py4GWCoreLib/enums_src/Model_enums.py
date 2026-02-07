@@ -1556,6 +1556,7 @@ class ModelID(IntEnum):
     Princess_Salma_Mini = 35130
     Prismatic_Gelatinous_Material = 22375
     Proof_Of_Legend = 37841
+    Proof_Of_Triumph = 38031
     Pulsating_Growth = 824
     Pumpkin_Cookie = 28433
     Putrid_Cyst = 827

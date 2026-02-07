@@ -237,7 +237,7 @@ class AutoHandlderModule:
             ImGui.show_tooltip("Save Settings")
             PyImGui.same_line(0,-1)
             if PyImGui.button(IconsFontAwesome5.ICON_SYNC + "##autosalvreload"):
-                self.auto_handler.load_from_ini(self.auto_handler.ini)
+                self.auto_handler.load_from_ini()
                 self.auto_handler.lookup_throttle.SetThrottleTime(self.auto_handler._LOOKUP_TIME)
                 self.auto_handler.lookup_throttle.Reset()
                 ConsoleLog(self.MODULE_NAME, "Settings reloaded from Auto Inv.ini", Py4GW.Console.MessageType.Success)
@@ -380,7 +380,7 @@ class AutoHandlderModule:
             return False
         
         if not auto_handler.initialized:
-            auto_handler.load_from_ini(auto_handler.ini)
+            auto_handler.load_from_ini()
             auto_handler.lookup_throttle.SetThrottleTime(auto_handler._LOOKUP_TIME)
             auto_handler.lookup_throttle.Reset()
             auto_handler.initialized = True
