@@ -2,9 +2,9 @@
     "Colors": {
         "Border": {
             "img_color_enum": "Border",
-            "r": 204,
-            "g": 204,
-            "b": 212,
+            "r": 0,
+            "g": 0,
+            "b": 0,
             "a": 128
         },
         "BorderShadow": {
@@ -289,38 +289,38 @@
         },
         "TableBorderLight": {
             "img_color_enum": "TableBorderLight",
-            "r": 59,
-            "g": 59,
-            "b": 64,
-            "a": 255
+            "r": 36,
+            "g": 36,
+            "b": 36,
+            "a": 225
         },
         "TableBorderStrong": {
             "img_color_enum": "TableBorderStrong",
-            "r": 79,
-            "g": 79,
-            "b": 89,
-            "a": 255
+            "r": 54,
+            "g": 54,
+            "b": 54,
+            "a": 225
         },
         "TableHeaderBg": {
             "img_color_enum": "TableHeaderBg",
-            "r": 48,
-            "g": 48,
+            "r": 26,
+            "g": 38,
             "b": 51,
             "a": 255
         },
         "TableRowBg": {
             "img_color_enum": "TableRowBg",
-            "r": 0,
-            "g": 0,
-            "b": 0,
-            "a": 0
+            "r": 15,
+            "g": 13,
+            "b": 18,
+            "a": 255
         },
         "TableRowBgAlt": {
             "img_color_enum": "TableRowBgAlt",
-            "r": 255,
-            "g": 255,
-            "b": 255,
-            "a": 15
+            "r": 26,
+            "g": 23,
+            "b": 30,
+            "a": 255
         },
         "Text": {
             "img_color_enum": "Text",
@@ -438,10 +438,10 @@
         },
         "ToggleButtonDisabled": {
             "img_color_enum": "Button",
-            "r": 26,
-            "g": 38,
-            "b": 51,
-            "a": 255
+            "r": 102,
+            "g": 127,
+            "b": 153,
+            "a": 160
         },
         "ToggleButtonDisabledActive": {
             "img_color_enum": "ButtonActive",
@@ -530,12 +530,12 @@
             "a": 255
         }
     },
-    "StyleVars": {    
+    "StyleVars": {
         "Alpha": {
             "value1": 1.0
         },
         "ButtonPadding": {
-            "value1": 7.0,
+            "value1": 5.0,
             "value2": 5.0
         },
         "ButtonTextAlign": {
@@ -553,7 +553,7 @@
             "value1": 0.0
         },
         "DisabledAlpha": {
-            "value1": 0.6
+            "value1": 0.6000000238418579
         },
         "FrameBorderSize": {
             "value1": 0.0
