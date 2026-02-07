@@ -59,7 +59,7 @@ class ConfigNode:
 
 class IniManager:
     _instance = None
-    _callback_name = "_Py4GW_ConfigManager_Flush"
+    _callback_name = "ConfigManager.FlushDiskData"
 
     def __new__(cls):
         if cls._instance is None:
