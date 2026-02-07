@@ -300,7 +300,8 @@ class HeroAI_FloatingWindows():
     @staticmethod
     def show_ui(cached_data: CacheData):
         from Py4GWCoreLib.Party import Party
-        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and not Party.IsPartyLoaded()
+        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and Party.IsPartyLoaded()
+        
         if show_ui:  
             own_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
             if not own_data:
