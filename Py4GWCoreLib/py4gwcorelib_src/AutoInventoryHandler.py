@@ -1,11 +1,10 @@
 #region AutoInventory
 from typing import Optional, Callable
 from .Console import ConsoleLog, Console
-from .IniHandler import IniHandler
+from ..IniManager import IniManager
 from .Timer import ThrottledTimer
 from .ActionQueue import ActionQueueManager
 from .Lootconfig_src import LootConfig
-import Py4GW
 
 class AutoInventoryHandler():
     _instance = None
@@ -21,127 +20,52 @@ class AutoInventoryHandler():
             return
         self._LOOKUP_TIME:int = 15000
         self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
-        projects_path = Py4GW.Console.get_projects_path()
-        full_path = projects_path + "\\Widgets\\Config\\InventoryPlus.ini"
-        self.ini = IniHandler(full_path)
+
         self.initialized = False
         self.status = "Idle"
         self.outpost_handled = False
-        self.module_active = False
-        self.module_name = "AutoInventoryHandler"
+        self.module_active:bool = False
+        self.module_name:str = "AutoInventoryHandler"
         
-        self.id_whites = False
-        self.id_blues = True
-        self.id_purples = True
-        self.id_golds = False
-        self.id_greens = False
-        self.id_model_blacklist = []  # Items that should not be identified, even if they match the ID criteria
+        self.id_whites:bool = False
+        self.id_blues:bool = False
+        self.id_purples:bool = False
+        self.id_golds:bool = False
+        self.id_greens:bool = False
+        self.id_model_blacklist:list[int] = []  # Items that should not be identified, even if they match the ID criteria
         
-        self.salvage_whites = True
-        self.salvage_rare_materials = False
-        self.salvage_blues = True
-        self.salvage_purples = True
-        self.salvage_golds = False
-        self.item_type_blacklist = [] # Item types that should not be salvaged, even if they match the salvage criteria
-        self.salvage_blacklist = []  # Items that should not be salvaged, even if they match the salvage criteria
-        self.blacklisted_model_id = 0
-        self.model_id_search = ""
-        self.item_type_search = ""
-        self.model_id_search_mode = 0  # 0 = Contains, 1 = Starts With
-        self.item_type_search_mode = 0  # 0 = Contains, 1 = Starts With
-        self.show_dialog_popup = False 
-        self.show_item_type_dialog = False
+        self.salvage_whites:bool = False
+        self.salvage_rare_materials:bool = False
+        self.salvage_blues:bool = False
+        self.salvage_purples:bool = False
+        self.salvage_golds:bool = False
+        self.item_type_blacklist:list[int] = [] # Item types that should not be salvaged, even if they match the salvage criteria
+        self.salvage_blacklist:list[int] = []  # Items that should not be salvaged, even if they match the salvage criteria
+        self.blacklisted_model_id:int = 0
+        self.model_id_search:str = ""
+        self.item_type_search:str = ""
+        self.model_id_search_mode:int = 0  # 0 = Contains, 1 = Starts With
+        self.item_type_search_mode:int = 0  # 0 = Contains, 1 = Starts With
+        self.show_dialog_popup:bool = False 
+        self.show_item_type_dialog:bool = False
         
-        self.deposit_trophies = True
-        self.deposit_materials = True
-        self.deposit_blues = True
-        self.deposit_purples = True
-        self.deposit_golds = True
-        self.deposit_greens = True
-        self.deposit_event_items = True
-        self.deposit_dyes = True
-        self.keep_gold = 5000
-        self.deposit_trophies_blacklist = []  # Model IDs of trophies that should not be deposited
-        self.deposit_materials_blacklist = []  # Model IDs of materials that should not be deposited
-        self.deposit_event_items_blacklist = []  # Model IDs of event items that should not
-        self.deposit_dyes_blacklist = []  # Model IDs of dyes that should not be deposited
-        self.deposit_model_blacklist = []  # Model IDs of items that should not be deposited
-        
-        self.load_from_ini(self.ini, "AutoLootOptions")
+        self.deposit_trophies:bool = False
+        self.deposit_materials:bool = False
+        self.deposit_blues:bool = False
+        self.deposit_purples:bool = False
+        self.deposit_golds:bool = False
+        self.deposit_greens:bool = False
+        self.deposit_event_items:bool = False
+        self.deposit_dyes:bool = False
+        self.keep_gold:int = 5000
+        self.deposit_trophies_blacklist:list[int] = []  # Model IDs of trophies that should not be deposited
+        self.deposit_materials_blacklist:list[int] = []  # Model IDs of materials that should not be deposited
+        self.deposit_event_items_blacklist:list[int] = []  # Model IDs of event items that should not
+        self.deposit_dyes_blacklist:list[int] = []  # Model IDs of dyes that should not be deposited
+        self.deposit_model_blacklist:list[int] = []  # Model IDs of items that should not be deposited
+
         self._initialized = True
-           
-    def save_to_ini(self, section: str = "AutoLootOptions"):
-        self.ini.write_key(section, "module_active", str(self.module_active))
-        self.ini.write_key(section, "lookup_time", str(self._LOOKUP_TIME))
-        self.ini.write_key(section, "id_whites", str(self.id_whites))
-        self.ini.write_key(section, "id_blues", str(self.id_blues))
-        self.ini.write_key(section, "id_purples", str(self.id_purples))
-        self.ini.write_key(section, "id_golds", str(self.id_golds))
-        self.ini.write_key(section, "id_greens", str(self.id_greens))
-        self.ini.write_key(section, "id_model_blacklist", ",".join(str(x) for x in sorted(set(self.id_model_blacklist))))
 
-        self.ini.write_key(section, "salvage_whites", str(self.salvage_whites))
-        self.ini.write_key(section, "salvage_rare_materials", str(self.salvage_rare_materials))
-        self.ini.write_key(section, "salvage_blues", str(self.salvage_blues))
-        self.ini.write_key(section, "salvage_purples", str(self.salvage_purples))
-        self.ini.write_key(section, "salvage_golds", str(self.salvage_golds))
-
-        self.ini.write_key(section, "item_type_blacklist", ",".join(str(i) for i in sorted(set(self.item_type_blacklist))))
-        self.ini.write_key(section, "salvage_blacklist", ",".join(str(i) for i in sorted(set(self.salvage_blacklist))))
-
-        self.ini.write_key(section, "deposit_trophies", str(self.deposit_trophies))
-        self.ini.write_key(section, "deposit_materials", str(self.deposit_materials))
-        self.ini.write_key(section, "deposit_event_items", str(self.deposit_event_items))
-        self.ini.write_key(section, "deposit_dyes", str(self.deposit_dyes))
-        self.ini.write_key(section, "deposit_blues", str(self.deposit_blues))
-        self.ini.write_key(section, "deposit_purples", str(self.deposit_purples))
-        self.ini.write_key(section, "deposit_golds", str(self.deposit_golds))
-        self.ini.write_key(section, "deposit_greens", str(self.deposit_greens))
-        self.ini.write_key(section, "keep_gold", str(self.keep_gold))
-        
-        self.ini.write_key(section, "deposit_trophies_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_trophies_blacklist))))
-        self.ini.write_key(section, "deposit_materials_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_materials_blacklist))))
-        self.ini.write_key(section, "deposit_event_items_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_event_items_blacklist))))
-        self.ini.write_key(section, "deposit_dyes_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_dyes_blacklist))))
-        self.ini.write_key(section, "deposit_model_blacklist", ",".join(str(x) for x in sorted(set(self.deposit_model_blacklist))))
-
-
-    def load_from_ini(self, ini:IniHandler | None, section: str = "AutoLootOptions"):
-        if not ini:
-            ini = self.ini
-        self._LOOKUP_TIME = ini.read_int(section, "lookup_time", self._LOOKUP_TIME)
-        self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
-
-        self.module_active = ini.read_bool(section, "module_active", self.module_active)
-        self.id_whites = ini.read_bool(section, "id_whites", self.id_whites)
-        self.id_blues = ini.read_bool(section, "id_blues", self.id_blues)
-        self.id_purples = ini.read_bool(section, "id_purples", self.id_purples)
-        self.id_golds = ini.read_bool(section, "id_golds", self.id_golds)
-        self.id_greens = ini.read_bool(section, "id_greens", self.id_greens)
-
-        self.salvage_whites = ini.read_bool(section, "salvage_whites", self.salvage_whites)
-        self.salvage_rare_materials = ini.read_bool(section, "salvage_rare_materials", self.salvage_rare_materials)
-        self.salvage_blues = ini.read_bool(section, "salvage_blues", self.salvage_blues)
-        self.salvage_purples = ini.read_bool(section, "salvage_purples", self.salvage_purples)
-        self.salvage_golds = ini.read_bool(section, "salvage_golds", self.salvage_golds)
-
-        item_type_blacklist_str = ini.read_key(section, "item_type_blacklist", "")
-        self.item_type_blacklist = [int(x) for x in item_type_blacklist_str.split(",") if x.strip().isdigit()]
-
-        blacklist_str = ini.read_key(section, "salvage_blacklist", "")
-        self.salvage_blacklist = [int(x) for x in blacklist_str.split(",") if x.strip().isdigit()]
-
-
-        self.deposit_trophies = ini.read_bool(section, "deposit_trophies", self.deposit_trophies)
-        self.deposit_materials = ini.read_bool(section, "deposit_materials", self.deposit_materials)
-        self.deposit_event_items = ini.read_bool(section, "deposit_event_items", self.deposit_event_items)
-        self.deposit_dyes = ini.read_bool(section, "deposit_dyes", self.deposit_dyes)
-        self.deposit_blues = ini.read_bool(section, "deposit_blues", self.deposit_blues)
-        self.deposit_purples = ini.read_bool(section, "deposit_purples", self.deposit_purples)
-        self.deposit_golds = ini.read_bool(section, "deposit_golds", self.deposit_golds)
-        self.deposit_greens = ini.read_bool(section, "deposit_greens", self.deposit_greens)
-
-        self.keep_gold = ini.read_int(section, "keep_gold", self.keep_gold)
                 
     def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None, log: bool = False):
         from ..ItemArray import ItemArray

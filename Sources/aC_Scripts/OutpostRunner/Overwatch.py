@@ -1,6 +1,7 @@
 # OutpostRunner_Overwatch.py
 
 from Py4GWCoreLib import *
+from Sources.aC_Scripts.OutpostRunner import map_loader
 import time
 
 
@@ -110,8 +111,7 @@ class OutpostRunnerOverwatch:
                     current_run.region = region
                     current_run.run_name = run_name
 
-            # Load map data 
-            from OutpostRunner import map_loader
+            # Load map data
             data = map_loader.load_map_data(current_run.region, current_run.run_name)
             outpost_id = data["ids"]["outpost_id"]
             yield from Routines.Yield.wait(3000)  # small delay to let transition settle

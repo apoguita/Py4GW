@@ -1,6 +1,7 @@
 import pathlib
 from HeroAI.custom_skill import CustomSkillClass
 from Py4GWCoreLib import GLOBAL_CACHE
+from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_nature import CustomSkillNature
 
 class CustomSkill:
@@ -14,13 +15,13 @@ class CustomSkill:
         self.skill_nature:CustomSkillNature = CustomSkillNature(nature_value)
         self.skill_slot:int = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.skill_id) if self.skill_id != 0 else 0
 
-    def get_texture(self, py4gw_root_directory, project_root) -> str:
+    def get_texture(self) -> str:
 
         texture_file = ''
         if self.skill_id is not None and self.skill_id > 0:
-            texture_file = py4gw_root_directory + GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(self.skill_id)
+            texture_file = PathLocator.get_project_root_directory() + "\\" + GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(self.skill_id)
         else:
-            texture_file = project_root + f"\\gui\\textures\\{self.skill_name}.png"
+            texture_file = PathLocator.get_custom_behaviors_root_directory() + f"\\gui\\textures\\{self.skill_name}.png"
 
         return texture_file
 

@@ -5,6 +5,7 @@ from functools import reduce
 from typing import Any, Callable, Optional, Tuple
 
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.enums_src.GameData_enums import Profession, SkillType
 from Py4GWCoreLib.enums_src.Model_enums import GadgetModelID
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.custom_behavior_helpers_target import CustomTargeting
@@ -100,6 +101,19 @@ class Helpers:
         return action_result
 
 class Resources:
+
+    @staticmethod
+    def has_dervish_enchantment() -> bool:
+
+        effects = GLOBAL_CACHE.Effects.GetEffects(Player.GetAgentID())
+        for effect in effects:
+            skill_id = effect.skill_id
+            skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
+            if skill_type == SkillType.Enchantment.value:
+                profession_id, _ = GLOBAL_CACHE.Skill.GetProfession(skill_id)
+                if profession_id == Profession.Dervish.value:
+                    return True
+        return False
 
     @staticmethod
     def get_nearest_dungeon_chest(max_distance: int) -> int | None:

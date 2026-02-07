@@ -1,6 +1,9 @@
 import os
+
+import Py4GW
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
 from Py4GWCoreLib.Py4GWcorelib import Color, Utils
+from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
@@ -11,23 +14,18 @@ from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
-script_directory = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-py4gw_root_directory = project_root + f"\\..\\..\\"
+
+
 WITH_DETAIL = False
 EXPANDED_SKILL_IDS: set[str] = set()
 
 # Fallback texture for skills without a valid texture
-FALLBACK_SKILL_TEXTURE = py4gw_root_directory + "Widgets\\CustomBehaviors\\gui\\textures\\no_bg.png"
 
 def get_skill_texture_with_fallback(texture_path: str) -> str:
     """Returns the texture path if it exists, otherwise returns the fallback texture."""
     if texture_path and os.path.exists(texture_path):
         return texture_path
-    return FALLBACK_SKILL_TEXTURE
-
-
-
+    return PathLocator.get_texture_fallback()
 
 @staticmethod
 def render():
@@ -113,7 +111,7 @@ def render():
                                     return f" AutoCombat"
                                 return ""
                             score_text = f"{score[1]:06.4f}" if score[1] is not None else "Ø"
-                            texture_file = get_skill_texture_with_fallback(score[0].custom_skill.get_texture(py4gw_root_directory, project_root))
+                            texture_file = get_skill_texture_with_fallback(score[0].custom_skill.get_texture())
 
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
@@ -133,7 +131,7 @@ def render():
                                 PyImGui.pop_style_var(1)
                                 PyImGui.pop_style_color(1)
                                 PyImGui.same_line(10, 0)
-                                ImGui.DrawTexture(project_root + f"\\gui\\textures\\x.png", 20, 20)
+                                ImGui.DrawTexture(PathLocator.get_custom_behaviors_root_directory() + f"\\gui\\textures\\x.png", 20, 20)
 
                             PyImGui.table_next_column()
                             skill : CustomSkillUtilityBase = score[0]
@@ -179,7 +177,7 @@ def render():
                                 PyImGui.bullet_text(f"score max up-to:{skill.score_definition.score_definition_debug_ui()}")
                                 buff_configuration: CustomBuffMultipleTarget | None = skill.get_buff_configuration()
                                 if buff_configuration is not None:
-                                    buff_configuration.render_buff_configuration(py4gw_root_directory)
+                                    buff_configuration.render_buff_configuration()
                                 skill.customized_debug_ui(instance.get_final_state())
 
                             PyImGui.table_next_row()
@@ -196,7 +194,7 @@ def render():
                         PyImGui.table_setup_column("Score", PyImGui.TableColumnFlags.WidthFixed, 70)
                         PyImGui.table_headers_row()
                         for util, sc in sorted_scores:
-                            texture_file = get_skill_texture_with_fallback(util.custom_skill.get_texture(py4gw_root_directory, project_root))
+                            texture_file = get_skill_texture_with_fallback(util.custom_skill.get_texture())
                             PyImGui.table_next_row()
                             PyImGui.table_next_column()
                             ImGui.DrawTexture(texture_file, 35, 35)
