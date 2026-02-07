@@ -3,15 +3,13 @@ from collections import deque
 from datetime import datetime
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
 
+from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
-script_directory = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.abspath(os.path.join(script_directory, os.pardir))
-py4gw_root_directory = project_root + f"\\..\\..\\"
 
 @staticmethod
 def render():
@@ -49,7 +47,7 @@ def render_event_history():
             for result in reversed(results):
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
-                texture_file = project_root + f"\\gui\\textures\\event.png"
+                texture_file = PathLocator.get_custom_behaviors_root_directory() + f"\\gui\\textures\\event.png"
                 ImGui.DrawTexture(texture_file, 30, 30)
                 PyImGui.table_next_column()
                 time_emitted_at = datetime.fromtimestamp(result.timestamp or 0)
@@ -131,7 +129,7 @@ def render_subscribers():
                         # Try to find matching utility and display icon
                         utility = utilities_map.get(subscriber)
                         if utility is not None:
-                            texture_file = utility.custom_skill.get_texture(py4gw_root_directory, project_root)
+                            texture_file = utility.custom_skill.get_texture()
                             ImGui.DrawTexture(texture_file, 30, 30)
                             PyImGui.same_line(0, 5)
 
