@@ -1,5 +1,6 @@
 import PyImGui
 from Py4GWCoreLib import *
+from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER
 
 
 #do not ever disable this module, it is the main module for everything
@@ -87,6 +88,7 @@ def tooltip():
 def main():
     global widget_config
 
+    HOTKEY_MANAGER.update()
     GLOBAL_CACHE._update_cache()
     account_email = Player.GetAccountEmail()
     GLOBAL_CACHE.ShMem.SetPlayerData(account_email)

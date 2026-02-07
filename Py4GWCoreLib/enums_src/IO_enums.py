@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, IntFlag
 from enum import IntEnum
 
 # region mouse
@@ -6,7 +6,13 @@ class MouseButton(IntEnum):
     Left = 0
     Right = 1
     Middle = 2
-    
+
+# region ModifierKey
+class ModifierKey(IntFlag):
+    NoneKey = 0
+    Shift = 1 << 0
+    Ctrl = 1 << 1
+    Alt = 1 << 2
     
 # region Key
 class Key(Enum):
