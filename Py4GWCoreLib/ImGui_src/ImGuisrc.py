@@ -1,4 +1,6 @@
 import math
+
+from Py4GWCoreLib.enums_src.IO_enums import Key, ModifierKey
 from ..Overlay import Overlay
 from ..enums import get_texture_for_model, ImguiFonts
 from ..Py4GWcorelib import Color, ColorPalette, ConsoleLog, Utils
@@ -3072,7 +3074,6 @@ class ImGui:
             PyImGui.text(text)
             PyImGui.end_tooltip()
 
-
     @staticmethod
     def colored_button(label: str, button_color:Color, hovered_color:Color, active_color:Color, width=0, height=0):
         clicked = False
@@ -3086,8 +3087,50 @@ class ImGui:
         PyImGui.pop_style_color(3)
         
         return clicked
-
     
+    @staticmethod
+    def keybinding(label : str, key: Key, modifiers: ModifierKey):
+        assigned_key = key
+        assigned_modifiers = modifiers
+        is_hotkey_captured = False
+        
+        ImGui.input_text(f"{label}", f"{modifiers.name}+{key.name.replace('VK_','')}")
+        if PyImGui.is_item_focused():
+            is_hotkey_captured = False
+            io = PyImGui.get_io()
+            modifiers = ModifierKey.NoneKey
+            
+            if io.key_shift:
+                modifiers |= ModifierKey.Shift
+                
+            if io.key_ctrl:
+                modifiers |= ModifierKey.Ctrl
+                
+            if io.key_alt:
+                modifiers |= ModifierKey.Alt
+                
+            for key in Key:                
+                if key == Key.Ctrl or key == Key.LCtrl or key == Key.RCtrl or \
+                    key == Key.Shift or key == Key.LShift or key == Key.RShift or \
+                    key == Key.Alt or key == Key.LAlt or key == Key.RAlt or \
+                    key == Key.Unmapped:                              
+                    continue         
+                
+                if PyImGui.is_key_down(key.value): 
+                    
+                    assigned_key = key
+                    assigned_modifiers = modifiers
+                    
+                    is_hotkey_captured = True                
+                    break
+                            
+        PyImGui.same_line(0, 0)
+        ImGui.invisible_button("##HotkeyCapture",0,0)
+        if is_hotkey_captured:
+            PyImGui.set_keyboard_focus_here(-1)
+            
+        return assigned_key, assigned_modifiers
+
     
     
 
