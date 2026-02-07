@@ -208,7 +208,7 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
         except Exception:
             pass
 
-    def render_buff_configuration(self,  py4gw_root_directory: str):
+    def render_buff_configuration(self):
         """Render toggle buttons per account email.
         - Every 3s: scan SharedMemory accounts and add missing emails (default deactivated)
         - Every 2s: refresh character name and profession prefix per email

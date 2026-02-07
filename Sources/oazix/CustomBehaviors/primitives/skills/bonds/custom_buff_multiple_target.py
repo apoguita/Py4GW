@@ -42,7 +42,7 @@ class CustomBuffMultipleTarget():
         else:
             raise Exception(f"Unknown buff mode: {self.buff_mode}")
 
-    def render_buff_configuration(self, py4gw_root_directory: str):
+    def render_buff_configuration(self):
         # Dropdown to choose target mode (per profession or per email)
         import PyImGui
 
@@ -61,8 +61,8 @@ class CustomBuffMultipleTarget():
 
         # Render the configuration UI for the selected mode
         if self.buff_mode == CustomBuffTargetMode.PER_PROFESSION:
-            self.buff_configuration_per_profession.render_buff_configuration(py4gw_root_directory)
+            self.buff_configuration_per_profession.render_buff_configuration()
         elif self.buff_mode == CustomBuffTargetMode.PER_EMAIL:
-            self.buff_configuration_per_email.render_buff_configuration(py4gw_root_directory)
+            self.buff_configuration_per_email.render_buff_configuration()
         else:
             raise Exception(f"Unknown buff mode: {self.buff_mode}")
