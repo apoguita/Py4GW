@@ -259,12 +259,18 @@ def Servants_of_Grenth(bot_instance: Botting):
                 lambda i=idx, x=flag_x, y=flag_y: CustomBehaviorParty().party_flagging_manager.set_flag_position(i, x, y),
                 f"Set Flag {idx}",
             )
+        
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
+        bot_instance.States.AddCustomState(
+            lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+            "Clear Flags",
+        )
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
-        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
         bot_instance.Move.XY(2700, 19952, "To the Vale")
-        bot_instance.Wait.ForTime(100000)
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
+        bot_instance.Wait.ForTime(10000)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
