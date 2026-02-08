@@ -1263,6 +1263,7 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Dialogs.WithModel(6021, 0x0000008A) # Gwen dialog to obtain Keiran's bow. Model id updated 20.12.2025 GW Reforged
     bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
     bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Map.Travel(target_map_id=642)
 
 def Attribute_Points_Quest_2(bot: Botting):
     def enable_combat_and_wait(ms:int):
@@ -1272,6 +1273,7 @@ def Attribute_Points_Quest_2(bot: Botting):
         bot.Properties.Disable("auto_combat")
  
     bot.States.AddHeader("Attribute points quest n. 2")
+    bot.Party.LeaveParty()
     bot.Map.Travel(target_map_name="Seitung Harbor")
     auto_path_list = [(16602.23, 11612.10), (16886.80, 9577.24), (16940.28, 9860.90), 
                       (19243.22, 9093.26), (19840.55, 7956.64)]

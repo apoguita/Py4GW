@@ -36,7 +36,7 @@ class WaitIfPartyMemberTooFarUtility(CustomSkillUtilityBase):
         agent_ids: list[int] = AgentArray.GetAllyArray()
         party_size = len(agent_ids)
         agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id))
-        agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, Range.Spellcast.value * 0.75)
+        agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, Range.Spellcast.value * 1.25)
         party_size_within_range = len(agent_ids)
         return party_size_within_range < party_size
 
