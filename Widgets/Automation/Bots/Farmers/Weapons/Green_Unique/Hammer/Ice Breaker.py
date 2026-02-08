@@ -5,6 +5,7 @@ from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import Botting, ConsoleLog, Routines, Agent, Player
 
 BOT_NAME = "Ice Breaker Farm"
+MODULE_ICON = "Textures\\Module_Icons\\The Ice Breaker.png"
 bot = Botting(BOT_NAME)
 
 KILLING_PATH = [
