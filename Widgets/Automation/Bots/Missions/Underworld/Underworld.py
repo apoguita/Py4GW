@@ -33,8 +33,8 @@ class BotSettings:
     TheFourHorsemen: bool = True        #Working
     RestorePools: bool = True           #Working but sometimes the Reaper dies
     TerrorwebQueen: bool = True         #Working
-    RestorePit: bool = False             #Not Working
-    ImprisonedSpirits: bool = False      #Not Working  
+    RestorePit: bool = False            #Not Working
+    ImprisonedSpirits: bool = False     #Not Working  
     DEBUG: bool = False
 
 
@@ -474,23 +474,17 @@ def Imprisoned_Spirits(bot_instance: Botting):
         bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 2")
 
 def Wait_for_Spawns(bot_instance: Botting,x,y):
-    # 1. Die Logik-Funktion definieren (Das hier läuft erst zur LAUFZEIT im Loop)
     bot_instance.Move.XY(x, y, "To the Vale")
     def runtime_check_logic():
-        # Wir suchen Gegner
         enemies = [e for e in AgentArray.GetEnemyArray() if Agent.IsAlive(e) and Agent.GetModelID(e) == 2380]
         
         if not enemies:
             print("No Mindblades found - Continuing...") 
-            return True  # True = Bedingung erfüllt, Warten beenden!
+            return True
         
-        # Optional: Nur alle paar Frames printen, um Spam zu vermeiden
         print("Mindblades ... Waiting.")
         bot_instance.Move.XY(x, y, "Go Back")
-        return False # False = Bedingung nicht erfüllt, weiter warten
-
-    # 2. Den Schritt zur Bot-Liste hinzufügen (Das passiert beim LADEN)
-    # "ForCondition" ist das Äquivalent zu AddCustomState, aber speziell für Warteschleifen.
+        return False
     
     bot_instance.Wait.UntilCondition(runtime_check_logic)
     bot_instance.Wait.ForTime(1000)
@@ -528,6 +522,8 @@ def _draw_help():
     PyImGui.bullet_text("You have to do the missing quests manually")
     PyImGui.bullet_text("Main Account sometimes leaves the team. Dont be the Healer")
     PyImGui.bullet_text("You should either have some evas or 1 melee char to trigger traps in the mountains")
+    PyImGui.separator()
+    PyImGui.bullet_text("Have fun :) - sch0l0ka")
 
 
 def _draw_settings():
