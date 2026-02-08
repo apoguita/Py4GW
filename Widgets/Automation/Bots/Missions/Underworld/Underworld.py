@@ -3,6 +3,7 @@ from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import Bot
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from pathlib import Path
 import PyImGui
 import Py4GW
@@ -192,15 +193,20 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddHeader("Clear the Chamber")
     CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
-    bot_instance.Wait.ForTime(30000)
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
+    bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
+    # Activate Close_to_Aggro
+    bot_instance.Wait.ForTime(30000)
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
     bot_instance.Move.XY(-1505, 6352, "Left")
     bot_instance.Move.XY(-755, 8982, "Mid")
     bot_instance.Move.XY(1259, 10214, "Right")
     bot_instance.Move.XY(-3729, 13414, "Right")
     bot_instance.Move.XY(-5855, 11202, "Clear the Room")
     bot_instance.Wait.ForTime(3000)
+    
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
     bot_instance.Wait.ForTime(3000)
     #bot_instance.Dialogs.AtXY(-5806, 12831, 0x806507, "take quest")
@@ -311,6 +317,7 @@ def Servants_of_Grenth(bot_instance: Botting):
                 f"Set Flag {idx}",
             )
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
         bot_instance.States.AddCustomState(
@@ -320,6 +327,8 @@ def Servants_of_Grenth(bot_instance: Botting):
         
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
+
         bot_instance.Move.XY(2700, 19952, "Servants of Grenth 2")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
@@ -381,11 +390,13 @@ def The_Four_Horsemen(bot_instance: Botting):
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(False), "Disable MoveIfPartyMemberInAggro")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
         bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
         #bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A03, "take quest")
         bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A01, "take quest")  
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
 
-        bot_instance.Wait.ForTime(30000)
+        bot_instance.Wait.ForTime(35000)
 
         bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
         #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
@@ -522,6 +533,8 @@ def _draw_help():
 def _draw_settings():
     BotSettings.RestoreVale = PyImGui.checkbox("Restore Vale", BotSettings.RestoreVale)
     DisableVale = not BotSettings.RestoreVale
+    if DisableVale: BotSettings.WrathfullSpirits = False
+    if DisableVale: BotSettings.EscortOfSouls = False
     PyImGui.begin_disabled(DisableVale)
     BotSettings.WrathfullSpirits = PyImGui.checkbox("Wrathfull Spirits", BotSettings.WrathfullSpirits)
     BotSettings.EscortOfSouls = PyImGui.checkbox("Escort of Souls", BotSettings.EscortOfSouls)
