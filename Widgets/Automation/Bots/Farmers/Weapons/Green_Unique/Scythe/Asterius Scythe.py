@@ -12,7 +12,6 @@ from Py4GWCoreLib import Utils
 from Py4GWCoreLib import Map, Agent, Player
 
 BOT_NAME = "Asterius Scythe Farm"
-MODULE_ICON = "Textures\\Module_Icons\\Asterius' Scythe.png"
 TEXTURE = os.path.join(
     Py4GW.Console.get_projects_path(), "Bots", "marks_coding_corner", "textures", "asterius_scythe.png"
 )
