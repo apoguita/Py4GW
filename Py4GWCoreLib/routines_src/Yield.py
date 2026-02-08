@@ -30,20 +30,18 @@ Routines = _RProxy()
 def _run_bt_tree(tree, return_bool: bool=False, throttle_ms: int = 100):
     """
     Drives a BT tree until SUCCESS / FAILURE, yielding periodically.
+    Always yields at least once to guarantee cooperative scheduling.
     If return_bool is True -> returns True/False.
     If return_bool is False -> just exits.
     """
     while True:
         state = tree.tick()
 
-        if state == BT.NodeState.SUCCESS:
+        if state in (BT.NodeState.SUCCESS, BT.NodeState.FAILURE):
+            yield
             if return_bool:
-                return True
-            break
-        elif state == BT.NodeState.FAILURE:
-            if return_bool:
-                return False
-            break
+                return state == BT.NodeState.SUCCESS
+            return
 
         yield from Yield.wait(throttle_ms)
 
