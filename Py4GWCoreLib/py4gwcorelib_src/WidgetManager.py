@@ -1490,7 +1490,7 @@ class WidgetHandler:
         try:
             # 1. Create Widget with EMPTY INI data
             widget = Widget(
-                name=widget_id,
+                folder_script_name=widget_id,
                 plain_name=plain,
                 widget_path=widget_path,
                 script_path=script_path,
