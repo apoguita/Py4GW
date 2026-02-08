@@ -212,14 +212,14 @@ def Restore_Vale(bot_instance: Botting):
     if BotSettings.RestoreVale:
         bot_instance.States.AddHeader("Restore Vale")
         BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
-        bot_instance.Move.XY(-8660, 5655, "To the Vale")
+        bot_instance.Move.XY(-8660, 5655, "To the Vale 1")
         bot_instance.Wait.ForTime(5000)
-        bot_instance.Move.XY(-9431, 1659, "To the Vale")
-        bot_instance.Move.XY(-11123, 2531, "To the Vale")
-        bot_instance.Move.XY(-10212, 251 , "To the Vale")
-        bot_instance.Move.XY(-13085, 849 , "To the Vale")
-        bot_instance.Move.XY(-15274, 1432 , "To the Vale")
-        bot_instance.Move.XY(-13246, 5110 , "To the Vale")
+        bot_instance.Move.XY(-9431, 1659, "To the Vale 2")
+        bot_instance.Move.XY(-11123, 2531, "To the Vale 3")
+        bot_instance.Move.XY(-10212, 251 , "To the Vale 4")
+        bot_instance.Move.XY(-13085, 849 , "To the Vale 5")
+        bot_instance.Move.XY(-15274, 1432 , "To the Vale 6")
+        bot_instance.Move.XY(-13246, 5110 , "To the Vale 7")
         
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
         if BotSettings.WrathfullSpirits == False:
@@ -230,7 +230,7 @@ def Restore_Vale(bot_instance: Botting):
 
 def Wrathfull_Spirits(bot_instance: Botting):
     if BotSettings.WrathfullSpirits:
-        bot_instance.States.AddHeader("Wrathfull_Spirits")
+        bot_instance.States.AddHeader("Wrathfull Spirits")
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806E03, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806E01, "Back to Chamber")
@@ -238,14 +238,14 @@ def Wrathfull_Spirits(bot_instance: Botting):
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
-        bot_instance.Move.XY(-13422, 973, "To the Vale")
+        bot_instance.Move.XY(-13422, 973, "Wrathfull Spirits 1")
         bot_instance.Templates.Aggressive()
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
         bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-        bot_instance.Move.XY(-10207, 1746, "To the Vale")
-        bot_instance.Move.XY(-13287, 1996, "To the Vale")
-        bot_instance.Move.XY(-15226, 4129 , "To the Vale")
+        bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
+        bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3")
+        bot_instance.Move.XY(-15226, 4129 , "Wrathfull Spirits 4")
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
@@ -254,18 +254,18 @@ def Wrathfull_Spirits(bot_instance: Botting):
 
 def Escort_of_Souls(bot_instance: Botting):
     if BotSettings.EscortOfSouls:
-        bot_instance.States.AddHeader("Escord of Souls")
+        bot_instance.States.AddHeader("Escort of Souls")
         bot_instance.Wait.ForTime(5000)
-        bot_instance.Move.XY(-4764, 11845, "To the Vale")
+        bot_instance.Move.XY(-4764, 11845, "Escort of Souls 1")
         bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
         bot_instance.Wait.ForTime(3000)
         bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C03, "take quest")
         bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C01, "take quest")
-        bot_instance.Move.XY(-6833, 7077, "To the Vale")
-        bot_instance.Move.XY(-9606, 2110, "To the Vale")
+        bot_instance.Move.XY(-6833, 7077, "Escort of Souls 2")
+        bot_instance.Move.XY(-9606, 2110, "Escort of Souls 3")
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
-        bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
-        bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
+        #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
+        #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
         bot_instance.Wait.ForTime(3000)
 
@@ -274,11 +274,11 @@ def Restore_Wastes(bot_instance: Botting):
         bot_instance.Templates.Aggressive()
         bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
         bot_instance.States.AddHeader("Restore Wastes")
-        bot_instance.Move.XY(3891, 7572, "To the Vale")
-        bot_instance.Move.XY(4106, 16031, "To the Vale")
-        bot_instance.Move.XY(2486, 21723, "To the Vale")
-        bot_instance.Move.XY(-1452, 21202, "To the Vale")
-        bot_instance.Move.XY(542, 18310, "To the Vale")
+        bot_instance.Move.XY(3891, 7572, "Restore Wastes 1")
+        bot_instance.Move.XY(4106, 16031, "Restore Wastes 2")
+        bot_instance.Move.XY(2486, 21723, "Restore Wastes 3")
+        bot_instance.Move.XY(-1452, 21202, "Restore Wastes 4")
+        bot_instance.Move.XY(542, 18310, "Restore Wastes 5")
         if BotSettings.ServantsOfGrenth == False:
             bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
             #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
@@ -290,7 +290,7 @@ def Servants_of_Grenth(bot_instance: Botting):
     if BotSettings.ServantsOfGrenth:
         bot_instance.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
-        bot_instance.Move.XY(2700, 19952, "To the Vale")
+        bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
 
         SERVANTS_OF_GRENTH_FLAG_POINTS = [
             (2559, 20301),
@@ -320,7 +320,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
-        bot_instance.Move.XY(2700, 19952, "To the Vale")
+        bot_instance.Move.XY(2700, 19952, "Servants of Grenth 2")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
         bot_instance.Wait.ForTime(10000)
@@ -333,18 +333,18 @@ def Servants_of_Grenth(bot_instance: Botting):
 def Pass_The_Mountains(bot_instance: Botting):
     if BotSettings.PassTheMountains:
         bot_instance.States.AddHeader("Pass the Mountains")
-        bot_instance.Move.XY(-220, 1691, "To the Vale")
-        bot_instance.Move.XY(7035, 1973, "To the Vale")
-        bot_instance.Move.XY(8089, -3303, "To the Vale")
-        bot_instance.Move.XY(8121, -6054, "To the Vale")
+        bot_instance.Move.XY(-220, 1691, "Pass the Mountains 1")
+        bot_instance.Move.XY(7035, 1973, "Pass the Mountains 2")
+        bot_instance.Move.XY(8089, -3303, "Pass the Mountains 3")
+        bot_instance.Move.XY(8121, -6054, "Pass the Mountains 4")
     
 
 def Restore_Mountains(bot_instance: Botting):
     if BotSettings.RestoreMountains:
         bot_instance.States.AddHeader("Restore the Mountains")
-        bot_instance.Move.XY(7013, -7582, "To the Vale")
-        bot_instance.Move.XY(1420, -9126, "To the Vale")
-        bot_instance.Move.XY(-8373, -5016, "To the Vale")
+        bot_instance.Move.XY(7013, -7582, "Restore the Mountains 1")
+        bot_instance.Move.XY(1420, -9126, "Restore the Mountains 2")
+        bot_instance.Move.XY(-8373, -5016, "Restore the Mountains 3")
 
 def Deamon_Assassin(bot_instance: Botting):
     if BotSettings.DeamonAssassin:
@@ -353,7 +353,7 @@ def Deamon_Assassin(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
         #bot_instance.Dialogs.AtXY(-8250, -5171, 0x806803, "take quest")
         bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
-        bot_instance.Move.XY(-1384, -3929, "To the Vale")
+        bot_instance.Move.XY(-1384, -3929, "Deamon Assassin 1")
         bot_instance.Wait.ForTime(30000)
         #ModelID Slayer 2391
 
@@ -364,8 +364,8 @@ def Restore_Planes(bot_instance: Botting):
         Wait_for_Spawns(bot_instance,12795, -8811)
         Wait_for_Spawns(bot_instance,11180, -13780)
         Wait_for_Spawns(bot_instance,13740, -15087)
-        bot_instance.Move.XY(11546, -13787, "To the Vale")
-        bot_instance.Move.XY(8530, -11585, "To the Vale")
+        bot_instance.Move.XY(11546, -13787, "Restore Planes 1")
+        bot_instance.Move.XY(8530, -11585, "Restore Planes 2")
         Wait_for_Spawns(bot_instance,8533, -13394)
         Wait_for_Spawns(bot_instance,8579, -20627)
         Wait_for_Spawns(bot_instance,11218, -17404)
@@ -373,7 +373,7 @@ def Restore_Planes(bot_instance: Botting):
 def The_Four_Horsemen(bot_instance: Botting):
     if BotSettings.TheFourHorsemen:
         bot_instance.States.AddHeader("The Four Horseman")
-        bot_instance.Move.XY(13473, -12091, "To the Vale")
+        bot_instance.Move.XY(13473, -12091, "The Four Horseman 1")
         bot_instance.Wait.ForTime(10000)
         bot_instance.Party.FlagAllHeroes(13473, -12091)
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
@@ -401,9 +401,9 @@ def The_Four_Horsemen(bot_instance: Botting):
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
         bot_instance.Party.UnflagAllHeroes()
         bot_instance.Wait.ForTime(5000)
-        bot_instance.Move.XY(11371, -17990, "To the Vale")
+        bot_instance.Move.XY(11371, -17990, "The Four Horseman 2")
         bot_instance.Wait.ForTime(30000)
-        bot_instance.Move.XY(11371, -17990, "To the Vale")
+        bot_instance.Move.XY(11371, -17990, "The Four Horseman 3")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Looting")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
@@ -413,9 +413,9 @@ def Restore_Pools(bot_instance: Botting):
         bot_instance.States.AddHeader("Restore Pools")
         Wait_for_Spawns(bot_instance,4647, -16833)
         Wait_for_Spawns(bot_instance,2098, -15543)
-        bot_instance.Move.XY(-12703, -10990, "To the Vale")
-        bot_instance.Move.XY(-11849, -11986, "To the Vale")
-        bot_instance.Move.XY(-7217, -19394, "To the Vale")
+        bot_instance.Move.XY(-12703, -10990, "Restore Pools 1")
+        bot_instance.Move.XY(-11849, -11986, "Restore Pools 2")
+        bot_instance.Move.XY(-7217, -19394, "Restore Pools 3")
         if BotSettings.TerrorwebQueen == False:
             bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
             #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
@@ -429,7 +429,7 @@ def Terrorweb_Queen(bot_instance: Botting):
         bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
         #bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B03, "take quest")
         bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B01, "take quest")   
-        bot_instance.Move.XY(-12303, -15213, "To the Vale")
+        bot_instance.Move.XY(-12303, -15213, "Terrorweb Queen 1")
         bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
         #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
         #bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
@@ -438,11 +438,11 @@ def Terrorweb_Queen(bot_instance: Botting):
 def Restore_Pit(bot_instance: Botting):
     if BotSettings.RestorePit:
         bot_instance.States.AddHeader("Restore Pit")
-        bot_instance.Move.XY(13145, -8740, "To the Vale")
-        bot_instance.Move.XY(12188, 4249, "To the Vale")
-        bot_instance.Move.XY(14959, 4851, "To the Vale")
-        bot_instance.Move.XY(15460, 3125, "To the Vale")
-        bot_instance.Move.XY(8970, 6813, "To the Vale")
+        bot_instance.Move.XY(13145, -8740, "Restore Pit 1")
+        bot_instance.Move.XY(12188, 4249, "Restore Pit 2")
+        bot_instance.Move.XY(14959, 4851, "Restore Pit 3")
+        bot_instance.Move.XY(15460, 3125, "Restore Pit 4")
+        bot_instance.Move.XY(8970, 6813, "Restore Pit 5")
         if BotSettings.ImprisonedSpirits == False:
             bot_instance.Move.XYAndInteractNPC(8698, 6324, "go to NPC")
             #bot_instance.Dialogs.AtXY(8698, 6324, 0x7F, "Back to Chamber")
@@ -453,13 +453,13 @@ def Restore_Pit(bot_instance: Botting):
 def Imprisoned_Spirits(bot_instance: Botting):
     if BotSettings.ImprisonedSpirits:
         bot_instance.States.AddHeader("Imprisoned Spirits")
-        bot_instance.Move.XY(12329, 4632, "To the Vale")
+        bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 1")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().party_flagging_manager.assign_formation_for_current_party("preset_1"), "Set Flag")
         bot_instance.Party.FlagAllHeroes(12329, 4632)
         bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
         #bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
-        bot_instance.Move.XY(12329, 4632, "To the Vale")
+        bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 2")
 
 def Wait_for_Spawns(bot_instance: Botting,x,y):
     # 1. Die Logik-Funktion definieren (Das hier läuft erst zur LAUFZEIT im Loop)
