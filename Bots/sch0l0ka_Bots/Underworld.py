@@ -291,7 +291,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
         bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
-
+        bot_instance.Party.FlagAllHeroes(2559, 20301)
         SERVANTS_OF_GRENTH_FLAG_POINTS = [
             (2559, 20301),
             (3032, 20148),
@@ -323,6 +323,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Move.XY(2700, 19952, "Servants of Grenth 2")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
+        bot_instance.Party.UnflagAllHeroes()
         bot_instance.Wait.ForTime(10000)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
@@ -474,6 +475,7 @@ def Wait_for_Spawns(bot_instance: Botting,x,y):
         
         # Optional: Nur alle paar Frames printen, um Spam zu vermeiden
         print("Mindblades ... Waiting.")
+        bot_instance.Move.XY(x, y, "Go Back")
         return False # False = Bedingung nicht erfüllt, weiter warten
 
     # 2. Den Schritt zur Bot-Liste hinzufügen (Das passiert beim LADEN)
@@ -481,13 +483,13 @@ def Wait_for_Spawns(bot_instance: Botting,x,y):
     
     bot_instance.Wait.UntilCondition(runtime_check_logic)
     bot_instance.Wait.ForTime(1000)
-    bot_instance.Move.XY(x, y, "To the Vale")
+    bot_instance.Move.XY(x, y, "1")
     bot_instance.Wait.UntilCondition(runtime_check_logic)
     bot_instance.Wait.ForTime(1000)
-    bot_instance.Move.XY(x, y, "To the Vale")
+    bot_instance.Move.XY(x, y, "2")
     bot_instance.Wait.UntilCondition(runtime_check_logic)
     bot_instance.Wait.ForTime(1000)
-    bot_instance.Move.XY(x, y, "To the Vale")
+    bot_instance.Move.XY(x, y, "3")
     bot_instance.Wait.UntilCondition(runtime_check_logic)
 
 
@@ -519,19 +521,49 @@ def _draw_help():
 
 def _draw_settings():
     BotSettings.RestoreVale = PyImGui.checkbox("Restore Vale", BotSettings.RestoreVale)
+    DisableVale = not BotSettings.RestoreVale
+    PyImGui.begin_disabled(DisableVale)
     BotSettings.WrathfullSpirits = PyImGui.checkbox("Wrathfull Spirits", BotSettings.WrathfullSpirits)
     BotSettings.EscortOfSouls = PyImGui.checkbox("Escort of Souls", BotSettings.EscortOfSouls)
+    PyImGui.end_disabled()
     BotSettings.RestoreWastes = PyImGui.checkbox("Restore Wastes", BotSettings.RestoreWastes)
+    DisableWastes = not BotSettings.RestoreWastes
+    if DisableWastes: BotSettings.ServantsOfGrenth = False
+    PyImGui.begin_disabled(DisableWastes)
     BotSettings.ServantsOfGrenth = PyImGui.checkbox("Servants of Grenth", BotSettings.ServantsOfGrenth)
+    PyImGui.end_disabled()
+    PyImGui.begin_disabled(True)
+    if BotSettings.RestoreMountains == False and BotSettings.RestorePlanes == False and BotSettings.RestorePools == False:
+        BotSettings.PassTheMountains = False
+    else:
+        BotSettings.PassTheMountains = True
+
     BotSettings.PassTheMountains = PyImGui.checkbox("Pass the Mountains", BotSettings.PassTheMountains)
+    PyImGui.end_disabled()
+    DisableMountains = not BotSettings.RestoreMountains
+    if DisableMountains: BotSettings.DeamonAssassin = False    
     BotSettings.RestoreMountains = PyImGui.checkbox("Restore Mountains", BotSettings.RestoreMountains)
+    PyImGui.begin_disabled(DisableMountains)
     BotSettings.DeamonAssassin = PyImGui.checkbox("Deamon Assassin", BotSettings.DeamonAssassin)
+    PyImGui.end_disabled()
     BotSettings.RestorePlanes = PyImGui.checkbox("Restore Planes", BotSettings.RestorePlanes)
+    DisablePlanes = not BotSettings.RestorePlanes
+    if DisablePlanes: BotSettings.TheFourHorsemen = False
+    if DisablePlanes: BotSettings.RestorePools = False
+    if DisablePlanes: BotSettings.TerrorwebQueen = False
+    PyImGui.begin_disabled(DisablePlanes)
     BotSettings.TheFourHorsemen = PyImGui.checkbox("The Four Horsemen", BotSettings.TheFourHorsemen)
     BotSettings.RestorePools = PyImGui.checkbox("Restore Pools", BotSettings.RestorePools)
+    PyImGui.end_disabled()
+    DisablePoolsAndTerrorweb = not BotSettings.RestorePools
+    if DisablePoolsAndTerrorweb: BotSettings.TerrorwebQueen = False
+    PyImGui.begin_disabled(DisablePoolsAndTerrorweb)
     BotSettings.TerrorwebQueen = PyImGui.checkbox("Terrorweb Queen", BotSettings.TerrorwebQueen)
-    BotSettings.RestorePit = PyImGui.checkbox("Restore Pit", BotSettings.RestorePit)
-    BotSettings.ImprisonedSpirits = PyImGui.checkbox("Imprisoned Spirits", BotSettings.ImprisonedSpirits)
+    PyImGui.end_disabled()
+    PyImGui.begin_disabled(True)
+    BotSettings.RestorePit = PyImGui.checkbox("Restore Pit - Disabled", BotSettings.RestorePit)
+    BotSettings.ImprisonedSpirits = PyImGui.checkbox("Imprisoned Spirits - Disabled", BotSettings.ImprisonedSpirits)
+    PyImGui.end_disabled()
     PyImGui.separator()
     BotSettings.DEBUG = PyImGui.checkbox("Enable Debug Logs", BotSettings.DEBUG)
     
