@@ -1081,7 +1081,7 @@ class Widget:
     Widget data class with callback extraction in __post_init__
     """
     # Core identity (passed to __init__)
-    name: str                     # "folder/script_name"
+    folder_script_name: str       # "folder/script_name"
     plain_name: str = ""          # script without extension
     widget_path: str = ""         # folder relative path (no script)
     script_path: str = ""         # script full path
@@ -1113,6 +1113,12 @@ class Widget:
     __enabled: bool = field(default=False, init=False,)
     __configuring: bool = field(default=False, init=False)
     
+    # Optional properties to be displayed in widget manager ui
+    name : str = field(default="", init=False, repr=False)
+    image : str = field(default="", init=False, repr=False)
+    tags : list[str] = field(default_factory=list, init=False)
+    category : str = field(default="", init=False)    
+    
     @property
     def enabled(self) -> bool:
         """Check if the widget is enabled"""
@@ -1132,7 +1138,7 @@ class Widget:
             Py4GW.Console.Log("WidgetManager", f"Widget script not found: {self.script_path}", Py4GW.Console.MessageType.Error)
             return False
         
-        unique_name = f"py4gw_widget_{self.name.replace('/', '_').replace('.', '_')}"
+        unique_name = f"py4gw_widget_{self.folder_script_name.replace('/', '_').replace('.', '_')}"
         
         spec = importlib.util.spec_from_file_location(unique_name, self.script_path)
         if spec is None or spec.loader is None:
@@ -1146,7 +1152,7 @@ class Widget:
         except Exception as e:
             del sys.modules[unique_name]
             self.disable()
-            Py4GW.Console.Log("WidgetManager", f"Failed to load widget module '{self.name}': {e}", Py4GW.Console.MessageType.Error)
+            Py4GW.Console.Log("WidgetManager", f"Failed to load widget module '{self.folder_script_name}': {e}", Py4GW.Console.MessageType.Error)
             return False
         
         self.module = module
@@ -1169,6 +1175,11 @@ class Widget:
             self.on_enable = getattr(self.module, "on_enable", None) if callable(getattr(self.module, "on_enable", None)) else None
             self.on_disable = getattr(self.module, "on_disable", None) if callable(getattr(self.module, "on_disable", None)) else None
             self.optional = getattr(self.module, 'OPTIONAL', True) if hasattr(self.module, 'OPTIONAL') else True
+            
+            self.name = getattr(self.module, 'MODULE_NAME', "") if hasattr(self.module, 'MODULE_NAME') else self.cleaned_name()
+            self.category = getattr(self.module, 'MODULE_CATEGORY', "") if hasattr(self.module, 'MODULE_CATEGORY') else (self.widget_path.split('/')[0] if self.widget_path else "") #get first folder after Widgets 
+            self.tags = getattr(self.module, 'MODULE_TAGS', []) if hasattr(self.module, 'MODULE_TAGS') else [folder for folder in self.widget_path.split('/') if folder and folder != self.category]
+            self.image = getattr(self.module, 'MODULE_ICON', "") if hasattr(self.module, 'MODULE_ICON') else "Textures\\missing_texture.png"
             
         return True
     
@@ -1193,7 +1204,7 @@ class Widget:
                         self.on_disable()
                     
                 except Exception as e:
-                    Py4GW.Console.Log("WidgetManager", f"Error during on_disable of widget {self.name}: {str(e)}", Py4GW.Console.MessageType.Error)
+                    Py4GW.Console.Log("WidgetManager", f"Error during on_disable of widget {self.folder_script_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     Py4GW.Console.Log("WidgetManager", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
                 
             self.__enabled = False
@@ -1212,9 +1223,17 @@ class Widget:
                     self.on_enable()
                 
             except Exception as e:
-                Py4GW.Console.Log("WidgetManager", f"Error during on_enable of widget {self.name}: {str(e)}", Py4GW.Console.MessageType.Error)
+                Py4GW.Console.Log("WidgetManager", f"Error during on_enable of widget {self.folder_script_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                 Py4GW.Console.Log("WidgetManager", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
-                
+        
+    def cleaned_name(self):
+        """Cleanup the widget name for display"""
+        ## if name starts with [0-9]-, remove that part for module cleanup and replace all _ with " "
+        import re
+        cleaned_name = re.sub(r'^\d+-', '', self.plain_name)
+        cleaned_name = cleaned_name.replace("_", " ")
+        return cleaned_name.strip()
+                    
     def __post_init__(self):
         """Extract callbacks from module after initialization"""      
         
@@ -1242,16 +1261,16 @@ class Widget:
     @property
     def folder(self) -> str:
         """Extract folder path from name"""
-        if '/' in self.name:
-            return self.name.rsplit('/', 1)[0]
+        if '/' in self.folder_script_name:
+            return self.folder_script_name.rsplit('/', 1)[0]
         return ""
     
     @property  
     def script_name(self) -> str:
         """Extract script name from name"""
-        if '/' in self.name:
-            return self.name.rsplit('/', 1)[1]
-        return self.name
+        if '/' in self.folder_script_name:
+            return self.folder_script_name.rsplit('/', 1)[1]
+        return self.folder_script_name
     
     @property
     def can_save(self) -> bool:
@@ -1372,7 +1391,7 @@ class WidgetHandler:
         else:
             widget.disable()
         
-        widget_id = widget.name  # full id: "folder/file.py"
+        widget_id = widget.folder_script_name  # full id: "folder/file.py"
         v_enabled = self._widget_var(widget_id, "enabled")  # "folder/file.py__enabled"
 
         cv = self._get_config_var(widget_id, v_enabled)
@@ -1530,7 +1549,7 @@ class WidgetHandler:
         try:
             # 1. Create Widget with EMPTY INI data
             widget = Widget(
-                name=widget_id,
+                folder_script_name=widget_id,
                 plain_name=plain,
                 widget_path=widget_path,
                 script_path=script_path,
@@ -1554,7 +1573,7 @@ class WidgetHandler:
                 var_name=f"{widget_id}__optional"
             ))                    
 
-            cv = self._get_config_var(widget.name, self._widget_var(widget.name, "enabled"))
+            cv = self._get_config_var(widget.folder_script_name, self._widget_var(widget.folder_script_name, "enabled"))
             
             enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
             if enabled:
