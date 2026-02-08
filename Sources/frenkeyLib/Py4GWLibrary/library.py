@@ -403,8 +403,6 @@ class ModuleBrowser:
             
             
             if not self.draw_suggestions(win_size, style, search_active, window_hovered, presets_opened) and not search_active and not window_hovered and not presets_opened:
-                Py4GW.Console.Log("Widget Browser", "Clearing search filter", Py4GW.Console.MessageType.Info)
-                Py4GW.Console.Log("Widget Browser", f"presets_opened {presets_opened}", Py4GW.Console.MessageType.Info)
                 self.widget_filter = ""
                 self.filtered_widgets.clear()
                 
