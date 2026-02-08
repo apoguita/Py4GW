@@ -21,7 +21,6 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 MODULE_NAME = "Style Manager"
 OPTIONAL = False
 
-MODULE_ICON = "Textures\\Module_Icons\\StyleManagerIcon.png"
 class ThemeTexturesDev(Enum):
  pass
     

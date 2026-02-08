@@ -1,5 +1,7 @@
 from Py4GWCoreLib import *
 
+MODULE_NAME = "A"
+
 action_queue_manager = ActionQueueManager()
 
 def tooltip():
