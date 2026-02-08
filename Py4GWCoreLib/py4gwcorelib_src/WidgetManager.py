@@ -983,7 +983,10 @@ class Py4GWLibrary:
                     
             if widget.has_configure_property and self.show_configure_button:
                 PyImGui.set_cursor_pos(available_width - 10, 2)
-                ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                configuring = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                if configuring != widget.configuring:
+                    widget.set_configuring(configuring)
+                    
             PyImGui.end_group()
 
             if self.show_tags:
@@ -1048,7 +1051,9 @@ class Py4GWLibrary:
                             
             if widget.has_configure_property:
                 PyImGui.set_cursor_pos(available_width - 10, 2)
-                ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                configuring = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                if configuring != widget.configuring:
+                    widget.set_configuring(configuring)
 
         PyImGui.end_child()
         self._pop_card_style(style)
