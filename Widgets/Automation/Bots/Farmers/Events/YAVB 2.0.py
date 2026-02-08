@@ -16,8 +16,6 @@ from typing import List, Tuple
 bot = Botting("YAVB 2.0", 
               upkeep_birthday_cupcake_restock=1)
   
-MODULE_ICON = "Textures\\Module_Icons\\YAVB 2.0 mascot.png"
-
 def create_bot_routine(bot: Botting) -> None:
     TownRoutines(bot)
     TraverseBjoraMarches(bot)
