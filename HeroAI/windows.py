@@ -300,7 +300,7 @@ class HeroAI_FloatingWindows():
     @staticmethod
     def show_ui(cached_data: CacheData):
         from Py4GWCoreLib.Party import Party
-        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and not Party.IsPartyLoaded()
+        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsMapLoading() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and Party.IsPartyLoaded()
         if show_ui:  
             own_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
             if not own_data:
@@ -1343,7 +1343,6 @@ class HeroAI_Windows():
         from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
         btn_size = 23
         table_width = btn_size * 6 + 30
-        skill_size = table_width / NUMBER_OF_SKILLS - 4
 
         ImGui.push_font("Regular",10)
         if PyImGui.begin_child("ControlPanelChild", (215, 0), False, PyImGui.WindowFlags.AlwaysAutoResize):
@@ -1481,10 +1480,15 @@ class HeroAI_Windows():
                 ImGui.show_tooltip("Pick up Loot")
                 ImGui.push_font("Regular",10)
                 PyImGui.same_line(0,-1)
-                    
-                if PyImGui.button(f"{IconsFontAwesome5.ICON_CANDY_CANE}##consumables",btn_size, btn_size):
-                    from HeroAI import ui
-                    ui.show_configure_consumables_window()
+                  
+                from HeroAI import ui  
+                v = ui.is_base_configure_consumables_window_open()
+                new_v = ImGui.toggle_button(label=f"{IconsFontAwesome5.ICON_CANDY_CANE}##consumables",
+                                       v= v,
+                                       width=btn_size, 
+                                       height=btn_size)
+                if new_v != v:
+                    ui.show_base_configure_consumables_window()
                 
                 ImGui.pop_font()
                 ImGui.show_tooltip("Consumables")
@@ -1550,4 +1554,4 @@ class HeroAI_Windows():
                 style.ItemSpacing.pop_style_var()
                 
         ImGui.End(cached_data.ini_key)
-    
+        
