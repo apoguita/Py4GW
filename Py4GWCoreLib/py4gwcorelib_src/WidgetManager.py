@@ -509,12 +509,31 @@ class WidgetHandler:
         except Exception as e:
             self._log_error(f"Failed to discover {widget_id}: {e}")
                             
-    def _apply_ini_configuration(self):        
-        # Apply saved enabled states to runtime widgets
+                
+    def _apply_ini_configuration(self):
+        """Apply saved enabled states and enforce System widget activation"""
         for wid, w in self.widgets.items():
             vname = self._widget_var(wid, "enabled")
             section = f"Widget:{wid}"
+            
+            # 1. Read the current state from IniManager (which just loaded from disk)
             enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=section, var_name=vname, default=False))
+            
+            # 2. THE FORCE: Check if this is a System widget section
+            is_system = "Widget:System" in section
+            
+            if is_system:
+                # If it's system but the disk/ini said False, we override it right now
+                if not enabled:
+                    # Py4GW.Console.Log("WidgetManager", f"Forcing System Widget: {wid}", Py4GW.Console.MessageType.Info)
+                    enabled = True
+                    # Update IniManager memory so it stays synced
+                    IniManager().set(key=self.MANAGER_INI_KEY, section=section, var_name=vname, value=True)
+                    # Note: No need to save_vars here unless you want to fix the file immediately; 
+                    # the next global save will persist this.
+                    self._log_success(f"Enforcing System Widget Enabled: {wid}")
+            
+            # 3. Final Activation
             if enabled:
                 w.enable()
                 

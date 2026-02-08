@@ -84,7 +84,7 @@ class BuildDangerHelper:
             self.spellcaster_models.update(model_ids)
 
         # Log the spellcaster models for debugging
-        ConsoleLog(self.name, f"Spellcaster models: {self.spellcaster_models}", Py4GW.Console.MessageType.Debug, True)
+        #ConsoleLog(self.name, f"Spellcaster models: {self.spellcaster_models}", Py4GW.Console.MessageType.Debug, True)
 
 
     def enemy_category_from_model_id(self, model_id: int) -> str:

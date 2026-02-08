@@ -153,7 +153,7 @@ STATE_ENTRANCE_FLAG_MAP = {
 class CustomFollowXYWithNudge(Routines.Movement.FollowXY):
     def __init__(self, tolerance=100, stuck_threshold_ms=10000, unstuck_distance=400, log_actions=False):
         super().__init__(tolerance)
-        ConsoleLog("CustomFollowXY", "[INIT] Initialized custom FollowXY handler with nudge!", Console.MessageType.Info)
+        #ConsoleLog("CustomFollowXY", "[INIT] Initialized custom FollowXY handler with nudge!", Console.MessageType.Info)
 
         self.stuck_threshold_ms: int = stuck_threshold_ms
         self.unstuck_distance: int = unstuck_distance
@@ -2273,7 +2273,7 @@ fsm_vars.logout_character.AddState(
     execute_fn=navigate_char_select,
     exit_condition=is_target_selected,
     run_once=False,
-    on_exit=lambda: clear_frame_click_retry_cache(True))
+    on_exit=lambda: clear_frame_click_retry_cache(False))
 fsm_vars.logout_character.AddWaitState(
     name="Wait: Target Character Selected",
     condition_fn=is_target_selected,
@@ -2384,28 +2384,28 @@ fsm_vars.create_character.AddState(
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_sex_tab_text"]),
     run_once=True,
     transition_delay_ms=1500,
-    on_exit=clear_frame_click_retry_cache(True))
+    on_exit=clear_frame_click_retry_cache(False))
 fsm_vars.create_character.AddState(
     name="Click: Next (Sex)",
     execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_appearance_tab_text"]),
     run_once=True,
     transition_delay_ms=1500,
-    on_exit=clear_frame_click_retry_cache(True))
+    on_exit=clear_frame_click_retry_cache(False))
 fsm_vars.create_character.AddState(
     name="Click: Next (Appearance)",
     execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: check_frame_visible(bot_vars.frame_paths["char_create_body_tab_text"]),
     run_once=True,
     transition_delay_ms=1500,
-    on_exit=clear_frame_click_retry_cache(True))
+    on_exit=clear_frame_click_retry_cache(False))
 fsm_vars.create_character.AddState(
     name="Click: Next (Body)",
     execute_fn=lambda: click_frame_once(bot_vars.frame_paths["char_create_generic_next_button"]),
     exit_condition=lambda: (check_frame_visible(bot_vars.frame_paths["char_create_name_tab_text"])),
     run_once=True,
     transition_delay_ms=1500,
-    on_exit=clear_frame_click_retry_cache(True))
+    on_exit=clear_frame_click_retry_cache(False))
 fsm_vars.create_character.AddState(
     name="Copy Name to Clipboard",
     execute_fn=lambda: copy_text_with_ctypes(bot_vars.character_names[bot_vars.next_create_index]),
@@ -2432,7 +2432,7 @@ fsm_vars.create_character.AddState(
         mark_flag("next_create_index", (bot_vars.next_create_index + 1) % len(bot_vars.character_names))(),
         ConsoleLog("create_character", f"Next character to create: {bot_vars.character_names[bot_vars.next_create_index]} (Index: {bot_vars.next_create_index})", Console.MessageType.Info),
         ConsoleLog("create_character", f"Next character to delete: {bot_vars.character_to_delete_name}", Console.MessageType.Info),
-        clear_frame_click_retry_cache(True)
+        clear_frame_click_retry_cache(False)
     ])
 #endregion --- FSM Create Character ---
 
