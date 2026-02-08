@@ -76,6 +76,7 @@ template_popup_open: bool = False
 template_account: str = ""
 template_code = ""
 configure_consumables_window_open: bool = False
+configure_base_consumables_window_open: bool = False
 
 widget_handler = get_widget_handler()
 module_info = None
@@ -103,6 +104,15 @@ class HealthState(Enum):
 def show_configure_consumables_window():
     global configure_consumables_window_open
     configure_consumables_window_open = True
+    
+def show_base_configure_consumables_window():
+    global configure_base_consumables_window_open
+    configure_base_consumables_window_open = not configure_base_consumables_window_open
+    
+def is_base_configure_consumables_window_open() -> bool:
+    global configure_base_consumables_window_open
+    return configure_base_consumables_window_open
+    
           
 def get_frame_texture_for_effect(skill_id: int) -> tuple[(GameTexture), TextureState, int]:
     is_elite = GLOBAL_CACHE.Skill.Flags.IsElite(skill_id)
@@ -1641,6 +1651,47 @@ def draw_consumables_window(cached_data: CacheData):
     
     pass  # Implementation of consumables window drawing logic goes here
 
+def draw_base_consumables_window(cached_data: CacheData):
+    global configure_base_consumables_window_open
+    style = ImGui.get_style()
+    
+    if not configure_base_consumables_window_open:
+        return
+    
+    _flags = PyImGui.WindowFlags(PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.AlwaysAutoResize | PyImGui.WindowFlags.NoSavedSettings)
+    if ImGui.Begin(ini_key=cached_data.consumables_ini_key, name="Configure Consumables",p_open=True, flags=_flags):        
+        ImGui.text("Consumable configuration window")
+        btn_size = 32
+        style.CellPadding.push_style_var(2, 2)
+        if ImGui.begin_table("##ConTable", 6, PyImGui.TableFlags.SizingStretchProp):
+            PyImGui.table_next_column()
+            
+            for model_id, (texture_path, params) in consumables:        
+                if model_id == 0:
+                    PyImGui.table_next_column()
+                    continue
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+                if PyImGui.button(f"##ConConfig {model_id}", btn_size, btn_size):
+                    _post_pcon_message(params, cached_data) 
+                PyImGui.pop_style_color(4)
+                
+                x,y = PyImGui.get_item_rect_min()
+                ThemeTextures.Inventory_Slots.value.get_texture().draw_in_drawlist((x, y), (btn_size, btn_size))
+                ImGui.DrawTextureInDrawList((x + 2, y + 2), (btn_size - 4, btn_size - 4), texture_path)
+                    
+                ImGui.show_tooltip(f"Use {model_id.name.replace('_', ' ')}")
+                PyImGui.table_next_column()
+                        
+            ImGui.end_table()
+            
+        style.CellPadding.pop_style_var()
+            
+        ImGui.End(cached_data.consumables_ini_key)
+        
+
 def draw_command_panel(window: WindowModule, cached_data: CacheData):
     style = ImGui.get_style()
 
@@ -2090,10 +2141,10 @@ def draw_hotbars(cached_data: CacheData):
         if hotbar.visible:
             draw_hotbar(hotbar, cached_data)
             
-    
     draw_configure_hotbar()
     draw_command_select_popup()
     draw_consumables_window(cached_data)
+    draw_base_consumables_window(cached_data)
 
 dialog_open : bool = False
 frame_coords : list[tuple[int, tuple[int, int, int, int]]] = []

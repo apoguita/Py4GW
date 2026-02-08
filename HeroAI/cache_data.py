@@ -13,6 +13,7 @@ from Py4GWCoreLib.IniManager import IniManager
 
 INI_DIR = "HeroAI"
 MAIN_WINDOW_INI = "main_window.ini"
+CONSUMABLES_WINDOW_INI = "consumables_window.ini"
 
 @dataclass
 class GameData:
@@ -135,6 +136,7 @@ class CacheData:
         if not self._initialized:
             self.account_email = ""
             self.ini_key : str = ""
+            self.consumables_ini_key : str = ""
             
             self.party_position : int = -1
             self.party : PartyCache = PartyCache()
@@ -193,9 +195,13 @@ class CacheData:
             if not self.ini_key:
                 self.ini_key = IniManager().ensure_key(f"{INI_DIR}/", MAIN_WINDOW_INI)
                 
-            if not self.ini_key:
-                return
+            if not self.consumables_ini_key:
+                self.consumables_ini_key = IniManager().ensure_key(f"{INI_DIR}/", CONSUMABLES_WINDOW_INI)
                 
+            if not self.ini_key or not self.consumables_ini_key:
+                return
+            
+
             if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
                 self.game_throttle_timer.Reset()
                 self.account_email = Player.GetAccountEmail()
