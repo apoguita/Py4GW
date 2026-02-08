@@ -2,7 +2,7 @@ import Py4GW
 import PyImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
-from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler, WidgetHandler, Widget
 import os
 
 module_name = "Widget Manager"
