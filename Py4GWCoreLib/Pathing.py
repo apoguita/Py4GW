@@ -18,8 +18,6 @@ Point2D = PyOverlay.Point2D
 class AABB:
     def __init__(self, t: PathingTrapezoid):
         self.m_t = t
-        self.m_min = (min(t.XTL, t.XBL), t.YB)
-        self.m_max = (max(t.XTR, t.XBR), t.YT)
 
 class PathingPortal:
     def __init__(self, p1: Point2D, p2: Point2D, a: AABB, b: AABB):
@@ -215,7 +213,39 @@ class NavMesh:
 
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
-    
+
+    @staticmethod
+    def _cross_product(v1: Tuple[float, float], v2: Tuple[float, float]) -> float:
+        return (v1[0] * v2[1]) - (v1[1] * v2[0])
+
+    @staticmethod
+    def _point_in_trapezoid(t: PathingTrapezoid, x: float, y: float, tol: float = 20.0) -> bool:
+        """Cross-product based containment (coordinate-invariant)."""
+        if t.YT < y - tol or t.YB > y + tol:
+            return False
+        if t.XBL > x + tol and t.XTL > x + tol:
+            return False
+        if t.XBR < x - tol and t.XTR < x - tol:
+            return False
+
+        a = (t.XTL, t.YT)
+        b = (t.XBL, t.YB)
+        c = (t.XBR, t.YB)
+        d = (t.XTR, t.YT)
+        p = (x, y)
+
+        ab = (b[0] - a[0], b[1] - a[1])
+        cd = (d[0] - c[0], d[1] - c[1])
+        pa = (p[0] - a[0], p[1] - a[1])
+        pc = (p[0] - c[0], p[1] - c[1])
+
+        cross_tol = -tol
+        if NavMesh._cross_product(ab, pa) < cross_tol:
+            return False
+        if NavMesh._cross_product(cd, pc) < cross_tol:
+            return False
+        return True
+
     def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 20.0) -> Optional[int]:
         """
         Returns the trapezoid ID containing (x, y), using a small tolerance to avoid
@@ -223,26 +253,31 @@ class NavMesh:
         """
         x, y = point
 
-        # 1. Normal trapezoids (floor & standard geometry)
-        for t in self.trapezoids.values():
-            if t.YB - tol <= y <= t.YT + tol:
-                ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
-                left_x = t.XBL + (t.XTL - t.XBL) * ratio
-                right_x = t.XBR + (t.XTR - t.XBR) * ratio
-                if left_x - tol <= x <= right_x + tol:
-                    return t.id
+        # 1. Query spatial grid for candidates
+        gx = int(x) // self.GRID_SIZE
+        gy = int(y) // self.GRID_SIZE
+        candidates = self.spatial_grid.get((gx, gy), [])
 
-        # 2. Cross-layer portals (bridge, stairs, elevated geometry)
+        for t in candidates:
+            if self._point_in_trapezoid(t, x, y, tol):
+                return t.id
+
+        # 2. Fallback: check adjacent grid cells (tolerance boundary cases)
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                if dx == 0 and dy == 0:
+                    continue
+                adj_candidates = self.spatial_grid.get((gx + dx, gy + dy), [])
+                for t in adj_candidates:
+                    if self._point_in_trapezoid(t, x, y, tol):
+                        return t.id
+
+        # 3. Fallback: check cross-layer portals (bridges, stairs)
         for portal in self.portals:
             for trap in (portal.a.m_t, portal.b.m_t):
-                if trap.YB - tol <= y <= trap.YT + tol:
-                    ratio = (y - trap.YB) / (trap.YT - trap.YB) if trap.YT != trap.YB else 0
-                    left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
-                    right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                    if left_x - tol <= x <= right_x + tol:
-                        return trap.id
+                if self._point_in_trapezoid(trap, x, y, tol):
+                    return trap.id
 
-        # 3. Nothing found
         return None
 
 
@@ -264,12 +299,11 @@ class NavMesh:
 
 
 
-    def has_line_of_sight(self, 
-                          p1: Tuple[float, float], 
-                          p2: Tuple[float, float], 
-                          margin: float = 100, 
+    def has_line_of_sight(self,
+                          p1: Tuple[float, float],
+                          p2: Tuple[float, float],
+                          margin: float = 100,
                           step_dist: float = 200.0) -> bool:
-        
         total_dist = math.dist(p1, p2)
         steps = int(total_dist / step_dist) + 1
         dx = (p2[0] - p1[0]) / steps
@@ -282,16 +316,8 @@ class NavMesh:
             gy = int(y) // self.GRID_SIZE
             candidates = self.spatial_grid.get((gx, gy), [])
 
-
             for trap in candidates:
-                if y > trap.YT or y < trap.YB:
-                    continue
-                height = trap.YT - trap.YB
-                if height == 0: continue
-                ratio = (y - trap.YB) / height
-                left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
-                right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                if left_x + margin <= x <= right_x - margin:
+                if self._point_in_trapezoid(trap, x, y, tol=margin):
                     break
             else:
                 return False
