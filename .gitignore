@@ -210,3 +210,4 @@ cython_debug/
 # macOS system files
 .DS_Store
 Widgets/Automation/Bots/Missions/Underworld/Py4GW.ini
+loot.json
