@@ -106,7 +106,14 @@ def bot_routine(bot: Botting) -> None:
     bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(*COORDS_TO_EXIT_OUTPOST,EXPLORABLE_TO_VANQUISH) #Morostav Trail exit to Unwaking Waters
     bot.Wait.ForTime(4000)
+    
+    # Check faction allegiance and get blessing if needed
+    current_luxon = Player.GetLuxonData()[0]
+    current_kurzick = Player.GetKurzickData()[0]
+    
     bot.Move.XYAndInteractNPC(*COORDS_FOR_PRIEST)
+    if current_luxon >= current_kurzick:
+        bot.Multibox.SendDialogToTarget(0x84) # This will bribe the priest in case luxon is greater or equal than kurzick
     bot.Multibox.SendDialogToTarget(DIALOG_FOR_PRIEST) #Get Bounty
     bot.States.AddHeader("Start Combat") #3
     bot.Multibox.UseAllConsumables()
