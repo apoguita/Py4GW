@@ -218,7 +218,8 @@ class NavMesh:
     def _cross_product(v1: Tuple[float, float], v2: Tuple[float, float]) -> float:
         return (v1[0] * v2[1]) - (v1[1] * v2[0])
 
-    def _point_in_trapezoid(self, t: PathingTrapezoid, x: float, y: float, tol: float = 20.0) -> bool:
+    @staticmethod
+    def _point_in_trapezoid(t: PathingTrapezoid, x: float, y: float, tol: float = 20.0) -> bool:
         """Cross-product based containment (coordinate-invariant)."""
         if t.YT < y - tol or t.YB > y + tol:
             return False
@@ -239,9 +240,9 @@ class NavMesh:
         pc = (p[0] - c[0], p[1] - c[1])
 
         cross_tol = -tol
-        if self._cross_product(ab, pa) < cross_tol:
+        if NavMesh._cross_product(ab, pa) < cross_tol:
             return False
-        if self._cross_product(cd, pc) < cross_tol:
+        if NavMesh._cross_product(cd, pc) < cross_tol:
             return False
         return True
 
