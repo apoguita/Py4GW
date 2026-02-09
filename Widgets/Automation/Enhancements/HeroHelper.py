@@ -879,8 +879,42 @@ def smart_dark_aura():
     if primary != "Necromancer":
         return
 
+    masochism_id = Skill.GetID("Masochism")
+    dark_aura_id = Skill.GetID("Dark_Aura")
+    
+    # Get heroes with Dark Aura skill
+    heroes_with_dark_aura = Helper.get_heroes_with_skill(dark_aura_id)
+    if not heroes_with_dark_aura:
+        return
+    
+    # Check the first hero with Dark Aura
+    hero_info = heroes_with_dark_aura[0]
+    hero_index = hero_info["hero_index"]
+    hero_id = Party.Heroes.GetHeroAgentIDByPartyPosition(hero_index)
+    
+    if not hero_id or not Helper.is_agent_alive(hero_id):
+        return
+    
+    # Check if the hero has Masochism active on themselves
+    if not Helper.check_for_effects(hero_id, [masochism_id]):
+        # Cast Masochism on the hero itself
+        result = Helper.smartcast_hero_skill(
+            skill_id=masochism_id,
+            min_enemies=0,
+            enemy_range_check=Helper.get_spell_cast_range(),
+            effect_check=True,
+            hero_target=True,  # Cast on the hero itself
+            distance_check_range=Helper.get_spell_cast_range(),
+            allow_out_of_combat=True,
+            min_energy_perc=0.25
+        )
+        if result:
+            execute_hero_skill(*result)
+            return  # Wait for Masochism to be applied before casting Dark Aura
+    
+    # Only cast Dark Aura if Masochism is already active on the hero
     result = Helper.smartcast_hero_skill(
-        skill_id=Skill.GetID("Dark_Aura"),
+        skill_id=dark_aura_id,
         min_enemies=0,
         enemy_range_check=Helper.get_spell_cast_range(),
         effect_check=True,
@@ -1150,7 +1184,7 @@ def draw_tab_smart_skills(config):
 
     Helper.create_and_update_checkbox("Smart Life Bond", "smart_life_bond_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Life Bond on melee player.")
     PyImGui.same_line(0.0, 48)
-    Helper.create_and_update_checkbox("Smart Dark Aura", "smart_dark_aura_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Dark Aura on Necromancer player.")
+    Helper.create_and_update_checkbox("Smart Dark Aura", "smart_dark_aura_enabled", tooltip_text="[DISABLE HERO CASTING] Hero maintains Masochism on itself, then Dark Aura on Necromancer player.")
 
     Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="Casts Splinter on melee player in combat.")
     PyImGui.same_line(0.0, 10)
