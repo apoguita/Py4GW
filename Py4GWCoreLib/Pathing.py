@@ -18,8 +18,8 @@ Point2D = PyOverlay.Point2D
 class AABB:
     def __init__(self, t: PathingTrapezoid):
         self.m_t = t
-        self.m_min = (min(t.XTL, t.XBL), t.YB)
-        self.m_max = (max(t.XTR, t.XBR), t.YT)
+        self.m_min = (min(t.XTL, t.XBL, t.XTR, t.XBR), min(t.YB, t.YT))
+        self.m_max = (max(t.XTL, t.XBL, t.XTR, t.XBR), max(t.YB, t.YT))
 
 class PathingPortal:
     def __init__(self, p1: Point2D, p2: Point2D, a: AABB, b: AABB):
@@ -225,21 +225,25 @@ class NavMesh:
 
         # 1. Normal trapezoids (floor & standard geometry)
         for t in self.trapezoids.values():
-            if t.YB - tol <= y <= t.YT + tol:
+            y_lo, y_hi = min(t.YB, t.YT), max(t.YB, t.YT)
+            if y_lo - tol <= y <= y_hi + tol:
                 ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
-                left_x = t.XBL + (t.XTL - t.XBL) * ratio
-                right_x = t.XBR + (t.XTR - t.XBR) * ratio
-                if left_x - tol <= x <= right_x + tol:
+                edge_a = t.XBL + (t.XTL - t.XBL) * ratio
+                edge_b = t.XBR + (t.XTR - t.XBR) * ratio
+                lo_x, hi_x = min(edge_a, edge_b), max(edge_a, edge_b)
+                if lo_x - tol <= x <= hi_x + tol:
                     return t.id
 
         # 2. Cross-layer portals (bridge, stairs, elevated geometry)
         for portal in self.portals:
             for trap in (portal.a.m_t, portal.b.m_t):
-                if trap.YB - tol <= y <= trap.YT + tol:
+                y_lo, y_hi = min(trap.YB, trap.YT), max(trap.YB, trap.YT)
+                if y_lo - tol <= y <= y_hi + tol:
                     ratio = (y - trap.YB) / (trap.YT - trap.YB) if trap.YT != trap.YB else 0
-                    left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
-                    right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                    if left_x - tol <= x <= right_x + tol:
+                    edge_a = trap.XBL + (trap.XTL - trap.XBL) * ratio
+                    edge_b = trap.XBR + (trap.XTR - trap.XBR) * ratio
+                    lo_x, hi_x = min(edge_a, edge_b), max(edge_a, edge_b)
+                    if lo_x - tol <= x <= hi_x + tol:
                         return trap.id
 
         # 3. Nothing found
@@ -250,10 +254,10 @@ class NavMesh:
     
     def _populate_spatial_grid(self):
         for trap in self.trapezoids.values():
-            min_x = int(min(trap.XBL, trap.XTL) // self.GRID_SIZE)
-            max_x = int(max(trap.XBR, trap.XTR) // self.GRID_SIZE)
-            min_y = int(trap.YB // self.GRID_SIZE)
-            max_y = int(trap.YT // self.GRID_SIZE)
+            min_x = int(min(trap.XBL, trap.XTL, trap.XBR, trap.XTR) // self.GRID_SIZE)
+            max_x = int(max(trap.XBL, trap.XTL, trap.XBR, trap.XTR) // self.GRID_SIZE)
+            min_y = int(min(trap.YB, trap.YT) // self.GRID_SIZE)
+            max_y = int(max(trap.YB, trap.YT) // self.GRID_SIZE)
 
             for gx in range(min_x, max_x + 1):
                 for gy in range(min_y, max_y + 1):
@@ -284,14 +288,16 @@ class NavMesh:
 
 
             for trap in candidates:
-                if y > trap.YT or y < trap.YB:
+                y_lo, y_hi = min(trap.YB, trap.YT), max(trap.YB, trap.YT)
+                if y > y_hi or y < y_lo:
                     continue
                 height = trap.YT - trap.YB
                 if height == 0: continue
                 ratio = (y - trap.YB) / height
-                left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
-                right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                if left_x + margin <= x <= right_x - margin:
+                edge_a = trap.XBL + (trap.XTL - trap.XBL) * ratio
+                edge_b = trap.XBR + (trap.XTR - trap.XBR) * ratio
+                lo_x, hi_x = min(edge_a, edge_b), max(edge_a, edge_b)
+                if lo_x + margin <= x <= hi_x - margin:
                     break
             else:
                 return False
