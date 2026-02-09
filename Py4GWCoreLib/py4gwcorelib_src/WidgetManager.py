@@ -881,7 +881,7 @@ class Py4GWLibrary:
                     
                     if ImGui.begin_menu("Keybinds"):
                         key, modifiers, changed = ImGui.keybinding("Focus Search##WidgetBrowser", key=self.focus_keybind.key, modifiers=self.focus_keybind.modifiers)                    
-                        if key != self.focus_keybind.key or modifiers != self.focus_keybind.modifiers:
+                        if changed:
                             self.focus_keybind.key = key
                             self.focus_keybind.modifiers = modifiers
                             
