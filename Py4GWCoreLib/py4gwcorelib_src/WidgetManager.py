@@ -65,16 +65,15 @@ class Py4GWLibrary:
         self.layout_mode = LayoutMode.Minimalistic
         self.sort_mode = SortMode.ByName
         
-        self.widgets : list[Widget] = list(self.widget_manager.widgets.values())
         self.filtered_widgets : list[Widget] = []
         self.favorites : list[Widget] = []
                 
         self.category : str = ""
         # get unique categories sorted alphabetically
-        self.categories : list[str] = sorted(set(widget.category for widget in self.widgets if widget.category))
+        self.categories : list[str] = sorted(set(widget.category for widget in self.widget_manager.widgets.values() if widget.category))
         
         self.tag : str = ""
-        self.tags : list[str] = sorted(set(tag for widget in self.widgets for tag in widget.tags if widget.tags))
+        self.tags : list[str] = sorted(set(tag for widget in self.widget_manager.widgets.values() for tag in widget.tags if widget.tags))
         
         self.win_size = (200, 45)
         self.ui_active = False
@@ -221,7 +220,7 @@ class Py4GWLibrary:
         
     def filter_widgets(self, filter_text: str):        
         self.filtered_widgets.clear()     
-        prefiltered = self.widgets.copy()
+        prefiltered = list(self.widget_manager.widgets.values()).copy()
         
         keywords = [kw.strip().lower() for kw in filter_text.lower().strip().split(";")]
         
@@ -259,10 +258,10 @@ class Py4GWLibrary:
                         prefiltered = [w for w in prefiltered if w in self.favorites]
                         
                     case ViewMode.Actives:
-                        prefiltered = [w for w in self.widgets if w.enabled]
+                        prefiltered = [w for w in list(self.widget_manager.widgets.values()) if w.enabled]
                         
                     case ViewMode.Inactives:
-                        prefiltered = [w for w in self.widgets if not w.enabled]
+                        prefiltered = [w for w in list(self.widget_manager.widgets.values()) if not w.enabled]
                 
                 self.filtered_widgets = [w for w in prefiltered if 
                                         (w.category == self.category or not self.category) and 
@@ -299,6 +298,7 @@ class Py4GWLibrary:
             Py4GW.Console.Log("Widget Manager", "Reloading Widgets...", Py4GW.Console.MessageType.Info)
             self.widget_manager.discovered = False
             self.widget_manager.discover()
+            self.filter_widgets(self.widget_filter)
                 
         ImGui.show_tooltip("Reload all widgets")
         PyImGui.same_line(0, spacing)
@@ -490,7 +490,6 @@ class Py4GWLibrary:
                     self.card_context_menu(self.context_menu_id, self.context_menu_widget)
                             
                 if suggestion_hovered and not self.context_menu_id and not search_active and not self.focus_search and not presets_opened:
-                    Py4GW.Console.Log("Widget Browser", "set_window_focus to ##WidgetsList", Py4GW.Console.MessageType.Info)
                     PyImGui.set_window_focus("##WidgetsList")
                     
             if (
@@ -518,11 +517,11 @@ class Py4GWLibrary:
                 
             PyImGui.separator()
             
-            if PyImGui.menu_item("Enable" if not widget.enabled else "Disable"):
+            if PyImGui.menu_item("Enable" if not widget.enabled else "Disable"):                    
                 if not widget.enabled:
-                    widget.enable()
+                    self.widget_manager.enable_widget(widget.plain_name)
                 else:
-                    widget.disable()
+                    self.widget_manager.disable_widget(widget.plain_name)
                     
             PyImGui.separator()
 
@@ -586,6 +585,7 @@ class Py4GWLibrary:
                         Py4GW.Console.Log("Widget Manager", "Reloading Widgets...", Py4GW.Console.MessageType.Info)
                         self.widget_manager.discovered = False
                         self.widget_manager.discover()
+                        self.filter_widgets(self.widget_filter)
                     
                     if ImGui.menu_item(f"{("Run" if not self.widget_manager.enable_all else "Pause")} all widgets"):
                         self.widget_manager.enable_all = not self.widget_manager.enable_all
@@ -1009,8 +1009,11 @@ class Py4GWLibrary:
         
         if PyImGui.is_item_clicked(0):
             clicked = True
-            widget.enable() if not widget.enabled else widget.disable()
-            
+            if not widget.enabled:
+                self.widget_manager.enable_widget(widget.plain_name)
+            else:
+                self.widget_manager.disable_widget(widget.plain_name)
+                
         if PyImGui.is_item_hovered():
             hovered = True
             if widget.has_tooltip_property:
@@ -1062,7 +1065,10 @@ class Py4GWLibrary:
         
         if PyImGui.is_item_clicked(0):
             clicked = True
-            widget.enable() if not widget.enabled else widget.disable()
+            if not widget.enabled:
+                self.widget_manager.enable_widget(widget.plain_name)
+            else:
+                self.widget_manager.disable_widget(widget.plain_name)
             
         if PyImGui.is_item_hovered():
             hovered = True
