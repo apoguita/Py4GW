@@ -1,12 +1,8 @@
 from typing import Optional
-import Py4GW
 import PyImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.enums_src.IO_enums import Key
-
-
-from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import LayoutMode, Py4GWLibrary, WidgetHandler, get_widget_handler
 import os
