@@ -873,6 +873,7 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
             yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0E)
 
     bot.States.AddHeader("Unlock Secondary Profession")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
     ConfigurePacifistEnv(bot)
     bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
     bot.Move.XY(-159, 9174)
