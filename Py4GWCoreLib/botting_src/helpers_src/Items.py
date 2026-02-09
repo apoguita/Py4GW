@@ -339,5 +339,73 @@ class _Items:
 
         return True
 
+    @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
+    def use_summoning_stone(self) -> Generator[Any, Any, None]:
+        """
+        Uses a summoning stone from inventory with priority:
+        1. Legionnaire Summoning Crystal (always first)
+        2. Igneous Summoning Stone (if player level < 20)
+        3. Any other available summoning stone
+        """
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Player import Player
+        from ...Py4GWcorelib import ConsoleLog
+        import Py4GW
+        
+        # Priority 1: Legionnaire Summoning Crystal
+        legionnaire_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Legionnaire_Summoning_Crystal.value)
+        if legionnaire_id:
+            GLOBAL_CACHE.Inventory.UseItem(legionnaire_id)
+            ConsoleLog("UseSummoningStone", "Used Legionnaire Summoning Crystal", Py4GW.Console.MessageType.Info, log=False)
+            yield from Routines.Yield.wait(500)
+            return
+        
+        # Priority 2: Igneous Summoning Stone (if under level 20)
+        player_level = Player.GetLevel()
+        if player_level < 20:
+            igneous_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Igneous_Summoning_Stone.value)
+            if igneous_id:
+                GLOBAL_CACHE.Inventory.UseItem(igneous_id)
+                ConsoleLog("UseSummoningStone", "Used Igneous Summoning Stone", Py4GW.Console.MessageType.Info, log=False)
+                yield from Routines.Yield.wait(500)
+                return
+        
+        # Priority 3: Other summoning stones
+        other_summons = [
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Tengu_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        
+        for summon_model in other_summons:
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summon_model)
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                ConsoleLog("UseSummoningStone", f"Used summoning stone (model_id: {summon_model})", Py4GW.Console.MessageType.Info, log=False)
+                yield from Routines.Yield.wait(500)
+                return
+        
+        # No summoning stones found
+        ConsoleLog("UseSummoningStone", "No summoning stones found in inventory", Py4GW.Console.MessageType.Debug)
+
+
+
         
     

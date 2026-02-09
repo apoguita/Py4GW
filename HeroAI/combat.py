@@ -1,7 +1,7 @@
 import Py4GW
 from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray
-from Py4GWCoreLib import Weapon
-from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP
+from Py4GWCoreLib import Weapon, Effects
+from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
@@ -14,6 +14,20 @@ from typing import Optional
 
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
+
+# Alcohol items for Drunken Master optimization (+1 drunk level items)
+ALCOHOL_MODEL_IDS = [
+    ModelID.Dwarven_Ale.value,
+    ModelID.Hunters_Ale.value,
+    ModelID.Bottle_Of_Rice_Wine.value,
+    ModelID.Bottle_Of_Vabbian_Wine.value,
+    ModelID.Bottle_Of_Juniberry_Gin.value,
+    ModelID.Shamrock_Ale.value,
+    ModelID.Hard_Apple_Cider.value,
+    ModelID.Eggnog.value,
+    ModelID.Vial_Of_Absinthe.value,
+    ModelID.Witchs_Brew.value,
+]
 
 #region CombatClass
 class CombatClass:
@@ -1118,6 +1132,45 @@ class CombatClass:
                     
         return int((attack_speed / attack_speed_modifier) * 1000)
 
+    def GetDrunkLevel(self):
+        """
+        Get current drunk level (0-5). Returns 0 if unable to determine.
+        """
+        try:
+            level = Effects.GetAlcoholLevel()
+            return max(0, min(5, int(level)))
+        except Exception:
+            pass
+        return 0
+
+    def UseAlcoholIfAvailable(self):
+        """
+        Checks inventory for alcohol and uses the first available one.
+        Only uses alcohol if drunk level is 0 (not drunk).
+        Returns True if alcohol was used, False otherwise.
+        """
+        try:
+            # Check if already drunk
+            drunk_level = self.GetDrunkLevel()
+            Py4GW.Console.Log("HeroAI", f"Drunken Master: drunk level = {drunk_level}", Py4GW.Console.MessageType.Debug)
+            
+            if drunk_level > 0:
+                Py4GW.Console.Log("HeroAI", f"Already drunk (level {drunk_level}), skipping alcohol", Py4GW.Console.MessageType.Debug)
+                return False
+            
+            for alcohol_model_id in ALCOHOL_MODEL_IDS:
+                if GLOBAL_CACHE.Inventory.GetModelCount(alcohol_model_id) > 0:
+                    item_id = GLOBAL_CACHE.Item.GetItemIdFromModelID(alcohol_model_id)
+                    if item_id:
+                        Py4GW.Console.Log("HeroAI", f"Using alcohol item_id {item_id}", Py4GW.Console.MessageType.Info)
+                        GLOBAL_CACHE.Inventory.UseItem(item_id)
+                        return True
+            
+            Py4GW.Console.Log("HeroAI", "No alcohol found in inventory", Py4GW.Console.MessageType.Debug)
+        except Exception as e:
+            Py4GW.Console.Log("HeroAI", f"Error in UseAlcoholIfAvailable: {e}", Py4GW.Console.MessageType.Warning)
+        return False
+
     def HandleCombat(self,ooc=False):
         """
         tries to Execute the next skill in the skill order.
@@ -1152,9 +1205,22 @@ class CombatClass:
 
         if not Agent.IsLiving(target_agent_id):
             return False
+        
+        # Auto-use alcohol before alcohol-dependent PVE skills for optimal effect
+        alcohol_skills = [
+            GLOBAL_CACHE.Skill.GetID("Drunken_Master"),
+            GLOBAL_CACHE.Skill.GetID("Dwarven_Stability"),
+            GLOBAL_CACHE.Skill.GetID("Feel_No_Pain")
+        ]
+        
+        if skill_id in alcohol_skills:
+            Py4GW.Console.Log("HeroAI", f"Detected alcohol-dependent skill, checking for alcohol...", Py4GW.Console.MessageType.Info)
+            if self.UseAlcoholIfAvailable():
+                # Give the game time to process the alcohol consumption
+                import time
+                time.sleep(0.25)
             
         self.in_casting_routine = True
-
         
         if self.fast_casting_exists:
             activation, recharge = Routines.Checks.Skills.apply_fast_casting(skill_id, self.fast_casting_level)
