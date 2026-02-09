@@ -568,7 +568,7 @@ class Py4GWSharedMemoryManager:
             self._quest_instances: dict[int, PyQuest.PyQuest] = {}
             self.throttle_timer_150 = ThrottledTimer(150)
             self.throttle_timer_63 = ThrottledTimer(63) # 4 frames at 15 FPS
-        
+
         # Create or attach shared memory
         try:
             self.shm = shared_memory.SharedMemory(name=self.shm_name)
@@ -996,19 +996,23 @@ class Py4GWSharedMemoryManager:
         return index
     
     #region Update Cache
+    def _invalidate_native_caches(self):
+        """Null all cached native objects. Called on map transition."""
+        if self.party_instance is not None:
+            self.party_instance.GetContext()
+        self.agent_instance = None
+        self.effects_instance = None
+        self._title_instances.clear()
+        self.quest_instance = None
+
     def _updatechache(self):
         """Update the shared memory cache."""
-        if (Map.IsMapLoading() or 
+        if (Map.IsMapLoading() or
             Map.IsInCinematic()):
-            if self.party_instance is not None:
-                self.party_instance.GetContext()
-                
-            self.agent_instance = None
-            self.effects_instance = None
-            
+            self._invalidate_native_caches()
             return
 
-            
+
         if self.party_instance is None:
             self.party_instance = Party.party_instance()
             
@@ -1362,11 +1366,12 @@ class Py4GWSharedMemoryManager:
                 player.PlayerData.MissionData.HardModeCompleted[entry] = missions_completed_hm[entry] if entry < len(missions_completed_hm) else 0
                 player.PlayerData.MissionData.HardModeBonus[entry] = missions_bonus_hm[entry] if entry < len(missions_bonus_hm) else 0
 
+        self._updatechache()
+
         if not account_email:
-            return    
+            return
         index = self.GetAccountSlot(account_email)
         if index != -1:
-            self._updatechache()
             player = self.GetStruct().AccountData[index]
             player.SlotNumber = index
             player.IsSlotActive = True
@@ -1661,11 +1666,13 @@ class Py4GWSharedMemoryManager:
             agent_data.Is_Alive = Agent.IsAlive(agent_id)
                 
                 
+        if not Party.IsPartyLoaded() or self.party_instance is None:
+            return
+
         owner_agent_id = Player.GetAgentID()
-        
-        pet_info = self.party_instance.GetPetInfo(owner_agent_id) if self.party_instance else None
-        # if not pet_info or pet_info.agent_id == 102298104:
-        if not pet_info or not self.party_instance or (not pet_info.agent_id in self.party_instance.others):
+
+        pet_info = self.party_instance.GetPetInfo(owner_agent_id)
+        if not pet_info or (pet_info.agent_id not in self.party_instance.others):
             return
         
         index = self.GetPetSlot(pet_info)
@@ -1774,9 +1781,11 @@ class Py4GWSharedMemoryManager:
         
     def SetHeroesData(self):
         """Set data for all heroes in the given list."""
+        if not Party.IsPartyLoaded() or self.party_instance is None:
+            return
         owner_id = Player.GetAgentID()
-        for hero_data in self.party_instance.heroes if self.party_instance else []:
-            agent_from_login = self.party_instance.GetAgentIDByLoginNumber(hero_data.owner_player_id) if self.party_instance else 0
+        for hero_data in self.party_instance.heroes:
+            agent_from_login = self.party_instance.GetAgentIDByLoginNumber(hero_data.owner_player_id)
             if agent_from_login != owner_id:
                 continue
             self.SetHeroData(hero_data)
