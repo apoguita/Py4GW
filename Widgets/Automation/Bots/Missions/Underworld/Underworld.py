@@ -23,7 +23,8 @@ MAIN_LOOP_HEADER_NAME = ""
 class BotSettings:
     RestoreVale: bool = False           #Working
     WrathfullSpirits: bool = False      #Working but can be improved
-    EscortOfSouls: bool = False         #Working but can be improved by doing it with Restoring Vale
+    EscortOfSouls: bool = False         #Working
+    UnwantedGuests: bool = False        #Not Working
     RestoreWastes: bool = True          #Working
     ServantsOfGrenth: bool = True       #Working
     PassTheMountains: bool = True       #Working
@@ -35,7 +36,7 @@ class BotSettings:
     TerrorwebQueen: bool = True         #Working
     RestorePit: bool = False            #Not Working
     ImprisonedSpirits: bool = False     #Not Working  
-    DEBUG: bool = False
+    Repeat: bool = True                 #Working
 
 
 # Precomputed spread points keep Servants of Grenth flags spaced without extra imports.
@@ -137,6 +138,20 @@ def _auto_assign_flag_emails() -> None:
 def _set_flag_position(index: int, flag_x: int, flag_y: int) -> None:
     CustomBehaviorParty().party_flagging_manager.set_flag_position(index, flag_x, flag_y)
 
+def FocusKeeperOfSouls(bot_instance: Botting):
+    KeeperOfSoulsModelID = 2373
+    def _focus_logic():
+        enemies = [e for e in AgentArray.GetEnemyArray() if Agent.IsAlive(e) and Agent.GetModelID(e) == KeeperOfSoulsModelID]
+        
+        if not enemies:
+            return
+        
+        player_pos = Player.GetXY()
+        closest_enemy = min(enemies, key=lambda e: ((player_pos[0] - Agent.GetXYZ(e)[0])**2 + (player_pos[1] - Agent.GetXYZ(e)[1])**2)**0.5)
+        CustomBehaviorParty().set_party_custom_target(closest_enemy)
+
+    bot_instance.States.AddCustomState(_focus_logic, "Focus Keeper of Souls")
+
 def bot_routine(bot: Botting):
 
     global MAIN_LOOP_HEADER_NAME
@@ -162,6 +177,7 @@ def bot_routine(bot: Botting):
     _enqueue_section(bot, "RestoreVale", "Restore Vale", Restore_Vale)
     _enqueue_section(bot, "WrathfullSpirits", "Wrathfull Spirits", Wrathfull_Spirits)
     _enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
+    _enqueue_section(bot, "UnwantedGuests", "Unwanted Guests", Unwanted_Guests)
     _enqueue_section(bot, "RestoreWastes", "Restore Wastes", Restore_Wastes)
     _enqueue_section(bot, "ServantsOfGrenth", "Servants of Grenth", Servants_of_Grenth)
     _enqueue_section(bot, "PassTheMountains", "Pass the Mountains", Pass_The_Mountains)
@@ -173,7 +189,7 @@ def bot_routine(bot: Botting):
     _enqueue_section(bot, "TerrorwebQueen", "Terrorweb Queen", Terrorweb_Queen)
     _enqueue_section(bot, "RestorePit", "Restore Pit", Restore_Pit)
     _enqueue_section(bot, "ImprisonedSpirits", "Imprisoned Spirits", Imprisoned_Spirits)
-
+    _enqueue_section(bot, "Repeat", "Repeat the whole thing", ResignAndRepeat)
     bot.States.AddHeader("END")
 
 def Enter_UW(bot_instance: Botting):
@@ -196,6 +212,10 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Follow")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
@@ -221,8 +241,10 @@ def Restore_Vale(bot_instance: Botting):
     if BotSettings.RestoreVale:
         bot_instance.States.AddHeader("Restore Vale")
         BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+        if BotSettings.EscortOfSouls:
+            bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C03, "take quest")
+            bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C01, "take quest")
         bot_instance.Move.XY(-8660, 5655, "To the Vale 1")
-        bot_instance.Wait.ForTime(5000)
         bot_instance.Move.XY(-9431, 1659, "To the Vale 2")
         bot_instance.Move.XY(-11123, 2531, "To the Vale 3")
         bot_instance.Move.XY(-10212, 251 , "To the Vale 4")
@@ -262,7 +284,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Escort_of_Souls(bot_instance: Botting):
-    if BotSettings.EscortOfSouls:
+    if BotSettings.EscortOfSouls and not BotSettings.EscortOfSouls:
         bot_instance.States.AddHeader("Escort of Souls")
         bot_instance.Wait.ForTime(5000)
         bot_instance.Move.XY(-4764, 11845, "Escort of Souls 1")
@@ -277,6 +299,45 @@ def Escort_of_Souls(bot_instance: Botting):
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
         bot_instance.Wait.ForTime(3000)
+
+def Unwanted_Guests(bot_instance: Botting):
+    #This Quest is not working
+    if BotSettings.UnwantedGuests:
+        bot_instance.States.AddHeader("Unwanted Guests")
+        bot_instance.Wait.ForTime(5000)
+        bot_instance.Move.XY(-1533, 10502)
+        bot_instance.Move.XY(-1039, -572)
+        bot_instance.Move.XY(-41, 2686)
+        bot_instance.Move.XY(5797, 10405)
+        bot_instance.Move.XY(3225, 12916)
+        
+        #The Quest
+        #1st Keeper
+        bot_instance.Move.XY(-2965, 10260)
+        bot_instance.Wait.ForTime(5000)
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro")
+
+        bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
+        bot_instance.Dialogs.AtXY(-5806, 12831, 0x806701, "take quest")
+
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro")
+        FocusKeeperOfSouls(bot_instance)
+        bot_instance.Wait.ForTime(500)
+        FocusKeeperOfSouls(bot_instance)
+        bot_instance.Wait.ForTime(500)
+        FocusKeeperOfSouls(bot_instance)
+        bot_instance.Wait.ForTime(20000)
+        
+        #2nd Keeper
+        bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
+        bot_instance.Dialogs.AtXY(-5806, 12831, 0x91, "take quest")
+        bot_instance.Move.XY(-12953, 750)
+        bot_instance.Move.XY(-8371, 4865)
+        FocusKeeperOfSouls(bot_instance)
+        bot_instance.Wait.ForTime(500)
+        FocusKeeperOfSouls(bot_instance)
+        bot_instance.Move.XY(-6907, 7256)
 
 def Restore_Wastes(bot_instance: Botting):
     if BotSettings.RestoreWastes:
@@ -419,9 +480,10 @@ def The_Four_Horsemen(bot_instance: Botting):
         bot_instance.Move.XY(11371, -17990, "The Four Horseman 2")
         bot_instance.Wait.ForTime(30000)
         bot_instance.Move.XY(11371, -17990, "The Four Horseman 3")
-        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Looting")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Follow")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
 
 def Restore_Pools(bot_instance: Botting):
     if BotSettings.RestorePools:
@@ -475,6 +537,9 @@ def Imprisoned_Spirits(bot_instance: Botting):
         #bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
         bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 2")
+def ResignAndRepeat(bot_instance: Botting):
+    if BotSettings.Repeat:
+        bot_instance.Multibox.ResignParty()
 
 def Wait_for_Spawns(bot_instance: Botting,x,y):
     bot_instance.Move.XY(x, y, "To the Vale")
@@ -525,7 +590,7 @@ def _draw_help():
     PyImGui.bullet_text("You have to do the missing quests manually")
     PyImGui.bullet_text("Main Account sometimes leaves the team alone - Dont be the Healer")
     PyImGui.bullet_text("You should either have some evas or 1 melee char to trigger traps in the mountains")
-    PyImGui.bullet_text('You should change the line 39 in "Sources\oazix\CustomBehaviors\skills\botting\wait_if_party_member_too_far.py" with * 1.25 for faster runs')
+    PyImGui.bullet_text('You should change the line 39 in Sources\oazix\CustomBehaviors\skills\botting\wait_if_party_member_too_far.py with * 1.25 for faster runs')
     PyImGui.separator()
     PyImGui.bullet_text("Have fun :) - sch0l0ka")
 
@@ -538,6 +603,9 @@ def _draw_settings():
     PyImGui.begin_disabled(DisableVale)
     BotSettings.WrathfullSpirits = PyImGui.checkbox("Wrathfull Spirits", BotSettings.WrathfullSpirits)
     BotSettings.EscortOfSouls = PyImGui.checkbox("Escort of Souls", BotSettings.EscortOfSouls)
+    PyImGui.end_disabled()
+    PyImGui.begin_disabled(True)
+    BotSettings.UnwantedGuests = PyImGui.checkbox("Unwanted Guests", BotSettings.UnwantedGuests)
     PyImGui.end_disabled()
     BotSettings.RestoreWastes = PyImGui.checkbox("Restore Wastes", BotSettings.RestoreWastes)
     DisableWastes = not BotSettings.RestoreWastes
@@ -578,7 +646,7 @@ def _draw_settings():
     BotSettings.ImprisonedSpirits = PyImGui.checkbox("Imprisoned Spirits - Disabled", BotSettings.ImprisonedSpirits)
     PyImGui.end_disabled()
     PyImGui.separator()
-    BotSettings.DEBUG = PyImGui.checkbox("Enable Debug Logs", BotSettings.DEBUG)
+    BotSettings.Repeat = PyImGui.checkbox("Resign and Repeat after", BotSettings.Repeat)
     
 
 
