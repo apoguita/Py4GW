@@ -4,7 +4,11 @@ import PyImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.enums_src.IO_enums import Key
-from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import LayoutMode, Py4GWLibrary, get_widget_handler
+
+
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import LayoutMode, Py4GWLibrary, WidgetHandler, get_widget_handler
 import os
 
 MODULE_NAME = "Widget Manager"
@@ -13,7 +17,7 @@ MODULE_NAME = "Widget Manager"
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
-widget_manager = get_widget_handler()
+widget_manager : WidgetHandler = get_widget_handler()
 py4_gw_library : Optional[Py4GWLibrary] = None 
 
 INI_KEY = ""
@@ -25,11 +29,14 @@ def _add_config_vars():
     IniManager().add_bool(key=INI_KEY, var_name="enable_all", section="Configuration", name="enable_all", default=False)
     IniManager().add_bool(key=INI_KEY, var_name="use_library", section="Configuration", name="use_library", default=True)
     
-    IniManager().add_str(key=INI_KEY, var_name="favorites", section="Favorites", name="favorites", default="")
+    IniManager().add_int(key=INI_KEY, var_name="max_suggestions", section="Configuration", name="max_suggestions", default=10)
     IniManager().add_str(key=INI_KEY, var_name="default_layout", section="Configuration", name="default_layout", default=LayoutMode.Minimalistic.name)  
     IniManager().add_str(key=INI_KEY, var_name="hotkey", section="Configuration", name="hotkey", default=Key.Unmapped.name)  
     IniManager().add_str(key=INI_KEY, var_name="hotkey_modifiers", section="Configuration", name="hotkey_modifiers", default="NoneKey")
+    IniManager().add_bool(key=INI_KEY, var_name="single_filter", section="Configuration", name="single_filter", default=True)
                             
+    IniManager().add_str(key=INI_KEY, var_name="favorites", section="Favorites", name="favorites", default="")
+    
     IniManager().add_bool(key=INI_KEY, var_name="show_configure_button", section="Card Configuration", name="show_configure_button", default=True)
     IniManager().add_bool(key=INI_KEY, var_name="show_images", section="Card Configuration", name="show_images", default=True)
     IniManager().add_bool(key=INI_KEY, var_name="show_separator", section="Card Configuration", name="show_separator", default=True)
