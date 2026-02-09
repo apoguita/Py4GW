@@ -34,6 +34,7 @@ class WidgetConfig:
         self.throttle_fast_queue = ThrottledTimer(20)
 
 widget_config = WidgetConfig()
+shmem_data_reset = False
 
 def reset_on_load():
     global widget_config
@@ -86,18 +87,22 @@ def tooltip():
     PyImGui.end_tooltip()
 
 def main():
-    global widget_config
+    global widget_config, shmem_data_reset
 
-    HOTKEY_MANAGER.update()
-    GLOBAL_CACHE._update_cache()
-    account_email = Player.GetAccountEmail()
-    GLOBAL_CACHE.ShMem.SetPlayerData(account_email)
-    GLOBAL_CACHE.ShMem.SetHeroesData()
-    GLOBAL_CACHE.ShMem.SetPetData()
-    
     if Routines.Checks.Map.MapValid():
+        HOTKEY_MANAGER.update()
+        GLOBAL_CACHE._update_cache()
+        account_email = Player.GetAccountEmail()
+        GLOBAL_CACHE.ShMem.SetPlayerData(account_email)
+        GLOBAL_CACHE.ShMem.SetHeroesData()
+        GLOBAL_CACHE.ShMem.SetPetData()
+        
         GLOBAL_CACHE.ShMem.UpdateTimeouts()
+        shmem_data_reset = False
     else:
+        if not shmem_data_reset:
+            GLOBAL_CACHE.ShMem.ResetAllData()
+            shmem_data_reset = True
         LootConfig().ClearItemIDBlacklist()
     
     for routine in GLOBAL_CACHE.Coroutines[:]:

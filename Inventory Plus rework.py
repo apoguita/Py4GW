@@ -1,4 +1,4 @@
-from Py4GWCoreLib import (Color, WindowID, UIManager, Bags, ItemArray, Item, 
+from Py4GWCoreLib import (Color, WindowID, UIManager, Bags, ItemArray, Item, Map,
                           MouseButton, ColorPalette, ModelID,IconsFontAwesome5,
                           Routines, GLOBAL_CACHE,AutoInventoryHandler, ItemType,
                         FrameInfo, WindowFrames, IniHandler, Console, ConsoleLog)
@@ -12,6 +12,7 @@ auto_handler = AutoInventoryHandler()
 projects_path = Py4GW.Console.get_projects_path()
 full_path = projects_path + "\\Widgets\\Config\\InventoryPlus.ini"
 initialized = False
+
 
 @dataclass
 class ItemSlotData:
@@ -213,7 +214,8 @@ ini_handler = IniHandler(full_path)
 def ReadFromIni(ini: IniHandler):
     global config_settings
     config_settings.load_ini(ini)
-    auto_handler.load_from_ini(ini)
+    
+    auto_handler.load_from_ini()
 
 
 def WriteToIni(ini: IniHandler):
@@ -642,17 +644,16 @@ def DetectInventoryAction():
 
 
     io = PyImGui.get_io()
-    mouse_x, mouse_y = io.mouse_pos_x, io.mouse_pos_y
 
     # Detect right click
     if PyImGui.is_mouse_released(MouseButton.Right.value):
 
         # Only trigger if user clicked over inventory window
-        if WindowFrames["Inventory Bags"].IsMouseOver(mouse_x, mouse_y):
+        if WindowFrames["Inventory Bags"].IsMouseOver():
             
             selected_item = None  # first assume empty click
             for slot_frame in InventorySlots:
-                if slot_frame.IsMouseOver(mouse_x, mouse_y):
+                if slot_frame.IsMouseOver():
                     selected_item = slot_frame.BlackBoard["ItemData"]
                     break
 
@@ -660,9 +661,9 @@ def DetectInventoryAction():
             
     # Detect Ctrl + Left Click
     if PyImGui.is_mouse_released(MouseButton.Left.value) and io.key_ctrl:
-        if WindowFrames["Inventory Bags"].IsMouseOver(mouse_x, mouse_y):
+        if WindowFrames["Inventory Bags"].IsMouseOver():
             for slot_frame in InventorySlots:
-                if slot_frame.IsMouseOver(mouse_x, mouse_y):
+                if slot_frame.IsMouseOver():
                     selected_item = slot_frame.BlackBoard["ItemData"]
                     if selected_item and config_settings.deposit_settings.use_ctrl_click:
                         GLOBAL_CACHE.Inventory.DepositItemToStorage(selected_item.ItemID)
@@ -924,13 +925,13 @@ def update_auto_handler():
         return False
     
     if not auto_handler.initialized:
-        auto_handler.load_from_ini(auto_handler.ini)
+        auto_handler.load_from_ini()
         auto_handler.lookup_throttle.SetThrottleTime(auto_handler._LOOKUP_TIME)
         auto_handler.lookup_throttle.Reset()
         auto_handler.initialized = True
         ConsoleLog("AutoInventoryHandler", "Auto Handler Options initialized", Py4GW.Console.MessageType.Success)
         
-    if not GLOBAL_CACHE.Map.IsExplorable():
+    if not Map.IsExplorable():
         auto_handler.lookup_throttle.Stop()
         auto_handler.status = "Idle"
         if not auto_handler.outpost_handled and auto_handler.module_active:

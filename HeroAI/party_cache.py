@@ -38,6 +38,12 @@ class PartyCache():
     def update(self):
         """ Update the party cache from shared memory. """
         from HeroAI.utils import SameMapOrPartyAsAccount
+        from Py4GWCoreLib.Party import Party
+        if not Party.IsPartyLoaded():
+            self.reset()
+            return
+        
+        
         self.party_id = GLOBAL_CACHE.Party.GetPartyID()
         
         shmem_accounts = GLOBAL_CACHE.ShMem.GetAllActiveSlotsData()
