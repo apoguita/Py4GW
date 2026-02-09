@@ -1264,15 +1264,6 @@ class Widget:
         cleaned_name = cleaned_name.replace("_", " ")
         return cleaned_name.strip()
                     
-        
-    def cleaned_name(self):
-        """Cleanup the widget name for display"""
-        ## if name starts with [0-9]-, remove that part for module cleanup and replace all _ with " "
-        import re
-        cleaned_name = re.sub(r'^\d+-', '', self.plain_name)
-        cleaned_name = cleaned_name.replace("_", " ")
-        return cleaned_name.strip()
-                    
     def __post_init__(self):
         """Extract callbacks from module after initialization"""      
         
@@ -1536,7 +1527,6 @@ class WidgetHandler:
             # 1. Create Widget with EMPTY INI data
             widget = Widget(
                 folder_script_name=widget_id,
-                folder_script_name=widget_id,
                 plain_name=plain,
                 widget_path=widget_path,
                 script_path=script_path,
@@ -1595,7 +1585,6 @@ class WidgetHandler:
         try:
             # 1. Create Widget with EMPTY INI data
             widget = Widget(
-                folder_script_name=widget_id,
                 folder_script_name=widget_id,
                 plain_name=plain,
                 widget_path=widget_path,
