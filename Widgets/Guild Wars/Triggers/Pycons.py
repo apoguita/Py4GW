@@ -359,10 +359,34 @@ try:
     # -------------------------
     # Config (dirty-save throttled)
     # -------------------------
-    ini_handler = IniHandler("Widgets/Config/Pycons.ini")
+    # Lazy INI handler creation to ensure account email is available
+    import hashlib
+    _ini_handler_cache = None
+    _ini_path_cache = None
+    
+    def _get_ini_handler():
+        global _ini_handler_cache, _ini_path_cache
+        if _ini_handler_cache is None:
+            account_email = Player.GetAccountEmail()
+            if not account_email:
+                # Fallback to generic file if not logged in yet
+                _ini_path_cache = "Widgets/Config/Pycons.ini"
+            else:
+                email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
+                _ini_path_cache = f"Widgets/Config/Pycons_{email_hash}.ini"
+            _ini_handler_cache = IniHandler(_ini_path_cache)
+            ConsoleLog(BOT_NAME, f"Using config file: {_ini_path_cache} (account: {account_email})", Console.MessageType.Info)
+        return _ini_handler_cache
+    
+    def _get_ini_path():
+        global _ini_path_cache
+        if _ini_path_cache is None:
+            _get_ini_handler()  # Initialize if needed
+        return _ini_path_cache
 
     class Config:
         def __init__(self):
+            ini_handler = _get_ini_handler()
             self.debug_logging = ini_handler.read_bool(INI_SECTION, "debug_logging", False)
             self.interval_ms = ini_handler.read_int(INI_SECTION, "interval_ms", 1500)
             self.show_selected_list = ini_handler.read_bool(INI_SECTION, "show_selected_list", True)
@@ -419,6 +443,7 @@ try:
                 return
             self._save_timer.Start()
 
+            ini_handler = _get_ini_handler()
             ini_handler.write_key(INI_SECTION, "debug_logging", str(bool(self.debug_logging)))
             ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
             ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
@@ -439,9 +464,9 @@ try:
                 ini_handler.write_key(INI_SECTION, f"alcohol_enabled_{k}", str(bool(v)))
 
             # Team / multibox settings
-            # Only the broadcaster (leader) needs to write team_broadcast
-            # Only the consumer (follower) needs to write team_consume_opt_in
-            # To avoid cross-overwrites, we only write team_broadcast here
+            # team_broadcast: When enabled, broadcasts item usage to other accounts
+            # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
+            # Note: team_consume_opt_in is saved separately (below in settings window) to avoid conflicts
             ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
             _debug(f"Saved team_broadcast setting: {self.team_broadcast}", Console.MessageType.Debug)
 
@@ -452,18 +477,30 @@ try:
 
             self._dirty = False
 
-    cfg = Config()
+    # Config will be lazy-loaded on first main() call to ensure account email is available
+    cfg = None
 
     # -------------------------
     # Runtime state
     # -------------------------
-    show_settings = [False]
-    filter_text = [""]
-    last_search_active = [False]
-    last_visible_count = [0]
+    class _RuntimeState:
+        """Runtime-only mutable state grouped for clearer ownership."""
+        def __init__(self):
+            self.show_settings = [False]
+            self.filter_text = [""]
+            self.last_search_active = [False]
+            self.last_visible_count = [0]
+            self.request_expand_selected = [False]
+            self.request_collapse_selected = [False]
 
-    request_expand_selected = [False]
-    request_collapse_selected = [False]
+    _rt = _RuntimeState()
+    # Aliases preserved so UI code and existing access patterns remain identical.
+    show_settings = _rt.show_settings
+    filter_text = _rt.filter_text
+    last_search_active = _rt.last_search_active
+    last_visible_count = _rt.last_visible_count
+    request_expand_selected = _rt.request_expand_selected
+    request_collapse_selected = _rt.request_collapse_selected
 
     tick_timer = Timer()
     tick_timer.Start()
@@ -495,32 +532,24 @@ try:
         import time
         return int(time.time() * 1000)
 
-    def _timer_for(key: str) -> Timer:
-        t = internal_timers.get(key)
+    def _get_or_create_stopped_timer(pool: dict, key: str) -> Timer:
+        t = pool.get(key)
         if t is None:
             t = Timer()
+            # Match existing behavior: initialized then immediately stopped.
             t.Start()
             t.Stop()
-            internal_timers[key] = t
+            pool[key] = t
         return t
+
+    def _timer_for(key: str) -> Timer:
+        return _get_or_create_stopped_timer(internal_timers, key)
 
     def _retry_timer_for(key: str) -> Timer:
-        t = _skill_retry_timer.get(key)
-        if t is None:
-            t = Timer()
-            t.Start()
-            t.Stop()
-            _skill_retry_timer[key] = t
-        return t
+        return _get_or_create_stopped_timer(_skill_retry_timer, key)
 
     def _warn_timer_for(key: str) -> Timer:
-        t = _warn_timer.get(key)
-        if t is None:
-            t = Timer()
-            t.Start()
-            t.Stop()
-            _warn_timer[key] = t
-        return t
+        return _get_or_create_stopped_timer(_warn_timer, key)
 
     def _enabled_selected_keys():
         return [k for k in cfg.enabled.keys() if cfg.selected.get(k, False) and cfg.enabled.get(k, False)]
@@ -600,6 +629,87 @@ try:
         if not _inventory_ready():
             return True
         return False
+
+    def _consume_precheck():
+        """
+        Stable gate ordering for regular consumables.
+        Returns (ok, keys, in_explorable).
+        """
+        keys = _enabled_selected_keys()
+        if not keys:
+            return False, keys, False
+        if not Routines.Checks.Map.MapValid():
+            return False, keys, False
+        if _should_block_consumption():
+            return False, keys, False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, keys, False
+        return True, keys, bool(_in_explorable())
+
+    def _alcohol_precheck():
+        """
+        Stable gate ordering for alcohol upkeep.
+        Returns (ok, target, pool_keys, in_explorable, now_ms, cur_level).
+        """
+        if not bool(cfg.alcohol_enabled):
+            return False, 0, [], False, 0, 0
+
+        target = int(cfg.alcohol_target_level)
+        if target <= 0:
+            return False, target, [], False, 0, 0
+
+        if not bool(cfg.alcohol_use_explorable) and not bool(cfg.alcohol_use_outpost):
+            return False, target, [], False, 0, 0
+
+        if not Routines.Checks.Map.MapValid():
+            return False, target, [], False, 0, 0
+
+        if _should_block_consumption():
+            return False, target, [], False, 0, 0
+
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, target, [], False, 0, 0
+
+        pool_keys = _alcohol_pool_keys()
+        if not pool_keys:
+            return False, target, pool_keys, False, 0, 0
+
+        in_explorable = bool(_in_explorable())
+        if not _alcohol_allowed_here(in_explorable):
+            return False, target, pool_keys, in_explorable, 0, 0
+
+        now = _now_ms()
+        cur_level = _alcohol_current_level(now)
+        if cur_level >= target:
+            return False, target, pool_keys, in_explorable, now, cur_level
+
+        return True, target, pool_keys, in_explorable, now, cur_level
+
+    def _apply_regular_selection_change(key: str, selected: bool):
+        cfg.selected[key] = bool(selected)
+        if not bool(selected):
+            cfg.enabled[key] = False
+            if not _any_selected_anywhere():
+                cfg.show_selected_list = False
+                request_collapse_selected[0] = True
+        else:
+            if not bool(cfg.show_selected_list):
+                cfg.show_selected_list = True
+            request_expand_selected[0] = True
+        cfg.mark_dirty()
+
+    def _apply_alcohol_selection_change(key: str, selected: bool):
+        cfg.alcohol_selected[key] = bool(selected)
+        if not bool(selected):
+            cfg.alcohol_enabled_items[key] = False
+            if not _any_selected_anywhere():
+                cfg.show_selected_list = False
+                request_collapse_selected[0] = True
+        else:
+            if not bool(cfg.show_selected_list):
+                cfg.show_selected_list = True
+            request_expand_selected[0] = True
+        cfg.mark_dirty()
 
     # -------------------------
     # Skill resolution (robust)
@@ -902,20 +1012,9 @@ try:
     # Tick: normal consumables
     # -------------------------
     def _tick_consume() -> bool:
-        keys = _enabled_selected_keys()
-        if not keys:
+        ok, keys, in_explorable = _consume_precheck()
+        if not ok:
             return False
-
-        if not Routines.Checks.Map.MapValid():
-            return False
-
-        if _should_block_consumption():
-            return False
-
-        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
-            return False
-
-        in_explorable = bool(_in_explorable())
 
         for key in keys:
             spec = ALL_BY_KEY.get(key)
@@ -973,35 +1072,8 @@ try:
     # Tick: alcohol upkeep
     # -------------------------
     def _tick_alcohol() -> bool:
-        if not bool(cfg.alcohol_enabled):
-            return False
-        target = int(cfg.alcohol_target_level)
-        if target <= 0:
-            return False
-
-        if not bool(cfg.alcohol_use_explorable) and not bool(cfg.alcohol_use_outpost):
-            return False
-
-        if not Routines.Checks.Map.MapValid():
-            return False
-
-        if _should_block_consumption():
-            return False
-
-        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
-            return False
-
-        pool_keys = _alcohol_pool_keys()
-        if not pool_keys:
-            return False
-
-        in_explorable = bool(_in_explorable())
-        if not _alcohol_allowed_here(in_explorable):
-            return False
-
-        now = _now_ms()
-        cur_level = _alcohol_current_level(now)
-        if cur_level >= target:
+        ok, target, pool_keys, _in_explorable_unused, now, cur_level = _alcohol_precheck()
+        if not ok:
             return False
 
         t = _timer_for("alcohol_global")
@@ -1059,6 +1131,8 @@ try:
     # Main Window
     # -------------------------
     def _draw_main_window():
+        if cfg is None:
+            return  # Config not yet loaded
         if not ImGui.Begin(INI_KEY_MAIN, BOT_NAME, flags=PyImGui.WindowFlags.AlwaysAutoResize):
             ImGui.End(INI_KEY_MAIN)
             return
@@ -1283,17 +1357,7 @@ try:
 
         selected = bool(selected)
         if prev != selected:
-            cfg.selected[k] = selected
-            if not selected:
-                cfg.enabled[k] = False
-                if not _any_selected_anywhere():
-                    cfg.show_selected_list = False
-                    request_collapse_selected[0] = True
-            else:
-                if not bool(cfg.show_selected_list):
-                    cfg.show_selected_list = True
-                request_expand_selected[0] = True
-            cfg.mark_dirty()
+            _apply_regular_selection_change(k, selected)
 
     def _draw_alcohol_settings_row(spec: dict, flt: str, visible_keys_out=None):
         k = spec["key"]
@@ -1312,17 +1376,7 @@ try:
 
         selected = bool(selected)
         if prev != selected:
-            cfg.alcohol_selected[k] = selected
-            if not selected:
-                cfg.alcohol_enabled_items[k] = False
-                if not _any_selected_anywhere():
-                    cfg.show_selected_list = False
-                    request_collapse_selected[0] = True
-            else:
-                if not bool(cfg.show_selected_list):
-                    cfg.show_selected_list = True
-                request_expand_selected[0] = True
-            cfg.mark_dirty()
+            _apply_alcohol_selection_change(k, selected)
 
     def _list_has_match(spec_list: list, flt: str) -> bool:
         if not flt:
@@ -1337,6 +1391,8 @@ try:
         return False
 
     def _draw_settings_window():
+        if cfg is None:
+            return  # Config not yet loaded
         if not show_settings[0]:
             return
 
@@ -1359,6 +1415,7 @@ try:
             cfg.mark_dirty()
             # Immediately write broadcast setting (don't wait for throttle)
             try:
+                ini_handler = _get_ini_handler()
                 ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(v)))
                 _log(f"Team broadcast setting changed to: {bool(v)}", Console.MessageType.Info)
             except Exception as e:
@@ -1370,8 +1427,9 @@ try:
             cfg.mark_dirty()
             # Immediately write opt-in setting (don't wait for throttle)
             try:
+                ini_handler = _get_ini_handler()
                 ini_handler.write_key(INI_SECTION, "team_consume_opt_in", str(bool(v)))
-                _log(f"Team opt-in setting changed to: {bool(v)}", Console.MessageType.Info)
+                _log(f"Team opt-in setting changed to: {bool(v)} (saved to {_get_ini_path()})", Console.MessageType.Info)
             except Exception as e:
                 _debug(f"Failed to write team_consume_opt_in: {e}", Console.MessageType.Warning)
 
@@ -1580,9 +1638,13 @@ try:
         pass
 
     def main():
-        global _first_main_call
+        global _first_main_call, cfg
         if not _init_window_persistence_once():  # NEW: ensure both window INIs are ready
             return
+
+        # Initialize config on first call (after player is logged in)
+        if cfg is None:
+            cfg = Config()
 
         # Refresh inventory on first load to show quantities immediately
         if _first_main_call:
