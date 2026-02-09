@@ -668,8 +668,7 @@ class Py4GWLibrary:
                 self.tag = ""
                 self.category = ""
                 self.widget_filter = ""
-                
-            Py4GW.Console.Log("Widget Browser", f"Selected path: {self.path}", Py4GW.Console.MessageType.Info)
+            
             self.filter_widgets(self.widget_filter)
         
         if node_open and node.children:                
