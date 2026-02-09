@@ -76,6 +76,7 @@ class Config:
             "smart_life_bond_enabled",
             "smart_splinter_enabled",
             "smart_vigorous_enabled",
+            "smart_dark_aura_enabled",
             "hero_behaviour",
             "last_known_hero_behaviour",
             "conditions",
@@ -99,6 +100,7 @@ class Config:
         self.smart_life_bond_enabled = ini_handler.read_bool(MODULE_NAME, "smart_life_bond_enabled", False)
         self.smart_splinter_enabled = ini_handler.read_bool(MODULE_NAME, "smart_splinter_enabled", False)
         self.smart_vigorous_enabled = ini_handler.read_bool(MODULE_NAME, "smart_vigorous_enabled", False)
+        self.smart_dark_aura_enabled = ini_handler.read_bool(MODULE_NAME, "smart_dark_aura_enabled", False)
         self.hero_behaviour = ini_handler.read_int(MODULE_NAME, "hero_behaviour", 0)
         self.last_known_hero_behaviour = ini_handler.read_int(MODULE_NAME, "last_known_hero_behaviour", self.hero_behaviour)
         self.smart_con_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_con_cleanse_toggled", False)
@@ -862,6 +864,34 @@ def smart_life_bond():
     if result:
         execute_hero_skill(*result)
 
+def smart_dark_aura():
+    if Party.GetHeroCount() == 0:
+        return
+    if not Helper.can_execute_with_delay("smart_dark_aura", 1000):
+        return
+
+    player_id = Player.GetAgentID()
+    if not Helper.is_agent_alive(player_id):
+        return
+    
+    # Only cast on Necromancer primary players
+    primary, _ = Agent.GetProfessionNames(player_id)
+    if primary != "Necromancer":
+        return
+
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Dark_Aura"),
+        min_enemies=0,
+        enemy_range_check=Helper.get_spell_cast_range(),
+        effect_check=True,
+        distance_check_range=Helper.get_spell_cast_range(),
+        allow_out_of_combat=True,
+        min_energy_perc=0.25
+    )
+
+    if result:
+        execute_hero_skill(*result)
+
 def smart_st():
     if Party.GetHeroCount() == 0:
         return
@@ -1119,6 +1149,8 @@ def draw_tab_smart_skills(config):
     Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Honor on melee player.")
 
     Helper.create_and_update_checkbox("Smart Life Bond", "smart_life_bond_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Life Bond on melee player.")
+    PyImGui.same_line(0.0, 48)
+    Helper.create_and_update_checkbox("Smart Dark Aura", "smart_dark_aura_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Dark Aura on Necromancer player.")
 
     Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="Casts Splinter on melee player in combat.")
     PyImGui.same_line(0.0, 10)
@@ -1554,6 +1586,8 @@ def main():
                 smart_honor()
             if widget_config.smart_life_bond_enabled:
                 smart_life_bond()
+            if widget_config.smart_dark_aura_enabled:
+                smart_dark_aura()
             if widget_config.smart_st_enabled:   
                 smart_st()
             if widget_config.smart_bip_enabled:
