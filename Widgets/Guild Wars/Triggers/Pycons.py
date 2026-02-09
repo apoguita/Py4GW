@@ -58,6 +58,7 @@ try:
     )
     from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
+    import threading
 
     BOT_NAME = "Pycons"
     INI_SECTION = "Pycons"
@@ -308,12 +309,12 @@ try:
         {"key": "war_supplies", "label": "War Supplies", "model_id": int(ModelID.War_Supplies.value), "skills": ["Well_Supplied"], "use_where": "explorable"},
 
         # Outpost-only (alphabetical by label)
-        {"key": "chocolate_bunny", "label": "Chocolate Bunny (Outpost)", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "creme_brulee", "label": "Crème Brûlée (Outpost)", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "fruitcake", "label": "Fruitcake (Outpost)", "model_id": int(_model_id_value("Fruitcake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
-        {"key": "jar_of_honey", "label": "Jar of Honey (Outpost)", "model_id": int(_model_id_value("Jar_Of_Honey", 0)), "skills": ["Sugar_Rush_(long)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "red_bean_cake", "label": "Red Bean Cake (Outpost)", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
-        {"key": "sugary_blue_drink", "label": "Sugary Blue Drink (Outpost)", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
+        {"key": "chocolate_bunny", "label": "Chocolate Bunny", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
+        {"key": "creme_brulee", "label": "Crème Brûlée", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
+        {"key": "fruitcake", "label": "Fruitcake", "model_id": int(_model_id_value("Fruitcake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
+        {"key": "jar_of_honey", "label": "Jar of Honey", "model_id": int(_model_id_value("Jar_Of_Honey", 0)), "skills": ["Sugar_Rush_(long)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_LONG_MS},
+        {"key": "red_bean_cake", "label": "Red Bean Cake", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
+        {"key": "sugary_blue_drink", "label": "Sugary Blue Drink", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
     ]
 
     ALL_BY_KEY = {c["key"]: c for c in CONSUMABLES}
@@ -488,6 +489,7 @@ try:
     _inv_counts_by_model = {}
     _inv_ready_cached = True
     _inv_ready_ts = 0
+    _first_main_call = True
 
     def _now_ms() -> int:
         import time
@@ -695,6 +697,17 @@ try:
     # -------------------------
     # Inventory caching + stock counts
     # -------------------------
+    def _schedule_refresh(delay_ms: int):
+        try:
+            t = threading.Timer(delay_ms / 1000.0, lambda: _refresh_inventory_cache(force=True))
+            t.daemon = True
+            t.start()
+        except Exception as e:
+            try:
+                _debug(f"Failed to schedule inventory refresh: {e}", Console.MessageType.Debug)
+            except Exception:
+                pass
+
     def _refresh_inventory_cache(force: bool = False) -> bool:
         global _inv_cache_items, _inv_cache_ts, _inv_counts_by_model
         now = _now_ms()
@@ -710,9 +723,18 @@ try:
             for item_id in _inv_cache_items:
                 try:
                     mid = int(Item.GetModelID(int(item_id)))
+                    # Get the stack quantity by accessing the item instance
+                    qty = 1
+                    try:
+                        item_obj = Item.item_instance(int(item_id))
+                        qty = int(getattr(item_obj, 'quantity', 1))
+                        if qty <= 0:
+                            qty = 1
+                    except Exception as qty_error:
+                        _debug(f"Failed to get quantity for item_id {item_id}: {qty_error}", Console.MessageType.Debug)
                 except Exception:
                     continue
-                counts[mid] = int(counts.get(mid, 0)) + 1
+                counts[mid] = int(counts.get(mid, 0)) + int(qty)
             _inv_counts_by_model = counts
             return True
         except Exception as e:
@@ -749,8 +771,22 @@ try:
             if key == "honeycomb":
                 for _ in range(4):
                     GLOBAL_CACHE.Inventory.UseItem(int(item_id))
+                # immediate + scheduled refreshes to catch delayed state updates
+                try:
+                    _refresh_inventory_cache(force=True)
+                    _schedule_refresh(200)
+                    _schedule_refresh(600)
+                except Exception:
+                    pass
                 return True
             GLOBAL_CACHE.Inventory.UseItem(int(item_id))
+            # immediate + scheduled refreshes to catch delayed state updates
+            try:
+                _refresh_inventory_cache(force=True)
+                _schedule_refresh(200)
+                _schedule_refresh(600)
+            except Exception:
+                pass
             return True
         except Exception as e:
             _debug(f"UseItem failed (item_id={item_id}, key={key}): {e}", Console.MessageType.Warning)
@@ -927,6 +963,8 @@ try:
                     _broadcast_use(model_id, 1)
                 except Exception:
                     pass
+                # Force refresh inventory cache to show accurate count after consumption
+                _refresh_inventory_cache(force=True)
                 return True
 
         return False
@@ -995,6 +1033,8 @@ try:
                 _broadcast_use(model_id, 1)
             except Exception:
                 pass
+            # Force refresh inventory cache to show accurate count after consumption
+            _refresh_inventory_cache(force=True)
             return True
 
         return False
@@ -1178,7 +1218,7 @@ try:
                     PyImGui.separator()
 
                 if selected_outpost:
-                    PyImGui.text("Outpost:")
+                    PyImGui.text("In-town speed boosts:")
                     for c in selected_outpost:
                         k = c["key"]
                         suffix = _stock_suffix_for_model_id(int(c.get("model_id", 0)))
@@ -1235,7 +1275,9 @@ try:
         prev = bool(cfg.selected.get(k, False))
         _, selected = ui_checkbox(f"##pycons_selected_{k}", prev)
         _same_line(10)
-        PyImGui.text(label)
+        model_id = int(spec.get("model_id", 0))
+        stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
+        PyImGui.text(label + stock_suffix)
 
         _draw_min_interval_editor(k)
 
@@ -1264,7 +1306,9 @@ try:
         prev = bool(cfg.alcohol_selected.get(k, False))
         _, selected = ui_checkbox(f"##pycons_alcohol_selected_{k}", prev)
         _same_line(10)
-        PyImGui.text(label)
+        model_id = int(spec.get("model_id", 0))
+        stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
+        PyImGui.text(label + stock_suffix)
 
         selected = bool(selected)
         if prev != selected:
@@ -1484,7 +1528,7 @@ try:
 
             PyImGui.separator()
 
-        outpost_open = _collapsing_header_force("Outpost##pycons_hdr_outpost", force_open=outpost_force, default_open=False)
+        outpost_open = _collapsing_header_force("In-town speed boosts##pycons_hdr_outpost", force_open=outpost_force, default_open=False)
         if outpost_open:
             for spec in outpost_items:
                 _draw_settings_row(spec, flt, visible_regular_keys)
@@ -1536,8 +1580,17 @@ try:
         pass
 
     def main():
+        global _first_main_call
         if not _init_window_persistence_once():  # NEW: ensure both window INIs are ready
             return
+
+        # Refresh inventory on first load to show quantities immediately
+        if _first_main_call:
+            _first_main_call = False
+            try:
+                _refresh_inventory_cache(force=True)
+            except Exception:
+                pass
 
         _draw_main_window()
         _draw_settings_window()
