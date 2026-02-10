@@ -1215,10 +1215,7 @@ class CombatClass:
         
         if skill_id in alcohol_skills:
             Py4GW.Console.Log("HeroAI", f"Detected alcohol-dependent skill, checking for alcohol...", Py4GW.Console.MessageType.Info)
-            if self.UseAlcoholIfAvailable():
-                # Give the game time to process the alcohol consumption
-                import time
-                time.sleep(0.25)
+            self.UseAlcoholIfAvailable()
             
         self.in_casting_routine = True
         
