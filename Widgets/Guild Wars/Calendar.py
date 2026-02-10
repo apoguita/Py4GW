@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, Tuple
 from datetime import date, timedelta
+import os
 
 
 import PyImGui
@@ -490,8 +491,15 @@ def get_script_path_for_model(model: int) -> Optional[str]:
     Resolve the script filename for a given model ID.
     Returns the full path if found, otherwise None.
     """
-    base_path = Py4GW.Console.get_projects_path()
-    bots_path = os.path.join(base_path, "Bots", "Nicholas the Traveler")
+    widgets_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    bots_path = os.path.join(
+        widgets_path,
+        "Automation",
+        "Bots",
+        "Farmers",
+        "Trophies",
+        "Nicholas the Traveler",
+    )
 
     try:
         for file in os.listdir(bots_path):
