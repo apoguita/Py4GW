@@ -42,7 +42,6 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
 
         data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
-        print(f"BloodIsPowerUtility: {data}")
         if data is not None:
             self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
         else:
