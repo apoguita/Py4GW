@@ -7,6 +7,9 @@ from .cache_data import CacheData
 
 
 def SameMapAsAccount(account : AccountData):
+    if not Map.IsMapReady():
+        return False
+    
     own_map_id = Map.GetMapID()
     own_region = Map.GetRegion()[0]
     own_district = Map.GetDistrict()
@@ -14,6 +17,9 @@ def SameMapAsAccount(account : AccountData):
     return own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
 
 def SameMapOrPartyAsAccount(account : AccountData):
+    if not Map.IsMapReady():
+        return False
+    
     own_map_id = Map.GetMapID()
     own_region = Map.GetRegion()[0]
     own_district = Map.GetDistrict()
