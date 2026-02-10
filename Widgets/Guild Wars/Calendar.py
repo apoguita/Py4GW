@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from datetime import date, timedelta
+import ast
 import os
 
 
@@ -486,6 +487,66 @@ def draw_month(cal: Calendar, width: int = 300, height: int = 265):
             PyImGui.end_table()
     PyImGui.end_child()
 
+def _normalize_model_id(model: object) -> Optional[int]:
+    """Convert model values (int or enum-like) into a comparable integer ID."""
+    if isinstance(model, int):
+        return model
+
+    value = getattr(model, "value", None)
+    if isinstance(value, int):
+        return value
+
+    try:
+        return int(model)  # type: ignore[arg-type]
+    except Exception:
+        return None
+
+
+def _extract_model_id_from_script(script_path: str) -> Optional[int]:
+    """
+    Read MODEL_ID_TO_FARM from a script without importing/executing it.
+    Supports:
+    - MODEL_ID_TO_FARM = 446
+    - MODEL_ID_TO_FARM = ModelID.Shriveled_Eye
+    """
+    try:
+        with open(script_path, "r", encoding="utf-8") as f:
+            source = f.read()
+        tree = ast.parse(source, filename=script_path)
+    except Exception:
+        return None
+
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+
+        if not any(isinstance(t, ast.Name) and t.id == "MODEL_ID_TO_FARM" for t in targets):
+            continue
+
+        value_node = node.value
+        if value_node is None:
+            return None
+
+        if isinstance(value_node, ast.Constant) and isinstance(value_node.value, int):
+            return value_node.value
+
+        if (
+            isinstance(value_node, ast.Attribute)
+            and isinstance(value_node.value, ast.Name)
+            and value_node.value.id == "ModelID"
+        ):
+            enum_member = getattr(ModelID, value_node.attr, None)
+            return _normalize_model_id(enum_member)
+
+        return None
+
+    return None
+
+
 def get_script_path_for_model(model: int) -> Optional[str]:
     """
     Resolve the script filename for a given model ID.
@@ -501,14 +562,29 @@ def get_script_path_for_model(model: int) -> Optional[str]:
         "Nicholas the Traveler",
     )
 
+    model_id = _normalize_model_id(model)
+    if model_id is None:
+        return None
+
     try:
         for file in os.listdir(bots_path):
-            if file.startswith(f"{model}-") and file.endswith(".py"):
-                return os.path.join(bots_path, file)
+            if not file.endswith(".py"):
+                continue
+
+            full_path = os.path.join(bots_path, file)
+
+            # Backward-compatible: legacy "<model>-Name.py" naming.
+            if file.startswith(f"{model_id}-"):
+                return full_path
+
+            # Preferred: read MODEL_ID_TO_FARM from script content.
+            file_model_id = _extract_model_id_from_script(full_path)
+            if file_model_id == model_id:
+                return full_path
     except Exception as e:
         Py4GW.Console.Log(
             "script loader",
-            f"Error scanning for model {model}: {str(e)}",
+            f"Error scanning for model {model_id}: {str(e)}",
             Py4GW.Console.MessageType.Error,
         )
 
