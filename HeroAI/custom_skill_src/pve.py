@@ -66,7 +66,7 @@ class PVESkills:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.IsOutOfCombat = False
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -565,7 +565,7 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRange = 1
         skill.Conditions.EnemiesInRangeArea = Range.Area.value
         skill_data[skill.SkillID] = skill
 

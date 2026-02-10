@@ -88,6 +88,7 @@ class BotConfig:
                  #S
                  slice_of_pumpkin_pie_active: bool = False,
                  slice_of_pumpkin_pie_restock: int = 0,
+                 summoning_stone_active: bool = False,
                  #W
                  war_supplies_active: bool = False,
                  war_supplies_restock: int = 0,
@@ -199,6 +200,7 @@ class BotConfig:
                     #S
                  slice_of_pumpkin_pie_active=slice_of_pumpkin_pie_active,
                  slice_of_pumpkin_pie_restock=slice_of_pumpkin_pie_restock,
+                 summoning_stone_active=summoning_stone_active,
                     #W
                  war_supplies_active=war_supplies_active,
                  war_supplies_restock=war_supplies_restock,

@@ -19,6 +19,7 @@ from Py4GWCoreLib import Utils, ImGui, Color, ColorPalette
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
+from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -1121,6 +1122,30 @@ def UseSkill(index, message):
 def UseItem(index, message):
     ConsoleLog(MODULE_NAME, f"Processing UseItem message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    # Check if the user has opted in to team broadcasts (Pycons setting)
+    # Use Player.GetAccountEmail() to match the hash used by Pycons.py
+    try:
+        # Get the current account's email (must match how Pycons computes the hash)
+        account_email = Player.GetAccountEmail()
+        # Create account-specific INI path by using email hash to avoid special chars
+        import hashlib
+        email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
+        ini_path = f"Widgets/Config/Pycons_{email_hash}.ini"
+        
+        ConsoleLog(MODULE_NAME, f"UseItem: Reading opt-in from {ini_path} (account: {account_email})", Console.MessageType.Info)
+        
+        ini_handler = IniHandler(ini_path)
+        opt_in = ini_handler.read_bool("Pycons", "team_consume_opt_in", False)
+        ConsoleLog(MODULE_NAME, f"UseItem: team_consume_opt_in setting read as: {opt_in}", Console.MessageType.Info)
+        if not opt_in:
+            ConsoleLog(MODULE_NAME, "UseItem: team_consume_opt_in is disabled, ignoring broadcast.", Console.MessageType.Info)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+    except Exception as e:
+        ConsoleLog(MODULE_NAME, f"UseItem: failed to read team_consume_opt_in setting: {e}", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
 
     if len(message.Params) < 1:
         ConsoleLog(MODULE_NAME, "UseItem: missing model_id param.", Console.MessageType.Warning)
