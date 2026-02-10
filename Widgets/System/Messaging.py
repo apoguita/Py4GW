@@ -48,7 +48,7 @@ class HeroAIoptions:
         self.Skills: list[bool] = [False] * 8
 
 
-hero_ai_snapshot = HeroAIoptions()
+hero_ai_snapshots: list[HeroAIoptions] = []
 
 combat_prep_first_skills_check = True
 hero_ai_has_ritualist_skills = False
@@ -173,31 +173,42 @@ def DrawWindow():
 # endregion
 # region HeroAI Snapshot
 def SnapshotHeroAIOptions(account_email):
-    global hero_ai_snapshot
+    global hero_ai_snapshots
     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
+    
+    data: HeroAIoptions = HeroAIoptions()
+    data.Following = hero_ai_options.Following
+    data.Avoidance = hero_ai_options.Avoidance
+    data.Looting = hero_ai_options.Looting
+    data.Targeting = hero_ai_options.Targeting
+    data.Combat = hero_ai_options.Combat
 
-    hero_ai_snapshot.Following = hero_ai_options.Following
-    hero_ai_snapshot.Avoidance = hero_ai_options.Avoidance
-    hero_ai_snapshot.Looting = hero_ai_options.Looting
-    hero_ai_snapshot.Targeting = hero_ai_options.Targeting
-    hero_ai_snapshot.Combat = hero_ai_options.Combat
-    yield
+    hero_ai_snapshots.append(data)
+
 
 
 def RestoreHeroAISnapshot(account_email):
-    global hero_ai_snapshot
+    global hero_ai_snapshots
+    
+    if not hero_ai_snapshots:
+        EnableHeroAIOptions(account_email)  # If no snapshot, just enable everything to be safe
+        ConsoleLog(MODULE_NAME, "No Hero AI snapshot found, enabling all options as fallback.", Console.MessageType.Warning, True)
+        return
+    
     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
     if hero_ai_options is None:
         return
+    
+    last_state = hero_ai_snapshots.pop()
 
-    hero_ai_options.Following = hero_ai_snapshot.Following
-    hero_ai_options.Avoidance = hero_ai_snapshot.Avoidance
-    hero_ai_options.Looting = hero_ai_snapshot.Looting
-    hero_ai_options.Targeting = hero_ai_snapshot.Targeting
-    hero_ai_options.Combat = hero_ai_snapshot.Combat
-    yield
+    hero_ai_options.Following = last_state.Following
+    hero_ai_options.Avoidance = last_state.Avoidance
+    hero_ai_options.Looting = last_state.Looting
+    hero_ai_options.Targeting = last_state.Targeting
+    hero_ai_options.Combat = last_state.Combat
+
 
 
 def DisableHeroAIOptions(account_email):
@@ -210,7 +221,7 @@ def DisableHeroAIOptions(account_email):
     hero_ai_options.Looting = False
     hero_ai_options.Targeting = False
     hero_ai_options.Combat = False
-    yield
+
 
 
 def EnableHeroAIOptions(account_email):
@@ -223,7 +234,7 @@ def EnableHeroAIOptions(account_email):
     hero_ai_options.Looting = True
     hero_ai_options.Targeting = True
     hero_ai_options.Combat = True
-    yield
+
 
 
 # endregion
@@ -313,9 +324,9 @@ def PixelStack(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
         Player.SendChatCommand("stuck")
         yield from Routines.Yield.wait(250)
@@ -347,7 +358,7 @@ def PixelStack(index, message):
         else:
             ConsoleLog(MODULE_NAME, "PixelStack movement succeeded.", Console.MessageType.Info, log=False)
     finally:
-        yield from EnableHeroAIOptions(message.ReceiverEmail)
+        EnableHeroAIOptions(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
@@ -363,9 +374,9 @@ def BruteForceUnstuck(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
 
         # Initial stuck command
@@ -408,7 +419,7 @@ def BruteForceUnstuck(index, message):
             ConsoleLog(MODULE_NAME, "All unstuck attempts failed.", Console.MessageType.Warning)
 
     finally:
-        yield from EnableHeroAIOptions(message.ReceiverEmail)
+        EnableHeroAIOptions(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
@@ -429,9 +440,9 @@ def InteractWithTarget(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
         x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
@@ -440,7 +451,7 @@ def InteractWithTarget(index, message):
 
         ConsoleLog(MODULE_NAME, "InteractWithTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
@@ -460,9 +471,9 @@ def TakeDialogWithTarget(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
         x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
@@ -475,7 +486,7 @@ def TakeDialogWithTarget(index, message):
 
         ConsoleLog(MODULE_NAME, "TakeDialogWithTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
@@ -496,9 +507,9 @@ def SendDialogToTarget(index, message):
 
     dialog = int(message.Params[1])
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
         x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
@@ -510,7 +521,7 @@ def SendDialogToTarget(index, message):
 
         ConsoleLog(MODULE_NAME, "SendDialogToTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
@@ -544,9 +555,9 @@ def GetBlessing(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
         x, y = Agent.GetXY(target)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
@@ -559,7 +570,7 @@ def GetBlessing(index, message):
 
         ConsoleLog(MODULE_NAME, "GetBlessing message processed and finished.", Console.MessageType.Info, False)
     finally:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 
@@ -720,7 +731,7 @@ def OpenChest(index, message):
     email_owner = message.ReceiverEmail or Player.GetAccountEmail()
     
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(email_owner, index)
-    yield from SnapshotHeroAIOptions(email_owner)
+    SnapshotHeroAIOptions(email_owner)
     
     def unlock_chest():
         has_lockpick = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Lockpick) > 0
@@ -732,7 +743,7 @@ def OpenChest(index, message):
         if not Agent.IsValid(chest_id):
             return
                 
-        yield from DisableHeroAIOptions(email_owner)
+        DisableHeroAIOptions(email_owner)
         yield from Routines.Yield.wait(100)
         x, y = Agent.GetXY(chest_id)
         ConsoleLog(MODULE_NAME, f"Moving to chest at ({x}, {y})", Console.MessageType.Info)
@@ -763,7 +774,7 @@ def OpenChest(index, message):
         yield from unlock_chest()  
           
     finally:
-        yield from RestoreHeroAISnapshot(email_owner)      
+        RestoreHeroAISnapshot(email_owner)      
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(email_owner, index)
           
         #Get Party Index and cascade to the next party index
@@ -814,7 +825,7 @@ def OpenChest(index, message):
 def PickUpLoot(index, message):
     def _exit_if_not_map_valid():
         if not Routines.Checks.Map.MapValid():
-            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+            RestoreHeroAISnapshot(message.ReceiverEmail)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
             return True  # Signal that we must exit
@@ -825,7 +836,7 @@ def PickUpLoot(index, message):
                 "No free slots in inventory, halting.",
                 Console.MessageType.Error,
             )
-            yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+            RestoreHeroAISnapshot(message.ReceiverEmail)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
             return True
@@ -840,15 +851,15 @@ def PickUpLoot(index, message):
 
     loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
     if len(loot_array) == 0:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)  # <-- missing before
+        RestoreHeroAISnapshot(message.ReceiverEmail)  # <-- missing before
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
     ConsoleLog(MODULE_NAME, "Starting PickUpLoot routine", Console.MessageType.Info, False)
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
         while True:
             loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
@@ -858,7 +869,7 @@ def PickUpLoot(index, message):
             if item_id is None or item_id == 0:
                 continue
 
-            if (yield from _exit_if_not_map_valid()):
+            if ( _exit_if_not_map_valid()):
                 LootConfig().AddItemIDToBlacklist(item_id)
                 ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
                 ActionQueueManager().ResetAllQueues()
@@ -881,8 +892,8 @@ def PickUpLoot(index, message):
                 return
 
             yield from Routines.Yield.wait(100)
-            if (yield from _exit_if_not_map_valid()):
-                yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+            if (_exit_if_not_map_valid()):
+                RestoreHeroAISnapshot(message.ReceiverEmail)
                 return
             yield from Routines.Yield.Player.InteractAgent(item_id)
             yield from Routines.Yield.wait(100)
@@ -902,7 +913,7 @@ def PickUpLoot(index, message):
                     ActionQueueManager().ResetAllQueues()
                     return
 
-                if (yield from _exit_if_not_map_valid()):
+                if (_exit_if_not_map_valid()):
                     LootConfig().AddItemIDToBlacklist(item_id)
                     ConsoleLog(
                         "PickUp Loot",
@@ -920,7 +931,7 @@ def PickUpLoot(index, message):
 
         ConsoleLog(MODULE_NAME, "PickUpLoot routine finished.", Console.MessageType.Info, False)
     finally:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 #endregion
 
@@ -929,10 +940,11 @@ def MessageDisableHeroAI(index, message):
     ConsoleLog(MODULE_NAME, f"Processing DisableHeroAI message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
-    yield from SnapshotHeroAIOptions(account_email)
-    yield from DisableHeroAIOptions(account_email)
+    SnapshotHeroAIOptions(account_email)
+    DisableHeroAIOptions(account_email)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
     ConsoleLog(MODULE_NAME, "DisableHeroAI message processed and finished.", Console.MessageType.Info, False)
+    yield
 
 
 def MessageEnableHeroAI(index, message):
@@ -940,11 +952,13 @@ def MessageEnableHeroAI(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
     if message.Params[0]:
-        yield from EnableHeroAIOptions(account_email)
+        EnableHeroAIOptions(account_email)
     else:
-        yield from RestoreHeroAISnapshot(account_email)
+        RestoreHeroAISnapshot(account_email)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
     ConsoleLog(MODULE_NAME, "EnableHeroAI message processed and finished.", Console.MessageType.Info, False)
+    yield
+    
 # endregion
 
 # region SetWindowGeometry
@@ -1090,10 +1104,10 @@ def UseSkill(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    yield from SnapshotHeroAIOptions(message.ReceiverEmail)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
         ConsoleLog(MODULE_NAME, f"Disable HERO AI.", Console.MessageType.Info)
-        yield from DisableHeroAIOptions(message.ReceiverEmail)
+        DisableHeroAIOptions(message.ReceiverEmail)
         ConsoleLog(MODULE_NAME, f"Changing target to {target}.", Console.MessageType.Info)
         yield from Routines.Yield.Agents.ChangeTarget(target)
         ConsoleLog(MODULE_NAME, f"Casting skill in slot {skill_slot}.", Console.MessageType.Info)
@@ -1101,7 +1115,7 @@ def UseSkill(index, message):
 
         ConsoleLog(MODULE_NAME, "UseSkill message processed and finished.", Console.MessageType.Info, False)
     finally:
-        yield from RestoreHeroAISnapshot(message.ReceiverEmail)
+        RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 # region UseItem (generic)
@@ -1238,8 +1252,8 @@ def UseSkillCombatPrep(index, message):
 
         ConsoleLog(MODULE_NAME, "Paragon shout skills initialized", Console.MessageType.Info)
 
-        yield from SnapshotHeroAIOptions(account_email)
-        yield from DisableHeroAIOptions(account_email)
+        SnapshotHeroAIOptions(account_email)
+        DisableHeroAIOptions(account_email)
 
         # --- Cast Paragon Shouts ---
         try:
@@ -1260,7 +1274,7 @@ def UseSkillCombatPrep(index, message):
             yield from Routines.Yield.wait(500)  # optional backoff
 
         # --- Re-enable Hero AI ---
-        yield from RestoreHeroAISnapshot(account_email)
+        RestoreHeroAISnapshot(account_email)
         yield from Routines.Yield.wait(100)
 
     def cast_rit_spirits():
@@ -1269,8 +1283,8 @@ def UseSkillCombatPrep(index, message):
         ConsoleLog(MODULE_NAME, "Ritualist skills initialized", Console.MessageType.Info)
 
         # --- Disable Hero AI ---
-        yield from SnapshotHeroAIOptions(account_email)
-        yield from DisableHeroAIOptions(account_email)
+        SnapshotHeroAIOptions(account_email)
+        DisableHeroAIOptions(account_email)
 
         # --- Cast Ritualist Skills ---
         try:
@@ -1303,7 +1317,7 @@ def UseSkillCombatPrep(index, message):
             yield from Routines.Yield.wait(500)  # optional backoff
 
         # --- Re-enable Hero AI ---
-        yield from RestoreHeroAISnapshot(account_email)
+        RestoreHeroAISnapshot(account_email)
         yield from Routines.Yield.wait(100)
 
     cast_params = message.Params[0]
