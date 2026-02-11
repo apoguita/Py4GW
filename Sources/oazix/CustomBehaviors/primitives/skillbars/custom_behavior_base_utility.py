@@ -7,7 +7,7 @@ import time
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player
 from Py4GWCoreLib.Pathing import AutoPathing
-from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
+from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
@@ -34,6 +34,7 @@ from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_new_util
 from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
 from Sources.oazix.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
 from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
+from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
@@ -300,7 +301,6 @@ class CustomBehaviorBaseUtility():
 
     # orchestration
 
-    timer = Timer()
     throttler = ThrottledTimer(50)
     compute_throttler = ThrottledTimer(300)
     execute_throttler = ThrottledTimer(80)
@@ -308,54 +308,29 @@ class CustomBehaviorBaseUtility():
     def act(self):
         if not self.throttler.IsExpired(): return
         self.throttler.Reset()
-        
+
         if not Routines.Checks.Map.MapValid(): return
         if not self.get_final_is_enabled(): return
-        self.timer.Reset()
 
         MemoryCacheManager().refresh()
-        # if (
-        # not cached_data.data.player_is_alive
-        # or DistanceFromLeader(cached_data) >= Range.SafeCompass.value
-        # or cached_data.data.player_is_knocked_down
-        # or cached_data.combat_handler.InCastingRoutine()
-        # or cached_data.data.player_is_casting
 
-        if not self.is_custom_behavior_match_in_game_build(): 
+        if not self.is_custom_behavior_match_in_game_build():
             print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
             return
 
-        # if self.get_final_is_enabled():
-        #     account_email = Player.GetAccountEmail()
-        #     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
-        #     if hero_ai_options is not None:
-        #         hero_ai_options.Combat = False
-        #         hero_ai_options.Following = False
-        #         hero_ai_options.Looting = False
-
-        # it is interesting to compute score less often, as the execution :
-        # - if we are executing with EXECUTE_THROUGH_THE_END, most of the time it take more than 300/400 ms with the aftercast.
-        # - if we are executing with STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST, we don't need huge responsiveness
-
         if self.compute_throttler.IsExpired():
             self.compute_throttler.Reset()
-            self.timer.Reset()
             self.__fetch_and_memoized_state()
-            # print(f"performance-audit-frame-durationA:{self.timer.GetElapsedTime()}")
-
             self.__fetch_and_memoized_all_scores()
-            # print(f"performance-audit-frame-durationB:{self.timer.GetElapsedTime()}")
 
         if self.execute_throttler.IsExpired():
             self.execute_throttler.Reset()
-            self.timer.Reset()
             try:
                 next(self._generator_handle)
             except StopIteration:
                 print(f"CustomBehaviorBaseUtility.act is not expected to StopIteration.")
             except Exception as e:
                 print(f"CustomBehaviorBaseUtility.act is not expected to exit : {e}")
-            # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
 
 
     # STATES
@@ -363,9 +338,6 @@ class CustomBehaviorBaseUtility():
     def __fetch_and_memoized_state(self):
 
         def compute_state() -> BehaviorState:
-            timer = Timer()
-            timer.Reset()
-
             if self.get_final_is_enabled() == False:
                 return BehaviorState.IDLE
 
@@ -398,23 +370,30 @@ class CustomBehaviorBaseUtility():
     # SCORES 
 
     def __fetch_and_memoized_all_scores(self):
-        timer = Timer()
-        timer.Reset()
-        # print(f"performance-audit-frame-duration:{self.timer.GetElapsedTime()}")
-
-        # print('Evaluate all utilities')
         # Evaluate all utilities
         utilities: list[CustomSkillUtilityBase] = self.get_skills_final_list()
-        # for x in utilities:
-        #     print(f"skill {x.custom_skill.skill_name}")
-        
+
         utility_scores: list[tuple[CustomSkillUtilityBase, float | None]] = []
         current_state: BehaviorState = self.get_final_state()
 
+        # Track whether a purpose-built combat skill scored, so we can skip
+        # autocombat fallbacks (base score 9.91) that can never win
+        combat_skill_scored = False
+        previously_attempted = list(self.__previously_attempted_skills)
+
         for utility in utilities:
-            score = utility.evaluate(current_state, list(self.__previously_attempted_skills))
+            # Lazy skip: autocombat can never outscore a purpose-built combat skill
+            if isinstance(utility, AutoCombatUtility) and combat_skill_scored:
+                utility_scores.append((utility, None))
+                continue
+
+            score = utility.evaluate(current_state, previously_attempted)
+
+            if score is not None and score >= CommonScore.LOWER_COMBAT.value:
+                combat_skill_scored = True
+
             utility_scores.append((utility, score))
-        
+
         # Sort by score (highest first)
         utility_scores.sort(key=lambda x: x[1] if x[1] is not None else 0, reverse=True)
         self.__memoized_ordered_scores = utility_scores
