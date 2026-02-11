@@ -4,7 +4,7 @@ import PyImGui
 import os
 from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager)
+                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, HeroType)
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 
 bot = Botting("Factions Leveler",
@@ -104,7 +104,7 @@ def EquipSkillBar(skillbar = ""):
     elif profession == "Monk":
         skillbar = "OwISYxcGKG2o03AAA0WA"
     elif profession == "Necromancer":
-        skillbar = "OAJTYJckzQxw23AAAAg2CAA"
+        skillbar = "OAVBIlkDcdGoBCAAAAAA"
     elif profession == "Mesmer":
         skillbar = "OQJTYJckzQxw23AAAAg2CAA"
     elif profession == "Elementalist":
@@ -199,20 +199,19 @@ def StandardHeroTeam():
 
     hero_list = []
     skill_templates = []
-    
-    if party_size <= 8:
-        # Small party: Gwen, Vekk, Ogden
-        hero_list.extend([24, 26, 27])
-        skill_templates = [
-            "OQhkAsC8gFKgGckjHFRUGCA",  # 1 Gwen
-            "OgVDI8gsCawROeUEtZIA",     # 2 Vekk
-            "OwUUMsG/E4GgMnZskzkIZQAA"  # 3 Ogden
+
+    hero_list.extend([HeroType.Gwen, HeroType.Vekk, HeroType.Ogden, HeroType.MOX])
+    skill_templates = [
+            "OQhkAsC8gFKgGckjHFRUGCA",  # Gwen
+            "OgVDI8gsCawROeUEtZIA",     # Vekk
+            "OwUUMsG/E4GgMnZskzkIZQAA", # Ogden
+            "OgVDI8gsCawROeUEtZIA"       # MOX
         ]
     
     # Add all heroes quickly
-    for hero_id in hero_list:
-        GLOBAL_CACHE.Party.Heroes.AddHero(hero_id)
-        ConsoleLog("addhero",f"Added Hero: {hero_id}", log=False)
+    for hero in hero_list:
+        GLOBAL_CACHE.Party.Heroes.AddHero(hero.value)
+        ConsoleLog("addhero",f"Added Hero: {hero.name}", log=False)
     
     # Single wait for all heroes to join
     yield from Routines.Yield.wait(1000)
@@ -222,6 +221,13 @@ def StandardHeroTeam():
         GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(position + 1, skill_templates[position])
         ConsoleLog("skillbar", f"Loading skillbar for position {position + 1}", log=True)
         yield from Routines.Yield.wait(500)
+    
+    # Set all heroes to guard mode
+    for position in range(1, len(hero_list) + 1):
+        hero_agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(position)
+        if hero_agent_id > 0:
+            GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(hero_agent_id, 1)  # 1 = Guard mode
+            yield from Routines.Yield.wait(100)
 
 def PrepareForBattle(bot: Botting):
     ConfigureAggressiveEnv(bot)
@@ -486,7 +492,7 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
         PANTS = 23583
         BOOTS = 23580
     elif primary == "Necromancer":
-        HEAD = 23633    # Shinjea
+        HEAD = 23632    # Shinjea
         CHEST = 23637
         GLOVES = 23638
         PANTS = 23639
@@ -588,20 +594,20 @@ def DoCraftMaxArmor(bot: Botting):
         # Necromancer has unique materials: 180 tanned hide + 180 bone + 5 parchment + 4 ink
         if primary == "Necromancer":
             armor_pieces = [
-                (GLOVES, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value, ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value], [20, 20, 1, 0]),
-                (BOOTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value, ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value], [20, 20, 1, 1]),
-                (PANTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value, ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value], [45, 45, 1, 1]),
-                (CHEST, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value, ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value], [70, 70, 1, 1]),
-                (HEAD, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value, ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value], [25, 25, 1, 1]),
+                (GLOVES, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [25, 25]),
+                (BOOTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [25, 25]),
+                (PANTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [50, 50]),
+                (CHEST, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [75, 75]),
+                (HEAD, [ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value], [5, 4]),
             ]
-        # Monk has unique materials: 180 bolt of cloth + 10 feathers + 25 parchment + 28 linen
+        # Monk has unique materials: 175 bolt of cloth + 4 feathers + 25 parchment + 28 linen
         elif primary == "Monk":
             armor_pieces = [
-                (GLOVES, [ModelID.Bolt_Of_Cloth.value, ModelID.Feather.value, ModelID.Roll_Of_Parchment.value, ModelID.Bolt_Of_Linen.value], [20, 2, 5, 4]),
-                (BOOTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Feather.value, ModelID.Roll_Of_Parchment.value, ModelID.Bolt_Of_Linen.value], [20, 2, 5, 4]),
-                (PANTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Feather.value, ModelID.Roll_Of_Parchment.value, ModelID.Bolt_Of_Linen.value], [45, 2, 5, 8]),
-                (CHEST, [ModelID.Bolt_Of_Cloth.value, ModelID.Feather.value, ModelID.Roll_Of_Parchment.value, ModelID.Bolt_Of_Linen.value], [70, 2, 5, 8]),
-                (HEAD, [ModelID.Bolt_Of_Cloth.value, ModelID.Feather.value, ModelID.Roll_Of_Parchment.value, ModelID.Bolt_Of_Linen.value], [25, 2, 5, 4]),
+                (GLOVES, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [25, 4]),
+                (BOOTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [25, 4]),
+                (PANTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [50, 8]),
+                (CHEST, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [75, 12]),
+                (HEAD, [ModelID.Roll_Of_Parchment.value, ModelID.Feather.value], [25, 4]),
             ]
         # Ranger has standard materials: 200 bolt of cloth + 32 fur square (uses default case)
         elif primary == "Ranger":
@@ -985,6 +991,7 @@ def Minister_Chos_Estate_Mission(bot: Botting) -> None:
     bot.Map.Travel(target_map_id=214)
     PrepareForBattle(bot)
     bot.Map.EnterChallenge(delay=4500, target_map_id=214)
+    bot.Wait.ForMapToChange(target_map_id=214)
     bot.Move.XY(6220.76, -7360.73)
     bot.Move.XY(5523.95, -7746.41)
     bot.Wait.ForTime(15000)
@@ -1000,7 +1007,7 @@ def Minister_Chos_Estate_Mission(bot: Botting) -> None:
     bot.Move.XY(333.32, 1124.44)
     bot.Move.XY(-3337.14, -4741.27)
     bot.Wait.ForTime(35000)
-    ConfigureAggressiveEnv(bot)
+    #ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4661.99, -6285.81)
     bot.Move.XY(-7454, -7384)  # Move to Zoo Entrance
     bot.Move.XY(-9138, -4191)  # Move to First Zoo Fight
@@ -1018,6 +1025,7 @@ def Attribute_Points_Quest_1(bot: Botting):
     PrepareForBattle(bot)
     path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90),(17005, 19787)]
     bot.Move.FollowPathAndExitMap(path, target_map_id=245)
+    bot.Properties.Disable("auto_loot")
     bot.Move.XY(-17979.38, -493.08)
     bot.Dialogs.WithModel(3093, 0x815A04) #Guard model id updated 20.12.2025 GW Reforged
     exit_function = lambda: (
@@ -1097,8 +1105,11 @@ def Zen_Daijun_Mission(bot:Botting):
     bot.States.AddHeader("Zen Daijun Mission")
     for _ in range (4):
         bot.Map.Travel(target_map_id=213)
-        PrepareForBattle(bot)
+        #PrepareForBattle(bot)
+        bot.States.AddCustomState(AddHenchmen, "Add Henchmen")
         bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
+        bot.Wait.ForMapToChange(target_map_id=213)
+        ConfigureAggressiveEnv(bot)
         bot.Move.XY(15120.68, 10456.73)
         bot.Wait.ForTime(15000)
         bot.Move.XY(11990.38, 10782.05)
@@ -1135,6 +1146,7 @@ def Zen_Daijun_Mission(bot:Botting):
 def Craft_Remaining_Seitung_Armor(bot: Botting):
     bot.States.AddHeader("Craft remaining Seitung armor")
     bot.Map.Travel(target_map_name="Seitung Harbor")
+    #bot.States.AddCustomState(withdraw_gold_weapon, "Withdraw 500 Gold")
     bot.States.AddCustomState(CraftRemainingArmor, "Craft Remaining Seitung Armor")
 
 def Destroy_Starter_Armor_And_Useless_Items(bot: Botting):
@@ -1264,6 +1276,7 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Dialogs.WithModel(6021, 0x0000008A) # Gwen dialog to obtain Keiran's bow. Model id updated 20.12.2025 GW Reforged
     bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
     bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Items.Equip(35829) #Keiran's bow
     bot.Map.Travel(target_map_id=642)
 
 def Attribute_Points_Quest_2(bot: Botting):
@@ -1284,7 +1297,8 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Dialogs.WithModel(4009,0x815C01) #Zunraa model id updated 20.12.2025 GW Reforged
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([1, 5])
+    #bot.Party.AddHenchmanList([1, 5])
+    bot.Party.AddHenchmanList([5])
     bot.Dialogs.AtXY(20350.00, 9087.00, 0x80000B)
     bot.Wait.ForMapLoad(target_map_id=246)  #Zen Daijun
     ConfigureAggressiveEnv(bot)
@@ -1399,8 +1413,8 @@ def To_Gunnars_Hold(bot: Botting):
     bot.Map.Travel(target_map_id=642)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([5, 6, 7, 9])
-    bot.Items.Equip(35829)
+    #bot.Party.AddHenchmanList([5, 6, 7, 9])
+    bot.Party.AddHenchmanList([4, 5, 6])
     path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
             (1522.0, 464.0)]
     bot.Move.FollowPath(path)
@@ -1423,19 +1437,20 @@ def Unlock_Kilroy_Stonekin(bot: Botting):
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
     bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=703)
-    bot.Items.Equip(24897) #Brass_knuckles_item_id
+    bot.Items.Equip(24897) #Brass knuckles
     bot.Wait.ForTime(3000)
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)
+    bot.Items.Equip(35829) #Keiran's bow
 
 def To_Longeyes_Edge(bot: Botting):
     bot.States.AddHeader("To Longeye's Edge")
     bot.Map.Travel(target_map_id=644)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([5, 6, 7, 9])
-    bot.Items.Equip(35829)
+    #bot.Party.AddHenchmanList([5, 6, 7, 9])
+    bot.Party.AddHenchmanList([4, 5, 6])
     bot.Move.XY(15886.204101, -6687.815917)
     bot.Move.XY(15183.199218, -6381.958984)
     bot.Wait.ForMapLoad(target_map_id=548)
@@ -1470,7 +1485,8 @@ def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
     bot.Map.Travel(target_map_id=650)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([5, 6, 7, 9])
+    #bot.Party.AddHenchmanList([5, 6, 7, 9])
+    bot.Party.AddHenchmanList([4, 5, 6])
     bot.Move.XYAndExitMap(-26375, 16180, target_map_name="Bjora Marches")
     ConfigureAggressiveEnv(bot)
     path_points_to_traverse_bjora_marches: List[Tuple[float, float]] = [
@@ -1521,7 +1537,8 @@ def To_Temple_of_The_Ages(bot: Botting):
     bot.Map.Travel(target_map_id=55)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([1, 3])
+    #bot.Party.AddHenchmanList([1, 3])
+    bot.Party.AddHenchmanList([1])
     bot.Move.XY(1219, 7222)
     bot.Move.XY(1021, 10651)
     bot.Move.XY(250, 12350)
@@ -1584,7 +1601,8 @@ def To_Temple_of_The_Ages(bot: Botting):
     bot.Wait.ForMapLoad(target_map_id=57)  # Bergen Hot Springs
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([1, 3])
+    #bot.Party.AddHenchmanList([1, 3])
+    bot.Party.AddHenchmanList([1])
     bot.Move.XY(15521, -15378)
     bot.Move.XY(15450, -15050)
     bot.Wait.ForMapLoad(target_map_id=59) # Nebo Terrace
@@ -1696,7 +1714,8 @@ def Unlock_Olias(bot:Botting):
     bot.Map.Travel(target_map_id=55)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([1, 3])
+    #bot.Party.AddHenchmanList([1, 3])
+    bot.Party.AddHenchmanList([1])
     bot.Move.XY(1413.11, 9255.51)
     bot.Move.XY(242.96, 6130.82)
     bot.Move.XYAndDialog(-1137.00, 2501.00, 0x84)
