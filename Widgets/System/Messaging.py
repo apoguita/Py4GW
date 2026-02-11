@@ -6,7 +6,7 @@ import Py4GW
 import PyUIManager
 
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import Console
@@ -1119,6 +1119,56 @@ def UseSkill(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 
 # region UseItem (generic)
+def _local_has_effect(effect_id: int) -> bool:
+    if effect_id <= 0:
+        return False
+    try:
+        pid = int(Player.GetAgentID())
+        return bool(Effects.EffectExists(pid, int(effect_id)) or Effects.BuffExists(pid, int(effect_id)))
+    except Exception:
+        return False
+
+def _player_is_dead() -> bool:
+    try:
+        fn = getattr(Player, "IsDead", None)
+        if callable(fn):
+            return bool(fn())
+    except Exception:
+        pass
+    return False
+
+def _map_is_loading() -> bool:
+    try:
+        for nm in ("IsLoading", "IsMapLoading", "IsLoadingMap", "IsInLoadingScreen"):
+            fn = getattr(Map, nm, None)
+            if callable(fn) and bool(fn()):
+                return True
+    except Exception:
+        pass
+    return False
+
+def _inventory_ready() -> bool:
+    try:
+        inv = getattr(GLOBAL_CACHE, "Inventory", None)
+        if inv is not None:
+            fn = getattr(inv, "IsReady", None)
+            if callable(fn):
+                return bool(fn())
+    except Exception:
+        return False
+    return True
+
+def _should_block_item_use() -> bool:
+    if not Routines.Checks.Map.MapValid():
+        return True
+    if _player_is_dead():
+        return True
+    if _map_is_loading():
+        return True
+    if not _inventory_ready():
+        return True
+    return False
+
 def UseItem(index, message):
     ConsoleLog(MODULE_NAME, f"Processing UseItem message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -1147,6 +1197,11 @@ def UseItem(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
+    if _should_block_item_use():
+        ConsoleLog(MODULE_NAME, "UseItem: blocked by safety checks (dead/loading/inventory not ready/map invalid).", Console.MessageType.Info, False)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
     if len(message.Params) < 1:
         ConsoleLog(MODULE_NAME, "UseItem: missing model_id param.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -1165,15 +1220,28 @@ def UseItem(index, message):
             repeat = max(1, int(message.Params[1]))
         except Exception:
             repeat = 1
+    effect_id = 0
+    if len(message.Params) > 2:
+        try:
+            effect_id = int(message.Params[2])
+        except Exception:
+            effect_id = 0
 
     count = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
     if count < 1:
         ConsoleLog(MODULE_NAME, f"UseItem: no items with model_id {model_id} in inventory.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+    if effect_id > 0 and _local_has_effect(effect_id):
+        ConsoleLog(MODULE_NAME, f"UseItem: effect {effect_id} already active, skipping.", Console.MessageType.Info, False)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
 
     used = 0
     for _ in range(repeat):
+        if effect_id > 0 and _local_has_effect(effect_id):
+            ConsoleLog(MODULE_NAME, f"UseItem: effect {effect_id} active mid-loop, stopping.", Console.MessageType.Info, False)
+            break
         if GLOBAL_CACHE.Inventory.GetModelCount(model_id) < 1:
             ConsoleLog(MODULE_NAME, "UseItem: out of items mid-loop, stopping.", Console.MessageType.Info)
             break
