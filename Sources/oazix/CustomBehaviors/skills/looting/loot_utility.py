@@ -93,6 +93,7 @@ class LootUtility(CustomSkillUtilityBase):
             return None
 
         loot_array = self._get_cached_loot_array()
+        # print(f"Loot array: {loot_array}")
         if len(loot_array) == 0:
             self._last_eval_score = None
             return None
