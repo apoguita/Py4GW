@@ -205,17 +205,22 @@ def Enter_UW(bot_instance: Botting):
     bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
 
 
-def Clear_the_Chamber(bot_instance: Botting):
-    bot_instance.States.AddHeader("Clear the Chamber")
-    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+def enable_default_party_behavior(bot_instance: Botting):
+    """
+    Enable the baseline party behavior toggles used across Underworld missions.
+    """
     bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Follow")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
+
+
+def Clear_the_Chamber(bot_instance: Botting):
+    bot_instance.States.AddHeader("Clear the Chamber")
+    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    enable_default_party_behavior(bot_instance)
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
@@ -284,7 +289,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Escort_of_Souls(bot_instance: Botting):
-    if BotSettings.EscortOfSouls and not BotSettings.EscortOfSouls:
+    if BotSettings.EscortOfSouls:
         bot_instance.States.AddHeader("Escort of Souls")
         bot_instance.Wait.ForTime(5000)
         bot_instance.Move.XY(-4764, 11845, "Escort of Souls 1")
