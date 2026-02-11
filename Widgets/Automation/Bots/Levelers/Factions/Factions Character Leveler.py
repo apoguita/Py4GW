@@ -474,7 +474,7 @@ def GetMaxArmorPiecesByProfession(bot: Botting):
         PANTS = 23799
         BOOTS = 23796
     elif primary == "Monk":
-        HEAD = 23201    # Ascalon
+        HEAD = 23200    # Ascalon
         CHEST = 23377
         GLOVES = 23378
         PANTS = 23379
