@@ -339,6 +339,37 @@ class _Items:
 
         return True
 
+    @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")
+    def use_all_consumables(self) -> Generator[Any, Any, None]:
+        """
+        Uses all consumables for the current player only (not multibox).
+        """
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        
+        consumables = [
+            ModelID.Essence_Of_Celerity.value,
+            ModelID.Grail_Of_Might.value,
+            ModelID.Armor_Of_Salvation.value,
+            ModelID.Birthday_Cupcake.value,
+            ModelID.Golden_Egg.value,
+            ModelID.Candy_Corn.value,
+            ModelID.Candy_Apple.value,
+            ModelID.Slice_Of_Pumpkin_Pie.value,
+            ModelID.Drake_Kabob.value,
+            ModelID.Bowl_Of_Skalefin_Soup.value,
+            ModelID.Pahnai_Salad.value,
+            ModelID.War_Supplies.value,
+        ]
+        
+        for consumable_model_id in consumables:
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Routines.Yield.wait(50)  # Small delay between items
+        
+        yield from Routines.Yield.wait(100)  # Final wait
+
     @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
     def use_summoning_stone(self) -> Generator[Any, Any, None]:
         """
