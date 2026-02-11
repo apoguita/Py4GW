@@ -1397,6 +1397,7 @@ class SkillManager:
             elif target_allegiance == Skilltarget.OtherAlly:
                 if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
                     v_target = Routines.Targeting.TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
+                    #print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
                 else:
                     v_target = Routines.Targeting.TargetLowestAlly(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
             elif target_allegiance == Skilltarget.Self:
@@ -1863,7 +1864,9 @@ class SkillManager:
             if Agent.IsCasting(Player.GetAgentID()):
                 self.in_casting_routine = False
                 return False, 0
-
+            #if Agent.GetCastingSkill(Player.GetAgentID()) != 0:
+            #    self.in_casting_routine = False
+            #    return False, 0
             if GLOBAL_CACHE.SkillBar.GetCasting() != 0:
                 self.in_casting_routine = False
                 return False, 0
@@ -1924,6 +1927,7 @@ class SkillManager:
 
             if v_target is None or v_target == 0:
                 self.in_casting_routine = False
+                #print("No valid target found for skill slot", slot)
                 return False, 0
 
             # --- Target-dependent checks ---

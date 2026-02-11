@@ -49,7 +49,7 @@ class BottingFsmHelpers:
     @staticmethod
     def _set_botting_behavior_as_pacifist(bot: Botting):
         print("SetBottingBehaviorAsPacifist")
-
+        
         instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: pass
 
@@ -68,7 +68,6 @@ class BottingFsmHelpers:
     @staticmethod
     def _set_botting_behavior_as_aggressive(bot: Botting):
         print("SetBottingBehaviorAsAggressive")
-
         instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: pass
 

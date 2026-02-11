@@ -49,7 +49,6 @@ class EventBus:
             # Add new subscription
             self._subscribers[event_type].append(callback)
             self._subscriber_names[event_type].append(subscriber_name)
-
             if self._debug_mode:
                 print(f"Subscribed '{subscriber_name}' to event type '{event_type.name}'")
             return True
@@ -69,9 +68,9 @@ class EventBus:
         if not isinstance(event_type, EventType):
             print(f"Invalid event type from publisher '{publisher_name}': {event_type}")
             return False
-
+        
         message = EventMessage(type=event_type, current_state=current_state, data=data)
-
+        
         with self._lock:
             # Add to history
             self._message_history.append(message)
