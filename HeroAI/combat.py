@@ -346,10 +346,21 @@ class CombatClass:
 
         targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
         target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
-        
-        
-        nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
-        lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
+
+        # Lazy helpers — only call expensive scans when a branch actually needs them
+        _nearest_enemy = None
+        def get_nearest_enemy():
+            nonlocal _nearest_enemy
+            if _nearest_enemy is None:
+                _nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+            return _nearest_enemy
+
+        _lowest_ally = None
+        def get_lowest_ally():
+            nonlocal _lowest_ally
+            if _lowest_ally is None:
+                _lowest_ally = TargetLowestAlly(filter_skill_id=self.skills[slot].skill_id)
+            return _lowest_ally
 
         if self.skills[slot].skill_id == self.heroic_refrain:
             if not self.HasEffect(Player.GetAgentID(), self.heroic_refrain):
@@ -358,97 +369,97 @@ class CombatClass:
         if target_allegiance == Skilltarget.Enemy:
             v_target = self.GetPartyTarget()
             if v_target == 0:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyCaster:
             v_target = Routines.Agents.GetNearestEnemyCaster(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target =nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyMartial:
             v_target = Routines.Agents.GetNearestEnemyMartial(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyMartialMelee:
             v_target = Routines.Agents.GetNearestEnemyMelee(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyClustered:
             v_target = TargetClusteredEnemy(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyAttacking:
             v_target = GetEnemyAttacking(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyCasting:
             v_target = GetEnemyCasting(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy          
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyCastingSpell:
             v_target = GetEnemyCastingSpell(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyInjured:
             v_target = GetEnemyInjured(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyConditioned:
             v_target = GetEnemyConditioned(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyBleeding:
             v_target = GetEnemyBleeding(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyPoisoned:
             v_target = GetEnemyPoisoned(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyCrippled:
             v_target = GetEnemyCrippled(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyHexed:
             v_target = GetEnemyHexed(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyDegenHexed:
             v_target = GetEnemyDegenHexed(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyEnchanted:
             v_target = GetEnemyEnchanted(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyMoving:
             v_target = GetEnemyMoving(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyKnockedDown:
             v_target = GetEnemyKnockedDown(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy           
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = Routines.Agents.GetNearestEnemyRanged(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.Ally:
-            v_target = lowest_ally
+            v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyCaster:
             v_target = TargetLowestAllyCaster(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = lowest_ally
+                v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyMartial:
             v_target = TargetLowestAllyMartial(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = lowest_ally
+                v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyMartialMelee:
             v_target = TargetLowestAllyMelee(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = lowest_ally
+                v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyMartialRanged:
             v_target = TargetLowestAllyRanged(filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
-                v_target = lowest_ally
+                v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.OtherAlly:
             if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id, less_energy=self.skills[slot].custom_skill_data.Conditions.LessEnergy)
@@ -470,7 +481,7 @@ class CombatClass:
         else:
             v_target = self.GetPartyTarget()
             if v_target == 0:
-                v_target = nearest_enemy
+                v_target = get_nearest_enemy()
         return v_target
 
     def IsPartyMember(self, agent_id):
@@ -960,67 +971,64 @@ class CombatClass:
 
 
     def IsReadyToCast(self, slot):
-        # Check if the player is already casting
-         # Validate target
-        v_target = self.GetAppropiateTarget(slot)
-
-        if v_target is None or v_target == 0:
-            self.in_casting_routine = False
-            return False, 0
+        # --- Cheap target-independent checks first (avoid expensive target resolution) ---
 
         if Agent.IsCasting(Player.GetAgentID()):
             self.in_casting_routine = False
-            return False, v_target
-        #if Agent.GetCastingSkill(Player.GetAgentID()) != 0:
-        #    self.in_casting_routine = False
-        #    return False, v_target
+            return False, 0
         if GLOBAL_CACHE.SkillBar.GetCasting() != 0:
             self.in_casting_routine = False
-            return False, v_target
+            return False, 0
+
         # Check if no skill is assigned to the slot
         if self.skills[slot].skill_id == 0:
             self.in_casting_routine = False
-            return False, v_target
-        # Check if the skill is recharging
+            return False, 0
 
+        # Check if the skill is recharging
         if not Routines.Checks.Skills.IsSkillIDReady(self.skills[slot].skill_id):
             self.in_casting_routine = False
-            return False, v_target
-        
+            return False, 0
+
         # Check if there is enough energy
         current_energy = self.GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
-        energy_cost = Routines.Checks.Skills.GetEnergyCostWithEffects(self.skills[slot].skill_id,Player.GetAgentID())
-          
+        energy_cost = Routines.Checks.Skills.GetEnergyCostWithEffects(self.skills[slot].skill_id, Player.GetAgentID())
+
         if self.expertise_exists:
             energy_cost = Routines.Checks.Skills.apply_expertise_reduction(energy_cost, self.expertise_level, self.skills[slot].skill_id)
-        
+
         if current_energy < energy_cost:
             self.in_casting_routine = False
-            return False, v_target
+            return False, 0
+
         # Check if there is enough health
         current_hp = Agent.GetHealth(Player.GetAgentID())
         target_hp = self.skills[slot].custom_skill_data.Conditions.SacrificeHealth
         health_cost = GLOBAL_CACHE.Skill.Data.GetHealthCost(self.skills[slot].skill_id)
         if (current_hp < target_hp) and health_cost > 0:
             self.in_casting_routine = False
-            return False, v_target
-     
+            return False, 0
+
         # Check if there is enough adrenaline
         adrenaline_required = GLOBAL_CACHE.Skill.Data.GetAdrenaline(self.skills[slot].skill_id)
         if adrenaline_required > 0 and self.skills[slot].skillbar_data.adrenaline_a < adrenaline_required:
             self.in_casting_routine = False
-            return False, v_target
+            return False, 0
 
-        """
-        # Check overcast conditions
-        current_overcast = Agent.GetOvercast(Player.GetAgentID())
-        overcast_target = self.skills[slot].custom_skill_data.Conditions.Overcast
-        skill_overcast = Skill.Data.GetOvercast(self.skills[slot].skill_id)
-        if (current_overcast >= overcast_target) and (skill_overcast > 0):
+        # Check spirit buff (target-independent)
+        if self.SpiritBuffExists(self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, 0
-        """
-                
+
+        # --- Expensive target resolution (only if all cheap checks passed) ---
+        v_target = self.GetAppropiateTarget(slot)
+
+        if v_target is None or v_target == 0:
+            self.in_casting_routine = False
+            return False, 0
+
+        # --- Target-dependent checks ---
+
         # Check combo conditions
         combo_type = GLOBAL_CACHE.Skill.Data.GetCombo(self.skills[slot].skill_id)
         dagger_status = Agent.GetDaggerStatus(v_target)
@@ -1029,20 +1037,17 @@ class CombatClass:
             (combo_type == 3 and dagger_status != 2)):
             self.in_casting_routine = False
             return False, v_target
-        
+
         # Check if the skill has the required conditions
         if not self.AreCastConditionsMet(slot, v_target):
             self.in_casting_routine = False
             return False, v_target
-        
-        if self.SpiritBuffExists(self.skills[slot].skill_id):
+
+        # Check if effect already exists on target (uses shared memory for party members)
+        if self.HasEffect(v_target, self.skills[slot].skill_id):
             self.in_casting_routine = False
             return False, v_target
 
-        if self.HasEffect(v_target,self.skills[slot].skill_id):
-            self.in_casting_routine = False
-            return False, v_target
-        
         return True, v_target
 
     def IsOOCSkill(self, slot):
