@@ -62,6 +62,15 @@ class _ITEMS:
         """
         self._helpers.Items.use_summoning_stone()
 
+    def UseAllConsumables(self):
+        """
+        Uses all consumables for the current player only (not multibox).
+        Includes: Essence of Celerity, Grail of Might, Armor of Salvation,
+        Birthday Cupcake, Golden Egg, Candy Corn, Candy Apple, Pumpkin Pie,
+        Drake Kabob, Skalefin Soup, Pahnai Salad, and War Supplies.
+        """
+        self._helpers.Items.use_all_consumables()
+
     def DestroyBonusItems(self,
                             exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value,
                                                         ModelID.Bonus_Nevermore_Flatbow.value]):
