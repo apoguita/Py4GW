@@ -95,7 +95,7 @@ def render():
         scores: list[tuple[CustomSkillUtilityBase, float | None]] = instance.get_all_scores()
 
         # Unified panel with tabs for skill detail and scoring
-        if PyImGui.begin_child("skills_panel", size=(500, 600), border=True, flags=PyImGui.WindowFlags.NoFlag):
+        if PyImGui.begin_child("skills_panel", size=(600, 600), border=True, flags=PyImGui.WindowFlags.NoFlag):
             if PyImGui.begin_tab_bar("skills_tabs"):
                 # Tab 1: Skill Detail (per typology)
                 if PyImGui.begin_tab_item("skill detail"):
@@ -166,6 +166,17 @@ def render():
                             PyImGui.pop_style_color(4)
 
                             if unique_key in EXPANDED_SKILL_IDS:
+                                if skill.has_persistence():
+                                    PyImGui.bullet_text(f"Persistence :")
+                                    if PyImGui.button(f"Save for account {IconsFontAwesome5.ICON_SAVE}"):
+                                        skill.persist_configuration_for_account()
+                                    PyImGui.same_line(0, 5)
+                                    if PyImGui.button(f"Save global {IconsFontAwesome5.ICON_SAVE}"):
+                                        skill.persist_configuration_as_global()
+                                    PyImGui.same_line(0, 5)
+                                    if PyImGui.button(f"Delete {IconsFontAwesome5.ICON_TRASH}"):
+                                        skill.delete_persisted_configuration()
+
                                 PyImGui.bullet_text(f"{skill.__class__.__name__}")
                                 PyImGui.bullet_text("required ressource")
                                 PyImGui.same_line(0, -1)
