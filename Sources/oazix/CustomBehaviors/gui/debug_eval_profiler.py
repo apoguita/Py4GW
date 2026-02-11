@@ -10,6 +10,15 @@ _SKILL_COL_COUNT = 7
 
 _WINDOW_PRESETS = [15, 30, 60, 120, 300]
 
+_AGG_FIELDS = (
+    "enemy_targeting_ms", "enemy_targeting_calls",
+    "ally_targeting_ms", "ally_targeting_calls",
+    "enemy_neighbor_counting_ms", "enemy_neighbor_counting_calls",
+    "ally_neighbor_counting_ms", "ally_neighbor_counting_calls",
+    "gravity_center_ms", "gravity_center_calls",
+    "cache_hits", "cache_misses",
+)
+
 
 def _percentile(sorted_values: list[float], p: float) -> float:
     """Return the p-th percentile (0-100) from a pre-sorted list."""
@@ -141,19 +150,36 @@ def render():
     history = profiler.history
     n = len(history)
 
-    # --- helpers ---
+    # --- single-pass aggregation (O(1) avg/peak instead of O(n) per field) ---
+    _sums: dict[str, float] = {f: 0.0 for f in _AGG_FIELDS}
+    _maxes: dict[str, float] = {f: 0.0 for f in _AGG_FIELDS}
+    eval_total_sum = 0.0
+    eval_total_peak = 0.0
+    combined_infra_peak = 0.0
+
+    for s in history:
+        for fld in _AGG_FIELDS:
+            v = getattr(s, fld)
+            _sums[fld] += v
+            if v > _maxes[fld]:
+                _maxes[fld] = v
+        et = sum(s.skill_timings.values())
+        eval_total_sum += et
+        if et > eval_total_peak:
+            eval_total_peak = et
+        ci = s.enemy_targeting_ms + s.ally_targeting_ms + s.gravity_center_ms
+        if ci > combined_infra_peak:
+            combined_infra_peak = ci
+
+    eval_total_avg = eval_total_sum / n
+
     def avg(fld: str) -> float:
-        return sum(getattr(s, fld) for s in history) / n
+        return _sums[fld] / n
 
     def peak(fld: str) -> float:
-        return max(getattr(s, fld) for s in history)
-
-    def total_int(fld: str) -> int:
-        return sum(getattr(s, fld) for s in history)
+        return _maxes[fld]
 
     # --- summary ---
-    eval_total_avg = sum(sum(s.skill_timings.values()) for s in history) / n
-    eval_total_peak = max((sum(s.skill_timings.values()) for s in history), default=0.0)
     targeting_avg = avg("enemy_targeting_ms") + avg("ally_targeting_ms")
     other_avg = max(eval_total_avg - targeting_avg, 0.0)
     targeting_pct = (targeting_avg / eval_total_avg * 100) if eval_total_avg > 0 else 0
@@ -167,8 +193,8 @@ def render():
     PyImGui.text(f"Eval total: {eval_total_avg:.2f}ms avg | {eval_total_peak:.2f}ms peak")
     PyImGui.text(f"  Targeting: {targeting_avg:.2f}ms ({targeting_pct:.0f}%)  |  Other: {other_avg:.2f}ms ({100 - targeting_pct:.0f}%)")
 
-    total_hits = total_int("cache_hits")
-    total_misses = total_int("cache_misses")
+    total_hits = int(_sums["cache_hits"])
+    total_misses = int(_sums["cache_misses"])
     total_lookups = total_hits + total_misses
     if total_lookups > 0:
         hit_rate = total_hits / total_lookups * 100
@@ -302,16 +328,14 @@ def render():
             PyImGui.text(f"{avg(calls_field):.1f}")
 
         # total row
-        gravity_avg = avg("gravity_center_ms")
-        total_infra_avg = targeting_avg + gravity_avg
-        combined_peak = max(s.enemy_targeting_ms + s.ally_targeting_ms + s.gravity_center_ms for s in history)
+        total_infra_avg = targeting_avg + avg("gravity_center_ms")
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         PyImGui.text("TOTAL")
         PyImGui.table_next_column()
         PyImGui.text(f"{total_infra_avg:.3f}")
         PyImGui.table_next_column()
-        PyImGui.text(f"{combined_peak:.3f}")
+        PyImGui.text(f"{combined_infra_peak:.3f}")
         PyImGui.table_next_column()
 
         PyImGui.end_table()
