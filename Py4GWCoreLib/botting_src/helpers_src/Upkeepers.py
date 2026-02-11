@@ -270,6 +270,102 @@ class _Upkeepers:
             else:
                 yield from Routines.Yield.wait(500)
 
+    def upkeep_summoning_stone(self):
+        from ...Routines import Routines
+        from ...Agent import Agent
+        from ...Player import Player
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...enums import ModelID
+        from ...Map import Map
+        
+        # Priority list for summoning stones
+        priority_stones = [
+            ModelID.Legionnaire_Summoning_Crystal.value,  # Priority 1: Legionnaire
+            ModelID.Igneous_Summoning_Stone.value,  # Priority 2: Igneous (if level < 20)
+        ]
+        
+        # Other stones
+        other_stones = [
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Tengu_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        
+        # Model IDs of all summons to check for
+        summon_model_ids = [
+            513,  # Imp
+            30961, 30962, 30846, 34176, 30959, 30963, 30965, 31023,  # Amber, Arctic, Automaton, Celestial, Chitinous, Demonic, Fossilized, Frosty
+            30964, 32557, 30210, 30966, 30209,  # Gelatinous, Ghastly, Imperial Guard, Jadeite, Tengu
+            21154, 31022, 31155, 30960, 35126, 31156, 37810  # Merchant, Mischievous, Mysterious, Mystical, Shining Blade, Zaishen, Legionnaire
+        ]
+        
+        while True:
+            if self._config.upkeep.summoning_stone.is_active():
+                # Check if we're in an explorable area
+                if not Map.IsExplorable():
+                    yield from Routines.Yield.wait(1000)
+                    continue
+                
+                # Check if player is alive
+                if Agent.IsDead(Player.GetAgentID()):
+                    yield from Routines.Yield.wait(1000)
+                    continue
+                
+                # Check if any summon is alive in the party
+                has_alive_summon = False
+                others = GLOBAL_CACHE.Party.GetOthers()
+                for other in others:
+                    model_id = Agent.GetModelID(other)
+                    if model_id in summon_model_ids and not Agent.IsDead(other):
+                        has_alive_summon = True
+                        break
+                
+                # If no alive summon, use a summoning stone
+                if not has_alive_summon:
+                    # Try Legionnaire first
+                    stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[0])
+                    if stone_id:
+                        GLOBAL_CACHE.Inventory.UseItem(stone_id)
+                        yield from Routines.Yield.wait(500)
+                        continue
+                    
+                    # Try Igneous if level < 20
+                    level = Agent.GetLevel(Player.GetAgentID())
+                    if level < 20:
+                        stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[1])
+                        if stone_id:
+                            GLOBAL_CACHE.Inventory.UseItem(stone_id)
+                            yield from Routines.Yield.wait(500)
+                            continue
+                    
+                    # Try other stones
+                    for stone_model_id in other_stones:
+                        stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(stone_model_id)
+                        if stone_id:
+                            GLOBAL_CACHE.Inventory.UseItem(stone_id)
+                            yield from Routines.Yield.wait(500)
+                            break
+                
+                yield from Routines.Yield.wait(1000)
+            else:
+                yield from Routines.Yield.wait(500)
+
     def upkeep_imp(self):
         from ...Routines import Routines
         while True:

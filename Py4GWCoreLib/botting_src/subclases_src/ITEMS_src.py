@@ -53,6 +53,15 @@ class _ITEMS:
     def Destroy(self, model_id: int):
         self._helpers.Items.destroy(model_id)
 
+    def UseSummoningStone(self):
+        """
+        Uses a summoning stone from inventory with priority:
+        1. Legionnaire Summoning Crystal (always first)
+        2. Igneous Summoning Stone (if player level < 20)
+        3. Any other available summoning stone
+        """
+        self._helpers.Items.use_summoning_stone()
+
     def DestroyBonusItems(self,
                             exclude_list: List[int] = [ModelID.Igneous_Summoning_Stone.value,
                                                         ModelID.Bonus_Nevermore_Flatbow.value]):

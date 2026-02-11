@@ -279,6 +279,7 @@ class UpkeepData:
                  #S
                  slice_of_pumpkin_pie_active: bool = False,
                  slice_of_pumpkin_pie_restock: int = 0,
+                 summoning_stone_active: bool = False,
                  #W
                  war_supplies_active: bool = False,
                  war_supplies_restock: int = 0,
@@ -357,6 +358,7 @@ class UpkeepData:
         )
 
         self.imp = Property(parent, "imp", active=imp_active)
+        self.summoning_stone = Property(parent, "summoning_stone", active=summoning_stone_active)
         self.auto_combat = Property(parent, "auto_combat", active=auto_combat_active)
         self.hero_ai = Property(parent, "hero_ai", active=hero_ai_active)
         

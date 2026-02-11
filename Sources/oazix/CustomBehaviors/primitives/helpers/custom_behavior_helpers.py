@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional, Tuple
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
 from Py4GWCoreLib.enums_src.GameData_enums import Profession, SkillType
 from Py4GWCoreLib.enums_src.Model_enums import GadgetModelID
+from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.custom_behavior_helpers_target import CustomTargeting
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
