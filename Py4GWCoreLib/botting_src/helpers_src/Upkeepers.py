@@ -309,6 +309,7 @@ class _Upkeepers:
         
         # Known summon creature model IDs (the actual spawned allies, not the items)
         summon_creature_model_ids = [
+            513,   # Fire Imp
             8028,  # Legionnaire
             9055,  # Tengu Support Flare - Warrior
             9056,  # Tengu Support Flare - Ranger
