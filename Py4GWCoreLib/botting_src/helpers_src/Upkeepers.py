@@ -329,7 +329,7 @@ class _Upkeepers:
                 has_alive_summon = False
                 others = GLOBAL_CACHE.Party.GetOthers()
                 for other in others:
-                    if not Agent.IsDead(other):
+                    if Agent.IsAlive(other):
                         # Found an alive "Other" (summon) in the party
                         has_alive_summon = True
                         break
