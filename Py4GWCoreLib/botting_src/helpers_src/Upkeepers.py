@@ -322,11 +322,20 @@ class _Upkeepers:
                     yield from Routines.Yield.wait(1000)
                     continue
                 
-                # Check if player has Summoning Sickness effect (means a summon is active)
+                # Check if player has Summoning Sickness effect (means a summon was recently used)
                 has_summoning_sickness = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id)
                 
-                # Only use stone if we don't have summoning sickness (no active summon)
-                if not has_summoning_sickness:
+                # Check if there's an alive summon in the party (check "Others" for alive creatures)
+                has_alive_summon = False
+                others = GLOBAL_CACHE.Party.GetOthers()
+                for other in others:
+                    if not Agent.IsDead(other):
+                        # Found an alive "Other" (summon) in the party
+                        has_alive_summon = True
+                        break
+                
+                # Only use stone if we don't have summoning sickness AND no alive summon
+                if not has_summoning_sickness and not has_alive_summon:
                     # Try Legionnaire first
                     stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[0])
                     if stone_id:
