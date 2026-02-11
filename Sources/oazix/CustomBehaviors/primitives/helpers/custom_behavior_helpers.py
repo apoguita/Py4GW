@@ -18,6 +18,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Player, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.helpers.custom_behavior_helpers_party import CustomBehaviorHelperParty
+from Sources.oazix.CustomBehaviors.primitives.helpers.eval_profiler import EvalProfiler
 
 MODULE_NAME = "Custom Combat Behavior Helpers"
 
@@ -405,47 +406,48 @@ class Targets:
         '''
         find position that will cover max allies within range
         '''
-        OVERLAY_DEBUG = constants.DEBUG
-        player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID()) #cached_data.data.player_xyz # needs to be live
-        if OVERLAY_DEBUG: Overlay().BeginDraw()
-        
-        player_position: tuple[float, float] = Player.GetXY()
-        other_party_member_positions = [Agent.GetXY(agent_id) for agent_id in agent_ids]
-        # other_party_member_positions: list[tuple[float, float]] = [Agent.GetXY(agent_id) for agent_id in GLOBAL_CACHE.AgentArray.GetAllyArray() if agent_id != Player.GetAgentID()]
-        # other_party_member_positions: list[tuple[float, float]] = [Agent.GetXY(agent_id) for agent_id in GLOBAL_CACHE.AgentArray.GetAllyArray()]
-        seek_range: float = range_to_cover.value - 50
-        
-        if OVERLAY_DEBUG: Overlay().DrawPoly3D(player_x, player_y, player_z, seek_range, Utils.RGBToColor(255, 128, 0 , 128), numsegments=32, thickness=5.0)
-        # print(f"other_party_member_positions: {other_party_member_positions}")
+        with EvalProfiler().measure("gravity_center"):
+            OVERLAY_DEBUG = constants.DEBUG
+            player_x, player_y, player_z = Agent.GetXYZ(Player.GetAgentID()) #cached_data.data.player_xyz # needs to be live
+            if OVERLAY_DEBUG: Overlay().BeginDraw()
 
-        for pos in other_party_member_positions:
-            # Overlay().DrawPoly3D(pos[0], pos[1], player_z, range_to_cover.value, Utils.RGBToColor(128, 255, 0 , 128), numsegments=32, thickness=2.0)
-            if OVERLAY_DEBUG: Overlay().DrawPolyFilled3D(pos[0], pos[1], player_z, 30, Utils.RGBToColor(255, 0, 0 , 50), numsegments=32)
-        
-        if not other_party_member_positions: return None
-        if len(other_party_member_positions) == 0: return None
-        # if len(other_party_member_positions) == 1: return other_party_member_positions[0]
-        
-        # print("\n=== Recherche par centres intelligents ===")
-        opt_pos, opt_count, opt_distance = custom_behavior_helpers_tests.find_optimal_position_weighted(player_position, other_party_member_positions, seek_range)
-        # print(f"Position optimale: {opt_pos}")
-        # print(f"Allié couverts: {opt_count}")
-    
-        if opt_pos is not None:
-            if OVERLAY_DEBUG: Overlay().DrawPolyFilled3D(opt_pos[0], opt_pos[1], player_z, seek_range, Utils.RGBToColor(255, 255, 0 , 50), numsegments=32)
-            if OVERLAY_DEBUG: Overlay().DrawPolyFilled3D(opt_pos[0], opt_pos[1], player_z, 50, Utils.RGBToColor(0, 255, 255 , 150), numsegments=32)
-            # Overlay().DrawPoly3D(pos_smart[0], pos_smart[1], player_z, seek_range / 2, Utils.RGBToColor(128, 255, 0 , 128), numsegments=32, thickness=2.0)
+            player_position: tuple[float, float] = Player.GetXY()
+            other_party_member_positions = [Agent.GetXY(agent_id) for agent_id in agent_ids]
+            # other_party_member_positions: list[tuple[float, float]] = [Agent.GetXY(agent_id) for agent_id in GLOBAL_CACHE.AgentArray.GetAllyArray() if agent_id != Player.GetAgentID()]
+            # other_party_member_positions: list[tuple[float, float]] = [Agent.GetXY(agent_id) for agent_id in GLOBAL_CACHE.AgentArray.GetAllyArray()]
+            seek_range: float = range_to_cover.value - 50
 
-        # fallback if no circle found (e.g. all points far apart)
-        # if best_center is None and other_party_member_positions:
-        #     # return average position
-        #     sx = sum(p[0] for p in other_party_member_positions)
-        #     sy = sum(p[1] for p in other_party_member_positions)
-        #     return (sx / len(other_party_member_positions), sy / len(other_party_member_positions))
-                
-        # Overlay().DrawPolyFilled3D()
-        if OVERLAY_DEBUG: Overlay().EndDraw()
-        return GravityCenter(coordinates=opt_pos, agent_covered_count=opt_count, distance_from_player=opt_distance)
+            if OVERLAY_DEBUG: Overlay().DrawPoly3D(player_x, player_y, player_z, seek_range, Utils.RGBToColor(255, 128, 0 , 128), numsegments=32, thickness=5.0)
+            # print(f"other_party_member_positions: {other_party_member_positions}")
+
+            for pos in other_party_member_positions:
+                # Overlay().DrawPoly3D(pos[0], pos[1], player_z, range_to_cover.value, Utils.RGBToColor(128, 255, 0 , 128), numsegments=32, thickness=2.0)
+                if OVERLAY_DEBUG: Overlay().DrawPolyFilled3D(pos[0], pos[1], player_z, 30, Utils.RGBToColor(255, 0, 0 , 50), numsegments=32)
+
+            if not other_party_member_positions: return None
+            if len(other_party_member_positions) == 0: return None
+            # if len(other_party_member_positions) == 1: return other_party_member_positions[0]
+
+            # print("\n=== Recherche par centres intelligents ===")
+            opt_pos, opt_count, opt_distance = custom_behavior_helpers_tests.find_optimal_position_weighted(player_position, other_party_member_positions, seek_range)
+            # print(f"Position optimale: {opt_pos}")
+            # print(f"Allié couverts: {opt_count}")
+
+            if opt_pos is not None:
+                if OVERLAY_DEBUG: Overlay().DrawPolyFilled3D(opt_pos[0], opt_pos[1], player_z, seek_range, Utils.RGBToColor(255, 255, 0 , 50), numsegments=32)
+                if OVERLAY_DEBUG: Overlay().DrawPolyFilled3D(opt_pos[0], opt_pos[1], player_z, 50, Utils.RGBToColor(0, 255, 255 , 150), numsegments=32)
+                # Overlay().DrawPoly3D(pos_smart[0], pos_smart[1], player_z, seek_range / 2, Utils.RGBToColor(128, 255, 0 , 128), numsegments=32, thickness=2.0)
+
+            # fallback if no circle found (e.g. all points far apart)
+            # if best_center is None and other_party_member_positions:
+            #     # return average position
+            #     sx = sum(p[0] for p in other_party_member_positions)
+            #     sy = sum(p[1] for p in other_party_member_positions)
+            #     return (sx / len(other_party_member_positions), sy / len(other_party_member_positions))
+
+            # Overlay().DrawPolyFilled3D()
+            if OVERLAY_DEBUG: Overlay().EndDraw()
+            return GravityCenter(coordinates=opt_pos, agent_covered_count=opt_count, distance_from_player=opt_distance)
 
     @staticmethod
     def is_player_close_to_combat() -> bool:
@@ -560,82 +562,88 @@ class Targets:
             condition: Callable[[int], bool] | None = None,
             sort_key: tuple[TargetingOrder, ...] | None = None,
             range_to_count_enemies: float | None = None,
-            range_to_count_allies: float | None = None) -> list[SortableAgentData]:
+            range_to_count_allies: float | None = None,
+            is_alive: bool = True) -> list[SortableAgentData]:
+        with EvalProfiler().measure("ally_targeting"):
+            player_pos: tuple[float, float] = Player.GetXY()
+            all_agent_ids: list[int] = AgentArray.GetAllyArray()
+            all_enemies_ids: list[int] = AgentArray.GetEnemyArray()
 
-        player_pos: tuple[float, float] = Player.GetXY()
-        all_agent_ids: list[int] = AgentArray.GetAllyArray()
-        all_enemies_ids: list[int] = AgentArray.GetEnemyArray()
-
-        agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, player_pos, within_range)
-        agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id))
-        if condition is not None: agent_ids = AgentArray.Filter.ByCondition(agent_ids, condition)
-
-        def build_sortable_array(agent_id):
-            agent_pos = Agent.GetXY(agent_id)
-
-            # scan enemies within range
-            enemies_ids = AgentArray.Filter.ByCondition(all_enemies_ids, lambda agent_id: Agent.IsAlive(agent_id))
-            enemies_ids = AgentArray.Filter.ByDistance(enemies_ids, player_pos, within_range)
-            enemies_quantity_within_range = 0
-
-            if range_to_count_enemies is not None:
-                for enemy_id in enemies_ids:
-                    if Utils.Distance(Agent.GetXY(enemy_id), agent_pos) <= range_to_count_enemies:
-                        enemies_quantity_within_range += 1
-
-            # scan agents within aoe range
-            allies_quantity_within_range = 0
-
-            if range_to_count_allies is not None:
-                for other_agent_id in agent_ids:
-                    if other_agent_id != agent_id and Utils.Distance(Agent.GetXY(other_agent_id), agent_pos) <= range_to_count_allies:
-                        allies_quantity_within_range += 1
-
-            return SortableAgentData(
-                agent_id=agent_id,
-                distance_from_player=Utils.Distance(agent_pos, player_pos),
-                hp=Agent.GetHealth(agent_id),
-                is_caster=Agent.IsCaster(agent_id),
-                is_melee=Agent.IsMelee(agent_id),
-                is_martial=Agent.IsMartial(agent_id),
-                enemy_quantity_within_range=enemies_quantity_within_range,
-                agent_quantity_within_range=allies_quantity_within_range,
-                energy=Resources.get_energy_percent_in_party(agent_id)
-            )
-
-        data_to_sort = list(map(lambda agent_id: build_sortable_array(agent_id), agent_ids))
-
-        if not sort_key:  # If no sort_key is provided
-            return data_to_sort
-
-        # Iterate over sort_key in reverse order (apply less important sort criteria first)
-        for criterion in reversed(sort_key):
-            if criterion == TargetingOrder.DISTANCE_ASC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.distance_from_player)
-            elif criterion == TargetingOrder.DISTANCE_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.distance_from_player)
-            elif criterion == TargetingOrder.HP_ASC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.hp)
-            elif criterion == TargetingOrder.HP_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.hp)
-            elif criterion == TargetingOrder.ENERGY_ASC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.energy)
-            elif criterion == TargetingOrder.ENERGY_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.energy)
-            elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.agent_quantity_within_range)
-            elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_ASC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.agent_quantity_within_range)
-            elif criterion == TargetingOrder.ENEMIES_QUANTITY_WITHIN_RANGE_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.enemy_quantity_within_range)
-            elif criterion == TargetingOrder.CASTER_THEN_MELEE:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.is_caster)
-            elif criterion == TargetingOrder.MELEE_THEN_CASTER:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.is_melee)
+            agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, player_pos, within_range)
+            if is_alive:
+                agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsAlive(agent_id))
             else:
-                raise ValueError(f"Invalid sorting criterion: {criterion}")
+                agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: not Agent.IsAlive(agent_id))
+            if condition is not None: agent_ids = AgentArray.Filter.ByCondition(agent_ids, condition)
 
-        return data_to_sort
+            _profiler = EvalProfiler()
+
+            def build_sortable_array(agent_id):
+                agent_pos = Agent.GetXY(agent_id)
+
+                # scan enemies within range
+                enemies_ids = AgentArray.Filter.ByCondition(all_enemies_ids, lambda agent_id: Agent.IsAlive(agent_id))
+                enemies_ids = AgentArray.Filter.ByDistance(enemies_ids, player_pos, within_range)
+                enemies_quantity_within_range = 0
+                allies_quantity_within_range = 0
+
+                if range_to_count_enemies is not None or range_to_count_allies is not None:
+                    with _profiler.measure("ally_neighbor_counting"):
+                        if range_to_count_enemies is not None:
+                            for enemy_id in enemies_ids:
+                                if Utils.Distance(Agent.GetXY(enemy_id), agent_pos) <= range_to_count_enemies:
+                                    enemies_quantity_within_range += 1
+
+                        if range_to_count_allies is not None:
+                            for other_agent_id in agent_ids:
+                                if other_agent_id != agent_id and Utils.Distance(Agent.GetXY(other_agent_id), agent_pos) <= range_to_count_allies:
+                                    allies_quantity_within_range += 1
+
+                return SortableAgentData(
+                    agent_id=agent_id,
+                    distance_from_player=Utils.Distance(agent_pos, player_pos),
+                    hp=Agent.GetHealth(agent_id),
+                    is_caster=Agent.IsCaster(agent_id),
+                    is_melee=Agent.IsMelee(agent_id),
+                    is_martial=Agent.IsMartial(agent_id),
+                    enemy_quantity_within_range=enemies_quantity_within_range,
+                    agent_quantity_within_range=allies_quantity_within_range,
+                    energy=Resources.get_energy_percent_in_party(agent_id)
+                )
+
+            data_to_sort = list(map(lambda agent_id: build_sortable_array(agent_id), agent_ids))
+
+            if not sort_key:  # If no sort_key is provided
+                return data_to_sort
+
+            # Iterate over sort_key in reverse order (apply less important sort criteria first)
+            for criterion in reversed(sort_key):
+                if criterion == TargetingOrder.DISTANCE_ASC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.distance_from_player)
+                elif criterion == TargetingOrder.DISTANCE_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.distance_from_player)
+                elif criterion == TargetingOrder.HP_ASC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.hp)
+                elif criterion == TargetingOrder.HP_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.hp)
+                elif criterion == TargetingOrder.ENERGY_ASC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.energy)
+                elif criterion == TargetingOrder.ENERGY_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.energy)
+                elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.agent_quantity_within_range)
+                elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_ASC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.agent_quantity_within_range)
+                elif criterion == TargetingOrder.ENEMIES_QUANTITY_WITHIN_RANGE_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.enemy_quantity_within_range)
+                elif criterion == TargetingOrder.CASTER_THEN_MELEE:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.is_caster)
+                elif criterion == TargetingOrder.MELEE_THEN_CASTER:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.is_melee)
+                else:
+                    raise ValueError(f"Invalid sorting criterion: {criterion}")
+
+            return data_to_sort
 
     @staticmethod
     def get_first_or_default_from_allies_ordered_by_priority(
@@ -643,9 +651,10 @@ class Targets:
             condition: Callable[[int], bool] | None = None,
             sort_key: tuple[TargetingOrder, ...] | None = None,
             range_to_count_enemies: float | None = None,
-            range_to_count_allies: float | None = None) -> int | None:
+            range_to_count_allies: float | None = None,
+            is_alive: bool = True) -> int | None:
 
-        allies = Targets.get_all_possible_allies_ordered_by_priority_raw(within_range=within_range, condition=condition, sort_key=sort_key, range_to_count_enemies=range_to_count_enemies, range_to_count_allies=range_to_count_allies)
+        allies = Targets.get_all_possible_allies_ordered_by_priority_raw(within_range=within_range, condition=condition, sort_key=sort_key, range_to_count_enemies=range_to_count_enemies, range_to_count_allies=range_to_count_allies, is_alive=is_alive)
         if len(allies) == 0: return None
         return allies[0].agent_id
 
@@ -719,77 +728,80 @@ class Targets:
             sort_key: tuple[TargetingOrder, ...] | None = None,
             range_to_count_enemies: float | None = None,
             should_prioritize_party_target:bool = True) -> list[SortableAgentData]:
-        
-        party_leader_id : int = MemoryCacheManager.get_or_set(MemoryCacheManager.PARTY_LEADER_ID, lambda: CustomBehaviorHelperParty.get_party_leader_id())
-        
-        agentDatas : list[SortableAgentData] = CustomTargeting().get_combined_enemy_targets(
-            source_pos=source_agent_pos,
-            within_range=within_range,
-            leader_agent_id=party_leader_id,
-            include_aggressive_further=True,
-            is_alive=True
-        )
+        with EvalProfiler().measure("enemy_targeting"):
+            party_leader_id : int = MemoryCacheManager.get_or_set(MemoryCacheManager.PARTY_LEADER_ID, lambda: CustomBehaviorHelperParty.get_party_leader_id())
 
-        if condition is not None: agentDatas = [agent for agent in agentDatas if condition(agent.agent_id)]
-
-        def build_sortable_array(agentData: SortableAgentData):
-            agent_pos = Agent.GetXY(agentData.agent_id)
-            enemy_quantity_within_range = 0
-
-            if range_to_count_enemies is not None:
-                for other_agent_data in agentDatas:  # complexity O(n^2) !
-                    if other_agent_data.agent_id != agentData.agent_id and Utils.Distance(Agent.GetXY(other_agent_data.agent_id), agent_pos) <= range_to_count_enemies:
-                        enemy_quantity_within_range += 1
-
-            return SortableAgentData(
-                agent_id=agentData.agent_id,
-                distance_from_player=agentData.distance_from_player,
-                hp=agentData.hp,
-                is_caster=agentData.is_caster,
-                is_melee=agentData.is_melee,
-                is_martial=agentData.is_martial,
-                enemy_quantity_within_range=enemy_quantity_within_range,
-                agent_quantity_within_range=0,  # Not used for enemies
-                energy=0.0  # Not used for enemies
+            agentDatas : list[SortableAgentData] = CustomTargeting().get_combined_enemy_targets(
+                source_pos=source_agent_pos,
+                within_range=within_range,
+                leader_agent_id=party_leader_id,
+                include_aggressive_further=True,
+                is_alive=True
             )
 
-        data_to_sort = list(map(lambda agentData: build_sortable_array(agentData), agentDatas))
+            if condition is not None: agentDatas = [agent for agent in agentDatas if condition(agent.agent_id)]
 
-        if not sort_key:  # If no sort_key is provided
+            _profiler = EvalProfiler()
+
+            def build_sortable_array(agentData: SortableAgentData):
+                agent_pos = Agent.GetXY(agentData.agent_id)
+                enemy_quantity_within_range = 0
+
+                if range_to_count_enemies is not None:
+                    with _profiler.measure("enemy_neighbor_counting"):
+                        for other_agent_data in agentDatas:  # complexity O(n^2) !
+                            if other_agent_data.agent_id != agentData.agent_id and Utils.Distance(Agent.GetXY(other_agent_data.agent_id), agent_pos) <= range_to_count_enemies:
+                                enemy_quantity_within_range += 1
+
+                return SortableAgentData(
+                    agent_id=agentData.agent_id,
+                    distance_from_player=agentData.distance_from_player,
+                    hp=agentData.hp,
+                    is_caster=agentData.is_caster,
+                    is_melee=agentData.is_melee,
+                    is_martial=agentData.is_martial,
+                    enemy_quantity_within_range=enemy_quantity_within_range,
+                    agent_quantity_within_range=0,  # Not used for enemies
+                    energy=0.0  # Not used for enemies
+                )
+
+            data_to_sort = list(map(lambda agentData: build_sortable_array(agentData), agentDatas))
+
+            if not sort_key:  # If no sort_key is provided
+                return data_to_sort
+
+            # Iterate over sort_key in reverse order (apply less important sort criteria first)
+            for criterion in reversed(sort_key):
+                if criterion == TargetingOrder.DISTANCE_ASC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.distance_from_player)
+                elif criterion == TargetingOrder.DISTANCE_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.distance_from_player)
+                elif criterion == TargetingOrder.HP_ASC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.hp)
+                elif criterion == TargetingOrder.HP_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.hp)
+                elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.enemy_quantity_within_range)
+                elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_ASC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.enemy_quantity_within_range)
+                elif criterion == TargetingOrder.CASTER_THEN_MELEE:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.is_caster)
+                elif criterion == TargetingOrder.MELEE_THEN_CASTER:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: x.is_melee)
+                else:
+                    raise ValueError(f"Invalid sorting criterion: {criterion}")
+
+            if should_prioritize_party_target:
+                party_forced_target_agent_id: int | None = CustomBehaviorHelperParty.get_party_custom_target()
+
+                # Final sort: move party forced target to the front if it exists in the array
+                if party_forced_target_agent_id is not None:
+                    forced_target_index = next((i for i, x in enumerate(data_to_sort) if x.agent_id == party_forced_target_agent_id), None)
+                    if forced_target_index is not None:
+                        forced_target = data_to_sort.pop(forced_target_index)
+                        data_to_sort.insert(0, forced_target)
+
             return data_to_sort
-
-        # Iterate over sort_key in reverse order (apply less important sort criteria first)
-        for criterion in reversed(sort_key):
-            if criterion == TargetingOrder.DISTANCE_ASC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.distance_from_player)
-            elif criterion == TargetingOrder.DISTANCE_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.distance_from_player)
-            elif criterion == TargetingOrder.HP_ASC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.hp)
-            elif criterion == TargetingOrder.HP_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.hp)
-            elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: -x.enemy_quantity_within_range)
-            elif criterion == TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_ASC:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.enemy_quantity_within_range)
-            elif criterion == TargetingOrder.CASTER_THEN_MELEE:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.is_caster)
-            elif criterion == TargetingOrder.MELEE_THEN_CASTER:
-                data_to_sort = sorted(data_to_sort, key=lambda x: x.is_melee)
-            else:
-                raise ValueError(f"Invalid sorting criterion: {criterion}")
-
-        if should_prioritize_party_target:
-            party_forced_target_agent_id: int | None = CustomBehaviorHelperParty.get_party_custom_target()
-
-            # Final sort: move party forced target to the front if it exists in the array
-            if party_forced_target_agent_id is not None:
-                forced_target_index = next((i for i, x in enumerate(data_to_sort) if x.agent_id == party_forced_target_agent_id), None)
-                if forced_target_index is not None:
-                    forced_target = data_to_sort.pop(forced_target_index)
-                    data_to_sort.insert(0, forced_target)
-
-        return data_to_sort
 
     @staticmethod
     def get_all_possible_enemies_ordered_by_priority_raw(
