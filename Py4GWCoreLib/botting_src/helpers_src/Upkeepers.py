@@ -278,13 +278,13 @@ class _Upkeepers:
         from ...enums import ModelID
         from ...Map import Map
         
-        # Priority list for summoning stones
+        # Priority list for summoning stones (items)
         priority_stones = [
             ModelID.Legionnaire_Summoning_Crystal.value,  # Priority 1: Legionnaire
             ModelID.Igneous_Summoning_Stone.value,  # Priority 2: Igneous (if level < 20)
         ]
         
-        # Other stones
+        # Other stones (items)
         other_stones = [
             ModelID.Amber_Summon.value,
             ModelID.Arctic_Summon.value,
@@ -307,6 +307,20 @@ class _Upkeepers:
             ModelID.Zaishen_Summon.value,
         ]
         
+        # Known summon creature model IDs (the actual spawned allies, not the items)
+        summon_creature_model_ids = [
+            8028,  # Legionnaire
+            9055,  # Tengu Support Flare - Warrior
+            9056,  # Tengu Support Flare - Ranger
+            9058,  # Tengu Support Flare - Monk
+            9060,  # Tengu Support Flare - Mesmer
+            9062,  # Tengu Support Flare - Ritualist
+            9065,  # Tengu Support Flare - Assassin
+            9067,  # Tengu Support Flare - Elementalist
+            9069,  # Tengu Support Flare - Necromancer
+            # Add more as discovered via summon_model_id_detector.py
+        ]
+        
         # Summoning Sickness effect ID - applies to all summons
         summoning_sickness_effect_id = 2886
         
@@ -322,19 +336,20 @@ class _Upkeepers:
                     yield from Routines.Yield.wait(1000)
                     continue
                 
-                # Check if player has Summoning Sickness effect (means a summon was recently used)
+                # Check if player has Summoning Sickness effect
                 has_summoning_sickness = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id)
                 
-                # Check if there's an alive summon in the party (check "Others" for alive creatures)
+                # Check if there's already a summon alive in party by checking model IDs
                 has_alive_summon = False
                 others = GLOBAL_CACHE.Party.GetOthers()
                 for other in others:
                     if Agent.IsAlive(other):
-                        # Found an alive "Other" (summon) in the party
-                        has_alive_summon = True
-                        break
+                        model_id = Agent.GetModelID(other)
+                        if model_id in summon_creature_model_ids:
+                            has_alive_summon = True
+                            break
                 
-                # Only use stone if we don't have summoning sickness AND no alive summon
+                # Only use stone if no summoning sickness AND no alive summon exists
                 if not has_summoning_sickness and not has_alive_summon:
                     # Try Legionnaire first
                     stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[0])
