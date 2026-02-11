@@ -7,7 +7,9 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.scores.healing_score import HealingScore
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -17,7 +19,7 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
     event_bus: EventBus,
     skill: CustomSkill,
     current_build: list[CustomSkill],
-    score_definition: ScoreStaticDefinition = ScoreStaticDefinition(85),
+    score_definition: ScorePerHealthGravityDefinition = ScorePerHealthGravityDefinition(0),
     mana_required_to_cast: int = 10,
     allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.FAR_FROM_AGGRO, BehaviorState.CLOSE_TO_AGGRO]
     ) -> None:
@@ -30,7 +32,7 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
             mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
         
-        self.score_definition: ScoreStaticDefinition = score_definition
+        self.score_definition: ScorePerHealthGravityDefinition = score_definition
 
     def _get_target(self) -> int | None:
         allies: list[int] = AgentArray.GetAllyArray()
@@ -53,7 +55,7 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
         lock_key = self._get_lock_key(target)
         if CustomBehaviorParty().get_shared_lock_manager().is_lock_taken(lock_key): return None #someone is already resurrecting
         
-        return self.score_definition.get_score()
+        return self.score_definition.get_score(HealingScore.RESURRECTION)
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:

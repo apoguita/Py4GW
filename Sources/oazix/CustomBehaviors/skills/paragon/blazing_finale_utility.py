@@ -3,6 +3,7 @@ from typing import Any, Generator, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.enums import Profession
+from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -33,13 +34,17 @@ class BlazingFinaleUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
         
         self.score_definition: ScoreStaticDefinition = score_definition
-        profession_list: list[ProfessionConfiguration] =[
-            ProfessionConfiguration(Profession.Ranger, True),
-            ProfessionConfiguration(Profession.Warrior, True),
-            ProfessionConfiguration(Profession.Assassin, True),
-            ProfessionConfiguration(Profession.Dervish, True)]
-        
-        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(self.event_bus, self.custom_skill, buff_configuration_per_profession= profession_list)
+
+        data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
+        if data is not None:
+            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
+        else:
+            profession_list: list[ProfessionConfiguration] =[
+                ProfessionConfiguration(Profession.Ranger, True),
+                ProfessionConfiguration(Profession.Warrior, True),
+                ProfessionConfiguration(Profession.Assassin, True),
+                ProfessionConfiguration(Profession.Dervish, True)]
+            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(self.event_bus, self.custom_skill, buff_configuration_per_profession= profession_list)
 
 
     def _get_target(self) -> int | None:
@@ -71,3 +76,22 @@ class BlazingFinaleUtility(CustomSkillUtilityBase):
     @override
     def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
         return self.buff_configuration
+
+    @override
+    def has_persistence(self) -> bool:
+        return True
+
+    @override
+    def persist_configuration_for_account(self):
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        print("configuration saved for account")
+
+    @override
+    def persist_configuration_as_global(self):
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        print("configuration saved as global")
+
+    @override
+    def delete_persisted_configuration(self):
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
+        print("configuration deleted")
