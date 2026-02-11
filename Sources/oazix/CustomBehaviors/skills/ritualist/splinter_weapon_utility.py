@@ -14,7 +14,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_pe
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
-class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
+class SplinterWeaponUtility(CustomSkillUtilityBase):
 
     def __init__(self,
         event_bus: EventBus,
@@ -26,7 +26,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("Great_Dwarf_Weapon"),
+            skill=CustomSkill("Splinter_Weapon"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
@@ -76,7 +76,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
     @override
     def has_persistence(self) -> bool:
         return True
-
+    
     @override
     def persist_configuration_for_account(self):
         PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
@@ -86,3 +86,4 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
     def persist_configuration_as_global(self):
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
         print("configuration saved as global")
+

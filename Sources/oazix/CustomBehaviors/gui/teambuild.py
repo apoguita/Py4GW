@@ -354,13 +354,13 @@ def render():
         PyImGui.same_line(0,5)
 
         # Template actions
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_CLIPBOARD}##load_{i}"):
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_CLIPBOARD} apply##load_{i}"):
             template = PyImGui.get_clipboard_text()
             CustomBehaviorParty().party_teambuild_manager.apply_skillbar_template(template, account_email)
         PyImGui.show_tooltip("Apply Template from clipboard")
 
         PyImGui.same_line(0,5)
-        if PyImGui.button(f"{IconsFontAwesome5.ICON_COPY}##copy_{i}"):
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_COPY} copy##copy_{i}"):
             PyImGui.set_clipboard_text(shared_data.skillbar_template)
         PyImGui.show_tooltip("Copy Template to clipboard")
 
