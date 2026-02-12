@@ -546,9 +546,7 @@ class Helper:
             if not Helper.can_hero_cast_skill(hero_index, skill_id):
                 continue
 
-            skill_name = Skill.GetName(skill_id).replace("_", " ")
-            target_name = Helper.agent_name_cache.get(cast_target_id, str(cast_target_id))
-            Helper.log_event(hero_id, skill_name, target_name, skill_id, cast_target_id)
+            # ...existing code...
 
             return hero_index, hero["skill_slot"], skill_id, cast_target_id
 

@@ -343,26 +343,38 @@ class _Items:
     def use_all_consumables(self) -> Generator[Any, Any, None]:
         """
         Uses all consumables for the current player only (not multibox).
+        Only uses a consumable if its effect is not already active.
         """
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
         
-        consumables = [
-            ModelID.Essence_Of_Celerity.value,
-            ModelID.Grail_Of_Might.value,
-            ModelID.Armor_Of_Salvation.value,
-            ModelID.Birthday_Cupcake.value,
-            ModelID.Golden_Egg.value,
-            ModelID.Candy_Corn.value,
-            ModelID.Candy_Apple.value,
-            ModelID.Slice_Of_Pumpkin_Pie.value,
-            ModelID.Drake_Kabob.value,
-            ModelID.Bowl_Of_Skalefin_Soup.value,
-            ModelID.Pahnai_Salad.value,
-            ModelID.War_Supplies.value,
+        # Map consumable model_id to their effect skill_id (as used in multibox)
+        consumable_effects = [
+            (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+            (ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+            (ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+            (ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
+            (ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
+            (ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
+            (ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
+            (ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
+            (ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
+            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
+            (ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
+            (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
         ]
         
-        for consumable_model_id in consumables:
+        # Check for each consumable if the effect is already active
+        for consumable_model_id, effect_skill_id in consumable_effects:
+            # Check if effect is already active
+            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            # Fallback: try Inventory.HasEffect if Effects is not available
+            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
+                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            # Otherwise, just proceed (may overuse if no effect check is available)
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
             if item_id:
                 GLOBAL_CACHE.Inventory.UseItem(item_id)
