@@ -1,5 +1,7 @@
 from typing import List, Any, Generator, Callable, override
 
+import PyImGui
+
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Range, Player
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -75,3 +77,8 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
         finally:
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
         return result
+    
+    @override
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        PyImGui.bullet_text(f"target : {self._get_target()}")
+        
