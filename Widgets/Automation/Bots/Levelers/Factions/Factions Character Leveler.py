@@ -1655,7 +1655,7 @@ def To_Kamadan(bot: Botting):
     bot.Map.Travel(target_map_id=194)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    bot.Party.AddHenchmanList([2, 9, 10, 12])
+    bot.Party.AddHenchmanList([2, 12, 9])
     auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
