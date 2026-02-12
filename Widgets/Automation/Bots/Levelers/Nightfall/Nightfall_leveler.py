@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Tuple, Generator, Any
 import os
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Map, Player, Py4GW, ConsoleLog, ModelID, Botting,
-                          Agent, ImGui, ActionQueueManager)
+                          Agent, ImGui, ActionQueueManager, HeroType)
 
 
 bot = Botting("Nightfall Leveler",
@@ -862,6 +862,7 @@ def Armored_Transport(bot: Botting):
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
     ConfigureAggressiveEnv(bot)
+    bot.Properties.Disable("auto_loot")
     bot.Move.XYAndDialog(16448, 2320,0x825F04)
     def _exit_condition():
         pos = Player.GetXY()
@@ -1584,6 +1585,10 @@ def Unlock_Kilroy_Stonekin(bot: Botting):
         bot.Items.Equip(6514)
     elif profession == "Monk":
         bot.Items.Equip(18926)
+    elif profession == "Necromancer":
+        bot.Items.Equip(18914)
+    elif profession == "Ranger":
+        bot.Items.Equip(35829)
         
 def To_Longeyes_Edge(bot: Botting):
     bot.States.AddHeader("To Longeye's Edge")
