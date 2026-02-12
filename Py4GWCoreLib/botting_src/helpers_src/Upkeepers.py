@@ -278,13 +278,13 @@ class _Upkeepers:
         from ...enums import ModelID
         from ...Map import Map
         
-        # Priority list for summoning stones
+        # Priority list for summoning stones (items)
         priority_stones = [
             ModelID.Legionnaire_Summoning_Crystal.value,  # Priority 1: Legionnaire
             ModelID.Igneous_Summoning_Stone.value,  # Priority 2: Igneous (if level < 20)
         ]
         
-        # Other stones
+        # Other stones (items)
         other_stones = [
             ModelID.Amber_Summon.value,
             ModelID.Arctic_Summon.value,
@@ -307,13 +307,22 @@ class _Upkeepers:
             ModelID.Zaishen_Summon.value,
         ]
         
-        # Model IDs of all summons to check for
-        summon_model_ids = [
-            513,  # Imp
-            30961, 30962, 30846, 34176, 30959, 30963, 30965, 31023,  # Amber, Arctic, Automaton, Celestial, Chitinous, Demonic, Fossilized, Frosty
-            30964, 32557, 30210, 30966, 30209,  # Gelatinous, Ghastly, Imperial Guard, Jadeite, Tengu
-            21154, 31022, 31155, 30960, 35126, 31156, 37810  # Merchant, Mischievous, Mysterious, Mystical, Shining Blade, Zaishen, Legionnaire
+        # Known summon creature model IDs (the actual spawned allies, not the items)
+        summon_creature_model_ids = [
+            8028,  # Legionnaire
+            9055,  # Tengu Support Flare - Warrior
+            9056,  # Tengu Support Flare - Ranger
+            9058,  # Tengu Support Flare - Monk
+            9060,  # Tengu Support Flare - Mesmer
+            9062,  # Tengu Support Flare - Ritualist
+            9065,  # Tengu Support Flare - Assassin
+            9067,  # Tengu Support Flare - Elementalist
+            9069,  # Tengu Support Flare - Necromancer
+            # Add more as discovered via summon_model_id_detector.py
         ]
+        
+        # Summoning Sickness effect ID - applies to all summons
+        summoning_sickness_effect_id = 2886
         
         while True:
             if self._config.upkeep.summoning_stone.is_active():
@@ -327,40 +336,40 @@ class _Upkeepers:
                     yield from Routines.Yield.wait(1000)
                     continue
                 
-                # Check if any summon is alive in the party
+                # Check if player has Summoning Sickness effect
+                has_summoning_sickness = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id)
+                
+                # Check if there's already a summon alive in party by checking model IDs
                 has_alive_summon = False
                 others = GLOBAL_CACHE.Party.GetOthers()
                 for other in others:
-                    model_id = Agent.GetModelID(other)
-                    if model_id in summon_model_ids and not Agent.IsDead(other):
-                        has_alive_summon = True
-                        break
+                    if Agent.IsAlive(other):
+                        model_id = Agent.GetModelID(other)
+                        if model_id in summon_creature_model_ids:
+                            has_alive_summon = True
+                            break
                 
-                # If no alive summon, use a summoning stone
-                if not has_alive_summon:
+                # Only use stone if no summoning sickness AND no alive summon exists
+                if not has_summoning_sickness and not has_alive_summon:
                     # Try Legionnaire first
                     stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[0])
                     if stone_id:
                         GLOBAL_CACHE.Inventory.UseItem(stone_id)
-                        yield from Routines.Yield.wait(500)
-                        continue
-                    
-                    # Try Igneous if level < 20
-                    level = Agent.GetLevel(Player.GetAgentID())
-                    if level < 20:
-                        stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[1])
-                        if stone_id:
-                            GLOBAL_CACHE.Inventory.UseItem(stone_id)
-                            yield from Routines.Yield.wait(500)
-                            continue
-                    
-                    # Try other stones
-                    for stone_model_id in other_stones:
-                        stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(stone_model_id)
-                        if stone_id:
-                            GLOBAL_CACHE.Inventory.UseItem(stone_id)
-                            yield from Routines.Yield.wait(500)
-                            break
+                    else:
+                        # Try Igneous if level < 20
+                        level = Agent.GetLevel(Player.GetAgentID())
+                        if level < 20:
+                            stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[1])
+                            if stone_id:
+                                GLOBAL_CACHE.Inventory.UseItem(stone_id)
+                        
+                        # Try other stones if Legionnaire and Igneous not available
+                        if not stone_id:
+                            for stone_model_id in other_stones:
+                                stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(stone_model_id)
+                                if stone_id:
+                                    GLOBAL_CACHE.Inventory.UseItem(stone_id)
+                                    break
                 
                 yield from Routines.Yield.wait(1000)
             else:
