@@ -102,11 +102,6 @@ def PrepareForBattle(bot: Botting, Hero_List = [], Henchman_List = []) -> None:
     bot.Party.AddHenchmanList(Henchman_List)
 
 def StandardHeroTeam():
-    def _add_hero(hero_id: int):
-        GLOBAL_CACHE.Party.Heroes.AddHero(hero_id)
-        ConsoleLog("addhero",f"Added Hero: {hero_id}", log=False)
-        yield from Routines.Yield.wait(250)
-
     party_size = Map.GetMaxPartySize()
 
     hero_list = []
@@ -120,9 +115,14 @@ def StandardHeroTeam():
             "OgVDI8gsO5gTw0z0hTFAZgiA",     # 2 Vekk
             "OwUUMsG/E4SNgbE3N3ETfQgZAMEA"  # 3 Ogden
         ]
-    # Add all heroes
+    
+    # Add all heroes quickly
     for hero_id in hero_list:
-        yield from _add_hero(hero_id)
+        GLOBAL_CACHE.Party.Heroes.AddHero(hero_id)
+        ConsoleLog("addhero",f"Added Hero: {hero_id}", log=False)
+    
+    # Single wait for all heroes to join
+    yield from Routines.Yield.wait(1000)
     
     # Load skillbars for all positions
     for position in range(len(hero_list)):
@@ -131,11 +131,6 @@ def StandardHeroTeam():
         yield from Routines.Yield.wait(500)
     
 def AddHenchmenFC():
-    def _add_henchman(henchman_id: int):
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
-        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
-        yield from Routines.Yield.wait(250)
-        
     party_size = Map.GetMaxPartySize()
 
     henchmen_list = []
@@ -153,16 +148,16 @@ def AddHenchmenFC():
         henchmen_list.extend([7,9,2,3,4,6,5])
     else:
         henchmen_list.extend([2,3,5,6,7,9,10])
-        
+    
+    # Add all henchmen quickly
     for henchman_id in henchmen_list:
-        yield from _add_henchman(henchman_id)
-
-def AddHenchmenLA():
-    def _add_henchman(henchman_id: int):
         GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
         ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
-        yield from Routines.Yield.wait(250)
-        
+    
+    # Single wait for all henchmen to join
+    yield from Routines.Yield.wait(1000)
+
+def AddHenchmenLA():
     party_size = Map.GetMaxPartySize()
 
     henchmen_list = []
@@ -174,9 +169,14 @@ def AddHenchmenLA():
         henchmen_list.extend([2, 3, 1])
     else:
         henchmen_list.extend([2,8,6,7,3,5,1])
-
+    
+    # Add all henchmen quickly
     for henchman_id in henchmen_list:
-        yield from _add_henchman(henchman_id)
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
+        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
+    
+    # Single wait for all henchmen to join
+    yield from Routines.Yield.wait(1000)
 
 def EquipSkillBar(): 
     global bot

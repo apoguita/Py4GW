@@ -69,6 +69,7 @@ try:
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
+    BROADCAST_KEEPALIVE_MS = 5000
 
     # Fallback durations (ms) for items that cannot resolve effect IDs:
     FALLBACK_SHORT_MS = 10 * 60 * 1000
@@ -515,6 +516,7 @@ try:
     _skill_retry_timer = {}
     _warn_timer = {}
     _last_used_ms = {}
+    _last_broadcast_ms = {}
 
     # Alcohol estimate fallback
     _alcohol_last_drink_ms = 0
@@ -948,7 +950,7 @@ try:
     # -------------------------
     # Team broadcast helper
     # -------------------------
-    def _broadcast_use(model_id: int, repeat: int = 1):
+    def _broadcast_use(model_id: int, repeat: int = 1, effect_id: int = 0):
         try:
             if not bool(cfg.team_broadcast):
                 return
@@ -960,11 +962,28 @@ try:
                 if acc.AccountEmail == sender:
                     continue
                 try:
-                    GLOBAL_CACHE.ShMem.SendMessage(sender, acc.AccountEmail, SharedCommandType.UseItem, (float(model_id), float(repeat), 0.0, 0.0))
+                    GLOBAL_CACHE.ShMem.SendMessage(
+                        sender,
+                        acc.AccountEmail,
+                        SharedCommandType.UseItem,
+                        (float(model_id), float(repeat), float(effect_id), 0.0),
+                    )
                 except Exception:
                     pass
         except Exception:
             pass
+
+    def _broadcast_keepalive(key: str, model_id: int, effect_id: int):
+        if effect_id <= 0:
+            return
+        if not bool(cfg.team_broadcast):
+            return
+        now = _now_ms()
+        last = int(_last_broadcast_ms.get(key, 0) or 0)
+        if last > 0 and (now - last) < int(BROADCAST_KEEPALIVE_MS):
+            return
+        _last_broadcast_ms[key] = now
+        _broadcast_use(model_id, 1, effect_id)
 
     def _pick_alcohol(cur_level: int, target_level: int, pool_keys: list):
         if not pool_keys:
@@ -1027,6 +1046,9 @@ try:
             effect_id = _resolve_effect_id_for(key, spec)
 
             if effect_id and _has_effect(effect_id):
+                model_id = int(spec.get("model_id", 0))
+                if model_id > 0:
+                    _broadcast_keepalive(key, model_id, effect_id)
                 continue
             if effect_id <= 0 and _fallback_active(key, spec):
                 continue
@@ -1059,7 +1081,7 @@ try:
                 aftercast_timer.Start()
                 _last_used_ms[key] = _now_ms()
                 try:
-                    _broadcast_use(model_id, 1)
+                    _broadcast_use(model_id, 1, effect_id)
                 except Exception:
                     pass
                 # Force refresh inventory cache to show accurate count after consumption
@@ -1102,7 +1124,7 @@ try:
             t.Start()
             aftercast_timer.Start()
             try:
-                _broadcast_use(model_id, 1)
+                _broadcast_use(model_id, 1, 0)
             except Exception:
                 pass
             # Force refresh inventory cache to show accurate count after consumption

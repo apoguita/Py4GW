@@ -49,57 +49,33 @@ class BottingFsmHelpers:
     @staticmethod
     def _set_botting_behavior_as_pacifist(bot: Botting):
         print("SetBottingBehaviorAsPacifist")
-        
-        instance = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: pass
-
-        # Local imports to avoid circular import with resign_if_needed -> botting_helpers
-        from Sources.oazix.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
 
         instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
+
         instance.clear_additionnal_utility_skills() # this can introduce issue as  we are not unsubscribing from the event bus.
         CustomBehaviorParty().set_party_is_combat_enabled(False)
         CustomBehaviorParty().set_party_is_looting_enabled(False)
-        
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.event_bus, instance.in_game_build))
+
+        # Use configurable skill list
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
+        config = BottingManager()
+        config.inject_enabled_skills(config.get_enabled_pacifist_skills(), instance)
 
     @staticmethod
     def _set_botting_behavior_as_aggressive(bot: Botting):
         print("SetBottingBehaviorAsAggressive")
         instance = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: pass
-
-        # Local imports to avoid circular import with resign_if_needed -> botting_helpers
-        from Sources.oazix.CustomBehaviors.skills.botting.move_to_distant_chest_if_path_exists import MoveToDistantChestIfPathExistsUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.move_to_enemy_if_close_enough import MoveToEnemyIfCloseEnoughUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.move_to_party_member_if_dead import MoveToPartyMemberIfDeadUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.move_to_party_member_if_in_aggro import MoveToPartyMemberIfInAggroUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_in_aggro import WaitIfInAggroUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_lock_taken import WaitIfLockTakenUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_mana_too_low import WaitIfPartyMemberManaTooLowUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_needs_to_loot import WaitIfPartyMemberNeedsToLootUtility
-        from Sources.oazix.CustomBehaviors.skills.botting.wait_if_party_member_too_far import WaitIfPartyMemberTooFarUtility
-
-        instance = CustomBehaviorLoader().custom_combat_behavior
         if instance is None: raise Exception("CustomBehavior widget is required.")
+
         instance.clear_additionnal_utility_skills() # this can introduce issue as  we are not unsubscribing from the event bus.
         CustomBehaviorParty().set_party_is_combat_enabled(True)
         CustomBehaviorParty().set_party_is_looting_enabled(True)
 
-        # some are not finalized
-        # instance.inject_additionnal_utility_skills(MoveToDistantChestIfPathExistsUtility(instance.event_bus, instance.in_game_build))
-        # instance.inject_additionnal_utility_skills(ResignIfNeededUtility(instance.event_bus, instance.in_game_build, on_failure= lambda: BottingHelpers.botting_unrecoverable_issue(fsm)))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfInAggroUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToEnemyIfCloseEnoughUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(MoveToPartyMemberIfDeadUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberManaTooLowUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberTooFarUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfPartyMemberNeedsToLootUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfInAggroUtility(instance.event_bus, instance.in_game_build))
-        instance.inject_additionnal_utility_skills(WaitIfLockTakenUtility(instance.event_bus, instance.in_game_build))
+        # Use configurable skill list
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
+        config = BottingManager()
+        config.inject_enabled_skills(config.get_enabled_aggressive_skills(), instance)
 
     @staticmethod
     def __wrapper_event_bus(callback : Callable[[FSM], Generator[Any, Any, Any]] | None ) -> Callable[[EventMessage], Generator[Any, Any, Any]]:
