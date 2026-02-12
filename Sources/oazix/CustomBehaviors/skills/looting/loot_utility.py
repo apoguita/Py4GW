@@ -15,6 +15,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.cooldown_timer import CooldownTimer
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -47,7 +48,17 @@ class LootUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.LOOT.value)
         self.throttle_timer: ThrottledTimer = ThrottledTimer(1_000)
         self.loot_cooldown_timer:CooldownTimer = CooldownTimer(10_000)  # 10s cooldown after blacklist
+        self._eval_throttler: ThrottledTimer = ThrottledTimer(1_500)  # Only scan loot every 1.5s
+        self._last_eval_score: float | None = None
 
+    _LOOT_CACHE_KEY = "filtered_loot_earshot"
+
+    def _get_cached_loot_array(self) -> list[int]:
+        """Get filtered loot array, cached per evaluation cycle via MemoryCacheManager."""
+        return MemoryCacheManager.get_or_set(
+            self._LOOT_CACHE_KEY,
+            lambda: LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
+        )
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -59,24 +70,36 @@ class LootUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
+        # Eval throttle: return cached score if not expired
+        if not self._eval_throttler.IsExpired():
+            return self._last_eval_score
+        self._eval_throttler.Reset()
+
         # Check cooldown after blacklist
         if self.loot_cooldown_timer.IsInCooldown():
+            self._last_eval_score = None
             return None
 
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
+            self._last_eval_score = None
             return None
 
         if custom_behavior_helpers.Targets.is_party_leader_in_aggro():
+            self._last_eval_score = None
             return None
 
         if custom_behavior_helpers.Targets.is_party_in_aggro():
+            self._last_eval_score = None
             return None
 
-        loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
+        loot_array = self._get_cached_loot_array()
         # print(f"Loot array: {loot_array}")
-        if len(loot_array) == 0: return None
+        if len(loot_array) == 0:
+            self._last_eval_score = None
+            return None
 
-        return self.score_definition.get_score()
+        self._last_eval_score = self.score_definition.get_score()
+        return self._last_eval_score
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
@@ -85,7 +108,8 @@ class LootUtility(CustomSkillUtilityBase):
             yield
             return BehaviorResult.ACTION_SKIPPED
 
-        loot_array = LootConfig().GetfilteredLootArray(Range.Earshot.value, multibox_loot=True)
+        # Use per-cycle cache for entry check (deduplicates with _evaluate scan)
+        loot_array = self._get_cached_loot_array()
         if len(loot_array) == 0:
             yield
             return BehaviorResult.ACTION_SKIPPED
