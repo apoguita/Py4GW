@@ -228,13 +228,20 @@ class Resources:
         return energy_cost
 
     @staticmethod
-    def get_energy_percent_in_party(agent_id):
+    def _get_account_energy_map() -> dict[int, float]:
+        """Build agent_id → energy dict, cached per evaluation cycle."""
+        return MemoryCacheManager.get_or_set(
+            "account_energy_map",
+            lambda: {
+                account.PlayerID: account.PlayerEnergy
+                for account in GLOBAL_CACHE.ShMem.GetAllAccountData()
+            }
+        )
 
-        accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        for account in accounts:
-            if agent_id == account.PlayerID:
-                return account.PlayerEnergy
-        return 1.0  # default return full energy to prevent issues
+    @staticmethod
+    def get_energy_percent_in_party(agent_id):
+        energy_map = Resources._get_account_energy_map()
+        return energy_map.get(agent_id, 1.0)
 
     @staticmethod
     def get_player_absolute_health() -> float:
@@ -469,36 +476,39 @@ class Targets:
         return False
 
     @staticmethod
-    def is_party_member_in_aggro(agent_id:int) -> bool:
-        
-        agent_pos:tuple[float, float] = Agent.GetXY(agent_id)
+    def _is_party_member_in_aggro_uncached(agent_id: int) -> bool:
+        agent_pos: tuple[float, float] = Agent.GetXY(agent_id)
 
         enemy_aggressive_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority_custom_source(
             source_agent_pos=agent_pos,
-            within_range = Range.Spellcast.value + 400,
+            within_range=Range.Spellcast.value + 400,
             should_prioritize_party_target=False,
-            condition = lambda agent_id: Agent.IsAggressive(agent_id))
+            condition=lambda agent_id: Agent.IsAggressive(agent_id))
         if enemy_aggressive_id is not None and enemy_aggressive_id > 0 and Agent.IsValid(enemy_aggressive_id): return True
 
         enemy_id = Targets.get_nearest_or_default_from_enemy_ordered_by_priority_custom_source(
             source_agent_pos=agent_pos,
-            within_range = Range.Spellcast.value,
+            within_range=Range.Spellcast.value,
             should_prioritize_party_target=False,
-            condition = lambda agent_id: not Agent.IsAggressive(agent_id))
+            condition=lambda agent_id: not Agent.IsAggressive(agent_id))
         if enemy_id is not None and enemy_id > 0 and Agent.IsValid(enemy_id): return True
 
         return False
 
     @staticmethod
+    def is_party_member_in_aggro(agent_id: int) -> bool:
+        cache_key = f"party_member_in_aggro_{agent_id}"
+        return MemoryCacheManager.get_or_set(cache_key, lambda: Targets._is_party_member_in_aggro_uncached(agent_id))
+
+    @staticmethod
     def is_party_leader_in_aggro() -> bool:
-        
-        party_leader_id:int = CustomBehaviorHelperParty.get_party_leader_id()
+        party_leader_id: int = CustomBehaviorHelperParty.get_party_leader_id()
         if Targets.is_party_member_in_aggro(party_leader_id): return True
         return False
 
     @staticmethod
     def is_party_in_aggro() -> bool:
-        
+
         # doing such thing for whole party is too costly
         #return False
 
