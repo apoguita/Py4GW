@@ -72,6 +72,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Snapshot diff SVGs (generated on test failure)
+Tests/pathing/diff/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -209,3 +212,6 @@ cython_debug/
 
 # macOS system files
 .DS_Store
+
+# local agent context
+**/.claude
