@@ -347,7 +347,7 @@ class _Items:
         """
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
-        
+
         # Map consumable model_id to their effect skill_id (as used in multibox)
         consumable_effects = [
             (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
@@ -364,6 +364,9 @@ class _Items:
             (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
         ]
         
+        # Wait for any prior game action to finish before using items
+        yield from Routines.Yield.wait(500)
+
         # Check for each consumable if the effect is already active
         for consumable_model_id, effect_skill_id in consumable_effects:
             # Check if effect is already active
@@ -378,9 +381,7 @@ class _Items:
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
             if item_id:
                 GLOBAL_CACHE.Inventory.UseItem(item_id)
-                yield from Routines.Yield.wait(50)  # Small delay between items
-        
-        yield from Routines.Yield.wait(100)  # Final wait
+                yield from Routines.Yield.wait(500)
 
     @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
     def use_summoning_stone(self) -> Generator[Any, Any, None]:

@@ -512,11 +512,6 @@ LootGroups: Dict[str, Dict[str, List[ModelID]]] = {
         "Keys": [
             ModelID.Dungeon_Key,
             ModelID.Boss_Key,
-            ModelID.Prison_Key,
-        ],
-        "Keys": [
-            ModelID.Dungeon_Key,
-            ModelID.Boss_Key,
             ModelID.Cell_Key,
             ModelID.Prison_Key,
             ModelID.Diamond_Key,
