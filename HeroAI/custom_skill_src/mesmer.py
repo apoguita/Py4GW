@@ -83,7 +83,6 @@ class MesmerSkills:
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
-
         #region DOMINATION
 
         skill = CustomSkill()
@@ -112,7 +111,7 @@ class MesmerSkills:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.EnemyCaster.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.TargetingStrict = True
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
