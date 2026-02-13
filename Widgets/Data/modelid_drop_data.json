@@ -397,6 +397,5 @@
   {"name": "Arcane Crystal Shard (Bloodstone Cave)", "model_id": "ModelID.Arcane_Crystal_Shard", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Dropped by Crystal Ettin"},
   {"name": "Exquisite Surmia Carving (Cathedral of Flames)", "model_id": "ModelID.Exquisite_Surmia_Carving", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Found in Murakai's Chest"},
   {"name": "Hammer of Kathandrax (Catacombs of Kathandrax)", "model_id": "ModelID.Hammer_of_Kathandrax", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Found in the Chest of Kathandrax"},
-  {"name": "Prismatic Gelatinous Material (Ooze Pit)", "model_id": "ModelID.Prismatic_Gelatinous_Material", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Found in the Prismatic Chest"},
-  {"name": "Prison Key", "model_id": "ModelID.Prison_Key", "group": "Quest Items", "subgroup": "Keys", "drop_info": "Found in EOTN dungeons"}
+  {"name": "Prismatic Gelatinous Material (Ooze Pit)", "model_id": "ModelID.Prismatic_Gelatinous_Material", "group": "Quest Items", "subgroup": "Dungeon quest items", "drop_info": "Found in the Prismatic Chest"}
 ]
