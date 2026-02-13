@@ -58,6 +58,7 @@ try:
     )
     from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
+    import threading
 
     BOT_NAME = "Pycons"
     INI_SECTION = "Pycons"
@@ -68,6 +69,7 @@ try:
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
+    BROADCAST_KEEPALIVE_MS = 5000
 
     # Fallback durations (ms) for items that cannot resolve effect IDs:
     FALLBACK_SHORT_MS = 10 * 60 * 1000
@@ -308,12 +310,12 @@ try:
         {"key": "war_supplies", "label": "War Supplies", "model_id": int(ModelID.War_Supplies.value), "skills": ["Well_Supplied"], "use_where": "explorable"},
 
         # Outpost-only (alphabetical by label)
-        {"key": "chocolate_bunny", "label": "Chocolate Bunny (Outpost)", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "creme_brulee", "label": "Crème Brûlée (Outpost)", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "fruitcake", "label": "Fruitcake (Outpost)", "model_id": int(_model_id_value("Fruitcake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
-        {"key": "jar_of_honey", "label": "Jar of Honey (Outpost)", "model_id": int(_model_id_value("Jar_Of_Honey", 0)), "skills": ["Sugar_Rush_(long)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "red_bean_cake", "label": "Red Bean Cake (Outpost)", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
-        {"key": "sugary_blue_drink", "label": "Sugary Blue Drink (Outpost)", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
+        {"key": "chocolate_bunny", "label": "Chocolate Bunny", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
+        {"key": "creme_brulee", "label": "Crème Brûlée", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
+        {"key": "fruitcake", "label": "Fruitcake", "model_id": int(_model_id_value("Fruitcake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
+        {"key": "jar_of_honey", "label": "Jar of Honey", "model_id": int(_model_id_value("Jar_Of_Honey", 0)), "skills": ["Sugar_Rush_(long)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_LONG_MS},
+        {"key": "red_bean_cake", "label": "Red Bean Cake", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
+        {"key": "sugary_blue_drink", "label": "Sugary Blue Drink", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
     ]
 
     ALL_BY_KEY = {c["key"]: c for c in CONSUMABLES}
@@ -358,10 +360,34 @@ try:
     # -------------------------
     # Config (dirty-save throttled)
     # -------------------------
-    ini_handler = IniHandler("Widgets/Config/Pycons.ini")
+    # Lazy INI handler creation to ensure account email is available
+    import hashlib
+    _ini_handler_cache = None
+    _ini_path_cache = None
+    
+    def _get_ini_handler():
+        global _ini_handler_cache, _ini_path_cache
+        if _ini_handler_cache is None:
+            account_email = Player.GetAccountEmail()
+            if not account_email:
+                # Fallback to generic file if not logged in yet
+                _ini_path_cache = "Widgets/Config/Pycons.ini"
+            else:
+                email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
+                _ini_path_cache = f"Widgets/Config/Pycons_{email_hash}.ini"
+            _ini_handler_cache = IniHandler(_ini_path_cache)
+            ConsoleLog(BOT_NAME, f"Using config file: {_ini_path_cache} (account: {account_email})", Console.MessageType.Info)
+        return _ini_handler_cache
+    
+    def _get_ini_path():
+        global _ini_path_cache
+        if _ini_path_cache is None:
+            _get_ini_handler()  # Initialize if needed
+        return _ini_path_cache
 
     class Config:
         def __init__(self):
+            ini_handler = _get_ini_handler()
             self.debug_logging = ini_handler.read_bool(INI_SECTION, "debug_logging", False)
             self.interval_ms = ini_handler.read_int(INI_SECTION, "interval_ms", 1500)
             self.show_selected_list = ini_handler.read_bool(INI_SECTION, "show_selected_list", True)
@@ -418,6 +444,7 @@ try:
                 return
             self._save_timer.Start()
 
+            ini_handler = _get_ini_handler()
             ini_handler.write_key(INI_SECTION, "debug_logging", str(bool(self.debug_logging)))
             ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
             ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
@@ -438,9 +465,9 @@ try:
                 ini_handler.write_key(INI_SECTION, f"alcohol_enabled_{k}", str(bool(v)))
 
             # Team / multibox settings
-            # Only the broadcaster (leader) needs to write team_broadcast
-            # Only the consumer (follower) needs to write team_consume_opt_in
-            # To avoid cross-overwrites, we only write team_broadcast here
+            # team_broadcast: When enabled, broadcasts item usage to other accounts
+            # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
+            # Note: team_consume_opt_in is saved separately (below in settings window) to avoid conflicts
             ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
             _debug(f"Saved team_broadcast setting: {self.team_broadcast}", Console.MessageType.Debug)
 
@@ -451,18 +478,30 @@ try:
 
             self._dirty = False
 
-    cfg = Config()
+    # Config will be lazy-loaded on first main() call to ensure account email is available
+    cfg = None
 
     # -------------------------
     # Runtime state
     # -------------------------
-    show_settings = [False]
-    filter_text = [""]
-    last_search_active = [False]
-    last_visible_count = [0]
+    class _RuntimeState:
+        """Runtime-only mutable state grouped for clearer ownership."""
+        def __init__(self):
+            self.show_settings = [False]
+            self.filter_text = [""]
+            self.last_search_active = [False]
+            self.last_visible_count = [0]
+            self.request_expand_selected = [False]
+            self.request_collapse_selected = [False]
 
-    request_expand_selected = [False]
-    request_collapse_selected = [False]
+    _rt = _RuntimeState()
+    # Aliases preserved so UI code and existing access patterns remain identical.
+    show_settings = _rt.show_settings
+    filter_text = _rt.filter_text
+    last_search_active = _rt.last_search_active
+    last_visible_count = _rt.last_visible_count
+    request_expand_selected = _rt.request_expand_selected
+    request_collapse_selected = _rt.request_collapse_selected
 
     tick_timer = Timer()
     tick_timer.Start()
@@ -477,6 +516,7 @@ try:
     _skill_retry_timer = {}
     _warn_timer = {}
     _last_used_ms = {}
+    _last_broadcast_ms = {}
 
     # Alcohol estimate fallback
     _alcohol_last_drink_ms = 0
@@ -488,37 +528,30 @@ try:
     _inv_counts_by_model = {}
     _inv_ready_cached = True
     _inv_ready_ts = 0
+    _first_main_call = True
 
     def _now_ms() -> int:
         import time
         return int(time.time() * 1000)
 
-    def _timer_for(key: str) -> Timer:
-        t = internal_timers.get(key)
+    def _get_or_create_stopped_timer(pool: dict, key: str) -> Timer:
+        t = pool.get(key)
         if t is None:
             t = Timer()
+            # Match existing behavior: initialized then immediately stopped.
             t.Start()
             t.Stop()
-            internal_timers[key] = t
+            pool[key] = t
         return t
+
+    def _timer_for(key: str) -> Timer:
+        return _get_or_create_stopped_timer(internal_timers, key)
 
     def _retry_timer_for(key: str) -> Timer:
-        t = _skill_retry_timer.get(key)
-        if t is None:
-            t = Timer()
-            t.Start()
-            t.Stop()
-            _skill_retry_timer[key] = t
-        return t
+        return _get_or_create_stopped_timer(_skill_retry_timer, key)
 
     def _warn_timer_for(key: str) -> Timer:
-        t = _warn_timer.get(key)
-        if t is None:
-            t = Timer()
-            t.Start()
-            t.Stop()
-            _warn_timer[key] = t
-        return t
+        return _get_or_create_stopped_timer(_warn_timer, key)
 
     def _enabled_selected_keys():
         return [k for k in cfg.enabled.keys() if cfg.selected.get(k, False) and cfg.enabled.get(k, False)]
@@ -598,6 +631,87 @@ try:
         if not _inventory_ready():
             return True
         return False
+
+    def _consume_precheck():
+        """
+        Stable gate ordering for regular consumables.
+        Returns (ok, keys, in_explorable).
+        """
+        keys = _enabled_selected_keys()
+        if not keys:
+            return False, keys, False
+        if not Routines.Checks.Map.MapValid():
+            return False, keys, False
+        if _should_block_consumption():
+            return False, keys, False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, keys, False
+        return True, keys, bool(_in_explorable())
+
+    def _alcohol_precheck():
+        """
+        Stable gate ordering for alcohol upkeep.
+        Returns (ok, target, pool_keys, in_explorable, now_ms, cur_level).
+        """
+        if not bool(cfg.alcohol_enabled):
+            return False, 0, [], False, 0, 0
+
+        target = int(cfg.alcohol_target_level)
+        if target <= 0:
+            return False, target, [], False, 0, 0
+
+        if not bool(cfg.alcohol_use_explorable) and not bool(cfg.alcohol_use_outpost):
+            return False, target, [], False, 0, 0
+
+        if not Routines.Checks.Map.MapValid():
+            return False, target, [], False, 0, 0
+
+        if _should_block_consumption():
+            return False, target, [], False, 0, 0
+
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, target, [], False, 0, 0
+
+        pool_keys = _alcohol_pool_keys()
+        if not pool_keys:
+            return False, target, pool_keys, False, 0, 0
+
+        in_explorable = bool(_in_explorable())
+        if not _alcohol_allowed_here(in_explorable):
+            return False, target, pool_keys, in_explorable, 0, 0
+
+        now = _now_ms()
+        cur_level = _alcohol_current_level(now)
+        if cur_level >= target:
+            return False, target, pool_keys, in_explorable, now, cur_level
+
+        return True, target, pool_keys, in_explorable, now, cur_level
+
+    def _apply_regular_selection_change(key: str, selected: bool):
+        cfg.selected[key] = bool(selected)
+        if not bool(selected):
+            cfg.enabled[key] = False
+            if not _any_selected_anywhere():
+                cfg.show_selected_list = False
+                request_collapse_selected[0] = True
+        else:
+            if not bool(cfg.show_selected_list):
+                cfg.show_selected_list = True
+            request_expand_selected[0] = True
+        cfg.mark_dirty()
+
+    def _apply_alcohol_selection_change(key: str, selected: bool):
+        cfg.alcohol_selected[key] = bool(selected)
+        if not bool(selected):
+            cfg.alcohol_enabled_items[key] = False
+            if not _any_selected_anywhere():
+                cfg.show_selected_list = False
+                request_collapse_selected[0] = True
+        else:
+            if not bool(cfg.show_selected_list):
+                cfg.show_selected_list = True
+            request_expand_selected[0] = True
+        cfg.mark_dirty()
 
     # -------------------------
     # Skill resolution (robust)
@@ -695,6 +809,17 @@ try:
     # -------------------------
     # Inventory caching + stock counts
     # -------------------------
+    def _schedule_refresh(delay_ms: int):
+        try:
+            t = threading.Timer(delay_ms / 1000.0, lambda: _refresh_inventory_cache(force=True))
+            t.daemon = True
+            t.start()
+        except Exception as e:
+            try:
+                _debug(f"Failed to schedule inventory refresh: {e}", Console.MessageType.Debug)
+            except Exception:
+                pass
+
     def _refresh_inventory_cache(force: bool = False) -> bool:
         global _inv_cache_items, _inv_cache_ts, _inv_counts_by_model
         now = _now_ms()
@@ -710,9 +835,18 @@ try:
             for item_id in _inv_cache_items:
                 try:
                     mid = int(Item.GetModelID(int(item_id)))
+                    # Get the stack quantity by accessing the item instance
+                    qty = 1
+                    try:
+                        item_obj = Item.item_instance(int(item_id))
+                        qty = int(getattr(item_obj, 'quantity', 1))
+                        if qty <= 0:
+                            qty = 1
+                    except Exception as qty_error:
+                        _debug(f"Failed to get quantity for item_id {item_id}: {qty_error}", Console.MessageType.Debug)
                 except Exception:
                     continue
-                counts[mid] = int(counts.get(mid, 0)) + 1
+                counts[mid] = int(counts.get(mid, 0)) + int(qty)
             _inv_counts_by_model = counts
             return True
         except Exception as e:
@@ -749,8 +883,22 @@ try:
             if key == "honeycomb":
                 for _ in range(4):
                     GLOBAL_CACHE.Inventory.UseItem(int(item_id))
+                # immediate + scheduled refreshes to catch delayed state updates
+                try:
+                    _refresh_inventory_cache(force=True)
+                    _schedule_refresh(200)
+                    _schedule_refresh(600)
+                except Exception:
+                    pass
                 return True
             GLOBAL_CACHE.Inventory.UseItem(int(item_id))
+            # immediate + scheduled refreshes to catch delayed state updates
+            try:
+                _refresh_inventory_cache(force=True)
+                _schedule_refresh(200)
+                _schedule_refresh(600)
+            except Exception:
+                pass
             return True
         except Exception as e:
             _debug(f"UseItem failed (item_id={item_id}, key={key}): {e}", Console.MessageType.Warning)
@@ -802,7 +950,7 @@ try:
     # -------------------------
     # Team broadcast helper
     # -------------------------
-    def _broadcast_use(model_id: int, repeat: int = 1):
+    def _broadcast_use(model_id: int, repeat: int = 1, effect_id: int = 0):
         try:
             if not bool(cfg.team_broadcast):
                 return
@@ -814,11 +962,28 @@ try:
                 if acc.AccountEmail == sender:
                     continue
                 try:
-                    GLOBAL_CACHE.ShMem.SendMessage(sender, acc.AccountEmail, SharedCommandType.UseItem, (float(model_id), float(repeat), 0.0, 0.0))
+                    GLOBAL_CACHE.ShMem.SendMessage(
+                        sender,
+                        acc.AccountEmail,
+                        SharedCommandType.UseItem,
+                        (float(model_id), float(repeat), float(effect_id), 0.0),
+                    )
                 except Exception:
                     pass
         except Exception:
             pass
+
+    def _broadcast_keepalive(key: str, model_id: int, effect_id: int):
+        if effect_id <= 0:
+            return
+        if not bool(cfg.team_broadcast):
+            return
+        now = _now_ms()
+        last = int(_last_broadcast_ms.get(key, 0) or 0)
+        if last > 0 and (now - last) < int(BROADCAST_KEEPALIVE_MS):
+            return
+        _last_broadcast_ms[key] = now
+        _broadcast_use(model_id, 1, effect_id)
 
     def _pick_alcohol(cur_level: int, target_level: int, pool_keys: list):
         if not pool_keys:
@@ -866,20 +1031,9 @@ try:
     # Tick: normal consumables
     # -------------------------
     def _tick_consume() -> bool:
-        keys = _enabled_selected_keys()
-        if not keys:
+        ok, keys, in_explorable = _consume_precheck()
+        if not ok:
             return False
-
-        if not Routines.Checks.Map.MapValid():
-            return False
-
-        if _should_block_consumption():
-            return False
-
-        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
-            return False
-
-        in_explorable = bool(_in_explorable())
 
         for key in keys:
             spec = ALL_BY_KEY.get(key)
@@ -892,6 +1046,9 @@ try:
             effect_id = _resolve_effect_id_for(key, spec)
 
             if effect_id and _has_effect(effect_id):
+                model_id = int(spec.get("model_id", 0))
+                if model_id > 0:
+                    _broadcast_keepalive(key, model_id, effect_id)
                 continue
             if effect_id <= 0 and _fallback_active(key, spec):
                 continue
@@ -924,9 +1081,11 @@ try:
                 aftercast_timer.Start()
                 _last_used_ms[key] = _now_ms()
                 try:
-                    _broadcast_use(model_id, 1)
+                    _broadcast_use(model_id, 1, effect_id)
                 except Exception:
                     pass
+                # Force refresh inventory cache to show accurate count after consumption
+                _refresh_inventory_cache(force=True)
                 return True
 
         return False
@@ -935,35 +1094,8 @@ try:
     # Tick: alcohol upkeep
     # -------------------------
     def _tick_alcohol() -> bool:
-        if not bool(cfg.alcohol_enabled):
-            return False
-        target = int(cfg.alcohol_target_level)
-        if target <= 0:
-            return False
-
-        if not bool(cfg.alcohol_use_explorable) and not bool(cfg.alcohol_use_outpost):
-            return False
-
-        if not Routines.Checks.Map.MapValid():
-            return False
-
-        if _should_block_consumption():
-            return False
-
-        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
-            return False
-
-        pool_keys = _alcohol_pool_keys()
-        if not pool_keys:
-            return False
-
-        in_explorable = bool(_in_explorable())
-        if not _alcohol_allowed_here(in_explorable):
-            return False
-
-        now = _now_ms()
-        cur_level = _alcohol_current_level(now)
-        if cur_level >= target:
+        ok, target, pool_keys, _in_explorable_unused, now, cur_level = _alcohol_precheck()
+        if not ok:
             return False
 
         t = _timer_for("alcohol_global")
@@ -992,9 +1124,11 @@ try:
             t.Start()
             aftercast_timer.Start()
             try:
-                _broadcast_use(model_id, 1)
+                _broadcast_use(model_id, 1, 0)
             except Exception:
                 pass
+            # Force refresh inventory cache to show accurate count after consumption
+            _refresh_inventory_cache(force=True)
             return True
 
         return False
@@ -1019,6 +1153,8 @@ try:
     # Main Window
     # -------------------------
     def _draw_main_window():
+        if cfg is None:
+            return  # Config not yet loaded
         if not ImGui.Begin(INI_KEY_MAIN, BOT_NAME, flags=PyImGui.WindowFlags.AlwaysAutoResize):
             ImGui.End(INI_KEY_MAIN)
             return
@@ -1178,7 +1314,7 @@ try:
                     PyImGui.separator()
 
                 if selected_outpost:
-                    PyImGui.text("Outpost:")
+                    PyImGui.text("In-town speed boosts:")
                     for c in selected_outpost:
                         k = c["key"]
                         suffix = _stock_suffix_for_model_id(int(c.get("model_id", 0)))
@@ -1235,23 +1371,15 @@ try:
         prev = bool(cfg.selected.get(k, False))
         _, selected = ui_checkbox(f"##pycons_selected_{k}", prev)
         _same_line(10)
-        PyImGui.text(label)
+        model_id = int(spec.get("model_id", 0))
+        stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
+        PyImGui.text(label + stock_suffix)
 
         _draw_min_interval_editor(k)
 
         selected = bool(selected)
         if prev != selected:
-            cfg.selected[k] = selected
-            if not selected:
-                cfg.enabled[k] = False
-                if not _any_selected_anywhere():
-                    cfg.show_selected_list = False
-                    request_collapse_selected[0] = True
-            else:
-                if not bool(cfg.show_selected_list):
-                    cfg.show_selected_list = True
-                request_expand_selected[0] = True
-            cfg.mark_dirty()
+            _apply_regular_selection_change(k, selected)
 
     def _draw_alcohol_settings_row(spec: dict, flt: str, visible_keys_out=None):
         k = spec["key"]
@@ -1264,21 +1392,13 @@ try:
         prev = bool(cfg.alcohol_selected.get(k, False))
         _, selected = ui_checkbox(f"##pycons_alcohol_selected_{k}", prev)
         _same_line(10)
-        PyImGui.text(label)
+        model_id = int(spec.get("model_id", 0))
+        stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
+        PyImGui.text(label + stock_suffix)
 
         selected = bool(selected)
         if prev != selected:
-            cfg.alcohol_selected[k] = selected
-            if not selected:
-                cfg.alcohol_enabled_items[k] = False
-                if not _any_selected_anywhere():
-                    cfg.show_selected_list = False
-                    request_collapse_selected[0] = True
-            else:
-                if not bool(cfg.show_selected_list):
-                    cfg.show_selected_list = True
-                request_expand_selected[0] = True
-            cfg.mark_dirty()
+            _apply_alcohol_selection_change(k, selected)
 
     def _list_has_match(spec_list: list, flt: str) -> bool:
         if not flt:
@@ -1293,6 +1413,8 @@ try:
         return False
 
     def _draw_settings_window():
+        if cfg is None:
+            return  # Config not yet loaded
         if not show_settings[0]:
             return
 
@@ -1315,6 +1437,7 @@ try:
             cfg.mark_dirty()
             # Immediately write broadcast setting (don't wait for throttle)
             try:
+                ini_handler = _get_ini_handler()
                 ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(v)))
                 _log(f"Team broadcast setting changed to: {bool(v)}", Console.MessageType.Info)
             except Exception as e:
@@ -1326,8 +1449,9 @@ try:
             cfg.mark_dirty()
             # Immediately write opt-in setting (don't wait for throttle)
             try:
+                ini_handler = _get_ini_handler()
                 ini_handler.write_key(INI_SECTION, "team_consume_opt_in", str(bool(v)))
-                _log(f"Team opt-in setting changed to: {bool(v)}", Console.MessageType.Info)
+                _log(f"Team opt-in setting changed to: {bool(v)} (saved to {_get_ini_path()})", Console.MessageType.Info)
             except Exception as e:
                 _debug(f"Failed to write team_consume_opt_in: {e}", Console.MessageType.Warning)
 
@@ -1484,7 +1608,7 @@ try:
 
             PyImGui.separator()
 
-        outpost_open = _collapsing_header_force("Outpost##pycons_hdr_outpost", force_open=outpost_force, default_open=False)
+        outpost_open = _collapsing_header_force("In-town speed boosts##pycons_hdr_outpost", force_open=outpost_force, default_open=False)
         if outpost_open:
             for spec in outpost_items:
                 _draw_settings_row(spec, flt, visible_regular_keys)
@@ -1536,8 +1660,21 @@ try:
         pass
 
     def main():
+        global _first_main_call, cfg
         if not _init_window_persistence_once():  # NEW: ensure both window INIs are ready
             return
+
+        # Initialize config on first call (after player is logged in)
+        if cfg is None:
+            cfg = Config()
+
+        # Refresh inventory on first load to show quantities immediately
+        if _first_main_call:
+            _first_main_call = False
+            try:
+                _refresh_inventory_cache(force=True)
+            except Exception:
+                pass
 
         _draw_main_window()
         _draw_settings_window()

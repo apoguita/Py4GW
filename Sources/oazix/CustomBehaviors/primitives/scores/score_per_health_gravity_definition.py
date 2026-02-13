@@ -15,6 +15,8 @@ class ScorePerHealthGravityDefinition(ScoreDefinition):
 
     @override
     def score_definition_debug_ui(self) -> str:
+
+        score_0 = self.get_score(HealingScore.RESURRECTION)
         score_1 = self.get_score(HealingScore.PARTY_DAMAGE_EMERGENCY)
         score_2 = self.get_score(HealingScore.MEMBER_DAMAGED_EMERGENCY)
         score_3 = self.get_score(HealingScore.MEMBER_DAMAGED)
@@ -22,4 +24,4 @@ class ScorePerHealthGravityDefinition(ScoreDefinition):
         score_5 = self.get_score(HealingScore.MEMBER_CONDITIONED)
         score_6 = self.get_score(HealingScore.PARTY_HEALTHY)
 
-        return f"score is per heal gravity({score_1:06.4f}->{score_2:06.4f}->{score_3:06.4f}->{score_4:06.4f}->{score_5:06.4f}->{score_6:06.4f})"
+        return f"score is per heal gravity({score_0:06.4f})->{score_1:06.4f}->{score_2:06.4f}->{score_3:06.4f}->{score_4:06.4f}->{score_5:06.4f}->{score_6:06.4f})"

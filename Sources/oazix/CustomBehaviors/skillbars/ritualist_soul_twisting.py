@@ -41,7 +41,6 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         # optional
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(0))
-        self.flesh_of_my_flesh_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Flesh_of_My_Flesh"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
         self.strength_of_honor_utility: CustomSkillUtilityBase = StrengthOfHonorUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(20))
         self.great_dwarf_weapon_utility: CustomSkillUtilityBase = GreatDwarfWeaponUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(30), mana_required_to_cast=10)
 
@@ -66,7 +65,6 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.summon_spirit_luxon,
             self.armor_of_unfeeling_utility,
             self.breath_of_the_great_dwarf_utility,
-            self.flesh_of_my_flesh_utility,
             self.strength_of_honor_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,

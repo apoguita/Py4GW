@@ -3,7 +3,7 @@ from collections.abc import Callable, Generator
 from typing import Any
 import time
 
-from Py4GWCoreLib import Routines
+from Py4GWCoreLib import IniManager, Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -123,5 +123,30 @@ class CustomSkillUtilityBase:
         This method is used to get the buff configuration for the skill.
         Can be overridden by the skill itself to return the buff configuration.
         If the skill does not use buffs, return None.
+        '''
+        pass
+
+    @abstractmethod
+    def has_persistence(self) -> bool:
+        return False
+    
+    @abstractmethod
+    def delete_persisted_configuration(self):
+        '''
+        for ui button
+        '''
+        pass
+
+    @abstractmethod
+    def persist_configuration_as_global(self):
+        '''
+        for ui button
+        '''
+        pass
+
+    @abstractmethod
+    def persist_configuration_for_account(self):
+        '''
+        for ui button
         '''
         pass

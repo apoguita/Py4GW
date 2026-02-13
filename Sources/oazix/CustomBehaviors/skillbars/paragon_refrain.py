@@ -53,7 +53,6 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.protectors_defense_utility: CustomSkillUtilityBase = ProtectorsDefenseUtility(event_bus=self.event_bus, current_build=in_game_build,score_definition=ScoreStaticDefinition(60))
-        self.signet_of_return_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Signet_of_Return"), current_build=in_game_build,score_definition=ScoreStaticDefinition(12))
         self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
     
@@ -79,7 +78,6 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.i_am_unstopabble,
             self.fall_back_utility,
             self.protectors_defense_utility,
-            self.signet_of_return_utility,
             self.by_urals_hammer_utility,
             self.jagged_strike_utility,
             self.fox_fangs_utility,

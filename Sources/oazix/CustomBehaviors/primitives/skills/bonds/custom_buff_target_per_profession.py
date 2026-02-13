@@ -41,6 +41,22 @@ class BuffConfigurationPerProfession(CustomBuffTarget):
 
         self.custom_skill: CustomSkill = custom_skill
 
+    def serialize_to_string(self) -> str:
+        return ";".join([f"{configuration.bond_target_profession.name}:{configuration.is_activated}" for configuration in self.__target_configurations])
+
+    @staticmethod
+    def instanciate_from_string(serialized_string: str) ->  list[ProfessionConfiguration]:
+        deserialized_configuration: list[ProfessionConfiguration] = []
+        for configuration in serialized_string.split(";"):
+            profession_str, is_activated = configuration.split(":")
+            # Try to parse as profession name first, then fall back to integer for backwards compatibility
+            try:
+                profession = Profession[profession_str]
+            except KeyError:
+                profession = Profession(int(profession_str))
+            deserialized_configuration.append(ProfessionConfiguration(profession, is_activated == "True"))
+        return deserialized_configuration
+
     def get_by_profession(self, profession: Profession) -> ProfessionConfiguration:
         for configuration in self.__target_configurations:
             if configuration.bond_target_profession.value == profession.value:

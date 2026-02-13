@@ -3,6 +3,7 @@ from typing import List, Any, Generator, Callable, override
 import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, Range
+from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -36,11 +37,15 @@ class DarkAuraUtility(CustomSkillUtilityBase):
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
 
         # Use the buff configuration helper. Choose a sensible default config; change to per-profession if desired.
-        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(
-            event_bus,
-            self.custom_skill,
-            buff_configuration_per_profession=BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL
-        )
+        data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
+        if data is not None:
+            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
+        else:
+            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(
+                event_bus,
+                self.custom_skill,
+                buff_configuration_per_profession=BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL
+            )
 
         self.soul_taker_skill = CustomSkill("Soul_Taker")
         self.masochism_skill = CustomSkill("Masochism")
@@ -85,3 +90,22 @@ class DarkAuraUtility(CustomSkillUtilityBase):
             PyImGui.bullet_text(f"target : {target}")
         else:
             PyImGui.bullet_text(f"no target found")
+
+    @override
+    def has_persistence(self) -> bool:
+        return True
+
+    @override
+    def persist_configuration_for_account(self):
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        print("configuration saved for account")
+
+    @override
+    def persist_configuration_as_global(self):
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        print("configuration saved as global")
+
+    @override
+    def delete_persisted_configuration(self):
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
+        print("configuration deleted")

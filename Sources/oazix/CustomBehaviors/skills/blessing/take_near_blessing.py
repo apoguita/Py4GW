@@ -4,7 +4,7 @@ import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent, Player
 from Py4GWCoreLib.Pathing import AutoPathing
-from Py4GWCoreLib.Py4GWcorelib import Keystroke, Utils
+from Py4GWCoreLib.Py4GWcorelib import Keystroke, ThrottledTimer, Utils
 from Py4GWCoreLib.enums import Key
 from Sources.oazix.CustomBehaviors.primitives import constants
 
@@ -45,12 +45,17 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.BLESSING.value)
         self.mana_limit = mana_limit
         self.agent_ids_already_interracted: set[int] = set()
+        self._eval_throttler: ThrottledTimer = ThrottledTimer(2_500)  # Blessing NPCs don't move, check every 2.5s
+        self._last_eval_score: float | None = None
+        self._last_blessing_npc_agent_id: int | None = None
         self.event_bus.subscribe(EventType.MAP_CHANGED, self.map_changed, subscriber_name=self.custom_skill.skill_name)
 
     def map_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.agent_ids_already_interracted = set()
+        self._last_eval_score = None
+        self._last_blessing_npc_agent_id = None
         yield
-        
+
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
@@ -60,15 +65,28 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        # 1) If blessing_npc agent_id close enough
-        #    - we can't check if blessing is already obtained (some of them are random)
-        #    - we can add a closed list  for agent_id we already interracted with.
+        # Eval throttle: blessing NPCs don't move, no need to scan every 300ms
+        if not self._eval_throttler.IsExpired():
+            # Quick validity check on cached result
+            if self._last_blessing_npc_agent_id is not None and not Agent.IsValid(self._last_blessing_npc_agent_id):
+                self._last_eval_score = None
+                self._last_blessing_npc_agent_id = None
+            return self._last_eval_score
+        self._eval_throttler.Reset()
 
         blessing_npc : tuple[blessing_helper.BlessingNpc,int] | None = blessing_helper.find_first_blessing_npc(Range.Earshot.value)
-        if blessing_npc is None: return None
+        if blessing_npc is None:
+            self._last_eval_score = None
+            self._last_blessing_npc_agent_id = None
+            return None
         agent_id:int = blessing_npc[1]
-        if agent_id in self.agent_ids_already_interracted: return None
-        return self.score_definition.get_score()
+        if agent_id in self.agent_ids_already_interracted:
+            self._last_eval_score = None
+            self._last_blessing_npc_agent_id = None
+            return None
+        self._last_blessing_npc_agent_id = agent_id
+        self._last_eval_score = self.score_definition.get_score()
+        return self._last_eval_score
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:

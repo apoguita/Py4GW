@@ -176,8 +176,5 @@ class MesmerPanic_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
-            CustomSkill("Panic"),
-            CustomSkill("Mistrust"),
-            CustomSkill("Cry_of_Pain"),
-            CustomSkill("Unnatural_Signet"),
+            self.panic_utility.custom_skill,
      ]

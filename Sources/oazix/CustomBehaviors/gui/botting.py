@@ -3,8 +3,10 @@ import PyImGui
 import os
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
@@ -12,6 +14,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 _selected_bot_index = 0
 _bot_scripts_cache = None
 _last_scan_time = 0
+_show_utility_skills_config = False
 
 def _scan_bot_scripts():
     """
@@ -49,7 +52,7 @@ def _scan_bot_scripts():
 
 def render():
     global _selected_bot_index
-    
+
     if CustomBehaviorLoader()._botting_daemon_fsm is not None and CustomBehaviorLoader().custom_combat_behavior is not None:
         PyImGui.text(f"CustomBehavior FSM Management")
 
@@ -62,19 +65,29 @@ def render():
         PyImGui.text(f"FSM.IsFinished: {fsm.is_finished()}")
         PyImGui.text(f"FSM.CurrentState: {fsm.get_current_step_name()}")
 
-
-        
-
         PyImGui.separator()
 
-    PyImGui.text(f"Multiboxing Bot Collection")
-    
+    PyImGui.text(f"Multiboxing Botting behaviors")
+
     if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
         PyImGui.text(f"Feature restricted to party leader.")
         return
+    
+    PyImGui.separator()
+
+    _render_utility_skills_config()
+    _render_bot_scripts_table()
 
 
+def _render_bot_scripts_table():
+    """Render the bot scripts table UI section."""
+    global _show_bots_scripts
 
+    _show_bots_scripts = PyImGui.collapsing_header("Bot Scripts")
+
+    if not _show_bots_scripts:
+        return
+    
     # Bot Scripts Table
     bot_scripts = _scan_bot_scripts()
 
@@ -110,4 +123,43 @@ def render():
         PyImGui.text("No bot scripts found in the bots folder.")
         PyImGui.text("Place .py files in: Sources.oazix.CustomBehaviors/bots/")
 
-    PyImGui.separator()
+def _render_utility_skills_config():
+    """Render the utility skills configuration UI section."""
+    global _show_utility_skills_config
+
+    _show_utility_skills_config = PyImGui.collapsing_header("Utility Skills Configuration")
+
+    if not _show_utility_skills_config:
+        return
+
+    config = BottingManager()
+
+    # Pacifist Skills Section
+    if PyImGui.tree_node("Pacifist Skills"):
+        _render_skill_list(config.pacifist_skills, "pacifist")
+        PyImGui.tree_pop()
+
+    # Aggressive Skills Section
+    if PyImGui.tree_node("Aggressive Skills"):
+        _render_skill_list(config.aggressive_skills, "aggressive")
+        PyImGui.tree_pop()
+
+    # Automover Skills Section
+    if PyImGui.tree_node("Automover Skills"):
+        _render_skill_list(config.automover_skills, "automover")
+        PyImGui.tree_pop()
+
+    if PyImGui.button(f"Save Configuration {IconsFontAwesome5.ICON_SAVE}"):
+        config.save()
+    PyImGui.same_line(0.0, 10.0)
+    if PyImGui.button(f"Delete Configuration {IconsFontAwesome5.ICON_TRASH}"):
+        config.delete_configuration()
+ 
+
+def _render_skill_list(skills: list, category: str):
+    """Render a list of utility skills with toggle checkboxes."""
+    for i, skill in enumerate(skills):
+        checkbox_id = f"{skill.display_name}##{category}_{i}"
+        new_value = PyImGui.checkbox(checkbox_id, skill.enabled)
+        if new_value != skill.enabled:
+            skill.enabled = new_value

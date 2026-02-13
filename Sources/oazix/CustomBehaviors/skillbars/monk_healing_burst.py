@@ -14,6 +14,7 @@ from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility im
 from Sources.oazix.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility
 from Sources.oazix.CustomBehaviors.skills.generic.raw_simple_heal_utility import RawSimpleHealUtility
 from Sources.oazix.CustomBehaviors.skills.monk.cure_hex_utility import CureHexUtility
+from Sources.oazix.CustomBehaviors.skills.monk.dismiss_condition_utility import DismissConditionUtility
 from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import ProtectiveSpiritUtility
 from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility import ShieldOfAbsorptionUtility
@@ -27,19 +28,6 @@ class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
-        # Party-wide damage conditions
-        # PARTY_DAMAGE_EMERGENCY = 80.0  # Critical party-wide damage
-        # PARTY_DAMAGE = 60.0            # Significant party-wide damage
-        # PARTY_HEALTHY = 10.0           # Party is healthy
-        
-        # # Individual member damage conditions
-        # MEMBER_DAMAGED_EMERGENCY = 70.0  # Critical damage to a party member
-        # MEMBER_DAMAGED = 50.0           # Significant damage to a party member
-        
-        # # Condition-based priorities
-        # MEMBER_CONDITIONED = 40.0       # Party member has harmful conditions
-
-
         # core skills
 
         self.patient_spirit_utility: CustomSkillUtilityBase = RawSimpleHealUtility(event_bus=self.event_bus, skill=CustomSkill("Patient_Spirit"), current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
@@ -51,12 +39,15 @@ class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.shield_of_absorption_utility: CustomSkillUtilityBase = ShieldOfAbsorptionUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
 
         self.cure_hex_utility: CustomSkillUtilityBase = CureHexUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
+        self.dismiss_condition_utility: CustomSkillUtilityBase = DismissConditionUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
 
         self.selfless_spirit_luxon_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_luxon"), score_definition=ScoreStaticDefinition(88))
         self.selfless_spirit_kurzick_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_kurzick"), score_definition=ScoreStaticDefinition(88))
         self.serpents_quickness_prep_utility: CustomSkillUtilityBase = PreparationUtility(event_bus=self.event_bus, 
                                                              prep_skill=CustomSkill("Serpents_Quickness"), 
                                                              target_utilities=[self.seed_of_life_utility, self.selfless_spirit_luxon_utility, self.selfless_spirit_kurzick_utility], current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
+
+        
 
         # common
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
@@ -81,6 +72,7 @@ class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.protective_spirit_utility,
             self.shield_of_absorption_utility,
             self.cure_hex_utility,
+            self.dismiss_condition_utility,
             self.serpents_quickness_prep_utility,
             self.selfless_spirit_luxon_utility,
             self.selfless_spirit_kurzick_utility,

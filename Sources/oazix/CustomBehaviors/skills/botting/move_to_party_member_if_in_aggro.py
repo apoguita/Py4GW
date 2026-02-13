@@ -57,9 +57,11 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
 
         agent_id_in_aggro = self._get_first_party_member_in_aggro()
 
-        if agent_id_in_aggro is None: return None
+        if agent_id_in_aggro is None:
+            self.throttle_timer.Reset()  # Don't re-scan for 1.5s when nobody is in aggro
+            return None
         if agent_id_in_aggro == Player.GetAgentID(): return None
-        
+
         return self.score_definition.get_score()
 
     @override

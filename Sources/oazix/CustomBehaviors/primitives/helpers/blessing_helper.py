@@ -28,19 +28,26 @@ class BlessingNpc(Enum):
     def __init__(self, *mids: int):
         self.model_ids = mids
 
+# Precomputed at module level (once at import, not per call)
+_BLESSING_MODEL_IDS: set[int] = set()
+_MODEL_ID_TO_NPC: dict[int, 'BlessingNpc'] = {}
+for _npc in BlessingNpc:
+    for _mid in _npc.model_ids:
+        _BLESSING_MODEL_IDS.add(_mid)
+        _MODEL_ID_TO_NPC[_mid] = _npc
+
 def find_first_blessing_npc(within_range:float)  -> tuple[BlessingNpc,int] | None:
-    
     player_pos = Player.GetXY()
 
-    agent_ids: list[int] = AgentArray.GetAgentArray()
-    agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsValid(agent_id))
+    # Use ally + neutral arrays (~20 agents) instead of all agents (300+)
+    agent_ids: list[int] = AgentArray.GetAllyArray() + AgentArray.GetNeutralArray()
     agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, within_range)
-    agent_ids = AgentArray.Sort.ByDistance(agent_ids, player_pos)
 
-    for npc in BlessingNpc:
-        for agent_id in agent_ids:
-            if Agent.GetModelID(agent_id) in npc.model_ids:
-                return (npc, agent_id)
+    # Single pass with O(1) set lookup instead of nested 13×N loop
+    for agent_id in agent_ids:
+        model_id = Agent.GetModelID(agent_id)
+        if model_id in _BLESSING_MODEL_IDS:
+            return (_MODEL_ID_TO_NPC[model_id], agent_id)
 
     return None
 
