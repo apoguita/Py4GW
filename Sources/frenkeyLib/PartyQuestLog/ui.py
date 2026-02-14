@@ -4,7 +4,7 @@ import PyImGui
 import PyOverlay
 from HeroAI.ui import get_display_name
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.Textures import TextureState, ThemeTextures
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
@@ -49,7 +49,7 @@ class UI():
     AnimationTimer : Timer = Timer()
         
     @staticmethod
-    def draw_log(quest_data : QuestData, accounts: dict[int, AccountData]):
+    def draw_log(quest_data : QuestData, accounts: dict[int, AccountStruct]):
         UI.QuestLogWindow.open = UI.Settings.LogOpen
         
         if not UI.QuestLogWindow.open:
@@ -244,7 +244,7 @@ class UI():
         
     
     @staticmethod
-    def draw_quest_details(quest: QuestNode, accounts: dict[int, AccountData]):
+    def draw_quest_details(quest: QuestNode, accounts: dict[int, AccountStruct]):
         child_width = PyImGui.get_content_region_avail()[0]
         text_clip = child_width - 120
         cursor_pos = PyImGui.get_cursor_screen_pos()
@@ -381,7 +381,7 @@ class UI():
         )
         
     @staticmethod
-    def draw_overlays(accounts : dict[int, AccountData]):
+    def draw_overlays(accounts : dict[int, AccountStruct]):
         if not UI.Settings.ShowFollowerActiveQuestOnMinimap and not UI.Settings.ShowFollowerActiveQuestOnMissionMap:
             return
 
@@ -480,7 +480,7 @@ class UI():
         
     
     @staticmethod
-    def draw_configure(accounts : dict[int, AccountData]):
+    def draw_configure(accounts : dict[int, AccountStruct]):
         if not UI.ConfigWindow.open:
             return
         

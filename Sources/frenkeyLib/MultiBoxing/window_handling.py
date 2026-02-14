@@ -5,14 +5,14 @@ import PyImGui
 
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from Sources.frenkeyLib.MultiBoxing.settings import Settings
 
 MODULE_NAME = __file__.split("\\")[-2]
 
-def set_window_active(acc: AccountData, settings: Settings, ctrl_pressed: bool = False):
+def set_window_active(acc: AccountStruct, settings: Settings, ctrl_pressed: bool = False):
     try:
         ConsoleLog(MODULE_NAME, f"Setting window active for account: {acc.AccountEmail}", Console.MessageType.Info,False)
         account_mail = settings.get_account_mail()

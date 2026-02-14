@@ -20,7 +20,7 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
@@ -791,7 +791,7 @@ def OpenChest(index, message):
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
-                def on_same_map_and_party(account : AccountData) -> bool:                    
+                def on_same_map_and_party(account : AccountStruct) -> bool:                    
                     return (account.PartyID == party_id and
                             account.MapID == map_id and
                             account.MapRegion == map_region and

@@ -6,7 +6,7 @@ from Py4GWCoreLib import (Routines, ActionQueueManager,Key, Keystroke, Throttled
 from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, MELEE_RANGE_VALUE, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS,
                               PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, HeroAIOptionStruct, SharedMessage
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct, HeroAIOptionStruct, SharedMessageStruct
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
@@ -42,7 +42,7 @@ class HeroAI_FloatingWindows():
     SETTINGS_THROTTLE = ThrottledTimer(50)
     ACCOUNT_THROTTLE = ThrottledTimer(500)
     hero_windows : dict[str, WindowModule] = {}
-    messages : list[tuple[int, SharedMessage]] = []
+    messages : list[tuple[int, SharedMessageStruct]] = []
     widget_handler = get_widget_handler()
     init_success:bool  = False
     module_info = None
@@ -238,7 +238,7 @@ class HeroAI_FloatingWindows():
             HeroAI_FloatingWindows.settings.write_settings()
             
     @staticmethod
-    def combined_hero_panel(own_data : AccountData, cached_data: CacheData):
+    def combined_hero_panel(own_data : AccountStruct, cached_data: CacheData):
         combined_identifier = "combined_hero_panel"
         accounts = cached_data.party.accounts.values()
         
@@ -1340,7 +1340,7 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawButtonBar(cached_data:CacheData):
-        from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+        from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
         btn_size = 23
         table_width = btn_size * 6 + 30
 
@@ -1450,7 +1450,7 @@ class HeroAI_Windows():
                     map_district = account_data.MapDistrict
                     map_language = account_data.MapLanguage
 
-                    def on_same_map_and_party(account : AccountData) -> bool:                    
+                    def on_same_map_and_party(account : AccountStruct) -> bool:                    
                         return (account.PartyID == party_id and
                                 account.MapID == map_id and
                                 account.MapRegion == map_region and

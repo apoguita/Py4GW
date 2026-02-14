@@ -167,6 +167,32 @@ class HoveredFlags(IntEnum):
     AllowWhenBlockedByActiveItem = 1 << 4
     AllowWhenOverlapped = 1 << 5
     AllowWhenDisabled = 1 << 6
+    
+class ColorEditFlags(IntEnum):
+    NoFlag = 0
+    NoAlpha = 1 << 0
+    NoPicker = 1 << 1
+    NoOptions = 1 << 2
+    NoSmallPreview = 1 << 3
+    NoInputs = 1 << 4
+    NoTooltip = 1 << 5
+    NoLabel = 1 << 6
+    NoSidePreview = 1 << 7
+    NoDragDrop = 1 << 8
+    NoBorder = 1 << 9
+    AlphaBar = 1 << 10
+    AlphaPreview = 1 << 11
+    AlphaPreviewHalf = 1 << 12
+    HDR = 1 << 13
+    DisplayRGB = 1 << 14
+    DisplayHSV = 1 << 15
+    DisplayHex = 1 << 16
+    Uint8 = 1 << 17
+    Float = 1 << 18
+    PickerHueBar = 1 << 19
+    PickerHueWheel = 1 << 20
+    InputRGB = 1 << 21
+    InputHSV = 1 << 22
 
 class DrawFlags(IntEnum):
     _NoFlag = 0
@@ -376,8 +402,11 @@ def selectable(label: str, selected: bool, flags: SelectableFlags = SelectableFl
 
 @staticmethod
 def color_edit3(label: str, color: Tuple[float, float, float]) -> Tuple[float, float, float]: ...
-@staticmethod
+
+@overload
 def color_edit4(label: str, color: Tuple[float, float, float, float]) -> Tuple[float, float, float, float]: ...
+@overload
+def color_edit4(label: str, color: Tuple[float, float, float, float], flags: ColorEditFlags) -> Tuple[float, float, float, float]: ...
 
 @staticmethod
 def get_scroll_max_x() -> float: ...

@@ -3,6 +3,7 @@ import math
 import sys
 import traceback
 import Py4GW
+import PyImGui
 
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 
@@ -28,6 +29,53 @@ LOOT_THROTTLE_CHECK = ThrottledTimer(250)
 
 cached_data = CacheData()
 map_quads : list[Map.Pathing.Quad] = []
+
+#region Looting
+def LootingNode(cached_data: CacheData)-> BehaviorTree.NodeState:
+    options = cached_data.account_options
+    if not options or not options.Looting:
+        return BehaviorTree.NodeState.FAILURE
+    
+    if cached_data.data.in_aggro:
+        return BehaviorTree.NodeState.FAILURE
+    
+    
+    account_email = Player.GetAccountEmail()
+    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+
+    if index != -1 and message and message.Command == SharedCommandType.PickUpLoot:
+        if LOOT_THROTTLE_CHECK.IsExpired():
+            return BehaviorTree.NodeState.FAILURE
+        return BehaviorTree.NodeState.RUNNING
+    
+    if GLOBAL_CACHE.Inventory.GetFreeSlotCount() <= 1:
+        return BehaviorTree.NodeState.FAILURE
+    
+    loot_array = LootConfig().GetfilteredLootArray(
+        Range.Earshot.value,
+        multibox_loot=True,
+        allow_unasigned_loot=False,
+    )
+
+    if len(loot_array) == 0:
+        return BehaviorTree.NodeState.FAILURE
+
+    self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+    if self_account:
+        GLOBAL_CACHE.ShMem.SendMessage(
+            self_account.AccountEmail,
+            self_account.AccountEmail,
+            SharedCommandType.PickUpLoot,
+            (0, 0, 0, 0),
+        )
+        LOOT_THROTTLE_CHECK.Reset()
+        # Return RUNNING so the tree knows the task started
+        return BehaviorTree.NodeState.RUNNING
+
+    return BehaviorTree.NodeState.FAILURE
+
+
+
 
 #region Combat
 def HandleOutOfCombat(cached_data: CacheData):
@@ -119,76 +167,9 @@ def HandleAutoAttack(cached_data: CacheData) -> bool:
     return False
 
 
-cached_data.in_looting_routine = False
-
-#region Looting
-def LootingRoutineActive():
-    account_email = Player.GetAccountEmail()
-    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
-
-    if index == -1 or message is None:
-        return False
-
-    if message.Command != SharedCommandType.PickUpLoot:
-        return False
-    return True
-
-
-def Loot(cached_data: CacheData):
-    global LOOT_THROTTLE_CHECK
-    options = cached_data.account_options
-
-    if not options or not options.Looting:
-        return False
-
-    if cached_data.data.in_aggro:
-        return False
-
-    if LootingRoutineActive():
-        return True
-
-    if not LOOT_THROTTLE_CHECK.IsExpired():
-        cached_data.in_looting_routine = True
-        return True
-
-    # Stop if inventory is full
-    if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
-        return False
-
-    # Build the loot array based on filtering rules
-    
-    loot_array = LootConfig().GetfilteredLootArray(
-        Range.Earshot.value,
-        multibox_loot=True,
-        allow_unasigned_loot=False,
-    )
-    if len(loot_array) == 0:
-        cached_data.in_looting_routine = False
-        return False
-
-    cached_data.in_looting_routine = True
-    self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
-    if not self_account:
-        cached_data.in_looting_routine = False
-        return False
-
-    # === Throttled Send ===
-    if LOOT_THROTTLE_CHECK.IsExpired():
-        GLOBAL_CACHE.ShMem.SendMessage(
-            self_account.AccountEmail,
-            self_account.AccountEmail,
-            SharedCommandType.PickUpLoot,
-            (0, 0, 0, 0),
-        )
-        LOOT_THROTTLE_CHECK.Reset()
-
-    return True
-
-
-following_flag = False
-
 
 #region Following
+following_flag = False
 def Follow(cached_data: CacheData):
     global FOLLOW_DISTANCE_ON_COMBAT, following_flag, map_quads
     
@@ -201,8 +182,6 @@ def Follow(cached_data: CacheData):
 
     if not map_quads:
         map_quads = Map.Pathing.GetMapQuads()
-
-        
 
     if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
@@ -380,6 +359,29 @@ def initialize(cached_data: CacheData) -> bool:
     
     return False"""
 
+def IsUserInterrupting() -> bool:
+    from Py4GWCoreLib.enums_src.IO_enums import Key
+    io = PyImGui.get_io()
+    
+    if io.want_capture_keyboard or io.want_capture_mouse:
+        return False
+    
+    movement_keys = [
+        Key.W.value, Key.A.value, Key.S.value, Key.D.value,
+        Key.Q.value, Key.E.value, Key.Z.value, Key.R.value,
+        Key.UpArrow.value, Key.DownArrow.value, 
+        Key.LeftArrow.value, Key.RightArrow.value
+    ]
+    
+    for vk in movement_keys:
+        if PyImGui.is_key_down(vk):
+            return True
+
+    if (PyImGui.is_mouse_down(0) and PyImGui.is_mouse_down(1)) or PyImGui.is_mouse_down(2):
+        return True
+
+    return False
+    
     
 GlobalGuardNode = BehaviorTree.SequenceNode(
     name="GlobalGuard",
@@ -401,6 +403,11 @@ GlobalGuardNode = BehaviorTree.SequenceNode(
             name="NotKnockedDown",
             condition_fn=lambda:
                 not Agent.IsKnockedDown(Player.GetAgentID())
+        ),
+        
+        BehaviorTree.ConditionNode(
+            name="NotUserInterrupting",
+            condition_fn=lambda: not IsUserInterrupting()
         ),
     ],
 )
@@ -434,12 +441,8 @@ HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
         BehaviorTree.SelectorNode(name="UpdateStatusSelector",
             children=[
                 # Looting routine already active (allowed anytime)
-                BehaviorTree.ActionNode(name="LootingRoutineActive",
-                    action_fn=lambda: (
-                        BehaviorTree.NodeState.RUNNING
-                        if LootingRoutineActive()
-                        else BehaviorTree.NodeState.FAILURE
-                    ),
+                BehaviorTree.ActionNode(name="LootingRoutine",
+                    action_fn=lambda: LootingNode(cached_data),
                 ),
 
                 # Out-of-combat behavior (allowed while moving)
@@ -456,16 +459,6 @@ HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
                 BehaviorTree.ActionNode(
                     name="MovementInterrupt",
                     action_fn=lambda: movement_interrupt(),
-                ),
-
-                # Loot
-                BehaviorTree.ActionNode(
-                    name="Loot",
-                    action_fn=lambda: (
-                        BehaviorTree.NodeState.SUCCESS
-                        if Loot(cached_data)
-                        else BehaviorTree.NodeState.FAILURE
-                    ),
                 ),
 
                 # Follow
@@ -570,7 +563,6 @@ def main():
         handle_UI(cached_data)  
         
         if initialize(cached_data):
-            # UpdateStatus(cached_data)
             HeroAI_BT.tick()
             pass
         else:

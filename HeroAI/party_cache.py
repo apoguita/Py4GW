@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Map
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, HeroAIOptionStruct
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct, HeroAIOptionStruct
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 
 
@@ -8,7 +8,7 @@ class PartyCache():
     def __init__(self):
         super().__init__()
         
-        self.accounts : dict[int, AccountData] = {}
+        self.accounts : dict[int, AccountStruct] = {}
         self.options : dict[int, HeroAIOptionStruct] = {}
         
         self.party_id = 0
@@ -18,11 +18,11 @@ class PartyCache():
         for acc in self.accounts.values():
             yield acc
     
-    def get_by_player_id(self, player_id: int) -> AccountData | None:
+    def get_by_player_id(self, player_id: int) -> AccountStruct | None:
         """ Get account data by player ID. """
         return self.accounts.get(player_id, None)
     
-    def get_by_party_pos(self, party_pos: int) -> AccountData | None:
+    def get_by_party_pos(self, party_pos: int) -> AccountStruct | None:
         """ Get account data by party position. """
         for acc in self.accounts.values():
             if acc.PartyPosition == party_pos:

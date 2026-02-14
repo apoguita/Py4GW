@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from functools import reduce
 from typing import Any, Callable, Optional, Tuple
 
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.enums_src.GameData_enums import Profession, SkillType
 from Py4GWCoreLib.enums_src.Model_enums import GadgetModelID
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers_tests
@@ -312,7 +312,7 @@ class Resources:
             # else check if the party target has the effect
             # we should also deep dive inside player.pet
 
-            accounts:list[AccountData] = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            accounts:list[AccountStruct] = GLOBAL_CACHE.ShMem.GetAllAccountData()
             for account in accounts:
                 if account.PlayerID == agent_id:
 

@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessage
+from Py4GWCoreLib.GlobalCache.SharedMemory import SharedMessageStruct
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 
@@ -105,7 +105,7 @@ class HeroAiWrapping:
             return
 
         # Get messages for GUI
-        messages:list[tuple[int, SharedMessage]] = GLOBAL_CACHE.ShMem.GetAllMessages()
+        messages:list[tuple[int, SharedMessageStruct]] = GLOBAL_CACHE.ShMem.GetAllMessages()
 
         # Get accounts from cached party data
         accounts = list(self._cached_data.party.accounts.values())
