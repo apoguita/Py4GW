@@ -7,7 +7,7 @@ from .types import StyleTheme
 class WindowModule:
     _windows : dict[str, 'WindowModule'] = {}
     
-    def __init__(self, module_name="", window_name="", window_size=(100,100), window_pos=(0,0), window_flags=PyImGui.WindowFlags.NoFlag, collapse= False, can_close=False, forced_theme: Optional[StyleTheme] = None, resize_on_collapse: bool = False):
+    def __init__(self, module_name="", window_name="", window_size=(100,100), window_pos=(0,0), window_flags:int=PyImGui.WindowFlags.NoFlag, collapse= False, can_close=False, forced_theme: Optional[StyleTheme] = None, resize_on_collapse: bool = False):
         self.module_name = module_name
         
         self.window_name = window_name if window_name else module_name
@@ -87,7 +87,7 @@ class WindowModule:
             PyImGui.set_next_window_collapsed(self.collapse, PyImGui.ImGuiCond.Always)
             self.first_run = False                
 
-    def begin(self, p_open: Optional[bool] = None, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:   
+    def begin(self, p_open: Optional[bool] = None, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:   
         self.__current_theme = self.get_theme()
         self.changed = False
                                 
