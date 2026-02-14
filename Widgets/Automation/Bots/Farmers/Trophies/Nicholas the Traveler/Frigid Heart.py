@@ -3,6 +3,7 @@ import PyImGui
 
 BOT_NAME = "Frigid Heart Farm"
 MODEL_ID_TO_FARM = ModelID.Frigid_Heart
+MODULE_ICON = "Textures\\Module_Icons\\Frigid Heart.png"
 OUTPOST_TO_TRAVEL = 22 #Ice Caves of Sorrow
 COORD_TO_EXIT_MAP = (-23232, -5550)
 EXPLORABLE_TO_TRAVEL = 26 #Talus chute    
