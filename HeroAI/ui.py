@@ -17,7 +17,7 @@ from HeroAI.utils import IsHeroFlagged, SameMapAsAccount, SameMapOrPartyAsAccoun
 
 from Py4GWCoreLib import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, HeroAIOptionStruct, SharedMessage
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct, HeroAIOptionStruct, SharedMessageStruct
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.ImGui_src.Style import Style
 from Py4GWCoreLib.ImGui_src.Textures import GameTexture, GameTexture, TextureState, ThemeTexture, ThemeTextures
@@ -502,7 +502,7 @@ def DrawSquareCooldownEx(button_pos, button_size, progress, tint=0.1):
         x3, y3 = unique_points[i + 1]
         PyImGui.draw_list_add_triangle_filled(x1, y1, x2, y2, x3, y3, color)
 
-def get_skill_target(account_data: AccountData, cached_skill: CachedSkillInfo) -> int | None:
+def get_skill_target(account_data: AccountStruct, cached_skill: CachedSkillInfo) -> int | None:
     py_io = PyImGui.get_io()
     
     if not cached_skill or cached_skill.skill_id == 0:
@@ -569,7 +569,7 @@ def draw_casting_animation(
         PyImGui.draw_list_add_circle(cx, cy, radius, color.color_int, 36, 6.0)
         PyImGui.pop_clip_rect()
 
-def draw_skill_bar(height: float, account_data: AccountData, hero_options: Optional[HeroAIOptionStruct], message_queue: list[tuple[int, SharedMessage]]):
+def draw_skill_bar(height: float, account_data: AccountStruct, hero_options: Optional[HeroAIOptionStruct], message_queue: list[tuple[int, SharedMessageStruct]]):
     global skill_cache, messages
     style = ImGui.get_style()
     draw_textures = style.Theme in ImGui.Textured_Themes
@@ -760,7 +760,7 @@ def show_skill_tooltip(skill, show_usage=True):
 
         ImGui.end_tooltip() # Implementation of skill bar drawing logic goes here
 
-def draw_buffs_bar(account_data: AccountData, win_pos: tuple, win_size: tuple, message_queue: list[tuple[int, SharedMessage]], skill_size: float = 28):
+def draw_buffs_bar(account_data: AccountStruct, win_pos: tuple, win_size: tuple, message_queue: list[tuple[int, SharedMessageStruct]], skill_size: float = 28):
     if not settings.ShowHeroEffects and not settings.ShowHeroUpkeeps:
         return
 
@@ -793,7 +793,7 @@ def draw_buffs_bar(account_data: AccountData, win_pos: tuple, win_size: tuple, m
     PyImGui.end()
     pass  # Implementation of buffs bar drawing logic goes here
 
-def draw_buffs_and_upkeeps(account_data: AccountData, skill_size: float = 28):
+def draw_buffs_and_upkeeps(account_data: AccountStruct, skill_size: float = 28):
     style = ImGui.get_style()
     HARD_MODE_EFFECT_ID = 1912 
     
@@ -998,7 +998,7 @@ def draw_buffs_and_upkeeps(account_data: AccountData, skill_size: float = 28):
             
         PyImGui.new_line()
 
-def enter_skill_template_code(account_data : AccountData):
+def enter_skill_template_code(account_data : AccountStruct):
     global template_popup_open, template_code, template_account
     
     if not template_popup_open:
@@ -1034,7 +1034,7 @@ def enter_skill_template_code(account_data : AccountData):
             
         PyImGui.end_popup()
         
-def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queue: list[tuple[int, SharedMessage]], btn_size: float = 28):
+def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_queue: list[tuple[int, SharedMessageStruct]], btn_size: float = 28):
     global message_cache
     style = ImGui.get_style()
     draw_textures = style.Theme in ImGui.Textured_Themes
@@ -1262,7 +1262,7 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
 
 title_names: dict[str, str] = {}
 
-def get_display_name(account_data: AccountData) -> str:    
+def get_display_name(account_data: AccountStruct) -> str:    
     name = account_data.CharacterName        
     titles = [
         "the Brave",
@@ -1293,7 +1293,7 @@ def get_display_name(account_data: AccountData) -> str:
     name = title_names[name]
     return name if settings.Anonymous_PanelNames else account_data.CharacterName
 
-def get_conditioned(account_data: AccountData) -> tuple[HealthState, bool, bool, bool, bool, bool]:
+def get_conditioned(account_data: AccountStruct) -> tuple[HealthState, bool, bool, bool, bool, bool]:
     buff_ids = [buff.SkillId for buff in account_data.PlayerBuffs]
     same_map = Map.GetMapID() == account_data.MapID and Map.GetRegion()[0] == account_data.MapRegion and Map.GetDistrict() == account_data.MapDistrict
     
@@ -1318,7 +1318,7 @@ def get_conditioned(account_data: AccountData) -> tuple[HealthState, bool, bool,
     
     return HealthState.Normal, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
 
-def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, messages: list[tuple[int, SharedMessage]], open: bool = True):
+def draw_combined_hero_panel(account_data: AccountStruct, cached_data: CacheData, messages: list[tuple[int, SharedMessageStruct]], open: bool = True):
     window_info = settings.get_hero_panel_info(account_data.AccountEmail)
     if not window_info or not window_info.open:
         return
@@ -1388,7 +1388,7 @@ def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, 
 
     draw_buffs_and_upkeeps(account_data, 28)    
 
-def draw_hero_panel(window: WindowModule, account_data: AccountData, cached_data: CacheData, messages: list[tuple[int, SharedMessage]]):   
+def draw_hero_panel(window: WindowModule, account_data: AccountStruct, cached_data: CacheData, messages: list[tuple[int, SharedMessageStruct]]):   
     window_info = settings.get_hero_panel_info(account_data.AccountEmail)
     if not window_info or not window_info.open:
         return
@@ -1549,7 +1549,7 @@ def draw_button(id_suffix: str, icon: str, w : float = 0, h : float = 0, active 
     ImGui.pop_font()   
     return clicked and enabled
 
-def send_command_to_all_heroes(accounts: list[AccountData], command: SharedCommandType, param: tuple = (), extra_data: tuple = (), include_self: bool = False):
+def send_command_to_all_heroes(accounts: list[AccountStruct], command: SharedCommandType, param: tuple = (), extra_data: tuple = (), include_self: bool = False):
     account_mail = Player.GetAccountEmail()
     for account in accounts:
         if not include_self and account.AccountEmail == account_mail:
@@ -2180,7 +2180,7 @@ def is_left_mouse_clicked() -> bool:
 
     return clicked
     
-def draw_dialog_overlay(cached_data: CacheData, messages: list[tuple[int, SharedMessage]]):
+def draw_dialog_overlay(cached_data: CacheData, messages: list[tuple[int, SharedMessageStruct]]):
     global frame_coords, dialog_open, dialog_coords
     if not settings.ShowDialogOverlay:
         return
@@ -2319,7 +2319,7 @@ def draw_party_overlay(cached_data: CacheData, hero_windows : dict[str, WindowMo
             
     pass
 
-def draw_panel_toggle(i, account : AccountData, button_rect : tuple[float, float, float, float], style : Style, texture : GameTexture, window_info : Settings.HeroPanelInfo | None, is_minimalus : bool, button_size : float, show_tooltip: bool = True):
+def draw_panel_toggle(i, account : AccountStruct, button_rect : tuple[float, float, float, float], style : Style, texture : GameTexture, window_info : Settings.HeroPanelInfo | None, is_minimalus : bool, button_size : float, show_tooltip: bool = True):
     if not window_info:
         return
     

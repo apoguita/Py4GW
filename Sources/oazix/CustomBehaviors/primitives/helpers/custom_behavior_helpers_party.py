@@ -1,5 +1,5 @@
 from typing import cast
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib import GLOBAL_CACHE, Map, Player
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
 
@@ -13,7 +13,7 @@ class CustomBehaviorHelperParty:
         return party_target_id
     
     @staticmethod
-    def is_account_in_same_map_as_current_account(account : AccountData):
+    def is_account_in_same_map_as_current_account(account : AccountStruct):
         current_map_id = Map.GetMapID()
         current_region = Map.GetRegion()[0]
         current_district = Map.GetDistrict()
@@ -42,14 +42,14 @@ class CustomBehaviorHelperParty:
         party_leader_email = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData().party_leader_email
         
         # bad perf...
-        def get_account_from_agent_id(agent_id: int) -> AccountData | None:
+        def get_account_from_agent_id(agent_id: int) -> AccountStruct | None:
             for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
                 if int(account.PlayerID) == agent_id:
                     return account
             return None
         
         if party_leader_email is None: 
-            account : AccountData | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+            account : AccountStruct | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
             if account is None: return None
             result = account.AccountEmail
             MemoryCacheManager().set("party_leader_email", result)
@@ -59,7 +59,7 @@ class CustomBehaviorHelperParty:
 
             if leader_account is None: 
                 # if custom_leader_email is None, simple use default one
-                account : AccountData | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+                account : AccountStruct | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
                 if account is None: return None
                 result = account.AccountEmail
                 MemoryCacheManager().set("party_leader_email", result)
@@ -67,7 +67,7 @@ class CustomBehaviorHelperParty:
 
             if not CustomBehaviorHelperParty.is_account_in_same_map_as_current_account(leader_account):
                 # if custom_leader_email is not in my party, simple use default one
-                account : AccountData | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
+                account : AccountStruct | None = get_account_from_agent_id(GLOBAL_CACHE.Party.GetPartyLeaderID())
                 if account is None: return None
                 result = account.AccountEmail
                 MemoryCacheManager().set("party_leader_email", result)

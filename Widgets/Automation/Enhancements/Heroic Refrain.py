@@ -8,7 +8,7 @@ import configparser
 from Py4GWCoreLib import *
 from typing import Set
 
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 
 '''
 This widget draws a floating window with every HeroAI player and hero in the party and tracks their HR buff status.
