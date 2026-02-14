@@ -1,6 +1,5 @@
 from typing import Any, Callable, Generator, override
 from Py4GWCoreLib import Routines, Agent, Player
-from Py4GWCoreLib.AgentArray import AgentArray
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.enums import Profession, Range
@@ -51,13 +50,12 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
         yield
 
     def _get_agent_array(self) -> list[int]:
-
-        agent_array = AgentArray.GetAllyArray()
-        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.IsAlive(agent_id))
-        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != Player.GetAgentID())
-        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: self.buff_configuration.get_agent_id_predicate()(agent_id))
-        agent_array = AgentArray.Filter.ByDistance(agent_array, Player.GetXY(), Range.Spellcast.value)
-        return [agent_id for agent_id in agent_array]
+        buff_predicate = self.buff_configuration.get_agent_id_predicate()
+        allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
+            within_range=Range.Spellcast.value,
+            condition=lambda agent_id: agent_id != Player.GetAgentID() and buff_predicate(agent_id)
+        )
+        return [a.agent_id for a in allies]
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:

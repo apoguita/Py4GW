@@ -37,6 +37,7 @@ from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import Aut
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.primitives.helpers.eval_profiler import EvalProfiler
 from Sources.oazix.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
 from Sources.oazix.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Sources.oazix.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
@@ -412,23 +413,27 @@ class CustomBehaviorBaseUtility():
         utility_scores: list[tuple[CustomSkillUtilityBase, float | None]] = []
         current_state: BehaviorState = self.get_final_state()
 
+        _profiler = EvalProfiler()
+        _profiler.begin_cycle()
+
         # Track whether a purpose-built combat skill scored, so we can skip
         # autocombat fallbacks (base score 9.91) that can never win
         combat_skill_scored = False
         previously_attempted = list(self.__previously_attempted_skills)
 
         for utility in utilities:
-            # Lazy skip: autocombat can never outscore a purpose-built combat skill
-            if isinstance(utility, AutoCombatUtility) and combat_skill_scored:
-                utility_scores.append((utility, None))
-                continue
+            with _profiler.measure_skill(utility.custom_skill.skill_name):
+                # Lazy skip: autocombat can never outscore a purpose-built combat skill
+                if isinstance(utility, AutoCombatUtility) and combat_skill_scored:
+                    utility_scores.append((utility, None))
+                    continue
 
-            score = utility.evaluate(current_state, previously_attempted)
+                score = utility.evaluate(current_state, previously_attempted)
 
-            if score is not None and score >= CommonScore.LOWER_COMBAT.value:
-                combat_skill_scored = True
+                if score is not None and score >= CommonScore.LOWER_COMBAT.value:
+                    combat_skill_scored = True
 
-            utility_scores.append((utility, score))
+                utility_scores.append((utility, score))
 
         # Sort by score (highest first)
         utility_scores.sort(key=lambda x: x[1] if x[1] is not None else 0, reverse=True)
