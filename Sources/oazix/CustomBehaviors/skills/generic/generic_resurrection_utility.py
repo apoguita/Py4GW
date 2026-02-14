@@ -37,11 +37,11 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
         self.score_definition: ScorePerHealthGravityDefinition = score_definition
 
     def _get_target(self) -> int | None:
-        allies: list[int] = AgentArray.GetAllyArray()
-        allies = AgentArray.Filter.ByCondition(allies, lambda agent_id: not Agent.IsAlive(agent_id))
-        allies = AgentArray.Filter.ByDistance(allies, Player.GetXY(), Range.Spellcast.value * 1.5)
-        if len(allies) == 0: return None
-        return allies[0]
+        return custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
+            within_range=Range.Spellcast.value * 1.5,
+            sort_key=(TargetingOrder.DISTANCE_ASC,),
+            is_alive=False
+        )
 
     def _get_lock_key(self, agent_id: int) -> str:
         return f"GenericResurrection_{agent_id}"

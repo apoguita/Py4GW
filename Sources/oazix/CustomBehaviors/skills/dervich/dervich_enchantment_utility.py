@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Routines, Range, Player
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -38,10 +38,10 @@ class DervichEnchantmentUtility(CustomSkillUtilityBase):
         self.renew_before_expiration_in_milliseconds: int = renew_before_expiration_in_milliseconds
 
     def _is_enemy_close_enough(self) -> bool:
-
-        all_enemies = AgentArray.GetEnemyArray()
-        enemy_ids_in_range = AgentArray.Filter.ByDistance(all_enemies, Player.GetXY(), Range.Nearby.value)
-        return enemy_ids_in_range is not None and len(enemy_ids_in_range) > 0
+        enemies = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
+            within_range=Range.Nearby,
+        )
+        return len(enemies) > 0
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
