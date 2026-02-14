@@ -407,7 +407,7 @@ class BT:
             Returns: None
             """
             def arrived_early(outpost_id) -> bool: 
-                if Map.IsMapIDMatch(None, outpost_id): 
+                if Map.IsMapIDMatch(0, outpost_id): 
                     ConsoleLog("TravelToOutpost", f"Already at {Map.GetMapName(outpost_id)}", log=log) 
                     return True
                 return False
@@ -420,7 +420,7 @@ class BT:
             def map_arrival (outpost_id: int) -> BehaviorTree.NodeState: 
                 if (Map.IsMapReady() and 
                     GLOBAL_CACHE.Party.IsPartyLoaded() and 
-                    Map.IsMapIDMatch(None, outpost_id)): 
+                    Map.IsMapIDMatch(0, outpost_id)): 
                     ConsoleLog("TravelToOutpost", f"Arrived at {Map.GetMapName(outpost_id)}", log=log) 
                     return BehaviorTree.NodeState.SUCCESS 
                 return BehaviorTree.NodeState.RUNNING 
@@ -440,7 +440,7 @@ class BT:
         def TravelToRegion(outpost_id, region, district, language=0, log:bool=False, timeout: int = 10000):
             # 1. EARLY ARRIVAL CHECK
             def arrived_early() -> bool:
-                if (Map.IsMapIDMatch(None, outpost_id) and
+                if (Map.IsMapIDMatch(0, outpost_id) and
                     Map.GetRegion() == region and
                     Map.GetDistrict() == district and
                     Map.GetLanguage() == language):
@@ -462,7 +462,7 @@ class BT:
             def map_arrival() -> BehaviorTree.NodeState:
                 if (Map.IsMapReady() and
                     GLOBAL_CACHE.Party.IsPartyLoaded() and
-                    Map.IsMapIDMatch(None, outpost_id) and
+                    Map.IsMapIDMatch(0, outpost_id) and
                     Map.GetRegion() == region and
                     Map.GetDistrict() == district and
                     Map.GetLanguage() == language):

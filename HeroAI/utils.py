@@ -1,12 +1,12 @@
 from typing import Optional
 from Py4GWCoreLib import GLOBAL_CACHE, Allegiance, Overlay, Map, Agent
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from .constants import MAX_NUM_PLAYERS
 from .targeting import *
 from .cache_data import CacheData
 
 
-def SameMapAsAccount(account : AccountData):
+def SameMapAsAccount(account : AccountStruct):
     if not Map.IsMapReady():
         return False
     
@@ -16,7 +16,7 @@ def SameMapAsAccount(account : AccountData):
     own_language = Map.GetLanguage()[0]
     return own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
 
-def SameMapOrPartyAsAccount(account : AccountData):
+def SameMapOrPartyAsAccount(account : AccountStruct):
     if not Map.IsMapReady():
         return False
     

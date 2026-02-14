@@ -9,7 +9,7 @@ from PyAgent import AttributeClass
 
 from Py4GWCoreLib import Routines, Map, Agent, Player
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 

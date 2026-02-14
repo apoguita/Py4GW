@@ -4,7 +4,7 @@ from Py4GW import Console
 import PyImGui
 from Py4GWCoreLib import ImGui, Overlay
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.ImGui_src.Style import Style
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.enums_src.GameData_enums import Profession, ProfessionShort
@@ -699,7 +699,7 @@ class GUI:
             border_thickness = 3
             PyImGui.draw_list_add_rect(drawing_area_screen_pos[0] - (border_thickness / 2), drawing_area_screen_pos[1] - (border_thickness / 2), drawing_area_screen_pos[0] + drawing_area_size[0] + (border_thickness / 2), drawing_area_screen_pos[1] + drawing_area_size[1] + (border_thickness / 2), border.color_int, 0, 0, border_thickness)
 
-    def draw_account_button(self, style : Style, account : AccountData, size : tuple[float, float] = (0, 0), is_current_account: bool = False, index: int = 0) -> bool:
+    def draw_account_button(self, style : Style, account : AccountStruct, size : tuple[float, float] = (0, 0), is_current_account: bool = False, index: int = 0) -> bool:
         profession_colors ={
             Profession.Warrior: ColorPalette.GetColor("gw_warrior"),
             Profession.Ranger: ColorPalette.GetColor("gw_ranger"),

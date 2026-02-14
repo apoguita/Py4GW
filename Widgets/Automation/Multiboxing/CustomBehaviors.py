@@ -37,6 +37,7 @@ from Sources.oazix.CustomBehaviors.gui.debug_skillbars import render as debug_sk
 from Sources.oazix.CustomBehaviors.gui.debug_execution import render as debug_execution
 from Sources.oazix.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
 from Sources.oazix.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
+from Sources.oazix.CustomBehaviors.gui.debug_eval_profiler import render as debug_eval_profiler
 from Sources.oazix.CustomBehaviors.gui.auto_mover import render as auto_mover
 from Sources.oazix.CustomBehaviors.gui.teambuild import render as teambuild
 from Sources.oazix.CustomBehaviors.gui.botting import render as botting
@@ -105,6 +106,10 @@ def gui():
                 if PyImGui.begin_tab_item("debug_loader"):
                     PyImGui.text(f"History (newest on top) : ")
                     debug_skilbars()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("debug_profiler"):
+                    debug_eval_profiler()
                     PyImGui.end_tab_item()
 
                 PyImGui.end_tab_bar()

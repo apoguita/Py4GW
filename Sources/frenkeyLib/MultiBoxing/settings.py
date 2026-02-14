@@ -1,6 +1,6 @@
 import ctypes
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
 from Sources.frenkeyLib.MultiBoxing.enum import RenameClientType
@@ -57,7 +57,7 @@ class Settings:
         self.layouts : list[str] = ["None"]  # List of layout names
         
         self.account : str = ""
-        self.accounts : list[AccountData] = []  # List of account objects
+        self.accounts : list[AccountStruct] = []  # List of account objects
         self.accounts_order : list[str] = []  # List of (account index, account email) tuples
         
 
@@ -67,7 +67,7 @@ class Settings:
         
         return main
     
-    def set_accounts(self, accounts: list[AccountData]):
+    def set_accounts(self, accounts: list[AccountStruct]):
         self.accounts = accounts
         
         for acc in accounts:

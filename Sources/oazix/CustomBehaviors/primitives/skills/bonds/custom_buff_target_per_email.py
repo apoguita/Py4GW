@@ -26,17 +26,30 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
     account's email address for a given agent_id.
     """
 
-    def __init__(self, custom_skill: CustomSkill):
+    def __init__(self, custom_skill: CustomSkill, custom_configuration: dict[str, BuffEmailEntry] | None = None):
 
         self.custom_skill: CustomSkill = custom_skill
         self.__lock = threading.RLock()
 
-        # Single dictionary storing state per email
-        self.__entries_by_email: dict[str, BuffEmailEntry] = {}
+        if custom_configuration is not None:
+            self.__entries_by_email = custom_configuration
+        else:
+            self.__entries_by_email: dict[str, BuffEmailEntry] = {}
 
         # Throttled timers for periodic refresh
         self.__scan_timer = ThrottledTimer(3000)    # scan accounts every 3s
         self.__refresh_timer = ThrottledTimer(2000) # refresh char/prof every 2s
+
+    def serialize_to_string(self) -> str:
+        return ";".join([f"{entry.account_email}:{entry.is_activated}" for entry in self.__entries_by_email.values()])
+    
+    @staticmethod
+    def instanciate_from_string(serialized_string: str) -> dict[str, BuffEmailEntry]:
+        deserialized_configuration: dict[str, BuffEmailEntry] = {}
+        for configuration in serialized_string.split(";"):
+            email, is_activated = configuration.split(":")
+            deserialized_configuration[email] = BuffEmailEntry(email, is_activated == "True")
+        return deserialized_configuration
 
     def get_by_email(self, email: str) -> BuffEmailEntry:
         with self.__lock:
