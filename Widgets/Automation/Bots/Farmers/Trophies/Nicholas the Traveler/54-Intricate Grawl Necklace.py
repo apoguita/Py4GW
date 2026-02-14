@@ -1,6 +1,7 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
+MODULE_ICON = "Textures\\Items\\Intricate Grawl Necklace.png"
 BOT_NAME = "Intricate Grawl Necklace Farm"
 MODULE_ICON = "Textures\\Module_Icons\\Intricate Grawl Necklace.png"
 MODEL_ID_TO_FARM = ModelID.Intricate_Grawl_Necklace

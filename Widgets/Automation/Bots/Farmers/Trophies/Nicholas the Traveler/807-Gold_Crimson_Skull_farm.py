@@ -1,5 +1,6 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 
+MODULE_ICON = "Textures\\Items\\Gold Crimson Skull Coin.png"
 #QUEST TO INCREASE SPAWNS https://wiki.guildwars.com/wiki/Lady_Mukei_Musagi
 BOT_NAME = "Gold_Crimson_Skull_farm"
 MODEL_ID_TO_FARM = ModelID.Gold_Crimson_Skull_Coin

@@ -13,6 +13,7 @@ from Py4GWCoreLib.Builds import SF_Ass_vaettir
 
 from typing import List, Tuple
 
+MODULE_ICON = "Widgets\\Config\\textures\\" + "YAVB 2.0 mascot.png"
 bot = Botting("YAVB 2.0", 
               upkeep_birthday_cupcake_restock=1)
   

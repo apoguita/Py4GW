@@ -4,6 +4,8 @@ import Py4GW
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import Botting, ConsoleLog, Routines, Agent, Player
 
+
+MODULE_ICON = "Textures\\Items\\Kepkhet's Refuge.png"
 BOT_NAME = "Kepkhet Farm 6man"
 MODULE_ICON = "Textures\\Module_Icons\\Kepkhet's Refuge.png"
 bot = Botting(BOT_NAME)

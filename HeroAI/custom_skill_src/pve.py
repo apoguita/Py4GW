@@ -482,6 +482,7 @@ class PVESkills:
         skill.Nature = SkillNature.CustomC.value
         skill.Conditions.LessLife = 0.85
         skill.Conditions.IsPartyWide = True
+        skill.Conditions.IsOutOfCombat = True
         skill.Conditions.PartyWideArea = Range.SafeCompass.value
         skill_data[skill.SkillID] = skill
 

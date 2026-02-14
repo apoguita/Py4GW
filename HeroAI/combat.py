@@ -2,6 +2,7 @@ import Py4GW
 from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray
 from Py4GWCoreLib import Weapon
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP
+from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
@@ -529,7 +530,8 @@ class CombatClass:
 
             if (self.skills[slot].skill_id == self.mend_body_and_soul):
                 spirits_exist = Routines.Agents.GetNearestSpirit(Range.Earshot.value)
-                life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
+                life = Agent.GetHealth(vTarget) < Conditions.LessLife
+                
                 return life or (spirits_exist and Agent.IsConditioned(vTarget))
 
             if (self.skills[slot].skill_id == self.grenths_balance):

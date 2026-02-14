@@ -20,7 +20,7 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, HeroAIOptionStruct, SharedMessage
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.ImGui_src.Style import Style
-from Py4GWCoreLib.ImGui_src.Textures import GameTexture, GameTexture, TextureState, ThemeTexture, ThemeTextures
+from Py4GWCoreLib.ImGui_src.Textures import GameTexture, GameTexture, TextureSliceMode, TextureState, ThemeTexture, ThemeTextures
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 from Py4GWCoreLib.ImGui_src.types import Alignment, HorizontalAlignment, ImGuiStyleVar, StyleTheme, VerticalAlignment
 from Py4GWCoreLib.Overlay import Overlay
@@ -40,6 +40,7 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 class CachedSkillInfo:
     def __init__(self, skill_id: int):
+        ConsoleLog("HEROAI",  f"Caching skill info for skill ID: {skill_id}")
         self.skill_id = skill_id
         self.name = GLOBAL_CACHE.Skill.GetNameFromWiki(skill_id)
         self.description = GLOBAL_CACHE.Skill.GetDescription(skill_id)
@@ -58,16 +59,22 @@ class CachedSkillInfo:
         self.is_shout = GLOBAL_CACHE.Skill.Flags.IsShout(skill_id)
         self.is_skill = GLOBAL_CACHE.Skill.Flags.IsSkill(skill_id)
         self.is_condition = GLOBAL_CACHE.Skill.Flags.IsCondition(skill_id)
+        self.profession = GLOBAL_CACHE.Skill.GetProfession(skill_id)[0]
         
         self.adrenaline_cost = GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_id)
 
-        frame_texture, texture_state, progress_color = get_frame_texture_for_effect(
-            skill_id)
+
+        self.recharge_time = GLOBAL_CACHE.Skill.Data.GetRecharge(skill_id)
+        
+        self.frame_texture = ThemeTexture.PlaceHolderTexture
+        self.texture_state = TextureState.Normal
+        self.progress_color = gray_color.color_int
+        
+        frame_texture, texture_state, progress_color = get_frame_texture_for_effect(self)
+        
         self.frame_texture = frame_texture
         self.texture_state = texture_state
         self.progress_color = progress_color
-
-        self.recharge_time = GLOBAL_CACHE.Skill.Data.GetRecharge(skill_id)
 
 
 skill_cache: dict[int, CachedSkillInfo] = {}
@@ -114,33 +121,30 @@ def is_base_configure_consumables_window_open() -> bool:
     return configure_base_consumables_window_open
     
           
-def get_frame_texture_for_effect(skill_id: int) -> tuple[(GameTexture), TextureState, int]:
-    is_elite = GLOBAL_CACHE.Skill.Flags.IsElite(skill_id)
+def get_frame_texture_for_effect(skill: CachedSkillInfo) -> tuple[(GameTexture), TextureState, int]:        
+    is_elite = skill.is_elite
     texture_state = TextureState.Normal if not is_elite else TextureState.Active
+    style = ImGui.get_style()
 
-    theme = ImGui.get_style().Theme if ImGui.get_style().Theme in ImGui.Textured_Themes else StyleTheme.Guild_Wars
-    
-    if not theme in ImGui.Textured_Themes:
-        theme = StyleTheme.Guild_Wars
-
-    if GLOBAL_CACHE.Skill.Flags.IsHex(skill_id):
+    theme = style.Theme if style.Theme in ImGui.Textured_Themes else StyleTheme.Guild_Wars
+    if skill.is_hex:
         frame_texture = ThemeTextures.Effect_Frame_Hex.value.get_texture(theme)
         progress_color = Color(215, 31, 158, 255).color_int
 
-    elif GLOBAL_CACHE.Skill.Flags.IsTitle(skill_id):
+    elif skill.is_title:
         frame_texture = ThemeTextures.Effect_Frame_Skill.value.get_texture(theme)
         progress_color = Color(75, 139, 69, 255).color_int
 
-    elif GLOBAL_CACHE.Skill.Flags.IsEnchantment(skill_id):
+    elif skill.is_enchantment:
         frame_texture = ThemeTextures.Effect_Frame_Enchantment.value.get_texture(theme)
         progress_color = Color(178, 225, 47, 255).color_int
 
-        profession, _ = GLOBAL_CACHE.Skill.GetProfession(skill_id)
+        profession = skill.profession
         if profession == Profession.Dervish:
-            frame_texture = ThemeTextures.Effect_Frame_Blue.value.get_texture()
+            frame_texture = ThemeTextures.Effect_Frame_Blue.value.get_texture(theme)
             progress_color = Color(74, 163, 193, 255).color_int
 
-    elif GLOBAL_CACHE.Skill.Flags.IsCondition(skill_id):
+    elif skill.is_condition:
         frame_texture = ThemeTextures.Effect_Frame_Condition.value.get_texture(theme)
         progress_color = Color(221, 175, 52, 255).color_int
 
@@ -206,18 +210,18 @@ def draw_health_bar(width: float, height: float, max_health: float, current_heal
                 health_bar_fill_texture = ThemeTextures.HealthBarFill
                 health_bar_cursor_texture = ThemeTextures.HealthBarCursor
         
-        health_bar_empty_texture.value.get_texture().draw_in_drawlist(
+        health_bar_empty_texture.value.get_texture(style.Theme).draw_in_drawlist(
             background_rect[:2],
             background_rect[2:],
         )
 
-        health_bar_fill_texture.value.get_texture().draw_in_drawlist(
+        health_bar_fill_texture.value.get_texture(style.Theme).draw_in_drawlist(
             progress_rect[:2],
             progress_rect[2:],
         )
 
         if current_health * max_health != max_health:
-            health_bar_cursor_texture.value.get_texture().draw_in_drawlist(
+            health_bar_cursor_texture.value.get_texture(style.Theme).draw_in_drawlist(
                 cursor_rect[:2],
                 cursor_rect[2:],
             )
@@ -226,12 +230,12 @@ def draw_health_bar(width: float, height: float, max_health: float, current_heal
         deep_wound_rect = (
             item_rect[0] + (width * 0.8), item_rect[1] + 1, (width * 0.2) + 1, height - 2)
         
-        ThemeTextures.HealthBarDeepWound.value.get_texture().draw_in_drawlist(
+        ThemeTextures.HealthBarDeepWound.value.get_texture(style.Theme).draw_in_drawlist(
             deep_wound_rect[:2],
             deep_wound_rect[2:],
         )
         
-        ThemeTextures.HealthBarDeepWoundCursor.value.get_texture().draw_in_drawlist(
+        ThemeTextures.HealthBarDeepWoundCursor.value.get_texture(style.Theme).draw_in_drawlist(
             deep_wound_rect[:2],
             (2, deep_wound_rect[3]),
         )
@@ -256,7 +260,7 @@ def draw_health_bar(width: float, height: float, max_health: float, current_heal
                         indicator_texture = ThemeTextures.HealthIdenticator_WeaponSpell
                         
                 if indicator_texture:
-                    indicator_texture.value.get_texture().draw_in_drawlist(
+                    indicator_texture.value.get_texture(style.Theme).draw_in_drawlist(
                         (item_rect[0] + item_rect[2] - x_offset, item_rect[1]),
                         (height, height),
                     )
@@ -285,7 +289,7 @@ def draw_health_bar(width: float, height: float, max_health: float, current_heal
             pip_pos = text_rect[0] + text_rect[2] + 5
 
             for i in range(int(pips)):
-                pip_texture.value.get_texture().draw_in_drawlist(
+                pip_texture.value.get_texture(style.Theme).draw_in_drawlist(
                     (pip_pos + (i * 8), item_rect[1]),
                     (10 * (height / 16), height),
                 )
@@ -294,7 +298,7 @@ def draw_health_bar(width: float, height: float, max_health: float, current_heal
             pip_pos = text_rect[0] - 5 - 10
 
             for i in range(abs(int(pips))):
-                pip_texture.value.get_texture().draw_in_drawlist(
+                pip_texture.value.get_texture(style.Theme).draw_in_drawlist(
                     (pip_pos - (i * 8), item_rect[1]),
                     (10 * (height / 16), height),
                 )
@@ -359,18 +363,18 @@ def draw_energy_bar(width: float, height: float, max_energy: float, current_ener
                    2) if fraction > 0 else (item_rect[0] + (width - 2) * fraction, item_rect[1] + 1, 4, height - 2)
 
     if draw_textures:
-        ThemeTextures.EnergyBarEmpty.value.get_texture().draw_in_drawlist(
+        ThemeTextures.EnergyBarEmpty.value.get_texture(style.Theme).draw_in_drawlist(
             background_rect[:2],
             background_rect[2:],
         )
 
-        ThemeTextures.EnergyBarFill.value.get_texture().draw_in_drawlist(
+        ThemeTextures.EnergyBarFill.value.get_texture(style.Theme).draw_in_drawlist(
             progress_rect[:2],
             progress_rect[2:],
         )
 
         if current_energy * max_energy != max_energy:
-            ThemeTextures.EnergyBarCursor.value.get_texture().draw_in_drawlist(
+            ThemeTextures.EnergyBarCursor.value.get_texture(style.Theme).draw_in_drawlist(
                 cursor_rect[:2],
                 cursor_rect[2:],
             )
@@ -396,7 +400,7 @@ def draw_energy_bar(width: float, height: float, max_energy: float, current_ener
             pip_pos = text_rect[0] + text_rect[2] + 5
 
             for i in range(int(pips)):
-                pip_texture.value.get_texture().draw_in_drawlist(
+                pip_texture.value.get_texture(style.Theme).draw_in_drawlist(
                     (pip_pos + (i * 8), item_rect[1]),
                     (10 * (height / 16), height),
                 )
@@ -405,7 +409,7 @@ def draw_energy_bar(width: float, height: float, max_energy: float, current_ener
             pip_pos = text_rect[0] - 5 - 10
 
             for i in range(abs(int(pips))):
-                pip_texture.value.get_texture().draw_in_drawlist(
+                pip_texture.value.get_texture(style.Theme).draw_in_drawlist(
                     (pip_pos - (i * 8), item_rect[1]),
                     (10 * (height / 16), height),
                 )
@@ -570,7 +574,9 @@ def draw_casting_animation(
         PyImGui.pop_clip_rect()
 
 def draw_skill_bar(height: float, account_data: AccountData, hero_options: Optional[HeroAIOptionStruct], message_queue: list[tuple[int, SharedMessage]]):
-    global skill_cache, messages
+    global skill_cache
+    
+    io = PyImGui.get_io()
     style = ImGui.get_style()
     draw_textures = style.Theme in ImGui.Textured_Themes
     texture_theme = style.Theme if draw_textures else StyleTheme.Guild_Wars
@@ -614,28 +620,29 @@ def draw_skill_bar(height: float, account_data: AccountData, hero_options: Optio
         casting_skill = account_data.PlayerData.SkillbarData.CastingSkillID
         
         if skill_recharge > 0 and skill.recharge_time > 0:
-                DrawSquareCooldownEx(
-                    (item_rect_min[0], item_rect_min[1]),
-                    height,
-                    skill_recharge / (skill.recharge_time * 1000.0),
-                    tint=0.6
-                )
+            DrawSquareCooldownEx(
+                (item_rect_min[0], item_rect_min[1]),
+                height,
+                skill_recharge / (skill.recharge_time * 1000.0),
+                tint=0.6
+            )
 
-                text_size = PyImGui.calc_text_size(
-                    f"{int(skill_recharge/1000)}")
-                offset_x = (height - text_size[0]) / 2
-                offset_y = (height - text_size[1]) / 2
+            text_size = PyImGui.calc_text_size(
+                f"{int(skill_recharge/1000)}")
+            offset_x = (height - text_size[0]) / 2
+            offset_y = (height - text_size[1]) / 2
 
-                PyImGui.draw_list_add_text(
+            PyImGui.draw_list_add_text(
                     item_rect_min[0] + offset_x,
                     item_rect_min[1] + offset_y,
                     ImGui.get_style().Text.color_int,
                     f"{int(skill_recharge/1000)}"
                 )
+        
         elif casting_skill == skill.skill_id:
             draw_casting_animation(item_rect_min, (height, height))
         
-        if not enough_adrenaline:             
+        if not enough_adrenaline:           
             adrenaline_fraction = adrenaline / skill.adrenaline_cost if skill.adrenaline_cost > 0 else 0.0
             adrenaline_fraction = max(0.0, min(adrenaline_fraction, 1.0))  # Clamp between 0–1       
                    
@@ -668,26 +675,7 @@ def draw_skill_bar(height: float, account_data: AccountData, hero_options: Optio
                 state=TextureState.Hovered if hovered else TextureState.Normal
             )
 
-        account_email = Player.GetAccountEmail()
-        queued_skill_messages = message_cache.get(account_email, {}).get(SharedCommandType.UseSkill, {})
-        if queued_skill_messages:
-            queued_skill_usage = {index: msg for index, msg in message_queue if msg.Command == SharedCommandType.UseSkill and msg.ReceiverEmail == account_email and msg.Params[1] == float(skill.skill_id) and index in queued_skill_messages}
-                    
-            if queued_skill_usage:
-                hovered = PyImGui.is_item_hovered()
-                ThemeTextures.Check.value.get_texture(texture_theme).draw_in_drawlist(
-                    PyImGui.get_item_rect_min(),
-                    (height, height),
-                    state=TextureState.Hovered if hovered else TextureState.Normal
-                )
-            else:
-                #delete all queued messages for this skill that were not found in new messages (probably failed)
-                indices_to_delete = [index for index, msg in queued_skill_messages.items() if msg[1] == skill.skill_id]
-                for index in indices_to_delete:
-                    del queued_skill_messages[index]
-
         if PyImGui.is_item_clicked(0) and enough_adrenaline:
-            io = PyImGui.get_io()
             if io.key_shift:
                 if hero_options:
                     hero_options.Skills[slot] = not hero_options.Skills[slot]
@@ -795,6 +783,7 @@ def draw_buffs_bar(account_data: AccountData, win_pos: tuple, win_size: tuple, m
 
 def draw_buffs_and_upkeeps(account_data: AccountData, skill_size: float = 28):
     style = ImGui.get_style()
+    draw_textures = style.Theme in ImGui.Textured_Themes
     HARD_MODE_EFFECT_ID = 1912 
     
     effects = [effect for effect in account_data.PlayerBuffs if effect.Type == 2]
@@ -811,12 +800,25 @@ def draw_buffs_and_upkeeps(account_data: AccountData, skill_size: float = 28):
         item_rect_max = PyImGui.get_item_rect_max()
 
         if draw_effect_frame:
-            frame_texture, texture_state = effect.frame_texture, effect.texture_state
-            frame_texture.draw_in_drawlist(
-                item_rect_min[:2],
-                (skill_size, skill_size),
-                state=texture_state
-            )
+            frame_texture, texture_state, color = effect.frame_texture, effect.texture_state, effect.progress_color
+            if not draw_textures:
+                PyImGui.draw_list_add_rect(
+                    item_rect_min[0],
+                    item_rect_min[1],
+                    item_rect_max[0],
+                    item_rect_max[1],
+                    color,
+                    0,
+                    0,
+                    2
+                )
+                
+            else:
+                frame_texture.draw_in_drawlist(
+                    item_rect_min[:2],
+                    (skill_size, skill_size),
+                    state=texture_state
+                )
 
         if settings.ShowEffectDurations or settings.ShowShortEffectDurations:
             if duration > 0 and remaining and (not settings.ShowShortEffectDurations or remaining < 60000):
@@ -1090,10 +1092,11 @@ def draw_buttons(account_data: AccountData, cached_data: CacheData, message_queu
         hovered = PyImGui.is_item_hovered()
         item_rect_min = PyImGui.get_item_rect_min()
         if draw_textures:
-            ThemeTextures.HeroPanelButtonBase.value.get_texture().draw_in_drawlist(
+            ThemeTextures.HeroPanelButtonBase.value.get_texture(style.Theme).draw_in_drawlist(
                 item_rect_min, (btn_size, btn_size),
                 state=TextureState.Active if status else TextureState.Normal,
-                tint=(255, 255, 255, 255) if hovered else (200, 200, 200, 255)
+                tint=(255, 255, 255, 255) if hovered else (200, 200, 200, 255),
+                mode=TextureSliceMode.FULL
             )
 
         ImGui.push_font("Regular", 10)
@@ -1333,7 +1336,7 @@ def draw_combined_hero_panel(account_data: AccountData, cached_data: CacheData, 
     item_rect_max = PyImGui.get_item_rect_max()
     item_rect = (item_rect_min[0], item_rect_min[1] + 5, item_rect_max[0] - item_rect_min[0], item_rect_max[1] - item_rect_min[1])
     
-    ThemeTextures.HeaderLabelBackground.value.get_texture().draw_in_drawlist(
+    ThemeTextures.HeaderLabelBackground.value.get_texture(style.Theme).draw_in_drawlist(
         item_rect[:2],
         item_rect[2:],
         tint=(225, 225, 225, 200) if style.Theme is StyleTheme.Guild_Wars else (255, 255, 255, 255)
@@ -1532,7 +1535,7 @@ def draw_button(id_suffix: str, icon: str, w : float = 0, h : float = 0, active 
     mouse_down = PyImGui.is_mouse_down(0)
     item_rect_min = PyImGui.get_item_rect_min()
     if draw_textures:
-        ThemeTextures.HeroPanelButtonBase.value.get_texture().draw_in_drawlist(
+        ThemeTextures.HeroPanelButtonBase.value.get_texture(style.Theme).draw_in_drawlist(
             item_rect_min, (w, h),
             state=TextureState.Active if active else TextureState.Normal,
             tint=(255, 255, 255, 85) if not enabled else (255, 255, 255, 255) if hovered and mouse_down else (200, 200, 200, 255) if hovered else (175, 175, 175, 255)
@@ -1632,7 +1635,7 @@ def draw_consumables_window(cached_data: CacheData):
                 PyImGui.pop_style_color(4)
                 
                 x,y = PyImGui.get_item_rect_min()
-                ThemeTextures.Inventory_Slots.value.get_texture().draw_in_drawlist((x, y), (btn_size, btn_size))
+                ThemeTextures.Inventory_Slots.value.get_texture(style.Theme).draw_in_drawlist((x, y), (btn_size, btn_size))
                 ImGui.DrawTextureInDrawList((x + 2, y + 2), (btn_size - 4, btn_size - 4), texture_path)
                     
                 ImGui.show_tooltip(f"Use {model_id.name.replace('_', ' ')}")
@@ -1937,7 +1940,7 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, cached_data: CacheData):
                                 PyImGui.draw_list_add_text(text_x, text_y, style.Text.color_int, "?")
                                 ImGui.pop_font()
                                 if draw_textures:
-                                    ThemeTextures.Skill_Slot_Empty.value.get_texture().draw_in_drawlist(
+                                    ThemeTextures.Skill_Slot_Empty.value.get_texture(style.Theme).draw_in_drawlist(
                                         (item_rect_min[0] + 1, item_rect_min[1] + 1),
                                         (btn_size - 2, btn_size - 2),
                                         tint=(255, 255, 255, 255) if PyImGui.is_item_hovered() else (200, 200, 200, 255)
@@ -1967,7 +1970,7 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, cached_data: CacheData):
                                 ImGui.dummy(btn_size, btn_size)
                                 item_rect_min = PyImGui.get_item_rect_min()
                                 if draw_textures:
-                                    ThemeTextures.Skill_Slot_Empty.value.get_texture().draw_in_drawlist(
+                                    ThemeTextures.Skill_Slot_Empty.value.get_texture(style.Theme).draw_in_drawlist(
                                         (item_rect_min[0] + 1, item_rect_min[1] + 1),
                                         (btn_size - 2, btn_size - 2),
                                         tint=(255, 255, 255, 255) if PyImGui.is_item_hovered() else (200, 200, 200, 255)
@@ -2279,7 +2282,7 @@ def draw_party_overlay(cached_data: CacheData, hero_windows : dict[str, WindowMo
         party_member_frames.sort(key=lambda x: (x.position.top_on_screen, x.position.left_on_screen))  # Sort by Y, then X
     
     style = ImGui.get_style()
-    texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture()
+    texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture(style.Theme)
     
     if not party_member_frames:
         return
@@ -2407,7 +2410,7 @@ def draw_tab_control(rect : tuple[float, float, float, float], label: str = "Acc
     #THEMED
         
     
-    (ThemeTextures.Tab_Active if show_accounts_in_party_search else ThemeTextures.Tab_Inactive).value.get_texture().draw_in_drawlist(
+    (ThemeTextures.Tab_Active if show_accounts_in_party_search else ThemeTextures.Tab_Inactive).value.get_texture(style.Theme).draw_in_drawlist(
         rect[:2],
         rect[2:],
     )
@@ -2542,7 +2545,7 @@ def draw_party_search_overlay(cached_data: CacheData):
         
         sorted_by_profession = sorted(GLOBAL_CACHE.ShMem.GetAllAccountData(), key=lambda acc: (acc.PlayerProfession[0], get_display_name(acc)), reverse=False)
         button_size  = 20
-        texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture()
+        texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture(style.Theme)
         mapid = Map.GetMapID()
         
         for i, account in enumerate(sorted_by_profession):

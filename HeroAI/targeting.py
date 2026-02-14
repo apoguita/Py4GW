@@ -26,6 +26,8 @@ def FilterAllyArray(array, distance, other_ally=False, filter_skill_id=0):
     return array
 
 def TargetLowestAlly(other_ally=False,filter_skill_id=0):
+    from .utils import GetConditions
+    
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id) 
@@ -36,7 +38,14 @@ def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
     ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
     
-    ally_array = AgentArray.Sort.ByHealth(ally_array)   
+    ally_array = AgentArray.Sort.ByCondition(
+        ally_array,                        
+        condition_func=lambda agent_id: (
+            1.0 if Agent.GetHealth(agent_id) >= 0.9 else Agent.GetHealth(agent_id),
+            -len(GetConditions(agent_id))
+        ),
+    )
+    
     return Utils.GetFirstFromArray(ally_array)
     
 

@@ -144,6 +144,6 @@ def draw_configure():
     configure_window.end()
         
     if configure_window.changed or not configure_window.open:
-        if widget_info:
-            widget_info.configuring = configure_window.open
+        if widget_info and widget_info.configuring != configure_window.open:
+            widget_info.set_configuring(configure_window.open)
     pass

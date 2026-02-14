@@ -19,7 +19,7 @@ from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, ThrottledTimer, Utils
 from Py4GWCoreLib.enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import Widget, WidgetHandler, get_widget_handler
 MODULE_NAME = "Travel"
-
+MODULE_ICON = ThemeTextures.TravelCursor.value.get_texture().texture
 script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = Py4GW.Console.get_projects_path()
 

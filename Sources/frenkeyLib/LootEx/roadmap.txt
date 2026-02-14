@@ -1,0 +1,105 @@
+General Logic
+
+Iterate over items and determine, depending on what map type we are on Outpost / Explorable
+    - Identified or not?
+    - Is the item an loot item we configured, e.g. OldSchool with perfect stats, low Req max damage weapons/shields, if so we stash it
+    - Has Mods we want to keep/sell, if so extract them
+    - If the item is a rune we want to sell, keep until we are at a rune merchant and sell it
+    - If the item has a value above a threshold which changes depending on wheather or not you are in an outpost or explorable map, keep it until we are at a merchant and sell it
+    - If the item can be salvaged, salvage the item for (rare) materials
+    - If we can sell the item instead, sell it
+
+
+Dictionary of itemids with one item action to do
+
+________________________________________
+
+What do we need?
+    - List of Mods to pick those we want to keep
+    - List of Dyes to pick those we want to keep
+    - List of Runes to pick those we want to keep/sell
+
+________________________________________
+
+LootItem.py 
+Setup specific items to keep
+ModelId or Itemtype // need a way to handle without ModelId instead by itemtype so we can look for all low req scythes
+DamageRange = [0, 100] --> low damage, max damage 
+Requirement = [0, 1, ... 13] --> Collection of Requirements, empty = any
+PrefixMod = modstruct --> empty = any
+SuffixMod = modstruct --> empty = any
+Inscription/Inherent Mod = modstruct --> empty = any
+OldSchool = bool
+Rarities = [Any, Common, Uncommon, Fine, Rare, Unique] --> Requires at least one rarity, else defaults to Any
+
+
+Filter.py
+Defining Filters to pickup by creating filters or handling common item groups. An Item has to match only one filter to be picked up
+ItemTypes = [Weapon, Consumable, Armor ...] --> Empty = any
+Rarity = [Any, Common, Uncommon, Fine, Rare, Unique] --> Requires at least one rarity, else defaults to Any
+
+
+Profile
+Dyes = [Grey, Blue ... White, Black] --> empty = any
+PCons = [Cupcake, Candy Corn, ...] --> empty = any
+
+ItemsByRarity = [Any, Common, Uncommon, Fine, Rare, Unique] --> Requires at least one rarity, else *NO ITEM* will be picked up unless handled in other filters and rules 
+
+Filters = [] -- Collection of Filters
+ 
+PriceCheck
+Checks for items we want to keep based on their mods, skins ... 
+These determine what we'll do with the items
+HasNiceMod(LootItem) --> Checks if the item has a selected mod struct
+HasNiceSkin(LootItem) --> Checks if we want to keep the skin
+ 
+LootHandling
+The logic for the Handling of the Loot, broken down to small steps and a Processing Function.
+HasItemToSell() --> bool
+HasRuneToSell() --> bool
+HasScrollToSell() --> bool
+HasDyeToSell() --> bool
+HasMaterialToSell() --> bool
+HasRareMaterialToSell() --> bool
+
+HasItemToIdentify() --> bool
+HasRuneToExtract() --> bool
+HasModsToExtract() --> bool
+HasItemToSalvage() --> bool
+
+IdentifyItems() --> true while doing so
+ExtractRunes() --> true while doing so
+ExtractMods() --> true while doing so
+SalvageItems() --> true while doing so
+SellItems() --> true
+
+NeedsIdentifyKit() --> bool
+NeedsSalvageKit() --> bool
+
+BuyIdentifyKit() --> bool
+BuySalvageKit() --> bool
+ 
+Loot FSME
+An FSME API everyone can implement in their bots, this will expose only very few methods which are required 
+InternalUse
+IsMerchantNearby() --> bool, check for a nearby merchant
+HasItemsToProcess() --> bool, checks if there are items we want to process
+
+
+API
+PickupLoot()  --> bool, while looting
+HandleInventory()  --> bool, while items beeing salvaged etc, this should ideally be running while other things to save time
+
+RequiresMerchant() --> int merchantActions, int itemsToSell, int itemsToBuy - returns the number of merchantActions (itemsToSell + itemsToBuy)
+HandleMerchant() --> bool, while items beeing bought and sold
+
+IsInventoryFull(itemid = -1) --> bool, check if the inventory is full for a given item id, e.g. just farming Cupcakes we can farm until the last slot is filled with a stack of 250 and not if the last slot is filled by a single one
+
+AddItemTemporary(LootItem) --> Add a Loot Item which is used while your bot is running
+AddFilterTemporary(Filter) --> Add a Loot Filter which is used while your bot is running
+
+________________________________________
+
+Texture Name
+- replace %27 with '-'
+- replace )

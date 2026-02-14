@@ -325,6 +325,7 @@ class MesmerSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Hex_Removal.value
+        skill.Conditions.IsOutOfCombat = True
         skill.Conditions.HasHex = True
         skill_data[skill.SkillID] = skill
 

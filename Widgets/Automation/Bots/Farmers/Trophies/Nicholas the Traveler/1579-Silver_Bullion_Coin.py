@@ -1,6 +1,7 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
+MODULE_ICON = "Textures\\Items\\Silver Bullion Coin.png"
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Silver_Bullion_Coin Farmer"
 MODEL_ID_TO_FARM = ModelID.Silver_Bullion_Coin

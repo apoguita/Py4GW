@@ -4,6 +4,7 @@ from PyParty import HeroPartyMember, PetInfo
 from PyEffects import BuffType, EffectType
 from typing import Optional, Tuple, List
 from Py4GWCoreLib import ConsoleLog, Map, Party, Player, Agent, Effects, SharedCommandType, Skill, ThrottledTimer
+from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums import FactionType
 from ctypes import Array, Structure, addressof, c_int, c_uint, c_float, c_bool, c_wchar, memmove
 from multiprocessing import shared_memory
@@ -124,15 +125,34 @@ class QuestStruct(Structure):
     QuestID: int
     IsCompleted: bool
     
+class ActiveQuestStruct(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("QuestID", c_uint),
+        ("MarkerX", c_float),
+        ("MarkerY", c_float),
+        ("MapFrom", c_uint),
+        ("MapTo", c_uint),
+        ("IsCompleted", c_bool),
+    ]
+    
+    # Type hints for IntelliSense
+    QuestID: int
+    MarkerX: float
+    MarkerY: float
+    MapFrom: int
+    MapTo: int
+    IsCompleted: bool
+    
 class QuestsStruct(Structure):
     _pack_ = 1
     _fields_ = [
-        ("ActiveQuestID", c_uint),
+        ("ActiveQuest", ActiveQuestStruct),
         ("Quests", QuestStruct * 100),  # 100 quests
     ]
     
     # Type hints for IntelliSense
-    ActiveQuestID: int
+    ActiveQuest : ActiveQuestStruct
     Quests: list[QuestStruct]
   
 #region Experience  
@@ -664,7 +684,13 @@ class Py4GWSharedMemoryManager:
                 
         def _reset_quests_data(index):
             quests_data: QuestsStruct = self.GetStruct().AccountData[index].PlayerData.QuestsData
-            quests_data.ActiveQuestID = 0
+            
+            quests_data.ActiveQuest = ActiveQuestStruct()
+            quests_data.ActiveQuest.QuestID = 0
+            quests_data.ActiveQuest.MarkerX = 0.0
+            quests_data.ActiveQuest.MarkerY = 0.0
+            quests_data.ActiveQuest.IsCompleted = False
+            
             for index, quest in enumerate(quests_data.Quests):
                 quest.QuestID = 0
                 quest.IsCompleted = False
@@ -1187,8 +1213,16 @@ class Py4GWSharedMemoryManager:
             if not Player.IsPlayerLoaded():
                 return
             
-            active_quest = self.quest_instance.get_active_quest_id() if self.quest_instance else 0
-            quests_data.ActiveQuestID = active_quest
+            active_quest = Quest.GetActiveQuest()
+            quests_data.ActiveQuest.QuestID = active_quest
+            if active_quest != 0 and self.quest_instance:
+                
+                active_quest_data = Quest.GetQuestData(active_quest)
+                quests_data.ActiveQuest.MarkerX = active_quest_data.marker_x
+                quests_data.ActiveQuest.MarkerY = active_quest_data.marker_y                
+                quests_data.ActiveQuest.MapFrom = active_quest_data.map_from
+                quests_data.ActiveQuest.MapTo = active_quest_data.map_to                
+                quests_data.ActiveQuest.IsCompleted = active_quest_data.is_completed
             
             quest_log = self.quest_instance.get_quest_log_ids() if self.quest_instance else []
             for i, quest_id in enumerate(quest_log):

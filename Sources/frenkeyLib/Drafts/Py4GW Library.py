@@ -1,24 +1,14 @@
 MODULE_NAME = "Py4GW Library"
 
 import os
-import traceback
 import Py4GW
-import PyImGui
-from Py4GWCoreLib import ImGui, IniManager, Player
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER
-from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
-from Py4GWCoreLib.ImGui_src.Style import Style
-from Py4GWCoreLib.enums_src.IO_enums import Key, ModifierKey
-from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
-from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
+from Py4GWCoreLib import IniManager
+from Py4GWCoreLib.enums_src.IO_enums import Key
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import Widget, get_widget_handler
 
 Utils.ClearSubModules(MODULE_NAME.replace(" ", ""))
-from Sources.frenkeyLib.Py4GWLibrary.enum import LayoutMode
-from Sources.frenkeyLib.Py4GWLibrary.library import ModuleBrowser
-from Sources.frenkeyLib.Py4GWLibrary.module_cards import draw_widget_card
+from Sources.frenkeyLib.Py4GWLibrary.library import LayoutMode, Py4GWLibrary
 
 
 widget_filter = ""
@@ -28,7 +18,7 @@ filtered_widgets : list[Widget] = []
 INI_KEY = ""
 INI_PATH = f"Widgets/{MODULE_NAME}"
 INI_FILENAME = f"{MODULE_NAME}.ini"
-module_browser : ModuleBrowser | None = None
+library : Py4GWLibrary | None = None
 
 def _add_config_vars():
     global INI_KEY
@@ -83,12 +73,13 @@ def draw():
         return
             
     if INI_KEY:
-        global module_browser
+        global library
         
-        if module_browser is None:
-            module_browser = ModuleBrowser(INI_KEY, MODULE_NAME, widget_manager)
-            
-        module_browser.draw_window()
+        if library is None:
+            library = Py4GWLibrary(INI_KEY, MODULE_NAME, widget_manager)
+        
+        Py4GW.Console.Log(MODULE_NAME, f"Drawing {MODULE_NAME} UI", Py4GW.Console.MessageType.Debug)
+        library.draw_window()
     
 def update():
     pass
@@ -97,6 +88,8 @@ def main():
     global INI_KEY
     
     if not INI_KEY:
+        Py4GW.Console.Log(MODULE_NAME, f"Initializing {MODULE_NAME}...", Py4GW.Console.MessageType.Info)
+        
         if not os.path.exists(INI_PATH):
             os.makedirs(INI_PATH, exist_ok=True)
 
@@ -105,7 +98,9 @@ def main():
             INI_FILENAME
         )
         
-        if not INI_KEY: return
+        if not INI_KEY:
+            Py4GW.Console.Log(MODULE_NAME, f"Failed to initialize {MODULE_NAME} INI configuration.", Py4GW.Console.MessageType.Error)
+            return
         
         # widget_manager.MANAGER_INI_KEY = INI_KEY
         
@@ -116,6 +111,8 @@ def main():
         # FIX 1: Explicitly load the global manager state into the handler
         widget_manager.enable_all = bool(IniManager().get(key=INI_KEY, var_name="enable_all", default=False, section="Configuration"))
         widget_manager._apply_ini_configuration()
+    else:
+        Py4GW.Console.Log(MODULE_NAME, f"{MODULE_NAME} already initialized.", Py4GW.Console.MessageType.Warning)
         
     
 # These functions need to be available at module level

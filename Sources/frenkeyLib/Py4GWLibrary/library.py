@@ -1,12 +1,15 @@
+from enum import IntEnum
 import os
 import traceback
+from typing import Optional
+
 import Py4GW
 import PyImGui
 
-from Py4GWCoreLib import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER, HotKey
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
+from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.Style import Style
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Player import Player
@@ -14,17 +17,67 @@ from Py4GWCoreLib.enums_src.IO_enums import Key, ModifierKey
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import Widget, WidgetHandler
-from Sources.frenkeyLib.Py4GWLibrary.enum import SortMode, LayoutMode, ViewMode
 
-class ModuleBrowser:
-    CATEGORY_COLUMN_MAX_WIDTH = 150
+
+class LayoutMode(IntEnum):
+    Library = 0
+    Compact = 1
+    Minimalistic = 2
+    SingleButton = 3
+    
+class SortMode(IntEnum):
+    ByName = 0
+    ByCategory = 1
+    ByStatus = 2
+    
+class ViewMode(IntEnum):
+    All = 0
+    Favorites = 1
+    Actives = 2
+    Inactives = 3
+    
+class WidgetTreeNode:
+    def __init__(
+        self,
+        name: str = "",
+        depth: int = 0,
+        parent: "WidgetTreeNode | None" = None,
+    ):
+        self.name: str = name
+        self.depth: int = depth
+        self.parent: WidgetTreeNode | None = parent
+
+        # full path (stable, precomputed)
+        if parent and parent.path:
+            self.path: str = f"{parent.path}/{name}"
+        elif parent:
+            self.path: str = name
+        else:
+            self.path: str = ""
+
+        # hierarchy
+        self.children: dict[str, WidgetTreeNode] = {}
+        self.widgets: list[str] = []
+
+    def get_child(self, name: str) -> "WidgetTreeNode":
+        if name not in self.children:
+            self.children[name] = WidgetTreeNode(
+                name=name,
+                depth=self.depth + 1,
+                parent=self
+            )
+        return self.children[name]
+                    
+class Py4GWLibrary:
+    CATEGORY_COLUMN_MAX_WIDTH = 200
     SYSTEM_COLOR = Color(255, 0, 0, 255)
     IMAGE_SIZE = 40
     PADDING = 10
     TAG_HEIGHT = 18
     BUTTON_HEIGHT = 24
+    CONFIRMATION_MODAL_ID = "This is a critical widget!##ConfirmDisableSystemWidget"
     
-    def __init__(self, ini_key: str, module_name: str, widget_manager : WidgetHandler):
+    def __init__(self, ini_key: str, module_name: str, widget_manager : "WidgetHandler"):
         self.ini_key = ini_key
         self.module_name = module_name
         self.widget_manager = widget_manager
@@ -34,18 +87,22 @@ class ModuleBrowser:
         self.layout_mode = LayoutMode.Minimalistic
         self.sort_mode = SortMode.ByName
         
-        self.widgets : list[Widget] = list(self.widget_manager.widgets.values())
         self.filtered_widgets : list[Widget] = []
         self.favorites : list[Widget] = []
                 
         self.category : str = ""
         # get unique categories sorted alphabetically
-        self.categories : list[str] = sorted(set(widget.category for widget in self.widgets if widget.category))
+        self.categories : list[str] = sorted(set(widget.category for widget in self.widget_manager.widgets.values() if widget.category))
         
+        self.path : str = ""
         self.tag : str = ""
-        self.tags : list[str] = sorted(set(tag for widget in self.widgets for tag in widget.tags if widget.tags))
+        self.tags : list[str] = sorted(set(tag for widget in self.widget_manager.widgets.values() for tag in widget.tags if widget.tags))
         
-        self.win_size = (200, 45)
+        self._pending_disable_widget : "Widget | None" = None
+        self._request_disable_popup = False 
+        
+        self.win_size : Optional[tuple[float, float]] = None
+        self.previous_size : Optional[tuple[float, float]] = None
         self.ui_active = False
         self.focus_search = False
         self.popup_opened = False
@@ -59,6 +116,7 @@ class ModuleBrowser:
         self.show_separator = True
         self.show_category = True
         self.show_tags = True
+        self.single_filter = True
         self.fixed_card_width = False
         self.card_width = 300
         
@@ -70,6 +128,8 @@ class ModuleBrowser:
         self.name_color = Color(255, 255, 255, 255)
         self.name_enabled_color = Color(150, 255, 150, 255)
         self.card_rounding = 4.0
+        self.max_suggestions = 10
+        self.single_button_size = 48
         
         self.focus_keybind : HotKey = HOTKEY_MANAGER.register_hotkey(
             key=Key.Unmapped,
@@ -82,10 +142,15 @@ class ModuleBrowser:
         self.load_config()
         self.filter_widgets("")
         self.first_run = True
+        self.folder_tree = self.build_widget_tree(self.widget_manager.widgets)
     
     def load_config(self):
         
         try:
+            self.max_suggestions = IniManager().read_int(key=self.ini_key, section="Configuration", name="max_suggestions", default=10)
+            self.single_button_size = IniManager().read_int(key=self.ini_key, section="Configuration", name="single_button_size", default=48)
+            
+            self.single_filter = IniManager().read_bool(key=self.ini_key, section="Configuration", name="single_filter", default=True)
             self.default_layout = LayoutMode[IniManager().read_key(key=self.ini_key, section="Configuration", name="default_layout", default=LayoutMode.Compact.name)]
             self.set_layout_mode(self.default_layout)
             
@@ -139,31 +204,54 @@ class ModuleBrowser:
             
         pass    
     
-    def add_to_favorites(self, widget : Widget):
+    def build_widget_tree(self, widgets: dict[str, "Widget"]) -> WidgetTreeNode:
+        root = WidgetTreeNode(name="", depth=0, parent=None)
+
+        for _, widget in widgets.items():
+            node = root
+
+            if widget.widget_path:
+                for part in widget.widget_path.split("/"):
+                    node = node.get_child(part)
+
+        return root
+
+    def add_to_favorites(self, widget : "Widget"):
         if widget not in self.favorites:
             self.favorites.append(widget)
             IniManager().set(key=self.ini_key, var_name="favorites", value=",".join(w.folder_script_name for w in self.favorites), section="Favorites")
             IniManager().save_vars(self.ini_key)
             
-    def remove_from_favorites(self, widget : Widget):
+    def remove_from_favorites(self, widget : "Widget"):
         if widget in self.favorites:
             self.favorites.remove(widget)
             IniManager().set(key=self.ini_key, var_name="favorites", value=",".join(w.folder_script_name for w in self.favorites), section="Favorites")
             IniManager().save_vars(self.ini_key)
     
     def set_layout_mode(self, mode : LayoutMode):
-        self.layout_mode = mode
         match mode:
-            case LayoutMode.Library:
-                self.win_size = (800, 600)
+            case LayoutMode.Library:                
+                self.win_size = self.previous_size or (800, 600)
             case LayoutMode.Compact:
                 self.win_size = (300, 80)
             case LayoutMode.Minimalistic:
                 self.win_size = (200, 45)
+            case LayoutMode.SingleButton:
+                if self.layout_mode is LayoutMode.Library:
+                    self.previous_size = self.win_size
+                    
+                self.win_size = (self.single_button_size, self.single_button_size)
+                
+        self.layout_mode = mode
+        self.filter_widgets(self.widget_filter)
         pass
 
     def set_search_focus(self):
         match self.layout_mode:
+            case LayoutMode.SingleButton:
+                self.set_layout_mode(LayoutMode.Library)
+                self.focus_search = True
+                
             case LayoutMode.Library:
                 self.focus_search = True
                 
@@ -174,14 +262,15 @@ class ModuleBrowser:
     def draw_window(self): 
         win_size = self.win_size
         
-        
         match self.layout_mode:
             case LayoutMode.Library:
-                self.draw_libary()
+                self.draw_libary_view()
             case LayoutMode.Compact:
-                self.compact_view()  
+                self.draw_compact_view()  
             case LayoutMode.Minimalistic:
-                self.minimalistic_view()
+                self.draw_minimalistic_view()
+            case LayoutMode.SingleButton:
+                self.draw_one_button_view()
 
         if self.first_run:    
             self.win_size = win_size                    
@@ -189,7 +278,7 @@ class ModuleBrowser:
         
     def filter_widgets(self, filter_text: str):        
         self.filtered_widgets.clear()     
-        prefiltered = self.widgets.copy()
+        prefiltered = list(self.widget_manager.widgets.values()).copy()
         
         keywords = [kw.strip().lower() for kw in filter_text.lower().strip().split(";")]
         
@@ -227,13 +316,14 @@ class ModuleBrowser:
                         prefiltered = [w for w in prefiltered if w in self.favorites]
                         
                     case ViewMode.Actives:
-                        prefiltered = [w for w in self.widgets if w.enabled]
+                        prefiltered = [w for w in list(self.widget_manager.widgets.values()) if w.enabled]
                         
                     case ViewMode.Inactives:
-                        prefiltered = [w for w in self.widgets if not w.enabled]
+                        prefiltered = [w for w in list(self.widget_manager.widgets.values()) if not w.enabled]
                 
                 self.filtered_widgets = [w for w in prefiltered if 
                                         (w.category == self.category or not self.category) and 
+                                        (self.path in w.widget_path or not self.path) and 
                                         (self.tag in w.tags or not self.tag) and 
                                         all(kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
                 
@@ -264,9 +354,9 @@ class ModuleBrowser:
     
     def draw_global_toggles(self, button_width : float, spacing : float):       
         if ImGui.icon_button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets", button_width):
-            Py4GW.Console.Log("Widget Manager", "Reloading Widgets...", Py4GW.Console.MessageType.Info)
             self.widget_manager.discovered = False
             self.widget_manager.discover()
+            self.filter_widgets(self.widget_filter)
                 
         ImGui.show_tooltip("Reload all widgets")
         PyImGui.same_line(0, spacing)
@@ -312,8 +402,9 @@ class ModuleBrowser:
         button_width = (width - spacing * (num_buttons - 1)) / num_buttons
         return button_width
     
-    def minimalistic_view(self):
-        PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+    def draw_minimalistic_view(self):
+        if self.win_size:
+            PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
         
         if self.focus_search:
             PyImGui.set_next_window_focus()
@@ -321,6 +412,7 @@ class ModuleBrowser:
         if ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoResize|PyImGui.WindowFlags.NoTitleBar)):   
             win_size = PyImGui.get_window_size()
             self.win_size = (win_size[0], win_size[1])
+            ImGui.set_window_within_displayport(*self.win_size)
             style = ImGui.get_style()
             
             spacing = 5
@@ -364,8 +456,9 @@ class ModuleBrowser:
                     
         return self.popup_opened
             
-    def compact_view(self):
-        PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+    def draw_compact_view(self):
+        if self.win_size:
+            PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
         
         if self.focus_search:
             PyImGui.set_next_window_focus()
@@ -374,6 +467,8 @@ class ModuleBrowser:
             window_hovered = PyImGui.is_window_hovered() or PyImGui.is_window_focused()
             win_size = PyImGui.get_window_size()
             self.win_size = (win_size[0], win_size[1])
+            ImGui.set_window_within_displayport(*self.win_size)
+            
             style = ImGui.get_style()
             width = win_size[0] - style.WindowPadding.value1 * 2
             
@@ -388,6 +483,11 @@ class ModuleBrowser:
             PyImGui.push_item_width(search_width)
             changed, self.widget_filter = ImGui.search_field("##WidgetFilter", self.widget_filter)
             if changed:
+                if self.single_filter:
+                    self.tag = ""
+                    self.category = ""
+                    self.path = ""
+                    
                 self.filter_widgets(self.widget_filter)
             PyImGui.pop_item_width()
             search_active = PyImGui.is_item_active()
@@ -423,7 +523,7 @@ class ModuleBrowser:
                     PyImGui.ImGuiCond.Always
                 )
 
-            height = min(200, len(self.filtered_widgets) * 30 + (style.ItemSpacing.value2 or 0) + (style.WindowPadding.value2 or 0) * 2)
+            height = min(self.max_suggestions, len(self.filtered_widgets)) * 30 + (style.ItemSpacing.value2 or 0) + (style.WindowPadding.value2 or 0) * 2
             PyImGui.set_next_window_size((win_size[0], height),
                     PyImGui.ImGuiCond.Always
                 )
@@ -458,7 +558,6 @@ class ModuleBrowser:
                     self.card_context_menu(self.context_menu_id, self.context_menu_widget)
                             
                 if suggestion_hovered and not self.context_menu_id and not search_active and not self.focus_search and not presets_opened:
-                    Py4GW.Console.Log("Widget Browser", "set_window_focus to ##WidgetsList", Py4GW.Console.MessageType.Info)
                     PyImGui.set_window_focus("##WidgetsList")
                     
             if (
@@ -473,9 +572,15 @@ class ModuleBrowser:
                     
             ImGui.end()
             
+        if self._request_disable_popup:
+            PyImGui.open_popup(self.CONFIRMATION_MODAL_ID)
+            self._request_disable_popup = False
+            
+        self.draw_confirmation_modal()
+            
         return open
     
-    def card_context_menu(self, popup_id: str, widget : Widget):
+    def card_context_menu(self, popup_id: str, widget : "Widget"):
         
         if PyImGui.begin_popup(popup_id):
             if PyImGui.menu_item("Add to Favorites" if widget not in self.favorites else "Remove from Favorites"):
@@ -485,12 +590,16 @@ class ModuleBrowser:
                     self.remove_from_favorites(widget)
                 
             PyImGui.separator()
-            
+                        
             if PyImGui.menu_item("Enable" if not widget.enabled else "Disable"):
                 if not widget.enabled:
-                    widget.enable()
+                    self.widget_manager.enable_widget(widget.plain_name)
                 else:
-                    widget.disable()
+                    if widget.category == "System":
+                        self._pending_disable_widget = widget
+                        self._request_disable_popup = True
+                    else:
+                        self.widget_manager.disable_widget(widget.plain_name)
                     
             PyImGui.separator()
 
@@ -537,32 +646,76 @@ class ModuleBrowser:
         threshold = 0.01
         return all(abs(c1 - c2) < threshold for c1, c2 in zip(color1, color2))
     
-    def draw_libary(self):
-        PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
-        if ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags.MenuBar):    
-            io = PyImGui.get_io()
+    def draw_tree(self, node: WidgetTreeNode, style : Style = ImGui.get_style()):
+        selected = self.path == node.path
+                        
+        if not node.children:
+            node_open = ImGui.selectable(label=f"{node.name}##{node.depth}", selected=selected)
+        else:
+            if selected:
+                x, y = PyImGui.get_cursor_screen_pos()
+                width = PyImGui.get_content_region_avail()[0]
+                height = 14
+                
+                PyImGui.draw_list_add_rect_filled(
+                    x, y, x + width, y + height, style.Header.color_int, 0, 0)
+                
+            node_open = ImGui.tree_node(label=f"{node.name}##{node.depth}")
+        
+        if selected:
+            style.Header.pop_color()
+        
+        if PyImGui.is_item_clicked(0):
+            self.path = node.path if self.path != node.path else ""
+            
+            if self.single_filter:
+                self.tag = ""
+                self.category = ""
+                self.widget_filter = ""
+            
+            self.filter_widgets(self.widget_filter)
+        
+        if node_open and node.children:                
+            for child in node.children.values():
+                self.draw_tree(child, style)
+            
+            ImGui.tree_pop()
+                    
+    def draw_libary_view(self):
+        if self.win_size:
+            PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+        window_open = ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags.MenuBar)
+        
+        if window_open:            
             win_size = PyImGui.get_window_size()
             win_pos = PyImGui.get_window_pos()
             self.win_size = (win_size[0], win_size[1])
-            pos_y = 0
+            ImGui.set_window_within_displayport(*self.win_size, PyImGui.ImGuiCond.Once)            
             style = ImGui.get_style()
             
+            PyImGui.push_clip_rect(*win_pos, self.win_size[0], self.win_size[1], False)
+            ImGui.DrawTextureInDrawList((win_pos[0] + 4, win_pos[1] + 2), (20, 20), "python_icon_round_20px.png")
+            PyImGui.pop_clip_rect()
+            
             if ImGui.begin_menu_bar():
-                pos_y = PyImGui.get_cursor_pos_y()
                 if ImGui.begin_menu("Widgets"):
                     if ImGui.menu_item("Reload Widgets"):
                         Py4GW.Console.Log("Widget Manager", "Reloading Widgets...", Py4GW.Console.MessageType.Info)
                         self.widget_manager.discovered = False
                         self.widget_manager.discover()
+                        self.filter_widgets(self.widget_filter)
+                    ImGui.show_tooltip("Reload all widgets")
                     
                     if ImGui.menu_item(f"{("Run" if not self.widget_manager.enable_all else "Pause")} all widgets"):
                         self.widget_manager.enable_all = not self.widget_manager.enable_all
                         IniManager().save_vars(self.ini_key)
                         IniManager().set(key=self.ini_key, var_name="enable_all", value=self.widget_manager.enable_all, section="Configuration")
+                    ImGui.show_tooltip(f"{("Run" if not self.widget_manager.enable_all else "Pause")} all widgets")
                     
                     if ImGui.menu_item(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs"):
                         show_widget_ui = not self.widget_manager.show_widget_ui
                         self.widget_manager.set_widget_ui_visibility(show_widget_ui)
+                    ImGui.show_tooltip(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs by setting the alpha of imgui to 0 or 1")
                         
                     if ImGui.menu_item(f"{("Pause" if not self.widget_manager.pause_optional_widgets else "Resume")} all optional widgets"):
                         pause_non_env = not self.widget_manager.pause_optional_widgets
@@ -577,35 +730,56 @@ class ModuleBrowser:
                                 continue
                             
                             GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if pause_non_env else SharedCommandType.ResumeWidgets)
-                        
+                    ImGui.show_tooltip(f"{("Pause" if not self.widget_manager.pause_optional_widgets else "Resume")} all optional/non system widgets")
+                    
                     ImGui.end_menu()                   
                 
                 if ImGui.begin_menu("Preferences"):
-                    if ImGui.begin_menu("Default Layout Mode"):
-                        layout_mode = ImGui.radio_button("Library View", self.default_layout, LayoutMode.Library)
-                        if self.default_layout != layout_mode:
-                            self.default_layout = LayoutMode.Library
-                            self.set_layout_mode(self.default_layout)
-                            IniManager().set(key=self.ini_key, var_name="default_layout", value=self.default_layout.name, section="Configuration")
-                            IniManager().save_vars(self.ini_key)
-                        ImGui.show_tooltip("Open the widget browser in library view by default,\nshowing all details and options for each widget.")
+                    if ImGui.begin_menu("Layout"):                        
+                        if ImGui.begin_menu("Default Mode"):
+                            layout_mode = ImGui.radio_button("Library View", self.default_layout, LayoutMode.Library)
+                            if self.default_layout != layout_mode:
+                                self.default_layout = LayoutMode.Library
+                                self.set_layout_mode(self.default_layout)
+                                IniManager().set(key=self.ini_key, var_name="default_layout", value=self.default_layout.name, section="Configuration")
+                                IniManager().save_vars(self.ini_key)
+                            ImGui.show_tooltip("Open the widget browser in library view by default,\nshowing all details and options for each widget.")
+                                
+                            layout_mode = ImGui.radio_button("Compact View", self.default_layout, LayoutMode.Compact)
+                            if self.default_layout != layout_mode:
+                                self.default_layout = LayoutMode.Compact
+                                self.set_layout_mode(self.default_layout)
+                                IniManager().set(key=self.ini_key, var_name="default_layout", value=self.default_layout.name, section="Configuration")
+                                IniManager().save_vars(self.ini_key)
+                            ImGui.show_tooltip("Open the widget browser in compact view by default,\nshowing a simplified card for each widget.")
+                                
+                            layout_mode = ImGui.radio_button("Minimalistic View", self.default_layout, LayoutMode.Minimalistic)
+                            if self.default_layout != layout_mode:
+                                self.default_layout = LayoutMode.Minimalistic
+                                self.set_layout_mode(self.default_layout)
+                                IniManager().set(key=self.ini_key, var_name="default_layout", value=self.default_layout.name, section="Configuration")
+                                IniManager().save_vars(self.ini_key)
+                            ImGui.show_tooltip("Open the widget browser in minimalistic view by default,\nshowing only a search icon which switches to compact view when clicked.\nIf the widget filter is cleared while in compact view, it will switch back to minimalistic view.")
                             
-                        layout_mode = ImGui.radio_button("Compact View", self.default_layout, LayoutMode.Compact)
-                        if self.default_layout != layout_mode:
-                            self.default_layout = LayoutMode.Compact
-                            self.set_layout_mode(self.default_layout)
-                            IniManager().set(key=self.ini_key, var_name="default_layout", value=self.default_layout.name, section="Configuration")
-                            IniManager().save_vars(self.ini_key)
-                        ImGui.show_tooltip("Open the widget browser in compact view by default,\nshowing a simplified card for each widget.")
-                            
-                        layout_mode = ImGui.radio_button("Minimalistic View", self.default_layout, LayoutMode.Minimalistic)
-                        if self.default_layout != layout_mode:
-                            self.default_layout = LayoutMode.Minimalistic
-                            self.set_layout_mode(self.default_layout)
-                            IniManager().set(key=self.ini_key, var_name="default_layout", value=self.default_layout.name, section="Configuration")
-                            IniManager().save_vars(self.ini_key)
-                        ImGui.show_tooltip("Open the widget browser in minimalistic view by default,\nshowing only a search icon which switches to compact view when clicked.\nIf the widget filter is cleared while in compact view, it will switch back to minimalistic view.")
+                            ImGui.end_menu()
                         
+                        PyImGui.push_item_width(100)
+                        max_suggestions = ImGui.slider_int("Max Suggestions", self.max_suggestions, 1, 50)
+                        if max_suggestions != self.max_suggestions:
+                            self.max_suggestions = max_suggestions
+                            IniManager().set(key=self.ini_key, var_name="max_suggestions", value=self.max_suggestions, section="Configuration")
+                            IniManager().save_vars(self.ini_key)
+                        PyImGui.pop_item_width()
+                        ImGui.show_tooltip("Set the maximum number of search suggestions to display in the search dropdown in compact view.")
+                        
+                        PyImGui.push_item_width(100)
+                        single_button_size = ImGui.slider_int("Single Button Size", self.single_button_size, 20, 128)
+                        if single_button_size != self.single_button_size:
+                            self.single_button_size = single_button_size
+                            IniManager().set(key=self.ini_key, var_name="single_button_size", value=self.single_button_size, section="Configuration")
+                            IniManager().save_vars(self.ini_key)
+                        PyImGui.pop_item_width()
+                        ImGui.show_tooltip("Set the maximum number of search suggestions to display in the search dropdown in compact view.")
                         ImGui.end_menu()
                     
                     if ImGui.begin_menu("Widget Cards"):
@@ -723,8 +897,8 @@ class ModuleBrowser:
                         ImGui.end_menu()                        
                     
                     if ImGui.begin_menu("Keybinds"):
-                        key, modifiers = ImGui.keybinding("Focus Search##WidgetBrowser", key=self.focus_keybind.key, modifiers=self.focus_keybind.modifiers)                    
-                        if key != self.focus_keybind.key or modifiers != self.focus_keybind.modifiers:
+                        key, modifiers, changed = ImGui.keybinding("Focus Search##WidgetBrowser", key=self.focus_keybind.key, modifiers=self.focus_keybind.modifiers)                    
+                        if changed:
                             self.focus_keybind.key = key
                             self.focus_keybind.modifiers = modifiers
                             
@@ -733,19 +907,24 @@ class ModuleBrowser:
                             IniManager().save_vars(self.ini_key)
                         
                         ImGui.show_tooltip("Set the hotkey used to focus the search field in the widget browser.\nPressing this hotkey will move the keyboard focus to the search field, allowing you to start typing immediately to filter widgets.")
-                        ImGui.separator()
                         
-                        if ImGui.menu_item("Clear Keybinds"):
-                            self.focus_keybind.key = Key.Unmapped
-                            self.focus_keybind.modifiers = ModifierKey.NoneKey
-                                                        
-                            IniManager().set(self.ini_key, var_name="hotkey", section="Configuration", value="")
-                            IniManager().set(self.ini_key, var_name="hotkey_modifiers", section="Configuration", value="")
-                            IniManager().save_vars(self.ini_key)
-                            
+                        PyImGui.same_line(0, 0)
+                        ImGui.dummy(200, 0)
+                        
+                        ImGui.separator()
+                                                    
                         ImGui.show_tooltip("Clear all keybinds, resetting them to their default unbound state.")
-                            
                         ImGui.end_menu()
+                            
+                    if ImGui.begin_menu("Behavior"):
+                        single_filter = ImGui.checkbox("Single Filter Mode", self.single_filter)
+                        if single_filter != self.single_filter:
+                            self.single_filter = single_filter
+                            IniManager().set(key=self.ini_key, var_name="single_filter", value=self.single_filter, section="Configuration")
+                            IniManager().save_vars(self.ini_key)
+                        ImGui.show_tooltip("Enable or disable single filter mode.\nWhen enabled, selecting a category, tag, path or editing the search field will clear any existing filters in the other fields.\nThis ensures that only one filter is applied at a time.")                        
+                        ImGui.end_menu()
+                        
                     ImGui.end_menu()
                 ImGui.end_menu_bar()
             
@@ -759,14 +938,18 @@ class ModuleBrowser:
                 self.focus_search = False
             PyImGui.pop_item_width()
             if changed:
+                if self.single_filter:
+                    self.tag = ""
+                    self.category = ""
+                    self.path = ""
+                    
                 self.filter_widgets(self.widget_filter)
             
             PyImGui.same_line(0, 5)
-            self.draw_sorting_button()    
-            
+            self.draw_sorting_button()
             ImGui.separator()
             
-            if ImGui.begin_table("navigation_view", 2, PyImGui.TableFlags.SizingStretchProp | PyImGui.TableFlags.BordersInnerV):
+            if ImGui.begin_table("navigation_view", 2, PyImGui.TableFlags.SizingStretchProp | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.BordersInnerV):
                 max_width = PyImGui.get_content_region_avail()[0]
                                 
                 PyImGui.table_setup_column("##categories", PyImGui.TableColumnFlags.WidthFixed, min(self.CATEGORY_COLUMN_MAX_WIDTH, max_width * 0.5))
@@ -777,42 +960,50 @@ class ModuleBrowser:
                 if ImGui.begin_child("##category_list", (0, 0)):      
                     if ImGui.selectable("All", self.view_mode is ViewMode.All):
                         self.view_mode = ViewMode.All if not self.view_mode is ViewMode.All else ViewMode.All
+                        if self.single_filter:
+                            self.tag = ""
+                            self.category = ""
+                            self.widget_filter = ""
+                            self.path = ""
+                            
                         self.filter_widgets(self.widget_filter)            
                         
                     if ImGui.selectable("Favorites", self.view_mode is ViewMode.Favorites):
                         self.view_mode = ViewMode.Favorites if not self.view_mode is ViewMode.Favorites else ViewMode.All
+                        if self.single_filter:
+                            self.tag = ""
+                            self.category = ""
+                            self.widget_filter = ""
+                            self.path = ""
                         self.filter_widgets(self.widget_filter)
                         
                     if ImGui.selectable("Active", self.view_mode is ViewMode.Actives):
                         self.view_mode = ViewMode.Actives if not self.view_mode is ViewMode.Actives else ViewMode.All
+                        if self.single_filter:
+                            self.tag = ""
+                            self.category = ""
+                            self.widget_filter = ""
+                            self.path = ""
                         self.filter_widgets(self.widget_filter)
                         
                     if ImGui.selectable("Inactive", self.view_mode is ViewMode.Inactives):
                         self.view_mode = ViewMode.Inactives if not self.view_mode is ViewMode.Inactives else ViewMode.All
+                        if self.single_filter:
+                            self.tag = ""
+                            self.category = ""
+                            self.widget_filter = ""
+                            self.path = ""
                         self.filter_widgets(self.widget_filter)
                         
                     ImGui.separator()
-                    
-                    for category in self.categories:
-                        if ImGui.selectable(category, category == self.category):                            
-                            self.category = category if category != self.category else ""     
-                              
-                            if not io.key_ctrl:
-                                self.tag = ""
-                                                     
-                            self.filter_widgets(self.widget_filter)
-                    
-                    ImGui.separator()
                     style.ScrollbarSize.push_style_var(5)
-                    if ImGui.begin_child("##tags", (0, 0)):  
-                        for tag in self.tags:
-                            if ImGui.selectable(f"{tag}", tag == self.tag):
-                                self.tag = tag if tag != self.tag else ""  
-                                if not io.key_ctrl:
-                                    self.category = ""
-                                self.filter_widgets(self.widget_filter)
-                                
-                    PyImGui.end_child()
+                    
+                    if ImGui.begin_child("##tags", (0, 0), flags=PyImGui.WindowFlags.HorizontalScrollbar):  
+                        ##Create tree of selectables self.folder_tree, indent based on depth
+                        for node in self.folder_tree.children.values():
+                            self.draw_tree(node)
+                            
+                    ImGui.end_child()
                     style.ScrollbarSize.pop_style_var()
                 ImGui.end_child()
                 
@@ -851,9 +1042,74 @@ class ModuleBrowser:
                     
                 ImGui.end_child()
                 ImGui.end_table()
-                
+        
+        if PyImGui.is_window_collapsed():
+            self.set_layout_mode(LayoutMode.SingleButton)   
+        
         ImGui.End(self.ini_key)
         
+        if self._request_disable_popup:
+            PyImGui.open_popup(self.CONFIRMATION_MODAL_ID)
+            self._request_disable_popup = False
+            
+        self.draw_confirmation_modal()
+
+    def draw_confirmation_modal(self):
+        io = PyImGui.get_io()
+        center_x = (io.display_size_x / 2) - 250
+        center_y = (io.display_size_y / 2) - 100
+
+        PyImGui.set_next_window_pos(
+            (center_x, center_y),
+            PyImGui.ImGuiCond.Always,
+        )
+
+        PyImGui.set_next_window_size(
+            (500, 175),
+            PyImGui.ImGuiCond.Always,
+        )
+
+        if PyImGui.begin_popup_modal(
+            self.CONFIRMATION_MODAL_ID,
+            True,
+            PyImGui.WindowFlags.NoMove | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoTitleBar
+            | PyImGui.WindowFlags.NoSavedSettings
+        ):
+            widget = self._pending_disable_widget
+
+            if widget:
+                ImGui.text_colored(
+                    "Warning - This widget is required for core functionality!",
+                    (1.0, 0.2, 0.2, 1.0),
+                    font_size=16
+                )
+                PyImGui.separator()
+
+                ImGui.text_wrapped(
+                    f"The widget '{widget.name}' is a SYSTEM widget.\n\n"
+                    "Disabling it may break core functionality.\n\n"
+                    "Are you sure you want to continue?"
+                )
+
+                PyImGui.spacing()
+                PyImGui.separator()
+                PyImGui.spacing()
+
+                PyImGui.columns(2, "confirmation_buttons", False)
+                
+                # ---- BUTTONS ----
+                if ImGui.button("Cancel", -1, 0):
+                    self._pending_disable_widget = None
+                    PyImGui.close_current_popup()
+
+                PyImGui.next_column()
+                if ImGui.button("Disable", -1, 0):
+                    self.widget_manager.disable_widget(widget.plain_name)
+                    self._pending_disable_widget = None
+                    PyImGui.close_current_popup()
+                PyImGui.end_columns()
+                
+            PyImGui.end_popup()
 
     def _push_card_style(self, style : Style, enabled : bool):
         style.ChildBg.push_color(self.card_enabled_color.rgb_tuple if enabled else self.card_color.rgb_tuple)
@@ -901,7 +1157,7 @@ class ModuleBrowser:
         
         return height
 
-    def draw_widget_card(self, widget : Widget, width : float, height: float, is_favorite: bool = False):
+    def draw_widget_card(self, widget : "Widget", width : float, height: float, is_favorite: bool = False):
         """
         Draws a single widget card.
         Must be called inside a grid / SameLine layout.
@@ -949,20 +1205,25 @@ class ModuleBrowser:
 
             PyImGui.end_group()
                     
-            if widget.has_configure_property:
+            if widget.has_configure_property and self.show_configure_button:
                 PyImGui.set_cursor_pos(available_width - 10, 2)
-                ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                configuring = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                if configuring != widget.configuring:
+                    widget.set_configuring(configuring)
+                    
             PyImGui.end_group()
 
             if self.show_tags:
                 # --- Tags ---
                 self._push_tag_style(style, self.tag_color.rgb_tuple)
                 PyImGui.begin_group()
-                for i, tag in enumerate(widget.tags):
-                    if i > 0:
+                
+                for i in range(1, len(widget.tags)):
+                    if i > 1:
                         PyImGui.same_line(0, 2)
-
-                    PyImGui.button(tag)
+                    
+                    PyImGui.button(widget.tags[i])
+                                        
                 PyImGui.end_group()
                 self._pop_tag_style(style)
 
@@ -974,8 +1235,16 @@ class ModuleBrowser:
         
         if PyImGui.is_item_clicked(0):
             clicked = True
-            widget.enable() if not widget.enabled else widget.disable()
             
+            if not widget.enabled:
+                self.widget_manager.enable_widget(widget.plain_name)
+            else:                        
+                if widget.category == "System":
+                    self._pending_disable_widget = widget
+                    self._request_disable_popup = True
+                else:
+                    self.widget_manager.disable_widget(widget.plain_name)
+                
         if PyImGui.is_item_hovered():
             hovered = True
             if widget.has_tooltip_property:
@@ -990,7 +1259,7 @@ class ModuleBrowser:
 
         return clicked or hovered
         
-    def draw_compact_widget_card(self, widget : Widget, width : float) -> bool:
+    def draw_compact_widget_card(self, widget : "Widget", width : float) -> bool:
         """
         Draws a single widget card.
         Must be called inside a grid / SameLine layout.
@@ -1016,7 +1285,9 @@ class ModuleBrowser:
                             
             if widget.has_configure_property:
                 PyImGui.set_cursor_pos(available_width - 10, 2)
-                ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                configuring = ImGui.toggle_icon_button(IconsFontAwesome5.ICON_COG, widget.configuring, self.BUTTON_HEIGHT, self.BUTTON_HEIGHT)
+                if configuring != widget.configuring:
+                    widget.set_configuring(configuring)
 
         PyImGui.end_child()
         self._pop_card_style(style)
@@ -1025,7 +1296,14 @@ class ModuleBrowser:
         
         if PyImGui.is_item_clicked(0):
             clicked = True
-            widget.enable() if not widget.enabled else widget.disable()
+            if not widget.enabled:
+                self.widget_manager.enable_widget(widget.plain_name)
+            else:
+                if widget.category == "System":
+                    self._pending_disable_widget = widget
+                    self._request_disable_popup = True
+                else:
+                    self.widget_manager.disable_widget(widget.plain_name)
             
         if PyImGui.is_item_hovered():
             hovered = True
@@ -1039,5 +1317,47 @@ class ModuleBrowser:
             else:
                 PyImGui.show_tooltip(f"Enable/Disable {widget.name} widget")
 
-        return clicked or hovered
+        return clicked or hovered     
+
+    def draw_one_button_view(self): 
+        if self.win_size:       
+            PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+            
+        PyImGui.set_next_window_collapsed(False, PyImGui.ImGuiCond.Always)
+        style = ImGui.get_style()
+        
+        padding = self.single_button_size * 0.05
+        style.WindowPadding.push_style_var(padding, padding)
+        win_open = ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoResize|
+                                                                                                      PyImGui.WindowFlags.NoCollapse|
+                                                                                                      PyImGui.WindowFlags.NoTitleBar|
+                                                                                                      PyImGui.WindowFlags.NoScrollbar|
+                                                                                                      PyImGui.WindowFlags.NoScrollWithMouse))   
+        style.WindowPadding.pop_style_var()
+        
+        if win_open:
+            win_size = PyImGui.get_window_size()
+            self.win_size = (win_size[0], win_size[1])
+            ImGui.set_window_within_displayport(*self.win_size)
+            win_pos = PyImGui.get_window_pos()
+            win_center = (win_pos[0] + self.win_size[0] / 2, win_pos[1] + self.win_size[1] / 2)
+            radius = (min(self.win_size) - (padding * 2)) / 2
+            io = PyImGui.get_io()
+            mouse_pos = (io.mouse_pos_x, io.mouse_pos_y)
+            in_radius = (mouse_pos[0] - win_center[0]) ** 2 + (mouse_pos[1] - win_center[1]) ** 2 < radius ** 2
+            win_hovered = PyImGui.is_window_hovered() and in_radius
+            
+            button_size = PyImGui.get_content_region_avail()[0] * (1 if win_hovered else 0.8)
+            
+            if not win_hovered:
+                PyImGui.set_cursor_pos((self.win_size[0] - button_size) / 2, (self.win_size[1] - button_size) / 2)
+                
+            ImGui.image("python_icon_round.png", (button_size, button_size))     
+            if in_radius:       
+                if PyImGui.is_item_clicked(0):
+                    self.set_layout_mode(LayoutMode.Library)
+                
+                ImGui.show_tooltip("Open Library")
+                
+        ImGui.End(self.ini_key)
         

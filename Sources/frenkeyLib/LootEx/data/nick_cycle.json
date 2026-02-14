@@ -1,0 +1,824 @@
+[
+    {
+        "Week": "04/20/09",
+        "Item": "Red Iris Flower",
+        "ModelId": 2994,
+        "Index": 0
+    },
+    {
+        "Week": "04/27/09",
+        "Item": "Feathered Avicara Scalp",
+        "ModelId": 498,
+        "Index": 1
+    },
+    {
+        "Week": "05/04/09",
+        "Item": "Margonite Mask",
+        "ModelId": 1581,
+        "Index": 2
+    },
+    {
+        "Week": "05/11/09",
+        "Item": "Quetzal Crest",
+        "ModelId": 27039,
+        "Index": 3
+    },
+    {
+        "Week": "05/18/09",
+        "Item": "Plague Idol",
+        "ModelId": 805,
+        "Index": 4
+    },
+    {
+        "Week": "05/25/09",
+        "Item": "Azure Remains",
+        "ModelId": 496,
+        "Index": 5
+    },
+    {
+        "Week": "06/01/09",
+        "Item": "Mandragor Root Cake",
+        "ModelId": 19170,
+        "Index": 6
+    },
+    {
+        "Week": "06/08/09",
+        "Item": "Mahgo Claw",
+        "ModelId": 513,
+        "Index": 7
+    },
+    {
+        "Week": "06/15/09",
+        "Item": "Mantid Pincer",
+        "ModelId": 815,
+        "Index": 8
+    },
+    {
+        "Week": "06/22/09",
+        "Item": "Sentient Seed",
+        "ModelId": 1601,
+        "Index": 9
+    },
+    {
+        "Week": "06/29/09",
+        "Item": "Stone Grawl Necklace",
+        "ModelId": 27053,
+        "Index": 10
+    },
+    {
+        "Week": "07/06/09",
+        "Item": "Herring",
+        "ModelId": 26502,
+        "Index": 11
+    },
+    {
+        "Week": "07/13/09",
+        "Item": "Naga Skin",
+        "ModelId": 848,
+        "Index": 12
+    },
+    {
+        "Week": "07/20/09",
+        "Item": "Gloom Seed",
+        "ModelId": 523,
+        "Index": 13
+    },
+    {
+        "Week": "07/27/09",
+        "Item": "Charr Hide",
+        "ModelId": 225,
+        "Index": 14
+    },
+    {
+        "Week": "08/03/09",
+        "Item": "Ruby Djinn Essence",
+        "ModelId": 19187,
+        "Index": 15
+    },
+    {
+        "Week": "08/10/09",
+        "Item": "Thorny Carapace",
+        "ModelId": 467,
+        "Index": 16
+    },
+    {
+        "Week": "08/17/09",
+        "Item": "Bone Charm",
+        "ModelId": 811,
+        "Index": 17
+    },
+    {
+        "Week": "08/24/09",
+        "Item": "Modnir Mane",
+        "ModelId": 27043,
+        "Index": 18
+    },
+    {
+        "Week": "08/31/09",
+        "Item": "Superb Charr Carving",
+        "ModelId": 27052,
+        "Index": 19
+    },
+    {
+        "Week": "09/07/09",
+        "Item": "Roll of Parchment",
+        "ModelId": 951,
+        "Index": 20
+    },
+    {
+        "Week": "09/14/09",
+        "Item": "Roaring Ether Claw",
+        "ModelId": 1679,
+        "Index": 21
+    },
+    {
+        "Week": "09/21/09",
+        "Item": "Branch of Juni Berries",
+        "ModelId": 19194,
+        "Index": 22
+    },
+    {
+        "Week": "09/28/09",
+        "Item": "Shiverpeak Mane",
+        "ModelId": 488,
+        "Index": 23
+    },
+    {
+        "Week": "10/05/09",
+        "Item": "Fetid Carapace",
+        "ModelId": 479,
+        "Index": 24
+    },
+    {
+        "Week": "10/12/09",
+        "Item": "Moon Shell",
+        "ModelId": 1009,
+        "Index": 25
+    },
+    {
+        "Week": "10/19/09",
+        "Item": "Massive Jawbone",
+        "ModelId": 452,
+        "Index": 26
+    },
+    {
+        "Week": "10/26/09",
+        "Item": "Chromatic Scale",
+        "ModelId": 27069,
+        "Index": 27
+    },
+    {
+        "Week": "11/02/09",
+        "Item": "Mursaat Token",
+        "ModelId": 462,
+        "Index": 28
+    },
+    {
+        "Week": "11/09/09",
+        "Item": "Sentient Lodestone",
+        "ModelId": 1619,
+        "Index": 29
+    },
+    {
+        "Week": "11/16/09",
+        "Item": "Jungle Troll Tusk",
+        "ModelId": 471,
+        "Index": 30
+    },
+    {
+        "Week": "11/23/09",
+        "Item": "Sapphire Djinn Essence",
+        "ModelId": 19188,
+        "Index": 31
+    },
+    {
+        "Week": "11/30/09",
+        "Item": "Stone Carving",
+        "ModelId": 820,
+        "Index": 32
+    },
+    {
+        "Week": "12/07/09",
+        "Item": "Feathered Caromi Scalp",
+        "ModelId": 444,
+        "Index": 33
+    },
+    {
+        "Week": "12/14/09",
+        "Item": "Pillaged Goods",
+        "ModelId": 1663,
+        "Index": 34
+    },
+    {
+        "Week": "12/21/09",
+        "Item": "Gold Crimson Skull Coin",
+        "ModelId": 807,
+        "Index": 35
+    },
+    {
+        "Week": "12/28/09",
+        "Item": "Jade Bracelet",
+        "ModelId": 809,
+        "Index": 36
+    },
+    {
+        "Week": "01/04/10",
+        "Item": "Minotaur Horn",
+        "ModelId": 455,
+        "Index": 37
+    },
+    {
+        "Week": "01/11/10",
+        "Item": "Frosted Griffon Wing",
+        "ModelId": 493,
+        "Index": 38
+    },
+    {
+        "Week": "01/18/10",
+        "Item": "Silver Bullion Coin",
+        "ModelId": 1579,
+        "Index": 39
+    },
+    {
+        "Week": "01/25/10",
+        "Item": "Truffle",
+        "ModelId": 813,
+        "Index": 40
+    },
+    {
+        "Week": "02/01/10",
+        "Item": "Skelk Claw",
+        "ModelId": 27040,
+        "Index": 41
+    },
+    {
+        "Week": "02/08/10",
+        "Item": "Dessicated Hydra Claw",
+        "ModelId": 454,
+        "Index": 42
+    },
+    {
+        "Week": "02/15/10",
+        "Item": "Frigid Heart",
+        "ModelId": 494,
+        "Index": 43
+    },
+    {
+        "Week": "02/22/10",
+        "Item": "Celestial Essence",
+        "ModelId": 855,
+        "Index": 44
+    },
+    {
+        "Week": "03/01/10",
+        "Item": "Phantom Residue",
+        "ModelId": 474,
+        "Index": 45
+    },
+    {
+        "Week": "03/08/10",
+        "Item": "Drake Kabob",
+        "ModelId": 17060,
+        "Index": 46
+    },
+    {
+        "Week": "03/15/10",
+        "Item": "Amber Chunk",
+        "ModelId": 6532,
+        "Index": 47
+    },
+    {
+        "Week": "03/22/10",
+        "Item": "Glowing Heart",
+        "ModelId": 439,
+        "Index": 48
+    },
+    {
+        "Week": "03/29/10",
+        "Item": "Saurian Bone",
+        "ModelId": 27035,
+        "Index": 49
+    },
+    {
+        "Week": "04/05/10",
+        "Item": "Behemoth Hide",
+        "ModelId": 1675,
+        "Index": 50
+    },
+    {
+        "Week": "04/12/10",
+        "Item": "Luminous Stone",
+        "ModelId": 1660,
+        "Index": 51
+    },
+    {
+        "Week": "04/19/10",
+        "Item": "Intricate Grawl Necklace",
+        "ModelId": 499,
+        "Index": 52
+    },
+    {
+        "Week": "04/26/10",
+        "Item": "Jadeite Shard",
+        "ModelId": 6533,
+        "Index": 53
+    },
+    {
+        "Week": "05/03/10",
+        "Item": "Gold Doubloon",
+        "ModelId": 1578,
+        "Index": 54
+    },
+    {
+        "Week": "05/10/10",
+        "Item": "Shriveled Eye",
+        "ModelId": 446,
+        "Index": 55
+    },
+    {
+        "Week": "05/17/10",
+        "Item": "Icy Lodestone",
+        "ModelId": 424,
+        "Index": 56
+    },
+    {
+        "Week": "05/24/10",
+        "Item": "Keen Oni Talon",
+        "ModelId": 847,
+        "Index": 57
+    },
+    {
+        "Week": "05/31/10",
+        "Item": "Hardened Hump",
+        "ModelId": 435,
+        "Index": 58
+    },
+    {
+        "Week": "06/07/10",
+        "Item": "Pile of Elemental Dust",
+        "ModelId": 27050,
+        "Index": 59
+    },
+    {
+        "Week": "06/14/10",
+        "Item": "Naga Hide",
+        "ModelId": 832,
+        "Index": 60
+    },
+    {
+        "Week": "06/21/10",
+        "Item": "Spiritwood Plank",
+        "ModelId": 956,
+        "Index": 61
+    },
+    {
+        "Week": "06/28/10",
+        "Item": "Stormy Eye",
+        "ModelId": 477,
+        "Index": 62
+    },
+    {
+        "Week": "07/05/10",
+        "Item": "Skree Wing",
+        "ModelId": 1610,
+        "Index": 63
+    },
+    {
+        "Week": "07/12/10",
+        "Item": "Soul Stone",
+        "ModelId": 852,
+        "Index": 64
+    },
+    {
+        "Week": "07/19/10",
+        "Item": "Spiked Crest",
+        "ModelId": 434,
+        "Index": 65
+    },
+    {
+        "Week": "07/26/10",
+        "Item": "Dragon Root",
+        "ModelId": 819,
+        "Index": 66
+    },
+    {
+        "Week": "08/02/10",
+        "Item": "Berserker Horn",
+        "ModelId": 27046,
+        "Index": 67
+    },
+    {
+        "Week": "08/09/10",
+        "Item": "Behemoth Jaw",
+        "ModelId": 465,
+        "Index": 68
+    },
+    {
+        "Week": "08/16/10",
+        "Item": "Bowl of Skalefin Soup",
+        "ModelId": 17061,
+        "Index": 69
+    },
+    {
+        "Week": "08/23/10",
+        "Item": "Forest Minotaur Horn",
+        "ModelId": 440,
+        "Index": 70
+    },
+    {
+        "Week": "08/30/10",
+        "Item": "Putrid Cyst",
+        "ModelId": 827,
+        "Index": 71
+    },
+    {
+        "Week": "09/06/10",
+        "Item": "Jade Mandible",
+        "ModelId": 457,
+        "Index": 72
+    },
+    {
+        "Week": "09/13/10",
+        "Item": "Maguuma Mane",
+        "ModelId": 466,
+        "Index": 73
+    },
+    {
+        "Week": "09/20/10",
+        "Item": "Skull Juju",
+        "ModelId": 814,
+        "Index": 74
+    },
+    {
+        "Week": "09/27/10",
+        "Item": "Mandragor Swamproot",
+        "ModelId": 1671,
+        "Index": 75
+    },
+    {
+        "Week": "10/04/10",
+        "Item": "Bottle of Vabbian Wine",
+        "ModelId": 19173,
+        "Index": 76
+    },
+    {
+        "Week": "10/11/10",
+        "Item": "Weaver Leg",
+        "ModelId": 27037,
+        "Index": 77
+    },
+    {
+        "Week": "10/18/10",
+        "Item": "Topaz Crest",
+        "ModelId": 450,
+        "Index": 78
+    },
+    {
+        "Week": "10/25/10",
+        "Item": "Rot Wallow Tusk",
+        "ModelId": 842,
+        "Index": 79
+    },
+    {
+        "Week": "11/01/10",
+        "Item": "Frostfire Fang",
+        "ModelId": 489,
+        "Index": 80
+    },
+    {
+        "Week": "11/08/10",
+        "Item": "Demonic Relic",
+        "ModelId": 1580,
+        "Index": 81
+    },
+    {
+        "Week": "11/15/10",
+        "Item": "Abnormal Seed",
+        "ModelId": 442,
+        "Index": 82
+    },
+    {
+        "Week": "11/22/10",
+        "Item": "Diamond Djinn Essence",
+        "ModelId": 19186,
+        "Index": 83
+    },
+    {
+        "Week": "11/29/10",
+        "Item": "Forgotten Seal",
+        "ModelId": 459,
+        "Index": 84
+    },
+    {
+        "Week": "12/06/10",
+        "Item": "Copper Chrimson Skull Coin",
+        "ModelId": 806,
+        "Index": 85
+    },
+    {
+        "Week": "12/13/10",
+        "Item": "Mossy Mandible",
+        "ModelId": 469,
+        "Index": 86
+    },
+    {
+        "Week": "12/20/10",
+        "Item": "Enslavement Stone",
+        "ModelId": 532,
+        "Index": 87
+    },
+    {
+        "Week": "12/27/10",
+        "Item": "Elonian Leather Square",
+        "ModelId": 943,
+        "Index": 88
+    },
+    {
+        "Week": "01/03/11",
+        "Item": "Cobalt Talon",
+        "ModelId": 1609,
+        "Index": 89
+    },
+    {
+        "Week": "01/10/11",
+        "Item": "Maguuma Spider Web",
+        "ModelId": 234,
+        "Index": 90
+    },
+    {
+        "Week": "01/17/11",
+        "Item": "Forgotten Trinket Box",
+        "ModelId": 825,
+        "Index": 91
+    },
+    {
+        "Week": "01/24/11",
+        "Item": "Icy Hump",
+        "ModelId": 490,
+        "Index": 92
+    },
+    {
+        "Week": "01/31/11",
+        "Item": "Sandblasted Lodestone",
+        "ModelId": 1584,
+        "Index": 93
+    },
+    {
+        "Week": "02/07/11",
+        "Item": "Black Pearl",
+        "ModelId": 841,
+        "Index": 94
+    },
+    {
+        "Week": "02/14/11",
+        "Item": "Insect Carapace",
+        "ModelId": 1617,
+        "Index": 95
+    },
+    {
+        "Week": "02/21/11",
+        "Item": "Mergoyle Skull",
+        "ModelId": 436,
+        "Index": 96
+    },
+    {
+        "Week": "02/28/11",
+        "Item": "Decayed Orr Emblem",
+        "ModelId": 504,
+        "Index": 97
+    },
+    {
+        "Week": "03/07/11",
+        "Item": "Tempered Glass Vial",
+        "ModelId": 939,
+        "Index": 98
+    },
+    {
+        "Week": "03/14/11",
+        "Item": "Scorched Lodestone",
+        "ModelId": 486,
+        "Index": 99
+    },
+    {
+        "Week": "03/21/11",
+        "Item": "Water Djinn Essence",
+        "ModelId": 19189,
+        "Index": 100
+    },
+    {
+        "Week": "03/28/11",
+        "Item": "Guardian Moss",
+        "ModelId": 849,
+        "Index": 101
+    },
+    {
+        "Week": "04/04/11",
+        "Item": "Dwarven Ale",
+        "ModelId": 5585,
+        "Index": 102
+    },
+    {
+        "Week": "04/11/11",
+        "Item": "Amphibian Tongue",
+        "ModelId": 27036,
+        "Index": 103
+    },
+    {
+        "Week": "04/18/11",
+        "Item": "Alpine Seed",
+        "ModelId": 497,
+        "Index": 104
+    },
+    {
+        "Week": "04/25/11",
+        "Item": "Tangled Seed",
+        "ModelId": 468,
+        "Index": 105
+    },
+    {
+        "Week": "05/02/11",
+        "Item": "Stolen Supplies",
+        "ModelId": 840,
+        "Index": 106
+    },
+    {
+        "Week": "05/09/11",
+        "Item": "Pahnai Salad",
+        "ModelId": 17062,
+        "Index": 107
+    },
+    {
+        "Week": "05/16/11",
+        "Item": "Vermin Hide",
+        "ModelId": 853,
+        "Index": 108
+    },
+    {
+        "Week": "05/23/11",
+        "Item": "Roaring Ether Heart",
+        "ModelId": 1662,
+        "Index": 109
+    },
+    {
+        "Week": "05/30/11",
+        "Item": "Leathery Claw",
+        "ModelId": 484,
+        "Index": 110
+    },
+    {
+        "Week": "06/06/11",
+        "Item": "Azure Crest",
+        "ModelId": 844,
+        "Index": 111
+    },
+    {
+        "Week": "06/13/11",
+        "Item": "Jotun Pelt",
+        "ModelId": 27045,
+        "Index": 112
+    },
+    {
+        "Week": "06/20/11",
+        "Item": "Heket Tongue",
+        "ModelId": 19199,
+        "Index": 113
+    },
+    {
+        "Week": "06/27/11",
+        "Item": "Mountain Troll Tusk",
+        "ModelId": 500,
+        "Index": 114
+    },
+    {
+        "Week": "07/04/11",
+        "Item": "Vial of Ink",
+        "ModelId": 944,
+        "Index": 115
+    },
+    {
+        "Week": "07/11/11",
+        "Item": "Kournan Pendant",
+        "ModelId": 1582,
+        "Index": 116
+    },
+    {
+        "Week": "07/18/11",
+        "Item": "Singed Gargoyle Skull",
+        "ModelId": 480,
+        "Index": 117
+    },
+    {
+        "Week": "07/25/11",
+        "Item": "Dredge Incisor",
+        "ModelId": 818,
+        "Index": 118
+    },
+    {
+        "Week": "08/01/11",
+        "Item": "Stone Summit Badge",
+        "ModelId": 502,
+        "Index": 119
+    },
+    {
+        "Week": "08/08/11",
+        "Item": "Krait Skin",
+        "ModelId": 27729,
+        "Index": 120
+    },
+    {
+        "Week": "08/15/11",
+        "Item": "Inscribed Shard",
+        "ModelId": 1587,
+        "Index": 121
+    },
+    {
+        "Week": "08/22/11",
+        "Item": "Feathered Scalp",
+        "ModelId": 836,
+        "Index": 122
+    },
+    {
+        "Week": "08/29/11",
+        "Item": "Mummy Wrapping",
+        "ModelId": 1583,
+        "Index": 123
+    },
+    {
+        "Week": "09/05/11",
+        "Item": "Shadowy Remnants",
+        "ModelId": 441,
+        "Index": 124
+    },
+    {
+        "Week": "09/12/11",
+        "Item": "Ancient Kappa Shell",
+        "ModelId": 856,
+        "Index": 125
+    },
+    {
+        "Week": "09/19/11",
+        "Item": "Geode",
+        "ModelId": 1681,
+        "Index": 126
+    },
+    {
+        "Week": "09/26/11",
+        "Item": "Fibrous Mandragor Root",
+        "ModelId": 27051,
+        "Index": 127
+    },
+    {
+        "Week": "10/03/11",
+        "Item": "Gruesome Ribcage",
+        "ModelId": 482,
+        "Index": 128
+    },
+    {
+        "Week": "10/10/11",
+        "Item": "Kraken Eye",
+        "ModelId": 843,
+        "Index": 129
+    },
+    {
+        "Week": "10/17/11",
+        "Item": "Bog Skale Fin",
+        "ModelId": 443,
+        "Index": 130
+    },
+    {
+        "Week": "10/24/11",
+        "Item": "Sentient Spore",
+        "ModelId": 19198,
+        "Index": 131
+    },
+    {
+        "Week": "10/31/11",
+        "Item": "Ancient Eye",
+        "ModelId": 464,
+        "Index": 132
+    },
+    {
+        "Week": "11/07/11",
+        "Item": "Copper Shilling",
+        "ModelId": 1577,
+        "Index": 133
+    },
+    {
+        "Week": "11/14/11",
+        "Item": "Frigid Mandragor Husk",
+        "ModelId": 27042,
+        "Index": 134
+    },
+    {
+        "Week": "11/21/11",
+        "Item": "Bolt of Linen",
+        "ModelId": 926,
+        "Index": 135
+    },
+    {
+        "Week": "11/28/11",
+        "Item": "Charr Carving",
+        "ModelId": 423,
+        "Index": 136
+    }
+]

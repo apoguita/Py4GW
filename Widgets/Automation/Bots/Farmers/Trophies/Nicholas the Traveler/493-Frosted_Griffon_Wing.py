@@ -1,6 +1,7 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
+MODULE_ICON = "Textures\\Items\\Frosted Griffon Wing.png"
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Frosted_Griffon_Wing_Bot"
 MODULE_ICON = "Textures\\Module_Icons\\Frosted Griffon Wing.png"

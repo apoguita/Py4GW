@@ -498,10 +498,10 @@ class UI():
                     PyImGui.same_line(0, 5)
                     width_avail = PyImGui.get_content_region_avail()[0]
                     PyImGui.push_item_width(width_avail - 5)
-                    key, modifiers = ImGui.keybinding("##HotkeyInfo", key=UI.Settings.HotKeyKey, modifiers=UI.Settings.Modifiers)
+                    key, modifiers, changed = ImGui.keybinding("##HotkeyInfo", key=UI.Settings.HotKeyKey, modifiers=UI.Settings.Modifiers)
                     PyImGui.pop_item_width()
                     
-                    if key != UI.Settings.HotKeyKey or modifiers != UI.Settings.Modifiers:
+                    if changed:
                         ConsoleLog("Party Quest Log", f"Setting new hotkey: {modifiers.name}+{key.name.replace('VK_','')}")
                         UI.Settings.set_questlog_hotkey_keys(key, modifiers)
                     

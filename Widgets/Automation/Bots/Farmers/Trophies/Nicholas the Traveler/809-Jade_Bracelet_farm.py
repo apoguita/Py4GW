@@ -1,5 +1,6 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 
+MODULE_ICON = "Textures\\Items\\Jade Bracelet.png"
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Jade_Bracelet_farm"
 MODEL_ID_TO_FARM = ModelID.Jade_Bracelet

@@ -58,6 +58,10 @@ class Utils:
         return inside
 
     @staticmethod
+    def IsPointInRect(px: float, py: float, rx: float, ry: float, rw: float, rh: float) -> bool:
+        return rx <= px <= rx + rw and ry <= py <= ry + rh
+
+    @staticmethod
     def format_bytes(num_bytes: int) -> str:
             """
             Convert a byte count to a human-readable string using
@@ -774,6 +778,34 @@ class Utils:
         """
         SKILL_DIALOG_MASK = 0x0A000000
         return skill_id | SKILL_DIALOG_MASK
+
+    @staticmethod
+    def ClearSubModules(module_name: str, log: bool = False):
+        import sys
+        from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
+        
+        module_names = list(sys.modules.keys())
+        for name in module_names:    
+            if module_name not in name:
+                continue
+
+            module = sys.modules.get(name, None)
+            if module is None:
+                continue
+
+            # Check persistence flag (proper bugfix)
+            is_persistent = getattr(module, "PERSISTENT", False)
+
+            if is_persistent:
+                ConsoleLog(module_name, f"Skipping reloading for persistent module: {name}", Console.MessageType.Info, log)
+                continue
+
+            try:
+                del sys.modules[name]
+                ConsoleLog(module_name, f"Unloaded module: {name}", Console.MessageType.Info, log)
+                
+            except Exception as e:
+                ConsoleLog(module_name, f"Error unloading {name}: {e}", Console.MessageType.Error)
 
     @staticmethod
     def ClearSubModules(module_name: str, log: bool = False):

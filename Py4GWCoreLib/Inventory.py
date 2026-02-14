@@ -1,5 +1,6 @@
 import PyInventory
 
+from .enums import Bags
 from .ItemArray import *
 
 
@@ -17,7 +18,9 @@ class Inventory:
             - total_items: The sum of items in the four bags.
             - total_capacity: The combined capacity (size) of the four bags.
         """
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
         item_array = ItemArray.GetItemArray(bags_to_check)
         total_items = len(item_array)
         total_capacity = sum(PyInventory.Bag(bag_enum.value, bag_enum.name).GetSize() for bag_enum in bags_to_check)
@@ -26,7 +29,6 @@ class Inventory:
 
     @staticmethod
     def GetStorageSpace(Anniversary_panel = True, ExtraStoragePanes = 0):
-        from .enums import Bags
         """
         Purpose: Calculate and return the total number of items and the combined capacity of bags 8, 9, 10, and 11 (storage bags).
         Args: None
@@ -37,9 +39,9 @@ class Inventory:
         """
         # Define the storage bags to check
         if not Anniversary_panel:
-            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4)
+            bags_to_check = ItemArray.CreateBagList(*Inventory.CreateBagRange(Bags.Storage1, Bags.Storage4))
         else:
-            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,Bags.Storage5)
+            bags_to_check = ItemArray.CreateBagList(*Inventory.CreateBagRange(Bags.Storage1, Bags.Storage5))
     
         # Retrieve the item array for the storage bags
         item_array = ItemArray.GetItemArray(bags_to_check)
@@ -64,9 +66,9 @@ class Inventory:
         result = []
         
         if not Anniversary_panel:
-            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4)
+            bags_to_check = ItemArray.CreateBagList(*Inventory.CreateBagRange(Bags.Storage1, Bags.Storage4))
         else:
-            bags_to_check = ItemArray.CreateBagList(Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,Bags.Storage5)
+            bags_to_check = ItemArray.CreateBagList(*Inventory.CreateBagRange(Bags.Storage1, Bags.Storage5))
     
 
         for bag_enum in bags_to_check:
@@ -82,6 +84,9 @@ class Inventory:
 
         return result
 
+    @staticmethod
+    def CreateBagRange(start: Bags, end: Bags):
+        return [Bags(bag_id) for bag_id in range(start.value, end.value + 1)]
 
 
 
@@ -105,7 +110,9 @@ class Inventory:
             item_id (int): The ID of the item to count.
         Returns: int: The total number of items matching the item_id in bags 1, 2, 3, and 4.
         """
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
         item_array = ItemArray.GetItemArray(bags_to_check)
 
         # Filter to get only the items that match the specified item_id
@@ -124,7 +131,9 @@ class Inventory:
             model_id (int): The model ID of the item to count.
         Returns: int: The total number of items matching the model_id in bags 1, 2, 3, and 4.
         """
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
         item_array = ItemArray.GetItemArray(bags_to_check)
         
         # Filter items by the specified model_id using Item.GetModelID
@@ -140,9 +149,29 @@ class Inventory:
         Purpose: Count the number of items with the specified model_id in storage.
         Args:
             model_id (int): The model ID of the item to count.
-        Returns: int: The total number of items matching the model_id in bags 1, 2, 3, and 4.
+        Returns: int: The total number of items matching the model_id in storage.
         """
-        bags_to_check = ItemArray.CreateBagList(8,9,10,11,12,13,14,15,16,17,18,19,20,21)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Storage1, Bags.Storage14)
+        )
+        item_array = ItemArray.GetItemArray(bags_to_check)
+        
+        # Filter items by the specified model_id using Item.GetModelID
+        matching_items = ItemArray.Filter.ByCondition(item_array, lambda item_id: Item.GetModelID(item_id) == model_id)
+        # Sum the quantity of each matching item using Item.Properties.GetQuantity
+        total_quantity = sum(Item.Properties.GetQuantity(item_id) for item_id in matching_items)
+
+        return total_quantity
+    
+    @staticmethod
+    def GetModelCountInMaterialStorage(model_id):
+        """
+        Purpose: Count the number of items with the specified model_id in material storage.
+        Args:
+            model_id (int): The model ID of the item to count.
+        Returns: int: The total number of items matching the model_id in material storage.
+        """
+        bags_to_check = ItemArray.CreateBagList(Bags.MaterialStorage)
         item_array = ItemArray.GetItemArray(bags_to_check)
         
         # Filter items by the specified model_id using Item.GetModelID
@@ -155,12 +184,12 @@ class Inventory:
     @staticmethod
     def GetModelCountInEquipped(model_id):
         """
-        Purpose: Count the number of items with the specified model_id in storage.
+        Purpose: Count the number of items with the specified model_id in equipped items.
         Args:
             model_id (int): The model ID of the item to count.
-        Returns: int: The total number of items matching the model_id in bags 1, 2, 3, and 4.
+        Returns: int: The total number of items matching the model_id in equipped items.
         """
-        bags_to_check = ItemArray.CreateBagList(22)
+        bags_to_check = ItemArray.CreateBagList(Bags.EquippedItems)
         item_array = ItemArray.GetItemArray(bags_to_check)
         
         # Filter items by the specified model_id using Item.GetModelID
@@ -177,7 +206,9 @@ class Inventory:
         Returns:
             int: The Item ID of the ID Kit with the lowest uses, or 0 if no ID Kit is found.
         """
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
         item_array = ItemArray.GetItemArray(bags_to_check)
         # Filter to find items that are ID Kits using Item.Usage.IsIDKit
         id_kits = ItemArray.Filter.ByCondition(item_array, Item.Usage.IsIDKit)
@@ -197,7 +228,9 @@ class Inventory:
         Returns:
             int: The Item ID of the first unidentified item found, or 0 if no unidentified item is found.
         """
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
         item_array = ItemArray.GetItemArray(bags_to_check)
 
         unidentified_items = ItemArray.Filter.ByCondition(item_array, lambda item_id: not Item.Usage.IsIdentified(item_id))
@@ -211,7 +244,9 @@ class Inventory:
         Returns:
             int: The Item ID of the salvage kit with the lowest uses, or 0 if no salvage kit is found.
         """
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
         item_array = ItemArray.GetItemArray(bags_to_check)
 
         salvage_kits = ItemArray.Filter.ByCondition(item_array, Item.Usage.IsSalvageKit)
@@ -233,7 +268,9 @@ class Inventory:
         Returns:
             int: The Item ID of the first salvageable item found, or 0 if no salvageable item is found.
         """
-        bags_to_check = ItemArray.CreateBagList(1,2,3,4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
         item_array = ItemArray.GetItemArray(bags_to_check)
     
         salvageable_items = ItemArray.Filter.ByCondition(item_array, Item.Usage.IsSalvageable)
@@ -493,7 +530,9 @@ class Inventory:
             tuple: (bag_id, slot) if the item is found, or (None, None) if not found.
         """
         # Convert integers to Bag enum members using CreateBagList
-        bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+        bags_to_check = ItemArray.CreateBagList(
+            *Inventory.CreateBagRange(Bags.Backpack, Bags.Bag2)
+        )
     
         items = ItemArray.GetItemArray(bags_to_check)
 
@@ -589,11 +628,12 @@ class Inventory:
         return moved_any
 
     @staticmethod
-    def WithdrawItemFromStorage(item_id):
+    def WithdrawItemFromStorage(item_id, quantity=250):
         """
         Moves the specified item from storage to player inventory, filling partial stacks first.
         Args:
             item_id (int): ID of the item to withdraw.
+            quantity (int): Amount of the item to withdraw. Defaults to 250.
         Returns:
             bool: True if moved at least some of the items, False otherwise.
         """
@@ -601,7 +641,7 @@ class Inventory:
         MAX_STACK_SIZE = 250
 
         is_stackable = Item.Customization.IsStackable(item_id)
-        quantity = Item.Properties.GetQuantity(item_id)
+        quantity = min(quantity, Item.Properties.GetQuantity(item_id))
 
         if quantity == 0:
             return False  # Nothing to move

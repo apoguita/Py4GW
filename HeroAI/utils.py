@@ -57,6 +57,27 @@ def IsPartyMember(agent_id, cached_data : Optional[CacheData] = None) -> bool:
     
     return False
 
+def GetConditions(agent_id, cached_data : Optional[CacheData] = None) -> list[int]:
+    CONDITIONS = [
+        485, # Dazed
+        2077, # Cracked Armor
+        479, # Blind
+        478, # Bleeding
+        480, # Burning
+        484, # Poison
+        483, # Disease
+        486, # Weakness
+        482, # Deep Wound
+        481, # Crippled        
+    ]
+    cached_data = cached_data if cached_data is not None else CacheData()
+                
+    for acc in cached_data.party:
+        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapOrPartyAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
+            return [buff.SkillId for buff in acc.PlayerBuffs if buff.SkillId in CONDITIONS]
+        
+    return []
+
 def GetEnergyValues(agent_id, cached_data : Optional[CacheData] = None):
     cached_data = cached_data if cached_data is not None else CacheData()
                 

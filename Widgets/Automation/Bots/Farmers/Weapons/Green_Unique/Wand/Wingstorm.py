@@ -1,6 +1,7 @@
 import os
 from Py4GWCoreLib import Botting
 
+MODULE_ICON = "Textures\\Items\\Wingstorm.png"
 # QUEST TO INCREASE SPAWNS
 BOT_NAME = "Wingstorm Farm"
 MODULE_ICON = "Textures\\Module_Icons\\Wingstorm.png"

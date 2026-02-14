@@ -9,7 +9,7 @@ from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 
 class Settings:
     class HeroPanelInfo:
-        def __init__(self, x: int = 200, y: int = 200, collapsed: bool = False, visible: bool = True):
+        def __init__(self, x: int = 200, y: int = 200, collapsed: bool = False, visible: bool = False):
             self.x: int = x
             self.y: int = y
             self.collapsed: bool = collapsed

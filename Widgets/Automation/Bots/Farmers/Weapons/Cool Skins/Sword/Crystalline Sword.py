@@ -2,6 +2,7 @@ from Py4GWCoreLib import Botting, get_texture_for_model, ModelID, Routines, Cons
 from Py4GW_widget_manager import get_widget_handler
 import Py4GW
 
+MODULE_ICON = "Textures\\Items\\Crystalline Sword.png"
 BOT_NAME = "The Crystalline Farm"
 MODULE_ICON = "Textures\\Module_Icons\\Crystalline Sword.png"
 MODEL_ID_TO_FARM = ModelID.Feathered_Crest

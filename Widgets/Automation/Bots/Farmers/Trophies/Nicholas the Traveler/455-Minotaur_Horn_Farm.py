@@ -1,5 +1,7 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
+
+MODULE_ICON = "Textures\\Items\\Minotaur Horn.png"
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Minotaur_Horn_farm"
 MODULE_ICON = "Textures\\Module_Icons\\Minotaur Horn.png"

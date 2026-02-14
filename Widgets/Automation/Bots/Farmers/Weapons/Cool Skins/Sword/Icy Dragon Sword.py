@@ -4,6 +4,7 @@ import Py4GW
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import Botting, ConsoleLog, Routines, Agent, Player
 
+MODULE_ICON = "Textures\\Items\\Icy Dragon Sword.png"
 BOT_NAME = "Ice Dragon Sword Farm"
 MODULE_ICON = "Textures\\Module_Icons\\Icy Dragon Sword.png"
 bot = Botting(BOT_NAME)

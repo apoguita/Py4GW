@@ -1,6 +1,7 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
+MODULE_ICON = "Textures\\Items\\Frigid Heart.png"
 BOT_NAME = "Frigid Heart Farm"
 MODEL_ID_TO_FARM = ModelID.Frigid_Heart
 MODULE_ICON = "Textures\\Module_Icons\\Frigid Heart.png"

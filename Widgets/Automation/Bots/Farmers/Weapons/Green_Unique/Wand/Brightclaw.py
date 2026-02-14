@@ -5,6 +5,7 @@ from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import Botting, ConsoleLog, Routines, Agent, Player
 from Py4GWCoreLib import Map
 
+MODULE_ICON = "Textures\\Items\\Brightclaw.png"
 BOT_NAME = "Brightclaw Farm 8man"
 MODULE_ICON = "Textures\\Module_Icons\\Brightclaw.png"
 

@@ -1,6 +1,7 @@
 from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
+MODULE_ICON = "Textures\\Items\\Saurian Bone.png"
 # Farm des Saurian Bones à Riven Earth (sortie de Rata Sum)
 BOT_NAME = "Saurian_Bone_Farmer"
 MODULE_ICON = "Textures\\Module_Icons\\Saurian Bone.png"

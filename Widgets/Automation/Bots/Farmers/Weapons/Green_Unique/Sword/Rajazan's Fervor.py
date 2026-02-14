@@ -4,6 +4,7 @@ import Py4GW
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import Botting, ConsoleLog, Routines, Agent, Player
 
+MODULE_ICON = "Textures\\Items\\Rajazan's Fervor.png"
 BOT_NAME = "Rajazan's Fervor"
 MODULE_ICON = "Textures\\Module_Icons\\Rajazan's Fervor.png"
 bot = Botting(BOT_NAME)

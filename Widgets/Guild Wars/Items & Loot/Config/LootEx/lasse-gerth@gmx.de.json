@@ -1,0 +1,23 @@
+{
+    "character_profiles": {
+        "FEATURE DISABLED": "Default"
+    },
+    "automatic_inventory_handling": false,
+    "enable_loot_filters": false,
+    "window_size": [
+        800,
+        600
+    ],
+    "window_position": [
+        500,
+        200
+    ],
+    "window_collapsed": false,
+    "collect_items": true,
+    "max_xunlai_storage": 11,
+    "last_xunlai_check": "0001-01-01T00:00:00",
+    "conversions": {},
+    "auto_crafting_enabled": false,
+    "auto_withdraw_materials": false,
+    "auto_even_consets": false
+}
