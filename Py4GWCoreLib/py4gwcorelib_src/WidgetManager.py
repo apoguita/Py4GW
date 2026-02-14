@@ -1366,8 +1366,11 @@ class Py4GWLibrary:
             
             if not win_hovered:
                 PyImGui.set_cursor_pos((self.win_size[0] - button_size) / 2, (self.win_size[1] - button_size) / 2)
-                
-            ImGui.image("python_icon_round.png", (button_size, button_size))     
+            
+            cx, cy = PyImGui.get_cursor_pos()
+            ImGui.image("python_icon_round.png", (button_size, button_size))              
+            PyImGui.set_cursor_pos(cx, cy)
+            ImGui.dummy(button_size, button_size)
             if in_radius:       
                 if PyImGui.is_item_clicked(0):
                     self.set_layout_mode(LayoutMode.Library)

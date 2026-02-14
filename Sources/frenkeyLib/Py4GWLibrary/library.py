@@ -723,7 +723,7 @@ class ModuleBrowser:
                         ImGui.end_menu()                        
                     
                     if ImGui.begin_menu("Keybinds"):
-                        key, modifiers = ImGui.keybinding("Focus Search##WidgetBrowser", key=self.focus_keybind.key, modifiers=self.focus_keybind.modifiers)                    
+                        key, modifiers, changed = ImGui.keybinding("Focus Search##WidgetBrowser", key=self.focus_keybind.key, modifiers=self.focus_keybind.modifiers)                    
                         if key != self.focus_keybind.key or modifiers != self.focus_keybind.modifiers:
                             self.focus_keybind.key = key
                             self.focus_keybind.modifiers = modifiers
