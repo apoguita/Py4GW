@@ -1,0 +1,85 @@
+name: Pathing Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Py4GWCoreLib/Pathing.py'
+      - 'Py4GWCoreLib/native_src/context/MapContext.py'
+      - 'Tests/pathing/**'
+      - 'Tests/utils/**'
+      - 'Tests/conftest.py'
+      - '.github/workflows/pathing-tests.yml'
+  pull_request:
+    paths:
+      - 'Py4GWCoreLib/Pathing.py'
+      - 'Py4GWCoreLib/native_src/context/MapContext.py'
+      - 'Tests/pathing/**'
+      - 'Tests/utils/**'
+      - 'Tests/conftest.py'
+      - '.github/workflows/pathing-tests.yml'
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: 'x86'
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Run pathing tests
+        id: tests
+        run: python -m pytest Tests/ -v
+        continue-on-error: true
+
+      - name: Upload diff SVGs
+        if: steps.tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-diff-svgs
+          path: Tests/pathing/diff/
+          if-no-files-found: ignore
+
+      - name: Write job summary
+        if: steps.tests.outcome == 'failure'
+        shell: python
+        run: |
+          import os, base64
+          from pathlib import Path
+
+          diff_dir = Path("Tests/pathing/diff")
+          svgs = sorted(diff_dir.glob("*.svg")) if diff_dir.exists() else []
+          summary = "## Snapshot Regression Diffs\n\n"
+
+          if not svgs:
+              summary += "> No diff SVGs were generated.\n"
+          else:
+              summary += (
+                  f"**{len(svgs)} diff(s) generated.** "
+                  "Download the `regression-diff-svgs` artifact for full files.\n\n"
+              )
+              for svg in svgs:
+                  size = svg.stat().st_size
+                  size_kb = size // 1024
+                  if size < 150_000:
+                      data = base64.b64encode(svg.read_bytes()).decode()
+                      summary += (
+                          f"<details><summary><code>{svg.name}</code> ({size_kb} KB)</summary>\n\n"
+                          f'<img src="data:image/svg+xml;base64,{data}" width="100%">\n\n'
+                          f"</details>\n\n"
+                      )
+                  else:
+                      summary += f"- `{svg.name}` ({size_kb} KB) — see artifact\n"
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write(summary)
+
+      - name: Fail if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: exit 1

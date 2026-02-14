@@ -605,11 +605,23 @@ class PropsContextStruct(Structure):
 # Nested structs first, as per layout
 # ---------------------------------------
 
-class MapContext_sub1_sub2Struct(Structure):
+class BlockingPropStruct(Structure):
+    """Static obstacle with position and collision radius."""
     _pack_ = 1
     _fields_ = [
-        ("pad1", c_uint32 * 6),     # +0x0000
-        ("pmaps_array", GW_Array),        # +0x0018 -> Array<PathingMap>
+        ("pos", Vec2f),        # +0x0000 (x, y)
+        ("radius", c_float),   # +0x0008
+    ]
+
+
+class MapContext_sub1_sub2Struct(Structure):
+    """MapStaticData — pathing maps + blocking props."""
+    _pack_ = 1
+    _fields_ = [
+        ("pad1", c_uint32 * 6),               # +0x0000 (includes trapezoidCount at +0x0014)
+        ("pmaps_array", GW_Array),            # +0x0018 -> Array<PathingMap>
+        ("h0028", c_uint32 * 4),              # +0x0028
+        ("blocking_props_array", GW_Array),   # +0x0038 -> Array<BlockingProp>
     ]
     @property
     def pathing_maps(self) -> list[PathingMapStruct]:
@@ -617,18 +629,25 @@ class MapContext_sub1_sub2Struct(Structure):
         if not ptrs:
             return []
         return [ptr for ptr in ptrs]
-    
+
     @property
     def pathing_maps_snapshot(self) -> list[PathingMap]:
         ptrs = GW_Array_Value_View(self.pmaps_array, PathingMapStruct).to_list()
         if not ptrs:
             return []
-        
+
         result = []
         for pmap_struct in ptrs:
             pmap_snapshot = snapshot(pmap_struct)
             result.append(pmap_snapshot)
         return result
+
+    @property
+    def blocking_props(self) -> list[BlockingPropStruct]:
+        ptrs = GW_Array_Value_View(self.blocking_props_array, BlockingPropStruct).to_list()
+        if not ptrs:
+            return []
+        return [ptr for ptr in ptrs]
 
 
 class MapContext_sub1Struct(Structure):
@@ -740,11 +759,21 @@ class MapContextStruct(Structure):
         return sub2.pathing_maps_snapshot
     
     @property
+    def blocking_props(self) -> list[BlockingPropStruct]:
+        sub1 = self.sub1
+        if not sub1:
+            return []
+        sub2 = sub1.sub2
+        if not sub2:
+            return []
+        return sub2.blocking_props
+
+    @property
     def props(self) -> Optional[PropsContextStruct]:
         if not self.props_ptr:
             return None
         return self.props_ptr.contents
-    
+
 #region MapContext Facade
 class MapContext:
     _ptr: int = 0
