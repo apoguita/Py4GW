@@ -7,35 +7,20 @@ class SortDirection(IntEnum):
     Descending = 2
 
 class TableColumnSortSpecs:
-    def __init__(self, column_index: int, sort_direction: SortDirection):
-        self.column_index = column_index
-        self.sort_direction = sort_direction
-
+    """Returned by TableSortSpecs.Specs. Properties are PascalCase (C++ binding)."""
     @property
-    def ColumnIndex(self) -> int:
-        return self.column_index
-
+    def ColumnIndex(self) -> int: ...
     @property
-    def SortDirection(self) -> SortDirection:
-        return self.sort_direction
+    def SortDirection(self) -> SortDirection: ...
 
 class TableSortSpecs:
-    def __init__(self, specs_count: int, specs_dirty: bool, specs: Optional[TableColumnSortSpecs] = None):
-        self.specs_count = specs_count
-        self.specs_dirty = specs_dirty
-        self.specs = specs
-
+    """Returned by table_get_sort_specs(). Properties are PascalCase (C++ binding)."""
     @property
-    def SpecsCount(self) -> int:
-        return self.specs_count
-
+    def SpecsCount(self) -> int: ...
     @property
-    def SpecsDirty(self) -> bool:
-        return self.specs_dirty
-
+    def SpecsDirty(self) -> bool: ...
     @property
-    def Specs(self) -> Optional[TableColumnSortSpecs]:
-        return self.specs
+    def Specs(self) -> Optional[TableColumnSortSpecs]: ...
 
 class WindowFlags(IntEnum):
     NoFlag = 0
@@ -182,6 +167,32 @@ class HoveredFlags(IntEnum):
     AllowWhenBlockedByActiveItem = 1 << 4
     AllowWhenOverlapped = 1 << 5
     AllowWhenDisabled = 1 << 6
+    
+class ColorEditFlags(IntEnum):
+    NoFlag = 0
+    NoAlpha = 1 << 0
+    NoPicker = 1 << 1
+    NoOptions = 1 << 2
+    NoSmallPreview = 1 << 3
+    NoInputs = 1 << 4
+    NoTooltip = 1 << 5
+    NoLabel = 1 << 6
+    NoSidePreview = 1 << 7
+    NoDragDrop = 1 << 8
+    NoBorder = 1 << 9
+    AlphaBar = 1 << 10
+    AlphaPreview = 1 << 11
+    AlphaPreviewHalf = 1 << 12
+    HDR = 1 << 13
+    DisplayRGB = 1 << 14
+    DisplayHSV = 1 << 15
+    DisplayHex = 1 << 16
+    Uint8 = 1 << 17
+    Float = 1 << 18
+    PickerHueBar = 1 << 19
+    PickerHueWheel = 1 << 20
+    InputRGB = 1 << 21
+    InputHSV = 1 << 22
 
 class DrawFlags(IntEnum):
     _NoFlag = 0
@@ -364,7 +375,8 @@ def invisible_button(label: str, width: float, height: float) -> bool: ...
 @staticmethod
 def checkbox(label: str, v: bool) -> bool: ...
 @staticmethod
-def radio_button(label: str, v: int, button_index: int) -> int: ...
+def radio_button(label: str, v: int, button_index: int) -> int:
+    """ Returns button_index if clicked, else v unchanged. """
 @staticmethod
 def slider_float(label: str, v: float, v_min: float, v_max: float) -> float: ...
 @staticmethod
@@ -390,8 +402,11 @@ def selectable(label: str, selected: bool, flags: SelectableFlags = SelectableFl
 
 @staticmethod
 def color_edit3(label: str, color: Tuple[float, float, float]) -> Tuple[float, float, float]: ...
-@staticmethod
+
+@overload
 def color_edit4(label: str, color: Tuple[float, float, float, float]) -> Tuple[float, float, float, float]: ...
+@overload
+def color_edit4(label: str, color: Tuple[float, float, float, float], flags: ColorEditFlags) -> Tuple[float, float, float, float]: ...
 
 @staticmethod
 def get_scroll_max_x() -> float: ...
@@ -439,13 +454,16 @@ def set_cursor_screen_pos(x: float, y: float) -> None: ...
 @staticmethod
 def is_rect_visible(width: float, height: float) -> bool: ...
 @staticmethod
-def push_style_color(idx: int, col: Tuple[float, float, float, float]) -> None: ...
+def push_style_color(idx: int, col: Tuple[float, float, float, float]) -> None:
+    """ Push a color override. idx is an ImGuiCol enum value, col is RGBA in [0,1]. Must match pop_style_color(). """
 @staticmethod
 def pop_style_color(count: int = 1) -> None: ...
 @staticmethod
-def push_style_var(idx: int, val: float) -> None: ...
+def push_style_var(idx: int, val: float) -> None:
+    """ Push a single-float style variable (e.g. FrameRounding). Use push_style_var2() for Vec2. Must match pop_style_var(). """
 @staticmethod
-def push_style_var2(idx: int, x: float, y: float) -> None: ...
+def push_style_var2(idx: int, x: float, y: float) -> None:
+    """ Push a Vec2 style variable (e.g. FramePadding, ItemSpacing). Use push_style_var() for floats. Must match pop_style_var(). """
 @staticmethod
 def pop_style_var(count: int = 1) -> None: ...
 @staticmethod
@@ -483,6 +501,8 @@ def progress_bar(fraction: float, size_arg: float = -1.0, overlay: str = "") -> 
 @overload
 def progress_bar(fraction: float, size_arg_x: float, size_arg_y: float, overlay: str = "") -> None: ...
 @staticmethod
+def bullet() -> None: ...
+@staticmethod
 def bullet_text(text: str) -> None: ...
 
 # Windows, Panels, and Groups
@@ -499,7 +519,7 @@ def end() -> None: ...
 @overload
 def begin_child(str_id: str) -> bool: ...
 @overload
-def begin_child(id: str, size: Tuple[float, float], border: bool, flags: int) -> bool: ...
+def begin_child(id: str, size: Tuple[float, float] = (0, 0), border: bool = False, flags: int = 0) -> bool: ...
 @staticmethod
 def end_child() -> None: ...
 @staticmethod
@@ -607,7 +627,8 @@ def table_setup_column(label: str, flags: int, init_width_or_weight: float) -> N
 @staticmethod
 def table_set_column_index(column_index: int) -> None: ...
 @staticmethod
-def table_get_sort_specs() -> Optional[Any]: ...
+def table_get_sort_specs() -> Optional[TableSortSpecs]:
+    """ Returns TableSortSpecs if sorting is active, else None. Access via .Specs.ColumnIndex, .Specs.SortDirection (PascalCase). """
 @staticmethod
 def table_headers_row() -> None: ...
 @staticmethod
@@ -726,6 +747,8 @@ def get_mouse_drag_delta(button: int = ImGuiMouseButton.Left, lock_threshold:flo
 @staticmethod
 def reset_mouse_drag_delta(button: int = ImGuiMouseButton.Left) -> None: ...
 @staticmethod
+def is_mouse_hovering_rect(x1: float, y1: float, x2: float, y2: float) -> bool: ...
+@staticmethod
 def is_item_hovered() -> bool: ...
 @staticmethod
 def is_any_item_hovered() -> bool: ...
@@ -771,9 +794,11 @@ def is_key_down(key: int) -> bool: ...
 @staticmethod
 def show_demo_window() -> None: ...
 @staticmethod
-def set_tooltip(text: str) -> None: ...
+def set_tooltip(text: str) -> None:
+    """ Sets tooltip text directly. Caller must check is_item_hovered() first. Use show_tooltip() for automatic hover. """
 @staticmethod
-def show_tooltip(tooltip_text: str) -> None: ...
+def show_tooltip(tooltip_text: str) -> None:
+    """ Shows tooltip if previous item is hovered. Equivalent to is_item_hovered() + begin_tooltip() + text() + end_tooltip(). """
 @staticmethod
 def begin_tooltip() -> bool: ...
 @staticmethod
@@ -792,7 +817,7 @@ def push_id(id_str: str) -> None: ...
 def pop_id() -> None: ...
 
 @staticmethod
-def push_clip_rect(x,y,w,h, intersect_with_current_clip_rect: bool) -> None: ...
+def push_clip_rect(x: float, y: float, width: float, height: float, intersect_with_current_clip_rect: bool) -> None: ...
 @staticmethod
 def pop_clip_rect() -> None: ...
 
@@ -817,6 +842,8 @@ def set_item_allow_overlap() -> None: ...
 def get_item_rect_min() -> Tuple[float, float]: ...
 @staticmethod
 def get_item_rect_max() -> Tuple[float, float]: ...
+@staticmethod
+def get_item_rect_size() -> Tuple[float, float]: ...
 @overload
 def collapsing_header(label: str) -> bool: ...
 @overload

@@ -339,5 +339,117 @@ class _Items:
 
         return True
 
+    @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")
+    def use_all_consumables(self) -> Generator[Any, Any, None]:
+        """
+        Uses all consumables for the current player only (not multibox).
+        Only uses a consumable if its effect is not already active.
+        """
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+
+        # Map consumable model_id to their effect skill_id (as used in multibox)
+        consumable_effects = [
+            (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+            (ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+            (ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+            (ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
+            (ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
+            (ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
+            (ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
+            (ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
+            (ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
+            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
+            (ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
+            (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
+        ]
+        
+        # Wait for any prior game action to finish before using items
+        yield from Routines.Yield.wait(500)
+
+        # Check for each consumable if the effect is already active
+        for consumable_model_id, effect_skill_id in consumable_effects:
+            # Check if effect is already active
+            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            # Fallback: try Inventory.HasEffect if Effects is not available
+            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
+                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            # Otherwise, just proceed (may overuse if no effect check is available)
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
+    def use_summoning_stone(self) -> Generator[Any, Any, None]:
+        """
+        Uses a summoning stone from inventory with priority:
+        1. Legionnaire Summoning Crystal (always first)
+        2. Igneous Summoning Stone (if player level < 20)
+        3. Any other available summoning stone
+        """
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Player import Player
+        from ...Py4GWcorelib import ConsoleLog
+        import Py4GW
+        
+        # Priority 1: Legionnaire Summoning Crystal
+        legionnaire_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Legionnaire_Summoning_Crystal.value)
+        if legionnaire_id:
+            GLOBAL_CACHE.Inventory.UseItem(legionnaire_id)
+            ConsoleLog("UseSummoningStone", "Used Legionnaire Summoning Crystal", Py4GW.Console.MessageType.Info, log=False)
+            yield from Routines.Yield.wait(500)
+            return
+        
+        # Priority 2: Igneous Summoning Stone (if under level 20)
+        player_level = Player.GetLevel()
+        if player_level < 20:
+            igneous_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Igneous_Summoning_Stone.value)
+            if igneous_id:
+                GLOBAL_CACHE.Inventory.UseItem(igneous_id)
+                ConsoleLog("UseSummoningStone", "Used Igneous Summoning Stone", Py4GW.Console.MessageType.Info, log=False)
+                yield from Routines.Yield.wait(500)
+                return
+        
+        # Priority 3: Other summoning stones
+        other_summons = [
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Tengu_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        
+        for summon_model in other_summons:
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summon_model)
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                ConsoleLog("UseSummoningStone", f"Used summoning stone (model_id: {summon_model})", Py4GW.Console.MessageType.Info, log=False)
+                yield from Routines.Yield.wait(500)
+                return
+        
+        # No summoning stones found
+        ConsoleLog("UseSummoningStone", "No summoning stones found in inventory", Py4GW.Console.MessageType.Debug)
+
+
+
         
     

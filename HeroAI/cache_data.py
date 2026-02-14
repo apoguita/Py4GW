@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from HeroAI.party_cache import PartyCache
-from Py4GWCoreLib.GlobalCache.SharedMemory import SHMEM_NUMBER_OF_SKILLS, AccountData, HeroAIOptionStruct
+from Py4GWCoreLib.GlobalCache.SharedMemory import SHMEM_NUMBER_OF_SKILLS, AccountStruct, HeroAIOptionStruct
 
 from .constants import SHARED_MEMORY_FILE_NAME, STAY_ALERT_TIME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .globals import HeroAI_varsClass, HeroAI_Window_varsClass
@@ -140,7 +140,7 @@ class CacheData:
             
             self.party_position : int = -1
             self.party : PartyCache = PartyCache()
-            self.account_data : AccountData = AccountData()
+            self.account_data : AccountStruct = AccountStruct()
             self.account_options : HeroAIOptionStruct = HeroAIOptionStruct()
             
             self.combat_handler = CombatClass()

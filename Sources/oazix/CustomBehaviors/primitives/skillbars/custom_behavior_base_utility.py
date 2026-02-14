@@ -34,8 +34,10 @@ from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_new_util
 from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
 from Sources.oazix.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
 from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
+from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.primitives.helpers.eval_profiler import EvalProfiler
 from Sources.oazix.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
 from Sources.oazix.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Sources.oazix.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
@@ -308,7 +310,7 @@ class CustomBehaviorBaseUtility():
     def act(self):
         if not self.throttler.IsExpired(): return
         self.throttler.Reset()
-        
+
         if not Routines.Checks.Map.MapValid(): return
         if not self.get_final_is_enabled(): return
         self.timer.Reset()
@@ -321,7 +323,7 @@ class CustomBehaviorBaseUtility():
         # or cached_data.combat_handler.InCastingRoutine()
         # or cached_data.data.player_is_casting
 
-        if not self.is_custom_behavior_match_in_game_build(): 
+        if not self.is_custom_behavior_match_in_game_build():
             print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
             return
 
@@ -407,14 +409,32 @@ class CustomBehaviorBaseUtility():
         utilities: list[CustomSkillUtilityBase] = self.get_skills_final_list()
         # for x in utilities:
         #     print(f"skill {x.custom_skill.skill_name}")
-        
+
         utility_scores: list[tuple[CustomSkillUtilityBase, float | None]] = []
         current_state: BehaviorState = self.get_final_state()
 
+        _profiler = EvalProfiler()
+        _profiler.begin_cycle()
+
+        # Track whether a purpose-built combat skill scored, so we can skip
+        # autocombat fallbacks (base score 9.91) that can never win
+        combat_skill_scored = False
+        previously_attempted = list(self.__previously_attempted_skills)
+
         for utility in utilities:
-            score = utility.evaluate(current_state, list(self.__previously_attempted_skills))
-            utility_scores.append((utility, score))
-        
+            with _profiler.measure_skill(utility.custom_skill.skill_name):
+                # Lazy skip: autocombat can never outscore a purpose-built combat skill
+                if isinstance(utility, AutoCombatUtility) and combat_skill_scored:
+                    utility_scores.append((utility, None))
+                    continue
+
+                score = utility.evaluate(current_state, previously_attempted)
+
+                if score is not None and score >= CommonScore.LOWER_COMBAT.value:
+                    combat_skill_scored = True
+
+                utility_scores.append((utility, score))
+
         # Sort by score (highest first)
         utility_scores.sort(key=lambda x: x[1] if x[1] is not None else 0, reverse=True)
         self.__memoized_ordered_scores = utility_scores

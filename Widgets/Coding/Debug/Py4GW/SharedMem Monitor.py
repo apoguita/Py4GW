@@ -3,7 +3,9 @@ from Py4GW import PingHandler
 import PyImGui
 
 from Py4GWCoreLib import *
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountData, FactionsStruct, TitleStruct
+from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
+from Py4GWCoreLib.GlobalCache.shared_memory_src.TitlesStruct import TitleUnitStruct
+from Py4GWCoreLib.GlobalCache.shared_memory_src.FactionStruct import FactionStruct
 from typing import Callable
 from multiprocessing import shared_memory
 from ctypes import sizeof
@@ -15,7 +17,7 @@ BASE_PATH = Py4GW.Console.get_projects_path()
 FACTIONS_TEXTURE_BASE_PATH = BASE_PATH + "\\Textures\\Faction_Icons\\"
 GAME_UI_TEXTURE_BASE_PATH = BASE_PATH + "\\Textures\\Game UI\\"
 
-active_players :list[AccountData] = []
+active_players :list[AccountStruct] = []
 
 def tooltip():
     PyImGui.begin_tooltip()
@@ -73,7 +75,7 @@ def end_striped_table():
 
 
 #region AccountInfo
-def draw_account_info(player: AccountData):
+def draw_account_info(player: AccountStruct):
 
     timestamp = datetime.fromtimestamp(player.LastUpdated / 1000)
     milliseconds = int(timestamp.microsecond / 1000)
@@ -189,7 +191,7 @@ def draw_account_info(player: AccountData):
             end_striped_table()
 
 #region HeroAI Info
-def draw_heroai_info(player: AccountData):
+def draw_heroai_info(player: AccountStruct):
     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(player.AccountEmail)
     if hero_ai_options is None:
         PyImGui.text("No HeroAI options found for this account.")
@@ -220,7 +222,7 @@ def draw_heroai_info(player: AccountData):
 #endregion HeroAI Info
 
 #region Rank Info          
-def draw_rank_info(player: AccountData):
+def draw_rank_info(player: AccountStruct):
     if PyImGui.collapsing_header("Rank Data", PyImGui.TreeNodeFlags.NoFlag):
         PyImGui.text(f"Rank: {player.PlayerData.RankData.Rank}")
         PyImGui.text(f"Rating: {player.PlayerData.RankData.Rating}")
@@ -282,12 +284,12 @@ class FactionNode:
             
 class FactionData:
     """Container for all faction nodes."""
-    def __init__(self, player: AccountData):
-        factions_data: FactionsStruct = player.PlayerData.FactionsData
-        kurzick_data = factions_data.Factions[FactionType.Kurzick.value]
-        luxon_data = factions_data.Factions[FactionType.Luxon.value]
-        imperial_data = factions_data.Factions[FactionType.Imperial.value]
-        balthazar_data = factions_data.Factions[FactionType.Balthazar.value]
+    def __init__(self, player: AccountStruct):
+        factions_data: FactionStruct = player.PlayerData.FactionsData
+        kurzick_data = factions_data.Kurzick
+        luxon_data = factions_data.Luxon
+        imperial_data = factions_data.Imperial
+        balthazar_data = factions_data.Balthazar
         self.nodes = [
             FactionNode("Balthazar", balthazar_data.Current, balthazar_data.TotalEarned, balthazar_data.Max),
             FactionNode("Kurzick",   kurzick_data.Current, kurzick_data.TotalEarned, kurzick_data.Max),
@@ -302,9 +304,9 @@ class FactionData:
             
 #region Title Data
 class TitleData:
-    def __init__(self, player: AccountData):
-        title_array : list[TitleStruct] = player.PlayerData.TitlesData.Titles
-        self.titles: dict[int, TitleStruct] = {}
+    def __init__(self, player: AccountStruct):
+        title_array : list[Any] = player.PlayerData.TitlesData.Titles
+        self.titles: dict[int, TitleUnitStruct] = {}
         for title in title_array:
              self.titles[title.TitleID] = title
         
@@ -432,7 +434,7 @@ class TitleData:
                 for title in titles:
                     self._draw_title(title, managed=True)
                     
-def draw_available_characters(player: AccountData):
+def draw_available_characters(player: AccountStruct):
     PyImGui.text("Available Characters:")
 
     if PyImGui.begin_table("##char_table", 6, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg):
@@ -487,7 +489,7 @@ class PlayerData:
     show_details_global: dict[str, bool] = {}
     skill_name_cache: dict[int, str] = {}
 
-    def __init__(self, player: AccountData):
+    def __init__(self, player: AccountStruct):
         self.target_id: int = player.PlayerData.AgentData.TargetID
         self.observing_id: int = player.PlayerData.AgentData.ObservingID
         uuid = player.PlayerData.AgentData.UUID
@@ -736,7 +738,7 @@ class PlayerData:
                 
 #region Experience Data
 class ExperienceData:
-    def __init__(self, player: AccountData):
+    def __init__(self, player: AccountStruct):
         self.level = player.PlayerData.ExperienceData.Level
         self.experience = player.PlayerData.ExperienceData.Experience
         self.progress_pct = player.PlayerData.ExperienceData.ProgressPct
@@ -789,7 +791,7 @@ class ExperienceData:
             
 #region Health Data
 class HealthData:
-    def __init__(self, player: AccountData):
+    def __init__(self, player: AccountStruct):
         self.Health = player.PlayerData.AgentData.Health      # 0.0 - 1.0
         self.MaxHealth = player.PlayerData.AgentData.MaxHealth
         self.HealthPips = player.PlayerData.AgentData.HealthPips
@@ -910,7 +912,7 @@ class HealthData:
 
 #region Agent Data
 class AgentData:
-    def __init__(self, player: AccountData):
+    def __init__(self, player: AccountStruct):
         agent_data = player.PlayerData.AgentData
         self.UUID: list[int] = agent_data.UUID
         self.AgentID: int = agent_data.AgentID

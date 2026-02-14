@@ -1,5 +1,7 @@
 from typing import List, Any, Generator, Callable, override
 
+import PyImGui
+
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Range, Player
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -7,7 +9,9 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.scores.healing_score import HealingScore
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -17,7 +21,7 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
     event_bus: EventBus,
     skill: CustomSkill,
     current_build: list[CustomSkill],
-    score_definition: ScoreStaticDefinition = ScoreStaticDefinition(85),
+    score_definition: ScorePerHealthGravityDefinition = ScorePerHealthGravityDefinition(0),
     mana_required_to_cast: int = 10,
     allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.FAR_FROM_AGGRO, BehaviorState.CLOSE_TO_AGGRO]
     ) -> None:
@@ -30,14 +34,14 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
             mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
         
-        self.score_definition: ScoreStaticDefinition = score_definition
+        self.score_definition: ScorePerHealthGravityDefinition = score_definition
 
     def _get_target(self) -> int | None:
-        allies: list[int] = AgentArray.GetAllyArray()
-        allies = AgentArray.Filter.ByCondition(allies, lambda agent_id: not Agent.IsAlive(agent_id))
-        allies = AgentArray.Filter.ByDistance(allies, Player.GetXY(), Range.Spellcast.value * 1.5)
-        if len(allies) == 0: return None
-        return allies[0]
+        return custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
+            within_range=Range.Spellcast.value * 1.5,
+            sort_key=(TargetingOrder.DISTANCE_ASC,),
+            is_alive=False
+        )
 
     def _get_lock_key(self, agent_id: int) -> str:
         return f"GenericResurrection_{agent_id}"
@@ -53,7 +57,7 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
         lock_key = self._get_lock_key(target)
         if CustomBehaviorParty().get_shared_lock_manager().is_lock_taken(lock_key): return None #someone is already resurrecting
         
-        return self.score_definition.get_score()
+        return self.score_definition.get_score(HealingScore.RESURRECTION)
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
@@ -73,3 +77,8 @@ class GenericResurrectionUtility(CustomSkillUtilityBase):
         finally:
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
         return result
+    
+    @override
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        PyImGui.bullet_text(f"target : {self._get_target()}")
+        

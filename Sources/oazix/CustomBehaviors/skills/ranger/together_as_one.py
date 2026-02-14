@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Routines, Range, Agent, Player
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent, Player
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -41,12 +41,11 @@ class TogetherAsOneUtility(CustomSkillUtilityBase):
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
         if state is BehaviorState.IN_AGGRO:
-            agent_array = AgentArray.GetAllyArray()
-            agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.IsAlive(agent_id))
-            agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: agent_id != Player.GetAgentID())
-            agent_array = AgentArray.Filter.ByDistance(agent_array, Player.GetXY(), Range.Spellcast.value)
-
-            agent_ids: list[int] = [agent_id for agent_id in agent_array]
+            allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
+                within_range=Range.Spellcast.value,
+                condition=lambda agent_id: agent_id != Player.GetAgentID()
+            )
+            agent_ids: list[int] = [a.agent_id for a in allies]
 
             gravity_center: custom_behavior_helpers.GravityCenter | None = custom_behavior_helpers.Targets.find_optimal_gravity_center(Range.Area, agent_ids=agent_ids)
             if gravity_center is not None:

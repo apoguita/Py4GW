@@ -16,6 +16,34 @@ class Vec2f(Structure):
         
     def to_tuple(self) -> tuple[float, float]:
         return (self.x, self.y)
+    
+    def to_list(self) -> list[float]:
+        return [self.x, self.y]
+    
+    #operators
+    def __add__(self, other):
+        if isinstance(other, Vec2f):
+            return Vec2f(self.x + other.x, self.y + other.y)
+        return NotImplemented
+    
+    def __sub__(self, other):
+        if isinstance(other, Vec2f):
+            return Vec2f(self.x - other.x, self.y - other.y)
+        return NotImplemented
+    
+    def __mul__(self, scalar: float):
+        return Vec2f(self.x * scalar, self.y * scalar)
+    
+    def __truediv__(self, scalar: float):
+        if scalar != 0:
+            return Vec2f(self.x / scalar, self.y / scalar)
+        raise ValueError("Cannot divide by zero")
+    
+    def __repr__(self):
+        return f"Vec2f(x={self.x}, y={self.y})"
+    
+    def __eq__(self, value):
+        return super().__eq__(value)
         
         
 class Vec3f(Structure):
@@ -32,6 +60,9 @@ class Vec3f(Structure):
         
     def to_tuple(self) -> tuple[float, float, float]:
         return (self.x, self.y, self.z)
+
+    def to_list(self) -> list[float]:
+        return [self.x, self.y, self.z]
 
 class GamePos(Structure):
     _fields_ = [
