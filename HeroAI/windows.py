@@ -714,8 +714,8 @@ class HeroAI_Windows():
 
         if PyImGui.button("Submit"):
             self_id = Player.GetAgentID()
-            account = GLOBAL_CACHE.ShMem.GetStruct().AccountData[HeroAI_Windows.slot_to_write]
-            options = GLOBAL_CACHE.ShMem.GetStruct().HeroAIOptions[HeroAI_Windows.slot_to_write]
+            account = GLOBAL_CACHE.ShMem.GetAllAccounts().AccountData[HeroAI_Windows.slot_to_write]
+            options = GLOBAL_CACHE.ShMem.GetAllAccounts().HeroAIOptions[HeroAI_Windows.slot_to_write]
 
             account.PlayerID = self_id
             player_id = Player.GetAgentID()
