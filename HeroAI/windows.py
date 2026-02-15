@@ -1802,6 +1802,29 @@ class HeroAI_Windows():
                 style.CellPadding.pop_style_var()
                 style.ItemSpacing.pop_style_var()
                 PyImGui.tree_pop()
+
+            PyImGui.separator()
+
+            if PyImGui.tree_node("Targeting Module"):
+                # Targeting Mode Selection
+                modes = ["Classic (Nearest)", "Smart (Weighted)", "Assist (Cluster)"]
+                current_mode_idx = HeroAI_FloatingWindows.settings.targeting_mode.value
+                
+                new_mode_idx = PyImGui.combo("Strategy", current_mode_idx, modes)
+                
+                if new_mode_idx != current_mode_idx:
+                    HeroAI_FloatingWindows.settings.targeting_mode = Settings.TargetingMode(new_mode_idx)
+                    HeroAI_FloatingWindows.settings.save_settings()
+                    
+                # Description helper
+                if new_mode_idx == 0:
+                    ImGui.text_colored("Default behavior. Target nearest enemy.", (0.7, 0.7, 0.7, 1.0))
+                elif new_mode_idx == 1:
+                     ImGui.text_colored("Prioritizes Healers > Casters > Low HP.", (0.7, 0.7, 0.7, 1.0))
+                elif new_mode_idx == 2:
+                     ImGui.text_colored("Focus fire on party's target.", (0.7, 0.7, 0.7, 1.0))
+
+                PyImGui.tree_pop()
                 
         ImGui.End(cached_data.ini_key)
 

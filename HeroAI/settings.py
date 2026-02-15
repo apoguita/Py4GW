@@ -7,7 +7,15 @@ from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 
+from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
+from enum import Enum
+
 class Settings:
+    class TargetingMode(Enum):
+        Classic = 0
+        Smart = 1
+        Assist = 2
+
     class HeroPanelInfo:
         def __init__(self, x: int = 200, y: int = 200, collapsed: bool = False, visible: bool = True):
             self.x: int = x
@@ -146,6 +154,11 @@ class Settings:
         self.unstuck_radius = 80.0
         self.recidivism_memory = 10.0
         self.hypersensitive_speed = 0.3
+        
+        self.hypersensitive_speed = 0.3
+        
+        # Targeting System
+        self.targeting_mode = Settings.TargetingMode.Classic
         
         default_hotbar = Settings.CommandHotBar("hotbar_1")
         
@@ -296,6 +309,9 @@ class Settings:
         self.ini_handler.write_key("AdvancedPathing", "RecidivismMemory", str(self.recidivism_memory))
         self.ini_handler.write_key("AdvancedPathing", "HypersensitiveSpeed", str(self.hypersensitive_speed))
 
+        # Targeting System
+        self.ini_handler.write_key("Targeting", "Mode", str(self.targeting_mode.value))
+
         for hotbar_id, hotbar in self.CommandHotBars.items():
             self.ini_handler.write_key("CommandHotBars", hotbar_id, hotbar.to_ini_string())
             
@@ -353,6 +369,13 @@ class Settings:
             self.unstuck_radius = self.ini_handler.read_float("AdvancedPathing", "UnstuckRadius", 80.0)
             self.recidivism_memory = self.ini_handler.read_float("AdvancedPathing", "RecidivismMemory", 10.0)
             self.hypersensitive_speed = self.ini_handler.read_float("AdvancedPathing", "HypersensitiveSpeed", 0.3)
+            
+            # Targeting System
+            try:
+                mode_val = self.ini_handler.read_int("Targeting", "Mode", 0)
+                self.targeting_mode = Settings.TargetingMode(mode_val)
+            except ValueError:
+                self.targeting_mode = Settings.TargetingMode.Classic
 
             self.CommandHotBars.clear()
             self.import_command_hotbars()

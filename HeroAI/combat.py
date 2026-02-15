@@ -481,8 +481,110 @@ class CombatClass:
         else:
             v_target = self.GetPartyTarget()
             if v_target == 0:
-                v_target = get_nearest_enemy()
+                # v_target = get_nearest_enemy()
+                # Targeting Mode Logic
+                from .settings import Settings # Lazy import because valid use is rare
+                
+                # We need to access the helper instance settings
+                # But settings is a singleton, so we can access it directly
+                # However, Settings class definition needs to be available
+                
+                # Check mode
+                mode = Settings().targeting_mode
+                
+                if mode == Settings.TargetingMode.Classic:
+                    v_target = get_nearest_enemy()
+                elif mode == Settings.TargetingMode.Smart:
+                    v_target = self.GetSmartTarget()
+                    if v_target == 0: v_target = get_nearest_enemy() # Fallback
+                elif mode == Settings.TargetingMode.Assist:
+                    v_target = self.GetAssistTarget()
+                    if v_target == 0: v_target = get_nearest_enemy() # Fallback
         return v_target
+
+    def GetSmartTarget(self):
+        enemy_array = Routines.Agents.GetFilteredEnemyArray(0, 0, self.get_combat_distance())
+        if not enemy_array:
+            return 0
+
+        best_target = 0
+        best_score = -1000.0
+        
+        my_id = Player.GetAgentID()
+        my_target = Player.GetTargetID()
+        my_pos = Agent.GetXY(my_id)
+        
+        for agent_id in enemy_array:
+            if not Agent.IsAlive(agent_id):
+                continue
+                
+            score = 0.0
+            
+            # 1. Health Score (0-50 pts) - Lower health = higher score
+            health_pct = Agent.GetHealth(agent_id)
+            score += (1.0 - health_pct) * 50.0
+            
+            # 2. Profession Score (0-100 pts)
+            prof, _ = Agent.GetProfession(agent_id)
+            if prof == "Monk" or prof == "Ritualist":
+                score += 100.0
+            elif prof == "Mesmer" or prof == "Elementalist" or prof == "Necromancer":
+                score += 60.0
+            
+            # 3. Distance Penalty
+            dist = Utils.Distance(my_pos, Agent.GetXY(agent_id))
+            score -= dist * 0.01  # -10 pts per 1000 units
+            
+            # 4. Stickiness (Hysteresis)
+            if agent_id == my_target:
+                score += 40.0
+                
+            if score > best_score:
+                best_score = score
+                best_target = agent_id
+                
+        return best_target
+
+    def GetAssistTarget(self):
+        # 1. Check for called target first (Party Leader's target)
+        party_target = self.GetPartyTargetID()
+        if Agent.IsValid(party_target) and Agent.IsEnemy(party_target) and Agent.IsAlive(party_target):
+             return party_target
+
+        # 2. Count attackers on each enemy
+        enemy_array = Routines.Agents.GetFilteredEnemyArray(0, 0, self.get_combat_distance())
+        if not enemy_array:
+            return 0
+            
+        target_counts = {}
+        party_members = AgentArray.GetPartyArray()
+        
+        for member_id in party_members:
+            if member_id == Player.GetAgentID(): 
+                continue # Don't count self
+            
+            t_id = Agent.GetTargetID(member_id)
+            if t_id in enemy_array and Agent.IsAlive(t_id): # Only count if they are targeting an enemy we can see
+                target_counts[t_id] = target_counts.get(t_id, 0) + 1
+        
+        # 3. Choose target with most attackers
+        best_target = 0
+        max_attackers = 0
+        
+        for t_id, count in target_counts.items():
+            if count > max_attackers:
+                max_attackers = count
+                best_target = t_id
+            elif count == max_attackers and count > 0:
+                # Tie-breaker: Use Smart logic (Health/Dist) or just nearest
+                if self.GetEnergyValues(t_id) < self.GetEnergyValues(best_target): # Arbitrary tie-breaker using existing helper
+                     best_target = t_id
+        
+        if best_target != 0:
+            return best_target
+            
+        # Fallback to Smart if no one is attacking anything or no consensus
+        return self.GetSmartTarget()
 
     def IsPartyMember(self, agent_id):
         from .utils import IsPartyMember
