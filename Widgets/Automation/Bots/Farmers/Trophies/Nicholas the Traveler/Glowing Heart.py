@@ -3,7 +3,6 @@ import PyImGui
 
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Glowing Heart Farm"
-MODULE_ICON = "Textures\\Module_Icons\\Glowing Heart.png"
 MODEL_ID_TO_FARM = ModelID.Glowing_Heart
 OUTPOST_TO_TRAVEL = 15 #D'Alessio Seaboard
 COORD_TO_EXIT_MAP = (16100.95, 17153.15) #D'Alessio Seaboard exit to North Kryta Province               
