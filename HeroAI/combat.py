@@ -352,7 +352,16 @@ class CombatClass:
         def get_nearest_enemy():
             nonlocal _nearest_enemy
             if _nearest_enemy is None:
-                _nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+                from .settings import Settings
+                mode = Settings().targeting_mode
+                
+                if mode == Settings.TargetingMode.Smart:
+                    _nearest_enemy = self.GetSmartTarget()
+                elif mode == Settings.TargetingMode.Assist:
+                    _nearest_enemy = self.GetAssistTarget()
+                    
+                if not _nearest_enemy:
+                    _nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
             return _nearest_enemy
 
         _lowest_ally = None
@@ -478,28 +487,10 @@ class CombatClass:
             v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
-        else:
+        else: # Fallback for generic targets
             v_target = self.GetPartyTarget()
             if v_target == 0:
-                # v_target = get_nearest_enemy()
-                # Targeting Mode Logic
-                from .settings import Settings # Lazy import because valid use is rare
-                
-                # We need to access the helper instance settings
-                # But settings is a singleton, so we can access it directly
-                # However, Settings class definition needs to be available
-                
-                # Check mode
-                mode = Settings().targeting_mode
-                
-                if mode == Settings.TargetingMode.Classic:
-                    v_target = get_nearest_enemy()
-                elif mode == Settings.TargetingMode.Smart:
-                    v_target = self.GetSmartTarget()
-                    if v_target == 0: v_target = get_nearest_enemy() # Fallback
-                elif mode == Settings.TargetingMode.Assist:
-                    v_target = self.GetAssistTarget()
-                    if v_target == 0: v_target = get_nearest_enemy() # Fallback
+                v_target = get_nearest_enemy()
         return v_target
 
     def GetSmartTarget(self):

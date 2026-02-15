@@ -214,6 +214,21 @@ class CacheData:
                 self.account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self.account_email) or self.account_data
                 self.account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(self.account_email) or self.account_options
                 
+                # Synchronize targeting mode from leader
+                if not self.account_data.PlayerIsPartyLeader:
+                    leader_acc = self.party.get_by_party_pos(0)
+                    if leader_acc:
+                        leader_options = self.party.options.get(leader_acc.PlayerID)
+                        if leader_options:
+                            leader_mode_idx = int(leader_options.FollowPos.x)
+                            if leader_mode_idx in [0, 1, 2]:
+                                from .settings import Settings
+                                settings = Settings()
+                                if leader_mode_idx != settings.targeting_mode.value:
+                                    settings.targeting_mode = Settings.TargetingMode(leader_mode_idx)
+                                    settings.save_settings()
+                                    ConsoleLog("HeroAI", f"Targeting Mode updated by Leader: {settings.targeting_mode.name}")
+                
                 if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
                     self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
                 else:

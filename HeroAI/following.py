@@ -245,6 +245,10 @@ def LeaderUpdate(cached_data: CacheData):
         return  # leader at origin, skip
 
     leader_options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(0)
+    
+    # Broadcast targeting mode to all followers via leader's FollowPos.x
+    if leader_options:
+        leader_options.FollowPos.x = float(Settings().targeting_mode.value)
 
     # Iterate over all party accounts
     for acc in cached_data.party:
