@@ -302,41 +302,6 @@ class AgentDataStruct(Structure):
         for i in range(2):
             self.VelocityVector[i] = 0.0  
     
-#region Player  
-class PlayerStruct(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("AttributesData",  AttributeUnitStruct * SHMEM_NUMBER_OF_ATTRIBUTES),
-        ("BuffData", BuffUnitStruct * SHMEM_MAX_NUMBER_OF_BUFFS),
-        ("MissionData", MissionDataStruct),
-        ("UnlockedSkills", c_uint * SKILL_FLAG_ENTRIES),  # Bitmap of unlocked skills\
-        ("AgentData", AgentDataStruct),
-        ("AvailableCharacters", AvailableCharacterUnitStruct * SHMEM_MAX_AVAILABLE_CHARS),
-        
-    ]
-    
-    # Type hints for IntelliSense
-    AttributesData: list[AttributeUnitStruct]
-    BuffData: list[BuffUnitStruct]
-    UnlockedSkills: list[int]
-    MissionData: MissionDataStruct
-    AgentData: AgentDataStruct
-    AvailableCharacters: list[AvailableCharacterUnitStruct]
-    
-    def reset(self) -> None:
-        """Reset all fields to zero or default values."""
-        for i in range(SHMEM_NUMBER_OF_ATTRIBUTES):
-            self.AttributesData[i].reset()
-        for i in range(SHMEM_MAX_NUMBER_OF_BUFFS):
-            self.BuffData[i].reset()
-        self.MissionData.reset()
-        for i in range(SKILL_FLAG_ENTRIES):
-            self.UnlockedSkills[i] = 0
-        self.AgentData.reset()
-        for i in range(SHMEM_MAX_AVAILABLE_CHARS):
-            self.AvailableCharacters[i].reset()
-
-
 #region AccountData
 
 class AccountStruct(Structure):
@@ -373,9 +338,6 @@ class AccountStruct(Structure):
         ("PlayerIsPartyLeader", c_bool),   
         ("PlayerBuffs", BuffUnitStruct * SHMEM_MAX_NUMBER_OF_BUFFS),  # Buff IDs 
 
-        #Restructure Structures
-        ("PlayerData", PlayerStruct),
-        
         #Restructure Structures
         #--------------------
         ("Key", KeyStruct),  # KeyStruct for each player slot
@@ -434,8 +396,6 @@ class AccountStruct(Structure):
     PlayerIsPartyLeader: bool
     
     PlayerBuffs: list[BuffUnitStruct]    
-    
-    PlayerData: PlayerStruct
     
     #--------------------
     Key: KeyStruct
@@ -497,7 +457,6 @@ class AccountStruct(Structure):
         for i in range(SHMEM_MAX_NUMBER_OF_BUFFS):
             self.PlayerBuffs[i].reset()
         
-        self.PlayerData.reset()
         
         #--------------------
         self.Key.reset()
@@ -866,11 +825,11 @@ class Py4GWSharedMemoryManager:
                 effect = buff if isinstance(buff, EffectType) else None
                 upkeep = buff if isinstance(buff, BuffType) else None
                 
-                player.PlayerData.BuffData[j].SkillId = buff.skill_id if buff else 0
-                player.PlayerData.BuffData[j].Type = 2 if effect else (1 if upkeep else 0)
-                player.PlayerData.BuffData[j].Duration = effect.duration if effect else 0.0
-                player.PlayerData.BuffData[j].TargetAgentID = upkeep.target_agent_id if upkeep else 0
-                player.PlayerData.BuffData[j].Remaining = effect.time_remaining if effect else 0.0
+                player.PlayerBuffs[j].SkillId = buff.skill_id if buff else 0
+                player.PlayerBuffs[j].Type = 2 if effect else (1 if upkeep else 0)
+                player.PlayerBuffs[j].Duration = effect.duration if effect else 0.0
+                player.PlayerBuffs[j].TargetAgentID = upkeep.target_agent_id if upkeep else 0
+                player.PlayerBuffs[j].Remaining = effect.time_remaining if effect else 0.0
                 
                 player.PlayerBuffs[j].SkillId = buff.skill_id if buff else 0
                 player.PlayerBuffs[j].Type = 2 if effect else (1 if upkeep else 0)
@@ -878,21 +837,9 @@ class Py4GWSharedMemoryManager:
                 player.PlayerBuffs[j].TargetAgentID = upkeep.target_agent_id if upkeep else 0
                 player.PlayerBuffs[j].Remaining = effect.time_remaining if effect else 0.0
                 
-                
-        
-        def _set_attribute_data(index):
-            player : AccountStruct = self.GetAccountData(index)
-            if self.agent_instance is None:
-                return
-            attributes = Agent.GetAttributes(self.agent_instance.agent_id)
-            for attribute_id in range(SHMEM_NUMBER_OF_ATTRIBUTES):
-                attribute = next((attr for attr in attributes if int(attr.attribute_id) == attribute_id), None)
-                player.PlayerData.AttributesData[attribute_id].Id = attribute_id if attribute else 0
-                player.PlayerData.AttributesData[attribute_id].Value = attribute.level if attribute else 0
-                player.PlayerData.AttributesData[attribute_id].BaseValue = attribute.level_base if attribute else 0
-                
+
         def _set_agent_data(index):
-            agent_data : AgentDataStruct = self.GetAccountData(index).PlayerData.AgentData
+            agent_data : AgentDataStruct = self.GetAccountData(index).AgentData
             if self.agent_instance is None:
                 return
             
@@ -943,28 +890,6 @@ class Py4GWSharedMemoryManager:
             agent_data.VelocityVector[0] = Agent.GetVelocityXY(agent_id)[0]
             agent_data.VelocityVector[1] = Agent.GetVelocityXY(agent_id)[1]
 
-        def _set_available_characters_data(index):
-            player : AccountStruct = self.GetAccountData(index)
-            if not Player.IsPlayerLoaded():
-                return
-            available_characters= Map.Pregame.GetAvailableCharacterList()
-            for j in range(SHMEM_MAX_AVAILABLE_CHARS):
-                char = available_characters[j] if j < len(available_characters) else None
-                if char:
-                    player.PlayerData.AvailableCharacters[j].Name = char.player_name
-                    player.PlayerData.AvailableCharacters[j].Level = char.level
-                    player.PlayerData.AvailableCharacters[j].IsPvP = char.is_pvp
-                    player.PlayerData.AvailableCharacters[j].MapID = char.map_id
-                    player.PlayerData.AvailableCharacters[j].Professions = (char.primary, char.secondary)
-                    player.PlayerData.AvailableCharacters[j].CampaignID = char.campaign
-                else:
-                    player.PlayerData.AvailableCharacters[j].Name = ""
-                    player.PlayerData.AvailableCharacters[j].Level = 0
-                    player.PlayerData.AvailableCharacters[j].IsPvP = False
-                    player.PlayerData.AvailableCharacters[j].MapID = 0 
-                    player.PlayerData.AvailableCharacters[j].Professions = (0, 0)
-                    player.PlayerData.AvailableCharacters[j].CampaignID = 0
-            
         def _set_account_data(index):
             player : AccountStruct = self.GetAccountData(index)
             player.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
@@ -1015,21 +940,6 @@ class Py4GWSharedMemoryManager:
             player.PartyID = self.party_instance.party_id
             player.PartyPosition = party_number
             player.PlayerIsPartyLeader = self.party_instance.is_party_leader
-            
-            for j in range(SKILL_FLAG_ENTRIES):
-                unlocked_character_skills = Player.GetUnlockedCharacterSkills()
-                player.PlayerData.UnlockedSkills[j] = unlocked_character_skills[j] if j < len(unlocked_character_skills) else 0
-                
-            missions_completed = Player.GetMissionsCompleted()
-            missions_bonus = Player.GetMissionsBonusCompleted()
-            missions_completed_hm = Player.GetMissionsCompletedHM()
-            missions_bonus_hm = Player.GetMissionsBonusCompletedHM()
-            
-            for entry in range(MISSION_FLAG_ENTRIES):
-                player.PlayerData.MissionData.NormalModeCompleted[entry] = missions_completed[entry] if entry < len(missions_completed) else 0
-                player.PlayerData.MissionData.NormalModeBonus[entry] = missions_bonus[entry] if entry < len(missions_bonus) else 0
-                player.PlayerData.MissionData.HardModeCompleted[entry] = missions_completed_hm[entry] if entry < len(missions_completed_hm) else 0
-                player.PlayerData.MissionData.HardModeBonus[entry] = missions_bonus_hm[entry] if entry < len(missions_bonus_hm) else 0
 
         if not account_email:
             return    
@@ -1057,21 +967,21 @@ class Py4GWSharedMemoryManager:
             if Map.IsInCinematic():
                 return
             
-            agentID = self.agent_instance.agent_id if self.agent_instance else 0
             _set_account_data(index)
             _set_player_data(index)
             _set_map_data(index)
             _set_buff_data(index)  
-            _set_attribute_data(index)   
-            self.GetAccountData(index).AgentData.Skillbar.from_context(agentID)
+            self.GetAccountData(index).AgentData.Attributes.from_context(self.agent_instance.agent_id if self.agent_instance else 0)   
+            self.GetAccountData(index).AgentData.Skillbar.from_context()
             self.GetAccountData(index).RankData.from_context()
             self.GetAccountData(index).FactionData.from_context()
             self.GetAccountData(index).TitlesData.from_context()
             self.GetAccountData(index).QuestLog.from_context()
             self.GetAccountData(index).ExperienceData.from_context()
             _set_agent_data(index)
-            _set_available_characters_data(index)
-            
+            self.GetAccountData(index).AvailableCharacters.from_context()
+            self.GetAccountData(index).MissionData.from_context()
+            self.GetAccountData(index).UnlockedSkills.from_context()
 
         else:
             ConsoleLog(SMM_MODULE_NAME, "No empty slot available for new player data.", Py4GW.Console.MessageType.Error)
@@ -1080,7 +990,7 @@ class Py4GWSharedMemoryManager:
     def SetHeroData(self,hero_data:HeroPartyMember):
         """Set player data for the account with the given email."""     
         def _set_agent_data(index):
-            agent_data : AgentDataStruct = self.GetAccountData(index).PlayerData.AgentData
+            agent_data : AgentDataStruct = self.GetAccountData(index).AgentData
             if self.agent_instance is None:
                 return
             
@@ -1204,11 +1114,11 @@ class Py4GWSharedMemoryManager:
                 effect = buff if isinstance(buff, EffectType) else None
                 upkeep = buff if isinstance(buff, BuffType) else None
                 
-                hero.PlayerData.BuffData[j].SkillId = buff.skill_id if buff else 0
-                hero.PlayerData.BuffData[j].Type = 2 if effect else (1 if upkeep else 0)
-                hero.PlayerData.BuffData[j].Duration = effect.duration if effect else 0.0
-                hero.PlayerData.BuffData[j].TargetAgentID = upkeep.target_agent_id if upkeep else 0
-                hero.PlayerData.BuffData[j].Remaining = effect.time_remaining if effect else 0.0
+                hero.PlayerBuffs[j].SkillId = buff.skill_id if buff else 0
+                hero.PlayerBuffs[j].Type = 2 if effect else (1 if upkeep else 0)
+                hero.PlayerBuffs[j].Duration = effect.duration if effect else 0.0
+                hero.PlayerBuffs[j].TargetAgentID = upkeep.target_agent_id if upkeep else 0
+                hero.PlayerBuffs[j].Remaining = effect.time_remaining if effect else 0.0
                 
                 hero.PlayerBuffs[j].SkillId = buff.skill_id if buff else 0
                 hero.PlayerBuffs[j].Type = 2 if effect else (1 if upkeep else 0)
@@ -1220,12 +1130,12 @@ class Py4GWSharedMemoryManager:
             attributes = Agent.GetAttributes(agent_id)
             for attribute_id in range(SHMEM_NUMBER_OF_ATTRIBUTES):
                 attribute = next((attr for attr in attributes if int(attr.attribute_id) == attribute_id), None)
-                hero.PlayerData.AttributesData[attribute_id].Id = attribute_id if attribute else 0
-                hero.PlayerData.AttributesData[attribute_id].Value = attribute.level if attribute else 0
-                hero.PlayerData.AttributesData[attribute_id].BaseValue = attribute.level_base if attribute else 0
+                hero.AgentData.Attributes.Attributes[attribute_id].Id = attribute_id if attribute else 0
+                hero.AgentData.Attributes.Attributes[attribute_id].Value = attribute.level if attribute else 0
+                hero.AgentData.Attributes.Attributes[attribute_id].BaseValue = attribute.level_base if attribute else 0
                 
             # Skills   
-            hero.AgentData.Skillbar.from_context(hero.SlotNumber, agent_id)                
+            hero.AgentData.Skillbar.from_hero_context(hero.SlotNumber, agent_id)                
 
             _set_agent_data(index)
             
@@ -1236,7 +1146,7 @@ class Py4GWSharedMemoryManager:
     #region Set Pet Data      
     def SetPetData(self):
         def _set_agent_data(index):
-            agent_data : AgentDataStruct = self.GetAccountData(index).PlayerData.AgentData
+            agent_data : AgentDataStruct = self.GetAccountData(index).AgentData
             if self.agent_instance is None:
                 return
             
@@ -1366,11 +1276,11 @@ class Py4GWSharedMemoryManager:
                 effect = buff if isinstance(buff, EffectType) else None
                 upkeep = buff if isinstance(buff, BuffType) else None
                 
-                pet.PlayerData.BuffData[j].SkillId = buff.skill_id if buff else 0
-                pet.PlayerData.BuffData[j].Type = 2 if effect else (1 if upkeep else 0)
-                pet.PlayerData.BuffData[j].Duration = effect.duration if effect else 0.0
-                pet.PlayerData.BuffData[j].TargetAgentID = upkeep.target_agent_id if upkeep else 0
-                pet.PlayerData.BuffData[j].Remaining = effect.time_remaining if effect else 0.0
+                pet.PlayerBuffs[j].SkillId = buff.skill_id if buff else 0
+                pet.PlayerBuffs[j].Type = 2 if effect else (1 if upkeep else 0)
+                pet.PlayerBuffs[j].Duration = effect.duration if effect else 0.0
+                pet.PlayerBuffs[j].TargetAgentID = upkeep.target_agent_id if upkeep else 0
+                pet.PlayerBuffs[j].Remaining = effect.time_remaining if effect else 0.0
                 
                 pet.PlayerBuffs[j].SkillId = buff.skill_id if buff else 0
                 pet.PlayerBuffs[j].Type = 2 if effect else (1 if upkeep else 0)
@@ -1382,9 +1292,9 @@ class Py4GWSharedMemoryManager:
             attributes = Agent.GetAttributes(agent_id)
             for attribute_id in range(SHMEM_NUMBER_OF_ATTRIBUTES):
                 attribute = next((attr for attr in attributes if int(attr.attribute_id) == attribute_id), None)
-                pet.PlayerData.AttributesData[attribute_id].Id = attribute_id if attribute else 0
-                pet.PlayerData.AttributesData[attribute_id].Value = attribute.level if attribute else 0
-                pet.PlayerData.AttributesData[attribute_id].BaseValue = attribute.level_base if attribute else 0
+                pet.AgentData.Attributes.Attributes[attribute_id].Id = attribute_id if attribute else 0
+                pet.AgentData.Attributes.Attributes[attribute_id].Value = attribute.level if attribute else 0
+                pet.AgentData.Attributes.Attributes[attribute_id].BaseValue = attribute.level_base if attribute else 0
                 
             # Skills   
             pet.AgentData.Skillbar.reset()
@@ -1503,7 +1413,7 @@ class Py4GWSharedMemoryManager:
         
         player = self.GetAccountDataFromEmail(account_email)
         if player:
-            for buff in player.PlayerData.BuffData:
+            for buff in player.PlayerBuffs:
                 if buff.SkillId == effect_id:
                     return True
         return False

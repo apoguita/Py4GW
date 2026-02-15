@@ -80,9 +80,9 @@ def draw_account_info(player: AccountStruct):
     timestamp = datetime.fromtimestamp(player.LastUpdated / 1000)
     milliseconds = int(timestamp.microsecond / 1000)
 
-    num_heroes = SMM.GetNumHeroesFromPlayers(player.PlayerData.AgentData.AgentID)
+    num_heroes = SMM.GetNumHeroesFromPlayers(player.AgentData.AgentID)
     num_pets = SMM.GetNumPetsFromPlayers(player.PlayerID)
-    player_buffs = [buff.SkillId for buff in player.PlayerData.BuffData if buff.SkillId != 0]
+    player_buffs = [buff.SkillId for buff in player.PlayerBuffs if buff.SkillId != 0]
     num_buffs = len(player_buffs)
 
     if begin_striped_table("AccountInfoTable", 2):
@@ -451,7 +451,7 @@ def draw_available_characters(player: AccountStruct):
         PyImGui.table_headers_row()
 
         # Rows
-        for char in player.PlayerData.AvailableCharacters:
+        for char in player.AvailableCharacters.Characters:
             if char.Name == "":
                 continue  # skip empty slots
             PyImGui.table_next_row()
@@ -490,17 +490,17 @@ class PlayerData:
     skill_name_cache: dict[int, str] = {}
 
     def __init__(self, player: AccountStruct):
-        self.target_id: int = player.PlayerData.AgentData.TargetID
-        self.observing_id: int = player.PlayerData.AgentData.ObservingID
-        uuid = player.PlayerData.AgentData.UUID
+        self.target_id: int = player.AgentData.TargetID
+        self.observing_id: int = player.AgentData.ObservingID
+        uuid = player.AgentData.UUID
         self.player_uuid: Tuple[int, int, int, int] = (uuid[0], uuid[1], uuid[2], uuid[3])
 
         # RAW ARRAYS
-        self.missions_completed: List[int] = player.PlayerData.MissionData.NormalModeCompleted
-        self.missions_bonus: List[int] = player.PlayerData.MissionData.NormalModeBonus
-        self.missions_completed_hm: List[int] = player.PlayerData.MissionData.HardModeCompleted
-        self.missions_bonus_hm: List[int] = player.PlayerData.MissionData.HardModeBonus
-        self.unlocked_character_skills: List[int] = player.PlayerData.UnlockedSkills
+        self.missions_completed: List[int] = player.MissionData.NormalModeCompleted
+        self.missions_bonus: List[int] = player.MissionData.NormalModeBonus
+        self.missions_completed_hm: List[int] = player.MissionData.HardModeCompleted
+        self.missions_bonus_hm: List[int] = player.MissionData.HardModeBonus
+        self.unlocked_character_skills: List[int] = player.UnlockedSkills.Skills
 
         # UI toggles (checkbox states)
         self.show_details = PlayerData.show_details_global
@@ -792,9 +792,9 @@ class ExperienceData:
 #region Health Data
 class HealthData:
     def __init__(self, player: AccountStruct):
-        self.Health = player.PlayerData.AgentData.Health      # 0.0 - 1.0
-        self.MaxHealth = player.PlayerData.AgentData.MaxHealth
-        self.HealthPips = player.PlayerData.AgentData.HealthPips
+        self.Health = player.AgentData.Health      # 0.0 - 1.0
+        self.MaxHealth = player.AgentData.MaxHealth
+        self.HealthPips = player.AgentData.HealthPips
         self.player = player
 
     def draw_content(self):
@@ -821,13 +821,13 @@ class HealthData:
             def _get_health_color():
                 #default 
                 color = ColorPalette.GetColor("firebrick").to_tuple_normalized()
-                if self.player.PlayerData.AgentData.Is_DegenHexed:
+                if self.player.AgentData.Is_DegenHexed:
                     color = ColorPalette.GetColor("dark_magenta").to_tuple_normalized()
             
-                if self.player.PlayerData.AgentData.Is_Poisoned:
+                if self.player.AgentData.Is_Poisoned:
                       color = ColorPalette.GetColor("olive").to_tuple_normalized()
                       
-                if self.player.PlayerData.AgentData.Is_Bleeding:
+                if self.player.AgentData.Is_Bleeding:
                       color = ColorPalette.GetColor("light_coral").to_tuple_normalized()
                     
                 return color
@@ -848,7 +848,7 @@ class HealthData:
             # -----------------------------------------
             #  ICON: HEXED  (down arrow)
             # -----------------------------------------
-            if self.player.PlayerData.AgentData.Is_Hexed:
+            if self.player.AgentData.Is_Hexed:
                 PyImGui.set_cursor_pos(x, icon_y)
                 ImGui.DrawTextureExtended(
                     texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
@@ -863,7 +863,7 @@ class HealthData:
             # -----------------------------------------
             #  ICON: CONDITIONED  (faded down arrow)
             # -----------------------------------------
-            if self.player.PlayerData.AgentData.Is_Conditioned:
+            if self.player.AgentData.Is_Conditioned:
                 PyImGui.set_cursor_pos(x, icon_y)
                 ImGui.DrawTextureExtended(
                     texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
@@ -878,7 +878,7 @@ class HealthData:
             # -----------------------------------------
             #  ICON: ENCHANTED  (up arrow)
             # -----------------------------------------
-            if self.player.PlayerData.AgentData.Is_Enchanted:
+            if self.player.AgentData.Is_Enchanted:
                 PyImGui.set_cursor_pos(x, icon_y)
                 ImGui.DrawTextureExtended(
                     texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
@@ -893,7 +893,7 @@ class HealthData:
             # -----------------------------------------
             #  ICON: WEAPON SPELLED  (weapon spell icon)
             # -----------------------------------------
-            if self.player.PlayerData.AgentData.Is_WeaponSpelled:
+            if self.player.AgentData.Is_WeaponSpelled:
                 PyImGui.set_cursor_pos(x, icon_y - 2)
                 ImGui.DrawTextureExtended(
                     texture_path=GAME_UI_TEXTURE_BASE_PATH + "ui_skill_identifier.png",
@@ -913,7 +913,7 @@ class HealthData:
 #region Agent Data
 class AgentData:
     def __init__(self, player: AccountStruct):
-        agent_data = player.PlayerData.AgentData
+        agent_data = player.AgentData
         self.UUID: list[int] = agent_data.UUID
         self.AgentID: int = agent_data.AgentID
         self.OwnerID: int = agent_data.OwnerID
