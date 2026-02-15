@@ -12,6 +12,7 @@ class Range(Enum):
     Area = 322.0
     Earshot = 1012.0
     Spellcast = 1248.0
+    Extended = 1750.0
     Spirit = 2500.0
     SafeCompass = 4800.0  # made up distance to make easy checks
     Compass = 5000.0
