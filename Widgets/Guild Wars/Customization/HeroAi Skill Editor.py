@@ -4,7 +4,7 @@ import re
 import textwrap
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Set
 
 import PyImGui
 import Py4GW
@@ -36,10 +36,46 @@ AREA_FIELDS = {"EnemiesInRangeArea", "AlliesInRangeArea", "SpiritsInRangeArea", 
 COUNTER_FIELDS = {"EnemiesInRange", "AlliesInRange", "SpiritsInRange", "MinionsInRange"}
 LIST_FIELDS = {"WeaponSpellList", "EnchantmentList", "HexList", "ChantList", "CastingSkillList", "SharedEffects"}
 
+_TARGET_OPTIONS: tuple[Skilltarget, ...] = tuple(sorted(Skilltarget, key=lambda option: option.value))
+_CONDITION_OPTIONS: tuple[str, ...] = tuple(sorted(DEFAULT_CONDITION_VALUES.keys(), key=lambda name: name.lower()))
+_ACTIVE_STATE_COLOR = (0.3, 0.9, 0.4, 1.0)
+
+
+class ConditionSummary:
+	__slots__ = ("name", "text")
+
+	def __init__(self, name: str, text: str) -> None:
+		self.name = name
+		self.text = text
+
+
+class SkillEditSnapshot:
+	__slots__ = ("slot", "skill_id", "name", "target", "target_value", "active_conditions", "condition_values")
+
+	def __init__(
+		self,
+		slot: int,
+		skill_id: int,
+		name: str,
+		target: str,
+		target_value: Optional[int],
+		active_conditions: Set[str],
+		condition_values: dict[str, Any],
+	) -> None:
+		self.slot = slot
+		self.skill_id = skill_id
+		self.name = name
+		self.target = target
+		self.target_value = target_value
+		self.active_conditions = set(active_conditions)
+		self.condition_values = dict(condition_values)
+
+
+
 _LOGIC_REPLACEMENTS: tuple[tuple[str, str], ...] = (
 	("self.", ""),
 	("Player.GetAgentID()", "Self"),
-	("Player.GetTargetID()", "aktuelles Ziel"),
+	("Player.GetTargetID()", "current target"),
 	("self.heroic_refrain", "Heroic Refrain"),
 	("Routines.Agents.", ""),
 	("TargetLowestAlly", "Lowest Ally"),
@@ -64,12 +100,12 @@ _LOGIC_REPLACEMENTS: tuple[tuple[str, str], ...] = (
 
 _RETURN_REPLACEMENTS: dict[str, str] = {
 	"Player.GetAgentID()": "Target = Self",
-	"Player.GetTargetID()": "Target = aktuelles Ziel",
-	"get_nearest_enemy()": "Target = nächster Gegner",
-	"get_lowest_ally()": "Target = niedrigster Verbündeter",
-	"self.GetPartyTarget()": "Target = Party Target",
+	"Player.GetTargetID()": "Target = current target",
+	"get_nearest_enemy()": "Target = nearest enemy",
+	"get_lowest_ally()": "Target = lowest ally",
+	"self.GetPartyTarget()": "Target = party target",
 	"0": "Target = 0",
-	"v_target": "Target = ermittelter Wert",
+	"v_target": "Target = computed value",
 }
 
 
@@ -101,20 +137,20 @@ def _summarize_logic_block(block_text: str) -> str:
 			pending_condition = _humanize_expression(condition)
 			continue
 		if stripped.startswith("else:"):
-			pending_condition = "ansonsten"
+			pending_condition = "otherwise"
 			continue
 		if stripped.startswith("return "):
 			action_expr = stripped[len("return "):]
 			action = _translate_return_action(action_expr)
 			if pending_condition:
-				lines.append(f"{action} wenn {pending_condition}")
+				lines.append(f"{action} when {pending_condition}")
 				pending_condition = ""
 			else:
 				lines.append(action)
 			continue
 		humanized = _humanize_expression(stripped)
 		if pending_condition:
-			lines.append(f"{humanized} wenn {pending_condition}")
+			lines.append(f"{humanized} when {pending_condition}")
 			pending_condition = ""
 		else:
 			lines.append(humanized)
@@ -144,6 +180,8 @@ MAX_SKILL_SLOTS = 8
 _selected_account_email: Optional[str] = None
 _PROJECT_ROOT = _resolve_project_root()
 _combat_file_path = _PROJECT_ROOT / "HeroAI" / "combat.py"
+_edit_window_open = False
+_edit_snapshot: Optional[SkillEditSnapshot] = None
 
 
 
@@ -268,6 +306,61 @@ def _lookup_special_rule(skill_id: int, store: dict[str, str]) -> Optional[str]:
 	return None
 
 
+def _persist_skill_target(skill_id: int, target_enum: Skilltarget) -> tuple[bool, str]:
+	location = _SKILL_SOURCE_INDEX.get(skill_id)
+	if location is None:
+		return False, "No source file found for this skill."
+	try:
+		original_text = location.path.read_text(encoding="utf-8")
+	except OSError as exc:
+		return False, f"Failed to read file: {exc}"
+	marker = f'GLOBAL_CACHE.Skill.GetID("{location.skill_name}")'
+	block_start = original_text.find(marker)
+	if block_start == -1:
+		return False, "Skill section was not found."
+	next_block = original_text.find("skill = CustomSkill()", block_start + len(marker))
+	block_end = next_block if next_block != -1 else len(original_text)
+	block_text = original_text[block_start:block_end]
+	target_line = f"skill.TargetAllegiance = Skilltarget.{target_enum.name}.value"
+	target_pattern = re.compile(r'skill\.TargetAllegiance\s*=\s*Skilltarget\.[A-Za-z_]+\.value')
+	match = target_pattern.search(block_text)
+	if match:
+		if block_text[match.start():match.end()] == target_line:
+			return False, "Target is already set."
+		updated_block = block_text[:match.start()] + target_line + block_text[match.end():]
+	else:
+		insert_pattern = re.compile(r'skill\.SkillType\s*=\s*SkillType\.[A-Za-z_]+\.value')
+		insert_match = insert_pattern.search(block_text)
+		if not insert_match:
+			return False, "No insertion point for target found."
+		insert_pos = insert_match.end()
+		indent_match = re.search(r'\n([\t ]+)skill\.SkillID', block_text)
+		indent = indent_match.group(1) if indent_match else "\t"
+		updated_block = block_text[:insert_pos] + f"\n{indent}{target_line}" + block_text[insert_pos:]
+	if updated_block == block_text:
+		return False, "No changes made."
+	updated_text = original_text[:block_start] + updated_block + original_text[block_end:]
+	try:
+		location.path.write_text(updated_text, encoding="utf-8")
+	except OSError as exc:
+		return False, f"Failed to write file: {exc}"
+	return True, f"Target updated in {location.path.name}."
+
+
+def _handle_target_change(row: SkillRow, new_enum: Skilltarget) -> None:
+	if row.skill_id == 0:
+		return
+	success, message = _persist_skill_target(row.skill_id, new_enum)
+	message_type = Py4GW.Console.MessageType.Info if success else Py4GW.Console.MessageType.Error
+	Py4GW.Console.Log(MODULE_NAME, message, message_type)
+	if not success:
+		return
+	global custom_skill_provider
+	custom_skill_provider = CustomSkillClass()
+	row.target_value = new_enum.value
+	row.target = new_enum.name.replace("_", " ")
+
+
 class AccountEntry:
 	__slots__ = ("label", "email", "character", "account")
 
@@ -286,6 +379,9 @@ class SkillRow:
 		"texture_path",
 		"conditions",
 		"target",
+		"target_value",
+		"active_conditions",
+		"condition_values",
 		"special",
 		"special_target",
 	)
@@ -298,6 +394,9 @@ class SkillRow:
 		texture_path: Optional[str],
 		conditions: List[str],
 		target: str,
+		target_value: Optional[int],
+		active_conditions: Set[str],
+		condition_values: dict[str, Any],
 		special: Optional[str],
 		special_target: Optional[str],
 	) -> None:
@@ -307,6 +406,9 @@ class SkillRow:
 		self.texture_path = texture_path
 		self.conditions = conditions
 		self.target = target
+		self.target_value = target_value
+		self.active_conditions = active_conditions
+		self.condition_values = condition_values
 		self.special = special
 		self.special_target = special_target
 
@@ -364,14 +466,25 @@ def _format_condition_value(name: str, value) -> str:
 	return f"{pretty_name}: {value}"
 
 
-def _describe_conditions(skill: Optional[CustomSkill]) -> List[str]:
-	if skill is None:
-		return []
+def _format_condition_raw_value(value: Any) -> str:
+	if isinstance(value, bool):
+		return "True" if value else "False"
+	if isinstance(value, float):
+		return f"{value:.3f}".rstrip("0").rstrip(".") or "0"
+	if isinstance(value, (int, str)):
+		return str(value)
+	if isinstance(value, list):
+		return f"{len(value)} entries"
+	return str(value)
 
-	if not skill.SkillID:
-		return []
+
+def _describe_conditions(skill: Optional[CustomSkill]) -> tuple[List[str], Set[str], dict[str, Any]]:
+	if skill is None or not skill.SkillID:
+		return [], set(), {}
 
 	summary: List[str] = []
+	active_names: Set[str] = set()
+	active_values: dict[str, Any] = {}
 	for name, value in vars(skill.Conditions).items():
 		if name not in DEFAULT_CONDITION_VALUES:
 			continue
@@ -380,7 +493,9 @@ def _describe_conditions(skill: Optional[CustomSkill]) -> List[str]:
 		formatted = _format_condition_value(name, value)
 		if formatted:
 			summary.append(formatted)
-	return summary
+			active_names.add(name)
+			active_values[name] = value
+	return summary, active_names, active_values
 
 
 def _safe_get_custom_skill(skill_id: int) -> Optional[CustomSkill]:
@@ -403,7 +518,7 @@ def _collect_accounts() -> List[AccountEntry]:
 			continue
 		seen.add(email)
 		char_name = (getattr(account, "CharacterName", "") or getattr(account, "AccountName", "") or "").strip()
-		display_name = char_name if char_name else email or "Unbekannt"
+		display_name = char_name if char_name else email or "Unknown"
 		if char_name and email and char_name.lower() not in email.lower():
 			label = f"{char_name} ({email})"
 		else:
@@ -456,26 +571,41 @@ def _collect_skillbar_entries(account) -> List[SkillRow]:
 
 		skill_id = int(getattr(skill_struct, "Id", 0)) if skill_struct else 0
 		if not skill_id:
-			entries.append(SkillRow(slot, 0, "Leerer Slot", None, [], "--", None, None))
+			entries.append(SkillRow(slot, 0, "Empty Slot", None, [], "--", None, set(), {}, None, None))
 			continue
 
 		skill_name = GLOBAL_CACHE.Skill.GetName(skill_id) or f"Skill {skill_id}"
 		skill_name = skill_name.replace("_", " ")
 		custom_skill = _safe_get_custom_skill(skill_id)
-		conditions = _describe_conditions(custom_skill)
+		conditions, active_conditions, condition_values = _describe_conditions(custom_skill)
 		target = _format_target(custom_skill)
 		special = _get_special_behavior(skill_id)
 		special_target = _get_special_target_info(skill_id)
 		texture_rel = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
 		texture_path = _texture_full_path(texture_rel)
-		entries.append(SkillRow(slot, skill_id, skill_name, texture_path, conditions, target, special, special_target))
+		target_value = custom_skill.TargetAllegiance if custom_skill else None
+		entries.append(
+			SkillRow(
+				slot,
+				skill_id,
+				skill_name,
+				texture_path,
+				conditions,
+				target,
+				target_value,
+				active_conditions,
+				condition_values,
+				special,
+				special_target,
+			)
+		)
 
 	return entries
 
 
 def _format_target(skill: Optional[CustomSkill]) -> str:
 	if skill is None:
-		return "Unbekannt"
+		return "Unknown"
 	try:
 		enum_value = Skilltarget(skill.TargetAllegiance)
 		return enum_value.name.replace("_", " ")
@@ -505,11 +635,122 @@ def _draw_target_cell(row: SkillRow) -> None:
 	PyImGui.text(row.target)
 	if row.special_target:
 		PyImGui.spacing()
-		PyImGui.text("Spezial:")
+		PyImGui.text("Special:")
 		for line in row.special_target.splitlines():
 			clean = line.strip()
 			if clean:
 				PyImGui.bullet_text(clean)
+
+
+def _draw_action_cell(row: SkillRow) -> None:
+	if row.skill_id == 0:
+		PyImGui.text_disabled("--")
+		return
+	if PyImGui.button(f"View##{row.slot}_{row.skill_id}"):
+		_open_edit_window(row)
+
+
+def _open_edit_window(row: SkillRow) -> None:
+	global _edit_window_open, _edit_snapshot
+	_edit_snapshot = SkillEditSnapshot(
+		row.slot,
+		row.skill_id,
+		row.name,
+		row.target,
+		row.target_value,
+		row.active_conditions,
+		row.condition_values,
+	)
+	_edit_window_open = True
+
+
+def _render_target_list(selected_value: Optional[int], fallback_label: str) -> None:
+	inner_flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
+	if not PyImGui.begin_table("##target_inner_table", 2, inner_flags, 0, 0):
+		PyImGui.text_disabled("Targets could not be loaded.")
+		return
+	PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthStretch, 0)
+	PyImGui.table_setup_column("Active", PyImGui.TableColumnFlags.WidthFixed, 70)
+	PyImGui.table_headers_row()
+	for option in _TARGET_OPTIONS:
+		PyImGui.table_next_row()
+		label = option.name.replace("_", " ")
+		is_active = selected_value == option.value
+		if selected_value is None:
+			is_active = label.lower() == fallback_label
+		PyImGui.table_set_column_index(0)
+		PyImGui.selectable(
+			f"{label}##target_option_{option.value}",
+			is_active,
+			0,
+			(0.0, 0.0),
+		)
+		PyImGui.table_set_column_index(1)
+		if is_active:
+			PyImGui.text_colored("True", _ACTIVE_STATE_COLOR)
+		else:
+			PyImGui.text_disabled("False")
+	PyImGui.end_table()
+
+
+def _render_condition_list(active_conditions: Set[str], condition_values: dict[str, Any]) -> None:
+	inner_flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
+	if not PyImGui.begin_table("##condition_inner_table", 2, inner_flags, 0, 0):
+		PyImGui.text_disabled("Conditions could not be loaded.")
+		return
+	PyImGui.table_setup_column("Condition", PyImGui.TableColumnFlags.WidthStretch, 0)
+	PyImGui.table_setup_column("Active Value", PyImGui.TableColumnFlags.WidthFixed, 120)
+	PyImGui.table_headers_row()
+	for condition_name in _CONDITION_OPTIONS:
+		PyImGui.table_next_row()
+		pretty = _prettify_name(condition_name)
+		is_condition_active = condition_name in active_conditions
+		PyImGui.table_set_column_index(0)
+		PyImGui.selectable(
+			f"{pretty}##condition_option_{condition_name}",
+			is_condition_active,
+			0,
+			(0.0, 0.0),
+		)
+		PyImGui.table_set_column_index(1)
+		if is_condition_active:
+			value = condition_values.get(condition_name)
+			PyImGui.text_colored(_format_condition_raw_value(value), _ACTIVE_STATE_COLOR)
+		else:
+			PyImGui.text_disabled("-")
+	PyImGui.end_table()
+
+
+def _draw_edit_window() -> None:
+	global _edit_window_open, _edit_snapshot
+	if not _edit_window_open or _edit_snapshot is None:
+		return
+	opened = PyImGui.begin("Skill Editor", PyImGui.WindowFlags.AlwaysAutoResize)
+	if not opened:
+		PyImGui.end()
+		_edit_window_open = False
+		return
+	PyImGui.text(f"Slot {_edit_snapshot.slot}")
+	PyImGui.text(f"Skill: {_edit_snapshot.name} (ID {_edit_snapshot.skill_id})")
+	PyImGui.text(f"Current Target: {_edit_snapshot.target}")
+	PyImGui.spacing()
+	flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
+	if PyImGui.begin_table("##edit_target_options", 2, flags, 0, 0):
+		PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthStretch, 0)
+		PyImGui.table_setup_column("Conditions", PyImGui.TableColumnFlags.WidthStretch, 0)
+		PyImGui.table_headers_row()
+		PyImGui.table_next_row()
+		PyImGui.table_set_column_index(0)
+		_render_target_list(_edit_snapshot.target_value, (_edit_snapshot.target or "").lower())
+		PyImGui.table_set_column_index(1)
+		_render_condition_list(_edit_snapshot.active_conditions, _edit_snapshot.condition_values)
+		PyImGui.end_table()
+	else:
+		PyImGui.text_disabled("Targets could not be loaded.")
+	PyImGui.spacing()
+	if PyImGui.button("Close Window"):
+		_edit_window_open = False
+	PyImGui.end()
 
 
 def _draw_condition_cell(row: SkillRow) -> None:
@@ -531,11 +772,12 @@ def _draw_condition_cell(row: SkillRow) -> None:
 
 def _draw_skill_table(entries: List[SkillRow]) -> None:
 	flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
-	if PyImGui.begin_table("##HeroAiSkillTable", 4, flags, 0, 0):
+	if PyImGui.begin_table("##HeroAiSkillTable", 5, flags, 0, 0):
 		PyImGui.table_setup_column("Slot", PyImGui.TableColumnFlags.WidthFixed, 20)
 		PyImGui.table_setup_column("Skill", PyImGui.TableColumnFlags.WidthFixed, 250)
 		PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 250)
 		PyImGui.table_setup_column("Conditions", PyImGui.TableColumnFlags.WidthStretch, 0)
+		PyImGui.table_setup_column("Action", PyImGui.TableColumnFlags.WidthFixed, 80)
 		PyImGui.table_headers_row()
 
 		for row in entries:
@@ -551,6 +793,9 @@ def _draw_skill_table(entries: List[SkillRow]) -> None:
 
 			PyImGui.table_set_column_index(3)
 			_draw_condition_cell(row)
+
+			PyImGui.table_set_column_index(4)
+			_draw_action_cell(row)
 
 		PyImGui.end_table()
 
@@ -592,6 +837,8 @@ def _draw_window() -> None:
 		else:
 			PyImGui.text_disabled("No selection available.")
 
+	_draw_edit_window()
+
 	PyImGui.spacing()
 	PyImGui.text_disabled("Source: HeroAI custom_skill_src conditions + Shared Memory Skillbars")
 
@@ -624,14 +871,13 @@ def tooltip():
 	PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
 	PyImGui.bullet_text("Live overview of the eight skill slots")
 	PyImGui.bullet_text("Account selection via Shared Memory dropdown")
-	PyImGui.bullet_text("Icons directly from the skill cache")
 	PyImGui.bullet_text("All HeroAI conditions per skill")
 	PyImGui.spacing()
 	PyImGui.separator()
 	PyImGui.spacing()
 
 	PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
-	PyImGui.bullet_text("Developed by HeroAI tooling")
+	PyImGui.bullet_text("Developed by sch0l0ka")
 
 	PyImGui.end_tooltip()
 
