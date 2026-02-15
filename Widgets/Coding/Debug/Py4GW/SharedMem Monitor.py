@@ -224,12 +224,12 @@ def draw_heroai_info(player: AccountStruct):
 #region Rank Info          
 def draw_rank_info(player: AccountStruct):
     if PyImGui.collapsing_header("Rank Data", PyImGui.TreeNodeFlags.NoFlag):
-        PyImGui.text(f"Rank: {player.PlayerData.RankData.Rank}")
-        PyImGui.text(f"Rating: {player.PlayerData.RankData.Rating}")
-        PyImGui.text(f"Qualifier Points: {player.PlayerData.RankData.QualifierPoints}")
-        PyImGui.text(f"Wins: {player.PlayerData.RankData.Wins}")
-        PyImGui.text(f"Losses: {player.PlayerData.RankData.Losses}")
-        PyImGui.text(f"Tournament Reward Points: {player.PlayerData.RankData.TournamentRewardPoints}")
+        PyImGui.text(f"Rank: {player.RankData.Rank}")
+        PyImGui.text(f"Rating: {player.RankData.Rating}")
+        PyImGui.text(f"Qualifier Points: {player.RankData.QualifierPoints}")
+        PyImGui.text(f"Wins: {player.RankData.Wins}")
+        PyImGui.text(f"Losses: {player.RankData.Losses}")
+        PyImGui.text(f"Tournament Reward Points: {player.RankData.TournamentRewardPoints}")
 
 #region Faction Data
 class FactionNode:
@@ -285,7 +285,7 @@ class FactionNode:
 class FactionData:
     """Container for all faction nodes."""
     def __init__(self, player: AccountStruct):
-        factions_data: FactionStruct = player.PlayerData.FactionsData
+        factions_data: FactionStruct = player.FactionData
         kurzick_data = factions_data.Kurzick
         luxon_data = factions_data.Luxon
         imperial_data = factions_data.Imperial
@@ -305,12 +305,12 @@ class FactionData:
 #region Title Data
 class TitleData:
     def __init__(self, player: AccountStruct):
-        title_array : list[Any] = player.PlayerData.TitlesData.Titles
+        title_array : list[Any] = player.TitlesData.Titles
         self.titles: dict[int, TitleUnitStruct] = {}
         for title in title_array:
              self.titles[title.TitleID] = title
         
-        self.active_title_id: int = player.PlayerData.TitlesData.ActiveTitleID
+        self.active_title_id: int = player.TitlesData.ActiveTitleID
 
     def get_current_tier(self, title_id: int, current_points: int):
         tiers = TITLE_TIERS.get(title_id, [])
@@ -739,11 +739,11 @@ class PlayerData:
 #region Experience Data
 class ExperienceData:
     def __init__(self, player: AccountStruct):
-        self.level = player.PlayerData.ExperienceData.Level
-        self.experience = player.PlayerData.ExperienceData.Experience
-        self.progress_pct = player.PlayerData.ExperienceData.ProgressPct
-        self.current_skill_points = player.PlayerData.ExperienceData.CurrentSkillPoints
-        self.total_earned_skill_points = player.PlayerData.ExperienceData.TotalEarnedSkillPoints
+        self.level = player.ExperienceData.Level
+        self.experience = player.ExperienceData.Experience
+        self.progress_pct = player.ExperienceData.ProgressPct
+        self.current_skill_points = player.ExperienceData.CurrentSkillPoints
+        self.total_earned_skill_points = player.ExperienceData.TotalEarnedSkillPoints
 
 
     def draw_content(self):
@@ -961,7 +961,7 @@ def main():
             PyImGui.text(f"Max Number of Players: {SMM.max_num_players}")
             PyImGui.text(f"Number of Active Players: {SMM.GetNumActivePlayers()}")
             PyImGui.text(f"Number of active Slots: {SMM.GetNumActiveSlots()}")
-            ImGui.show_tooltip("\n".join([f"{i}. | Slot:{acc.SlotNumber} {acc.AccountEmail} | {acc.CharacterName}" for i, acc in enumerate(SMM.GetStruct().AccountData) if SMM._is_slot_active(i)]))                        
+            ImGui.show_tooltip("\n".join([f"{i}. | Slot:{acc.SlotNumber} {acc.AccountEmail} | {acc.CharacterName}" for i, acc in enumerate(SMM.GetAllAccounts().AccountData) if SMM._is_slot_active(i)]))                        
         
         MIN_WIDTH = 500
         MIN_HEIGHT = 700
