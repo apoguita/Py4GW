@@ -12,6 +12,7 @@ MODULE_NAME = "HeroAI"
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
+from Py4GWCoreLib.Pathing import AutoPathing
 
 from HeroAI.cache_data import CacheData
 from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MELEE_RANGE_VALUE, RANGED_RANGE_VALUE)
@@ -208,6 +209,12 @@ def initialize(cached_data: CacheData) -> bool:
     if not GLOBAL_CACHE.Party.IsPartyLoaded():
         return False
         
+    # Handle map change cleanup
+    current_map_id = Map.GetMapID()
+    if not hasattr(cached_data, "last_map_id") or cached_data.last_map_id != current_map_id:
+        cached_data.last_map_id = current_map_id
+        follow_reset_map_quads()
+        
     if not Map.IsExplorable():  # halt operation if not in explorable area
         return False
 
@@ -217,6 +224,15 @@ def initialize(cached_data: CacheData) -> bool:
     HeroAI_Windows.DrawFlags(cached_data)
     HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
     cached_data.UpdateCombat()
+    
+    # Ensure NavMesh is loaded for follower pathfinding
+    if not AutoPathing().get_navmesh():
+        if not getattr(AutoPathing(), "loader", None):
+            AutoPathing().loader = AutoPathing().load_pathing_maps()
+        try:
+            next(AutoPathing().loader)
+        except StopIteration:
+            AutoPathing().loader = None
     
     # Leader calculates and writes follow positions for all followers
     LeaderUpdate(cached_data)

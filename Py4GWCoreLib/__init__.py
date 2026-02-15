@@ -92,6 +92,7 @@ from .IniManager import IniManager
 
 from .py4gwcorelib_src.Profiling import ProfilingRegistry, SimpleProfiler
 from .py4gwcorelib_src.WidgetManager import WidgetHandler, Widget
+from .py4gwcorelib_src.ActionQueue import ActionQueueManager
 
 traceback = traceback
 math = math
@@ -131,6 +132,7 @@ ProfilingRegistry = ProfilingRegistry
 SimpleProfiler = SimpleProfiler
 WidgetHandler = WidgetHandler
 Widget = Widget
+ActionQueueManager = ActionQueueManager
 
 
 

@@ -9,22 +9,27 @@ Also contains the leader-only config window with per-follower angle control,
 formation canvas preview, and 3D overlay visualization.
 """
 
-import math
 import Py4GW
 import PyImGui
+import math
+import random
+import time
 
-from Py4GWCoreLib import (
-    GLOBAL_CACHE, Agent, Player, Map, Range, Utils,
-    ActionQueueManager, Routines,
-)
-from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.ImGui import ImGui
-from Py4GWCoreLib.IniManager import IniManager
+from Py4GWCoreLib.Agent import Agent
+from Py4GWCoreLib.Player import Player
+from Py4GWCoreLib.enums_src.GameData_enums import Range
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
-from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
+from Py4GWCoreLib.Overlay import Overlay
+from Py4GWCoreLib.IniManager import IniManager
+from Py4GWCoreLib.Pathing import AutoPathing, AStar, NavMesh
+from Py4GWCoreLib import ActionQueueManager
+from Py4GWCoreLib import Utils
+from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib.native_src.internals.types import Vec2f
 
 from HeroAI.cache_data import CacheData
+from HeroAI.settings import Settings
 from HeroAI.constants import (
     MODULE_NAME,
     MELEE_RANGE_VALUE,
@@ -188,6 +193,11 @@ def _is_position_on_map(x: float, y: float) -> bool:
     global _map_quads
     if not settings.confirm_follow_point:
         return True
+    
+    # Global Toggle Check
+    if not Settings().advanced_pathing_enabled:
+        return True
+
     if not _map_quads:
         _map_quads = Map.Pathing.GetMapQuads()
     for quad in _map_quads:
@@ -198,8 +208,10 @@ def _is_position_on_map(x: float, y: float) -> bool:
 
 def reset_map_quads():
     """Call when map changes to clear cached pathing data."""
-    global _map_quads
-    _map_quads.clear()
+    global _map_quads, follower_states
+    _map_quads = []
+    if 'follower_states' in globals():
+        follower_states.clear()
 
 
 # ─────────────────────────────────────────────
@@ -327,51 +339,397 @@ def LeaderUpdate(cached_data: CacheData):
 # ─────────────────────────────────────────────
 following_flag = False
 
+class FollowerState:
+    def __init__(self):
+        self.last_pos = (0.0, 0.0)
+        self.last_move_time = 0.0
+        self.stuck_start_time = 0.0
+        self.is_stuck = False
+        self.path = []
+        self.path_index = 0
+        self.last_path_calc_time = 0.0
+        self.last_target_pos = (0.0, 0.0)
+        self.unstuck_target = None
+        self.unstuck_timestamp = 0.0
+        self.unstuck_attempt_count = 0
+        self.last_unstuck_time = 0.0 # Track when we last successfully unstuck
+
+follower_states = {}  # agent_id -> FollowerState
+
 def Follow(cached_data: CacheData) -> bool:
     """
     BT ActionNode — runs on each follower.
     Reads the leader-assigned FollowPos from shared memory and moves there.
+    Handles obstacle avoidance via local NavMesh A* and unstuck logic.
     Returns True if a move was issued, False otherwise.
     """
-    global following_flag
+    global following_flag, follower_states
 
     options = cached_data.account_options
     if not options or not options.Following:
+        return False
+        
+    my_agent_id = Player.GetAgentID()
+    if my_agent_id == GLOBAL_CACHE.Party.GetPartyLeaderID():
+        # Leader logic handled elsewhere or skipped
+        cached_data.follow_throttle_timer.Reset()
         return False
 
     if not cached_data.follow_throttle_timer.IsExpired():
         return False
 
-    # Leader doesn't follow
-    if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
-        cached_data.follow_throttle_timer.Reset()
-        return False
+    # Check for global setting updates (e.g. toggle enabled/disabled)
+    Settings().check_for_updates()
 
+    # Initialize state if needed
+    if my_agent_id not in follower_states:
+        follower_states[my_agent_id] = FollowerState()
+        follower_states[my_agent_id].last_update_time = 0.0
+        
+    state = follower_states[my_agent_id]
+    
+    current_time = time.time()
+    
+    # Check for resumption after pause (e.g. toggle off/on)
+    # Check for resumption after pause (e.g. toggle off/on)
+    # Increased to 5.0s to avoid resetting on normal 1.0s throttle intervals
+    if (current_time - getattr(state, 'last_update_time', 0.0)) > 5.0:
+        # Reset stuck state
+        if state.stuck_start_time != 0.0:
+            Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id}: Stuck State RESET due to inactivity/pause > 5.0s", Py4GW.Console.MessageType.Info)
+        state.is_stuck = False
+        state.stuck_start_time = 0.0
+        state.unstuck_target = None
+        state.unstuck_attempt_count = 0
+        state.path = []
+        
+    state.last_update_time = current_time
+     
     # Read assigned position from shared memory
     follow_pos = options.FollowPos
     target_x = follow_pos.x
     target_y = follow_pos.y
 
-    # (0,0) means leader says: no move needed (close enough or no valid pos)
-    point_zero = (0.0, 0.0)
-    if Utils.Distance((target_x, target_y), point_zero) <= 5:
+    # (0,0) signal check
+    if Utils.Distance((target_x, target_y), (0.0, 0.0)) <= 5:
+        state.path = [] # Clear path if stopped
         return False
 
     if not Agent.IsValid(GLOBAL_CACHE.Party.GetPartyLeaderID()):
         return False
 
     following_flag = options.IsFlagged
+    my_x, my_y = Agent.GetXY(my_agent_id)
+    my_z = Agent.GetZPlane(my_agent_id) # Z needed for pathing sometimes? mostly 2D here
+    
+    # --- STRICT DEACTIVATION FALLBACK ---
+    # If the module is off, bypass all custom pathing/unstuck logic and do "normal" follow.
+    if not Settings().advanced_pathing_enabled:
+        state.path = [] # Clear cached path data
+        state.is_stuck = False
+        state.stuck_start_time = 0.0
+        state.unstuck_target = None
+        state.unstuck_attempt_count = 0
+        
+        dist_to_target = Utils.Distance((target_x, target_y), (my_x, my_y))
+        if dist_to_target < 50:
+            return False
+            
+        ActionQueueManager().ResetQueue("ACTION")
+        Player.Move(target_x, target_y)
+        return True
 
-    # Minimal jitter threshold — the leader already did the real distance gating
-    my_x, my_y = Agent.GetXY(Player.GetAgentID())
-    distance = Utils.Distance((target_x, target_y), (my_x, my_y))
-    if distance < 50:
-        return False  # already practically there
+    current_time = time.time()
 
-    # Issue move command
-    ActionQueueManager().ResetQueue("ACTION")
-    Player.Move(target_x, target_y)
-    return True
+    # --- 0.5. VALIDATE TARGET ON NAVMESH ---
+    # Check if target is valid on NavMesh to prevent "Invalid start or goal trapezoid" and stuck loops
+    if Settings().advanced_pathing_enabled:
+        navmesh = AutoPathing().get_navmesh()
+        if navmesh:
+            target_id = navmesh.find_trapezoid_id_by_coord((target_x, target_y))
+            if not target_id:
+                # Target is off-mesh (wall/obstacle). Pull towards leader until valid.
+                leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+                if Agent.IsValid(leader_id):
+                    lx, ly = Agent.GetXY(leader_id)
+                    found_valid = False
+                    # Try 5 steps from target to leader
+                    for i in range(1, 6):
+                        factor = i / 5.0
+                        check_x = target_x + (lx - target_x) * factor
+                        check_y = target_y + (ly - target_y) * factor
+                        if navmesh.find_trapezoid_id_by_coord((check_x, check_y)):
+                            target_x, target_y = check_x, check_y
+                            found_valid = True
+                            # Py4GW.Console.Log("HeroAI", f"Adjusted off-mesh target to valid point ({target_x:.1f}, {target_y:.1f})", Py4GW.Console.MessageType.Info)
+                            break
+                    
+                    if not found_valid:
+                         # worst case, go to leader
+                         target_x, target_y = lx, ly
+
+    # --- 1. UNSTUCK LOGIC ---
+    # Detect if we should be moving but aren't
+    dist_to_target = Utils.Distance((target_x, target_y), (my_x, my_y))
+    
+    # If we are far enough to move
+    if dist_to_target > 50:
+        # Check if we moved significantly since last check
+        dist_moved = Utils.Distance((my_x, my_y), state.last_pos)
+        
+        # Hypersensitive Mode: If we were stuck recently (<10s), check faster!
+        # Normal: Check every 0.75s, Stuck after 1.5s
+        # Hyper: Check every 0.3s, Stuck after 0.5s
+        if Settings().advanced_pathing_enabled:
+            recidivism_memory = Settings().recidivism_memory
+            hypersensitive_speed = Settings().hypersensitive_speed
+        else:
+            recidivism_memory = 0.0 # Standard mode only
+            hypersensitive_speed = 0.75 # Standard speed
+        
+        is_recidivist = (current_time - state.last_unstuck_time) < recidivism_memory
+        check_interval = hypersensitive_speed if is_recidivist else 0.75
+        stuck_threshold = 0.5 if is_recidivist else 1.5
+
+        # If we haven't moved much in a while AND we tried to move
+        if dist_moved < 10 and (current_time - state.last_move_time) > check_interval:
+            if state.stuck_start_time == 0.0:
+                 state.stuck_start_time = current_time
+                 # Only log info if not spamming hyper mode
+                 if not is_recidivist:
+                     Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id}: Possible stuck. Moved {dist_moved:.2f} (<10) in {(current_time - state.last_move_time):.2f}s. DistToTarget: {dist_to_target:.1f}", Py4GW.Console.MessageType.Info)
+            
+            elif (current_time - state.stuck_start_time) > stuck_threshold: 
+                 if not state.is_stuck:
+                    Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id} CONFIRMED STUCK at ({my_x:.1f}, {my_y:.1f}). Initiating smart unstuck sequence.", Py4GW.Console.MessageType.Warning)
+                    
+                    # Recidivism Check: If we were stuck recently (<RecidivismMemory), resume strategy instead of resetting
+                    if (current_time - state.last_unstuck_time) > recidivism_memory:
+                         state.unstuck_attempt_count = 0 # New incident, start from 0
+                    else:
+                         Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id}: Recidivism detected (<{recidivism_memory}s). Resuming sequence at Attempt {state.unstuck_attempt_count}.", Py4GW.Console.MessageType.Warning)
+                         
+                 state.is_stuck = True
+        else:
+             if state.stuck_start_time != 0.0:
+                  Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id}: Stuck State RESET. Moved {dist_moved:.1f} units.", Py4GW.Console.MessageType.Info)
+             
+             state.stuck_start_time = 0.0 # Reset if moving
+             if dist_moved >= 10:
+                 if state.is_stuck:
+                    Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id} unstuck successfully. Resuming pathing.", Py4GW.Console.MessageType.Info)
+                    state.last_unstuck_time = current_time # Record success time
+                 
+                 state.is_stuck = False # Clear stuck status if we engaged movement
+                 state.unstuck_target = None
+                 
+                 # Only reset attempt count if we've been free for > RecidivismMemory (Recidivism check)
+                 if (current_time - state.last_unstuck_time) > recidivism_memory:
+                     state.unstuck_attempt_count = 0
+        
+        # LOGIC FIX: Only update last_pos and last_move_time if we actually moved significantly!
+        # Otherwise, we accumulate time until we trigger the stuck threshold.
+        if dist_moved >= 10:
+             state.last_pos = (my_x, my_y)
+             state.last_move_time = current_time
+        
+        # Log movement for debug (uncomment if needed, effectively "show coords")
+        if dist_moved > 0:
+             leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+             lx, ly = Agent.GetXY(leader_id)
+             Py4GW.Console.Log("HeroAI", f"Pos:({my_x:.0f},{my_y:.0f}) Target:({target_x:.0f},{target_y:.0f}) Leader:({lx:.0f},{ly:.0f}) DistT:{dist_to_target:.0f}", Py4GW.Console.MessageType.Info)
+
+        if state.stuck_start_time == 0.0:
+             pass
+    else:
+        # We are close to target, so not "stuck" in a bad way, just arrived?
+        # Only reset if we were previously stuck to clear the flag
+        if state.stuck_start_time != 0.0:
+             Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id}: Stuck State RESET. Reached target range (Dist: {dist_to_target:.1f}).", Py4GW.Console.MessageType.Info)
+        
+        if state.is_stuck:
+             Py4GW.Console.Log("HeroAI", f"Follower {my_agent_id} reached target range. Clearing stuck status.", Py4GW.Console.MessageType.Info)
+        state.stuck_start_time = 0.0
+        state.is_stuck = False
+        state.unstuck_target = None
+        
+        # Only reset attempt count if we've been free for > RecidivismMemory (Recidivism check)
+        recidivism_memory = Settings().recidivism_memory
+        if (current_time - state.last_unstuck_time) > recidivism_memory:
+            state.unstuck_attempt_count = 0
+
+    # Execute Unstuck Maneuver
+    if state.is_stuck:
+        # If we don't have a target or it's been too long, pick a new one
+        # Reduced retarget interval from 2.0s to 1.0s for punchier actions
+        if state.unstuck_target is None or (current_time - state.unstuck_timestamp) > 1.0:
+            # Determine strategy based on attempt count
+            dx = target_x - my_x
+            dy = target_y - my_y
+            dist = math.sqrt(dx*dx + dy*dy)
+            if dist > 0.1:
+                dx /= dist
+                dy /= dist
+            else:
+                dx, dy = 1.0, 0.0 # Default forward
+            
+            strategy = "Unknown"
+            radius = Settings().unstuck_radius  
+            
+            # Attempt 0: Backtrack/Reverse
+            if state.unstuck_attempt_count == 0:
+                ux = my_x - dx * radius
+                uy = my_y - dy * radius
+                strategy = "Backtrack"
+            # Attempt 1: Backtrack + Strafe Right (Diagonal Back-Right)
+            elif state.unstuck_attempt_count == 1:
+                ux = my_x - dx * radius + dy * radius
+                uy = my_y - dy * radius - dx * radius
+                strategy = "Backtrack + Right"
+            # Attempt 2: Backtrack + Strafe Left (Diagonal Back-Left)
+            elif state.unstuck_attempt_count == 2:
+                ux = my_x - dx * radius - dy * radius
+                uy = my_y - dy * radius + dx * radius
+                strategy = "Backtrack + Left"
+            # Attempt 3: Strafe Right (Pure)
+            elif state.unstuck_attempt_count == 3:
+                ux = my_x + dy * radius
+                uy = my_y - dx * radius
+                strategy = "Strafe Right"
+                # Attempt 4: Strafe Left (Pure)
+            elif state.unstuck_attempt_count == 4:
+                ux = my_x - dy * radius
+                uy = my_y + dx * radius
+                strategy = "Strafe Left"
+            # Attempt 3+: Random Wiggle
+            else:
+                angle = random.uniform(0, 2 * math.pi)
+                ux = my_x + math.cos(angle) * radius
+                uy = my_y + math.sin(angle) * radius
+                strategy = "Random Wiggle"
+
+            state.unstuck_target = (ux, uy)
+            state.unstuck_timestamp = current_time
+            state.unstuck_attempt_count += 1
+            Py4GW.Console.Log("HeroAI", f"Unstuck Attempt {state.unstuck_attempt_count}: {strategy} to ({ux:.1f}, {uy:.1f})", Py4GW.Console.MessageType.Info)
+        
+        # Move to unstuck target
+        ux, uy = state.unstuck_target
+        ActionQueueManager().ResetQueue("ACTION")
+        Player.Move(ux, uy)
+        
+        # Reset stuck flag after a periodic attempt to verify if it worked
+        # Increased reset timeout from 3.0s to 8.0s to allow Backtrack/Wiggle attempts
+        if (current_time - state.stuck_start_time) > 8.0:
+            state.stuck_start_time = 0.0 # Data reset to try again or resume normal
+            state.is_stuck = False
+            state.unstuck_target = None
+            Py4GW.Console.Log("HeroAI", f"Unstuck: Resetting stuck state to retry normal pathing/movement.", Py4GW.Console.MessageType.Info)
+            
+        return True
+
+    # --- 2. PATHING LOGIC ---
+    
+    # Check if we are close enough to just stop
+    if dist_to_target < 50:
+        return False
+
+    # Get NavMesh for current map
+    navmesh = AutoPathing().get_navmesh()
+    
+    # If no navmesh, fallback to direct line interact
+    if not navmesh:
+        ActionQueueManager().ResetQueue("ACTION")
+        Py4GW.Console.Log("HeroAI", f"No NavMesh. Direct move to {target_x:.1f}, {target_y:.1f}", Py4GW.Console.MessageType.Info)
+        Player.Move(target_x, target_y)
+        return True
+
+    # Check Line of Sight to target
+    has_los = navmesh.has_line_of_sight((my_x, my_y), (target_x, target_y))
+
+    if has_los:
+        # Clear path if we can go direct
+        state.path = []
+        ActionQueueManager().ResetQueue("ACTION")
+        # Log direct LOS movement
+        Py4GW.Console.Log("HeroAI", f"Direct Move (LOS) to ({target_x:.1f}, {target_y:.1f}) Dist: {dist_to_target:.1f}", Py4GW.Console.MessageType.Info)
+        Player.Move(target_x, target_y)
+        return True
+    else:
+        # We need a path
+        # Recompute path if:
+        # 1. No path
+        # 2. Target moved significantly
+        # 3. Path is stale (optional time check)
+        
+        dist_target_moved = Utils.Distance((target_x, target_y), state.last_target_pos)
+        
+        if not state.path or dist_target_moved > 100 or state.path_index >= len(state.path):
+            # Calculate A*
+            astar = AStar(navmesh)
+            # AStar search is synchronous here
+            t_start = time.time()
+            success = astar.search((my_x, my_y), (target_x, target_y))
+            t_end = time.time()
+            t_dur = t_end - t_start
+            
+            if t_dur > 0.1:
+                 Py4GW.Console.Log("HeroAI", f"A* Pathfinding took {t_dur:.3f}s. Start:({my_x:.1f},{my_y:.1f}) End:({target_x:.1f},{target_y:.1f})", Py4GW.Console.MessageType.Warning)
+            
+            if success:
+                raw_path = astar.get_path()
+                path_str = " -> ".join([f"({p[0]:.0f},{p[1]:.0f})" for p in raw_path[:5]])
+                Py4GW.Console.Log("HeroAI", f"Path found! Len:{len(raw_path)} Nodes: [{path_str} ...]", Py4GW.Console.MessageType.Info)
+                
+                # Sanity Check: If first REAL step is super far, log warning and FALLBACK
+                # raw_path[0] is start_pos (me), so we need to check raw_path[1]
+                if len(raw_path) > 1:
+                    d1 = Utils.Distance((my_x, my_y), raw_path[1])
+                    if d1 > Settings().sanity_check_distance:
+                         Py4GW.Console.Log("HeroAI", f"WARNING: First Step (Node 1) is {d1:.1f} units away! Path rejected (Ghost Wall/Mesh Error). Forcing Direct Move.", Py4GW.Console.MessageType.Warning)
+                         # Fallback to direct move
+                         ActionQueueManager().ResetQueue("ACTION")
+                         Player.Move(target_x, target_y)
+                         return True
+
+                # Smooth path
+                # ... (rest of smoothing logic)
+                state.path = raw_path # Simplified assignment for now, smoothing can be added back if needed
+                state.path_index = 0
+                state.last_target_pos = (target_x, target_y)
+                state.last_path_calc_time = current_time
+            else:
+                # Fallback if pathfinding fails (e.g. goal off mesh)
+                Py4GW.Console.Log("HeroAI", f"Pathfinding failed after {t_dur:.3f}s to {(target_x, target_y)}, falling back to direct move.", Py4GW.Console.MessageType.Warning)
+                ActionQueueManager().ResetQueue("ACTION")
+                Player.Move(target_x, target_y)
+                return True
+        
+        # Follow the path
+        if state.path and state.path_index < len(state.path):
+            # Get next waypoint
+            wp = state.path[state.path_index]
+            dist_to_wp = Utils.Distance((my_x, my_y), wp)
+            
+            # If close to waypoint, advance
+            if dist_to_wp < 80:
+                state.path_index += 1
+                if state.path_index < len(state.path):
+                    wp = state.path[state.path_index]
+                else:
+                    # Reached end of path
+                    ActionQueueManager().ResetQueue("ACTION")
+                    Player.Move(target_x, target_y)
+                    return True
+            
+            # Move to waypoint
+            ActionQueueManager().ResetQueue("ACTION")
+            # Log normal path movement
+            Py4GW.Console.Log("HeroAI", f"Moving to Path WP: ({wp[0]:.1f}, {wp[1]:.1f})", Py4GW.Console.MessageType.Info)
+            Player.Move(wp[0], wp[1])
+            return True
+            
+    return False
 
 
 # ─────────────────────────────────────────────
