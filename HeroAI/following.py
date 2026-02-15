@@ -41,7 +41,7 @@ from HeroAI.constants import (
 # Constants
 # ─────────────────────────────────────────────
 FOLLOW_COMBAT_DISTANCE = 25.0  # body-block close range when flagged
-MAX_FOLLOWERS = 12
+MAX_FOLLOWERS = 8
 
 # ─────────────────────────────────────────────
 # INI persistence
@@ -71,10 +71,11 @@ class RingConfig:
 # ─────────────────────────────────────────────
 class FollowerConfig:
     """Per-follower formation settings controlled by the leader."""
-    def __init__(self, angle_deg: float = 0.0, radius: float = -1.0, color: Color = None):
+    def __init__(self, angle_deg: float = 0.0, radius: float = -1.0, color: Color = None, enabled: bool = True):
         self.angle_deg = angle_deg
         self.radius = radius  # -1 means use global formation_radius
         self.color: Color = color or ColorPalette.GetColor("white")
+        self.enabled = enabled
 
     def get_radius(self, global_radius: float) -> float:
         """Return this follower's radius, falling back to global if -1."""
@@ -88,8 +89,7 @@ class FollowModuleSettings:
     """All leader-configurable follow settings."""
 
     # Default formation angles (same layout as the old hero_formation)
-    DEFAULT_ANGLES = [0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0,
-                      -180.0, 225.0, -225.0, 270.0]
+    DEFAULT_ANGLES = [0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0]
 
     def __init__(self):
         # Formation
@@ -102,8 +102,7 @@ class FollowModuleSettings:
         self.follower_configs: list[FollowerConfig] = []
         for i, angle in enumerate(self.DEFAULT_ANGLES):
             palette_colors = ["gw_blue", "firebrick", "gold", "gw_purple",
-                              "gw_green", "gw_assassin", "blue", "white",
-                              "gw_blue", "firebrick", "gold", "gw_purple"]
+                              "gw_green", "gw_assassin", "blue", "white"]
             color = ColorPalette.GetColor(palette_colors[i % len(palette_colors)])
             self.follower_configs.append(FollowerConfig(angle, color=color))
 
@@ -157,6 +156,7 @@ def _save_settings():
     for i, fc in enumerate(settings.follower_configs):
         ini.write_key(_ini_key, "Followers", f"Angle_{i}", fc.angle_deg)
         ini.write_key(_ini_key, "Followers", f"Radius_{i}", fc.radius)
+        ini.write_key(_ini_key, "Followers", f"Enabled_{i}", fc.enabled)
 
     # Canvas settings
     ini.write_key(_ini_key, "Canvas", "Show", settings.show_canvas)
@@ -178,6 +178,7 @@ def _load_settings():
     for i, fc in enumerate(settings.follower_configs):
         fc.angle_deg = ini.read_float(_ini_key, "Followers", f"Angle_{i}", fc.angle_deg)
         fc.radius = ini.read_float(_ini_key, "Followers", f"Radius_{i}", fc.radius)
+        fc.enabled = ini.read_bool(_ini_key, "Followers", f"Enabled_{i}", fc.enabled)
 
     settings.show_canvas = ini.read_bool(_ini_key, "Canvas", "Show", True)
     settings.scale = ini.read_float(_ini_key, "Canvas", "Scale", 0.3)
@@ -283,26 +284,34 @@ def LeaderUpdate(cached_data: CacheData):
         else:
             # Get per-follower angle config
             follower_grid_pos = acc.PartyPosition + GLOBAL_CACHE.Party.GetHeroCount() + GLOBAL_CACHE.Party.GetHenchmanCount()
+            angle_deg = 0.0
+            fc = None
             if follower_grid_pos < len(settings.follower_configs):
-                angle_deg = settings.follower_configs[follower_grid_pos].angle_deg
+                fc = settings.follower_configs[follower_grid_pos]
+                if not fc.enabled:
+                    xx = follow_x
+                    yy = follow_y
+                    # Skip calculation if disabled, just follow directly
+                else:
+                    angle_deg = fc.angle_deg
+            
+            if fc and fc.enabled:
+                # Convert to radians and add to leader's facing
+                # 0 degrees = Forward
+                angle_rad = Utils.DegToRad(angle_deg)
+                world_angle = follow_angle + angle_rad
+                
+                radius = fc.get_radius(settings.formation_radius)
+                
+                # Standard rotation mapping (0=East, pi/2=North)
+                rot_x = radius * math.cos(world_angle)
+                rot_y = radius * math.sin(world_angle)
+                
+                xx = follow_x + rot_x
+                yy = follow_y + rot_y
             else:
-                angle_deg = 0.0
-
-            # Convert angle to local offset (0°=forward)
-            angle_rad = Utils.DegToRad(angle_deg)
-            fc = settings.follower_configs[follower_grid_pos] if follower_grid_pos < len(settings.follower_configs) else None
-            effective_radius = fc.get_radius(settings.formation_radius) if fc else settings.formation_radius
-            local_x = effective_radius * math.sin(angle_rad)
-            local_y = effective_radius * math.cos(angle_rad)
-
-            # Rotate into world using leader facing (same as reference)
-            rot_angle = follow_angle - math.pi / 2
-            rot_cos = -math.cos(rot_angle)
-            rot_sin = -math.sin(rot_angle)
-            rot_x = (local_x * rot_cos) - (local_y * rot_sin)
-            rot_y = (local_x * rot_sin) + (local_y * rot_cos)
-            xx = follow_x + rot_x
-            yy = follow_y + rot_y
+                xx = follow_x
+                yy = follow_y
 
             # Validate against map pathing
             if not _is_position_on_map(xx, yy):
@@ -850,11 +859,47 @@ def _draw_canvas(cached_data: CacheData):
             PyImGui.draw_list_add_line(left, y, right, y, grid_color.to_color(), 1)
             y -= grid_step
 
+        # Cardinal Directions (N, S, E, W)
+        text_color = ColorPalette.GetColor("gold").to_color()
+        # North (Top)
+        PyImGui.draw_list_add_text(cx - 5, top + 15, text_color, "N")
+        # South (Bottom)
+        PyImGui.draw_list_add_text(cx - 5, bottom - 30, text_color, "S")
+        # East (Right)
+        PyImGui.draw_list_add_text(right - 30, cy - 7, text_color, "E")
+        # West (Left)
+        PyImGui.draw_list_add_text(left + 20, cy - 7, text_color, "W")
+
         # Center marker (leader position)
         touch_color = settings.area_rings[0].color.copy()
         touch_color.set_a(100)
         touch_radius = settings.area_rings[0].radius * settings.scale
         PyImGui.draw_list_add_circle_filled(cx, cy, touch_radius, touch_color.to_color(), 64)
+
+        # Facing Arrow for Leader
+        leader_angle = 0.0
+        try:
+            leader_angle = Agent.GetRotationAngle(Player.GetAgentID())
+        except Exception:
+            pass
+        
+        # Draw facing arrow (pointing from leader)
+        # GW1: 0=East, pi/2=North. Canvas: North=Up, East=Right.
+        arrow_len = touch_radius * 1.5
+        tip_x = cx + (math.cos(leader_angle) * arrow_len)
+        tip_y = cy - (math.sin(leader_angle) * arrow_len)
+        
+        # Arrow base width
+        base_angle_offset = 0.5 # radians
+        base_len = touch_radius * 0.8
+        base_L_x = cx + (math.cos(leader_angle - math.pi + base_angle_offset) * base_len)
+        base_L_y = cy - (math.sin(leader_angle - math.pi + base_angle_offset) * base_len)
+        base_R_x = cx + (math.cos(leader_angle - math.pi - base_angle_offset) * base_len)
+        base_R_y = cy - (math.sin(leader_angle - math.pi - base_angle_offset) * base_len)
+        
+        arrow_color = ColorPalette.GetColor("white").to_color()
+        PyImGui.draw_list_add_triangle_filled(tip_x, tip_y, base_L_x, base_L_y, base_R_x, base_R_y, arrow_color)
+        PyImGui.draw_list_add_triangle(tip_x, tip_y, base_L_x, base_L_y, base_R_x, base_R_y, ColorPalette.GetColor("black").to_color(), 1.0)
 
         # Area rings
         if settings.draw_area_rings:
@@ -873,28 +918,27 @@ def _draw_canvas(cached_data: CacheData):
         except Exception:
             pass
 
-        rot_angle = leader_angle - math.pi / 2
-        rot_cos = -math.cos(rot_angle)
-        rot_sin = -math.sin(rot_angle)
-
         follower_radius_px = (Range.Touch.value / 2) * settings.scale
 
         for i, fc in enumerate(settings.follower_configs):
             if i >= MAX_FOLLOWERS:
                 break
+            
+            if not fc.enabled:
+                continue
+            
             # Convert angle to local offset (0°=forward)
             angle_rad = Utils.DegToRad(fc.angle_deg)
+            world_angle = leader_angle + angle_rad
             effective_radius = fc.get_radius(settings.formation_radius)
-            local_x = effective_radius * math.sin(angle_rad)
-            local_y = effective_radius * math.cos(angle_rad)
 
-            # Rotate into world (same matrix as 3D overlay)
-            rot_x = (local_x * rot_cos) - (local_y * rot_sin)
-            rot_y = (local_x * rot_sin) + (local_y * rot_cos)
+            # Standard rotation mapping (consistent with LeaderUpdate)
+            rot_x = effective_radius * math.cos(world_angle)
+            rot_y = effective_radius * math.sin(world_angle)
 
-            # Map to canvas: flip both axes for correct game-to-screen mapping
+            # Map to canvas
             draw_x = cx + (rot_x * settings.scale)
-            draw_y = cy + (-rot_y * settings.scale)
+            draw_y = cy - (rot_y * settings.scale)
 
             color_fill = fc.color.copy()
             color_fill.set_a(120)
@@ -982,7 +1026,7 @@ def _draw_custom_formation(cached_data: CacheData):
             preset_changed = True
         PyImGui.same_line(0.0, 5.0)
         if PyImGui.button("V-Shape"):
-            v_angles = [30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180, -180]
+            v_angles = [30, -30, 60, -60, 90, -90, 120, -120]
             for i in range(n):
                 settings.follower_configs[i].angle_deg = float(v_angles[i % len(v_angles)])
             preset_changed = True
@@ -993,7 +1037,7 @@ def _draw_custom_formation(cached_data: CacheData):
             preset_changed = True
         PyImGui.same_line(0.0, 5.0)
         if PyImGui.button("Cluster"):
-            cluster = [0, 15, -15, 30, -30, 10, -10, 5, -5, 20, -20, 25]
+            cluster = [0, 15, -15, 30, -30, 10, -10, 5]
             for i in range(n):
                 settings.follower_configs[i].angle_deg = float(cluster[i % len(cluster)])
             preset_changed = True
@@ -1020,7 +1064,8 @@ def _draw_custom_formation(cached_data: CacheData):
             PyImGui.TableFlags.SizingStretchProp
         )
 
-        if PyImGui.begin_table("CustomFormationTable", 4, table_flags):
+        if PyImGui.begin_table("CustomFormationTable", 5, table_flags):
+            PyImGui.table_setup_column("Slot", PyImGui.TableColumnFlags.WidthFixed, 50)
             PyImGui.table_setup_column("Follower", PyImGui.TableColumnFlags.WidthFixed, 100)
             PyImGui.table_setup_column("Angle (°)", PyImGui.TableColumnFlags.WidthStretch)
             PyImGui.table_setup_column("Radius", PyImGui.TableColumnFlags.WidthFixed, 160)
@@ -1034,6 +1079,13 @@ def _draw_custom_formation(cached_data: CacheData):
                     break
 
                 PyImGui.table_next_row()
+
+                # Slot / Enable
+                PyImGui.table_next_column()
+                new_enabled = PyImGui.checkbox(f"#{i+1}", fc.enabled)
+                if new_enabled != fc.enabled:
+                    fc.enabled = new_enabled
+                    changed = True
 
                 # Follower name
                 PyImGui.table_next_column()
@@ -1183,18 +1235,19 @@ def _draw_3d_overlay(cached_data: CacheData):
     for i, fc in enumerate(settings.follower_configs):
         if i >= MAX_FOLLOWERS:
             break
+        
+        if not fc.enabled:
+            continue
+            
         # Convert angle to local offset (0°=forward)
         angle_rad = Utils.DegToRad(fc.angle_deg)
+        world_angle = leader_angle + angle_rad
         effective_radius = fc.get_radius(settings.formation_radius)
-        local_x = effective_radius * math.sin(angle_rad)
-        local_y = effective_radius * math.cos(angle_rad)
 
-        # Rotate into world using leader facing (same as reference)
-        rot_angle = leader_angle - math.pi / 2
-        rot_cos = -math.cos(rot_angle)
-        rot_sin = -math.sin(rot_angle)
-        rot_x = (local_x * rot_cos) - (local_y * rot_sin)
-        rot_y = (local_x * rot_sin) + (local_y * rot_cos)
+        # Rotate into world
+        rot_x = effective_radius * math.cos(world_angle)
+        rot_y = effective_radius * math.sin(world_angle)
+        
         world_x = player_x + rot_x
         world_y = player_y + rot_y
 
