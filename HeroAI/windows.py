@@ -14,6 +14,7 @@ from .types import SkillType, SkillNature, Skilltarget
 from .globals import capture_mouse_timer, show_area_rings, show_hero_follow_grid, show_distance_on_followers, hero_formation
 from .utils import IsHeroFlagged, DrawFlagAll, DrawHeroFlag, DistanceFromWaypoint, SameMapAsAccount
 from HeroAI.settings import Settings
+from HeroAI.following import draw_embedded_config, settings as follow_settings
 from Py4GWCoreLib.ImGui_src.Textures import ThemeTextures
 from Py4GWCoreLib.ImGui_src.types import StyleTheme, ControlAppearance
 
@@ -1755,11 +1756,58 @@ class HeroAI_Windows():
                 style.CellPadding.pop_style_var()
                 style.ItemSpacing.pop_style_var()
                 PyImGui.tree_pop()
+
+            PyImGui.separator()
+            if PyImGui.tree_node("Follow Module"):
+                style = ImGui.get_style()
+                style.ItemSpacing.push_style_var(2, 2)
+                style.CellPadding.push_style_var(2, 2)
+                
+                # Master Toggle
+                is_enabled = follow_settings.follow_enabled
+                new_enabled = PyImGui.checkbox("Enable Formation Logic", is_enabled)
+                if new_enabled != is_enabled:
+                    follow_settings.follow_enabled = new_enabled
+                    HeroAI_FloatingWindows.settings.save_settings() # Triggers save for all modules if they share ini logic, or we need specific save
+                    # The follow module has its own _save_settings logic triggered by UI changes usually.
+                    # We might need to manually trigger a save or rely on the next loop.
+                    # For now, let's assume the follow module handles its own state or we trigger it.
+                    # Actually, following.py saves when things change in its own UI. 
+                    # We should probably expose a save method or just let it be. 
+                    # Wait, following.py uses a local _save_settings. We can't easily call it.
+                    # But we updated the value in the object. 
+                    # Let's force a save by dirtying it? 
+                    # following.py settings auto-save in its draw functions. 
+                    # We'll rely on draw_embedded_config to handle internal saves, 
+                    # but for this toggle we might need to be careful. 
+                    # Let's just set it. The embedded config will likely save on its own interactions.
+                    from HeroAI.following import _save_settings as follow_save
+                    follow_save()
+                
+                if not follow_settings.follow_enabled:
+                    ImGui.text_colored("Formation logic is DISABLED.", (1.0, 0.0, 0.0, 1.0))
+                else:
+                    ImGui.text_colored("Formation logic is ENABLED.", (0.0, 1.0, 0.0, 1.0))
+                    
+                PyImGui.separator()
+                
+                # Refactor: Button to open separate window instead of embedding
+                btn_text = "Close Configuration Window" if follow_settings.show_config_window else "Open Configuration Window"
+                if PyImGui.button(btn_text):
+                    follow_settings.show_config_window = not follow_settings.show_config_window
+                    
+                if follow_settings.show_config_window:
+                    ImGui.text_colored("Window is OPEN", (0.0, 1.0, 0.0, 1.0))
+                
+                style.CellPadding.pop_style_var()
+                style.ItemSpacing.pop_style_var()
+                PyImGui.tree_pop()
                 
         ImGui.End(cached_data.ini_key)
 
     @staticmethod
     def DrawAdvancedPathingOptions(cached_data:CacheData):
+        # Settings for Advanced Pathing & Unstuck module
         adv_pathing = HeroAI_FloatingWindows.settings.advanced_pathing_enabled
         new_adv_pathing = PyImGui.checkbox("Enable Advanced Pathing & Unstuck", adv_pathing)
         if new_adv_pathing != adv_pathing:

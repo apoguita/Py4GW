@@ -97,6 +97,7 @@ class FollowModuleSettings:
         self.follow_distance_ooc: float = FOLLOW_DISTANCE_OUT_OF_COMBAT
         self.follow_distance_combat: float = MELEE_RANGE_VALUE
         self.confirm_follow_point: bool = False
+        self.follow_enabled: bool = True
 
         # Per-follower angle configs (index = party slot)
         self.follower_configs: list[FollowerConfig] = []
@@ -123,7 +124,7 @@ class FollowModuleSettings:
         ]
 
         # UI state
-        self.show_config_window: bool = True
+        self.show_config_window: bool = False
 
 
 settings = FollowModuleSettings()
@@ -152,6 +153,8 @@ def _save_settings():
     ini.write_key(_ini_key, "Formation", "DistanceCombat", settings.follow_distance_combat)
     ini.write_key(_ini_key, "Formation", "ConfirmFollowPoint", settings.confirm_follow_point)
 
+    ini.write_key(_ini_key, "Formation", "FollowEnabled", settings.follow_enabled)
+    
     # Per-follower angles
     for i, fc in enumerate(settings.follower_configs):
         ini.write_key(_ini_key, "Followers", f"Angle_{i}", fc.angle_deg)
@@ -174,7 +177,8 @@ def _load_settings():
     settings.follow_distance_ooc = ini.read_float(_ini_key, "Formation", "DistanceOOC", FOLLOW_DISTANCE_OUT_OF_COMBAT)
     settings.follow_distance_combat = ini.read_float(_ini_key, "Formation", "DistanceCombat", MELEE_RANGE_VALUE)
     settings.confirm_follow_point = ini.read_bool(_ini_key, "Formation", "ConfirmFollowPoint", False)
-
+    settings.follow_enabled = ini.read_bool(_ini_key, "Formation", "FollowEnabled", True)
+    
     for i, fc in enumerate(settings.follower_configs):
         fc.angle_deg = ini.read_float(_ini_key, "Followers", f"Angle_{i}", fc.angle_deg)
         fc.radius = ini.read_float(_ini_key, "Followers", f"Radius_{i}", fc.radius)
@@ -221,13 +225,17 @@ def reset_map_quads():
 def LeaderUpdate(cached_data: CacheData):
     """
     Run on the leader's client each tick.
-    Calculates formation positions for every follower and writes
     them to shared memory via HeroAIOptionStruct.FollowPos.
     """
+    _ensure_ini()
+    
+    if not settings.follow_enabled:
+        return
+
     leader_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
     if Player.GetAgentID() != leader_id:
         return  # not leader
-
+    
     leader_x, leader_y = Agent.GetXY(leader_id)
     leader_angle = Agent.GetRotationAngle(leader_id)
 
@@ -740,6 +748,51 @@ def Follow(cached_data: CacheData) -> bool:
             
     return False
 
+    return False
+
+
+def draw_embedded_config(cached_data: CacheData):
+    """
+    Renders the follow configuration UI logic without creating a new window.
+    Designed to be embedded within the main Control Panel.
+    """
+    _ensure_ini()
+    
+    # Master Toggle handled by caller (windows.py), but we enable inner logic here
+    
+    if settings.show_canvas:
+        # If canvas is shown, we might need a child window or just columns if space permits.
+        # Given it's inside a tree node, columns are best.
+        
+        # Calculate available width to decide layout? 
+        # For now, simplistic column approach similar to standalone.
+        table_flags = (
+            PyImGui.TableFlags.Borders |
+            PyImGui.TableFlags.SizingStretchProp
+        )
+        
+        if PyImGui.begin_table("EmbeddedFollowTable", 2, table_flags):
+            PyImGui.table_setup_column("Canvas", PyImGui.TableColumnFlags.WidthFixed, settings.canvas_size[0] + 20)
+            PyImGui.table_setup_column("Settings", PyImGui.TableColumnFlags.WidthStretch)
+            
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            _draw_canvas(cached_data)
+            
+            PyImGui.table_next_column()
+            _draw_formation_settings()
+            _draw_custom_formation(cached_data)
+            _draw_canvas_settings()
+            _draw_ring_settings()
+            
+            PyImGui.end_table()
+    else:
+        # No canvas, just settings list
+        _draw_formation_settings()
+        _draw_custom_formation(cached_data)
+        _draw_canvas_settings()
+        _draw_ring_settings()
+
 
 # ─────────────────────────────────────────────
 # LEADER CONFIG WINDOW — UI (leader-only)
@@ -769,7 +822,7 @@ def draw_follow_config(cached_data: CacheData):
     )
 
     visible, settings.show_config_window = PyImGui.begin_with_close(
-        "Follow Module — Leader Config", settings.show_config_window, 0
+        "Follow Module - Leader Config", settings.show_config_window, 0
     )
 
     if visible:
@@ -821,138 +874,128 @@ def draw_follow_config(cached_data: CacheData):
 # ─────────────────────────────────────────────
 def _draw_canvas(cached_data: CacheData):
     """Draw the 2D radar-style canvas with area rings and follower positions."""
-    child_flags = (
-        PyImGui.WindowFlags.NoTitleBar |
-        PyImGui.WindowFlags.NoResize |
-        PyImGui.WindowFlags.NoMove
-    )
+    # Manual setup
+    canvas_w, canvas_h = settings.canvas_size
+    canvas_pos = PyImGui.get_cursor_screen_pos()
+    
+    # ── Manual Canvas Setup ──
+    # Note: PyImGui static methods draw to the current window's draw list.
+    # We cannot clip manually as push_clip_rect is not exposed.
+    
+    # Background
+    PyImGui.draw_list_add_rect_filled(canvas_pos[0], canvas_pos[1], canvas_pos[0]+canvas_w, canvas_pos[1]+canvas_h, Color(0,0,0,100).to_color(), 0.0, 0)
+    # Border
+    PyImGui.draw_list_add_rect(canvas_pos[0], canvas_pos[1], canvas_pos[0]+canvas_w, canvas_pos[1]+canvas_h, Color(255,255,255,100).to_color(), 0.0, 0, 1.0)
+    
+    cx = canvas_pos[0] + canvas_w / 2
+    cy = canvas_pos[1] + canvas_h / 2
 
-    if PyImGui.begin_child("FollowCanvas", settings.canvas_size, True, child_flags):
-        canvas_pos = PyImGui.get_cursor_screen_pos()
-        cx = canvas_pos[0] + settings.canvas_size[0] / 2
-        cy = canvas_pos[1] + settings.canvas_size[1] / 2
+    # Grid
+    grid_color = ColorPalette.GetColor("gray").copy()
+    grid_color.set_a(80)
+    grid_step = (Range.Touch.value / 2) * settings.scale
 
-        # Grid
-        grid_color = ColorPalette.GetColor("gray").copy()
-        grid_color.set_a(80)
-        grid_step = (Range.Touch.value / 2) * settings.scale
+    canvas_x, canvas_y = canvas_pos
+    left, right = canvas_x, canvas_x + canvas_w
+    top, bottom = canvas_y, canvas_y + canvas_h
 
-        canvas_x, canvas_y = canvas_pos
-        canvas_w, canvas_h = settings.canvas_size
-        left, right = canvas_x, canvas_x + canvas_w
-        top, bottom = canvas_y, canvas_y + canvas_h
-
-        x = cx
-        while x <= right:
-            PyImGui.draw_list_add_line(x, top, x, bottom, grid_color.to_color(), 1)
-            x += grid_step
-        x = cx - grid_step
-        while x >= left:
-            PyImGui.draw_list_add_line(x, top, x, bottom, grid_color.to_color(), 1)
-            x -= grid_step
-        y = cy
-        while y <= bottom:
-            PyImGui.draw_list_add_line(left, y, right, y, grid_color.to_color(), 1)
-            y += grid_step
-        y = cy - grid_step
-        while y >= top:
-            PyImGui.draw_list_add_line(left, y, right, y, grid_color.to_color(), 1)
-            y -= grid_step
+    x = cx
+    while x <= right:
+        PyImGui.draw_list_add_line(x, top, x, bottom, grid_color.to_color(), 1.0)
+        x += grid_step
+    x = cx - grid_step
+    while x >= left:
+        PyImGui.draw_list_add_line(x, top, x, bottom, grid_color.to_color(), 1.0)
+        x -= grid_step
+    y = cy
+    while y <= bottom:
+        PyImGui.draw_list_add_line(left, y, right, y, grid_color.to_color(), 1.0)
+        y += grid_step
+    y = cy - grid_step
+    while y >= top:
+        PyImGui.draw_list_add_line(left, y, right, y, grid_color.to_color(), 1.0)
+        y -= grid_step
 
         # Cardinal Directions (N, S, E, W)
-        text_color = ColorPalette.GetColor("gold").to_color()
-        # North (Top)
-        PyImGui.draw_list_add_text(cx - 5, top + 15, text_color, "N")
-        # South (Bottom)
-        PyImGui.draw_list_add_text(cx - 5, bottom - 30, text_color, "S")
-        # East (Right)
-        PyImGui.draw_list_add_text(right - 30, cy - 7, text_color, "E")
-        # West (Left)
-        PyImGui.draw_list_add_text(left + 20, cy - 7, text_color, "W")
+    # Cardinal Directions (N, S, E, W)
+    text_color = ColorPalette.GetColor("gold").to_color()
+    PyImGui.draw_list_add_text(cx - 5, top + 15, text_color, "N")
+    PyImGui.draw_list_add_text(cx - 5, bottom - 30, text_color, "S")
+    PyImGui.draw_list_add_text(right - 30, cy - 7, text_color, "E")
+    PyImGui.draw_list_add_text(left + 20, cy - 7, text_color, "W")
 
-        # Center marker (leader position)
-        touch_color = settings.area_rings[0].color.copy()
-        touch_color.set_a(100)
-        touch_radius = settings.area_rings[0].radius * settings.scale
-        PyImGui.draw_list_add_circle_filled(cx, cy, touch_radius, touch_color.to_color(), 64)
+    # Center marker (leader position)
+    touch_color = settings.area_rings[0].color.copy()
+    touch_color.set_a(100)
+    touch_radius = settings.area_rings[0].radius * settings.scale
+    PyImGui.draw_list_add_circle_filled(cx, cy, touch_radius, touch_color.to_color(), 64)
 
-        # Facing Arrow for Leader
-        leader_angle = 0.0
-        try:
-            leader_angle = Agent.GetRotationAngle(Player.GetAgentID())
-        except Exception:
-            pass
+    # Facing Arrow for Leader
+    leader_angle = 0.0
+    try:
+        leader_angle = Agent.GetRotationAngle(Player.GetAgentID())
+    except Exception:
+        pass
+    
+    arrow_len = touch_radius * 1.5
+    tip_x = cx + (math.cos(leader_angle) * arrow_len)
+    tip_y = cy - (math.sin(leader_angle) * arrow_len)
+    
+    base_angle_offset = 0.5 
+    base_len = touch_radius * 0.8
+    base_L_x = cx + (math.cos(leader_angle - math.pi + base_angle_offset) * base_len)
+    base_L_y = cy - (math.sin(leader_angle - math.pi + base_angle_offset) * base_len)
+    base_R_x = cx + (math.cos(leader_angle - math.pi - base_angle_offset) * base_len)
+    base_R_y = cy - (math.sin(leader_angle - math.pi - base_angle_offset) * base_len)
+    
+    arrow_color = ColorPalette.GetColor("white").to_color()
+    PyImGui.draw_list_add_triangle_filled(tip_x, tip_y, base_L_x, base_L_y, base_R_x, base_R_y, arrow_color)
+    PyImGui.draw_list_add_triangle(tip_x, tip_y, base_L_x, base_L_y, base_R_x, base_R_y, ColorPalette.GetColor("black").to_color(), 1.0)
+
+    # Area rings
+    if settings.draw_area_rings:
+        for ring in settings.area_rings:
+            if ring.show:
+                PyImGui.draw_list_add_circle(
+                    cx, cy,
+                    ring.radius * settings.scale,
+                    ring.color.to_color(), 32, float(ring.thickness)
+                )
+
+    # Follower formation points
+    follower_radius_px = (Range.Touch.value / 2) * settings.scale
+
+    for i, fc in enumerate(settings.follower_configs):
+        if i >= MAX_FOLLOWERS:
+            break
         
-        # Draw facing arrow (pointing from leader)
-        # GW1: 0=East, pi/2=North. Canvas: North=Up, East=Right.
-        arrow_len = touch_radius * 1.5
-        tip_x = cx + (math.cos(leader_angle) * arrow_len)
-        tip_y = cy - (math.sin(leader_angle) * arrow_len)
+        if not fc.enabled:
+            continue
         
-        # Arrow base width
-        base_angle_offset = 0.5 # radians
-        base_len = touch_radius * 0.8
-        base_L_x = cx + (math.cos(leader_angle - math.pi + base_angle_offset) * base_len)
-        base_L_y = cy - (math.sin(leader_angle - math.pi + base_angle_offset) * base_len)
-        base_R_x = cx + (math.cos(leader_angle - math.pi - base_angle_offset) * base_len)
-        base_R_y = cy - (math.sin(leader_angle - math.pi - base_angle_offset) * base_len)
-        
-        arrow_color = ColorPalette.GetColor("white").to_color()
-        PyImGui.draw_list_add_triangle_filled(tip_x, tip_y, base_L_x, base_L_y, base_R_x, base_R_y, arrow_color)
-        PyImGui.draw_list_add_triangle(tip_x, tip_y, base_L_x, base_L_y, base_R_x, base_R_y, ColorPalette.GetColor("black").to_color(), 1.0)
+        angle_rad = Utils.DegToRad(fc.angle_deg)
+        world_angle = leader_angle + angle_rad
+        effective_radius = fc.get_radius(settings.formation_radius)
 
-        # Area rings
-        if settings.draw_area_rings:
-            for ring in settings.area_rings:
-                if ring.show:
-                    PyImGui.draw_list_add_circle(
-                        cx, cy,
-                        ring.radius * settings.scale,
-                        ring.color.to_color(), 32, ring.thickness
-                    )
+        rot_x = effective_radius * math.cos(world_angle)
+        rot_y = effective_radius * math.sin(world_angle)
 
-        # Follower formation points (real-time, rotated by player heading)
-        leader_angle = 0.0
-        try:
-            leader_angle = Agent.GetRotationAngle(Player.GetAgentID())
-        except Exception:
-            pass
+        draw_x = cx + (rot_x * settings.scale)
+        draw_y = cy - (rot_y * settings.scale)
 
-        follower_radius_px = (Range.Touch.value / 2) * settings.scale
+        color_fill = fc.color.copy()
+        color_fill.set_a(120)
 
-        for i, fc in enumerate(settings.follower_configs):
-            if i >= MAX_FOLLOWERS:
-                break
-            
-            if not fc.enabled:
-                continue
-            
-            # Convert angle to local offset (0°=forward)
-            angle_rad = Utils.DegToRad(fc.angle_deg)
-            world_angle = leader_angle + angle_rad
-            effective_radius = fc.get_radius(settings.formation_radius)
+        PyImGui.draw_list_add_circle_filled(
+            draw_x, draw_y, follower_radius_px,
+            color_fill.to_color(), 32
+        )
+        PyImGui.draw_list_add_circle(
+            draw_x, draw_y, follower_radius_px,
+            fc.color.to_color(), 32, 2.0
+        )
 
-            # Standard rotation mapping (consistent with LeaderUpdate)
-            rot_x = effective_radius * math.cos(world_angle)
-            rot_y = effective_radius * math.sin(world_angle)
-
-            # Map to canvas
-            draw_x = cx + (rot_x * settings.scale)
-            draw_y = cy - (rot_y * settings.scale)
-
-            color_fill = fc.color.copy()
-            color_fill.set_a(120)
-
-            PyImGui.draw_list_add_circle_filled(
-                draw_x, draw_y, follower_radius_px,
-                color_fill.to_color(), 32
-            )
-            PyImGui.draw_list_add_circle(
-                draw_x, draw_y, follower_radius_px,
-                fc.color.to_color(), 32, 2
-            )
-
-        PyImGui.end_child()
+    # Advance cursor to reserve the space we just drew on
+    PyImGui.dummy(settings.canvas_size[0], settings.canvas_size[1])
 
 
 # ─────────────────────────────────────────────

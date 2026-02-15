@@ -199,8 +199,8 @@ def handle_UI (cached_data: CacheData):
         
     HeroAI_FloatingWindows.show_ui(cached_data)
     
-    # Leader-only follow config window
-    draw_follow_config(cached_data)
+    # Leader-only follow config window (Now embedded in Control Panel)
+    draw_follow_config(cached_data) 
    
 def initialize(cached_data: CacheData) -> bool:  
     if not Routines.Checks.Map.MapValid():
