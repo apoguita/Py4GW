@@ -39,6 +39,7 @@ LIST_FIELDS = {"WeaponSpellList", "EnchantmentList", "HexList", "ChantList", "Ca
 _TARGET_OPTIONS: tuple[Skilltarget, ...] = tuple(sorted(Skilltarget, key=lambda option: option.value))
 _CONDITION_OPTIONS: tuple[str, ...] = tuple(sorted(DEFAULT_CONDITION_VALUES.keys(), key=lambda name: name.lower()))
 _ACTIVE_STATE_COLOR = (0.3, 0.9, 0.4, 1.0)
+_SKILL_SOURCE_INDEX: dict = {}
 
 
 class ConditionSummary:
@@ -309,7 +310,7 @@ def _lookup_special_rule(skill_id: int, store: dict[str, str]) -> Optional[str]:
 def _persist_skill_target(skill_id: int, target_enum: Skilltarget) -> tuple[bool, str]:
 	location = _SKILL_SOURCE_INDEX.get(skill_id)
 	if location is None:
-		return False, "No source file found for this skill."
+		return False, "Skill source modification is not yet supported."
 	try:
 		original_text = location.path.read_text(encoding="utf-8")
 	except OSError as exc:
