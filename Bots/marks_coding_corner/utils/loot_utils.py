@@ -140,6 +140,8 @@ def move_all_crafting_materials_to_storage():
 
 def set_autoloot_options_for_custom_bots(salvage_golds=False, module_active=False):
     ''' We use autohandler for most of the bots, this sets the autoloot ini to correspond to correct bot'''
+    return
+
 
     auto_inventory_handler = AutoInventoryHandler()
     ini = auto_inventory_handler.ini
