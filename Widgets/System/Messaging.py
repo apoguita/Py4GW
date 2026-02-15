@@ -6,7 +6,7 @@ import Py4GW
 import PyUIManager
 
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects
+from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects, Party
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import Console
@@ -20,7 +20,6 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
-from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
@@ -791,7 +790,7 @@ def OpenChest(index, message):
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
-                def on_same_map_and_party(account : AccountStruct) -> bool:                    
+                def on_same_map_and_party(account) -> bool:                    
                     return (account.PartyID == party_id and
                             account.MapID == map_id and
                             account.MapRegion == map_region and
@@ -1187,6 +1186,7 @@ def UseItem(index, message):
         
         ini_handler = IniHandler(ini_path)
         opt_in = ini_handler.read_bool("Pycons", "team_consume_opt_in", False)
+        receiver_require_enabled = ini_handler.read_bool("Pycons", "mbdp_receiver_require_enabled", True)
         ConsoleLog(MODULE_NAME, f"UseItem: team_consume_opt_in setting read as: {opt_in}", Console.MessageType.Info)
         if not opt_in:
             ConsoleLog(MODULE_NAME, "UseItem: team_consume_opt_in is disabled, ignoring broadcast.", Console.MessageType.Info)
@@ -1194,6 +1194,49 @@ def UseItem(index, message):
             return
     except Exception as e:
         ConsoleLog(MODULE_NAME, f"UseItem: failed to read team_consume_opt_in setting: {e}", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    # Sender must be in the same live party/map, and sender character must appear in current party roster.
+    try:
+        sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+        receiver_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.ReceiverEmail)
+        if not sender_data or not receiver_data:
+            ConsoleLog(MODULE_NAME, "UseItem: missing sender/receiver shared data, ignoring.", Console.MessageType.Info)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+
+        same_party = (
+            int(getattr(sender_data, "PartyID", 0) or 0) > 0 and
+            int(getattr(sender_data, "PartyID", 0) or 0) == int(getattr(receiver_data, "PartyID", 0) or 0) and
+            int(getattr(sender_data, "MapID", 0) or 0) == int(getattr(receiver_data, "MapID", 0) or 0) and
+            int(getattr(sender_data, "MapRegion", 0) or 0) == int(getattr(receiver_data, "MapRegion", 0) or 0) and
+            int(getattr(sender_data, "MapDistrict", 0) or 0) == int(getattr(receiver_data, "MapDistrict", 0) or 0) and
+            int(getattr(sender_data, "MapLanguage", 0) or 0) == int(getattr(receiver_data, "MapLanguage", 0) or 0)
+        )
+        if not same_party:
+            ConsoleLog(MODULE_NAME, "UseItem: sender is not in same party/map, ignoring.", Console.MessageType.Info)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+
+        sender_name_norm = " ".join(str(getattr(sender_data, "CharacterName", "") or "").strip().lower().split())
+        roster_names = set()
+        for p in Party.GetPlayers() or []:
+            try:
+                ln = int(getattr(p, "login_number", 0) or 0)
+                if ln <= 0:
+                    continue
+                nm = str(Party.Players.GetPlayerNameByLoginNumber(ln) or "")
+                if nm:
+                    roster_names.add(" ".join(nm.strip().lower().split()))
+            except Exception:
+                continue
+        if sender_name_norm and sender_name_norm not in roster_names:
+            ConsoleLog(MODULE_NAME, "UseItem: sender character not present in current party roster, ignoring.", Console.MessageType.Info)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+    except Exception as e:
+        ConsoleLog(MODULE_NAME, f"UseItem: failed same-party sender check: {e}", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -1213,6 +1256,41 @@ def UseItem(index, message):
         ConsoleLog(MODULE_NAME, "UseItem: invalid model_id.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
+
+    # Optional local safety: for MB/DP items, require local selected+enabled in Pycons settings.
+    if bool(receiver_require_enabled):
+        try:
+            def _model_id_value(name: str, default: int = 0) -> int:
+                obj = getattr(ModelID, name, None)
+                if obj is None:
+                    return int(default)
+                return int(getattr(obj, "value", obj))
+
+            mbdp_models = {
+                _model_id_value("Pumpkin_Cookie"): "pumpkin_cookie",
+                _model_id_value("Seal_Of_The_Dragon_Empire"): "seal_of_the_dragon_empire",
+                _model_id_value("Honeycomb", _model_id_value("Honeycomb", 0)): "honeycomb",
+                _model_id_value("Rainbow_Candy_Cane"): "rainbow_candy_cane",
+                _model_id_value("Elixir_Of_Valor"): "elixir_of_valor",
+                _model_id_value("Powerstone_Of_Courage"): "powerstone_of_courage",
+                _model_id_value("Refined_Jelly"): "refined_jelly",
+                _model_id_value("Shining_Blade_Rations"): "shining_blade_rations",
+                _model_id_value("Wintergreen_Candy_Cane"): "wintergreen_candy_cane",
+                _model_id_value("Peppermint_Candy_Cane"): "peppermint_candy_cane",
+                _model_id_value("Four_Leaf_Clover"): "four_leaf_clover",
+                _model_id_value("Oath_Of_Purity"): "oath_of_purity",
+            }
+            mbdp_models = {mid: key for mid, key in mbdp_models.items() if int(mid) > 0}
+            local_key = mbdp_models.get(int(model_id))
+            if local_key:
+                if not ini_handler.read_bool("Pycons", f"selected_{local_key}", False) or not ini_handler.read_bool("Pycons", f"enabled_{local_key}", False):
+                    ConsoleLog(MODULE_NAME, f"UseItem: local MB/DP item '{local_key}' is not selected+enabled, ignoring.", Console.MessageType.Info)
+                    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+                    return
+        except Exception as e:
+            ConsoleLog(MODULE_NAME, f"UseItem: local enabled-check failed: {e}", Console.MessageType.Warning)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
 
     repeat = 1
     if len(message.Params) > 1:
