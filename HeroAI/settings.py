@@ -249,7 +249,7 @@ class Settings:
             
             if mtime > self.last_ini_mtime:
                 self.last_ini_mtime = mtime # Sync timestamp BEFORE loading to stop loop
-                self.load_settings()
+                self.load_settings(silent=True)
                 # ConsoleLog("HeroAI", "Settings reloaded from disk.", Py4GW.Console.MessageType.Info)
         except Exception as e:
             pass
@@ -324,8 +324,8 @@ class Settings:
             
         self.save_requested = False
         
-    def load_settings(self):          
-        ConsoleLog("HeroAI", "Loading HeroAI settings...")      
+    def load_settings(self, silent=False):          
+        if not silent: ConsoleLog("HeroAI", "Loading HeroAI settings...")      
         # Save old state of save_requested to prevent loops
         old_save_requested = self.save_requested
         self.save_requested = False 
@@ -392,7 +392,7 @@ class Settings:
             if os.path.exists(self.ini_path):
                 self.last_ini_mtime = os.path.getmtime(self.ini_path)
             
-            ConsoleLog("HeroAI", "HeroAI settings loaded successfully.", Console.MessageType.Info)
+            if not silent: ConsoleLog("HeroAI", "HeroAI settings loaded successfully.", Console.MessageType.Info)
 
         except Exception as e:
             ConsoleLog("HeroAI", f"Error loading HeroAI settings: {e}", Console.MessageType.Error)

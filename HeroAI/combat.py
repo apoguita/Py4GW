@@ -1,5 +1,5 @@
 import Py4GW
-from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray
+from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray, Utils, CombatEvents, ConsoleLog, ThrottledTimer
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from .custom_skill import CustomSkillClass
@@ -50,6 +50,7 @@ class CombatClass:
         self.aftercast = 0
         self.aftercast_timer = Timer()
         self.aftercast_timer.Start()
+        self.movement_throttle_timer = ThrottledTimer(250)
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget = 0
         
@@ -125,6 +126,7 @@ class CombatClass:
         self.junundu_tunnel = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
         
     def Update(self, cached_data):
+        self.cached_data = cached_data
         self.in_aggro = cached_data.data.in_aggro
         
         self.fast_casting_exists = cached_data.data.fast_casting_exists
@@ -305,13 +307,30 @@ class CombatClass:
         if not GLOBAL_CACHE.Party.IsPartyLoaded():
             return 0
 
+        # 1. Called Target (Ctrl+Click) - retrieved from Local Client Memory (flawless sync not guaranteed but safe)
         players = GLOBAL_CACHE.Party.GetPlayers()
-        target = players[0].called_target_id
+        if players:
+            target = players[0].called_target_id
+            if Agent.IsValid(target) and Agent.IsLiving(target):
+                 _, alleg = Agent.GetAllegiance(target)
+                 if alleg == "Enemy":
+                     return target
+        
+        # 2. Sync: Leader's current selected target from Shared Memory (Fastest)
+        leader_acc = self.cached_data.party.get_by_party_pos(0)
+        
+        if leader_acc and leader_acc.PlayerID != 0:
+            # Leader's Selected Target
+            target = leader_acc.PlayerTargetID
+            if Agent.IsValid(target) and Agent.IsLiving(target):
+                _, alleg = Agent.GetAllegiance(target)
+                if alleg == "Enemy":
+                    return target
+            
 
-        if Agent.IsValid(target):
-            return target  
         
         return 0 
+ 
 
     def SafeChangeTarget(self, target_id):
         if Agent.IsValid(target_id):
@@ -325,18 +344,113 @@ class CombatClass:
 
     def GetPartyTarget(self):
         party_target = self.GetPartyTargetID()
-        if self.is_targeting_enabled and party_target != 0:
+        if party_target != 0:
             current_target = Player.GetTargetID()
             if current_target != party_target:
-                if Agent.IsLiving(party_target):
-                    _, alliegeance = Agent.GetAllegiance(party_target)
-                    if alliegeance != 'Ally' and alliegeance != 'NPC/Minipet' and self.is_combat_enabled:
-                        self.SafeChangeTarget(party_target)
-                        return party_target
+                 self.SafeChangeTarget(party_target)
+                 return party_target
         return 0
 
     def get_combat_distance(self):
-        return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
+        # Reduced from 5000.0 to 2800.0 to match Engagement Limit.
+        # This prevents "Generic" selectors (like GetNearestEnemyCaster) from picking targets 
+        # that we are not allowed to charge towards.
+        return 2800.0 if self.in_aggro else Range.Earshot.value
+
+    def GetWeaponRange(self, agent_id):
+        """
+        Returns the effective range of the agent's equipped weapon.
+        """
+        from .constants import MELEE_RANGE_VALUE, RANGED_RANGE_VALUE
+        from Py4GWCoreLib.enums import Weapon
+        
+        # Get the specific weapon type (Enum) from the agent
+        weapon_type = Agent.GetWeaponType(agent_id)
+        
+        # Ranges:
+        # Melee: Axe, Hammer, Daggers, Scythe, Sword
+        # Ranged: Bow, Spear
+        # Caster: Scepter, Wand, Staff (Use Spellcast range)
+        
+        if weapon_type in [Weapon.Axe, Weapon.Hammer, Weapon.Daggers, Weapon.Scythe, Weapon.Sword]:
+            return MELEE_RANGE_VALUE
+            
+        elif weapon_type in [Weapon.Bow, Weapon.Spear]:
+            return RANGED_RANGE_VALUE
+            
+        elif weapon_type in [Weapon.Scepter, Weapon.Scepter2, Weapon.Wand, Weapon.Staff, Weapon.Staff1, Weapon.Staff2, Weapon.Staff3]:
+             return Range.Spellcast.value # 1248.0
+             
+        # Fallback based on broader categories if exact type fails
+        if Agent.IsMelee(agent_id):
+            return MELEE_RANGE_VALUE
+        elif Agent.IsRanged(agent_id):
+            return RANGED_RANGE_VALUE
+            
+        return Range.Spellcast.value 
+
+    # def StopMovement(self):
+    #     """
+    #     Stops the character's movement by tapping the backward key.
+    #     This is necessary because Player.Move() is "sticky".
+    #     """
+    #     from Py4GWCoreLib.enums import Key
+    #     import PyKeystroke
+        
+    #     # Create a keystroke instance
+    #     keystroke = PyKeystroke.PyScanCodeKeystroke()
+        
+    #     # Tap 'S' (Backward) very briefly to break movement
+    #     # We use PushKey for a single frame press/release usually, or explicit Press/Release
+    #     keystroke.PushKey(Key.S.value) 
+
+    def is_valid_defensive_target(self, agent_id):
+        """
+        An enemy is a valid target ONLY if:
+        1. It is within Earshot (1000u) range.
+        2. OR it is within Compass (3500u) range AND it is actively attacking a party member.
+        """
+        if agent_id == 0: return False
+        
+        my_pos = Agent.GetXY(Player.GetAgentID())
+        target_pos = Agent.GetXY(agent_id)
+        dist = Utils.Distance(my_pos, target_pos)
+        
+        # Rule 1: Nearby is always valid
+        if dist <= Range.Earshot.value:
+            # ConsoleLog("HeroAI", f"Target {agent_id} valid: Nearby ({int(dist)})") # Too noisy
+            return True
+            
+        # Rule 2: Compass range checks (3500u)
+        if dist <= Range.Compass.value:
+            # Threat check: Enemy is attacking/casting at a party member
+            target_of_enemy = CombatEvents.get_cast_target(agent_id) or CombatEvents.get_attack_target(agent_id)
+            if target_of_enemy != 0:
+                party_member_ids = AgentArray.GetAllyArray()
+                if target_of_enemy in party_member_ids:
+                    ConsoleLog("HeroAI", f"Target {agent_id} valid: Attacking Party ({int(dist)})")
+                    return True
+            
+        # Rule 3: Offensive Sync (Global range for party support)
+        # If ANY party member is attacking this specific enemy, we assist regardless of distance
+        # We check both local client actions AND shared memory actions for maximum reliability
+        party_member_ids = AgentArray.GetAllyArray()
+        for member_id in party_member_ids:
+            # Check local client action (best for immediate neighbors)
+            if Agent.IsAttacking(member_id) or Agent.IsCasting(member_id):
+                party_target = CombatEvents.get_cast_target(member_id) or CombatEvents.get_attack_target(member_id)
+                if party_target == agent_id:
+                    ConsoleLog("HeroAI", f"Target {agent_id} valid: Locally Assisting {member_id} ({int(dist)})")
+                    return True
+                    
+        # Check Shared Memory states (best for cross-client sync during auto-attacks)
+        for acc in self.cached_data.party:
+            if acc.IsSlotActive and (acc.PlayerData.AgentData.Is_Attacking or acc.PlayerData.AgentData.Is_Casting):
+                if acc.PlayerTargetID == agent_id:
+                     ConsoleLog("HeroAI", f"Target {agent_id} valid: Sync Assisting {acc.PlayerID} ({int(dist)})")
+                     return True
+                    
+        return False
 
     def GetAppropiateTarget(self, slot):
         v_target = 0
@@ -362,6 +476,10 @@ class CombatClass:
                     
                 if not _nearest_enemy:
                     _nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+                
+                # FINAL Defensive Filter: If it's not a valid defensive target, discard it
+                if _nearest_enemy != 0 and not self.is_valid_defensive_target(_nearest_enemy):
+                    _nearest_enemy = 0
             return _nearest_enemy
 
         _lowest_ally = None
@@ -494,7 +612,10 @@ class CombatClass:
         return v_target
 
     def GetSmartTarget(self):
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(0, 0, self.get_combat_distance())
+        # Smart Target looks further (5000) to find the Leader's target,
+        # but uses scoring to reject distant non-leader targets.
+        search_range = 5000.0 if self.in_aggro else Range.Earshot.value
+        enemy_array = Routines.Agents.GetFilteredEnemyArray(0, 0, search_range)
         if not enemy_array:
             return 0
 
@@ -508,6 +629,10 @@ class CombatClass:
         for agent_id in enemy_array:
             if not Agent.IsAlive(agent_id):
                 continue
+            
+            # Filter: Is this a valid defensive target?
+            if not self.is_valid_defensive_target(agent_id):
+                continue
                 
             score = 0.0
             
@@ -516,7 +641,7 @@ class CombatClass:
             score += (1.0 - health_pct) * 50.0
             
             # 2. Profession Score (0-100 pts)
-            prof, _ = Agent.GetProfession(agent_id)
+            prof, _ = Agent.GetProfessionNames(agent_id)
             if prof == "Monk" or prof == "Ritualist":
                 score += 100.0
             elif prof == "Mesmer" or prof == "Elementalist" or prof == "Necromancer":
@@ -526,9 +651,44 @@ class CombatClass:
             dist = Utils.Distance(my_pos, Agent.GetXY(agent_id))
             score -= dist * 0.01  # -10 pts per 1000 units
             
-            # 4. Stickiness (Hysteresis)
+            # 3b. Leader "Danger Zone" Bonus (Protect the Leader!)
+            # If enemy is within 1250 units of the LEADER, give a big bonus.
+            # This ensures we clear the area around the leader first.
+            leader_acc = self.cached_data.party.get_by_party_pos(0)
+            if leader_acc and leader_acc.PlayerID != 0:
+                 leader_pos = Agent.GetXY(leader_acc.PlayerID)
+                 dist_to_leader = Utils.Distance(leader_pos, Agent.GetXY(agent_id))
+                 if dist_to_leader < 1250.0:
+                     score += 1000.0
+            
+            # 3c. Party "Danger Zone" Bonus (Protect the Team)
+            # If enemy is within 1250 units of ANY party member, give a moderate bonus.
+            # (We skip the leader here since they are handled above, but checks are cheap)
+            allies = AgentArray.GetAllyArray()
+            for ally_id in allies:
+                if Utils.Distance(Agent.GetXY(ally_id), Agent.GetXY(agent_id)) < 1250.0:
+                    score += 500.0
+                    break # Only apply bonus once
+
+            
+             # 4. Stickiness (Hysteresis)
             if agent_id == my_target:
                 score += 40.0
+                
+            # 5. Leader Target Bonus & Distance Penalty
+            # We want to strongly prioritize the leader's target to maintain cohesion.
+            leader_target_id = self.GetPartyTargetID() # This fetches Leader Target or Called Target
+            
+            is_leader_target = (agent_id == leader_target_id)
+            
+            if is_leader_target:
+                score += 2000.0 # Massive bonus to ensure we pick leader's target
+            
+            # If target is far away and NOT the leader's target, penalize it heavily.
+            # This aligns with HandleCombat's engagement limit (2800) to prevent selecting targets we won't attack.
+            if not is_leader_target and dist > 2800.0:
+                 score -= 5000.0
+                 
                 
             if score > best_score:
                 best_score = score
@@ -543,20 +703,24 @@ class CombatClass:
              return party_target
 
         # 2. Count attackers on each enemy
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(0, 0, self.get_combat_distance())
+        # Search far (5000) to find assists even if they are distant
+        search_range = 5000.0 if self.in_aggro else Range.Earshot.value
+        enemy_array = Routines.Agents.GetFilteredEnemyArray(0, 0, search_range)
         if not enemy_array:
             return 0
             
         target_counts = {}
-        party_members = AgentArray.GetPartyArray()
+        party_members = AgentArray.GetAllyArray()
         
         for member_id in party_members:
             if member_id == Player.GetAgentID(): 
                 continue # Don't count self
             
-            t_id = Agent.GetTargetID(member_id)
+            t_id = CombatEvents.get_cast_target(member_id) or CombatEvents.get_attack_target(member_id)
             if t_id in enemy_array and Agent.IsAlive(t_id): # Only count if they are targeting an enemy we can see
-                target_counts[t_id] = target_counts.get(t_id, 0) + 1
+                # Filter: Is this a valid defensive target?
+                if self.is_valid_defensive_target(t_id):
+                    target_counts[t_id] = target_counts.get(t_id, 0) + 1
         
         # 3. Choose target with most attackers
         best_target = 0
@@ -1293,13 +1457,149 @@ class CombatClass:
         is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
  
         if not is_read_to_cast:
+            # If we don't have a target for THIS skill, we might still have a target for another
+            # or we might just be waiting. But if we reach the end of the loop and no target was found 
+            # for ANY skill, then we are not engaged.
             self.AdvanceSkillPointer()
-            return False
+            # If we just reached the end of the skill order, we've checked everything
+            if self.skill_pointer == 0:
+                # OLD: return False
+                # NEW: If we have a valid target, proceed to Movement Logic instead of giving up!
+                target_agent_id = Player.GetTargetID()
+                
+                # Manual validation since IsValidEnemyTarget helper doesn't exist
+                if not Agent.IsValid(target_agent_id) or Agent.IsDead(target_agent_id):
+                     return False
+                
+                _, alleg = Agent.GetAllegiance(target_agent_id)
+                if alleg != "Enemy":
+                     return False
+                     
+                # Fall through to Movement Logic
+            else:
+                return True # Stay in combat mode while checking other skills
         
 
         if target_agent_id == 0:
             self.AdvanceSkillPointer()
             return False
+
+        # --- Aggro Response: Movement Logic ---
+        # If we have a target but we aren't "ready to cast" (likely due to range), 
+        # let's try to move towards the target if we are in combat mode.
+        my_pos = Agent.GetXY(Player.GetAgentID())
+        target_pos = Agent.GetXY(target_agent_id)
+        dist_to_target = Utils.Distance(my_pos, target_pos)
+        
+        # Check if Follow Module is busy pathing (Mutual Exclusion)
+        from HeroAI.following import follower_states
+        my_id = Player.GetAgentID()
+        state = follower_states.get(my_id)
+        
+        # Determine maximum effective range for this skill
+        try:
+            # Most skills are Spellcast (1000), but we check specifically if possible
+            skill_range = GLOBAL_CACHE.Skill.Data.GetRange(skill_id)
+            if skill_range == 0: 
+                # If skill has no range (e.g. self-buff or shout), use Weapon Range
+                # This prevents "charging" to melee range if we have a bow
+                weapon_range = self.GetWeaponRange(Player.GetAgentID())
+                skill_range = weapon_range
+        except:
+             skill_range = Range.Spellcast.value
+
+        # --- Engagement Leash ---
+        # 1. Limit raw engagement distance (Don't charge across the map)
+        # 1. Limit raw engagement distance (Don't charge across the map)
+        # Reduced from 5000.0 to 2800.0 to prevent wandering far from current position (approx Longbow range + buffer)
+        engagement_limit = 2800.0 
+        
+        # 2. Leader Leash (Stay near the party leader)
+        leader_acc = self.cached_data.party.get_by_party_pos(0)
+        max_dist_from_leader = 2000.0
+        
+        can_engage = dist_to_target <= engagement_limit
+        
+        # --- Distant Leader Assist Override ---
+        # If the target is the Leader's target, we allow engagement up to a much further distance (e.g. 5000).
+        # This ensures we assist the leader even if they are engaging from max compass range.
+        leader_target_id = 0
+        if leader_acc:
+             leader_target_id = leader_acc.PlayerTargetID
+        
+        is_leader_target = (target_agent_id == leader_target_id)
+        
+        if is_leader_target:
+            can_engage = dist_to_target <= 5000.0 # Override engagement limit for leader assist
+            
+        # If NOT leader target, enforce stricter engagement rules.
+        # This prevents chasing random distant enemies.
+        if not is_leader_target and dist_to_target > skill_range * 1.5 and dist_to_target > engagement_limit:
+             can_engage = False
+        
+        if leader_acc and leader_acc.PlayerID != 0 and Agent.IsLiving(leader_acc.PlayerID):
+            leader_pos = Agent.GetXY(leader_acc.PlayerID)
+            dist_to_leader = Utils.Distance(my_pos, leader_pos)
+            if dist_to_leader > max_dist_from_leader:
+                can_engage = False
+            # Also check if target is way too far from leader
+            # Also check if target is way too far from leader
+            # Reduced from 5000.0 to 3500.0 to prevent chasing targets far outside the group's area of operation.
+            if Utils.Distance(target_pos, leader_pos) > 3500.0:
+                can_engage = False
+
+        # Removed the local "Distant Target Filter" block here because it caused a deadlock.
+        # (The bot would select a target via GetAppropiateTarget, then reject it here, resulting in inaction).
+        # We now handle the distance logic via `can_engage` override above.
+
+        # If we are out of skill range but within our safe engagement limits, move!
+        # If we are out of skill range but within our safe engagement limits, engage!
+        if dist_to_target > skill_range and can_engage:
+            # MOVEMENT OVERRIDE: If we want to charge, we MUST break the follow path
+            if state and state.path:
+                state.path = [] # Clear the follow path instantly
+                
+            # Use Player.Interact to move into range. This handles stopping at the correct weapon range automatically.
+            # We removed Player.Move() because it is sticky and causes over-running to melee.
+            if not Agent.IsCasting(Player.GetAgentID()):
+                 # Define force_engage: If we are not moving, we assume this is the initial engagement 
+                 # and we want to react instantly (bypass throttle).
+                 force_engage = not Agent.IsMoving(Player.GetAgentID())
+                 
+                 # Use throttle to avoid packet spam, but allow instant first engage
+                 if self.movement_throttle_timer.IsExpired() or force_engage:
+                     Player.Interact(target_agent_id)
+                     self.movement_throttle_timer.Reset()
+
+            return True # Returning True indicates we handled the combat tick (by engaging)
+        elif dist_to_target > skill_range and not can_engage:
+            # If we are out of range and cannot safely engage, fall back to Follow logic
+            ConsoleLog("HeroAI", f"Combat Charge Blocked: Target {target_agent_id} Dist:{int(dist_to_target)}")
+            return False
+        
+        # If we are within skill range OR can_engage is blocked by pathing, 
+        # we consider combat "Active" but might not move.
+        if dist_to_target <= skill_range:
+            # We are in range to fight. 
+            
+            # We removed the manual StopMovement() call here because we now use Interact() to approach,
+            # which correctly stops at weapon range. Manual stopping was checking Agent.IsMoving() which
+            # is true during the Interact approach, causing stutter/cancellation.
+
+            # Ensure we are attacking if not casting.
+            if not Agent.IsAttacking(Player.GetAgentID()) and not Agent.IsCasting(Player.GetAgentID()):
+                 # Throttle interaction to avoid spam
+                 if self.movement_throttle_timer.IsExpired():
+                     Player.Interact(target_agent_id)
+                     self.movement_throttle_timer.Reset()
+            pass 
+        else:
+            # We are outside range but can't/won't move (either pathing or leashed)
+            # If leashed, we already returned False above.
+            # If pathing, we fall through and might return True to keep combat "active" (blocking Follow pathing? No, that's bad).
+            # If Follow pathing is active, we should probably allow Follow to continue.
+            if not can_engage_with_movement:
+                return False 
 
         if not Agent.IsLiving(target_agent_id):
             return False

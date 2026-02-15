@@ -359,7 +359,7 @@ HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
     children=[
         # ---------- GLOBAL HARD GUARD ----------
         GlobalGuardNode,
-        CastingBlockNode,
+        # CastingBlockNode, # REMOVED: Allow HandleCombat to manage its own casting state checks
 
         # ---------- PRIORITY SELECTOR ----------
         BehaviorTree.SelectorNode(name="UpdateStatusSelector",
@@ -383,17 +383,6 @@ HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
                 BehaviorTree.ActionNode(
                     name="MovementInterrupt",
                     action_fn=lambda: movement_interrupt(),
-                ),
-
-                # Follow
-                BehaviorTree.ActionNode(
-                    name="Follow",
-                    action_fn=lambda: (
-                        cached_data.follow_throttle_timer.Reset()
-                        or BehaviorTree.NodeState.SUCCESS
-                        if Follow(cached_data)
-                        else BehaviorTree.NodeState.FAILURE
-                    ),
                 ),
 
                 # Combat
@@ -424,6 +413,17 @@ HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
                             ),
                         ),
                     ],
+                ),
+
+                # Follow
+                BehaviorTree.ActionNode(
+                    name="Follow",
+                    action_fn=lambda: (
+                        cached_data.follow_throttle_timer.Reset()
+                        or BehaviorTree.NodeState.SUCCESS
+                        if Follow(cached_data)
+                        else BehaviorTree.NodeState.FAILURE
+                    ),
                 ),
             ],
         ),
