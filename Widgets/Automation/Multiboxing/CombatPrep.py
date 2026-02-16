@@ -836,7 +836,8 @@ def configure():
         if should_use_hotkeys != previous_should_use_hotkey_value:
             ini_window.write_key(MODULE_NAME, USE_HOTKEYS, should_use_hotkeys)
     PyImGui.end()
-    
+
+
 def tooltip():
     PyImGui.begin_tooltip()
 
