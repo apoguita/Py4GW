@@ -6,6 +6,7 @@ from Py4GWCoreLib import Botting, ConsoleLog, Routines, Agent, Player
 from Py4GWCoreLib import Map
 
 BOT_NAME = "Brightclaw Farm 8man"
+MODULE_ICON = "Textures\\Module_Icons\\Brightclaw.png"
 
 # Optionnel : ajoute une texture custom si tu veux
 # TEXTURE = os.path.join(
