@@ -59,7 +59,7 @@ class InfuseHealthUtility(CustomSkillUtilityBase):
             within_range=Range.Spellcast.value * 1.5,
             condition=lambda agent_id:
                 agent_id != player_agent and
-                (Agent.GetHealth(agent_id) is not None and Agent.GetHealth(agent_id) < 1.0),
+                (Agent.GetHealth(agent_id) is not None and Agent.GetHealth(agent_id) < 0.9),
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
         return targets
