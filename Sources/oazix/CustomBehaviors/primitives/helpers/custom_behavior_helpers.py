@@ -234,7 +234,7 @@ class Resources:
         return MemoryCacheManager.get_or_set(
             "account_energy_map",
             lambda: {
-                account.PlayerID: account.PlayerEnergy
+                account.AgentData.AgentID: account.PlayerEnergy
                 for account in GLOBAL_CACHE.ShMem.GetAllAccountData()
             }
         )
@@ -315,7 +315,7 @@ class Resources:
 
             accounts:list[AccountStruct] = GLOBAL_CACHE.ShMem.GetAllAccountData()
             for account in accounts:
-                if account.PlayerID == agent_id:
+                if account.AgentData.AgentID == agent_id:
 
                     for buff in account.AgentData.Buffs.Buffs:
                         if buff.SkillId == skill_id:

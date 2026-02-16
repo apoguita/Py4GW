@@ -397,10 +397,10 @@ class HeroAI_Windows():
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(index)
             
             if account and account.IsSlotActive:
-                if Agent.IsPlayer(account.PlayerID):
-                    player_name = Agent.GetNameByID(account.PlayerID)
+                if Agent.IsPlayer(account.AgentData.AgentID):
+                    player_name = Agent.GetNameByID(account.AgentData.AgentID)
                 else:
-                    player_name = GLOBAL_CACHE.Party.Heroes.GetNameByAgentID(account.PlayerID)
+                    player_name = GLOBAL_CACHE.Party.Heroes.GetNameByAgentID(account.AgentData.AgentID)
 
                 if PyImGui.tree_node(f"{player_name}##DebugBuffsPlayer{index}"):
                     # Retrieve buffs for the player
@@ -689,16 +689,16 @@ class HeroAI_Windows():
                 if _OnSameMap(self_account, account) and not _OnSameParty(self_account, account):
                     PyImGui.table_next_row()
                     PyImGui.table_next_column()
-                    if PyImGui.button(f"Invite##invite_{account.PlayerID}"):
+                    if PyImGui.button(f"Invite##invite_{account.AgentData.AgentID}"):
                         GLOBAL_CACHE.Party.Players.InvitePlayer(account.AgentData.CharacterName)
-                        GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.InviteToParty, (self_account.PlayerID,0,0,0))
+                        GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.InviteToParty, (self_account.AgentData.AgentID,0,0,0))
                     PyImGui.table_next_column()
                     PyImGui.text(f"{account.AgentData.CharacterName}")
                 else:
                     if not _OnSameMap(self_account, account):
                         PyImGui.table_next_row()
                         PyImGui.table_next_column()
-                        if PyImGui.button(f"Summon##summon_{account.PlayerID}"):
+                        if PyImGui.button(f"Summon##summon_{account.AgentData.AgentID}"):
                             GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.TravelToMap, (self_account.AgentData.Map.MapID,self_account.AgentData.Map.Region,self_account.AgentData.Map.District,0))
                         PyImGui.table_next_column()
                         PyImGui.text(f"{account.AgentData.CharacterName}")
@@ -717,7 +717,7 @@ class HeroAI_Windows():
             account = GLOBAL_CACHE.ShMem.GetAllAccounts().AccountData[HeroAI_Windows.slot_to_write]
             options = GLOBAL_CACHE.ShMem.GetAllAccounts().HeroAIOptions[HeroAI_Windows.slot_to_write]
 
-            account.PlayerID = self_id
+            account.AgentData.AgentID = self_id
             player_id = Player.GetAgentID()
             account.PlayerEnergyRegen = Agent.GetEnergyRegen(player_id)
             account.PlayerEnergy = Agent.GetEnergy(player_id)
@@ -737,7 +737,7 @@ class HeroAI_Windows():
             if account and options:
                 data.append((
                     i,  # Slot index
-                    account.PlayerID,
+                    account.AgentData.AgentID,
                     f"{account.PlayerEnergyRegen:.4f}", 
                     f"{account.PlayerEnergy:.4f}",       
                     account.IsSlotActive,
@@ -902,7 +902,7 @@ class HeroAI_Windows():
             
                 if account and account.IsSlotActive:
                     Overlay().BeginDraw()
-                    player_id = account.PlayerID
+                    player_id = account.AgentData.AgentID
                     if player_id == Player.GetAgentID():
                         continue
                     target_x, target_y, target_z = Agent.GetXYZ(player_id)
@@ -1540,7 +1540,7 @@ class HeroAI_Windows():
                 for account in sorted_by_party_position:
                     if account and account.IsSlotActive and not account.IsHero and account.AgentPartyData.PartyID == GLOBAL_CACHE.Party.GetPartyID():
                         index += 1
-                        original_game_option = cached_data.party.options.get(account.PlayerID)
+                        original_game_option = cached_data.party.options.get(account.AgentData.AgentID)
                         
                         if PyImGui.tree_node(f"{index}. {account.AgentData.CharacterName}##ControlPlayer{index}"):
                             if original_game_option is not None:
