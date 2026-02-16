@@ -50,11 +50,11 @@ class PartyCache():
         
         for acc in shmem_accounts:
             if acc.IsSlotActive and SameMapOrPartyAsAccount(acc):
-                self.accounts[acc.PlayerID] = acc
+                self.accounts[acc.AgentData.AgentID] = acc
                 
                 options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(acc.AccountEmail)
                 
                 if options is None:
                     ConsoleLog("PartyCache", f"Account {acc.AccountEmail} has no HeroAI options in shared memory, creating default options.")
                     
-                self.options[acc.PlayerID] = options if options is not None else HeroAIOptionStruct()
+                self.options[acc.AgentData.AgentID] = options if options is not None else HeroAIOptionStruct()

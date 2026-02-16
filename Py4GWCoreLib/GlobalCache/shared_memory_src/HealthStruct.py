@@ -5,31 +5,31 @@ class HealthStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("Current", c_float),
-        ("MaxHealth", c_float),
-        ("HealthRegen", c_float),
-        ("HealthPips", c_int),
+        ("Max", c_float),
+        ("Regen", c_float),
+        ("Pips", c_int),
     ]
 
     # Inline annotations for IntelliSense
     Current: float
-    MaxHealth: float
-    HealthRegen: float
-    HealthPips: int
+    Max: float
+    Regen: float
+    Pips: int
 
     def reset(self) -> None:
         """Reset all fields to zero."""
         self.Current = 0.0
-        self.MaxHealth = 0.0
-        self.HealthRegen = 0.0
-        self.HealthPips = 0
+        self.Max = 0.0
+        self.Regen = 0.0
+        self.Pips = 0
         
     def from_context(self, agent_id: int) -> None:
         from ...Agent import Agent
         from ...py4gwcorelib_src.Utils import Utils
         
         self.Current = Agent.GetHealth(agent_id)
-        self.MaxHealth = Agent.GetMaxHealth(agent_id)
-        self.HealthRegen = Agent.GetHealthRegen(agent_id)
-        self.HealthPips = Utils.calculate_health_pips(self.MaxHealth, self.HealthRegen)
+        self.Max = Agent.GetMaxHealth(agent_id)
+        self.Regen = Agent.GetHealthRegen(agent_id)
+        self.Pips = Utils.calculate_health_pips(self.Max, self.Regen)
 
     

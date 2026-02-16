@@ -189,7 +189,7 @@ class HeroAICommands:
             
             same_map = Map.GetMapID() == account.AgentData.Map.MapID and Map.GetRegion()[0] == account.AgentData.Map.Region and Map.GetDistrict() == account.AgentData.Map.District and Map.GetLanguage()[0] == account.AgentData.Map.Language
             
-            if same_map and not GLOBAL_CACHE.Party.IsPartyMember(account.PlayerID):        
+            if same_map and not GLOBAL_CACHE.Party.IsPartyMember(account.AgentData.AgentID):        
                 char_name = account.AgentData.CharacterName
                 def send_invite(name = char_name):
                     ConsoleLog("HeroAI", f"Inviting {name} to party.")
