@@ -249,7 +249,7 @@ def InviteToParty(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     yield from Routines.Yield.wait(100)
-    GLOBAL_CACHE.Party.Players.InvitePlayer(sender_data.AgentData.AgentData.CharacterName)
+    GLOBAL_CACHE.Party.Players.InvitePlayer(sender_data.AgentData.CharacterName)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "InviteToParty message processed and finished.", Console.MessageType.Info, False)
