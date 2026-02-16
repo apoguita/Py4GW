@@ -1,9 +1,12 @@
 
 from .Context import GWContext
 from .native_src.methods.MapMethods import MapMethods
-from .native_src.context.MapContext import PathingMap, PathingMapStruct, PathingTrapezoid
+from .native_src.context.MapContext import (
+    PathingMap, PathingMapStruct, PathingTrapezoid,
+)
+from .native_src.context.InstanceInfoContext import AreaInfoStruct
 from .native_src.context.AvailableCharacterContext import AvailableCharacterStruct
-from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, RegionTypeName, 
+from .enums_src.Region_enums import (ServerRegionName, ServerLanguageName, RegionTypeName,
                                      ContinentName, CampaignName,)
 
 from .enums_src.Map_enums import (InstanceTypeName, InstanceType)
@@ -14,7 +17,7 @@ from Py4GWCoreLib.enums import outposts
 import PyOverlay
 
 from .enums import FlagPreference
-from typing import List
+from typing import List, Optional
 from .UIManager import UIManager,WindowFrames, FrameInfo
 from .Overlay import *
 import math
@@ -649,7 +652,17 @@ class Map:
         if current_map_info is None:
             return False
         return current_map_info.is_unlockable
-    
+
+    @staticmethod
+    def GetUnloadedMapInfo(map_id: int) -> Optional[AreaInfoStruct]:
+        """Return AreaInfoStruct for any map_id, even if not currently loaded.
+
+        Uses the global AreaInfo array in game memory (base derived from
+        the current map pointer).  Returns None if the game is not in a
+        map or map_id is invalid.
+        """
+        return MapMethods.GetMapInfo(map_id)
+
     @staticmethod
     def IsEnteringChallenge() -> bool:
         """Check if the character is entering a challenge."""
@@ -2011,6 +2024,8 @@ class Map:
 #region not_processed
     #region Pathing
     class Pathing:
+        _live_map_id: int = 0  # last game map we cached live data for
+
         @staticmethod
         def GetPathingMaps() -> List[PathingMap]:
             from .native_src.context.MapContext import MapContext
@@ -2026,6 +2041,51 @@ class Map:
             if not Checks.Map.MapValid():
                 return []
             return MapContext.GetPathingMapsRaw()
+
+        @staticmethod
+        def GetPathingMapsForMap(map_id: int) -> List[PathingMap]:
+            """Get pathing for any map (synchronous).
+
+            For the current game map, returns live data (authoritative).
+            For other maps, reads offline dat data.  Results are cached
+            so subsequent calls return the same object reference.
+            """
+            from .native_src.methods.PathingMethods import PathingMethods
+
+            current_game_map = Map.GetMapID()
+
+            # When the game map changes, invalidate the cache for the new
+            # map so live data is read fresh instead of returning stale
+            # dat or previous-instance data.
+            if current_game_map != 0 and current_game_map != Map.Pathing._live_map_id:
+                Map.Pathing._live_map_id = current_game_map
+                PathingMethods.ClearCache(current_game_map)
+
+            # Live data is authoritative for the current map (outpost/explorable
+            # variants share dat file_ids, so dat data may not match).
+            # Cache the result so subsequent frames return the same reference.
+            if map_id == current_game_map:
+                cached = PathingMethods._cache.get(map_id)
+                if cached:
+                    return cached
+                result = Map.Pathing.GetPathingMaps()
+                if result:
+                    PathingMethods.CacheResult(map_id, result)
+                    return result
+
+            return PathingMethods.GetPathingMapsForMap(map_id)
+
+        @staticmethod
+        def ClearPathingCache(map_id: int = None) -> None:
+            """Clear cached pathing data."""
+            from .native_src.methods.PathingMethods import PathingMethods
+            PathingMethods.ClearCache(map_id)
+
+        @staticmethod
+        def GetAvailableMapIds() -> set[int]:
+            """Return the set of map IDs that offline pathing can be loaded for."""
+            from .native_src.methods.PathingMethods import PathingMethods
+            return PathingMethods.GetAvailableMapIds()
 
         @staticmethod
         def WorldToScreen(x: float, y: float, z: float = 0.0) -> tuple[float, float]:
