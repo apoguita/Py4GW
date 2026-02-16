@@ -277,6 +277,12 @@ class _Upkeepers:
         from ...GlobalCache import GLOBAL_CACHE
         from ...enums import ModelID
         from ...Map import Map
+        from ...Quest import Quest
+        
+        # Quest IDs where summoning stones should NOT be used
+        excluded_quest_ids = [
+            504,  # Warning Kehanni
+        ]
         
         # Priority list for summoning stones (items)
         priority_stones = [
@@ -329,6 +335,12 @@ class _Upkeepers:
             if self._config.upkeep.summoning_stone.is_active():
                 # Check if we're in an explorable area
                 if not Map.IsExplorable():
+                    yield from Routines.Yield.wait(1000)
+                    continue
+                
+                # Skip if an excluded quest is in the quest log
+                active_quests = Quest.GetQuestLogIds()
+                if any(qid in excluded_quest_ids for qid in active_quests):
                     yield from Routines.Yield.wait(1000)
                     continue
                 
