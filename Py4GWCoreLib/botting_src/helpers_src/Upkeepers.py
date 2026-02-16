@@ -285,6 +285,7 @@ class _Upkeepers:
             503,  # All's Well That Ends Well
             504,  # Warning Kehanni
             505,  # Calling the Order
+            507,  # Pledge of the Merchant Princes
             730,  # Gain Goren
         ]
         
