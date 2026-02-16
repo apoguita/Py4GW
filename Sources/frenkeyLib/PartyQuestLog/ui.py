@@ -169,9 +169,9 @@ class UI():
                                                                     
                                     prof_primary, prof_secondary = "", ""
                                     prof_primary = ProfessionShort(
-                                        acc.PlayerProfession[0]).name if acc.PlayerProfession[0] != 0 else ""
+                                        acc.AgentData.Profession[0]).name if acc.AgentData.Profession[0] != 0 else ""
                                     prof_secondary = ProfessionShort(
-                                        acc.PlayerProfession[1]).name if acc.PlayerProfession[1] != 0 else ""
+                                        acc.AgentData.Profession[1]).name if acc.AgentData.Profession[1] != 0 else ""
                                     PyImGui.table_next_column()
                                     ImGui.text(f"{prof_primary}{('/' if prof_secondary else '')}{prof_secondary}")
                                     

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from HeroAI.party_cache import PartyCache
-from Py4GWCoreLib.GlobalCache.SharedMemory import SHMEM_NUMBER_OF_SKILLS, AccountStruct, HeroAIOptionStruct
+from Py4GWCoreLib.GlobalCache.SharedMemory import SHMEM_MAX_NUMBER_OF_SKILLS, AccountStruct, HeroAIOptionStruct
 
 from .constants import SHARED_MEMORY_FILE_NAME, STAY_ALERT_TIME, MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .globals import HeroAI_varsClass, HeroAI_Window_varsClass
@@ -167,7 +167,7 @@ class CacheData:
             self.option_show_floating_targets = True
             self.global_options = HeroAIOptionStruct()
             
-            for i in range(SHMEM_NUMBER_OF_SKILLS):
+            for i in range(SHMEM_MAX_NUMBER_OF_SKILLS):
                 self.global_options.Skills[i] = True
                 
             self.global_options.Following = True
