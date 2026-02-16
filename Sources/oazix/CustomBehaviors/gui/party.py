@@ -580,8 +580,8 @@ def render():
                         character_name = account.AgentData.CharacterName if account.AgentData.CharacterName else "Unknown"
 
                         # Get profession short names (e.g., "Me/Mo")
-                        primary_prof_id = account.PlayerProfession[0] if account.PlayerProfession else 0
-                        secondary_prof_id = account.PlayerProfession[1] if account.PlayerProfession else 0
+                        primary_prof_id = account.AgentData.Profession[0] if account.AgentData.Profession else 0
+                        secondary_prof_id = account.AgentData.Profession[1] if account.AgentData.Profession else 0
                         primary_short = ProfessionShort_Names.get(ProfessionShort(primary_prof_id), "?") if primary_prof_id > 0 else "?"
                         secondary_short = ProfessionShort_Names.get(ProfessionShort(secondary_prof_id), "") if secondary_prof_id > 0 else ""
                         class_text = f"{primary_short}/{secondary_short}" if secondary_short else primary_short
@@ -600,7 +600,7 @@ def render():
                         PyImGui.text(f"[{class_text}] {character_name}")
 
                         PyImGui.table_next_column()
-                        PyImGui.text(f"{account.AgentPartyData.PartyID} / AgentId {account.PlayerID} / PartyLeader {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
+                        PyImGui.text(f"{account.AgentPartyData.PartyID} / AgentId {account.AgentData.AgentID} / PartyLeader {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
 
                         PyImGui.table_next_column()
                         if PyImGui.button(f"Focus window##{account.AccountEmail}"):

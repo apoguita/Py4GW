@@ -44,7 +44,7 @@ class CustomBehaviorHelperParty:
         # bad perf...
         def get_account_from_agent_id(agent_id: int) -> AccountStruct | None:
             for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-                if int(account.PlayerID) == agent_id:
+                if int(account.AgentData.AgentID) == agent_id:
                     return account
             return None
         
@@ -88,7 +88,7 @@ class CustomBehaviorHelperParty:
         if leader_email is not None: 
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(leader_email)
             if account is not None:
-                return int(account.PlayerID)
+                return int(account.AgentData.AgentID)
 
         return GLOBAL_CACHE.Party.GetPartyLeaderID()
 

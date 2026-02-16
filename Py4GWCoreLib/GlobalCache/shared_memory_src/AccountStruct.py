@@ -42,14 +42,8 @@ from .AgentDataStruct import AgentDataStruct
 
 class AccountStruct(Structure):
     _pack_ = 1
-    _fields_ = [
-        ("OwnerPlayerID", c_uint),
-        ("HeroID", c_uint),
+    _fields_ = [      
 
-        ("PlayerID", c_uint),
-        ("PlayerLevel", c_uint),
-        ("PlayerProfession", c_uint * 2),  # Primary and Secondary Profession        
-        ("PlayerMorale", c_uint),
         ("PlayerHP", c_float),
         ("PlayerMaxHP", c_float),
         ("PlayerHealthRegen", c_float),
@@ -91,16 +85,6 @@ class AccountStruct(Structure):
     ]
     
     # Type hints for IntelliSense
-    OwnerPlayerID: int
-    HeroID: int
-
-    PlayerID: int
-    PlayerLevel: int
-    PlayerProfession: tuple[int, int]
-    PlayerMorale: int
-    PlayerHP: float
-    PlayerMaxHP: float
-    PlayerHealthRegen: float
     PlayerEnergy: float
     PlayerMaxEnergy: float
     PlayerEnergyRegen: float
@@ -139,13 +123,7 @@ class AccountStruct(Structure):
     
     def reset(self) -> None:
         """Reset all fields to zero or default values."""
-        self.OwnerPlayerID = 0
-        self.HeroID = 0
 
-        self.PlayerID = 0
-        self.PlayerLevel = 0
-        self.PlayerProfession = (0, 0)
-        self.PlayerMorale = 0
         self.PlayerHP = 0.0
         self.PlayerMaxHP = 0.0
         self.PlayerHealthRegen = 0.0
@@ -158,11 +136,7 @@ class AccountStruct(Structure):
         self.PlayerFacingAngle = 0.0
         self.PlayerTargetID = 0
         self.PlayerLoginNumber = 0
-        self.PlayerIsTicked = False
-        self.PartyID = 0
-        self.PartyPosition = 0
-        self.PlayerIsPartyLeader = False
-        
+ 
         #--------------------
         self.Key.reset()
         self.AccountEmail = ""

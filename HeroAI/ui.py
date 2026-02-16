@@ -518,9 +518,9 @@ def get_skill_target(account_data: AccountStruct, cached_skill: CachedSkillInfo)
         if allegiance in [Allegiance.Ally, Allegiance.Minion, Allegiance.SpiritPet]:
             return target_id
         else:
-            return Player.GetAgentID() if py_io.key_ctrl else account_data.PlayerID
+            return Player.GetAgentID() if py_io.key_ctrl else account_data.AgentData.AgentID
     else:
-        return Player.GetAgentID() if py_io.key_ctrl else target_id if not is_item and target_id else account_data.PlayerID
+        return Player.GetAgentID() if py_io.key_ctrl else target_id if not is_item and target_id else account_data.AgentData.AgentID
 
 def draw_casting_animation(
     pos: tuple[float, float],
@@ -957,8 +957,8 @@ def draw_buffs_and_upkeeps(account_data: AccountStruct, skill_size: float = 28):
             PyImGui.table_next_row()
             PyImGui.table_next_column()
             
-            if account_data.PlayerMorale != 100 and account_data.PlayerMorale != 0:
-                draw_morale(account_data.PlayerMorale, skill_size)
+            if account_data.AgentData.Morale != 100 and account_data.AgentData.Morale != 0:
+                draw_morale(account_data.AgentData.Morale, skill_size)
                             
             draw_hardmode()
             
@@ -1126,7 +1126,7 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
                 player_email,
                 account_email,
                 SharedCommandType.InviteToParty if same_map else SharedCommandType.TravelToMap,
-                (account_data.PlayerID, 0, 0, 0) if same_map else (
+                (account_data.AgentData.AgentID, 0, 0, 0) if same_map else (
                     Map.GetMapID(),
                     Map.GetRegion()[0],
                     Map.GetDistrict(),
@@ -1217,7 +1217,7 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
             return -1
         
         def clear_hero_flag():
-            options = cached_data.party.options.get(account_data.PlayerID)
+            options = cached_data.party.options.get(account_data.AgentData.AgentID)
             if not options:
                 return -1
             
@@ -1300,10 +1300,10 @@ def get_conditioned(account_data: AccountStruct) -> tuple[HealthState, bool, boo
     deep_wounded = 482 in buff_ids
     poisoned = 484 in buff_ids or 483 in buff_ids
     
-    enchanted = Agent.IsEnchanted(account_data.PlayerID) if same_map else False
-    conditioned = Agent.IsConditioned(account_data.PlayerID) if same_map else False
-    hexed = Agent.IsHexed(account_data.PlayerID) if same_map else False
-    has_weaponspell = Agent.IsWeaponSpelled(account_data.PlayerID) if same_map else False
+    enchanted = Agent.IsEnchanted(account_data.AgentData.AgentID) if same_map else False
+    conditioned = Agent.IsConditioned(account_data.AgentData.AgentID) if same_map else False
+    hexed = Agent.IsHexed(account_data.AgentData.AgentID) if same_map else False
+    has_weaponspell = Agent.IsWeaponSpelled(account_data.AgentData.AgentID) if same_map else False
         
     if poisoned:
         return HealthState.Poisoned, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
@@ -1312,7 +1312,7 @@ def get_conditioned(account_data: AccountStruct) -> tuple[HealthState, bool, boo
     if bleeding:
         return HealthState.Bleeding, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
     
-    degen_hexed = Agent.IsDegenHexed(account_data.PlayerID) if same_map else False
+    degen_hexed = Agent.IsDegenHexed(account_data.AgentData.AgentID) if same_map else False
     if degen_hexed:
         return HealthState.DegenHexed, deep_wounded, enchanted, conditioned, hexed, has_weaponspell
     
@@ -1323,7 +1323,7 @@ def draw_combined_hero_panel(account_data: AccountStruct, cached_data: CacheData
     if not window_info or not window_info.open:
         return
     
-    options = cached_data.party.options.get(account_data.PlayerID)
+    options = cached_data.party.options.get(account_data.AgentData.AgentID)
     name = get_display_name(account_data)
     
     style = ImGui.get_style()
@@ -1360,8 +1360,8 @@ def draw_combined_hero_panel(account_data: AccountStruct, cached_data: CacheData
             if settings.ShowHeroBars:
                 health_state, deep_wounded, enchanted, conditioned, hexed, has_weaponspell = get_conditioned(account_data)
                 
-                health_clicked = draw_health_bar(curr_avail[0], 13, account_data.PlayerMaxHP,
-                                account_data.PlayerHP, account_data.PlayerHealthRegen, health_state, deep_wounded, enchanted, conditioned, hexed, has_weaponspell)   
+                health_clicked = draw_health_bar(curr_avail[0], 13, account_data.AgentData.Health.Max,
+                                account_data.AgentData.Health.Current, account_data.AgentData.Health.Regen, health_state, deep_wounded, enchanted, conditioned, hexed, has_weaponspell)   
                                      
                 PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 4)
                 
@@ -1370,7 +1370,7 @@ def draw_combined_hero_panel(account_data: AccountStruct, cached_data: CacheData
                 
                 if health_clicked or energy_clicked:
                             if Map.GetMapID() == account_data.AgentData.Map.MapID:
-                                Player.ChangeTarget(account_data.PlayerID)
+                                Player.ChangeTarget(account_data.AgentData.AgentID)
                                 
             if settings.ShowHeroSkills:
                 if settings.ShowHeroBars:
@@ -1395,7 +1395,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountStruct, cached_da
     
     window.open = window_info.open
     window.collapse = window_info.collapsed
-    options = cached_data.party.options.get(account_data.PlayerID)
+    options = cached_data.party.options.get(account_data.AgentData.AgentID)
     
     global title_names
     style = ImGui.get_style()
@@ -1419,9 +1419,9 @@ def draw_hero_panel(window: WindowModule, account_data: AccountStruct, cached_da
 
     prof_primary, prof_secondary = "", ""
     prof_primary = ProfessionShort(
-        account_data.PlayerProfession[0]).name if account_data.PlayerProfession[0] != 0 else ""
+        account_data.AgentData.Profession[0]).name if account_data.AgentData.Profession[0] != 0 else ""
     prof_secondary = ProfessionShort(
-        account_data.PlayerProfession[1]).name if account_data.PlayerProfession[1] != 0 else ""
+        account_data.AgentData.Profession[1]).name if account_data.AgentData.Profession[1] != 0 else ""
     win_size = PyImGui.get_window_size()
     win_pos = PyImGui.get_window_pos()
 
@@ -1435,7 +1435,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountStruct, cached_da
     name = get_display_name(account_data)
 
     PyImGui.draw_list_add_text(text_pos[0], text_pos[1], style.Text.color_int,
-                               f"{prof_primary}{("/" if prof_secondary else "")}{prof_secondary}{account_data.PlayerLevel} {name}")
+                               f"{prof_primary}{("/" if prof_secondary else "")}{prof_secondary}{account_data.AgentData.Level} {name}")
     ImGui.pop_font()
     PyImGui.pop_clip_rect()
 
@@ -1458,14 +1458,14 @@ def draw_hero_panel(window: WindowModule, account_data: AccountStruct, cached_da
                 if settings.ShowHeroBars:
                     health_state, deep_wounded, enchanted, conditioned, hexed, has_weaponspell  = get_conditioned(account_data)
                     
-                    health_clicked = draw_health_bar(curr_avail[0], 13, account_data.PlayerMaxHP,
-                                    account_data.PlayerHP, account_data.PlayerHealthRegen, health_state, deep_wounded, enchanted, conditioned, hexed, has_weaponspell )
+                    health_clicked = draw_health_bar(curr_avail[0], 13, account_data.AgentData.Health.Max,
+                                    account_data.AgentData.Health.Current, account_data.AgentData.Health.Regen, health_state, deep_wounded, enchanted, conditioned, hexed, has_weaponspell )
                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 4)
                     energy_clicked = draw_energy_bar(curr_avail[0], 13, account_data.PlayerMaxEnergy,
                                                        account_data.PlayerEnergy, account_data.PlayerEnergyRegen)
                     if health_clicked or energy_clicked:
                         if Map.GetMapID() == account_data.AgentData.Map.MapID:
-                            Player.ChangeTarget(account_data.PlayerID)
+                            Player.ChangeTarget(account_data.AgentData.AgentID)
                             
                 if settings.ShowHeroSkills:
                     if settings.ShowHeroBars:
@@ -2540,7 +2540,7 @@ def draw_party_search_overlay(cached_data: CacheData):
             0,
         )
         
-        sorted_by_profession = sorted(GLOBAL_CACHE.ShMem.GetAllAccountData(), key=lambda acc: (acc.PlayerProfession[0], get_display_name(acc)), reverse=False)
+        sorted_by_profession = sorted(GLOBAL_CACHE.ShMem.GetAllAccountData(), key=lambda acc: (acc.AgentData.Profession[0], get_display_name(acc)), reverse=False)
         button_size  = 20
         texture = ThemeTextures.Hero_Panel_Toggle_Base.value.get_texture()
         mapid = Map.GetMapID()
@@ -2553,10 +2553,10 @@ def draw_party_search_overlay(cached_data: CacheData):
             
             name = get_display_name(account)
             prof_primary = ProfessionShort(
-                account.PlayerProfession[0]).name if account.PlayerProfession[0] != 0 else ""
+                account.AgentData.Profession[0]).name if account.AgentData.Profession[0] != 0 else ""
             prof_secondary = ProfessionShort(
-                account.PlayerProfession[1]).name if account.PlayerProfession[1] != 0 else ""
-            display_text = f"{prof_primary}{("/" if prof_secondary else "")}{prof_secondary}{account.PlayerLevel} {name} {f"[{Map.GetMapName(account.AgentData.Map.MapID)}]" if account.AgentData.Map.MapID != 0 and account.AgentData.Map.MapID != mapid else ''}"
+                account.AgentData.Profession[1]).name if account.AgentData.Profession[1] != 0 else ""
+            display_text = f"{prof_primary}{("/" if prof_secondary else "")}{prof_secondary}{account.AgentData.Level} {name} {f"[{Map.GetMapName(account.AgentData.Map.MapID)}]" if account.AgentData.Map.MapID != 0 and account.AgentData.Map.MapID != mapid else ''}"
             
             ImGui.dummy(button_size, button_size)
             draw_panel_toggle(
@@ -2577,7 +2577,7 @@ def draw_party_search_overlay(cached_data: CacheData):
             )
             
             PyImGui.same_line(0, 5)            
-            is_party_member = GLOBAL_CACHE.Party.IsPartyMember(account.PlayerID)
+            is_party_member = GLOBAL_CACHE.Party.IsPartyMember(account.AgentData.AgentID)
             selected = selected_account == account.AccountEmail
             
             if is_party_member:

@@ -179,7 +179,7 @@ class Py4GWSharedMemoryManager:
             #if not player.IsSlotActive:
             if not self._is_slot_active(i):
                 continue
-            if player.IsHero and player.HeroID == hero_data.hero_id.GetID() and player.OwnerPlayerID == Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id):
+            if player.IsHero and player.AgentData.HeroID == hero_data.hero_id.GetID() and player.AgentData.OwnerAgentID == Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id):
                 return i
         return -1
     
@@ -190,7 +190,7 @@ class Py4GWSharedMemoryManager:
             #if not player.IsSlotActive:
             if not self._is_slot_active(i):
                 continue
-            if player.IsPet and player.PlayerID == pet_data.agent_id and player.OwnerPlayerID == pet_data.owner_agent_id:
+            if player.IsPet and player.AgentData.AgentID == pet_data.agent_id and player.AgentData.OwnerAgentID == pet_data.owner_agent_id:
                 return i
         return -1
 
@@ -246,8 +246,8 @@ class Py4GWSharedMemoryManager:
             hero = self.GetAccountData(index)
             hero.IsSlotActive = True
             hero.IsHero = True
-            hero.OwnerPlayerID = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
-            hero.HeroID = hero_data.hero_id.GetID()
+            hero.AgentData.OwnerAgentID = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
+            hero.AgentData.HeroID = hero_data.hero_id.GetID()
             hero.LastUpdated = self.GetBaseTimestamp()
         return index
     
@@ -259,8 +259,8 @@ class Py4GWSharedMemoryManager:
             pet = self.GetAccountData(index)
             pet.IsSlotActive = True
             pet.IsPet = True
-            pet.OwnerPlayerID = pet_data.owner_agent_id
-            pet.PlayerID = pet_data.agent_id
+            pet.AgentData.OwnerAgentID = pet_data.owner_agent_id
+            pet.AgentData.AgentID = pet_data.agent_id
             pet.LastUpdated = self.GetBaseTimestamp()
         return index
     
@@ -377,25 +377,18 @@ class Py4GWSharedMemoryManager:
                 agent_data.UUID[i] = uuid[i]
             
             agent_id = self.agent_instance.agent_id if self.agent_instance else 0
-            agent_data.AgentID = agent_id
-            agent_data.OwnerID = Agent.GetOwnerID(agent_id)
+
             agent_data.TargetID = Player.GetTargetID() if Player.IsPlayerLoaded() else 0
             agent_data.ObservingID = Player.GetObservingID() if Player.IsPlayerLoaded() else 0
             agent_data.PlayerNumber = Agent.GetPlayerNumber(agent_id)
-            agent_data.Profession[0] = Agent.GetProfessionIDs(agent_id)[0]
-            agent_data.Profession[1] = Agent.GetProfessionIDs(agent_id)[1]
-            agent_data.Level = Agent.GetLevel(agent_id)
+            
+
             agent_data.Energy = Agent.GetEnergy(agent_id)
             max_energy = Agent.GetMaxEnergy(agent_id)
             agent_data.MaxEnergy = max_energy
             energy_regen = Agent.GetEnergyRegen(agent_id)
             agent_data.EnergyPips = Utils.calculate_energy_pips(max_energy, energy_regen)
-            health = Agent.GetHealth(agent_id)
-            max_health = Agent.GetMaxHealth(agent_id)
-            agent_data.Health = health
-            agent_data.MaxHealth = max_health
-            health_regen = Agent.GetHealthRegen(agent_id)
-            agent_data.HealthPips = Utils.calculate_health_pips(max_health, health_regen)
+    
             agent_data.LoginNumber = Agent.GetLoginNumber(agent_id)
             agent_data.DaggerStatus = Agent.GetDaggerStatus(agent_id)
             agent_data.WeaponType = Agent.GetWeaponType(agent_id)[0]
@@ -428,8 +421,8 @@ class Py4GWSharedMemoryManager:
             player.IsHero = False
             player.IsPet = False
             player.IsNPC = False
-            player.OwnerPlayerID = 0
-            player.HeroID = 0
+            player.AgentData.OwnerAgentID = 0
+            player.AgentData.HeroID = 0
             
         def _set_map_data(index):
             player : AccountStruct = self.GetAccountData(index)
@@ -448,14 +441,15 @@ class Py4GWSharedMemoryManager:
             party_number = self.GetPartyNumber()
             playerx, playery, playerz = Agent.GetXYZ(Player.GetAgentID())
 
-            player.PlayerID = Player.GetAgentID()
+            player.AgentData.AgentID = Player.GetAgentID()
             
-            player.PlayerLevel = Player.GetLevel()
-            player.PlayerProfession = Agent.GetProfessionIDs(Player.GetAgentID())
-            player.PlayerMorale = Player.GetMorale()
-            player.PlayerHP = Agent.GetHealth(Player.GetAgentID())
-            player.PlayerMaxHP = Agent.GetMaxHealth(Player.GetAgentID())
-            player.PlayerHealthRegen = Agent.GetHealthRegen(Player.GetAgentID())
+            player.AgentData.Level = Player.GetLevel()
+            player.AgentData.Profession = Agent.GetProfessionIDs(Player.GetAgentID())
+            player.AgentData.Morale = Player.GetMorale()
+            player.AgentData.Health.Current = Agent.GetHealth(Player.GetAgentID())
+            player.AgentData.Health.Max = Agent.GetMaxHealth(Player.GetAgentID())
+            player.AgentData.Health.Regen = Agent.GetHealthRegen(Player.GetAgentID())
+            player.AgentData.Health.Pips = Utils.calculate_health_pips(player.AgentData.Health.Max, player.AgentData.Health.Regen)
             player.PlayerEnergy = Agent.GetEnergy(Player.GetAgentID())
             player.PlayerMaxEnergy = Agent.GetMaxEnergy(Player.GetAgentID())
             player.PlayerEnergyRegen = Agent.GetEnergyRegen(Player.GetAgentID())
@@ -525,25 +519,18 @@ class Py4GWSharedMemoryManager:
             for i in range(4):
                 agent_data.UUID[i] = uuid[i]
             agent_id = self.agent_instance.agent_id if self.agent_instance else 0
-            agent_data.AgentID = agent_id
-            agent_data.OwnerID = Agent.GetOwnerID(agent_id)
+
             agent_data.TargetID = 0
             agent_data.ObservingID = 0
             agent_data.PlayerNumber = Agent.GetPlayerNumber(agent_id)
-            agent_data.Profession[0] = Agent.GetProfessionIDs(agent_id)[0]
-            agent_data.Profession[1] = Agent.GetProfessionIDs(agent_id)[1]
-            agent_data.Level = Agent.GetLevel(agent_id)
+
+
             agent_data.Energy = Agent.GetEnergy(agent_id)
             max_energy = Agent.GetMaxEnergy(agent_id)
             agent_data.MaxEnergy = max_energy
             energy_regen = Agent.GetEnergyRegen(agent_id)
             agent_data.EnergyPips = Utils.calculate_energy_pips(max_energy, energy_regen)
-            health = Agent.GetHealth(agent_id)
-            max_health = Agent.GetMaxHealth(agent_id)
-            agent_data.Health = health
-            agent_data.MaxHealth = max_health
-            health_regen = Agent.GetHealthRegen(agent_id)
-            agent_data.HealthPips = Utils.calculate_health_pips(max_health, health_regen)
+
             agent_data.LoginNumber = Agent.GetLoginNumber(agent_id)
             agent_data.DaggerStatus = Agent.GetDaggerStatus(agent_id)
             agent_data.WeaponType = Agent.GetWeaponType(agent_id)[0]
@@ -607,18 +594,19 @@ class Py4GWSharedMemoryManager:
             hero.IsHero = True
             hero.IsPet = False
             hero.IsNPC = False
-            hero.OwnerPlayerID = self.party_instance.GetAgentIDByLoginNumber(hero_data.owner_player_id)
-            hero.HeroID = hero_data.hero_id.GetID()
+            hero.AgentData.OwnerAgentID = self.party_instance.GetAgentIDByLoginNumber(hero_data.owner_player_id)
+            hero.AgentData.HeroID = hero_data.hero_id.GetID()
             
             hero.AgentData.Map.from_context()
 
-            hero.PlayerID = agent_id
-            hero.PlayerLevel = Agent.GetLevel(agent_id)
-            hero.PlayerProfession = (Agent.GetProfessionIDs(agent_id)[0], Agent.GetProfessionIDs(agent_id)[1])
-            hero.PlayerMorale = 0
-            hero.PlayerHP = Agent.GetHealth(agent_id)
-            hero.PlayerMaxHP = Agent.GetMaxHealth(agent_id)
-            hero.PlayerHealthRegen = Agent.GetHealthRegen(agent_id)
+            hero.AgentData.AgentID = agent_id
+            hero.AgentData.Level = Agent.GetLevel(agent_id)
+            hero.AgentData.Profession = (Agent.GetProfessionIDs(agent_id)[0], Agent.GetProfessionIDs(agent_id)[1])
+            hero.AgentData.Morale = 100
+            hero.AgentData.Health.Current = Agent.GetHealth(agent_id)
+            hero.AgentData.Health.Max = Agent.GetMaxHealth(agent_id)
+            hero.AgentData.Health.Regen = Agent.GetHealthRegen(agent_id)
+            hero.AgentData.Health.Pips = Utils.calculate_health_pips(hero.AgentData.Health.Max, hero.AgentData.Health.Regen)
             hero.PlayerEnergy = Agent.GetEnergy(agent_id)
             hero.PlayerMaxEnergy = Agent.GetMaxEnergy(agent_id)
             hero.PlayerEnergyRegen = Agent.GetEnergyRegen(agent_id)
@@ -654,25 +642,17 @@ class Py4GWSharedMemoryManager:
                 agent_data.UUID[i] = uuid[i]
                 
             agent_id = self.agent_instance.agent_id if self.agent_instance else 0
-            agent_data.AgentID = agent_id
-            agent_data.OwnerID = Agent.GetOwnerID(agent_id)
+
             agent_data.TargetID = 0
             agent_data.ObservingID = 0
             agent_data.PlayerNumber = Agent.GetPlayerNumber(agent_id)
-            agent_data.Profession[0] = Agent.GetProfessionIDs(agent_id)[0]
-            agent_data.Profession[1] = Agent.GetProfessionIDs(agent_id)[1]
-            agent_data.Level = Agent.GetLevel(agent_id)
+
             agent_data.Energy = Agent.GetEnergy(agent_id)
             max_energy = Agent.GetMaxEnergy(agent_id)
             agent_data.MaxEnergy = max_energy
             energy_regen = Agent.GetEnergyRegen(agent_id)
             agent_data.EnergyPips = Utils.calculate_energy_pips(max_energy, energy_regen)
-            health = Agent.GetHealth(agent_id)
-            max_health = Agent.GetMaxHealth(agent_id)
-            agent_data.Health = health
-            agent_data.MaxHealth = max_health
-            health_regen = Agent.GetHealthRegen(agent_id)
-            agent_data.HealthPips = Utils.calculate_health_pips(max_health, health_regen)
+
             agent_data.LoginNumber = Agent.GetLoginNumber(agent_id)
             agent_data.DaggerStatus = Agent.GetDaggerStatus(agent_id)
             agent_data.WeaponType = Agent.GetWeaponType(agent_id)[0]
@@ -711,8 +691,9 @@ class Py4GWSharedMemoryManager:
             pet.SlotNumber = index
             pet.IsSlotActive = True
             pet.IsPet = True
-            pet.OwnerPlayerID = pet_info.owner_agent_id
-            pet.HeroID = 0
+            pet.AgentData.OwnerAgentID = pet_info.owner_agent_id
+            pet.AgentData.HeroID = 0
+        
             pet.IsAccount = False
             pet.LastUpdated = self.GetBaseTimestamp()
             
@@ -745,17 +726,19 @@ class Py4GWSharedMemoryManager:
             pet.IsHero = False
             pet.IsNPC = False
             pet.AgentData.Map.from_context()
-            pet.PlayerID = agent_id
+            pet.AgentData.AgentID = agent_id
+            pet.AgentData.Level = Agent.GetLevel(agent_id)
             pet.AgentPartyData.PartyID = self.party_instance.party_id
             pet.AgentPartyData.PartyPosition = 0
             pet.AgentPartyData.IsPartyLeader = False  
             pet.PlayerLoginNumber = 0 
             if Map.IsOutpost():
                 return
-            pet.PlayerMorale = 0
-            pet.PlayerHP = Agent.GetHealth(agent_id)
-            pet.PlayerMaxHP = Agent.GetMaxHealth(agent_id)
-            pet.PlayerHealthRegen = Agent.GetHealthRegen(agent_id)
+            pet.AgentData.Morale = 100
+            pet.AgentData.Health.Current = Agent.GetHealth(agent_id)
+            pet.AgentData.Health.Max = Agent.GetMaxHealth(agent_id)
+            pet.AgentData.Health.Regen = Agent.GetHealthRegen(agent_id)
+            pet.AgentData.Health.Pips = Utils.calculate_health_pips(pet.AgentData.Health.Max, pet.AgentData.Health.Regen)
             pet.PlayerEnergy = Agent.GetEnergy(agent_id)
             pet.PlayerMaxEnergy = Agent.GetMaxEnergy(agent_id)
             pet.PlayerEnergyRegen = Agent.GetEnergyRegen(agent_id)
@@ -995,7 +978,7 @@ class Py4GWSharedMemoryManager:
         for i in range(self.max_num_players):
             player = self.GetAllAccounts().AccountData[i]
             if (self._is_slot_active(i) and player.IsHero and
-                player.OwnerPlayerID == owner_player_id):
+                player.AgentData.OwnerAgentID == owner_player_id):
                 heroes.append(player)
         return heroes
     
@@ -1009,7 +992,7 @@ class Py4GWSharedMemoryManager:
         for i in range(self.max_num_players):
             player = self.GetAllAccounts().AccountData[i]
             if (self._is_slot_active(i) and player.IsPet and
-                player.OwnerPlayerID == owner_agent_id):
+                player.AgentData.OwnerAgentID == owner_agent_id):
                 pets.append(player)
         return pets
     

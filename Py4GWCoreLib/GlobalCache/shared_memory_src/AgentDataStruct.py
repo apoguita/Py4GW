@@ -20,22 +20,29 @@ class AgentDataStruct(Structure):
         ("Buffs", BuffStruct),
         
         ("CharacterName", c_wchar*SHMEM_MAX_CHAR_LEN),
+        ("AgentID", c_uint),
+        ("OwnerAgentID", c_uint),
+        ("HeroID", c_uint),
+        ("Health", HealthStruct),
+        
+        
+        ("Level", c_uint),
+        ("Profession", c_uint * 2),  # Primary and Secondary Profession
+        ("Morale", c_uint),
         
         
         ("UUID", c_uint * 4),  # 128-bit UUID
-        ("AgentID", c_uint),
-        ("OwnerID", c_uint),
+        
+        
         ("TargetID", c_uint),
         ("ObservingID", c_uint),
         ("PlayerNumber", c_uint),
-        ("Profession", c_uint * 2),  # Primary and Secondary Profession
-        ("Level", c_uint),
+        
+        
         ("Energy", c_float),
         ("MaxEnergy", c_float),
         ("EnergyPips", c_int),
-        ("Health", c_float),
-        ("MaxHealth", c_float),
-        ("HealthPips", c_int),
+
         ("LoginNumber", c_uint),
         ("DaggerStatus", c_uint),
         ("WeaponType", c_uint),
@@ -65,22 +72,28 @@ class AgentDataStruct(Structure):
     Attributes: AttributesStruct
     Buffs: BuffStruct
     
+    
     CharacterName: str
+    AgentID: int
+    OwnerAgentID: int
+    HeroID: int
+    Health: HealthStruct
+    Level: int
+    Profession: tuple[int, int]
+    Morale: int
+    
     
     UUID: list[int]
-    AgentID: int
-    OwnerID: int
+    
     TargetID: int
     ObservingID: int
     PlayerNumber: int
-    Profession: list[int]
-    Level: int
+    
+    
     Energy: float
     MaxEnergy: float
     EnergyPips: int
-    Health: float
-    MaxHealth: float
-    HealthPips: int
+
     LoginNumber: int
     DaggerStatus: int
     WeaponType: int
@@ -176,7 +189,7 @@ class AgentDataStruct(Structure):
         return (self.ModelState == 68 or self.ModelState == 64 or self.ModelState == 100)
     @property
     def Is_Alive(self) -> bool:
-        return not self.Is_Dead and self.Health > 0.0
+        return not self.Is_Dead and self.Health.Current > 0.0
     @property 
     def Is_Player(self) -> bool:
         return self.LoginNumber != 0
@@ -186,22 +199,34 @@ class AgentDataStruct(Structure):
     
     def reset(self) -> None:
         """Reset all fields to zero or default values."""
+        self.Map.reset()
+        self.Skillbar.reset()
+        self.Attributes.reset()
+        self.Buffs.reset()
+        
+        self.CharacterName = ""
+        self.AgentID = 0
+        self.OwnerAgentID = 0
+        self.HeroID = 0
+        self.Health.reset()
+        self.Profession = (0, 0)
+        self.Morale = 0
+        
+        
         for i in range(4):
             self.UUID[i] = 0
-        self.AgentID = 0
-        self.OwnerID = 0
+
+
         self.TargetID = 0
         self.ObservingID = 0
         self.PlayerNumber = 0
-        for i in range(2):
-            self.Profession[i] = 0
+        
+        
         self.Level = 0
         self.Energy = 0.0
         self.MaxEnergy = 0.0
         self.EnergyPips = 0
-        self.Health = 0.0
-        self.MaxHealth = 0.0
-        self.HealthPips = 0
+        
         self.LoginNumber = 0
         self.DaggerStatus = 0
         self.WeaponType = 0
