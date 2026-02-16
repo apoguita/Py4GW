@@ -714,8 +714,8 @@ class GUI:
         }
         
         cursor_pos = PyImGui.get_cursor_screen_pos()
-        profession = Profession(account.PlayerProfession[0]) if account.PlayerProfession else Profession._None
-        secondary_profession = Profession(account.PlayerProfession[1]) if account.PlayerProfession else Profession._None
+        profession = Profession(account.AgentData.Profession[0]) if account.AgentData.Profession else Profession._None
+        secondary_profession = Profession(account.AgentData.Profession[1]) if account.AgentData.Profession else Profession._None
         
         profession_color = profession_colors.get(profession, ColorPalette.GetColor("gw_disabled"))
         is_hovered = ImGui.is_mouse_in_rect((cursor_pos[0], cursor_pos[1], size[0], size[1]))
@@ -744,13 +744,13 @@ class GUI:
             if profession_text:                
                 ImGui.text_centered(profession_text, -1, avail[1] + 6)
                 
-            level_text = f" {account.PlayerLevel}" if account.PlayerLevel else ""
+            level_text = f" {account.AgentData.Level}" if account.AgentData.Level else ""
             
             if level_text:
                 PyImGui.same_line(38, 0)
                 ImGui.text_centered(level_text, -1, avail[1] + 6)
                 
-            name_text = f"{account.CharacterName}" if account.CharacterName else ""
+            name_text = f"{account.AgentData.CharacterName}" if account.AgentData.CharacterName else ""
             # name_text = f" frenkey {account.SlotNumber}"
             name_text = name_text if name_text else f"Pending ..."
             if name_text:

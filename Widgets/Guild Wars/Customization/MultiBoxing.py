@@ -163,14 +163,14 @@ def set_client_title():
     
     current_account = next((acc for acc in settings.accounts if acc.AccountEmail == settings.get_account_mail()), None)
         
-    if current_account and (last_character_name != current_account.CharacterName or last_rename_type != settings.rename_to or last_append_gw != settings.append_gw):
+    if current_account and (last_character_name != current_account.AgentData.CharacterName or last_rename_type != settings.rename_to or last_append_gw != settings.append_gw):
         match settings.rename_to:
             case RenameClientType.Custom:
                 new_title = settings.custom_names.get(current_account.AccountEmail, "")
             case RenameClientType.Email:
                 new_title = current_account.AccountEmail if current_account else ""
             case RenameClientType.Character:
-                new_title = current_account.CharacterName if current_account else ""
+                new_title = current_account.AgentData.CharacterName if current_account else ""
             case RenameClientType.No_Rename:
                 new_title = "Guild Wars"
             case _:
@@ -181,7 +181,7 @@ def set_client_title():
                 new_title += " - Guild Wars"
 
             set_window_title(new_title)
-            last_character_name = current_account.CharacterName if current_account else ""
+            last_character_name = current_account.AgentData.CharacterName if current_account else ""
             last_rename_type = settings.rename_to
             last_append_gw = settings.append_gw            
 
