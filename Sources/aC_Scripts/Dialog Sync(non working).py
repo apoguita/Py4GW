@@ -89,7 +89,7 @@ def get_email_for_agent(agent_id: int) -> str | None:
     over GetAllActivePlayers and match PlayerID → agent_id.
     """
     for account in GLOBAL_CACHE.ShMem.GetAllActivePlayers():
-        if int(account.PlayerID) == agent_id:
+        if int(account.AgentData.AgentID) == agent_id:
             return account.AccountEmail
     return None
 

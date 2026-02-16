@@ -14,7 +14,7 @@ def SameMapAsAccount(account : AccountStruct):
     own_region = Map.GetRegion()[0]
     own_district = Map.GetDistrict()
     own_language = Map.GetLanguage()[0]
-    return own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
+    return own_map_id == account.AgentData.Map.MapID and own_region == account.AgentData.Map.Region and own_district == account.AgentData.Map.District and own_language == account.AgentData.Map.Language
 
 def SameMapOrPartyAsAccount(account : AccountStruct):
     if not Map.IsMapReady():
@@ -26,12 +26,12 @@ def SameMapOrPartyAsAccount(account : AccountStruct):
     own_language = Map.GetLanguage()[0]
     party_members = [GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(party_member.login_number) for party_member in GLOBAL_CACHE.Party.GetPlayers()]
     
-    same_map = own_map_id == account.MapID and own_district == account.MapDistrict and own_language == account.MapLanguage
+    same_map = own_map_id == account.AgentData.Map.MapID and own_district == account.AgentData.Map.District and own_language == account.AgentData.Map.Language
     
-    if same_map and account.PlayerID in party_members and account.PartyID == GLOBAL_CACHE.Party.GetPartyID():
+    if same_map and account.AgentData.AgentID in party_members and account.AgentPartyData.PartyID == GLOBAL_CACHE.Party.GetPartyID():
         return True
     
-    return same_map and own_region == account.MapRegion
+    return same_map and own_region == account.AgentData.Map.Region
 
 def DistanceFromLeader():
     return Utils.Distance(Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),Agent.GetXY(Player.GetAgentID()))
@@ -47,7 +47,7 @@ def IsPartyMember(agent_id, cached_data : Optional[CacheData] = None) -> bool:
     cached_data = cached_data if cached_data is not None else CacheData()
                 
     for acc in cached_data.party:
-        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapOrPartyAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
+        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
             return True
         
     allegiance , _ = Agent.GetAllegiance(agent_id)
@@ -61,7 +61,7 @@ def GetEnergyValues(agent_id, cached_data : Optional[CacheData] = None):
     cached_data = cached_data if cached_data is not None else CacheData()
                 
     for acc in cached_data.party:
-        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapOrPartyAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
+        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
             return acc.PlayerEnergy
         
     return 1.0 #default return full energy to prevent issues
@@ -73,8 +73,8 @@ def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None)
     cached_data = cached_data if cached_data is not None else CacheData()
     
     for acc in cached_data.party:
-        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapOrPartyAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
-            return any(buff.SkillId == skill_id for buff in acc.PlayerBuffs)        
+        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
+            return any(buff.SkillId == skill_id for buff in acc.AgentData.Buffs.Buffs)        
 
     allegiance , _ = Agent.GetAllegiance(agent_id)
     if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
@@ -90,8 +90,8 @@ def GetEffectAndBuffIds(agent_id, cached_data : Optional[CacheData] = None) -> l
     cached_data = cached_data if cached_data is not None else CacheData()
     
     for acc in cached_data.party:
-        if acc.IsSlotActive and acc.PlayerID == agent_id and SameMapOrPartyAsAccount(acc) and acc.PartyID == cached_data.party.party_id:
-            return [buff.SkillId for buff in acc.PlayerBuffs]
+        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
+            return [buff.SkillId for buff in acc.AgentData.Buffs.Buffs]
     
     return [effect.skill_id for effect in GLOBAL_CACHE.Effects.GetBuffs(agent_id) + GLOBAL_CACHE.Effects.GetEffects(agent_id)]
 

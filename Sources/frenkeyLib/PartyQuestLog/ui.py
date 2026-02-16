@@ -154,7 +154,7 @@ class UI():
                                 
                                 for acc in accounts.values():
                                     name = get_display_name(acc)
-                                    acc_quest = next((q for q in acc.PlayerData.QuestsData.Quests if q.QuestID == quest.quest_id), None)
+                                    acc_quest = next((q for q in acc.QuestLog.Quests if q.QuestID == quest.quest_id), None)
                                     
                                     active = acc_quest is not None
                                     completed = acc_quest and acc_quest.IsCompleted
@@ -169,9 +169,9 @@ class UI():
                                                                     
                                     prof_primary, prof_secondary = "", ""
                                     prof_primary = ProfessionShort(
-                                        acc.PlayerProfession[0]).name if acc.PlayerProfession[0] != 0 else ""
+                                        acc.AgentData.Profession[0]).name if acc.AgentData.Profession[0] != 0 else ""
                                     prof_secondary = ProfessionShort(
-                                        acc.PlayerProfession[1]).name if acc.PlayerProfession[1] != 0 else ""
+                                        acc.AgentData.Profession[1]).name if acc.AgentData.Profession[1] != 0 else ""
                                     PyImGui.table_next_column()
                                     ImGui.text(f"{prof_primary}{('/' if prof_secondary else '')}{prof_secondary}")
                                     
@@ -199,7 +199,7 @@ class UI():
                         for i, acc in enumerate(accounts.values()):
                             PyImGui.set_cursor_pos(width - (i * 10) - 20, posY + 2)
                             ## chek if quest.quest_id is in active quests (.QuestID) 
-                            acc_quest = next((q for q in acc.PlayerData.QuestsData.Quests if q.QuestID == quest.quest_id), None)
+                            acc_quest = next((q for q in acc.QuestLog.Quests if q.QuestID == quest.quest_id), None)
                             
                             active = acc_quest is not None
                             completed = acc_quest and acc_quest.IsCompleted
@@ -385,7 +385,7 @@ class UI():
         if not UI.Settings.ShowFollowerActiveQuestOnMinimap and not UI.Settings.ShowFollowerActiveQuestOnMissionMap:
             return
 
-        active_quests = [acc.PlayerData.QuestsData.ActiveQuest for acc in accounts.values() if acc.PlayerData.QuestsData.ActiveQuest.QuestID != 0 and UI.Settings.show_quests_for_accounts.get(acc.AccountEmail, True)]
+        active_quests = [acc.QuestLog.ActiveQuest for acc in accounts.values() if acc.QuestLog.ActiveQuest.QuestID != 0 and UI.Settings.show_quests_for_accounts.get(acc.AccountEmail, True)]
         
         if not active_quests:
             return

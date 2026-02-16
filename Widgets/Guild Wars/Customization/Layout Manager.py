@@ -297,7 +297,7 @@ class WindowLayouts:
             # Create a ClientConfig using relevant fields
             client = ClientConfig(
                 email=email,
-                alias=account.CharacterName,
+                alias=account.AgentData.CharacterName,
                 x=0,
                 y=0,
                 width=800,
