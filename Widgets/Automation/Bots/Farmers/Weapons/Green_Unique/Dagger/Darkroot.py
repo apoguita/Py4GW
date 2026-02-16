@@ -3,12 +3,12 @@ from Py4GWCoreLib import Botting
 
 BOT_NAME = "Darkroot´s Dagger Farm"
 OUTPOST_TO_TRAVEL = 230
-COORD_TO_EXIT_MAP = (-4484.46, 4725.00)
+COORD_TO_EXIT_MAP = (-4494.75, 4760.00)
 EXPLORABLE_TO_TRAVEL = 209
 
 KILLING_PATH = [
-   (-16636.86, -6585.32) ,
-    (-19789.29, -4606.34)
+    (-19123.88, -6413.41),
+    (-20367.02, -3802.24)
 ]
 
 bot = Botting(BOT_NAME)
