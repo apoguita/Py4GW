@@ -82,7 +82,7 @@ def draw_account_info(player: AccountStruct):
 
     num_heroes = SMM.GetNumHeroesFromPlayers(player.AgentData.AgentID)
     num_pets = SMM.GetNumPetsFromPlayers(player.PlayerID)
-    player_buffs = [buff.SkillId for buff in player.PlayerBuffs if buff.SkillId != 0]
+    player_buffs = [buff.SkillId for buff in player.AgentData.Buffs.Buffs if buff.SkillId != 0]
     num_buffs = len(player_buffs)
 
     if begin_striped_table("AccountInfoTable", 2):
@@ -95,7 +95,7 @@ def draw_account_info(player: AccountStruct):
         # --- Basic info rows ---
         row("Account Email",     lambda: PyImGui.text(player.AccountEmail))
         row("Account Name",      lambda: PyImGui.text(player.AccountName))
-        row("Character Name",    lambda: PyImGui.text(player.CharacterName))
+        row("Character Name",    lambda: PyImGui.text(player.AgentData.CharacterName))
         row("Slot Number",       lambda: PyImGui.text(str(player.SlotNumber)))
         row("Last Updated",      lambda: PyImGui.text(f"{timestamp.strftime('%H:%M:%S')}.{milliseconds:03d}"))
 
@@ -108,7 +108,7 @@ def draw_account_info(player: AccountStruct):
         if PyImGui.tree_node(f"Heroes ({num_heroes})"):
             heroes = SMM.GetHeroesFromPlayers(player.PlayerID)
             for hero in heroes:
-                PyImGui.text(f"{hero.CharacterName} (HeroID: {hero.HeroID})")
+                PyImGui.text(f"{hero.AgentData.CharacterName} (HeroID: {hero.HeroID})")
             PyImGui.tree_pop()
 
         # -----------------------------------
@@ -120,7 +120,7 @@ def draw_account_info(player: AccountStruct):
         if PyImGui.tree_node(f"Pets ({num_pets})"):
             pets = SMM.GetPetsFromPlayers(player.PlayerID)
             for pet in pets:
-                PyImGui.text(f"{pet.CharacterName} (PlayerID: {pet.PlayerID})")
+                PyImGui.text(f"{pet.AgentData.CharacterName} (PlayerID: {pet.PlayerID})")
             PyImGui.tree_pop()
 
         # -----------------------------------
@@ -154,17 +154,17 @@ def draw_account_info(player: AccountStruct):
 
             lrow("PlayerID",       player.PlayerID)
             lrow("OwnerPlayerID",  player.OwnerPlayerID)
-            lrow("MapID",          player.MapID)
-            lrow("Map Region",     player.MapRegion)
-            lrow("Map District",   player.MapDistrict)
-            lrow("Map Language",   player.MapLanguage)
+            lrow("MapID",          player.AgentData.Map.MapID)
+            lrow("Map Region",     player.AgentData.Map.Region)
+            lrow("Map District",   player.AgentData.Map.District)
+            lrow("Map Language",   player.AgentData.Map.Language)
             lrow("Is Slot Active", player.IsSlotActive)
             lrow("Is Account",     player.IsAccount)
             lrow("IsHero",         player.IsHero)
             lrow("IsPet",          player.IsPet)
             lrow("IsNPC",          player.IsNPC)
             lrow("HeroID",         player.HeroID)
-            lrow("PartyID",         player.PartyID)
+            lrow("PartyID",         player.AgentPartyData.PartyID)
 
             lrow(
                 "Player HP",
@@ -186,7 +186,7 @@ def draw_account_info(player: AccountStruct):
             lrow("Facing Angle", f"{Utils.RadToDeg(player.PlayerFacingAngle):.2f}")
             lrow("Target ID",    player.PlayerTargetID)
             lrow("Login Number", player.PlayerLoginNumber)
-            lrow("Is Ticked",    player.PlayerIsTicked)
+            lrow("Is Ticked",    player.AgentPartyData.IsTicked)
 
             end_striped_table()
 
@@ -961,7 +961,7 @@ def main():
             PyImGui.text(f"Max Number of Players: {SMM.max_num_players}")
             PyImGui.text(f"Number of Active Players: {SMM.GetNumActivePlayers()}")
             PyImGui.text(f"Number of active Slots: {SMM.GetNumActiveSlots()}")
-            ImGui.show_tooltip("\n".join([f"{i}. | Slot:{acc.SlotNumber} {acc.AccountEmail} | {acc.CharacterName}" for i, acc in enumerate(SMM.GetAllAccounts().AccountData) if SMM._is_slot_active(i)]))                        
+            ImGui.show_tooltip("\n".join([f"{i}. | Slot:{acc.SlotNumber} {acc.AccountEmail} | {acc.AgentData.CharacterName}" for i, acc in enumerate(SMM.GetAllAccounts().AccountData) if SMM._is_slot_active(i)]))                        
         
         MIN_WIDTH = 500
         MIN_HEIGHT = 700
@@ -984,7 +984,7 @@ def main():
         ):
             for player in active_players:
                 if PyImGui.begin_tab_bar("##Accounts"):
-                    if PyImGui.begin_tab_item(f"{player.CharacterName}"):
+                    if PyImGui.begin_tab_item(f"{player.AgentData.CharacterName}"):
                         if PyImGui.begin_tab_bar("##AccountDetails"):
                             #Account Info Tab
                             if PyImGui.begin_tab_item("Account Info"):

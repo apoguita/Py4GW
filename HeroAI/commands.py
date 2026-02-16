@@ -137,7 +137,7 @@ class HeroAICommands:
         own_language = Map.GetLanguage()[0]
         
         for account in accounts:
-            same_map = own_map_id == account.MapID and own_region == account.MapRegion and own_district == account.MapDistrict and own_language == account.MapLanguage
+            same_map = own_map_id == account.AgentData.Map.MapID and own_region == account.AgentData.Map.Region and own_district == account.AgentData.Map.District and own_language == account.AgentData.Map.Language
             
             if same_map:
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendDialog, (dialog_option, 0, 0, 0))
@@ -187,10 +187,10 @@ class HeroAICommands:
             if account.AccountEmail == sender_email:
                 continue
             
-            same_map = Map.GetMapID() == account.MapID and Map.GetRegion()[0] == account.MapRegion and Map.GetDistrict() == account.MapDistrict and Map.GetLanguage()[0] == account.MapLanguage
+            same_map = Map.GetMapID() == account.AgentData.Map.MapID and Map.GetRegion()[0] == account.AgentData.Map.Region and Map.GetDistrict() == account.AgentData.Map.District and Map.GetLanguage()[0] == account.AgentData.Map.Language
             
             if same_map and not GLOBAL_CACHE.Party.IsPartyMember(account.PlayerID):        
-                char_name = account.CharacterName
+                char_name = account.AgentData.CharacterName
                 def send_invite(name = char_name):
                     ConsoleLog("HeroAI", f"Inviting {name} to party.")
                     Player.SendChatCommand("invite " + name)
@@ -235,21 +235,21 @@ class HeroAICommands:
         if account_data is None:
             return 
         
-        party_id = account_data.PartyID
-        map_id = account_data.MapID
-        map_region = account_data.MapRegion
-        map_district = account_data.MapDistrict
-        map_language = account_data.MapLanguage
+        party_id = account_data.AgentPartyData.PartyID
+        map_id = account_data.AgentData.Map.MapID
+        map_region = account_data.AgentData.Map.Region
+        map_district = account_data.AgentData.Map.District
+        map_language = account_data.AgentData.Map.Language
 
         def on_same_map_and_party(account : AccountStruct) -> bool:                    
-            return (account.PartyID == party_id and
-                    account.MapID == map_id and
-                    account.MapRegion == map_region and
-                    account.MapDistrict == map_district and
-                    account.MapLanguage == map_language)
+            return (account.AgentPartyData.PartyID == party_id and
+                    account.AgentData.Map.MapID == map_id and
+                    account.AgentData.Map.Region == map_region and
+                    account.AgentData.Map.District == map_district and
+                    account.AgentData.Map.Language == map_language)
             
         all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account)]
-        lowest_party_index_account = min(all_accounts, key=lambda account: account.PartyPosition, default=None)
+        lowest_party_index_account = min(all_accounts, key=lambda account: account.AgentPartyData.PartyPosition, default=None)
         if lowest_party_index_account is None:
             return
         

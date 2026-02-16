@@ -249,7 +249,7 @@ def InviteToParty(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     yield from Routines.Yield.wait(100)
-    GLOBAL_CACHE.Party.Players.InvitePlayer(sender_data.CharacterName)
+    GLOBAL_CACHE.Party.Players.InvitePlayer(sender_data.AgentData.AgentData.CharacterName)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "InviteToParty message processed and finished.", Console.MessageType.Info, False)
@@ -782,31 +782,31 @@ def OpenChest(index, message):
             account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(email_owner)     
                    
             if account_data is not None:
-                ConsoleLog(MODULE_NAME, f"Current account party position: {account_data.PartyPosition}", Console.MessageType.Info)
+                ConsoleLog(MODULE_NAME, f"Current account party position: {account_data.AgentPartyData.PartyPosition}", Console.MessageType.Info)
                 
-                party_id = account_data.PartyID
+                party_id = account_data.AgentPartyData.PartyID
                 map_id = Map.GetMapID()
                 map_region = Map.GetRegion()[0]
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
                 def on_same_map_and_party(account) -> bool:                    
-                    return (account.PartyID == party_id and
+                    return (account.AgentPartyData.PartyID == party_id and
                             account.MapID == map_id and
                             account.MapRegion == map_region and
                             account.MapDistrict == map_district and
                             account.MapLanguage == map_language)
                 
-                all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.PartyPosition > account_data.PartyPosition]
+                all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
                 chest_pos = Agent.GetXY(chest_id)
                                 
                 sorted_by_party_index = sorted(
                     [acc for acc in all_accounts if Utils.Distance((acc.PlayerPosX, acc.PlayerPosY), chest_pos) < 2500.0], 
-                key=lambda acc: acc.PartyPosition ) if all_accounts else []
+                key=lambda acc: acc.AgentPartyData.PartyPosition ) if all_accounts else []
                 
                 if sorted_by_party_index:
                     next_account = sorted_by_party_index[0]
-                    ConsoleLog(MODULE_NAME, f"Cascading OpenChest to next party member: {next_account.CharacterName} ({next_account.AccountEmail})", Console.MessageType.Info)
+                    ConsoleLog(MODULE_NAME, f"Cascading OpenChest to next party member: {next_account.AgentData.CharacterName} ({next_account.AccountEmail})", Console.MessageType.Info)
                     GLOBAL_CACHE.ShMem.SendMessage(
                         sender_email=email_owner,
                         receiver_email=next_account.AccountEmail,

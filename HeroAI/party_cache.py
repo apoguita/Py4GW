@@ -25,7 +25,7 @@ class PartyCache():
     def get_by_party_pos(self, party_pos: int) -> AccountStruct | None:
         """ Get account data by party position. """
         for acc in self.accounts.values():
-            if acc.PartyPosition == party_pos:
+            if acc.AgentPartyData.PartyPosition == party_pos:
                 return acc
         
         return None
