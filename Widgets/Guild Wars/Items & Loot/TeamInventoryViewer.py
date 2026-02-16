@@ -1330,6 +1330,7 @@ def draw_widget():
                     TEAM_INVENTORY_CACHE = multi_store.load_all()
                 PyImGui.pop_style_color(3)
                 PyImGui.end_table()
+    PyImGui.end()
 
     if save_window_timer.HasElapsed(1000):
         # Position changed?
