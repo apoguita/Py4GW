@@ -281,8 +281,11 @@ class _Upkeepers:
         
         # Quest IDs where summoning stones should NOT be used
         excluded_quest_ids = [
+            490,  # The Council is Called
+            503,  # All's Well That Ends Well
             504,  # Warning Kehanni
             505,  # Calling the Order
+            730,  # Gain Goren
         ]
         
         # Priority list for summoning stones (items)
