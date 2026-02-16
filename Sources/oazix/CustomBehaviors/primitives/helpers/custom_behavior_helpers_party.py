@@ -20,15 +20,15 @@ class CustomBehaviorHelperParty:
         current_language = Map.GetLanguage()[0]
         current_party_id = GLOBAL_CACHE.Party.GetPartyID()
 
-        if current_map_id != account.MapID: return False
+        if current_map_id != account.AgentData.Map.MapID: return False
 
         if not Map.IsExplorable():
             # weird but in explorable, region can be different but still same map
-            if current_region != account.MapRegion: return False
+            if current_region != account.AgentData.Map.Region: return False
         
-        if current_district != account.MapDistrict: return False
-        if current_language != account.MapLanguage: return False
-        if current_party_id != account.PartyID: return False
+        if current_district != account.AgentData.Map.District: return False
+        if current_language != account.AgentData.Map.Language: return False
+        if current_party_id != account.AgentPartyData.PartyID: return False
 
         return True
 

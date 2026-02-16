@@ -105,9 +105,9 @@ class PartyFlaggingManager:
                     if account.AccountEmail == account_email:
                         continue  # Skip leader
                     # Check if in same map
-                    is_in_map = (my_account.MapID == account.MapID and
-                               my_account.MapRegion == account.MapRegion and
-                               my_account.MapDistrict == account.MapDistrict)
+                    is_in_map = (my_account.AgentData.Map.MapID == account.AgentData.Map.MapID and
+                               my_account.AgentData.Map.Region == account.AgentData.Map.Region and
+                               my_account.AgentData.Map.District == account.AgentData.Map.District)
                     if is_in_map:
                         party_members.append(account.AccountEmail)
 
@@ -262,9 +262,9 @@ class PartyFlaggingManager:
             if account.AccountEmail == my_email:
                 continue  # skip leader
             is_in_map = (
-                my_account.MapID == account.MapID and
-                my_account.MapRegion == account.MapRegion and
-                my_account.MapDistrict == account.MapDistrict
+                my_account.AgentData.Map.MapID == account.AgentData.Map.MapID and
+                my_account.AgentData.Map.Region == account.AgentData.Map.Region and
+                my_account.AgentData.Map.District == account.AgentData.Map.District
             )
             if not is_in_map:
                 continue
@@ -523,9 +523,9 @@ class PartyFlaggingManager:
             # Check if in same map
             my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
             if my_account is not None:
-                is_in_map = (my_account.MapID == account.MapID and
-                           my_account.MapRegion == account.MapRegion and
-                           my_account.MapDistrict == account.MapDistrict)
+                is_in_map = (my_account.AgentData.Map.MapID == account.AgentData.Map.MapID and
+                           my_account.AgentData.Map.Region == account.AgentData.Map.Region and
+                           my_account.AgentData.Map.District == account.AgentData.Map.District)
                 if is_in_map:
                     party_members.append(account.AccountEmail)
 

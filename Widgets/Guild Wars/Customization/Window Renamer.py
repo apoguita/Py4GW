@@ -21,7 +21,7 @@ def main():
         account_email = Player.GetAccountEmail()
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
-            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.SetWindowTitle, ExtraData=(account.CharacterName, "", "", ""))
+            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.SetWindowTitle, ExtraData=(account.AgentData.CharacterName, "", "", ""))
         window_renamer_wait_timer.Start()
 
 def tooltip():

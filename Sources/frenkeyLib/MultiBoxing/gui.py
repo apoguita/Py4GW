@@ -750,7 +750,7 @@ class GUI:
                 PyImGui.same_line(38, 0)
                 ImGui.text_centered(level_text, -1, avail[1] + 6)
                 
-            name_text = f"{account.CharacterName}" if account.CharacterName else ""
+            name_text = f"{account.AgentData.CharacterName}" if account.AgentData.CharacterName else ""
             # name_text = f" frenkey {account.SlotNumber}"
             name_text = name_text if name_text else f"Pending ..."
             if name_text:

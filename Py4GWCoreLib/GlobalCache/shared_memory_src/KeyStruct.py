@@ -1,4 +1,5 @@
 from ctypes import Structure, c_uint, c_uint64
+import Py4GW
 
 #region Key
 class KeyStruct(Structure):
@@ -22,6 +23,56 @@ class KeyStruct(Structure):
         self.LocalIndex = 0
         self.LastUpdated = 0
     
+    def UpdateTimestamp(self) -> None:
+        """Update the timestamp to the current tick count."""
+        self.LastUpdated = Py4GW.Game.get_tick_count64()
+        
+    def IsTimestampExpired(self, timeout_ms: int) -> bool:
+        """Check if the timestamp has expired based on the given timeout in milliseconds."""
+        current_time = Py4GW.Game.get_tick_count64()
+        return (current_time - self.LastUpdated) > timeout_ms
+        
+    def AsPlayerKey(self, hwnd: int) -> "KeyStruct":
+        """Set the key for a player."""
+        self.HWND = hwnd
+        self.EntityType = 0x0
+        self.LocalIndex = 0
+        self.UpdateTimestamp()
+        return self
+
+    def AsHeroKey(self, hwnd: int, hero_index: int) -> "KeyStruct":
+        """Set the key for a hero."""
+        self.HWND = hwnd
+        self.EntityType = 0x1
+        self.LocalIndex = hero_index
+        self.UpdateTimestamp()
+        return self
+
+    def AsPetKey(self, hwnd: int, pet_index: int) -> "KeyStruct":
+        """Set the key for a pet."""
+        self.HWND = hwnd
+        self.EntityType = 0x2
+        self.LocalIndex = pet_index
+        self.UpdateTimestamp()
+        return self
+
+        
+    def AsNPCKey(self, hwnd: int, npc_index: int) -> "KeyStruct":
+        """Set the key for an NPC."""
+        self.HWND = hwnd
+        self.EntityType = 0x3
+        self.LocalIndex = npc_index
+        self.UpdateTimestamp()
+        return self
+
+    def AsMinionKey(self, hwnd: int, minion_index: int) -> "KeyStruct":
+        """Set the key for a minion."""
+        self.HWND = hwnd
+        self.EntityType = 0x4
+        self.LocalIndex = minion_index
+        self.UpdateTimestamp()
+        return self
+        
     @property
     def is_valid(self) -> bool:
         """Return True if the key is valid (HWND is not zero)."""

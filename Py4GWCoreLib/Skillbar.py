@@ -27,7 +27,7 @@ class SkillBar:
         skillbar_instance.LoadHeroSkillTemplate(hero_index, skill_template)
 
     @staticmethod
-    def GetSkillbar():
+    def GetSkillbar() -> list[int]:
         """
         Purpose: Retrieve the IDs of all 8 skills in the skill bar.
         Returns: list: A list containing the IDs of all 8 skills.

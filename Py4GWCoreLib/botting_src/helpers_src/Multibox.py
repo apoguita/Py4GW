@@ -11,6 +11,9 @@ from Py4GWCoreLib.enums import SharedCommandType
 from Py4GWCoreLib import ConsoleLog, Console
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.GlobalCache.SharedMemory import (
+    AccountStruct,
+)
 
 #region Multibox
 class _Multibox:
@@ -22,21 +25,21 @@ class _Multibox:
         
 
     class _AccountData:
-        def __init__(self, account_data):
+        def __init__(self, account_data:AccountStruct):
             self.SlotNumber = account_data.SlotNumber
             self.IsSlotActive = account_data.IsSlotActive
             self.AccountEmail = account_data.AccountEmail
             self.AccountName = account_data.AccountName
-            self.CharacterName = account_data.CharacterName
+            self.CharacterName = account_data.AgentData.CharacterName
             self.IsAccount = account_data.IsAccount
             self.IsHero = account_data.IsHero
             self.IsPet = account_data.IsPet
             self.IsNPC = account_data.IsNPC
             self.OwnerPlayerID = account_data.OwnerPlayerID
             self.HeroID = account_data.HeroID
-            self.MapID = account_data.MapID
-            self.MapRegion = account_data.MapRegion
-            self.MapDistrict = account_data.MapDistrict
+            self.MapID = account_data.AgentData.Map.MapID
+            self.MapRegion = account_data.AgentData.Map.Region
+            self.MapDistrict = account_data.AgentData.Map.District
             self.PlayerID = account_data.PlayerID
             self.PlayerHP = account_data.PlayerHP
             self.PlayerMaxHP = account_data.PlayerMaxHP
@@ -50,11 +53,11 @@ class _Multibox:
             self.PlayerFacingAngle = account_data.PlayerFacingAngle
             self.PlayerTargetID = account_data.PlayerTargetID
             self.PlayerLoginNumber = account_data.PlayerLoginNumber
-            self.PlayerIsTicked = account_data.PlayerIsTicked
-            self.PartyID = account_data.PartyID
-            self.PartyPosition = account_data.PartyPosition
-            self.PlayerIsPartyLeader = account_data.PlayerIsPartyLeader
-            self.PlayerBuffs = list(account_data.PlayerBuffs)
+            self.PlayerIsTicked = account_data.AgentPartyData.IsTicked
+            self.PartyID = account_data.AgentPartyData.PartyID
+            self.PartyPosition = account_data.AgentPartyData.PartyPosition
+            self.PlayerIsPartyLeader = account_data.AgentPartyData.IsPartyLeader            
+            self.PlayerBuffs = account_data.AgentData.Buffs.Buffs
             self.LastUpdated = account_data.LastUpdated
 
         
@@ -279,10 +282,10 @@ class _Multibox:
             if sender_email == account.AccountEmail:
                 continue
             
-            if not current_map == account.MapID:
+            if not current_map == account.AgentData.Map.MapID:
                 continue
             
-            account_name = account.CharacterName
+            account_name = account.AgentData.CharacterName
             if account_name not in player_names:
                 continue 
             
@@ -310,10 +313,10 @@ class _Multibox:
             if sender_email == account.AccountEmail:
                 continue
 
-            if not current_map == account.MapID:
+            if not current_map == account.AgentData.Map.MapID:
                 continue
 
-            account_name = account.CharacterName
+            account_name = account.AgentData.CharacterName
             if account_name not in player_names:
                 continue
 
