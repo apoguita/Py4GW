@@ -101,7 +101,8 @@ def main():
         shmem_data_reset = False
     else:
         if not shmem_data_reset:
-            GLOBAL_CACHE.ShMem.ResetAllData()
+            #disabled for rework of shared memory slots handling
+            #GLOBAL_CACHE.ShMem.ResetAllData()
             shmem_data_reset = True
         LootConfig().ClearItemIDBlacklist()
     

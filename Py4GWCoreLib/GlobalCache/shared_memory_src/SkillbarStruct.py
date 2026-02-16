@@ -40,35 +40,36 @@ class SkillbarStruct(Structure):
         for i in range(SHMEM_MAX_NUMBER_OF_SKILLS):
             self.Skills[i].reset()
             
-    def from_context(self, SlotNumber:int | None = None, agent_id:int | None = None) -> None:
+    def from_context(self) -> None:
         from ...Agent import Agent
         from ...Skillbar import SkillBar
         from ...Player import Player
-        if SlotNumber is None:
-            self.CastingSkillID = Agent.GetCastingSkillID(Player.GetAgentID())
-            for slot in range(SHMEM_MAX_NUMBER_OF_SKILLS):        
-                skill = SkillBar.GetSkillData(slot + 1)
-                
-                if skill is None:
-                    self.reset()  # If no skill data is available, reset the skillbar and exit
-                    continue
-                            
-                self.Skills[slot].Id = skill.id.id
-                self.Skills[slot].Recharge = skill.get_recharge if skill.id.id != 0 else 0.0
-                self.Skills[slot].Adrenaline = skill.adrenaline_a if skill.id.id != 0 else 0.0  
-        else:
-            # Skills                   
-            skills = SkillBar.GetHeroSkillbar(SlotNumber)       
-            for slot in range(SHMEM_MAX_NUMBER_OF_SKILLS):        
-                skill = skills[slot] if len(skills) > slot else None
-                
-                if skill is None:
-                    self.reset()  # If no skill data is available, reset the skillbar and exit
-                    continue
-                            
-                self.Skills[slot].Id = skill.id.id
-                self.Skills[slot].Recharge = skill.get_recharge if skill.id.id != 0 else 0.0
-                self.Skills[slot].Adrenaline = skill.adrenaline_a if skill.id.id != 0 else 0.0  
 
-            self.CastingSkillID = Agent.GetCastingSkillID(agent_id) if agent_id is not None else 0
+        self.CastingSkillID = Agent.GetCastingSkillID(Player.GetAgentID())
+        skillbar = SkillBar.GetSkillbar()
+        
+        for i, skill in enumerate(skillbar):        
+            skill = SkillBar.GetSkillData(i + 1)
+            
+            if skill is None: continue
+                        
+            self.Skills[i].Id = skill.id.id
+            self.Skills[i].Recharge = skill.get_recharge if skill.id.id != 0 else 0.0
+            self.Skills[i].Adrenaline = skill.adrenaline_a if skill.id.id != 0 else 0.0  
+        
+        
+    def from_hero_context(self, hero_index: int, agent_id: int) -> None:
+        from ...Agent import Agent
+        from ...Skillbar import SkillBar
+
+        # Skills           
+        self.CastingSkillID = Agent.GetCastingSkillID(agent_id) if agent_id is not None else 0
+        skills = SkillBar.GetHeroSkillbar(hero_index) 
+        
+        for i, skill in enumerate(skills):                      
+            self.Skills[i].Id = skill.id.id
+            self.Skills[i].Recharge = skill.get_recharge if skill.id.id != 0 else 0.0
+            self.Skills[i].Adrenaline = skill.adrenaline_a if skill.id.id != 0 else 0.0  
+
+            
 
