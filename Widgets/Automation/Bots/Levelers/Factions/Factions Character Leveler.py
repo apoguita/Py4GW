@@ -834,27 +834,79 @@ def destroy_seitung_armor() -> Generator[Any, Any, None]:
 
 #region Routines
 def _on_death(bot: "Botting"):
+    """Player died (in-map): wait for respawn, then resume."""
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
-    bot.Properties.ApplyNow("halt_on_death","active", True)
-    bot.Properties.ApplyNow("movement_timeout","value", 15000)
-    bot.Properties.ApplyNow("auto_combat","active", False)
+    bot.Properties.ApplyNow("halt_on_death", "active", True)
+    bot.Properties.ApplyNow("movement_timeout", "value", 15000)
+    bot.Properties.ApplyNow("auto_combat", "active", False)
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
     fsm.resume()
-    bot.Properties.ApplyNow("auto_combat","active", True)
+    bot.Properties.ApplyNow("auto_combat", "active", True)
     bot.Templates.Aggressive()
-    yield  
-    
+    yield
+
+
+def _on_party_defeated(bot: "Botting", step_name: str):
+    """Party wiped: wait for 'Return to Outpost' widget to bring us back, then restart from the same step."""
+    bot.Properties.ApplyNow("pause_on_danger", "active", False)
+    bot.Properties.ApplyNow("auto_combat", "active", False)
+    # Widget "Return to Outpost on Defeat" handles ReturnToOutpost(); just wait until we're in outpost
+    while True:
+        yield from Routines.Yield.wait(500)
+        if not Routines.Checks.Map.MapValid():
+            continue
+        if Routines.Checks.Map.IsOutpost() and Map.IsMapReady():
+            break
+    fsm = bot.config.FSM
+    if not step_name or not fsm.has_state(step_name):
+        state_names = fsm.get_state_names()
+        step_name = state_names[0] if state_names else None
+    if not step_name:
+        fsm.resume()
+        yield
+        return
+    fsm.ResetAndStartAtStep(step_name)
+    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Templates.Aggressive()
+    yield
+
+
 def on_death(bot: "Botting"):
-    print ("Player is dead. Run Failed, Restarting...")
+    print("Player is dead. Run Failed, Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
-    
+
+
+def _get_mission_header_step(fsm) -> str | None:
+    """Return the [H] header state name for the current state (so we restart the mission, not a sub-step)."""
+    if not fsm.current_state or not fsm.states:
+        return None
+    try:
+        idx = fsm.states.index(fsm.current_state)
+    except ValueError:
+        return None
+    for i in range(idx, -1, -1):
+        if fsm.states[i].name.startswith("[H]"):
+            return fsm.states[i].name
+    return None
+
+
+def on_party_defeated(bot: "Botting"):
+    print("Party defeated. Returning to outpost and retrying current step...")
+    ActionQueueManager().ResetAllQueues()
+    fsm = bot.config.FSM
+    # Use mission header [H]... so we restart the whole mission, not a sub-step
+    current_step = _get_mission_header_step(fsm) or (fsm.current_state.name if fsm.current_state else None)
+    fsm.pause()  # Stop main state (no movement/combat); recovery still runs (managed coroutines run before pause check)
+    fsm.AddManagedCoroutine("OnPartyDefeated", _on_party_defeated(bot, current_step))
+
+
 def InitializeBot(bot: Botting) -> None:
-    condition = lambda: on_death(bot)
-    bot.Events.OnDeathCallback(condition)
+    bot.Events.OnDeathCallback(lambda: on_death(bot))
+    bot.Events.OnPartyDefeatedCallback(lambda: on_party_defeated(bot))
 
 def Exit_Monastery_Overlook(bot: Botting) -> None:
     bot.States.AddHeader("Exit Monastery Overlook")
