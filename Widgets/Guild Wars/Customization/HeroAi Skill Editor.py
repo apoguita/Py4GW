@@ -414,6 +414,35 @@ class SkillRow:
 		self.special_target = special_target
 
 
+def _build_skill_row(slot: int, skill_id: int) -> SkillRow:
+	if not skill_id:
+		return SkillRow(slot, 0, "Empty Slot", None, [], "--", None, set(), {}, None, None)
+
+	skill_name = GLOBAL_CACHE.Skill.GetName(skill_id) or f"Skill {skill_id}"
+	skill_name = skill_name.replace("_", " ")
+	custom_skill = _safe_get_custom_skill(skill_id)
+	conditions, active_conditions, condition_values = _describe_conditions(custom_skill)
+	target = _format_target(custom_skill)
+	special = _get_special_behavior(skill_id)
+	special_target = _get_special_target_info(skill_id)
+	texture_rel = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
+	texture_path = _texture_full_path(texture_rel)
+	target_value = custom_skill.TargetAllegiance if custom_skill else None
+	return SkillRow(
+		slot,
+		skill_id,
+		skill_name,
+		texture_path,
+		conditions,
+		target,
+		target_value,
+		active_conditions,
+		condition_values,
+		special,
+		special_target,
+	)
+
+
 def _prettify_name(name: str) -> str:
 	spaced = re.sub(r"(?<!^)(?=[A-Z])", " ", name).replace("_", " ")
 	return spaced.strip()
@@ -477,6 +506,44 @@ def _format_condition_raw_value(value: Any) -> str:
 	if isinstance(value, list):
 		return f"{len(value)} entries"
 	return str(value)
+
+
+def _resolve_attr(obj: Any, *names: str) -> Optional[Any]:
+	"""Return the first matching attribute value for the provided names."""
+	for name in names:
+		if hasattr(obj, name):
+			return getattr(obj, name)
+	return None
+
+
+def _skill_struct_id(struct: Any) -> int:
+	if struct is None:
+		return 0
+	for attr in ("Id", "id", "SkillID", "skill_id"):
+		if hasattr(struct, attr):
+			value = getattr(struct, attr)
+			if hasattr(value, "value"):
+				value = value.value
+			try:
+				return int(value)
+			except (TypeError, ValueError):
+				continue
+	return 0
+
+
+def _get_skill_struct(container: Any, idx: int) -> Any:
+	slot_key = idx + 1
+	if container is None:
+		return None
+	if isinstance(container, dict):
+		for key in (slot_key, idx, str(slot_key), str(idx)):
+			if key in container:
+				return container[key]
+		return None
+	try:
+		return container[idx]
+	except (IndexError, KeyError, TypeError, AttributeError):
+		return None
 
 
 def _describe_conditions(skill: Optional[CustomSkill]) -> tuple[List[str], Set[str], dict[str, Any]]:
@@ -553,55 +620,67 @@ def _get_special_target_info(skill_id: int) -> Optional[str]:
 	return _lookup_special_rule(skill_id, SPECIAL_TARGET_MAP)
 
 
+
+def _resolve_skillbar_source(account: Any) -> Optional[Any]:
+	for owner in (
+		account,
+		_resolve_attr(account, "PlayerData", "player_data"),
+	):
+		if owner is None:
+			continue
+		skillbar_data = _resolve_attr(owner, "SkillbarData", "skillbar_data")
+		if skillbar_data is not None:
+			return skillbar_data
+		agent_data = _resolve_attr(owner, "AgentData", "agent_data")
+		if agent_data is None:
+			continue
+		skillbar_struct = _resolve_attr(agent_data, "Skillbar", "skillbar")
+		if skillbar_struct is not None:
+			return skillbar_struct
+	return None
+
+
 def _collect_skillbar_entries(account) -> List[SkillRow]:
 	if account is None:
 		return []
 
-	player_data = getattr(account, "PlayerData", None)
-	skillbar_data = getattr(player_data, "SkillbarData", None)
-	if skillbar_data is None or not hasattr(skillbar_data, "Skills"):
+	skillbar_source = _resolve_skillbar_source(account)
+	if skillbar_source is None:
+		return []
+
+	skill_container = _resolve_attr(skillbar_source, "Skills", "skills")
+	if callable(skill_container):
+		try:
+			skill_container = skill_container()
+		except TypeError:
+			pass
+	if skill_container is None and hasattr(skillbar_source, "__getitem__"):
+		skill_container = skillbar_source
+	if skill_container is None:
 		return []
 
 	entries: List[SkillRow] = []
 	for idx in range(MAX_SKILL_SLOTS):
-		slot = idx + 1
-		try:
-			skill_struct = skillbar_data.Skills[idx]
-		except Exception:
-			skill_struct = None
+		skill_struct = _get_skill_struct(skill_container, idx)
+		skill_id = _skill_struct_id(skill_struct)
+		entries.append(_build_skill_row(idx + 1, skill_id))
 
-		skill_id = int(getattr(skill_struct, "Id", 0)) if skill_struct else 0
-		if not skill_id:
-			entries.append(SkillRow(slot, 0, "Empty Slot", None, [], "--", None, set(), {}, None, None))
-			continue
+	local_fallback = _collect_local_skillbar_entries_if_needed(account, entries)
+	return local_fallback if local_fallback is not None else entries
 
-		skill_name = GLOBAL_CACHE.Skill.GetName(skill_id) or f"Skill {skill_id}"
-		skill_name = skill_name.replace("_", " ")
-		custom_skill = _safe_get_custom_skill(skill_id)
-		conditions, active_conditions, condition_values = _describe_conditions(custom_skill)
-		target = _format_target(custom_skill)
-		special = _get_special_behavior(skill_id)
-		special_target = _get_special_target_info(skill_id)
-		texture_rel = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
-		texture_path = _texture_full_path(texture_rel)
-		target_value = custom_skill.TargetAllegiance if custom_skill else None
-		entries.append(
-			SkillRow(
-				slot,
-				skill_id,
-				skill_name,
-				texture_path,
-				conditions,
-				target,
-				target_value,
-				active_conditions,
-				condition_values,
-				special,
-				special_target,
-			)
-		)
 
-	return entries
+def _collect_local_skillbar_entries_if_needed(account, shared_entries: List[SkillRow]) -> Optional[List[SkillRow]]:
+	if any(row.skill_id for row in shared_entries):
+		return None
+	account_email = (getattr(account, "AccountEmail", "") or "").strip().lower()
+	local_email = (Player.GetAccountEmail() or "").strip().lower()
+	if not account_email or account_email != local_email:
+		return None
+	rows: List[SkillRow] = []
+	for slot in range(1, MAX_SKILL_SLOTS + 1):
+		skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
+		rows.append(_build_skill_row(slot, skill_id))
+	return rows
 
 
 def _format_target(skill: Optional[CustomSkill]) -> str:
@@ -683,7 +762,7 @@ def _render_target_list(selected_value: Optional[int], fallback_label: str) -> N
 		PyImGui.selectable(
 			f"{label}##target_option_{option.value}",
 			is_active,
-			0,
+			PyImGui.SelectableFlags(0),
 			(0.0, 0.0),
 		)
 		PyImGui.table_set_column_index(1)
@@ -710,7 +789,7 @@ def _render_condition_list(active_conditions: Set[str], condition_values: dict[s
 		PyImGui.selectable(
 			f"{pretty}##condition_option_{condition_name}",
 			is_condition_active,
-			0,
+			PyImGui.SelectableFlags(0),
 			(0.0, 0.0),
 		)
 		PyImGui.table_set_column_index(1)
