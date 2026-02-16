@@ -288,6 +288,11 @@ class _Upkeepers:
             730,  # Gain Goren
         ]
         
+        # Map IDs where summoning stones should NOT be used
+        excluded_map_ids = [
+            503,  # Throne of Secrets
+        ]
+        
         # Priority list for summoning stones (items)
         priority_stones = [
             ModelID.Legionnaire_Summoning_Crystal.value,  # Priority 1: Legionnaire
@@ -345,6 +350,11 @@ class _Upkeepers:
                 # Skip if an excluded quest is in the quest log
                 active_quests = Quest.GetQuestLogIds()
                 if any(qid in excluded_quest_ids for qid in active_quests):
+                    yield from Routines.Yield.wait(1000)
+                    continue
+                
+                # Skip if in an excluded map
+                if Map.GetMapID() in excluded_map_ids:
                     yield from Routines.Yield.wait(1000)
                     continue
                 
