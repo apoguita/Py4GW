@@ -340,11 +340,11 @@ def render():
                     if account.AccountEmail == account_email:
                         continue
                     total_count += 1
-                    is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
+                    is_in_map = (self_account.AgentData.Map.MapID == account.AgentData.Map.MapID and self_account.AgentData.Map.Region == account.AgentData.Map.Region and self_account.AgentData.Map.District == account.AgentData.Map.District)
                     if is_in_map :
-                        ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
+                        ImGui.show_tooltip(f"{account.AgentData.CharacterName} - In the current map")
                         count_in_map+=1
-                    else : ImGui.show_tooltip(f"{account.CharacterName} - In {Map.GetMapName(account.MapID)}")
+                    else : ImGui.show_tooltip(f"{account.AgentData.CharacterName} - In {Map.GetMapName(account.AgentData.Map.MapID)}")
 
             ImGui.show_tooltip(f"----------------------------")
             ImGui.show_tooltip(f"{count_in_map}/{total_count} in current map")
@@ -378,18 +378,18 @@ def render():
                 for account in accounts:
                     if account.AccountEmail == account_email:
                         continue
-                    is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
+                    is_in_map = (self_account.AgentData.Map.MapID == account.AgentData.Map.MapID and self_account.AgentData.Map.Region == account.AgentData.Map.Region and self_account.AgentData.Map.District == account.AgentData.Map.District)
                     if is_in_map:
-                        ImGui.show_tooltip(f"{account.CharacterName} - In the current map")
+                        ImGui.show_tooltip(f"{account.AgentData.CharacterName} - In the current map")
 
                 ImGui.show_tooltip(f"--------------Not eligible--------------")
 
                 for account in accounts:
                     if account.AccountEmail == account_email:
                         continue
-                    is_in_map = (self_account.MapID == account.MapID and self_account.MapRegion == account.MapRegion and self_account.MapDistrict == account.MapDistrict)
+                    is_in_map = (self_account.AgentData.Map.MapID == account.AgentData.Map.MapID and self_account.AgentData.Map.Region == account.AgentData.Map.Region and self_account.AgentData.Map.District == account.AgentData.Map.District)
                     if not is_in_map:
-                        ImGui.show_tooltip(f"{account.CharacterName} - Not eligible (not in the current map)")
+                        ImGui.show_tooltip(f"{account.AgentData.CharacterName} - Not eligible (not in the current map)")
 
             PyImGui.same_line(0, 5)
 
@@ -561,7 +561,7 @@ def render():
                 CustomBehaviorParty().set_party_leader_email(None)
 
             # if CustomBehaviorParty.get_party_leader_email() is not None:
-            #     PyImGui.text(f"CharacterName {GLOBAL_CACHE.ShMem.GetAccountDataFromEmail()).CharacterName}")
+            #     PyImGui.text(f"CharacterName {GLOBAL_CACHE.ShMem.GetAccountDataFromEmail()).AgentData.CharacterName}")
 
             # Table listing all players from shared memory
             account_email = Player.GetAccountEmail()
@@ -577,11 +577,11 @@ def render():
 
                     for account in accounts:
 
-                        character_name = account.CharacterName if account.CharacterName else "Unknown"
+                        character_name = account.AgentData.CharacterName if account.AgentData.CharacterName else "Unknown"
 
                         # Get profession short names (e.g., "Me/Mo")
-                        primary_prof_id = account.PlayerProfession[0] if account.PlayerProfession else 0
-                        secondary_prof_id = account.PlayerProfession[1] if account.PlayerProfession else 0
+                        primary_prof_id = account.AgentData.Profession[0] if account.AgentData.Profession else 0
+                        secondary_prof_id = account.AgentData.Profession[1] if account.AgentData.Profession else 0
                         primary_short = ProfessionShort_Names.get(ProfessionShort(primary_prof_id), "?") if primary_prof_id > 0 else "?"
                         secondary_short = ProfessionShort_Names.get(ProfessionShort(secondary_prof_id), "") if secondary_prof_id > 0 else ""
                         class_text = f"{primary_short}/{secondary_short}" if secondary_short else primary_short
@@ -600,7 +600,7 @@ def render():
                         PyImGui.text(f"[{class_text}] {character_name}")
 
                         PyImGui.table_next_column()
-                        PyImGui.text(f"{account.PartyID} / AgentId {account.PlayerID} / PartyLeader {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
+                        PyImGui.text(f"{account.AgentPartyData.PartyID} / AgentId {account.AgentData.AgentID} / PartyLeader {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
 
                         PyImGui.table_next_column()
                         if PyImGui.button(f"Focus window##{account.AccountEmail}"):
