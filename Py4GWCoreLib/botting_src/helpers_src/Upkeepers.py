@@ -282,6 +282,7 @@ class _Upkeepers:
         # Quest IDs where summoning stones should NOT be used
         excluded_quest_ids = [
             504,  # Warning Kehanni
+            505,  # Calling the Order
         ]
         
         # Priority list for summoning stones (items)
