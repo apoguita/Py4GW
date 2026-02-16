@@ -286,6 +286,8 @@ class _Upkeepers:
             504,  # Warning Kehanni
             505,  # Calling the Order
             507,  # Pledge of the Merchant Princes
+            581,  # Heart or Mind: Garden in Danger
+            586,  # Heart or Mind: Ronjok in Danger
             730,  # Gain Goren
         ]
         
