@@ -81,7 +81,7 @@ def draw_account_info(player: AccountStruct):
     milliseconds = int(timestamp.microsecond / 1000)
 
     num_heroes = SMM.GetNumHeroesFromPlayers(player.AgentData.AgentID)
-    num_pets = SMM.GetNumPetsFromPlayers(player.PlayerID)
+    num_pets = SMM.GetNumPetsFromPlayers(player.AgentData.AgentID)
     player_buffs = [buff.SkillId for buff in player.AgentData.Buffs.Buffs if buff.SkillId != 0]
     num_buffs = len(player_buffs)
 
@@ -106,9 +106,9 @@ def draw_account_info(player: AccountStruct):
         PyImGui.table_set_column_index(0); PyImGui.text("Heroes")
         PyImGui.table_set_column_index(1)
         if PyImGui.tree_node(f"Heroes ({num_heroes})"):
-            heroes = SMM.GetHeroesFromPlayers(player.PlayerID)
+            heroes = SMM.GetHeroesFromPlayers(player.AgentData.AgentID)
             for hero in heroes:
-                PyImGui.text(f"{hero.AgentData.CharacterName} (HeroID: {hero.HeroID})")
+                PyImGui.text(f"{hero.AgentData.CharacterName} (HeroID: {hero.AgentData.HeroID})")
             PyImGui.tree_pop()
 
         # -----------------------------------
@@ -118,9 +118,9 @@ def draw_account_info(player: AccountStruct):
         PyImGui.table_set_column_index(0); PyImGui.text("Pets")
         PyImGui.table_set_column_index(1)
         if PyImGui.tree_node(f"Pets ({num_pets})"):
-            pets = SMM.GetPetsFromPlayers(player.PlayerID)
+            pets = SMM.GetPetsFromPlayers(player.AgentData.AgentID)
             for pet in pets:
-                PyImGui.text(f"{pet.AgentData.CharacterName} (PlayerID: {pet.PlayerID})")
+                PyImGui.text(f"{pet.AgentData.CharacterName} (PlayerID: {pet.AgentData.AgentID})")
             PyImGui.tree_pop()
 
         # -----------------------------------
@@ -152,8 +152,8 @@ def draw_account_info(player: AccountStruct):
                 PyImGui.table_set_column_index(0); PyImGui.text(label)
                 PyImGui.table_set_column_index(1); PyImGui.text(str(value))
 
-            lrow("PlayerID",       player.PlayerID)
-            lrow("OwnerPlayerID",  player.OwnerPlayerID)
+            lrow("PlayerID",       player.AgentData.AgentID)
+            lrow("OwnerPlayerID",  player.AgentData.OwnerAgentID)
             lrow("MapID",          player.AgentData.Map.MapID)
             lrow("Map Region",     player.AgentData.Map.Region)
             lrow("Map District",   player.AgentData.Map.District)
@@ -163,13 +163,13 @@ def draw_account_info(player: AccountStruct):
             lrow("IsHero",         player.IsHero)
             lrow("IsPet",          player.IsPet)
             lrow("IsNPC",          player.IsNPC)
-            lrow("HeroID",         player.HeroID)
+            lrow("HeroID",         player.AgentData.HeroID)
             lrow("PartyID",         player.AgentPartyData.PartyID)
 
             lrow(
                 "Player HP",
-                f"{int(player.PlayerHP * player.PlayerMaxHP)} / "
-                f"{player.PlayerMaxHP}  Regen: {player.PlayerHealthRegen:.2f}"
+                f"{int(player.AgentData.Health.Current * player.AgentData.Health.Max)} / "
+                f"{player.AgentData.Health.Max}  Regen: {player.AgentData.Health.Regen:.2f}"
             )
 
             lrow(
@@ -792,9 +792,9 @@ class ExperienceData:
 #region Health Data
 class HealthData:
     def __init__(self, player: AccountStruct):
-        self.Health = player.AgentData.Health      # 0.0 - 1.0
-        self.MaxHealth = player.AgentData.MaxHealth
-        self.HealthPips = player.AgentData.HealthPips
+        self.Health = player.AgentData.Health.Current    # 0.0 - 1.0
+        self.MaxHealth = player.AgentData.Health.Max
+        self.HealthPips = player.AgentData.Health.Pips
         self.player = player
 
     def draw_content(self):
@@ -916,16 +916,16 @@ class AgentData:
         agent_data = player.AgentData
         self.UUID: list[int] = agent_data.UUID
         self.AgentID: int = agent_data.AgentID
-        self.OwnerID: int = agent_data.OwnerID
+        self.OwnerID: int = agent_data.OwnerAgentID
         self.TargetID: int = agent_data.TargetID
         self.ObservingID: int = agent_data.ObservingID
         self.PlayerNumber: int = agent_data.PlayerNumber
-        self.Profession: list[int] = agent_data.Profession
+        self.Profession: list[int] = list(agent_data.Profession)
         self.Level: int = agent_data.Level
         self.Energy: float = agent_data.Energy
         self.MaxEnergy: float = agent_data.MaxEnergy
         self.EnergyPips: int = agent_data.EnergyPips
-        self.Health: float = agent_data.Health
+        self.Health: float = agent_data.OldHealth
         self.MaxHealth: float = agent_data.MaxHealth
         self.HealthPips: int = agent_data.HealthPips
         self.LoginNumber: int = agent_data.LoginNumber
