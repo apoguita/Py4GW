@@ -83,13 +83,13 @@ class FlagsUI:
                 if account.AccountEmail == account_email:
                     continue  # Skip leader
                 is_in_map = (
-                    my_account.MapID == account.MapID
-                    and my_account.MapRegion == account.MapRegion
-                    and my_account.MapDistrict == account.MapDistrict
+                    my_account.AgentData.Map.MapID == account.AgentData.Map.MapID
+                    and my_account.AgentData.Map.Region == account.AgentData.Map.Region
+                    and my_account.AgentData.Map.District == account.AgentData.Map.District
                 )
                 if is_in_map:
                     # Use character name for display, store email for lookup
-                    char_name = account.CharacterName if account.CharacterName else account.AccountEmail
+                    char_name = account.AgentData.CharacterName if account.AgentData.CharacterName else account.AccountEmail
                     available_members_display.append(char_name)
                     available_members_emails.append(account.AccountEmail)
 

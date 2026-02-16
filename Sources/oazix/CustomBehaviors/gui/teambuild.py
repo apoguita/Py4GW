@@ -276,7 +276,7 @@ def render():
     for i, account in enumerate(accounts):
 
         account_email = account.AccountEmail
-        account_character_name = account.CharacterName
+        account_character_name = account.AgentData.CharacterName
         if account_email not in CustomBehaviorParty().party_teambuild_manager.skillbar_datas:
             continue
 

@@ -19,7 +19,7 @@ class PartyCommandConstants:
                 if account.AccountEmail == account_email:
                     continue
                 if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
-                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.MapID, self_account.MapRegion, self_account.MapDistrict, 0))
+                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.AgentData.Map.MapID, self_account.AgentData.Map.Region, self_account.AgentData.Map.District, 0))
         yield
 
     @staticmethod    
@@ -43,11 +43,11 @@ class PartyCommandConstants:
                 if account.AccountEmail == account_email:
                     continue
                 if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
-                if (self_account.MapID == account.MapID and
-                    self_account.MapRegion == account.MapRegion and
-                    self_account.MapDistrict == account.MapDistrict and
-                    self_account.PartyID != account.PartyID):
-                    GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
+                if (self_account.AgentData.Map.MapID == account.AgentData.Map.MapID and
+                    self_account.AgentData.Map.Region == account.AgentData.Map.Region and
+                    self_account.AgentData.Map.District == account.AgentData.Map.District and
+                    self_account.AgentPartyData.PartyID != account.AgentPartyData.PartyID):
+                    GLOBAL_CACHE.Party.Players.InvitePlayer(account.AgentData.CharacterName)
                     GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
                     yield from custom_behavior_helpers.Helpers.wait_for(300)
     
@@ -95,7 +95,7 @@ class PartyCommandConstants:
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
-            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.SetWindowTitle, ExtraData=(account.CharacterName, "", "", ""))
+            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.SetWindowTitle, ExtraData=(account.AgentData.CharacterName, "", "", ""))
             yield from custom_behavior_helpers.Helpers.wait_for(100)
         yield
 

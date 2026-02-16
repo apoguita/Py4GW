@@ -208,7 +208,7 @@ def update_buff_cache():
     for index, player_data in player_data_cache.items():
         try:
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(index)
-            player_data['has_heroic_refrain'] = any(buff.SkillId == 3431 and buff.Remaining > 0 for buff in account.PlayerBuffs) if account else False
+            player_data['has_heroic_refrain'] = any(buff.SkillId == 3431 and buff.Remaining > 0 for buff in account.AgentData.Buffs.Buffs) if account else False
         except:
             player_data['has_heroic_refrain'] = False
 
@@ -234,10 +234,10 @@ def render_heroic_refrain_ui():
     # render players first
     for data in [accounts, acc_heroes]:
         for account in data:
-            has_heroic_refrain = any(buff.SkillId == 3431 and buff.Remaining > 0 for buff in account.PlayerBuffs) if account else False 
+            has_heroic_refrain = any(buff.SkillId == 3431 and buff.Remaining > 0 for buff in account.AgentData.Buffs.Buffs) if account else False 
             
             if not has_heroic_refrain:
-                if PyImGui.button(f"{account.CharacterName}##hr_cast_{account.PlayerID}"):
+                if PyImGui.button(f"{account.AgentData.CharacterName}##hr_cast_{account.PlayerID}"):
                     if account.IsHero:
                         cast_heroic_refrain_on_hero(account.PlayerID)
                     else:
@@ -246,7 +246,7 @@ def render_heroic_refrain_ui():
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.3, 0.3, 0.3, 1.0))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.35, 0.35, 0.35, 1.0))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.25, 0.25, 0.25, 1.0))
-                PyImGui.button(f"{account.CharacterName} ##hr_disabled_{account.PlayerID}")
+                PyImGui.button(f"{account.AgentData.CharacterName} ##hr_disabled_{account.PlayerID}")
                 PyImGui.pop_style_color(3)
                 
 
