@@ -981,9 +981,6 @@ def draw_widget():
         INVENTORY_MODEL_ID_CACHE = inventory_model_ids_store.load()
         INVENTORY_MOD_HASH_CACHE = inventory_mod_hash_store.load()
 
-    new_collapsed = PyImGui.is_window_collapsed()
-    end_pos = PyImGui.get_window_pos()
-
     # This triggers a reload of and save of bag data
     if inventory_write_timer.IsExpired() and Routines.Checks.Map.IsOutpost():
         GLOBAL_CACHE.Coroutines.append(record_account_data())
@@ -1331,6 +1328,9 @@ def draw_widget():
                 PyImGui.pop_style_color(3)
                 PyImGui.end_table()
     PyImGui.end()
+
+    new_collapsed = PyImGui.is_window_collapsed()
+    end_pos = PyImGui.get_window_pos()
 
     if save_window_timer.HasElapsed(1000):
         # Position changed?
