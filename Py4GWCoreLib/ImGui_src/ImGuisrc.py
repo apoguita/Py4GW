@@ -181,9 +181,6 @@ class ImGui:
         py_io = PyImGui.get_io()
         display_size_x = py_io.display_size_x
         display_size_y = py_io.display_size_y
-        
-        if display_size_x == 0 or display_size_y == 0:
-            return pos
 
         # Compute required visible margin in pixels
         if min_visible_x is None:
@@ -281,7 +278,7 @@ class ImGui:
     def _is_textured_theme() -> bool: return ImGui.get_style().Theme in ImGui.Textured_Themes
     
     @staticmethod
-    def Begin(ini_key: str, name: str, p_open=None, flags:int=PyImGui.WindowFlags.NoFlag) -> bool:
+    def Begin(ini_key: str, name: str, p_open=None, flags=PyImGui.WindowFlags.NoFlag) -> bool:
         from Py4GWCoreLib.IniManager import IniManager
         IniManager().begin_window_config(ini_key)
 
@@ -295,7 +292,7 @@ class ImGui:
         return result
     
     @staticmethod
-    def begin (name: str, p_open: Optional[bool] = None, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
+    def begin (name: str, p_open: Optional[bool] = None, flags: PyImGui.WindowFlags = PyImGui.WindowFlags.NoFlag) -> bool:
         if not ImGui._is_textured_theme(): 
             return PyImGui.begin(name, p_open, flags)
         
@@ -3092,105 +3089,50 @@ class ImGui:
         return clicked
     
     @staticmethod
-    def format_hotkey(key, modifiers):
-        if key is None or key == Key.Unmapped or key == Key.VK_0x00:
-            return "Unassigned"
-
-        parts = []
-        if modifiers & ModifierKey.Ctrl:
-            parts.append("Ctrl")
-        if modifiers & ModifierKey.Shift:
-            parts.append("Shift")
-        if modifiers & ModifierKey.Alt:
-            parts.append("Alt")
-
-        parts.append(key.name.replace("VK_", ""))
-        return "+".join(parts)
-    
-    @staticmethod
-    def keybinding(label: str, key: Key, modifiers: ModifierKey):
-        changed = False
-        popup_done = False
-
-        display_text = ImGui.format_hotkey(key, modifiers)
-        display_label = label.split("##")[0]
-        popup_id = f"##KeybindPopup_{label}"
-
-        PyImGui.begin_group()
-        if display_label:
-            PyImGui.columns(2, f"{label}_columns", False)
-
-        if ImGui.button(display_text, -1, 0):
-            PyImGui.open_popup(popup_id)
-
-        _, _, size = ImGui.get_item_rect()
-        ImGui.show_tooltip("Click to set hotkey")
-
-        if display_label:
-            PyImGui.next_column()
-            ImGui.text_aligned(display_label, alignment=Alignment.MidLeft, height=size[1])
-            PyImGui.end_columns()
-
-        PyImGui.end_group()
-
-        if PyImGui.begin_popup_modal(
-            popup_id,
-            True,
-            PyImGui.WindowFlags.AlwaysAutoResize
-            | PyImGui.WindowFlags.NoMove
-            | PyImGui.WindowFlags.NoSavedSettings
-            | PyImGui.WindowFlags.NoTitleBar
-        ):
-            ImGui.text_aligned("Press a key combination", alignment=Alignment.TopCenter, height=30)
-            PyImGui.separator()
-            PyImGui.spacing()
-            ImGui.text_aligned("Esc to cancel", alignment=Alignment.TopCenter, height=30)
-            PyImGui.spacing()
-
-            if ImGui.button("Clear", -1, 20):
-                key = Key.Unmapped
-                modifiers = ModifierKey.NoneKey
-                changed = True
-                popup_done = True
-                PyImGui.close_current_popup()
-
-            io = PyImGui.get_io()
-            if not popup_done:
-                new_mods = ModifierKey.NoneKey
-                if io.key_ctrl:
-                    new_mods |= ModifierKey.Ctrl
-                if io.key_shift:
-                    new_mods |= ModifierKey.Shift
-                if io.key_alt:
-                    new_mods |= ModifierKey.Alt
-
-                for k in Key:
-                    if k in (
-                        Key.Ctrl, Key.LCtrl, Key.RCtrl,
-                        Key.Shift, Key.LShift, Key.RShift,
-                        Key.Alt, Key.LAlt, Key.RAlt,
-                        Key.Unmapped, Key.Escape, Key.VK_0x00
-                    ):
-                        continue
-
-                    if PyImGui.is_key_pressed(k.value):
-                        key = k
-                        modifiers = new_mods
-                        changed = True
-                        popup_done = True
-                        PyImGui.close_current_popup()
-                        break
-
-            if PyImGui.is_key_pressed(Key.Escape.value):
-                PyImGui.close_current_popup()
-                
-            if (not popup_done and not PyImGui.is_any_item_active() and (PyImGui.is_mouse_released(0) or PyImGui.is_mouse_released(1)) and not PyImGui.is_window_hovered() and not PyImGui.is_window_appearing()):
-                PyImGui.close_current_popup()
-
-            PyImGui.end_popup()
+    def keybinding(label : str, key: Key, modifiers: ModifierKey):
+        assigned_key = key
+        assigned_modifiers = modifiers
+        is_hotkey_captured = False
         
-        return key, modifiers, changed
+        ImGui.input_text(f"{label}", f"{modifiers.name}+{key.name.replace('VK_','')}")
+        if PyImGui.is_item_focused():
+            is_hotkey_captured = False
+            io = PyImGui.get_io()
+            modifiers = ModifierKey.NoneKey
+            
+            if io.key_shift:
+                modifiers |= ModifierKey.Shift
+                
+            if io.key_ctrl:
+                modifiers |= ModifierKey.Ctrl
+                
+            if io.key_alt:
+                modifiers |= ModifierKey.Alt
+                
+            for key in Key:                
+                if key == Key.Ctrl or key == Key.LCtrl or key == Key.RCtrl or \
+                    key == Key.Shift or key == Key.LShift or key == Key.RShift or \
+                    key == Key.Alt or key == Key.LAlt or key == Key.RAlt or \
+                    key == Key.Unmapped:                              
+                    continue         
+                
+                if PyImGui.is_key_down(key.value): 
+                    
+                    assigned_key = key
+                    assigned_modifiers = modifiers
+                    
+                    is_hotkey_captured = True                
+                    break
+                            
+        PyImGui.same_line(0, 0)
+        ImGui.invisible_button("##HotkeyCapture",0,0)
+        if is_hotkey_captured:
+            PyImGui.set_keyboard_focus_here(-1)
+            
+        return assigned_key, assigned_modifiers
 
+    
+    
 
     @staticmethod
     def floating_button(caption, x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255), name = ""):
