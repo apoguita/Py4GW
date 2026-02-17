@@ -20,8 +20,7 @@ from Py4GWCoreLib import Map, Agent, Player
 from Py4GWCoreLib import ChatChannel
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import AssassinShadowTheftDaggerSpammer
 from Py4GWCoreLib.Builds.ShadowTheftDaggerSpammer import BuildStatus
-from Widgets.CombatPrep import CombatPrep
-
+from Widgets.Automation.Multiboxing.CombatPrep import CombatPrep
 
 BOT_NAME = "Voltaic Spear Farm [BETA]"
 TEXTURE = os.path.join(

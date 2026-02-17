@@ -174,18 +174,18 @@ def draw_account_info(player: AccountStruct):
 
             lrow(
                 "Player Energy",
-                f"{int(player.PlayerEnergy * player.PlayerMaxEnergy)} / "
-                f"{player.PlayerMaxEnergy}  Regen: {player.PlayerEnergyRegen:.2f}"
+                f"{int(player.AgentData.Energy.Current * player.AgentData.Energy.Max)} / "
+                f"{player.AgentData.Energy.Max}  Regen: {player.AgentData.Energy.Regen:.2f}"
             )
 
             lrow(
                 "Player XYZ",
-                f"({player.PlayerPosX:.2f}, {player.PlayerPosY:.2f}, {player.PlayerPosZ:.2f})"
+                f"({player.AgentData.Pos.x:.2f}, {player.AgentData.Pos.y:.2f}, {player.AgentData.Pos.z:.2f})"
             )
 
-            lrow("Facing Angle", f"{Utils.RadToDeg(player.PlayerFacingAngle):.2f}")
-            lrow("Target ID",    player.PlayerTargetID)
-            lrow("Login Number", player.PlayerLoginNumber)
+            lrow("Facing Angle", f"{Utils.RadToDeg(player.AgentData.RotationAngle):.2f}")
+            lrow("Target ID",    player.AgentData.TargetID)
+            lrow("Login Number", player.AgentData.LoginNumber)
             lrow("Is Ticked",    player.AgentPartyData.IsTicked)
 
             end_striped_table()
@@ -922,12 +922,12 @@ class AgentData:
         self.PlayerNumber: int = agent_data.PlayerNumber
         self.Profession: list[int] = list(agent_data.Profession)
         self.Level: int = agent_data.Level
-        self.Energy: float = agent_data.Energy
-        self.MaxEnergy: float = agent_data.MaxEnergy
-        self.EnergyPips: int = agent_data.EnergyPips
-        self.Health: float = agent_data.OldHealth
-        self.MaxHealth: float = agent_data.MaxHealth
-        self.HealthPips: int = agent_data.HealthPips
+        self.Energy: float = agent_data.Energy.Current
+        self.MaxEnergy: float = agent_data.Energy.Max
+        self.EnergyPips: int = agent_data.Energy.Pips
+        self.Health: float = agent_data.Health.Current
+        self.MaxHealth: float = agent_data.Health.Max
+        self.HealthPips: int = agent_data.Health.Pips
         self.LoginNumber: int = agent_data.LoginNumber
         self.DaggerStatus: int = agent_data.DaggerStatus
         self.WeaponType: int = agent_data.WeaponType
@@ -941,10 +941,10 @@ class AgentData:
         self.AnimationSpeed: float = agent_data.AnimationSpeed
         self.AnimationCode: int = agent_data.AnimationCode
         self.AnimationID: int = agent_data.AnimationID
-        self.XYZ: list[float] = agent_data.XYZ
+        self.XYZ: list[float] = agent_data.Pos.to_list()
         self.ZPlane: int = agent_data.ZPlane
         self.RotationAngle: float = agent_data.RotationAngle
-        self.VelocityVector: list[float] = agent_data.VelocityVector
+        self.VelocityVector: list[float] = agent_data.Velocity.to_list()
 
 #region main
 def main():
