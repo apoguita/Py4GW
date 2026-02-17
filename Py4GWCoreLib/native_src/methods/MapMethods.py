@@ -1,11 +1,12 @@
 from ...Scanner import ScannerSection
 from ..internals.prototypes import Prototypes
 from ..internals.native_function import NativeFunction
+from ..internals.native_symbol import NativeSymbol
 from ...UIManager import UIManager
 from ...enums_src.UI_enums import UIMessage
 from ..context.GuildContext import Guild, GuildContext, GHKey
 import ctypes
-from typing import List
+from typing import List, Optional
 from Py4GW import Game
 
 
@@ -19,8 +20,40 @@ SkipCinematic_Func = NativeFunction(
     use_near_call=False,
 )
 
+# Scan for: imul eax, esi, 0x7C; pop esi; add eax, <area_info_addr>
+# The 4-byte immediate at offset +5 is the AreaInfo array base.
+_area_info_symbol: Optional[NativeSymbol] = None
+try:
+    _area_info_symbol = NativeSymbol(
+        name="AreaInfoArray",
+        pattern=b"\x6B\xC6\x7C\x5E\x05",
+        mask="xxxxx",
+        offset=5,
+        section=ScannerSection.TEXT,
+    )
+except Exception:
+    pass
+
 class MapMethods:
     _GHKEY_SCRATCH = GHKey()
+
+    @staticmethod
+    def GetMapInfo(map_id: int):
+        """Return AreaInfoStruct for any map_id (not just the current map)."""
+        from ..context.InstanceInfoContext import AreaInfoStruct
+        if map_id <= 0 or not _area_info_symbol:
+            return None
+
+        base = _area_info_symbol.read_ptr()
+        if not base:
+            return None
+
+        target_addr = base + (map_id * ctypes.sizeof(AreaInfoStruct))
+        try:
+            return ctypes.cast(target_addr, ctypes.POINTER(AreaInfoStruct)).contents
+        except (ValueError, OSError):
+            return None
+
     @staticmethod
     def SkipCinematic() -> bool:
         """Skip the current map cinematic."""
