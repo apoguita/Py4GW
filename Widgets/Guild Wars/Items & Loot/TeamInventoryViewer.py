@@ -21,23 +21,11 @@ from Py4GWCoreLib import Map, Player
 from Py4GWCoreLib import get_texture_for_model
 from Py4GWCoreLib.enums import Bags
 from Py4GWCoreLib.enums import ModelID
+from Widgets.Data.Mods.mods_parser import parse_modifiers
+from Widgets.Data.Mods.mods_parser import ModDatabase
+from Widgets.Data.Mods.mods_parser import MatchedRuneInfo
+from Widgets.Data.Mods.mods_parser import MatchedWeaponModInfo
 
-# region frenkey Function
-
-try:
-    # We will try to use LootEx to generate Known items
-    # https://github.com/frenkey-derp/Py4GW/tree/apo_source/Widgets/frenkey
-    # This will require you to download and add to your file `Core` and `LootEx`
-    from Sources.frenkeyLib.LootEx.data import Data  # type: ignore
-    from Sources.frenkeyLib.LootEx.utility import Util  # type: ignore
-
-    LOOTEX_AVAILABLE = True
-
-except Exception:
-    Util = None
-    Data = None
-
-    LOOTEX_AVAILABLE = False
 
 project_root = Py4GW.Console.get_projects_path()
 
@@ -48,6 +36,7 @@ JSON_INVENTORY_PATH = os.path.join(DB_BASE_DIR, "Inventory")
 JSON_INVENTORY_MODEL_IDS_PATH = os.path.join(DB_BASE_DIR, "InventoryModelIds")
 JSON_INVENTORY_MOD_HASH_PATH = os.path.join(DB_BASE_DIR, "InventoryModHash")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "team_inventory_viewer.ini")
+MOD_DB = ModDatabase.load(os.path.join(project_root, "Widgets/Data/Mods/data"))
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # ——— Window Persistence Setup ———
@@ -427,13 +416,15 @@ class ModHashJSONStore:
         # Build the integer matrix
         data = []
         for mod in modifiers:
-            data.append([
-                safe_int(mod.GetIdentifier()),
-                safe_int(mod.GetArg1()),
-                safe_int(mod.GetArg2()),
-                safe_int(mod.GetArg()),
-                safe_int(mod.GetModBits()),
-            ])
+            data.append(
+                [
+                    safe_int(mod.GetIdentifier()),
+                    safe_int(mod.GetArg1()),
+                    safe_int(mod.GetArg2()),
+                    safe_int(mod.GetArg()),
+                    safe_int(mod.GetModBits()),
+                ]
+            )
 
         # === Fast 64-bit hash mixer ===
         h = 0
@@ -688,6 +679,44 @@ def get_storage_bag_items_coroutine(bag, bag_id, email, storage_name):
     store.save_bag(storage_name=storage_name, bag_items=bag_items)
 
 
+def get_mods_from_item(item):
+    modifiers = []
+    for mod in item.modifiers:
+        modifiers.append(
+            [
+                mod.GetIdentifier(),
+                mod.GetArg1(),
+                mod.GetArg2(),
+            ]
+        )
+    # 2. Parse any item's raw modifiers
+    result = parse_modifiers(
+        modifiers=modifiers,
+        item_type=item.item_type.ToInt(),
+        model_id=item.model_id,
+        db=MOD_DB,
+    )
+
+    prefix = None
+    suffix = None
+    inherent = None
+
+    if result.prefix and isinstance(result.prefix, MatchedWeaponModInfo):
+        prefix = result.prefix.weapon_mod.name
+    elif result.prefix and isinstance(result.prefix, MatchedRuneInfo):
+        prefix = result.prefix.rune.name
+
+    if result.inherent and isinstance(result.inherent, MatchedWeaponModInfo):
+        inherent = result.inherent.weapon_mod.name
+
+    if result.suffix and isinstance(result.suffix, MatchedWeaponModInfo):
+        suffix = result.suffix.weapon_mod.name
+    elif result.prefix and isinstance(result.suffix, MatchedRuneInfo):
+        suffix = result.suffix.rune.name
+
+    return (prefix, suffix, inherent)
+
+
 def _collect_bag_items(bag, bag_id, email, storage_name=None, char_name=None):
     global current_character_name
     global multi_store
@@ -740,14 +769,6 @@ def _collect_bag_items(bag, bag_id, email, storage_name=None, char_name=None):
 
         return f"{base_name} #{i}"
 
-    def _get_frenkey_texture_file(model_id, item_type):
-        if LOOTEX_AVAILABLE and Data:
-            data = Data()
-            item_data = data.Items[item_type].get(model_id)
-            if item_data:
-                return item_data.texture_file
-        return ''
-
     bag_items = OrderedDict()
 
     for item in bag.GetItems():
@@ -758,8 +779,6 @@ def _collect_bag_items(bag, bag_id, email, storage_name=None, char_name=None):
         item_id = item.item_id
         quantity = item.quantity
         slot = item.slot
-        item_type = item.item_type.ToInt()
-
         final_name = None
 
         # Try LootEx, will fail if model id data isn't there
@@ -816,7 +835,6 @@ def _collect_bag_items(bag, bag_id, email, storage_name=None, char_name=None):
                 {
                     "model_id": model_id,
                     "slot": OrderedDict(),
-                    "lootex_texture_file": _get_frenkey_texture_file(model_id, item_type),
                 }
             )
 
@@ -880,66 +898,17 @@ def search(query: str, items: list[str]) -> list[str]:
 
 
 def get_armor_name_from_modifiers(item):
-    if not LOOTEX_AVAILABLE or not Util:
-        try:
-            base_name = ModelID(item.model_id).name.replace("_", " ")
-        except ValueError:
-            base_name = None
+    try:
+        base_name = ModelID(item.model_id).name.replace("_", " ")
+    except ValueError:
+        base_name = None
 
-        base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
-        if not base_name:
-            return None
-
-        if base_name:
-            mod_hash = ModHashJSONStore.hash_mods(item.modifiers)
-            if mod_hash not in INVENTORY_MOD_HASH_CACHE:
-                return None
-
-            prefix, suffix = INVENTORY_MOD_HASH_CACHE.get(mod_hash, [None, None])
-
-            name_parts = []
-
-            if prefix:
-                name_parts.append(prefix)
-
-            name_parts.append(base_name)
-
-            if suffix:
-                name_parts.append(suffix)
-
-            return " ".join(name_parts)
+    base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
+    if not base_name:
         return None
 
-    # Prefer the in-game name if available
-    final_name = Util.GetItemDataName(item.item_id)
-    if final_name and not final_name.startswith("Unknown"):
-        base_name, _prefix, _suffix = clean_gw_item_name(final_name)
-        base_name = base_name.strip()
-    else:
-        try:
-            base_name = ModelID(item.model_id).name.replace("_", " ")
-        except ValueError:
-            base_name = None
-
-        if not base_name:
-            base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
-
-        if not base_name:
-            return None
-
     # Collect mods
-    _, armor_mods, _ = Util.GetMods(item.item_id)
-    prefix = None
-    suffix = None
-
-    for armor_mod in armor_mods:
-        mod_name = armor_mod.identifier.strip()
-        mod_type = armor_mod.mod_type.name
-
-        if mod_type == "Prefix":
-            prefix = mod_name
-        elif mod_type == "Suffix":
-            suffix = mod_name
+    prefix, suffix, _inherent = get_mods_from_item(item)
 
     # --- Construct name ---
     name_parts = []
@@ -956,66 +925,16 @@ def get_armor_name_from_modifiers(item):
 
 
 def get_weapon_name_from_modifiers(item):
-    if not LOOTEX_AVAILABLE or not Util:
-        try:
-            base_name = ModelID(item.model_id).name.replace("_", " ")
-        except ValueError:
-            base_name = None
-
-        base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
-        if not base_name:
-            return None
-
-        if base_name:
-            mod_hash = ModHashJSONStore.hash_mods(item.modifiers)
-            if mod_hash not in INVENTORY_MOD_HASH_CACHE:
-                return None
-
-            prefix, suffix = INVENTORY_MOD_HASH_CACHE.get(mod_hash, [None, None])
-
-            name_parts = []
-            # Inherent mods like “Vampiric” or “Insightful” go before everything else
-            if prefix:
-                name_parts.append(prefix)
-
-            name_parts.append(base_name)
-
-            if suffix:
-                name_parts.append(f"{suffix}")
-
-            return " ".join(name_parts)
-        return None
-
-    # Prefer the in-game name if available
-    final_name = Util.GetItemDataName(item.item_id)
-    if final_name and not final_name.startswith("Unknown"):
-        base_name, _prefix, _suffix = clean_gw_item_name(final_name)
-        base_name = base_name.strip()
-    else:
+    try:
+        base_name = ModelID(item.model_id).name.replace("_", " ")
+    except ValueError:
         base_name = None
 
-    if not base_name:
-        base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
-
+    base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
     if not base_name:
         return None
 
-    # Collect mods
-    _, _, weapon_mods = Util.GetMods(item.item_id)
-    prefix = None
-    suffix = None
-    inherent = None
-
-    for weapon_mod in weapon_mods:
-        mod_name = weapon_mod.identifier.strip()
-        mod_type = weapon_mod.mod_type.name
-
-        if mod_type == "Prefix":
-            prefix = mod_name
-        elif mod_type == "Suffix":
-            suffix = mod_name
-        elif mod_type == "Inherent":
-            inherent = mod_name
+    prefix, suffix, inherent = get_mods_from_item(item)
 
     # --- Construct name ---
     name_parts = []
@@ -1057,15 +976,10 @@ def draw_widget():
         PyImGui.set_next_window_pos(window_x, window_y)
         PyImGui.set_next_window_collapsed(window_collapsed, 0)
         on_first_load = False
-        if LOOTEX_AVAILABLE:
-            Data().Load()  # type: ignore
 
         TEAM_INVENTORY_CACHE = multi_store.load_all()
         INVENTORY_MODEL_ID_CACHE = inventory_model_ids_store.load()
         INVENTORY_MOD_HASH_CACHE = inventory_mod_hash_store.load()
-
-    new_collapsed = PyImGui.is_window_collapsed()
-    end_pos = PyImGui.get_window_pos()
 
     # This triggers a reload of and save of bag data
     if inventory_write_timer.IsExpired() and Routines.Checks.Map.IsOutpost():
@@ -1126,7 +1040,6 @@ def draw_widget():
                                                         "bag": bag_name,
                                                         "item_name": item_name,
                                                         "model_id": info["model_id"],
-                                                        "lootex_texture_file": info.get("lootex_texture_file"),
                                                         "count": count or str(info.get('count', 0)),
                                                         "location_type": "Character",
                                                     }
@@ -1148,7 +1061,6 @@ def draw_widget():
                                                     "bag": storage_name,
                                                     "item_name": item_name,
                                                     "model_id": info["model_id"],
-                                                    "lootex_texture_file": info.get("lootex_texture_file"),
                                                     "count": count or str(info.get('count', 0)),
                                                     "location_type": "Storage",
                                                 }
@@ -1173,10 +1085,6 @@ def draw_widget():
                                 for index, entry in enumerate(search_results):
                                     texture = get_texture_for_model(entry["model_id"])
 
-                                    if '0-File_Not_found' in texture:
-                                        lootex_texture = entry.get('lootex_texture_file')
-                                        if lootex_texture:
-                                            texture = lootex_texture
                                     PyImGui.table_next_row()
 
                                     # === ICON ===
@@ -1267,11 +1175,6 @@ def draw_widget():
                                                 info = items[item_name]
                                                 texture = get_texture_for_model(info["model_id"])
 
-                                                if '0-File_Not_found' in texture:
-                                                    lootex_texture = info.get('lootex_texture_file')
-                                                    if lootex_texture:
-                                                        texture = lootex_texture
-
                                                 PyImGui.table_next_row()
 
                                                 # === ICON COLUMN ===
@@ -1328,11 +1231,6 @@ def draw_widget():
                                         for item_name in filtered_items:
                                             info = items[item_name]
                                             texture = get_texture_for_model(info["model_id"])
-
-                                            if '0-File_Not_found' in texture:
-                                                lootex_texture = info.get('lootex_texture_file')
-                                                if lootex_texture:
-                                                    texture = lootex_texture
 
                                             PyImGui.table_next_row()
 
@@ -1429,6 +1327,8 @@ def draw_widget():
                     TEAM_INVENTORY_CACHE = multi_store.load_all()
                 PyImGui.pop_style_color(3)
                 PyImGui.end_table()
+    new_collapsed = PyImGui.is_window_collapsed()
+    end_pos = PyImGui.get_window_pos()
 
     if save_window_timer.HasElapsed(1000):
         # Position changed?
@@ -1453,12 +1353,12 @@ def tooltip():
     ImGui.pop_font()
     PyImGui.spacing()
     PyImGui.separator()
-    
+
     # Description
     PyImGui.text("This widget allows you to view and search the inventories and storages of all")
     PyImGui.text("your characters across different accounts. It records item data when you are in")
     PyImGui.text("outposts and provides a convenient interface to browse through collected items.")
-    
+
     PyImGui.spacing()
 
     # Features
@@ -1466,13 +1366,13 @@ def tooltip():
     PyImGui.bullet_text("Records inventories and storages of all characters across accounts.")
     PyImGui.bullet_text("Provides a searchable interface to quickly find items.")
     PyImGui.bullet_text("Displays item icons using model IDs and LootEx textures.")
-    
+
     PyImGui.spacing()
 
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Mark")
-    
+
     PyImGui.end_tooltip()
 
 
