@@ -3,7 +3,6 @@ from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Jade_Bracelet_farm"
 MODEL_ID_TO_FARM = ModelID.Jade_Bracelet
-MODULE_ICON = "Textures\\Module_Icons\\Jade Bracelet.png"
 OUTPOST_TO_TRAVEL = 303 #the marketplace
 COORD_TO_EXIT_MAP = (11550, 15370) #the marketplace exit to wajjun bazaar
 EXPLORABLE_TO_TRAVEL = 239 #wajjun bazaar
@@ -32,6 +31,7 @@ KILLING_PATH = [(8783.02, 13982.29), #1st pack
                 ]
 
 bot = Botting(BOT_NAME)
+                
 def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
