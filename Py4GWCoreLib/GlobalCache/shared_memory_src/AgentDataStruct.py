@@ -60,7 +60,7 @@ class AgentDataStruct(Structure):
     CharacterName: str
     
     AgentID: int
-    UUID: list[int]
+    UUID: tuple[int, int, int, int]  # 128-bit UUID as a tuple of four 32-bit integers
     OwnerAgentID: int
     HeroID: int
     TargetID: int
@@ -196,8 +196,7 @@ class AgentDataStruct(Structure):
         self.Profession = (0, 0)
         self.Morale = 0
         
-        for i in range(4):
-            self.UUID[i] = 0
+        self.UUID = (0, 0, 0, 0)
 
         self.TargetID = 0
         self.ObservingID = 0
@@ -225,3 +224,52 @@ class AgentDataStruct(Structure):
         self.ZPlane = 0
         self.RotationAngle = 0.0
         self.Velocity = Vec2f(0.0, 0.0)
+        
+    def from_context(self, agent_id:int):
+        from ...Party import Party
+        from ...Player import Player
+        from ...Agent import Agent
+        """Load data from the specified agent ID."""
+        if agent_id == 0:
+            self.reset()
+            return
+        
+        self.CharacterName = Party.Players.GetPlayerNameByLoginNumber(Player.GetLoginNumber())
+        self.AgentID = Player.GetAgentID()
+        self.UUID = Player.GetPlayerUUID()
+        self.OwnerAgentID = 0
+        self.HeroID = 0
+        self.TargetID = Player.GetTargetID()
+        self.ObservingID = Player.GetObservingID()
+        self.PlayerNumber = Agent.GetPlayerNumber(agent_id)
+        self.LoginNumber = Agent.GetLoginNumber(agent_id)
+        self.Map.from_context()
+        self.Skillbar.from_context()
+        self.Attributes.from_context(agent_id)
+        self.Buffs.from_context(agent_id)
+        
+        self.Health.from_context(agent_id)
+        self.Energy.from_context(agent_id)
+        
+        self.Overcast = Agent.GetOvercast(agent_id)
+        self.Level = Agent.GetLevel(agent_id)
+        self.Profession = Agent.GetProfessionIDs(Player.GetAgentID())
+        self.Morale = Player.GetMorale()
+        self.Pos = Vec3f(*Agent.GetXYZ(agent_id))
+        self.ZPlane = Agent.GetZPlane(agent_id)
+        self.RotationAngle = Agent.GetRotationAngle(agent_id)
+        self.Velocity = Vec2f(*Agent.GetVelocityXY(agent_id))
+        
+        self.DaggerStatus = Agent.GetDaggerStatus(agent_id)
+        self.WeaponType = Agent.GetWeaponType(agent_id)[0]
+        self.WeaponItemType = Agent.GetWeaponItemType(agent_id)
+        self.OffhandItemType = Agent.GetOffhandItemType(agent_id)
+        self.WeaponAttackSpeed = Agent.GetWeaponAttackSpeed(agent_id)
+        self.AttackSpeedModifier = Agent.GetAttackSpeedModifier(agent_id)
+        self.EffectsMask = Agent.GetAgentEffects(agent_id)
+        self.VisualEffectsMask = Agent.GetVisualEffects(agent_id)
+        self.TypeMap = Agent.GetTypeMap(agent_id)
+        self.ModelState = Agent.GetModelState(agent_id)
+        self.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
+        self.AnimationCode = Agent.GetAnimationCode(agent_id)
+        self.AnimationID = Agent.GetAnimationID(agent_id)

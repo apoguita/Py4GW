@@ -3,7 +3,7 @@ from datetime import datetime
 from datetime import timezone
 
 import Py4GW
-import PyUIManager
+import ctypes
 
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects, Party
@@ -53,6 +53,9 @@ combat_prep_first_skills_check = True
 hero_ai_has_ritualist_skills = False
 hero_ai_has_paragon_skills = False
 
+def _c_wchar_array_to_str(arr: ctypes.Array) -> str:
+        """Convert c_wchar array back to Python str, stopping at null terminator."""
+        return "".join(ch for ch in arr if ch != '\0').rstrip()
 
 # region ImGui
 def configure():
@@ -995,7 +998,7 @@ def SetWindowTitle(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
+    extra = tuple(_c_wchar_array_to_str(arr) for arr in message.ExtraData)
     title = extra[0] if extra else ""
 
     Py4GW.Console.set_window_title(title)
@@ -1518,7 +1521,7 @@ def SwitchCharacter(index, message):
         return
     
 
-    extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
+    extra = tuple(GLOBAL_CACHE.ShMem.GetAllAccounts()._c_wchar_array_to_str(arr) for arr in message.ExtraData)
     character_name = extra[0] if extra else ""
     
     if character_name and character_name != Player.GetName():
@@ -1538,7 +1541,7 @@ def LoadSkillTemplate(index, message):
         return
     
     if Map.IsOutpost():
-        extra = tuple(GLOBAL_CACHE.ShMem._c_wchar_array_to_str(arr) for arr in message.ExtraData)
+        extra = tuple(GLOBAL_CACHE.ShMem.GetAllAccounts()._c_wchar_array_to_str(arr) for arr in message.ExtraData)
         template = extra[0] if extra else ""
             
         if template:

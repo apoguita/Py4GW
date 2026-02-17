@@ -1,5 +1,6 @@
 from ctypes import Array, Structure, addressof, c_int, c_uint, c_float, c_bool, c_wchar, memmove
-
+import Py4GW
+from PyParty import HeroPartyMember, PetInfo
 from .Globals import (
     SHMEM_MODULE_NAME, 
     SHMEM_SHARED_MEMORY_FILE_NAME,
@@ -37,6 +38,7 @@ from .MapStruct import MapStruct
 from .EnergyStruct import EnergyStruct
 from .HealthStruct import HealthStruct
 from .AgentDataStruct import AgentDataStruct
+
 
 
 
@@ -124,4 +126,138 @@ class AccountStruct(Structure):
 
         self.LastUpdated = 0
         
+    def from_context(self, account_email:str , slot_index: int) -> None:
+        from ...Map import Map
+        from ...Player import Player
+        from ...Party import Party
+        """Load data from the specified slot index in shared memory."""
+        if slot_index < 0 or slot_index >= SHMEM_MAX_PLAYERS:
+            raise ValueError(f"Invalid slot index: {slot_index}")
+        
+        self.SlotNumber = slot_index
+        self.IsSlotActive = True
+        self.IsAccount = True
+        self.AccountEmail = account_email
+        
+        if Map.IsMapLoading(): return
+        if not Player.IsPlayerLoaded(): return
+        if not Map.IsMapReady(): return
+        if not Party.IsPartyLoaded(): return
+        if Map.IsInCinematic(): return
+        
+        self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
+        self.IsHero = False
+        self.IsPet = False
+        self.IsNPC = False
+        
+        agent_id = Player.GetAgentID()
+        self.AgentData.from_context(agent_id)
+        self.AgentData.OwnerAgentID = 0
+        self.AgentData.HeroID = 0
+        
+        self.AgentPartyData.from_context()
+        self.RankData.from_context()
+        self.FactionData.from_context()
+        self.TitlesData.from_context()
+        self.QuestLog.from_context()
+        self.ExperienceData.from_context()
+        self.AvailableCharacters.from_context()
+        self.MissionData.from_context()
+        self.UnlockedSkills.from_context()
+        
+        self.LastUpdated = Py4GW.Game.get_tick_count64()
+        
+    def from_hero_context(self, hero_data: HeroPartyMember, slot_index: int) -> None:
+        from ...Map import Map
+        from ...Player import Player
+        from ...Party import Party
+        """Load data from the specified slot index in shared memory."""
+        if slot_index < 0 or slot_index >= SHMEM_MAX_PLAYERS:
+            raise ValueError(f"Invalid slot index: {slot_index}")
+        
+        self.SlotNumber = slot_index
+        self.IsSlotActive = True
+        self.IsAccount = False
+        self.AccountEmail = Player.GetAccountEmail()
+        self.LastUpdated = Py4GW.Game.get_tick_count64()
+        
+        if Map.IsMapLoading(): return
+        if not Player.IsPlayerLoaded(): return
+        if not Map.IsMapReady(): return
+        if not Party.IsPartyLoaded(): return
+        if Map.IsInCinematic(): return
+        
+        self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
+        self.IsHero = True
+        self.IsPet = False
+        self.IsNPC = False
+        
+        agent_id = hero_data.agent_id
+        self.AgentData.from_context(agent_id)
+        self.AgentData.AgentID = agent_id
+        self.AgentData.CharacterName = hero_data.hero_id.GetName()
+        self.AgentData.OwnerAgentID = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
+        self.AgentData.HeroID = hero_data.hero_id.GetID()
+        self.AgentData.Morale = 100
+        self.AgentData.TargetID = 0
+        self.AgentData.LoginNumber = 0
+        self.AgentData.Skillbar.from_hero_context(slot_index, agent_id) 
+        
+        self.AgentPartyData.from_context()
+        self.AgentPartyData.IsPartyLeader = False
+        self.RankData.from_context()
+        self.FactionData.reset()
+        self.TitlesData.reset()
+        self.QuestLog.reset()
+        self.ExperienceData.reset()
+        self.AvailableCharacters.reset()
+        self.MissionData.reset()
+        self.UnlockedSkills.reset()
+        
+    def from_pet_context(self, pet_data: PetInfo, slot_index: int) -> None:
+        from ...Map import Map
+        from ...Player import Player
+        from ...Party import Party
+        """Load data from the specified slot index in shared memory."""
+        if slot_index < 0 or slot_index >= SHMEM_MAX_PLAYERS:
+            raise ValueError(f"Invalid slot index: {slot_index}")
+        
+        self.SlotNumber = slot_index
+        self.IsSlotActive = True
+        self.IsAccount = False
+        self.AccountEmail = Player.GetAccountEmail()
+        self.LastUpdated = Py4GW.Game.get_tick_count64()
+        
+        if Map.IsMapLoading(): return
+        if not Player.IsPlayerLoaded(): return
+        if not Map.IsMapReady(): return
+        if not Party.IsPartyLoaded(): return
+        if Map.IsInCinematic(): return
+        
+        self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
+        self.IsHero = False
+        self.IsPet = True
+        self.IsNPC = False
+        
+        agent_id = pet_data.agent_id
+        self.AgentData.from_context(agent_id)
+        self.AgentData.AgentID = agent_id
+        self.AgentData.CharacterName = pet_data.pet_name or f"PET {pet_data.owner_agent_id}s Pet"
+        self.AgentData.OwnerAgentID = pet_data.owner_agent_id
+        self.AgentData.HeroID = 0
+        self.AgentData.Morale = 100
+        self.AgentData.TargetID = pet_data.locked_target_id
+        self.AgentData.LoginNumber = 0
+        self.AgentData.Skillbar.reset()
+        
+        self.AgentPartyData.from_context()
+        self.AgentPartyData.IsPartyLeader = False
+        self.RankData.from_context()
+        self.FactionData.reset()
+        self.TitlesData.reset()
+        self.QuestLog.reset()
+        self.ExperienceData.reset()
+        self.AvailableCharacters.reset()
+        self.MissionData.reset()
+        self.UnlockedSkills.reset()
         
