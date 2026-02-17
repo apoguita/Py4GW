@@ -1,6 +1,7 @@
 from typing import cast
-from Py4GWCoreLib import AgentArray, Agent, Range, Utils
+from Py4GWCoreLib import AgentArray, Agent, Player, Range, Utils
 from Sources.oazix.CustomBehaviors.primitives.helpers.sortable_agent_data import SortableAgentData
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
 
 class CustomTargeting:
@@ -148,15 +149,20 @@ class CustomTargeting:
         # Compute the result
         agents: list[SortableAgentData] = list(self.__get_enemies_by_distance(source_pos, within_range))
 
-        # Add leader targets if provided
-        if leader_agent_id is not None:
-            leader_targets = self.__get_leader_targets(leader_agent_id, within_range)
-            agents.extend(leader_targets)
+        # if following mode activated :
+        is_following_enabled = CustomBehaviorParty().get_party_is_following_enabled()
+        is_flag_defined = CustomBehaviorParty().party_flagging_manager.is_flag_defined(Player.GetAccountEmail())
 
-        # Add aggressive enemies further away
-        if include_aggressive_further:
-            aggressive_further = self.__get_aggressive_enemies_further(source_pos)
-            agents.extend(aggressive_further)
+        if is_following_enabled and not is_flag_defined:
+            # Add leader targets if provided
+            if leader_agent_id is not None:
+                leader_targets = self.__get_leader_targets(leader_agent_id, within_range)
+                agents.extend(leader_targets)
+
+            # Add aggressive enemies further away
+            if include_aggressive_further:
+                aggressive_further = self.__get_aggressive_enemies_further(source_pos)
+                agents.extend(aggressive_further)
 
         # Deduplicate by agent_id
         seen_ids: set[int] = set()
