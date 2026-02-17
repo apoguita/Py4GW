@@ -4,7 +4,7 @@ import re
 import textwrap
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, List, Optional, Set
+from typing import Any, List, Optional, Set, Tuple, TYPE_CHECKING
 import importlib
 import sys
 
@@ -13,8 +13,17 @@ import Py4GW
 
 from Py4GWCoreLib import GLOBAL_CACHE, ImGui, Color, Range, Player
 from HeroAI.custom_skill import CustomSkillClass
-from HeroAI.custom_skill_src.skill_types import CastConditions, CustomSkill, SkillNature
+from HeroAI.custom_skill_src.skill_types import CastConditions, SkillNature
 from HeroAI.types import Skilltarget, SkillType
+
+if TYPE_CHECKING:
+	from HeroAI.custom_skill_src.skill_types import CustomSkill as _CustomSkill
+
+# Runtime placeholder; replaced during rebind. Kept to satisfy type checkers without hard import failures.
+CustomSkill: Any = None
+
+if TYPE_CHECKING:
+	from HeroAI.custom_skill_src.skill_types import CustomSkill as _CustomSkill
 
 MODULE_NAME = "HeroAI Skill Editor"
 
@@ -1357,7 +1366,7 @@ def _get_skill_struct(container: Any, idx: int) -> Any:
 		return None
 
 
-def _describe_conditions(skill: Optional[CustomSkill]) -> tuple[List[str], Set[str], dict[str, Any]]:
+def _describe_conditions(skill: Optional["_CustomSkill"]) -> Tuple[List[str], Set[str], dict[str, Any]]:
 	if skill is None or not skill.SkillID:
 		return [], set(), {}
 
@@ -1377,7 +1386,7 @@ def _describe_conditions(skill: Optional[CustomSkill]) -> tuple[List[str], Set[s
 	return summary, active_names, condition_values
 
 
-def _safe_get_custom_skill(skill_id: int) -> Optional[CustomSkill]:
+def _safe_get_custom_skill(skill_id: int) -> Optional["_CustomSkill"]:
 	if skill_id <= 0 or skill_id >= custom_skill_provider.MaxSkillData:
 		return None
 	try:
@@ -1489,7 +1498,7 @@ def _collect_local_skillbar_entries_if_needed(account, shared_entries: List[Skil
 	return rows
 
 
-def _format_target(skill: Optional[CustomSkill]) -> str:
+def _format_target(skill: Optional["_CustomSkill"]) -> str:
 	if skill is None:
 		return "Unknown"
 	try:
@@ -1499,7 +1508,7 @@ def _format_target(skill: Optional[CustomSkill]) -> str:
 		return str(skill.TargetAllegiance)
 
 
-def _format_nature(skill: Optional[CustomSkill]) -> str:
+def _format_nature(skill: Optional["_CustomSkill"]) -> str:
 	if skill is None:
 		return "Unknown"
 	try:
@@ -1509,7 +1518,7 @@ def _format_nature(skill: Optional[CustomSkill]) -> str:
 		return str(skill.Nature)
 
 
-def _format_skill_type(skill: Optional[CustomSkill]) -> str:
+def _format_skill_type(skill: Optional["_CustomSkill"]) -> str:
 	if skill is None:
 		return "Unknown"
 	try:
@@ -1686,7 +1695,7 @@ def _render_target_list(skill_id: int, selected_value: Optional[int], fallback_l
 			is_active = selected_value == option.value
 			if selected_value is None and label.lower() == (fallback_label or "").lower():
 				is_active = True
-			if PyImGui.selectable(f"{label}##target_option_{option.value}", is_active, 0, (0.0, 0.0)):
+			if PyImGui.selectable(f"{label}##target_option_{option.value}", is_active, PyImGui.SelectableFlags(0), (0.0, 0.0)):
 				if _change_skill_target(skill_id, option):
 					if _edit_snapshot and _edit_snapshot.skill_id == skill_id:
 						_edit_snapshot.target_value = option.value
@@ -1722,7 +1731,7 @@ def _render_nature_list(skill_id: int, selected_value: Optional[int], fallback_l
 			is_active = selected_value == option.value
 			if selected_value is None and label.lower() == (fallback_label or "").lower():
 				is_active = True
-			if PyImGui.selectable(f"{label}##nature_option_{option.value}", is_active, 0, (0.0, 0.0)):
+			if PyImGui.selectable(f"{label}##nature_option_{option.value}", is_active, PyImGui.SelectableFlags(0), (0.0, 0.0)):
 				if _change_skill_nature(skill_id, option):
 					if _edit_snapshot and _edit_snapshot.skill_id == skill_id:
 						_edit_snapshot.nature_value = option.value
@@ -1758,7 +1767,7 @@ def _render_skilltype_list(skill_id: int, selected_value: Optional[int], fallbac
 			is_active = selected_value == option.value
 			if selected_value is None and label.lower() == (fallback_label or "").lower():
 				is_active = True
-			if PyImGui.selectable(f"{label}##skilltype_option_{option.value}", is_active, 0, (0.0, 0.0)):
+			if PyImGui.selectable(f"{label}##skilltype_option_{option.value}", is_active, PyImGui.SelectableFlags(0), (0.0, 0.0)):
 				if _change_skill_type(skill_id, option):
 					if _edit_snapshot and _edit_snapshot.skill_id == skill_id:
 						_edit_snapshot.skill_type_value = option.value
