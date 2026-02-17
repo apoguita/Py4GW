@@ -1,61 +1,159 @@
 import Py4GW
 import PyPathing
-import PyOverlay
 import math
 import heapq
 import pickle
-import ctypes
 
 from .enums import name_to_map_id
 from typing import List, Tuple, Optional, Dict
 from collections import defaultdict
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib.Map import Map
-from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoid, PortalStruct
-
-Point2D = PyOverlay.Point2D
+from Py4GWCoreLib.native_src.context.MapContext import PathingTrapezoid
 
 class AABB:
+    """Axis-aligned bounding box for trapezoid geometry checks."""
     def __init__(self, t: PathingTrapezoid):
         self.m_t = t
         self.m_min = (min(t.XTL, t.XBL), t.YB)
         self.m_max = (max(t.XTR, t.XBR), t.YT)
 
-class PathingPortal:
-    def __init__(self, p1: Point2D, p2: Point2D, a: AABB, b: AABB):
-        self.p1 = p1
-        self.p2 = p2
-        self.a = a
-        self.b = b
-        
+# ─── BSP tree for O(log n) trapezoid point-location ─────────────────────────
+
+# Leaf size balances construction speed vs query performance
+_BSP_LEAF_SIZE = 16
+
+class _BspSplit:
+    __slots__ = ('split_y', 'above', 'below')
+    def __init__(self, split_y: float, above, below):
+        self.split_y = split_y
+        self.above = above
+        self.below = below
+
+class _BspLeaf:
+    __slots__ = ('traps',)
+    def __init__(self, traps: list):
+        self.traps = traps
+
+def _point_in_trapezoid(x: float, y: float, t: PathingTrapezoid, tol: float = 0.0) -> bool:
+    if y < t.YB - tol or y > t.YT + tol:
+        return False
+    height = t.YT - t.YB
+    if height == 0:
+        return False
+    ratio = (y - t.YB) / height
+    left_x = t.XBL + (t.XTL - t.XBL) * ratio
+    right_x = t.XBR + (t.XTR - t.XBR) * ratio
+    return left_x - tol <= x <= right_x + tol
+
+def _build_trap_bsp(traps: list, sorted_indices: list, depth: int = 0):
+    """Build BSP recursively using pre-sorted trapezoid indices."""
+    n = len(sorted_indices)
+    if n <= _BSP_LEAF_SIZE or depth >= 24:
+        return _BspLeaf([traps[i] for i in sorted_indices])
+
+    mid = n >> 1
+    mid_idx = sorted_indices[mid]
+    mid_prev_idx = sorted_indices[mid - 1]
+    split_y = (traps[mid_prev_idx].YT + traps[mid_idx].YB) * 0.5
+
+    above = [i for i in sorted_indices if traps[i].YT >= split_y]
+    below = [i for i in sorted_indices if traps[i].YB <= split_y]
+
+    if len(above) == n and len(below) == n:
+        return _BspLeaf([traps[i] for i in sorted_indices])
+
+    return _BspSplit(split_y,
+                     _build_trap_bsp(traps, above, depth + 1),
+                     _build_trap_bsp(traps, below, depth + 1))
+
+
+class TrapezoidBSP:
+    """BSP tree for O(log n) trapezoid point-location queries."""
+
+    def __init__(self, trapezoids: List[PathingTrapezoid]):
+        if not trapezoids:
+            self._root = None
+        else:
+            sorted_indices = sorted(range(len(trapezoids)),
+                                   key=lambda i: (trapezoids[i].YT + trapezoids[i].YB) * 0.5)
+            self._root = _build_trap_bsp(trapezoids, sorted_indices)
+
+    def find(self, x: float, y: float, tol: float = 0.0) -> Optional[int]:
+        """Return trapezoid ID containing (x, y), or None."""
+        if self._root is None:
+            return None
+
+        stack = [self._root]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, _BspLeaf):
+                for t in node.traps:
+                    if _point_in_trapezoid(x, y, t, tol):
+                        return t.id
+            else:
+                if y > node.split_y + tol:
+                    stack.append(node.above)
+                elif y < node.split_y - tol:
+                    stack.append(node.below)
+                else:
+                    stack.append(node.below)
+                    stack.append(node.above)
+        return None
+
+    def find_with_margin(self, x: float, y: float, margin: float) -> bool:
+        """Return True if (x, y) is inside a trapezoid with margin inset from edges."""
+        if self._root is None:
+            return False
+
+        stack = [self._root]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, _BspLeaf):
+                for t in node.traps:
+                    if t.YB <= y <= t.YT:
+                        height = t.YT - t.YB
+                        if height == 0:
+                            continue
+                        ratio = (y - t.YB) / height
+                        left_x = t.XBL + (t.XTL - t.XBL) * ratio
+                        right_x = t.XBR + (t.XTR - t.XBR) * ratio
+                        if left_x + margin <= x <= right_x - margin:
+                            return True
+            else:
+                if y > node.split_y:
+                    stack.append(node.above)
+                elif y < node.split_y:
+                    stack.append(node.below)
+                else:
+                    stack.append(node.below)
+                    stack.append(node.above)
+        return False
+
+
 #region NavMesh
+
+# Portal creation tolerances
+_PORTAL_TOLERANCE = 32.0
+_PORTAL_VERT_TOL = 100.2
+_PORTAL_HORIZ_TOL = 100.6
+
 class NavMesh:
-    def __init__(self, pathing_maps,pathing_maps_raw, map_id: int, GRID_SIZE:float = 1000):
+    def __init__(self, pathing_maps, map_id: int):
         self.map_id = map_id
-        self.GRID_SIZE = GRID_SIZE
         self.trapezoids: Dict[int, PathingTrapezoid] = {}
-        self.portals: List[PathingPortal] = []
-        self.portal_graph: Dict[int, List[int]] = {}
-        self.trap_id_to_layer: Dict[int, int] = {}         # trap id -> layer z
-        self.layer_portals: Dict[int, List[PortalStruct]] = {}
-        self.spatial_grid: Dict[Tuple[float, float], List[PathingTrapezoid]] = {}
+        self.portal_graph: Dict[int, List[int]] = {}  # Adjacency graph for pathfinding
+        self.trap_id_to_layer: Dict[int, int] = {}  # Trap ID -> layer index
 
-        # Index data — use index, not pmap.zplane
         for i, layer in enumerate(pathing_maps):
-            plane_index = i  # actual plane ID
             traps = layer.trapezoids
-
-            #self.layer_portals[plane_index] = layer.portals
             self.trapezoids.update({t.id: t for t in traps})
-            self.trap_id_to_layer.update({t.id: plane_index for t in traps})
-            
-        for i, layer in enumerate(pathing_maps_raw):
-            plane_index = i  # actual plane ID
-            self.layer_portals[plane_index] = layer.portals
+            self.trap_id_to_layer.update({t.id: i for t in traps})
+
+        self._bsp = TrapezoidBSP(list(self.trapezoids.values()))
 
         self.create_all_local_portals()
-        self.create_all_cross_layer_portals()
-        self._populate_spatial_grid()
+        self._create_cross_layer_portals_from_snapshots(pathing_maps)
 
     def get_adjacent_side(self, a: PathingTrapezoid, b: PathingTrapezoid) -> Optional[str]:
         if abs(a.YB - b.YT) < 1.0: return 'bottom_top'
@@ -63,20 +161,20 @@ class NavMesh:
         if abs(a.XBR - b.XBL) < 1.0: return 'right_left'
         if abs(a.XBL - b.XBR) < 1.0: return 'left_right'
         return None
-    
+
     def create_portal(self, box1: AABB, box2: AABB, side: Optional[str]) -> bool:
+        """Create portal connection between two trapezoids in portal_graph."""
         pt1, pt2 = box1.m_t, box2.m_t
-        tolerance = 32.0
 
-        def is_close(a, b): return abs(a - b) < tolerance
+        def is_close(a, b): return abs(a - b) < _PORTAL_TOLERANCE
 
+        # Validate geometric adjacency based on side
         if side == 'bottom_top':
             if not pt1.YB == pt2.YT:
                 return False
             x_min = max(pt1.XBL, pt2.XBR)
             x_max = min(pt1.XBR, pt2.XBL)
             if is_close(x_max, x_min): return False
-            p1, p2 = (x_min, pt1.YB), (x_max, pt1.YB)
 
         elif side == 'top_bottom':
             if not pt1.YT == pt2.YB:
@@ -84,7 +182,6 @@ class NavMesh:
             x_min = max(pt1.XTL, pt2.XTR)
             x_max = min(pt1.XTR, pt2.XTL)
             if is_close(x_max, x_min): return False
-            p1, p2 = (x_min, pt1.YT), (x_max, pt1.YT)
 
         elif side == 'left_right':
             if not pt1.XTR == pt2.XTL:
@@ -92,7 +189,6 @@ class NavMesh:
             y_min = max(pt1.YT, pt2.YT)
             y_max = min(pt1.YB, pt2.YB)
             if is_close(y_max, y_min): return False
-            p1, p2 = (pt1.XTR, y_min), (pt1.XBR, y_max)
 
         elif side == 'right_left':
             if not pt1.XTL == pt2.XTR:
@@ -100,23 +196,19 @@ class NavMesh:
             y_min = max(pt1.YT, pt2.YT)
             y_max = min(pt1.YB, pt2.YB)
             if is_close(y_max, y_min): return False
-            p1, p2 = (pt1.XTL, y_min), (pt1.XBL, y_max)
 
         elif side is None:
-            # Fallback: center line between boxes
-            p1 = ((pt1.XTL + pt1.XTR) / 2, (pt1.YT + pt1.YB) / 2)
-            p2 = ((pt2.XTL + pt2.XTR) / 2, (pt2.YT + pt2.YB) / 2)
+            # Cross-layer portal - no geometric validation needed
+            pass
 
         else:
             return False
 
-        _p1 = Point2D(int(p1[0]), int(p1[1]))
-        _p2 = Point2D(int(p2[0]), int(p2[1]))
-        self.portals.append(PathingPortal(_p1, _p2, box1, box2))
+        # Add bidirectional adjacency to portal graph
         self.portal_graph.setdefault(pt1.id, []).append(pt2.id)
         self.portal_graph.setdefault(pt2.id, []).append(pt1.id)
         return True
-        
+
     def create_all_local_portals(self):
         # Group traps by zplane
         zplane_traps = defaultdict(list)
@@ -136,8 +228,9 @@ class NavMesh:
                     side = self.get_adjacent_side(ti, tj)
                     if side:
                         self.create_portal(ai, aj, side)
-                        
-    def touching(self, a: AABB, b: AABB, vert_tol: float = 100.2, horiz_tol: float = 100.6) -> bool:
+
+    def touching(self, a: AABB, b: AABB, vert_tol: float = _PORTAL_VERT_TOL, horiz_tol: float = _PORTAL_HORIZ_TOL) -> bool:
+        """Check if two trapezoid bounding boxes are geometrically adjacent."""
         # Same vertical alignment
         if abs(a.m_t.YB - b.m_t.YT) < vert_tol or abs(a.m_t.YT - b.m_t.YB) < vert_tol:
             left_a = min(a.m_t.XBL, a.m_t.XTL)
@@ -158,44 +251,32 @@ class NavMesh:
 
         return False
 
-                        
-    def create_all_cross_layer_portals(self):
-        from collections import defaultdict
-        import ctypes
+    def _create_cross_layer_portals_from_snapshots(self, pathing_maps):
+        """Build cross-layer portal connections from snapshot portal data."""
+        cross_groups: Dict[Tuple[int, int], Dict[int, List[PathingTrapezoid]]] = defaultdict(lambda: defaultdict(list))
 
-        # pair_key -> zplane -> list[PathingTrapezoidStruct]
-        portal_groups = defaultdict(lambda: defaultdict(list))
+        for plane_idx, pmap in enumerate(pathing_maps):
+            for portal in pmap.portals:
+                if portal.left_layer_id == portal.right_layer_id:
+                    continue
 
-        for z, portal_list in self.layer_portals.items():
-            for p in portal_list:
-                pair = p.pair
-                if not pair:
-                    continue  # keep this to match “real” pairs only
+                layer_pair = (min(portal.left_layer_id, portal.right_layer_id),
+                              max(portal.left_layer_id, portal.right_layer_id))
 
-                # Use underlying C addresses (stable)
-                a = ctypes.addressof(p)
-                b = ctypes.addressof(pair)
-                if a > b:
-                    a, b = b, a
-                pair_key = (a, b)
-
-                for trap_id in p.trapezoid_indices:
+                for trap_id in portal.trapezoid_indices:
                     trap = self.trapezoids.get(trap_id)
-                    if not trap:
-                        continue
-                    portal_groups[pair_key][z].append(trap)
+                    if trap:
+                        cross_groups[layer_pair][plane_idx].append(trap)
 
-        # Connect only within each pair bucket across zplanes
-        for zplane_map in portal_groups.values():
-            zplanes = list(zplane_map.keys())
-            if len(zplanes) < 2:
+        for plane_map in cross_groups.values():
+            planes = list(plane_map.keys())
+            if len(planes) < 2:
                 continue
 
-            for i in range(len(zplanes)):
-                for j in range(i + 1, len(zplanes)):
-                    zi, zj = zplanes[i], zplanes[j]
-                    traps_i = zplane_map[zi]
-                    traps_j = zplane_map[zj]
+            for i in range(len(planes)):
+                for j in range(i + 1, len(planes)):
+                    traps_i = plane_map[planes[i]]
+                    traps_j = plane_map[planes[j]]
 
                     for ti in traps_i:
                         ai = AABB(ti)
@@ -206,7 +287,7 @@ class NavMesh:
                             if self.touching(ai, aj):
                                 self.create_portal(ai, aj, None)
 
-                                
+
     def get_position(self, t_id: int) -> Tuple[float, float]:
         t = self.trapezoids[t_id]
         cx = (t.XTL + t.XTR + t.XBL + t.XBR) / 4
@@ -215,61 +296,17 @@ class NavMesh:
 
     def get_neighbors(self, t_id: int) -> List[int]:
         return self.portal_graph.get(t_id, [])
-    
+
     def find_trapezoid_id_by_coord(self, point: Tuple[float, float], tol: float = 20.0) -> Optional[int]:
-        """
-        Returns the trapezoid ID containing (x, y), using a small tolerance to avoid
-        floating-point misses when the point lies exactly on a border or corner.
-        """
-        x, y = point
+        """Return trapezoid ID containing point, or None."""
+        return self._bsp.find(point[0], point[1], tol)
 
-        # 1. Normal trapezoids (floor & standard geometry)
-        for t in self.trapezoids.values():
-            if t.YB - tol <= y <= t.YT + tol:
-                ratio = (y - t.YB) / (t.YT - t.YB) if t.YT != t.YB else 0
-                left_x = t.XBL + (t.XTL - t.XBL) * ratio
-                right_x = t.XBR + (t.XTR - t.XBR) * ratio
-                if left_x - tol <= x <= right_x + tol:
-                    return t.id
-
-        # 2. Cross-layer portals (bridge, stairs, elevated geometry)
-        for portal in self.portals:
-            for trap in (portal.a.m_t, portal.b.m_t):
-                if trap.YB - tol <= y <= trap.YT + tol:
-                    ratio = (y - trap.YB) / (trap.YT - trap.YB) if trap.YT != trap.YB else 0
-                    left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
-                    right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                    if left_x - tol <= x <= right_x + tol:
-                        return trap.id
-
-        # 3. Nothing found
-        return None
-
-
-
-    
-    def _populate_spatial_grid(self):
-        for trap in self.trapezoids.values():
-            min_x = int(min(trap.XBL, trap.XTL) // self.GRID_SIZE)
-            max_x = int(max(trap.XBR, trap.XTR) // self.GRID_SIZE)
-            min_y = int(trap.YB // self.GRID_SIZE)
-            max_y = int(trap.YT // self.GRID_SIZE)
-
-            for gx in range(min_x, max_x + 1):
-                for gy in range(min_y, max_y + 1):
-                    key = (gx, gy)
-                    if key not in self.spatial_grid:
-                        self.spatial_grid[key] = []
-                    self.spatial_grid[key].append(trap)
-
-
-
-    def has_line_of_sight(self, 
-                          p1: Tuple[float, float], 
-                          p2: Tuple[float, float], 
-                          margin: float = 100, 
+    def has_line_of_sight(self,
+                          p1: Tuple[float, float],
+                          p2: Tuple[float, float],
+                          margin: float = 100,
                           step_dist: float = 200.0) -> bool:
-        
+
         total_dist = math.dist(p1, p2)
         steps = int(total_dist / step_dist) + 1
         dx = (p2[0] - p1[0]) / steps
@@ -278,29 +315,13 @@ class NavMesh:
         for i in range(1, steps):
             x = p1[0] + dx * i
             y = p1[1] + dy * i
-            gx = int(x) // self.GRID_SIZE
-            gy = int(y) // self.GRID_SIZE
-            candidates = self.spatial_grid.get((gx, gy), [])
-
-
-            for trap in candidates:
-                if y > trap.YT or y < trap.YB:
-                    continue
-                height = trap.YT - trap.YB
-                if height == 0: continue
-                ratio = (y - trap.YB) / height
-                left_x = trap.XBL + (trap.XTL - trap.XBL) * ratio
-                right_x = trap.XBR + (trap.XTR - trap.XBR) * ratio
-                if left_x + margin <= x <= right_x - margin:
-                    break
-            else:
+            if not self._bsp.find_with_margin(x, y, margin):
                 return False
         return True
 
 
 
-    
-    def smooth_path_by_los(self, 
+    def smooth_path_by_los(self,
                            path: List[Tuple[float, float]],
                            margin: float = 100,
                            step_dist: float = 200.0) -> List[Tuple[float, float]]:
@@ -318,13 +339,14 @@ class NavMesh:
             result.append(path[j])
             i = j
         return result
-    
+
     def save_to_file(self, folder: str):
+        """Serialize NavMesh portal graph and metadata to disk."""
         filepath = f"{folder}/navmesh_{self.map_id}.bin"
         data = {
             "map_id": self.map_id,
-            "portals": [((p.p1.x, p.p1.y), (p.p2.x, p.p2.y), p.a.m_t.id, p.b.m_t.id) for p in self.portals],
-            "portal_graph": self.portal_graph
+            "portal_graph": self.portal_graph,
+            "trap_id_to_layer": self.trap_id_to_layer
         }
         with open(filepath, "wb") as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -332,39 +354,33 @@ class NavMesh:
 
     @staticmethod
     def load_from_file(pathing_maps, map_id: int, folder: str) -> "NavMesh":
+        """Load serialized NavMesh portal graph and rebuild BSP from current trapezoid data."""
         filepath = f"{folder}/navmesh_{map_id}.bin"
 
         nav = NavMesh.__new__(NavMesh)
         nav.map_id = map_id
         nav.trapezoids = {}
-        nav.portals = []
         nav.portal_graph = {}
         nav.trap_id_to_layer = {}
-        nav.layer_portals = {}
 
-        for layer in pathing_maps:
-            z = layer.zplane
+        for i, layer in enumerate(pathing_maps):
             traps = layer.trapezoids
-            nav.layer_portals[z] = layer.portals
             nav.trapezoids.update({t.id: t for t in traps})
-            nav.trap_id_to_layer.update({t.id: z for t in traps})
+            nav.trap_id_to_layer.update({t.id: i for t in traps})
+
+        nav._bsp = TrapezoidBSP(list(nav.trapezoids.values()))
 
         with open(filepath, "rb") as f:
             data = pickle.load(f)
 
-        for (x1, y1), (x2, y2), a_id, b_id in data["portals"]:
-            a = AABB(nav.trapezoids[a_id])
-            b = AABB(nav.trapezoids[b_id])
-            p1 = Point2D(x1, y1)
-            p2 = Point2D(x2, y2)
-            nav.portals.append(PathingPortal(p1, p2, a, b))
-
         nav.portal_graph = data["portal_graph"]
+        if "trap_id_to_layer" in data:
+            nav.trap_id_to_layer = data["trap_id_to_layer"]
 
-        Py4GW.Console.Log("NavMesh", f"Loaded NavMesh for map {map_id} with {len(nav.portals)} portals and {len(nav.trapezoids)} trapezoids.", Py4GW.Console.MessageType.Info)
+        Py4GW.Console.Log("NavMesh", f"Loaded NavMesh for map {map_id} with {len(nav.portal_graph)} connections and {len(nav.trapezoids)} trapezoids.", Py4GW.Console.MessageType.Info)
         return nav
-    
-    
+
+
 
 #region AStar
 
@@ -375,7 +391,7 @@ class AStarNode:
         self.f = f
         self.parent = parent
     def __lt__(self, other): return self.f < other.f
-    
+
 class AStar:
     def __init__(self, navmesh: NavMesh):
         self.navmesh = navmesh
@@ -429,8 +445,8 @@ class AStar:
 
     def get_path(self) -> List[Tuple[float, float]]:
         return self.path
-    
-    
+
+
 def chaikin_smooth_path(points: List[Tuple[float, float]], iterations: int = 1) -> List[Tuple[float, float]]:
     for _ in range(iterations):
         new_points = [points[0]]
@@ -445,6 +461,7 @@ def chaikin_smooth_path(points: List[Tuple[float, float]], iterations: int = 1) 
     return points
 
 def densify_path2d(points: List[Tuple[float, float]], threshold: float = 500.0) -> List[Tuple[float, float]]:
+    """Split path segments longer than threshold into smaller steps."""
     if threshold <= 0 or len(points) <= 1:
         return points.copy()
 
@@ -467,10 +484,10 @@ def densify_path2d(points: List[Tuple[float, float]], threshold: float = 500.0) 
 
         s = threshold
         while s < dist - eps:
-            out.append((x0 + ux * s, y0 + uy * s))  # fixed threshold step
+            out.append((x0 + ux * s, y0 + uy * s))
             s += threshold
 
-        out.append((x1, y1))  # final remainder hop
+        out.append((x1, y1))
 
     return out
 
@@ -601,25 +618,14 @@ class AutoPathing:
         group_key = self._get_group_key(map_id)
         yield
 
-        # ---- IMPORTANT FIX ----
-        # Reuse only if the cached NavMesh was built for THIS exact map_id.
         cached = self.pathing_map_cache.get(group_key)
         if cached is not None and cached.map_id == map_id:
             yield
-            return  # Already loaded for this map
-
-        # Otherwise rebuild (even if group_key matches) to avoid stale trapezoid IDs
+            return
         pathing_maps = Map.Pathing.GetPathingMaps()
-        pathing_maps_raw = Map.Pathing.GetPathingMapsRaw()
-        navmesh = NavMesh(pathing_maps, pathing_maps_raw, map_id)
+        navmesh = NavMesh(pathing_maps, map_id)
         self.pathing_map_cache[group_key] = navmesh
         yield
-        
-        """try:
-            navmesh = NavMesh.load_from_file(pathing_maps, map_id, folder="NavMeshCache")
-        except FileNotFoundError:
-            navmesh = NavMesh(pathing_maps, map_id)
-            navmesh.save_to_file("NavMeshCache")"""
 
 
     def get_navmesh(self) -> Optional[NavMesh]:
@@ -630,16 +636,14 @@ class AutoPathing:
         group_key = self._get_group_key(map_id)
         nav = self.pathing_map_cache.get(group_key)
 
-        # ---- IMPORTANT FIX ----
-        # Never return a NavMesh for a different map_id.
         if nav is None or nav.map_id != map_id:
             return None
 
         return nav
 
 
-    def get_path(self, 
-                 start: Tuple[float, float, float], 
+    def get_path(self,
+                 start: Tuple[float, float, float],
                  goal: Tuple[float, float, float],
                  smooth_by_los: bool = True,
                  margin: float = 100,
@@ -683,20 +687,19 @@ class AutoPathing:
                 yield
                 raw_path = path_planner.get_path()
                 path2d = [(pt[0], pt[1]) for pt in raw_path]
-                
+
                 path2d = _prepend_start(path2d, start[0], start[1])
-                
+
                 if smooth_by_chaikin:
                     path2d = chaikin_smooth_path(path2d, chaikin_iterations)
 
-                path2d = densify_path2d(path2d)  # split long hops into ≤750
+                path2d = densify_path2d(path2d)
                 return [(x, y, start[2]) for (x, y) in path2d]
-            
+
             elif status == PyPathing.PathStatus.Failed:
                 break
             yield
 
-        # --- Fallback to A* ---
         navmesh = self.get_navmesh()
         if not navmesh:
             yield from self.load_pathing_maps()
@@ -719,7 +722,7 @@ class AutoPathing:
                 smoothed = navmesh.smooth_path_by_los(raw_path, margin, step_dist)
             else:
                 smoothed = raw_path
-                
+
             if smooth_by_chaikin:
                 smoothed = chaikin_smooth_path(smoothed, chaikin_iterations)
 
@@ -755,5 +758,3 @@ class AutoPathing:
                                         smooth_by_chaikin=smooth_by_chaikin,
                                         chaikin_iterations=chaikin_iterations)
         return [(x, y) for (x, y, _) in path]
-
-
