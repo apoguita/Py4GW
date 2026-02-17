@@ -1,5 +1,7 @@
 from typing import Any, Generator, override
 
+import PyImGui
+
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Py4GWCoreLib.Overlay import Overlay
@@ -142,6 +144,19 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
         yield from custom_behavior_helpers.Helpers.wait_for(1000)
         return BehaviorResult.ACTION_PERFORMED
+    
+    @override
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        # if flag affected
+        PyImGui.bullet_text(f"flag affected : {CustomBehaviorParty().party_flagging_manager.is_flag_defined(Player.GetAccountEmail())}")
+        flag_index = CustomBehaviorParty().party_flagging_manager.get_my_flag_index(Player.GetAccountEmail())
+
+        if flag_index is not None:
+            PyImGui.bullet_text(f"flag index : {flag_index}")
+            PyImGui.bullet_text(f"flag position : {CustomBehaviorParty().party_flagging_manager.get_flag_position(flag_index)}")
+        else:
+            PyImGui.bullet_text(f"flag index : None")
+        
 
     def draw_overlay(self, current_state: BehaviorState) -> None:
         """

@@ -244,14 +244,10 @@ def render():
         PyImGui.pop_style_var(1)
         PyImGui.pop_style_color(1)
         if PyImGui.is_item_hovered():
-            PyImGui.set_tooltip("Preset 1 (Grid): Update flag positions based on leader's position and facing; auto-assign if none")
+            PyImGui.set_tooltip("Apply grid assignments to flag positions based on leader's position and facing")
 
         if clicked_p1:
-            flag_manager.auto_assign_emails_if_none_assigned()
-            leader_x, leader_y = Player.GetXY()
-            leader_agent_id = Player.GetAgentID()
-            leader_angle = Agent.GetRotationAngle(leader_agent_id)
-            flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_1")
+            FlagsUI.apply_grid_to_flag_manager()
 
         # Toggle expand/collapse using the generic ExpandableSection
         flag_expandable.render_expand_toggle("", "expand_flagging_top")
