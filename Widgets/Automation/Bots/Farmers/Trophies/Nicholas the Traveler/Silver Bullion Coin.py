@@ -4,7 +4,6 @@ import PyImGui
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Silver_Bullion_Coin Farmer"
 MODEL_ID_TO_FARM = ModelID.Silver_Bullion_Coin
-MODULE_ICON = "Textures\\Module_Icons\\Silver Bullion Coin.png"
 OUTPOST_TO_TRAVEL = 489 #kodlonu hamlet
 COORD_TO_EXIT_MAP = (4682, -3499)
 EXPLORABLE_TO_TRAVEL =488 #mehtani keys           

@@ -3,7 +3,6 @@ import PyImGui
 
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Chunk Of Drake Flesh Farmer"
-MODULE_ICON = "Textures\\Module_Icons\\Chunk of Drake Flesh.png"
 MODEL_ID_TO_FARM = ModelID.Chunk_Of_Drake_Flesh
 OUTPOST_TO_TRAVEL = 489 #kodlonu hamlet
 COORD_TO_EXIT_MAP = (4682, -3499)
