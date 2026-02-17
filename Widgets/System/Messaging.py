@@ -801,7 +801,7 @@ def OpenChest(index, message):
                 chest_pos = Agent.GetXY(chest_id)
                                 
                 sorted_by_party_index = sorted(
-                    [acc for acc in all_accounts if Utils.Distance((acc.PlayerPosX, acc.PlayerPosY), chest_pos) < 2500.0], 
+                    [acc for acc in all_accounts if Utils.Distance((acc.AgentData.Pos.x, acc.AgentData.Pos.y), chest_pos) < 2500.0], 
                 key=lambda acc: acc.AgentPartyData.PartyPosition ) if all_accounts else []
                 
                 if sorted_by_party_index:

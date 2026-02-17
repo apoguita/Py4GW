@@ -43,21 +43,6 @@ from .AgentDataStruct import AgentDataStruct
 class AccountStruct(Structure):
     _pack_ = 1
     _fields_ = [      
-
-        ("PlayerHP", c_float),
-        ("PlayerMaxHP", c_float),
-        ("PlayerHealthRegen", c_float),
-        ("PlayerEnergy", c_float),
-        ("PlayerMaxEnergy", c_float),
-        ("PlayerEnergyRegen", c_float),
-        ("PlayerPosX", c_float),
-        ("PlayerPosY", c_float),
-        ("PlayerPosZ", c_float),
-        ("PlayerFacingAngle", c_float),
-        ("PlayerTargetID", c_uint),
-        ("PlayerLoginNumber", c_uint),
-
-        #Restructure Structures
         #--------------------
         ("Key", KeyStruct),  # KeyStruct for each player slot
         ("AccountEmail", c_wchar*SHMEM_MAX_EMAIL_LEN),
@@ -85,16 +70,6 @@ class AccountStruct(Structure):
     ]
     
     # Type hints for IntelliSense
-    PlayerEnergy: float
-    PlayerMaxEnergy: float
-    PlayerEnergyRegen: float
-    PlayerPosX: float
-    PlayerPosY: float
-    PlayerPosZ: float
-    PlayerFacingAngle: float
-    PlayerTargetID: int
-    PlayerLoginNumber: int
-
     #--------------------
     Key: KeyStruct
     AccountEmail: str
@@ -123,20 +98,6 @@ class AccountStruct(Structure):
     
     def reset(self) -> None:
         """Reset all fields to zero or default values."""
-
-        self.PlayerHP = 0.0
-        self.PlayerMaxHP = 0.0
-        self.PlayerHealthRegen = 0.0
-        self.PlayerEnergy = 0.0
-        self.PlayerMaxEnergy = 0.0
-        self.PlayerEnergyRegen = 0.0
-        self.PlayerPosX = 0.0
-        self.PlayerPosY = 0.0
-        self.PlayerPosZ = 0.0
-        self.PlayerFacingAngle = 0.0
-        self.PlayerTargetID = 0
-        self.PlayerLoginNumber = 0
- 
         #--------------------
         self.Key.reset()
         self.AccountEmail = ""
