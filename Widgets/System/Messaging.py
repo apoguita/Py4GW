@@ -29,6 +29,7 @@ cached_data = CacheData()
 
 MODULE_NAME = "Messaging"
 OPTIONAL = False
+USEITEM_SYNC_DEBUG = False
 
 SUMMON_SPIRITS_LUXON = "Summon_Spirits_luxon"
 SUMMON_SPIRITS_KURZICK = "Summon_Spirits_kurzick"
@@ -1175,6 +1176,10 @@ def UseItem(index, message):
     ConsoleLog(MODULE_NAME, f"Processing UseItem message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
+    def _useitem_dbg(text: str):
+        if USEITEM_SYNC_DEBUG:
+            ConsoleLog(MODULE_NAME, f"UseItem[debug]: {text}", Console.MessageType.Info)
+
     # Check if the user has opted in to team broadcasts (Pycons setting)
     # Use Player.GetAccountEmail() to match the hash used by Pycons.py
     try:
@@ -1185,12 +1190,12 @@ def UseItem(index, message):
         email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
         ini_path = f"Widgets/Config/Pycons_{email_hash}.ini"
         
-        ConsoleLog(MODULE_NAME, f"UseItem: Reading opt-in from {ini_path} (account: {account_email})", Console.MessageType.Info)
+        _useitem_dbg(f"Reading opt-in from {ini_path} (account: {account_email})")
         
         ini_handler = IniHandler(ini_path)
         opt_in = ini_handler.read_bool("Pycons", "team_consume_opt_in", False)
         receiver_require_enabled = ini_handler.read_bool("Pycons", "mbdp_receiver_require_enabled", True)
-        ConsoleLog(MODULE_NAME, f"UseItem: team_consume_opt_in setting read as: {opt_in}", Console.MessageType.Info)
+        _useitem_dbg(f"team_consume_opt_in setting read as: {opt_in}")
         if not opt_in:
             ConsoleLog(MODULE_NAME, "UseItem: team_consume_opt_in is disabled, ignoring broadcast.", Console.MessageType.Info)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -1209,32 +1214,103 @@ def UseItem(index, message):
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             return
 
-        same_party = (
-            int(getattr(sender_data, "PartyID", 0) or 0) > 0 and
-            int(getattr(sender_data, "PartyID", 0) or 0) == int(getattr(receiver_data, "PartyID", 0) or 0) and
-            int(getattr(sender_data, "MapID", 0) or 0) == int(getattr(receiver_data, "MapID", 0) or 0) and
-            int(getattr(sender_data, "MapRegion", 0) or 0) == int(getattr(receiver_data, "MapRegion", 0) or 0) and
-            int(getattr(sender_data, "MapDistrict", 0) or 0) == int(getattr(receiver_data, "MapDistrict", 0) or 0) and
-            int(getattr(sender_data, "MapLanguage", 0) or 0) == int(getattr(receiver_data, "MapLanguage", 0) or 0)
+        sender_email = str(getattr(sender_data, "AccountEmail", "") or "").strip().lower()
+        message_sender_email = str(message.SenderEmail or "").strip().lower()
+        if not sender_email or sender_email != message_sender_email:
+            _useitem_dbg(
+                f"sender identity failed (email mismatch): message_sender='{message.SenderEmail}', "
+                f"sender_data_email='{getattr(sender_data, 'AccountEmail', '')}'"
+            )
+            ConsoleLog(MODULE_NAME, "UseItem: sender identity validation failed, ignoring.", Console.MessageType.Info)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+
+        sender_party_id = int(getattr(getattr(sender_data, "AgentPartyData", None), "PartyID", 0) or 0)
+        receiver_party_id = int(getattr(getattr(receiver_data, "AgentPartyData", None), "PartyID", 0) or 0)
+
+        sender_map = getattr(getattr(sender_data, "AgentData", None), "Map", None)
+        receiver_map = getattr(getattr(receiver_data, "AgentData", None), "Map", None)
+        sender_map_id = int(getattr(sender_map, "MapID", 0) or 0)
+        sender_region = int(getattr(sender_map, "Region", 0) or 0)
+        sender_district = int(getattr(sender_map, "District", 0) or 0)
+        sender_language = int(getattr(sender_map, "Language", 0) or 0)
+        receiver_map_id = int(getattr(receiver_map, "MapID", 0) or 0)
+        receiver_region = int(getattr(receiver_map, "Region", 0) or 0)
+        receiver_district = int(getattr(receiver_map, "District", 0) or 0)
+        receiver_language = int(getattr(receiver_map, "Language", 0) or 0)
+
+        local_party_id = int(Party.GetPartyID() or 0)
+        local_map_id = int(Map.GetMapID() or 0)
+        local_region = int(Map.GetRegion()[0] or 0)
+        local_district = int(Map.GetDistrict() or 0)
+        local_language = int(Map.GetLanguage()[0] or 0)
+
+        sender_char_name = str(getattr(getattr(sender_data, "AgentData", None), "CharacterName", "") or "")
+        sender_name_norm = " ".join(sender_char_name.strip().lower().split())
+        sender_login = int(getattr(getattr(sender_data, "AgentData", None), "LoginNumber", 0) or 0)
+        sender_agent_id = int(getattr(getattr(sender_data, "AgentData", None), "AgentID", 0) or 0)
+
+        _useitem_dbg(
+            f"sender ids: email='{message.SenderEmail}', char='{sender_char_name}', login={sender_login}, "
+            f"agent_id={sender_agent_id}, party_id={sender_party_id}, "
+            f"map=({sender_map_id},{sender_region},{sender_district},{sender_language})"
         )
-        if not same_party:
+        _useitem_dbg(
+            f"receiver ids: email='{message.ReceiverEmail}', party_id(shmem)={receiver_party_id}, "
+            f"party_id(local)={local_party_id}, map(shmem)=({receiver_map_id},{receiver_region},{receiver_district},{receiver_language}), "
+            f"map(local)=({local_map_id},{local_region},{local_district},{local_language})"
+        )
+
+        if sender_party_id <= 0 or sender_party_id != receiver_party_id:
+            _useitem_dbg(
+                f"sub-check failed: party (sender_party_id={sender_party_id}, receiver_party_id={receiver_party_id})"
+            )
             ConsoleLog(MODULE_NAME, "UseItem: sender is not in same party/map, ignoring.", Console.MessageType.Info)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             return
 
-        sender_name_norm = " ".join(str(getattr(sender_data, "CharacterName", "") or "").strip().lower().split())
+        same_map_instance = (
+            sender_map_id == receiver_map_id and
+            sender_region == receiver_region and
+            sender_district == receiver_district and
+            sender_language == receiver_language
+        )
+        if not same_map_instance:
+            _useitem_dbg(
+                "sub-check failed: map "
+                f"(sender=({sender_map_id},{sender_region},{sender_district},{sender_language}), "
+                f"receiver=({receiver_map_id},{receiver_region},{receiver_district},{receiver_language}))"
+            )
+            ConsoleLog(MODULE_NAME, "UseItem: sender is not in same party/map, ignoring.", Console.MessageType.Info)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+
         roster_names = set()
+        roster_logins = set()
         for p in Party.GetPlayers() or []:
             try:
                 ln = int(getattr(p, "login_number", 0) or 0)
                 if ln <= 0:
                     continue
+                roster_logins.add(ln)
                 nm = str(Party.Players.GetPlayerNameByLoginNumber(ln) or "")
                 if nm:
                     roster_names.add(" ".join(nm.strip().lower().split()))
             except Exception:
                 continue
-        if sender_name_norm and sender_name_norm not in roster_names:
+
+        _useitem_dbg(f"receiver roster: logins={sorted(list(roster_logins))}, names={sorted(list(roster_names))}")
+
+        sender_in_roster = False
+        if sender_login > 0:
+            sender_in_roster = sender_login in roster_logins
+        elif sender_name_norm:
+            sender_in_roster = sender_name_norm in roster_names
+
+        if not sender_in_roster:
+            _useitem_dbg(
+                f"sub-check failed: sender identity/roster (sender_login={sender_login}, sender_name='{sender_char_name}')"
+            )
             ConsoleLog(MODULE_NAME, "UseItem: sender character not present in current party roster, ignoring.", Console.MessageType.Info)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             return
