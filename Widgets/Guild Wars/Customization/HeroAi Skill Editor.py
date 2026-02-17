@@ -2049,7 +2049,7 @@ def _draw_window() -> None:
 
 	PyImGui.spacing()
 	PyImGui.text_colored("Use with Caution: Modifying skill conditions can lead to unintended consequences. Always review changes before applying.", Color(255, 0, 0, 255).to_tuple_normalized())
-	PyImGui.text("Source: HeroAI custom_skill_src conditions + Shared Memory Skillbars")
+	PyImGui.text_colored("You need to reload the widgets to apply changes to HeroAI", Color(255, 0, 0, 255).to_tuple_normalized())
 
 	window_module.process_window()
 	window_module.end()
