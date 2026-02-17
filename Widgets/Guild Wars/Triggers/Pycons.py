@@ -121,6 +121,15 @@ try:
         new_val = bool(res)
         return (new_val != bool(value)), new_val
 
+    def ui_combo(label: str, current_index: int, items: list[str]):
+        try:
+            idx = int(PyImGui.combo(label, int(current_index), items))
+        except Exception:
+            idx = int(current_index)
+        max_idx = max(0, len(items) - 1)
+        idx = max(0, min(max_idx, idx))
+        return (idx != int(current_index)), idx
+
     def ui_collapsing_header(label: str, default_open: bool):
         try:
             return bool(PyImGui.collapsing_header(label, bool(default_open)))
@@ -256,6 +265,678 @@ try:
         except Exception:
             return "+0"
 
+    TOOLTIP_VISIBILITY_OPTIONS = ["Off", "On hover", "Always show"]
+    TOOLTIP_PROFILE_OPTIONS = ["Solo", "Leader-only spending", "Full team sync", "Advanced/technical"]
+    TOOLTIP_LENGTH_OPTIONS = ["Short", "Long"]
+
+    _TOOLTIP_TEXTS = {
+        "tooltip_visibility": {
+            "short": "Controls when help text is shown.",
+            "long": "Choose how tooltip help appears. Off hides all setting help. On hover only shows help when the setting is hovered. Always show displays full help text under each setting.",
+            "why": "Use Always show while learning, then switch to On hover once your setup is stable.",
+        },
+        "tooltip_profile": {
+            "short": "Chooses which playstyle guidance to show in tooltips.",
+            "long": "Select the guidance profile used in tooltip recommendations. Solo favors local-only safety, Leader-only favors one spender coordinating others, Full team sync assumes multiple accounts consume, and Advanced/technical includes lower-level behavior notes.",
+            "why": "The same setting can be correct or wrong depending on whether you run solo, lead multibox, or synchronize a full team.",
+        },
+        "tooltip_length": {
+            "short": "Controls short vs detailed help text.",
+            "long": "Short gives one-line practical summaries. Long gives full explanations with behavior details, tradeoffs, and profile-focused recommendations.",
+            "why": "Long is best during setup; Short is better once you already know the system.",
+        },
+        "tooltip_show_why": {
+            "short": "Shows an extra impact line in each tooltip.",
+            "long": "When enabled, tooltips include a 'Why this matters' line to explain practical impact like safety, item burn, and team behavior side effects.",
+            "why": "This makes tooltips longer but reduces guesswork while tuning settings.",
+        },
+        "debug_logging": {
+            "short": "Shows detailed Pycons decisions in console.",
+            "long": "Enable detailed logging for consume checks and MB/DP decisions. Use this to diagnose why an item did or did not trigger. Leave it off in normal play to keep console noise low.",
+            "why": "Debug logs are the fastest way to confirm thresholds, eligibility, and trigger ordering.",
+        },
+        "team_broadcast": {
+            "short": "Send this account's item usage events to team accounts.",
+            "long": "This account broadcasts consumable usage events to same-party accounts on the same map. Broadcasters coordinate party MB/DP behavior; receiving accounts still apply their own local safety checks before consuming.",
+            "why": "Party-wide MB/DP coordination depends on broadcasters; without it, team sync behavior will not run.",
+            "profiles": {
+                0: "Solo: keep OFF.",
+                1: "Leader-only: ON on leader, OFF on followers.",
+                2: "Full sync: ON on coordinator account.",
+                3: "Advanced: use with coordinator gating and explicit local receiver safety.",
+            },
+        },
+        "team_consume_opt_in": {
+            "short": "Allow this account to consume when teammates broadcast.",
+            "long": "This account opts in as a receiver for team consume broadcasts. If disabled, incoming broadcasts are ignored. Receiver-side local enabled checks may still block item use if local safety requires it.",
+            "why": "This controls whether followers are passive observers or active consumers in team workflows.",
+            "profiles": {
+                0: "Solo: keep OFF.",
+                1: "Leader-only: ON only if you need eligibility, while leaving follower items disabled.",
+                2: "Full sync: ON for all receiving accounts.",
+                3: "Advanced: combine with strict local enabled checks.",
+            },
+        },
+        "advanced_intervals": {
+            "short": "Shows per-item timing controls.",
+            "long": "Displays advanced per-item interval options so you can tune how frequently each selected item is checked. This is mostly for performance tuning or specialized pacing strategies.",
+            "why": "Wrong interval tuning can increase item burn or delay important triggers.",
+        },
+        "alcohol_enabled": {
+            "short": "Master toggle for alcohol automation.",
+            "long": "Enables or disables all alcohol upkeep logic. If OFF, alcohol settings below are ignored regardless of target or preference.",
+            "why": "Useful to instantly pause alcohol consumption without changing item selections.",
+        },
+        "alcohol_use_explorable": {
+            "short": "Allow alcohol automation in explorable areas.",
+            "long": "When enabled, alcohol upkeep can run in explorable zones (missions, vanquishes, and open areas).",
+            "why": "Prevents accidental item use in content where you do not want alcohol upkeep active.",
+        },
+        "alcohol_use_outpost": {
+            "short": "Allow alcohol automation in outposts.",
+            "long": "When enabled, alcohol upkeep can run in towns and outposts.",
+            "why": "Useful when you only want upkeep once combat starts, or only while waiting in town.",
+        },
+        "alcohol_target_level": {
+            "short": "Target drunk level to maintain (0-5).",
+            "long": "Sets the drunk level goal for alcohol upkeep. Higher values increase frequency and speed of alcohol consumption, lower values conserve stock.",
+            "why": "This is the main knob controlling alcohol consumption rate.",
+        },
+        "alcohol_preference_smooth": {
+            "short": "Balanced alcohol usage near target.",
+            "long": "Smooth mode aims to stay near target efficiently without wasting strong alcohol too early.",
+            "why": "Best default for stable long sessions.",
+        },
+        "alcohol_preference_strong": {
+            "short": "Reach target faster using stronger alcohol first.",
+            "long": "Strong-first prioritizes high-point alcohol so you reach the target level quickly after zoning or startup.",
+            "why": "Great for speed; less efficient for stock preservation.",
+        },
+        "alcohol_preference_weak": {
+            "short": "Conserve rare alcohol using weaker options first.",
+            "long": "Weak-first delays strong alcohol usage and climbs more gradually, useful when conserving expensive items matters more than speed.",
+            "why": "Best for stretching inventory over long runs.",
+        },
+        "mbdp_enabled": {
+            "short": "Master toggle for morale/DP automation.",
+            "long": "Enables all Morale Boost and Death Penalty automation logic. If OFF, no MB/DP item decisions are made.",
+            "why": "Fast global kill switch for MB/DP behavior.",
+        },
+        "mbdp_allow_partywide_in_human_parties": {
+            "short": "Allow party-wide MB/DP with non-eligible humans present.",
+            "long": "If OFF, party-wide MB/DP decisions are blocked when human party members are present but not eligible per Pycons team flags. If ON, party-wide logic can still proceed.",
+            "why": "Prevents unintended spending in mixed or public groups.",
+            "profiles": {
+                0: "Solo: OFF.",
+                1: "Leader-only: usually OFF.",
+                2: "Full sync: ON only if your whole human party is intentionally coordinated.",
+                3: "Advanced: ON only with explicit party policy.",
+            },
+        },
+        "mbdp_receiver_require_enabled": {
+            "short": "Receivers only consume MB/DP items enabled locally.",
+            "long": "When ON, broadcast receivers must have each MB/DP item selected and enabled locally before they can consume it. When OFF, receivers may consume broadcast MB/DP items without local per-item enable checks.",
+            "why": "This is the main safety guard against forced follower spending.",
+            "profiles": {
+                0: "Solo: ON.",
+                1: "Leader-only: ON (strongly recommended).",
+                2: "Full sync: ON unless you explicitly want centralized forced triggers.",
+                3: "Advanced: OFF only if you accept centralized control risk.",
+            },
+        },
+        "mbdp_prefer_seal_for_recharge": {
+            "short": "Prefer Seal over Pumpkin for self +10 morale upkeep.",
+            "long": "When both items are available for self +10 morale behavior, this preference chooses Seal first instead of Pumpkin.",
+            "why": "Lets you steer item choice by stock, utility, or recharge strategy.",
+        },
+        "mbdp_restore_defaults": {
+            "short": "Reset MB/DP settings in this section to defaults.",
+            "long": "Restores only MB/DP values in this section to balanced defaults. Does not change general, alcohol, or consumable selection settings.",
+            "why": "Fast recovery if experimentation made MB/DP behavior unpredictable.",
+        },
+        "mbdp_self_dp_minor_threshold": {
+            "short": "Self DP threshold for lighter cleanup actions.",
+            "long": "Effective DP trigger on -60..0 scale for minor self cleanup behavior. More negative values delay usage until DP is worse.",
+            "why": "Controls how early self DP correction begins.",
+        },
+        "mbdp_self_dp_major_threshold": {
+            "short": "Self DP threshold for stronger cleanup actions.",
+            "long": "Effective DP trigger on -60..0 scale for major self cleanup behavior. Usually set lower (more negative) than minor trigger as an escalation stage.",
+            "why": "Defines panic/escalation timing for heavier self recovery.",
+        },
+        "mbdp_self_morale_target_effective": {
+            "short": "Desired self effective morale (-60..+10).",
+            "long": "Target self morale on effective scale. 0 is neutral; negatives represent DP; positives represent morale boost. Self morale item decisions are compared against this target.",
+            "why": "Sets how aggressively self morale is topped up.",
+        },
+        "mbdp_self_min_morale_gain": {
+            "short": "Minimum self gain required before morale item use.",
+            "long": "Minimum projected effective benefit (0..10) needed before self morale items are used. Higher values skip small top-offs.",
+            "why": "Reduces waste from tiny morale gains.",
+        },
+        "mbdp_party_min_members": {
+            "short": "Minimum eligible members needed for party MB/DP logic.",
+            "long": "Party-wide MB/DP actions only run when at least this many eligible members are present. Higher values make triggers stricter.",
+            "why": "Prevents party consumable use when too few synced members are detected.",
+        },
+        "mbdp_party_min_interval_ms": {
+            "short": "Minimum time between party-wide MB/DP actions.",
+            "long": "Cooldown in milliseconds between party-wide MB/DP triggers. Increase to reduce spam and item burn; decrease for faster response.",
+            "why": "One of the strongest controls for total item consumption rate.",
+        },
+        "mbdp_party_target_effective": {
+            "short": "Desired party effective morale (-60..+10).",
+            "long": "Target party morale used in summed benefit calculations. Benefit is clamped by item cap (+5 or +10) before trigger decisions.",
+            "why": "Affects whether party morale options are considered worth using.",
+        },
+        "mbdp_party_min_total_gain_5": {
+            "short": "Minimum summed gain required before +5 party morale item use.",
+            "long": "Minimum total projected party benefit required before +5 morale options can fire (for example Honeycomb). Lower values trigger more often.",
+            "why": "Primary lever for +5 item frequency.",
+        },
+        "mbdp_party_min_total_gain_10": {
+            "short": "Minimum summed gain required before +10 party morale item use.",
+            "long": "Minimum total projected party benefit required before +10 morale options can fire (for example Elixir of Valor). Raise this to make +10 usage rarer.",
+            "why": "Primary lever for +10 item frequency versus conservation.",
+        },
+        "mbdp_party_light_dp_threshold": {
+            "short": "Party DP threshold for light cleanup stage.",
+            "long": "Effective DP threshold (-60..0) for light party DP cleanup behavior.",
+            "why": "Sets when early party DP correction starts.",
+        },
+        "mbdp_party_heavy_dp_threshold": {
+            "short": "Party DP threshold for heavy cleanup stage.",
+            "long": "Effective DP threshold (-60..0) for heavier deterministic party cleanup behavior. Typically more negative than light threshold.",
+            "why": "Defines escalation point for stronger party DP responses.",
+        },
+        "mbdp_powerstone_dp_threshold": {
+            "short": "Emergency DP threshold for Powerstone-level response.",
+            "long": "Effective DP threshold (-60..0) for emergency party response using strongest recovery logic.",
+            "why": "Protects against wipe-risk situations by reserving emergency response for severe DP.",
+        },
+        "filter_search": {
+            "short": "Filter consumables by name.",
+            "long": "Search text filter for consumables lists in the settings window. Works across explorable, outpost, MB/DP, and alcohol groups.",
+            "why": "Speeds up setup when many items exist.",
+        },
+        "select_all_visible": {
+            "short": "Select all currently visible items.",
+            "long": "Marks every item currently visible by search/filter/expanded groups as selected.",
+            "why": "Fast bulk setup, but verify filtered view before applying.",
+        },
+        "clear_all_visible": {
+            "short": "Clear selection for all currently visible items.",
+            "long": "Unselects every item currently visible by search/filter/expanded groups.",
+            "why": "Fast bulk cleanup; can remove many settings at once.",
+        },
+        "expand_all": {
+            "short": "Open all consumable groups.",
+            "long": "Expands all consumable sections in the settings window.",
+            "why": "Useful when auditing all selected items at once.",
+        },
+        "collapse_all": {
+            "short": "Close all consumable groups.",
+            "long": "Collapses all consumable sections for a compact settings view.",
+            "why": "Reduces visual noise after setup.",
+        },
+        "only_show_available_inventory": {
+            "short": "Show only items currently in inventory.",
+            "long": "When ON, settings lists hide items not present in inventory. This is useful for cleanup but can hide items you still plan to configure for later.",
+            "why": "Great for active runs; not ideal when planning future loadouts.",
+        },
+        "presets_section": {
+            "short": "Apply built-in presets or save/load your own settings profiles.",
+            "long": "Preset controls let you apply predefined behavior quickly, or store your own configuration in custom slots and reload it later.",
+            "why": "Useful when switching between solo, leader, and team-sync playstyles without manually changing many fields.",
+        },
+        "preset_leader_plus10_team": {
+            "short": "Leader preset for maintaining +10 team morale.",
+            "long": "Applies a leader-oriented MB/DP setup that targets +10 team morale with conservative party-item triggering and leader-first control.",
+            "why": "Clear baseline preset for leader-managed team morale upkeep.",
+        },
+        "preset_solo_safe": {
+            "short": "Safe single-account preset with local-only behavior.",
+            "long": "Applies a conservative solo profile: no team broadcast/opt-in, MB/DP enabled with safe defaults, and receiver-local safety protections kept on.",
+            "why": "Good baseline when you are not coordinating consumables across accounts.",
+        },
+        "preset_full_team_sync": {
+            "short": "Coordinated team preset for shared MB/DP behavior.",
+            "long": "Applies a synchronized team profile with broadcasting and receiving enabled, party-wide MB/DP allowed in coordinated human groups, and practical thresholds for frequent team upkeep.",
+            "why": "Reduces manual setup time when running multi-account synchronized groups.",
+        },
+        "preset_leader_conservative": {
+            "short": "Leader-only preset focused on slower, safer item spending.",
+            "long": "Applies leader broadcasting with strict receiver-local safety and conservative trigger thresholds to reduce item burn while still maintaining team morale behavior.",
+            "why": "Best for long runs where stock preservation matters more than rapid topping-up.",
+        },
+        "preset_leader_aggressive": {
+            "short": "Leader-only preset for fast, frequent morale/DP correction.",
+            "long": "Applies leader broadcasting with aggressive party thresholds and shorter intervals so team morale/DP reactions happen sooner and more often.",
+            "why": "Useful when speed and uptime are more important than consumable efficiency.",
+        },
+        "preset_save_slot": {
+            "short": "Save current settings into this slot.",
+            "long": "Stores the current profile values and selected/enabled item toggles into this preset slot. You can rename each slot first.",
+            "why": "Lets you keep multiple ready-to-use setups and switch quickly.",
+        },
+        "preset_load_slot": {
+            "short": "Load settings from this slot.",
+            "long": "Loads all saved values from this preset slot and applies them to the current account.",
+            "why": "Fast profile switching for different team roles or farming modes.",
+        },
+        "preset_set_others_optin": {
+            "short": "Set all other same-party accounts to opt in.",
+            "long": "Writes team-consume opt-in ON to every other account currently detected in the same party/map instance as this account.",
+            "why": "Useful after applying leader presets so followers immediately receive broadcasted consume actions.",
+        },
+        "preset_set_others_optout": {
+            "short": "Set all other same-party accounts to opt out.",
+            "long": "Writes team-consume opt-in OFF to every other account currently detected by Pycons account discovery.",
+            "why": "Useful for quickly stopping follower consumption without editing each account manually.",
+        },
+    }
+
+    def _cfg_int(name: str, default: int = 0) -> int:
+        try:
+            return int(getattr(cfg, name, default))
+        except Exception:
+            return int(default)
+
+    def _tooltip_text_for(setting_key: str, fallback: str = "") -> str:
+        data = _TOOLTIP_TEXTS.get(setting_key)
+        if not data:
+            return str(fallback or "")
+
+        length_idx = max(0, min(len(TOOLTIP_LENGTH_OPTIONS) - 1, _cfg_int("tooltip_length", 1)))
+        profile_idx = max(0, min(len(TOOLTIP_PROFILE_OPTIONS) - 1, _cfg_int("tooltip_profile", 0)))
+        show_why = bool(getattr(cfg, "tooltip_show_why", True))
+
+        base = str(data.get("long") if length_idx == 1 else data.get("short", "")) or str(fallback or "")
+        profile_map = data.get("profiles", {})
+        profile_line = str(profile_map.get(profile_idx, "")).strip()
+        if profile_line:
+            base = f"{base}\nProfile: {profile_line}"
+        if show_why:
+            why = str(data.get("why", "")).strip()
+            if why:
+                base = f"{base}\nWhy this matters: {why}"
+        return base.strip()
+
+    def _show_setting_tooltip(setting_key: str, fallback: str = ""):
+        txt = _tooltip_text_for(setting_key, fallback)
+        if not txt:
+            return
+        vis = max(0, min(len(TOOLTIP_VISIBILITY_OPTIONS) - 1, _cfg_int("tooltip_visibility", 1)))
+        if vis == 0:
+            return
+        if vis == 1:
+            _tooltip_if_hovered(txt)
+            return
+        try:
+            if hasattr(PyImGui, "text_wrapped"):
+                PyImGui.text_wrapped(txt)
+            else:
+                PyImGui.text(txt)
+        except Exception:
+            pass
+
+    PRESET_SLOT_COUNT = 3
+    PRESET_BOOL_KEYS = {
+        "debug_logging",
+        "only_show_available_inventory",
+        "show_advanced_intervals",
+        "alcohol_enabled",
+        "alcohol_use_explorable",
+        "alcohol_use_outpost",
+        "mbdp_enabled",
+        "mbdp_allow_partywide_in_human_parties",
+        "mbdp_receiver_require_enabled",
+        "mbdp_prefer_seal_for_recharge",
+        "team_broadcast",
+        "team_consume_opt_in",
+    }
+    PRESET_SCALAR_KEYS = [
+        "debug_logging",
+        "only_show_available_inventory",
+        "show_advanced_intervals",
+        "alcohol_enabled",
+        "alcohol_target_level",
+        "alcohol_use_explorable",
+        "alcohol_use_outpost",
+        "alcohol_preference",
+        "team_broadcast",
+        "team_consume_opt_in",
+        "mbdp_enabled",
+        "mbdp_allow_partywide_in_human_parties",
+        "mbdp_receiver_require_enabled",
+        "mbdp_self_dp_minor_threshold",
+        "mbdp_self_dp_major_threshold",
+        "mbdp_self_morale_target_effective",
+        "mbdp_self_min_morale_gain",
+        "mbdp_party_min_members",
+        "mbdp_party_min_interval_ms",
+        "mbdp_party_target_effective",
+        "mbdp_party_min_total_gain_5",
+        "mbdp_party_min_total_gain_10",
+        "mbdp_party_light_dp_threshold",
+        "mbdp_party_heavy_dp_threshold",
+        "mbdp_powerstone_dp_threshold",
+        "mbdp_prefer_seal_for_recharge",
+    ]
+
+    def _preset_slot_default_name(slot_idx: int) -> str:
+        return f"Preset {int(slot_idx)}"
+
+    def _set_item_toggle(key: str, selected: bool, enabled: bool):
+        cfg.selected[key] = bool(selected)
+        cfg.enabled[key] = bool(enabled)
+
+    def _apply_builtin_preset(key: str):
+        global _last_mbdp_party_ms
+        if key == "solo_safe":
+            cfg.team_broadcast = False
+            cfg.team_consume_opt_in = False
+            cfg.mbdp_enabled = True
+            cfg.mbdp_allow_partywide_in_human_parties = False
+            cfg.mbdp_receiver_require_enabled = True
+            cfg.mbdp_self_dp_minor_threshold = -30
+            cfg.mbdp_self_dp_major_threshold = -45
+            cfg.mbdp_self_morale_target_effective = 0
+            cfg.mbdp_self_min_morale_gain = 4
+            cfg.mbdp_party_min_members = 2
+            cfg.mbdp_party_min_interval_ms = 15000
+            cfg.mbdp_party_target_effective = 0
+            cfg.mbdp_party_min_total_gain_5 = 8
+            cfg.mbdp_party_min_total_gain_10 = 12
+            cfg.mbdp_party_light_dp_threshold = -15
+            cfg.mbdp_party_heavy_dp_threshold = -30
+            cfg.mbdp_powerstone_dp_threshold = -45
+            cfg.mbdp_prefer_seal_for_recharge = False
+            _last_mbdp_party_ms = 0
+            cfg.last_applied_preset = "Solo Safe"
+            cfg.mark_dirty()
+            _log("Applied preset: Solo Safe.", Console.MessageType.Info)
+        elif key == "full_team_sync":
+            cfg.team_broadcast = True
+            cfg.team_consume_opt_in = True
+            cfg.mbdp_enabled = True
+            cfg.mbdp_allow_partywide_in_human_parties = True
+            cfg.mbdp_receiver_require_enabled = True
+            cfg.mbdp_self_dp_minor_threshold = -25
+            cfg.mbdp_self_dp_major_threshold = -40
+            cfg.mbdp_self_morale_target_effective = 0
+            cfg.mbdp_self_min_morale_gain = 3
+            cfg.mbdp_party_min_members = 2
+            cfg.mbdp_party_min_interval_ms = 10000
+            cfg.mbdp_party_target_effective = 10
+            cfg.mbdp_party_min_total_gain_5 = 4
+            cfg.mbdp_party_min_total_gain_10 = 16
+            cfg.mbdp_party_light_dp_threshold = -12
+            cfg.mbdp_party_heavy_dp_threshold = -28
+            cfg.mbdp_powerstone_dp_threshold = -45
+            cfg.mbdp_prefer_seal_for_recharge = False
+            _set_item_toggle("honeycomb", True, True)
+            _set_item_toggle("elixir_of_valor", True, True)
+            _set_item_toggle("rainbow_candy_cane", True, True)
+            _last_mbdp_party_ms = 0
+            cfg.last_applied_preset = "Full Team Sync"
+            cfg.mark_dirty()
+            _log("Applied preset: Full Team Sync.", Console.MessageType.Info)
+        elif key == "leader_conservative":
+            cfg.team_broadcast = True
+            cfg.team_consume_opt_in = False
+            cfg.mbdp_enabled = True
+            cfg.mbdp_allow_partywide_in_human_parties = False
+            cfg.mbdp_receiver_require_enabled = True
+            cfg.mbdp_party_target_effective = 10
+            cfg.mbdp_party_min_members = 2
+            cfg.mbdp_party_min_interval_ms = 18000
+            cfg.mbdp_party_min_total_gain_5 = 10
+            cfg.mbdp_party_min_total_gain_10 = 120
+            cfg.mbdp_self_min_morale_gain = 5
+            _set_item_toggle("honeycomb", True, True)
+            _set_item_toggle("elixir_of_valor", False, False)
+            _set_item_toggle("rainbow_candy_cane", False, False)
+            _last_mbdp_party_ms = 0
+            cfg.last_applied_preset = "Leader-Only Conservative"
+            cfg.mark_dirty()
+            _log("Applied preset: Leader-Only Conservative.", Console.MessageType.Info)
+        elif key == "leader_aggressive":
+            cfg.team_broadcast = True
+            cfg.team_consume_opt_in = False
+            cfg.mbdp_enabled = True
+            cfg.mbdp_allow_partywide_in_human_parties = False
+            cfg.mbdp_receiver_require_enabled = True
+            cfg.mbdp_party_target_effective = 10
+            cfg.mbdp_party_min_members = 2
+            cfg.mbdp_party_min_interval_ms = 6000
+            cfg.mbdp_party_min_total_gain_5 = 0
+            cfg.mbdp_party_min_total_gain_10 = 6
+            cfg.mbdp_self_min_morale_gain = 2
+            _set_item_toggle("honeycomb", True, True)
+            _set_item_toggle("elixir_of_valor", True, True)
+            _set_item_toggle("rainbow_candy_cane", True, True)
+            _last_mbdp_party_ms = 0
+            cfg.last_applied_preset = "Leader-Only Aggressive"
+            cfg.mark_dirty()
+            _log("Applied preset: Leader-Only Aggressive.", Console.MessageType.Info)
+        elif key == "leader_plus10_honeycomb":
+            cfg.mbdp_enabled = True
+            cfg.team_broadcast = True
+            cfg.team_consume_opt_in = False
+            cfg.mbdp_allow_partywide_in_human_parties = False
+            cfg.mbdp_receiver_require_enabled = True
+            cfg.mbdp_party_target_effective = 10
+            cfg.mbdp_party_min_members = 2
+            cfg.mbdp_party_min_interval_ms = 12000
+            cfg.mbdp_party_min_total_gain_5 = 0
+            cfg.mbdp_party_min_total_gain_10 = 120
+            _set_item_toggle("honeycomb", True, True)
+            _set_item_toggle("elixir_of_valor", False, False)
+            _set_item_toggle("rainbow_candy_cane", False, False)
+            _last_mbdp_party_ms = 0
+            cfg.last_applied_preset = "Leader +10 Team Morale"
+            cfg.mark_dirty()
+            _log("Applied preset: Leader +10 Team Morale.", Console.MessageType.Info)
+
+    def _save_custom_preset_slot(slot_idx: int):
+        slot = max(1, min(PRESET_SLOT_COUNT, int(slot_idx)))
+        ini_handler = _get_ini_handler()
+        prefix = f"preset_slot_{slot}_"
+        ini_handler.write_key(INI_SECTION, f"{prefix}saved", "True")
+        for key in PRESET_SCALAR_KEYS:
+            try:
+                ini_handler.write_key(INI_SECTION, f"{prefix}{key}", getattr(cfg, key))
+            except Exception:
+                pass
+        for item in ALL_CONSUMABLES:
+            k = str(item.get("key", "") or "")
+            if not k:
+                continue
+            ini_handler.write_key(INI_SECTION, f"{prefix}selected_{k}", str(bool(cfg.selected.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}enabled_{k}", str(bool(cfg.enabled.get(k, False))))
+        for item in ALCOHOL_ITEMS:
+            k = str(item.get("key", "") or "")
+            if not k:
+                continue
+            ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_selected_{k}", str(bool(cfg.alcohol_selected.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_enabled_{k}", str(bool(cfg.alcohol_enabled_items.get(k, False))))
+        _log(f"Saved custom preset slot {slot}.", Console.MessageType.Info)
+
+    def _load_custom_preset_slot(slot_idx: int) -> bool:
+        global _last_mbdp_party_ms
+        slot = max(1, min(PRESET_SLOT_COUNT, int(slot_idx)))
+        ini_handler = _get_ini_handler()
+        prefix = f"preset_slot_{slot}_"
+        if not ini_handler.read_bool(INI_SECTION, f"{prefix}saved", False):
+            _log(f"Preset slot {slot} is empty.", Console.MessageType.Warning)
+            return False
+
+        for key in PRESET_SCALAR_KEYS:
+            try:
+                if key in PRESET_BOOL_KEYS:
+                    setattr(cfg, key, bool(ini_handler.read_bool(INI_SECTION, f"{prefix}{key}", bool(getattr(cfg, key)))))
+                else:
+                    setattr(cfg, key, int(ini_handler.read_int(INI_SECTION, f"{prefix}{key}", int(getattr(cfg, key)))))
+            except Exception:
+                pass
+
+        for item in ALL_CONSUMABLES:
+            k = str(item.get("key", "") or "")
+            if not k:
+                continue
+            cfg.selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}selected_{k}", bool(cfg.selected.get(k, False))))
+            cfg.enabled[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}enabled_{k}", bool(cfg.enabled.get(k, False))))
+        for item in ALCOHOL_ITEMS:
+            k = str(item.get("key", "") or "")
+            if not k:
+                continue
+            cfg.alcohol_selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_selected_{k}", bool(cfg.alcohol_selected.get(k, False))))
+            cfg.alcohol_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_enabled_{k}", bool(cfg.alcohol_enabled_items.get(k, False))))
+
+        _last_mbdp_party_ms = 0
+        cfg.last_applied_preset = str(cfg.preset_slot_names.get(slot, _preset_slot_default_name(slot)))
+        cfg.mark_dirty()
+        _log(f"Loaded custom preset slot {slot}.", Console.MessageType.Info)
+        return True
+
+    def _set_other_party_accounts_opt_in():
+        try:
+            self_email = str(Player.GetAccountEmail() or "")
+            if not self_email:
+                _log("Could not set opt-in for others: local account email unavailable.", Console.MessageType.Warning)
+                return
+            all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+            me = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+            my_party_id = _acc_party_id(me) if me else 0
+            accounts = []
+            party_rows_count = 0
+            if my_party_id > 0:
+                for acc in all_accounts:
+                    if not acc:
+                        continue
+                    if not bool(getattr(acc, "IsAccount", False)):
+                        continue
+                    if _acc_party_id(acc) != my_party_id:
+                        continue
+                    accounts.append(acc)
+            else:
+                # Fallback path when shared-memory party IDs are unavailable:
+                # use live party roster names and map to shared-memory account names.
+                party_rows = _get_party_player_rows()
+                party_name_norms = {str(r.get("name_norm", "") or "") for r in party_rows if str(r.get("name_norm", "") or "")}
+                party_rows_count = len(party_rows)
+                for acc in all_accounts:
+                    if not acc:
+                        continue
+                    if not bool(getattr(acc, "IsAccount", False)):
+                        continue
+                    cname = _normalize_name(_acc_name(acc))
+                    if not cname:
+                        continue
+                    if cname in party_name_norms:
+                        accounts.append(acc)
+
+            updated = 0
+            seen = set()
+            toggled_names = []
+            for acc in accounts:
+                email = _acc_email(acc)
+                if not email or email == self_email or email in seen:
+                    continue
+                seen.add(email)
+                email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
+                ini = IniHandler(f"Widgets/Config/Pycons_{email_hash}.ini")
+                ini.write_key(INI_SECTION, "team_consume_opt_in", "True")
+                updated += 1
+                nm = _acc_name(acc)
+                if nm:
+                    toggled_names.append(nm)
+            if updated == 0:
+                cfg.last_party_opt_toggle_summary = "Opt-in ON: none"
+                _log(
+                    f"Set team consume opt-in ON for 0 other party account(s). "
+                    f"Detected accounts={len(accounts)} my_party_id={my_party_id} "
+                    f"party_rows={party_rows_count}. No non-party accounts were modified.",
+                    Console.MessageType.Warning
+                )
+            else:
+                unique_names = sorted(set(toggled_names), key=lambda s: s.lower())
+                names_str = ", ".join(unique_names) if unique_names else f"{updated} account(s)"
+                cfg.last_party_opt_toggle_summary = f"Opt-in ON: {names_str}"
+                _log(f"Set team consume opt-in ON for {updated} other party account(s).", Console.MessageType.Info)
+            cfg.mark_dirty()
+        except Exception as e:
+            _debug(f"Failed setting opt-in for other party accounts: {e}", Console.MessageType.Warning)
+
+    def _set_other_party_accounts_opt_out():
+        try:
+            self_email = str(Player.GetAccountEmail() or "")
+            if not self_email:
+                _log("Could not set opt-out for others: local account email unavailable.", Console.MessageType.Warning)
+                return
+            all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+            me = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+            my_party_id = _acc_party_id(me) if me else 0
+            accounts = []
+            if my_party_id > 0:
+                for acc in all_accounts:
+                    if not acc:
+                        continue
+                    if not bool(getattr(acc, "IsAccount", False)):
+                        continue
+                    if _acc_party_id(acc) != my_party_id:
+                        continue
+                    accounts.append(acc)
+            else:
+                party_rows = _get_party_player_rows()
+                party_name_norms = {str(r.get("name_norm", "") or "") for r in party_rows if str(r.get("name_norm", "") or "")}
+                for acc in all_accounts:
+                    if not acc:
+                        continue
+                    if not bool(getattr(acc, "IsAccount", False)):
+                        continue
+                    cname = _normalize_name(_acc_name(acc))
+                    if cname and cname in party_name_norms:
+                        accounts.append(acc)
+
+            updated = 0
+            seen = set()
+            toggled_names = []
+            for acc in accounts:
+                email = _acc_email(acc)
+                if not email or email == self_email or email in seen:
+                    continue
+                seen.add(email)
+                email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
+                ini = IniHandler(f"Widgets/Config/Pycons_{email_hash}.ini")
+                ini.write_key(INI_SECTION, "team_consume_opt_in", "False")
+                updated += 1
+                nm = _acc_name(acc)
+                if nm:
+                    toggled_names.append(nm)
+            if updated == 0:
+                cfg.last_party_opt_toggle_summary = "Opt-in OFF: none"
+                _log("Set team consume opt-in OFF for 0 other party account(s). No non-party accounts were modified.", Console.MessageType.Warning)
+            else:
+                unique_names = sorted(set(toggled_names), key=lambda s: s.lower())
+                names_str = ", ".join(unique_names) if unique_names else f"{updated} account(s)"
+                cfg.last_party_opt_toggle_summary = f"Opt-in OFF: {names_str}"
+                _log(f"Set team consume opt-in OFF for {updated} other party account(s).", Console.MessageType.Info)
+            cfg.mark_dirty()
+        except Exception as e:
+            _debug(f"Failed setting opt-out for other party accounts: {e}", Console.MessageType.Warning)
+
+    def _refresh_local_team_flags_from_ini():
+        try:
+            ini = _get_ini_handler()
+            new_broadcast = bool(ini.read_bool(INI_SECTION, "team_broadcast", bool(cfg.team_broadcast)))
+            new_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", bool(cfg.team_consume_opt_in)))
+            cfg.team_broadcast = new_broadcast
+            cfg.team_consume_opt_in = new_optin
+        except Exception:
+            pass
+
     # -------------------------
     # Logging
     # -------------------------
@@ -320,7 +1001,6 @@ try:
 
         # Self-only DP
         {"key": "refined_jelly", "label": "Refined Jelly", "model_id": int(_model_id_value("Refined_Jelly", 0)), "use_where": "mbdp"},
-        {"key": "shining_blade_rations", "label": "Shining Blade Rations", "model_id": int(_model_id_value("Shining_Blade_Rations", 0)), "use_where": "mbdp"},
         {"key": "wintergreen_candy_cane", "label": "Wintergreen Candy Cane", "model_id": int(_model_id_value("Wintergreen_Candy_Cane", 0)), "use_where": "mbdp"},
         {"key": "peppermint_candy_cane", "label": "Peppermint Candy Cane", "model_id": int(_model_id_value("Peppermint_Candy_Cane", 0)), "use_where": "mbdp"},
 
@@ -425,6 +1105,17 @@ try:
             self.interval_ms = ini_handler.read_int(INI_SECTION, "interval_ms", 1500)
             self.show_selected_list = ini_handler.read_bool(INI_SECTION, "show_selected_list", True)
             self.only_show_available_inventory = ini_handler.read_bool(INI_SECTION, "only_show_available_inventory", False)
+            self.tooltip_visibility = max(0, min(2, int(ini_handler.read_int(INI_SECTION, "tooltip_visibility", 1))))
+            self.tooltip_profile = max(0, min(3, int(ini_handler.read_int(INI_SECTION, "tooltip_profile", 0))))
+            self.tooltip_length = max(0, min(1, int(ini_handler.read_int(INI_SECTION, "tooltip_length", 1))))
+            self.tooltip_show_why = ini_handler.read_bool(INI_SECTION, "tooltip_show_why", True)
+            self.last_applied_preset = str(ini_handler.read_key(INI_SECTION, "last_applied_preset", "None") or "None")
+            self.last_party_opt_toggle_summary = str(ini_handler.read_key(INI_SECTION, "last_party_opt_toggle_summary", "None") or "None")
+            self.preset_slot_names = {}
+            for i in range(1, PRESET_SLOT_COUNT + 1):
+                default_name = _preset_slot_default_name(i)
+                name = str(ini_handler.read_key(INI_SECTION, f"preset_slot_{i}_name", default_name) or default_name).strip()
+                self.preset_slot_names[i] = name if name else default_name
 
             # Optional per-item min intervals
             self.show_advanced_intervals = ini_handler.read_bool(INI_SECTION, "show_advanced_intervals", False)
@@ -451,6 +1142,12 @@ try:
                 k = c["key"]
                 self.selected[k] = ini_handler.read_bool(INI_SECTION, f"selected_{k}", False)
                 self.enabled[k] = ini_handler.read_bool(INI_SECTION, f"enabled_{k}", False)
+
+            # Settings-window consumables group open/closed state
+            self.settings_explorable_open = ini_handler.read_bool(INI_SECTION, "settings_explorable_open", False)
+            self.settings_outpost_open = ini_handler.read_bool(INI_SECTION, "settings_outpost_open", False)
+            self.settings_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_mbdp_open", False)
+            self.settings_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_alcohol_open", False)
 
             # Morale boost + DP upkeep settings
             self.mbdp_enabled = ini_handler.read_bool(INI_SECTION, "mbdp_enabled", bool(MBDP_DEFAULTS["mbdp_enabled"]))
@@ -528,6 +1225,14 @@ try:
             ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
             ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
             ini_handler.write_key(INI_SECTION, "only_show_available_inventory", str(bool(self.only_show_available_inventory)))
+            ini_handler.write_key(INI_SECTION, "tooltip_visibility", str(int(self.tooltip_visibility)))
+            ini_handler.write_key(INI_SECTION, "tooltip_profile", str(int(self.tooltip_profile)))
+            ini_handler.write_key(INI_SECTION, "tooltip_length", str(int(self.tooltip_length)))
+            ini_handler.write_key(INI_SECTION, "tooltip_show_why", str(bool(self.tooltip_show_why)))
+            ini_handler.write_key(INI_SECTION, "last_applied_preset", str(self.last_applied_preset))
+            ini_handler.write_key(INI_SECTION, "last_party_opt_toggle_summary", str(self.last_party_opt_toggle_summary))
+            for i in range(1, PRESET_SLOT_COUNT + 1):
+                ini_handler.write_key(INI_SECTION, f"preset_slot_{i}_name", str(self.preset_slot_names.get(i, _preset_slot_default_name(i))))
 
             ini_handler.write_key(INI_SECTION, "show_advanced_intervals", str(bool(self.show_advanced_intervals)))
             for k, v in self.min_interval_ms.items():
@@ -554,6 +1259,10 @@ try:
             ini_handler.write_key(INI_SECTION, "mbdp_party_heavy_dp_threshold", str(int(self.mbdp_party_heavy_dp_threshold)))
             ini_handler.write_key(INI_SECTION, "mbdp_powerstone_dp_threshold", str(int(self.mbdp_powerstone_dp_threshold)))
             ini_handler.write_key(INI_SECTION, "mbdp_prefer_seal_for_recharge", str(bool(self.mbdp_prefer_seal_for_recharge)))
+            ini_handler.write_key(INI_SECTION, "settings_explorable_open", str(bool(self.settings_explorable_open)))
+            ini_handler.write_key(INI_SECTION, "settings_outpost_open", str(bool(self.settings_outpost_open)))
+            ini_handler.write_key(INI_SECTION, "settings_mbdp_open", str(bool(self.settings_mbdp_open)))
+            ini_handler.write_key(INI_SECTION, "settings_alcohol_open", str(bool(self.settings_alcohol_open)))
 
             for k, v in self.alcohol_selected.items():
                 ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
@@ -636,6 +1345,9 @@ try:
     _last_broadcast_ms = {}
     _team_flags_cache = {}
     _last_mbdp_party_ms = 0
+    _local_team_flags_refresh_timer = Timer()
+    _local_team_flags_refresh_timer.Start()
+    _local_team_flags_refresh_timer.Stop()
 
     # Alcohol estimate fallback
     _alcohol_last_drink_ms = 0
@@ -1068,16 +1780,17 @@ try:
             if recipients is not None:
                 recipient_set = set(str(x) for x in recipients if x)
             for acc in accounts:
-                if not acc or not getattr(acc, "AccountEmail", None):
+                to_email = _acc_email(acc)
+                if not acc or not to_email:
                     continue
-                if acc.AccountEmail == sender:
+                if to_email == sender:
                     continue
-                if recipient_set is not None and str(acc.AccountEmail) not in recipient_set:
+                if recipient_set is not None and str(to_email) not in recipient_set:
                     continue
                 try:
                     GLOBAL_CACHE.ShMem.SendMessage(
                         sender,
-                        acc.AccountEmail,
+                        to_email,
                         SharedCommandType.UseItem,
                         (float(model_id), float(repeat), float(effect_id), 0.0),
                     )
@@ -1142,6 +1855,33 @@ try:
 
     def _normalize_name(name: str) -> str:
         return " ".join((name or "").strip().lower().split())
+
+    def _acc_email(acc) -> str:
+        return str(getattr(acc, "AccountEmail", "") or "")
+
+    def _acc_name(acc) -> str:
+        try:
+            return str(getattr(getattr(acc, "AgentData", None), "CharacterName", "") or "")
+        except Exception:
+            return ""
+
+    def _acc_party_id(acc) -> int:
+        try:
+            return int(getattr(getattr(acc, "AgentPartyData", None), "PartyID", 0) or 0)
+        except Exception:
+            return 0
+
+    def _acc_party_position(acc) -> int:
+        try:
+            return int(getattr(getattr(acc, "AgentPartyData", None), "PartyPosition", 9999) or 9999)
+        except Exception:
+            return 9999
+
+    def _acc_player_morale(acc) -> int:
+        try:
+            return int(getattr(acc, "PlayerMorale", 0) or 0)
+        except Exception:
+            return 0
 
     def _load_team_flags_for_email(account_email: str) -> tuple[bool, bool]:
         if not account_email:
@@ -1208,6 +1948,9 @@ try:
             me = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
             if not me:
                 return []
+            my_party_id = _acc_party_id(me)
+            if my_party_id <= 0:
+                return []
             all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
             out = []
             for acc in all_accounts:
@@ -1215,17 +1958,7 @@ try:
                     continue
                 if not bool(getattr(acc, "IsAccount", False)):
                     continue
-                if int(getattr(acc, "PartyID", 0) or 0) <= 0:
-                    continue
-                if int(getattr(acc, "PartyID", 0)) != int(getattr(me, "PartyID", 0)):
-                    continue
-                if int(getattr(acc, "MapID", 0)) != int(getattr(me, "MapID", 0)):
-                    continue
-                if int(getattr(acc, "MapRegion", 0)) != int(getattr(me, "MapRegion", 0)):
-                    continue
-                if int(getattr(acc, "MapDistrict", 0)) != int(getattr(me, "MapDistrict", 0)):
-                    continue
-                if int(getattr(acc, "MapLanguage", 0)) != int(getattr(me, "MapLanguage", 0)):
+                if _acc_party_id(acc) != my_party_id:
                     continue
                 out.append(acc)
             return out
@@ -1256,7 +1989,7 @@ try:
 
         accounts_by_name = {}
         for acc in same_party_accounts:
-            nm = _normalize_name(str(getattr(acc, "CharacterName", "") or ""))
+            nm = _normalize_name(_acc_name(acc))
             if nm:
                 accounts_by_name[nm] = acc
 
@@ -1268,7 +2001,7 @@ try:
             if raw is None:
                 acc = accounts_by_name.get(row["name_norm"])
                 if acc:
-                    raw = int(getattr(acc, "PlayerMorale", 0) or 0)
+                    raw = _acc_player_morale(acc)
             if raw is None and int(row["agent_id"]) == int(Player.GetAgentID()):
                 raw = int(Player.GetMorale() or 0)
             st = _morale_state(int(raw or 0))
@@ -1282,7 +2015,7 @@ try:
         self_email = str(Player.GetAccountEmail() or "")
         broadcasters = []
         for acc in same_party_accounts:
-            email = str(getattr(acc, "AccountEmail", "") or "")
+            email = _acc_email(acc)
             if not email:
                 continue
             is_broadcaster, _ = _load_team_flags_for_email(email)
@@ -1290,8 +2023,8 @@ try:
                 broadcasters.append(acc)
         if not broadcasters:
             return False
-        broadcasters.sort(key=lambda x: (int(getattr(x, "PartyPosition", 9999) or 9999), str(getattr(x, "AccountEmail", ""))))
-        leader_email = str(getattr(broadcasters[0], "AccountEmail", "") or "")
+        broadcasters.sort(key=lambda x: (_acc_party_position(x), _acc_email(x)))
+        leader_email = _acc_email(broadcasters[0])
         return bool(self_email and leader_email and self_email == leader_email)
 
     def _tick_morale_dp() -> bool:
@@ -1332,7 +2065,7 @@ try:
                     return True
 
         if self_dp >= self_minor_dp_threshold:
-            for key in ("refined_jelly", "shining_blade_rations", "wintergreen_candy_cane"):
+            for key in ("refined_jelly", "wintergreen_candy_cane"):
                 spec, item_id = _find_item_enabled_and_available(key)
                 if spec and item_id > 0:
                     _debug(
@@ -1380,8 +2113,8 @@ try:
         optins = set()
         recipients_emails = []
         for acc in same_party_accounts:
-            email = str(getattr(acc, "AccountEmail", "") or "")
-            name_norm = _normalize_name(str(getattr(acc, "CharacterName", "") or ""))
+            email = _acc_email(acc)
+            name_norm = _normalize_name(_acc_name(acc))
             if not email or not name_norm:
                 continue
             b, o = _load_team_flags_for_email(email)
@@ -1921,6 +2654,7 @@ try:
         if changed:
             cfg.debug_logging = bool(v)
             cfg.mark_dirty()
+        _show_setting_tooltip("debug_logging")
 
         # Team settings
         changed, v = ui_checkbox("Broadcast usage to team##pycons_team_broadcast", bool(cfg.team_broadcast))
@@ -1934,6 +2668,7 @@ try:
                 _log(f"Team broadcast setting changed to: {bool(v)}", Console.MessageType.Info)
             except Exception as e:
                 _debug(f"Failed to write team_broadcast: {e}", Console.MessageType.Warning)
+        _show_setting_tooltip("team_broadcast")
 
         changed, v = ui_checkbox("Opt in to team broadcasts (consume when others broadcast)##pycons_team_optin", bool(cfg.team_consume_opt_in))
         if changed:
@@ -1946,82 +2681,95 @@ try:
                 _log(f"Team opt-in setting changed to: {bool(v)} (saved to {_get_ini_path()})", Console.MessageType.Info)
             except Exception as e:
                 _debug(f"Failed to write team_consume_opt_in: {e}", Console.MessageType.Warning)
+        _show_setting_tooltip("team_consume_opt_in")
 
         changed, v = ui_checkbox("Advanced intervals##pycons_advint", bool(cfg.show_advanced_intervals))
         if changed:
             cfg.show_advanced_intervals = bool(v)
             cfg.mark_dirty()
-
-        # ---- Tooltip (safe, non-breaking) ----
-        try:
-            hovered = False
-            if hasattr(PyImGui, "is_item_hovered"):
-                hovered = bool(PyImGui.is_item_hovered())
-            if hovered:
-                tip = "Leave this off unless you need it (performance tuning, special timing needs, or you want certain items checked less often)."
-                if hasattr(PyImGui, "set_tooltip"):
-                    PyImGui.set_tooltip(tip)
-                elif hasattr(PyImGui, "begin_tooltip") and hasattr(PyImGui, "end_tooltip"):
-                    PyImGui.begin_tooltip()
-                    if hasattr(PyImGui, "text_wrapped"):
-                        PyImGui.text_wrapped(tip)
-                    else:
-                        PyImGui.text(tip)
-                    PyImGui.end_tooltip()
-        except Exception:
-            pass
+        _show_setting_tooltip("advanced_intervals")
 
         PyImGui.separator()
+        if ui_collapsing_header("Tooltip settings##pycons_settings_tooltip_dropdown", False):
+            changed, idx = ui_combo("Help visibility##pycons_tip_visibility", int(cfg.tooltip_visibility), TOOLTIP_VISIBILITY_OPTIONS)
+            if changed:
+                cfg.tooltip_visibility = int(idx)
+                cfg.mark_dirty()
+            _show_setting_tooltip("tooltip_visibility")
 
-        PyImGui.text("Search:")
-        _same_line(10)
-        changed, new_val = ui_input_text("##pycons_filter", filter_text[0], 64)
-        if changed:
-            filter_text[0] = new_val
+            changed, idx = ui_combo("Help profile##pycons_tip_profile", int(cfg.tooltip_profile), TOOLTIP_PROFILE_OPTIONS)
+            if changed:
+                cfg.tooltip_profile = int(idx)
+                cfg.mark_dirty()
+            _show_setting_tooltip("tooltip_profile")
 
-        flt = (filter_text[0] or "").strip().lower()
-        search_active = bool(flt)
+            changed, idx = ui_combo("Help length##pycons_tip_length", int(cfg.tooltip_length), TOOLTIP_LENGTH_OPTIONS)
+            if changed:
+                cfg.tooltip_length = int(idx)
+                cfg.mark_dirty()
+            _show_setting_tooltip("tooltip_length")
 
-        collapse_now = (last_search_active[0] and not search_active)
-        last_search_active[0] = search_active
+            changed, v = ui_checkbox("Show 'Why this matters' line##pycons_tip_why", bool(cfg.tooltip_show_why))
+            if changed:
+                cfg.tooltip_show_why = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("tooltip_show_why")
+            PyImGui.separator()
 
-        PyImGui.dummy(0, 6)
+        if ui_collapsing_header("Presets##pycons_settings_presets_dropdown", False):
+            _show_setting_tooltip("presets_section")
+            PyImGui.text(f"Active preset: {str(cfg.last_applied_preset or 'None')}")
+            PyImGui.text(f"Last party opt toggle: {str(cfg.last_party_opt_toggle_summary or 'None')}")
+            PyImGui.separator()
 
-        explorable_consets = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS]
-        explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS]
-        outpost_items = [c for c in CONSUMABLES if c.get("use_where") == "outpost"]
-        mbdp_items = list(MB_DP_ITEMS)
-        alcohol_items = list(ALCOHOL_ITEMS)
+            if PyImGui.button("Apply: Solo Safe##pycons_preset_apply_solo_safe"):
+                _apply_builtin_preset("solo_safe")
+            _show_setting_tooltip("preset_solo_safe")
 
-        explorable_has_match = search_active and (_list_has_match(explorable_consets, flt) or _list_has_match(explorable_other, flt))
-        outpost_has_match = search_active and _list_has_match(outpost_items, flt)
-        mbdp_has_match = search_active and _list_has_match(mbdp_items, flt)
-        alcohol_has_match = search_active and _list_has_match(alcohol_items, flt)
+            if PyImGui.button("Apply: Full Team Sync##pycons_preset_apply_full_sync"):
+                _apply_builtin_preset("full_team_sync")
+            _show_setting_tooltip("preset_full_team_sync")
 
-        predicted_visible = int(last_visible_count[0])
-        if collapse_now:
-            predicted_visible = 0
-        elif search_active and (explorable_has_match or outpost_has_match or mbdp_has_match or alcohol_has_match):
-            predicted_visible = 1
+            if PyImGui.button("Apply: Leader-Only Conservative##pycons_preset_apply_leader_cons"):
+                _apply_builtin_preset("leader_conservative")
+            _show_setting_tooltip("preset_leader_conservative")
 
-        pending_select_visible = False
-        pending_clear_visible = False
+            if PyImGui.button("Apply: Leader-Only Aggressive##pycons_preset_apply_leader_aggro"):
+                _apply_builtin_preset("leader_aggressive")
+            _show_setting_tooltip("preset_leader_aggressive")
 
-        disabled_top = (predicted_visible == 0)
-        mode = _begin_disabled(disabled_top)
+            if PyImGui.button("Apply: Leader +10 Team Morale##pycons_preset_apply_leader_plus10_honey"):
+                _apply_builtin_preset("leader_plus10_honeycomb")
+            _show_setting_tooltip("preset_leader_plus10_team")
 
-        if PyImGui.button("Select all visible##pycons_sel_all"):
-            pending_select_visible = True
-        _same_line(10)
-        if PyImGui.button("Clear all visible##pycons_clear_all"):
-            pending_clear_visible = True
+            if PyImGui.button("Set all other party accounts: Opt-in ON##pycons_preset_set_other_optin"):
+                _set_other_party_accounts_opt_in()
+            _show_setting_tooltip("preset_set_others_optin")
 
-        _end_disabled(mode)
+            if PyImGui.button("Set all other party accounts: Opt-in OFF##pycons_preset_set_other_optout"):
+                _set_other_party_accounts_opt_out()
+            _show_setting_tooltip("preset_set_others_optout")
 
-        if disabled_top:
-            PyImGui.text_disabled("No visible items (open a dropdown or search).")
-
-        PyImGui.separator()
+            PyImGui.separator()
+            PyImGui.text("Custom preset slots:")
+            for i in range(1, PRESET_SLOT_COUNT + 1):
+                PyImGui.text(f"Slot {i}:")
+                _same_line(8)
+                current_name = str(cfg.preset_slot_names.get(i, _preset_slot_default_name(i)))
+                changed_name, new_name = ui_input_text(f"##pycons_preset_name_{i}", current_name, 64)
+                if changed_name:
+                    n = str(new_name or "").strip()
+                    cfg.preset_slot_names[i] = n if n else _preset_slot_default_name(i)
+                    cfg.mark_dirty()
+                _same_line(8)
+                if PyImGui.button(f"Save##pycons_preset_save_{i}"):
+                    _save_custom_preset_slot(i)
+                _show_setting_tooltip("preset_save_slot")
+                _same_line(8)
+                if PyImGui.button(f"Load##pycons_preset_load_{i}"):
+                    _load_custom_preset_slot(i)
+                _show_setting_tooltip("preset_load_slot")
+            PyImGui.separator()
 
         # --- Alcohol settings (collapsed dropdown for compactness) ---
         if ui_collapsing_header("Alcohol settings##pycons_settings_alcohol_dropdown", False):
@@ -2030,16 +2778,19 @@ try:
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_settings_alcohol_toggle"):
                 cfg.alcohol_enabled = not bool(cfg.alcohol_enabled)
                 cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_enabled")
 
             changed, v = ui_checkbox("Use in Explorable##pycons_settings_alc_expl", bool(cfg.alcohol_use_explorable))
             if changed:
                 cfg.alcohol_use_explorable = bool(v)
                 cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_use_explorable")
 
             changed, v = ui_checkbox("Use in Outpost##pycons_settings_alc_outpost", bool(cfg.alcohol_use_outpost))
             if changed:
                 cfg.alcohol_use_outpost = bool(v)
                 cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_use_outpost")
 
             PyImGui.text("Target drunk level:")
             _same_line(10)
@@ -2047,27 +2798,28 @@ try:
             if changed:
                 cfg.alcohol_target_level = int(max(0, min(5, vv)))
                 cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_target_level")
 
             # Preference (ONE LINE)
             PyImGui.text("Preference:")
             _same_line(10)
 
             changed, v = ui_checkbox("Smooth##pycons_alc_pref_smooth_settings", int(cfg.alcohol_preference) == 0)
-            _tooltip_if_hovered("Best default — keeps you near the target without burning high-point alcohol unnecessarily.")
+            _show_setting_tooltip("alcohol_preference_smooth")
             if changed and bool(v):
                 cfg.alcohol_preference = 0
                 cfg.mark_dirty()
 
             _same_line(10)
             changed, v = ui_checkbox("Strong-first##pycons_alc_pref_strong_settings", int(cfg.alcohol_preference) == 1)
-            _tooltip_if_hovered("Good when you just want to be drunk ASAP (e.g., you zone in and want max level quickly).")
+            _show_setting_tooltip("alcohol_preference_strong")
             if changed and bool(v):
                 cfg.alcohol_preference = 1
                 cfg.mark_dirty()
 
             _same_line(10)
             changed, v = ui_checkbox("Weak-first##pycons_alc_pref_weak_settings", int(cfg.alcohol_preference) == 2)
-            _tooltip_if_hovered("Good if you’re trying to stretch rare/valuable alcohol and don’t mind it taking longer to climb.")
+            _show_setting_tooltip("alcohol_preference_weak")
             if changed and bool(v):
                 cfg.alcohol_preference = 2
                 cfg.mark_dirty()
@@ -2076,246 +2828,336 @@ try:
 
         if ui_collapsing_header("Morale Boost & Death Penalty settings##pycons_settings_mbdp_dropdown", False):
             PyImGui.text("MB/DP upkeep:")
-            _tooltip_if_hovered("Master toggle for all morale/DP automation. Turn OFF to completely stop MB/DP item logic.")
             _same_line(10)
             if _badge_button("ON" if cfg.mbdp_enabled else "OFF", enabled=bool(cfg.mbdp_enabled), id_suffix="pycons_settings_mbdp_toggle"):
                 cfg.mbdp_enabled = not bool(cfg.mbdp_enabled)
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Master toggle for all morale/DP automation. Turn OFF to completely stop MB/DP item logic.")
+            _show_setting_tooltip("mbdp_enabled")
 
             changed, v = ui_checkbox("Allow party-wide in human parties##pycons_mbdp_human", bool(cfg.mbdp_allow_partywide_in_human_parties))
             if changed:
                 cfg.mbdp_allow_partywide_in_human_parties = bool(v)
                 cfg.mark_dirty()
-            _tooltip_if_hovered("If OFF, party-wide MB/DP is blocked when non-eligible human players are in party. Keep OFF for safety in mixed/pug groups.")
+            _show_setting_tooltip("mbdp_allow_partywide_in_human_parties")
 
             changed, v = ui_checkbox("Receiver requires item enabled locally##pycons_mbdp_receiver_require_enabled", bool(cfg.mbdp_receiver_require_enabled))
             if changed:
                 cfg.mbdp_receiver_require_enabled = bool(v)
                 cfg.mark_dirty()
-            _tooltip_if_hovered("If ON, receivers only consume broadcast MB/DP items they have selected and enabled locally. Recommended ON to prevent forced uses.")
+            _show_setting_tooltip("mbdp_receiver_require_enabled")
 
             changed, v = ui_checkbox("Prefer Seal over Pumpkin for self +10 morale##pycons_mbdp_prefer_seal", bool(cfg.mbdp_prefer_seal_for_recharge))
             if changed:
                 cfg.mbdp_prefer_seal_for_recharge = bool(v)
                 cfg.mark_dirty()
-            _tooltip_if_hovered("When both are available, prefer Seal (recharge utility) instead of Pumpkin for self +10 morale upkeep.")
+            _show_setting_tooltip("mbdp_prefer_seal_for_recharge")
 
             if PyImGui.button("Restore default MB/DP settings##pycons_mbdp_restore_defaults"):
                 _apply_mbdp_defaults()
                 _debug("MB/DP settings restored to defaults.", Console.MessageType.Info)
                 cfg.save_if_dirty_throttled(0)
-            _tooltip_if_hovered("Reset only MB/DP settings in this section to balanced defaults. Other Pycons settings are unchanged.")
+            _show_setting_tooltip("mbdp_restore_defaults")
 
             PyImGui.text(f"Self minor DP trigger ({_fmt_effective(cfg.mbdp_self_dp_minor_threshold)}):")
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale. Fires at or worse than this value (e.g. -30 ~= 30% DP).")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_self_minor", int(cfg.mbdp_self_dp_minor_threshold))
             if changed:
                 cfg.mbdp_self_dp_minor_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale. Fires at or worse than this value (e.g. -30 ~= 30% DP).")
+            _show_setting_tooltip("mbdp_self_dp_minor_threshold")
 
             PyImGui.text(f"Self major DP trigger ({_fmt_effective(cfg.mbdp_self_dp_major_threshold)}):")
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale for full self DP clear usage. More negative means later/panic use.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_self_major", int(cfg.mbdp_self_dp_major_threshold))
             if changed:
                 cfg.mbdp_self_dp_major_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale for full self DP clear usage. More negative means later/panic use.")
+            _show_setting_tooltip("mbdp_self_dp_major_threshold")
 
             PyImGui.text(f"Self target effective ({_fmt_effective(cfg.mbdp_self_morale_target_effective)}):")
-            _tooltip_if_hovered("Net effective morale target on -60..+10 scale (signed). 0 is neutral, negatives mean DP, positives mean morale boost.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_self_target", int(cfg.mbdp_self_morale_target_effective))
             if changed:
                 cfg.mbdp_self_morale_target_effective = max(-60, min(10, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Net effective morale target on -60..+10 scale (signed). 0 is neutral, negatives mean DP, positives mean morale boost.")
+            _show_setting_tooltip("mbdp_self_morale_target_effective")
 
             PyImGui.text("Self minimum useful morale benefit:")
-            _tooltip_if_hovered("Minimum self gain needed before using morale items (effective points, 0..10). Increase to avoid tiny top-off uses.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_self_gain", int(cfg.mbdp_self_min_morale_gain))
             if changed:
                 cfg.mbdp_self_min_morale_gain = max(0, min(10, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Minimum self gain needed before using morale items (effective points, 0..10). Increase to avoid tiny top-off uses.")
+            _show_setting_tooltip("mbdp_self_min_morale_gain")
 
             PyImGui.text("Party minimum eligible members:")
-            _tooltip_if_hovered("Minimum eligible members required for party-wide decisions. Higher values make party consumable usage stricter.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_members", int(cfg.mbdp_party_min_members))
             if changed:
                 cfg.mbdp_party_min_members = max(2, min(8, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Minimum eligible members required for party-wide decisions. Higher values make party consumable usage stricter.")
+            _show_setting_tooltip("mbdp_party_min_members")
 
             PyImGui.text("Party trigger interval (ms):")
-            _tooltip_if_hovered("Minimum time between party-wide MB/DP triggers in milliseconds. Increase to reduce spam and item burn.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_interval", int(cfg.mbdp_party_min_interval_ms), width=150.0)
             if changed:
                 cfg.mbdp_party_min_interval_ms = max(1000, int(val))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Minimum time between party-wide MB/DP triggers in milliseconds. Increase to reduce spam and item burn.")
+            _show_setting_tooltip("mbdp_party_min_interval_ms")
 
             PyImGui.text(f"Party target effective ({_fmt_effective(cfg.mbdp_party_target_effective)}):")
-            _tooltip_if_hovered("Net party target on -60..+10 effective scale (signed). Benefit calculations clamp to item caps (+5 or +10).")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_target", int(cfg.mbdp_party_target_effective))
             if changed:
                 cfg.mbdp_party_target_effective = max(-60, min(10, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Net party target on -60..+10 effective scale (signed). Benefit calculations clamp to item caps (+5 or +10).")
+            _show_setting_tooltip("mbdp_party_target_effective")
 
             PyImGui.text("Party +5 minimum total benefit:")
-            _tooltip_if_hovered("Minimum summed party benefit (effective points) required before +5 morale party items fire. Typical range 0..60.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain5", int(cfg.mbdp_party_min_total_gain_5))
             if changed:
                 cfg.mbdp_party_min_total_gain_5 = max(0, min(60, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Minimum summed party benefit (effective points) required before +5 morale party items fire. Typical range 0..60.")
+            _show_setting_tooltip("mbdp_party_min_total_gain_5")
 
             PyImGui.text("Party +10 minimum total benefit:")
-            _tooltip_if_hovered("Minimum summed party benefit (effective points) required before +10 morale party items fire. Typical range 0..120.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain10", int(cfg.mbdp_party_min_total_gain_10))
             if changed:
                 cfg.mbdp_party_min_total_gain_10 = max(0, min(120, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Minimum summed party benefit (effective points) required before +10 morale party items fire. Typical range 0..120.")
+            _show_setting_tooltip("mbdp_party_min_total_gain_10")
 
             PyImGui.text(f"Party light DP trigger ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale for light party cleanup (e.g. Clover). Fires at or worse than this value.")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_light", int(cfg.mbdp_party_light_dp_threshold))
             if changed:
                 cfg.mbdp_party_light_dp_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale for light party cleanup (e.g. Clover). Fires at or worse than this value.")
+            _show_setting_tooltip("mbdp_party_light_dp_threshold")
 
             PyImGui.text(f"Party heavy DP trigger ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale for heavier deterministic party cleanup (e.g. Oath).")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_heavy", int(cfg.mbdp_party_heavy_dp_threshold))
             if changed:
                 cfg.mbdp_party_heavy_dp_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Effective penalty trigger on -60..0 scale for heavier deterministic party cleanup (e.g. Oath).")
+            _show_setting_tooltip("mbdp_party_heavy_dp_threshold")
 
             PyImGui.text(f"Powerstone emergency trigger ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
-            _tooltip_if_hovered("Emergency effective trigger on -60..0 scale. Fires when members are at or worse than this value (e.g. -45 ~= 45% DP).")
             _same_line(10)
             changed, val = ui_input_int_fixed("##pycons_mbdp_party_powerstone", int(cfg.mbdp_powerstone_dp_threshold))
             if changed:
                 cfg.mbdp_powerstone_dp_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
-            _tooltip_if_hovered("Emergency effective trigger on -60..0 scale. Fires when members are at or worse than this value (e.g. -45 ~= 45% DP).")
+            _show_setting_tooltip("mbdp_powerstone_dp_threshold")
 
             PyImGui.separator()
 
-        PyImGui.separator()
-        PyImGui.text("Select consumables to show in the main window:")
-        changed, v = ui_checkbox("Only show available items in inventory##pycons_only_available_inventory", bool(cfg.only_show_available_inventory))
-        if changed:
-            cfg.only_show_available_inventory = bool(v)
-            cfg.mark_dirty()
-        PyImGui.separator()
+        if ui_collapsing_header("Select consumables to show in the main window##pycons_settings_consumables_dropdown", False):
+            PyImGui.text("Search:")
+            _same_line(10)
+            changed, new_val = ui_input_text("##pycons_filter", filter_text[0], 64)
+            if changed:
+                filter_text[0] = new_val
+            _show_setting_tooltip("filter_search")
 
-        conset_has_match = search_active and _list_has_match(explorable_consets, flt)
-        only_available_settings = bool(cfg.only_show_available_inventory)
-        if only_available_settings:
-            _refresh_inventory_cache(False)
+            flt = (filter_text[0] or "").strip().lower()
+            search_active = bool(flt)
 
-        explorable_force = False if collapse_now else (True if explorable_has_match else (False if search_active else None))
-        outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
-        mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
-        alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
+            collapse_now = (last_search_active[0] and not search_active)
+            last_search_active[0] = search_active
 
-        visible_regular_keys = []
-        visible_alcohol_keys = []
+            PyImGui.dummy(0, 6)
 
-        explorable_open = _collapsing_header_force("Explorable##pycons_hdr_explorable", force_open=explorable_force, default_open=False)
-        if explorable_open:
-            before_explorable = len(visible_regular_keys)
-            if (not search_active) or conset_has_match:
-                PyImGui.text("Conset:")
-            for spec in explorable_consets:
-                _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+            explorable_consets = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS]
+            explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS]
+            outpost_items = [c for c in CONSUMABLES if c.get("use_where") == "outpost"]
+            mbdp_items = list(MB_DP_ITEMS)
+            alcohol_items = list(ALCOHOL_ITEMS)
 
-            if (not search_active) or _list_has_match(explorable_other, flt):
+            explorable_has_match = search_active and (_list_has_match(explorable_consets, flt) or _list_has_match(explorable_other, flt))
+            outpost_has_match = search_active and _list_has_match(outpost_items, flt)
+            mbdp_has_match = search_active and _list_has_match(mbdp_items, flt)
+            alcohol_has_match = search_active and _list_has_match(alcohol_items, flt)
+
+            predicted_visible = int(last_visible_count[0])
+            if collapse_now:
+                predicted_visible = 0
+            elif search_active and (explorable_has_match or outpost_has_match or mbdp_has_match or alcohol_has_match):
+                predicted_visible = 1
+
+            pending_select_visible = False
+            pending_clear_visible = False
+            pending_expand_all = False
+            pending_collapse_all = False
+
+            disabled_top = (predicted_visible == 0)
+            mode = _begin_disabled(disabled_top)
+
+            if PyImGui.button("Select all visible##pycons_sel_all"):
+                pending_select_visible = True
+            _show_setting_tooltip("select_all_visible")
+            _same_line(10)
+            if PyImGui.button("Clear all visible##pycons_clear_all"):
+                pending_clear_visible = True
+            _show_setting_tooltip("clear_all_visible")
+
+            _end_disabled(mode)
+            _same_line(10)
+            if PyImGui.button("Expand All##pycons_expand_all"):
+                pending_expand_all = True
+            _show_setting_tooltip("expand_all")
+            _same_line(10)
+            if PyImGui.button("Collapse All##pycons_collapse_all"):
+                pending_collapse_all = True
+            _show_setting_tooltip("collapse_all")
+
+            if disabled_top:
+                PyImGui.text_disabled("No visible items (open a dropdown or search).")
+
+            PyImGui.separator()
+            changed, v = ui_checkbox("Only show available items in inventory##pycons_only_available_inventory", bool(cfg.only_show_available_inventory))
+            if changed:
+                cfg.only_show_available_inventory = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("only_show_available_inventory")
+            PyImGui.separator()
+
+            conset_has_match = search_active and _list_has_match(explorable_consets, flt)
+            only_available_settings = bool(cfg.only_show_available_inventory)
+            if only_available_settings:
+                _refresh_inventory_cache(False)
+
+            if pending_expand_all:
+                explorable_force = True
+                outpost_force = True
+                mbdp_force = True
+                alcohol_force = True
+            elif pending_collapse_all:
+                explorable_force = False
+                outpost_force = False
+                mbdp_force = False
+                alcohol_force = False
+            else:
+                explorable_force = False if collapse_now else (True if explorable_has_match else (False if search_active else None))
+                outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
+                mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
+                alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
+
+            visible_regular_keys = []
+            visible_alcohol_keys = []
+
+            explorable_open = _collapsing_header_force(
+                "Explorable##pycons_hdr_explorable",
+                force_open=explorable_force,
+                default_open=bool(cfg.settings_explorable_open),
+            )
+            if bool(cfg.settings_explorable_open) != bool(explorable_open):
+                cfg.settings_explorable_open = bool(explorable_open)
+                cfg.mark_dirty()
+            if explorable_open:
+                before_explorable = len(visible_regular_keys)
+                if (not search_active) or conset_has_match:
+                    PyImGui.text("Conset:")
+                for spec in explorable_consets:
+                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+
+                if (not search_active) or _list_has_match(explorable_other, flt):
+                    PyImGui.separator()
+
+                for spec in explorable_other:
+                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+
+                if only_available_settings and len(visible_regular_keys) == before_explorable:
+                    PyImGui.text_disabled("No available items.")
+
                 PyImGui.separator()
 
-            for spec in explorable_other:
-                _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-
-            if only_available_settings and len(visible_regular_keys) == before_explorable:
-                PyImGui.text_disabled("No available items.")
-
-            PyImGui.separator()
-
-        outpost_open = _collapsing_header_force("In-town speed boosts##pycons_hdr_outpost", force_open=outpost_force, default_open=False)
-        if outpost_open:
-            before_outpost = len(visible_regular_keys)
-            for spec in outpost_items:
-                _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-            if only_available_settings and len(visible_regular_keys) == before_outpost:
-                PyImGui.text_disabled("No available items.")
-
-        mbdp_open = _collapsing_header_force("Morale Boost & Death Penalty##pycons_hdr_mbdp", force_open=mbdp_force, default_open=False)
-        if mbdp_open:
-            before_mbdp = len(visible_regular_keys)
-            for spec in mbdp_items:
-                _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-            if only_available_settings and len(visible_regular_keys) == before_mbdp:
-                PyImGui.text_disabled("No available items.")
-
-        alcohol_open = _collapsing_header_force("Alcohol##pycons_hdr_alcohol", force_open=alcohol_force, default_open=False)
-        if alcohol_open:
-            before_alcohol = len(visible_alcohol_keys)
-            for spec in sorted(alcohol_items, key=lambda x: x.get("label", "")):
-                _draw_alcohol_settings_row(spec, flt, visible_alcohol_keys, only_available=only_available_settings)
-            if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
-                PyImGui.text_disabled("No available items.")
-
-        visible_count = len(visible_regular_keys) + len(visible_alcohol_keys)
-        last_visible_count[0] = int(visible_count)
-
-        if visible_count > 0:
-            if pending_select_visible:
-                any_new = False
-                for k in visible_regular_keys:
-                    if not bool(cfg.selected.get(k, False)):
-                        cfg.selected[k] = True
-                        any_new = True
-                for k in visible_alcohol_keys:
-                    if not bool(cfg.alcohol_selected.get(k, False)):
-                        cfg.alcohol_selected[k] = True
-                        any_new = True
-
-                if any_new:
-                    if not bool(cfg.show_selected_list):
-                        cfg.show_selected_list = True
-                    request_expand_selected[0] = True
-
+            outpost_open = _collapsing_header_force(
+                "In-town speed boosts##pycons_hdr_outpost",
+                force_open=outpost_force,
+                default_open=bool(cfg.settings_outpost_open),
+            )
+            if bool(cfg.settings_outpost_open) != bool(outpost_open):
+                cfg.settings_outpost_open = bool(outpost_open)
                 cfg.mark_dirty()
+            if outpost_open:
+                before_outpost = len(visible_regular_keys)
+                for spec in outpost_items:
+                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                if only_available_settings and len(visible_regular_keys) == before_outpost:
+                    PyImGui.text_disabled("No available items.")
 
-            if pending_clear_visible:
-                for k in visible_regular_keys:
-                    cfg.selected[k] = False
-                    cfg.enabled[k] = False
-                for k in visible_alcohol_keys:
-                    cfg.alcohol_selected[k] = False
-                    cfg.alcohol_enabled_items[k] = False
-
-                if not _any_selected_anywhere():
-                    cfg.show_selected_list = False
-                    request_collapse_selected[0] = True
-
+            mbdp_open = _collapsing_header_force(
+                "Morale Boost & Death Penalty##pycons_hdr_mbdp",
+                force_open=mbdp_force,
+                default_open=bool(cfg.settings_mbdp_open),
+            )
+            if bool(cfg.settings_mbdp_open) != bool(mbdp_open):
+                cfg.settings_mbdp_open = bool(mbdp_open)
                 cfg.mark_dirty()
+            if mbdp_open:
+                before_mbdp = len(visible_regular_keys)
+                for spec in mbdp_items:
+                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                if only_available_settings and len(visible_regular_keys) == before_mbdp:
+                    PyImGui.text_disabled("No available items.")
+
+            alcohol_open = _collapsing_header_force(
+                "Alcohol##pycons_hdr_alcohol",
+                force_open=alcohol_force,
+                default_open=bool(cfg.settings_alcohol_open),
+            )
+            if bool(cfg.settings_alcohol_open) != bool(alcohol_open):
+                cfg.settings_alcohol_open = bool(alcohol_open)
+                cfg.mark_dirty()
+            if alcohol_open:
+                before_alcohol = len(visible_alcohol_keys)
+                for spec in sorted(alcohol_items, key=lambda x: x.get("label", "")):
+                    _draw_alcohol_settings_row(spec, flt, visible_alcohol_keys, only_available=only_available_settings)
+                if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
+                    PyImGui.text_disabled("No available items.")
+
+            visible_count = len(visible_regular_keys) + len(visible_alcohol_keys)
+            last_visible_count[0] = int(visible_count)
+
+            if visible_count > 0:
+                if pending_select_visible:
+                    any_new = False
+                    for k in visible_regular_keys:
+                        if not bool(cfg.selected.get(k, False)):
+                            cfg.selected[k] = True
+                            any_new = True
+                    for k in visible_alcohol_keys:
+                        if not bool(cfg.alcohol_selected.get(k, False)):
+                            cfg.alcohol_selected[k] = True
+                            any_new = True
+
+                    if any_new:
+                        if not bool(cfg.show_selected_list):
+                            cfg.show_selected_list = True
+                        request_expand_selected[0] = True
+
+                    cfg.mark_dirty()
+
+                if pending_clear_visible:
+                    for k in visible_regular_keys:
+                        cfg.selected[k] = False
+                        cfg.enabled[k] = False
+                    for k in visible_alcohol_keys:
+                        cfg.alcohol_selected[k] = False
+                        cfg.alcohol_enabled_items[k] = False
+
+                    if not _any_selected_anywhere():
+                        cfg.show_selected_list = False
+                        request_collapse_selected[0] = True
+
+                    cfg.mark_dirty()
+        else:
+            last_visible_count[0] = 0
 
         ImGui.End(INI_KEY_SETTINGS)
 
@@ -2338,6 +3180,10 @@ try:
                 _refresh_inventory_cache(force=True)
             except Exception:
                 pass
+
+        if _local_team_flags_refresh_timer.IsStopped() or _local_team_flags_refresh_timer.HasElapsed(1000):
+            _local_team_flags_refresh_timer.Start()
+            _refresh_local_team_flags_from_ini()
 
         _draw_main_window()
         _draw_settings_window()
