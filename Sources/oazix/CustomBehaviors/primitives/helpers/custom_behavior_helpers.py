@@ -234,7 +234,7 @@ class Resources:
         return MemoryCacheManager.get_or_set(
             "account_energy_map",
             lambda: {
-                account.AgentData.AgentID: account.PlayerEnergy
+                account.AgentData.AgentID: account.AgentData.Energy.Current
                 for account in GLOBAL_CACHE.ShMem.GetAllAccountData()
             }
         )

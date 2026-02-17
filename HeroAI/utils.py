@@ -62,7 +62,7 @@ def GetEnergyValues(agent_id, cached_data : Optional[CacheData] = None):
                 
     for acc in cached_data.party:
         if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
-            return acc.PlayerEnergy
+            return acc.AgentData.Energy.Current
         
     return 1.0 #default return full energy to prevent issues
 

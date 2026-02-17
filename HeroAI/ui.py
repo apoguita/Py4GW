@@ -1365,8 +1365,8 @@ def draw_combined_hero_panel(account_data: AccountStruct, cached_data: CacheData
                                      
                 PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 4)
                 
-                energy_clicked = draw_energy_bar(curr_avail[0], 13, account_data.PlayerMaxEnergy,
-                                account_data.PlayerEnergy, account_data.PlayerEnergyRegen)
+                energy_clicked = draw_energy_bar(curr_avail[0], 13, account_data.AgentData.Energy.Max,
+                                account_data.AgentData.Energy.Current, account_data.AgentData.Energy.Regen)
                 
                 if health_clicked or energy_clicked:
                             if Map.GetMapID() == account_data.AgentData.Map.MapID:
@@ -1403,7 +1403,7 @@ def draw_hero_panel(window: WindowModule, account_data: AccountStruct, cached_da
     
     collapsed = window.collapse
     player_pos = Player.GetXY()
-    hero_pos = (account_data.PlayerPosX, account_data.PlayerPosY)
+    hero_pos = (account_data.AgentData.Pos.x, account_data.AgentData.Pos.y)
     outside_compass_range = Utils.Distance(player_pos, hero_pos) > Range.Compass.value + 10
     
     if outside_compass_range:
@@ -1461,8 +1461,8 @@ def draw_hero_panel(window: WindowModule, account_data: AccountStruct, cached_da
                     health_clicked = draw_health_bar(curr_avail[0], 13, account_data.AgentData.Health.Max,
                                     account_data.AgentData.Health.Current, account_data.AgentData.Health.Regen, health_state, deep_wounded, enchanted, conditioned, hexed, has_weaponspell )
                     PyImGui.set_cursor_pos_y(PyImGui.get_cursor_pos_y() - 4)
-                    energy_clicked = draw_energy_bar(curr_avail[0], 13, account_data.PlayerMaxEnergy,
-                                                       account_data.PlayerEnergy, account_data.PlayerEnergyRegen)
+                    energy_clicked = draw_energy_bar(curr_avail[0], 13, account_data.AgentData.Energy.Max,
+                                                       account_data.AgentData.Energy.Current, account_data.AgentData.Energy.Regen)
                     if health_clicked or energy_clicked:
                         if Map.GetMapID() == account_data.AgentData.Map.MapID:
                             Player.ChangeTarget(account_data.AgentData.AgentID)

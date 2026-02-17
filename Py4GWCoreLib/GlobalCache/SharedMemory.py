@@ -6,6 +6,7 @@ from ..native_src.context.WorldContext import TitleStruct as NAtiveTitleStruct
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.py4gwcorelib_src import Utils
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+from ..native_src.internals.types import Vec2f, Vec3f
 
 
 
@@ -378,18 +379,14 @@ class Py4GWSharedMemoryManager:
             
             agent_id = self.agent_instance.agent_id if self.agent_instance else 0
 
-            agent_data.TargetID = Player.GetTargetID() if Player.IsPlayerLoaded() else 0
+
             agent_data.ObservingID = Player.GetObservingID() if Player.IsPlayerLoaded() else 0
             agent_data.PlayerNumber = Agent.GetPlayerNumber(agent_id)
             
 
-            agent_data.Energy = Agent.GetEnergy(agent_id)
-            max_energy = Agent.GetMaxEnergy(agent_id)
-            agent_data.MaxEnergy = max_energy
-            energy_regen = Agent.GetEnergyRegen(agent_id)
-            agent_data.EnergyPips = Utils.calculate_energy_pips(max_energy, energy_regen)
+
     
-            agent_data.LoginNumber = Agent.GetLoginNumber(agent_id)
+
             agent_data.DaggerStatus = Agent.GetDaggerStatus(agent_id)
             agent_data.WeaponType = Agent.GetWeaponType(agent_id)[0]
             agent_data.WeaponItemType = Agent.GetWeaponItemType(agent_id)
@@ -404,13 +401,10 @@ class Py4GWSharedMemoryManager:
             agent_data.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
             agent_data.AnimationCode = Agent.GetAnimationCode(agent_id)
             agent_data.AnimationID = Agent.GetAnimationID(agent_id)
-            agent_data.XYZ[0] = Agent.GetXYZ(agent_id)[0]
-            agent_data.XYZ[1] = Agent.GetXYZ(agent_id)[1]
-            agent_data.XYZ[2] = Agent.GetXYZ(agent_id)[2]
+
             agent_data.ZPlane = Agent.GetZPlane(agent_id)
-            agent_data.RotationAngle = Agent.GetRotationAngle(agent_id)
-            agent_data.VelocityVector[0] = Agent.GetVelocityXY(agent_id)[0]
-            agent_data.VelocityVector[1] = Agent.GetVelocityXY(agent_id)[1]
+
+            agent_data.Velocity = Vec2f(Agent.GetVelocityXY(agent_id)[0], Agent.GetVelocityXY(agent_id)[1])
 
         def _set_account_data(index):
             player : AccountStruct = self.GetAccountData(index)
@@ -450,15 +444,14 @@ class Py4GWSharedMemoryManager:
             player.AgentData.Health.Max = Agent.GetMaxHealth(Player.GetAgentID())
             player.AgentData.Health.Regen = Agent.GetHealthRegen(Player.GetAgentID())
             player.AgentData.Health.Pips = Utils.calculate_health_pips(player.AgentData.Health.Max, player.AgentData.Health.Regen)
-            player.PlayerEnergy = Agent.GetEnergy(Player.GetAgentID())
-            player.PlayerMaxEnergy = Agent.GetMaxEnergy(Player.GetAgentID())
-            player.PlayerEnergyRegen = Agent.GetEnergyRegen(Player.GetAgentID())
-            player.PlayerPosX = playerx
-            player.PlayerPosY = playery
-            player.PlayerPosZ = playerz
-            player.PlayerFacingAngle = Agent.GetRotationAngle(Player.GetAgentID())
-            player.PlayerTargetID = Player.GetTargetID()
-            player.PlayerLoginNumber = Agent.GetLoginNumber(Player.GetAgentID())
+            player.AgentData.Energy.Current = Agent.GetEnergy(Player.GetAgentID())
+            player.AgentData.Energy.Max = Agent.GetMaxEnergy(Player.GetAgentID())
+            player.AgentData.Energy.Regen = Agent.GetEnergyRegen(Player.GetAgentID())
+            player.AgentData.Energy.Pips = Utils.calculate_energy_pips(player.AgentData.Energy.Max, player.AgentData.Energy.Regen)
+            player.AgentData.Pos = Vec3f(playerx, playery, playerz)
+            player.AgentData.RotationAngle = Agent.GetRotationAngle(Player.GetAgentID())
+            player.AgentData.TargetID = Player.GetTargetID()
+            player.AgentData.LoginNumber = Agent.GetLoginNumber(Player.GetAgentID())
 
             player.AgentPartyData.from_context()
 
@@ -520,18 +513,11 @@ class Py4GWSharedMemoryManager:
                 agent_data.UUID[i] = uuid[i]
             agent_id = self.agent_instance.agent_id if self.agent_instance else 0
 
-            agent_data.TargetID = 0
             agent_data.ObservingID = 0
             agent_data.PlayerNumber = Agent.GetPlayerNumber(agent_id)
 
 
-            agent_data.Energy = Agent.GetEnergy(agent_id)
-            max_energy = Agent.GetMaxEnergy(agent_id)
-            agent_data.MaxEnergy = max_energy
-            energy_regen = Agent.GetEnergyRegen(agent_id)
-            agent_data.EnergyPips = Utils.calculate_energy_pips(max_energy, energy_regen)
-
-            agent_data.LoginNumber = Agent.GetLoginNumber(agent_id)
+ 
             agent_data.DaggerStatus = Agent.GetDaggerStatus(agent_id)
             agent_data.WeaponType = Agent.GetWeaponType(agent_id)[0]
             agent_data.WeaponItemType = Agent.GetWeaponItemType(agent_id)
@@ -546,13 +532,10 @@ class Py4GWSharedMemoryManager:
             agent_data.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
             agent_data.AnimationCode = Agent.GetAnimationCode(agent_id)
             agent_data.AnimationID = Agent.GetAnimationID(agent_id)
-            agent_data.XYZ[0] = Agent.GetXYZ(agent_id)[0]
-            agent_data.XYZ[1] = Agent.GetXYZ(agent_id)[1]
-            agent_data.XYZ[2] = Agent.GetXYZ(agent_id)[2]
+
             agent_data.ZPlane = Agent.GetZPlane(agent_id)
-            agent_data.RotationAngle = Agent.GetRotationAngle(agent_id)
-            agent_data.VelocityVector[0] = Agent.GetVelocityXY(agent_id)[0]
-            agent_data.VelocityVector[1] = Agent.GetVelocityXY(agent_id)[1]
+
+            agent_data.Velocity = Vec2f(Agent.GetVelocityXY(agent_id)[0], Agent.GetVelocityXY(agent_id)[1])
 
         index = self.GetHeroSlot(hero_data)
         if index != -1:
@@ -607,15 +590,14 @@ class Py4GWSharedMemoryManager:
             hero.AgentData.Health.Max = Agent.GetMaxHealth(agent_id)
             hero.AgentData.Health.Regen = Agent.GetHealthRegen(agent_id)
             hero.AgentData.Health.Pips = Utils.calculate_health_pips(hero.AgentData.Health.Max, hero.AgentData.Health.Regen)
-            hero.PlayerEnergy = Agent.GetEnergy(agent_id)
-            hero.PlayerMaxEnergy = Agent.GetMaxEnergy(agent_id)
-            hero.PlayerEnergyRegen = Agent.GetEnergyRegen(agent_id)
-            hero.PlayerPosX = playerx
-            hero.PlayerPosY = playery
-            hero.PlayerPosZ = playerz
-            hero.PlayerFacingAngle = hero_agent_instance.rotation_angle
-            hero.PlayerTargetID = 0
-            hero.PlayerLoginNumber = 0
+            hero.AgentData.Energy.Current = Agent.GetEnergy(agent_id)
+            hero.AgentData.Energy.Max = Agent.GetMaxEnergy(agent_id)
+            hero.AgentData.Energy.Regen = Agent.GetEnergyRegen(agent_id)
+            hero.AgentData.Energy.Pips = Utils.calculate_energy_pips(hero.AgentData.Energy.Max, hero.AgentData.Energy.Regen)
+            hero.AgentData.Pos = Vec3f(playerx, playery, playerz)
+            hero.AgentData.RotationAngle = hero_agent_instance.rotation_angle
+            hero.AgentData.TargetID = 0
+            hero.AgentData.LoginNumber = 0
 
             hero.AgentPartyData.reset()
             hero.AgentPartyData.PartyID = self.party_instance.party_id
@@ -643,17 +625,11 @@ class Py4GWSharedMemoryManager:
                 
             agent_id = self.agent_instance.agent_id if self.agent_instance else 0
 
-            agent_data.TargetID = 0
             agent_data.ObservingID = 0
             agent_data.PlayerNumber = Agent.GetPlayerNumber(agent_id)
 
-            agent_data.Energy = Agent.GetEnergy(agent_id)
-            max_energy = Agent.GetMaxEnergy(agent_id)
-            agent_data.MaxEnergy = max_energy
-            energy_regen = Agent.GetEnergyRegen(agent_id)
-            agent_data.EnergyPips = Utils.calculate_energy_pips(max_energy, energy_regen)
 
-            agent_data.LoginNumber = Agent.GetLoginNumber(agent_id)
+
             agent_data.DaggerStatus = Agent.GetDaggerStatus(agent_id)
             agent_data.WeaponType = Agent.GetWeaponType(agent_id)[0]
             agent_data.WeaponItemType = Agent.GetWeaponItemType(agent_id)
@@ -668,13 +644,10 @@ class Py4GWSharedMemoryManager:
             agent_data.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
             agent_data.AnimationCode = Agent.GetAnimationCode(agent_id)
             agent_data.AnimationID = Agent.GetAnimationID(agent_id)
-            agent_data.XYZ[0] = Agent.GetXYZ(agent_id)[0]
-            agent_data.XYZ[1] = Agent.GetXYZ(agent_id)[1]
-            agent_data.XYZ[2] = Agent.GetXYZ(agent_id)[2]
+
             agent_data.ZPlane = Agent.GetZPlane(agent_id)
-            agent_data.RotationAngle = Agent.GetRotationAngle(agent_id)
-            agent_data.VelocityVector[0] = Agent.GetVelocityXY(agent_id)[0]
-            agent_data.VelocityVector[1] = Agent.GetVelocityXY(agent_id)[1]
+
+            agent_data.Velocity = Vec2f(Agent.GetVelocityXY(agent_id)[0], Agent.GetVelocityXY(agent_id)[1])
 
                 
                 
@@ -731,7 +704,7 @@ class Py4GWSharedMemoryManager:
             pet.AgentPartyData.PartyID = self.party_instance.party_id
             pet.AgentPartyData.PartyPosition = 0
             pet.AgentPartyData.IsPartyLeader = False  
-            pet.PlayerLoginNumber = 0 
+            pet.AgentData.LoginNumber = 0 
             if Map.IsOutpost():
                 return
             pet.AgentData.Morale = 100
@@ -739,14 +712,13 @@ class Py4GWSharedMemoryManager:
             pet.AgentData.Health.Max = Agent.GetMaxHealth(agent_id)
             pet.AgentData.Health.Regen = Agent.GetHealthRegen(agent_id)
             pet.AgentData.Health.Pips = Utils.calculate_health_pips(pet.AgentData.Health.Max, pet.AgentData.Health.Regen)
-            pet.PlayerEnergy = Agent.GetEnergy(agent_id)
-            pet.PlayerMaxEnergy = Agent.GetMaxEnergy(agent_id)
-            pet.PlayerEnergyRegen = Agent.GetEnergyRegen(agent_id)
-            pet.PlayerPosX = playerx
-            pet.PlayerPosY = playery
-            pet.PlayerPosZ = playerz
-            pet.PlayerFacingAngle = agent_instance.rotation_angle
-            pet.PlayerTargetID = pet_info.locked_target_id
+            pet.AgentData.Energy.Current = Agent.GetEnergy(agent_id)
+            pet.AgentData.Energy.Max = Agent.GetMaxEnergy(agent_id)
+            pet.AgentData.Energy.Regen = Agent.GetEnergyRegen(agent_id)
+            pet.AgentData.Energy.Pips = Utils.calculate_energy_pips(pet.AgentData.Energy.Max, pet.AgentData.Energy.Regen)
+            pet.AgentData.Pos = Vec3f(playerx, playery, playerz)
+            pet.AgentData.RotationAngle = agent_instance.rotation_angle
+            pet.AgentData.TargetID = pet_info.locked_target_id
             
             pet.AgentData.Buffs.from_context(agent_id)
             pet.AgentData.Attributes.from_context(agent_id)
@@ -810,7 +782,7 @@ class Py4GWSharedMemoryManager:
             p.AgentData.Map.Language,
             p.AgentPartyData.PartyID,
             p.AgentPartyData.PartyPosition,
-            p.PlayerLoginNumber,
+            p.AgentData.LoginNumber,
             p.AgentData.CharacterName
         ))
 
@@ -832,7 +804,7 @@ class Py4GWSharedMemoryManager:
             p.AgentData.Map.Language,
             p.AgentPartyData.PartyID,
             p.AgentPartyData.PartyPosition,
-            p.PlayerLoginNumber,
+            p.AgentData.LoginNumber,
             p.AgentData.CharacterName
         ))
 
