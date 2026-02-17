@@ -102,6 +102,18 @@ _SKILLTYPE_DESCRIPTIONS: dict[SkillType, str] = {
 	SkillType.EchoRefrain: "Paragon echo/refrain upkeep effects.",
 	SkillType.Disguise: "Temporary disguise state/effect.",
 }
+
+_RANGE_DESCRIPTIONS: dict[Range, str] = {
+	Range.Touch: "Touch range (~144 units): melee contact range.",
+	Range.Adjacent: "Adjacent (~166 units): right next to you.",
+	Range.Nearby: "Nearby (~252 units): short radius around you.",
+	Range.Area: "Area (~322 units): moderate AoE radius.",
+	Range.Earshot: "Earshot (~1012 units): shout/party-wide in aggro.",
+	Range.Spellcast: "Spellcast (~1248 units): long spell range.",
+	Range.Spirit: "Spirit (~2500 units): spirit interaction range.",
+	Range.SafeCompass: "Safe compass (~4800 units): full compass padding.",
+	Range.Compass: "Compass (~5000 units): entire compass radius.",
+}
 _CONDITION_OPTIONS: tuple[str, ...] = tuple(sorted(DEFAULT_CONDITION_VALUES.keys(), key=lambda name: name.lower()))
 _ACTIVE_STATE_COLOR = (0.3, 0.9, 0.4, 1.0)
 
@@ -113,7 +125,7 @@ TARGET_LIST_ACTION_WIDTH = 70
 CONDITION_LIST_NAME_WIDTH = 150
 CONDITION_LIST_VALUE_WIDTH = 70
 CONDITION_LIST_CONTROL_WIDTH = 140
-CONDITION_LIST_APPLY_WIDTH = 70
+CONDITION_LIST_APPLY_WIDTH = 100
 
 
 class SkillSourceLocation:
@@ -440,9 +452,39 @@ def _reload_custom_skill_modules() -> None:
 			)
 
 
+def _rebind_custom_skill_classes() -> None:
+	"""Refresh imported class bindings after reloading modules."""
+	global CustomSkillClass, CastConditions, CustomSkill
+	try:
+		import HeroAI.custom_skill as custom_skill_module
+		custom_skill_module = importlib.reload(custom_skill_module)
+		CustomSkillClass = custom_skill_module.CustomSkillClass
+	except Exception:
+		pass
+	try:
+		import HeroAI.custom_skill_src.skill_types as skill_types_module
+		skill_types_module = importlib.reload(skill_types_module)
+		CastConditions = skill_types_module.CastConditions
+		CustomSkill = skill_types_module.CustomSkill
+	except Exception:
+		pass
+
+
+def _rebuild_default_conditions() -> None:
+	"""Recreate default condition values after class reloads."""
+	global _default_conditions, DEFAULT_CONDITION_VALUES, _CONDITION_OPTIONS
+	_default_conditions = CastConditions()
+	DEFAULT_CONDITION_VALUES = {name: deepcopy(value) for name, value in vars(_default_conditions).items()}
+	_CONDITION_OPTIONS = tuple(sorted(DEFAULT_CONDITION_VALUES.keys(), key=lambda name: name.lower()))
+	_condition_checkbox_state.clear()
+	_condition_input_state.clear()
+
+
 def _refresh_custom_skills() -> None:
 	global custom_skill_provider
 	_reload_custom_skill_modules()
+	_rebind_custom_skill_classes()
+	_rebuild_default_conditions()
 	custom_skill_provider = CustomSkillClass()
 	_build_skill_source_index()
 
@@ -899,12 +941,12 @@ def _apply_condition_bool_change(skill_id: int, condition_name: str, desired_val
 	_condition_checkbox_state[key] = bool(desired_value)
 	default_value = DEFAULT_CONDITION_VALUES.get(condition_name)
 	if _edit_snapshot and _edit_snapshot.skill_id == skill_id:
-		if isinstance(default_value, bool) and bool(desired_value) == default_value:
+		current_bool = bool(desired_value)
+		if isinstance(default_value, bool) and current_bool == default_value:
 			_edit_snapshot.active_conditions.discard(condition_name)
-			_edit_snapshot.condition_values.pop(condition_name, None)
 		else:
 			_edit_snapshot.active_conditions.add(condition_name)
-			_edit_snapshot.condition_values[condition_name] = bool(desired_value)
+		_edit_snapshot.condition_values[condition_name] = current_bool
 
 
 def _change_condition_scalar(skill_id: int, condition_name: str, new_value: float | int) -> bool:
@@ -960,10 +1002,9 @@ def _apply_condition_scalar_change(skill_id: int, condition_name: str, pending_v
 	if _edit_snapshot and _edit_snapshot.skill_id == skill_id:
 		if _numeric_values_equal(parsed_value, default_value, treat_as_float):
 			_edit_snapshot.active_conditions.discard(condition_name)
-			_edit_snapshot.condition_values.pop(condition_name, None)
 		else:
 			_edit_snapshot.active_conditions.add(condition_name)
-			_edit_snapshot.condition_values[condition_name] = parsed_value
+		_edit_snapshot.condition_values[condition_name] = parsed_value
 
 
 def _format_list_literal(values: list[int]) -> str:
@@ -1074,10 +1115,9 @@ def _apply_condition_list_change(skill_id: int, condition_name: str, pending_val
 	if _edit_snapshot and _edit_snapshot.skill_id == skill_id:
 		if _lists_equal(parsed_values, default_value):
 			_edit_snapshot.active_conditions.discard(condition_name)
-			_edit_snapshot.condition_values.pop(condition_name, None)
 		else:
 			_edit_snapshot.active_conditions.add(condition_name)
-			_edit_snapshot.condition_values[condition_name] = list(parsed_values)
+		_edit_snapshot.condition_values[condition_name] = list(parsed_values)
 
 def _handle_target_change(row: SkillRow, new_enum: Skilltarget) -> None:
 	if not _change_skill_target(row.skill_id, new_enum):
@@ -1192,19 +1232,46 @@ def _prettify_name(name: str) -> str:
 	return spaced.strip()
 
 
-def _condition_changed(name: str, value) -> bool:
+def _coerce_range_value(value: Any) -> Optional[float]:
+	if isinstance(value, Range):
+		return float(value.value)
+	try:
+		return float(value)
+	except (TypeError, ValueError):
+		return None
+
+
+def _format_range_label(value: Any) -> Optional[str]:
+	coerced = _coerce_range_value(value)
+	if coerced is None:
+		return None
+	try:
+		return Range(coerced).name.replace("_", " ").title()
+	except Exception:
+		return None
+
+
+def _condition_changed(name: str, value: Any) -> bool:
 	default_value = DEFAULT_CONDITION_VALUES.get(name)
-	if isinstance(value, float):
-		if default_value is None:
-			return True
-		return abs(value - float(default_value)) > EPSILON
+	if isinstance(value, bool):
+		return value != default_value
 	if isinstance(value, list):
 		return len(value) > 0
+	if isinstance(value, (int, float, Range)) or isinstance(default_value, (int, float, Range)):
+		lhs = _coerce_range_value(value)
+		rhs = _coerce_range_value(default_value)
+		if lhs is not None and rhs is not None:
+			return abs(lhs - rhs) > EPSILON
 	return value != default_value
 
 
 def _format_condition_value(name: str, value) -> str:
 	pretty_name = _prettify_name(name)
+
+	if name in AREA_FIELDS:
+		range_label = _format_range_label(value)
+		if range_label:
+			return f"{pretty_name}: {range_label}"
 
 	if isinstance(value, bool):
 		return f"{pretty_name}: {value}"
@@ -1296,18 +1363,18 @@ def _describe_conditions(skill: Optional[CustomSkill]) -> tuple[List[str], Set[s
 
 	summary: List[str] = []
 	active_names: Set[str] = set()
-	active_values: dict[str, Any] = {}
+	condition_values: dict[str, Any] = {}
 	for name, value in vars(skill.Conditions).items():
 		if name not in DEFAULT_CONDITION_VALUES:
 			continue
+		condition_values[name] = value
 		if not _condition_changed(name, value):
 			continue
 		formatted = _format_condition_value(name, value)
 		if formatted:
 			summary.append(formatted)
 			active_names.add(name)
-			active_values[name] = value
-	return summary, active_names, active_values
+	return summary, active_names, condition_values
 
 
 def _safe_get_custom_skill(skill_id: int) -> Optional[CustomSkill]:
@@ -1452,6 +1519,16 @@ def _format_skill_type(skill: Optional[CustomSkill]) -> str:
 		return str(skill.SkillType)
 
 
+def _summarize_snapshot_conditions(active_conditions: Set[str], condition_values: dict[str, Any]) -> List[str]:
+	lines: List[str] = []
+	for name in sorted(active_conditions, key=str.lower):
+		value = condition_values.get(name, DEFAULT_CONDITION_VALUES.get(name))
+		formatted = _format_condition_value(name, value)
+		if formatted:
+			lines.append(formatted)
+	return lines
+
+
 def _describe_nature(value: Optional[int], fallback_label: str) -> str:
 	if value is not None:
 		try:
@@ -1505,6 +1582,21 @@ def _build_skilltype_tooltip(selected_value: Optional[int], fallback_label: str)
 	for option in _SKILLTYPE_OPTIONS:
 		label = option.name.replace("_", " ")
 		desc = _SKILLTYPE_DESCRIPTIONS.get(option, "General skill bucket.")
+		marker = "(current) " if option == current_match else ""
+		lines.append(f"{marker}{label}: {desc}")
+	return "\n".join(lines)
+
+
+def _build_range_tooltip(current_value: Any) -> str:
+	current_match: Optional[Range] = None
+	try:
+		current_match = Range(current_value)
+	except Exception:
+		current_match = None
+	lines: list[str] = []
+	for option in Range:
+		label = option.name
+		desc = _RANGE_DESCRIPTIONS.get(option, "Range bucket")
 		marker = "(current) " if option == current_match else ""
 		lines.append(f"{marker}{label}: {desc}")
 	return "\n".join(lines)
@@ -1691,7 +1783,8 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 		default_value = DEFAULT_CONDITION_VALUES.get(condition_name)
 		PyImGui.table_next_row()
 		pretty = _prettify_name(condition_name)
-		is_condition_active = condition_name in active_conditions
+		current_value = condition_values.get(condition_name, default_value)
+		is_condition_active = _condition_changed(condition_name, current_value)
 		PyImGui.table_set_column_index(0)
 		PyImGui.selectable(
 			f"{pretty}##condition_option_{condition_name}",
@@ -1699,12 +1792,19 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 			PyImGui.SelectableFlags(0),
 			(0.0, 0.0),
 		)
-		effective_value = condition_values.get(condition_name) if is_condition_active else default_value
+		effective_value = current_value if is_condition_active else default_value
 		PyImGui.table_set_column_index(1)
 		if is_condition_active:
 			PyImGui.text_colored(_format_condition_raw_value(effective_value), _ACTIVE_STATE_COLOR)
 		else:
 			PyImGui.text_disabled(_format_condition_raw_value(effective_value))
+		if condition_name in AREA_FIELDS:
+			if PyImGui.is_item_hovered():
+				PyImGui.begin_tooltip()
+				PyImGui.push_text_wrap_pos(520)
+				PyImGui.text_wrapped(_build_range_tooltip(effective_value))
+				PyImGui.pop_text_wrap_pos()
+				PyImGui.end_tooltip()
 
 		bool_key: Optional[tuple[int, str]] = None
 		numeric_key: Optional[tuple[int, str]] = None
@@ -1712,7 +1812,7 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 		PyImGui.table_set_column_index(2)
 		if isinstance(default_value, bool):
 			bool_key = (skill_id, condition_name)
-			active_bool = condition_values.get(condition_name) if is_condition_active else default_value
+			active_bool = current_value if isinstance(current_value, bool) else default_value
 			if isinstance(active_bool, bool):
 				current_bool = _condition_checkbox_state.get(bool_key)
 				if current_bool is None:
@@ -1728,7 +1828,7 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 				PyImGui.text_disabled("--")
 		elif isinstance(default_value, (int, float)):
 			numeric_key = (skill_id, condition_name)
-			active_numeric = condition_values.get(condition_name) if is_condition_active else default_value
+			active_numeric = current_value if current_value is not None else default_value
 			if active_numeric is None:
 				active_numeric = 0.0 if isinstance(default_value, float) else 0
 			current_text = _condition_input_state.get(numeric_key)
@@ -1746,7 +1846,7 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 				_condition_input_state[numeric_key] = new_text
 		elif isinstance(default_value, list):
 			list_key = (skill_id, condition_name)
-			active_list = condition_values.get(condition_name) if is_condition_active else default_value
+			active_list = current_value if current_value is not None else default_value
 			if active_list is None:
 				active_list = []
 			current_text = _condition_input_state.get(list_key)
@@ -1780,8 +1880,14 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 				_apply_condition_scalar_change(skill_id, condition_name, pending_value)
 		elif list_key is not None:
 			pending_list = _condition_input_state.get(list_key)
-			if PyImGui.button(f"Apply##condition_apply_{condition_name}_{skill_id}"):
+			apply_clicked = PyImGui.button(f"Apply##condition_apply_{condition_name}_{skill_id}")
+			PyImGui.same_line(0, 6)
+			delete_clicked = PyImGui.button(f"Delete##condition_delete_{condition_name}_{skill_id}")
+			if apply_clicked:
 				_apply_condition_list_change(skill_id, condition_name, pending_list)
+			elif delete_clicked:
+				_condition_input_state[list_key] = ""
+				_apply_condition_list_change(skill_id, condition_name, "")
 		else:
 			PyImGui.text_disabled("--")
 	PyImGui.end_table()
@@ -1791,13 +1897,29 @@ def _draw_edit_window() -> None:
 	global _edit_window_open, _edit_snapshot
 	if not _edit_window_open or _edit_snapshot is None:
 		return
-	opened = PyImGui.begin("Skill Editor", PyImGui.WindowFlags.AlwaysAutoResize)
+	window_flags = PyImGui.WindowFlags.AlwaysAutoResize | PyImGui.WindowFlags.NoCollapse
+	opened = PyImGui.begin("Skill Editor", window_flags)
 	if not opened:
 		PyImGui.end()
 		if _edit_snapshot:
 			_reset_condition_editor_state(_edit_snapshot.skill_id)
 		_edit_window_open = False
 		_edit_snapshot = None
+		return
+	button_label = "Close Window"
+	button_width = PyImGui.calc_text_size(button_label)[0] + 12.0
+	try:
+		avail_x = PyImGui.get_content_region_avail()[0]
+		current_x = PyImGui.get_cursor_pos_x()
+		PyImGui.set_cursor_pos_x(current_x + max(0.0, avail_x - button_width))
+	except Exception:
+		pass
+	if PyImGui.button(button_label):
+		if _edit_snapshot:
+			_reset_condition_editor_state(_edit_snapshot.skill_id)
+		_edit_window_open = False
+		_edit_snapshot = None
+		PyImGui.end()
 		return
 	PyImGui.text(f"Slot {_edit_snapshot.slot}")
 	PyImGui.text(f"Skill: {_edit_snapshot.name} (ID {_edit_snapshot.skill_id})")
@@ -1834,24 +1956,22 @@ def _draw_edit_window() -> None:
 		PyImGui.end_table()
 	else:
 		PyImGui.text_disabled("Targets could not be loaded.")
-	PyImGui.spacing()
-	if PyImGui.button("Close Window"):
-		if _edit_snapshot:
-			_reset_condition_editor_state(_edit_snapshot.skill_id)
-		_edit_window_open = False
-		_edit_snapshot = None
 	PyImGui.end()
 
 
 def _draw_condition_cell(row: SkillRow) -> None:
-	if row.conditions:
-		for condition in row.conditions:
+	conditions_to_show = row.conditions
+	if _edit_snapshot and _edit_snapshot.skill_id == row.skill_id:
+		conditions_to_show = _summarize_snapshot_conditions(_edit_snapshot.active_conditions, _edit_snapshot.condition_values)
+
+	if conditions_to_show:
+		for condition in conditions_to_show:
 			PyImGui.bullet_text(condition)
 	else:
 		PyImGui.text("No Conditions")
 
 	if row.special:
-		if row.conditions:
+		if conditions_to_show:
 			PyImGui.spacing()
 		PyImGui.text("Special Conditions:")
 		for line in row.special.splitlines():
@@ -1896,7 +2016,6 @@ def _draw_window() -> None:
 		window_module.end()
 		return
 
-	PyImGui.text("HeroAI Skillbars")
 	PyImGui.separator()
 	PyImGui.spacing()
 
@@ -1917,7 +2036,6 @@ def _draw_window() -> None:
 			selected_idx = new_idx
 
 		if selected_entry:
-			PyImGui.text_disabled(f"Character: {selected_entry.character}")
 			PyImGui.spacing()
 			# Draw the edit window first so target/condition edits are applied before rendering the table.
 			_draw_edit_window()
@@ -1930,7 +2048,8 @@ def _draw_window() -> None:
 			PyImGui.text_disabled("No selection available.")
 
 	PyImGui.spacing()
-	PyImGui.text_disabled("Source: HeroAI custom_skill_src conditions + Shared Memory Skillbars")
+	PyImGui.text_colored("Use with Caution: Modifying skill conditions can lead to unintended consequences. Always review changes before applying.", Color(255, 0, 0, 255).to_tuple_normalized())
+	PyImGui.text("Source: HeroAI custom_skill_src conditions + Shared Memory Skillbars")
 
 	window_module.process_window()
 	window_module.end()
