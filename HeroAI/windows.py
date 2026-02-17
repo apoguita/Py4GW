@@ -719,8 +719,10 @@ class HeroAI_Windows():
 
             account.AgentData.AgentID = self_id
             player_id = Player.GetAgentID()
-            account.PlayerEnergyRegen = Agent.GetEnergyRegen(player_id)
-            account.PlayerEnergy = Agent.GetEnergy(player_id)
+            account.AgentData.Energy.Regen = Agent.GetEnergyRegen(player_id)
+            account.AgentData.Energy.Current = Agent.GetEnergy(player_id)
+            account.AgentData.Energy.Max = Agent.GetMaxEnergy(player_id)
+            account.AgentData.Energy.Pips = Utils.calculate_energy_pips(account.AgentData.Energy.Max, account.AgentData.Energy.Regen)
             account.IsSlotActive = True
             account.IsHero = False
             
@@ -738,8 +740,8 @@ class HeroAI_Windows():
                 data.append((
                     i,  # Slot index
                     account.AgentData.AgentID,
-                    f"{account.PlayerEnergyRegen:.4f}", 
-                    f"{account.PlayerEnergy:.4f}",       
+                    f"{account.AgentData.Energy.Regen:.4f}", 
+                    f"{account.AgentData.Energy.Current:.4f}",       
                     account.IsSlotActive,
                     account.IsHero,
                     options.IsFlagged,
@@ -954,7 +956,7 @@ class HeroAI_Windows():
                 if self_account.AccountEmail == account.AccountEmail:
                     continue
                 ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
-                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.AgentData.Pos.x,self_account.AgentData.Pos.y,0,0))
         ImGui.show_tooltip("Pixel Stack (Carto Helper)")
         
         PyImGui.same_line(0,-1)
@@ -1377,7 +1379,7 @@ class HeroAI_Windows():
                         if self_account.AccountEmail == account.AccountEmail:
                             continue
                         ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
-                        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
+                        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.AgentData.Pos.x,self_account.AgentData.Pos.y,0,0))
                 ImGui.pop_font()
                 ImGui.show_tooltip("Pixel Stack (Carto Helper)")
                 ImGui.push_font("Regular",10)

@@ -249,7 +249,7 @@ def InviteToParty(index, message):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     yield from Routines.Yield.wait(100)
-    GLOBAL_CACHE.Party.Players.InvitePlayer(sender_data.AgentData.AgentData.CharacterName)
+    GLOBAL_CACHE.Party.Players.InvitePlayer(sender_data.AgentData.CharacterName)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "InviteToParty message processed and finished.", Console.MessageType.Info, False)
@@ -801,7 +801,7 @@ def OpenChest(index, message):
                 chest_pos = Agent.GetXY(chest_id)
                                 
                 sorted_by_party_index = sorted(
-                    [acc for acc in all_accounts if Utils.Distance((acc.PlayerPosX, acc.PlayerPosY), chest_pos) < 2500.0], 
+                    [acc for acc in all_accounts if Utils.Distance((acc.AgentData.Pos.x, acc.AgentData.Pos.y), chest_pos) < 2500.0], 
                 key=lambda acc: acc.AgentPartyData.PartyPosition ) if all_accounts else []
                 
                 if sorted_by_party_index:
