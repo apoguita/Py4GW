@@ -277,6 +277,24 @@ class _Upkeepers:
         from ...GlobalCache import GLOBAL_CACHE
         from ...enums import ModelID
         from ...Map import Map
+        from ...Quest import Quest
+        
+        # Quest IDs where summoning stones should NOT be used
+        excluded_quest_ids = [
+            490,  # The Council is Called
+            503,  # All's Well That Ends Well
+            504,  # Warning Kehanni
+            505,  # Calling the Order
+            507,  # Pledge of the Merchant Princes
+            581,  # Heart or Mind: Garden in Danger
+            586,  # Heart or Mind: Ronjok in Danger
+            730,  # Gain Goren
+        ]
+        
+        # Map IDs where summoning stones should NOT be used
+        excluded_map_ids = [
+            503,  # Throne of Secrets
+        ]
         
         # Priority list for summoning stones (items)
         priority_stones = [
@@ -329,6 +347,17 @@ class _Upkeepers:
             if self._config.upkeep.summoning_stone.is_active():
                 # Check if we're in an explorable area
                 if not Map.IsExplorable():
+                    yield from Routines.Yield.wait(1000)
+                    continue
+                
+                # Skip if an excluded quest is in the quest log
+                active_quests = Quest.GetQuestLogIds()
+                if any(qid in excluded_quest_ids for qid in active_quests):
+                    yield from Routines.Yield.wait(1000)
+                    continue
+                
+                # Skip if in an excluded map
+                if Map.GetMapID() in excluded_map_ids:
                     yield from Routines.Yield.wait(1000)
                     continue
                 
