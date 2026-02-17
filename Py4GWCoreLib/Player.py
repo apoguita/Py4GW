@@ -616,17 +616,17 @@ class Player:
     def SendRawDialog(dialog_id: int):
         """Send dialog using kSendAgentDialog. Works for NPC dialogs, skill trainers, etc."""
         from .native_src.methods.PlayerMethods import PlayerMethods
-        
+
         ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.SendRawDialog(dialog_id))
+        PlayerMethods.SendRawDialog, dialog_id)
 
     @staticmethod
     def BuySkill(skill_id: int):
         """Buy/Learn a skill from a Skill Trainer."""
         from .native_src.methods.PlayerMethods import PlayerMethods
-        
+
         ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.SendSkillTrainerDialog(skill_id))
+        PlayerMethods.SendSkillTrainerDialog, skill_id)
         
     
     #region Not Worked
