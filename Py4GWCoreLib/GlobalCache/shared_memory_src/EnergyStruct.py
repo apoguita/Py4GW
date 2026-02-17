@@ -4,23 +4,24 @@ class EnergyStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("Current", c_float),
-        ("MaxEnergy", c_int),
-        ("EnergyRegen", c_float),
-        ("EnergyPips", c_int),
+        ("Max", c_int),
+        ("Regen", c_float),
+        ("Pips", c_int),
         
     ]
 
     # Inline annotations for IntelliSense
     Current: float
-    MaxEnergy: int
-    EnergyRegen: float
-    EnergyPips: int
+    Max: int
+    Regen: float
+    Pips: int
 
     def reset(self) -> None:
         """Reset all fields to zero."""
         self.Current = 0.0
-        self.MaxEnergy = 0
-        self.EnergyPips = 0
+        self.Max = 0
+        self.Regen = 0.0
+        self.Pips = 0
         
     def from_context(self,agent_id: int) -> None: 
         from ...Agent import Agent
@@ -29,7 +30,7 @@ class EnergyStruct(Structure):
         energy = Agent.GetEnergy(agent_id)
         self.Current = energy if energy > 0 else 1.0
         max_energy = Agent.GetMaxEnergy(agent_id)
-        self.MaxEnergy = max_energy if max_energy > 0 else 10
-        self.EnergyRegen = Agent.GetEnergyRegen(agent_id)
-        self.EnergyPips = Utils.calculate_energy_pips(max_energy, self.EnergyRegen)
+        self.Max = max_energy if max_energy > 0 else 10
+        self.Regen = Agent.GetEnergyRegen(agent_id)
+        self.Pips = Utils.calculate_energy_pips(max_energy, self.Regen)
 

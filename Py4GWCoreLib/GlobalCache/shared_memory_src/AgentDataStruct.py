@@ -14,41 +14,37 @@ from .Globals import (
 class AgentDataStruct(Structure):
     _pack_ = 1
     _fields_ = [
+        ("CharacterName", c_wchar*SHMEM_MAX_CHAR_LEN),
+        
+        ("AgentID", c_uint),
+        ("UUID", c_uint * 4),  # 128-bit UUID
+        ("OwnerAgentID", c_uint),
+        ("HeroID", c_uint),
+        ("TargetID", c_uint),
+        ("ObservingID", c_uint),
+        ("PlayerNumber", c_uint),
+        ("LoginNumber", c_uint),
+        
         ("Map", MapStruct),
         ("Skillbar", SkillbarStruct),
         ("Attributes", AttributesStruct),
         ("Buffs", BuffStruct),
         
-        ("CharacterName", c_wchar*SHMEM_MAX_CHAR_LEN),
-        ("AgentID", c_uint),
-        ("OwnerAgentID", c_uint),
-        ("HeroID", c_uint),
         ("Health", HealthStruct),
-        
-        
+        ("Energy", EnergyStruct),
+        ("Overcast", c_float),
         ("Level", c_uint),
         ("Profession", c_uint * 2),  # Primary and Secondary Profession
         ("Morale", c_uint),
+        ("Pos", Vec3f),
+        ("ZPlane", c_int),
+        ("RotationAngle", c_float),
+        ("Velocity", Vec2f),
         
-        
-        ("UUID", c_uint * 4),  # 128-bit UUID
-        
-        
-        ("TargetID", c_uint),
-        ("ObservingID", c_uint),
-        ("PlayerNumber", c_uint),
-        
-        
-        ("Energy", c_float),
-        ("MaxEnergy", c_float),
-        ("EnergyPips", c_int),
-
-        ("LoginNumber", c_uint),
         ("DaggerStatus", c_uint),
         ("WeaponType", c_uint),
         ("WeaponItemType", c_uint),
         ("OffhandItemType", c_uint),
-        ("Overcast", c_float),
         ("WeaponAttackSpeed", c_float),
         ("AttackSpeedModifier", c_float),
         ("EffectsMask", c_uint),  #mask of active effects
@@ -57,49 +53,41 @@ class AgentDataStruct(Structure):
         ("ModelState", c_uint),
         ("AnimationSpeed", c_float),
         ("AnimationCode", c_uint),
-        ("AnimationID", c_uint),
-        ("XYZ", c_float * 3),
-        ("ZPlane", c_int),
-        ("RotationAngle", c_float),
-        ("VelocityVector", c_float * 2),  
-        ("Velocity", Vec2f),
-        
+        ("AnimationID", c_uint),    
     ]
     
     # Type hints for IntelliSense
+    CharacterName: str
+    
+    AgentID: int
+    UUID: list[int]
+    OwnerAgentID: int
+    HeroID: int
+    TargetID: int
+    ObservingID: int
+    PlayerNumber: int
+    LoginNumber: int
+    
     Map: MapStruct
     Skillbar: SkillbarStruct
     Attributes: AttributesStruct
     Buffs: BuffStruct
     
-    
-    CharacterName: str
-    AgentID: int
-    OwnerAgentID: int
-    HeroID: int
     Health: HealthStruct
+    Energy: EnergyStruct
+    Overcast: float
     Level: int
     Profession: tuple[int, int]
     Morale: int
-    
-    
-    UUID: list[int]
-    
-    TargetID: int
-    ObservingID: int
-    PlayerNumber: int
-    
-    
-    Energy: float
-    MaxEnergy: float
-    EnergyPips: int
+    Pos: Vec3f
+    ZPlane: int
+    RotationAngle: float
+    Velocity: Vec2f
 
-    LoginNumber: int
     DaggerStatus: int
     WeaponType: int
     WeaponItemType: int
     OffhandItemType: int
-    Overcast: float
     WeaponAttackSpeed: float
     AttackSpeedModifier: float
     EffectsMask: int
@@ -109,12 +97,7 @@ class AgentDataStruct(Structure):
     AnimationSpeed: float
     AnimationCode: int
     AnimationID: int
-    XYZ: list[float]
-    ZPlane: int
-    RotationAngle: float
-    VelocityVector: list[float]
-    Velocity: Vec2f
-
+    
     @property
     def Is_Bleeding(self) -> bool:
         return (self.EffectsMask & 0x0001) != 0
@@ -209,24 +192,19 @@ class AgentDataStruct(Structure):
         self.OwnerAgentID = 0
         self.HeroID = 0
         self.Health.reset()
+        self.Energy.reset()
         self.Profession = (0, 0)
         self.Morale = 0
-        
         
         for i in range(4):
             self.UUID[i] = 0
 
-
         self.TargetID = 0
         self.ObservingID = 0
         self.PlayerNumber = 0
-        
-        
+
         self.Level = 0
-        self.Energy = 0.0
-        self.MaxEnergy = 0.0
-        self.EnergyPips = 0
-        
+
         self.LoginNumber = 0
         self.DaggerStatus = 0
         self.WeaponType = 0
@@ -242,10 +220,8 @@ class AgentDataStruct(Structure):
         self.AnimationSpeed = 1.0
         self.AnimationCode = 0
         self.AnimationID = 0
-        for i in range(3):
-            self.XYZ[i] = 0.0
+        self.Pos = Vec3f(0.0, 0.0, 0.0)
+
         self.ZPlane = 0
         self.RotationAngle = 0.0
-        for i in range(2):
-            self.VelocityVector[i] = 0.0  
         self.Velocity = Vec2f(0.0, 0.0)
