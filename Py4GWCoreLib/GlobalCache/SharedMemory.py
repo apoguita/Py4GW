@@ -135,80 +135,34 @@ class Py4GWSharedMemoryManager:
         """Set player data for the account with the given email."""  
         if not account_email:
             return    
-        index = self.GetSlotByEmail(account_email)
-        if index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for account {account_email}.", Py4GW.Console.MessageType.Warning)
-            return
-        
-        account = self.GetAccountData(index)
-        account.from_context(account_email, index)
+        self.GetAllAccounts().SetPlayerData(account_email)
 
 
     #Hero Data
     def SetHeroesData(self):
         """Set data for all heroes in the given list."""
-        owner_id = Player.GetAgentID()
-        for hero_data in Party.GetHeroes():
-            agent_from_login = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
-            if agent_from_login != owner_id:
-                continue
-            self.SetHeroData(hero_data)
+        self.GetAllAccounts().SetHeroesData()
             
-    def SetHeroData(self,hero_data:HeroPartyMember):
-        """Set player data for the account with the given email."""     
-      
-        index = self.GetHeroSlotByHeroData(hero_data)
-        if index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for hero {hero_data.hero_id.GetName()} (ID: {hero_data.hero_id.GetID()}).", Py4GW.Console.MessageType.Warning)
-            return
-        
-        account = self.GetAccountData(index)
-        account.from_hero_context(hero_data, index)
-         
+
  
     #Pet Data      
     def SetPetData(self):
-        owner_agent_id = Player.GetAgentID()
-        pet_info = Party.Pets.GetPetInfo(owner_agent_id)
-        # if not pet_info or pet_info.agent_id == 102298104:
-        if not pet_info or (not pet_info.agent_id in Party.GetOthers()):
-            return
-        
-        index = self.GetPetSlotByPetData(pet_info)
-        if index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for pet {pet_info.agent_id}.", Py4GW.Console.MessageType.Warning)
-            return
-        
-        account = self.GetAccountData(index)
-        account.from_pet_context(pet_info, index)
+        """Set data for all pets in the given list."""
+        self.GetAllAccounts().SetPetData()
 
-         
+     
     #region GetAllActivePlayers   
     def GetAllActivePlayers(self) -> list[AccountStruct]:
         """Get all active players in shared memory."""
-        players : list[AccountStruct] = []
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i) and player.IsAccount:
-                players.append(player)
-        return players
+        return self.GetAllAccounts().GetAllActivePlayers()
     
     def GetNumActivePlayers(self) -> int:
         """Get the number of active players in shared memory."""
-        count = 0
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i) and player.IsAccount:
-                count += 1
-        return count
+        return self.GetAllAccounts().GetNumActivePlayers()
     
     def GetNumActiveSlots(self) -> int:
         """Get the number of active slots in shared memory."""
-        count = 0
-        for i in range(self.max_num_players):
-            if self.GetAllAccounts()._is_slot_active(i):
-                count += 1
-        return count
+        return self.GetAllAccounts().GetNumActiveSlots()
         
     def GetAllActiveSlotsData(self) -> list[AccountStruct]:
         """Get all active slot data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
@@ -256,21 +210,20 @@ class Py4GWSharedMemoryManager:
     
     def GetAccountDataFromEmail(self, account_email: str, log : bool = False) -> AccountStruct | None:
         """Get player data for the account with the given email."""
-        if not account_email:
-            return None
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
-            return self.GetAccountData(index)
+        if not account_email: return None
+        acc = self.GetAllAccounts().GetAccountDataFromEmail(account_email)
+        
+        if acc:
+            return acc
         else:
             ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
             return None
      
     def GetAccountDataFromPartyNumber(self, party_number: int, log : bool = False) -> AccountStruct | None:
         """Get player data for the account with the given party number."""
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i) and player.AgentPartyData.PartyPosition == party_number:
-                return player
+        acc = self.GetAllAccounts().GetAccountDataFromPartyNumber(party_number)
+        if acc:
+            return acc
         
         ConsoleLog(SHMEM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error, log = False)
         return None
@@ -377,44 +330,33 @@ class Py4GWSharedMemoryManager:
     def GetPlayersFromParty(self, party_id: int, map_id: int, map_region: int, map_district: int, map_language: int):
         """Get a list of players in a specific party on a specific map."""
         players = []
+        all_accounts = self.GetAllAccounts()
         for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if (self.GetAllAccounts()._is_slot_active(i) and player.IsAccount and
-                player.AgentData.Map.MapID == map_id and
-                player.AgentData.Map.Region == map_region and
-                player.AgentData.Map.District == map_district and
-                player.AgentData.Map.Language == map_language and
-                player.AgentPartyData.PartyID == party_id):
-                players.append(player)
+            account_data = all_accounts.AccountData[i]
+            if (all_accounts._is_slot_active(i) and account_data.IsAccount and
+                account_data.AgentData.Map.MapID == map_id and
+                account_data.AgentData.Map.Region == map_region and
+                account_data.AgentData.Map.District == map_district and
+                account_data.AgentData.Map.Language == map_language and
+                account_data.AgentPartyData.PartyID == party_id):
+                players.append(account_data)
         return players
     
     def GetHeroesFromPlayers(self, owner_player_id: int) -> list[AccountStruct]:
         """Get a list of heroes owned by the specified player."""
-        heroes : list[AccountStruct] = []
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if (self.GetAllAccounts()._is_slot_active(i) and player.IsHero and
-                player.AgentData.OwnerAgentID == owner_player_id):
-                heroes.append(player)
-        return heroes
+        return self.GetAllAccounts().GetHeroesFromPlayers(owner_player_id)
     
     def GetNumHeroesFromPlayers(self, owner_player_id: int) -> int:
         """Get the number of heroes owned by the specified player."""
-        return self.GetHeroesFromPlayers(owner_player_id).__len__()
+        return self.GetAllAccounts().GetNumHeroesFromPlayers(owner_player_id)
     
     def GetPetsFromPlayers(self, owner_agent_id: int) -> list[AccountStruct]:
         """Get a list of pets owned by the specified player."""
-        pets : list[AccountStruct] = []
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if (self.GetAllAccounts()._is_slot_active(i) and player.IsPet and
-                player.AgentData.OwnerAgentID == owner_agent_id):
-                pets.append(player)
-        return pets
+        return self.GetAllAccounts().GetPetsFromPlayers(owner_agent_id)
     
     def GetNumPetsFromPlayers(self, owner_agent_id: int) -> int:
         """Get the number of pets owned by the specified player."""
-        return self.GetPetsFromPlayers(owner_agent_id).__len__()
+        return self.GetAllAccounts().GetNumPetsFromPlayers(owner_agent_id)
 
     #region Messaging
     def SendMessage(self, sender_email: str, receiver_email: str, command: SharedCommandType, params: tuple = (0.0, 0.0, 0.0, 0.0), ExtraData: tuple = ()) -> int:

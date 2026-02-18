@@ -1,22 +1,10 @@
-from ctypes import Array, Structure, addressof, c_int, c_uint, c_float, c_bool, c_wchar, memmove
+from ctypes import Structure, c_uint, c_bool, c_wchar
 import Py4GW
 from PyParty import HeroPartyMember, PetInfo
 from .Globals import (
-    SHMEM_MODULE_NAME, 
-    SHMEM_SHARED_MEMORY_FILE_NAME,
-    
     SHMEM_MAX_PLAYERS,
     SHMEM_MAX_EMAIL_LEN,
     SHMEM_MAX_CHAR_LEN,
-    SHMEM_MAX_AVAILABLE_CHARS,
-    SHMEM_MAX_NUMBER_OF_BUFFS,
-    SHMEM_MAX_NUMBER_OF_SKILLS,
-    SHMEM_MAX_NUMBER_OF_ATTRIBUTES,
-    SHMEM_MAX_TITLES,
-    SHMEM_MAX_QUESTS,
-
-    MISSION_BITMAP_ENTRIES,
-    SKILL_BITMAP_ENTRIES,
 )
 
 from .RankStruct import RankStruct
@@ -26,21 +14,10 @@ from .QuestLogStruct import QuestLogStruct
 from .ExperienceStruct import ExperienceStruct
 from .MissionDataStruct import MissionDataStruct
 from .UnlockedSkillsStruct import UnlockedSkillsStruct
-from .AvailableCharacterStruct import AvailableCharacterStruct, AvailableCharacterUnitStruct
-from .SharedMessageStruct import SharedMessageStruct
-from .HeroAIOptionStruct import HeroAIOptionStruct
-from .AttributesStruct import AttributesStruct, AttributeUnitStruct
-from .BuffStruct import BuffStruct, BuffUnitStruct
-from .SkillbarStruct import SkillbarStruct
+from .AvailableCharacterStruct import AvailableCharacterStruct
 from .KeyStruct import KeyStruct
 from .AgentPartyStruct import AgentPartyStruct
-from .MapStruct import MapStruct
-from .EnergyStruct import EnergyStruct
-from .HealthStruct import HealthStruct
 from .AgentDataStruct import AgentDataStruct
-
-
-
 
 class AccountStruct(Structure):
     _pack_ = 1
@@ -138,6 +115,9 @@ class AccountStruct(Structure):
         self.IsSlotActive = True
         self.IsAccount = True
         self.AccountEmail = account_email
+        self.IsHero = False
+        self.IsPet = False
+        self.IsNPC = False
         
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
@@ -146,9 +126,6 @@ class AccountStruct(Structure):
         if Map.IsInCinematic(): return
         
         self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
-        self.IsHero = False
-        self.IsPet = False
-        self.IsNPC = False
         
         agent_id = Player.GetAgentID()
         self.AgentData.from_context(agent_id)
@@ -179,7 +156,9 @@ class AccountStruct(Structure):
         self.IsSlotActive = True
         self.IsAccount = False
         self.AccountEmail = Player.GetAccountEmail()
-        self.LastUpdated = Py4GW.Game.get_tick_count64()
+        self.IsHero = True
+        self.IsPet = False
+        self.IsNPC = False
         
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
@@ -188,9 +167,6 @@ class AccountStruct(Structure):
         if Map.IsInCinematic(): return
         
         self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
-        self.IsHero = True
-        self.IsPet = False
-        self.IsNPC = False
         
         agent_id = hero_data.agent_id
         self.AgentData.from_context(agent_id)
@@ -213,6 +189,7 @@ class AccountStruct(Structure):
         self.AvailableCharacters.reset()
         self.MissionData.reset()
         self.UnlockedSkills.reset()
+        self.LastUpdated = Py4GW.Game.get_tick_count64()
         
     def from_pet_context(self, pet_data: PetInfo, slot_index: int) -> None:
         from ...Map import Map
@@ -226,7 +203,6 @@ class AccountStruct(Structure):
         self.IsSlotActive = True
         self.IsAccount = False
         self.AccountEmail = Player.GetAccountEmail()
-        self.LastUpdated = Py4GW.Game.get_tick_count64()
         
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
@@ -260,4 +236,5 @@ class AccountStruct(Structure):
         self.AvailableCharacters.reset()
         self.MissionData.reset()
         self.UnlockedSkills.reset()
+        self.LastUpdated = Py4GW.Game.get_tick_count64()
         
