@@ -6,16 +6,8 @@ Usage: Load this script in Py4GW. Must be a Dervish/Assassin with
        equip the D/A runner build, and run to Gunnar's Hold.
 """
 
-import sys
-import os
-import Py4GW
-
-bots_dir = os.path.join(Py4GW.Console.get_projects_path(), "Bots")
-if bots_dir not in sys.path:
-    sys.path.insert(0, bots_dir)
-
-from modular_bot import ModularBot, Phase
-from modular_bot.recipes import Run
+from Sources.modular_bot import ModularBot, Phase
+from Sources.modular_bot.recipes import Run
 
 bot = ModularBot(
     name="Test: Runner",
