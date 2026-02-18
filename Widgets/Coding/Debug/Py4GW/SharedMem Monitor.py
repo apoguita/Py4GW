@@ -109,8 +109,9 @@ def draw_account_info(player: AccountStruct):
         PyImGui.table_set_column_index(1)
         if PyImGui.tree_node(f"Heroes ({num_heroes})"):
             heroes = SMM.GetHeroesFromPlayers(player.AgentData.AgentID)
+            
             for hero in heroes:
-                PyImGui.text(f"{hero.AgentData.CharacterName} (HeroID: {hero.AgentData.HeroID})")
+                PyImGui.text(f"{hero.AgentData.CharacterName} (HeroID: {hero.AgentData.HeroID}) Slot: {hero.SlotNumber}")
             PyImGui.tree_pop()
 
         # -----------------------------------
@@ -122,7 +123,7 @@ def draw_account_info(player: AccountStruct):
         if PyImGui.tree_node(f"Pets ({num_pets})"):
             pets = SMM.GetPetsFromPlayers(player.AgentData.AgentID)
             for pet in pets:
-                PyImGui.text(f"{pet.AgentData.CharacterName} (PlayerID: {pet.AgentData.AgentID})")
+                PyImGui.text(f"{pet.AgentData.CharacterName} (PlayerID: {pet.AgentData.AgentID}) Slot: {pet.SlotNumber}")
             PyImGui.tree_pop()
 
         # -----------------------------------

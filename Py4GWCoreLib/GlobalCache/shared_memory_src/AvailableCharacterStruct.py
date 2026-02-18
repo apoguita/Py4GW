@@ -1,4 +1,4 @@
-from ctypes import Array, Structure, addressof, c_int, c_uint, c_float, c_bool, c_wchar, memmove, c_uint64, sizeof
+from ctypes import Structure, c_uint, c_bool, c_wchar
 from .Globals import (
     SHMEM_MAX_CHAR_LEN,
     SHMEM_MAX_AVAILABLE_CHARS,
