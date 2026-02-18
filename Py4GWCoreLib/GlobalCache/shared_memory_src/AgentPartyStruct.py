@@ -1,6 +1,5 @@
 from ctypes import Structure, c_uint, c_bool
 
-
 class AgentPartyStruct(Structure):
     _pack_ = 1
     _fields_ = [

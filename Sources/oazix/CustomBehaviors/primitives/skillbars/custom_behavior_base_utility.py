@@ -23,6 +23,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_str
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Sources.oazix.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
+from Sources.oazix.CustomBehaviors.skills.blessing.take_near_blessing_v2 import TakeNearBlessingV2Utility
 from Sources.oazix.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
 from Sources.oazix.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Sources.oazix.CustomBehaviors.skills.deamon.death_detection import DeathDetectionUtility
@@ -82,7 +83,8 @@ class CustomBehaviorBaseUtility():
             # FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
 
             # BLESSING
-            TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            # TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            TakeNearBlessingV2Utility(event_bus=self.event_bus, current_build=self.in_game_build),
             
             # LOOT
             LootUtility(current_build=self.in_game_build, event_bus=self.event_bus),

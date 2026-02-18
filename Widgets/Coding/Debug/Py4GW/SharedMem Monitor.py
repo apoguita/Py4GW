@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from Py4GW import PingHandler
 import PyImGui
 
@@ -77,7 +77,9 @@ def end_striped_table():
 #region AccountInfo
 def draw_account_info(player: AccountStruct):
 
-    timestamp = datetime.fromtimestamp(player.LastUpdated / 1000)
+    current_tick = Py4GW.Game.get_tick_count64()
+    age_ms = max(0, current_tick - player.LastUpdated) # Time since update in ms
+    timestamp = datetime.now() - timedelta(milliseconds=age_ms)
     milliseconds = int(timestamp.microsecond / 1000)
 
     num_heroes = SMM.GetNumHeroesFromPlayers(player.AgentData.AgentID)
@@ -107,8 +109,9 @@ def draw_account_info(player: AccountStruct):
         PyImGui.table_set_column_index(1)
         if PyImGui.tree_node(f"Heroes ({num_heroes})"):
             heroes = SMM.GetHeroesFromPlayers(player.AgentData.AgentID)
+            
             for hero in heroes:
-                PyImGui.text(f"{hero.AgentData.CharacterName} (HeroID: {hero.AgentData.HeroID})")
+                PyImGui.text(f"{hero.AgentData.CharacterName} (HeroID: {hero.AgentData.HeroID}) Slot: {hero.SlotNumber}")
             PyImGui.tree_pop()
 
         # -----------------------------------
@@ -120,7 +123,7 @@ def draw_account_info(player: AccountStruct):
         if PyImGui.tree_node(f"Pets ({num_pets})"):
             pets = SMM.GetPetsFromPlayers(player.AgentData.AgentID)
             for pet in pets:
-                PyImGui.text(f"{pet.AgentData.CharacterName} (PlayerID: {pet.AgentData.AgentID})")
+                PyImGui.text(f"{pet.AgentData.CharacterName} (PlayerID: {pet.AgentData.AgentID}) Slot: {pet.SlotNumber}")
             PyImGui.tree_pop()
 
         # -----------------------------------
@@ -492,8 +495,7 @@ class PlayerData:
     def __init__(self, player: AccountStruct):
         self.target_id: int = player.AgentData.TargetID
         self.observing_id: int = player.AgentData.ObservingID
-        uuid = player.AgentData.UUID
-        self.player_uuid: Tuple[int, int, int, int] = (uuid[0], uuid[1], uuid[2], uuid[3])
+        self.player_uuid: Tuple[int, int, int, int] = player.AgentData.UUID
 
         # RAW ARRAYS
         self.missions_completed: List[int] = player.MissionData.NormalModeCompleted
@@ -914,7 +916,7 @@ class HealthData:
 class AgentData:
     def __init__(self, player: AccountStruct):
         agent_data = player.AgentData
-        self.UUID: list[int] = agent_data.UUID
+        self.UUID: list[int] = list(agent_data.UUID)
         self.AgentID: int = agent_data.AgentID
         self.OwnerID: int = agent_data.OwnerAgentID
         self.TargetID: int = agent_data.TargetID
@@ -961,7 +963,7 @@ def main():
             PyImGui.text(f"Max Number of Players: {SMM.max_num_players}")
             PyImGui.text(f"Number of Active Players: {SMM.GetNumActivePlayers()}")
             PyImGui.text(f"Number of active Slots: {SMM.GetNumActiveSlots()}")
-            ImGui.show_tooltip("\n".join([f"{i}. | Slot:{acc.SlotNumber} {acc.AccountEmail} | {acc.AgentData.CharacterName}" for i, acc in enumerate(SMM.GetAllAccounts().AccountData) if SMM._is_slot_active(i)]))                        
+            ImGui.show_tooltip("\n".join([f"{i}. | Slot:{acc.SlotNumber} {acc.AccountEmail} | {acc.AgentData.CharacterName}" for i, acc in enumerate(SMM.GetAllAccounts().AccountData) if SMM.GetAllAccounts()._is_slot_active(i)]))                        
         
         MIN_WIDTH = 500
         MIN_HEIGHT = 700
