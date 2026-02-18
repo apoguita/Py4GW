@@ -97,7 +97,6 @@ def main():
         GLOBAL_CACHE.ShMem.SetHeroesData()
         GLOBAL_CACHE.ShMem.SetPetData()
         
-        GLOBAL_CACHE.ShMem.UpdateTimeouts()
         shmem_data_reset = False
     else:
         if not shmem_data_reset:

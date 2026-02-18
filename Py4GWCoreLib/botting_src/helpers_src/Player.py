@@ -43,3 +43,8 @@ class _Player:
     def reroll_character(self,target_character_name: str, timeout_ms: int = 15000, log: bool = True) -> Generator[Any, Any, None]:
         from ...Routines import Routines
         yield from Routines.Yield.RerollCharacter.Reroll(target_character_name, timeout_ms, log)
+
+    @_yield_step(label="BuySkill", counter_key="BUY_SKILL")
+    def buy_skill(self, skill_id: int, log: bool = False) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Player.BuySkill(skill_id, log)

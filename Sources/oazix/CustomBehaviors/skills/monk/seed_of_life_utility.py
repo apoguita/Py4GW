@@ -15,9 +15,11 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 
 
 class SeedOfLifeUtility(CustomSkillUtilityBase):
+    LOCK_KEY = "SeedOfLife"
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
@@ -66,8 +68,17 @@ class SeedOfLifeUtility(CustomSkillUtilityBase):
         targets = self._get_targets()
         if len(targets) == 0: return BehaviorResult.ACTION_SKIPPED
         target = targets[0]
-        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
-        return result 
+
+        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(self.LOCK_KEY, 6) == False:
+            yield
+            return BehaviorResult.ACTION_SKIPPED
+
+        try:
+            result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
+        finally:
+            # CustomBehaviorParty().get_shared_lock_manager().release_lock(self.LOCK_KEY)
+            pass
+        return result
     
     @override
     def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:

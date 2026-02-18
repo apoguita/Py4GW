@@ -19,6 +19,7 @@ class PersistenceLocator:
         self._skills = PersistenceLocator.SkillSettings()
         self._common = PersistenceLocator.CommonSettings()
         self._botting = PersistenceLocator.BottingSettings()
+        self._flagging = PersistenceLocator.FlaggingSettings()
 
     @property
     def skills(self) -> "PersistenceLocator.SkillSettings":
@@ -31,6 +32,10 @@ class PersistenceLocator:
     @property
     def botting(self) -> "PersistenceLocator.BottingSettings":
         return self._botting
+
+    @property
+    def flagging(self) -> "PersistenceLocator.FlaggingSettings":
+        return self._flagging
 
     class SkillSettings:
 
@@ -288,3 +293,133 @@ class PersistenceLocator:
             node = IniManager()._handlers.get(key)
             if node:
                 node.ini_handler.delete_key(section, setting_name)
+
+    class FlaggingSettings:
+        """Nested class for flagging grid settings with its own INI file (flagging.ini).
+
+        Persists grid_index to email mappings for character positioning.
+        Uses global storage (shared across all accounts).
+        """
+
+        SECTION = "GridAssignments"
+
+        def __init__(self):
+            self._ini_filename = "flagging.ini"
+            self._key: str = ""
+
+        def _ensure_key(self) -> str:
+            """Ensure the global INI key is created and return it."""
+            if not self._key:
+                self._key = IniManager().ensure_global_key(PersistenceLocator.INI_PATH, self._ini_filename)
+            return self._key
+
+        def read_assignment(self, grid_index: int) -> str | None:
+            """Read the email assigned to a grid index.
+
+            Args:
+                grid_index: The grid slot index (0-35)
+
+            Returns:
+                The email if found, None otherwise.
+            """
+            key = self._ensure_key()
+            if not key:
+                return None
+            result = IniManager().read_key(key, self.SECTION, str(grid_index), "")
+            return result if result != "" else None
+
+        def write_assignment(self, grid_index: int, email: str) -> None:
+            """Write an email assignment to a grid index.
+
+            Args:
+                grid_index: The grid slot index (0-35)
+                email: The account email to assign
+            """
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.write_key(self.SECTION, str(grid_index), email)
+
+        def delete_assignment(self, grid_index: int) -> None:
+            """Delete an assignment from a grid index.
+
+            Args:
+                grid_index: The grid slot index to clear
+            """
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.delete_key(self.SECTION, str(grid_index))
+
+        def read_all_assignments(self) -> dict[int, str]:
+            """Read all grid assignments.
+
+            Returns:
+                Dictionary mapping grid_index to email.
+            """
+            key = self._ensure_key()
+            if not key:
+                return {}
+
+            node = IniManager()._handlers.get(key)
+            if not node:
+                return {}
+
+            assignments: dict[int, str] = {}
+            keys_dict = node.ini_handler.list_keys(self.SECTION)
+            for idx_str, email in keys_dict.items():
+                try:
+                    grid_index = int(idx_str)
+                    if email:
+                        assignments[grid_index] = email
+                except ValueError:
+                    continue
+
+            return assignments
+
+        def clear_all_assignments(self) -> None:
+            """Clear all grid assignments."""
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.delete_section(self.SECTION)
+
+        def read_spacing_radius(self) -> float:
+            """Read the spacing radius setting.
+
+            Returns:
+                The spacing radius value, or 100.0 as default.
+            """
+            key = self._ensure_key()
+            if not key:
+                return 100.0
+            result = IniManager().read_key(key, "Settings", "spacing_radius", "")
+            if result:
+                try:
+                    return float(result)
+                except ValueError:
+                    pass
+            return 100.0
+
+        def write_spacing_radius(self, radius: float) -> None:
+            """Write the spacing radius setting.
+
+            Args:
+                radius: The spacing radius value to save.
+            """
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.write_key("Settings", "spacing_radius", str(radius))

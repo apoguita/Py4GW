@@ -76,12 +76,6 @@ WAS_PRESSED = "was_pressed"
 X_POS = "x"
 Y_POS = "y"
 
-# Flag constants
-IS_FLAGGED = "IsFlagged"
-FLAG_POSITION_X = "FlagPosX"
-FLAG_POSITION_Y = "FlagPosY"
-FOLOW_ANGLE = "FollowAngle"
-
 cached_data = CacheData()
 widget_handler = get_widget_handler()
 
@@ -344,15 +338,13 @@ class CombatPrep:
                 final_x = leader_x + rotated_x
                 final_y = leader_y + rotated_y
 
-                for flag_key, flag_key_value in [
-                    (IS_FLAGGED, True),
-                    (FLAG_POSITION_X, final_x),
-                    (FLAG_POSITION_Y, final_y),
-                    (FOLOW_ANGLE, leader_follow_angle),
-                ]:
-                    self.cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                        hero_ai_index, flag_key, flag_key_value
-                    )
+                # Update the options struct directly
+                agent_id = (self.cached_data.party.get_by_party_pos(hero_ai_index).AgentData.AgentID)
+                options_struct = self.cached_data.party.options.get(agent_id)
+                options_struct.IsFlagged = True
+                options_struct.FlagPosX = final_x
+                options_struct.FlagPosY = final_y
+                options_struct.FlagFacingAngle = leader_follow_angle
 
                 agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(hero_ai_index)
                 if agent_id:
@@ -360,15 +352,14 @@ class CombatPrep:
 
         if disband_formation:
             for hero_ai_index in range(1, party_size):
-                for flag_key, flag_key_value in [
-                    (IS_FLAGGED, False),
-                    (FLAG_POSITION_X, 0),
-                    (FLAG_POSITION_Y, 0),
-                    (FOLOW_ANGLE, 0),
-                ]:
-                    self.cached_data.HeroAI_vars.shared_memory_handler.set_player_property(
-                        hero_ai_index, flag_key, flag_key_value
-                    )
+                # Update the options struct directly
+                agent_id = (self.cached_data.party.get_by_party_pos(hero_ai_index).AgentData.AgentID)
+                options_struct = self.cached_data.party.options.get(agent_id)
+                options_struct.IsFlagged = False
+                options_struct.FlagPosX = 0
+                options_struct.FlagPosY = 0
+                options_struct.FlagFacingAngle = 0
+
                 GLOBAL_CACHE.Party.Heroes.UnflagHero(hero_ai_index)
                 GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
 
