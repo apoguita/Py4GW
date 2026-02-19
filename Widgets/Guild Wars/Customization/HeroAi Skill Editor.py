@@ -1888,9 +1888,9 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 	if skill_id not in _condition_add_value_state:
 		_condition_add_value_state[skill_id] = _condition_default_input_value(selected_condition)
 
-	PyImGui.text("Aktive Conditions:")
+	PyImGui.text("Active Conditions:")
 	if not active_conditions:
-		PyImGui.text("Keine Conditions aktiv.")
+		PyImGui.text("No conditions active.")
 	else:
 		for condition_name in sorted(active_conditions, key=str.lower):
 			effective_value = condition_values.get(condition_name, DEFAULT_CONDITION_VALUES.get(condition_name))
@@ -1908,7 +1908,7 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 				_reset_condition_to_default(skill_id, condition_name)
 	PyImGui.spacing()
 	PyImGui.separator()
-	PyImGui.text("Neue Condition:")
+	PyImGui.text("Add Condition:")
 
 	if PyImGui.begin_combo("##condition_add_combo", selected_condition, 0):
 		for option in _CONDITION_OPTIONS:
@@ -1959,7 +1959,7 @@ def _render_condition_list(skill_id: int, active_conditions: Set[str], condition
 		if changed:
 			_condition_add_value_state[skill_id] = new_value_text
 
-	if PyImGui.button("Condition hinzufügen"):
+	if PyImGui.button("Add condition"):
 		_apply_condition_value_generic(skill_id, selected_condition, _condition_add_value_state.get(skill_id))
 
 
