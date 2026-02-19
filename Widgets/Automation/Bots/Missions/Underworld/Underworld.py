@@ -366,7 +366,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
         bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
-        bot_instance.Party.FlagAllHeroes(2559, 20301)
+        #bot_instance.Party.FlagAllHeroes(2559, 20301)
         SERVANTS_OF_GRENTH_FLAG_POINTS = [
             (2559, 20301),
             (3032, 20148),
@@ -376,6 +376,7 @@ def Servants_of_Grenth(bot_instance: Botting):
             (3691, 19979),
             (2039, 20175),
             ]
+        HERO_FLAG_POINTS = (SERVANTS_OF_GRENTH_FLAG_POINTS * 2)[:8]
         bot_instance.States.AddCustomState(
             lambda: _auto_assign_flag_emails(),
             "Set Flag",
@@ -384,6 +385,11 @@ def Servants_of_Grenth(bot_instance: Botting):
             bot_instance.States.AddCustomState(
                 lambda i=idx, x=flag_x, y=flag_y: _set_flag_position(i, x, y),
                 f"Set Flag {idx}",
+            )
+        for hero_idx, (flag_x, flag_y) in enumerate(HERO_FLAG_POINTS, start=0):
+            bot_instance.States.AddCustomState(
+                lambda h=hero_idx, x=flag_x, y=flag_y: bot_instance.Party.FlagHero(h, x, y),
+                f"Flag Hero {hero_idx + 1}",
             )
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
@@ -595,7 +601,7 @@ def _draw_help():
     PyImGui.bullet_text("You have to do the missing quests manually")
     PyImGui.bullet_text("Main Account sometimes leaves the team alone - Dont be the Healer")
     PyImGui.bullet_text("You should either have some evas or 1 melee char to trigger traps in the mountains")
-    PyImGui.bullet_text('You should change the line 39 in Sources\oazix\CustomBehaviors\skills\botting\wait_if_party_member_too_far.py with * 1.25 for faster runs')
+    PyImGui.bullet_text('You should change the line 39 in Sources/oazix/CustomBehaviors/skills/botting/wait_if_party_member_too_far.py with * 1.25 for faster runs')
     PyImGui.separator()
     PyImGui.bullet_text("Have fun :) - sch0l0ka")
 
