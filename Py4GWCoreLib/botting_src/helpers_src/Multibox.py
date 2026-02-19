@@ -65,7 +65,7 @@ class _Multibox:
         class HeroAIOptions:
             def __init__(self, email: str):
                 from ...GlobalCache import GLOBAL_CACHE
-                hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(email)
+                hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(email)
 
                 self.email = hero_ai_options.Email if hero_ai_options else email
                 self.Following = hero_ai_options.Following if hero_ai_options else False
@@ -93,7 +93,7 @@ class _Multibox:
 
         def _set_hero_ai_options_by_email(self, email: str, option: str, value: Any, skill_index:int =0):
             from ...GlobalCache import GLOBAL_CACHE
-            current_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(email)
+            current_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(email)
             if not current_options:
                 return
 
@@ -110,7 +110,7 @@ class _Multibox:
             current_options.FlagPosY = value if option == "FlagPosY" else current_options.FlagPosY
             current_options.FlagFacingAngle = value if option == "FlagFacingAngle" else current_options.FlagFacingAngle
 
-            result = GLOBAL_CACHE.ShMem.SetHeroAIOptions(email, current_options)
+            result = GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(email, current_options)
             return result
         
     def _get_all_account_data(self) -> List[_AccountData]:
