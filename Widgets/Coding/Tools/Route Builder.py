@@ -810,7 +810,7 @@ class RouteBuilderWidget:
         if PyImGui.button(export_label, export_w):
             if self.waypoints:
                 coords = [(wp.x, wp.y) for wp in self.waypoints]
-                text = "[" + ", ".join(f"({x:.0f},{y:.0f})" for x, y in coords) + "]"
+                text = "[\n" + "\n".join(f"    ({x:.0f},{y:.0f})," for x, y in coords) + "\n]"
                 PyImGui.set_clipboard_text(text)
         if PyImGui.is_item_hovered():
             PyImGui.begin_tooltip()
