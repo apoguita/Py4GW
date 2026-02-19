@@ -1,0 +1,193 @@
+{
+    "name":  "The Great Northern Wall",
+    "outpost_id":  28,
+    "max_heroes":  4,
+    "entry":  {
+                  "type":  "enter_challenge",
+                  "delay":  4000,
+                  "target_map_id": 28
+              },
+    "steps":  [
+                  {
+                      "type":  "auto_path",
+                      "name":  "To Gate",
+                      "points":  [
+                                     [5770, -12799],
+                                     [5085, -12095]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_quest_npc",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "Through Wall",
+                      "points":  [
+                                     [6269, -10220],
+                                     [3830, -6054],
+                                     [1387, -4164],
+                                     [-906, -4404],
+                                     [-2681, -3745],
+                                     [-3085, -3264],
+                                     [-3723, -571],
+                                     [-2779, 564],
+                                     [-2638, 2329],
+                                     [-3389, 4087]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_gadget",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "West Patrol",
+                      "points":  [
+                                     [-5649, 5018],
+                                     [-8075, 4441],
+                                     [-9222, 5128],
+                                     [-11310, 6711]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_gadget",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "interact_item",
+                      "ms":  2000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "East Patrol",
+                      "points":  [
+                                     [-10558, 7708],
+                                     [-8964, 9797],
+                                     [-7750, 11127],
+                                     [-5940, 11081],
+                                     [-5507, 11167],
+                                     [-4816, 9922],
+                                     [-5226, 7795]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_gadget",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "interact_item",
+                      "ms":  2000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "North Patrol",
+                      "points":  [
+                                     [-3666, 10811],
+                                     [-4721, 13321],
+                                     [-5707, 14442],
+                                     [-5494, 15835],
+                                     [-7308, 15897],
+                                     [-7982, 14823],
+                                     [-8886, 14078],
+                                     [-7909, 14186]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_gadget",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "interact_item",
+                      "ms":  2000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "To Bonfire",
+                      "points":  [
+                                     [-8974, 14371],
+                                     [-7386, 16049],
+                                     [-5739, 18268],
+                                     [-3350, 17785],
+                                     [-3050, 19476],
+                                     [-2337, 19004]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_gadget",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "interact_item",
+                      "ms":  2000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "To Kilnn",
+                      "points":  [
+                                     [282, 18305],
+                                     [1223, 16793],
+                                     [-470, 14762],
+                                     [-217, 14295]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_nearest_npc",
+                      "ms":  3000
+                  },
+                  {
+                      "type":  "interact_nearest_npc",
+                      "ms":  3000
+                  },
+                  {
+                      "type":  "interact_nearest_npc",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "Defend the Wall",
+                      "points":  [
+                                     [-477, 15126],
+                                     [1404, 17353],
+                                     [-1192, 19559],
+                                     [-3019, 19725],
+                                     [-3353, 17674],
+                                     [-5203, 18650],
+                                     [-7450, 16834],
+                                     [-7751, 15058],
+                                     [-9977, 13941],
+                                     [-12866, 11817],
+                                     [-16775, 11870],
+                                     [-16915, 15220],
+                                     [-14498, 12744]
+                                 ]
+                  },
+                  {
+                      "type":  "skip_cinematic"
+                  },
+                  {
+                      "type":  "path",
+                      "name":  "Return to Start",
+                      "points":  [
+                                     [-14464, 4187],
+                                     [-8647, 79],
+                                     [-7699, -2235],
+                                     [-2332, -5860],
+                                     [2899, -7794],
+                                     [6334, -10506],
+                                     [4961, -12069]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_quest_npc",
+                      "ms":  5000
+                  },
+                  {
+                      "type":  "skip_cinematic"
+                  },
+                  {
+                      "type":  "wait_map_change",
+                      "target_map_id":  28
+                  }
+              ]
+}

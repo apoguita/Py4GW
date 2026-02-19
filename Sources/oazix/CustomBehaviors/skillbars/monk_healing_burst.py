@@ -1,4 +1,4 @@
-from typing import override
+from typing import cast, override
 
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
@@ -18,11 +18,14 @@ from Sources.oazix.CustomBehaviors.skills.monk.dismiss_condition_utility import 
 from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import ProtectiveSpiritUtility
 from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility import ShieldOfAbsorptionUtility
+from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_drop_utility import UnyieldingAuraDropUtility
+from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import UnyieldingAuraUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
+from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_mimicry_utility import ArcaneMimicryUtility
 
 
-class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
+class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     def __init__(self):
         super().__init__()
@@ -45,9 +48,8 @@ class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.selfless_spirit_kurzick_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_kurzick"), score_definition=ScoreStaticDefinition(88))
         self.serpents_quickness_prep_utility: CustomSkillUtilityBase = PreparationUtility(event_bus=self.event_bus, 
                                                              prep_skill=CustomSkill("Serpents_Quickness"), 
-                                                             target_utilities=[self.seed_of_life_utility, self.selfless_spirit_luxon_utility, self.selfless_spirit_kurzick_utility], current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
-
-        
+                                                             target_utilities=[self.seed_of_life_utility, self.selfless_spirit_luxon_utility, self.selfless_spirit_kurzick_utility], current_build=in_game_build, score_definition=ScoreStaticDefinition(94))
+        self.dwarven_stability_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Dwarven_Stability"), score_definition=ScoreStaticDefinition(95))
 
         # common
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
@@ -55,6 +57,23 @@ class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.finish_him_utility: CustomSkillUtilityBase = FinishHimUtility(event_bus=self.event_bus, current_build=in_game_build)
+
+        # we have an additionnal utility to drop the buff that we could have aquired from mimicry
+        self.unyielding_aura_drop_utility: CustomSkillUtilityBase = UnyieldingAuraDropUtility(event_bus=self.event_bus, current_build=in_game_build)
+
+        self.arcane_mimicry_utility: CustomSkillUtilityBase = ArcaneMimicryUtility(event_bus=self.event_bus,
+                                                                                   current_build=in_game_build,
+                                                                                   pre_check_condition= lambda: not cast(UnyieldingAuraDropUtility, self.unyielding_aura_drop_utility).has_buff(),
+                                                                                   skill_to_copy_instance= lambda: UnyieldingAuraUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(93)))
+        
+
+    @property
+    @override
+    def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
+        base = super().additional_autonomous_skills
+        # not part of the skillbar, if unyielding aura is aquired from mimicry
+        base.append(self.unyielding_aura_drop_utility)
+        return base
 
     @property
     @override
@@ -76,11 +95,13 @@ class MonkHealingBust_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.serpents_quickness_prep_utility,
             self.selfless_spirit_luxon_utility,
             self.selfless_spirit_kurzick_utility,
+            self.arcane_mimicry_utility,
+            self.dwarven_stability_utility,
         ]
 
     @property
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
-            self.seed_of_life_utility.custom_skill,
+            self.healing_burst_utility.custom_skill,
         ]

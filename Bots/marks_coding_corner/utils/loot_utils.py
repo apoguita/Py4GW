@@ -9,9 +9,11 @@ from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Player
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
+from Py4GWCoreLib.IniManager import IniManager
 
 
-AUTOLOOT_SECTION = "AutoLootOptions"
+INI_PATH = "Inventory/InventoryPlus"  # path to save ini key
+INI_FILENAME = "InventoryPlus.ini"  # ini file name
 VIABLE_LOOT = {
     # Coin
     ModelID.Gold_Coins,
@@ -58,7 +60,7 @@ VIABLE_LOOT = {
     ModelID.Candy_Cane_Shard,
     ModelID.Fruitcake,
     ModelID.Snowman_Summoner,
-    ModelID.Frosty_Tonic
+    ModelID.Frosty_Tonic,
 }
 
 
@@ -139,49 +141,41 @@ def move_all_crafting_materials_to_storage():
 
 
 def set_autoloot_options_for_custom_bots(salvage_golds=False, module_active=False):
-    ''' We use autohandler for most of the bots, this sets the autoloot ini to correspond to correct bot'''
-    return
+    '''Set autoloot options for custom bots using the InventoryPlus INI'''
 
-
-    auto_inventory_handler = AutoInventoryHandler()
-    ini = auto_inventory_handler.ini
+    ini_key = ''
+    if not ini_key:
+        ini_key = IniManager().ensure_key(INI_PATH, INI_FILENAME)
+        if not ini_key:
+            return
 
     # === Module State ===
-    ini.write_key(AUTOLOOT_SECTION, "module_active", "True" if module_active else "False")
+    IniManager().set(key=ini_key, section="AutoManager", var_name="module_active", value=module_active)
 
     # === Salvage Settings ===
-    SALVAGE_DEFAULTS = {
-        "salvage_whites": "True",
-        "salvage_rare_materials": "False",
-        "salvage_blues": "True",
-        "salvage_purples": "True",
-        "salvage_golds": "True" if salvage_golds else "False",
-    }
-    for key, value in SALVAGE_DEFAULTS.items():
-        ini.write_key(AUTOLOOT_SECTION, key, value)
+    IniManager().set(key=ini_key, section="AutoSalvage", var_name="salvage_whites", value=True)
+    IniManager().set(key=ini_key, section="AutoSalvage", var_name="salvage_rare_materials", value=False)
+    IniManager().set(key=ini_key, section="AutoSalvage", var_name="salvage_blues", value=True)
+    IniManager().set(key=ini_key, section="AutoSalvage", var_name="salvage_purples", value=True)
+    IniManager().set(key=ini_key, section="AutoSalvage", var_name="salvage_golds", value=salvage_golds)
 
     # === Identification Settings ===
-    ID_DEFAULTS = {
-        "id_whites": "True",
-        "id_blues": "True",
-        "id_purples": "True",
-        "id_golds": "True",
-        "id_greens": "False",
-    }
-    for key, value in ID_DEFAULTS.items():
-        ini.write_key(AUTOLOOT_SECTION, key, value)
+    IniManager().set(key=ini_key, section="AutoIdentify", var_name="id_whites", value=True)
+    IniManager().set(key=ini_key, section="AutoIdentify", var_name="id_blues", value=True)
+    IniManager().set(key=ini_key, section="AutoIdentify", var_name="id_purples", value=True)
+    IniManager().set(key=ini_key, section="AutoIdentify", var_name="id_golds", value=True)
+    IniManager().set(key=ini_key, section="AutoIdentify", var_name="id_greens", value=False)
 
     # === Deposit Settings ===
-    DEPOSIT_DEFAULTS = {
-        "deposit_trophies": "False",
-        "deposit_materials": "False",
-        "deposit_dyes": "False",
-        "deposit_golds": "True" if not salvage_golds else "False",
-        "deposit_greens": "True",
-        "keep_gold": "10000",
-    }
-    for key, value in DEPOSIT_DEFAULTS.items():
-        ini.write_key(AUTOLOOT_SECTION, key, value)
+    IniManager().set(key=ini_key, section="AutoDeposit", var_name="deposit_trophies", value=False)
+    IniManager().set(key=ini_key, section="AutoDeposit", var_name="deposit_materials", value=False)
+    IniManager().set(key=ini_key, section="AutoDeposit", var_name="deposit_event_items", value=False)
+    IniManager().set(key=ini_key, section="AutoDeposit", var_name="deposit_dyes", value=False)
+    IniManager().set(key=ini_key, section="AutoDeposit", var_name="deposit_golds", value=not salvage_golds)
+    IniManager().set(key=ini_key, section="AutoDeposit", var_name="deposit_greens", value=True)
+    IniManager().set(key=ini_key, section="AutoDeposit", var_name="keep_gold", value=10000)
 
-    ini.write_key(AUTOLOOT_SECTION, "salvage_blacklist", "31202,31203,31204")  # remove glacial stones
-    auto_inventory_handler.load_from_ini(ini, AUTOLOOT_SECTION)
+    # === Blacklists ===
+    IniManager().set(
+        key=ini_key, section="AutoSalvage", var_name="salvage_blacklist", value="31202,31203,31204"
+    )  # remove glacial stones

@@ -21,10 +21,10 @@ from Py4GWCoreLib import Map, Player
 from Py4GWCoreLib import get_texture_for_model
 from Py4GWCoreLib.enums import Bags
 from Py4GWCoreLib.enums import ModelID
-from Widgets.Data.Mods.mods_parser import parse_modifiers
-from Widgets.Data.Mods.mods_parser import ModDatabase
-from Widgets.Data.Mods.mods_parser import MatchedRuneInfo
-from Widgets.Data.Mods.mods_parser import MatchedWeaponModInfo
+from Sources.marks_sources.mods_parser import ModDatabase
+from Sources.marks_sources.mods_parser import MatchedRuneInfo
+from Sources.marks_sources.mods_parser import MatchedWeaponModInfo
+from Sources.marks_sources.mods_parser import parse_modifiers
 
 
 project_root = Py4GW.Console.get_projects_path()
@@ -36,7 +36,7 @@ JSON_INVENTORY_PATH = os.path.join(DB_BASE_DIR, "Inventory")
 JSON_INVENTORY_MODEL_IDS_PATH = os.path.join(DB_BASE_DIR, "InventoryModelIds")
 JSON_INVENTORY_MOD_HASH_PATH = os.path.join(DB_BASE_DIR, "InventoryModHash")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "team_inventory_viewer.ini")
-MOD_DB = ModDatabase.load(os.path.join(project_root, "Widgets/Data/Mods/data"))
+MOD_DB = ModDatabase.load(os.path.join(project_root, "Sources/marks_sources/mods_data"))
 os.makedirs(BASE_DIR, exist_ok=True)
 
 # ——— Window Persistence Setup ———

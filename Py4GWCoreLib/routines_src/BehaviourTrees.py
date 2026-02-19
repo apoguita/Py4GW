@@ -152,6 +152,23 @@ class BT:
             return BehaviorTree(tree)
 
         @staticmethod
+        def BuySkill(skill_id: int, log: bool = False):
+            """
+            Purpose: Buy/Learn a skill from a Skill Trainer.
+            Args:
+                skill_id (int): The ID of the skill to purchase.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            def _buy_skill(skill_id: int):
+                Player.BuySkill(skill_id)
+                ConsoleLog("BuySkill", f"Buying skill {skill_id}.", Console.MessageType.Info, log=log)
+                return BehaviorTree.NodeState.SUCCESS
+
+            tree = BehaviorTree.ActionNode(name="BuySkill", action_fn=lambda: _buy_skill(skill_id), aftercast_ms=300)
+            return BehaviorTree(tree)
+
+        @staticmethod
         def Resign(log:bool=False):
             """
             Purpose: Resign from the current map.
@@ -163,7 +180,7 @@ class BT:
                 Player.SendChatCommand("resign")
                 ConsoleLog("Resign", "Resigned from party.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
-            
+
             tree = BehaviorTree.ActionNode(name="Resign", action_fn=lambda: _resign(), aftercast_ms=250)
             return BehaviorTree(tree)
 

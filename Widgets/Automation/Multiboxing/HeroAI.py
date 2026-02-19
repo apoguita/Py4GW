@@ -92,8 +92,8 @@ def HandleCombatFlagging(cached_data: CacheData):
     # Suspends all activity until HeroAI has made it to the flagged position
     # Still goes into combat as long as its within the combat follow range value of the expected flag
     party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-    own_options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(party_number)
-    leader_options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(0)
+    own_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(party_number)
+    leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
     
     if not own_options:
         return False    
@@ -188,7 +188,7 @@ def Follow(cached_data: CacheData):
         return False
 
     party_number = GLOBAL_CACHE.Party.GetOwnPartyNumber()
-    leader_options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(0)
+    leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
         
     follow_x = 0.0
     follow_y = 0.0
