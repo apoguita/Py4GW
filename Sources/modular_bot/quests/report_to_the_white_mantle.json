@@ -1,0 +1,20 @@
+{
+    "name": "Report to the White Mantle",
+    "max_heroes": 6,
+    "take_quest": {
+        "outpost_id": 55,
+        "quest_npc_location": [2376, 9268],
+        "dialog_id": ["0x801303", "0x801301"],
+        "wait_ms": 2000,
+        "name": "Take Quest"
+    },
+    "steps": [
+        {"type": "exit_map", "x": 200, "y": 12400,   "target_map_id": 58},
+        {"type": "wait_map_change", "target_map_id": 58},
+        {"type": "auto_path", "name": "To D'allesio ", "points": [[5294, -16988],[1043, -16842],[-3345, -16503],[-8249, -15776],[-10616, -16863],[-11547, -19370]]},
+        {"type": "exit_map", "x": -11700, "y": -19700,   "target_map_id": 15},
+        {"type": "wait_map_change", "target_map_id": 15},
+        {"type": "auto_path", "name": "To Quest reward ", "points": [[16506, 15402], [18592, 12867], [21877, 9855]]},
+        {"type": "dialog", "x": 21771, "y": 9699, "id": "0x801307"}
+    ]
+}
