@@ -178,7 +178,7 @@ def DrawWindow():
 # region HeroAI Snapshot
 def SnapshotHeroAIOptions(account_email: str):
     global hero_ai_snapshots
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return
     
@@ -201,7 +201,7 @@ def RestoreHeroAISnapshot(account_email: str):
         ConsoleLog(MODULE_NAME, "No Hero AI snapshot found, enabling all options as fallback.", Console.MessageType.Warning, True)
         return
     
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return
     
@@ -216,7 +216,7 @@ def RestoreHeroAISnapshot(account_email: str):
 
 
 def DisableHeroAIOptions(account_email: str):
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return
 
@@ -229,7 +229,7 @@ def DisableHeroAIOptions(account_email: str):
 
 
 def EnableHeroAIOptions(account_email: str):
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account_email)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return
 
@@ -592,7 +592,7 @@ def UsePcon(index: int, message: SharedMessageStruct):
     pcon_skill_id2 = int(message.Params[3])
 
     # Halt if any of the effects is already active
-    if GLOBAL_CACHE.ShMem.HasEffect(message.ReceiverEmail, pcon_skill_id) or GLOBAL_CACHE.ShMem.HasEffect(
+    if GLOBAL_CACHE.ShMem.AccountHasEffect(message.ReceiverEmail, pcon_skill_id) or GLOBAL_CACHE.ShMem.AccountHasEffect(
         message.ReceiverEmail, pcon_skill_id2
     ):
         # ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
