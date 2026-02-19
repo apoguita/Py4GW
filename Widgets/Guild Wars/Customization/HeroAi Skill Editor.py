@@ -498,6 +498,30 @@ def _refresh_custom_skills() -> None:
 	_build_skill_source_index()
 
 
+def _reload_heroai_runtime_skills() -> None:
+	"""Reload skill modules and push fresh data into runtime handlers."""
+	_refresh_custom_skills()
+	results: list[str] = []
+	try:
+		new_handler = CustomSkillClass()
+		try:
+			import HeroAI.combat as combat_module
+			combat_module.custom_skill_data_handler = new_handler
+			results.append("Combat")
+		except Exception as exc:  # noqa: BLE001
+			results.append(f"Combat failed: {exc}")
+		try:
+			import Py4GWCoreLib.SkillManager as skill_manager_module
+			skill_manager_module.SkillManager.Autocombat.custom_skill_data_handler = new_handler
+			results.append("SkillManager")
+		except Exception as exc:  # noqa: BLE001
+			results.append(f"SkillManager failed: {exc}")
+	except Exception as exc:  # noqa: BLE001
+		results.append(f"Init failed: {exc}")
+	if results:
+		Py4GW.Console.Log(MODULE_NAME, "; ".join(results), Py4GW.Console.MessageType.Info)
+
+
 # Ensure the in-memory skills reflect the latest source files when the widget loads.
 _refresh_custom_skills()
 
@@ -1915,14 +1939,20 @@ def _draw_edit_window() -> None:
 		_edit_window_open = False
 		_edit_snapshot = None
 		return
+	reload_label = "HeroAi reload"
+	reload_width = PyImGui.calc_text_size(reload_label)[0] + 12.0
 	button_label = "Close Window"
 	button_width = PyImGui.calc_text_size(button_label)[0] + 12.0
 	try:
 		avail_x = PyImGui.get_content_region_avail()[0]
 		current_x = PyImGui.get_cursor_pos_x()
-		PyImGui.set_cursor_pos_x(current_x + max(0.0, avail_x - button_width))
+		total_width = reload_width + 8.0 + button_width
+		PyImGui.set_cursor_pos_x(current_x + max(0.0, avail_x - total_width))
 	except Exception:
-		pass
+		total_width = reload_width + 8.0 + button_width
+	if PyImGui.button(reload_label):
+		_reload_heroai_runtime_skills()
+	PyImGui.same_line(0, 8)
 	if PyImGui.button(button_label):
 		if _edit_snapshot:
 			_reset_condition_editor_state(_edit_snapshot.skill_id)

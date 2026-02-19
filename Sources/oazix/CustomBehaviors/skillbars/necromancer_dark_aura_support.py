@@ -78,3 +78,4 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
         return [
             self.dark_aura.custom_skill,
         ]
+
