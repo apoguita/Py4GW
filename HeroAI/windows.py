@@ -116,7 +116,7 @@ class HeroAI_FloatingWindows():
                 if PyImGui.collapsing_header("Player Control"):
                     for index in range(MAX_NUM_PLAYERS):
                         account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(index)
-                        options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(index)
+                        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(index)
                         
                         if account and not account.IsHero:                            
                             if PyImGui.tree_node(f"{account.AgentData.CharacterName}##ControlPlayer{index}"):
@@ -126,7 +126,7 @@ class HeroAI_FloatingWindows():
                                 PyImGui.tree_pop()
             else:
                 # follower control panel
-                options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(cached_data.account_email)
+                options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(cached_data.account_email)
                 
                 if options is not None:
                     HeroAI_Windows.DrawPanelButtons(cached_data.account_email, options)
@@ -208,7 +208,7 @@ class HeroAI_FloatingWindows():
     @staticmethod
     def DistanceToDestination(cached_data: CacheData):
         account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
-        options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(cached_data.account_email)
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(cached_data.account_email)
         
         if not account:
             return 0.0
@@ -525,7 +525,7 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawFlags(cached_data:CacheData):
-        leader_options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(0)    
+        leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)    
         
         if HeroAI_Windows.capture_hero_flag:        
             x, y, _ = Overlay().GetMouseWorldPos()
@@ -553,7 +553,7 @@ class HeroAI_Windows():
                     else:
                         hero_ai_index = HeroAI_Windows.capture_hero_index - GLOBAL_CACHE.Party.GetHeroCount()
                     
-                    options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(hero_ai_index)
+                    options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(hero_ai_index)
                     if options:
                         options.FlagPosX = x
                         options.FlagPosY = y
@@ -572,7 +572,7 @@ class HeroAI_Windows():
             DrawFlagAll(leader_options.FlagPosX, leader_options.FlagPosY)
             
         for i in range(1, MAX_NUM_PLAYERS):            
-            options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(i)
             
             if options is None:
@@ -583,7 +583,7 @@ class HeroAI_Windows():
 
         if HeroAI_Windows.ClearFlags:            
             for i in range(MAX_NUM_PLAYERS):
-                options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
+                options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
             
                 if options:
                     options.IsFlagged = False
@@ -735,7 +735,7 @@ class HeroAI_Windows():
         data = []
         for i in range(MAX_NUM_PLAYERS):
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(i)
-            options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
             if account and options:
                 data.append((
                     i,  # Slot index
@@ -798,7 +798,7 @@ class HeroAI_Windows():
 
         data = []
         for i in range(MAX_NUM_PLAYERS):
-            options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
             
             if options is None:
                 continue
@@ -1201,7 +1201,7 @@ class HeroAI_Windows():
                 if not account or not account.IsSlotActive or account.IsHero or account.AgentPartyData.PartyID != GLOBAL_CACHE.Party.GetPartyID():
                     continue
                   
-                account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+                account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account.AccountEmail)
                 if not account_options:
                     continue
                 

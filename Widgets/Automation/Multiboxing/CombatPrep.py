@@ -263,7 +263,7 @@ class CombatPrep:
             return False
 
         # assumes this is party leader account email because they are the only one that has access
-        hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(self.cached_data.account_email)
+        hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(self.cached_data.account_email)
         if hero_ai_options is None:
             return False
 
@@ -291,7 +291,7 @@ class CombatPrep:
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         for account in accounts:
             if self.cached_data.account_email != account.AccountEmail:
-                hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
+                hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account.AccountEmail)
                 if hero_ai_options is None:
                     continue
 
