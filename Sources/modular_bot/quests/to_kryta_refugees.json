@@ -1,0 +1,20 @@
+{
+    "name": "To kryta: Refugees",
+    "max_heroes": 4,
+    "take_quest": {
+        "outpost_id": 133,
+        "quest_npc_location": [-10183, 35115],
+        "dialog_id": ["0x80C703","0x80C701"],
+        "wait_ms": 2000,
+        "name": "Take Quest"
+    },
+    "steps": [
+        {"type": "exit_map", "x": -10800, "y": 35400,   "target_map_id": 100},
+        {"type": "wait_map_change", "target_map_id": 100},
+        {"type": "auto_path", "name": "Quest Path", "points": [[16456, -14885],[13831, -13262],[7011, -16575],[3708, -20223],[-562, -19354],[-3197, -17726],[-6971, -17766]]},
+        {"type": "dialog", "x": -7070, "y": -18028, "id": "0x80C707"},
+        {"type": "auto_path", "name": "Quest Path", "points": [[-7086, -20774], [-10818, -21968]]},
+        {"type": "exit_map", "x": -13820, "y": -23050,   "target_map_id": 27},
+        {"type": "wait_map_change", "target_map_id": 27}
+    ]
+}
