@@ -147,6 +147,7 @@ class Py4GWLibrary:
         self.card_rounding = 4.0
         self.max_suggestions = 10
         self.single_button_size = 48
+        self.jump_to_minimalistic = True
         
         self.focus_keybind : HotKey = HOTKEY_MANAGER.register_hotkey(
             key=Key.Unmapped,
@@ -167,6 +168,7 @@ class Py4GWLibrary:
             self.max_suggestions = IniManager().read_int(key=self.ini_key, section="Configuration", name="max_suggestions", default=10)
             self.single_button_size = IniManager().read_int(key=self.ini_key, section="Configuration", name="single_button_size", default=48)
             
+            self.jump_to_minimalistic = IniManager().read_bool(key=self.ini_key, section="Configuration", name="jump_to_minimalistic", default=True)
             self.single_filter = IniManager().read_bool(key=self.ini_key, section="Configuration", name="single_filter", default=True)
             self.startup_layout = LayoutMode[IniManager().read_key(key=self.ini_key, section="Configuration", name="startup_layout", default=LayoutMode.LastView.name)]
             
@@ -526,9 +528,10 @@ class Py4GWLibrary:
             if not self.draw_suggestions(win_size, style, search_active, window_hovered, presets_opened) and not search_active and not window_hovered and not presets_opened:
                 self.widget_filter = ""
                 self.filtered_widgets.clear()
-                
-                if self.startup_layout is LayoutMode.Minimalistic:
-                    self.set_layout_mode(LayoutMode.Minimalistic)
+            
+            #TODO: if no suggestions and search active, switch to minimalistic view
+            # if self.jump_to_minimalistic:
+            #     self.set_layout_mode(LayoutMode.Minimalistic)
                 
                             
         ImGui.End(self.ini_key)
@@ -724,6 +727,20 @@ class Py4GWLibrary:
             
             PyImGui.push_clip_rect(*win_pos, self.win_size[0], self.win_size[1], False)
             ImGui.DrawTextureInDrawList((win_pos[0] + 4, win_pos[1] + 2), (20, 20), "python_icon_round_20px.png")
+            
+            minimize_rect = (win_pos[0] + 4 + win_size[0] - 50, win_pos[1] + 2, 24, 20)
+            cursor_pos = PyImGui.get_cursor_screen_pos()
+            PyImGui.set_cursor_screen_pos(minimize_rect[0], minimize_rect[1])
+                
+            fontawesome_font_size = int(int(PyImGui.get_text_line_height()) * 0.8)
+            ImGui.push_font("Regular", fontawesome_font_size)
+            style.Button.push_color((0, 0, 0, 0))
+            if PyImGui.button(IconsFontAwesome5.ICON_MINUS + "##MinimizeLibraryView", minimize_rect[2], minimize_rect[3]):
+                self.set_layout_mode(LayoutMode.Minimalistic)
+            style.Button.pop_color()
+            ImGui.pop_font()
+            ImGui.show_tooltip("Switch to Minimalistic View")
+            PyImGui.set_cursor_screen_pos(cursor_pos[0], cursor_pos[1])
             PyImGui.pop_clip_rect()
             
             if ImGui.begin_menu_bar():
@@ -798,6 +815,13 @@ class Py4GWLibrary:
                             ImGui.show_tooltip("Open the widget browser in minimalistic view by default,\nshowing only a search icon which switches to compact view when clicked.\nIf the widget filter is cleared while in compact view, it will switch back to minimalistic view.")
                             
                             ImGui.end_menu()
+                        
+                        jump_to_minimalistic = ImGui.checkbox("Jump to Minimalistic View", self.jump_to_minimalistic)
+                        if jump_to_minimalistic != self.jump_to_minimalistic:
+                            self.jump_to_minimalistic = jump_to_minimalistic
+                            IniManager().set(key=self.ini_key, var_name="jump_to_minimalistic", value=self.jump_to_minimalistic, section="Configuration")
+                            IniManager().save_vars(self.ini_key)
+                        ImGui.show_tooltip("Automatically switch to Minimalistic View after clearing the search field while in Compact View.\nIf the widget filter is cleared while in compact view, it will switch back to minimalistic view.")
                         
                         PyImGui.push_item_width(100)
                         max_suggestions = ImGui.slider_int("Max Suggestions", self.max_suggestions, 1, 50)
