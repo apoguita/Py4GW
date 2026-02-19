@@ -1,20 +1,15 @@
-from typing import List, Any, Generator, Callable, override
+from typing import Any, Generator, override
 
-import PyImGui
-
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
-from Py4GWCoreLib.ImGui import ImGui
-from Py4GWCoreLib.Py4GWcorelib import Utils
-from Py4GWCoreLib.enums import Profession
+from Py4GWCoreLib import Range
+from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
-from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import ProfessionConfiguration, BuffConfigurationPerProfession
+from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -37,7 +32,12 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
                 
         self.score_definition: ScoreStaticDefinition = score_definition
-        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL)
+
+        data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
+        if data is not None:
+            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
+        else:
+            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL)
 
 
     def _get_target(self) -> int | None:
@@ -69,3 +69,17 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
     @override
     def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
         return self.buff_configuration
+
+    @override
+    def has_persistence(self) -> bool:
+        return True
+
+    @override
+    def persist_configuration_for_account(self):
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        print("configuration saved for account")
+
+    @override
+    def persist_configuration_as_global(self):
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        print("configuration saved as global")

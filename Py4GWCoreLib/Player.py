@@ -43,6 +43,30 @@ class Player:
         return char_ctx.player_number
     
     @staticmethod
+    def GetLoginNumber() -> int:
+        from .Party import Party
+        players = Party.GetPlayers()
+        agent_id = Player.GetAgentID() if Player.IsPlayerLoaded() else 0
+        if len(players) > 0:
+            for player in players:
+                Pagent_id = Party.Players.GetAgentIDByLoginNumber(player.login_number)
+                if agent_id == Pagent_id:
+                    return player.login_number
+        return 0   
+    
+    @staticmethod
+    def GetPartyNumber() -> int:
+        from .Party import Party
+        login_number = Player.GetLoginNumber()
+        players = Party.GetPlayers()
+
+        for index, player in enumerate(players):
+            if player.login_number == login_number:
+                return index
+
+        return -1
+    
+    @staticmethod
     def IsPlayerLoaded() -> bool:
         """
         Purpose: Check if the player is loaded.
@@ -616,17 +640,17 @@ class Player:
     def SendRawDialog(dialog_id: int):
         """Send dialog using kSendAgentDialog. Works for NPC dialogs, skill trainers, etc."""
         from .native_src.methods.PlayerMethods import PlayerMethods
-        
+
         ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.SendRawDialog(dialog_id))
+        PlayerMethods.SendRawDialog, dialog_id)
 
     @staticmethod
     def BuySkill(skill_id: int):
         """Buy/Learn a skill from a Skill Trainer."""
         from .native_src.methods.PlayerMethods import PlayerMethods
-        
+
         ActionQueueManager().AddAction("ACTION",
-        PlayerMethods.SendSkillTrainerDialog(skill_id))
+        PlayerMethods.SendSkillTrainerDialog, skill_id)
         
     
     #region Not Worked

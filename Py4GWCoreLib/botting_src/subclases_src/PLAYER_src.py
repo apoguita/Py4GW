@@ -28,3 +28,6 @@ class _PLAYER:
         
     def RerollCharacter(self,target_character_name: str, timeout_ms: int = 15000, log: bool = True):
         self._helpers.Player.reroll_character(target_character_name, timeout_ms, log)
+
+    def BuySkill(self, skill_id: int, log: bool = False):
+        self._helpers.Player.buy_skill(skill_id, log)

@@ -730,11 +730,8 @@ def DrawRefrainMaintainer():
         PyImGui.set_tooltip("Disable" if cache.refrainer_use_checkbox else "Enable")
 
     if section_header:
-        # PyImGui.set_next_item_width(PyImGui.get_content_region_avail()[0])
-        cache.node_editor.begin()
-        cache.node_editor.end()
         PyImGui.text_wrapped("""This function will use "Help Me!" to maintain refrains intelligently. It will alternatively use "Dont Trip!" and "I am Unstoppable!" if both are present. If only "Don't Trip!" is available, it will require a recharge reduction such as an Essence of Celerity to work.""")
-        PyImGui.slider_float("Grace buffer", cache.refrain_buffer, 0, 10)
+        cache.refrain_buffer = PyImGui.slider_float("Grace buffer", cache.refrain_buffer, 0, 2)
         if PyImGui.is_item_hovered():
             PyImGui.set_tooltip("The time in seconds that a refrain should have remaining when the shout ends.\nValues lower than ping will result in dropped refrains.")
 
@@ -914,7 +911,7 @@ def MaintainRefrains(player_id, now):
     rit_lord = next((effect for effect in effects if effect.skill_id == GW.Skill.GetID("Ritual_Lord")), None)
 
     global cache
-    help_me_skill = GW.PySkill.Skill(GW.Skill.GetID("Help_Me"))
+    help_me_id = GW.PySkill.Skill(GW.Skill.GetID("Help_Me")).id.id
     heroic: GW.PyEffects.EffectType = None
     bladeturn: GW.PyEffects.EffectType = None
     aggressive: GW.PyEffects.EffectType = None
@@ -943,7 +940,7 @@ def MaintainRefrains(player_id, now):
         if effect.skill_id == GW.Skill.GetID("Mending_Refrain"):
             mending = effect
             continue
-        if effect.skill_id == help_me_skill.id.id:
+        if effect.skill_id == help_me_id:
             help_me = effect
             continue
         if effect.skill_id == GW.Skill.GetID("Dont_Trip"):
@@ -952,11 +949,15 @@ def MaintainRefrains(player_id, now):
         if effect.skill_id == GW.Skill.GetID("I_Am_Unstoppable"):
             iau = effect
             continue
+    if help_me is not None:
+        return
     refrains = [heroic, bladeturn, aggressive, burning, hasty, mending]
     refrains = [x for x in refrains if x is not None]
-    help_me_slot = GW.SkillBar.GetSlotBySkillID(help_me_skill.id.id)
+    help_me_slot = GW.SkillBar.GetSlotBySkillID(help_me_id)
     attributes: List[AttributeStruct] = GW.Agent.GetAttributes(player_id)
-    command = next((attr for attr in attributes if attr.attribute_id == GW.PyAgent.SafeAttribute.Command), None)
+    command = next((attr for attr in attributes if attr.name == "Command"), None)
+    # command = GW.Agent.GetAttributes(GW.Player.GetAgentID())
+    help_me_skill = GW.PySkill.Skill(help_me_id)
     if command is None:
         help_me_duration = help_me_skill.duration_0pts
     else:
@@ -965,31 +966,31 @@ def MaintainRefrains(player_id, now):
     dont_trip_slot = GW.SkillBar.GetSlotBySkillID(GW.Skill.GetID("Dont_Trip"))
     iau_slot = GW.SkillBar.GetSlotBySkillID(GW.Skill.GetID("I_Am_Unstoppable"))
     deld = GW.Player.GetTitle(GW.TitleID.Deldrimor)
-    if deld is None: return False
-    dont_trip_dur = 0
-    match deld.current_title_tier_index:
-        case 0: dont_trip_dur = 3
-        case 1: dont_trip_dur = 3
-        case 2: dont_trip_dur = 4
-        case 3: dont_trip_dur = 4
-        case _: dont_trip_dur = 5
+    dont_trip_dur = 5
+    if deld is not None:
+        match deld.current_title_tier_index:
+            case 0: dont_trip_dur = 3
+            case 1: dont_trip_dur = 3
+            case 2: dont_trip_dur = 4
+            case 3: dont_trip_dur = 4
+            case _: dont_trip_dur = 5
     norn = GW.Player.GetTitle(GW.TitleID.Norn)
-    if norn is None: return False
-    iau_dur = 0
-    match norn.current_title_tier_index:
-        case 0: iau_dur = 16
-        case 1: iau_dur = 17
-        case 2: iau_dur = 18
-        case 3: iau_dur = 18
-        case 4: iau_dur = 19
-        case _: iau_dur = 20
+    iau_dur = 20
+    if norn is not None:
+        match norn.current_title_tier_index:
+            case 0: iau_dur = 16
+            case 1: iau_dur = 17
+            case 2: iau_dur = 18
+            case 3: iau_dur = 18
+            case 4: iau_dur = 19
+            case _: iau_dur = 20
     if len(refrains) < 1: return False
-    lowest_dur :GW.PyEffects.EffectType = sorted(refrains, key= lambda effect: effect.time_remaining)[0]
-    lowest_dur = lowest_dur.time_remaining / 1000
+    lowest_dura : GW.PyEffects.EffectType = sorted(refrains, key= lambda effect: effect.time_remaining)[0]
+    lowest_dur = lowest_dura.time_remaining / 1000
     base_durations = [effect.duration for effect in refrains]
     base_durations = sorted(base_durations)
     if help_me_slot != 0:
-        if help_me is None and GW.Routines.Checks.Skills.IsSkillSlotReady(help_me_slot):
+        if GW.Routines.Checks.Skills.IsSkillSlotReady(help_me_slot):
             if lowest_dur > help_me_duration > lowest_dur - cache.refrain_buffer:
                 cache.busy_timer = cache.ezcast_cast_minimum_timer
                 GW.SkillBar.UseSkill(help_me_slot, 0)
