@@ -148,6 +148,8 @@ class SkillSourceLocation:
 _SKILL_SOURCE_INDEX: dict[int, SkillSourceLocation] = {}
 _condition_checkbox_state: dict[tuple[int, str], bool] = {}
 _condition_input_state: dict[tuple[int, str], str] = {}
+_condition_add_selection_state: dict[int, str] = {}
+_condition_add_value_state: dict[int, str] = {}
 
 
 class ConditionSummary:
@@ -163,6 +165,7 @@ class SkillEditSnapshot:
 		"slot",
 		"skill_id",
 		"name",
+		"texture_path",
 		"target",
 		"target_value",
 		"nature",
@@ -178,6 +181,7 @@ class SkillEditSnapshot:
 		slot: int,
 		skill_id: int,
 		name: str,
+		texture_path: Optional[str],
 		target: str,
 		target_value: Optional[int],
 		nature: str,
@@ -190,6 +194,7 @@ class SkillEditSnapshot:
 		self.slot = slot
 		self.skill_id = skill_id
 		self.name = name
+		self.texture_path = texture_path
 		self.target = target
 		self.target_value = target_value
 		self.nature = nature
@@ -535,6 +540,8 @@ def _reset_condition_editor_state(skill_id: int) -> None:
 	input_keys = [key for key in _condition_input_state if key[0] == skill_id]
 	for key in input_keys:
 		_condition_input_state.pop(key, None)
+	_condition_add_selection_state.pop(skill_id, None)
+	_condition_add_value_state.pop(skill_id, None)
 
 
 def _load_condition_block(skill_id: int) -> tuple[Optional[dict[str, Any]], str]:
@@ -1352,6 +1359,76 @@ def _format_condition_raw_value(value: Any) -> str:
 	return str(value)
 
 
+def _format_condition_literal(condition_name: str, value: Any) -> str:
+	default_value = DEFAULT_CONDITION_VALUES.get(condition_name)
+	if isinstance(default_value, list):
+		return _format_list_literal(value if isinstance(value, list) else default_value or [])
+	if isinstance(default_value, bool):
+		return "True" if bool(value) else "False"
+	if isinstance(default_value, float):
+		numeric = value if value is not None else default_value if default_value is not None else 0.0
+		return _format_numeric_literal(float(numeric), True)
+	if isinstance(default_value, int):
+		numeric = value if value is not None else default_value if default_value is not None else 0
+		return str(int(numeric))
+	return str(value)
+
+
+def _condition_default_input_value(condition_name: str) -> Any:
+	default_value = DEFAULT_CONDITION_VALUES.get(condition_name)
+	if isinstance(default_value, list):
+		return list(default_value)
+	if isinstance(default_value, bool):
+		return bool(default_value)
+	if isinstance(default_value, (float, int)):
+		return default_value
+	return ""
+
+
+def _apply_condition_value_generic(skill_id: int, condition_name: str, raw_value: Optional[Any]) -> None:
+	default_value = DEFAULT_CONDITION_VALUES.get(condition_name)
+	if isinstance(default_value, bool):
+		if isinstance(raw_value, bool):
+			desired = raw_value
+		else:
+			text = str(raw_value or "").strip().lower()
+			desired = text not in ("false", "0", "no", "off", "")
+		_apply_condition_bool_change(skill_id, condition_name, desired)
+		return
+	if isinstance(default_value, (int, float)):
+		_apply_condition_scalar_change(skill_id, condition_name, str(raw_value) if raw_value is not None else None)
+		return
+	if isinstance(default_value, list):
+		if isinstance(raw_value, list):
+			value_text = _format_list_input(raw_value)
+		else:
+			value_text = str(raw_value) if raw_value is not None else ""
+		_apply_condition_list_change(skill_id, condition_name, value_text)
+		return
+	Py4GW.Console.Log(
+		MODULE_NAME,
+		f"Condition {condition_name} not supported for editing.",
+		Py4GW.Console.MessageType.Warning,
+	)
+
+
+def _reset_condition_to_default(skill_id: int, condition_name: str) -> None:
+	default_value = DEFAULT_CONDITION_VALUES.get(condition_name)
+	if isinstance(default_value, bool):
+		_apply_condition_bool_change(skill_id, condition_name, default_value)
+		return
+	if isinstance(default_value, (int, float)):
+		_apply_condition_scalar_change(
+			skill_id,
+			condition_name,
+			_format_numeric_literal(default_value, isinstance(default_value, float)),
+		)
+		return
+	if isinstance(default_value, list):
+		_apply_condition_list_change(skill_id, condition_name, _format_list_input(default_value))
+		return
+
+
 def _resolve_attr(obj: Any, *names: str) -> Optional[Any]:
 	"""Return the first matching attribute value for the provided names."""
 	for name in names:
@@ -1687,6 +1764,7 @@ def _open_edit_window(row: SkillRow) -> None:
 		row.slot,
 		row.skill_id,
 		row.name,
+		row.texture_path,
 		row.target,
 		row.target_value,
 		row.nature,
@@ -1803,127 +1881,86 @@ def _render_skilltype_list(skill_id: int, selected_value: Optional[int], fallbac
 
 
 def _render_condition_list(skill_id: int, active_conditions: Set[str], condition_values: dict[str, Any]) -> None:
-	inner_flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
-	if not PyImGui.begin_table("##condition_inner_table", 4, inner_flags, 0, 0):
-		PyImGui.text_disabled("Conditions could not be loaded.")
-		return
-	PyImGui.table_setup_column("Condition", PyImGui.TableColumnFlags.WidthFixed, CONDITION_LIST_NAME_WIDTH)
-	PyImGui.table_setup_column("Active Value", PyImGui.TableColumnFlags.WidthFixed, CONDITION_LIST_VALUE_WIDTH)
-	PyImGui.table_setup_column("", PyImGui.TableColumnFlags.WidthFixed, CONDITION_LIST_CONTROL_WIDTH)
-	PyImGui.table_setup_column("", PyImGui.TableColumnFlags.WidthFixed, CONDITION_LIST_APPLY_WIDTH)
-	PyImGui.table_headers_row()
-	for condition_name in _CONDITION_OPTIONS:
-		default_value = DEFAULT_CONDITION_VALUES.get(condition_name)
-		PyImGui.table_next_row()
-		pretty = _prettify_name(condition_name)
-		current_value = condition_values.get(condition_name, default_value)
-		is_condition_active = _condition_changed(condition_name, current_value)
-		PyImGui.table_set_column_index(0)
-		PyImGui.selectable(
-			f"{pretty}##condition_option_{condition_name}",
-			is_condition_active,
-			PyImGui.SelectableFlags(0),
-			(0.0, 0.0),
-		)
-		effective_value = current_value if is_condition_active else default_value
-		PyImGui.table_set_column_index(1)
-		if is_condition_active:
-			PyImGui.text_colored(_format_condition_raw_value(effective_value), _ACTIVE_STATE_COLOR)
-		else:
-			PyImGui.text_disabled(_format_condition_raw_value(effective_value))
-		if condition_name in AREA_FIELDS:
-			if PyImGui.is_item_hovered():
-				PyImGui.begin_tooltip()
-				PyImGui.push_text_wrap_pos(520)
-				PyImGui.text_wrapped(_build_range_tooltip(effective_value))
-				PyImGui.pop_text_wrap_pos()
-				PyImGui.end_tooltip()
+	selected_condition = _condition_add_selection_state.get(skill_id)
+	if selected_condition not in _CONDITION_OPTIONS:
+		selected_condition = _CONDITION_OPTIONS[0]
+		_condition_add_selection_state[skill_id] = selected_condition
+	if skill_id not in _condition_add_value_state:
+		_condition_add_value_state[skill_id] = _condition_default_input_value(selected_condition)
 
-		bool_key: Optional[tuple[int, str]] = None
-		numeric_key: Optional[tuple[int, str]] = None
-		list_key: Optional[tuple[int, str]] = None
-		PyImGui.table_set_column_index(2)
-		if isinstance(default_value, bool):
-			bool_key = (skill_id, condition_name)
-			active_bool = current_value if isinstance(current_value, bool) else default_value
-			if isinstance(active_bool, bool):
-				current_bool = _condition_checkbox_state.get(bool_key)
-				if current_bool is None:
-					current_bool = active_bool
-					_condition_checkbox_state[bool_key] = current_bool
-				new_bool = PyImGui.checkbox(
-					f"##condition_bool_{condition_name}_{skill_id}",
-					current_bool,
-				)
-				if new_bool != current_bool:
-					_condition_checkbox_state[bool_key] = new_bool
-			else:
-				PyImGui.text_disabled("--")
-		elif isinstance(default_value, (int, float)):
-			numeric_key = (skill_id, condition_name)
-			active_numeric = current_value if current_value is not None else default_value
-			if active_numeric is None:
-				active_numeric = 0.0 if isinstance(default_value, float) else 0
-			current_text = _condition_input_state.get(numeric_key)
-			if current_text is None:
-				current_text = _format_numeric_literal(active_numeric, isinstance(default_value, float))
-				_condition_input_state[numeric_key] = current_text
-			control_width = max(CONDITION_LIST_CONTROL_WIDTH - 10, 60)
-			PyImGui.push_item_width(control_width)
-			changed, new_text = _input_text(
-				f"##condition_value_{condition_name}_{skill_id}",
-				current_text,
+	PyImGui.text("Aktive Conditions:")
+	if not active_conditions:
+		PyImGui.text("Keine Conditions aktiv.")
+	else:
+		for condition_name in sorted(active_conditions, key=str.lower):
+			effective_value = condition_values.get(condition_name, DEFAULT_CONDITION_VALUES.get(condition_name))
+			assignment = f"skill.Conditions.{condition_name} = {_format_condition_literal(condition_name, effective_value)}"
+			input_width = max(EDIT_POPUP_CONDITION_COLUMN_WIDTH - 110, 260)
+			PyImGui.push_item_width(input_width)
+			PyImGui.input_text(
+				f"##condition_line_{condition_name}_{skill_id}",
+				assignment,
+				PyImGui.InputTextFlags.ReadOnly,
 			)
 			PyImGui.pop_item_width()
-			if changed:
-				_condition_input_state[numeric_key] = new_text
-		elif isinstance(default_value, list):
-			list_key = (skill_id, condition_name)
-			active_list = current_value if current_value is not None else default_value
-			if active_list is None:
-				active_list = []
-			current_text = _condition_input_state.get(list_key)
-			if current_text is None:
-				current_text = _format_list_input(active_list)
-				_condition_input_state[list_key] = current_text
-			control_width = max(CONDITION_LIST_CONTROL_WIDTH - 10, 60)
-			PyImGui.push_item_width(control_width)
-			changed, new_text = _input_text(
-				f"##condition_list_{condition_name}_{skill_id}",
-				current_text,
-			)
-			PyImGui.pop_item_width()
-			if changed:
-				_condition_input_state[list_key] = new_text
-		else:
-			PyImGui.text_disabled("--")
-
-		PyImGui.table_set_column_index(3)
-		if bool_key is not None:
-			desired_value = _condition_checkbox_state.get(bool_key)
-			if desired_value is None and isinstance(default_value, bool):
-				desired_value = default_value
-			if desired_value is None:
-				PyImGui.text_disabled("--")
-			elif PyImGui.button(f"Apply##condition_apply_{condition_name}_{skill_id}"):
-				_apply_condition_bool_change(skill_id, condition_name, desired_value)
-		elif numeric_key is not None:
-			pending_value = _condition_input_state.get(numeric_key)
-			if PyImGui.button(f"Apply##condition_apply_{condition_name}_{skill_id}"):
-				_apply_condition_scalar_change(skill_id, condition_name, pending_value)
-		elif list_key is not None:
-			pending_list = _condition_input_state.get(list_key)
-			apply_clicked = PyImGui.button(f"Apply##condition_apply_{condition_name}_{skill_id}")
 			PyImGui.same_line(0, 6)
-			delete_clicked = PyImGui.button(f"Delete##condition_delete_{condition_name}_{skill_id}")
-			if apply_clicked:
-				_apply_condition_list_change(skill_id, condition_name, pending_list)
-			elif delete_clicked:
-				_condition_input_state[list_key] = ""
-				_apply_condition_list_change(skill_id, condition_name, "")
+			if PyImGui.button(f"Delete##condition_delete_{condition_name}_{skill_id}"):
+				_reset_condition_to_default(skill_id, condition_name)
+	PyImGui.spacing()
+	PyImGui.separator()
+	PyImGui.text("Neue Condition:")
+
+	if PyImGui.begin_combo("##condition_add_combo", selected_condition, 0):
+		for option in _CONDITION_OPTIONS:
+			is_active = option == selected_condition
+			if PyImGui.selectable(f"{option}##condition_add_option_{option}", is_active, PyImGui.SelectableFlags(0), (0.0, 0.0)):
+				_condition_add_selection_state[skill_id] = option
+				selected_condition = option
+				_condition_add_value_state[skill_id] = _condition_default_input_value(option)
+		PyImGui.end_combo()
+
+	current_add_value = _condition_add_value_state.get(skill_id, _condition_default_input_value(selected_condition))
+	default_value = DEFAULT_CONDITION_VALUES.get(selected_condition)
+
+	if isinstance(default_value, bool):
+		current_bool = bool(current_add_value)
+		new_bool = PyImGui.checkbox("##condition_add_value_bool", current_bool)
+		if new_bool != current_bool:
+			_condition_add_value_state[skill_id] = new_bool
+	elif isinstance(default_value, (int, float)):
+		is_range_counter = isinstance(default_value, int) and selected_condition.endswith("InRange")
+		if is_range_counter:
+			try:
+				current_int = int(current_add_value)
+			except Exception:
+				current_int = int(default_value)
+			new_int = PyImGui.slider_int("##condition_add_value_range", current_int, 1, 10)
+			if new_int != current_int:
+				_condition_add_value_state[skill_id] = new_int
 		else:
-			PyImGui.text_disabled("--")
-	PyImGui.end_table()
+			value_text = _format_numeric_literal(float(current_add_value), isinstance(default_value, float)) if current_add_value not in (None, "") else _format_numeric_literal(default_value, isinstance(default_value, float))
+			PyImGui.push_item_width(max(EDIT_POPUP_CONDITION_COLUMN_WIDTH - 20, 260))
+			changed, new_value_text = _input_text("##condition_add_value_numeric", value_text)
+			PyImGui.pop_item_width()
+			if changed:
+				_condition_add_value_state[skill_id] = new_value_text
+	elif isinstance(default_value, list):
+		value_text = _format_list_input(current_add_value if isinstance(current_add_value, list) else default_value)
+		PyImGui.push_item_width(max(EDIT_POPUP_CONDITION_COLUMN_WIDTH - 20, 260))
+		changed, new_value_text = _input_text("##condition_add_value_list", value_text)
+		PyImGui.pop_item_width()
+		if changed:
+			_condition_add_value_state[skill_id] = new_value_text
+	else:
+		value_text = str(current_add_value or "")
+		PyImGui.push_item_width(max(EDIT_POPUP_CONDITION_COLUMN_WIDTH - 20, 260))
+		changed, new_value_text = _input_text("##condition_add_value_text", value_text)
+		PyImGui.pop_item_width()
+		if changed:
+			_condition_add_value_state[skill_id] = new_value_text
+
+	if PyImGui.button("Condition hinzufügen"):
+		_apply_condition_value_generic(skill_id, selected_condition, _condition_add_value_state.get(skill_id))
 
 
 def _draw_edit_window() -> None:
@@ -1960,6 +1997,13 @@ def _draw_edit_window() -> None:
 		_edit_snapshot = None
 		PyImGui.end()
 		return
+	if _edit_snapshot.texture_path:
+		PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+		PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+		PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+		ImGui.ImageButton("##heroai_edit_icon", _edit_snapshot.texture_path, ICON_SIZE, ICON_SIZE)
+		PyImGui.pop_style_color(3)
+		PyImGui.same_line(0, 8)
 	PyImGui.text(f"Slot {_edit_snapshot.slot}")
 	PyImGui.text(f"Skill: {_edit_snapshot.name} (ID {_edit_snapshot.skill_id})")
 	PyImGui.text(f"Current Target: {_edit_snapshot.target}")
@@ -2023,7 +2067,7 @@ def _draw_skill_table(entries: List[SkillRow]) -> None:
 	flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
 	if PyImGui.begin_table("##HeroAiSkillTable", 5, flags, 0, 0):
 		PyImGui.table_setup_column("Slot", PyImGui.TableColumnFlags.WidthFixed, 24)
-		PyImGui.table_setup_column("Skill", PyImGui.TableColumnFlags.WidthFixed, 320)
+		PyImGui.table_setup_column("Skill", PyImGui.TableColumnFlags.WidthFixed, 200)
 		PyImGui.table_setup_column("Target / Nature / Type", PyImGui.TableColumnFlags.WidthFixed, 260)
 		PyImGui.table_setup_column("Conditions", PyImGui.TableColumnFlags.WidthStretch, 0)
 		PyImGui.table_setup_column("Action", PyImGui.TableColumnFlags.WidthFixed, 100)
@@ -2088,7 +2132,7 @@ def _draw_window() -> None:
 
 	PyImGui.spacing()
 	PyImGui.text_colored("Use with Caution: Modifying skill conditions can lead to unintended consequences. Always review changes before applying.", Color(255, 0, 0, 255).to_tuple_normalized())
-	PyImGui.text_colored("You need to reload the widgets to apply changes to HeroAI", Color(255, 0, 0, 255).to_tuple_normalized())
+
 
 	window_module.process_window()
 	window_module.end()
