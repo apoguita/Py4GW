@@ -53,11 +53,9 @@ MourningVeilFalls = [
     (16624.41, 1737.03)
 ]
 
-MourningVeilFalls_outpost_path = [
-    (-9715, -3376), (-11645, -5155), (-12065, -7488), (-13751.78, -7651.70), (-14045.97, -7854.88), 
-]
+MourningVeilFalls_outpost_path = [(-182,223), (-39,2572), (-4144,4036), (-4637,4991)]
 
 MourningVeilFalls_ids = {
-    "outpost_id": 298,
-    "map_id": 205
+    "outpost_id": 230,
+    "map_id": 209
 }

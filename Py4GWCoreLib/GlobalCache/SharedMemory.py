@@ -152,195 +152,75 @@ class Py4GWSharedMemoryManager:
 
      
     #region GetAllActivePlayers   
-    def GetAllActivePlayers(self) -> list[AccountStruct]:
-        """Get all active players in shared memory."""
-        return self.GetAllAccounts().GetAllActivePlayers()
-    
-    def GetNumActivePlayers(self) -> int:
-        """Get the number of active players in shared memory."""
-        return self.GetAllAccounts().GetNumActivePlayers()
-    
     def GetNumActiveSlots(self) -> int:
         """Get the number of active slots in shared memory."""
         return self.GetAllAccounts().GetNumActiveSlots()
         
     def GetAllActiveSlotsData(self) -> list[AccountStruct]:
         """Get all active slot data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
-        accs : list[AccountStruct] = []
-        for i in range(self.max_num_players):
-            acc = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i):
-                accs.append(acc)
-
-        # Sort by PartyID, then PartyPosition, then PlayerLoginNumber, then CharacterName
-        accs.sort(key=lambda p: (
-            p.AgentData.Map.MapID,
-            p.AgentData.Map.Region,
-            p.AgentData.Map.District,
-            p.AgentData.Map.Language,
-            p.AgentPartyData.PartyID,
-            p.AgentPartyData.PartyPosition,
-            p.AgentData.LoginNumber,
-            p.AgentData.CharacterName
-        ))
-
-        return accs
+        return self.GetAllAccounts().GetAllActiveSlotsData()
     
     def GetAllAccountData(self) -> list[AccountStruct]:
         """Get all player data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
-        players : list[AccountStruct] = []
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i) and player.IsAccount:
-                players.append(player)
-
-        # Sort by PartyID, then PartyPosition, then PlayerLoginNumber, then CharacterName
-        players.sort(key=lambda p: (
-            p.AgentData.Map.MapID,
-            p.AgentData.Map.Region,
-            p.AgentData.Map.District,
-            p.AgentData.Map.Language,
-            p.AgentPartyData.PartyID,
-            p.AgentPartyData.PartyPosition,
-            p.AgentData.LoginNumber,
-            p.AgentData.CharacterName
-        ))
-
-        return players
+        return self.GetAllAccounts().GetAllActivePlayers()
+    
+    def GetNumActivePlayers(self) -> int:
+        """Get the number of active players in shared memory."""
+        return self.GetAllAccounts().GetNumActivePlayers()
     
     def GetAccountDataFromEmail(self, account_email: str, log : bool = False) -> AccountStruct | None:
         """Get player data for the account with the given email."""
         if not account_email: return None
         acc = self.GetAllAccounts().GetAccountDataFromEmail(account_email)
-        
-        if acc:
-            return acc
-        else:
-            ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
-            return None
+        if acc: return acc
+        ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
+        return None
      
     def GetAccountDataFromPartyNumber(self, party_number: int, log : bool = False) -> AccountStruct | None:
         """Get player data for the account with the given party number."""
         acc = self.GetAllAccounts().GetAccountDataFromPartyNumber(party_number)
-        if acc:
-            return acc
-        
+        if acc: return acc
         ConsoleLog(SHMEM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error, log = False)
         return None
     
-    def HasEffect(self, account_email: str, effect_id: int) -> bool:
+    def AccountHasEffect(self, account_email: str, effect_id: int) -> bool:
         """Check if the account with the given email has the specified effect."""
-        if effect_id == 0:
-            return False
-        
-        player = self.GetAccountDataFromEmail(account_email)
-        if player:
-            for buff in player.AgentData.Buffs.Buffs:
-                if buff.SkillId == effect_id:
-                    return True
-        return False
+        return self.GetAllAccounts().AccountHasEffect(account_email, effect_id)
     
+    #region HeroAI
     def GetAllAccountHeroAIOptions(self) -> list[HeroAIOptionStruct]:
         """Get HeroAI options for all accounts."""
-        options = []
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i) and player.IsAccount:
-                options.append(self.GetAllAccounts().HeroAIOptions[i])
-        return options
-        
-    def GetHeroAIOptions(self, account_email: str) -> HeroAIOptionStruct | None:
-        """Get HeroAI options for the account with the given email."""
-        if not account_email:
-            return None
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
-            return self.GetAllAccounts().HeroAIOptions[index]
-        else:
-            ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
-            return None
-        
-    def GetGerHeroAIOptionsByPartyNumber(self, party_number: int) -> HeroAIOptionStruct | None:
-        """Get HeroAI options for the account with the given party number."""
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i) and player.AgentPartyData.PartyPosition == party_number:
-                return self.GetAllAccounts().HeroAIOptions[i]
-        return None    
-        
-        
-    def SetHeroAIOptions(self, account_email: str, options: HeroAIOptionStruct):
-        """Set HeroAI options for the account with the given email."""
-        if not account_email:
-            return
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
-            self.GetAllAccounts().HeroAIOptions[index] = options
-        else:
-            ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
+        return self.GetAllAccounts().GetAllAccountHeroAIOptions()
     
-    def SetHeroAIProperty(self, account_email: str, property_name: str, value):
+    def GetHeroAIOptionsFromEmail(self, account_email: str) -> HeroAIOptionStruct | None:
+        """Get HeroAI options for the account with the given email."""
+        return self.GetAllAccounts().GetHeroAIOptionsFromEmail(account_email)
+        
+    def GetHeroAIOptionsByPartyNumber(self, party_number: int) -> HeroAIOptionStruct | None:
+        """Get HeroAI options for the account with the given party number."""
+        return self.GetAllAccounts().GetHeroAIOptionsByPartyNumber(party_number)
+        
+    def SetHeroAIOptionsByEmail(self, account_email: str, options: HeroAIOptionStruct):
+        """Set HeroAI options for the account with the given email."""
+        return self.GetAllAccounts().SetHeroAIOptionsByEmail(account_email, options)
+    
+    def SetHeroAIPropertyByEmail(self, account_email: str, property_name: str, value):
         """Set a specific HeroAI property for the account with the given email."""
-        if not account_email:
-            return
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
-            options = self.GetAllAccounts().HeroAIOptions[index]
-            
-            if property_name.startswith("Skill_"):
-                skill_index = int(property_name.split("_")[1])
-                if 0 <= skill_index < SHMEM_MAX_NUMBER_OF_SKILLS:
-                    options.Skills[skill_index] = value
-                else:
-                    ConsoleLog(SHMEM_MODULE_NAME, f"Invalid skill index: {skill_index}.", Py4GW.Console.MessageType.Error)
-                return
-            
-            if hasattr(options, property_name):
-                setattr(options, property_name, value)
-            else:
-                ConsoleLog(SHMEM_MODULE_NAME, f"Property {property_name} does not exist in HeroAIOptions.", Py4GW.Console.MessageType.Error)
-        else:
-            ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
+        return self.GetAllAccounts().SetHeroAIPropertyByEmail(account_email, property_name, value)
     
     def GetMapsFromPlayers(self):
         """Get a list of unique maps from all active players."""
-        maps = set()
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if self.GetAllAccounts()._is_slot_active(i) and player.IsAccount:
-                maps.add((player.AgentData.Map.MapID, player.AgentData.Map.Region, player.AgentData.Map.District, player.AgentData.Map.Language))
-        return list(maps)
+        return self.GetAllAccounts().GetMapsFromPlayers()
     
     def GetPartiesFromMaps(self, map_id: int, map_region: int, map_district: int, map_language: int):
         """
         Get a list of unique PartyIDs for players in the specified map/region/district.
         """
-        parties = set()
-        for i in range(self.max_num_players):
-            player = self.GetAllAccounts().AccountData[i]
-            if (self.GetAllAccounts()._is_slot_active(i) and player.IsAccount and
-                player.AgentData.Map.MapID == map_id and
-                player.AgentData.Map.Region == map_region and
-                player.AgentData.Map.District == map_district and
-                player.AgentData.Map.Language == map_language):
-                parties.add(player.AgentPartyData.PartyID)
-        return list(parties)
+        return self.GetAllAccounts().GetPartiesFromMaps(map_id, map_region, map_district, map_language)
 
-    
     def GetPlayersFromParty(self, party_id: int, map_id: int, map_region: int, map_district: int, map_language: int):
         """Get a list of players in a specific party on a specific map."""
-        players = []
-        all_accounts = self.GetAllAccounts()
-        for i in range(self.max_num_players):
-            account_data = all_accounts.AccountData[i]
-            if (all_accounts._is_slot_active(i) and account_data.IsAccount and
-                account_data.AgentData.Map.MapID == map_id and
-                account_data.AgentData.Map.Region == map_region and
-                account_data.AgentData.Map.District == map_district and
-                account_data.AgentData.Map.Language == map_language and
-                account_data.AgentPartyData.PartyID == party_id):
-                players.append(account_data)
-        return players
+        return self.GetAllAccounts().GetPlayersFromParty(party_id, map_id, map_region, map_district, map_language)
     
     def GetHeroesFromPlayers(self, owner_player_id: int) -> list[AccountStruct]:
         """Get a list of heroes owned by the specified player."""
@@ -383,6 +263,25 @@ class Py4GWSharedMemoryManager:
     def MarkMessageAsFinished(self, account_email: str, message_index: int):
         """Mark a specific message as finished."""
         return self.GetAllAccounts().MarkMessageAsFinished(account_email, message_index)
-
-            
     
+    #region Callback
+    def update_callback(self):
+        """Callback function to update shared memory data."""
+        self.SetPlayerData(Player.GetAccountEmail())
+        self.SetHeroesData()
+        self.SetPetData()
+        
+        
+    @staticmethod
+    def enable():
+        import PyCallback
+        Callback_name = "SharedMemory.Update"
+        PyCallback.PyCallback.Register(
+            Callback_name,
+            PyCallback.Phase.Data,
+            Py4GWSharedMemoryManager().update_callback,
+            priority=99
+        )
+
+
+Py4GWSharedMemoryManager.enable()
