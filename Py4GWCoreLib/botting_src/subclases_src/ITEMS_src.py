@@ -147,6 +147,9 @@ class _ITEMS:
 
         def BirthdayCupcake(self):
             self._helpers.Restock.restock_birthday_cupcake()
+        
+        def CandyApple(self):
+            self._helpers.Restock.restock_candy_apple()
 
         def Honeycomb(self):
             self._helpers.Restock.restock_honeycomb()

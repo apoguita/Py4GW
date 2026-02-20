@@ -2,7 +2,7 @@
 from .Context import GWContext
 from .native_src.methods.MapMethods import MapMethods
 from .native_src.context.MapContext import (
-    PathingMap, PathingMapStruct, PathingTrapezoid,
+    PathingMap, PathingMapStruct, PathingTrapezoid, SpawnPoint, TravelPortal,
 )
 from .native_src.context.InstanceInfoContext import AreaInfoStruct
 from .native_src.context.AvailableCharacterContext import AvailableCharacterStruct
@@ -699,18 +699,8 @@ class Map:
         """Retrieve the map boundaries of the current map."""
         if not (map_ctx := GWContext.Map.GetContext()):
             return 0.0, 0.0, 0.0, 0.0
-        
-        boundaries = map_ctx.map_boundaries
-        
-        if len(boundaries) < 5:
-            return 0.0, 0.0, 0.0, 0.0  # Optional: fallback for safety
 
-        min_x = boundaries[1]
-        min_y = boundaries[2]
-        max_x = boundaries[3]
-        max_y = boundaries[4]
-
-        return min_x, min_y, max_x, max_y
+        return map_ctx.start_pos.x, map_ctx.start_pos.y, map_ctx.end_pos.x, map_ctx.end_pos.y
         
     #region Functions
     @staticmethod
@@ -2024,16 +2014,19 @@ class Map:
 #region not_processed
     #region Pathing
     class Pathing:
-        _live_map_id: int = 0  # last game map we cached live data for
 
         @staticmethod
-        def GetPathingMaps() -> List[PathingMap]:
-            from .native_src.context.MapContext import MapContext
-            from .Routines import Checks
-            if not Checks.Map.MapValid():
-                return []
-            return MapContext.GetPathingMaps()
-        
+        def GetPathingMaps(map_id: Optional[int] = None) -> List[PathingMap]:
+            """Get pathing maps. None = live from current map, else offline (cached)."""
+            if map_id is None:
+                from .native_src.context.MapContext import MapContext
+                from .Routines import Checks
+                if not Checks.Map.MapValid():
+                    return []
+                return MapContext.GetPathingMaps()
+            from .native_src.methods.FfnaMapMethods import FfnaMapMethods
+            return FfnaMapMethods.GetPathingMapsForMap(map_id)
+
         @staticmethod
         def GetPathingMapsRaw() -> List[PathingMapStruct]:
             from .native_src.context.MapContext import MapContext
@@ -2043,49 +2036,34 @@ class Map:
             return MapContext.GetPathingMapsRaw()
 
         @staticmethod
-        def GetPathingMapsForMap(map_id: int) -> List[PathingMap]:
-            """Get pathing for any map (synchronous).
-
-            For the current game map, returns live data (authoritative).
-            For other maps, reads offline dat data.  Results are cached
-            so subsequent calls return the same object reference.
-            """
-            from .native_src.methods.PathingMethods import PathingMethods
-
-            current_game_map = Map.GetMapID()
-
-            # When the game map changes, invalidate the cache for the new
-            # map so live data is read fresh instead of returning stale
-            # dat or previous-instance data.
-            if current_game_map != 0 and current_game_map != Map.Pathing._live_map_id:
-                Map.Pathing._live_map_id = current_game_map
-                PathingMethods.ClearCache(current_game_map)
-
-            # Live data is authoritative for the current map (outpost/explorable
-            # variants share dat file_ids, so dat data may not match).
-            # Cache the result so subsequent frames return the same reference.
-            if map_id == current_game_map:
-                cached = PathingMethods._cache.get(map_id)
-                if cached:
-                    return cached
-                result = Map.Pathing.GetPathingMaps()
-                if result:
-                    PathingMethods.CacheResult(map_id, result)
-                    return result
-
-            return PathingMethods.GetPathingMapsForMap(map_id)
-
-        @staticmethod
-        def ClearPathingCache(map_id: int = None) -> None:
+        def ClearPathingCache(map_id: Optional[int] = None) -> None:
             """Clear cached pathing data."""
-            from .native_src.methods.PathingMethods import PathingMethods
-            PathingMethods.ClearCache(map_id)
+            from .native_src.methods.FfnaMapMethods import FfnaMapMethods
+            FfnaMapMethods.ClearCache(map_id)
 
         @staticmethod
         def GetAvailableMapIds() -> set[int]:
             """Return the set of map IDs that offline pathing can be loaded for."""
-            from .native_src.methods.PathingMethods import PathingMethods
-            return PathingMethods.GetAvailableMapIds()
+            from .native_src.methods.FfnaMapMethods import FfnaMapMethods
+            return FfnaMapMethods.GetAvailableMapIds()
+
+        @staticmethod
+        def GetSpawns(map_id: Optional[int] = None) -> tuple[list[SpawnPoint], list[SpawnPoint], list[SpawnPoint]]:
+            """Get (spawns1, spawns2, spawns3). None = live, else offline (cached)."""
+            if map_id is None:
+                from .native_src.context.MapContext import MapContext
+                return MapContext.GetSpawns()
+            from .native_src.methods.FfnaMapMethods import FfnaMapMethods
+            return FfnaMapMethods.GetSpawnData(map_id)
+
+        @staticmethod
+        def GetTravelPortals(map_id: Optional[int] = None) -> list[TravelPortal]:
+            """Get travel portal positions. None = live from runtime props, else offline (cached)."""
+            if map_id is None:
+                from .native_src.context.MapContext import MapContext
+                return MapContext.GetTravelPortals()
+            from .native_src.methods.FfnaMapMethods import FfnaMapMethods
+            return FfnaMapMethods.GetTravelPortalsForMap(map_id)
 
         @staticmethod
         def WorldToScreen(x: float, y: float, z: float = 0.0) -> tuple[float, float]:

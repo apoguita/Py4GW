@@ -212,7 +212,7 @@ class CacheData:
                 self.party.update()
                 
                 self.account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self.account_email) or self.account_data
-                self.account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(self.account_email) or self.account_options
+                self.account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(self.account_email) or self.account_options
                 
                 if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
                     self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
