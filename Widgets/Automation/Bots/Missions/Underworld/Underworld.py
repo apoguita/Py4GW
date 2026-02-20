@@ -176,7 +176,7 @@ def bot_routine(bot: Botting):
     Clear_the_Chamber(bot)
     _enqueue_section(bot, "RestoreVale", "Restore Vale", Restore_Vale)
     _enqueue_section(bot, "WrathfullSpirits", "Wrathfull Spirits", Wrathfull_Spirits)
-    _enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
+    #_enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
     _enqueue_section(bot, "UnwantedGuests", "Unwanted Guests", Unwanted_Guests)
     _enqueue_section(bot, "RestoreWastes", "Restore Wastes", Restore_Wastes)
     _enqueue_section(bot, "ServantsOfGrenth", "Servants of Grenth", Servants_of_Grenth)
@@ -366,7 +366,6 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
         bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
-        #bot_instance.Party.FlagAllHeroes(2559, 20301)
         SERVANTS_OF_GRENTH_FLAG_POINTS = [
             (2559, 20301),
             (3032, 20148),
@@ -376,7 +375,10 @@ def Servants_of_Grenth(bot_instance: Botting):
             (3691, 19979),
             (2039, 20175),
             ]
-        HERO_FLAG_POINTS = (SERVANTS_OF_GRENTH_FLAG_POINTS * 2)[:8]
+        bot_instance.States.AddCustomState(
+            lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+            "Clear Flags",
+        )
         bot_instance.States.AddCustomState(
             lambda: _auto_assign_flag_emails(),
             "Set Flag",
@@ -386,20 +388,21 @@ def Servants_of_Grenth(bot_instance: Botting):
                 lambda i=idx, x=flag_x, y=flag_y: _set_flag_position(i, x, y),
                 f"Set Flag {idx}",
             )
-        for hero_idx, (flag_x, flag_y) in enumerate(HERO_FLAG_POINTS, start=0):
+        def _flag_hero_by_party_pos(party_pos: int, x: float, y: float) -> None:
+            agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(party_pos)
+            if agent_id:
+                GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
+
+        hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        for hero_idx, (flag_x, flag_y) in enumerate(SERVANTS_OF_GRENTH_FLAG_POINTS[:hero_count], start=1):
             bot_instance.States.AddCustomState(
-                lambda h=hero_idx, x=flag_x, y=flag_y: bot_instance.Party.FlagHero(h, x, y),
-                f"Flag Hero {hero_idx + 1}",
+                lambda h=hero_idx, x=flag_x, y=flag_y: _flag_hero_by_party_pos(h, x, y),
+                f"Flag Hero {hero_idx}",
             )
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
-        bot_instance.States.AddCustomState(
-            lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
-            "Clear Flags",
-        )
-        
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
@@ -408,6 +411,14 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
         bot_instance.Party.UnflagAllHeroes()
+        bot_instance.Party.FlagAllHeroes(3032, 20148)
+        bot_instance.Party.UnflagAllHeroes()
+        bot_instance.Wait.ForTime(5000)
+        bot_instance.Party.UnflagAllHeroes()
+        bot_instance.States.AddCustomState(
+            lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+            "Clear Flags",
+        )
         bot_instance.Wait.ForTime(10000)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
