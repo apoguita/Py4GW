@@ -90,6 +90,7 @@ from .Context import GWContext
 from .CombatEvents import CombatEvents
 from .IniManager import IniManager
 
+from .py4gwcorelib_src.Profiling import ProfilingRegistry, SimpleProfiler
 from .py4gwcorelib_src.WidgetManager import WidgetHandler, Widget
 
 traceback = traceback
@@ -126,6 +127,8 @@ GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
 IconsFontAwesome5 = IconsFontAwesome5
 IniManager = IniManager
+ProfilingRegistry = ProfilingRegistry
+SimpleProfiler = SimpleProfiler
 WidgetHandler = WidgetHandler
 Widget = Widget
 
