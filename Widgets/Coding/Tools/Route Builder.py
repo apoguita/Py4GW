@@ -79,6 +79,9 @@ class RouteBuilderWidget:
     COLOR_CONNECTOR = Color(120, 150, 220, 160)
     COLOR_NAVMESH_PRIMARY = Color(130, 130, 130, 255)
     COLOR_NAVMESH_SECONDARY = Color(120, 60, 140, 255)
+    COLOR_PORTAL = Color(100, 200, 255, 220)
+    COLOR_SPAWN = Color(220, 180, 60, 200)
+    COLOR_SPAWN_DEFAULT = Color(80, 200, 130, 200)
 
     def __init__(self):
         # Canvas state
@@ -96,6 +99,11 @@ class RouteBuilderWidget:
         self.map_name = Map.GetMapName(self.map_id)
         self.pathing_map = []
         self.quad_cache = {}
+        self._portals: list = []    # list[TravelPortal]
+        self._spawns: list = []     # list[SpawnPoint] (all groups merged)
+        self._show_portals = True
+        self._show_spawns = False
+        self._loaded_map_id: int | None = None  # map id whose data is currently loaded
 
         # Map selector state
         self._build_map_selector()
@@ -144,10 +152,11 @@ class RouteBuilderWidget:
         _frame_pad_x = _style.FramePadding[0]
         _item_spacing_x = _style.ItemSpacing[0]
         self._lbl_x_w = PyImGui.calc_text_size("X")[0] + _item_spacing_x
-        _import_label = f"{Icons.ICON_PASTE} Import from Clipboard##import"
-        _export_label = f"{Icons.ICON_COPY} Export to Clipboard##export"
-        self._import_btn_w = PyImGui.calc_text_size(_import_label)[0] + _frame_pad_x * 2
-        self._export_btn_w = PyImGui.calc_text_size(_export_label)[0] + _frame_pad_x * 2
+        # Measure visible text only (exclude ##id suffix)
+        _import_visible = f"{Icons.ICON_PASTE} Import from Clipboard"
+        _export_visible = f"{Icons.ICON_COPY} Export to Clipboard"
+        self._import_btn_w = PyImGui.calc_text_size(_import_visible)[0] + _frame_pad_x * 2
+        self._export_btn_w = PyImGui.calc_text_size(_export_visible)[0] + _frame_pad_x * 2
 
     # region Selection
 
@@ -741,6 +750,8 @@ class RouteBuilderWidget:
         self.map_name = Map.GetMapName(new_map_id)
         self.pathing_map = []
         self.quad_cache = {}
+        self._portals = []
+        self._spawns = []
         self.waypoints.clear()
         self._clear_selection()
         self.zoom_factor = 1.0
@@ -774,6 +785,12 @@ class RouteBuilderWidget:
         else:
             PyImGui.text(f"{self.map_name} ({self.map_id})")
 
+        # Portals / Spawns toggles
+        PyImGui.same_line(0, 12)
+        self._show_portals = PyImGui.checkbox(f"{Icons.ICON_LOCATION_DOT} Portals##toggleportals", self._show_portals)
+        PyImGui.same_line(0, 8)
+        self._show_spawns = PyImGui.checkbox(f"{Icons.ICON_LOCATION_DOT} Spawns##togglespawns", self._show_spawns)
+
         # Import / Export buttons — right-justified
         import_label = f"{Icons.ICON_PASTE} Import from Clipboard##import"
         export_label = f"{Icons.ICON_COPY} Export to Clipboard##export"
@@ -793,7 +810,7 @@ class RouteBuilderWidget:
         if PyImGui.button(export_label, export_w):
             if self.waypoints:
                 coords = [(wp.x, wp.y) for wp in self.waypoints]
-                text = "[" + ", ".join(f"({x:.0f},{y:.0f})" for x, y in coords) + "]"
+                text = "[\n" + "\n".join(f"    ({x:.0f},{y:.0f})," for x, y in coords) + "\n]"
                 PyImGui.set_clipboard_text(text)
         if PyImGui.is_item_hovered():
             PyImGui.begin_tooltip()
@@ -832,8 +849,11 @@ class RouteBuilderWidget:
                     color = self.COLOR_NAVMESH_PRIMARY if idx == 0 else self.COLOR_NAVMESH_SECONDARY
                     self._draw_trapezoids(idx, layer, clip_rect, color)
 
+                self._draw_portals_on_canvas(origin)
+                self._draw_spawns_on_canvas(origin)
                 self._draw_waypoints_on_canvas(origin)
                 self._draw_player_on_canvas(origin)
+                self._draw_marker_tooltips(origin)
                 self._draw_hover_tooltip(origin)
             PyImGui.end_child()
 
@@ -1017,6 +1037,72 @@ class RouteBuilderWidget:
         except Exception as e:
             Py4GW.Console.Log(MODULE_NAME, f"Player draw error: {e}", Py4GW.Console.MessageType.Debug)
 
+    def _draw_pin(self, sx: float, sy: float, color: int) -> None:
+        """Draw a map-pin icon centered at (sx, sy)."""
+        icon = Icons.ICON_LOCATION_DOT
+        w, h = PyImGui.calc_text_size(icon)
+        PyImGui.draw_list_add_text(sx - w / 2, sy - h, color, icon)
+
+    def _draw_portals_on_canvas(self, child_pos: tuple) -> None:
+        if not self._portals or not self._show_portals:
+            return
+        c = self.COLOR_PORTAL.to_color()
+        for p in self._portals:
+            sx, sy = self._scale_coords(p.x, p.y, self.canvas_w, self.canvas_h)
+            self._draw_pin(sx + child_pos[0], sy + child_pos[1], c)
+
+    def _draw_spawns_on_canvas(self, child_pos: tuple) -> None:
+        if not self._spawns or not self._show_spawns:
+            return
+        c_spawn = self.COLOR_SPAWN.to_color()
+        c_default = self.COLOR_SPAWN_DEFAULT.to_color()
+        for sp in self._spawns:
+            sx, sy = self._scale_coords(sp.x, sp.y, self.canvas_w, self.canvas_h)
+            color = c_default if sp.is_default else c_spawn
+            self._draw_pin(sx + child_pos[0], sy + child_pos[1], color)
+
+    def _draw_marker_tooltips(self, child_pos: tuple) -> None:
+        """Show tooltip when hovering near a portal or spawn pin."""
+        io = PyImGui.get_io()
+        mx, my = io.mouse_pos_x, io.mouse_pos_y
+        icon_w, icon_h = PyImGui.calc_text_size(Icons.ICON_LOCATION_DOT)
+        hit_r = max(icon_w, icon_h) * 0.6
+
+        # Portal tooltips
+        if self._portals and self._show_portals:
+            for p in self._portals:
+                sx, sy = self._scale_coords(p.x, p.y, self.canvas_w, self.canvas_h)
+                sx += child_pos[0]
+                sy += child_pos[1] - icon_h * 0.5
+                dx, dy = mx - sx, my - sy
+                if dx * dx + dy * dy <= hit_r * hit_r:
+                    PyImGui.begin_tooltip()
+                    PyImGui.text(f"Portal ({p.x:.0f}, {p.y:.0f})")
+                    PyImGui.end_tooltip()
+                    return
+
+        # Spawn tooltips
+        if self._spawns and self._show_spawns:
+            for sp in self._spawns:
+                sx, sy = self._scale_coords(sp.x, sp.y, self.canvas_w, self.canvas_h)
+                sx += child_pos[0]
+                sy += child_pos[1] - icon_h * 0.5
+                dx, dy = mx - sx, my - sy
+                if dx * dx + dy * dy <= hit_r * hit_r:
+                    PyImGui.begin_tooltip()
+                    PyImGui.text(f"({sp.x:.0f}, {sp.y:.0f})")
+                    if sp.tag:
+                        PyImGui.text(f"Tag: {sp.tag}")
+                        if sp.map_id is not None:
+                            name = Map.GetMapName(sp.map_id)
+                            PyImGui.text(f"Zone: {name} ({sp.map_id})")
+                    if sp.is_default:
+                        PyImGui.text("Default spawn")
+                    if sp.angle != 0.0:
+                        PyImGui.text(f"Angle: {sp.angle:.2f} rad")
+                    PyImGui.end_tooltip()
+                    return
+
     def _draw_hover_tooltip(self, child_pos: tuple) -> None:
         if 0 <= self.hovered_wp_index < len(self.waypoints) and self.interaction == InteractionState.IDLE:
             wp = self.waypoints[self.hovered_wp_index]
@@ -1197,10 +1283,16 @@ class RouteBuilderWidget:
             self.player_pos = None
             return
 
-        # Load pathing (sync dat read with live fallback for current map)
-        layers = Map.Pathing.GetPathingMapsForMap(self.map_id)
-        if layers and layers is not self.pathing_map:
-            self._apply_pathing(layers)
+        # Load pathing: None = live from current map, else offline (cached)
+        if self._loaded_map_id != self.map_id:
+            mid = None if self.map_id == self._game_map_id else self.map_id
+            layers = Map.Pathing.GetPathingMaps(mid)
+            if layers:
+                self._apply_pathing(layers)
+                self._portals = Map.Pathing.GetTravelPortals(mid)
+                s1, s2, s3 = Map.Pathing.GetSpawns(mid)
+                self._spawns = s1 + s2 + s3
+                self._loaded_map_id = self.map_id
 
         # Cache player position
         try:
@@ -1213,7 +1305,11 @@ class RouteBuilderWidget:
         # Track game map (no auto-switch — user controls dropdown)
         current_id = Map.GetMapID()
         if current_id != 0 and current_id != self._game_map_id:
+            old_game_id = self._game_map_id
             self._game_map_id = current_id
+            # Force reload if we were viewing the old game map (live data is stale)
+            if self.map_id == old_game_id:
+                self._loaded_map_id = None
             # Reload live navmesh for the new game map
             self.navmesh = None
             self._load_navmesh_object()
