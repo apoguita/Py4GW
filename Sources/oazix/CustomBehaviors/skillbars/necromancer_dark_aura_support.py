@@ -18,7 +18,9 @@ from Sources.oazix.CustomBehaviors.skills.generic.generic_resurrection_utility i
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Sources.oazix.CustomBehaviors.skills.monk.strength_of_honor_utility import StrengthOfHonorUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_bond_utility import BloodBondUtility
+from Sources.oazix.CustomBehaviors.skills.necromancer.blood_is_power_utility import BloodIsPowerUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.dark_aura_utility import DarkAuraUtility
+from Sources.oazix.CustomBehaviors.skills.necromancer.foul_feast_utility import FoulFeastUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 
@@ -32,11 +34,15 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
         # core skills
         self.soul_taker_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Soul_Taker"), current_build=in_game_build, score_definition=ScoreStaticDefinition(90))
         self.masochism_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Masochism"), current_build=in_game_build, score_definition=ScoreStaticDefinition(89))
+
         self.dark_aura: CustomSkillUtilityBase = DarkAuraUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(80), current_build=in_game_build, mana_required_to_cast=10)
 
 
         # optional
-        self.great_dwarf_weapon_utility: CustomSkillUtilityBase = GreatDwarfWeaponUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(30))
+        self.great_dwarf_weapon_utility: CustomSkillUtilityBase = GreatDwarfWeaponUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=15, score_definition=ScoreStaticDefinition(51))
+        self.blood_is_power_utility: CustomSkillUtilityBase = BloodIsPowerUtility(event_bus=self.event_bus, current_build=in_game_build, sacrifice_life_limit_percent=0.55, required_target_mana_lower_than_percent=0.30,  score_definition=ScoreStaticDefinition(50))
+        self.foul_feast_utility: CustomSkillUtilityBase = FoulFeastUtility(event_bus=self.event_bus, skill=CustomSkill("Foul_Feast"), current_build=in_game_build, mana_required_to_cast=15, score_definition=ScoreStaticDefinition(49)) # let's keep 15 mana to not be out of mana spamming it
+
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
         self.blood_bond_utility: CustomSkillUtilityBase = BloodBondUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 25 if enemy_qte >= 2 else 0), mana_required_to_cast=15)
 
@@ -55,9 +61,11 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
+            self.blood_is_power_utility,
             self.great_dwarf_weapon_utility,
             self.breath_of_the_great_dwarf_utility,
             self.blood_bond_utility,
+            self.foul_feast_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
             self.i_am_unstopabble,
@@ -77,4 +85,5 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
             self.dark_aura.custom_skill,
+            self.foul_feast_utility.custom_skill,
         ]
