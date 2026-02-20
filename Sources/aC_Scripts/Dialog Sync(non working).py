@@ -86,9 +86,9 @@ last_processed_lts  = 0.0     # last processed timestamp for position
 def get_email_for_agent(agent_id: int) -> str | None:
     """
     SharedMemory does not expose GetAccountDataFromAgentID, so we iterate
-    over GetAllActivePlayers and match PlayerID → agent_id.
+    over GetAllAccountData and match PlayerID → agent_id.
     """
-    for account in GLOBAL_CACHE.ShMem.GetAllActivePlayers():
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
         if int(account.AgentData.AgentID) == agent_id:
             return account.AccountEmail
     return None

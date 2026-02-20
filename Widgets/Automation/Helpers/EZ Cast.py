@@ -13,8 +13,10 @@ from Py4GWCoreLib import Color, ImGui
 import Py4GWCoreLib as GW
 from Py4GWCoreLib.native_src.context.WorldContext import AttributeStruct
 import time
-from typing import List
+from typing import List, Deque
+from collections import deque
 import Py4GWCoreLib.dNodes.dNodes as dNodes
+from Widgets.Coding.Examples.Skills.SkillInfo import SkillData as SkillDataOG
 
 # import node_editor as ed
 
@@ -236,7 +238,7 @@ class NodeLogicGreaterThan(dNodes.Node):
         super().__init__(x, y)
         self.type = "Greater Than"
         self.height = 45
-        self.width = 80
+        self.width = 90
         self.output_pin = PinBool(False, self.id)
         self.input_pins = PinFloat(True, self.id), PinFloat(True, self.id)
         self.side_padding = self.input_pins[0].radius * 2
@@ -248,7 +250,12 @@ class NodeLogicGreaterThan(dNodes.Node):
     def execute(self):
         self.output_pin.value = self.input_pins[0].value > self.input_pins[1].value
         global cache
-        cache.node_space.propagate_pin(self.output_pin)
+        if self.output_pin.value:
+            cache.node_space.propagate_pin(self.output_pin)
+
+    def draw_body(self):
+        PyImGui.text(f"{self.input_pins[0].value : .2f}")
+        PyImGui.text(f"{self.input_pins[1].value : .2f}")
 
     def pre_execute(self):
         self.inputs_updated = [False, False]
@@ -261,21 +268,162 @@ class NodeLogicGreaterThan(dNodes.Node):
         if self.inputs_updated[0] and self.inputs_updated[1]:
             self.execute()
 
+class SkillData(SkillDataOG):
+    def draw_skill_icon_small(self):
+        # Texture column
+        PyImGui.begin_group()
+        texture_path = GW.GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(self.skill_id)
+        pos = PyImGui.get_cursor_pos()
+        ImGui.DrawTexture(texture_path, 24, 24)
+        PyImGui.set_cursor_pos(pos[0], pos[1])
+        PyImGui.dummy(24, 24)
+
 
 class NodeEffect(dNodes.Node):
     def __init__(self, x=100, y=100):
         super().__init__(x, y)
         self.type = "Effect"
         self.height = 45
-        self.width = 80
+        self.width = 160
         self.output_pin = PinFloat(False, self.id)
         self.input_pin = PinBool(True, self.id)
         self.pins.append(self.output_pin)
         self.pins.append(self.input_pin)
         self.header_color = GAME_COLOR.to_tuple_normalized()
+        self.skill_id = -1
+        self.scroll_mod = 0
+        self.search = ""
+        self.skills: Deque[int] = deque(range(1, 10))
+        self.limit = 0
+
+    def populate_skills(self, fill_count):
+        skill_id = 1
+        direction = 0
+        if fill_count > 0 and len(self.skills) > 0:
+            skill_id = self.skills[-1]
+            direction = 1
+        elif len(self.skills) > 0:
+            skill_id = self.skills[0]
+            direction = -1
+        else:
+            skill_id = 1
+            direction = 1
+        terms = self.search.lower().split(",")
+        while len(self.skills) < 10:
+            skill_id += direction
+            self.limit = 0
+            if skill_id > 3500:
+                self.limit = 1
+                break
+            if skill_id < 0:
+                self.limit = -1
+                break
+            name = GW.Skill.GetName(skill_id)
+            if len(name) < 3:
+                continue
+            if not all(term in name.lower() for term in terms):
+                continue
+            self.skills.append(skill_id) if direction == 1 else self.skills.appendleft(skill_id)
 
     def draw_body(self):
-        pass
+        self.output_pin.value = GW.GLOBAL_CACHE.Effects.GetEffectTimeRemaining(GW.Player.GetAgentID(), self.skill_id) / 1000
+        if PyImGui.begin_popup(f"{self.id}selector"):
+            old = self.search
+            self.search = PyImGui.input_text("Search", self.search)
+            changed = old != self.search
+            terms = self.search.lower().split(",")
+            PyImGui.begin_child(f"{self.id}selectorlistchild", (260, 300), False, PyImGui.WindowFlags.NoScrollbar)
+            scroll = PyImGui.get_io().mouse_wheel
+            scroll *= -1
+            scroll_save = scroll
+            # PyImGui.text(f"scroll {scroll} changed {changed}")
+            while scroll > 0 and self.limit <= 0:
+                scroll -= 1
+                self.skills.popleft()
+            while scroll < 0 and self.limit >= 0:
+                scroll += 1
+                self.skills.pop()
+            if scroll_save != 0:
+                self.populate_skills(scroll_save)
+            if changed:
+                self.skills.clear()
+                self.populate_skills(10)
+            for id in self.skills:
+                name = GW.Skill.GetName(id)
+                sd = SkillData(id)
+                sd.draw_skill_icon_small()
+                PyImGui.same_line(0, 0)
+                if PyImGui.button(name):
+                    PyImGui.close_current_popup()
+                    self.skill_id = id
+                    self.search = ""
+            PyImGui.end_child()
+            PyImGui.end_popup()
+        else:
+            if self.skill_id == -1:
+                if PyImGui.button("Select Skill"):
+                    PyImGui.open_popup(f"{self.id}selector")
+                    self.skills.clear()
+                    self.populate_skills(1)
+            else:
+                sd = SkillData(self.skill_id)
+                sd.draw_skill_icon_small()
+                PyImGui.same_line(0, 0)
+                if PyImGui.button(f"{GW.Skill.GetName(self.skill_id)}"):
+                    PyImGui.open_popup(f"{self.id}selector")
+                    self.skills.clear()
+                    self.populate_skills(1)
+                PyImGui.text(f"{self.output_pin.value: .2f}")
+
+    def draw_body__(self):
+        PyImGui.set_next_window_size(260, 300)
+        if PyImGui.begin_popup(f"{self.id}selector"):
+            old = self.search
+            self.search = PyImGui.input_text("Search", self.search)
+            changed = old == self.search
+            terms = self.search.lower().split(",")
+            PyImGui.begin_child(f"{self.id}selectorlistchild")
+            PyImGui.text("Skill list")
+            sy = PyImGui.get_scroll_y()
+            sy = round(sy / 24)
+            if self.scroll_mod > 12:
+                PyImGui.set_scroll_y(24*12)
+            self.scroll_mod += sy - 12
+            if self.scroll_mod < 0:
+                self.scroll_mod = 0
+            i = self.scroll_mod
+            limit = 24
+            while i < limit + self.scroll_mod:
+                i += 1
+                if i > 3500:
+                    self.skills.append(-1)
+                    break
+                name = GW.Skill.GetName(i)
+                if len(name) < 3:
+                    limit += 1
+                    continue
+                if not all(term in name.lower() for term in terms):
+                    limit += 1
+                    continue
+                sd = SkillData(i)
+                sd.draw_skill_icon_small()
+                PyImGui.same_line(0, 0)
+                if PyImGui.button(name):
+                    PyImGui.close_current_popup()
+                    self.skill_id = i
+                    self.search = ""
+            PyImGui.end_child()
+            PyImGui.end_popup()
+        else:
+            if self.skill_id == -1:
+                if PyImGui.button("Select Skill"):
+                    PyImGui.open_popup(f"{self.id}selector")
+            else:
+                sd = SkillData(self.skill_id)
+                sd.draw_skill_icon_small()
+                PyImGui.same_line(0, 0)
+                if PyImGui.button(f"{GW.Skill.GetName(self.skill_id)}"):
+                    PyImGui.open_popup(f"{self.id}selector")
 
     def execute(self):
         global cache
@@ -316,12 +464,13 @@ class NodeFrameDelta(dNodes.Node):
     def __init__(self, x=100, y=100):
         super().__init__(x, y)
         self.type = "Time Delta"
-        self.height = 25
+        self.height = 40
         self.width = 80
         self.output_pin = PinFloat(False, self.id)
-        self.input_pin = PinBool(True, self.id)
+        self.input_pins = [PinBool(True, self.id), PinBool(True, self.id)]
         self.pins.append(self.output_pin)
-        self.pins.append(self.input_pin)
+        for pin in self.input_pins:
+            self.pins.append(pin)
         self.header_color = GAME_COLOR.to_tuple_normalized()
         self.timer = time.time()
         self.tooltip = "Returns the time since this node was last called."
@@ -329,15 +478,18 @@ class NodeFrameDelta(dNodes.Node):
     def draw_body(self):
         self.output_pin.value = time.time() - self.timer
         PyImGui.text(f"{self.output_pin.value: .2f}")
+        PyImGui.text("<-Reset")
 
     def execute(self):
         global cache
-        self.timer = time.time()
         cache.node_space.propagate_pin(self.output_pin)
 
     def inform_update(self, pin: dNodes.Pin):
-        if pin.value:
+        if pin is self.input_pins[0]:
             self.execute()
+        elif pin is self.input_pins[1]:
+            self.timer = time.time()
+
 
 
 class NodeUseSkill(dNodes.Node):
@@ -345,7 +497,7 @@ class NodeUseSkill(dNodes.Node):
         super().__init__(x, y)
         self.type = "Use Skill"
         self.height = 25
-        self.width = 50
+        self.width = 60
         self.input_pin = PinBool(True, self.id)
         self.pins.append(self.input_pin)
         self.header_color = OUTPUT_COLOR.to_tuple_normalized()
