@@ -41,8 +41,8 @@ Quick Start:
 from .phase import Phase
 from .bot import ModularBot
 
-# Recipes are importable via modular_bot.recipes
-# e.g.: from modular_bot.recipes import Run, Vanquish, Mission
+# Recipes are importable via Sources.modular_bot.recipes
+# e.g.: from Sources.modular_bot.recipes import Run, Mission
 
 __all__ = ["ModularBot", "Phase"]
 __version__ = "1.1.0"

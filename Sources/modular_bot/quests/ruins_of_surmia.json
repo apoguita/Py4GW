@@ -1,0 +1,18 @@
+{
+    "name": "Ruins of Surmia",
+    "max_heroes": 4,
+    "take_quest": {
+        "outpost_id": 135,
+        "quest_npc_location": [-16475, 3899],
+        "dialog_id": ["0x80A503","0x80A501"],
+        "wait_ms": 2000,
+        "name": "Take Ruins Of Surmia Quest"
+    },
+    "steps": [
+        {"type": "exit_map", "x": -14000, "y": 4350,   "target_map_id": 107},
+        {"type": "wait_map_change", "target_map_id": 107},
+        {"type": "auto_path", "name": "Path 4", "points": [[-10719, 4271], [-8020, 9803], [-12602, 11498], [-13260, 14111], [-17824, 11671], [-19766, 10999]]},
+        {"type": "exit_map", "x": -19990, "y": 10900,   "target_map_id": 30},
+        {"type": "dialog", "x": -3503, "y": -13764, "id": "0x80A507"}
+    ]
+}

@@ -1,43 +1,50 @@
 """
-Test bot: Mission recipe — The Great Northern Wall.
+Mission runner with GUI selection.
 
-The bot will:
-1. Travel to the outpost (map 28)
-2. Set hard mode
-3. Leave party, add heroes from hero_config.json (party_4 = 3 heroes)
-4. Enter the mission via EnterChallenge
-5. Follow paths with combat (CB handles fighting)
-6. Interact with quest NPCs, gadgets, items along the way
-7. Mission concludes automatically when objectives are met
-
-Hero configuration: edit Bots/modular_bot/missions/hero_config.json
+Select a mission from the Settings tab, then start the bot.
 """
 
-import sys
-import os
-import Py4GW
+import PyImGui
 
-bots_dir = os.path.join(Py4GW.Console.get_projects_path(), "Bots")
-if bots_dir not in sys.path:
-    sys.path.insert(0, bots_dir)
-
-from modular_bot import ModularBot, Phase
-from modular_bot.recipes import Mission
+from Sources.modular_bot import ModularBot, Phase
+from Sources.modular_bot.recipes import list_available_missions, mission_run
 
 
-def set_normal_mode(bot):
-    bot.Party.SetHardMode(False)
+MISSION_NAMES = list_available_missions()
+MISSION_LABELS = [name.replace("_", " ").title() for name in MISSION_NAMES]
+SELECTED_INDEX = 0
+
+
+def _get_selected_mission() -> str:
+    if not MISSION_NAMES:
+        return "the_great_northern_wall"
+    idx = max(0, min(SELECTED_INDEX, len(MISSION_NAMES) - 1))
+    return MISSION_NAMES[idx]
+
+
+def _draw_settings() -> None:
+    global SELECTED_INDEX
+
+    if not MISSION_NAMES:
+        PyImGui.text("No mission files found in Sources/modular_bot/missions")
+        return
+
+    SELECTED_INDEX = PyImGui.combo("Mission", SELECTED_INDEX, MISSION_LABELS)
+    PyImGui.text(f"Selected: {_get_selected_mission()}")
+    PyImGui.text("Selection is applied on next Start.")
+
+
+def _run_selected_mission(bot) -> None:
+    mission_run(bot, _get_selected_mission())
 
 
 bot = ModularBot(
-    name="Test: Mission",
-    phases=[
-        Phase("Set Normal Mode", set_normal_mode),
-        Mission("the_great_northern_wall"),
-    ],
+    name="Mission Runner",
+    phases=[Phase("Run Selected Mission", _run_selected_mission, condition=lambda: True)],
     loop=False,
     template="aggressive",
     use_custom_behaviors=True,
+    settings_ui=_draw_settings,
 )
 
 

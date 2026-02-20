@@ -5,7 +5,7 @@ Mission data files define a sequence of steps (move, wait, interact,
 dialog, etc.) that the bot executes in order. Combat is handled by
 CustomBehaviors.
 
-JSON format (stored in Bots/modular_bot/missions/<name>.json):
+JSON format (stored in Sources/modular_bot/missions/<name>.json):
 
     {
         "name": "The Great Northern Wall",
@@ -36,6 +36,7 @@ Entry types:
 Step types:
     - "path":              Follow exact path (list of [x,y] points)
     - "auto_path":         Follow auto-pathed path (list of [x,y] waypoints)
+    - "auto_path_delayed": Move waypoint-by-waypoint with delay between points
     - "wait":              Wait fixed time (ms)
     - "wait_out_of_combat": Wait until no enemies in aggro
     - "wait_map_load":     Wait for specific map to load
@@ -79,16 +80,12 @@ from ..phase import Phase
 
 def _get_missions_dir() -> str:
     """Return the missions data directory path."""
-    import Py4GW
-    return os.path.join(
-        Py4GW.Console.get_projects_path(),
-        "Bots", "modular_bot", "missions",
-    )
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "missions"))
 
 
 def _load_hero_config() -> Dict[str, Any]:
     """
-    Load hero configuration from ``Bots/modular_bot/missions/hero_config.json``.
+    Load hero configuration from ``Sources/modular_bot/missions/hero_config.json``.
 
     Returns:
         Dict with keys ``"party_4"``, ``"party_6"``, ``"party_8"`` mapping
@@ -103,7 +100,7 @@ def _load_hero_config() -> Dict[str, Any]:
 
 def _load_mission_data(mission_name: str) -> Dict[str, Any]:
     """
-    Load mission data from ``Bots/modular_bot/missions/<mission_name>.json``.
+    Load mission data from ``Sources/modular_bot/missions/<mission_name>.json``.
 
     Args:
         mission_name: File name without extension (e.g. "the_great_northern_wall").
@@ -125,6 +122,27 @@ def _load_mission_data(mission_name: str) -> Dict[str, Any]:
 
     with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def list_available_missions() -> List[str]:
+    """
+    Return all available mission names (without .json extension).
+
+    Excludes non-mission support files such as ``hero_config.json``.
+    """
+    missions_dir = _get_missions_dir()
+    if not os.path.isdir(missions_dir):
+        return []
+
+    names = []
+    for filename in os.listdir(missions_dir):
+        if not filename.endswith(".json"):
+            continue
+        if filename.lower() == "hero_config.json":
+            continue
+        names.append(filename[:-5])
+
+    return sorted(names)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -167,6 +185,20 @@ def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
         points = [tuple(p) for p in step["points"]]
         name = step.get("name", f"AutoPath {step_idx + 1}")
         bot.Move.FollowAutoPath(points, step_name=name)
+
+    elif step_type == "auto_path_delayed":
+        points = [tuple(p) for p in step["points"]]
+        name = step.get("name", f"AutoPathDelayed {step_idx + 1}")
+        delay_ms = int(step.get("delay_ms", 35000))
+        if delay_ms < 0:
+            delay_ms = 0
+
+        # Emulate delayed waypoint advance: move to one point, then pause.
+        for point_i, (x, y) in enumerate(points):
+            step_name = f"{name} [{point_i + 1}/{len(points)}]"
+            bot.Move.XY(x, y, step_name)
+            if point_i < len(points) - 1 and delay_ms > 0:
+                bot.Wait.ForTime(delay_ms)
 
     elif step_type == "wait":
         ms = step.get("ms", 1000)
