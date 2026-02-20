@@ -17,6 +17,15 @@ from dataclasses import dataclass, field
 from types import ModuleType
 from typing import Callable, Optional
 
+_profiling_registry = None
+
+def _get_profiling():
+    global _profiling_registry
+    if _profiling_registry is None:
+        from Py4GWCoreLib.py4gwcorelib_src.Profiling import ProfilingRegistry
+        _profiling_registry = ProfilingRegistry()
+    return _profiling_registry
+
 #region widget
 @dataclass
 class Widget:
@@ -710,23 +719,30 @@ class WidgetHandler:
         self.draw_node(INI_KEY, tree)
         
     def execute_enabled_widgets_update(self):
+        profiling = _get_profiling()
+        profiling_enabled = profiling.enabled
         pause_optional = self.pause_optional_widgets
 
         for widget_name, widget_info in self.widgets.items():
             if not widget_info.enabled:
                 continue
- 
+
             if pause_optional and widget_info.optional:
                 continue
 
             if widget_info.update is not None:
                 try:
-                    widget_info.update()
+                    if profiling_enabled:
+                        profiling.runcall_scope("widgets", f"{widget_name}:update", widget_info.update)
+                    else:
+                        widget_info.update()
                 except Exception as e:
                     Py4GW.Console.Log("WidgetHandler", f"Error executing widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
 
     def execute_enabled_widgets_draw(self):
+        profiling = _get_profiling()
+        profiling_enabled = profiling.enabled
         style = ImGui.Selected_Style.pyimgui_style
         alpha = style.Alpha
         ui_enabled = self.show_widget_ui
@@ -739,10 +755,13 @@ class WidgetHandler:
         for widget_name, widget_info in self.widgets.items():
             if not widget_info.enabled:
                 continue
- 
+
             if widget_info.minimal is not None:
                 try:
-                    widget_info.minimal()
+                    if profiling_enabled:
+                        profiling.runcall_scope("widgets", f"{widget_name}:minimal", widget_info.minimal)
+                    else:
+                        widget_info.minimal()
                 except Exception as e:
                     Py4GW.Console.Log("WidgetHandler", f"Error executing minimal of widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
@@ -752,7 +771,10 @@ class WidgetHandler:
 
             if widget_info.draw is not None:
                 try:
-                    widget_info.draw()
+                    if profiling_enabled:
+                        profiling.runcall_scope("widgets", f"{widget_name}:draw", widget_info.draw)
+                    else:
+                        widget_info.draw()
                 except Exception as e:
                     Py4GW.Console.Log("WidgetHandler", f"Error executing widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
@@ -760,8 +782,10 @@ class WidgetHandler:
         if not ui_enabled:
             style.Alpha = alpha
             style.Push()
-            
+
     def execute_enabled_widgets_main(self):
+        profiling = _get_profiling()
+        profiling_enabled = profiling.enabled
         style = ImGui.Selected_Style.pyimgui_style
         alpha = style.Alpha
         ui_enabled = self.show_widget_ui
@@ -774,10 +798,13 @@ class WidgetHandler:
         for widget_name, widget_info in self.widgets.items():
             if not widget_info.enabled:
                 continue
- 
+
             if widget_info.minimal is not None:
                 try:
-                    widget_info.minimal()
+                    if profiling_enabled:
+                        profiling.runcall_scope("widgets", f"{widget_name}:minimal", widget_info.minimal)
+                    else:
+                        widget_info.minimal()
                 except Exception as e:
                     Py4GW.Console.Log("WidgetHandler", f"Error executing minimal of widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
@@ -787,7 +814,10 @@ class WidgetHandler:
 
             if widget_info.main is not None:
                 try:
-                    widget_info.main()
+                    if profiling_enabled:
+                        profiling.runcall_scope("widgets", f"{widget_name}:main", widget_info.main)
+                    else:
+                        widget_info.main()
                 except Exception as e:
                     Py4GW.Console.Log("WidgetHandler", f"Error executing widget {widget_name}: {str(e)}", Py4GW.Console.MessageType.Error)
                     Py4GW.Console.Log("WidgetHandler", f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
