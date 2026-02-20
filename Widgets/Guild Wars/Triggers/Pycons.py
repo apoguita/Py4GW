@@ -376,7 +376,7 @@ try:
         "mbdp_enabled": {
             "short": "Master toggle for morale/DP automation.",
             "long": "Turns all morale/death-penalty automation on or off. If OFF, none of the MB/DP settings below do anything, even if configured.",
-            "why": "Use this as the global enable/disable for all MB/DP behavior.",
+            "why": "Use this as the global enable/disable for all MB/DP behavior. When enabled, unavailable higher-tier items can fall back to lower-tier valid options.",
         },
         "mbdp_allow_partywide_in_human_parties": {
             "short": "Allow party-wide MB/DP with non-eligible humans present.",
@@ -463,17 +463,17 @@ try:
         "mbdp_party_light_dp_threshold": {
             "short": "Party DP threshold for light cleanup stage.",
             "long": "DP value for the lighter party DP cleanup stage. This threshold is for lower-strength party DP recovery items (for example Four-Leaf Clover). Example: -15 means this stage can start when members reach -15 DP (plus member-count rules).",
-            "why": "Use this as the earlier/softer party DP response stage.",
+            "why": "Use this as the earlier/softer party DP response stage. If higher tiers are unavailable, Pycons can fall through to this and then to morale options when valid.",
         },
         "mbdp_party_heavy_dp_threshold": {
             "short": "Party DP threshold for heavy cleanup stage.",
             "long": "DP value for the stronger party DP cleanup stage. This threshold is for stronger party DP recovery items (for example Oath of Purity). Example: -30 means this stage can start when members reach -30 DP (plus member-count rules).",
-            "why": "Usually set lower (more negative) than light so it acts as escalation.",
+            "why": "Usually set lower (more negative) than light so it acts as escalation. If this tier is unavailable, Pycons can fall back to lower valid tiers.",
         },
         "mbdp_powerstone_dp_threshold": {
             "short": "Emergency DP threshold for Powerstone-level response.",
             "long": "Severe DP value for emergency cleanup stage. Example: -45 means emergency stage can start when members reach -45 DP (plus member-count rules).",
-            "why": "Use this as emergency-only escalation for severe DP.",
+            "why": "Use this as emergency-only escalation for severe DP. If unavailable, Pycons falls through lower DP tiers and then morale tiers instead of stalling.",
         },
         "filter_search": {
             "short": "Filter consumables by name.",
@@ -513,7 +513,7 @@ try:
         "preset_leader_force_plus10_team": {
             "short": "Leader preset for forced +10 team morale upkeep.",
             "long": "Applies a leader-oriented MB/DP setup that aggressively keeps party morale near the selected target using strict party morale upkeep behavior.",
-            "why": "Use this when the priority is highest morale uptime, not consumable conservation.",
+            "why": "Uses the current force value as the active target. Use this when the priority is highest morale uptime, not consumable conservation.",
         },
         "preset_solo_safe": {
             "short": "Safe single-account preset with local-only behavior.",
@@ -2381,45 +2381,43 @@ try:
         target_eff = int(cfg.mbdp_party_target_effective)
         gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in states)
         gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in states)
-        strict_plus10_missing = sum(max(0, 10 - int(s["effective"])) for s in states)
-        strict_plus10_members = sum(1 for s in states if int(s["effective"]) < 10)
+        strict_target = int(cfg.mbdp_party_target_effective)
+        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in states)
+        strict_target_members = sum(1 for s in states if int(s["effective"]) < strict_target)
 
         # Decision order: emergency -> deterministic DP -> smoothing DP -> morale.
-        party_choice = None
-        reason = ""
+        candidate_choices = []
         if emergency_cnt >= int(cfg.mbdp_party_min_members):
-            party_choice = "powerstone_of_courage"
-            reason = f"emergency_cnt={emergency_cnt} trigger={_fmt_effective(cfg.mbdp_powerstone_dp_threshold)} (~{party_emergency_dp_threshold}% DP)"
-        elif heavy_cnt >= int(cfg.mbdp_party_min_members):
-            party_choice = "oath_of_purity"
-            reason = f"heavy_cnt={heavy_cnt} trigger={_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)} (~{party_heavy_dp_threshold}% DP)"
-        elif light_cnt >= int(cfg.mbdp_party_min_members):
-            party_choice = "four_leaf_clover"
-            reason = f"light_cnt={light_cnt} trigger={_fmt_effective(cfg.mbdp_party_light_dp_threshold)} (~{party_light_dp_threshold}% DP)"
-        elif bool(cfg.mbdp_strict_party_plus10) and strict_plus10_missing > 0:
-            elixir_spec, elixir_item = _find_item_enabled_and_available("elixir_of_valor")
-            if elixir_spec and elixir_item > 0:
-                party_choice = "elixir_of_valor"
-                reason = f"strict_plus10 members_below_10={strict_plus10_members} total_missing={strict_plus10_missing}"
-            else:
-                party_choice = "honeycomb"
-                reason = f"strict_plus10 fallback+5 members_below_10={strict_plus10_members} total_missing={strict_plus10_missing}"
-                if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
-                    rainbow_spec, rainbow_item = _find_item_enabled_and_available("rainbow_candy_cane")
-                    if rainbow_spec and rainbow_item > 0:
-                        party_choice = "rainbow_candy_cane"
-        elif gain_10 >= int(cfg.mbdp_party_min_total_gain_10):
-            party_choice = "elixir_of_valor"
-            reason = f"gain10={gain_10} min={cfg.mbdp_party_min_total_gain_10}"
-        elif gain_5 >= int(cfg.mbdp_party_min_total_gain_5):
-            party_choice = "honeycomb"
-            reason = f"gain5={gain_5} min={cfg.mbdp_party_min_total_gain_5}"
-            if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
-                rainbow_spec, rainbow_item = _find_item_enabled_and_available("rainbow_candy_cane")
-                if rainbow_spec and rainbow_item > 0:
-                    party_choice = "rainbow_candy_cane"
+            candidate_choices.append(
+                ("powerstone_of_courage", f"emergency_cnt={emergency_cnt} trigger={_fmt_effective(cfg.mbdp_powerstone_dp_threshold)} (~{party_emergency_dp_threshold}% DP)")
+            )
+        if heavy_cnt >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("oath_of_purity", f"heavy_cnt={heavy_cnt} trigger={_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)} (~{party_heavy_dp_threshold}% DP)")
+            )
+        if light_cnt >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("four_leaf_clover", f"light_cnt={light_cnt} trigger={_fmt_effective(cfg.mbdp_party_light_dp_threshold)} (~{party_light_dp_threshold}% DP)")
+            )
 
-        if not party_choice:
+        if bool(cfg.mbdp_strict_party_plus10) and strict_target_missing > 0:
+            strict_reason = (
+                f"strict_target={_fmt_effective(strict_target)} "
+                f"members_below_target={strict_target_members} total_missing={strict_target_missing}"
+            )
+            candidate_choices.append(("elixir_of_valor", strict_reason))
+            if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                candidate_choices.append(("rainbow_candy_cane", strict_reason + " fallback+5"))
+            candidate_choices.append(("honeycomb", strict_reason + " fallback+5"))
+        elif gain_10 >= int(cfg.mbdp_party_min_total_gain_10):
+            candidate_choices.append(("elixir_of_valor", f"gain10={gain_10} min={cfg.mbdp_party_min_total_gain_10}"))
+        elif gain_5 >= int(cfg.mbdp_party_min_total_gain_5):
+            gain5_reason = f"gain5={gain_5} min={cfg.mbdp_party_min_total_gain_5}"
+            if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                candidate_choices.append(("rainbow_candy_cane", gain5_reason))
+            candidate_choices.append(("honeycomb", gain5_reason))
+
+        if not candidate_choices:
             _debug(
                 f"MB/DP PARTY skip: members={len(states)} total_dp={total_dp} light={light_cnt} heavy={heavy_cnt} "
                 f"gain5={gain_5} gain10={gain_10}"
@@ -2427,14 +2425,38 @@ try:
             return False
 
         _debug("MB/DP PARTY states: " + ", ".join([f"{s['name']} raw={s['raw']} eff={_fmt_effective(s['effective'])} dp={s['dp']}" for s in states]))
+        chosen_key = None
+        chosen_reason = ""
+        spec = None
+        item_id = 0
+        tried_unavailable = []
+        tried_seen = set()
+        for key, key_reason in candidate_choices:
+            if key in tried_seen:
+                continue
+            tried_seen.add(key)
+            c_spec, c_item_id = _find_item_enabled_and_available(key)
+            if c_spec and c_item_id > 0:
+                chosen_key = key
+                chosen_reason = key_reason
+                spec = c_spec
+                item_id = c_item_id
+                break
+            tried_unavailable.append(key)
 
-        spec, item_id = _find_item_enabled_and_available(party_choice)
         if not spec or item_id <= 0:
-            _debug(f"MB/DP PARTY skip: '{party_choice}' unavailable/disabled.")
+            _debug(
+                "MB/DP PARTY skip: no available candidate item after fallback chain; "
+                f"tried={','.join(tried_unavailable)}"
+            )
             return False
+        if tried_unavailable:
+            _debug(
+                f"MB/DP PARTY fallback: unavailable={','.join(tried_unavailable)} -> using {chosen_key}."
+            )
 
         _debug(
-            f"MB/DP PARTY fire {spec['label']}: {reason}; members={len(states)} total_dp={total_dp} "
+            f"MB/DP PARTY fire {spec['label']}: {chosen_reason}; members={len(states)} total_dp={total_dp} "
             f"gain5={gain_5} gain10={gain_10} recipients={len(recipients_emails)}"
         )
         if _use_item_id(item_id, spec["key"]):
@@ -3149,7 +3171,7 @@ try:
 
             PyImGui.separator()
 
-        if ui_collapsing_header("Presets##pycons_settings_presets_dropdown", False):
+        if ui_collapsing_header("MB/DP Presets##pycons_settings_presets_dropdown", False):
             _show_setting_tooltip("presets_section")
             PyImGui.text(f"Active preset: {str(cfg.last_applied_preset or 'None')}")
             PyImGui.text(f"Last party opt toggle: {str(cfg.last_party_opt_toggle_summary or 'None')}")
