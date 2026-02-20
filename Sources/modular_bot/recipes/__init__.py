@@ -11,8 +11,8 @@ Each recipe provides two APIs:
 
 Examples:
     # ModularBot with recipes
-    from modular_bot import ModularBot, Phase
-    from modular_bot.recipes import Run, Mission
+    from Sources.modular_bot import ModularBot, Phase
+    from Sources.modular_bot.recipes import Run, Mission
 
     bot = ModularBot(
         name="EotN Tour + Mission",
@@ -24,7 +24,7 @@ Examples:
     )
 
     # Direct usage in a Botting routine
-    from modular_bot.recipes import run_route, mission_run
+    from Sources.modular_bot.recipes import run_route, mission_run
 
     def my_routine(bot: Botting):
         run_route(bot, "Eye Of The North - Full Tour", "_1_Eotn_To_Gunnars")
@@ -34,16 +34,22 @@ Examples:
 # Phase factories (uppercase)
 from .run import Run
 from .mission import Mission
+from .quest import Quest
 
 # Direct functions (lowercase)
 from .run import run_route
-from .mission import mission_run
+from .mission import mission_run, list_available_missions
+from .quest import quest_run, list_available_quests
 
 __all__ = [
     # Phase factories
     "Run",
     "Mission",
+    "Quest",
     # Direct functions
     "run_route",
     "mission_run",
+    "quest_run",
+    "list_available_missions",
+    "list_available_quests",
 ]
