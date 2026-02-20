@@ -37,6 +37,12 @@ class _PARTY:
 
     def UnflagAllHeroes(self):
         self._helpers.Party.unflag_all_heroes()
+    
+    def SetHeroBehavior(self, hero_position: int, behavior: int):
+        self._helpers.Party.set_hero_behavior(hero_position, behavior)
+    
+    def SetAllHeroesBehavior(self, behavior: int, delay_ms: int = 100):
+        self._helpers.Party.set_all_heroes_behavior(behavior, delay_ms)
 
     def Resign(self):
         self._helpers.Party.resign()
