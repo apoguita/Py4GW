@@ -37,6 +37,11 @@ class Agent:
         
     @staticmethod
     def IsValid(agent_id: int) -> bool:
+        """
+        Purpose: Check if the agent is valid.
+        Args: agent_id (int): The ID of the agent.
+        Returns: bool
+        """
         return Agent.GetAgentByID(agent_id) is not None
 
     _agent_cache: dict[int, "AgentStruct"] = {}
@@ -63,6 +68,12 @@ class Agent:
 
     @staticmethod
     def GetAgentByID(agent_id: int):
+        """
+        Purpose: Retrieve an agent by its ID.
+        Args:
+            agent_id (int): The ID of the agent to retrieve.
+        Returns: PyAgent
+        """
         cached = Agent._agent_cache.get(agent_id)
         if cached is not None:
             return cached
@@ -74,6 +85,12 @@ class Agent:
 
     @staticmethod
     def GetLivingAgentByID(agent_id: int):
+        """
+        Purpose: Retrieve a living agent by its ID.
+        Args:
+            agent_id (int): The ID of the agent to retrieve.
+        Returns: PyAgent
+        """
         cached = Agent._living_cache.get(agent_id)
         if cached is not None:
             return cached
@@ -87,6 +104,12 @@ class Agent:
 
     @staticmethod
     def GetItemAgentByID(agent_id: int):
+        """
+        Purpose: Retrieve an item agent by its ID.
+        Args:
+            agent_id (int): The ID of the agent to retrieve.
+        Returns: PyAgent
+        """
         cached = Agent._item_cache.get(agent_id)
         if cached is not None:
             return cached
@@ -100,6 +123,12 @@ class Agent:
 
     @staticmethod
     def GetGadgetAgentByID(agent_id: int):
+        """
+        Purpose: Retrieve a gadget agent by its ID.
+        Args:
+            agent_id (int): The ID of the agent to retrieve.
+        Returns: PyAgent
+        """
         cached = Agent._gadget_cache.get(agent_id)
         if cached is not None:
             return cached
