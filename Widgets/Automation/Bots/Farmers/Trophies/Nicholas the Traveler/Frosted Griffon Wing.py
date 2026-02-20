@@ -3,6 +3,7 @@ import PyImGui
 
 #QUEST TO INCREASE SPAWNS 
 BOT_NAME = "Frosted_Griffon_Wing_Bot"
+MODULE_ICON = "Textures\\Module_Icons\\Frosted Griffon Wing.png"
 MODEL_ID_TO_FARM = ModelID.Frosted_Griffon_Wing
 OUTPOST_TO_TRAVEL = 155 #Camp Rankor 
 COORD_TO_EXIT_MAP = (5435, -40809) #Camp Rankor to Snake Dance
