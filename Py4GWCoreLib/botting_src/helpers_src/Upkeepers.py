@@ -288,12 +288,16 @@ class _Upkeepers:
             507,  # Pledge of the Merchant Princes
             581,  # Heart or Mind: Garden in Danger
             586,  # Heart or Mind: Ronjok in Danger
+            683,  # Securing_Champions_Dawn
             730,  # Gain Goren
+            737,  # Battle Preparations
         ]
         
         # Map IDs where summoning stones should NOT be used
         excluded_map_ids = [
+            436,  # Command Post
             503,  # Throne of Secrets
+            840,  # Lion's Arch Keep
         ]
         
         # Priority list for summoning stones (items)
