@@ -4,6 +4,7 @@ from Sources.oazix.CustomBehaviors.primitives.auto_mover.auto_follow_path import
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
 
 loader_throttler = ThrottledTimer(100)
 refresh_throttler = ThrottledTimer(1_000)
@@ -29,6 +30,7 @@ def daemon():
                 return
 
     HeroAiWrapping().act()
+    DropTrackerSender().act()
     # main loops
     if player_behavior is not None:
         player_behavior.act()
