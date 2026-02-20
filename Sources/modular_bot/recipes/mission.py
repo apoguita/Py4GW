@@ -51,6 +51,7 @@ Step types:
     - "dialog_multibox":   Send dialog to all accounts
     - "skip_cinematic":    Wait for cinematic to start, then skip it
     - "set_title":         Set active title by ID
+    - "key_press":         Press a game key once (e.g. "F1", "F2", "SPACE")
     - "resign":            Resign party
     - "wait_map_change":   Wait for map to change to target
 
@@ -319,6 +320,30 @@ def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
     elif step_type == "set_title":
         title_id = step["id"]
         bot.Player.SetTitle(title_id)
+
+    elif step_type == "key_press":
+        key_name = str(step["key"]).upper()
+        key_map = {
+            "F1": "F1",
+            "F2": "F2",
+            "SPACE": "Space",
+            "ENTER": "Enter",
+            "ESCAPE": "Escape",
+            "ESC": "Escape",
+        }
+        mapped = key_map.get(key_name)
+        if mapped is None:
+            from Py4GWCoreLib import ConsoleLog
+            ConsoleLog("Recipe:Mission", f"Unsupported key_press key: {key_name!r}")
+        else:
+            from Py4GWCoreLib import Keystroke, Key
+            bot.States.AddCustomState(
+                lambda _k=mapped: Keystroke.PressAndRelease(getattr(Key, _k).value),
+                f"KeyPress {key_name}",
+            )
+            ms = int(step.get("ms", 1000))
+            if ms > 0:
+                bot.Wait.ForTime(ms)
 
     elif step_type == "flag_heroes":
         x, y = step["x"], step["y"]
