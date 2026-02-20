@@ -99,6 +99,27 @@ class _Party:
         # Also call UnflagAllHeroes to clear the "all heroes" flag
         GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
         yield from Routines.Yield.wait(500)
+    
+    @_yield_step(label="SetHeroBehavior", counter_key="SET_HERO_BEHAVIOR")
+    def set_hero_behavior(self, hero_position, behavior):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        hero_agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(hero_position)
+        if hero_agent_id > 0:
+            GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(hero_agent_id, behavior)
+        yield from Routines.Yield.wait(100)
+    
+    @_yield_step(label="SetAllHeroesBehavior", counter_key="SET_HERO_BEHAVIOR")
+    def set_all_heroes_behavior(self, behavior, delay_ms=100):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        for position in range(1, hero_count + 1):
+            hero_agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(position)
+            if hero_agent_id > 0:
+                GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(hero_agent_id, behavior)
+                if delay_ms > 0:
+                    yield from Routines.Yield.wait(delay_ms)
 
     @_yield_step(label="Resign", counter_key="SEND_CHAT_MESSAGE")
     def resign(self):
