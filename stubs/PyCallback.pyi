@@ -6,6 +6,11 @@ class Phase(IntEnum):
     PreUpdate = 0
     Data = 1
     Update = 2
+    
+class Context(IntEnum):
+    Update = 0
+    Draw = 1
+    Main = 2
 
 class PyCallback:
     """
@@ -22,7 +27,9 @@ class PyCallback:
         name: str,
         phase: Phase,
         fn: Callable[[], None],
-        priority: int = 99
+        priority: int = 99,
+        context: Context = Context.Draw
+        
     ) -> int:
         """
         Register or replace a callback.
@@ -67,6 +74,7 @@ class PyCallback:
             int,  # id
             str,         # name
             int,         # phase (int)
+            int,        # context (int)
             int,         # priority
             int          # order
         ]

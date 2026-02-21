@@ -310,7 +310,8 @@ class GuildContext:
             GuildContext._callback_name,
             PyCallback.Phase.PreUpdate,
             GuildContext._update_ptr,
-            priority=99
+            priority=99,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod

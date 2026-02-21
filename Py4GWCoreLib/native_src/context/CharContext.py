@@ -234,7 +234,8 @@ class CharContext:
             CharContext._callback_name,
             PyCallback.Phase.PreUpdate,
             CharContext._update_ptr,
-            priority=2
+            priority=2,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod

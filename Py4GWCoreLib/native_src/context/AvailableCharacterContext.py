@@ -96,7 +96,8 @@ class AvailableCharacterArray:
             AvailableCharacterArray._callback_name,
             PyCallback.Phase.PreUpdate,
             AvailableCharacterArray._update_ptr,
-            priority=99
+            priority=99,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod

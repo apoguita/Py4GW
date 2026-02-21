@@ -1385,14 +1385,16 @@ class AgentArray:
             AgentArray._callback_name_ptr,
             PyCallback.Phase.PreUpdate,
             AgentArray._update_ptr,
-            priority=6
+            priority=6,
+            context=PyCallback.Context.Draw
         )
 
         PyCallback.PyCallback.Register(
             AgentArray._callback_name_cache,
             PyCallback.Phase.Data,
             AgentArray._update_cache,
-            priority=0
+            priority=0,
+            context=PyCallback.Context.Draw
         )  
 
 
