@@ -691,6 +691,8 @@ class MapStaticDataStruct(Structure):
                 continue
             base = _ct.cast(pmap_struct.portals_ptr, _ct.c_void_p).value
             for idx in range(pmap_struct.portal_count):
+                if base is None:
+                    continue
                 addr_map[base + idx * portal_size] = (pi, idx)
 
         # Resolve each portal's pair_index
@@ -702,6 +704,8 @@ class MapStaticDataStruct(Structure):
                 if not p.pair_ptr:
                     continue
                 pair_addr = _ct.cast(p.pair_ptr, _ct.c_void_p).value
+                if pair_addr is None:
+                    continue
                 loc = addr_map.get(pair_addr)
                 if loc is not None:
                     result[pi].portals[idx].pair_index = loc[1]
@@ -910,7 +914,8 @@ class MapContext:
             MapContext._callback_name,
             PyCallback.Phase.PreUpdate,
             MapContext._update_ptr,
-            priority=1
+            priority=1,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod
