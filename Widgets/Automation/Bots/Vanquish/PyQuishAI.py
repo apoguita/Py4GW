@@ -456,7 +456,8 @@ def InitializeStateMachine():
     FSM_vars.state_machine.AddState(
         name="Check Current Map",
         execute_fn= lambda: Routines.Transition.TravelToOutpost(bot_vars.starting_map),
-        exit_condition= lambda: Routines.Transition.HasArrivedToOutpost(bot_vars.starting_map),
+        #exit_condition= lambda: Routines.Transition.HasArrivedToOutpost(bot_vars.starting_map),
+        exit_condition=lambda: Map.GetMapID() == bot_vars.starting_map and not Map.IsMapLoading(),
         transition_delay_ms=1000
     )
     FSM_vars.state_machine.AddState(
