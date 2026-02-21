@@ -195,7 +195,7 @@ def draw_account_info(player: AccountStruct):
 
 #region HeroAI Info
 def draw_heroai_info(player: AccountStruct):
-    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(player.AccountEmail)
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(player.AccountEmail)
     if hero_ai_options is None:
         PyImGui.text("No HeroAI options found for this account.")
         return
@@ -954,7 +954,7 @@ def main():
     if not Routines.Checks.Map.MapValid():
         return
     
-    active_players = GLOBAL_CACHE.ShMem.GetAllActivePlayers()
+    active_players = GLOBAL_CACHE.ShMem.GetAllAccountData()
     
     if PyImGui.begin(f"{MODULE_NAME}"):
         if PyImGui.collapsing_header("Shared Memory Info"):

@@ -100,7 +100,7 @@ def IsHeroFlagged(index):
     if  index != 0 and index <= GLOBAL_CACHE.Party.GetHeroCount():
         return GLOBAL_CACHE.Party.Heroes.IsHeroFlagged(index)
     else:
-        acc = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(index)
+        acc = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(index)
         return acc is not None and acc.IsFlagged 
 
 

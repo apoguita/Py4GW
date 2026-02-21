@@ -32,7 +32,6 @@ def KillroyMap(bot: Botting) -> None:
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835807)
     bot.Map.TravelGH()
-    bot.Wait.UntilOnOutpost()
     bot.Map.LeaveGH()
     bot.Wait.ForMapLoad(target_map_id=644)  # gunnars_hold_id
     bot.States.JumpToStepName("[H]Killroy Stoneskin_1")

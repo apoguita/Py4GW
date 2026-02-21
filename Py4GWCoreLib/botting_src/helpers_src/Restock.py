@@ -32,6 +32,12 @@ class _Restock:
             qty = self._config.upkeep.birthday_cupcake.get("restock_quantity")
             yield from self._restock_item(ModelID.Birthday_Cupcake.value, qty)
 
+    @_yield_step(label="RestockBCandyApple", counter_key="RESTOCK_CANDY_APPLE")   
+    def restock_candy_apple (self):
+        if self._config.upkeep.candy_apple.is_active():
+            qty = self._config.upkeep.candy_apple.get("restock_quantity")
+            yield from self._restock_item(ModelID.Candy_Apple.value, qty)
+
     @_yield_step(label="RestockHoneycomb", counter_key="RESTOCK_HONEYCOMB")
     def restock_honeycomb(self):
         if (self._config.upkeep.honeycomb.is_active() or
