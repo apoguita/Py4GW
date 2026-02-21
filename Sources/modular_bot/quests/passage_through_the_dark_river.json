@@ -1,0 +1,22 @@
+{
+    "name": "Report to the White Mantle",
+    "max_heroes": 6,
+    "take_quest": {
+        "outpost_id": 49,
+        "quest_npc_location": [4981, -4354],
+        "dialog_id": ["0x806401"],
+        "wait_ms": 500,
+        "name": "Take Quest"
+    },
+    "steps": [
+        {"type": "auto_path", "name": "Get to Portal", "points": [[5464, -5216], [6364, -8267], [6415, -10538]]},
+        {"type": "exit_map", "x": 6200, "y": -10650, "target_map_id": 48},
+        {"type": "wait_map_change", "target_map_id": 48},
+
+        {"type": "auto_path", "name": "To Old Jones", "points": [[12566, 12158], [14655, 8635], [17417, 6812], [19783, 2474], [21057, -49], [22319, -4402], [24534, -5286], [25876, -7722], [23570, -9965]]},
+        {"type": "dialogs", "x": 23599, "y": -10038, "id": ["0x2","0x15","0x3","0x1F","0x4"]},
+        {"type": "wait_map_change", "target_map_id": 73},
+        {"type": "auto_path", "name": "To Derikk", "points": [[-24358, 10243], [-22209, 7665]]},
+        {"type": "dialog", "x": -22117, "y": 7501, "id": "0x806407"}
+    ]
+}

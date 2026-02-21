@@ -1,17 +1,35 @@
 """
-Run recipe — Outpost-to-outpost running with the D/A Shadow Form build.
+Run recipe - outpost-to-outpost running with the D/A Shadow Form build.
 
-Uses the existing OutpostRunner infrastructure:
-- Route data from Sources/aC_Scripts/OutpostRunner/maps/
-- D/A build manager (OutpostRunnerDA) for skill casting
-- FSMHelpers for multi-zone path following with transition detection
+This recipe does not use a mission/quest-style "steps" JSON block.
+It consumes OutpostRunner route scripts and registers states automatically.
 
-Two APIs:
-    # Direct function — registers states on a Botting instance
+Usage:
     run_route(bot, "Eye Of The North - Full Tour", "_1_Eotn_To_Gunnars")
-
-    # Phase factory — returns a Phase for ModularBot
     Run("Eye Of The North - Full Tour", "_1_Eotn_To_Gunnars")
+
+Run options (copy/paste):
+    region = "Eye Of The North - Full Tour"
+    route = "_1_Eotn_To_Gunnars"
+
+Route data shape expected from OutpostRunner loader:
+    {
+      "ids": {"outpost_id": 642},
+      "outpost_path": [[x, y], [x, y]],
+      "segments": [
+        {"map_id": 650, "path": [[x, y], [x, y]]},
+        {"map_id": 651, "path": []}
+      ]
+    }
+
+Auto-registered state flow:
+    1) configure run properties
+    2) travel to outpost
+    3) load D/A skillbar
+    4) follow outpost exit path
+    5) start managed skill-casting coroutine
+    6) follow each segment path (with map-load detection)
+    7) stop managed skill-casting coroutine
 """
 
 from __future__ import annotations
@@ -159,4 +177,5 @@ def Run(
     """
     display = name or f"Run: {route}"
     return Phase(display, lambda bot: run_route(bot, region, route))
+
 

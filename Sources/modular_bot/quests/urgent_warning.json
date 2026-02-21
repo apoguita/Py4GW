@@ -1,0 +1,23 @@
+{
+    "name": "White Mantle Wrath: Demagogue's Vanguard",
+    "max_heroes": 6,
+    "take_quest": {
+        "quest_npc_location": [-15405, 7],
+        "dialog_id": ["0x805C03", "0x805C01"],
+        "wait_ms": 500,
+        "name": "Take Quest"
+    },
+    "steps": [
+        {"type": "exit_map", "x": -15000, "y": 450, "target_map_id": 139},
+        {"type": "wait_map_change", "target_map_id": 139},
+        {"type": "exit_map", "x": -15050, "y": 400, "target_map_id": 44},
+        {"type": "wait_map_change", "target_map_id": 44},
+        {"type": "auto_path", "points": [[-16720, -742], [-14675, -4311], [-13116, -7296], [-11331, -5355], [-7797, 354], [-2891, -1380], [1567, 877], [7402, 1212], [10711, 2856], [13645, 4237], [17275, 792], [22096, 2278]], "name": "To Snakebite"},
+        {"type": "dialog", "x": 22279, "y": 2186, "id": "0x805C04"},
+        {"type": "auto_path", "name": "To Aurora Glade", "points": [[22064, 2698], [21552, 6952], [22353, 10167], [24571, 10041], [24471, 11819], [23356, 12579]]},
+        {"type": "exit_map", "x": 23200, "y": 12650, "target_map_id": 12},
+        {"type": "wait_map_change", "target_map_id": 12},
+        {"type": "auto_path", "name": "Reward npc", "points": [[-17637, -1477], [-16575, 562], [-19652, 1390], [-19652, 1390], [-16814, 4909]]},
+        {"type": "dialog", "x": -16848, "y": 5092, "id": "0x805C07"}
+    ]
+}
