@@ -36,6 +36,11 @@ class UnnaturalSignetUtility(CustomSkillUtilityBase):
                     condition=lambda agent_id: Agent.IsHexed(agent_id),
                     sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_DESC),
                     range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
+        if len(targets) == 0:
+            targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
+                    within_range=Range.Spellcast,
+                    sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_DESC),
+                    range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
         return targets
 
     @override
