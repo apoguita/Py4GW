@@ -87,7 +87,8 @@ class IniManager:
             IniManager._callback_name,
             PyCallback.Phase.Data,
             IniManager._flush_callback,
-            priority=99
+            priority=99,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod
