@@ -629,58 +629,91 @@ class DropViewerWindow:
         io = PyImGui.get_io()
         display_w = float(getattr(io, "display_size_x", 1920.0) or 1920.0)
 
-        icon_size = 40.0
-        handle_w = 68.0
-        handle_h = 68.0
-        x = max(8.0, (display_w * 0.5) - (handle_w * 0.5))
-        y = 4.0
+        btn_w = 48.0
+        btn_h = 48.0
+        win_w = btn_w + 4.0
+        win_h = btn_h + 4.0
+        default_x = max(8.0, (display_w * 0.5) - (btn_w * 0.5))
+        default_y = 4.0
 
-        if not self.hover_handle_initialized:
-            if self.saved_hover_handle_pos is not None:
-                PyImGui.set_next_window_pos(self.saved_hover_handle_pos[0], self.saved_hover_handle_pos[1])
-            else:
-                PyImGui.set_next_window_pos(x, y)
-        PyImGui.set_next_window_size(handle_w, handle_h)
+        if self.saved_hover_handle_pos is None:
+            self.saved_hover_handle_pos = (default_x, default_y)
+
+        x, y = self.saved_hover_handle_pos
+        button_rect = (x, y, btn_w, btn_h)
+
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(win_w, win_h)
         PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0.0, 0.0)
         flags = (
             PyImGui.WindowFlags.NoTitleBar |
             PyImGui.WindowFlags.NoResize |
+            PyImGui.WindowFlags.NoMove |
             PyImGui.WindowFlags.NoScrollbar |
             PyImGui.WindowFlags.NoScrollWithMouse |
-            PyImGui.WindowFlags.NoCollapse
+            PyImGui.WindowFlags.NoCollapse |
+            PyImGui.WindowFlags.NoBackground
         )
 
         hovered = False
         if PyImGui.begin("Drop Tracker##HoverHandle", flags):
-            self.hover_handle_initialized = True
-            self._persist_layout_value("drop_viewer_handle_pos", PyImGui.get_window_pos())
-            PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0.0, 0.0)
-            if self.hover_pin_open:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.30, 0.92, 0.35, 1.0))
-            else:
-                PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.95, 0.28, 0.22, 1.0))
+            # Travel-like themed floating background.
+            is_hover = ImGui.is_mouse_in_rect(button_rect)
+            try:
+                match(ImGui.get_style().Theme):
+                    case Style.StyleTheme.Guild_Wars:
+                        ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
+                            button_rect[:2], button_rect[2:],
+                            tint=(255, 255, 255, 255) if is_hover else (200, 200, 200, 255),
+                        )
+                        ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
+                            button_rect[:2], button_rect[2:],
+                            tint=(255, 255, 255, 255) if is_hover else (200, 200, 200, 255),
+                        )
+                    case _:
+                        PyImGui.draw_list_add_rect_filled(
+                            button_rect[0] + 1, button_rect[1] + 1,
+                            button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                            Utils.RGBToColor(51, 76, 102, 255) if is_hover else Utils.RGBToColor(26, 38, 51, 255),
+                            4, 0
+                        )
+                        PyImGui.draw_list_add_rect(
+                            button_rect[0] + 1, button_rect[1] + 1,
+                            button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                            Utils.RGBToColor(204, 204, 212, 50), 4, 0, 1
+                        )
+            except Exception:
+                pass
 
-            icon_x = max(0.0, (handle_w - icon_size) * 0.5)
-            icon_y = max(0.0, (handle_h - icon_size) * 0.5)
-            PyImGui.set_cursor_pos(icon_x, icon_y)
+            # Pin indicator frame (green pinned / red unpinned)
+            frame_col = Utils.RGBToColor(76, 235, 89, 255) if self.hover_pin_open else Utils.RGBToColor(242, 71, 56, 255)
+            PyImGui.draw_list_add_rect(
+                button_rect[0] + 1, button_rect[1] + 1,
+                button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                frame_col, 4, 0, 3
+            )
 
-            clicked = False
+            # Icon in drawlist, centered in the floating button.
+            tint = (255, 255, 255, 255) if is_hover else (210, 210, 210, 255)
+            icon_rect = (button_rect[0] + 8, button_rect[1] + 6, 32, 32)
             if os.path.exists(self.hover_icon_path):
-                clicked = ImGui.ImageButton("drop_viewer_handle_icon", self.hover_icon_path, icon_size, icon_size)
-            else:
-                clicked = PyImGui.button("Loot##DropHandleBtn", icon_size, icon_size)
+                ImGui.DrawTextureInDrawList(icon_rect[:2], icon_rect[2:], self.hover_icon_path, tint=tint)
 
-            if clicked:
+            if PyImGui.invisible_button("##DropHandleBtn", button_rect[2], button_rect[3]):
                 self.hover_pin_open = not self.hover_pin_open
-            PyImGui.pop_style_var(2)
-            PyImGui.pop_style_color(1)
+            elif PyImGui.is_item_active():
+                delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+                PyImGui.reset_mouse_drag_delta(0)
+                x = x + delta[0]
+                y = y + delta[1]
+                self.saved_hover_handle_pos = (x, y)
+                self._persist_layout_value("drop_viewer_handle_pos", self.saved_hover_handle_pos)
 
             if PyImGui.is_item_hovered():
                 tip = "Drop Tracker (click to pin)" if not self.hover_pin_open else "Drop Tracker (click to unpin)"
                 ImGui.show_tooltip(tip)
 
-            hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered()
+            hovered = ImGui.is_mouse_in_rect(button_rect)
         PyImGui.end()
         PyImGui.pop_style_var(1)
         return hovered
