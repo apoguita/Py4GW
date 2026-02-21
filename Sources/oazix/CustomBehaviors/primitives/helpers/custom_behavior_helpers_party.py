@@ -92,3 +92,13 @@ class CustomBehaviorHelperParty:
 
         return GLOBAL_CACHE.Party.GetPartyLeaderID()
 
+    @staticmethod
+    def get_own_party_index() -> int:
+        players = GLOBAL_CACHE.Party.GetPlayers()
+        my_id = Player.GetAgentID()
+        for i, player in enumerate(players):
+            agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+            if agent_id == my_id:
+                return i
+        return 0
+

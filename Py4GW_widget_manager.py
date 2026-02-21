@@ -8,8 +8,14 @@ import os
 module_name = "Widget Manager"
       
 #region UI
+from Sources.oazix.CustomBehaviors import start_drop_viewer
+
 def draw_window():
     global INI_KEY
+    
+    # Auto-run drop viewer
+    start_drop_viewer.draw_window()
+    
     if ImGui.Begin(INI_KEY,MODULE_NAME, flags=PyImGui.WindowFlags.AlwaysAutoResize):
         
         val = bool(IniManager().get(key= INI_KEY, var_name="enable_all", default=False, section="Configuration"))

@@ -146,6 +146,8 @@ class Resources:
         valid_chest_ids = [
             GadgetModelID.CHEST_HIDDEN_STASH.value,
             GadgetModelID.CHEST_ASCALONIAN.value,
+            GadgetModelID.CHEST_KRYTAN.value,
+            GadgetModelID.CHEST_MAGUUMA.value,
             GadgetModelID.CHEST_SHING_JEA.value,
             GadgetModelID.CHEST_KOURNAN.value,
             GadgetModelID.CHEST_DARKSTONE.value,

@@ -118,6 +118,7 @@ class CustomBehaviorParty:
     def __messaging_process(self):
 
         account_email = Player.GetAccountEmail()
+        # Consume one message per tick so the account queue does not stall.
         index, message = GLOBAL_CACHE.ShMem.GetNextMessage(account_email)
 
         if index == -1 or message is None:
@@ -125,7 +126,8 @@ class CustomBehaviorParty:
 
         match message.Command:
             case SharedCommandType.CustomBehaviors:
-                
+                pass
+            case _:
                 pass
 
     #---

@@ -11,6 +11,10 @@ import PyInventory
 from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.ItemArray import ItemArray
 from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
+    decode_name_chunk_meta,
+    parse_drop_meta,
+)
 from Py4GWCoreLib import * # Includes Map, Player
 
 class DropViewerWindow:
@@ -58,15 +62,112 @@ class DropViewerWindow:
         self.player_name = "Unknown"
         self.recent_log_cache = {}
         self.enable_chat_item_tracking = False
-        self.max_shmem_messages_per_tick = 25
+        self.max_shmem_messages_per_tick = 80
+        self.max_shmem_scan_per_tick = 600
         self.verbose_shmem_item_logs = False
+        self.send_tracker_ack_enabled = True
+        self.enable_perf_logs = False
+        self.seen_event_ttl_seconds = 900.0
+        self.seen_events = {}
+        self.name_chunk_buffers = {}
+        self.full_name_by_signature = {}
+        self.last_shmem_poll_ms = 0.0
+        self.last_shmem_processed = 0
+        self.last_shmem_scanned = 0
+        self.last_ack_sent = 0
+        self.perf_timer = ThrottledTimer(5000)
+        self.config_poll_timer = ThrottledTimer(2000)
+        self.runtime_config_path = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "drop_tracker_runtime_config.json")
+        self.runtime_config = self._default_runtime_config()
+        self.runtime_config_dirty = False
 
         # Ensure directories exist
         os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
         os.makedirs(self.saved_logs_dir, exist_ok=True)
 
+        self._load_runtime_config()
         # Always start each run with a fresh live log file + empty runtime data.
         self._reset_live_session()
+
+    def _default_runtime_config(self):
+        return {
+            "debug_pipeline_logs": False,
+            "enable_perf_logs": False,
+            "enable_delivery_ack": True,
+            "max_send_per_tick": 12,
+            "max_outbox_size": 2000,
+            "retry_interval_seconds": 1.0,
+            "max_retry_attempts": 12,
+            "verbose_shmem_item_logs": False,
+            "max_shmem_messages_per_tick": 80,
+            "max_shmem_scan_per_tick": 600,
+            "send_tracker_ack_enabled": True,
+        }
+
+    def _apply_runtime_config(self):
+        cfg = self.runtime_config if isinstance(self.runtime_config, dict) else self._default_runtime_config()
+        self.verbose_shmem_item_logs = bool(cfg.get("verbose_shmem_item_logs", self.verbose_shmem_item_logs))
+        self.max_shmem_messages_per_tick = max(5, int(cfg.get("max_shmem_messages_per_tick", self.max_shmem_messages_per_tick)))
+        self.max_shmem_scan_per_tick = max(20, int(cfg.get("max_shmem_scan_per_tick", self.max_shmem_scan_per_tick)))
+        self.send_tracker_ack_enabled = bool(cfg.get("send_tracker_ack_enabled", self.send_tracker_ack_enabled))
+        self.enable_perf_logs = bool(cfg.get("enable_perf_logs", self.enable_perf_logs))
+
+    def _load_runtime_config(self):
+        try:
+            if not os.path.exists(self.runtime_config_path):
+                self.runtime_config = self._default_runtime_config()
+                return
+            with open(self.runtime_config_path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                cfg = self._default_runtime_config()
+                cfg.update(loaded)
+                self.runtime_config = cfg
+            else:
+                self.runtime_config = self._default_runtime_config()
+        except Exception:
+            self.runtime_config = self._default_runtime_config()
+        self._apply_runtime_config()
+
+    def _save_runtime_config(self):
+        try:
+            os.makedirs(os.path.dirname(self.runtime_config_path), exist_ok=True)
+            with open(self.runtime_config_path, mode="w", encoding="utf-8") as f:
+                json.dump(self.runtime_config, f, indent=2)
+        except Exception as e:
+            Py4GW.Console.Log("DropViewer", f"Runtime config save failed: {e}", Py4GW.Console.MessageType.Warning)
+
+    def _sync_runtime_config_from_state(self):
+        cfg = self.runtime_config if isinstance(self.runtime_config, dict) else self._default_runtime_config()
+        cfg["verbose_shmem_item_logs"] = bool(self.verbose_shmem_item_logs)
+        cfg["max_shmem_messages_per_tick"] = int(self.max_shmem_messages_per_tick)
+        cfg["max_shmem_scan_per_tick"] = int(self.max_shmem_scan_per_tick)
+        cfg["send_tracker_ack_enabled"] = bool(self.send_tracker_ack_enabled)
+        cfg["enable_perf_logs"] = bool(self.enable_perf_logs)
+        self.runtime_config = cfg
+
+    def _send_tracker_ack(self, receiver_email: str, event_id: str) -> bool:
+        if not self.send_tracker_ack_enabled:
+            return False
+        event_id_text = (event_id or "").strip()
+        if not receiver_email or not event_id_text:
+            return False
+        try:
+            my_email = Player.GetAccountEmail()
+            if not my_email:
+                return False
+            sent_index = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email=my_email,
+                receiver_email=receiver_email,
+                command=SharedCommandType.CustomBehaviors,
+                params=(0.0, 0.0, 0.0, 0.0),
+                ExtraData=("TrackerAckV2", event_id_text[:31], "", ""),
+            )
+            if sent_index != -1:
+                self.last_ack_sent += 1
+            return sent_index != -1
+        except Exception:
+            return False
 
     def _ensure_text(self, value: Any) -> str:
         if value is None:
@@ -88,6 +189,29 @@ class DropViewerWindow:
 
     def _normalize_item_name(self, name: Any) -> str:
         return self._clean_item_name(name).lower()
+
+    def _canonical_agg_item_name(self, item_name: Any, rarity: Any, agg: dict) -> str:
+        name = self._clean_item_name(item_name)
+        if not name:
+            return "Unknown Item"
+        if name == "Gold":
+            return "Gold"
+
+        rarity_text = self._ensure_text(rarity).strip() or "Unknown"
+        lower_name = name.lower()
+        singular = lower_name[:-1] if lower_name.endswith("s") and len(lower_name) > 1 else lower_name
+        plural = singular + "s"
+
+        for (existing_name, existing_rarity) in agg.keys():
+            if self._ensure_text(existing_rarity).strip() != rarity_text:
+                continue
+            ex_lower = self._clean_item_name(existing_name).lower()
+            if ex_lower == lower_name:
+                return existing_name
+            # Conservative singular/plural normalization for same-rarity rows.
+            if ex_lower == singular or ex_lower == plural:
+                return existing_name
+        return name
 
     def _normalize_rarity_label(self, item_name: Any, rarity: Any) -> str:
         name = self._clean_item_name(item_name)
@@ -177,7 +301,8 @@ class DropViewerWindow:
                 temp_drops.append(row)
                 total += quantity
                 
-                key = (item_name, rarity)
+                canonical_name = self._canonical_agg_item_name(item_name, rarity, temp_agg)
+                key = (canonical_name, rarity)
                 if key not in temp_agg:
                     temp_agg[key] = {"Quantity": 0, "Count": 0}
                 
@@ -252,7 +377,8 @@ class DropViewerWindow:
                     temp_drops.append(row)
                     total += quantity
                     
-                    key = (item_name, rarity)
+                    canonical_name = self._canonical_agg_item_name(item_name, rarity, temp_agg)
+                    key = (canonical_name, rarity)
                     if key not in temp_agg:
                         temp_agg[key] = {"Quantity": 0, "Count": 0}
                     temp_agg[key]["Quantity"] += quantity
@@ -270,8 +396,10 @@ class DropViewerWindow:
         if PyImGui.begin(self.window_name):
             
             # -- Auto Refresh --
+            # Live mode already updates in-memory stats from ShMem/chat handlers.
+            # Avoid reparsing full CSV continuously, which can hitch on long sessions.
             current_time = time.time()
-            if not self.paused and current_time - self.last_auto_refresh_time > 1.0:
+            if self.paused and current_time - self.last_auto_refresh_time > 1.0:
                  self.last_auto_refresh_time = current_time
                  self.load_drops()
 
@@ -341,6 +469,100 @@ class DropViewerWindow:
                     self.set_status("Log Cleared")
                  except Exception as e:
                      Py4GW.Console.Log("DropViewer", f"Clear failed: {e}", Py4GW.Console.MessageType.Error)
+
+            PyImGui.separator()
+            PyImGui.text("Runtime")
+            if PyImGui.button(f"Verbose Logs: {'ON' if self.verbose_shmem_item_logs else 'OFF'}"):
+                self.verbose_shmem_item_logs = not self.verbose_shmem_item_logs
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button(f"ACK: {'ON' if self.send_tracker_ack_enabled else 'OFF'}"):
+                self.send_tracker_ack_enabled = not self.send_tracker_ack_enabled
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button(f"Perf Logs: {'ON' if self.enable_perf_logs else 'OFF'}"):
+                self.enable_perf_logs = not self.enable_perf_logs
+                self.runtime_config_dirty = True
+
+            sender_debug_logs = bool(self.runtime_config.get("debug_pipeline_logs", False))
+            sender_ack = bool(self.runtime_config.get("enable_delivery_ack", True))
+            sender_max_send = int(self.runtime_config.get("max_send_per_tick", 12))
+            sender_outbox = int(self.runtime_config.get("max_outbox_size", 2000))
+            sender_retry_s = float(self.runtime_config.get("retry_interval_seconds", 1.0))
+            sender_max_retries = int(self.runtime_config.get("max_retry_attempts", 12))
+
+            if PyImGui.button(f"Sender Debug: {'ON' if sender_debug_logs else 'OFF'}"):
+                self.runtime_config["debug_pipeline_logs"] = not sender_debug_logs
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button(f"Sender ACK: {'ON' if sender_ack else 'OFF'}"):
+                self.runtime_config["enable_delivery_ack"] = not sender_ack
+                self.runtime_config_dirty = True
+
+            PyImGui.text(f"Sender max_send/tick: {sender_max_send}")
+            if PyImGui.button("- Send"):
+                self.runtime_config["max_send_per_tick"] = max(1, sender_max_send - 1)
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button("+ Send"):
+                self.runtime_config["max_send_per_tick"] = min(100, sender_max_send + 1)
+                self.runtime_config_dirty = True
+
+            PyImGui.same_line(0.0, 25.0)
+            PyImGui.text(f"Sender outbox: {sender_outbox}")
+            if PyImGui.button("- Outbox"):
+                self.runtime_config["max_outbox_size"] = max(100, sender_outbox - 100)
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button("+ Outbox"):
+                self.runtime_config["max_outbox_size"] = min(20000, sender_outbox + 100)
+                self.runtime_config_dirty = True
+
+            PyImGui.text(f"Sender retry_s: {sender_retry_s:.1f} max_retries: {sender_max_retries}")
+            if PyImGui.button("- RetryS"):
+                self.runtime_config["retry_interval_seconds"] = max(0.2, round(sender_retry_s - 0.1, 2))
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button("+ RetryS"):
+                self.runtime_config["retry_interval_seconds"] = min(10.0, round(sender_retry_s + 0.1, 2))
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button("- Retries"):
+                self.runtime_config["max_retry_attempts"] = max(1, sender_max_retries - 1)
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button("+ Retries"):
+                self.runtime_config["max_retry_attempts"] = min(100, sender_max_retries + 1)
+                self.runtime_config_dirty = True
+
+            PyImGui.text(f"ShMem msg/tick: {self.max_shmem_messages_per_tick}")
+            if PyImGui.button("- Msg"):
+                self.max_shmem_messages_per_tick = max(5, self.max_shmem_messages_per_tick - 5)
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button("+ Msg"):
+                self.max_shmem_messages_per_tick = min(300, self.max_shmem_messages_per_tick + 5)
+                self.runtime_config_dirty = True
+
+            PyImGui.same_line(0.0, 25.0)
+            PyImGui.text(f"ShMem scan/tick: {self.max_shmem_scan_per_tick}")
+            if PyImGui.button("- Scan"):
+                self.max_shmem_scan_per_tick = max(20, self.max_shmem_scan_per_tick - 20)
+                self.runtime_config_dirty = True
+            PyImGui.same_line(0.0, 10.0)
+            if PyImGui.button("+ Scan"):
+                self.max_shmem_scan_per_tick = min(3000, self.max_shmem_scan_per_tick + 20)
+                self.runtime_config_dirty = True
+
+            if self.runtime_config_dirty:
+                self._sync_runtime_config_from_state()
+                self._save_runtime_config()
+                self.runtime_config_dirty = False
+
+            PyImGui.text(
+                f"Perf: poll_ms={self.last_shmem_poll_ms:.2f} "
+                f"processed={self.last_shmem_processed} scanned={self.last_shmem_scanned} ack_sent={self.last_ack_sent}"
+            )
 
             # -- Status Bar --
             if time.time() - self.status_time < 5:
@@ -453,6 +675,10 @@ class DropViewerWindow:
         self.last_update_time = now
 
         try:
+            if self.config_poll_timer.IsExpired():
+                self.config_poll_timer.Reset()
+                self._load_runtime_config()
+
             # Poll shared memory reliably every tick
             self._poll_shared_memory()
 
@@ -561,9 +787,15 @@ class DropViewerWindow:
                     pass
             return str(value).strip()
             
+        poll_started = time.perf_counter()
+        processed_tracker_msgs = 0
+        scanned_msgs = 0
+        batch_rows = []
+        ack_sent_this_tick = 0
         try:
             my_email = Player.GetAccountEmail()
-            if not my_email: return
+            if not my_email:
+                return
 
             # Only leader client should ingest TrackerDrop messages into the shared CSV.
             try:
@@ -572,27 +804,31 @@ class DropViewerWindow:
             except Exception:
                 return
 
-            # Use core global cache directly; Py4GW module may not expose GLOBAL_CACHE.
             shmem = getattr(GLOBAL_CACHE, "ShMem", None)
             if shmem is None:
                 return
 
-            # DropViewer must never clear global message queues on startup.
             self.shmem_bootstrap_done = True
-            
-            # Get ALL active messages and filter for ours
-            messages = shmem.GetAllMessages()
-            processed_tracker_msgs = 0
-            batch_rows = []
-            batch_logged_count = 0
 
+            # Keep only recent dedupe and partial-name buffers.
+            now_ts = time.time()
+            self.seen_events = {
+                key: ts for key, ts in self.seen_events.items()
+                if (now_ts - ts) <= self.seen_event_ttl_seconds
+            }
+            self.name_chunk_buffers = {
+                sig: data for sig, data in self.name_chunk_buffers.items()
+                if (now_ts - float(data.get("updated_at", now_ts))) <= 30.0
+            }
+
+            messages = shmem.GetAllMessages()
             for msg_idx, shared_msg in messages:
                 if processed_tracker_msgs >= self.max_shmem_messages_per_tick:
                     break
                 receiver_email = _normalize_shmem_text(getattr(shared_msg, "ReceiverEmail", ""))
                 if receiver_email != my_email:
                     continue
-                    
+
                 command_value = int(getattr(shared_msg, "Command", 0))
                 expected_custom_behavior_command = 997
                 try:
@@ -601,56 +837,109 @@ class DropViewerWindow:
                     pass
                 if command_value != expected_custom_behavior_command and command_value != 997:
                     continue
-                    
-                is_tracker_message = False
+
                 try:
-                    extra_data_list = shared_msg.ExtraData
-                    if len(extra_data_list) == 0:
+                    should_finish = False
+                    extra_data_list = getattr(shared_msg, "ExtraData", None)
+                    if not extra_data_list or len(extra_data_list) == 0:
                         continue
-                        
+
                     extra_0 = _c_wchar_array_to_str(extra_data_list[0])
-                    if extra_0 != "TrackerDrop":
-                        # Do not consume messages owned by other subsystems.
+                    if extra_0 == "TrackerNameV2":
+                        should_finish = True
+                        scanned_msgs += 1
+                        name_sig = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else ""
+                        chunk_text = _c_wchar_array_to_str(extra_data_list[2]) if len(extra_data_list) > 2 else ""
+                        chunk_meta = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
+                        chunk_idx, chunk_total = decode_name_chunk_meta(chunk_meta)
+                        if name_sig:
+                            bucket = self.name_chunk_buffers.get(name_sig, {"chunks": {}, "total": chunk_total, "updated_at": now_ts})
+                            bucket["total"] = max(int(bucket.get("total", 1)), int(chunk_total))
+                            bucket["chunks"][int(chunk_idx)] = chunk_text
+                            bucket["updated_at"] = now_ts
+                            self.name_chunk_buffers[name_sig] = bucket
+                            if len(bucket["chunks"]) >= int(bucket["total"]):
+                                merged = "".join(bucket["chunks"].get(i, "") for i in range(1, int(bucket["total"]) + 1)).strip()
+                                if merged:
+                                    self.full_name_by_signature[name_sig] = merged
+                                self.name_chunk_buffers.pop(name_sig, None)
+                        shmem.MarkMessageAsFinished(my_email, msg_idx)
                         continue
-                    
-                    is_tracker_message = True
+
+                    if extra_0 != "TrackerDrop":
+                        continue
+
+                    should_finish = True
+                    scanned_msgs += 1
+                    if scanned_msgs > self.max_shmem_scan_per_tick:
+                        break
 
                     item_name = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else "Unknown Item"
                     exact_rarity = _c_wchar_array_to_str(extra_data_list[2]) if len(extra_data_list) > 2 else "Unknown"
-                    display_time = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
-                    exact_rarity = self._normalize_rarity_label(item_name, exact_rarity)
+                    meta_text = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
+                    meta = parse_drop_meta(meta_text)
+                    event_id = meta.get("event_id", "")
+                    name_sig = meta.get("name_signature", "")
 
+                    resolved_name = self.full_name_by_signature.get(name_sig, "") if name_sig else ""
+                    if resolved_name:
+                        item_name = resolved_name
+                    elif name_sig and len(item_name) >= 31:
+                        item_name = f"{item_name}~{name_sig[:4]}"
+
+                    exact_rarity = self._normalize_rarity_label(item_name, exact_rarity)
 
                     quantity_param = shared_msg.Params[0] if len(shared_msg.Params) > 0 else 0
                     quantity = int(round(quantity_param)) if quantity_param > 0 else 1
+                    item_id_param = int(round(shared_msg.Params[1])) if len(shared_msg.Params) > 1 and shared_msg.Params[1] > 0 else 0
+                    model_id_param = int(round(shared_msg.Params[2])) if len(shared_msg.Params) > 2 and shared_msg.Params[2] > 0 else 0
+                    slot_encoded = int(round(shared_msg.Params[3])) if len(shared_msg.Params) > 3 and shared_msg.Params[3] > 0 else 0
+                    slot_bag = int((slot_encoded >> 16) & 0xFFFF) if slot_encoded > 0 else 0
+                    slot_index = int(slot_encoded & 0xFFFF) if slot_encoded > 0 else 0
 
                     sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
                     sender_name = "Follower"
-                    # Resolve sender name
                     sender_account = shmem.GetAccountDataFromEmail(sender_email)
                     if sender_account:
                         sender_name = sender_account.AgentData.CharacterName
 
-                    if not self._is_recent_duplicate(sender_name, item_name, quantity):
+                    event_key = f"{sender_email}:{event_id}" if event_id else ""
+                    is_duplicate = False
+                    if event_key:
+                        if event_key in self.seen_events:
+                            is_duplicate = True
+                        else:
+                            self.seen_events[event_key] = now_ts
+
+                    if not is_duplicate:
                         batch_rows.append((
                             sender_name,
                             item_name,
                             quantity,
                             exact_rarity,
-                            display_time if display_time else None
+                            None,
                         ))
-                        if self.verbose_shmem_item_logs and batch_logged_count < 5:
-                            log_msg = f"TRACKED: {item_name} x{quantity} ({exact_rarity}) [{sender_name}] (ShMem)"
-                            Py4GW.Console.Log("DropViewer", log_msg, Py4GW.Console.MessageType.Info)
-                            batch_logged_count += 1
 
-                    # Mark it finished so it's not processed again
+                    if event_id and self._send_tracker_ack(sender_email, event_id):
+                        ack_sent_this_tick += 1
+
+                    if self.verbose_shmem_item_logs:
+                        log_msg = (
+                            f"TRACKED: {item_name} x{quantity} ({exact_rarity}) "
+                            f"[{sender_name}] (ShMem idx={msg_idx} item_id={item_id_param} "
+                            f"model_id={model_id_param} slot={slot_bag}:{slot_index} ev={event_id} dup={is_duplicate})"
+                        )
+                        Py4GW.Console.Log("DropViewer", log_msg, Py4GW.Console.MessageType.Info)
+
                     shmem.MarkMessageAsFinished(my_email, msg_idx)
                     processed_tracker_msgs += 1
                 except Exception as msg_e:
                     Py4GW.Console.Log("DropViewer", f"Error parsing ShMem msg: {msg_e}", Py4GW.Console.MessageType.Warning)
-                    if is_tracker_message:
-                        shmem.MarkMessageAsFinished(my_email, msg_idx)
+                    try:
+                        if should_finish:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                    except Exception:
+                        pass
                     continue
 
             if batch_rows:
@@ -660,8 +949,23 @@ class DropViewerWindow:
                     f"TRACKED BATCH: {len(batch_rows)} items (ShMem)",
                     Py4GW.Console.MessageType.Info
                 )
-        except Exception as e:
-            pass # ShMem might not be ready
+        except Exception:
+            pass  # ShMem might not be ready
+        finally:
+            self.last_shmem_poll_ms = (time.perf_counter() - poll_started) * 1000.0
+            self.last_shmem_processed = processed_tracker_msgs
+            self.last_shmem_scanned = scanned_msgs
+            if self.enable_perf_logs and self.perf_timer.IsExpired():
+                self.perf_timer.Reset()
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    (
+                        f"perf poll_ms={self.last_shmem_poll_ms:.2f} "
+                        f"processed={self.last_shmem_processed} scanned={self.last_shmem_scanned} "
+                        f"ack_sent={ack_sent_this_tick}"
+                    ),
+                    Py4GW.Console.MessageType.Info,
+                )
 
     def _is_recent_duplicate(self, player_name, item_name, quantity, window_seconds=1.5):
         now = time.time()
@@ -754,7 +1058,8 @@ class DropViewerWindow:
                     self.raw_drops.append(row)
                     self.total_drops += qty
 
-                    key = (item_name, rarity)
+                    canonical_name = self._canonical_agg_item_name(item_name, rarity, self.aggregated_drops)
+                    key = (canonical_name, rarity)
                     if key not in self.aggregated_drops:
                         self.aggregated_drops[key] = {"Quantity": 0, "Count": 0}
 
@@ -789,8 +1094,6 @@ def main():
 
 def draw_window():
     drop_viewer.update()    
-    if not drop_viewer.paused:
-        drop_viewer.load_drops()
     drop_viewer.draw()
 
 def update():

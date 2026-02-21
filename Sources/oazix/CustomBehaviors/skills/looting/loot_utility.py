@@ -1,4 +1,5 @@
 import math
+import random
 from tkinter.constants import N
 from typing import Any, Generator, override
 
@@ -133,11 +134,16 @@ class LootUtility(CustomSkillUtilityBase):
             pos = Agent.GetXY(item_id)
             follow_success = yield from Routines.Yield.Movement.FollowPath([pos], timeout=6_000)
             if not follow_success:
-                print("Failed to follow path to loot item, halting.")
-                real_item_id = Agent.GetItemAgentItemID(item_id)
-                LootConfig().AddItemIDToBlacklist(real_item_id)
-                self.loot_cooldown_timer.Restart()
-                yield from custom_behavior_helpers.Helpers.wait_for(100)
+                print("Failed to follow path to loot item, attempting to unstuck.")
+                # Unstuck logic: Move to a random nearby position
+                angle = random.uniform(0, 2 * math.pi)
+                distance = 100 # Move 100 units away
+                current_x, current_y = Player.GetXY()
+                target_x = current_x + distance * math.cos(angle)
+                target_y = current_y + distance * math.sin(angle)
+                
+                Player.Move(target_x, target_y)
+                yield from custom_behavior_helpers.Helpers.wait_for(500)
                 continue
 
             Player.Interact(item_id, call_target=False)
