@@ -1,8 +1,8 @@
 {
   "name": "Riverside Province",
   "outpost_id": 73,
-  "max_heroes": 4,
-  "hero_team": "party_4",
+  "max_heroes": 6,
+  "hero_team": "party_6",
   "entry": {
     "type": "enter_challenge",
     "delay": 3000,
