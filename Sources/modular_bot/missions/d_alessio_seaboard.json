@@ -2,13 +2,14 @@
   "name": "D'Alessio Seaboard",
   "outpost_id": 15,
   "max_heroes": 6,
+  "hero_team": "party_6",
   "entry": {
     "type": "enter_challenge",
     "delay": 2000,
     "target_map_id": 15
   },
   "steps": [
-    {"type": "key_press", "key": "ENTER", "ms": 1000},
+    {"type": "key_press", "ms": 1000, "key": "ENTER"},
     {"type": "auto_path", "name": "Path 1", "points": [[20076, 6497], [21070, 4409], [20377, 2544], [17922, 1885], [19012, -652], [16880, -3384], [15260, -3817], [13516, -3152], [11212, -262], [9635, 953], [11365, -686], [8919, -2025], [9573, -3534], [7542, -400], [7955, -2269]]},
     {"type": "interact_quest_npc", "ms": 2000},
     {"type": "auto_path", "name": "Path 2", "points": [[7695, -583], [8928, 1582], [8860, 3190], [10109, 3501], [9571, 5072]]},

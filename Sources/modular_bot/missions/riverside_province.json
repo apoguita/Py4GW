@@ -1,31 +1,32 @@
 {
-    "name": "Riverside Province",
-    "outpost_id": 73,
-    "max_heroes": 4,
-    "entry": {
-        "type": "enter_challenge",
-        "delay": 3000,
-        "target_map_id": 73
-    },
-    "steps": [
-        {"type": "auto_path", "name": "initial Tower", "points": [[-25907, 2415], [-22571, -1381], [-22459, -3697], [-22459, -3697], [-24632, -4757]]},
-        {"type": "auto_path", "name": "Saidra", "points": [[-26290, -5613], [-28578, -6824]]},
-        {"type": "interact_nearest_npc", "ms": 100},
-        {"type": "auto_path", "name": "Watchtower 1", "points": [[-31466, -9199], [-31765, -10996]]},
-        {"type": "auto_path", "name": "Watchtower 2", "points": [[-29608, -6932], [-26769, -7918], [-20339, -8094], [-15394, -9716], [-14066, -10608]]},
-        {"type": "auto_path", "name": "Watchtower 3", "points": [[-13248, -11399], [-11014, -11875], [-9221, -8887], [-9366, -6279], [-7806, -4554]]},
-        {"type": "auto_path", "name": "Watchtower 4", "points": [[-6234, -5782],  [-2752, -7721], [-123, -6903]]},
-        {"type": "auto_path", "name": "Watchtower 5", "points": [[-323, -4649], [-2989, -1072], [-3996, 1109], [-2021, 3098]]},
-        {"type": "auto_path", "name": "Dinas", "points": [[-690, 3135], [1014, 5237], [1735, 6981], [1843, 5775], [3973, 7842], [5417, 8346]]},
-        {"type": "interact_nearest_npc", "ms": 1000},
-        {"type": "skip_cinematic"},
-        {"type": "auto_path", "name": "To the Lever", "points": [[5610, 7184]]},
-        {"type": "interact_gadget", "ms": 1000},
-        {"type": "auto_path", "name": "Watchtower 6", "points": [[7039, 4923], [8039, 1188], [6048, -2469], [9513, -3484], [12655, -3199], [14073, -5774], [14700, -2793], [16760, -2441]]},
-        {"type": "auto_path", "name": "Watchtower 7", "points": [[17510, -687], [18922, 4248], [16555, 5222], [20248, 7856], [22626, 7198]]},
-        {"type": "auto_path", "name": "Watchtower 8", "points": [[20805, 8207], [20068, 10579]]},
-        {"type": "auto_path", "name": "Final Escape", "points": [[22736, 11450]]},
-        {"type": "skip_cinematic"},
-        {"type": "wait_map_change", "target_map_id": 19}
-    ]
+  "name": "Riverside Province",
+  "outpost_id": 73,
+  "max_heroes": 4,
+  "hero_team": "party_4",
+  "entry": {
+    "type": "enter_challenge",
+    "delay": 3000,
+    "target_map_id": 73
+  },
+  "steps": [
+    {"type": "auto_path", "name": "initial Tower", "points": [[-25907, 2415], [-22571, -1381], [-22459, -3697], [-22459, -3697], [-24632, -4757]]},
+    {"type": "auto_path", "name": "Saidra", "points": [[-26290, -5613], [-28578, -6824]]},
+    {"type": "interact_nearest_npc", "ms": 100},
+    {"type": "auto_path", "name": "Watchtower 1", "points": [[-31466, -9199], [-31765, -10996]]},
+    {"type": "auto_path", "name": "Watchtower 2", "points": [[-29608, -6932], [-26769, -7918], [-20339, -8094], [-15394, -9716], [-14066, -10608]]},
+    {"type": "auto_path", "name": "Watchtower 3", "points": [[-13248, -11399], [-11014, -11875], [-9221, -8887], [-9366, -6279], [-7806, -4554]]},
+    {"type": "auto_path", "name": "Watchtower 4", "points": [[-6234, -5782], [-2752, -7721], [-123, -6903]]},
+    {"type": "auto_path", "name": "Watchtower 5", "points": [[-323, -4649], [-2989, -1072], [-3996, 1109], [-2021, 3098]]},
+    {"type": "auto_path", "name": "Dinas", "points": [[-690, 3135], [1014, 5237], [1735, 6981], [1843, 5775], [3973, 7842], [5417, 8346]]},
+    {"type": "interact_nearest_npc", "ms": 1000},
+    {"type": "skip_cinematic"},
+    {"type": "auto_path", "name": "To the Lever", "points": [[5610, 7184]]},
+    {"type": "interact_gadget", "ms": 1000},
+    {"type": "auto_path", "name": "Watchtower 6", "points": [[7039, 4923], [8039, 1188], [6048, -2469], [9513, -3484], [12655, -3199], [14073, -5774], [14700, -2793], [16760, -2441]]},
+    {"type": "auto_path", "name": "Watchtower 7", "points": [[17510, -687], [18922, 4248], [16555, 5222], [20248, 7856], [22626, 7198]]},
+    {"type": "auto_path", "name": "Watchtower 8", "points": [[20805, 8207], [20068, 10579]]},
+    {"type": "auto_path", "name": "Final Escape", "points": [[22736, 11450]]},
+    {"type": "skip_cinematic"},
+    {"type": "wait_map_change", "target_map_id": 19}
+  ]
 }

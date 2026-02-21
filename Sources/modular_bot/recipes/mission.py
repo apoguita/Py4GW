@@ -22,20 +22,20 @@ Entry block catalog:
       no entry step
 
 Step catalog (copy/paste):
-    {"type": "path", "points": [[0, 0], [100, 100]], "name": "Path 1"}
-    {"type": "auto_path", "points": [[0, 0], [100, 100]], "name": "AutoPath 1"}
-    {"type": "auto_path_delayed", "points": [[0, 0], [100, 100]], "delay_ms": 35000, "name": "Delay Path"}
+    {"type": "path", "name": "Path 1", "points": [[0, 0], [100, 100]]}
+    {"type": "auto_path", "name": "AutoPath 1", "points": [[0, 0], [100, 100]]}
+    {"type": "auto_path_delayed", "name": "Delay Path", "points": [[0, 0], [100, 100]], "delay_ms": 35000}
     {"type": "wait", "ms": 1000}
     {"type": "wait_out_of_combat"}
     {"type": "wait_map_load", "map_id": 72}
-    {"type": "move", "x": 0, "y": 0, "name": "Move"}
+    {"type": "move", "name": "Move", "x": 0, "y": 0}
     {"type": "exit_map", "x": 0, "y": 0, "target_map_id": 0}
-    {"type": "interact_npc", "x": 0, "y": 0, "name": "Talk NPC"}
+    {"type": "interact_npc", "name": "Talk NPC", "x": 0, "y": 0}
     {"type": "interact_gadget", "ms": 2000}
     {"type": "interact_item", "ms": 2000}
     {"type": "interact_quest_npc", "ms": 5000}
     {"type": "interact_nearest_npc", "ms": 5000}
-    {"type": "dialog", "x": 0, "y": 0, "id": 0, "name": "Dialog"}
+    {"type": "dialog", "name": "Dialog", "x": 0, "y": 0, "id": 0}
     {"type": "dialog_multibox", "id": 0}
     {"type": "skip_cinematic", "wait_ms": 500}
     {"type": "set_title", "id": 0}
@@ -52,6 +52,9 @@ Step catalog (copy/paste):
     {"type": "set_auto_combat", "enabled": false}
 
 Notes:
+    - Formatting convention for JSON steps:
+      one step object per line, with key order ``type``, then ``name``, then ``ms`` (if used),
+      then all other arguments.
     - key_press supported keys: F1, F2, SPACE, ENTER, ESCAPE/ESC
     - force_hero_state values: fight, guard, avoid
       (or behavior: 0=fight, 1=guard, 2=avoid)
