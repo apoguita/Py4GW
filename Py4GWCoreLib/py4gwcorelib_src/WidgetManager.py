@@ -102,6 +102,7 @@ class Py4GWLibrary:
         
         self.view_mode = ViewMode.All
         self.layout_mode = LayoutMode.Library
+        self.previous_mode = self.layout_mode
         self.sort_mode = SortMode.ByName
         
         self.filtered_widgets : list[Widget] = []
@@ -168,7 +169,7 @@ class Py4GWLibrary:
             self.max_suggestions = IniManager().read_int(key=self.ini_key, section="Configuration", name="max_suggestions", default=10)
             self.single_button_size = IniManager().read_int(key=self.ini_key, section="Configuration", name="single_button_size", default=48)
             
-            self.jump_to_minimalistic = IniManager().read_bool(key=self.ini_key, section="Configuration", name="jump_to_minimalistic", default=True)
+            self.jump_to_minimalistic = IniManager().read_bool(key=self.ini_key, section="Configuration", name="jump_to_minimalistic", default=False)
             self.single_filter = IniManager().read_bool(key=self.ini_key, section="Configuration", name="single_filter", default=True)
             self.startup_layout = LayoutMode[IniManager().read_key(key=self.ini_key, section="Configuration", name="startup_layout", default=LayoutMode.LastView.name)]
             
@@ -258,11 +259,13 @@ class Py4GWLibrary:
             case LayoutMode.Library:                
                 self.win_size = self.previous_size or (900, 600)
             case LayoutMode.Compact:
+                self.focus_search = True
                 self.win_size = (300, 80)
             case LayoutMode.Minimalistic:
                 self.win_size = (200, 45)
             case LayoutMode.SingleButton:
                 self.win_size = (self.single_button_size, self.single_button_size)
+                self.previous_mode = self.layout_mode
                 
         self.layout_mode = mode
         IniManager().set(key=self.ini_key, section="Configuration", var_name="layout", value=mode.name)
@@ -361,21 +364,50 @@ class Py4GWLibrary:
                 # check if all keywords are in name or folder
                 self.filtered_widgets = [w for w in prefiltered if all(kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
 
-    def draw_toggle_view_mode_button(self):
+    def draw_toggle_view_mode_button(self) -> bool:
+        clicked = False
+        hovered = False
+        
         match self.layout_mode:
             case LayoutMode.Library:
                 if ImGui.icon_button(IconsFontAwesome5.ICON_BARS, 28, 24):
                     self.set_layout_mode(LayoutMode.Compact)
-                    
+                    clicked = True
+                
+                hovered = PyImGui.is_item_hovered()
                 ImGui.show_tooltip("Switch to Compact View")
                     
             case LayoutMode.Compact:
                 if ImGui.icon_button(IconsFontAwesome5.ICON_TH_LIST, 28, 24):
                     self.set_layout_mode(LayoutMode.Library)
+                    clicked = True
                     
+                hovered = PyImGui.is_item_hovered()
                 ImGui.show_tooltip("Switch to Library View")
+                
+        return clicked or hovered
     
-    def draw_global_toggles(self, button_width : float, spacing : float):       
+    def draw_global_toggles(self, button_width : float, spacing : float, search : bool = False): 
+        if ImGui.button("##one_button_layout", width=button_width):
+            if self.layout_mode != LayoutMode.SingleButton:
+                self.set_layout_mode(LayoutMode.SingleButton)
+        
+        item_min, item_max, item_size = ImGui.get_item_rect()
+        pos_x = item_min[0] + ((item_size[0] - item_size[1]) / 2)
+        ImGui.DrawTextureInDrawList((pos_x, item_min[1]), (item_size[1], item_size[1]), "python_icon_round_20px.png")
+        ImGui.show_tooltip("Switch to Single Button View")
+        
+        
+        PyImGui.same_line(0, spacing)
+        
+        if search:
+            if ImGui.icon_button(IconsFontAwesome5.ICON_SEARCH + "##FocusSearch", button_width):
+                self.set_layout_mode(LayoutMode.Compact)
+            
+            ImGui.show_tooltip("Search widgets")
+            
+            PyImGui.same_line(0, spacing)      
+        
         if ImGui.icon_button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets", button_width):
             self.widget_manager.discovered = False
             self.widget_manager.discover()
@@ -432,7 +464,7 @@ class Py4GWLibrary:
         if self.focus_search:
             PyImGui.set_next_window_focus()
             
-        if ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoResize|PyImGui.WindowFlags.NoTitleBar)):   
+        if ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoResize|PyImGui.WindowFlags.NoTitleBar|PyImGui.WindowFlags.NoScrollbar|PyImGui.WindowFlags.NoScrollWithMouse)):   
             win_size = PyImGui.get_window_size()
             self.win_size = (win_size[0], win_size[1])
             ImGui.set_window_within_displayport(*self.win_size)
@@ -440,28 +472,31 @@ class Py4GWLibrary:
             
             spacing = 5
             width = win_size[0] - style.WindowPadding.value1 * 2
-            button_width = self.get_button_width(width, 5, spacing)            
-            if ImGui.icon_button(IconsFontAwesome5.ICON_SEARCH + "##FocusSearch", button_width):
-                self.set_layout_mode(LayoutMode.Compact)
-            
-            ImGui.show_tooltip("Search widgets")
-            
-            PyImGui.same_line(0, spacing)            
-            self.draw_global_toggles(button_width, spacing)
+            button_width = self.get_button_width(width, 6, spacing)        
+            self.draw_global_toggles(button_width, spacing, search=True)
                             
         ImGui.End(self.ini_key)
             
     def draw_presets_button(self) -> bool:
+        clicked = False
         if ImGui.icon_button(IconsFontAwesome5.ICON_FILTER, 28, 24):
+            Py4GW.Console.Log("Widget Browser", "Opening presets popup", Py4GW.Console.MessageType.Info)
+            clicked = True
+            
             if not self.popup_opened:
                 PyImGui.open_popup("PreSets##WidgetBrowser")
                 self.popup_opened = True
-                Py4GW.Console.Log("Widget Browser", "Opening presets popup", Py4GW.Console.MessageType.Info)
-            
+        ImGui.show_tooltip("Filter presets")
+        
         self.popup_opened = PyImGui.begin_popup("PreSets##WidgetBrowser")
         if self.popup_opened:
             if ImGui.menu_item("Show Enabled"):
                 self.widget_filter = "enabled; "
+                self.focus_search = True
+                self.filter_widgets(self.widget_filter)
+                
+            if ImGui.menu_item("Show Disabled"):
+                self.widget_filter = "disabled; "
                 self.focus_search = True
                 self.filter_widgets(self.widget_filter)
             
@@ -477,7 +512,7 @@ class Py4GWLibrary:
             
             PyImGui.end_popup()   
                     
-        return self.popup_opened
+        return self.popup_opened or clicked
             
     def draw_compact_view(self):
         if self.win_size:
@@ -487,7 +522,7 @@ class Py4GWLibrary:
             PyImGui.set_next_window_focus()
             
         if ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoTitleBar):   
-            window_hovered = PyImGui.is_window_hovered() or PyImGui.is_window_focused()
+            window_hovered = PyImGui.is_window_hovered()
             win_size = PyImGui.get_window_size()
             self.win_size = (win_size[0], win_size[1])
             ImGui.set_window_within_displayport(*self.win_size)
@@ -496,10 +531,10 @@ class Py4GWLibrary:
             width = win_size[0] - style.WindowPadding.value1 * 2
             
             spacing = 5
-            button_width = self.get_button_width(width, 4, spacing)     
+            button_width = self.get_button_width(width, 5, spacing)     
             self.draw_global_toggles(button_width, spacing)
             ImGui.separator()
-            self.draw_toggle_view_mode_button()   
+            toggle_interacted = self.draw_toggle_view_mode_button()   
             PyImGui.same_line(0, spacing)      
             
             search_width = PyImGui.get_content_region_avail()[0] - 30
@@ -522,13 +557,19 @@ class Py4GWLibrary:
             PyImGui.same_line(0, spacing)
             
             presets_opened = self.draw_presets_button()      
-            window_hovered = PyImGui.is_window_hovered() or PyImGui.is_window_focused() or PyImGui.is_item_hovered() or window_hovered 
+            window_hovered = PyImGui.is_window_hovered() or PyImGui.is_item_hovered() or window_hovered 
+            suggestions_opened = self.draw_suggestions(win_size, style, search_active, window_hovered, presets_opened)
             
+            if not presets_opened and not suggestions_opened and not window_hovered:
+                clicked_outside = PyImGui.is_mouse_down(0) and not PyImGui.is_any_item_hovered()
+                if not toggle_interacted and (clicked_outside or not search_active):
+                    if self.jump_to_minimalistic and self.layout_mode is LayoutMode.Compact:
+                        self.set_layout_mode(LayoutMode.Minimalistic)
+                        Py4GW.Console.Log("Widget Browser", "Switching to Minimalistic View", Py4GW.Console.MessageType.Info)
+                    
             
-            if not self.draw_suggestions(win_size, style, search_active, window_hovered, presets_opened) and not search_active and not window_hovered and not presets_opened:
-                self.widget_filter = ""
-                self.filtered_widgets.clear()
-            
+                
+                
             #TODO: if no suggestions and search active, switch to minimalistic view
             # if self.jump_to_minimalistic:
             #     self.set_layout_mode(LayoutMode.Minimalistic)
@@ -647,7 +688,8 @@ class Py4GWLibrary:
     def draw_sorting_button(self):
         if ImGui.icon_button(IconsFontAwesome5.ICON_SORT_AMOUNT_DOWN, 28, 24):
             PyImGui.open_popup("SortingPopup##WidgetBrowser")
-    
+        ImGui.show_tooltip("Sorting options")
+        
         if PyImGui.begin_popup("SortingPopup##WidgetBrowser"):
             sort_mode = ImGui.radio_button("Sort by Name", self.sort_mode, SortMode.ByName)
             if self.sort_mode != sort_mode:
@@ -727,6 +769,10 @@ class Py4GWLibrary:
             
             PyImGui.push_clip_rect(*win_pos, self.win_size[0], self.win_size[1], False)
             ImGui.DrawTextureInDrawList((win_pos[0] + 4, win_pos[1] + 2), (20, 20), "python_icon_round_20px.png")
+            if ImGui.is_mouse_in_rect((win_pos[0] + 4, win_pos[1] + 2, 20, 20)):
+                PyImGui.begin_tooltip()
+                PyImGui.text(f"Collapse to a single button showing only the Python icon.\nOpening the full library view when clicked." )
+                PyImGui.end_tooltip()
             
             minimize_rect = (win_pos[0] + 4 + win_size[0] - 50, win_pos[1] + 2, 24, 20)
             cursor_pos = PyImGui.get_cursor_screen_pos()
@@ -988,7 +1034,7 @@ class Py4GWLibrary:
                     ImGui.end_menu()
                 ImGui.end_menu_bar()
             
-            self.draw_toggle_view_mode_button()   
+            _ = self.draw_toggle_view_mode_button()   
             PyImGui.same_line(0, 5)    
             search_width = PyImGui.get_content_region_avail()[0] - 32
             PyImGui.push_item_width(search_width)
@@ -1418,7 +1464,7 @@ class Py4GWLibrary:
             ImGui.dummy(button_size, button_size)
             if in_radius:       
                 if PyImGui.is_item_clicked(0):
-                    self.set_layout_mode(LayoutMode.Library)
+                    self.set_layout_mode(self.previous_mode)
                 
                 ImGui.show_tooltip(f"Open Widget Manager")
                 
