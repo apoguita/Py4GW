@@ -108,18 +108,39 @@ class YNodeStruct(NodeStruct):
     def right(self) -> Optional[NodeStruct]: ...
     def snapshot_ynode(self) -> YNode: ...
 
+class SpawnPoint:
+    x: float
+    y: float
+    angle: float    # radians; 0.0 for spawns3 entries
+    tag: str        # 4-char FourCC (e.g. '0558', 'sub1'); '' for untagged. Map ID tags assign spawns to zones, not connectivity.
+    @property
+    def map_id(self) -> Optional[int]:
+        """Zone map ID if numeric tag, else None. Assigns spawn to a zone, not connectivity."""
+        ...
+    @property
+    def is_default(self) -> bool: ...
+
+class SpawnEntryStruct(Structure):
+    x: float
+    y: float
+    angle: float    # facing angle in radians
+    tag_raw: int    # uint32, big-endian FourCC
+    @property
+    def tag(self) -> str: ...
+    def snapshot(self) -> SpawnPoint: ...
+
 class Portal:
     left_layer_id: int
     right_layer_id: int
-    h0004: int
-    pair_index: int          # index of paired portal, or UINT32_MAX
+    flags: int               # +0x0004: bit 2 = skip expansion
+    pair_index: int          # index of paired portal in right_layer's portal list, or UINT32_MAX
     count: int
     trapezoid_indices: list[int]
 
 class PortalStruct(Structure):
     left_layer_id: int
     right_layer_id: int
-    h0004: int
+    flags: int
     pair_ptr: Optional[CPointer["PortalStruct"]]
     count: int
     trapezoids_ptr_ptr: Optional[CPointer[PathingTrapezoidStruct]]
@@ -277,54 +298,81 @@ class PropsContextStruct(Structure):
 # Map Context (nested)
 # -------------------------------------------------------------
 
-class MapContext_sub1_sub2Struct(Structure):
-    pad1: list[int]           # length 6
-    pmaps: GW_Array    # Array<PathingMap>
+class BlockingPropStruct(Structure):
+    """Props with collision not on the pathing map (trees etc.)."""
+    pos: Vec2f
+    radius: float
+
+class MapStaticDataStruct(Structure):
+    """GWCA: MapStaticData (0xA0)."""
+    h0000: list[int]                     # length 6
+    pmaps_array: GW_Array                # Array<PathingMap>
+    h0028: list[int]                     # length 4
+    blocking_props: GW_Array             # BaseArray<BlockingProp>
+    h0044: list[int]                     # length 16
+    trapezoid_count: int                 # +0x084  GWCA: nextTrapezoidId. Equals total count.
+    h0088: int
+    map_id: int                          # GW::Constants::MapID
+    h0090: list[int]                     # length 4
 
     @property
     def pathing_maps(self) -> List[PathingMapStruct]: ...
     @property
-    def pathing_maps_snapshot(self) -> list[PathingMap]:...
+    def pathing_maps_snapshot(self) -> list[PathingMap]: ...
 
 
-class MapContext_sub1Struct(Structure):
-    sub2_ptr: Optional[CPointer[MapContext_sub1_sub2Struct]]
-    pathing_map_block_array: GW_Array          # Array<uint32_t>
-    total_trapezoid_count: int
-    h0014: list[int]                     # length 0x12
-    something_else_for_props_array: GW_Array   # Array<TList<void*>>
+class PathContextStruct(Structure):
+    """GWCA: PathContext (0x94)."""
+    static_data_ptr: Optional[CPointer[MapStaticDataStruct]]
+    blocked_planes: GW_Array             # BaseArray<uint32_t>
+    path_nodes: GW_Array                 # BaseArray<PathNode*>
+    node_cache: list[int]                # NodeCache (0x14)
+    open_list: list[int]                 # PrioQ<PathNode> (0x14)
+    free_ipath_node: list[int]           # ObjectPool (0x0C)
+    allocated_path_nodes: GW_Array       # BaseArray<PathNode*>
+    h005C: int
+    h0060: int
+    waypoints: GW_Array                  # Array<PathWaypoint>
+    node_stack: GW_Array                 # Array<struct Node*>
+    h0084: list[int]                     # length 4
 
     @property
-    def sub2(self) -> Optional[MapContext_sub1_sub2Struct]: ...
+    def static_data(self) -> Optional[MapStaticDataStruct]: ...
     @property
-    def pathing_map_block(self) -> List[int]: ...
-    @property
-    def something_else_for_props(self) -> List[List[int]]: ...
+    def sub2(self) -> Optional[MapStaticDataStruct]: ...
 
 
 class MapContextStruct(Structure):
-    map_boundaries: list[float]          # length 5
+    """GWCA: MapContext (0x138)."""
+    map_type: int                        # "less than 4"
+    start_pos: Vec2f
+    end_pos: Vec2f
     h0014: list[int]                     # length 6
-    spawns1_array: GW_Array                    # Array<void*>
-    spawns2_array: GW_Array                    # Array<void*>
-    spawns3_array: GW_Array                    # Array<void*>
-    h005C: list[float]                   # length 6
-    sub1_ptr: Optional[CPointer[MapContext_sub1Struct]]
-    pad1: list[int]                      # uint8_t[4] as list[int]
+    spawns1_array: GW_Array              # Array<SpawnEntryStruct>
+    spawns2_array: GW_Array              # Array<SpawnEntryStruct>
+    spawns3_array: GW_Array              # Array<SpawnEntryStruct>
+    h005C: list[float]                   # length 6, "Some trapezoid i think" — GWCA
+    path_ptr: Optional[CPointer[PathContextStruct]]   # PathContext*
+    path_engine_ptr: int                 # PathEngineContext* (optional DLL-based pathfinder)
     props_ptr: Optional[CPointer[PropsContextStruct]]
     h0080: int
     terrain: int                         # void*
-    h0088: list[int]                     # length 42
+    h0088: int
+    map_id: int                          # GW::Constants::MapID
+    h0090: list[int]                     # length 40
     zones: int                           # void*
+    h0134: int
 
     @property
-    def spawns1(self) -> List[int]: ...
+    def spawns1(self) -> List[SpawnPoint]: ...
     @property
-    def spawns2(self) -> List[int]: ...
+    def spawns2(self) -> List[SpawnPoint]: ...
     @property
-    def spawns3(self) -> List[int]: ...
+    def spawns3(self) -> List[SpawnPoint]: ...
     @property
-    def sub1(self) -> Optional[MapContext_sub1Struct]: ...
+    def path(self) -> Optional[PathContextStruct]: ...
+    @property
+    def sub1(self) -> Optional[PathContextStruct]: ...
     @property
     def pathing_maps(self) -> list[PathingMapStruct]: ...
     @property
@@ -332,6 +380,17 @@ class MapContextStruct(Structure):
     @property
     def props(self) -> Optional[PropsContextStruct]: ...
 
+
+# -------------------------------------------------------------
+# Travel Portal Types
+# -------------------------------------------------------------
+
+@dataclass(slots=True)
+class TravelPortal:
+    x: float
+    y: float
+    z: float
+    model_file_id: int
 
 # -------------------------------------------------------------
 # Facade Types
@@ -355,3 +414,7 @@ class MapContext:
     def GetPathingMaps() -> list[PathingMap]: ...
     @staticmethod
     def GetPathingMapsRaw() -> list[PathingMapStruct]: ...
+    @staticmethod
+    def GetTravelPortals() -> list[TravelPortal]: ...
+    @staticmethod
+    def GetSpawns() -> tuple[list[SpawnPoint], list[SpawnPoint], list[SpawnPoint]]: ...

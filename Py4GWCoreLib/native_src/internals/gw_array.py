@@ -2,7 +2,20 @@ import ctypes
 from ctypes import c_uint32
 
 
+class GW_BaseArray(ctypes.Structure):
+    """GWCA BaseArray<T> — 0x0C bytes (buffer, capacity, size)."""
+    _pack_ = 1
+    _fields_ = [
+        ("m_buffer", ctypes.c_void_p),  # T*
+        ("m_capacity", c_uint32),
+        ("m_size", c_uint32),
+    ]
+
+assert ctypes.sizeof(GW_BaseArray) == 0x0C
+
+
 class GW_Array(ctypes.Structure):
+    """GWCA Array<T> — 0x10 bytes (buffer, capacity, size, param)."""
     _pack_ = 1
     _fields_ = [
         ("m_buffer", ctypes.c_void_p),  # T*

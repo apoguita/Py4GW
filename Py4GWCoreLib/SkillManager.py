@@ -21,6 +21,7 @@ from .enums import Range
 from .Effect import Effects
 from .Agent import Agent
 from .Player import Player
+from .Quest import Quest
 
 MAX_SKILLS = 8
 MAX_NUM_PLAYERS = 8
@@ -80,6 +81,15 @@ class UniqueSkills:
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
         self.leave_junundu = GLOBAL_CACHE.Skill.GetID("Leave_Junundu")
         self.junundu_tunnel = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
+        #nightfall
+        self.vial_of_purified_water = 1417
+        self.harbinger_model_ids = {5458, 5459, 5460}  # Harbinger model IDs
+        self.ursan_blessing = GLOBAL_CACHE.Skill.GetID("Ursan_Blessing")
+        self.ursan_force_regular = GLOBAL_CACHE.Skill.GetID("Ursan_Force")
+        #norn blood washes blood
+        self.ursan_aura = GLOBAL_CACHE.Skill.GetID("Ursan_Aura")
+        self.ursan_roar = 2395  # Ursan Roar (Blood Washes Blood)
+        self.ursan_force = 2396  # Ursan Force (Blood Washes Blood)
         
 def _PrioritizeSkills(Skill_Data, Skill_Order):
         """
@@ -567,6 +577,24 @@ def _AreCastConditionsMet(slot,
                 (skills[slot].skill_id == unique_skills.leave_junundu)
                 ):
                 return False
+
+            if (skills[slot].skill_id == unique_skills.vial_of_purified_water):
+                return Agent.GetModelID(vTarget) in unique_skills.harbinger_model_ids
+
+            if (skills[slot].skill_id == unique_skills.ursan_blessing):
+                return not HasEffect_fn(Player.GetAgentID(), unique_skills.ursan_blessing)
+
+            if (skills[slot].skill_id == unique_skills.ursan_aura):
+                return not HasEffect_fn(Player.GetAgentID(), 228)
+
+            if (skills[slot].skill_id == unique_skills.ursan_force_regular):
+                return not HasEffect_fn(Player.GetAgentID(), unique_skills.ursan_force_regular)
+
+            if (skills[slot].skill_id == unique_skills.ursan_roar):
+                return HasEffect_fn(Player.GetAgentID(), 228)
+
+            if (skills[slot].skill_id == unique_skills.ursan_force):
+                return HasEffect_fn(Player.GetAgentID(), 228) and not HasEffect_fn(Player.GetAgentID(), unique_skills.ursan_force)
 
             return True  # if no unique property is configured, return True for all UniqueProperty
         
@@ -1547,6 +1575,23 @@ class SkillManager:
                 if (self.skills[slot].skill_id == self.unique_skills.relentless_assault):
                     return Agent.IsHexed(Player.GetAgentID()) or Agent.IsConditioned(Player.GetAgentID())
 
+                if (self.skills[slot].skill_id == self.unique_skills.vial_of_purified_water):
+                    return Agent.GetModelID(vTarget) in self.unique_skills.harbinger_model_ids
+
+                if (self.skills[slot].skill_id == self.unique_skills.ursan_blessing):
+                    return not self.HasEffect(Player.GetAgentID(), self.unique_skills.ursan_blessing)
+
+                if (self.skills[slot].skill_id == self.unique_skills.ursan_aura):
+                    return not self.HasEffect(Player.GetAgentID(), 228)
+
+                if (self.skills[slot].skill_id == self.unique_skills.ursan_force_regular):
+                    return not self.HasEffect(Player.GetAgentID(), self.unique_skills.ursan_force_regular)
+
+                if (self.skills[slot].skill_id == self.unique_skills.ursan_roar):
+                    return self.HasEffect(Player.GetAgentID(), 228)
+
+                if (self.skills[slot].skill_id == self.unique_skills.ursan_force):
+                    return self.HasEffect(Player.GetAgentID(), 228) and not self.HasEffect(Player.GetAgentID(), self.unique_skills.ursan_force)
 
                 return True  # if no unique property is configured, return True for all UniqueProperty
 
