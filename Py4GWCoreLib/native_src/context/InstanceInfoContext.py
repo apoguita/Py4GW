@@ -155,7 +155,8 @@ class InstanceInfo:
             InstanceInfo._callback_name,
             PyCallback.Phase.PreUpdate,
             InstanceInfo._update_ptr,
-            priority=3
+            priority=3,
+            context=PyCallback.Context.Draw
         )
 
 

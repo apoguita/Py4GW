@@ -280,7 +280,8 @@ class Py4GWSharedMemoryManager:
             Callback_name,
             PyCallback.Phase.Data,
             Py4GWSharedMemoryManager().update_callback,
-            priority=99
+            priority=99,
+            context=PyCallback.Context.Draw
         )
 
 
