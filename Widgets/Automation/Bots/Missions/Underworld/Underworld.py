@@ -1,5 +1,6 @@
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
@@ -40,45 +41,140 @@ class BotSettings:
 
 
 # Precomputed spread points keep Servants of Grenth flags spaced without extra imports.
-def _toggle_wait_if_aggro(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
+def _get_custom_behavior(initialize_if_needed: bool = True):
+    loader = CustomBehaviorLoader()
+    behavior = loader.custom_combat_behavior
+
+    if behavior is None and initialize_if_needed:
+        loader.initialize_custom_behavior_candidate()
+        behavior = loader.custom_combat_behavior
+
+    return behavior
+
+
+def _set_custom_utility_enabled(
+    enabled: bool,
+    *,
+    skill_names: tuple[str, ...] = (),
+    class_names: tuple[str, ...] = (),
+) -> bool:
+    behavior = _get_custom_behavior(initialize_if_needed=True)
     if behavior is None:
-        return
+        return False
+
     for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "wait_if_in_aggro":
+        utility_skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
+        utility_class_name = utility.__class__.__name__
+
+        if utility_skill_name in skill_names or utility_class_name in class_names:
             utility.is_enabled = enabled
-            break
+            return True
+
+    return False
+
+
+def _toggle_wait_if_aggro(enabled: bool) -> None:
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_in_aggro",),
+        class_names=("WaitIfInAggroUtility",),
+    )
 
 def _toggle_wait_for_party(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
-    if behavior is None:
-        return
-    for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "wait_if_party_member_too_far":
-            utility.is_enabled = enabled
-            break
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_party_member_too_far",),
+        class_names=("WaitIfPartyMemberTooFarUtility",),
+    )
 
 def _toggle_move_if_aggro(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
-    if behavior is None:
-        return
-    for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "move_to_party_member_if_in_aggro":
-            utility.is_enabled = enabled
-            break
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("move_to_party_member_if_in_aggro",),
+        class_names=("MoveToPartyMemberIfInAggroUtility",),
+    )
 
 def _toggle_lock(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_lock_taken",),
+        class_names=("WaitIfLockTakenUtility",),
+    )
+
+
+def _setup_custom_behavior_integration(bot_instance: Botting) -> None:
+    behavior = _get_custom_behavior(initialize_if_needed=True)
     if behavior is None:
+        ConsoleLog(BOT_NAME, "[CB] Kein Custom-Behavior gefunden. Bot läuft ohne CB-Integration.", Py4GW.Console.MessageType.Warning)
         return
-    for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "wait_if_lock_taken":
-            utility.is_enabled = enabled
-            break
+
+    _ensure_custom_botting_skills_enabled()
+    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+    BottingFsmHelpers.UseCustomBehavior(
+        bot_instance,
+        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
+        on_party_death=BottingHelpers.botting_unrecoverable_issue,
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue,
+    )
+
+
+def _sync_custom_behavior_runtime() -> None:
+    loader = CustomBehaviorLoader()
+    loader.ensure_botting_daemon_running()
+
+    behavior = loader.custom_combat_behavior
+    if behavior is None:
+        loader.initialize_custom_behavior_candidate()
+
+
+def _ensure_custom_botting_skills_enabled() -> None:
+    """
+    Erzwingt aktivierte Botting-Skills für diesen Bot beim Start,
+    auch wenn sie in der globalen CB-Konfiguration zuvor deaktiviert wurden.
+    """
+    manager = BottingManager()
+
+    required_skill_keys = {
+        "WaitIfPartyMemberTooFarUtility",
+        "WaitIfInAggroUtility",
+        "MoveToPartyMemberIfInAggroUtility",
+        "WaitIfLockTakenUtility",
+    }
+
+    changed = False
+
+    for entry in manager.aggressive_skills:
+        if entry.name in required_skill_keys and not entry.enabled:
+            entry.enabled = True
+            changed = True
+
+    if changed:
+        manager.save()
+        ConsoleLog(BOT_NAME, "[CB] Benötigte Botting-Skills wurden für diesen Bot aktiviert.", Py4GW.Console.MessageType.Info)
+
+
+def _reactivate_custom_behavior_for_step(bot_instance: Botting, step_label: str) -> None:
+    """
+    Re-aktiviert die benötigte CB-Integration vor jedem größeren Schritt/Questabschnitt.
+    """
+    behavior = _get_custom_behavior(initialize_if_needed=True)
+    if behavior is None:
+        ConsoleLog(BOT_NAME, f"[CB] Kein Behavior für Schritt '{step_label}' verfügbar.", Py4GW.Console.MessageType.Warning)
+        return
+
+    _ensure_custom_botting_skills_enabled()
+    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+    BottingFsmHelpers.UseCustomBehavior(
+        bot_instance,
+        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
+        on_party_death=BottingHelpers.botting_unrecoverable_issue,
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue,
+    )
 
 def _enqueue_section(bot_instance: Botting, attr_name: str, label: str, section_fn):
     def _queue_section():
         if getattr(BotSettings, attr_name, False):
+            _reactivate_custom_behavior_for_step(bot_instance, label)
             section_fn(bot_instance)
     bot_instance.States.AddCustomState(_queue_section, f"[Toggle] {label}")
 
@@ -157,11 +253,7 @@ def bot_routine(bot: Botting):
     global MAIN_LOOP_HEADER_NAME
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
-    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot)
-    bot.Templates.Routines.UseCustomBehaviors(
-    on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
-    on_party_death=BottingHelpers.botting_unrecoverable_issue,
-    on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
+    _setup_custom_behavior_integration(bot)
     
     bot.Templates.Aggressive()
     
@@ -699,6 +791,7 @@ def _on_party_wipe(bot: "Botting"):
 
 
 def main():
+    _sync_custom_behavior_runtime()
     bot.Update()
     bot.UI.draw_window()
 
