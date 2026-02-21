@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from Py4GWCoreLib import Botting
 
 from ..phase import Phase
+from ..hero_setup import get_team_for_size, load_hero_teams
 
 
 def _get_quests_dir() -> str:
@@ -78,17 +79,17 @@ def _get_quests_dir() -> str:
 
 def _load_hero_config() -> Dict[str, Any]:
     """
-    Load hero configuration from ``Sources/modular_bot/quests/hero_config.json``.
+    Load hero configuration used by modular recipes.
 
     Returns:
-        Dict with keys ``party_4``, ``party_6``, ``party_8`` mapping
-        to lists of hero IDs.
+        Dict containing team keys mapped to hero ID lists.
+
+    Resolution order:
+        1) ``Sources/modular_bot/configs/<account_email>.json`` -> ``hero_teams``
+        2) ``Sources/modular_bot/configs/default.json`` -> ``hero_teams``
+        3) Legacy hero config paths
     """
-    filepath = os.path.join(_get_quests_dir(), "hero_config.json")
-    if not os.path.isfile(filepath):
-        return {"party_4": [], "party_6": [], "party_8": []}
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_hero_teams()
 
 
 def _load_quest_data(quest_name: str) -> Dict[str, Any]:
@@ -379,6 +380,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     data = _load_quest_data(quest_name)
     display_name = data.get("name", quest_name)
     max_heroes = data.get("max_heroes", 0)
+    hero_team = str(data.get("hero_team", "") or "")
     take_quest = data.get("take_quest")
     steps = data.get("steps", [])
 
@@ -390,9 +392,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
 
     # 2. Add heroes from config
     if max_heroes > 0:
-        hero_config = _load_hero_config()
-        party_key = f"party_{max_heroes}"
-        hero_ids = hero_config.get(party_key, [])
+        hero_ids = get_team_for_size(max_heroes, hero_team)
         if hero_ids:
             bot.Party.LeaveParty()
             bot.Party.AddHeroList(hero_ids)
