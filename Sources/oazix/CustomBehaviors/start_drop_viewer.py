@@ -680,7 +680,7 @@ class DropViewerWindow:
                 tip = "Drop Tracker (click to pin)" if not self.hover_pin_open else "Drop Tracker (click to unpin)"
                 ImGui.show_tooltip(tip)
 
-            hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered() or PyImGui.is_any_item_hovered()
+            hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered()
         PyImGui.end()
         PyImGui.pop_style_var(1)
         return hovered
@@ -926,7 +926,7 @@ class DropViewerWindow:
                     self._draw_log(table_rows)
                 PyImGui.end_child()
 
-            main_window_hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered() or PyImGui.is_any_item_hovered()
+            main_window_hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered()
 
         PyImGui.end()
         self._flush_runtime_config_if_dirty()
