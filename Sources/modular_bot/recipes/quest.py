@@ -1,57 +1,66 @@
 """
 Quest recipe - run a quest from a structured JSON data file.
 
-Quest data files define a sequence of steps (move, wait, interact,
-dialog, etc.) that the bot executes in order. Combat is handled by
-CustomBehaviors.
+Quest files live in:
+    Sources/modular_bot/quests/<quest_name>.json
 
-JSON format (stored in Sources/modular_bot/quests/<name>.json):
-
+Minimal quest template:
     {
-        "name": "Ruins of Surmia",
-        "max_heroes": 4,
-        "take_quest": {
-            "outpost_id": 30,
-            "quest_npc_location": [0, 0],
-            "dialog_id": "0x00000000",
-            "wait_ms": 2000,
-            "name": "Take Quest"
-        },
-        "steps": [
-            {"type": "auto_path", "points": [[0, 0], [100, 100]]},
-            {"type": "dialog", "x": 120, "y": 250, "id": 133}
-        ]
+      "name": "Quest Name",
+      "max_heroes": 4,
+      "take_quest": {
+        "outpost_id": 30,
+        "quest_npc_location": [0, 0],
+        "dialog_id": "0x00000000",
+        "wait_ms": 2000,
+        "name": "Take Quest"
+      },
+      "steps": []
     }
 
-Top-level fields:
-    - take_quest: optional quest pickup block with:
-      - outpost_id (optional)
-      - quest_npc_location [x,y] (required)
-      - dialog_id (required, int/"0x..." or list of them)
-      - wait_ms (optional)
-      - name (optional)
+Top-level quest block catalog:
+    - take_quest (optional):
+      {
+        "outpost_id": 30,
+        "quest_npc_location": [0, 0],
+        "dialog_id": "0x00000000",
+        "wait_ms": 2000,
+        "name": "Take Quest"
+      }
 
-Step types:
-    - path
-    - auto_path
-    - wait
-    - wait_out_of_combat
-    - wait_map_load
-    - move
-    - exit_map
-    - interact_npc
-    - interact_gadget
-    - interact_item
-    - interact_quest_npc
-    - interact_nearest_npc
-    - dialog
-    - dialog_multibox
-    - skip_cinematic
-    - set_title
-    - flag_heroes
-    - unflag_heroes
-    - resign
-    - wait_map_change
+    take_quest options:
+    - outpost_id: optional
+    - quest_npc_location: required [x, y]
+    - dialog_id: required; int, "0x...", or list of them
+    - wait_ms: optional
+    - name: optional
+
+Step catalog (copy/paste):
+    {"type": "path", "name": "Path 1", "points": [[0, 0], [100, 100]]}
+    {"type": "auto_path", "name": "AutoPath 1", "points": [[0, 0], [100, 100]]}
+    {"type": "wait", "ms": 1000}
+    {"type": "wait_out_of_combat"}
+    {"type": "wait_map_load", "map_id": 72}
+    {"type": "move", "name": "Move", "x": 0, "y": 0}
+    {"type": "exit_map", "x": 0, "y": 0, "target_map_id": 0}
+    {"type": "interact_npc", "name": "Talk NPC", "x": 0, "y": 0}
+    {"type": "interact_gadget", "ms": 2000}
+    {"type": "interact_item", "ms": 2000}
+    {"type": "interact_quest_npc", "ms": 5000}
+    {"type": "interact_nearest_npc", "ms": 5000}
+    {"type": "dialog", "name": "Dialog", "x": 0, "y": 0, "id": 0}
+    {"type": "dialogs", "name": "Dialogs", "x": 0, "y": 0, "id": ["0x2", "0x15", "0x3"]}
+    {"type": "dialog_multibox", "id": 0}
+    {"type": "skip_cinematic", "wait_ms": 500}
+    {"type": "set_title", "id": 0}
+    {"type": "flag_heroes", "x": 0, "y": 0, "ms": 2000}
+    {"type": "unflag_heroes", "ms": 2000}
+    {"type": "resign"}
+    {"type": "wait_map_change", "target_map_id": 0}
+
+Formatting convention:
+    - One step object per line.
+    - Step key order: ``type``, then ``name``, then ``ms`` (if used), then other args.
 """
 
 from __future__ import annotations
@@ -64,6 +73,7 @@ if TYPE_CHECKING:
     from Py4GWCoreLib import Botting
 
 from ..phase import Phase
+from ..hero_setup import get_team_for_size, load_hero_teams
 
 
 def _get_quests_dir() -> str:
@@ -73,17 +83,17 @@ def _get_quests_dir() -> str:
 
 def _load_hero_config() -> Dict[str, Any]:
     """
-    Load hero configuration from ``Sources/modular_bot/quests/hero_config.json``.
+    Load hero configuration used by modular recipes.
 
     Returns:
-        Dict with keys ``party_4``, ``party_6``, ``party_8`` mapping
-        to lists of hero IDs.
+        Dict containing team keys mapped to hero ID lists.
+
+    Resolution order:
+        1) ``Sources/modular_bot/configs/<account_email>.json`` -> ``hero_teams``
+        2) ``Sources/modular_bot/configs/default.json`` -> ``hero_teams``
+        3) Legacy hero config paths
     """
-    filepath = os.path.join(_get_quests_dir(), "hero_config.json")
-    if not os.path.isfile(filepath):
-        return {"party_4": [], "party_6": [], "party_8": []}
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_hero_teams()
 
 
 def _load_quest_data(quest_name: str) -> Dict[str, Any]:
@@ -224,6 +234,32 @@ def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
         name = step.get("name", "")
         bot.Dialogs.AtXY(x, y, dialog_id, name)
 
+    elif step_type == "dialogs":
+        from Py4GWCoreLib import ConsoleLog, Player
+
+        x, y = step["x"], step["y"]
+        name = step.get("name", f"Dialogs {step_idx + 1}")
+        interval_ms = int(step.get("interval_ms", 500))
+        raw_ids = step.get("id", [])
+        dialog_ids_raw = raw_ids if isinstance(raw_ids, (list, tuple)) else [raw_ids]
+
+        dialog_ids: List[int] = []
+        for value in dialog_ids_raw:
+            try:
+                dialog_ids.append(int(str(value), 0))
+            except (TypeError, ValueError):
+                ConsoleLog("Recipe:Quest", f"Invalid dialogs.id value at index {step_idx}: {value!r}")
+                return
+
+        bot.Move.XYAndInteractNPC(x, y, name)
+        for idx, dialog_id in enumerate(dialog_ids):
+            bot.States.AddCustomState(
+                lambda _d=dialog_id: Player.SendDialog(_d),
+                f"{name} [{idx + 1}/{len(dialog_ids)}]",
+            )
+            if idx < len(dialog_ids) - 1:
+                bot.Wait.ForTime(interval_ms)
+
     elif step_type == "dialog_multibox":
         dialog_id = step["id"]
         bot.Multibox.SendDialogToTarget(dialog_id)
@@ -348,6 +384,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     data = _load_quest_data(quest_name)
     display_name = data.get("name", quest_name)
     max_heroes = data.get("max_heroes", 0)
+    hero_team = str(data.get("hero_team", "") or "")
     take_quest = data.get("take_quest")
     steps = data.get("steps", [])
 
@@ -359,9 +396,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
 
     # 2. Add heroes from config
     if max_heroes > 0:
-        hero_config = _load_hero_config()
-        party_key = f"party_{max_heroes}"
-        hero_ids = hero_config.get(party_key, [])
+        hero_ids = get_team_for_size(max_heroes, hero_team)
         if hero_ids:
             bot.Party.LeaveParty()
             bot.Party.AddHeroList(hero_ids)
@@ -401,3 +436,4 @@ def Quest(
             name = f"Quest: {quest_name}"
 
     return Phase(name, lambda bot: quest_run(bot, quest_name))
+
