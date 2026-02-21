@@ -1215,7 +1215,8 @@ class WorldContext:
             WorldContext._callback_name,
             PyCallback.Phase.PreUpdate,
             WorldContext._update_ptr,
-            priority=4
+            priority=4,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod
