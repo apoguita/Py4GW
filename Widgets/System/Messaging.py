@@ -20,7 +20,6 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
-from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
@@ -245,7 +244,7 @@ def EnableHeroAIOptions(account_email):
 # region InviteToParty
 
 
-def InviteToParty(index: int, message: SharedMessageStruct):
+def InviteToParty(index, message):
     # ConsoleLog(MODULE_NAME, f"Processing InviteToParty message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -263,7 +262,7 @@ def InviteToParty(index: int, message: SharedMessageStruct):
 
 
 # region LeaveParty
-def LeaveParty(index: int, message: SharedMessageStruct):
+def LeaveParty(index, message):
     # ConsoleLog(MODULE_NAME, f"Processing LeaveParty message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -281,7 +280,7 @@ def LeaveParty(index: int, message: SharedMessageStruct):
 # region TravelToMap
 
 
-def TravelToMap(index: int, message: SharedMessageStruct):
+def TravelToMap(index, message):
     # ConsoleLog(MODULE_NAME, f"Processing TravelToMap message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -303,7 +302,7 @@ def TravelToMap(index: int, message: SharedMessageStruct):
 # endregion
 
 # region Resign
-def Resign(index: int, message: SharedMessageStruct):
+def Resign(index, message):
     if not Routines.Checks.Map.MapValid():
         ConsoleLog(MODULE_NAME, "Map is not valid, cannot process resign message.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -319,7 +318,7 @@ def Resign(index: int, message: SharedMessageStruct):
 # endregion
 
 # region PixelStack
-def PixelStack(index: int, message: SharedMessageStruct):
+def PixelStack(index, message):
     ConsoleLog(MODULE_NAME, f"Processing PixelStack message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -369,7 +368,7 @@ def PixelStack(index: int, message: SharedMessageStruct):
 
 
 # region BruteForceUnstuck
-def BruteForceUnstuck(index: int, message: SharedMessageStruct):
+def BruteForceUnstuck(index, message):
     ConsoleLog(MODULE_NAME, f"Processing BruteForceUnstuck message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -429,7 +428,7 @@ def BruteForceUnstuck(index: int, message: SharedMessageStruct):
 # region InteractWithTarget
 
 
-def InteractWithTarget(index: int, message: SharedMessageStruct):
+def InteractWithTarget(index, message):
     ConsoleLog(MODULE_NAME, f"Processing InteractWithTarget message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -460,7 +459,7 @@ def InteractWithTarget(index: int, message: SharedMessageStruct):
 
 # endregion
 # region TakeDialogWithTarget
-def TakeDialogWithTarget(index: int, message: SharedMessageStruct):
+def TakeDialogWithTarget(index, message):
     ConsoleLog(MODULE_NAME, f"Processing TakeDialogWithTarget message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -494,7 +493,7 @@ def TakeDialogWithTarget(index: int, message: SharedMessageStruct):
 # endregion
 
 # region SendDialogToTarget
-def SendDialogToTarget(index: int, message: SharedMessageStruct):
+def SendDialogToTarget(index, message):
     ConsoleLog(MODULE_NAME, f"Processing SendDialogToTarget message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -529,7 +528,7 @@ def SendDialogToTarget(index: int, message: SharedMessageStruct):
 # endregion
 
 # region SendDialog
-def SendDialog(index: int, message: SharedMessageStruct):
+def SendDialog(index, message):
     ConsoleLog(MODULE_NAME, f"Processing SendDialog message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -545,7 +544,7 @@ def SendDialog(index: int, message: SharedMessageStruct):
 # endregion
 
 # region GetBlessing
-def GetBlessing(index: int, message: SharedMessageStruct):
+def GetBlessing(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -581,7 +580,7 @@ def GetBlessing(index: int, message: SharedMessageStruct):
 # region UsePcon
 
 
-def UsePcon(index: int, message: SharedMessageStruct):
+def UsePcon(index, message):
     ConsoleLog(MODULE_NAME, f"Processing UsePcon message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -627,7 +626,7 @@ def UsePcon(index: int, message: SharedMessageStruct):
 
 
 # region PressKey
-def PressKey(index: int, message: SharedMessageStruct):
+def PressKey(index, message):
     ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -645,7 +644,7 @@ def PressKey(index: int, message: SharedMessageStruct):
 
 # endregion
 # region DonateToGuild
-def DonateToGuild(index: int, message: SharedMessageStruct):
+def DonateToGuild(index, message):
     MODULE = "DonateFaction"
     CHUNK = 5000
 
@@ -725,7 +724,7 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
 # endregion
 
 #region Open Chest
-def OpenChest(index: int, message: SharedMessageStruct):
+def OpenChest(index, message):
     start_time = time.time()
     
     cascade = int(message.Params[1]) == 1
@@ -825,7 +824,7 @@ def OpenChest(index: int, message: SharedMessageStruct):
     
 
 # region PickUpLoot
-def PickUpLoot(index: int, message: SharedMessageStruct):
+def PickUpLoot(index, message):
     def _exit_if_not_map_valid():
         if not Routines.Checks.Map.MapValid():
             RestoreHeroAISnapshot(message.ReceiverEmail)
@@ -939,7 +938,7 @@ def PickUpLoot(index: int, message: SharedMessageStruct):
 #endregion
 
 # region DisableHeroAI / EnableHeroAI
-def MessageDisableHeroAI(index: int, message: SharedMessageStruct):
+def MessageDisableHeroAI(index, message):
     ConsoleLog(MODULE_NAME, f"Processing DisableHeroAI message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
@@ -950,7 +949,7 @@ def MessageDisableHeroAI(index: int, message: SharedMessageStruct):
     yield
 
 
-def MessageEnableHeroAI(index: int, message: SharedMessageStruct):
+def MessageEnableHeroAI(index, message):
     ConsoleLog(MODULE_NAME, f"Processing EnableHeroAI message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     account_email = message.ReceiverEmail
@@ -965,7 +964,7 @@ def MessageEnableHeroAI(index: int, message: SharedMessageStruct):
 # endregion
 
 # region SetWindowGeometry
-def SetWindowGeometry(index: int, message: SharedMessageStruct):
+def SetWindowGeometry(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -977,7 +976,7 @@ def SetWindowGeometry(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "SetWindowGeometry message processed and finished.", Console.MessageType.Info, False)
 # endregion
 #region SetWindowActive
-def SetWindowActive(index: int, message: SharedMessageStruct):
+def SetWindowActive(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -991,7 +990,7 @@ def SetWindowActive(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "SetWindowActive message processed and finished.", Console.MessageType.Info, False)
 # endregion
 #region SetWindowTitle
-def SetWindowTitle(index: int, message: SharedMessageStruct):
+def SetWindowTitle(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -1011,7 +1010,7 @@ def SetWindowTitle(index: int, message: SharedMessageStruct):
 
 # endregion
 #region SetBorderless
-def SetBorderless(index: int, message: SharedMessageStruct):
+def SetBorderless(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1023,7 +1022,7 @@ def SetBorderless(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "SetBorderless message processed and finished.", Console.MessageType.Info, False)
 # endregion
 #region SetAlwaysOnTop
-def SetAlwaysOnTop(index: int, message: SharedMessageStruct):
+def SetAlwaysOnTop(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1035,7 +1034,7 @@ def SetAlwaysOnTop(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "SetAlwaysOnTop message processed and finished.", Console.MessageType.Info, False)
 # endregion
 #region FlashWindow
-def FlashWindow(index: int, message: SharedMessageStruct):
+def FlashWindow(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1047,7 +1046,7 @@ def FlashWindow(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "FlashWindow message processed and finished.", Console.MessageType.Info, False)
 # endregion
 #region RequestAttention
-def RequestAttention(index: int, message: SharedMessageStruct):
+def RequestAttention(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1059,7 +1058,7 @@ def RequestAttention(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "RequestAttention message processed and finished.", Console.MessageType.Info, False)
 # endregion
 # region SetTransparentClickThrough
-def SetTransparentClickThrough(index: int, message: SharedMessageStruct):
+def SetTransparentClickThrough(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1071,7 +1070,7 @@ def SetTransparentClickThrough(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "SetTransparentClickThrough message processed and finished.", Console.MessageType.Info, False)
 # endregion
 # region SetTransparency
-def SetOpacity(index: int, message: SharedMessageStruct):
+def SetOpacity(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1084,7 +1083,7 @@ def SetOpacity(index: int, message: SharedMessageStruct):
 #endregion
 
 #region UseSkill
-def UseSkill(index: int, message: SharedMessageStruct):
+def UseSkill(index, message):
     ConsoleLog(MODULE_NAME, f"Processing UseSkill message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -1172,7 +1171,7 @@ def _should_block_item_use() -> bool:
         return True
     return False
 
-def UseItem(index: int, message: SharedMessageStruct):
+def UseItem(index, message):
     ConsoleLog(MODULE_NAME, "UseItem: received broadcast.", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -1303,7 +1302,7 @@ def UseItem(index: int, message: SharedMessageStruct):
 # endregion
 
 # region UseSkillFromMessage
-def UseSkillCombatPrep(index: int, message: SharedMessageStruct):
+def UseSkillCombatPrep(index, message):
     global combat_prep_first_skills_check
     global hero_ai_has_paragon_skills
     global hero_ai_has_ritualist_skills
@@ -1446,7 +1445,7 @@ def UseSkillCombatPrep(index: int, message: SharedMessageStruct):
 #endregion
 
 # region Widget handling
-def PauseWidgets(index: int, message: SharedMessageStruct):
+def PauseWidgets(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1459,7 +1458,7 @@ def PauseWidgets(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "PauseWidgets message processed and finished.", Console.MessageType.Info, False)
 
-def ResumeWidgets(index: int, message: SharedMessageStruct):
+def ResumeWidgets(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1473,7 +1472,7 @@ def ResumeWidgets(index: int, message: SharedMessageStruct):
 # endregion
 
 #region SwitchCharacter
-def SwitchCharacter(index: int, message: SharedMessageStruct):
+def SwitchCharacter(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
@@ -1492,7 +1491,7 @@ def SwitchCharacter(index: int, message: SharedMessageStruct):
 # endregion
 
 #region LoadSkillTemplate
-def LoadSkillTemplate(index: int, message: SharedMessageStruct):
+def LoadSkillTemplate(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     
@@ -1513,7 +1512,7 @@ def LoadSkillTemplate(index: int, message: SharedMessageStruct):
 # endregion
 
 #region SkipCutscene
-def SkipCutscene(index: int, message: SharedMessageStruct):
+def SkipCutscene(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     
@@ -1530,7 +1529,7 @@ def SkipCutscene(index: int, message: SharedMessageStruct):
 # endregion
 
 #region TravelToGuildHall
-def TravelToGuildHall(index: int, message: SharedMessageStruct):
+def TravelToGuildHall(index, message):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
     if sender_data is None:
