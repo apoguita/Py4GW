@@ -1,0 +1,13 @@
+{
+  "debug_pipeline_logs": false,
+  "enable_perf_logs": false,
+  "enable_delivery_ack": true,
+  "max_send_per_tick": 12,
+  "max_outbox_size": 2000,
+  "retry_interval_seconds": 1.0,
+  "max_retry_attempts": 12,
+  "verbose_shmem_item_logs": false,
+  "max_shmem_messages_per_tick": 80,
+  "max_shmem_scan_per_tick": 600,
+  "send_tracker_ack_enabled": true
+}
