@@ -10,6 +10,7 @@ from typing import Any
 import PyInventory
 from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.ItemArray import ItemArray
+from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
     decode_name_chunk_meta,
@@ -81,11 +82,39 @@ class DropViewerWindow:
         self.runtime_config = self._default_runtime_config()
         self.runtime_config_dirty = False
 
+        # Fancy/friendly UI state
+        self.search_text = ""
+        self.filter_player = ""
+        self.filter_map = ""
+        self.filter_rarity_idx = 0
+        self.filter_rarity_options = [
+            "All", "Blue", "Purple", "Gold", "Green",
+            "Dyes", "Keys", "Tomes", "Currency", "Unknown"
+        ]
+        self.only_rare = False
+        self.hide_gold = False
+        self.min_qty = 1
+        self.show_runtime_panel = False
+        self.selected_item_key = None
+        self.hover_handle_mode = True
+        self.hover_pin_open = False
+        self.hover_is_visible = True
+        self.hover_hide_delay_s = 0.35
+        self.hover_hide_deadline = 0.0
+        self.hover_icon_path = PathLocator.get_custom_behaviors_root_directory() + "\\gui\\textures\\loot.png"
+        self.hover_handle_initialized = False
+        self.viewer_window_initialized = False
+        self.saved_hover_handle_pos = None
+        self.saved_viewer_window_pos = None
+        self.saved_viewer_window_size = None
+        self.layout_save_timer = ThrottledTimer(750)
+
         # Ensure directories exist
         os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
         os.makedirs(self.saved_logs_dir, exist_ok=True)
 
         self._load_runtime_config()
+        self._load_ui_layout_from_config()
         # Always start each run with a fresh live log file + empty runtime data.
         self._reset_live_session()
 
@@ -111,6 +140,52 @@ class DropViewerWindow:
         self.max_shmem_scan_per_tick = max(20, int(cfg.get("max_shmem_scan_per_tick", self.max_shmem_scan_per_tick)))
         self.send_tracker_ack_enabled = bool(cfg.get("send_tracker_ack_enabled", self.send_tracker_ack_enabled))
         self.enable_perf_logs = bool(cfg.get("enable_perf_logs", self.enable_perf_logs))
+
+    def _load_ui_layout_from_config(self):
+        cfg = self.runtime_config if isinstance(self.runtime_config, dict) else {}
+        try:
+            pos = cfg.get("drop_viewer_handle_pos", None)
+            if isinstance(pos, list) and len(pos) == 2:
+                self.saved_hover_handle_pos = (float(pos[0]), float(pos[1]))
+        except Exception:
+            self.saved_hover_handle_pos = None
+        try:
+            pos = cfg.get("drop_viewer_window_pos", None)
+            if isinstance(pos, list) and len(pos) == 2:
+                self.saved_viewer_window_pos = (float(pos[0]), float(pos[1]))
+        except Exception:
+            self.saved_viewer_window_pos = None
+        try:
+            size = cfg.get("drop_viewer_window_size", None)
+            if isinstance(size, list) and len(size) == 2:
+                self.saved_viewer_window_size = (float(size[0]), float(size[1]))
+        except Exception:
+            self.saved_viewer_window_size = None
+
+    def _persist_layout_value(self, key: str, value: tuple[float, float] | None):
+        if value is None:
+            return False
+        current = self.runtime_config.get(key, None) if isinstance(self.runtime_config, dict) else None
+        next_value = [float(value[0]), float(value[1])]
+        if isinstance(current, list) and len(current) == 2:
+            try:
+                if abs(float(current[0]) - next_value[0]) < 0.5 and abs(float(current[1]) - next_value[1]) < 0.5:
+                    return False
+            except Exception:
+                pass
+        self.runtime_config[key] = next_value
+        self.runtime_config_dirty = True
+        return True
+
+    def _flush_runtime_config_if_dirty(self):
+        if not self.runtime_config_dirty:
+            return
+        if not self.layout_save_timer.IsExpired():
+            return
+        self.layout_save_timer.Reset()
+        self._sync_runtime_config_from_state()
+        self._save_runtime_config()
+        self.runtime_config_dirty = False
 
     def _load_runtime_config(self):
         try:
@@ -317,6 +392,299 @@ class DropViewerWindow:
         self.status_message = msg
         self.status_time = time.time()
 
+    def _safe_int(self, value, default=0):
+        try:
+            return int(value)
+        except Exception:
+            return default
+
+    def _is_rare_rarity(self, rarity):
+        return rarity == "Gold"
+
+    def _passes_filters(self, row):
+        if len(row) < 8:
+            return False
+
+        player_name = self._ensure_text(row[4])
+        item_name = self._ensure_text(row[5])
+        qty = self._safe_int(row[6], 1)
+        rarity = self._ensure_text(row[7]).strip() or "Unknown"
+        map_name = self._ensure_text(row[3])
+
+        if qty < max(1, int(self.min_qty)):
+            return False
+        if self.only_rare and not self._is_rare_rarity(rarity):
+            return False
+        if self.hide_gold and self._clean_item_name(item_name) == "Gold":
+            return False
+        if self.filter_rarity_idx > 0:
+            wanted = self.filter_rarity_options[self.filter_rarity_idx]
+            if wanted == "Unknown":
+                if "Unknown" not in rarity:
+                    return False
+            elif rarity != wanted:
+                return False
+
+        search = self.search_text.strip().lower()
+        if search:
+            haystack = f"{item_name} {player_name} {map_name} {rarity}".lower()
+            if search not in haystack:
+                return False
+
+        fp = self.filter_player.strip().lower()
+        if fp and fp not in player_name.lower():
+            return False
+
+        fm = self.filter_map.strip().lower()
+        if fm and fm not in map_name.lower():
+            return False
+
+        return True
+
+    def _get_filtered_rows(self):
+        return [row for row in self.raw_drops if self._passes_filters(row)]
+
+    def _is_gold_row(self, row):
+        if len(row) < 6:
+            return False
+        return self._clean_item_name(row[5]) == "Gold"
+
+    def _get_filtered_aggregated(self, filtered_rows):
+        agg = {}
+        total_qty = 0
+        for row in filtered_rows:
+            if len(row) < 8:
+                continue
+            item_name = row[5]
+            rarity = row[7]
+            qty = self._safe_int(row[6], 1)
+            total_qty += qty
+            canonical_name = self._canonical_agg_item_name(item_name, rarity, agg)
+            key = (canonical_name, rarity)
+            if key not in agg:
+                agg[key] = {"Quantity": 0, "Count": 0}
+            agg[key]["Quantity"] += qty
+            agg[key]["Count"] += 1
+        return agg, total_qty
+
+    def _get_session_duration_text(self):
+        if len(self.raw_drops) < 2:
+            return "00:00"
+        try:
+            fmt = "%Y-%m-%d %H:%M:%S"
+            first_ts = datetime.datetime.strptime(self.raw_drops[0][0], fmt)
+            last_ts = datetime.datetime.strptime(self.raw_drops[-1][0], fmt)
+            total_seconds = max(0, int((last_ts - first_ts).total_seconds()))
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            if hours > 0:
+                return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            return f"{minutes:02d}:{seconds:02d}"
+        except Exception:
+            return "--:--"
+
+    def _draw_metric_card(self, card_id, title, value, accent_color):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, (0.10, 0.12, 0.16, 0.85))
+        if PyImGui.begin_child(card_id, size=(0, 52), border=True, flags=PyImGui.WindowFlags.NoFlag):
+            PyImGui.text_colored(title, accent_color)
+            PyImGui.text(value)
+            PyImGui.end_child()
+        PyImGui.pop_style_color(1)
+
+    def _draw_summary_bar(self, filtered_rows):
+        total_qty = 0
+        rare_count = 0
+        gold_qty = 0
+        for row in filtered_rows:
+            qty = self._safe_int(row[6], 1)
+            total_qty += qty
+            rarity = self._ensure_text(row[7]).strip() or "Unknown"
+            if self._is_rare_rarity(rarity):
+                rare_count += 1
+            if self._clean_item_name(row[5]) == "Gold":
+                gold_qty += qty
+
+        session_time = self._get_session_duration_text()
+
+        flags = PyImGui.TableFlags.SizingStretchSame
+        if PyImGui.begin_table("DropViewerSummary", 4, flags):
+            PyImGui.table_next_row()
+
+            PyImGui.table_set_column_index(0)
+            self._draw_metric_card("CardSession", "Session", session_time, (0.55, 0.85, 1.0, 1.0))
+            PyImGui.table_set_column_index(1)
+            self._draw_metric_card("CardDrops", "Total Drops", str(total_qty), (0.8, 0.9, 1.0, 1.0))
+            PyImGui.table_set_column_index(2)
+            self._draw_metric_card("CardGold", "Gold Value", f"{gold_qty:,}", (0.72, 0.72, 0.72, 1.0))
+            PyImGui.table_set_column_index(3)
+            self._draw_metric_card("CardRare", "Rare Drops", str(rare_count), (1.0, 0.84, 0.0, 1.0))
+
+            PyImGui.end_table()
+
+    def _draw_runtime_controls(self):
+        PyImGui.text("Runtime")
+        if PyImGui.button(f"Verbose Logs: {'ON' if self.verbose_shmem_item_logs else 'OFF'}"):
+            self.verbose_shmem_item_logs = not self.verbose_shmem_item_logs
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button(f"ACK: {'ON' if self.send_tracker_ack_enabled else 'OFF'}"):
+            self.send_tracker_ack_enabled = not self.send_tracker_ack_enabled
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button(f"Perf Logs: {'ON' if self.enable_perf_logs else 'OFF'}"):
+            self.enable_perf_logs = not self.enable_perf_logs
+            self.runtime_config_dirty = True
+
+        sender_debug_logs = bool(self.runtime_config.get("debug_pipeline_logs", False))
+        sender_ack = bool(self.runtime_config.get("enable_delivery_ack", True))
+        sender_max_send = int(self.runtime_config.get("max_send_per_tick", 12))
+        sender_outbox = int(self.runtime_config.get("max_outbox_size", 2000))
+        sender_retry_s = float(self.runtime_config.get("retry_interval_seconds", 1.0))
+        sender_max_retries = int(self.runtime_config.get("max_retry_attempts", 12))
+
+        if PyImGui.button(f"Sender Debug: {'ON' if sender_debug_logs else 'OFF'}"):
+            self.runtime_config["debug_pipeline_logs"] = not sender_debug_logs
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button(f"Sender ACK: {'ON' if sender_ack else 'OFF'}"):
+            self.runtime_config["enable_delivery_ack"] = not sender_ack
+            self.runtime_config_dirty = True
+
+        PyImGui.text(f"Sender max_send/tick: {sender_max_send}")
+        if PyImGui.button("- Send"):
+            self.runtime_config["max_send_per_tick"] = max(1, sender_max_send - 1)
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("+ Send"):
+            self.runtime_config["max_send_per_tick"] = min(100, sender_max_send + 1)
+            self.runtime_config_dirty = True
+
+        PyImGui.same_line(0.0, 25.0)
+        PyImGui.text(f"Sender outbox: {sender_outbox}")
+        if PyImGui.button("- Outbox"):
+            self.runtime_config["max_outbox_size"] = max(100, sender_outbox - 100)
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("+ Outbox"):
+            self.runtime_config["max_outbox_size"] = min(20000, sender_outbox + 100)
+            self.runtime_config_dirty = True
+
+        PyImGui.text(f"Sender retry_s: {sender_retry_s:.1f} max_retries: {sender_max_retries}")
+        if PyImGui.button("- RetryS"):
+            self.runtime_config["retry_interval_seconds"] = max(0.2, round(sender_retry_s - 0.1, 2))
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("+ RetryS"):
+            self.runtime_config["retry_interval_seconds"] = min(10.0, round(sender_retry_s + 0.1, 2))
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("- Retries"):
+            self.runtime_config["max_retry_attempts"] = max(1, sender_max_retries - 1)
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("+ Retries"):
+            self.runtime_config["max_retry_attempts"] = min(100, sender_max_retries + 1)
+            self.runtime_config_dirty = True
+
+        PyImGui.text(f"ShMem msg/tick: {self.max_shmem_messages_per_tick}")
+        if PyImGui.button("- Msg"):
+            self.max_shmem_messages_per_tick = max(5, self.max_shmem_messages_per_tick - 5)
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("+ Msg"):
+            self.max_shmem_messages_per_tick = min(300, self.max_shmem_messages_per_tick + 5)
+            self.runtime_config_dirty = True
+
+        PyImGui.same_line(0.0, 25.0)
+        PyImGui.text(f"ShMem scan/tick: {self.max_shmem_scan_per_tick}")
+        if PyImGui.button("- Scan"):
+            self.max_shmem_scan_per_tick = max(20, self.max_shmem_scan_per_tick - 20)
+            self.runtime_config_dirty = True
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("+ Scan"):
+            self.max_shmem_scan_per_tick = min(3000, self.max_shmem_scan_per_tick + 20)
+            self.runtime_config_dirty = True
+
+        if self.runtime_config_dirty:
+            self._flush_runtime_config_if_dirty()
+
+        PyImGui.text(
+            f"Perf: poll_ms={self.last_shmem_poll_ms:.2f} "
+            f"processed={self.last_shmem_processed} scanned={self.last_shmem_scanned} ack_sent={self.last_ack_sent}"
+        )
+
+    def _mouse_in_current_window_rect(self):
+        try:
+            io = PyImGui.get_io()
+            mx = float(getattr(io, "mouse_pos_x", -1.0))
+            my = float(getattr(io, "mouse_pos_y", -1.0))
+            wx, wy = PyImGui.get_window_pos()
+            ww, wh = PyImGui.get_window_size()
+            return (mx >= wx) and (mx <= (wx + ww)) and (my >= wy) and (my <= (wy + wh))
+        except Exception:
+            return False
+
+    def _draw_hover_handle(self):
+        io = PyImGui.get_io()
+        display_w = float(getattr(io, "display_size_x", 1920.0) or 1920.0)
+
+        icon_size = 40.0
+        handle_w = 68.0
+        handle_h = 68.0
+        x = max(8.0, (display_w * 0.5) - (handle_w * 0.5))
+        y = 4.0
+
+        if not self.hover_handle_initialized:
+            if self.saved_hover_handle_pos is not None:
+                PyImGui.set_next_window_pos(self.saved_hover_handle_pos[0], self.saved_hover_handle_pos[1])
+            else:
+                PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(handle_w, handle_h)
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0.0, 0.0)
+        flags = (
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoResize |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse |
+            PyImGui.WindowFlags.NoCollapse
+        )
+
+        hovered = False
+        if PyImGui.begin("Drop Tracker##HoverHandle", flags):
+            self.hover_handle_initialized = True
+            self._persist_layout_value("drop_viewer_handle_pos", PyImGui.get_window_pos())
+            PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+            PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0.0, 0.0)
+            if self.hover_pin_open:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.30, 0.92, 0.35, 1.0))
+            else:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.95, 0.28, 0.22, 1.0))
+
+            icon_x = max(0.0, (handle_w - icon_size) * 0.5)
+            icon_y = max(0.0, (handle_h - icon_size) * 0.5)
+            PyImGui.set_cursor_pos(icon_x, icon_y)
+
+            clicked = False
+            if os.path.exists(self.hover_icon_path):
+                clicked = ImGui.ImageButton("drop_viewer_handle_icon", self.hover_icon_path, icon_size, icon_size)
+            else:
+                clicked = PyImGui.button("Loot##DropHandleBtn", icon_size, icon_size)
+
+            if clicked:
+                self.hover_pin_open = not self.hover_pin_open
+            PyImGui.pop_style_var(2)
+            PyImGui.pop_style_color(1)
+
+            if PyImGui.is_item_hovered():
+                tip = "Drop Tracker (click to pin)" if not self.hover_pin_open else "Drop Tracker (click to unpin)"
+                ImGui.show_tooltip(tip)
+
+            hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered() or PyImGui.is_any_item_hovered()
+        PyImGui.end()
+        PyImGui.pop_style_var(1)
+        return hovered
+
     def save_run(self):
         if not os.path.exists(self.saved_logs_dir):
             os.makedirs(self.saved_logs_dir)
@@ -393,7 +761,30 @@ class DropViewerWindow:
             self.set_status(f"Merge failed: {e}")
 
     def draw(self):
+        now = time.time()
+        handle_hovered = False
+        if self.hover_handle_mode:
+            handle_hovered = self._draw_hover_handle()
+            if handle_hovered:
+                self.hover_is_visible = True
+                self.hover_hide_deadline = now + self.hover_hide_delay_s
+            if self.hover_pin_open:
+                self.hover_is_visible = True
+            if not self.hover_is_visible and not self.hover_pin_open:
+                return
+        else:
+            self.hover_is_visible = True
+
+        main_window_hovered = False
+        if not self.viewer_window_initialized:
+            if self.saved_viewer_window_pos is not None:
+                PyImGui.set_next_window_pos(self.saved_viewer_window_pos[0], self.saved_viewer_window_pos[1])
+            if self.saved_viewer_window_size is not None:
+                PyImGui.set_next_window_size(self.saved_viewer_window_size[0], self.saved_viewer_window_size[1])
         if PyImGui.begin(self.window_name):
+            self.viewer_window_initialized = True
+            self._persist_layout_value("drop_viewer_window_pos", PyImGui.get_window_pos())
+            self._persist_layout_value("drop_viewer_window_size", PyImGui.get_window_size())
             
             # -- Auto Refresh --
             # Live mode already updates in-memory stats from ShMem/chat handlers.
@@ -417,6 +808,11 @@ class DropViewerWindow:
             else:
                 if PyImGui.button("Show Stats"): self.view_mode = "Aggregated"
                 
+            PyImGui.same_line(0.0, 10.0)
+
+            if PyImGui.button("Pause" if not self.paused else "Resume"):
+                self.paused = not self.paused
+
             PyImGui.same_line(0.0, 10.0)
             
             if PyImGui.button("Save"):
@@ -470,127 +866,86 @@ class DropViewerWindow:
                  except Exception as e:
                      Py4GW.Console.Log("DropViewer", f"Clear failed: {e}", Py4GW.Console.MessageType.Error)
 
-            PyImGui.separator()
-            PyImGui.text("Runtime")
-            if PyImGui.button(f"Verbose Logs: {'ON' if self.verbose_shmem_item_logs else 'OFF'}"):
-                self.verbose_shmem_item_logs = not self.verbose_shmem_item_logs
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button(f"ACK: {'ON' if self.send_tracker_ack_enabled else 'OFF'}"):
-                self.send_tracker_ack_enabled = not self.send_tracker_ack_enabled
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button(f"Perf Logs: {'ON' if self.enable_perf_logs else 'OFF'}"):
-                self.enable_perf_logs = not self.enable_perf_logs
-                self.runtime_config_dirty = True
-
-            sender_debug_logs = bool(self.runtime_config.get("debug_pipeline_logs", False))
-            sender_ack = bool(self.runtime_config.get("enable_delivery_ack", True))
-            sender_max_send = int(self.runtime_config.get("max_send_per_tick", 12))
-            sender_outbox = int(self.runtime_config.get("max_outbox_size", 2000))
-            sender_retry_s = float(self.runtime_config.get("retry_interval_seconds", 1.0))
-            sender_max_retries = int(self.runtime_config.get("max_retry_attempts", 12))
-
-            if PyImGui.button(f"Sender Debug: {'ON' if sender_debug_logs else 'OFF'}"):
-                self.runtime_config["debug_pipeline_logs"] = not sender_debug_logs
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button(f"Sender ACK: {'ON' if sender_ack else 'OFF'}"):
-                self.runtime_config["enable_delivery_ack"] = not sender_ack
-                self.runtime_config_dirty = True
-
-            PyImGui.text(f"Sender max_send/tick: {sender_max_send}")
-            if PyImGui.button("- Send"):
-                self.runtime_config["max_send_per_tick"] = max(1, sender_max_send - 1)
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button("+ Send"):
-                self.runtime_config["max_send_per_tick"] = min(100, sender_max_send + 1)
-                self.runtime_config_dirty = True
-
-            PyImGui.same_line(0.0, 25.0)
-            PyImGui.text(f"Sender outbox: {sender_outbox}")
-            if PyImGui.button("- Outbox"):
-                self.runtime_config["max_outbox_size"] = max(100, sender_outbox - 100)
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button("+ Outbox"):
-                self.runtime_config["max_outbox_size"] = min(20000, sender_outbox + 100)
-                self.runtime_config_dirty = True
-
-            PyImGui.text(f"Sender retry_s: {sender_retry_s:.1f} max_retries: {sender_max_retries}")
-            if PyImGui.button("- RetryS"):
-                self.runtime_config["retry_interval_seconds"] = max(0.2, round(sender_retry_s - 0.1, 2))
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button("+ RetryS"):
-                self.runtime_config["retry_interval_seconds"] = min(10.0, round(sender_retry_s + 0.1, 2))
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button("- Retries"):
-                self.runtime_config["max_retry_attempts"] = max(1, sender_max_retries - 1)
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button("+ Retries"):
-                self.runtime_config["max_retry_attempts"] = min(100, sender_max_retries + 1)
-                self.runtime_config_dirty = True
-
-            PyImGui.text(f"ShMem msg/tick: {self.max_shmem_messages_per_tick}")
-            if PyImGui.button("- Msg"):
-                self.max_shmem_messages_per_tick = max(5, self.max_shmem_messages_per_tick - 5)
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button("+ Msg"):
-                self.max_shmem_messages_per_tick = min(300, self.max_shmem_messages_per_tick + 5)
-                self.runtime_config_dirty = True
-
-            PyImGui.same_line(0.0, 25.0)
-            PyImGui.text(f"ShMem scan/tick: {self.max_shmem_scan_per_tick}")
-            if PyImGui.button("- Scan"):
-                self.max_shmem_scan_per_tick = max(20, self.max_shmem_scan_per_tick - 20)
-                self.runtime_config_dirty = True
-            PyImGui.same_line(0.0, 10.0)
-            if PyImGui.button("+ Scan"):
-                self.max_shmem_scan_per_tick = min(3000, self.max_shmem_scan_per_tick + 20)
-                self.runtime_config_dirty = True
-
-            if self.runtime_config_dirty:
-                self._sync_runtime_config_from_state()
-                self._save_runtime_config()
-                self.runtime_config_dirty = False
-
-            PyImGui.text(
-                f"Perf: poll_ms={self.last_shmem_poll_ms:.2f} "
-                f"processed={self.last_shmem_processed} scanned={self.last_shmem_scanned} ack_sent={self.last_ack_sent}"
-            )
+            filtered_rows = self._get_filtered_rows()
+            table_rows = [row for row in filtered_rows if not self._is_gold_row(row)]
+            self._draw_summary_bar(filtered_rows)
 
             # -- Status Bar --
             if time.time() - self.status_time < 5:
                 PyImGui.text_colored(self.status_message, (0.0, 1.0, 0.0, 1.0))
 
             PyImGui.separator()
-            
-            # -- Main Content --
-            if self.view_mode == "Aggregated":
-                self._draw_aggregated()
-            else:
-                self._draw_log()
+
+            # -- Main Content: Left filter rail + right data panel --
+            left_w = 280.0
+            if PyImGui.begin_child("DropViewerLeftRail", size=(left_w, 0), border=True, flags=PyImGui.WindowFlags.NoFlag):
+                PyImGui.text("Filters")
+                self.search_text = PyImGui.input_text("Search", self.search_text)
+                self.filter_player = PyImGui.input_text("Player", self.filter_player)
+                self.filter_map = PyImGui.input_text("Map", self.filter_map)
+
+                self.filter_rarity_idx = int(PyImGui.combo("Rarity", int(self.filter_rarity_idx), self.filter_rarity_options))
+                self.only_rare = PyImGui.checkbox("Only Rare", self.only_rare)
+                self.hide_gold = PyImGui.checkbox("Hide Gold", self.hide_gold)
+                self.min_qty = max(1, int(PyImGui.input_int("Min Qty", int(self.min_qty))))
+                self.auto_scroll = PyImGui.checkbox("Auto Scroll", self.auto_scroll)
+                prev_hover_mode = self.hover_handle_mode
+                self.hover_handle_mode = PyImGui.checkbox("Hover Handle Mode", self.hover_handle_mode)
+                if self.hover_handle_mode:
+                    self.hover_pin_open = PyImGui.checkbox("Pin Open", self.hover_pin_open)
+                if self.hover_handle_mode and not prev_hover_mode:
+                    self.hover_is_visible = True
+                    self.hover_hide_deadline = now + self.hover_hide_delay_s
+
+                if PyImGui.button("Quick: Rare Only"):
+                    self.only_rare = True
+                    self.hide_gold = True
+                    self.filter_rarity_idx = 0
+                if PyImGui.button("Clear Filters"):
+                    self.search_text = ""
+                    self.filter_player = ""
+                    self.filter_map = ""
+                    self.filter_rarity_idx = 0
+                    self.only_rare = False
+                    self.hide_gold = False
+                    self.min_qty = 1
+
+                PyImGui.separator()
+                self.show_runtime_panel = PyImGui.checkbox("Advanced Runtime Controls", self.show_runtime_panel)
+                if self.show_runtime_panel:
+                    PyImGui.separator()
+                    self._draw_runtime_controls()
+                PyImGui.end_child()
+
+            PyImGui.same_line(0.0, 10.0)
+
+            if PyImGui.begin_child("DropViewerDataPanel", size=(0, 0), border=False, flags=PyImGui.WindowFlags.NoFlag):
+                if self.view_mode == "Aggregated":
+                    self._draw_aggregated(table_rows)
+                else:
+                    self._draw_log(table_rows)
+                PyImGui.end_child()
+
+            main_window_hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered() or PyImGui.is_any_item_hovered()
 
         PyImGui.end()
+        self._flush_runtime_config_if_dirty()
+        if self.hover_handle_mode:
+            if main_window_hovered:
+                self.hover_is_visible = True
+                self.hover_hide_deadline = now + self.hover_hide_delay_s
+            if not self.hover_pin_open and not handle_hovered and not main_window_hovered and now >= self.hover_hide_deadline:
+                self.hover_is_visible = False
         
-    def _draw_aggregated(self):
-        total_items_without_gold = self.total_drops
-        
-        gold_qty = 0
-        for (name, rar), data in self.aggregated_drops.items():
-            if name == "Gold":
-                gold_qty += data["Quantity"]
-        
-        total_items_without_gold -= gold_qty
+    def _draw_aggregated(self, filtered_rows):
+        filtered_agg, total_filtered_qty = self._get_filtered_aggregated(filtered_rows)
+        total_items_without_gold = total_filtered_qty - sum(
+            data["Quantity"] for (name, _), data in filtered_agg.items() if name == "Gold"
+        )
 
-        PyImGui.text(f"Total Items: {total_items_without_gold}")
-        
-        if PyImGui.begin_table("AggTable", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.Sortable):
+        PyImGui.text(f"Total Items (filtered): {max(0, total_items_without_gold)}")
+
+        if PyImGui.begin_table("AggTable", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.Sortable | PyImGui.TableFlags.ScrollY, 0.0, 360.0):
             PyImGui.table_setup_column("Item Name")
             PyImGui.table_setup_column("Quantity")
             PyImGui.table_setup_column("%")
@@ -599,11 +954,11 @@ class DropViewerWindow:
             PyImGui.table_headers_row()
             
             # Sort by Item Name then Rarity
-            display_items = list(self.aggregated_drops.items())
+            display_items = list(filtered_agg.items())
             
             sorted_items = sorted(display_items, key=lambda x: (x[0][0], x[0][1]))
             
-            for (item_name, rarity), data in sorted_items:
+            for idx, ((item_name, rarity), data) in enumerate(sorted_items):
                 PyImGui.table_next_row()
                 
                 qty = data["Quantity"]
@@ -617,7 +972,12 @@ class DropViewerWindow:
                 # Get Color
                 r, g, b, a = self._get_rarity_color(rarity)
 
+                row_key = (item_name, rarity)
+
                 PyImGui.table_set_column_index(0)
+                if PyImGui.selectable(f"{item_name}##agg_{idx}", self.selected_item_key == row_key, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
+                    self.selected_item_key = row_key
+                PyImGui.same_line(0.0, 8.0)
                 PyImGui.text_colored(item_name, (r, g, b, a))
                 
                 PyImGui.table_set_column_index(1)
@@ -634,10 +994,18 @@ class DropViewerWindow:
                 
             PyImGui.end_table()
 
-    def _draw_log(self):
-        self.auto_scroll = PyImGui.checkbox("Auto Scroll", self.auto_scroll)
-        
-        if PyImGui.begin_table("DropsLogTable", 8, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.ScrollY):
+        if self.selected_item_key and self.selected_item_key in filtered_agg:
+            sel_qty = filtered_agg[self.selected_item_key]["Quantity"]
+            sel_count = filtered_agg[self.selected_item_key]["Count"]
+            sel_name, sel_rarity = self.selected_item_key
+            PyImGui.separator()
+            PyImGui.text("Selection")
+            PyImGui.text_colored(f"{sel_name} ({sel_rarity})", self._get_rarity_color(sel_rarity))
+            PyImGui.text(f"Total Quantity: {sel_qty}")
+            PyImGui.text(f"Drop Count: {sel_count}")
+
+    def _draw_log(self, filtered_rows):
+        if PyImGui.begin_table("DropsLogTable", 8, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.ScrollY, 0.0, 0.0):
             PyImGui.table_setup_column("Timestamp")
             PyImGui.table_setup_column("Logger")     
             PyImGui.table_setup_column("MapID")
@@ -648,7 +1016,7 @@ class DropViewerWindow:
             PyImGui.table_setup_column("Rarity")
             PyImGui.table_headers_row()
 
-            for row in self.raw_drops:
+            for row in filtered_rows:
                 PyImGui.table_next_row()
                 rarity = row[7] if len(row) > 7 else "Unknown"
                 r, g, b, a = self._get_rarity_color(rarity)
@@ -838,6 +1206,7 @@ class DropViewerWindow:
                 if command_value != expected_custom_behavior_command and command_value != 997:
                     continue
 
+                should_finish = False
                 try:
                     should_finish = False
                     extra_data_list = getattr(shared_msg, "ExtraData", None)
