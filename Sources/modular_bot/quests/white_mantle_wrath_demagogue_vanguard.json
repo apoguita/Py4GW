@@ -1,23 +1,23 @@
 {
-    "name": "White Mantle Wrath: Demagogue's Vanguard",
-    "max_heroes": 6,
-    "take_quest": {
-        "outpost_id": 142,
-        "quest_npc_location": [533, -4100],
-        "dialog_id": ["0x806301"],
-        "wait_ms": 500,
-        "name": "Take Quest"
-    },
-    "steps": [
-        {"type": "exit_map", "x": 1950, "y": -2300, "target_map_id": 43},
-        {"type": "wait_map_change", "target_map_id": 43},
-        {"type": "auto_path", "points": [[2030, -140], [-933, 394], [-2405, -1373], [-3601, -5423]], "name": "Destroy group 1"},
-        {"type": "auto_path", "points": [[-4638, -6690], [-6456, -9027]], "name": "Destroy group 2"},
-        {"type": "auto_path", "points": [[-8218, -10502], [-10695, -13087], [-13552, -13392], [-14712, -16862], [-12739, -18888]], "name": "Destroy group 3"},
-        {"type": "auto_path", "points": [[-11629, -18777], [-9806, -19777]], "name": "Prep to Zone"},
-        {"type": "exit_map", "x": -9800, "y": -20000, "target_map_id": 44},
-        {"type": "wait_map_change", "target_map_id": 44},
-        {"type": "auto_path", "points": [[-19314, 12858], [-20259, 10973], [-18314, 8292], [-23444, 5531], [-23741, 4345], [-20351, 563], [-17363, -1148], [-15532, -50]], "name": "To Vaylor"},
-        {"type": "dialog", "x": -15405, "y": 7, "id": "0x806307"}
-    ]
+  "name": "White Mantle Wrath: Demagogue's Vanguard",
+  "max_heroes": 6,
+  "take_quest": {
+    "outpost_id": 142,
+    "quest_npc_location": [533, -4100],
+    "dialog_id": ["0x806301"],
+    "wait_ms": 500,
+    "name": "Take Quest"
+  },
+  "steps": [
+    {"type": "exit_map", "x": 1950, "y": -2300, "target_map_id": 43},
+    {"type": "wait_map_change", "target_map_id": 43},
+    {"type": "auto_path", "name": "Destroy group 1", "points": [[2030, -140], [-933, 394], [-2405, -1373], [-3601, -5423]]},
+    {"type": "auto_path", "name": "Destroy group 2", "points": [[-4638, -6690], [-6456, -9027]]},
+    {"type": "auto_path", "name": "Destroy group 3", "points": [[-8218, -10502], [-10695, -13087], [-13552, -13392], [-14712, -16862], [-12739, -18888]]},
+    {"type": "auto_path", "name": "Prep to Zone", "points": [[-11629, -18777], [-9806, -19777]]},
+    {"type": "exit_map", "x": -9800, "y": -20000, "target_map_id": 44},
+    {"type": "wait_map_change", "target_map_id": 44},
+    {"type": "auto_path", "name": "To Vaylor", "points": [[-19314, 12858], [-20259, 10973], [-18314, 8292], [-23444, 5531], [-23741, 4345], [-20351, 563], [-17363, -1148], [-15532, -50]]},
+    {"type": "dialog", "x": -15405, "y": 7, "id": "0x806307"}
+  ]
 }

@@ -36,20 +36,20 @@ Top-level quest block catalog:
     - name: optional
 
 Step catalog (copy/paste):
-    {"type": "path", "points": [[0, 0], [100, 100]], "name": "Path 1"}
-    {"type": "auto_path", "points": [[0, 0], [100, 100]], "name": "AutoPath 1"}
+    {"type": "path", "name": "Path 1", "points": [[0, 0], [100, 100]]}
+    {"type": "auto_path", "name": "AutoPath 1", "points": [[0, 0], [100, 100]]}
     {"type": "wait", "ms": 1000}
     {"type": "wait_out_of_combat"}
     {"type": "wait_map_load", "map_id": 72}
-    {"type": "move", "x": 0, "y": 0, "name": "Move"}
+    {"type": "move", "name": "Move", "x": 0, "y": 0}
     {"type": "exit_map", "x": 0, "y": 0, "target_map_id": 0}
-    {"type": "interact_npc", "x": 0, "y": 0, "name": "Talk NPC"}
+    {"type": "interact_npc", "name": "Talk NPC", "x": 0, "y": 0}
     {"type": "interact_gadget", "ms": 2000}
     {"type": "interact_item", "ms": 2000}
     {"type": "interact_quest_npc", "ms": 5000}
     {"type": "interact_nearest_npc", "ms": 5000}
-    {"type": "dialog", "x": 0, "y": 0, "id": 0, "name": "Dialog"}
-    {"type": "dialogs", "x": 0, "y": 0, "id": ["0x2", "0x15", "0x3"], "name": "Dialogs"}
+    {"type": "dialog", "name": "Dialog", "x": 0, "y": 0, "id": 0}
+    {"type": "dialogs", "name": "Dialogs", "x": 0, "y": 0, "id": ["0x2", "0x15", "0x3"]}
     {"type": "dialog_multibox", "id": 0}
     {"type": "skip_cinematic", "wait_ms": 500}
     {"type": "set_title", "id": 0}
@@ -57,6 +57,10 @@ Step catalog (copy/paste):
     {"type": "unflag_heroes", "ms": 2000}
     {"type": "resign"}
     {"type": "wait_map_change", "target_map_id": 0}
+
+Formatting convention:
+    - One step object per line.
+    - Step key order: ``type``, then ``name``, then ``ms`` (if used), then other args.
 """
 
 from __future__ import annotations
