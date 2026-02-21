@@ -18,6 +18,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base i
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
+from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 
 class FollowFlagUtilityNew(CustomSkillUtilityBase):
     """
@@ -49,6 +50,11 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
         # Use singleton manager for all configuration
         self.manager =  CustomBehaviorParty().party_flagging_manager
+
+        # Load thresholds from persistence or use defaults
+        persistence = PersistenceLocator().flagging
+        self.follow_flag_threshold: float = persistence.read_follow_flag_threshold() or 260.0
+        self.follow_flag_required_threshold: float = persistence.read_follow_flag_required_threshold() or 400.0
 
         self.event_bus.subscribe(EventType.MAP_CHANGED, self.area_changed, subscriber_name=self.custom_skill.skill_name)
         
@@ -107,19 +113,16 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
         # Calculate distance from assigned flag
         distance_from_flag = Utils.Distance(flag_pos, my_pos)
 
-        # Use movement threshold from manager
-        movement_threshold = self.manager.movement_threshold
-
         # If very close to flag, don't move
         if distance_from_flag < 10:
             return None
 
-        # If far from flag, high priority
-        if distance_from_flag > movement_threshold * 2:
+        # If far from flag, high priority (use required threshold)
+        if distance_from_flag > self.follow_flag_required_threshold:
             return CommonScore.FOLLOW_FLAG_REQUIRED.value
 
-        # If outside threshold, normal priority
-        if distance_from_flag > movement_threshold:
+        # If outside threshold, normal priority (use normal threshold)
+        if distance_from_flag > self.follow_flag_threshold:
             return CommonScore.FOLLOW_FLAG.value
 
         return None
@@ -138,13 +141,58 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
             return BehaviorResult.ACTION_SKIPPED
 
         # Move to assigned flag position
-        ActionQueueManager().ResetQueue("ACTION")
+        print(f"Moving to flag position: {flag_pos}")
+
+        # Cancel any current action (like auto-attacking) before moving
+        # from Py4GWCoreLib.Routines import Routines
+        # yield from Routines.Yield.Keybinds.CancelAction()
+        # yield from custom_behavior_helpers.Helpers.wait_for(10)
+
+        # Clear target and reset action queue
+        # yield from Routines.Yield.Keybinds.ClearTarget()
+        # ActionQueueManager().ResetQueue("ACTION")
+
+        # Reset movement pointer then issue actual movement command
+        # This is necessary after canceling actions to "wake up" the movement system
+        Player.Move(0, 0)
         Player.Move(flag_pos[0], flag_pos[1])
+
         self.throttle_timer.Reset()
 
-        yield from custom_behavior_helpers.Helpers.wait_for(1000)
+        yield from custom_behavior_helpers.Helpers.wait_for(1500)
         return BehaviorResult.ACTION_PERFORMED
     
+    def save_thresholds_to_flagging(self) -> None:
+        """Save threshold values to flagging persistence (global only)."""
+        persistence = PersistenceLocator().flagging
+        persistence.write_follow_flag_threshold(self.follow_flag_threshold)
+        persistence.write_follow_flag_required_threshold(self.follow_flag_required_threshold)
+
+    @override
+    def has_persistence(self) -> bool:
+        return True
+
+    @override
+    def persist_configuration_for_account(self):
+        """Save thresholds to flagging.ini (global storage)."""
+        self.save_thresholds_to_flagging()
+        print("Follow flag thresholds saved to global storage")
+
+    @override
+    def persist_configuration_as_global(self):
+        """Save thresholds to flagging.ini (global storage)."""
+        self.save_thresholds_to_flagging()
+        print("Follow flag thresholds saved to global storage")
+
+    @override
+    def delete_persisted_configuration(self):
+        """Delete persisted threshold values and reset to defaults."""
+        persistence = PersistenceLocator().flagging
+        persistence.delete_follow_flag_thresholds()
+        self.follow_flag_threshold = 260.0
+        self.follow_flag_required_threshold = 400.0
+        print("Follow flag thresholds deleted and reset to defaults (260.0 / 400.0)")
+
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
         # if flag affected
@@ -156,8 +204,41 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
             PyImGui.bullet_text(f"flag position : {CustomBehaviorParty().party_flagging_manager.get_flag_position(flag_index)}")
         else:
             PyImGui.bullet_text(f"flag index : None")
-        
 
+        PyImGui.separator()
+        PyImGui.text("Thresholds:")
+
+        # Normal threshold slider
+        new_value = PyImGui.slider_float(
+            "Normal Threshold##follow_flag_threshold",
+            self.follow_flag_threshold,
+            10.0,
+            1000.0
+        )
+        if new_value != self.follow_flag_threshold:
+            self.follow_flag_threshold = new_value
+            self.save_thresholds_to_flagging()
+
+        # Required threshold slider
+        new_value = PyImGui.slider_float(
+            "Required Threshold##follow_flag_required_threshold",
+            self.follow_flag_required_threshold,
+            10.0,
+            1000.0
+        )
+        if new_value != self.follow_flag_required_threshold:
+            self.follow_flag_required_threshold = new_value
+            self.save_thresholds_to_flagging()
+
+        # Show current distance if flag is assigned
+        if flag_index is not None:
+            flag_pos = self._get_my_assigned_flag_position()
+            if flag_pos is not None:
+                my_pos = Player.GetXY()
+                if my_pos is not None:
+                    distance = Utils.Distance(flag_pos, my_pos)
+                    PyImGui.bullet_text(f"Current distance: {distance:.0f}")
+        
     def draw_overlay(self, current_state: BehaviorState) -> None:
         """
         Draw debug overlay showing all flag positions as circles.
