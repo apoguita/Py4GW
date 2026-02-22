@@ -132,17 +132,48 @@ class DropTrackerSender:
         if ModDatabase is None:
             self.mod_db = None
             return
+        candidate_dirs = []
         try:
             # .../Sources/oazix/CustomBehaviors/skills/monitoring -> .../Sources
             sources_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-            data_dir = os.path.join(
-                sources_root,
-                "marks_sources",
-                "mods_data",
+            candidate_dirs.append(
+                os.path.join(
+                    sources_root,
+                    "marks_sources",
+                    "mods_data",
+                )
             )
-            self.mod_db = ModDatabase.load(data_dir)
         except Exception:
-            self.mod_db = None
+            pass
+        try:
+            project_root = Py4GW.Console.get_projects_path()
+            if project_root:
+                candidate_dirs.append(
+                    os.path.join(
+                        project_root,
+                        "Sources",
+                        "marks_sources",
+                        "mods_data",
+                    )
+                )
+        except Exception:
+            pass
+
+        seen = set()
+        for data_dir in candidate_dirs:
+            norm = os.path.normcase(os.path.normpath(str(data_dir or "")))
+            if not norm or norm in seen:
+                continue
+            seen.add(norm)
+            if not os.path.isdir(data_dir):
+                continue
+            try:
+                self.mod_db = ModDatabase.load(data_dir)
+                if self.mod_db is not None:
+                    return
+            except Exception:
+                continue
+        self.mod_db = None
 
     def _format_attribute_name(self, attr_name: str) -> str:
         txt = str(attr_name or "").replace("_", " ").strip()
@@ -290,24 +321,141 @@ class DropTrackerSender:
                 lines.append(line)
         return lines
 
-    def _build_known_spellcast_mod_lines(self, raw_mods, item_attr_txt: str) -> list[str]:
+    def _collect_fallback_rune_lines(self, raw_mods, item_attr_txt: str) -> list[str]:
+        lines = []
+        if self.mod_db is None:
+            return lines
+        best_by_ident = {}
+        try:
+            for rune in list(getattr(self.mod_db, "runes", {}).values()):
+                matched = self._match_mod_definition_against_raw(getattr(rune, "modifiers", []), raw_mods)
+                if not matched:
+                    continue
+                ident_set = {int(m[0]) for m in matched}
+                if not ident_set:
+                    continue
+                desc = str(getattr(rune, "description", "") or "").strip()
+                rune_name = str(getattr(rune, "name", "") or "").strip()
+                rendered = self._render_mod_description_template(desc, matched, 0, item_attr_txt)
+                candidate_lines = []
+                if rune_name:
+                    candidate_lines.append(rune_name)
+                candidate_lines.extend(rendered)
+                if not candidate_lines and rune_name:
+                    candidate_lines = [rune_name]
+                deduped_candidates = []
+                seen_line_keys = set()
+                for candidate in candidate_lines:
+                    candidate_txt = str(candidate or "").strip()
+                    if not candidate_txt:
+                        continue
+                    line_key = re.sub(r"[^a-z0-9]+", "", candidate_txt.lower())
+                    if line_key in seen_line_keys:
+                        continue
+                    seen_line_keys.add(line_key)
+                    deduped_candidates.append(candidate_txt)
+                candidate_lines = deduped_candidates
+                if not candidate_lines:
+                    continue
+                score = min(len(matched), 4)
+                for ident in ident_set:
+                    prev = best_by_ident.get(ident, None)
+                    if prev is None or score > int(prev.get("score", -999)):
+                        best_by_ident[ident] = {"lines": list(candidate_lines), "score": score}
+        except Exception:
+            return lines
+        for ident in sorted(best_by_ident.keys()):
+            for line in list(best_by_ident[ident].get("lines", []) or []):
+                txt = str(line or "").strip()
+                if txt:
+                    lines.append(txt)
+        return lines
+
+    def _is_wand_or_staff_type(self, item_type) -> bool:
+        if item_type is None:
+            return False
+        try:
+            return item_type in (ItemType.Wand, ItemType.Staff, ItemType.SpellcastingWeapon)
+        except Exception:
+            pass
+        try:
+            item_type_int = int(item_type)
+            return item_type_int in (22, 26, 41)
+        except Exception:
+            return False
+
+    def _build_known_spellcast_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
         lines = []
         attr_txt = str(item_attr_txt or "").strip()
         attr_phrase = f"{attr_txt} " if attr_txt else "item's attribute "
-        for ident, arg1, _arg2 in list(raw_mods or []):
+        is_spellcasting_weapon = self._is_wand_or_staff_type(item_type)
+        for ident, arg1, arg2 in list(raw_mods or []):
             ident_i = int(ident)
             chance = int(arg1)
             if chance <= 0:
                 continue
             if ident_i == 8712:
                 lines.append(f"Halves casting time of spells (Chance: {chance}%)")
-            elif ident_i == 9128:
-                lines.append(f"Halves skill recharge of spells (Chance: {chance}%)")
+            elif ident_i == 8728:
+                if not is_spellcasting_weapon:
+                    continue
+                attr_from_mod = ""
+                if int(arg2) > 0:
+                    try:
+                        from Py4GWCoreLib.enums import Attribute
+                        attr_from_mod = self._format_attribute_name(getattr(Attribute(int(arg2)), "name", ""))
+                    except Exception:
+                        attr_from_mod = ""
+                if attr_from_mod:
+                    lines.append(f"Halves casting time of {attr_from_mod} spells (Chance: {chance}%)")
+                else:
+                    lines.append(f"Halves casting time of {attr_phrase}spells (Chance: {chance}%)")
+            elif ident_i in (9128, 9112):
+                if ident_i == 9112 and not is_spellcasting_weapon:
+                    continue
+                attr_from_mod = ""
+                if ident_i == 9112 and int(arg2) > 0:
+                    try:
+                        from Py4GWCoreLib.enums import Attribute
+                        attr_from_mod = self._format_attribute_name(getattr(Attribute(int(arg2)), "name", ""))
+                    except Exception:
+                        attr_from_mod = ""
+                if attr_from_mod:
+                    lines.append(f"Halves skill recharge of {attr_from_mod} spells (Chance: {chance}%)")
+                else:
+                    lines.append(f"Halves skill recharge of spells (Chance: {chance}%)")
             elif ident_i == 10248:
                 lines.append(f"Halves casting time of {attr_phrase}spells (Chance: {chance}%)")
             elif ident_i == 10280:
                 lines.append(f"Halves skill recharge of {attr_phrase}spells (Chance: {chance}%)")
         return lines
+
+    def _prune_generic_attribute_bonus_lines(self, lines: list[str]) -> list[str]:
+        if not lines:
+            return lines
+        detailed_bonus_re = re.compile(r"^([A-Za-z][A-Za-z ]+)\s*\+\s*(\d+)\s*\((\d+)% chance while using skills\)$", re.IGNORECASE)
+        generic_bonus_re = re.compile(r"^(?:Attribute\s+\d+|\d+)\s*\+\s*(\d+)\s*\((\d+)% chance while using skills\)$", re.IGNORECASE)
+        detailed_pairs = set()
+        for line in lines:
+            txt = str(line or "").strip()
+            m = detailed_bonus_re.match(txt)
+            if not m:
+                continue
+            attr_text = str(m.group(1) or "").strip().lower()
+            if not attr_text or attr_text.startswith("attribute "):
+                continue
+            detailed_pairs.add((m.group(2), m.group(3)))
+        if not detailed_pairs:
+            return lines
+
+        filtered = []
+        for line in lines:
+            txt = str(line or "").strip()
+            m = generic_bonus_re.match(txt)
+            if m and (m.group(1), m.group(2)) in detailed_pairs:
+                continue
+            filtered.append(line)
+        return filtered
 
     def _build_item_stats_text(self, item_id: int, item_name: str = "") -> str:
         item_id = int(item_id or 0)
@@ -408,19 +556,21 @@ class DropTrackerSender:
                             lines.extend(rendered_lines)
                         else:
                             lines.append(f"{name} ({value})" if value else name)
-                elif parsed.runes:
+                if parsed.runes:
                     for rune in parsed.runes:
                         name = str(getattr(rune.rune, "name", "") or "").strip()
                         desc = str(getattr(rune.rune, "description", "") or "").strip()
                         rune_mods = list(getattr(rune, "modifiers", []) or [])
                         rendered_lines = self._render_mod_description_template(desc, rune_mods, 0, item_attr_txt)
+                        if name:
+                            lines.append(name)
                         if rendered_lines:
                             lines.extend(rendered_lines)
-                        elif name:
-                            lines.append(name)
                 lines.extend(self._collect_fallback_mod_lines(raw_mods, item_attr_txt, item_type))
-            lines.extend(self._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known))
+                lines.extend(self._collect_fallback_rune_lines(raw_mods, item_attr_txt))
+            lines.extend(self._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
 
+            lines = self._prune_generic_attribute_bonus_lines(lines)
             return "\n".join(lines)
         except Exception:
             return ""
