@@ -52,10 +52,12 @@ def _add_config_vars():
         )
         
 def update():
+    #return #deprecated in place of callbacks
     if widget_manager.enable_all:
         widget_manager.execute_enabled_widgets_update()
     
 def draw():
+    return #deprecated in place of callbacks
     if widget_manager.enable_all:
         widget_manager.execute_enabled_widgets_draw()     
         
@@ -63,7 +65,7 @@ widget_manager_initialized = False
 widget_manager_initializing = False
 
 def main():
-    global INI_KEY, init_coro, widget_manager_initialized, widget_manager_initializing
+    global INI_KEY, widget_manager_initialized, widget_manager_initializing
 
     if not INI_KEY:
         if not os.path.exists(INI_PATH):
@@ -93,7 +95,8 @@ def main():
         ImGui.End(INI_KEY)
     
     if widget_manager.enable_all:
-        widget_manager.execute_enabled_widgets_main()
+        #deprecated in place of callbacks
+        #widget_manager.execute_enabled_widgets_main()
         widget_manager.execute_configuring_widgets()
 
 

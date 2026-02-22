@@ -67,6 +67,38 @@ class PyCallback:
         Alias for RemoveAll().
         """
         ...
+        
+    @staticmethod
+    def PauseById(id: int) -> bool:
+        """
+        Pause callback by id.
+        Returns True if paused.
+        """
+        ...
+        
+    @staticmethod
+    def ResumeById(id: int) -> bool:
+        """
+        Resume callback by id.
+        Returns True if resumed.
+        """
+        ...
+        
+    @staticmethod
+    def IsPaused(id: int) -> bool:
+        """
+        Check if callback is paused by id.
+        Returns True if paused.
+        """
+        ...
+        
+    @staticmethod
+    def IsRegistered(id: int) -> bool:
+        """
+        Check if callback is registered by id.
+        Returns True if registered.
+        """
+        ...
 
     @staticmethod
     def GetCallbackInfo() -> List[
@@ -76,7 +108,8 @@ class PyCallback:
             int,         # phase (int)
             int,        # context (int)
             int,         # priority
-            int          # order
+            int,         # order
+            bool         # paused / enabled
         ]
     ]:
         """

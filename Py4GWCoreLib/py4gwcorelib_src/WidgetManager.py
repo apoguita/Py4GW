@@ -13,6 +13,7 @@ import importlib.util
 import os
 import sys
 import PyImGui
+import PyCallback
 from dataclasses import dataclass, field
 from types import ModuleType
 from typing import Callable, Optional
@@ -37,6 +38,11 @@ class Widget:
     plain_name: str = ""          # script without extension
     widget_path: str = ""         # folder relative path (no script)
     script_path: str = ""         # script full path
+    
+    #callback data
+    update_callback_id: int = 0
+    draw_callback_id: int = 0   
+    main_callback_id: int = 0
     
     #Extra_execution data
     has_update_property: bool = False
@@ -122,6 +128,9 @@ class Widget:
             self.on_disable = getattr(self.module, "on_disable", None) if callable(getattr(self.module, "on_disable", None)) else None
             self.optional = getattr(self.module, 'OPTIONAL', True) if hasattr(self.module, 'OPTIONAL') else True
             
+            self.RegisterCallbacks()
+            self.PauseCallbacks()  # Start paused until explicitly enabled
+            
         return True
     
     def set_configuring(self, state: bool):
@@ -136,8 +145,78 @@ class Widget:
         """Disable configuring state"""
         self.set_configuring(False)
         
+    def PauseCallbacks(self):
+        """Pause callbacks by id if they exist"""
+        self.RegisterCallbacks()  # Ensure callbacks are registered before trying to pause
+        if self.update_callback_id:
+            PyCallback.PyCallback.PauseById(self.update_callback_id)
+        if self.draw_callback_id:
+            PyCallback.PyCallback.PauseById(self.draw_callback_id)
+        if self.main_callback_id:
+            PyCallback.PyCallback.PauseById(self.main_callback_id)
+            
+    def ResumeCallbacks(self):
+        """Resume callbacks by id if they exist"""
+        self.RegisterCallbacks()  # Ensure callbacks are registered before trying to resume
+        if self.update_callback_id:
+            PyCallback.PyCallback.ResumeById(self.update_callback_id)
+        if self.draw_callback_id:
+            PyCallback.PyCallback.ResumeById(self.draw_callback_id)
+        if self.main_callback_id:
+            PyCallback.PyCallback.ResumeById(self.main_callback_id)
+            
+    def RegisterCallbacks(self):
+        """Register callbacks if they exist in the module"""
+        def wrap_profiler(key: str, fn: Callable):
+            # We return a NEW function (lambda) that the C++ Callback system 
+            # will store and execute every frame.
+            def callback_wrapper():
+                profiling = _get_profiling()
+                if profiling.enabled:
+                    # Executes fn() inside the profiling scope
+                    return profiling.runcall_scope("widgets", f"{self.name}:{key}", fn)
+                else:
+                    # Executes fn() normally
+                    return fn()
+            
+            return callback_wrapper
+       
+        if self.module is None:
+            return
+        
+        # 1. Update Callback (Logic Loop)
+        if self.has_update_property and self.update is not None and self.update_callback_id == 0:
+            self.update_callback_id = PyCallback.PyCallback.Register(
+                self.name,
+                PyCallback.Phase.Update,
+                wrap_profiler("update", self.update), # Pass the wrapper
+                priority=99,
+                context=PyCallback.Context.Update
+            )
+            
+        # 2. Draw Callback (Visual Loop)
+        if self.has_draw_property and self.draw is not None and self.draw_callback_id == 0:
+            self.draw_callback_id = PyCallback.PyCallback.Register(
+                self.name,
+                PyCallback.Phase.Update,
+                wrap_profiler("draw", self.draw), # Pass the wrapper
+                priority=99,
+                context=PyCallback.Context.Draw
+            )
+            
+        # 3. Main Callback (System Loop)
+        if self.has_main_property and self.main is not None and self.main_callback_id == 0:
+            self.main_callback_id = PyCallback.PyCallback.Register(
+                self.name,
+                PyCallback.Phase.Update,
+                wrap_profiler("main", self.main), # Pass the wrapper
+                priority=99,
+                context=PyCallback.Context.Main
+            )
+        
     def disable(self):
         """Disable the widget"""
+        self.PauseCallbacks()
         if self.__enabled:
             if self.module is not None:
                 try:
@@ -152,7 +231,11 @@ class Widget:
         
     def enable(self):
         """Enable the widget"""
-        if self.enabled and self.module is not None:
+        
+        #ensure callback
+        self.ResumeCallbacks()
+
+        if self.enabled and self.module is not None: 
             return  # Already enabled
         
         # enable widget only if module loads successfully
@@ -338,27 +421,7 @@ class WidgetHandler:
         
     # --------------------------------------------
     # region discovery
-    def _coro_discover(self):
-        if self.discovered:
-            return
-        
-        """Phase 0: Unload currently enabled widgets"""
-        for widget in self.widgets.values():
-            if widget.enabled:
-                widget.disable()
-                yield
-                                
-        """Phase 1: Discover widgets without INI configuration"""
-        self.widgets.clear()
-        
-        try:
-            yield from self._coro_scan_widget_folders()
-            self.discovered = True
-        except Exception as e:
-            self._log_error(f"Discovery failed: {e}")
-            raise 
-        
-        
+           
     def discover(self):
         if self.discovered:
             return
@@ -378,20 +441,6 @@ class WidgetHandler:
             self._log_error(f"Discovery failed: {e}")
             raise
     
-    def _coro_scan_widget_folders(self):
-        """Find .widget folders and load .py files throughout the entire tree"""
-        if not os.path.isdir(self.widgets_path):
-            raise FileNotFoundError(f"Widgets folder missing: {self.widgets_path}")
-        
-        for current_dir, dirs, files in os.walk(self.widgets_path):
-            # Check if this specific folder is marked as a widget container
-            if ".widget" in files:
-                for py_file in [f for f in files if f.endswith(".py")]:
-                    yield from self._coro_load_widget_module(current_dir, py_file)
-                    
-        yield
-                    
-    
     
     def _scan_widget_folders(self):
         """Find .widget folders and load .py files throughout the entire tree"""
@@ -403,67 +452,7 @@ class WidgetHandler:
             if ".widget" in files:
                 for py_file in [f for f in files if f.endswith(".py")]:
                     self._load_widget_module(current_dir, py_file)
-    
-    def _coro_load_widget_module(self, folder: str, filename: str):
-        """Load a widget module without INI configuration"""
-        # Create widget ID
-        rel_folder = os.path.relpath(folder, self.widgets_path)
-        widget_id = f"{rel_folder}/{filename}" if rel_folder != "." else filename
 
-        plain = os.path.splitext(filename)[0]
-        widget_path = "" if rel_folder == "." else rel_folder.replace("\\", "/")
-
-                
-        if widget_id in self.widgets:
-            yield
-            return
-        
-        script_path = os.path.join(folder, filename)
-        
-        try:
-            # 1. Create Widget with EMPTY INI data
-            widget = Widget(
-                name=widget_id,
-                plain_name=plain,
-                widget_path=widget_path,
-                script_path=script_path,
-                ini_key="",           # Empty - will be set later
-                ini_path="",          # Empty - will be set later  
-                ini_filename="",      # Empty - will be set later                
-            )
-            
-            # 3. Register
-            self.widgets[widget_id] = widget
-            
-            #4. Ini handling (SECTION PER WIDGET)
-            self.config_vars.append(WidgetConfigVars(
-                widget_id=widget_id,
-                section=f"Widget:{widget_id}",
-                var_name=f"{widget_id}__enabled"
-            ))
-            self.config_vars.append(WidgetConfigVars(
-                widget_id=widget_id,
-                section=f"Widget:{widget_id}",
-                var_name=f"{widget_id}__optional"
-            ))                    
-
-            yield
-            
-            cv = self._get_config_var(widget.name, self._widget_var(widget.name, "enabled"))
-            
-            enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
-            if enabled:
-                widget.enable()
-            
-            yield
-                
-            #keep logging minimal
-            #self._log_success(f"Discovered: {widget_id}")
-            
-        except Exception as e:
-            self._log_error(f"Failed to discover {widget_id}: {e}")
-    
-            
     def _load_widget_module(self, folder: str, filename: str):
         """Load a widget module without INI configuration"""
         # Create widget ID
@@ -647,6 +636,16 @@ class WidgetHandler:
                 self.draw_node(INI_KEY, value, depth + 1)
                 if depth > 0:
                     ImGui.tree_pop()
+                    
+    def PauseAllWidgets(self):
+        for widget in self.widgets.values():
+            if widget.enabled:
+                widget.disable()
+                
+    def ResumeAllWidgets(self):
+        for widget in self.widgets.values():
+            if not widget.enabled:
+                widget.enable()
             
     def draw_ui(self, INI_KEY: str):
         if ImGui.icon_button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets", 40):
@@ -671,6 +670,11 @@ class WidgetHandler:
         if new_enable_all != e_all:
             IniManager().set(key= INI_KEY, var_name="enable_all", value=new_enable_all, section="Configuration")
             IniManager().save_vars(INI_KEY)
+            if new_enable_all:
+                self.ResumeAllWidgets()
+            else:
+                self.PauseAllWidgets()    
+            
 
         self.enable_all = new_enable_all
 
