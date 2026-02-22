@@ -36,6 +36,8 @@ _RUNE_OR_INSIGNIA_RE = re.compile(r"(?i)\b(rune|insignia)\b")
 _HCT_RE = re.compile(r"(?i)^halves casting time\b")
 _HSR_RE = re.compile(r"(?i)^halves skill recharge\b")
 _CONDITIONAL_RE = re.compile(r"(?i)\b(while|stance|enchanted|hexed|attacking|health|energy)\b")
+_DURATION_RE = re.compile(r"(?i)^(reduces|lengthens)\s+[a-z][a-z '()-]*\s+duration\b")
+_ENERGY_REGEN_RE = re.compile(r"(?i)^energy regeneration\s*[+-]\s*\d+")
 _MOD_HINT_RE = re.compile(
     r"(?i)^(halves|reduces|lengthens|increases|while\b|chance\b|damage\s*\+\d+|armor\s*\+\d+|energy\s*[+-]\d+|health\s*[+-]\d+)"
 )
@@ -97,10 +99,16 @@ def _mod_subrank(text: str, caster_context: bool) -> int:
         return 0 if caster_context else 4
     if _HSR_RE.match(txt):
         return 1 if caster_context else 4
+    if _BASE_ENERGY_RE.match(txt) or _ENERGY_REGEN_RE.match(txt):
+        return 2 if caster_context else 4
+    if _DURATION_RE.match(txt):
+        return 3 if caster_context else 4
     if _INSCRIPTION_RE.match(txt):
         return 2
     if _ATTRIBUTE_BONUS_RE.match(txt):
         return 3 if caster_context else 2
+    if _BASE_HEALTH_RE.match(txt):
+        return 5 if caster_context else 4
     if _CONDITIONAL_RE.search(txt):
         return 5
     if _RUNE_OR_INSIGNIA_RE.search(txt):
@@ -351,6 +359,109 @@ def build_spellcast_hct_hsr_lines(
                 lines.append(f"Halves skill recharge of {attr_phrase}spells (raw: arg1={arg1_i}, arg2={arg2_i})")
             continue
 
+    return lines
+
+
+def build_known_spellcasting_mod_lines(
+    raw_mods,
+    item_attr_txt: str = "",
+    item_type=None,
+    resolve_attribute_name_fn=None,
+    include_raw_when_no_chance: bool = False,
+    use_range_chance: bool = True,
+) -> list[str]:
+    lines = []
+    attr_txt = str(item_attr_txt or "").strip()
+    attr_phrase = f"{attr_txt} " if attr_txt else "item's attribute "
+
+    for ident, arg1, arg2 in list(raw_mods or []):
+        ident_i = _safe_int(ident)
+        arg1_i = _safe_int(arg1)
+        arg2_i = _safe_int(arg2)
+
+        if ident_i == 10328:
+            cond_by_arg1 = {
+                0: "Bleeding",
+                1: "Blind",
+                3: "Crippled",
+                4: "Deep Wound",
+                5: "Disease",
+                6: "Poison",
+                7: "Dazed",
+                8: "Weakness",
+            }
+            cond = cond_by_arg1.get(arg1_i, "")
+            if cond:
+                lines.append(f"Reduces {cond} duration on you by 20%")
+            continue
+
+        if ident_i == 9880:
+            # Legacy stacking variant seen on spellcasting weapons.
+            lines.append("Reduces Crippled duration on you by 20% (Stacking)")
+            continue
+
+        if ident_i == 9240:
+            attr_name = _resolve_attribute_name(arg1_i, resolve_attribute_name_fn)
+            if not attr_name:
+                attr_name = f"Attribute {arg1_i}"
+            chance = arg2_i if arg2_i > 0 else arg1_i
+            if chance > 0:
+                lines.append(f"{attr_name} +1 ({chance}% chance while using skills)")
+            elif include_raw_when_no_chance:
+                lines.append(f"{attr_name} +1 (raw: arg1={arg1_i}, arg2={arg2_i})")
+            continue
+
+        if ident_i == 10296:
+            chance = arg1_i if arg1_i > 0 else arg2_i
+            if chance > 0:
+                lines.append(f"{attr_phrase}+1 (Chance: {chance}%)")
+            elif include_raw_when_no_chance:
+                lines.append(f"{attr_phrase}+1 (raw: arg1={arg1_i}, arg2={arg2_i})")
+            continue
+
+        if ident_i in (26568, 25288, 8920):
+            # Common spellcaster/offhand base-energy encodings.
+            energy_val = max(arg1_i, arg2_i)
+            if energy_val > 0:
+                lines.append(f"Energy +{energy_val}")
+            continue
+
+        if ident_i == 8392:
+            regen_penalty = max(arg1_i, arg2_i)
+            if regen_penalty > 0:
+                lines.append(f"Energy regeneration -{regen_penalty}")
+            continue
+
+        if ident_i == 8984:
+            if arg2_i > 0 and arg1_i > 0:
+                lines.append(f"Energy +{arg2_i} (while Health is below +{arg1_i}%)")
+            continue
+
+        if ident_i == 8968:
+            if arg2_i > 0 and arg1_i > 0:
+                lines.append(f"Energy +{arg2_i} (while health is above +{arg1_i}%)")
+            continue
+
+        if ident_i == 8952:
+            if arg2_i > 0:
+                lines.append(f"Energy +{arg2_i} (while Enchanted)")
+            continue
+
+        if ident_i == 9000:
+            if arg2_i > 0:
+                lines.append(f"Energy +{arg2_i} (while hexed)")
+            continue
+
+    lines.extend(
+        build_spellcast_hct_hsr_lines(
+            raw_mods,
+            item_attr_txt=attr_txt,
+            item_type=item_type,
+            resolve_attribute_name_fn=resolve_attribute_name_fn,
+            include_raw_when_no_chance=include_raw_when_no_chance,
+            use_range_chance=use_range_chance,
+        )
+    )
     return lines
 
 
