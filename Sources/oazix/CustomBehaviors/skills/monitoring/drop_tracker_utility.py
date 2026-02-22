@@ -17,9 +17,10 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol impor
     make_name_signature,
 )
 from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
-    build_spellcast_hct_hsr_lines,
+    build_known_spellcasting_mod_lines,
     prune_generic_attribute_bonus_lines,
     render_mod_description_template,
+    sort_stats_lines_like_ingame,
 )
 
 IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
@@ -372,7 +373,7 @@ class DropTrackerSender:
             except EXPECTED_RUNTIME_ERRORS:
                 return ""
 
-        return build_spellcast_hct_hsr_lines(
+        return build_known_spellcasting_mod_lines(
             raw_mods,
             item_attr_txt=str(item_attr_txt or ""),
             item_type=item_type,
@@ -383,6 +384,47 @@ class DropTrackerSender:
 
     def _prune_generic_attribute_bonus_lines(self, lines: list[str]) -> list[str]:
         return prune_generic_attribute_bonus_lines(lines)
+
+    def _normalize_stats_lines(self, lines: list[str]) -> list[str]:
+        split_pattern = re.compile(
+            r"(?i)(?<!^)(requires\s+\d+|damage:\s*\d|damage\s*\d|armor:\s*\d|armor\s*\d|energy\s*[+-]\d|halves\s|reduces\s|value:\s*\d|improved sale value)"
+        )
+        normalized = []
+        for raw in list(lines or []):
+            txt = str(raw or "").strip()
+            if not txt:
+                continue
+            while True:
+                match = split_pattern.search(txt)
+                if not match:
+                    break
+                left = txt[:match.start()].strip()
+                right = txt[match.start():].strip()
+                if left:
+                    normalized.append(left)
+                txt = right
+            if txt:
+                normalized.append(txt)
+
+        canonical = []
+        seen = set()
+        for raw in normalized:
+            line = str(raw or "").strip()
+            if not line:
+                continue
+            line = re.sub(r"(?i)^damage\s*(\d+\s*-\s*\d+)$", r"Damage: \1", line)
+            line = re.sub(r"(?i)^armor\s*(\d+)(\b.*)$", r"Armor: \1\2", line)
+            line = re.sub(r"(?i)^requires\s*(\d+)\s*", r"Requires \1 ", line)
+            line = re.sub(r"\s+", " ", line).strip()
+            key = re.sub(r"[^a-z0-9]+", "", line.lower())
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            canonical.append(line)
+
+        canonical = self._prune_generic_attribute_bonus_lines(canonical)
+        canonical = sort_stats_lines_like_ingame(canonical)
+        return canonical
 
     def _build_item_stats_text(self, item_id: int, item_name: str = "") -> str:
         item_id = int(item_id or 0)
@@ -497,7 +539,7 @@ class DropTrackerSender:
                 lines.extend(self._collect_fallback_rune_lines(raw_mods, item_attr_txt))
             lines.extend(self._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
 
-            lines = self._prune_generic_attribute_bonus_lines(lines)
+            lines = self._normalize_stats_lines(lines)
             return "\n".join(lines)
         except EXPECTED_RUNTIME_ERRORS:
             return ""

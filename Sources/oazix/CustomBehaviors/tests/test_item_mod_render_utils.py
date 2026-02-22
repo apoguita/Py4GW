@@ -1,4 +1,7 @@
-from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import sort_stats_lines_like_ingame
+from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
+    build_known_spellcasting_mod_lines,
+    sort_stats_lines_like_ingame,
+)
 
 
 def test_sort_stats_lines_like_ingame_places_core_lines_like_tooltip():
@@ -105,3 +108,41 @@ def test_sort_stats_lines_like_ingame_caster_hct_before_hsr():
         "Halves skill recharge of spells (Chance: 20%)",
         "Value: 75 gold",
     ]
+
+
+def test_sort_stats_lines_like_ingame_caster_mod_order_energy_then_duration_then_health():
+    lines = [
+        "Inscribed Staff",
+        "Requires 12 Domination Magic",
+        "Damage: 11-22",
+        "+30 Health",
+        "Reduces Crippled duration on you by 20% (Stacking)",
+        "Energy +10",
+        "Halves skill recharge of spells (Chance: 20%)",
+        "Value: 400 gold",
+    ]
+
+    ordered = sort_stats_lines_like_ingame(lines)
+
+    assert ordered == [
+        "Inscribed Staff",
+        "Damage: 11-22",
+        "Requires 12 Domination Magic",
+        "Halves skill recharge of spells (Chance: 20%)",
+        "Energy +10",
+        "Reduces Crippled duration on you by 20% (Stacking)",
+        "+30 Health",
+        "Value: 400 gold",
+    ]
+
+
+def test_build_known_spellcasting_mod_lines_recognizes_stacking_crippled_mod():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(9880, 0, 0), (25288, 10, 0)],
+        item_attr_txt="",
+        item_type=26,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Energy +10" in lines
+    assert "Reduces Crippled duration on you by 20% (Stacking)" in lines
