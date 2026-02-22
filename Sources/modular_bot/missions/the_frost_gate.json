@@ -37,6 +37,6 @@
     {"type": "interact_gadget", "ms": 15000},
     {"type": "interact_item", "ms": 2000},
     {"type": "skip_cinematic", "wait_ms": 1500},
-    {"type": "wait_map_change", "target_map_id": 21}
+    {"type": "wait_map_change", "target_map_id": 133}
   ]
 }
