@@ -97,7 +97,33 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
     action_label = action_code
     queued = 0
 
-    if action_code == "id_blue":
+    if action_code == "cfg_auto_id":
+        action_label = "Auto ID Config"
+        viewer._apply_auto_id_config_payload(action_payload)
+        current_rarities = viewer._get_selected_id_rarities()
+        viewer.set_status(
+            f"{action_label}: {'ON' if viewer.auto_id_enabled else 'OFF'} "
+            f"({','.join(current_rarities) if current_rarities else 'None'})"
+        )
+        return True
+    elif action_code == "cfg_auto_salvage":
+        action_label = "Auto Salvage Config"
+        viewer._apply_auto_salvage_config_payload(action_payload)
+        current_rarities = viewer._get_selected_salvage_rarities()
+        viewer.set_status(
+            f"{action_label}: {'ON' if viewer.auto_salvage_enabled else 'OFF'} "
+            f"({','.join(current_rarities) if current_rarities else 'None'})"
+        )
+        return True
+    elif action_code == "cfg_auto_outpost_store":
+        action_label = "Outpost Store Config"
+        viewer._apply_auto_outpost_store_config_payload(action_payload)
+        viewer.set_status(
+            f"{action_label}: {'ON' if viewer.auto_outpost_store_enabled else 'OFF'} "
+            f"(materials+tomes)"
+        )
+        return True
+    elif action_code == "id_blue":
         action_label = "ID Blue Items"
         queued = viewer._queue_identify_for_rarities(["Blue"])
     elif action_code == "id_purple":
