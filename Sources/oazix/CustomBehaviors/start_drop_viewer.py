@@ -123,6 +123,14 @@ class DropViewerWindow:
         self.stats_render_cache_by_event = {}
         self.stats_name_signature_by_event = {}
         self.mod_db = self._load_mod_database()
+        self.known_mod_ids = self._collect_known_mod_ids()
+        self.unknown_mod_catalog_path = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "drop_tracker_unknown_mod_ids.json")
+        self.unknown_mod_catalog = {}
+        self.unknown_mod_catalog_dirty = False
+        self.unknown_mod_catalog_flush_timer = ThrottledTimer(1500)
+        self.unknown_mod_recent_seen = {}
+        self.unknown_mod_recent_ttl_s = 15.0
+        self._load_unknown_mod_catalog()
         self.enable_chat_item_tracking = False
         self.max_shmem_messages_per_tick = 80
         self.max_shmem_scan_per_tick = 600
@@ -155,11 +163,13 @@ class DropViewerWindow:
         self.id_sel_green = True
         self.id_sel_purple = True
         self.id_sel_gold = True
+        self.auto_id_enabled = False
         self.salvage_sel_white = True
         self.salvage_sel_blue = True
         self.salvage_sel_green = False
         self.salvage_sel_purple = True
         self.salvage_sel_gold = False
+        self.auto_salvage_enabled = False
         self.inventory_kit_stats_by_email = {}
         self.inventory_kit_stats_refresh_timer = ThrottledTimer(3000)
         self.remote_stats_request_last_by_event = {}
@@ -171,7 +181,35 @@ class DropViewerWindow:
         self.auto_conset_legionnaire = True
         self.auto_conset_timer = ThrottledTimer(1500)
         self.conset_effect_id_cache = {}
+        self.auto_legionnaire_last_explorable = False
+        self.auto_legionnaire_last_map_id = 0
+        self.auto_legionnaire_last_instance_uptime_ms = 0
+        self.auto_legionnaire_entry_nonce = 0
+        self.auto_legionnaire_current_entry_key = ""
+        self.auto_legionnaire_used_entry_key = ""
         self.identify_response_scheduler = IdentifyResponseScheduler()
+        self.auto_id_timer = ThrottledTimer(2500)
+        self.auto_salvage_timer = ThrottledTimer(3000)
+        self.auto_inventory_snapshot_timer = ThrottledTimer(900)
+        self.auto_id_pending_jobs = 0
+        self.auto_salvage_pending_jobs = 0
+        self.auto_id_last_queued = 0
+        self.auto_salvage_last_queued = 0
+        self.auto_id_total_queued = 0
+        self.auto_salvage_total_queued = 0
+        self.auto_id_last_run_ts = 0.0
+        self.auto_salvage_last_run_ts = 0.0
+        self.auto_queue_progress_cap = 25
+        self.auto_id_job_running = False
+        self.auto_salvage_job_running = False
+        self.auto_outpost_store_enabled = False
+        self.auto_outpost_store_job_running = False
+        self.auto_outpost_store_last_is_outpost = False
+        self.auto_outpost_store_last_map_id = 0
+        self.auto_outpost_store_last_instance_uptime_ms = 0
+        self.auto_outpost_store_entry_nonce = 0
+        self.auto_outpost_store_current_entry_key = ""
+        self.auto_outpost_store_handled_entry_key = ""
         self.drop_viewer_assets_dir = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Assets", "DropViewer")
         self.conset_armor_icon = os.path.join(self.drop_viewer_assets_dir, "ArmorOfSalvation.jpg")
         self.conset_grail_icon = os.path.join(self.drop_viewer_assets_dir, "GrailOfMight.jpg")
@@ -191,6 +229,10 @@ class DropViewerWindow:
         self.hide_gold = False
         self.min_qty = 1
         self.show_runtime_panel = False
+        self.runtime_controls_popout = False
+        self.runtime_popout_initialized = False
+        self.compact_mode = False
+        self.ui_theme_name = "Midnight"
         self.selected_item_key = None
         self.selected_log_row = None
         self.hover_handle_mode = True
@@ -204,6 +246,8 @@ class DropViewerWindow:
         self.saved_hover_handle_pos = None
         self.saved_viewer_window_pos = None
         self.saved_viewer_window_size = None
+        self.last_main_window_rect = (0.0, 0.0, 0.0, 0.0)
+        self.left_rail_scroll_y = 0.0
         self.layout_save_timer = ThrottledTimer(750)
 
         # Ensure directories exist
@@ -235,16 +279,22 @@ class DropViewerWindow:
             "id_sel_green": True,
             "id_sel_purple": True,
             "id_sel_gold": True,
+            "auto_id_enabled": False,
             "salvage_sel_white": True,
             "salvage_sel_blue": True,
             "salvage_sel_green": False,
             "salvage_sel_purple": True,
             "salvage_sel_gold": False,
+            "auto_salvage_enabled": False,
+            "auto_outpost_store_enabled": False,
             "auto_conset_enabled": False,
             "auto_conset_armor": True,
             "auto_conset_grail": True,
             "auto_conset_essence": True,
             "auto_conset_legionnaire": True,
+            "runtime_controls_popout": False,
+            "compact_mode": False,
+            "ui_theme_name": "Midnight",
         }
 
     def _apply_runtime_config(self):
@@ -261,16 +311,28 @@ class DropViewerWindow:
         self.id_sel_green = bool(cfg.get("id_sel_green", self.id_sel_green))
         self.id_sel_purple = bool(cfg.get("id_sel_purple", self.id_sel_purple))
         self.id_sel_gold = bool(cfg.get("id_sel_gold", self.id_sel_gold))
+        self.auto_id_enabled = bool(cfg.get("auto_id_enabled", self.auto_id_enabled))
         self.salvage_sel_white = bool(cfg.get("salvage_sel_white", self.salvage_sel_white))
         self.salvage_sel_blue = bool(cfg.get("salvage_sel_blue", self.salvage_sel_blue))
         self.salvage_sel_green = bool(cfg.get("salvage_sel_green", self.salvage_sel_green))
         self.salvage_sel_purple = bool(cfg.get("salvage_sel_purple", self.salvage_sel_purple))
         self.salvage_sel_gold = bool(cfg.get("salvage_sel_gold", self.salvage_sel_gold))
+        self.auto_salvage_enabled = bool(cfg.get("auto_salvage_enabled", self.auto_salvage_enabled))
+        self.auto_outpost_store_enabled = bool(cfg.get("auto_outpost_store_enabled", self.auto_outpost_store_enabled))
         self.auto_conset_enabled = bool(cfg.get("auto_conset_enabled", self.auto_conset_enabled))
         self.auto_conset_armor = bool(cfg.get("auto_conset_armor", self.auto_conset_armor))
         self.auto_conset_grail = bool(cfg.get("auto_conset_grail", self.auto_conset_grail))
         self.auto_conset_essence = bool(cfg.get("auto_conset_essence", self.auto_conset_essence))
         self.auto_conset_legionnaire = bool(cfg.get("auto_conset_legionnaire", self.auto_conset_legionnaire))
+        self.runtime_controls_popout = bool(cfg.get("runtime_controls_popout", self.runtime_controls_popout))
+        self.compact_mode = bool(cfg.get("compact_mode", self.compact_mode))
+        known_themes = self._theme_names()
+        theme_name = self._ensure_text(cfg.get("ui_theme_name", self.ui_theme_name)).strip()
+        if theme_name not in known_themes:
+            theme_name = known_themes[0]
+        self.ui_theme_name = theme_name
+        if self.compact_mode:
+            self.show_runtime_panel = False
 
     def _load_ui_layout_from_config(self):
         cfg = self.runtime_config if isinstance(self.runtime_config, dict) else {}
@@ -319,9 +381,12 @@ class DropViewerWindow:
         self.runtime_config_dirty = False
 
     def _load_runtime_config(self):
+        current_cfg = self.runtime_config if isinstance(getattr(self, "runtime_config", None), dict) else None
         try:
             if not os.path.exists(self.runtime_config_path):
-                self.runtime_config = self._default_runtime_config()
+                if current_cfg is None:
+                    self.runtime_config = self._default_runtime_config()
+                    self._apply_runtime_config()
                 return
             with open(self.runtime_config_path, mode="r", encoding="utf-8") as f:
                 loaded = json.load(f)
@@ -330,9 +395,15 @@ class DropViewerWindow:
                 cfg.update(loaded)
                 self.runtime_config = cfg
             else:
+                if current_cfg is None:
+                    self.runtime_config = self._default_runtime_config()
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if current_cfg is None:
                 self.runtime_config = self._default_runtime_config()
-        except EXPECTED_RUNTIME_ERRORS:
-            self.runtime_config = self._default_runtime_config()
+                self._apply_runtime_config()
+            else:
+                Py4GW.Console.Log("DropViewer", f"Runtime config reload skipped: {e}", Py4GW.Console.MessageType.Warning)
+            return
         self._apply_runtime_config()
 
     def _save_runtime_config(self):
@@ -357,16 +428,22 @@ class DropViewerWindow:
         cfg["id_sel_green"] = bool(self.id_sel_green)
         cfg["id_sel_purple"] = bool(self.id_sel_purple)
         cfg["id_sel_gold"] = bool(self.id_sel_gold)
+        cfg["auto_id_enabled"] = bool(self.auto_id_enabled)
         cfg["salvage_sel_white"] = bool(self.salvage_sel_white)
         cfg["salvage_sel_blue"] = bool(self.salvage_sel_blue)
         cfg["salvage_sel_green"] = bool(self.salvage_sel_green)
         cfg["salvage_sel_purple"] = bool(self.salvage_sel_purple)
         cfg["salvage_sel_gold"] = bool(self.salvage_sel_gold)
+        cfg["auto_salvage_enabled"] = bool(self.auto_salvage_enabled)
+        cfg["auto_outpost_store_enabled"] = bool(self.auto_outpost_store_enabled)
         cfg["auto_conset_enabled"] = bool(self.auto_conset_enabled)
         cfg["auto_conset_armor"] = bool(self.auto_conset_armor)
         cfg["auto_conset_grail"] = bool(self.auto_conset_grail)
         cfg["auto_conset_essence"] = bool(self.auto_conset_essence)
         cfg["auto_conset_legionnaire"] = bool(self.auto_conset_legionnaire)
+        cfg["runtime_controls_popout"] = bool(self.runtime_controls_popout)
+        cfg["compact_mode"] = bool(self.compact_mode)
+        cfg["ui_theme_name"] = self._ensure_text(self.ui_theme_name).strip() or "Midnight"
         self.runtime_config = cfg
 
     def _send_tracker_ack(self, receiver_email: str, event_id: str) -> bool:
@@ -438,6 +515,292 @@ class DropViewerWindow:
             except EXPECTED_RUNTIME_ERRORS:
                 continue
         return None
+
+    def _collect_known_mod_ids(self) -> set[int]:
+        known_ids: set[int] = set()
+        db = self.mod_db
+        if db is None:
+            return known_ids
+        try:
+            for weapon_mod in list(getattr(db, "weapon_mods", {}).values()):
+                for mod in list(getattr(weapon_mod, "modifiers", []) or []):
+                    ident = max(0, int(getattr(mod, "identifier", 0)))
+                    if ident > 0:
+                        known_ids.add(ident)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        try:
+            for rune in list(getattr(db, "runes", {}).values()):
+                for mod in list(getattr(rune, "modifiers", []) or []):
+                    ident = max(0, int(getattr(mod, "identifier", 0)))
+                    if ident > 0:
+                        known_ids.add(ident)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return known_ids
+
+    def _normalize_unknown_mod_entry(self, entry: Any) -> dict[str, Any]:
+        normalized = {
+            "count": 0,
+            "arg1_min": None,
+            "arg1_max": None,
+            "arg2_min": None,
+            "arg2_max": None,
+            "item_types": [],
+            "model_ids": [],
+            "sources": {},
+            "sample_items": [],
+            "sample_events": [],
+            "co_mod_ids": [],
+            "last_seen": "",
+        }
+        if not isinstance(entry, dict):
+            return normalized
+        try:
+            normalized["count"] = max(0, int(entry.get("count", 0)))
+        except EXPECTED_RUNTIME_ERRORS:
+            normalized["count"] = 0
+
+        for key in ("arg1_min", "arg1_max", "arg2_min", "arg2_max"):
+            try:
+                value = entry.get(key, None)
+                normalized[key] = None if value is None else int(value)
+            except EXPECTED_RUNTIME_ERRORS:
+                normalized[key] = None
+
+        for key, cap in (("item_types", 24), ("model_ids", 40), ("sample_items", 12), ("sample_events", 12), ("co_mod_ids", 40)):
+            values = []
+            try:
+                raw = list(entry.get(key, []) or [])
+            except EXPECTED_RUNTIME_ERRORS:
+                raw = []
+            for raw_value in raw:
+                if key in ("sample_items", "sample_events"):
+                    val = self._ensure_text(raw_value).strip()
+                    if not val or val in values:
+                        continue
+                    values.append(val)
+                else:
+                    try:
+                        val = int(raw_value)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        continue
+                    if val <= 0 or val in values:
+                        continue
+                    values.append(val)
+                if len(values) >= cap:
+                    break
+            normalized[key] = values
+
+        source_map = {}
+        try:
+            raw_sources = entry.get("sources", {}) or {}
+            if isinstance(raw_sources, dict):
+                for src, count in raw_sources.items():
+                    src_key = self._ensure_text(src).strip() or "unknown"
+                    try:
+                        src_count = max(0, int(count))
+                    except EXPECTED_RUNTIME_ERRORS:
+                        src_count = 0
+                    if src_count > 0:
+                        source_map[src_key] = src_count
+        except EXPECTED_RUNTIME_ERRORS:
+            source_map = {}
+        normalized["sources"] = source_map
+        normalized["last_seen"] = self._ensure_text(entry.get("last_seen", "")).strip()
+        return normalized
+
+    def _load_unknown_mod_catalog(self):
+        self.unknown_mod_catalog = {}
+        path = self._ensure_text(self.unknown_mod_catalog_path).strip()
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict) and isinstance(loaded.get("unknown_mods", None), dict):
+                loaded = loaded.get("unknown_mods", {})
+            if not isinstance(loaded, dict):
+                return
+            normalized_catalog = {}
+            for key, entry in loaded.items():
+                try:
+                    ident = max(0, int(key))
+                except EXPECTED_RUNTIME_ERRORS:
+                    continue
+                if ident <= 0:
+                    continue
+                normalized_catalog[str(ident)] = self._normalize_unknown_mod_entry(entry)
+            self.unknown_mod_catalog = normalized_catalog
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_catalog = {}
+
+    def _save_unknown_mod_catalog(self):
+        path = self._ensure_text(self.unknown_mod_catalog_path).strip()
+        if not path:
+            return False
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            sorted_entries = {}
+            for key in sorted(self.unknown_mod_catalog.keys(), key=lambda value: int(value)):
+                sorted_entries[key] = self._normalize_unknown_mod_entry(self.unknown_mod_catalog.get(key, {}))
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "known_mod_id_count": int(len(self.known_mod_ids)),
+                "unknown_mods": sorted_entries,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod catalog save failed: {e}", Py4GW.Console.MessageType.Warning)
+            return False
+
+    def _flush_unknown_mod_catalog_if_dirty(self, force: bool = False):
+        if not self.unknown_mod_catalog_dirty:
+            return
+        if not force and not self.unknown_mod_catalog_flush_timer.IsExpired():
+            return
+        self.unknown_mod_catalog_flush_timer.Reset()
+        if self._save_unknown_mod_catalog():
+            self.unknown_mod_catalog_dirty = False
+
+    def _get_unknown_mod_count(self) -> int:
+        return len(self.unknown_mod_catalog)
+
+    def _unknown_mod_summary_lines(self, limit: int = 8) -> list[str]:
+        lines = []
+        if not self.unknown_mod_catalog:
+            return lines
+        entries = []
+        for key, value in self.unknown_mod_catalog.items():
+            try:
+                ident = int(key)
+                count = int((value or {}).get("count", 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            entries.append((count, ident, value or {}))
+        entries.sort(key=lambda item: (-item[0], item[1]))
+        for count, ident, value in entries[: max(1, int(limit))]:
+            arg1_min = value.get("arg1_min", None)
+            arg1_max = value.get("arg1_max", None)
+            arg2_min = value.get("arg2_min", None)
+            arg2_max = value.get("arg2_max", None)
+            item_types = ",".join(str(v) for v in list(value.get("item_types", []) or [])[:3])
+            lines.append(
+                f"id={ident} hits={count} "
+                f"a1=[{arg1_min},{arg1_max}] "
+                f"a2=[{arg2_min},{arg2_max}] "
+                f"types=[{item_types}]"
+            )
+        return lines
+
+    def _record_unknown_mod_identifiers(self, raw_mods, snapshot: dict[str, Any] | None = None, source: str = ""):
+        known_ids = self.known_mod_ids
+        if not raw_mods or not known_ids:
+            return
+        src = self._ensure_text(source).strip() or self._ensure_text((snapshot or {}).get("_source", "")).strip() or "unknown"
+        item_name = self._clean_item_name((snapshot or {}).get("name", ""))
+        event_id = self._ensure_text((snapshot or {}).get("event_id", "")).strip()
+        model_id = max(0, self._safe_int((snapshot or {}).get("model_id", 0), 0))
+        item_type = max(0, self._safe_int((snapshot or {}).get("item_type", 0), 0))
+        co_mod_ids = []
+        try:
+            co_mod_ids = sorted({
+                max(0, int(mod[0]))
+                for mod in list(raw_mods or [])
+                if isinstance(mod, (list, tuple)) and len(mod) >= 3
+            })
+            co_mod_ids = [mid for mid in co_mod_ids if mid > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            co_mod_ids = []
+
+        now_ts = time.time()
+        ttl = max(2.0, float(self.unknown_mod_recent_ttl_s))
+        try:
+            self.unknown_mod_recent_seen = {
+                key: ts
+                for key, ts in self.unknown_mod_recent_seen.items()
+                if (now_ts - float(ts)) <= ttl
+            }
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_recent_seen = {}
+
+        changed = False
+        for mod in list(raw_mods or []):
+            if not isinstance(mod, (list, tuple)) or len(mod) < 3:
+                continue
+            ident = max(0, self._safe_int(mod[0], 0))
+            if ident <= 0 or ident in known_ids:
+                continue
+            arg1 = self._safe_int(mod[1], 0)
+            arg2 = self._safe_int(mod[2], 0)
+            dedupe_key = f"{src}|{model_id}|{item_type}|{ident}|{arg1}|{arg2}|{event_id}"
+            if dedupe_key in self.unknown_mod_recent_seen:
+                continue
+            self.unknown_mod_recent_seen[dedupe_key] = now_ts
+
+            key = str(ident)
+            entry = self._normalize_unknown_mod_entry(self.unknown_mod_catalog.get(key, {}))
+            entry["count"] = max(0, int(entry.get("count", 0))) + 1
+
+            arg1_min = entry.get("arg1_min", None)
+            arg1_max = entry.get("arg1_max", None)
+            arg2_min = entry.get("arg2_min", None)
+            arg2_max = entry.get("arg2_max", None)
+            entry["arg1_min"] = arg1 if arg1_min is None else min(int(arg1_min), int(arg1))
+            entry["arg1_max"] = arg1 if arg1_max is None else max(int(arg1_max), int(arg1))
+            entry["arg2_min"] = arg2 if arg2_min is None else min(int(arg2_min), int(arg2))
+            entry["arg2_max"] = arg2 if arg2_max is None else max(int(arg2_max), int(arg2))
+
+            item_types = list(entry.get("item_types", []) or [])
+            if item_type > 0 and item_type not in item_types and len(item_types) < 24:
+                item_types.append(item_type)
+            entry["item_types"] = sorted(item_types)
+
+            model_ids = list(entry.get("model_ids", []) or [])
+            if model_id > 0 and model_id not in model_ids and len(model_ids) < 40:
+                model_ids.append(model_id)
+            entry["model_ids"] = sorted(model_ids)
+
+            co_ids = [mid for mid in co_mod_ids if mid != ident]
+            existing_co = list(entry.get("co_mod_ids", []) or [])
+            for co_id in co_ids:
+                if co_id not in existing_co:
+                    existing_co.append(co_id)
+                if len(existing_co) >= 40:
+                    break
+            entry["co_mod_ids"] = sorted(existing_co)
+
+            sample_items = list(entry.get("sample_items", []) or [])
+            if item_name and item_name not in sample_items and len(sample_items) < 12:
+                sample_items.append(item_name)
+            entry["sample_items"] = sample_items
+
+            sample_events = list(entry.get("sample_events", []) or [])
+            if event_id and event_id not in sample_events and len(sample_events) < 12:
+                sample_events.append(event_id)
+            entry["sample_events"] = sample_events
+
+            source_map = dict(entry.get("sources", {}) or {})
+            source_map[src] = max(0, int(source_map.get(src, 0))) + 1
+            entry["sources"] = source_map
+            entry["last_seen"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.unknown_mod_catalog[key] = entry
+            changed = True
+
+        if changed:
+            self.unknown_mod_catalog_dirty = True
+
+    def _export_unknown_mod_catalog(self) -> str:
+        self._flush_unknown_mod_catalog_if_dirty(force=True)
+        path = self._ensure_text(self.unknown_mod_catalog_path).strip()
+        if path and os.path.exists(path):
+            return path
+        if self._save_unknown_mod_catalog():
+            self.unknown_mod_catalog_dirty = False
+            return path
+        return ""
 
     def _format_attribute_name(self, attr_name: Any) -> str:
         txt = self._ensure_text(attr_name).replace("_", " ").strip()
@@ -633,7 +996,7 @@ class DropViewerWindow:
             item_attr_txt=self._ensure_text(item_attr_txt),
             item_type=item_type,
             resolve_attribute_name_fn=_resolve_attribute_name,
-            include_raw_when_no_chance=True,
+            include_raw_when_no_chance=False,
             use_range_chance=True,
         )
 
@@ -1170,6 +1533,7 @@ class DropViewerWindow:
             "model_id": 0,
             "item_type": 0,
             "raw_mods": [],
+            "_source": "local_api",
         }
         try:
             clean_name = ""
@@ -1252,6 +1616,11 @@ class DropViewerWindow:
                 if not isinstance(mod, (list, tuple)) or len(mod) < 3:
                     continue
                 raw_mods.append((int(mod[0]), int(mod[1]), int(mod[2])))
+            self._record_unknown_mod_identifiers(
+                raw_mods,
+                snapshot=snapshot,
+                source=self._ensure_text(snapshot.get("_source", "")),
+            )
             if not raw_mods:
                 return "\n".join(lines)
 
@@ -1428,6 +1797,7 @@ class DropViewerWindow:
             "model_id": self._safe_int(payload.get("m", 0), 0),
             "item_type": self._safe_int(payload.get("t", 0), 0),
             "raw_mods": payload.get("mods", []),
+            "_source": "shared_payload",
         }
         return self._build_item_stats_from_snapshot(snapshot)
 
@@ -1991,7 +2361,7 @@ class DropViewerWindow:
                 ):
                     for line in debug_lines:
                         PyImGui.text(self._ensure_text(line))
-                    PyImGui.end_child()
+                PyImGui.end_child()
 
         flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
         if PyImGui.begin_table("DropTrackerSelectedItemCharacters", 3, flags, 0.0, 150.0):
@@ -2048,7 +2418,58 @@ class DropViewerWindow:
             return "--:--"
 
     def _ui_colors(self):
-        return default_ui_colors()
+        palette = dict(default_ui_colors())
+        theme_name = self._ensure_text(getattr(self, "ui_theme_name", "Midnight")).strip()
+        palette.update(self._theme_presets().get(theme_name, {}))
+        return palette
+
+    def _theme_presets(self):
+        return {
+            "Midnight": {},
+            "High Contrast": {
+                "accent": (0.52, 0.88, 1.0, 1.0),
+                "muted": (0.79, 0.84, 0.92, 1.0),
+                "panel_bg": (0.06, 0.08, 0.11, 0.96),
+                "primary_btn": (0.08, 0.56, 0.96, 0.98),
+                "primary_hover": (0.18, 0.66, 1.0, 1.0),
+                "primary_active": (0.05, 0.48, 0.84, 1.0),
+                "secondary_btn": (0.17, 0.21, 0.29, 0.98),
+                "secondary_hover": (0.24, 0.30, 0.40, 1.0),
+                "secondary_active": (0.14, 0.18, 0.25, 1.0),
+                "success_btn": (0.10, 0.63, 0.36, 0.98),
+                "success_hover": (0.15, 0.75, 0.43, 1.0),
+                "success_active": (0.08, 0.52, 0.31, 1.0),
+                "warn_btn": (0.72, 0.49, 0.14, 0.98),
+                "warn_hover": (0.84, 0.58, 0.18, 1.0),
+                "warn_active": (0.62, 0.42, 0.11, 1.0),
+                "danger_btn": (0.78, 0.21, 0.20, 0.98),
+                "danger_hover": (0.91, 0.29, 0.26, 1.0),
+                "danger_active": (0.66, 0.17, 0.16, 1.0),
+            },
+            "Steel Ember": {
+                "accent": (0.95, 0.67, 0.35, 1.0),
+                "muted": (0.80, 0.77, 0.72, 1.0),
+                "panel_bg": (0.12, 0.11, 0.10, 0.95),
+                "primary_btn": (0.26, 0.44, 0.63, 0.98),
+                "primary_hover": (0.32, 0.52, 0.74, 1.0),
+                "primary_active": (0.21, 0.37, 0.55, 1.0),
+                "secondary_btn": (0.24, 0.21, 0.18, 0.98),
+                "secondary_hover": (0.33, 0.28, 0.24, 1.0),
+                "secondary_active": (0.20, 0.17, 0.14, 1.0),
+                "success_btn": (0.19, 0.52, 0.31, 0.98),
+                "success_hover": (0.25, 0.62, 0.38, 1.0),
+                "success_active": (0.15, 0.43, 0.26, 1.0),
+                "warn_btn": (0.76, 0.44, 0.20, 0.98),
+                "warn_hover": (0.88, 0.54, 0.27, 1.0),
+                "warn_active": (0.66, 0.37, 0.16, 1.0),
+                "danger_btn": (0.74, 0.24, 0.19, 0.98),
+                "danger_hover": (0.86, 0.32, 0.25, 1.0),
+                "danger_active": (0.62, 0.20, 0.16, 1.0),
+            },
+        }
+
+    def _theme_names(self):
+        return list(self._theme_presets().keys())
 
     def _push_button_style(self, variant: str = "secondary"):
         c = self._ui_colors()
@@ -2078,6 +2499,356 @@ class DropViewerWindow:
         PyImGui.text_colored(title, c["accent"])
         PyImGui.separator()
 
+    def _draw_status_chip(self, label: str, variant: str = "secondary", tooltip: str = ""):
+        chip_label = self._ensure_text(label).strip()
+        if not chip_label:
+            return
+        self._push_button_style(variant)
+        PyImGui.button(chip_label)
+        PyImGui.pop_style_color(4)
+        if tooltip and PyImGui.is_item_hovered():
+            ImGui.show_tooltip(tooltip)
+
+    def _collect_live_status_snapshot(self):
+        is_leader = False
+        party_size = 0
+        map_id = 0
+        map_name = "Unknown"
+
+        try:
+            is_leader = bool(Player.GetAgentID() == Party.GetPartyLeaderID())
+        except EXPECTED_RUNTIME_ERRORS:
+            is_leader = False
+
+        try:
+            party_size = max(0, int(GLOBAL_CACHE.Party.GetPartySize()))
+        except EXPECTED_RUNTIME_ERRORS:
+            party_size = 0
+        if party_size <= 0:
+            try:
+                players = GLOBAL_CACHE.Party.GetPlayers() or []
+                heroes = GLOBAL_CACHE.Party.GetHeroes() or []
+                henchmen = GLOBAL_CACHE.Party.GetHenchmen() or []
+                party_size = max(0, len(players) + len(heroes) + len(henchmen))
+            except EXPECTED_RUNTIME_ERRORS:
+                party_size = 0
+
+        try:
+            map_id = max(0, int(Map.GetMapID()))
+        except EXPECTED_RUNTIME_ERRORS:
+            map_id = 0
+        try:
+            if map_id > 0:
+                map_name = self._ensure_text(Map.GetMapName(map_id)).strip() or "Unknown"
+        except EXPECTED_RUNTIME_ERRORS:
+            map_name = "Unknown"
+
+        display_map_name = map_name
+        if len(display_map_name) > 20:
+            display_map_name = f"{display_map_name[:17]}..."
+
+        return {
+            "is_leader": bool(is_leader),
+            "party_size": int(party_size),
+            "map_id": int(map_id),
+            "map_name": map_name,
+            "display_map_name": display_map_name,
+        }
+
+    def _draw_top_control_strip(self):
+        c = self._ui_colors()
+        self._draw_section_header("Quick Control")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerQuickControlStrip", size=(0, 66), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            action_gap = 8.0
+            action_h = 32.0
+            action_row_w = max(180.0, float(PyImGui.get_content_region_avail()[0]))
+            action_w = max(110.0, (action_row_w - (action_gap * 2.0)) / 3.0)
+            inline = action_w >= 118.0
+            button_w = action_w if inline else action_row_w
+
+            if self._styled_button(
+                "Resign + Outpost",
+                "danger",
+                width=button_w,
+                height=action_h,
+                tooltip="Resign all party clients and return to outpost.",
+            ):
+                self._trigger_party_resign_to_outpost()
+            if inline:
+                PyImGui.same_line(0.0, action_gap)
+
+            if self._styled_button(
+                "Join Followers",
+                "warning",
+                width=button_w,
+                height=action_h,
+                tooltip="Invite all eligible followers in the current map.",
+            ):
+                self._trigger_party_invite_all_followers()
+            if inline:
+                PyImGui.same_line(0.0, action_gap)
+
+            if self._styled_button(
+                "Resume Tracking" if self.paused else "Pause Tracking",
+                "success" if self.paused else "warning",
+                width=button_w,
+                height=action_h,
+                tooltip="Pause or resume local drop tracking updates.",
+            ):
+                self.paused = not self.paused
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_live_status_chips(self):
+        c = self._ui_colors()
+        snapshot = self._collect_live_status_snapshot()
+        chips = [
+            (
+                f"Role: {'Leader' if snapshot['is_leader'] else 'Follower'}",
+                "success" if snapshot["is_leader"] else "secondary",
+                "Leader can broadcast actions to followers.",
+            ),
+            (
+                f"Map: {snapshot['map_id']} {snapshot['display_map_name']}",
+                "primary",
+                f"Current map: {snapshot['map_name']} ({snapshot['map_id']})",
+            ),
+            (
+                f"Party: {snapshot['party_size']}",
+                "secondary",
+                "Current full party size (players + heroes + henchmen).",
+            ),
+            (
+                f"Auto ID: {'ON' if self.auto_id_enabled else 'OFF'}",
+                "success" if self.auto_id_enabled else "secondary",
+                "Auto ID loop status.",
+            ),
+            (
+                f"Auto Salv: {'ON' if self.auto_salvage_enabled else 'OFF'}",
+                "success" if self.auto_salvage_enabled else "secondary",
+                "Auto Salvage loop status.",
+            ),
+        ]
+
+        self._draw_section_header("Live Status")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerLiveStatusStrip", size=(0, 70), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            for idx, (label, variant, tooltip) in enumerate(chips):
+                self._draw_status_chip(label, variant, tooltip=tooltip)
+                if idx < (len(chips) - 1):
+                    remaining_w = max(0.0, float(PyImGui.get_content_region_avail()[0]))
+                    if remaining_w > 130.0:
+                        PyImGui.same_line(0.0, 6.0)
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _format_elapsed_since(self, timestamp_value: float) -> str:
+        ts = float(timestamp_value or 0.0)
+        if ts <= 0:
+            return "never"
+        elapsed = max(0, int(time.time() - ts))
+        if elapsed < 60:
+            return f"{elapsed}s ago"
+        if elapsed < 3600:
+            mins = elapsed // 60
+            secs = elapsed % 60
+            return f"{mins}m {secs:02d}s"
+        hours = elapsed // 3600
+        mins = (elapsed % 3600) // 60
+        return f"{hours}h {mins:02d}m"
+
+    def _refresh_auto_inventory_pending_counts(self, force: bool = False):
+        if not force and not self.auto_inventory_snapshot_timer.IsExpired():
+            return
+        self.auto_inventory_snapshot_timer.Reset()
+
+        id_pending = 0
+        salvage_pending = 0
+        try:
+            id_rarities = self._get_selected_id_rarities()
+            if id_rarities:
+                id_items = Routines.Items.GetUnidentifiedItems(list(id_rarities), [])
+                id_pending = len(id_items) if id_items else 0
+        except EXPECTED_RUNTIME_ERRORS:
+            id_pending = 0
+        try:
+            salvage_rarities = self._get_selected_salvage_rarities()
+            if salvage_rarities:
+                salvage_items = Routines.Items.GetSalvageableItems(list(salvage_rarities), [])
+                salvage_pending = len(salvage_items) if salvage_items else 0
+        except EXPECTED_RUNTIME_ERRORS:
+            salvage_pending = 0
+
+        self.auto_id_pending_jobs = max(0, int(id_pending))
+        self.auto_salvage_pending_jobs = max(0, int(salvage_pending))
+
+    def _draw_auto_inventory_activity(self):
+        c = self._ui_colors()
+        self._refresh_auto_inventory_pending_counts()
+        self._draw_section_header("Queue Activity")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerAutoQueueActivity", size=(0, 106), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            width = max(110.0, float(PyImGui.get_content_region_avail()[0]))
+            cap = max(1, int(self.auto_queue_progress_cap))
+            id_pending = max(0, int(self.auto_id_pending_jobs))
+            salvage_pending = max(0, int(self.auto_salvage_pending_jobs))
+            id_progress = min(1.0, float(id_pending) / float(cap))
+            salvage_progress = min(1.0, float(salvage_pending) / float(cap))
+
+            PyImGui.text_colored(
+                f"ID: pending {id_pending}, last run {self._format_elapsed_since(self.auto_id_last_run_ts)}",
+                c["muted"],
+            )
+            PyImGui.progress_bar(id_progress, width, f"{id_pending} queued")
+            if PyImGui.is_item_hovered():
+                ImGui.show_tooltip(
+                    f"Last queued: {int(self.auto_id_last_queued)}\n"
+                    f"Total queued this session: {int(self.auto_id_total_queued)}"
+                )
+
+            PyImGui.text_colored(
+                f"Salvage: pending {salvage_pending}, last run {self._format_elapsed_since(self.auto_salvage_last_run_ts)}",
+                c["muted"],
+            )
+            PyImGui.progress_bar(salvage_progress, width, f"{salvage_pending} queued")
+            if PyImGui.is_item_hovered():
+                ImGui.show_tooltip(
+                    f"Last queued: {int(self.auto_salvage_last_queued)}\n"
+                    f"Total queued this session: {int(self.auto_salvage_total_queued)}"
+                )
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_view_and_theme_controls(self):
+        c = self._ui_colors()
+        self._draw_section_header("View")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerViewCard", size=(0, 98), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            width = max(120.0, float(PyImGui.get_content_region_avail()[0]))
+            if self._styled_button(
+                f"Compact Mode: {'ON' if self.compact_mode else 'OFF'}",
+                "success" if self.compact_mode else "secondary",
+                width=width,
+                height=28.0,
+                tooltip="Hide advanced settings and show only core controls in the left panel.",
+            ):
+                self.compact_mode = not self.compact_mode
+                if self.compact_mode:
+                    self.show_runtime_panel = False
+                self.runtime_config_dirty = True
+
+            PyImGui.text_colored("Theme Preset", c["muted"])
+            theme_names = self._theme_names()
+            current_theme_idx = 0
+            try:
+                current_theme_idx = max(0, theme_names.index(self.ui_theme_name))
+            except EXPECTED_RUNTIME_ERRORS:
+                current_theme_idx = 0
+            next_theme_idx = int(PyImGui.combo("##DropTrackerThemePreset", current_theme_idx, theme_names))
+            if 0 <= next_theme_idx < len(theme_names) and next_theme_idx != current_theme_idx:
+                self.ui_theme_name = theme_names[next_theme_idx]
+                self.runtime_config_dirty = True
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_inventory_action_cards(self):
+        c = self._ui_colors()
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerInventoryActionCards", size=(0, 184), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            cards = [
+                {
+                    "label": f"[ID] Auto {'ON' if self.auto_id_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_id_enabled else "secondary",
+                    "tooltip": "Auto ID Loop: enable/disable periodic identify using ID settings.",
+                    "action": "toggle_auto_id",
+                },
+                {
+                    "label": f"[SV] Auto {'ON' if self.auto_salvage_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_salvage_enabled else "secondary",
+                    "tooltip": "Auto Salvage Loop: enable/disable periodic salvage using Salvage settings.",
+                    "action": "toggle_auto_salvage",
+                },
+                {
+                    "label": f"[ST] Outpost {'ON' if self.auto_outpost_store_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_outpost_store_enabled else "secondary",
+                    "tooltip": "Auto Store in Outpost: deposit Materials + Tomes (including Elite Tomes) on outpost entry.",
+                    "action": "toggle_auto_outpost_store",
+                },
+                {
+                    "label": "[CFG] Sync",
+                    "variant": "secondary",
+                    "tooltip": "Sync Config -> Followers: push auto ID/salvage/outpost-store settings.",
+                    "action": "sync_config",
+                },
+                {
+                    "label": "[ID] Run Now",
+                    "variant": "primary",
+                    "tooltip": "Run Auto Identify Now: one immediate identify pass.",
+                    "action": "run_id_now",
+                },
+                {
+                    "label": "[SV] Run Now",
+                    "variant": "primary",
+                    "tooltip": "Run Auto Salvage Now: one immediate salvage pass.",
+                    "action": "run_salvage_now",
+                },
+            ]
+
+            gap = 8.0
+            avail_w = max(140.0, float(PyImGui.get_content_region_avail()[0]))
+            half_w = max(110.0, (avail_w - gap) * 0.5)
+
+            def _run_card_action(action_code: str):
+                if action_code == "toggle_auto_id":
+                    next_id_enabled = not self.auto_id_enabled
+                    id_payload = self._encode_auto_action_payload(next_id_enabled, self._get_selected_id_rarities())
+                    self._trigger_inventory_action("cfg_auto_id", id_payload)
+                elif action_code == "toggle_auto_salvage":
+                    next_salvage_enabled = not self.auto_salvage_enabled
+                    salvage_payload = self._encode_auto_action_payload(next_salvage_enabled, self._get_selected_salvage_rarities())
+                    self._trigger_inventory_action("cfg_auto_salvage", salvage_payload)
+                elif action_code == "toggle_auto_outpost_store":
+                    next_store_enabled = not self.auto_outpost_store_enabled
+                    store_payload = "1" if next_store_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_outpost_store", store_payload)
+                elif action_code == "sync_config":
+                    self._sync_auto_inventory_config_to_followers()
+                elif action_code == "run_id_now":
+                    self._trigger_inventory_action("id_selected", self._encode_rarities(self._get_selected_id_rarities()))
+                elif action_code == "run_salvage_now":
+                    self._trigger_inventory_action("salvage_selected", self._encode_rarities(self._get_selected_salvage_rarities()))
+
+            for row_idx in range(0, len(cards), 2):
+                left_card = cards[row_idx]
+                right_card = cards[row_idx + 1] if (row_idx + 1) < len(cards) else None
+
+                if self._styled_button(
+                    left_card["label"],
+                    left_card["variant"],
+                    width=half_w,
+                    height=30.0,
+                    tooltip=left_card["tooltip"],
+                ):
+                    _run_card_action(left_card["action"])
+                if right_card is not None:
+                    PyImGui.same_line(0.0, gap)
+                    if self._styled_button(
+                        right_card["label"],
+                        right_card["variant"],
+                        width=half_w,
+                        height=30.0,
+                        tooltip=right_card["tooltip"],
+                    ):
+                        _run_card_action(right_card["action"])
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
     def _draw_status_toast(self, message: str):
         msg = self._ensure_text(message).strip()
         if not msg:
@@ -2087,7 +2858,7 @@ class DropViewerWindow:
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (col[0], col[1], col[2], 0.95))
         if PyImGui.begin_child("DropTrackerStatusToast", size=(0, 28), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
             PyImGui.text_colored(msg, col)
-            PyImGui.end_child()
+        PyImGui.end_child()
         PyImGui.pop_style_color(2)
 
     def _draw_rarity_chips(self, prefix: str, rarities: list[str]):
@@ -2121,7 +2892,7 @@ class DropViewerWindow:
         if PyImGui.begin_child(card_id, size=(0, 52), border=True, flags=PyImGui.WindowFlags.NoFlag):
             PyImGui.text_colored(title, accent_color)
             PyImGui.text_colored(value, (0.94, 0.96, 1.0, 1.0))
-            PyImGui.end_child()
+        PyImGui.end_child()
         PyImGui.pop_style_color(2)
 
     def _draw_summary_bar(self, filtered_rows):
@@ -2162,6 +2933,32 @@ class DropViewerWindow:
 
     def _draw_runtime_controls(self):
         draw_runtime_controls_panel(self, PyImGui)
+
+    def _draw_runtime_controls_popout(self):
+        if not self.runtime_controls_popout:
+            return
+        if not self.runtime_popout_initialized:
+            try:
+                display_w, display_h = self._get_display_size()
+                pop_w = min(760.0, max(560.0, display_w * 0.45))
+                pop_h = min(680.0, max(460.0, display_h * 0.58))
+                pop_x = max(20.0, (display_w - pop_w) * 0.5)
+                pop_y = max(20.0, (display_h - pop_h) * 0.16)
+                PyImGui.set_next_window_pos(pop_x, pop_y)
+                PyImGui.set_next_window_size(pop_w, pop_h)
+                PyImGui.set_next_window_focus()
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+            self.runtime_popout_initialized = True
+        if PyImGui.begin("Drop Tracker Runtime Controls"):
+            PyImGui.text_colored("Advanced Runtime Controls", self._ui_colors()["accent"])
+            PyImGui.same_line(0.0, 10.0)
+            if self._styled_button("Close Popout", "secondary"):
+                self.runtime_controls_popout = False
+                self.runtime_config_dirty = True
+            PyImGui.separator()
+            self._draw_runtime_controls()
+        PyImGui.end()
 
     def _get_selected_id_rarities(self):
         rarities = []
@@ -2206,14 +3003,131 @@ class DropViewerWindow:
                 out.append(rt)
         return out
 
-    def _mouse_in_current_window_rect(self):
+    def _apply_selected_id_rarities(self, rarities):
+        selected = {self._ensure_text(r).strip().title() for r in list(rarities or [])}
+        self.id_sel_white = "White" in selected
+        self.id_sel_blue = "Blue" in selected
+        self.id_sel_green = "Green" in selected
+        self.id_sel_purple = "Purple" in selected
+        self.id_sel_gold = "Gold" in selected
+
+    def _apply_selected_salvage_rarities(self, rarities):
+        selected = {self._ensure_text(r).strip().title() for r in list(rarities or [])}
+        self.salvage_sel_white = "White" in selected
+        self.salvage_sel_blue = "Blue" in selected
+        self.salvage_sel_green = "Green" in selected
+        self.salvage_sel_purple = "Purple" in selected
+        self.salvage_sel_gold = "Gold" in selected
+
+    def _rarities_to_bitmask(self, rarities):
+        ordered = ("White", "Blue", "Green", "Purple", "Gold")
+        selected = {self._ensure_text(r).strip().title() for r in list(rarities or [])}
+        mask = 0
+        for idx, rarity in enumerate(ordered):
+            if rarity in selected:
+                mask |= (1 << idx)
+        return int(mask)
+
+    def _bitmask_to_rarities(self, mask):
+        ordered = ("White", "Blue", "Green", "Purple", "Gold")
+        resolved = []
+        m = max(0, int(mask))
+        for idx, rarity in enumerate(ordered):
+            if (m & (1 << idx)) != 0:
+                resolved.append(rarity)
+        return resolved
+
+    def _encode_auto_action_payload(self, enabled: bool, rarities):
+        return f"{1 if bool(enabled) else 0}:{self._rarities_to_bitmask(rarities)}"
+
+    def _decode_auto_action_payload(self, payload, default_enabled: bool, default_rarities):
+        text = self._ensure_text(payload).strip()
+        enabled = bool(default_enabled)
+        rarities = list(default_rarities or [])
+        if not text:
+            return enabled, rarities
+        if ":" not in text:
+            decoded_rarities = self._decode_rarities(text)
+            return enabled, decoded_rarities if decoded_rarities else rarities
+        left, right = text.split(":", 1)
+        left_txt = left.strip()
+        if left_txt in ("0", "1"):
+            enabled = (left_txt == "1")
         try:
-            io = PyImGui.get_io()
-            mx = float(getattr(io, "mouse_pos_x", -1.0))
-            my = float(getattr(io, "mouse_pos_y", -1.0))
+            mask = int(right.strip())
+        except EXPECTED_RUNTIME_ERRORS:
+            mask = -1
+        if mask >= 0:
+            rarities = self._bitmask_to_rarities(mask)
+        return enabled, rarities
+
+    def _apply_auto_id_config_payload(self, payload):
+        enabled, rarities = self._decode_auto_action_payload(payload, self.auto_id_enabled, self._get_selected_id_rarities())
+        self.auto_id_enabled = bool(enabled)
+        self._apply_selected_id_rarities(rarities)
+        self.runtime_config_dirty = True
+
+    def _apply_auto_salvage_config_payload(self, payload):
+        enabled, rarities = self._decode_auto_action_payload(payload, self.auto_salvage_enabled, self._get_selected_salvage_rarities())
+        self.auto_salvage_enabled = bool(enabled)
+        self._apply_selected_salvage_rarities(rarities)
+        self.runtime_config_dirty = True
+
+    def _parse_toggle_payload(self, payload: str, fallback: bool = False) -> bool:
+        txt = self._ensure_text(payload).strip().lower()
+        if txt in ("1", "true", "on", "yes", "y", "enable", "enabled"):
+            return True
+        if txt in ("0", "false", "off", "no", "n", "disable", "disabled"):
+            return False
+        return bool(fallback)
+
+    def _apply_auto_outpost_store_config_payload(self, payload: str):
+        next_enabled = self._parse_toggle_payload(payload, self.auto_outpost_store_enabled)
+        changed = bool(next_enabled) != bool(self.auto_outpost_store_enabled)
+        self.auto_outpost_store_enabled = bool(next_enabled)
+        if changed and self.auto_outpost_store_enabled:
+            self.auto_outpost_store_handled_entry_key = ""
+        self.runtime_config_dirty = True
+
+    def _mouse_in_current_window_rect(self):
+        rect = None
+        try:
             wx, wy = PyImGui.get_window_pos()
             ww, wh = PyImGui.get_window_size()
-            return (mx >= wx) and (mx <= (wx + ww)) and (my >= wy) and (my <= (wy + wh))
+            rect = (float(wx), float(wy), float(ww), float(wh))
+            if rect[2] > 0.0 and rect[3] > 0.0 and ImGui.is_mouse_in_rect(rect):
+                return True
+        except EXPECTED_RUNTIME_ERRORS:
+            rect = None
+
+        try:
+            io = PyImGui.get_io()
+            mx = -1.0
+            my = -1.0
+            try:
+                mx = float(getattr(io, "mouse_pos_x", -1.0))
+                my = float(getattr(io, "mouse_pos_y", -1.0))
+            except EXPECTED_RUNTIME_ERRORS:
+                mx = -1.0
+                my = -1.0
+
+            if mx < 0.0 or my < 0.0:
+                raw_mouse_pos = getattr(io, "mouse_pos", None)
+                if isinstance(raw_mouse_pos, (list, tuple)) and len(raw_mouse_pos) >= 2:
+                    mx = float(raw_mouse_pos[0])
+                    my = float(raw_mouse_pos[1])
+                elif raw_mouse_pos is not None:
+                    mx = float(getattr(raw_mouse_pos, "x", -1.0))
+                    my = float(getattr(raw_mouse_pos, "y", -1.0))
+
+            if mx < 0.0 or my < 0.0:
+                return False
+
+            if rect is None:
+                wx, wy = PyImGui.get_window_pos()
+                ww, wh = PyImGui.get_window_size()
+                rect = (float(wx), float(wy), float(ww), float(wh))
+            return (mx >= rect[0]) and (mx <= (rect[0] + rect[2])) and (my >= rect[1]) and (my <= (rect[1] + rect[3]))
         except EXPECTED_RUNTIME_ERRORS:
             return False
 
@@ -2427,6 +3341,7 @@ class DropViewerWindow:
             self.hover_is_visible = True
 
         main_window_hovered = False
+        main_window_rect = self.last_main_window_rect
         if not self.viewer_window_initialized:
             if self.saved_viewer_window_pos is not None:
                 sw, sh = self.saved_viewer_window_size if self.saved_viewer_window_size is not None else (760.0, 520.0)
@@ -2438,8 +3353,20 @@ class DropViewerWindow:
                 PyImGui.set_next_window_size(sw, sh)
         if PyImGui.begin(self.window_name):
             self.viewer_window_initialized = True
-            self._persist_layout_value("drop_viewer_window_pos", PyImGui.get_window_pos())
-            self._persist_layout_value("drop_viewer_window_size", PyImGui.get_window_size())
+            current_window_pos = PyImGui.get_window_pos()
+            current_window_size = PyImGui.get_window_size()
+            try:
+                main_window_rect = (
+                    float(current_window_pos[0]),
+                    float(current_window_pos[1]),
+                    float(current_window_size[0]),
+                    float(current_window_size[1]),
+                )
+                self.last_main_window_rect = main_window_rect
+            except EXPECTED_RUNTIME_ERRORS:
+                main_window_rect = self.last_main_window_rect
+            self._persist_layout_value("drop_viewer_window_pos", current_window_pos)
+            self._persist_layout_value("drop_viewer_window_size", current_window_size)
             
             # -- Auto Refresh --
             # Live mode already updates in-memory stats from ShMem/chat handlers.
@@ -2469,15 +3396,6 @@ class DropViewerWindow:
                 if self._styled_button("Show Stats", "secondary", tooltip="Switch to aggregated item stats"):
                     self.view_mode = "Aggregated"
                 
-            PyImGui.same_line(0.0, 10.0)
-
-            if self._styled_button(
-                "Pause" if not self.paused else "Resume",
-                "warning" if not self.paused else "success",
-                tooltip="Pause or resume live updates."
-            ):
-                self.paused = not self.paused
-
             PyImGui.same_line(0.0, 10.0)
             
             if self._styled_button("Save", "secondary", tooltip="Save current session log snapshot"):
@@ -2534,6 +3452,8 @@ class DropViewerWindow:
             filtered_rows = self._get_filtered_rows()
             table_rows = [row for row in filtered_rows if not self._is_gold_row(row)]
             self._draw_summary_bar(filtered_rows)
+            self._draw_top_control_strip()
+            self._draw_live_status_chips()
 
             # -- Status Bar --
             if time.time() - self.status_time < 5:
@@ -2542,86 +3462,119 @@ class DropViewerWindow:
             PyImGui.separator()
 
             # -- Main Content: Left filter rail + right data panel --
-            left_w = 280.0
+            total_w = max(520.0, float(current_window_size[0]) if isinstance(current_window_size, (list, tuple)) and len(current_window_size) >= 2 else 760.0)
+            left_w = max(320.0, min(390.0, total_w * 0.46))
+            if (total_w - left_w) < 260.0:
+                left_w = max(280.0, total_w - 260.0)
             if PyImGui.begin_child("DropViewerLeftRail", size=(left_w, 0), border=True, flags=PyImGui.WindowFlags.NoFlag):
-                self._draw_section_header("Filters")
-                if PyImGui.collapsing_header("Filter Settings"):
-                    self.search_text = PyImGui.input_text("Search", self.search_text)
-                    self.filter_player = PyImGui.input_text("Player", self.filter_player)
-                    self.filter_map = PyImGui.input_text("Map", self.filter_map)
+                self._draw_view_and_theme_controls()
 
-                    self.filter_rarity_idx = int(PyImGui.combo("Rarity", int(self.filter_rarity_idx), self.filter_rarity_options))
-                    self.only_rare = PyImGui.checkbox("Only Rare", self.only_rare)
-                    self.hide_gold = PyImGui.checkbox("Hide Gold", self.hide_gold)
-                    self.min_qty = max(1, int(PyImGui.input_int("Min Qty", int(self.min_qty))))
-                    self.auto_scroll = PyImGui.checkbox("Auto Scroll", self.auto_scroll)
-                    prev_hover_mode = self.hover_handle_mode
-                    self.hover_handle_mode = PyImGui.checkbox("Hover Handle Mode", self.hover_handle_mode)
-                    if PyImGui.is_item_hovered():
-                        ImGui.show_tooltip("Show as hoverable floating handle instead of always-open window.")
-                    if self.hover_handle_mode:
-                        self.hover_pin_open = PyImGui.checkbox("Pin Open", self.hover_pin_open)
-                    if self.hover_handle_mode and not prev_hover_mode:
-                        self.hover_is_visible = True
-                        self.hover_hide_deadline = now + self.hover_hide_delay_s
+                if self.compact_mode:
+                    self._draw_section_header("Core Actions")
+                    self._draw_inventory_action_cards()
+                    self._draw_auto_inventory_activity()
+                    self._draw_rarity_chips("ID:", self._get_selected_id_rarities())
+                    self._draw_rarity_chips("Salvage:", self._get_selected_salvage_rarities())
+                    PyImGui.text_colored("Compact mode hides filters, tabs, and runtime controls.", self._ui_colors()["muted"])
+                else:
+                    self._draw_section_header("Filters")
+                    if PyImGui.collapsing_header("Filter Settings"):
+                        self.search_text = PyImGui.input_text("Search", self.search_text)
+                        self.filter_player = PyImGui.input_text("Player", self.filter_player)
+                        self.filter_map = PyImGui.input_text("Map", self.filter_map)
 
-                    if self._styled_button("Quick: Rare Only", "primary", tooltip="Enable Rare-only filters quickly"):
-                        self.only_rare = True
-                        self.hide_gold = True
-                        self.filter_rarity_idx = 0
-                    if self._styled_button("Clear Filters", "secondary", tooltip="Reset all filter fields"):
-                        self.search_text = ""
-                        self.filter_player = ""
-                        self.filter_map = ""
-                        self.filter_rarity_idx = 0
-                        self.only_rare = False
-                        self.hide_gold = False
-                        self.min_qty = 1
+                        self.filter_rarity_idx = int(PyImGui.combo("Rarity", int(self.filter_rarity_idx), self.filter_rarity_options))
+                        self.only_rare = PyImGui.checkbox("Only Rare", self.only_rare)
+                        self.hide_gold = PyImGui.checkbox("Hide Gold", self.hide_gold)
+                        self.min_qty = max(1, int(PyImGui.input_int("Min Qty", int(self.min_qty))))
+                        self.auto_scroll = PyImGui.checkbox("Auto Scroll", self.auto_scroll)
+                        prev_hover_mode = self.hover_handle_mode
+                        self.hover_handle_mode = PyImGui.checkbox("Hover Handle Mode", self.hover_handle_mode)
+                        if PyImGui.is_item_hovered():
+                            ImGui.show_tooltip("Show as hoverable floating handle instead of always-open window.")
+                        if self.hover_handle_mode:
+                            self.hover_pin_open = PyImGui.checkbox("Pin Open", self.hover_pin_open)
+                        if self.hover_handle_mode and not prev_hover_mode:
+                            self.hover_is_visible = True
+                            self.hover_hide_deadline = now + self.hover_hide_delay_s
 
-                self._draw_conset_controls()
-                self._draw_section_header("Inventory Actions")
-                if self._styled_button("Auto Identify", "primary", tooltip="Runs identify using selected ID Settings rarities."):
-                    self._trigger_inventory_action("id_selected", self._encode_rarities(self._get_selected_id_rarities()))
-                PyImGui.same_line(0.0, 10.0)
-                if self._styled_button("Auto Salvage", "primary", tooltip="Runs salvage using selected Salvage Settings rarities."):
-                    self._trigger_inventory_action("salvage_selected", self._encode_rarities(self._get_selected_salvage_rarities()))
-                self._draw_rarity_chips("ID:", self._get_selected_id_rarities())
-                self._draw_rarity_chips("Salvage:", self._get_selected_salvage_rarities())
+                        if self._styled_button("Quick: Rare Only", "primary", tooltip="Enable Rare-only filters quickly"):
+                            self.only_rare = True
+                            self.hide_gold = True
+                            self.filter_rarity_idx = 0
+                        if self._styled_button("Clear Filters", "secondary", tooltip="Reset all filter fields"):
+                            self.search_text = ""
+                            self.filter_player = ""
+                            self.filter_map = ""
+                            self.filter_rarity_idx = 0
+                            self.only_rare = False
+                            self.hide_gold = False
+                            self.min_qty = 1
 
-                if PyImGui.begin_tab_bar("DropTrackerInventoryTabs"):
-                    if PyImGui.begin_tab_item("ID/Salvage Settings"):
-                        if PyImGui.collapsing_header("ID Settings"):
-                            old_id = (self.id_sel_white, self.id_sel_blue, self.id_sel_green, self.id_sel_purple, self.id_sel_gold)
-                            self.id_sel_white = PyImGui.checkbox("ID White", self.id_sel_white)
-                            self.id_sel_blue = PyImGui.checkbox("ID Blue", self.id_sel_blue)
-                            self.id_sel_green = PyImGui.checkbox("ID Green", self.id_sel_green)
-                            self.id_sel_purple = PyImGui.checkbox("ID Purple", self.id_sel_purple)
-                            self.id_sel_gold = PyImGui.checkbox("ID Gold", self.id_sel_gold)
-                            if old_id != (self.id_sel_white, self.id_sel_blue, self.id_sel_green, self.id_sel_purple, self.id_sel_gold):
-                                self.runtime_config_dirty = True
+                    self._draw_conset_controls()
+                    self._draw_section_header("Inventory Actions")
+                    self._draw_inventory_action_cards()
+                    self._draw_auto_inventory_activity()
+                    self._draw_rarity_chips("ID:", self._get_selected_id_rarities())
+                    self._draw_rarity_chips("Salvage:", self._get_selected_salvage_rarities())
 
-                        if PyImGui.collapsing_header("Salvage Settings"):
-                            old_salvage = (self.salvage_sel_white, self.salvage_sel_blue, self.salvage_sel_green, self.salvage_sel_purple, self.salvage_sel_gold)
-                            self.salvage_sel_white = PyImGui.checkbox("Salvage White", self.salvage_sel_white)
-                            self.salvage_sel_blue = PyImGui.checkbox("Salvage Blue", self.salvage_sel_blue)
-                            self.salvage_sel_green = PyImGui.checkbox("Salvage Green", self.salvage_sel_green)
-                            self.salvage_sel_purple = PyImGui.checkbox("Salvage Purple", self.salvage_sel_purple)
-                            self.salvage_sel_gold = PyImGui.checkbox("Salvage Gold", self.salvage_sel_gold)
-                            if old_salvage != (self.salvage_sel_white, self.salvage_sel_blue, self.salvage_sel_green, self.salvage_sel_purple, self.salvage_sel_gold):
-                                self.runtime_config_dirty = True
+                    if PyImGui.begin_tab_bar("DropTrackerInventoryTabs"):
+                        if PyImGui.begin_tab_item("ID/Salvage Settings"):
+                            if PyImGui.collapsing_header("ID Settings"):
+                                old_id = (self.id_sel_white, self.id_sel_blue, self.id_sel_green, self.id_sel_purple, self.id_sel_gold)
+                                self.id_sel_white = PyImGui.checkbox("ID White", self.id_sel_white)
+                                self.id_sel_blue = PyImGui.checkbox("ID Blue", self.id_sel_blue)
+                                self.id_sel_green = PyImGui.checkbox("ID Green", self.id_sel_green)
+                                self.id_sel_purple = PyImGui.checkbox("ID Purple", self.id_sel_purple)
+                                self.id_sel_gold = PyImGui.checkbox("ID Gold", self.id_sel_gold)
+                                if old_id != (self.id_sel_white, self.id_sel_blue, self.id_sel_green, self.id_sel_purple, self.id_sel_gold):
+                                    self.runtime_config_dirty = True
+                                    id_payload = self._encode_auto_action_payload(self.auto_id_enabled, self._get_selected_id_rarities())
+                                    self._trigger_inventory_action("cfg_auto_id", id_payload)
 
-                        PyImGui.end_tab_item()
+                            if PyImGui.collapsing_header("Salvage Settings"):
+                                old_salvage = (self.salvage_sel_white, self.salvage_sel_blue, self.salvage_sel_green, self.salvage_sel_purple, self.salvage_sel_gold)
+                                self.salvage_sel_white = PyImGui.checkbox("Salvage White", self.salvage_sel_white)
+                                self.salvage_sel_blue = PyImGui.checkbox("Salvage Blue", self.salvage_sel_blue)
+                                self.salvage_sel_green = PyImGui.checkbox("Salvage Green", self.salvage_sel_green)
+                                self.salvage_sel_purple = PyImGui.checkbox("Salvage Purple", self.salvage_sel_purple)
+                                self.salvage_sel_gold = PyImGui.checkbox("Salvage Gold", self.salvage_sel_gold)
+                                if old_salvage != (self.salvage_sel_white, self.salvage_sel_blue, self.salvage_sel_green, self.salvage_sel_purple, self.salvage_sel_gold):
+                                    self.runtime_config_dirty = True
+                                    salvage_payload = self._encode_auto_action_payload(self.auto_salvage_enabled, self._get_selected_salvage_rarities())
+                                    self._trigger_inventory_action("cfg_auto_salvage", salvage_payload)
 
-                    if PyImGui.begin_tab_item("Inventory Kits"):
-                        self._draw_inventory_kit_stats_tab()
-                        PyImGui.end_tab_item()
-                    PyImGui.end_tab_bar()
+                            PyImGui.end_tab_item()
 
-                self._draw_section_header("Advanced")
-                self.show_runtime_panel = PyImGui.checkbox("Advanced Runtime Controls", self.show_runtime_panel)
-                if self.show_runtime_panel:
-                    self._draw_runtime_controls()
-                PyImGui.end_child()
+                        if PyImGui.begin_tab_item("Inventory Kits"):
+                            self._draw_inventory_kit_stats_tab()
+                            PyImGui.end_tab_item()
+                        PyImGui.end_tab_bar()
+
+                    self._draw_section_header("Advanced")
+                    self.show_runtime_panel = PyImGui.checkbox("Advanced Runtime Controls", self.show_runtime_panel)
+                    runtime_btn_w = max(120.0, float(PyImGui.get_content_region_avail()[0]))
+                    if self._styled_button(
+                        "Close Runtime Window" if self.runtime_controls_popout else "Open Runtime Window",
+                        "secondary",
+                        width=runtime_btn_w,
+                        height=28.0,
+                        tooltip="Open runtime controls in a separate window.",
+                    ):
+                        self.runtime_controls_popout = not self.runtime_controls_popout
+                        if self.runtime_controls_popout:
+                            self.runtime_popout_initialized = False
+                        self.runtime_config_dirty = True
+                    if self.show_runtime_panel:
+                        if self.runtime_controls_popout:
+                            PyImGui.text_colored("Runtime controls opened in popout window.", self._ui_colors()["muted"])
+                        else:
+                            self._draw_runtime_controls()
+                try:
+                    self.left_rail_scroll_y = max(0.0, float(PyImGui.get_scroll_y()))
+                except EXPECTED_RUNTIME_ERRORS:
+                    self.left_rail_scroll_y = 0.0
+            PyImGui.end_child()
 
             PyImGui.same_line(0.0, 10.0)
 
@@ -2630,12 +3583,21 @@ class DropViewerWindow:
                     self._draw_aggregated(table_rows)
                 else:
                     self._draw_log(table_rows)
-                PyImGui.end_child()
+            PyImGui.end_child()
 
             main_window_hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered()
+            if not main_window_hovered:
+                try:
+                    if main_window_rect and len(main_window_rect) == 4 and float(main_window_rect[2]) > 0.0 and float(main_window_rect[3]) > 0.0:
+                        main_window_hovered = bool(ImGui.is_mouse_in_rect(main_window_rect))
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
 
         PyImGui.end()
+        if self.runtime_controls_popout:
+            self._draw_runtime_controls_popout()
         self._flush_runtime_config_if_dirty()
+        self._flush_unknown_mod_catalog_if_dirty()
         if self.hover_handle_mode:
             if main_window_hovered:
                 self.hover_is_visible = True
@@ -2833,6 +3795,8 @@ class DropViewerWindow:
 
             # Poll shared memory reliably every tick
             self._process_pending_identify_responses()
+            self._run_auto_inventory_actions_tick()
+            self._refresh_auto_inventory_pending_counts()
             self._poll_shared_memory()
             self._run_auto_conset_tick()
 
@@ -3063,6 +4027,8 @@ class DropViewerWindow:
                             continue
                         should_finish = True
                         scanned_msgs += 1
+                        if scanned_msgs > self.max_shmem_scan_per_tick:
+                            break
                         if handle_tracker_name_branch(
                             extra_0=extra_0,
                             expected_tag="TrackerNameV2",
@@ -3086,6 +4052,8 @@ class DropViewerWindow:
                             continue
                         should_finish = True
                         scanned_msgs += 1
+                        if scanned_msgs > self.max_shmem_scan_per_tick:
+                            break
                         stats_sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
                         stats_sender_name = self._resolve_sender_name_from_email(stats_sender_email)
 
@@ -3177,6 +4145,8 @@ class DropViewerWindow:
                             continue
                         should_finish = True
                         scanned_msgs += 1
+                        if scanned_msgs > self.max_shmem_scan_per_tick:
+                            break
                         stats_sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
                         stats_sender_name = self._resolve_sender_name_from_email(stats_sender_email)
 
@@ -3379,7 +4349,7 @@ class DropViewerWindow:
                     Py4GW.Console.MessageType.Info,
                 )
 
-    def _is_recent_duplicate(self, player_name, item_name, quantity, window_seconds=1.5):
+    def _is_recent_duplicate(self, player_name, item_name, quantity, window_seconds=0.35):
         now = time.time()
         # Keep only very recent keys to avoid suppressing legitimate repeated loots.
         self.recent_log_cache = {
@@ -3440,26 +4410,210 @@ class DropViewerWindow:
         return snapshot
 
     def _queue_identify_for_rarities(self, rarities):
+        now_ts = time.time()
+        self.auto_id_last_run_ts = now_ts
+        if self.auto_id_job_running or self.auto_salvage_job_running:
+            return 0
         try:
             items = Routines.Items.GetUnidentifiedItems(list(rarities), [])
             if not items:
+                self.auto_id_last_queued = 0
+                self._refresh_auto_inventory_pending_counts(force=True)
                 return 0
-            GLOBAL_CACHE.Coroutines.append(Routines.Yield.Items.IdentifyItems(items, log=True))
-            return len(items)
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_routine_job(
+                    Routines.Yield.Items.IdentifyItems(items, log=True),
+                    job_type="identify",
+                )
+            )
+            queued = len(items)
+            self.auto_id_last_queued = int(queued)
+            self.auto_id_total_queued += int(queued)
+            self._refresh_auto_inventory_pending_counts(force=True)
+            return queued
         except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Identify queue failed: {e}", Py4GW.Console.MessageType.Warning)
+            self.auto_id_last_queued = 0
             return 0
 
+    def _run_inventory_routine_job(self, routine, job_type: str = ""):
+        job = self._ensure_text(job_type).strip().lower()
+        if job == "identify":
+            self.auto_id_job_running = True
+        elif job == "salvage":
+            self.auto_salvage_job_running = True
+        try:
+            if routine is not None:
+                yield from routine
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log(
+                "DropViewer",
+                f"Auto {job or 'inventory'} routine failed: {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
+        finally:
+            if job == "identify":
+                self.auto_id_job_running = False
+            elif job == "salvage":
+                self.auto_salvage_job_running = False
+            self._refresh_auto_inventory_pending_counts(force=True)
+
     def _queue_salvage_for_rarities(self, rarities):
+        now_ts = time.time()
+        self.auto_salvage_last_run_ts = now_ts
+        if self.auto_id_job_running or self.auto_salvage_job_running:
+            return 0
         try:
             items = Routines.Items.GetSalvageableItems(list(rarities), [])
             if not items:
+                self.auto_salvage_last_queued = 0
+                self._refresh_auto_inventory_pending_counts(force=True)
                 return 0
-            GLOBAL_CACHE.Coroutines.append(Routines.Yield.Items.SalvageItems(items, log=True))
-            return len(items)
+            salvage_checkboxes = {int(item_id): True for item_id in list(items) if int(item_id) > 0}
+            if not salvage_checkboxes:
+                self.auto_salvage_last_queued = 0
+                self._refresh_auto_inventory_pending_counts(force=True)
+                return 0
+            salvage_routine = None
+            try:
+                from Sources.ApoSource.InvPlus.Coroutines import SalvageCheckedItems
+
+                salvage_routine = SalvageCheckedItems(
+                    salvage_checkboxes,
+                    keep_salvage_kits=0,
+                    deposit_materials=False,
+                )
+            except IMPORT_OPTIONAL_ERRORS:
+                salvage_routine = Routines.Yield.Items.SalvageItems(items, log=True)
+
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_routine_job(
+                    salvage_routine,
+                    job_type="salvage",
+                )
+            )
+            queued = len(items)
+            self.auto_salvage_last_queued = int(queued)
+            self.auto_salvage_total_queued += int(queued)
+            self._refresh_auto_inventory_pending_counts(force=True)
+            return queued
         except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Salvage queue failed: {e}", Py4GW.Console.MessageType.Warning)
+            self.auto_salvage_last_queued = 0
             return 0
+
+    def _refresh_auto_outpost_store_entry_key(self) -> str:
+        is_outpost = False
+        map_id = 0
+        instance_uptime_ms = 0
+        try:
+            is_outpost = bool(Map.IsOutpost())
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+            instance_uptime_ms = max(0, self._safe_int(Map.GetInstanceUptime(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            is_outpost = False
+
+        if not is_outpost:
+            self.auto_outpost_store_last_is_outpost = False
+            self.auto_outpost_store_last_map_id = 0
+            self.auto_outpost_store_last_instance_uptime_ms = 0
+            self.auto_outpost_store_current_entry_key = ""
+            return ""
+
+        entered_new_outpost = False
+        if not self.auto_outpost_store_last_is_outpost:
+            entered_new_outpost = True
+        elif map_id != self.auto_outpost_store_last_map_id:
+            entered_new_outpost = True
+        elif (
+            self.auto_outpost_store_last_instance_uptime_ms > 0
+            and instance_uptime_ms > 0
+            and instance_uptime_ms + 2000 < self.auto_outpost_store_last_instance_uptime_ms
+        ):
+            entered_new_outpost = True
+
+        if entered_new_outpost or not self.auto_outpost_store_current_entry_key:
+            self.auto_outpost_store_entry_nonce += 1
+            self.auto_outpost_store_current_entry_key = f"{map_id}:{self.auto_outpost_store_entry_nonce}"
+
+        self.auto_outpost_store_last_is_outpost = True
+        self.auto_outpost_store_last_map_id = map_id
+        self.auto_outpost_store_last_instance_uptime_ms = instance_uptime_ms
+        return self.auto_outpost_store_current_entry_key
+
+    def _deposit_materials_and_tomes_to_storage(self):
+        deposit_count = 0
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = list(ItemArray.GetItemArray(bags_to_check) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_array = []
+
+        for raw_item_id in item_array:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+
+            try:
+                is_material = bool(GLOBAL_CACHE.Item.Type.IsMaterial(item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_material = False
+
+            try:
+                is_tome = bool(GLOBAL_CACHE.Item.Type.IsTome(item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_tome = False
+
+            if not is_material and not is_tome:
+                continue
+
+            try:
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+
+            deposit_count += 1
+            try:
+                yield from Routines.Yield.wait(350)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+
+        return int(deposit_count)
+
+    def _run_outpost_store_job(self, entry_key: str):
+        self.auto_outpost_store_job_running = True
+        deposited = 0
+        try:
+            deposited = int((yield from self._deposit_materials_and_tomes_to_storage()) or 0)
+            if deposited > 0:
+                self.set_status(f"Outpost Store: deposited {deposited} materials/tomes")
+            else:
+                self.set_status("Outpost Store: no materials/tomes found")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Outpost Store failed: {e}")
+        finally:
+            self.auto_outpost_store_job_running = False
+            if entry_key:
+                self.auto_outpost_store_handled_entry_key = entry_key
+
+    def _run_auto_outpost_store_tick(self, force: bool = False) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            return False
+        if not force and not self.auto_outpost_store_enabled:
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running:
+            return False
+        if self.auto_outpost_store_handled_entry_key == entry_key:
+            return False
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_outpost_store_job(entry_key))
+            self.auto_outpost_store_handled_entry_key = entry_key
+            self.set_status("Outpost Store: started (materials+tomes)")
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Outpost Store queue failed: {e}")
+            return False
 
     def _process_pending_identify_responses(self):
         def _is_identified(item_id: int) -> bool:
@@ -3496,6 +4650,36 @@ class DropViewerWindow:
                 f"ASYNC ID scheduler error: {e}",
                 Py4GW.Console.MessageType.Warning,
             )
+
+    def _run_auto_inventory_actions_tick(self):
+        try:
+            if self.auto_outpost_store_enabled and self._run_auto_outpost_store_tick():
+                return
+
+            if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running:
+                return
+
+            queued_id = 0
+            id_due = self.auto_id_enabled and self.auto_id_timer.IsExpired()
+            if id_due:
+                self.auto_id_timer.Reset()
+                id_rarities = self._get_selected_id_rarities()
+                if id_rarities:
+                    queued_id = self._queue_identify_for_rarities(id_rarities)
+                    if queued_id > 0:
+                        self.set_status(f"Auto ID: queued {queued_id}")
+                        return
+
+            if self.auto_salvage_enabled and self.auto_salvage_timer.IsExpired():
+                self.auto_salvage_timer.Reset()
+                salvage_rarities = self._get_selected_salvage_rarities()
+                if salvage_rarities:
+                    queued_salvage = self._queue_salvage_for_rarities(salvage_rarities)
+                    if queued_salvage > 0:
+                        self.set_status(f"Auto Salvage: queued {queued_salvage}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if self.verbose_shmem_item_logs:
+                Py4GW.Console.Log("DropViewer", f"Auto inventory tick failed: {e}", Py4GW.Console.MessageType.Warning)
 
     def _run_inventory_action(self, action_code: str, action_payload: str = "", action_meta: str = "", reply_email: str = ""):
         return run_inventory_action(self, action_code, action_payload, action_meta, reply_email)
@@ -3557,11 +4741,64 @@ class DropViewerWindow:
         if sent > 0:
             self.set_status(f"{self.status_message} | Sent to {sent} follower(s)")
 
+    def _sync_auto_inventory_config_to_followers(self):
+        try:
+            if Player.GetAgentID() != Party.GetPartyLeaderID():
+                return 0
+        except EXPECTED_RUNTIME_ERRORS:
+            return 0
+
+        id_payload = self._encode_auto_action_payload(self.auto_id_enabled, self._get_selected_id_rarities())
+        salvage_payload = self._encode_auto_action_payload(self.auto_salvage_enabled, self._get_selected_salvage_rarities())
+        store_payload = "1" if self.auto_outpost_store_enabled else "0"
+        sent = 0
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_id", id_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_salvage", salvage_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_outpost_store", store_payload)
+        if sent > 0:
+            self.set_status(f"Auto inventory config synced to followers ({sent} messages)")
+        return sent
+
     def _is_leader_client(self) -> bool:
         try:
             return Player.GetAgentID() == Party.GetPartyLeaderID()
         except EXPECTED_RUNTIME_ERRORS:
             return False
+
+    def _schedule_party_action(self, action_gen, action_label: str) -> bool:
+        label = self._ensure_text(action_label).strip() or "Party action"
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            party_controller = CustomBehaviorParty()
+            if not party_controller.is_ready_for_action():
+                self.set_status(f"{label}: waiting for previous party action")
+                return False
+            accepted = bool(party_controller.schedule_action(action_gen))
+            if accepted:
+                self.set_status(f"{label}: started")
+                return True
+            self.set_status(f"{label}: busy")
+            return False
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"{label}: failed ({e})")
+            return False
+
+    def _trigger_party_resign_to_outpost(self) -> bool:
+        if Map.IsOutpost():
+            self.set_status("Resign + Outpost: already in outpost")
+            return False
+        from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+        return self._schedule_party_action(
+            PartyCommandConstants.resign_and_return_to_outpost,
+            "Resign + Outpost",
+        )
+
+    def _trigger_party_invite_all_followers(self) -> bool:
+        from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+        return self._schedule_party_action(
+            PartyCommandConstants.invite_all_to_leader_party,
+            "Join Followers",
+        )
 
     def _get_conset_specs(self):
         return [
@@ -3639,8 +4876,9 @@ class DropViewerWindow:
         if not self.auto_conset_timer.IsExpired():
             return
         self.auto_conset_timer.Reset()
+        legionnaire_entry_key = self._refresh_legionnaire_entry_key()
         try:
-            if not Map.IsExplorable():
+            if not legionnaire_entry_key:
                 return
             if Agent.IsDead(Player.GetAgentID()):
                 return
@@ -3650,6 +4888,10 @@ class DropViewerWindow:
         for spec in self._get_conset_specs():
             if not bool(spec["enabled"]):
                 continue
+            spec_key = self._ensure_text(spec.get("key", "")).strip().lower()
+            is_legionnaire_spec = spec_key == "legionnaire"
+            if is_legionnaire_spec and self.auto_legionnaire_used_entry_key == legionnaire_entry_key:
+                continue
             effect_name = self._ensure_text(spec["effect_name"])
             effect_id = 2886 if effect_name == "Summoning_Sickness" else self._get_effect_id_cached(effect_name)
             has_effect = False
@@ -3658,15 +4900,61 @@ class DropViewerWindow:
             except EXPECTED_RUNTIME_ERRORS:
                 has_effect = False
             if has_effect:
+                if is_legionnaire_spec:
+                    self.auto_legionnaire_used_entry_key = legionnaire_entry_key
                 continue
-            if self._use_model_from_leader_inventory(int(spec["model_id"]), self._ensure_text(spec["name"])):
+            used = self._use_model_from_leader_inventory(int(spec["model_id"]), self._ensure_text(spec["name"]))
+            if is_legionnaire_spec:
+                # One-shot behavior: try once on explorable entry, do not retry in this instance.
+                self.auto_legionnaire_used_entry_key = legionnaire_entry_key
+            if used:
                 break
 
-    def _draw_conset_controls(self):
+    def _refresh_legionnaire_entry_key(self) -> str:
+        is_explorable = False
+        map_id = 0
+        instance_uptime_ms = 0
+        try:
+            is_explorable = bool(Map.IsExplorable())
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+            instance_uptime_ms = max(0, self._safe_int(Map.GetInstanceUptime(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            is_explorable = False
+
+        if not is_explorable:
+            self.auto_legionnaire_last_explorable = False
+            self.auto_legionnaire_last_map_id = 0
+            self.auto_legionnaire_last_instance_uptime_ms = 0
+            self.auto_legionnaire_current_entry_key = ""
+            return ""
+
+        entered_new_instance = False
+        if not self.auto_legionnaire_last_explorable:
+            entered_new_instance = True
+        elif map_id != self.auto_legionnaire_last_map_id:
+            entered_new_instance = True
+        elif (
+            self.auto_legionnaire_last_instance_uptime_ms > 0
+            and instance_uptime_ms > 0
+            and instance_uptime_ms + 2000 < self.auto_legionnaire_last_instance_uptime_ms
+        ):
+            entered_new_instance = True
+
+        if entered_new_instance or not self.auto_legionnaire_current_entry_key:
+            self.auto_legionnaire_entry_nonce += 1
+            self.auto_legionnaire_current_entry_key = f"{map_id}:{self.auto_legionnaire_entry_nonce}"
+
+        self.auto_legionnaire_last_explorable = True
+        self.auto_legionnaire_last_map_id = map_id
+        self.auto_legionnaire_last_instance_uptime_ms = instance_uptime_ms
+        return self.auto_legionnaire_current_entry_key
+
+    def _draw_conset_controls(self, card_height: float = 250.0):
         self._draw_section_header("Conset")
         PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, self._ui_colors()["panel_bg"])
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
-        if PyImGui.begin_child("DropTrackerConsetCard", size=(0, 210), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+        card_h = max(220.0, float(card_height or 0.0))
+        if PyImGui.begin_child("DropTrackerConsetCard", size=(0, card_h), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
             before = (self.auto_conset_enabled, self.auto_conset_armor, self.auto_conset_grail, self.auto_conset_essence, self.auto_conset_legionnaire)
             if PyImGui.collapsing_header("Conset Settings"):
                 self.auto_conset_enabled = PyImGui.checkbox("Auto Conset (Leader Only)", self.auto_conset_enabled)
@@ -3713,7 +5001,7 @@ class DropViewerWindow:
 
                 PyImGui.end_table()
 
-            PyImGui.end_child()
+        PyImGui.end_child()
         PyImGui.pop_style_color(2)
 
     def _collect_local_inventory_kit_stats(self):
