@@ -861,8 +861,10 @@ class DropTrackerSender:
         self.outbox_queue = kept_entries
 
         sent = 0
+        attempted = 0
+        retry_delay_s = max(0.2, float(self.retry_interval_seconds))
         for entry in self.outbox_queue:
-            if sent >= int(self.max_send_per_tick):
+            if attempted >= int(self.max_send_per_tick):
                 break
             if float(entry.get("next_retry_at", 0.0)) > now_ts:
                 continue
@@ -876,7 +878,10 @@ class DropTrackerSender:
                 continue
             if not is_leader_sender and receiver_email == my_email:
                 continue
+
+            attempted += 1
             entry["last_receiver_email"] = str(receiver_email or "").strip().lower()
+            send_failed = False
 
             if not entry.get("name_chunks_sent", False):
                 full_name = str(entry.get("full_name", "") or "")
@@ -889,10 +894,10 @@ class DropTrackerSender:
                         full_name=full_name,
                     )
                     if not ok_chunks:
-                        break
+                        send_failed = True
                 entry["name_chunks_sent"] = True
 
-            if not entry.get("stats_chunks_sent", False):
+            if (not send_failed) and (not entry.get("stats_chunks_sent", False)):
                 ok_stats = self._send_stats_chunks(
                     receiver_email=receiver_email,
                     my_email=my_email,
@@ -903,23 +908,29 @@ class DropTrackerSender:
                 if ok_stats:
                     entry["stats_chunks_sent"] = True
 
-            if not self._send_drop(
-                entry.get("item_name", "Unknown Item"),
-                int(entry.get("quantity", 1)),
-                str(entry.get("rarity", "Unknown")),
-                str(entry.get("display_time", "")),
-                int(entry.get("item_id", 0)),
-                int(entry.get("model_id", 0)),
-                int(entry.get("bag_id", 0)),
-                int(entry.get("slot_id", 0)),
-                is_leader_sender,
-                str(entry.get("event_id", "")),
-                str(entry.get("name_signature", "")),
-            ):
-                break
+            if not send_failed:
+                if not self._send_drop(
+                    entry.get("item_name", "Unknown Item"),
+                    int(entry.get("quantity", 1)),
+                    str(entry.get("rarity", "Unknown")),
+                    str(entry.get("display_time", "")),
+                    int(entry.get("item_id", 0)),
+                    int(entry.get("model_id", 0)),
+                    int(entry.get("bag_id", 0)),
+                    int(entry.get("slot_id", 0)),
+                    is_leader_sender,
+                    str(entry.get("event_id", "")),
+                    str(entry.get("name_signature", "")),
+                ):
+                    send_failed = True
+
             entry["attempts"] = int(entry.get("attempts", 0)) + 1
+            if send_failed:
+                # Count failed delivery attempts so stale head-of-queue entries can expire.
+                entry["next_retry_at"] = now_ts + retry_delay_s
+                continue
             if self.enable_delivery_ack:
-                entry["next_retry_at"] = now_ts + float(self.retry_interval_seconds)
+                entry["next_retry_at"] = now_ts + retry_delay_s
             else:
                 entry["acked"] = True
             sent += 1

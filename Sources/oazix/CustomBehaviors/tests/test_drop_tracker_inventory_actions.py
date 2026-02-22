@@ -24,6 +24,8 @@ class _FakeViewer:
         self.identify_calls = []
         self.salvage_calls = []
         self.identify_response_scheduler = _FakeScheduler()
+        self.auto_id_enabled = False
+        self.auto_salvage_enabled = False
         self.selected_id_rarities = ["Blue", "Purple"]
         self.selected_salvage_rarities = ["Gold"]
         self.payload_text = ""
@@ -58,6 +60,33 @@ class _FakeViewer:
     def _get_selected_salvage_rarities(self):
         return list(self.selected_salvage_rarities)
 
+    def _bitmask_to_rarities(self, mask):
+        ordered = ("White", "Blue", "Green", "Purple", "Gold")
+        result = []
+        m = int(mask)
+        for idx, rarity in enumerate(ordered):
+            if (m & (1 << idx)) != 0:
+                result.append(rarity)
+        return result
+
+    def _apply_auto_id_config_payload(self, payload):
+        text = str(payload or "").strip()
+        if ":" not in text:
+            return
+        enabled_txt, mask_txt = text.split(":", 1)
+        if enabled_txt.strip() in ("0", "1"):
+            self.auto_id_enabled = enabled_txt.strip() == "1"
+        self.selected_id_rarities = self._bitmask_to_rarities(int(mask_txt.strip()))
+
+    def _apply_auto_salvage_config_payload(self, payload):
+        text = str(payload or "").strip()
+        if ":" not in text:
+            return
+        enabled_txt, mask_txt = text.split(":", 1)
+        if enabled_txt.strip() in ("0", "1"):
+            self.auto_salvage_enabled = enabled_txt.strip() == "1"
+        self.selected_salvage_rarities = self._bitmask_to_rarities(int(mask_txt.strip()))
+
     def _safe_int(self, value, default=0):
         try:
             return int(value)
@@ -88,9 +117,19 @@ class _FakeViewer:
         return int(self.resolved_item_id_by_sig)
 
 
-def _install_fake_py4gw(monkeypatch, *, kit_id=1, identified=False, identify_result=True, identify_raises=False):
+def _install_fake_py4gw(
+    monkeypatch,
+    *,
+    kit_id=1,
+    identified=False,
+    identify_result=True,
+    identify_raises=False,
+    kit_raises=False,
+):
     class _Inventory:
         def GetFirstIDKit(self):
+            if kit_raises:
+                raise TypeError("kit lookup failed")
             return int(kit_id)
 
         def IdentifyItem(self, item_id, kit):
@@ -393,6 +432,20 @@ def test_run_inventory_action_id_item_id_no_kit(monkeypatch):
     assert "no ID kit" in viewer.status_message
 
 
+def test_run_inventory_action_id_item_id_handles_kit_lookup_exception(monkeypatch):
+    _install_fake_py4gw(monkeypatch, kit_id=1, identified=False, identify_result=True, kit_raises=True)
+    viewer = _FakeViewer()
+    ok = run_inventory_action(
+        viewer,
+        action_code="id_item_id",
+        action_payload="42",
+        action_meta="ev-5b",
+        reply_email="leader@test",
+    )
+    assert ok is False
+    assert "no ID kit" in viewer.status_message
+
+
 def test_run_inventory_action_id_item_id_already_identified(monkeypatch):
     _install_fake_py4gw(monkeypatch, kit_id=1, identified=True, identify_result=True)
     viewer = _FakeViewer()
@@ -455,3 +508,90 @@ def test_run_inventory_action_unknown_returns_false_and_sets_status():
     ok = run_inventory_action(viewer, "unknown_action")
     assert ok is False
     assert "Unknown inventory action" in viewer.status_message
+
+
+def test_run_inventory_action_cfg_auto_id_applies_enabled_and_rarities():
+    viewer = _FakeViewer()
+    ok = run_inventory_action(viewer, "cfg_auto_id", "1:18")
+    assert ok is True
+    assert viewer.auto_id_enabled is True
+    assert viewer.selected_id_rarities == ["Blue", "Gold"]
+    assert "Auto ID Config" in viewer.status_message
+
+
+def test_run_inventory_action_cfg_auto_salvage_applies_enabled_and_rarities():
+    viewer = _FakeViewer()
+    ok = run_inventory_action(viewer, "cfg_auto_salvage", "0:9")
+    assert ok is True
+    assert viewer.auto_salvage_enabled is False
+    assert viewer.selected_salvage_rarities == ["White", "Purple"]
+    assert "Auto Salvage Config" in viewer.status_message
+
+
+def test_run_inventory_action_push_item_stats_prefers_payload_send():
+    viewer = _FakeViewer()
+    viewer.payload_text = '{"mods":[]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats",
+        action_payload="42",
+        action_meta="ev-payload",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_name_prefers_payload_send():
+    viewer = _FakeViewer()
+    viewer.resolved_item_id = 77
+    viewer.payload_text = '{"mods":[]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_name",
+        action_payload="Holy Staff",
+        action_meta="ev-name-payload",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_sig_invalid_payload_and_missing_item():
+    viewer = _FakeViewer()
+    assert run_inventory_action(viewer, "push_item_stats_sig", "deadbeef", "ev-a", "") is False
+    assert run_inventory_action(viewer, "push_item_stats_sig", "|", "ev-b", "leader@test") is False
+
+    viewer.resolved_item_id_by_sig = 0
+    assert run_inventory_action(viewer, "push_item_stats_sig", "deadbeef", "ev-c", "leader@test") is False
+
+
+def test_run_inventory_action_push_item_stats_sig_prefers_payload_send():
+    viewer = _FakeViewer()
+    viewer.resolved_item_id_by_sig = 88
+    viewer.payload_text = '{"mods":[]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_sig",
+        action_payload="deadbeef",
+        action_meta="ev-sig-payload",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_sig_fallback_failures():
+    viewer = _FakeViewer()
+    viewer.resolved_item_id_by_sig = 88
+    viewer.payload_text = '{"mods":[]}'
+    viewer.payload_send_ok = False
+    viewer.stats_text = ""
+    assert run_inventory_action(viewer, "push_item_stats_sig", "deadbeef", "ev-sig-fail-a", "leader@test") is False
+
+    viewer.stats_text = "fallback"
+    viewer.stats_send_ok = False
+    assert run_inventory_action(viewer, "push_item_stats_sig", "deadbeef", "ev-sig-fail-b", "leader@test") is False

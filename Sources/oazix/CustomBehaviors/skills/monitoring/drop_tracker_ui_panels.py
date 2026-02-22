@@ -144,6 +144,22 @@ def draw_runtime_controls_panel(viewer, PyImGui) -> None:
         viewer.max_shmem_scan_per_tick = min(3000, viewer.max_shmem_scan_per_tick + 20)
         viewer.runtime_config_dirty = True
 
+    PyImGui.separator()
+    unknown_count = viewer._get_unknown_mod_count()
+    PyImGui.text(f"Unknown mod IDs tracked: {unknown_count}")
+    if viewer._styled_button(
+        "Export Unknown Mods",
+        "secondary",
+        tooltip="Save unknown modifier ID catalog to JSON.",
+    ):
+        export_path = viewer._export_unknown_mod_catalog()
+        if export_path:
+            viewer.set_status(f"Unknown mods exported: {export_path}")
+        else:
+            viewer.set_status("Unknown mods export failed.")
+    for summary_line in viewer._unknown_mod_summary_lines(limit=6):
+        PyImGui.text(summary_line)
+
     if viewer.runtime_config_dirty:
         viewer._flush_runtime_config_if_dirty()
 

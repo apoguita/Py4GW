@@ -6,35 +6,43 @@
   "max_outbox_size": 2000,
   "retry_interval_seconds": 1.0,
   "max_retry_attempts": 12,
-  "verbose_shmem_item_logs": false,
+  "verbose_shmem_item_logs": true,
   "max_shmem_messages_per_tick": 80,
   "max_shmem_scan_per_tick": 600,
   "send_tracker_ack_enabled": true,
+  "debug_item_stats_panel": true,
+  "debug_item_stats_panel_height": 180,
   "id_sel_white": false,
   "id_sel_blue": true,
   "id_sel_green": true,
   "id_sel_purple": true,
   "id_sel_gold": true,
+  "auto_id_enabled": false,
   "salvage_sel_white": true,
   "salvage_sel_blue": true,
   "salvage_sel_green": false,
   "salvage_sel_purple": true,
   "salvage_sel_gold": false,
-  "auto_conset_enabled": false,
+  "auto_salvage_enabled": false,
+  "auto_outpost_store_enabled": false,
+  "auto_conset_enabled": true,
   "auto_conset_armor": false,
   "auto_conset_grail": false,
-  "auto_conset_essence": false,
+  "auto_conset_essence": true,
   "auto_conset_legionnaire": true,
-  "drop_viewer_handle_pos": [
-    523.0,
-    955.0
-  ],
+  "runtime_controls_popout": false,
+  "compact_mode": true,
+  "ui_theme_name": "Steel Ember",
   "drop_viewer_window_pos": [
-    16.0,
-    16.0
+    169.0,
+    -52.0
   ],
   "drop_viewer_window_size": [
-    573.0,
-    419.0
+    1238.0,
+    921.0
+  ],
+  "drop_viewer_handle_pos": [
+    517.0,
+    955.0
   ]
 }

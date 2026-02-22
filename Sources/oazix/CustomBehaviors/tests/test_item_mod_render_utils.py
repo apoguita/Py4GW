@@ -1,5 +1,6 @@
 from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
     build_known_spellcasting_mod_lines,
+    build_spellcast_hct_hsr_lines,
     sort_stats_lines_like_ingame,
 )
 
@@ -136,13 +137,58 @@ def test_sort_stats_lines_like_ingame_caster_mod_order_energy_then_duration_then
     ]
 
 
-def test_build_known_spellcasting_mod_lines_recognizes_stacking_crippled_mod():
+def test_build_known_spellcasting_mod_lines_ignores_9880_metadata_marker():
     lines = build_known_spellcasting_mod_lines(
-        raw_mods=[(9880, 0, 0), (25288, 10, 0)],
+        raw_mods=[(9880, 0, 1), (25288, 10, 0)],
         item_attr_txt="",
         item_type=26,
         resolve_attribute_name_fn=lambda _attr_id: "",
     )
 
     assert "Energy +10" in lines
-    assert "Reduces Crippled duration on you by 20% (Stacking)" in lines
+    assert "Reduces Crippled duration on you by 20% (Stacking)" not in lines
+
+
+def test_build_known_spellcasting_mod_lines_renders_10328_duration_line():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(10328, 3, 0)],
+        item_attr_txt="",
+        item_type=26,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Reduces Crippled duration on you by 20%" in lines
+
+
+def test_build_spellcast_hct_hsr_lines_does_not_use_attribute_id_as_chance():
+    lines = build_spellcast_hct_hsr_lines(
+        raw_mods=[(9112, 30, 14)],
+        item_attr_txt="Divine Favor",
+        item_type=26,
+        resolve_attribute_name_fn=lambda attr_id: {14: "Divine Favor"}.get(attr_id, ""),
+    )
+
+    assert lines == []
+
+
+def test_build_known_spellcasting_mod_lines_uses_arg2_for_energy_value():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(8920, 99, 5)],
+        item_attr_txt="",
+        item_type=26,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Energy +5" in lines
+    assert "Energy +99" not in lines
+
+
+def test_build_known_spellcasting_mod_lines_rejects_invalid_10296_chance():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(10296, 50, 0)],
+        item_attr_txt="Domination Magic",
+        item_type=26,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Domination Magic +1 (Chance: 50%)" not in lines

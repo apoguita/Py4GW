@@ -201,7 +201,9 @@ def _extract_chance(arg1: int, arg2: int, use_range_chance: bool) -> int:
         return arg1 if arg1 > 0 else 0
     if 5 <= arg1 <= 25:
         return arg1
-    if 5 <= arg2 <= 25:
+    # Only use arg2 as fallback when arg1 is not carrying a meaningful value.
+    # This prevents treating attribute IDs as chance percentages.
+    if arg1 <= 0 and 5 <= arg2 <= 25:
         return arg2
     return 0
 
@@ -396,15 +398,17 @@ def build_known_spellcasting_mod_lines(
             continue
 
         if ident_i == 9880:
-            # Legacy stacking variant seen on spellcasting weapons.
-            lines.append("Reduces Crippled duration on you by 20% (Stacking)")
+            # 9880 is seen on many caster weapons as a metadata marker and is not a
+            # reliable standalone "reduces crippled duration" stat line.
             continue
 
         if ident_i == 9240:
+            if arg1_i <= 0:
+                continue
             attr_name = _resolve_attribute_name(arg1_i, resolve_attribute_name_fn)
             if not attr_name:
                 attr_name = f"Attribute {arg1_i}"
-            chance = arg2_i if arg2_i > 0 else arg1_i
+            chance = arg2_i if 5 <= arg2_i <= 25 else 0
             if chance > 0:
                 lines.append(f"{attr_name} +1 ({chance}% chance while using skills)")
             elif include_raw_when_no_chance:
@@ -412,7 +416,7 @@ def build_known_spellcasting_mod_lines(
             continue
 
         if ident_i == 10296:
-            chance = arg1_i if arg1_i > 0 else arg2_i
+            chance = arg1_i if 5 <= arg1_i <= 25 else 0
             if chance > 0:
                 lines.append(f"{attr_phrase}+1 (Chance: {chance}%)")
             elif include_raw_when_no_chance:
@@ -421,13 +425,13 @@ def build_known_spellcasting_mod_lines(
 
         if ident_i in (26568, 25288, 8920):
             # Common spellcaster/offhand base-energy encodings.
-            energy_val = max(arg1_i, arg2_i)
+            energy_val = arg2_i if arg2_i > 0 else arg1_i
             if energy_val > 0:
                 lines.append(f"Energy +{energy_val}")
             continue
 
         if ident_i == 8392:
-            regen_penalty = max(arg1_i, arg2_i)
+            regen_penalty = arg2_i if arg2_i > 0 else arg1_i
             if regen_penalty > 0:
                 lines.append(f"Energy regeneration -{regen_penalty}")
             continue

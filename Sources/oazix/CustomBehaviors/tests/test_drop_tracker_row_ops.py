@@ -126,6 +126,45 @@ def test_update_rows_item_stats_by_event_and_player_requires_unambiguous_when_pl
     assert extract_runtime_row_item_stats(single[0]) == "single-stats"
 
 
+def test_update_rows_item_stats_by_event_and_player_empty_event_returns_zero():
+    rows = [_sample_row(event_id="ev-any")]
+    assert update_rows_item_stats_by_event_and_player(rows, "", "Mesmer Tri", "ignored") == 0
+
+
+def test_update_rows_item_stats_by_event_and_player_unknown_player_no_match_returns_zero():
+    rows = [_sample_row(event_id="ev-other")]
+    updated = update_rows_item_stats_by_event_and_player(rows, "ev-target", "", "ignored")
+    assert updated == 0
+    assert extract_runtime_row_item_stats(rows[0]) == ""
+
+
+def test_update_rows_item_stats_by_event_and_player_skips_invalid_rows():
+    valid = _sample_row(event_id="ev-skip")
+    rows = ["not-a-row", valid]
+    updated = update_rows_item_stats_by_event_and_player(rows, "ev-skip", "Mesmer Tri", "stats-skip")
+    assert updated == 1
+    assert extract_runtime_row_item_stats(valid) == "stats-skip"
+
+
+def test_update_rows_item_stats_by_event_and_sender_empty_event_returns_zero():
+    rows = [_sample_row(event_id="ev-any", sender_email="s@test")]
+    assert update_rows_item_stats_by_event_and_sender(rows, "", "s@test", "ignored") == 0
+
+
+def test_update_rows_item_stats_by_event_and_sender_falls_back_to_player_and_skips_invalid_rows():
+    target = _sample_row(event_id="ev-fallback")
+    rows = ["not-a-row", target]
+    updated = update_rows_item_stats_by_event_and_sender(
+        rows,
+        "ev-fallback",
+        "missing@test",
+        "fallback-stats",
+        player_name="Mesmer Tri",
+    )
+    assert updated == 1
+    assert extract_runtime_row_item_stats(target) == "fallback-stats"
+
+
 def test_row_ops_ignore_non_list_rows_and_empty_event():
     assert parse_runtime_row("not-a-row") is None
     assert extract_runtime_row_event_id("not-a-row") == ""
