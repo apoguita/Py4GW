@@ -346,43 +346,87 @@ class Checks:
         @staticmethod
         def InDanger(aggro_area=Range.Earshot, aggressive_only = False):
             from ..AgentArray import AgentArray
-            from ..GlobalCache import GLOBAL_CACHE
-            from ..Py4GWcorelib import Utils
             from ..Agent import Agent
             if not Checks.Map.MapValid():
                 return False
 
             enemy_array = AgentArray.GetEnemyArray()
-            if len(enemy_array) == 0:
+            if not enemy_array:
                 return False
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= aggro_area.value)
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
-            if aggressive_only:
-                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
-            if len(enemy_array) > 0:
-                return True
+
+            player_id = Player.GetAgentID()
+            player_pos = Player.GetXY()
+            if not player_pos:
+                return False
+
+            radius = aggro_area.value
+            radius_sq = radius * radius
+            px, py = player_pos
+
+            # Local bindings reduce attribute lookup overhead in this hot loop.
+            get_xy = Agent.GetXY
+            is_alive = Agent.IsAlive
+            is_aggressive = Agent.IsAggressive
+
+            for agent_id in enemy_array:
+                if agent_id == player_id:
+                    continue
+                if not is_alive(agent_id):
+                    continue
+                if aggressive_only and not is_aggressive(agent_id):
+                    continue
+
+                enemy_pos = get_xy(agent_id)
+                if not enemy_pos:
+                    continue
+
+                dx = px - enemy_pos[0]
+                dy = py - enemy_pos[1]
+                if (dx * dx + dy * dy) <= radius_sq:
+                    return True
+
             return False
 
         @staticmethod
         def InAggro(aggro_area=Range.Earshot.value, aggressive_only = False):
             from ..AgentArray import AgentArray
-            from ..GlobalCache import GLOBAL_CACHE
-            from ..Py4GWcorelib import Utils
             from ..Agent import Agent
             if not Checks.Map.MapValid():
                 return False
 
             enemy_array = AgentArray.GetEnemyArray()
-            if len(enemy_array) == 0:
+            if not enemy_array:
                 return False
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= aggro_area)
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Player.GetAgentID() != agent_id)
-            if aggressive_only:
-                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAggressive(agent_id))
-            if len(enemy_array) > 0:
-                return True
+
+            player_id = Player.GetAgentID()
+            player_pos = Player.GetXY()
+            if not player_pos:
+                return False
+
+            radius_sq = aggro_area * aggro_area
+            px, py = player_pos
+
+            get_xy = Agent.GetXY
+            is_alive = Agent.IsAlive
+            is_aggressive = Agent.IsAggressive
+
+            for agent_id in enemy_array:
+                if agent_id == player_id:
+                    continue
+                if not is_alive(agent_id):
+                    continue
+                if aggressive_only and not is_aggressive(agent_id):
+                    continue
+
+                enemy_pos = get_xy(agent_id)
+                if not enemy_pos:
+                    continue
+
+                dx = px - enemy_pos[0]
+                dy = py - enemy_pos[1]
+                if (dx * dx + dy * dy) <= radius_sq:
+                    return True
+
             return False
         
 
