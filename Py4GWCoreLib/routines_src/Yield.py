@@ -1238,6 +1238,38 @@ class Yield:
 
 
         @staticmethod
+        def WithdrawGold(target_gold: int, deposit_all: bool = True, log: bool = False):
+            """Ensure the character has exactly `target_gold` on hand.
+            If deposit_all is True and the character has more than target_gold, the excess is deposited first.
+            Then, if the character has less than target_gold, the shortfall is withdrawn from storage.
+            """
+            gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+            if deposit_all and gold_on_char > target_gold:
+                to_deposit = gold_on_char - target_gold
+                gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+                available_space = 1_000_000 - gold_in_storage
+                to_deposit = min(to_deposit, available_space)
+                if to_deposit > 0:
+                    GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+                    yield from Yield.wait(350)
+                    if log:
+                        ConsoleLog("WithdrawGold", f"Deposited {to_deposit} gold (excess).", Console.MessageType.Info)
+                    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+            if gold_on_char < target_gold:
+                to_withdraw = target_gold - gold_on_char
+                gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+                to_withdraw = min(to_withdraw, gold_in_storage)
+                if to_withdraw > 0:
+                    GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+                    yield from Yield.wait(350)
+                    if log:
+                        ConsoleLog("WithdrawGold", f"Withdrew {to_withdraw} gold.", Console.MessageType.Info)
+                elif log:
+                    ConsoleLog("WithdrawGold", "Not enough gold in storage to reach target.", Console.MessageType.Warning)
+
+        @staticmethod
         def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None, pickup_timeout:int=5000):
             from ..AgentArray import AgentArray
             from .Checks import Checks

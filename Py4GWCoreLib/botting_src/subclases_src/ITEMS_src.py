@@ -26,6 +26,11 @@ class _ITEMS:
         "Uses the AutoLoot Handler to deposit items automatically."
         self._helpers.Items.auto_deposit_items()
 
+    def WithdrawGold(self, target_gold: int = 20000, deposit_all: bool = True):
+        """Ensure the character has exactly target_gold on hand.
+        Deposits excess first (if deposit_all=True), then withdraws the shortfall from storage."""
+        self._helpers.Items.withdraw_gold(target_gold, deposit_all)
+
     def AutoDepositGold(self):
         "Uses the AutoLoot Handler to deposit gold automatically."
         self._helpers.Items.auto_deposit_gold()
