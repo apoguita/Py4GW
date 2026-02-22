@@ -58,6 +58,34 @@ def test_parse_new_csv_format_with_sender_email():
     assert row.sender_email == "mesmer@test"
 
 
+def test_parse_old_header_with_extended_columns_keeps_event_fields():
+    csv_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity",
+            "2026-02-22 12:00:02,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,85e699300009,\"line\",488,mesmer@test",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.event_id == "85e699300009"
+    assert row.item_stats == "line"
+    assert row.item_id == 488
+    assert row.sender_email == "mesmer@test"
+
+
+def test_parse_headerless_new_format_row():
+    csv_text = "2026-02-22 12:00:03,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,ev-hl,\"line\",489,mesmer@test\n"
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.player_name == "Mesmer Tri"
+    assert row.item_name == "Holy Staff"
+    assert row.event_id == "ev-hl"
+    assert row.item_id == 489
+    assert row.sender_email == "mesmer@test"
+
+
 def test_append_and_parse_roundtrip():
     expected = DropLogRow(
         timestamp="2026-02-22 13:00:00",
@@ -150,5 +178,45 @@ def test_append_drop_log_rows_writes_header_once():
         assert lines[0].startswith("Timestamp,ViewerBot,MapID,MapName,Player")
         assert len([line for line in lines if line.startswith("Timestamp,ViewerBot,MapID,MapName,Player")]) == 1
         assert len(lines) == 3
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_append_drop_log_rows_upgrades_legacy_header_and_preserves_existing_fields():
+    temp_dir = _make_local_temp_dir()
+    file_path = temp_dir / "legacy_header.csv"
+    legacy_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity",
+            "2026-02-22 12:00:02,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,ev-old,\"line-old\",488,mesmer@test",
+        ]
+    ) + "\n"
+    file_path.write_text(legacy_text, encoding="utf-8")
+    row_new = DropLogRow(
+        timestamp="2026-02-22 13:10:00",
+        viewer_bot="BotB",
+        map_id=249,
+        map_name="Ascalon",
+        player_name="PlayerB",
+        item_name="ItemB",
+        quantity=2,
+        rarity="Blue",
+        event_id="ev-new",
+        item_stats="line-new",
+        item_id=2,
+        sender_email="playerb@test",
+    )
+    try:
+        append_drop_log_rows(str(file_path), [row_new])
+        lines = file_path.read_text(encoding="utf-8").splitlines()
+        assert lines[0] == "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity,EventID,ItemStats,ItemID,SenderEmail"
+        parsed = parse_drop_log_file(str(file_path))
+        assert len(parsed) == 2
+        assert parsed[0].event_id == "ev-old"
+        assert parsed[0].item_stats == "line-old"
+        assert parsed[0].item_id == 488
+        assert parsed[0].sender_email == "mesmer@test"
+        assert parsed[1].event_id == "ev-new"
+        assert parsed[1].sender_email == "playerb@test"
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)

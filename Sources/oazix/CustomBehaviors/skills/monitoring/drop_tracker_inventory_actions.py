@@ -15,6 +15,8 @@ class PendingIdentifyResponse:
     deadline_at: float
     next_poll_at: float
     poll_interval_s: float = 0.15
+    timeout_retry_count: int = 0
+    max_timeout_retries: int = 4
 
 
 class IdentifyResponseScheduler:
@@ -71,8 +73,15 @@ class IdentifyResponseScheduler:
                 if stats_text:
                     sent = bool(send_stats_fn(pending.reply_email, pending.event_id, stats_text))
 
-            if sent or timed_out:
+            if sent:
                 completed.append(key)
+                continue
+            if timed_out:
+                pending.timeout_retry_count = int(pending.timeout_retry_count) + 1
+                if int(pending.timeout_retry_count) >= int(pending.max_timeout_retries):
+                    completed.append(key)
+                    continue
+                pending.next_poll_at = now_ts + max(0.25, float(pending.poll_interval_s))
                 continue
 
             pending.next_poll_at = now_ts + max(0.05, float(pending.poll_interval_s))
@@ -190,6 +199,35 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
             queued = 1
         else:
             stats_text = viewer._build_item_stats_from_live_item(target_item_id, target_name)
+            if not stats_text:
+                return False
+            if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+                queued = 1
+            else:
+                return False
+    elif action_code == "push_item_stats_sig":
+        action_label = "Push Item Stats By Signature"
+        sig_payload = viewer._ensure_text(action_payload).strip()
+        event_id = viewer._ensure_text(action_meta).strip()
+        if not sig_payload or not event_id or not reply_email:
+            return False
+        if "|" in sig_payload:
+            target_sig, rarity_hint = sig_payload.split("|", 1)
+            target_sig = viewer._ensure_text(target_sig).strip().lower()
+            rarity_hint = viewer._ensure_text(rarity_hint).strip()
+        else:
+            target_sig = sig_payload.lower()
+            rarity_hint = ""
+        if not target_sig:
+            return False
+        target_item_id = viewer._resolve_live_item_id_by_signature(target_sig, rarity_hint, prefer_identified=True)
+        if target_item_id <= 0:
+            return False
+        payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, "")
+        if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
+            queued = 1
+        else:
+            stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
             if not stats_text:
                 return False
             if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):

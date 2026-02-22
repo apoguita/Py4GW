@@ -31,6 +31,7 @@ class _FakeViewer:
         self.stats_text = "Stats Line"
         self.stats_send_ok = True
         self.resolved_item_id = 0
+        self.resolved_item_id_by_sig = 0
         self._snapshot_calls = []
         self._stats_calls = []
 
@@ -82,6 +83,9 @@ class _FakeViewer:
 
     def _resolve_live_item_id_by_name(self, item_name, prefer_identified=False):
         return int(self.resolved_item_id)
+
+    def _resolve_live_item_id_by_signature(self, name_signature, rarity_hint="", prefer_identified=False):
+        return int(self.resolved_item_id_by_sig)
 
 
 def _install_fake_py4gw(monkeypatch, *, kit_id=1, identified=False, identify_result=True, identify_raises=False):
@@ -187,7 +191,7 @@ def test_identify_scheduler_skips_until_next_poll_and_clear():
     assert scheduler.pending_count() == 0
 
 
-def test_identify_scheduler_times_out_and_completes_even_when_sends_fail():
+def test_identify_scheduler_retries_after_timeout_when_sends_fail():
     scheduler = IdentifyResponseScheduler()
     scheduler.schedule(item_id=5, reply_email="leader@test", event_id="ev-fail", timeout_s=0.2)
     time.sleep(0.25)
@@ -199,7 +203,23 @@ def test_identify_scheduler_times_out_and_completes_even_when_sends_fail():
         build_stats_fn=lambda _item_id: "fallback",
         send_stats_fn=lambda _email, _event_id, _stats: False,
     )
-    assert completed == 1
+    assert completed == 0
+    assert scheduler.pending_count() == 1
+
+    saw_completion = 0
+    for _ in range(5):
+        time.sleep(0.26)
+        completed = scheduler.tick(
+            build_payload_fn=lambda _item_id: '{"mods":[]}',
+            is_identified_fn=lambda _item_id: False,
+            send_payload_fn=lambda _email, _event_id, _payload: False,
+            build_stats_fn=lambda _item_id: "fallback",
+            send_stats_fn=lambda _email, _event_id, _stats: False,
+        )
+        if completed > 0:
+            saw_completion += completed
+            break
+    assert saw_completion == 1
     assert scheduler.pending_count() == 0
 
 
@@ -335,6 +355,14 @@ def test_run_inventory_action_push_item_stats_name_success():
     ok = run_inventory_action(viewer, "push_item_stats_name", "Holy Staff", "ev-3", "leader@test")
     assert ok is True
     assert "Push Item Stats By Name" in viewer.status_message
+
+
+def test_run_inventory_action_push_item_stats_sig_success():
+    viewer = _FakeViewer()
+    viewer.resolved_item_id_by_sig = 88
+    ok = run_inventory_action(viewer, "push_item_stats_sig", "deadbeef|Gold", "ev-sig", "leader@test")
+    assert ok is True
+    assert "Push Item Stats By Signature" in viewer.status_message
 
 
 def test_run_inventory_action_id_item_id_invalid_item_id(monkeypatch):

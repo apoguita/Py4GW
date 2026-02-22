@@ -723,6 +723,7 @@ class DropTrackerSender:
             "attempts": 0,
             "next_retry_at": 0.0,
             "acked": False,
+            "last_receiver_email": "",
         }
         if len(self.outbox_queue) >= int(self.max_outbox_size):
             self.outbox_queue.pop(0)
@@ -777,8 +778,14 @@ class DropTrackerSender:
                 if extra_0 != "TrackerAckV2":
                     continue
                 event_id = "".join(ch for ch in extra_data_list[1] if ch != "\0").rstrip() if len(extra_data_list) > 1 else ""
+                ack_sender_email = str(getattr(shared_msg, "SenderEmail", "") or "").strip().lower()
                 for entry in self.outbox_queue:
                     if str(entry.get("event_id", "")) == str(event_id):
+                        if int(entry.get("attempts", 0)) <= 0:
+                            continue
+                        expected_sender = str(entry.get("last_receiver_email", "") or "").strip().lower()
+                        if expected_sender and ack_sender_email and ack_sender_email != expected_sender:
+                            continue
                         if not entry.get("acked", False):
                             entry["acked"] = True
                             acked_count += 1
@@ -827,6 +834,7 @@ class DropTrackerSender:
                 continue
             if not is_leader_sender and receiver_email == my_email:
                 continue
+            entry["last_receiver_email"] = str(receiver_email or "").strip().lower()
 
             if not entry.get("name_chunks_sent", False):
                 full_name = str(entry.get("full_name", "") or "")
