@@ -293,6 +293,11 @@ class _Items:
         yield from inventory_handler.DepositItemsAuto()
         inventory_handler.module_active = current_state
         
+    @_yield_step(label="WithdrawGold", counter_key="WITHDRAW_GOLD")
+    def withdraw_gold(self, target_gold: int = 20000, deposit_all: bool = True) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawGold(target_gold, deposit_all)
+
     @_yield_step(label="AutodepositGold", counter_key="AUTO_DEPOSIT_GOLD")
     def auto_deposit_gold(self) -> Generator[Any, Any, None]:
         from ...py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
