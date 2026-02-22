@@ -350,6 +350,12 @@ class _Items:
         from ...Routines import Routines
         yield from Routines.Yield.Items.WithdrawUpTo(model_id, max_quantity)
 
+    @_yield_step(label="WithdrawFirstAvailable", counter_key="WITHDRAW_FIRST_AVAILABLE")
+    def withdraw_first_available(self, model_ids: list, max_quantity: int) -> Generator[Any, Any, None]:
+        """Withdraw up to max_quantity from the first model_id in the list that has stock in storage."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawFirstAvailable(model_ids, max_quantity)
+
     @_yield_step(label="DepositAllInventory", counter_key="DEPOSIT_ALL_INVENTORY")
     def deposit_all_inventory(self) -> Generator[Any, Any, None]:
         """Deposits all items from inventory bags to storage."""
