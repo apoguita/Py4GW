@@ -102,6 +102,14 @@ def _toggle_lock(enabled: bool) -> None:
     )
 
 
+def _toggle_wait_if_party_member_mana_too_low(enabled: bool) -> None:
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_party_member_mana_too_low",),
+        class_names=("WaitIfPartyMemberManaTooLowUtility",),
+    )
+
+
 def _setup_custom_behavior_integration(bot_instance: Botting) -> None:
     behavior = _get_custom_behavior(initialize_if_needed=True)
     if behavior is None:
@@ -310,8 +318,12 @@ def enable_default_party_behavior(bot_instance: Botting):
 
 def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddHeader("Clear the Chamber")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
+    
     enable_default_party_behavior(bot_instance)
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
@@ -335,6 +347,8 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
 
 def Restore_Vale(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestoreVale:
         bot_instance.States.AddHeader("Restore Vale")
         BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
@@ -357,6 +371,8 @@ def Restore_Vale(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Wrathfull_Spirits(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.WrathfullSpirits:
         bot_instance.States.AddHeader("Wrathfull Spirits")
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
@@ -381,6 +397,8 @@ def Wrathfull_Spirits(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Escort_of_Souls(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.EscortOfSouls:
         bot_instance.States.AddHeader("Escort of Souls")
         bot_instance.Wait.ForTime(5000)
@@ -398,6 +416,8 @@ def Escort_of_Souls(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Unwanted_Guests(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     #This Quest is not working
     if BotSettings.UnwantedGuests:
         bot_instance.States.AddHeader("Unwanted Guests")
@@ -437,6 +457,8 @@ def Unwanted_Guests(bot_instance: Botting):
         bot_instance.Move.XY(-6907, 7256)
 
 def Restore_Wastes(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestoreWastes:
         bot_instance.Templates.Aggressive()
         bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
@@ -454,6 +476,8 @@ def Restore_Wastes(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Servants_of_Grenth(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.ServantsOfGrenth:
         bot_instance.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
@@ -519,6 +543,8 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Pass_The_Mountains(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.PassTheMountains:
         bot_instance.States.AddHeader("Pass the Mountains")
         bot_instance.Move.XY(-220, 1691, "Pass the Mountains 1")
@@ -528,6 +554,8 @@ def Pass_The_Mountains(bot_instance: Botting):
     
 
 def Restore_Mountains(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestoreMountains:
         bot_instance.States.AddHeader("Restore the Mountains")
         bot_instance.Move.XY(7013, -7582, "Restore the Mountains 1")
@@ -535,6 +563,8 @@ def Restore_Mountains(bot_instance: Botting):
         bot_instance.Move.XY(-8373, -5016, "Restore the Mountains 3")
 
 def Deamon_Assassin(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.DeamonAssassin:
         bot_instance.States.AddHeader("Deamon Assassin")
         bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
@@ -546,6 +576,8 @@ def Deamon_Assassin(bot_instance: Botting):
         #ModelID Slayer 2391
 
 def Restore_Planes(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestorePlanes:
         bot_instance.States.AddHeader("Restore Planes")
         Wait_for_Spawns(bot_instance,10371, -10510)
@@ -559,6 +591,8 @@ def Restore_Planes(bot_instance: Botting):
         Wait_for_Spawns(bot_instance,11218, -17404)
 
 def The_Four_Horsemen(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.TheFourHorsemen:
         bot_instance.States.AddHeader("The Four Horseman")
         bot_instance.Move.XY(13473, -12091, "The Four Horseman 1")
@@ -600,6 +634,8 @@ def The_Four_Horsemen(bot_instance: Botting):
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
 
 def Restore_Pools(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestorePools:
         bot_instance.States.AddHeader("Restore Pools")
         Wait_for_Spawns(bot_instance,4647, -16833)
@@ -615,6 +651,8 @@ def Restore_Pools(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Terrorweb_Queen(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.TerrorwebQueen:
         bot_instance.States.AddHeader("Terrorweb Queen")
         bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
@@ -627,6 +665,8 @@ def Terrorweb_Queen(bot_instance: Botting):
         bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
     
 def Restore_Pit(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestorePit:
         bot_instance.States.AddHeader("Restore Pit")
         bot_instance.Move.XY(13145, -8740, "Restore Pit 1")
@@ -642,6 +682,8 @@ def Restore_Pit(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Imprisoned_Spirits(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.ImprisonedSpirits:
         bot_instance.States.AddHeader("Imprisoned Spirits")
         bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 1")
@@ -651,6 +693,8 @@ def Imprisoned_Spirits(bot_instance: Botting):
         #bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
         bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 2")
+
+
 def ResignAndRepeat(bot_instance: Botting):
     if BotSettings.Repeat:
         bot_instance.Multibox.ResignParty()
