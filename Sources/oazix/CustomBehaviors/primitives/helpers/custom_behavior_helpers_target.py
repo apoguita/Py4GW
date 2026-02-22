@@ -1,7 +1,6 @@
 from typing import cast
 from Py4GWCoreLib import AgentArray, Agent, Player, Range, Utils
 from Sources.oazix.CustomBehaviors.primitives.helpers.sortable_agent_data import SortableAgentData
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
 
 class CustomTargeting:
@@ -149,9 +148,13 @@ class CustomTargeting:
         # Compute the result
         agents: list[SortableAgentData] = list(self.__get_enemies_by_distance(source_pos, within_range))
 
+        # Lazy import avoids circular dependency when party module imports helpers.
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+
         # if following mode activated :
-        is_following_enabled = CustomBehaviorParty().get_party_is_following_enabled()
-        is_flag_defined = CustomBehaviorParty().party_flagging_manager.is_flag_defined(Player.GetAccountEmail())
+        party = CustomBehaviorParty()
+        is_following_enabled = party.get_party_is_following_enabled()
+        is_flag_defined = party.party_flagging_manager.is_flag_defined(Player.GetAccountEmail())
 
         if is_following_enabled and not is_flag_defined:
             # Add leader targets if provided

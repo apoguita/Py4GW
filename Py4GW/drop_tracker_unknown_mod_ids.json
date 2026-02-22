@@ -1,0 +1,54 @@
+{
+  "updated_at": "2026-02-22 21:43:18",
+  "known_mod_id_count": 62,
+  "unknown_mods": {
+    "9480": {
+      "count": 1,
+      "arg1_min": 2,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        11
+      ],
+      "model_ids": [
+        940
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Tanned Hide Squares"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        49152
+      ],
+      "last_seen": "2026-02-22 21:43:18"
+    },
+    "49152": {
+      "count": 1,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        11
+      ],
+      "model_ids": [
+        940
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Tanned Hide Squares"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9480
+      ],
+      "last_seen": "2026-02-22 21:43:18"
+    }
+  }
+}

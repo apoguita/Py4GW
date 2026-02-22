@@ -1,6 +1,8 @@
 import random
+import time
 from typing import Generator, Any
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.routines_src.Yield import Yield
@@ -72,6 +74,36 @@ class PartyCommandConstants:
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
             GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.Resign, ())
             yield from custom_behavior_helpers.Helpers.wait_for(30)
+        yield
+
+    @staticmethod
+    def resign_and_return_to_outpost(timeout_ms: int = 45_000) -> Generator[Any, None, None]:
+        account_email = Player.GetAccountEmail()
+        timeout_s = max(5.0, float(timeout_ms) / 1000.0)
+        started_at = time.time()
+        next_resign_send_at = 0.0
+
+        while (time.time() - started_at) <= timeout_s:
+            if Map.IsOutpost():
+                return
+
+            now_ts = time.time()
+            if now_ts >= next_resign_send_at:
+                accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+                for account in accounts:
+                    if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
+                    GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.Resign, ())
+                    yield from custom_behavior_helpers.Helpers.wait_for(30)
+                next_resign_send_at = now_ts + 4.0
+
+            if GLOBAL_CACHE.Party.IsPartyDefeated():
+                GLOBAL_CACHE.Party.ReturnToOutpost()
+                yield from custom_behavior_helpers.Helpers.wait_for(250)
+                if Map.IsOutpost():
+                    return
+
+            yield from custom_behavior_helpers.Helpers.wait_for(120)
+
         yield
     
     @staticmethod
