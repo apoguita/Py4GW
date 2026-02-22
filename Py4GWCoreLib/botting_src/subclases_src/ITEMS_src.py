@@ -168,7 +168,7 @@ class _ITEMS:
 
         def BirthdayCupcake(self):
             self._helpers.Restock.restock_birthday_cupcake()
-        
+
         def CandyApple(self):
             self._helpers.Restock.restock_candy_apple()
 
@@ -177,6 +177,33 @@ class _ITEMS:
 
         def WarSupplies(self):
             self._helpers.Restock.restock_war_supplies()
+
+        def EssenceOfCelerity(self):
+            self._helpers.Restock.restock_essence_of_celerity()
+
+        def GrailOfMight(self):
+            self._helpers.Restock.restock_grail_of_might()
+
+        def ArmorOfSalvation(self):
+            self._helpers.Restock.restock_armor_of_salvation()
+
+        def GoldenEgg(self):
+            self._helpers.Restock.restock_golden_egg()
+
+        def CandyCorn(self):
+            self._helpers.Restock.restock_candy_corn()
+
+        def SliceOfPumpkinPie(self):
+            self._helpers.Restock.restock_slice_of_pumpkin_pie()
+
+        def DrakeKabob(self):
+            self._helpers.Restock.restock_drake_kabob()
+
+        def BowlOfSkalefinSoup(self):
+            self._helpers.Restock.restock_bowl_of_skalefin_soup()
+
+        def PahnaiSalad(self):
+            self._helpers.Restock.restock_pahnai_salad()
 
 
 
