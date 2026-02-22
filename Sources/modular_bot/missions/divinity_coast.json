@@ -24,6 +24,6 @@
     {"type": "interact_quest_npc", "ms": 2000},
     {"type": "auto_path", "name": "Path 6", "points": [[-8144, 10744], [-8618, 11888]]},
     {"type": "skip_cinematic", "wait_ms": 1500},
-    {"type": "wait_map_change", "target_map_id": 16}
+    {"type": "wait_map_change", "target_map_id": 140}
   ]
 }

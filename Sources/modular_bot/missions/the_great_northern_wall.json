@@ -34,6 +34,6 @@
     {"type": "path", "name": "Return to Start", "points": [[-14464, 4187], [-8647, 79], [-7699, -2235], [-2332, -5860], [2899, -7794], [6334, -10506], [4961, -12069]]},
     {"type": "interact_quest_npc", "ms": 5000},
     {"type": "skip_cinematic"},
-    {"type": "wait_map_change", "target_map_id": 28}
+    {"type": "wait_map_change", "target_map_id": 29}
   ]
 }
