@@ -1408,7 +1408,7 @@ class Yield:
 
         @staticmethod
         def WithdrawItems(model_id:int, quantity:int) -> Generator[Any, Any, bool]:
-            
+
             item_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
             if item_in_storage < quantity:
                 return False
@@ -1419,7 +1419,24 @@ class Yield:
                 return False
 
             return True
-        
+
+        @staticmethod
+        def WithdrawUpTo(model_id: int, max_quantity: int) -> Generator[Any, Any, None]:
+            """Withdraw up to max_quantity of model_id from storage. No-op if none available."""
+            available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+            to_withdraw = min(available, max_quantity)
+            if to_withdraw > 0:
+                GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, to_withdraw)
+                yield from Yield.wait(500)
+
+        @staticmethod
+        def DepositAllInventory() -> Generator[Any, Any, None]:
+            """Deposits all items from inventory bags (Backpack, Belt Pouch, Bag 1, Bag 2) to storage."""
+            item_ids = GLOBAL_CACHE.Inventory.GetAllInventoryItemIds()
+            for item_id in item_ids:
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                yield from Yield.wait(350)
+
         @staticmethod
         def RestockItems(model_id: int, desired_quantity: int) -> Generator[Any, Any, bool]:
             """

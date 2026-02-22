@@ -52,6 +52,18 @@ class _ITEMS:
     def Withdraw(self, model_id:int, quantity:int):
         self._helpers.Items.withdraw(model_id, quantity)
 
+    def WithdrawUpTo(self, model_id: int, max_quantity: int):
+        "Withdraw up to max_quantity of model_id from storage. No-op if none available."
+        self._helpers.Items.withdraw_up_to(model_id, max_quantity)
+
+    def Deposit(self, model_id: int):
+        "Deposit the first matching item (by model_id) from inventory to storage."
+        self._helpers.Items.deposit_item(model_id)
+
+    def DepositAll(self):
+        "Deposit all items from inventory bags (Backpack, Belt Pouch, Bag 1, Bag 2) to storage."
+        self._helpers.Items.deposit_all_inventory()
+
     def Equip(self, model_id: int):
         self._helpers.Items.equip(model_id)
 
