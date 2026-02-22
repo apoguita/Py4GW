@@ -16,11 +16,19 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol impor
     make_event_id,
     make_name_signature,
 )
+from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
+    build_spellcast_hct_hsr_lines,
+    prune_generic_attribute_bonus_lines,
+    render_mod_description_template,
+)
+
+IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
+EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
 
 try:
     from Py4GWCoreLib.enums_src.Item_enums import ItemType
     from Sources.marks_sources.mods_parser import ModDatabase, parse_modifiers, is_matching_item_type
-except Exception:
+except IMPORT_OPTIONAL_ERRORS:
     ItemType = None
     ModDatabase = None
     parse_modifiers = None
@@ -87,7 +95,7 @@ class DropTrackerSender:
         self._initialized = True
         self.state_version = self._STATE_VERSION
         self.inventory_poll_timer = ThrottledTimer(350)
-        self.last_inventory_snapshot: dict[int, tuple[str, str, int]] = {}
+        self.last_inventory_snapshot: dict[tuple[int, int], tuple[str, str, int, int, int]] = {}
         self.enabled = True
         self.gold_regex = re.compile(r"^(?:\[([\d: ]+[ap]m)\] )?Your party shares ([\d,]+) gold\.$")
         self.warn_timer = ThrottledTimer(3000)
@@ -143,7 +151,7 @@ class DropTrackerSender:
                     "mods_data",
                 )
             )
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             pass
         try:
             project_root = Py4GW.Console.get_projects_path()
@@ -156,7 +164,7 @@ class DropTrackerSender:
                         "mods_data",
                     )
                 )
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             pass
 
         seen = set()
@@ -171,7 +179,7 @@ class DropTrackerSender:
                 self.mod_db = ModDatabase.load(data_dir)
                 if self.mod_db is not None:
                     return
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 continue
         self.mod_db = None
 
@@ -188,37 +196,22 @@ class DropTrackerSender:
         default_value: int = 0,
         attribute_name: str = "",
     ) -> list[str]:
-        desc = str(description or "").strip()
-        if not desc:
-            return []
+        def _resolve_attribute_name(attr_id: int) -> str:
+            try:
+                from Py4GWCoreLib.enums import Attribute
+                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
 
-        by_id = {}
-        for ident, arg1, arg2 in matched_modifiers:
-            by_id[int(ident)] = (int(arg1), int(arg2))
-
-        def _resolve(token: str, ident_text: str) -> int:
-            idx = 1 if token == "arg1" else 2
-            if ident_text:
-                pair = by_id.get(int(ident_text))
-                if pair:
-                    return int(pair[idx - 1])
-                return 0
-            for _ident, arg1, arg2 in matched_modifiers:
-                value = int(arg1) if idx == 1 else int(arg2)
-                if value != 0:
-                    return value
-            return int(default_value) if idx == 2 else 0
-
-        rendered = re.sub(
-            r"\{(arg1|arg2)(?:\[(\d+)\])?\}",
-            lambda m: str(_resolve(m.group(1), m.group(2) or "")),
-            desc,
+        return render_mod_description_template(
+            description=str(description or ""),
+            matched_modifiers=list(matched_modifiers or []),
+            default_value=int(default_value),
+            attribute_name=str(attribute_name or ""),
+            resolve_attribute_name_fn=_resolve_attribute_name,
+            format_attribute_name_fn=self._format_attribute_name,
+            unknown_attribute_template="Attribute {id}",
         )
-        if attribute_name:
-            rendered = rendered.replace("item's attribute", attribute_name).replace("Item's attribute", attribute_name)
-        rendered = rendered.replace("(Chance: +", "(Chance: ")
-        rendered = rendered.replace("  ", " ").strip()
-        return [line.strip() for line in rendered.splitlines() if line.strip()]
 
     def _match_mod_definition_against_raw(self, definition_modifiers, raw_mods) -> list[tuple[int, int, int]]:
         meaningful = []
@@ -268,16 +261,16 @@ class DropTrackerSender:
                 try:
                     if is_matching_item_type(item_type, target):
                         return True
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     continue
             item_mods = getattr(weapon_mod, "item_mods", {}) or {}
             for target in list(item_mods.keys()):
                 try:
                     if is_matching_item_type(item_type, target):
                         return True
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     continue
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
         return False
 
@@ -313,7 +306,7 @@ class DropTrackerSender:
                         prev = best_by_ident.get(ident, None)
                         if prev is None or score > int(prev.get("score", -999)):
                             best_by_ident[ident] = {"line": first_line, "score": score}
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return lines
         for ident in sorted(best_by_ident.keys()):
             line = str(best_by_ident[ident].get("line", "")).strip()
@@ -362,7 +355,7 @@ class DropTrackerSender:
                     prev = best_by_ident.get(ident, None)
                     if prev is None or score > int(prev.get("score", -999)):
                         best_by_ident[ident] = {"lines": list(candidate_lines), "score": score}
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return lines
         for ident in sorted(best_by_ident.keys()):
             for line in list(best_by_ident[ident].get("lines", []) or []):
@@ -371,91 +364,25 @@ class DropTrackerSender:
                     lines.append(txt)
         return lines
 
-    def _is_wand_or_staff_type(self, item_type) -> bool:
-        if item_type is None:
-            return False
-        try:
-            return item_type in (ItemType.Wand, ItemType.Staff, ItemType.SpellcastingWeapon)
-        except Exception:
-            pass
-        try:
-            item_type_int = int(item_type)
-            return item_type_int in (22, 26, 41)
-        except Exception:
-            return False
-
     def _build_known_spellcast_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
-        lines = []
-        attr_txt = str(item_attr_txt or "").strip()
-        attr_phrase = f"{attr_txt} " if attr_txt else "item's attribute "
-        is_spellcasting_weapon = self._is_wand_or_staff_type(item_type)
-        for ident, arg1, arg2 in list(raw_mods or []):
-            ident_i = int(ident)
-            chance = int(arg1)
-            if chance <= 0:
-                continue
-            if ident_i == 8712:
-                lines.append(f"Halves casting time of spells (Chance: {chance}%)")
-            elif ident_i == 8728:
-                if not is_spellcasting_weapon:
-                    continue
-                attr_from_mod = ""
-                if int(arg2) > 0:
-                    try:
-                        from Py4GWCoreLib.enums import Attribute
-                        attr_from_mod = self._format_attribute_name(getattr(Attribute(int(arg2)), "name", ""))
-                    except Exception:
-                        attr_from_mod = ""
-                if attr_from_mod:
-                    lines.append(f"Halves casting time of {attr_from_mod} spells (Chance: {chance}%)")
-                else:
-                    lines.append(f"Halves casting time of {attr_phrase}spells (Chance: {chance}%)")
-            elif ident_i in (9128, 9112):
-                if ident_i == 9112 and not is_spellcasting_weapon:
-                    continue
-                attr_from_mod = ""
-                if ident_i == 9112 and int(arg2) > 0:
-                    try:
-                        from Py4GWCoreLib.enums import Attribute
-                        attr_from_mod = self._format_attribute_name(getattr(Attribute(int(arg2)), "name", ""))
-                    except Exception:
-                        attr_from_mod = ""
-                if attr_from_mod:
-                    lines.append(f"Halves skill recharge of {attr_from_mod} spells (Chance: {chance}%)")
-                else:
-                    lines.append(f"Halves skill recharge of spells (Chance: {chance}%)")
-            elif ident_i == 10248:
-                lines.append(f"Halves casting time of {attr_phrase}spells (Chance: {chance}%)")
-            elif ident_i == 10280:
-                lines.append(f"Halves skill recharge of {attr_phrase}spells (Chance: {chance}%)")
-        return lines
+        def _resolve_attribute_name(attr_id: int) -> str:
+            try:
+                from Py4GWCoreLib.enums import Attribute
+                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        return build_spellcast_hct_hsr_lines(
+            raw_mods,
+            item_attr_txt=str(item_attr_txt or ""),
+            item_type=item_type,
+            resolve_attribute_name_fn=_resolve_attribute_name,
+            include_raw_when_no_chance=False,
+            use_range_chance=True,
+        )
 
     def _prune_generic_attribute_bonus_lines(self, lines: list[str]) -> list[str]:
-        if not lines:
-            return lines
-        detailed_bonus_re = re.compile(r"^([A-Za-z][A-Za-z ]+)\s*\+\s*(\d+)\s*\((\d+)% chance while using skills\)$", re.IGNORECASE)
-        generic_bonus_re = re.compile(r"^(?:Attribute\s+\d+|\d+)\s*\+\s*(\d+)\s*\((\d+)% chance while using skills\)$", re.IGNORECASE)
-        detailed_pairs = set()
-        for line in lines:
-            txt = str(line or "").strip()
-            m = detailed_bonus_re.match(txt)
-            if not m:
-                continue
-            attr_text = str(m.group(1) or "").strip().lower()
-            if not attr_text or attr_text.startswith("attribute "):
-                continue
-            detailed_pairs.add((m.group(2), m.group(3)))
-        if not detailed_pairs:
-            return lines
-
-        filtered = []
-        for line in lines:
-            txt = str(line or "").strip()
-            m = generic_bonus_re.match(txt)
-            if m and (m.group(1), m.group(2)) in detailed_pairs:
-                continue
-            filtered.append(line)
-        return filtered
+        return prune_generic_attribute_bonus_lines(lines)
 
     def _build_item_stats_text(self, item_id: int, item_name: str = "") -> str:
         item_id = int(item_id or 0)
@@ -478,11 +405,11 @@ class DropTrackerSender:
             try:
                 for mod in Item.Customization.Modifiers.GetModifiers(item_id):
                     raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 raw_mods = []
+            req_attr = 0
+            req_val = 0
             if raw_mods:
-                req_attr = 0
-                req_val = 0
                 for ident, arg1, arg2 in raw_mods:
                     if ident in (42920, 42120):  # Damage, Damage_NoReq
                         if int(arg2) > 0 and int(arg1) > 0:
@@ -501,7 +428,7 @@ class DropTrackerSender:
                     try:
                         from Py4GWCoreLib.enums import Attribute
                         attr_txt = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
-                    except Exception:
+                    except EXPECTED_RUNTIME_ERRORS:
                         attr_txt = ""
                     lines.append(f"Requires {req_val} {attr_txt}".rstrip())
 
@@ -511,7 +438,7 @@ class DropTrackerSender:
             try:
                 item_type_int, _ = Item.GetItemType(item_id)
                 item_type = ItemType(item_type_int) if ItemType is not None else None
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 item_type = None
 
             item_attr_txt_for_known = ""
@@ -519,7 +446,7 @@ class DropTrackerSender:
                 try:
                     from Py4GWCoreLib.enums import Attribute
                     item_attr_txt_for_known = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     item_attr_txt_for_known = ""
 
             if parse_modifiers is not None and item_type is not None:
@@ -572,7 +499,7 @@ class DropTrackerSender:
 
             lines = self._prune_generic_attribute_bonus_lines(lines)
             return "\n".join(lines)
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return ""
 
     def _reset_tracking_state(self, clear_outbox: bool = True):
@@ -612,7 +539,7 @@ class DropTrackerSender:
                     continue
                 if int(account.AgentPartyData.PartyPosition) == 0:
                     return account.AccountEmail
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return None
         return None
 
@@ -621,7 +548,7 @@ class DropTrackerSender:
             is_leader = int(Player.GetAgentID()) == int(Party.GetPartyLeaderID())
             self.last_known_is_leader = bool(is_leader)
             return bool(is_leader)
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             # Preserve last known role to avoid transient misrouting.
             return bool(getattr(self, "last_known_is_leader", False))
 
@@ -644,7 +571,7 @@ class DropTrackerSender:
             self.max_outbox_size = max(20, int(data.get("max_outbox_size", self.max_outbox_size)))
             self.retry_interval_seconds = max(0.2, float(data.get("retry_interval_seconds", self.retry_interval_seconds)))
             self.max_retry_attempts = max(1, int(data.get("max_retry_attempts", self.max_retry_attempts)))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return
 
     def _send_name_chunks(self, receiver_email: str, my_email: str, name_signature: str, full_name: str) -> bool:
@@ -668,7 +595,7 @@ class DropTrackerSender:
                 if sent_index == -1:
                     return False
             return True
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _send_stats_chunks(self, receiver_email: str, my_email: str, event_id: str, stats_text: str) -> bool:
@@ -694,7 +621,7 @@ class DropTrackerSender:
                 if sent_index == -1:
                     return False
             return True
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _send_drop(
@@ -759,7 +686,7 @@ class DropTrackerSender:
                     Py4GW.Console.MessageType.Info,
                 )
             return sent_index != -1
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _queue_drop(
@@ -839,7 +766,7 @@ class DropTrackerSender:
                 expected_custom_behavior_command = 997
                 try:
                     expected_custom_behavior_command = int(SharedCommandType.CustomBehaviors.value)
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     pass
                 if command_value != expected_custom_behavior_command and command_value != 997:
                     continue
@@ -858,7 +785,7 @@ class DropTrackerSender:
                 shmem.MarkMessageAsFinished(my_email, msg_idx)
             self.last_ack_count = acked_count
             return acked_count
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return 0
 
     def _flush_outbox(self) -> int:
@@ -988,7 +915,7 @@ class DropTrackerSender:
                         not_ready_count += 1
                         try:
                             Item.RequestName(item_id)
-                        except Exception:
+                        except EXPECTED_RUNTIME_ERRORS:
                             pass
 
                     clean_name = self._strip_tags(raw_name).strip() if raw_name else ""
@@ -1009,7 +936,7 @@ class DropTrackerSender:
 
             self.last_snapshot_ready = ready_count
             self.last_snapshot_not_ready = not_ready_count
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             if self.snapshot_error_timer.IsExpired():
                 self.snapshot_error_timer.Reset()
                 Py4GW.Console.Log(
@@ -1242,7 +1169,7 @@ class DropTrackerSender:
                                     item_instance = Item.item_instance(pending_item_id)
                                     if item_instance and getattr(item_instance, "rarity", None):
                                         resolved_rarity = item_instance.rarity.name
-                                except Exception:
+                                except EXPECTED_RUNTIME_ERRORS:
                                     pass
                             if Item.Type.IsTome(pending_item_id):
                                 resolved_rarity = "Tomes"
@@ -1265,7 +1192,7 @@ class DropTrackerSender:
                             continue
                     else:
                         Item.RequestName(pending_item_id)
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     pass
 
                 by_item_id = changed_itemid_to_ready_name.get(pending_item_id)
@@ -1434,5 +1361,6 @@ class DropTrackerSender:
                 self._process_inventory_deltas()
             if self.outbox_queue:
                 self._flush_outbox()
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return
+

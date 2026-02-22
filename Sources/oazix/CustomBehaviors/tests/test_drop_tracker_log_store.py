@@ -40,6 +40,22 @@ def test_parse_new_csv_format_with_event_fields():
     assert row.event_id == "85e699300008"
     assert row.item_id == 487
     assert "Value: 224 gold" in row.item_stats
+    assert row.sender_email == ""
+
+
+def test_parse_new_csv_format_with_sender_email():
+    csv_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity,EventID,ItemStats,ItemID,SenderEmail",
+            "2026-02-22 12:00:02,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,85e699300009,\"line\",488,mesmer@test",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.event_id == "85e699300009"
+    assert row.item_id == 488
+    assert row.sender_email == "mesmer@test"
 
 
 def test_append_and_parse_roundtrip():
