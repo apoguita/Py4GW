@@ -766,9 +766,12 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
     bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
     bot.Move.XY(-159, 9174)
     bot.States.AddCustomState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
-    #bot.UI.CancelSkillRewardWindow()
-    #bot.UI.CancelSkillRewardWindow()
+    bot.Wait.ForTime(3000)
+    bot.UI.CancelSkillRewardWindow()
+    bot.Wait.ForTime(3000)
+    bot.UI.CancelSkillRewardWindow()
     bot.Dialogs.AtXY(-92, 9217,  0x813D07) #Reward
+    bot.Wait.ForTime(3000)
     bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
     bot.Move.XYAndExitMap(-3762, 9471, target_map_name="Shing Jea Monastery")
 
