@@ -769,7 +769,9 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
     bot.Wait.ForTime(3000)
     bot.UI.CancelSkillRewardWindow()
     bot.Wait.ForTime(3000)
-    bot.UI.CancelSkillRewardWindow()
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary != "Mesmer":
+        bot.UI.CancelSkillRewardWindow()
     bot.Dialogs.AtXY(-92, 9217,  0x813D07) #Reward
     bot.Wait.ForTime(3000)
     bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
