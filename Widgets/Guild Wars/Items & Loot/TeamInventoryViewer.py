@@ -711,7 +711,7 @@ def get_mods_from_item(item):
 
     if result.suffix and isinstance(result.suffix, MatchedWeaponModInfo):
         suffix = result.suffix.weapon_mod.name
-    elif result.prefix and isinstance(result.suffix, MatchedRuneInfo):
+    elif result.suffix and isinstance(result.suffix, MatchedRuneInfo):
         suffix = result.suffix.rune.name
 
     return (prefix, suffix, inherent)

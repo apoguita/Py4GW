@@ -12,17 +12,59 @@ from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.ItemArray import ItemArray
 from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import IdentifyResponseScheduler
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import run_inventory_action
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import append_drop_log_rows
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import parse_drop_log_file
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_event_id
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_item_id
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_sender_email
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_item_stats
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import parse_runtime_row
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import set_runtime_row_item_id
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import set_runtime_row_item_stats
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import update_rows_item_stats_by_event_and_sender
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_stats_render import get_cached_rendered_stats
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_stats_render import prune_render_cache
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_stats_render import update_render_cache
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import build_tracker_drop_message
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_inventory_action_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_inventory_stats_request_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_inventory_stats_response_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_drop_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_name_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_stats_payload_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_stats_text_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import extract_event_id_hint
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import is_duplicate_event
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import mark_seen_event
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_name_chunk
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_stats_payload_chunk
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_stats_text_chunk
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import payload_has_valid_mods_json
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import default_ui_colors
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import draw_runtime_controls_panel
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
     build_name_chunks,
     encode_name_chunk_meta,
     decode_name_chunk_meta,
-    parse_drop_meta,
+)
+from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
+    build_spellcast_hct_hsr_lines,
+    prune_generic_attribute_bonus_lines,
+    render_mod_description_template,
+    sort_stats_lines_like_ingame,
 )
 from Py4GWCoreLib import * # Includes Map, Player
+
+IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
+EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
+
 try:
     from Py4GWCoreLib.enums_src.Item_enums import ItemType
     from Sources.marks_sources.mods_parser import ModDatabase, parse_modifiers, is_matching_item_type
-except Exception:
+except IMPORT_OPTIONAL_ERRORS:
     ItemType = None
     ModDatabase = None
     parse_modifiers = None
@@ -76,6 +118,7 @@ class DropViewerWindow:
         self.stats_chunk_buffers = {}
         self.stats_payload_by_event = {}
         self.stats_payload_chunk_buffers = {}
+        self.stats_render_cache_by_event = {}
         self.mod_db = self._load_mod_database()
         self.enable_chat_item_tracking = False
         self.max_shmem_messages_per_tick = 80
@@ -96,6 +139,7 @@ class DropViewerWindow:
         self.last_seen_map_id = 0
         self.map_change_ignore_until = 0.0
         self.perf_timer = ThrottledTimer(5000)
+        self.shmem_error_timer = ThrottledTimer(5000)
         self.config_poll_timer = ThrottledTimer(2000)
         self.runtime_config_path = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "drop_tracker_runtime_config.json")
         self.runtime_config = self._default_runtime_config()
@@ -124,6 +168,7 @@ class DropViewerWindow:
         self.auto_conset_legionnaire = True
         self.auto_conset_timer = ThrottledTimer(1500)
         self.conset_effect_id_cache = {}
+        self.identify_response_scheduler = IdentifyResponseScheduler()
         self.drop_viewer_assets_dir = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Assets", "DropViewer")
         self.conset_armor_icon = os.path.join(self.drop_viewer_assets_dir, "ArmorOfSalvation.jpg")
         self.conset_grail_icon = os.path.join(self.drop_viewer_assets_dir, "GrailOfMight.jpg")
@@ -230,19 +275,19 @@ class DropViewerWindow:
             pos = cfg.get("drop_viewer_handle_pos", None)
             if isinstance(pos, list) and len(pos) == 2:
                 self.saved_hover_handle_pos = (float(pos[0]), float(pos[1]))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             self.saved_hover_handle_pos = None
         try:
             pos = cfg.get("drop_viewer_window_pos", None)
             if isinstance(pos, list) and len(pos) == 2:
                 self.saved_viewer_window_pos = (float(pos[0]), float(pos[1]))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             self.saved_viewer_window_pos = None
         try:
             size = cfg.get("drop_viewer_window_size", None)
             if isinstance(size, list) and len(size) == 2:
                 self.saved_viewer_window_size = (float(size[0]), float(size[1]))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             self.saved_viewer_window_size = None
 
     def _persist_layout_value(self, key: str, value: tuple[float, float] | None):
@@ -254,7 +299,7 @@ class DropViewerWindow:
             try:
                 if abs(float(current[0]) - next_value[0]) < 0.5 and abs(float(current[1]) - next_value[1]) < 0.5:
                     return False
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 pass
         self.runtime_config[key] = next_value
         self.runtime_config_dirty = True
@@ -283,7 +328,7 @@ class DropViewerWindow:
                 self.runtime_config = cfg
             else:
                 self.runtime_config = self._default_runtime_config()
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             self.runtime_config = self._default_runtime_config()
         self._apply_runtime_config()
 
@@ -292,7 +337,7 @@ class DropViewerWindow:
             os.makedirs(os.path.dirname(self.runtime_config_path), exist_ok=True)
             with open(self.runtime_config_path, mode="w", encoding="utf-8") as f:
                 json.dump(self.runtime_config, f, indent=2)
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Runtime config save failed: {e}", Py4GW.Console.MessageType.Warning)
 
     def _sync_runtime_config_from_state(self):
@@ -341,7 +386,7 @@ class DropViewerWindow:
             if sent_index != -1:
                 self.last_ack_sent += 1
             return sent_index != -1
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _ensure_text(self, value: Any) -> str:
@@ -350,7 +395,7 @@ class DropViewerWindow:
         if isinstance(value, bytes):
             try:
                 return value.decode("utf-8", errors="ignore")
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 return ""
         return str(value)
 
@@ -369,12 +414,12 @@ class DropViewerWindow:
         try:
             sources_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             candidate_dirs.append(os.path.join(sources_root, "marks_sources", "mods_data"))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             pass
         try:
             project_root = PathLocator.get_project_root_directory()
             candidate_dirs.append(os.path.join(project_root, "Sources", "marks_sources", "mods_data"))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             pass
 
         seen = set()
@@ -387,7 +432,7 @@ class DropViewerWindow:
                 continue
             try:
                 return ModDatabase.load(data_dir)
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 continue
         return None
 
@@ -403,34 +448,21 @@ class DropViewerWindow:
         default_value: int = 0,
         attribute_name: str = "",
     ) -> list[str]:
-        desc = self._ensure_text(description).strip()
-        if not desc:
-            return []
+        def _resolve_attribute_name(attr_id: int) -> str:
+            try:
+                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
 
-        by_id = {}
-        for ident, arg1, arg2 in matched_modifiers:
-            by_id[int(ident)] = (int(arg1), int(arg2))
-
-        def _resolve(token: str, ident_text: str) -> int:
-            idx = 1 if token == "arg1" else 2
-            if ident_text:
-                pair = by_id.get(int(ident_text))
-                if pair:
-                    return int(pair[idx - 1])
-                return 0
-            for _ident, arg1, arg2 in matched_modifiers:
-                value = int(arg1) if idx == 1 else int(arg2)
-                if value != 0:
-                    return value
-            return int(default_value) if idx == 2 else 0
-
-        pattern = re.compile(r"\{(arg1|arg2)(?:\[(\d+)\])?\}")
-        rendered = pattern.sub(lambda m: str(_resolve(m.group(1), m.group(2) or "")), desc)
-        if attribute_name:
-            rendered = rendered.replace("item's attribute", attribute_name).replace("Item's attribute", attribute_name)
-        rendered = rendered.replace("(Chance: +", "(Chance: ")
-        rendered = rendered.replace("  ", " ").strip()
-        return [line.strip() for line in rendered.splitlines() if line.strip()]
+        return render_mod_description_template(
+            description=self._ensure_text(description),
+            matched_modifiers=list(matched_modifiers or []),
+            default_value=int(default_value),
+            attribute_name=self._ensure_text(attribute_name),
+            resolve_attribute_name_fn=_resolve_attribute_name,
+            format_attribute_name_fn=self._format_attribute_name,
+            unknown_attribute_template="Attribute {id}",
+        )
 
     def _match_mod_definition_against_raw(self, definition_modifiers, raw_mods) -> list[tuple[int, int, int]]:
         meaningful = []
@@ -480,16 +512,16 @@ class DropViewerWindow:
                 try:
                     if is_matching_item_type(item_type, target):
                         return True
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     continue
             item_mods = getattr(weapon_mod, "item_mods", {}) or {}
             for target in list(item_mods.keys()):
                 try:
                     if is_matching_item_type(item_type, target):
                         return True
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     continue
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
         return False
 
@@ -529,7 +561,7 @@ class DropViewerWindow:
                         prev = best_by_ident.get(ident, None)
                         if prev is None or score > int(prev.get("score", -999)):
                             best_by_ident[ident] = {"line": first_line, "score": score}
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return lines
         for ident in sorted(best_by_ident.keys()):
             line = self._ensure_text(best_by_ident[ident].get("line", "")).strip()
@@ -578,7 +610,7 @@ class DropViewerWindow:
                     prev = best_by_ident.get(ident, None)
                     if prev is None or score > int(prev.get("score", -999)):
                         best_by_ident[ident] = {"lines": list(candidate_lines), "score": score}
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return lines
         for ident in sorted(best_by_ident.keys()):
             for line in list(best_by_ident[ident].get("lines", []) or []):
@@ -587,24 +619,10 @@ class DropViewerWindow:
                     lines.append(txt)
         return lines
 
-    def _is_wand_or_staff_type(self, item_type) -> bool:
-        if item_type is None:
-            return False
-        try:
-            return item_type in (ItemType.Wand, ItemType.Staff, ItemType.SpellcastingWeapon)
-        except Exception:
-            pass
-        try:
-            item_type_int = int(item_type)
-            return item_type_int in (22, 26, 41)
-        except Exception:
-            return False
-
     def _build_known_spellcast_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
         lines = []
         attr_txt = self._ensure_text(item_attr_txt).strip()
         attr_phrase = f"{attr_txt} " if attr_txt else "item's attribute "
-        is_spellcasting_weapon = self._is_wand_or_staff_type(item_type)
         for ident, arg1, arg2 in list(raw_mods or []):
             ident_i = int(ident)
             arg1_i = int(arg1)
@@ -628,7 +646,7 @@ class DropViewerWindow:
                 attr_name = ""
                 try:
                     attr_name = self._format_attribute_name(getattr(Attribute(arg1_i), "name", ""))
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     attr_name = ""
                 if not attr_name:
                     attr_name = f"Attribute {arg1_i}"
@@ -685,64 +703,22 @@ class DropViewerWindow:
                     lines.append(f"Energy +{arg2_i} (while hexed)")
                 continue
 
-            chance = 0
-            if 5 <= arg1_i <= 25:
-                chance = arg1_i
-            elif 5 <= arg2_i <= 25:
-                chance = arg2_i
-            if ident_i == 8712:
-                if chance > 0:
-                    lines.append(f"Halves casting time of spells (Chance: {chance}%)")
-                else:
-                    lines.append(f"Halves casting time of spells (raw: arg1={arg1_i}, arg2={arg2_i})")
-            elif ident_i == 8728:
-                if not is_spellcasting_weapon:
-                    continue
-                attr_from_mod = ""
-                if arg2_i > 0:
-                    try:
-                        attr_from_mod = self._format_attribute_name(getattr(Attribute(arg2_i), "name", ""))
-                    except Exception:
-                        attr_from_mod = ""
-                if chance > 0:
-                    if attr_from_mod:
-                        lines.append(f"Halves casting time of {attr_from_mod} spells (Chance: {chance}%)")
-                    else:
-                        lines.append(f"Halves casting time of {attr_phrase}spells (Chance: {chance}%)")
-                else:
-                    if attr_from_mod:
-                        lines.append(f"Halves casting time of {attr_from_mod} spells (raw: arg1={arg1_i}, arg2={arg2_i})")
-                    else:
-                        lines.append(f"Halves casting time of {attr_phrase}spells (raw: arg1={arg1_i}, arg2={arg2_i})")
-            elif ident_i in (9128, 9112):
-                if ident_i == 9112 and not is_spellcasting_weapon:
-                    continue
-                attr_from_mod = ""
-                if ident_i == 9112 and arg2_i > 0:
-                    try:
-                        attr_from_mod = self._format_attribute_name(getattr(Attribute(arg2_i), "name", ""))
-                    except Exception:
-                        attr_from_mod = ""
-                if chance > 0:
-                    if attr_from_mod:
-                        lines.append(f"Halves skill recharge of {attr_from_mod} spells (Chance: {chance}%)")
-                    else:
-                        lines.append(f"Halves skill recharge of spells (Chance: {chance}%)")
-                else:
-                    if attr_from_mod:
-                        lines.append(f"Halves skill recharge of {attr_from_mod} spells (raw: arg1={arg1_i}, arg2={arg2_i})")
-                    else:
-                        lines.append(f"Halves skill recharge of spells (raw: arg1={arg1_i}, arg2={arg2_i})")
-            elif ident_i == 10248:
-                if chance > 0:
-                    lines.append(f"Halves casting time of {attr_phrase}spells (Chance: {chance}%)")
-                else:
-                    lines.append(f"Halves casting time of {attr_phrase}spells (raw: arg1={arg1_i}, arg2={arg2_i})")
-            elif ident_i == 10280:
-                if chance > 0:
-                    lines.append(f"Halves skill recharge of {attr_phrase}spells (Chance: {chance}%)")
-                else:
-                    lines.append(f"Halves skill recharge of {attr_phrase}spells (raw: arg1={arg1_i}, arg2={arg2_i})")
+        def _resolve_attribute_name(attr_id: int) -> str:
+            try:
+                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        lines.extend(
+            build_spellcast_hct_hsr_lines(
+                raw_mods,
+                item_attr_txt=self._ensure_text(item_attr_txt),
+                item_type=item_type,
+                resolve_attribute_name_fn=_resolve_attribute_name,
+                include_raw_when_no_chance=True,
+                use_range_chance=True,
+            )
+        )
         return lines
 
     def _normalize_item_name(self, name: Any) -> str:
@@ -809,7 +785,7 @@ class DropViewerWindow:
                 writer = csv.writer(f)
                 writer.writerow(["Timestamp", "ViewerBot", "MapID", "MapName", "Player", "ItemName", "Quantity", "Rarity"])
             self.last_read_time = os.path.getmtime(self.log_path)
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Failed to reset live log file: {e}", Py4GW.Console.MessageType.Warning)
 
     def _reset_live_session(self):
@@ -823,6 +799,8 @@ class DropViewerWindow:
         self.stats_chunk_buffers = {}
         self.stats_payload_by_event = {}
         self.stats_payload_chunk_buffers = {}
+        self.stats_render_cache_by_event = {}
+        self.identify_response_scheduler.clear()
         self._reset_live_log_file()
 
     def load_drops(self):
@@ -841,7 +819,7 @@ class DropViewerWindow:
             
             self._parse_log_file(self.log_path)
             
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             self.set_status(f"Error reading log: {e}")
 
     def _parse_log_file(self, filepath):
@@ -849,64 +827,24 @@ class DropViewerWindow:
         temp_agg = {}
         total = 0
         temp_stats_by_event = {}
-        
-        with open(filepath, mode='r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            header = next(reader, None) # Skip header
-            
-            has_map_name = bool(header and "MapName" in header)
-            has_event_id = bool(header and "EventID" in header)
-            has_item_stats = bool(header and "ItemStats" in header)
-            has_item_id = bool(header and "ItemID" in header)
-            event_idx = header.index("EventID") if has_event_id else -1
-            stats_idx = header.index("ItemStats") if has_item_stats else -1
-            item_id_idx = header.index("ItemID") if has_item_id else -1
+        parsed_rows = parse_drop_log_file(filepath, map_name_resolver=Map.GetMapName)
+        for parsed in parsed_rows:
+            row = parsed.to_runtime_row()
+            temp_drops.append(row)
+            total += int(parsed.quantity)
+            if parsed.event_id:
+                sender_email = self._ensure_text(parsed.sender_email).strip().lower()
+                stats_cache_key = self._make_stats_cache_key(parsed.event_id, sender_email, parsed.player_name)
+                if stats_cache_key:
+                    temp_stats_by_event[stats_cache_key] = parsed.item_stats
 
-            for row in reader:
-                # Basic validation
-                if len(row) < 7: continue 
-                
-                if has_map_name:
-                    # New Format
-                    timestamp, bot, map_id, map_name, player, item_name, quantity_str, rarity = row[:8]
-                else:
-                    # Old Format
-                    timestamp, bot, map_id, player, item_name, quantity_str, rarity = row[:7]
-                    map_name = "Unknown"
-                    try:
-                         mid = int(map_id)
-                         map_name = Map.GetMapName(mid)
-                    except: pass
-                    
-                    row.insert(3, map_name) # Insert MapName at index 3
-                
-                quantity = 1
-                try: quantity = int(quantity_str)
-                except: pass
+            canonical_name = self._canonical_agg_item_name(parsed.item_name, parsed.rarity, temp_agg)
+            key = (canonical_name, parsed.rarity)
+            if key not in temp_agg:
+                temp_agg[key] = {"Quantity": 0, "Count": 0}
 
-                event_id = ""
-                item_stats = ""
-                if has_event_id and event_idx >= 0 and len(row) > event_idx:
-                    event_id = self._ensure_text(row[event_idx]).strip()
-                if has_item_stats and stats_idx >= 0 and len(row) > stats_idx:
-                    item_stats = self._ensure_text(row[stats_idx]).strip()
-                item_id = 0
-                if has_item_id and item_id_idx >= 0 and len(row) > item_id_idx:
-                    item_id = max(0, self._safe_int(row[item_id_idx], 0))
-                if event_id:
-                    temp_stats_by_event[event_id] = item_stats
-                row = row[:8] + [event_id, item_stats, str(item_id)]
-                
-                temp_drops.append(row)
-                total += quantity
-                
-                canonical_name = self._canonical_agg_item_name(item_name, rarity, temp_agg)
-                key = (canonical_name, rarity)
-                if key not in temp_agg:
-                    temp_agg[key] = {"Quantity": 0, "Count": 0}
-                
-                temp_agg[key]["Quantity"] += quantity
-                temp_agg[key]["Count"] += 1
+            temp_agg[key]["Quantity"] += int(parsed.quantity)
+            temp_agg[key]["Count"] += 1
                 
         self.raw_drops = temp_drops
         self.aggregated_drops = temp_agg
@@ -920,21 +858,31 @@ class DropViewerWindow:
     def _safe_int(self, value, default=0):
         try:
             return int(value)
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return default
+
+    def _parse_drop_row(self, row: Any) -> DropLogRow | None:
+        return parse_runtime_row(row)
+
+    def _set_row_item_stats(self, row: Any, item_stats: str) -> None:
+        set_runtime_row_item_stats(row, self._ensure_text(item_stats).strip())
+
+    def _set_row_item_id(self, row: Any, item_id: int) -> None:
+        set_runtime_row_item_id(row, int(item_id))
 
     def _is_rare_rarity(self, rarity):
         return rarity == "Gold"
 
     def _passes_filters(self, row):
-        if len(row) < 8:
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
             return False
 
-        player_name = self._ensure_text(row[4])
-        item_name = self._ensure_text(row[5])
-        qty = self._safe_int(row[6], 1)
-        rarity = self._ensure_text(row[7]).strip() or "Unknown"
-        map_name = self._ensure_text(row[3])
+        player_name = self._ensure_text(parsed.player_name)
+        item_name = self._ensure_text(parsed.item_name)
+        qty = int(parsed.quantity)
+        rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+        map_name = self._ensure_text(parsed.map_name)
 
         if qty < max(1, int(self.min_qty)):
             return False
@@ -970,19 +918,21 @@ class DropViewerWindow:
         return [row for row in self.raw_drops if self._passes_filters(row)]
 
     def _is_gold_row(self, row):
-        if len(row) < 6:
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
             return False
-        return self._clean_item_name(row[5]) == "Gold"
+        return self._clean_item_name(parsed.item_name) == "Gold"
 
     def _get_filtered_aggregated(self, filtered_rows):
         agg = {}
         total_qty = 0
         for row in filtered_rows:
-            if len(row) < 8:
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
                 continue
-            item_name = row[5]
-            rarity = row[7]
-            qty = self._safe_int(row[6], 1)
+            item_name = parsed.item_name
+            rarity = parsed.rarity
+            qty = int(parsed.quantity)
             total_qty += qty
             canonical_name = self._canonical_agg_item_name(item_name, rarity, agg)
             key = (canonical_name, rarity)
@@ -993,34 +943,70 @@ class DropViewerWindow:
         return agg, total_qty
 
     def _extract_row_event_id(self, row) -> str:
-        if not isinstance(row, list) or len(row) <= 8:
-            return ""
-        return self._ensure_text(row[8]).strip()
+        return self._ensure_text(extract_runtime_row_event_id(row)).strip()
 
     def _extract_row_item_stats(self, row) -> str:
-        if not isinstance(row, list) or len(row) <= 9:
-            return ""
-        return self._ensure_text(row[9]).strip()
+        return self._ensure_text(extract_runtime_row_item_stats(row)).strip()
 
     def _extract_row_item_id(self, row) -> int:
-        if not isinstance(row, list) or len(row) <= 10:
-            return 0
-        return max(0, self._safe_int(row[10], 0))
+        return max(0, int(extract_runtime_row_item_id(row)))
+
+    def _extract_row_sender_email(self, row) -> str:
+        return self._ensure_text(extract_runtime_row_sender_email(row)).strip().lower()
+
+    def _make_sender_identifier(self, sender_email: str = "", player_name: str = "") -> str:
+        sender_key = self._ensure_text(sender_email).strip().lower()
+        if sender_key:
+            return f"email:{sender_key}"
+        player_key = self._ensure_text(player_name).strip().lower()
+        if player_key:
+            return f"player:{player_key}"
+        return "unknown"
+
+    def _make_stats_cache_key(self, event_id: str, sender_email: str = "", player_name: str = "") -> str:
+        event_key = self._ensure_text(event_id).strip()
+        if not event_key:
+            return ""
+        sender_ident = self._make_sender_identifier(sender_email, player_name)
+        return f"{sender_ident}:{event_key}"
+
+    def _resolve_sender_name_from_email(self, sender_email: str) -> str:
+        sender_name = ""
+        try:
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            sender_account = shmem.GetAccountDataFromEmail(sender_email) if shmem is not None else None
+            if sender_account:
+                sender_name = sender_account.AgentData.CharacterName
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return sender_name
+
+    def _resolve_stats_cache_key_for_row(self, row) -> str:
+        event_id = self._extract_row_event_id(row)
+        if not event_id:
+            return ""
+        parsed = self._parse_drop_row(row)
+        player_name = self._ensure_text(parsed.player_name).strip() if parsed else ""
+        sender_email = self._extract_row_sender_email(row)
+        return self._make_stats_cache_key(event_id, sender_email, player_name)
+
+    def _get_cached_stats_text(self, cache: dict[str, str], event_key: str) -> str:
+        lookup_key = self._ensure_text(event_key).strip()
+        if not lookup_key:
+            return ""
+        return self._ensure_text(cache.get(lookup_key, "")).strip()
 
     def _resolve_live_item_id_for_row(self, row, prefer_unidentified: bool = False) -> int:
-        target_name = ""
-        target_rarity = "Unknown"
-        if isinstance(row, list):
-            if len(row) > 5:
-                target_name = self._clean_item_name(row[5])
-            if len(row) > 7:
-                target_rarity = self._ensure_text(row[7]).strip() or "Unknown"
-        recorded_item_id = self._extract_row_item_id(row)
+        parsed = self._parse_drop_row(row)
+        target_name = self._clean_item_name(parsed.item_name) if parsed else ""
+        target_rarity = self._ensure_text(parsed.rarity).strip() if parsed else ""
+        target_rarity = target_rarity or "Unknown"
+        recorded_item_id = max(0, int(parsed.item_id)) if parsed else 0
 
         try:
             bags = ItemArray.CreateBagList(1, 2, 3, 4)
             item_ids = list(ItemArray.GetItemArray(bags) or [])
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             item_ids = []
 
         if not item_ids:
@@ -1038,12 +1024,12 @@ class DropViewerWindow:
                 if not Item.IsNameReady(inv_item_id):
                     Item.RequestName(inv_item_id)
                     continue
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 continue
 
             try:
                 inv_name = self._clean_item_name(Item.GetName(inv_item_id))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 inv_name = ""
             if target_name and inv_name and not self._item_names_match(target_name, inv_name):
                 continue
@@ -1051,7 +1037,7 @@ class DropViewerWindow:
             inv_rarity = "Unknown"
             try:
                 inv_rarity = self._ensure_text(Item.Rarity.GetRarity(inv_item_id)[1]).strip() or "Unknown"
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 inv_rarity = "Unknown"
             if target_rarity != "Unknown" and inv_rarity != target_rarity:
                 # Keep as fallback when only rarity differs due transient name/rarity resolution.
@@ -1063,7 +1049,7 @@ class DropViewerWindow:
                 best_any = inv_item_id
             try:
                 is_identified = bool(Item.Usage.IsIdentified(inv_item_id))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 is_identified = False
             if not is_identified and best_unidentified <= 0:
                 best_unidentified = inv_item_id
@@ -1083,7 +1069,7 @@ class DropViewerWindow:
         try:
             bags = ItemArray.CreateBagList(1, 2, 3, 4)
             item_ids = list(ItemArray.GetItemArray(bags) or [])
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             item_ids = []
         if not item_ids:
             return 0
@@ -1096,7 +1082,7 @@ class DropViewerWindow:
                     Item.RequestName(inv_item_id)
                     continue
                 inv_name = self._clean_item_name(Item.GetName(inv_item_id))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 continue
             if not self._item_names_match(target_name, inv_name):
                 continue
@@ -1107,7 +1093,7 @@ class DropViewerWindow:
                     if bool(Item.Usage.IsIdentified(inv_item_id)):
                         best_identified = inv_item_id
                         break
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     pass
         if prefer_identified and best_identified > 0:
             return int(best_identified)
@@ -1139,7 +1125,7 @@ class DropViewerWindow:
                 if my_map_id > 0 and int(getattr(account.AgentData.Map, "MapID", 0)) != my_map_id:
                     continue
                 return account_email
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return ""
         return ""
 
@@ -1164,7 +1150,7 @@ class DropViewerWindow:
                 ),
             )
             return sent_index != -1
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _send_tracker_stats_chunks_to_email(self, receiver_email: str, event_id: str, item_stats: str, tag: str = "TrackerStatsV1") -> bool:
@@ -1195,7 +1181,7 @@ class DropViewerWindow:
                 if sent_index == -1:
                     return False
             return True
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _send_tracker_stats_payload_chunks_to_email(self, receiver_email: str, event_id: str, payload_text: str) -> bool:
@@ -1219,7 +1205,7 @@ class DropViewerWindow:
                     clean_name = self._clean_item_name(Item.GetName(item_id))
                 else:
                     Item.RequestName(item_id)
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 clean_name = ""
             if not clean_name:
                 clean_name = self._clean_item_name(item_name)
@@ -1227,23 +1213,29 @@ class DropViewerWindow:
 
             try:
                 snapshot["value"] = max(0, self._safe_int(Item.Properties.GetValue(item_id), 0))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 snapshot["value"] = 0
             try:
                 snapshot["model_id"] = max(0, self._safe_int(Item.GetModelID(item_id), 0))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 snapshot["model_id"] = 0
             try:
                 item_type_int, _ = Item.GetItemType(item_id)
                 snapshot["item_type"] = max(0, self._safe_int(item_type_int, 0))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 snapshot["item_type"] = 0
+                try:
+                    item_instance = Item.item_instance(item_id)
+                    if item_instance and getattr(item_instance, "item_type", None):
+                        snapshot["item_type"] = max(0, self._safe_int(item_instance.item_type.ToInt(), 0))
+                except EXPECTED_RUNTIME_ERRORS:
+                    snapshot["item_type"] = 0
 
             raw_mods = []
             for mod in Item.Customization.Modifiers.GetModifiers(item_id):
                 raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
             snapshot["raw_mods"] = raw_mods
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return {}
         return snapshot
 
@@ -1264,7 +1256,7 @@ class DropViewerWindow:
                 ],
             }
             return json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return ""
 
     def _build_item_stats_from_snapshot(self, snapshot: dict[str, Any]) -> str:
@@ -1308,7 +1300,7 @@ class DropViewerWindow:
                 attr_txt = ""
                 try:
                     attr_txt = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     attr_txt = ""
                 lines.append(f"Requires {req_val} {attr_txt}".rstrip())
 
@@ -1317,14 +1309,14 @@ class DropViewerWindow:
             if ItemType is not None:
                 try:
                     item_type = ItemType(item_type_int)
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     item_type = None
 
             item_attr_txt_for_known = ""
             if req_val > 0:
                 try:
                     item_attr_txt_for_known = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     item_attr_txt_for_known = ""
 
             parsed_any_mod_line = False
@@ -1362,13 +1354,14 @@ class DropViewerWindow:
                             if rendered_lines:
                                 lines.extend(rendered_lines)
                                 parsed_any_mod_line = True
-                    except Exception:
+                    except EXPECTED_RUNTIME_ERRORS:
                         pass
-                # Avoid duplicate lines: only use broad fallback when parser produced no concrete mod lines.
-                if not parsed_any_mod_line:
-                    lines.extend(self._collect_fallback_mod_lines(raw_mods, parser_attr_txt, item_type))
-                # Always include rune/insignia fallback from raw ids for armor/unknown type paths.
-                lines.extend(self._collect_fallback_rune_lines(raw_mods, parser_attr_txt))
+                # Broad fallback matching is only trustworthy when item type is known.
+                # With unknown type (common on remote payloads), it can produce false rune/mod lines.
+                if item_type is not None:
+                    if not parsed_any_mod_line:
+                        lines.extend(self._collect_fallback_mod_lines(raw_mods, parser_attr_txt, item_type))
+                    lines.extend(self._collect_fallback_rune_lines(raw_mods, parser_attr_txt))
 
             if not parsed_any_mod_line:
                 name_mod_lines = self._extract_mod_lines_from_item_name(snapshot.get("name", ""))
@@ -1400,7 +1393,7 @@ class DropViewerWindow:
                     normalized_lines.append(txt)
 
             return self._normalize_stats_text("\n".join(normalized_lines))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return ""
 
     def _normalize_stats_text(self, stats_text: Any) -> str:
@@ -1442,25 +1435,8 @@ class DropViewerWindow:
                 continue
             seen.add(key)
             canonical.append(l)
-        detailed_bonus_re = re.compile(r"^([A-Za-z][A-Za-z ]+)\s*\+\s*(\d+)\s*\((\d+)% chance while using skills\)$", re.IGNORECASE)
-        generic_bonus_re = re.compile(r"^(?:Attribute\s+\d+|\d+)\s*\+\s*(\d+)\s*\((\d+)% chance while using skills\)$", re.IGNORECASE)
-        detailed_pairs = set()
-        for line in canonical:
-            m = detailed_bonus_re.match(line)
-            if not m:
-                continue
-            attr_text = self._ensure_text(m.group(1)).strip().lower()
-            if not attr_text or attr_text.startswith("attribute "):
-                continue
-            detailed_pairs.add((m.group(2), m.group(3)))
-
-        filtered = []
-        for line in canonical:
-            m = generic_bonus_re.match(line)
-            if m and (m.group(1), m.group(2)) in detailed_pairs:
-                continue
-            filtered.append(line)
-        canonical = filtered
+        canonical = prune_generic_attribute_bonus_lines(canonical)
+        canonical = sort_stats_lines_like_ingame(canonical)
         return "\n".join(canonical)
 
     def _build_item_stats_from_payload_text(self, payload_text: str, fallback_item_name: str = "") -> str:
@@ -1471,7 +1447,7 @@ class DropViewerWindow:
             payload = json.loads(payload_raw)
             if not isinstance(payload, dict):
                 return ""
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return ""
         snapshot = {
             "name": self._clean_item_name(payload.get("n", "")) or self._clean_item_name(fallback_item_name),
@@ -1482,10 +1458,57 @@ class DropViewerWindow:
         }
         return self._build_item_stats_from_snapshot(snapshot)
 
-    def _request_remote_stats_for_row(self, row):
-        if not isinstance(row, list) or len(row) < 11:
+    def _clear_event_stats_cache(self, event_id: str, sender_email: str = "", player_name: str = "", clear_all_matching: bool = False):
+        event_id_key = self._ensure_text(event_id).strip()
+        if not event_id_key:
             return
-        target_player = self._ensure_text(row[4]).strip()
+        scoped_key = self._make_stats_cache_key(event_id_key, sender_email, player_name)
+        clear_keys = {scoped_key} if scoped_key else set()
+        if clear_all_matching:
+            suffix = f":{event_id_key}".lower()
+            cache_maps = (
+                self.stats_by_event,
+                self.stats_payload_by_event,
+                self.stats_chunk_buffers,
+                self.stats_payload_chunk_buffers,
+                self.stats_render_cache_by_event,
+                self.remote_stats_request_last_by_event,
+                self.remote_stats_pending_by_event,
+            )
+            for cache_map in cache_maps:
+                for key in list(cache_map.keys()):
+                    key_text = self._ensure_text(key).strip().lower()
+                    if key_text.endswith(suffix):
+                        clear_keys.add(self._ensure_text(key).strip())
+        for event_key in clear_keys:
+            self.stats_by_event.pop(event_key, None)
+            self.stats_payload_by_event.pop(event_key, None)
+            self.stats_chunk_buffers.pop(event_key, None)
+            self.stats_payload_chunk_buffers.pop(event_key, None)
+            self.stats_render_cache_by_event.pop(event_key, None)
+            self.remote_stats_request_last_by_event.pop(event_key, None)
+            self.remote_stats_pending_by_event.pop(event_key, None)
+
+    def _render_payload_stats_cached(self, cache_key: str, payload_text: str, fallback_item_name: str = "") -> str:
+        event_key = self._ensure_text(cache_key).strip()
+        payload_raw = self._ensure_text(payload_text).strip()
+        if not event_key or not payload_raw:
+            return ""
+        cached_rendered = get_cached_rendered_stats(self.stats_render_cache_by_event, event_key, payload_raw)
+        if cached_rendered:
+            cached = self.stats_render_cache_by_event.get(event_key, None)
+            if isinstance(cached, dict):
+                cached["updated_at"] = time.time()
+            return cached_rendered
+        rendered = self._build_item_stats_from_payload_text(payload_raw, fallback_item_name).strip()
+        update_render_cache(self.stats_render_cache_by_event, event_key, payload_raw, rendered, time.time())
+        return rendered
+
+    def _request_remote_stats_for_row(self, row):
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
+            return
+        target_player = self._ensure_text(parsed.player_name).strip()
         if not target_player:
             return
         my_name = self._ensure_text(Player.GetName()).strip()
@@ -1493,16 +1516,17 @@ class DropViewerWindow:
             return
         event_id = self._extract_row_event_id(row)
         item_id = self._extract_row_item_id(row)
-        item_name = self._clean_item_name(row[5]) if len(row) > 5 else ""
+        item_name = self._clean_item_name(parsed.item_name)
         if not event_id:
             return
-        if self._ensure_text(self.stats_payload_by_event.get(event_id, "")).strip():
+        event_cache_key = self._resolve_stats_cache_key_for_row(row)
+        if self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key):
             return
         now_ts = time.time()
-        pending_ts = float(self.remote_stats_pending_by_event.get(event_id, 0.0))
+        pending_ts = float(self.remote_stats_pending_by_event.get(event_cache_key, 0.0))
         if pending_ts > 0 and (now_ts - pending_ts) < 8.0:
             return
-        last_ts = float(self.remote_stats_request_last_by_event.get(event_id, 0.0))
+        last_ts = float(self.remote_stats_request_last_by_event.get(event_cache_key, 0.0))
         if (now_ts - last_ts) < 1.5:
             return
         target_email = self._resolve_account_email_by_character_name(target_player)
@@ -1511,12 +1535,12 @@ class DropViewerWindow:
         sent = False
         if item_id > 0:
             sent = self._send_inventory_action_to_email(target_email, "push_item_stats", str(item_id), event_id)
-        elif item_name:
+        if (not sent) and item_name:
             sent_by_name = self._send_inventory_action_to_email(target_email, "push_item_stats_name", item_name[:31], event_id)
             sent = sent or sent_by_name
         if sent:
-            self.remote_stats_request_last_by_event[event_id] = now_ts
-            self.remote_stats_pending_by_event[event_id] = now_ts
+            self.remote_stats_request_last_by_event[event_cache_key] = now_ts
+            self.remote_stats_pending_by_event[event_cache_key] = now_ts
             if self.verbose_shmem_item_logs:
                 Py4GW.Console.Log(
                     "DropViewer",
@@ -1539,20 +1563,21 @@ class DropViewerWindow:
             return True
         lower_lines = [line.lower() for line in lines]
         detail_markers = (
-            "damage:",
-            "armor:",
-            "requires ",
             "rune",
             "insignia",
             "halves ",
-            "energy ",
-            "improved sale value",
             "reduces ",
+            "lengthens ",
+            "increases ",
             "while ",
+            "chance while using skills",
             "(chance:",
+            "improved sale value",
         )
         for line in lower_lines:
             if any(marker in line for marker in detail_markers):
+                return False
+            if re.match(r"^[a-z][a-z ']+\s*\+\s*\d+\s*\(\d+% chance while using skills\)$", line):
                 return False
         # Name-only or name + value rows are considered basic.
         if len(lines) <= 2:
@@ -1561,7 +1586,8 @@ class DropViewerWindow:
         return True
 
     def _identify_item_from_row(self, row) -> bool:
-        target_player = self._ensure_text(row[4]).strip() if isinstance(row, list) and len(row) > 4 else ""
+        parsed = self._parse_drop_row(row)
+        target_player = self._ensure_text(parsed.player_name).strip() if parsed else ""
         my_name = self._ensure_text(Player.GetName()).strip()
         event_id = self._extract_row_event_id(row)
         if target_player and my_name and target_player.lower() != my_name.lower():
@@ -1575,16 +1601,11 @@ class DropViewerWindow:
                 return False
             if self._send_inventory_action_to_email(target_email, "id_item_id", str(remote_item_id), event_id):
                 if event_id:
-                    self.stats_by_event.pop(event_id, None)
-                    self.stats_payload_by_event.pop(event_id, None)
-                    self.stats_chunk_buffers.pop(event_id, None)
-                    self.stats_payload_chunk_buffers.pop(event_id, None)
-                    self.remote_stats_pending_by_event.pop(event_id, None)
-                    if isinstance(row, list) and len(row) > 9:
-                        row[9] = ""
-                    if self.selected_log_row and isinstance(self.selected_log_row, list) and len(self.selected_log_row) > 10:
-                        if self._ensure_text(self.selected_log_row[8]).strip() == event_id:
-                            self.selected_log_row[9] = ""
+                    self._clear_event_stats_cache(event_id, target_email, target_player)
+                    self._set_row_item_stats(row, "")
+                    if self.selected_log_row and isinstance(self.selected_log_row, list):
+                        if self._extract_row_event_id(self.selected_log_row) == event_id:
+                            self._set_row_item_stats(self.selected_log_row, "")
                 self.set_status(f"Identify request sent to {target_player}")
                 return True
             self.set_status(f"Identify failed: could not send request to {target_player}")
@@ -1594,18 +1615,17 @@ class DropViewerWindow:
         if item_id <= 0:
             self.set_status("Identify failed: live item not found in inventory")
             return False
-        if isinstance(row, list) and len(row) > 10:
-            row[10] = str(item_id)
+        self._set_row_item_id(row, item_id)
         try:
             if Item.Usage.IsIdentified(item_id):
                 self.set_status("Item already identified")
                 return False
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             pass
         kit_id = 0
         try:
             kit_id = int(GLOBAL_CACHE.Inventory.GetFirstIDKit())
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             kit_id = 0
         if kit_id <= 0:
             self.set_status("Identify failed: no ID kit found")
@@ -1616,25 +1636,24 @@ class DropViewerWindow:
                 self.set_status("Identify failed: API rejected request")
                 return False
             if event_id:
-                self.stats_by_event.pop(event_id, None)
-                self.stats_payload_by_event.pop(event_id, None)
-                self.stats_chunk_buffers.pop(event_id, None)
-                self.stats_payload_chunk_buffers.pop(event_id, None)
-                self.remote_stats_pending_by_event.pop(event_id, None)
-                if isinstance(row, list) and len(row) > 9:
-                    row[9] = ""
-                if self.selected_log_row and isinstance(self.selected_log_row, list) and len(self.selected_log_row) > 10:
-                    if self._ensure_text(self.selected_log_row[8]).strip() == event_id:
-                        self.selected_log_row[9] = ""
+                row_sender_email = self._extract_row_sender_email(row)
+                row_player_name = self._ensure_text(parsed.player_name).strip() if parsed else ""
+                self._clear_event_stats_cache(event_id, row_sender_email, row_player_name)
+                self._set_row_item_stats(row, "")
+                if self.selected_log_row and isinstance(self.selected_log_row, list):
+                    if self._extract_row_event_id(self.selected_log_row) == event_id:
+                        self._set_row_item_stats(self.selected_log_row, "")
             self.set_status("Identify queued for selected item")
             return True
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             self.set_status(f"Identify failed: {e}")
             return False
 
     def _get_row_stats_text(self, row) -> str:
         event_id = self._extract_row_event_id(row)
-        row_player = self._ensure_text(row[4]).strip() if isinstance(row, list) and len(row) > 4 else ""
+        event_cache_key = self._resolve_stats_cache_key_for_row(row)
+        parsed = self._parse_drop_row(row)
+        row_player = self._ensure_text(parsed.player_name).strip() if parsed else ""
         my_player = self._ensure_text(Player.GetName()).strip()
         is_local_row = bool(row_player and my_player and row_player.lower() == my_player.lower())
 
@@ -1643,52 +1662,48 @@ class DropViewerWindow:
         if is_local_row:
             live_item_id = self._resolve_live_item_id_for_row(row, prefer_unidentified=False)
             if live_item_id > 0:
-                if isinstance(row, list) and len(row) > 10:
-                    row[10] = str(live_item_id)
+                self._set_row_item_id(row, live_item_id)
                 live_text = self._build_item_stats_from_live_item(
                     live_item_id,
                     "",
                 ).strip()
                 if live_text:
                     # Prefer local live item data so stats update after identification.
-                    if isinstance(row, list) and len(row) > 9:
-                        row[9] = live_text
-                    if event_id:
-                        self.stats_by_event[event_id] = live_text
-                    if self.selected_log_row and isinstance(self.selected_log_row, list) and len(self.selected_log_row) > 10:
-                        selected_event_id = self._ensure_text(self.selected_log_row[8]).strip()
+                    self._set_row_item_stats(row, live_text)
+                    if event_cache_key:
+                        self.stats_by_event[event_cache_key] = live_text
+                    if self.selected_log_row and isinstance(self.selected_log_row, list):
+                        selected_event_id = self._extract_row_event_id(self.selected_log_row)
                         if selected_event_id and selected_event_id == event_id:
-                            self.selected_log_row[9] = live_text
+                            self._set_row_item_stats(self.selected_log_row, live_text)
                     return live_text
-        payload_text = self._ensure_text(self.stats_payload_by_event.get(event_id, "")).strip() if event_id else ""
-        if event_id and payload_text:
-            rendered = self._build_item_stats_from_payload_text(
+        payload_text = self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key)
+        if event_cache_key and payload_text:
+            rendered = self._render_payload_stats_cached(
+                event_cache_key,
                 payload_text,
-                self._ensure_text(row[5]) if isinstance(row, list) and len(row) > 5 else "",
+                self._ensure_text(parsed.item_name) if parsed else "",
             ).strip()
             if rendered:
-                if isinstance(row, list) and len(row) > 9:
-                    row[9] = rendered
-                self.stats_by_event[event_id] = rendered
+                self._set_row_item_stats(row, rendered)
+                self.stats_by_event[event_cache_key] = rendered
                 return rendered
 
         text = self._extract_row_item_stats(row)
         if text:
             normalized_text = self._normalize_stats_text(text)
-            if isinstance(row, list) and len(row) > 9:
-                row[9] = normalized_text
-            if event_id:
-                self.stats_by_event[event_id] = normalized_text
+            self._set_row_item_stats(row, normalized_text)
+            if event_cache_key:
+                self.stats_by_event[event_cache_key] = normalized_text
             if not is_local_row and (
                 (not payload_text) and self._stats_text_is_basic(normalized_text)
             ):
                 self._request_remote_stats_for_row(row)
             return normalized_text
-        if event_id:
-            cached_text = self._normalize_stats_text(self._ensure_text(self.stats_by_event.get(event_id, "")).strip())
+        if event_cache_key:
+            cached_text = self._normalize_stats_text(self._get_cached_stats_text(self.stats_by_event, event_cache_key))
             if cached_text:
-                if isinstance(row, list) and len(row) > 9:
-                    row[9] = cached_text
+                self._set_row_item_stats(row, cached_text)
                 return cached_text
             if not is_local_row:
                 self._request_remote_stats_for_row(row)
@@ -1697,20 +1712,22 @@ class DropViewerWindow:
 
     def _build_selected_row_debug_lines(self, row) -> list[str]:
         lines = []
-        if not isinstance(row, list) or len(row) < 11:
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
             return lines
         event_id = self._extract_row_event_id(row)
         item_id = self._extract_row_item_id(row)
-        row_player = self._ensure_text(row[4]).strip()
-        row_name = self._clean_item_name(row[5]) if len(row) > 5 else ""
+        row_player = self._ensure_text(parsed.player_name).strip()
+        row_name = self._clean_item_name(parsed.item_name)
         my_player = self._ensure_text(Player.GetName()).strip()
         is_local_row = bool(row_player and my_player and row_player.lower() == my_player.lower())
         lines.append(f"event_id={event_id or '-'}")
         lines.append(f"row_player={row_player or '-'} local_row={is_local_row}")
         lines.append(f"row_item_name={row_name or '-'} row_item_id={item_id}")
-        if event_id:
-            last_req = float(self.remote_stats_request_last_by_event.get(event_id, 0.0))
-            pending_req = float(self.remote_stats_pending_by_event.get(event_id, 0.0))
+        event_cache_key = self._resolve_stats_cache_key_for_row(row)
+        if event_cache_key:
+            last_req = float(self.remote_stats_request_last_by_event.get(event_cache_key, 0.0))
+            pending_req = float(self.remote_stats_pending_by_event.get(event_cache_key, 0.0))
             now_ts = time.time()
             lines.append(
                 f"req_last_age_s={(now_ts - last_req):.2f}" if last_req > 0 else "req_last_age_s=-"
@@ -1719,7 +1736,7 @@ class DropViewerWindow:
                 f"req_pending_age_s={(now_ts - pending_req):.2f}" if pending_req > 0 else "req_pending_age_s=-"
             )
 
-        payload_text = self._ensure_text(self.stats_payload_by_event.get(event_id, "")).strip() if event_id else ""
+        payload_text = self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key)
         lines.append(f"payload_cached={bool(payload_text)} payload_len={len(payload_text)}")
         if payload_text:
             preview = payload_text[:220].replace("\n", " ")
@@ -1739,7 +1756,7 @@ class DropViewerWindow:
                             lines.append(f"mod[{idx}] id={self._safe_int(mod[0], 0)} a1={self._safe_int(mod[1], 0)} a2={self._safe_int(mod[2], 0)}")
                 else:
                     lines.append("payload_parse=non-dict")
-            except Exception as e:
+            except EXPECTED_RUNTIME_ERRORS as e:
                 lines.append(f"payload_parse_error={e}")
         elif is_local_row:
             live_item_id = self._resolve_live_item_id_for_row(row, prefer_unidentified=False)
@@ -1775,13 +1792,14 @@ class DropViewerWindow:
         return False
 
     def _row_matches_selected_item(self, row) -> bool:
-        if not self.selected_item_key or len(row) < 8:
+        parsed = self._parse_drop_row(row)
+        if not self.selected_item_key or parsed is None:
             return False
         sel_name, sel_rarity = self.selected_item_key
-        row_rarity = self._ensure_text(row[7]).strip() or "Unknown"
+        row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
         if row_rarity != sel_rarity:
             return False
-        return self._item_names_match(sel_name, row[5])
+        return self._item_names_match(sel_name, parsed.item_name)
 
     def _find_best_row_for_item(self, item_name: str, rarity: str, rows) -> Any:
         if not rows:
@@ -1789,12 +1807,13 @@ class DropViewerWindow:
         best_with_item_id = None
         best_any = None
         for row in reversed(list(rows)):
-            if not isinstance(row, list) or len(row) < 8:
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
                 continue
-            row_rarity = self._ensure_text(row[7]).strip() or "Unknown"
+            row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
             if row_rarity != rarity:
                 continue
-            if not self._item_names_match(item_name, row[5]):
+            if not self._item_names_match(item_name, parsed.item_name):
                 continue
             if best_any is None:
                 best_any = row
@@ -1813,15 +1832,16 @@ class DropViewerWindow:
         best_with_item_id = None
         best_any = None
         for row in reversed(list(pool)):
-            if not isinstance(row, list) or len(row) < 8:
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
                 continue
-            row_char = self._ensure_text(row[4]).strip().lower()
+            row_char = self._ensure_text(parsed.player_name).strip().lower()
             if row_char != target_char:
                 continue
-            row_rarity = self._ensure_text(row[7]).strip() or "Unknown"
+            row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
             if row_rarity != rarity:
                 continue
-            if not self._item_names_match(item_name, row[5]):
+            if not self._item_names_match(item_name, parsed.item_name):
                 continue
             if best_any is None:
                 best_any = row
@@ -1829,6 +1849,60 @@ class DropViewerWindow:
                 best_with_item_id = row
                 break
         return list(best_with_item_id) if best_with_item_id is not None else (list(best_any) if best_any is not None else None)
+
+    def _identify_item_for_all_characters(self, item_name: str, rarity: str, rows=None) -> bool:
+        pool = rows if rows is not None else self.raw_drops
+        if not pool:
+            self.set_status("Identify failed: no matching rows")
+            return False
+
+        target_chars = []
+        seen_chars = set()
+        for row in reversed(list(pool)):
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+            if row_rarity != rarity:
+                continue
+            if not self._item_names_match(item_name, parsed.item_name):
+                continue
+            char_name = self._ensure_text(parsed.player_name).strip()
+            if not char_name:
+                continue
+            char_key = char_name.lower()
+            if char_key in seen_chars:
+                continue
+            seen_chars.add(char_key)
+            target_chars.append(char_name)
+
+        if not target_chars:
+            self.set_status("Identify failed: no matching characters")
+            return False
+
+        success = 0
+        selected_row = None
+        for char_name in target_chars:
+            target_row = self._find_best_row_for_item_and_character(item_name, rarity, char_name, pool)
+            if target_row is None:
+                continue
+            if self._identify_item_from_row(target_row):
+                success += 1
+                if selected_row is None:
+                    selected_row = target_row
+
+        if selected_row is not None:
+            self.selected_log_row = selected_row
+
+        total = len(target_chars)
+        if success <= 0:
+            self.set_status(f"Identify failed for all characters ({total})")
+            return False
+        if success < total:
+            self.set_status(f"Identify sent to {success}/{total} characters")
+            return True
+        self.set_status(f"Identify sent to all {total} characters")
+        return True
 
     def _collect_selected_item_stats(self):
         if not self.selected_item_key:
@@ -1843,10 +1917,13 @@ class DropViewerWindow:
             if not self._row_matches_selected_item(row):
                 continue
 
-            qty = self._safe_int(row[6], 1)
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            qty = int(parsed.quantity)
             if qty < 1:
                 qty = 1
-            character = self._ensure_text(row[4]).strip() or "Unknown"
+            character = self._ensure_text(parsed.player_name).strip() or "Unknown"
 
             total_qty += qty
             total_count += 1
@@ -1885,9 +1962,10 @@ class DropViewerWindow:
         PyImGui.text(f"Drop Count: {stats['count']}")
 
         if self.selected_log_row and self._row_matches_selected_item(self.selected_log_row):
-            selected_char = self._ensure_text(self.selected_log_row[4]).strip() or "Unknown"
-            selected_map = self._ensure_text(self.selected_log_row[3]).strip() or "Unknown"
-            selected_ts = self._ensure_text(self.selected_log_row[0]).strip() or "Unknown"
+            selected_parsed = self._parse_drop_row(self.selected_log_row)
+            selected_char = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip() or "Unknown"
+            selected_map = self._ensure_text(selected_parsed.map_name if selected_parsed else "").strip() or "Unknown"
+            selected_ts = self._ensure_text(selected_parsed.timestamp if selected_parsed else "").strip() or "Unknown"
             PyImGui.text(f"Selected Entry: {selected_char} | {selected_map} | {selected_ts}")
             stats_text = self._get_row_stats_text(self.selected_log_row)
             if stats_text:
@@ -1907,7 +1985,7 @@ class DropViewerWindow:
                     try:
                         PyImGui.set_clipboard_text("\n".join(debug_lines))
                         self.set_status("Debug pipeline copied to clipboard")
-                    except Exception as e:
+                    except EXPECTED_RUNTIME_ERRORS as e:
                         self.set_status(f"Clipboard copy failed: {e}")
                 if PyImGui.begin_child(
                     "DropTrackerItemDebugPanel",
@@ -1928,7 +2006,8 @@ class DropViewerWindow:
 
             selected_char_name = ""
             if self.selected_log_row and self._row_matches_selected_item(self.selected_log_row):
-                selected_char_name = self._ensure_text(self.selected_log_row[4]).strip().lower()
+                selected_parsed = self._parse_drop_row(self.selected_log_row)
+                selected_char_name = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip().lower()
 
             for char_idx, (character, char_stats) in enumerate(stats["characters"]):
                 PyImGui.table_next_row()
@@ -1956,8 +2035,12 @@ class DropViewerWindow:
             return "00:00"
         try:
             fmt = "%Y-%m-%d %H:%M:%S"
-            first_ts = datetime.datetime.strptime(self.raw_drops[0][0], fmt)
-            last_ts = datetime.datetime.strptime(self.raw_drops[-1][0], fmt)
+            first_row = self._parse_drop_row(self.raw_drops[0]) if self.raw_drops else None
+            last_row = self._parse_drop_row(self.raw_drops[-1]) if self.raw_drops else None
+            if first_row is None or last_row is None:
+                return "--:--"
+            first_ts = datetime.datetime.strptime(first_row.timestamp, fmt)
+            last_ts = datetime.datetime.strptime(last_row.timestamp, fmt)
             total_seconds = max(0, int((last_ts - first_ts).total_seconds()))
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
@@ -1965,30 +2048,11 @@ class DropViewerWindow:
             if hours > 0:
                 return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
             return f"{minutes:02d}:{seconds:02d}"
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return "--:--"
 
     def _ui_colors(self):
-        return {
-            "accent": (0.35, 0.72, 1.0, 1.0),
-            "muted": (0.70, 0.74, 0.80, 1.0),
-            "panel_bg": (0.11, 0.13, 0.17, 0.92),
-            "primary_btn": (0.18, 0.48, 0.80, 0.95),
-            "primary_hover": (0.24, 0.58, 0.93, 1.0),
-            "primary_active": (0.14, 0.42, 0.72, 1.0),
-            "secondary_btn": (0.20, 0.24, 0.30, 0.95),
-            "secondary_hover": (0.27, 0.32, 0.39, 1.0),
-            "secondary_active": (0.16, 0.20, 0.26, 1.0),
-            "success_btn": (0.12, 0.53, 0.34, 0.95),
-            "success_hover": (0.16, 0.64, 0.40, 1.0),
-            "success_active": (0.10, 0.45, 0.30, 1.0),
-            "warn_btn": (0.62, 0.44, 0.16, 0.95),
-            "warn_hover": (0.74, 0.54, 0.20, 1.0),
-            "warn_active": (0.54, 0.37, 0.13, 1.0),
-            "danger_btn": (0.66, 0.23, 0.22, 0.95),
-            "danger_hover": (0.79, 0.29, 0.27, 1.0),
-            "danger_active": (0.57, 0.19, 0.18, 1.0),
-        }
+        return default_ui_colors()
 
     def _push_button_style(self, variant: str = "secondary"):
         c = self._ui_colors()
@@ -2069,8 +2133,11 @@ class DropViewerWindow:
         rare_count = 0
         gold_qty = 0
         for row in filtered_rows:
-            qty = self._safe_int(row[6], 1)
-            rarity = self._ensure_text(row[7]).strip() or "Unknown"
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            qty = int(parsed.quantity)
+            rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
             if self._is_rare_rarity(rarity):
                 rare_count += 1
             if self._is_gold_row(row):
@@ -2098,131 +2165,7 @@ class DropViewerWindow:
             PyImGui.end_table()
 
     def _draw_runtime_controls(self):
-        self._draw_section_header("Runtime")
-        if self._styled_button(
-            f"Verbose Logs: {'ON' if self.verbose_shmem_item_logs else 'OFF'}",
-            "success" if self.verbose_shmem_item_logs else "secondary",
-            tooltip="Detailed shared-memory logs."
-        ):
-            self.verbose_shmem_item_logs = not self.verbose_shmem_item_logs
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button(
-            f"ACK: {'ON' if self.send_tracker_ack_enabled else 'OFF'}",
-            "success" if self.send_tracker_ack_enabled else "warning",
-            tooltip="Acknowledges tracker events to peers."
-        ):
-            self.send_tracker_ack_enabled = not self.send_tracker_ack_enabled
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button(
-            f"Perf Logs: {'ON' if self.enable_perf_logs else 'OFF'}",
-            "success" if self.enable_perf_logs else "secondary",
-            tooltip="Periodic poll/throughput diagnostics."
-        ):
-            self.enable_perf_logs = not self.enable_perf_logs
-            self.runtime_config_dirty = True
-        PyImGui.new_line()
-        if self._styled_button(
-            f"Debug Item Stats: {'ON' if self.debug_item_stats_panel else 'OFF'}",
-            "success" if self.debug_item_stats_panel else "secondary",
-            tooltip="Show raw selected-item modifiers and payload decode in Selected Item Stats panel."
-        ):
-            self.debug_item_stats_panel = not self.debug_item_stats_panel
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        PyImGui.text(f"Debug Height: {int(self.debug_item_stats_panel_height)}")
-        if self._styled_button("- DebugH", "secondary"):
-            self.debug_item_stats_panel_height = max(120, int(self.debug_item_stats_panel_height) - 40)
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("+ DebugH", "secondary"):
-            self.debug_item_stats_panel_height = min(900, int(self.debug_item_stats_panel_height) + 40)
-            self.runtime_config_dirty = True
-
-        sender_debug_logs = bool(self.runtime_config.get("debug_pipeline_logs", False))
-        sender_ack = bool(self.runtime_config.get("enable_delivery_ack", True))
-        sender_max_send = int(self.runtime_config.get("max_send_per_tick", 12))
-        sender_outbox = int(self.runtime_config.get("max_outbox_size", 2000))
-        sender_retry_s = float(self.runtime_config.get("retry_interval_seconds", 1.0))
-        sender_max_retries = int(self.runtime_config.get("max_retry_attempts", 12))
-
-        if self._styled_button(
-            f"Sender Debug: {'ON' if sender_debug_logs else 'OFF'}",
-            "success" if sender_debug_logs else "secondary"
-        ):
-            self.runtime_config["debug_pipeline_logs"] = not sender_debug_logs
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button(
-            f"Sender ACK: {'ON' if sender_ack else 'OFF'}",
-            "success" if sender_ack else "warning"
-        ):
-            self.runtime_config["enable_delivery_ack"] = not sender_ack
-            self.runtime_config_dirty = True
-
-        PyImGui.text(f"Sender max_send/tick: {sender_max_send}")
-        if self._styled_button("- Send", "secondary"):
-            self.runtime_config["max_send_per_tick"] = max(1, sender_max_send - 1)
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("+ Send", "secondary"):
-            self.runtime_config["max_send_per_tick"] = min(100, sender_max_send + 1)
-            self.runtime_config_dirty = True
-
-        PyImGui.same_line(0.0, 25.0)
-        PyImGui.text(f"Sender outbox: {sender_outbox}")
-        if self._styled_button("- Outbox", "secondary"):
-            self.runtime_config["max_outbox_size"] = max(100, sender_outbox - 100)
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("+ Outbox", "secondary"):
-            self.runtime_config["max_outbox_size"] = min(20000, sender_outbox + 100)
-            self.runtime_config_dirty = True
-
-        PyImGui.text(f"Sender retry_s: {sender_retry_s:.1f} max_retries: {sender_max_retries}")
-        if self._styled_button("- RetryS", "secondary"):
-            self.runtime_config["retry_interval_seconds"] = max(0.2, round(sender_retry_s - 0.1, 2))
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("+ RetryS", "secondary"):
-            self.runtime_config["retry_interval_seconds"] = min(10.0, round(sender_retry_s + 0.1, 2))
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("- Retries", "secondary"):
-            self.runtime_config["max_retry_attempts"] = max(1, sender_max_retries - 1)
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("+ Retries", "secondary"):
-            self.runtime_config["max_retry_attempts"] = min(100, sender_max_retries + 1)
-            self.runtime_config_dirty = True
-
-        PyImGui.text(f"ShMem msg/tick: {self.max_shmem_messages_per_tick}")
-        if self._styled_button("- Msg", "secondary"):
-            self.max_shmem_messages_per_tick = max(5, self.max_shmem_messages_per_tick - 5)
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("+ Msg", "secondary"):
-            self.max_shmem_messages_per_tick = min(300, self.max_shmem_messages_per_tick + 5)
-            self.runtime_config_dirty = True
-
-        PyImGui.same_line(0.0, 25.0)
-        PyImGui.text(f"ShMem scan/tick: {self.max_shmem_scan_per_tick}")
-        if self._styled_button("- Scan", "secondary"):
-            self.max_shmem_scan_per_tick = max(20, self.max_shmem_scan_per_tick - 20)
-            self.runtime_config_dirty = True
-        PyImGui.same_line(0.0, 10.0)
-        if self._styled_button("+ Scan", "secondary"):
-            self.max_shmem_scan_per_tick = min(3000, self.max_shmem_scan_per_tick + 20)
-            self.runtime_config_dirty = True
-
-        if self.runtime_config_dirty:
-            self._flush_runtime_config_if_dirty()
-
-        PyImGui.text(
-            f"Perf: poll_ms={self.last_shmem_poll_ms:.2f} "
-            f"processed={self.last_shmem_processed} scanned={self.last_shmem_scanned} ack_sent={self.last_ack_sent}"
-        )
+        draw_runtime_controls_panel(self, PyImGui)
 
     def _get_selected_id_rarities(self):
         rarities = []
@@ -2275,7 +2218,7 @@ class DropViewerWindow:
             wx, wy = PyImGui.get_window_pos()
             ww, wh = PyImGui.get_window_size()
             return (mx >= wx) and (mx <= (wx + ww)) and (my >= wy) and (my <= (wy + wh))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _get_display_size(self):
@@ -2356,7 +2299,7 @@ class DropViewerWindow:
                             button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
                             Utils.RGBToColor(204, 204, 212, 50), 4, 0, 1
                         )
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 pass
 
             # Pin indicator frame (green pinned / red unpinned)
@@ -2402,7 +2345,7 @@ class DropViewerWindow:
             shutil.copy2(self.log_path, target)
             self.set_status(f"Saved to {self.save_filename}.csv")
             self.show_save_popup = False
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             self.set_status(f"Save failed: {e}")
 
     def load_run(self, filename):
@@ -2413,7 +2356,7 @@ class DropViewerWindow:
         try:
             self._parse_log_file(target)
             self.set_status(f"Loaded {filename}")
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             self.set_status(f"Load failed: {e}")
 
     def merge_run(self, filename):
@@ -2431,33 +2374,37 @@ class DropViewerWindow:
                 reader = csv.reader(f)
                 header = next(reader, None)
                 has_map_name = header and "MapName" in header
+                event_idx = header.index("EventID") if header and "EventID" in header else -1
+                stats_idx = header.index("ItemStats") if header and "ItemStats" in header else -1
+                item_id_idx = header.index("ItemID") if header and "ItemID" in header else -1
                 
                 for row in reader:
-                    if len(row) < 7: continue
-                    
-                    if has_map_name:
-                         item_name = row[5]
-                         quantity_str = row[6]
-                         rarity = row[7]
-                    else:
-                         item_name = row[4]
-                         quantity_str = row[5]
-                         rarity = row[6]
-                         # Patch row for raw view
-                         mid = int(row[2]) if row[2].isdigit() else 0
-                         mname = Map.GetMapName(mid)
-                         row.insert(3, mname)
+                    fallback_map_name = "Unknown"
+                    if not has_map_name:
+                        try:
+                            fallback_map_name = self._ensure_text(Map.GetMapName(self._safe_int(row[2], 0))) or "Unknown"
+                        except EXPECTED_RUNTIME_ERRORS:
+                            fallback_map_name = "Unknown"
 
-                    quantity = int(quantity_str) if quantity_str.isdigit() else 1
+                    parsed = DropLogRow.from_csv_row(
+                        row,
+                        has_map_name=bool(has_map_name),
+                        event_idx=event_idx,
+                        stats_idx=stats_idx,
+                        item_id_idx=item_id_idx,
+                        map_name_fallback=fallback_map_name,
+                    )
+                    if parsed is None:
+                        continue
+
+                    temp_drops.append(parsed.to_runtime_row())
+                    total += int(parsed.quantity)
                     
-                    temp_drops.append(row)
-                    total += quantity
-                    
-                    canonical_name = self._canonical_agg_item_name(item_name, rarity, temp_agg)
-                    key = (canonical_name, rarity)
+                    canonical_name = self._canonical_agg_item_name(parsed.item_name, parsed.rarity, temp_agg)
+                    key = (canonical_name, parsed.rarity)
                     if key not in temp_agg:
                         temp_agg[key] = {"Quantity": 0, "Count": 0}
-                    temp_agg[key]["Quantity"] += quantity
+                    temp_agg[key]["Quantity"] += int(parsed.quantity)
                     temp_agg[key]["Count"] += 1
             
              self.raw_drops = temp_drops
@@ -2465,7 +2412,7 @@ class DropViewerWindow:
              self.total_drops = total
              self.set_status(f"Merged {filename}")
              
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             self.set_status(f"Merge failed: {e}")
 
     def draw(self):
@@ -2585,7 +2532,7 @@ class DropViewerWindow:
                          self.last_chat_index = len(Player.GetChatHistory())
 
                     self.set_status("Log Cleared")
-                 except Exception as e:
+                 except EXPECTED_RUNTIME_ERRORS as e:
                      Py4GW.Console.Log("DropViewer", f"Clear failed: {e}", Py4GW.Console.MessageType.Error)
 
             filtered_rows = self._get_filtered_rows()
@@ -2759,7 +2706,7 @@ class DropViewerWindow:
                         self.selected_item_key = row_key
                         self.selected_log_row = target_row
                         if PyImGui.menu_item("Identify item"):
-                            self._identify_item_from_row(target_row)
+                            self._identify_item_for_all_characters(item_name, rarity)
                     PyImGui.end_popup()
                 if PyImGui.is_item_hovered():
                     ImGui.show_tooltip("Left click: view stats. Right click: item actions.")
@@ -2802,10 +2749,13 @@ class DropViewerWindow:
 
             for row_idx, row in enumerate(filtered_rows):
                 PyImGui.table_next_row()
-                rarity = row[7] if len(row) > 7 else "Unknown"
+                parsed = self._parse_drop_row(row)
+                if parsed is None:
+                    continue
+                rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
                 r, g, b, a = self._get_rarity_color(rarity)
                 selected_key = (
-                    self._canonical_agg_item_name(row[5], rarity, self.aggregated_drops),
+                    self._canonical_agg_item_name(parsed.item_name, rarity, self.aggregated_drops),
                     self._ensure_text(rarity).strip() or "Unknown"
                 )
 
@@ -2827,7 +2777,7 @@ class DropViewerWindow:
                             PyImGui.open_popup(f"DropLogRowMenu##{row_idx}")
                         if PyImGui.begin_popup(f"DropLogRowMenu##{row_idx}"):
                             if PyImGui.menu_item("Identify item"):
-                                self._identify_item_from_row(row)
+                                self._identify_item_for_all_characters(parsed.item_name, rarity)
                             PyImGui.end_popup()
                         if PyImGui.is_item_hovered():
                             ImGui.show_tooltip("Left click: view stats. Right click: item actions.")
@@ -2872,8 +2822,9 @@ class DropViewerWindow:
                     return
                 elif self.raw_drops:
                     try:
-                        last_logged_map = self._safe_int(self.raw_drops[-1][2], 0)
-                    except Exception:
+                        last_parsed = self._parse_drop_row(self.raw_drops[-1]) if self.raw_drops else None
+                        last_logged_map = self._safe_int(last_parsed.map_id if last_parsed else 0, 0)
+                    except EXPECTED_RUNTIME_ERRORS:
                         last_logged_map = 0
                     if last_logged_map > 0 and last_logged_map != current_map_id:
                         self._reset_live_session()
@@ -2885,13 +2836,15 @@ class DropViewerWindow:
                         return
 
             # Poll shared memory reliably every tick
+            self._process_pending_identify_responses()
             self._poll_shared_memory()
             self._run_auto_conset_tick()
 
             if self.player_name == "Unknown":
                 try:
                     self.player_name = Player.GetName()
-                except: pass
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
 
             # Step 1: Request chat history for Gold tracking ONLY
             if not self.chat_requested:
@@ -2929,7 +2882,7 @@ class DropViewerWindow:
             for msg in new_messages:
                 self._process_chat_message(msg)
 
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Update error: {e}", Py4GW.Console.MessageType.Error)
 
     def _process_chat_message(self, msg: Any):
@@ -2945,7 +2898,7 @@ class DropViewerWindow:
                     amount = int(match_gold.group(2).replace(',', ''))
                     self._log_drop_to_file(Player.GetName(), "Gold", amount, "Currency")
                     Py4GW.Console.Log("DropViewer", f"TRACKED: Gold x{amount}", Py4GW.Console.MessageType.Info)
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 pass
             return
 
@@ -2989,7 +2942,7 @@ class DropViewerWindow:
             if not isinstance(value, str) and hasattr(value, "__iter__"):
                 try:
                     return _c_wchar_array_to_str(value)
-                except Exception:
+                except (TypeError, ValueError, RuntimeError, AttributeError):
                     pass
             return str(value).strip()
             
@@ -3006,7 +2959,7 @@ class DropViewerWindow:
             is_leader_client = False
             try:
                 is_leader_client = (Player.GetAgentID() == Party.GetPartyLeaderID())
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 is_leader_client = False
 
             shmem = getattr(GLOBAL_CACHE, "ShMem", None)
@@ -3033,6 +2986,7 @@ class DropViewerWindow:
                 sig: data for sig, data in self.stats_payload_chunk_buffers.items()
                 if (now_ts - float(data.get("updated_at", now_ts))) <= 30.0
             }
+            self.stats_render_cache_by_event = prune_render_cache(self.stats_render_cache_by_event, now_ts, ttl_seconds=1800.0)
 
             ignore_tracker_messages = now_ts < float(self.map_change_ignore_until)
             messages = shmem.GetAllMessages()
@@ -3047,12 +3001,13 @@ class DropViewerWindow:
                 expected_custom_behavior_command = 997
                 try:
                     expected_custom_behavior_command = int(SharedCommandType.CustomBehaviors.value)
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     pass
                 if command_value != expected_custom_behavior_command and command_value != 997:
                     continue
 
                 should_finish = False
+                extra_data_list = None
                 try:
                     should_finish = False
                     extra_data_list = getattr(shared_msg, "ExtraData", None)
@@ -3060,42 +3015,45 @@ class DropViewerWindow:
                         continue
 
                     extra_0 = _c_wchar_array_to_str(extra_data_list[0])
-                    if extra_0 == self.inventory_action_tag:
+                    if handle_inventory_action_branch(
+                        extra_0=extra_0,
+                        expected_tag=self.inventory_action_tag,
+                        extra_data_list=extra_data_list,
+                        shared_msg=shared_msg,
+                        to_text_fn=_c_wchar_array_to_str,
+                        normalize_text_fn=_normalize_shmem_text,
+                        run_inventory_action_fn=self._run_inventory_action,
+                    ):
                         should_finish = True
-                        sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
-                        action_code = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else ""
-                        action_payload = _c_wchar_array_to_str(extra_data_list[2]) if len(extra_data_list) > 2 else ""
-                        action_meta = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
-                        self._run_inventory_action(action_code, action_payload, action_meta, sender_email)
                         shmem.MarkMessageAsFinished(my_email, msg_idx)
                         processed_tracker_msgs += 1
                         continue
 
-                    if extra_0 == self.inventory_stats_request_tag:
+                    if handle_inventory_stats_request_branch(
+                        extra_0=extra_0,
+                        expected_tag=self.inventory_stats_request_tag,
+                        shared_msg=shared_msg,
+                        my_email=my_email,
+                        normalize_text_fn=_normalize_shmem_text,
+                        send_inventory_kit_stats_response_fn=self._send_inventory_kit_stats_response,
+                    ):
                         should_finish = True
-                        sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
-                        if sender_email and sender_email != my_email:
-                            self._send_inventory_kit_stats_response(sender_email)
                         shmem.MarkMessageAsFinished(my_email, msg_idx)
                         processed_tracker_msgs += 1
                         continue
 
-                    if extra_0 == self.inventory_stats_response_tag:
+                    if handle_inventory_stats_response_branch(
+                        extra_0=extra_0,
+                        expected_tag=self.inventory_stats_response_tag,
+                        extra_data_list=extra_data_list,
+                        shared_msg=shared_msg,
+                        to_text_fn=_c_wchar_array_to_str,
+                        normalize_text_fn=_normalize_shmem_text,
+                        safe_int_fn=self._safe_int,
+                        get_account_data_fn=shmem.GetAccountDataFromEmail,
+                        upsert_inventory_kit_stats_fn=self._upsert_inventory_kit_stats,
+                    ):
                         should_finish = True
-                        sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
-                        if sender_email:
-                            sender_account = shmem.GetAccountDataFromEmail(sender_email)
-                            sender_name = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else sender_email
-                            sender_party_pos = int(self._safe_int(_c_wchar_array_to_str(extra_data_list[2]), 0)) if len(extra_data_list) > 2 else 0
-                            sender_party_id = int(getattr(sender_account.AgentPartyData, "PartyID", 0)) if sender_account else 0
-                            sender_map_id = int(getattr(sender_account.AgentData.Map, "MapID", 0)) if sender_account else 0
-                            stats = {
-                                "salvage_uses": int(round(shared_msg.Params[0])) if len(shared_msg.Params) > 0 else 0,
-                                "superior_id_uses": int(round(shared_msg.Params[1])) if len(shared_msg.Params) > 1 else 0,
-                                "salvage_kits": int(round(shared_msg.Params[2])) if len(shared_msg.Params) > 2 else 0,
-                                "superior_id_kits": int(round(shared_msg.Params[3])) if len(shared_msg.Params) > 3 else 0,
-                            }
-                            self._upsert_inventory_kit_stats(sender_email, sender_name, sender_party_pos, stats, sender_map_id, sender_party_id)
                         shmem.MarkMessageAsFinished(my_email, msg_idx)
                         processed_tracker_msgs += 1
                         continue
@@ -3109,23 +3067,19 @@ class DropViewerWindow:
                             continue
                         should_finish = True
                         scanned_msgs += 1
-                        name_sig = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else ""
-                        chunk_text = _c_wchar_array_to_str(extra_data_list[2]) if len(extra_data_list) > 2 else ""
-                        chunk_meta = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
-                        chunk_idx, chunk_total = decode_name_chunk_meta(chunk_meta)
-                        if name_sig:
-                            bucket = self.name_chunk_buffers.get(name_sig, {"chunks": {}, "total": chunk_total, "updated_at": now_ts})
-                            bucket["total"] = max(int(bucket.get("total", 1)), int(chunk_total))
-                            bucket["chunks"][int(chunk_idx)] = chunk_text
-                            bucket["updated_at"] = now_ts
-                            self.name_chunk_buffers[name_sig] = bucket
-                            if len(bucket["chunks"]) >= int(bucket["total"]):
-                                merged = "".join(bucket["chunks"].get(i, "") for i in range(1, int(bucket["total"]) + 1)).strip()
-                                if merged:
-                                    self.full_name_by_signature[name_sig] = merged
-                                self.name_chunk_buffers.pop(name_sig, None)
-                        shmem.MarkMessageAsFinished(my_email, msg_idx)
-                        continue
+                        if handle_tracker_name_branch(
+                            extra_0=extra_0,
+                            expected_tag="TrackerNameV2",
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                            decode_chunk_meta_fn=decode_name_chunk_meta,
+                            merge_name_chunk_fn=merge_name_chunk,
+                            name_chunk_buffers=self.name_chunk_buffers,
+                            full_name_by_signature=self.full_name_by_signature,
+                            now_ts=now_ts,
+                        ):
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
 
                     if extra_0 == "TrackerStatsV2":
                         if not is_leader_client:
@@ -3136,57 +3090,87 @@ class DropViewerWindow:
                             continue
                         should_finish = True
                         scanned_msgs += 1
-                        event_id = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else ""
-                        chunk_text = _c_wchar_array_to_str(extra_data_list[2]) if len(extra_data_list) > 2 else ""
-                        chunk_meta = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
-                        chunk_idx, chunk_total = decode_name_chunk_meta(chunk_meta)
-                        if event_id:
-                            # Start of a fresh payload transfer: reset stale partial chunks for this event.
-                            if int(chunk_idx) <= 1:
-                                bucket = {"chunks": {}, "total": chunk_total, "updated_at": now_ts}
-                            else:
-                                bucket = self.stats_payload_chunk_buffers.get(event_id, {"chunks": {}, "total": chunk_total, "updated_at": now_ts})
-                            bucket["total"] = int(chunk_total) if int(chunk_total) > 0 else int(bucket.get("total", 1))
-                            bucket["chunks"][int(chunk_idx)] = chunk_text
-                            bucket["updated_at"] = now_ts
-                            self.stats_payload_chunk_buffers[event_id] = bucket
-                            if len(bucket["chunks"]) >= int(bucket["total"]):
-                                merged_payload = "".join(bucket["chunks"].get(i, "") for i in range(1, int(bucket["total"]) + 1)).strip()
-                                payload_ok = False
-                                try:
-                                    payload_obj = json.loads(merged_payload)
-                                    payload_ok = isinstance(payload_obj, dict) and isinstance(payload_obj.get("mods", []), list)
-                                except Exception as pe:
-                                    payload_ok = False
-                                    if self.verbose_shmem_item_logs or self.debug_item_stats_panel:
-                                        preview = merged_payload[:220].replace("\n", " ")
-                                        Py4GW.Console.Log(
-                                            "DropViewer",
-                                            f"STATS V2 parse error ev={event_id}: {pe} | payload_head={preview}",
-                                            Py4GW.Console.MessageType.Warning,
-                                        )
-                                if not payload_ok:
-                                    self.stats_payload_by_event.pop(event_id, None)
-                                    self.remote_stats_pending_by_event.pop(event_id, None)
-                                    self.remote_stats_request_last_by_event[event_id] = 0.0
-                                    self.stats_payload_chunk_buffers.pop(event_id, None)
-                                    shmem.MarkMessageAsFinished(my_email, msg_idx)
-                                    continue
-                                rendered = self._build_item_stats_from_payload_text(merged_payload).strip()
-                                if rendered:
-                                    self.stats_by_event[event_id] = rendered
-                                self.stats_payload_by_event[event_id] = merged_payload
-                                self.remote_stats_pending_by_event.pop(event_id, None)
-                                for existing_row in self.raw_drops:
-                                    if len(existing_row) > 10 and self._ensure_text(existing_row[8]).strip() == event_id:
-                                        if rendered:
-                                            existing_row[9] = rendered
-                                if self.selected_log_row and len(self.selected_log_row) > 10 and self._ensure_text(self.selected_log_row[8]).strip() == event_id:
-                                    if rendered:
-                                        self.selected_log_row[9] = rendered
-                                self.stats_payload_chunk_buffers.pop(event_id, None)
-                        shmem.MarkMessageAsFinished(my_email, msg_idx)
-                        continue
+                        stats_sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
+                        stats_sender_name = self._resolve_sender_name_from_email(stats_sender_email)
+
+                        def _merge_payload_chunk_scoped(
+                            buffers: dict[str, dict[str, Any]],
+                            event_id_arg: str,
+                            chunk_text_arg: str,
+                            chunk_idx_arg: int,
+                            chunk_total_arg: int,
+                            now_ts_arg: float,
+                        ) -> str:
+                            scoped_key = self._make_stats_cache_key(event_id_arg, stats_sender_email, stats_sender_name)
+                            return merge_stats_payload_chunk(
+                                buffers,
+                                scoped_key,
+                                chunk_text_arg,
+                                chunk_idx_arg,
+                                chunk_total_arg,
+                                now_ts_arg,
+                            )
+
+                        def _on_payload_merged(event_id: str, merged_payload: str) -> None:
+                            stats_cache_key = self._make_stats_cache_key(event_id, stats_sender_email, stats_sender_name)
+                            payload_ok = payload_has_valid_mods_json(merged_payload)
+                            if not payload_ok:
+                                if self.verbose_shmem_item_logs or self.debug_item_stats_panel:
+                                    preview = merged_payload[:220].replace("\n", " ")
+                                    Py4GW.Console.Log(
+                                        "DropViewer",
+                                        f"STATS V2 parse error ev={event_id} | payload_head={preview}",
+                                        Py4GW.Console.MessageType.Warning,
+                                    )
+                                self.stats_payload_by_event.pop(stats_cache_key, None)
+                                self.remote_stats_pending_by_event.pop(stats_cache_key, None)
+                                self.remote_stats_request_last_by_event[stats_cache_key] = 0.0
+                                self.stats_render_cache_by_event.pop(stats_cache_key, None)
+                                return
+
+                            rendered = self._render_payload_stats_cached(stats_cache_key, merged_payload, "").strip()
+                            if rendered:
+                                self.stats_by_event[stats_cache_key] = rendered
+                            self.stats_payload_by_event[stats_cache_key] = merged_payload
+                            self.remote_stats_pending_by_event.pop(stats_cache_key, None)
+                            if rendered:
+                                update_rows_item_stats_by_event_and_sender(
+                                    self.raw_drops,
+                                    event_id,
+                                    stats_sender_email,
+                                    rendered,
+                                    player_name=stats_sender_name,
+                                )
+                            if self.selected_log_row and self._extract_row_event_id(self.selected_log_row) == event_id:
+                                selected_row = self._parse_drop_row(self.selected_log_row)
+                                selected_player = self._ensure_text(selected_row.player_name).strip() if selected_row else ""
+                                can_update_selected = False
+                                if stats_sender_name:
+                                    can_update_selected = selected_player.lower() == stats_sender_name.lower()
+                                else:
+                                    event_matches = 0
+                                    for raw_row in self.raw_drops:
+                                        if self._extract_row_event_id(raw_row) == event_id:
+                                            event_matches += 1
+                                            if event_matches > 1:
+                                                break
+                                    can_update_selected = event_matches <= 1
+                                if rendered and can_update_selected:
+                                    self._set_row_item_stats(self.selected_log_row, rendered)
+
+                        if handle_tracker_stats_payload_branch(
+                            extra_0=extra_0,
+                            expected_tag="TrackerStatsV2",
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                            decode_chunk_meta_fn=decode_name_chunk_meta,
+                            merge_stats_payload_chunk_fn=_merge_payload_chunk_scoped,
+                            stats_payload_chunk_buffers=self.stats_payload_chunk_buffers,
+                            now_ts=now_ts,
+                            on_merged_payload_fn=_on_payload_merged,
+                        ):
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
 
                     if extra_0 == "TrackerStatsV1":
                         if not is_leader_client:
@@ -3197,34 +3181,70 @@ class DropViewerWindow:
                             continue
                         should_finish = True
                         scanned_msgs += 1
-                        event_id = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else ""
-                        chunk_text = _c_wchar_array_to_str(extra_data_list[2]) if len(extra_data_list) > 2 else ""
-                        chunk_meta = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
-                        chunk_idx, chunk_total = decode_name_chunk_meta(chunk_meta)
-                        if event_id:
-                            # Start of a fresh text transfer: reset stale partial chunks for this event.
-                            if int(chunk_idx) <= 1:
-                                bucket = {"chunks": {}, "total": chunk_total, "updated_at": now_ts}
-                            else:
-                                bucket = self.stats_chunk_buffers.get(event_id, {"chunks": {}, "total": chunk_total, "updated_at": now_ts})
-                            bucket["total"] = int(chunk_total) if int(chunk_total) > 0 else int(bucket.get("total", 1))
-                            bucket["chunks"][int(chunk_idx)] = chunk_text
-                            bucket["updated_at"] = now_ts
-                            self.stats_chunk_buffers[event_id] = bucket
-                            if len(bucket["chunks"]) >= int(bucket["total"]):
-                                merged = "".join(bucket["chunks"].get(i, "") for i in range(1, int(bucket["total"]) + 1)).strip()
-                                normalized_merged = self._normalize_stats_text(merged)
-                                self.stats_by_event[event_id] = normalized_merged
-                                self.remote_stats_pending_by_event.pop(event_id, None)
-                                # Update any existing row for this event_id (overwrite stale/unidentified stats too).
-                                for existing_row in self.raw_drops:
-                                    if len(existing_row) > 10 and self._ensure_text(existing_row[8]).strip() == event_id:
-                                        existing_row[9] = normalized_merged
-                                if self.selected_log_row and len(self.selected_log_row) > 10 and self._ensure_text(self.selected_log_row[8]).strip() == event_id:
-                                    self.selected_log_row[9] = normalized_merged
-                                self.stats_chunk_buffers.pop(event_id, None)
-                        shmem.MarkMessageAsFinished(my_email, msg_idx)
-                        continue
+                        stats_sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
+                        stats_sender_name = self._resolve_sender_name_from_email(stats_sender_email)
+
+                        def _merge_text_chunk_scoped(
+                            buffers: dict[str, dict[str, Any]],
+                            event_id_arg: str,
+                            chunk_text_arg: str,
+                            chunk_idx_arg: int,
+                            chunk_total_arg: int,
+                            now_ts_arg: float,
+                        ) -> str:
+                            scoped_key = self._make_stats_cache_key(event_id_arg, stats_sender_email, stats_sender_name)
+                            return merge_stats_text_chunk(
+                                buffers,
+                                scoped_key,
+                                chunk_text_arg,
+                                chunk_idx_arg,
+                                chunk_total_arg,
+                                now_ts_arg,
+                            )
+
+                        def _on_text_merged(event_id: str, merged: str) -> None:
+                            stats_cache_key = self._make_stats_cache_key(event_id, stats_sender_email, stats_sender_name)
+                            normalized_merged = self._normalize_stats_text(merged)
+                            self.stats_by_event[stats_cache_key] = normalized_merged
+                            self.remote_stats_pending_by_event.pop(stats_cache_key, None)
+                            # Update any existing row for this event_id (overwrite stale/unidentified stats too).
+                            update_rows_item_stats_by_event_and_sender(
+                                self.raw_drops,
+                                event_id,
+                                stats_sender_email,
+                                normalized_merged,
+                                player_name=stats_sender_name,
+                            )
+                            if self.selected_log_row and self._extract_row_event_id(self.selected_log_row) == event_id:
+                                selected_row = self._parse_drop_row(self.selected_log_row)
+                                selected_player = self._ensure_text(selected_row.player_name).strip() if selected_row else ""
+                                can_update_selected = False
+                                if stats_sender_name:
+                                    can_update_selected = selected_player.lower() == stats_sender_name.lower()
+                                else:
+                                    event_matches = 0
+                                    for raw_row in self.raw_drops:
+                                        if self._extract_row_event_id(raw_row) == event_id:
+                                            event_matches += 1
+                                            if event_matches > 1:
+                                                break
+                                    can_update_selected = event_matches <= 1
+                                if can_update_selected:
+                                    self._set_row_item_stats(self.selected_log_row, normalized_merged)
+
+                        if handle_tracker_stats_text_branch(
+                            extra_0=extra_0,
+                            expected_tag="TrackerStatsV1",
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                            decode_chunk_meta_fn=decode_name_chunk_meta,
+                            merge_stats_text_chunk_fn=_merge_text_chunk_scoped,
+                            stats_chunk_buffers=self.stats_chunk_buffers,
+                            now_ts=now_ts,
+                            on_merged_text_fn=_on_text_merged,
+                        ):
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
 
                     if extra_0 != "TrackerDrop":
                         continue
@@ -3242,56 +3262,53 @@ class DropViewerWindow:
                     if scanned_msgs > self.max_shmem_scan_per_tick:
                         break
 
-                    item_name = _c_wchar_array_to_str(extra_data_list[1]) if len(extra_data_list) > 1 else "Unknown Item"
-                    exact_rarity = _c_wchar_array_to_str(extra_data_list[2]) if len(extra_data_list) > 2 else "Unknown"
-                    meta_text = _c_wchar_array_to_str(extra_data_list[3]) if len(extra_data_list) > 3 else ""
-                    meta = parse_drop_meta(meta_text)
-                    event_id = meta.get("event_id", "")
-                    name_sig = meta.get("name_signature", "")
-                    stats_text = self._ensure_text(self.stats_by_event.get(event_id, "")).strip() if event_id else ""
+                    drop_msg = handle_tracker_drop_branch(
+                        extra_0=extra_0,
+                        expected_tag="TrackerDrop",
+                        extra_data_list=extra_data_list,
+                        shared_msg=shared_msg,
+                        to_text_fn=_c_wchar_array_to_str,
+                        normalize_text_fn=_normalize_shmem_text,
+                        build_tracker_drop_message_fn=build_tracker_drop_message,
+                        resolve_full_name_fn=lambda sig: self.full_name_by_signature.get(sig, ""),
+                        normalize_rarity_label_fn=self._normalize_rarity_label,
+                    )
+                    if drop_msg is None:
+                        continue
 
-                    resolved_name = self.full_name_by_signature.get(name_sig, "") if name_sig else ""
-                    if resolved_name:
-                        item_name = resolved_name
-                    elif name_sig and len(item_name) >= 31:
-                        item_name = f"{item_name}~{name_sig[:4]}"
+                    event_id = drop_msg.event_id
+                    item_name = drop_msg.item_name
+                    exact_rarity = drop_msg.rarity
+                    quantity = drop_msg.quantity
+                    row_item_id = drop_msg.item_id
+                    model_id_param = drop_msg.model_id
+                    slot_bag = drop_msg.slot_bag
+                    slot_index = drop_msg.slot_index
+                    sender_email = drop_msg.sender_email
+                    sender_name_raw = self._resolve_sender_name_from_email(sender_email)
+                    sender_name = sender_name_raw or "Follower"
+                    stats_cache_key = self._make_stats_cache_key(event_id, sender_email, sender_name_raw)
+                    stats_text = self._get_cached_stats_text(self.stats_by_event, stats_cache_key)
 
-                    exact_rarity = self._normalize_rarity_label(item_name, exact_rarity)
-
-                    quantity_param = shared_msg.Params[0] if len(shared_msg.Params) > 0 else 0
-                    quantity = int(round(quantity_param)) if quantity_param > 0 else 1
-                    item_id_param = int(round(shared_msg.Params[1])) if len(shared_msg.Params) > 1 and shared_msg.Params[1] > 0 else 0
-                    model_id_param = int(round(shared_msg.Params[2])) if len(shared_msg.Params) > 2 and shared_msg.Params[2] > 0 else 0
-                    slot_encoded = int(round(shared_msg.Params[3])) if len(shared_msg.Params) > 3 and shared_msg.Params[3] > 0 else 0
-                    slot_bag = int((slot_encoded >> 16) & 0xFFFF) if slot_encoded > 0 else 0
-                    slot_index = int(slot_encoded & 0xFFFF) if slot_encoded > 0 else 0
-                    row_item_id = int(item_id_param) if item_id_param > 0 else 0
-
-                    sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
-                    sender_name = "Follower"
-                    sender_account = shmem.GetAccountDataFromEmail(sender_email)
-                    if sender_account:
-                        sender_name = sender_account.AgentData.CharacterName
-
-                    event_key = f"{sender_email}:{event_id}" if event_id else ""
-                    is_duplicate = False
-                    if event_key:
-                        if event_key in self.seen_events:
-                            is_duplicate = True
-                        else:
-                            self.seen_events[event_key] = now_ts
+                    event_key = drop_msg.event_key
+                    is_duplicate = is_duplicate_event(self.seen_events, event_key)
+                    if not is_duplicate:
+                        mark_seen_event(self.seen_events, event_key, now_ts)
 
                     if not is_duplicate:
-                        batch_rows.append((
-                            sender_name,
-                            item_name,
-                            quantity,
-                            exact_rarity,
-                            None,
-                            event_id,
-                            stats_text,
-                            row_item_id,
-                        ))
+                        batch_rows.append(
+                            {
+                                "player_name": sender_name,
+                                "item_name": item_name,
+                                "quantity": quantity,
+                                "extra_info": exact_rarity,
+                                "timestamp_override": None,
+                                "event_id": event_id,
+                                "item_stats": stats_text,
+                                "item_id": row_item_id,
+                                "sender_email": sender_email,
+                            }
+                        )
 
                     if event_id and self._send_tracker_ack(sender_email, event_id):
                         ack_sent_this_tick += 1
@@ -3299,19 +3316,37 @@ class DropViewerWindow:
                     if self.verbose_shmem_item_logs:
                         log_msg = (
                             f"TRACKED: {item_name} x{quantity} ({exact_rarity}) "
-                            f"[{sender_name}] (ShMem idx={msg_idx} item_id={item_id_param} "
+                            f"[{sender_name}] (ShMem idx={msg_idx} item_id={row_item_id} "
                             f"model_id={model_id_param} slot={slot_bag}:{slot_index} ev={event_id} dup={is_duplicate})"
                         )
                         Py4GW.Console.Log("DropViewer", log_msg, Py4GW.Console.MessageType.Info)
 
                     shmem.MarkMessageAsFinished(my_email, msg_idx)
                     processed_tracker_msgs += 1
-                except Exception as msg_e:
-                    Py4GW.Console.Log("DropViewer", f"Error parsing ShMem msg: {msg_e}", Py4GW.Console.MessageType.Warning)
+                except (TypeError, ValueError, RuntimeError, AttributeError, IndexError) as msg_e:
+                    event_hint = ""
+                    tag_hint = ""
+                    try:
+                        tag_hint = _c_wchar_array_to_str(extra_data_list[0]) if extra_data_list and len(extra_data_list) > 0 else ""
+                    except (TypeError, ValueError, RuntimeError, AttributeError, IndexError):
+                        tag_hint = ""
+                    try:
+                        event_hint = extract_event_id_hint(
+                            extra_0=tag_hint,
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                        )
+                    except (TypeError, ValueError, RuntimeError, AttributeError, IndexError):
+                        event_hint = ""
+                    Py4GW.Console.Log(
+                        "DropViewer",
+                        f"ShMem parse warning idx={msg_idx} tag={tag_hint} ev={event_hint}: {msg_e}",
+                        Py4GW.Console.MessageType.Warning,
+                    )
                     try:
                         if should_finish:
                             shmem.MarkMessageAsFinished(my_email, msg_idx)
-                    except Exception:
+                    except (TypeError, ValueError, RuntimeError, AttributeError):
                         pass
                     continue
 
@@ -3322,8 +3357,14 @@ class DropViewerWindow:
                     f"TRACKED BATCH: {len(batch_rows)} items (ShMem)",
                     Py4GW.Console.MessageType.Info
                 )
-        except Exception:
-            pass  # ShMem might not be ready
+        except (TypeError, ValueError, RuntimeError, AttributeError) as e:
+            if self.shmem_error_timer.IsExpired():
+                self.shmem_error_timer.Reset()
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    f"ShMem poll skipped: {e}",
+                    Py4GW.Console.MessageType.Warning,
+                )
         finally:
             self.last_shmem_poll_ms = (time.perf_counter() - poll_started) * 1000.0
             self.last_shmem_processed = processed_tracker_msgs
@@ -3396,7 +3437,7 @@ class DropViewerWindow:
                      name = clean_name
                  
                  snapshot[item_id] = (name, rarity, is_stackable, is_weapon, is_armor)
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
              Py4GW.Console.Log("RarityDebug", f"Snapshot Error: {e}", Py4GW.Console.MessageType.Error)
         return snapshot
 
@@ -3407,7 +3448,7 @@ class DropViewerWindow:
                 return 0
             GLOBAL_CACHE.Coroutines.append(Routines.Yield.Items.IdentifyItems(items, log=True))
             return len(items)
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Identify queue failed: {e}", Py4GW.Console.MessageType.Warning)
             return 0
 
@@ -3418,139 +3459,48 @@ class DropViewerWindow:
                 return 0
             GLOBAL_CACHE.Coroutines.append(Routines.Yield.Items.SalvageItems(items, log=True))
             return len(items)
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Salvage queue failed: {e}", Py4GW.Console.MessageType.Warning)
             return 0
 
+    def _process_pending_identify_responses(self):
+        def _is_identified(item_id: int) -> bool:
+            try:
+                return bool(Item.Usage.IsIdentified(int(item_id)))
+            except (TypeError, ValueError, RuntimeError, AttributeError):
+                return False
+
+        try:
+            completed = self.identify_response_scheduler.tick(
+                build_payload_fn=lambda item_id: self._build_item_snapshot_payload_from_live_item(int(item_id), ""),
+                is_identified_fn=_is_identified,
+                send_payload_fn=lambda receiver_email, event_id, payload: self._send_tracker_stats_payload_chunks_to_email(
+                    receiver_email,
+                    event_id,
+                    payload,
+                ),
+                build_stats_fn=lambda item_id: self._build_item_stats_from_live_item(int(item_id), ""),
+                send_stats_fn=lambda receiver_email, event_id, stats: self._send_tracker_stats_chunks_to_email(
+                    receiver_email,
+                    event_id,
+                    stats,
+                ),
+            )
+            if completed > 0 and self.verbose_shmem_item_logs:
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    f"ASYNC ID responses completed={completed} pending={self.identify_response_scheduler.pending_count()}",
+                    Py4GW.Console.MessageType.Info,
+                )
+        except (TypeError, ValueError, RuntimeError, AttributeError) as e:
+            Py4GW.Console.Log(
+                "DropViewer",
+                f"ASYNC ID scheduler error: {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
+
     def _run_inventory_action(self, action_code: str, action_payload: str = "", action_meta: str = "", reply_email: str = ""):
-        action_code = self._ensure_text(action_code).strip().lower()
-        action_label = action_code
-        queued = 0
-
-        if action_code == "id_blue":
-            action_label = "ID Blue Items"
-            queued = self._queue_identify_for_rarities(["Blue"])
-        elif action_code == "id_purple":
-            action_label = "ID Purple Items"
-            queued = self._queue_identify_for_rarities(["Purple"])
-        elif action_code == "id_gold":
-            action_label = "ID Gold Items"
-            queued = self._queue_identify_for_rarities(["Gold"])
-        elif action_code == "id_all":
-            action_label = "ID All Items"
-            queued = self._queue_identify_for_rarities(["White", "Blue", "Green", "Purple", "Gold"])
-        elif action_code == "id_selected":
-            selected = self._decode_rarities(action_payload) if action_payload else self._get_selected_id_rarities()
-            action_label = "ID Selected Rarities"
-            queued = self._queue_identify_for_rarities(selected)
-        elif action_code == "salvage_white":
-            action_label = "Salvage White Items"
-            queued = self._queue_salvage_for_rarities(["White"])
-        elif action_code == "salvage_blue":
-            action_label = "Salvage Blue Items"
-            queued = self._queue_salvage_for_rarities(["Blue"])
-        elif action_code == "salvage_purple":
-            action_label = "Salvage Purple Items"
-            queued = self._queue_salvage_for_rarities(["Purple"])
-        elif action_code == "salvage_gold":
-            action_label = "Salvage Gold Items"
-            queued = self._queue_salvage_for_rarities(["Gold"])
-        elif action_code == "salvage_selected":
-            selected = self._decode_rarities(action_payload) if action_payload else self._get_selected_salvage_rarities()
-            action_label = "Salvage Selected Rarities"
-            queued = self._queue_salvage_for_rarities(selected)
-        elif action_code == "id_item_id":
-            action_label = "Identify Single Item"
-            target_item_id = max(0, self._safe_int(action_payload, 0))
-            if target_item_id <= 0:
-                self.set_status("Identify failed: invalid item_id")
-                return False
-            kit_id = 0
-            try:
-                kit_id = int(GLOBAL_CACHE.Inventory.GetFirstIDKit())
-            except Exception:
-                kit_id = 0
-            if kit_id <= 0:
-                self.set_status("Identify failed: no ID kit found")
-                return False
-            try:
-                if Item.Usage.IsIdentified(target_item_id):
-                    self.set_status("Item already identified")
-                    queued = 0
-                else:
-                    result = GLOBAL_CACHE.Inventory.IdentifyItem(target_item_id, kit_id)
-                    if result is False:
-                        self.set_status("Identify failed: API rejected request")
-                        return False
-                    queued = 1
-            except Exception as e:
-                self.set_status(f"Identify failed: {e}")
-                return False
-            if queued > 0:
-                event_id = self._ensure_text(action_meta).strip()
-                if reply_email and event_id:
-                    payload_text = ""
-                    deadline = time.time() + 2.0
-                    while time.time() < deadline:
-                        payload_text = self._build_item_snapshot_payload_from_live_item(target_item_id, "")
-                        try:
-                            if bool(Item.Usage.IsIdentified(target_item_id)):
-                                break
-                        except Exception:
-                            pass
-                        time.sleep(0.12)
-                    sent = False
-                    if payload_text:
-                        sent = self._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text)
-                    if not sent:
-                        stats_text = self._build_item_stats_from_live_item(target_item_id, "")
-                        self._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text)
-        elif action_code == "push_item_stats":
-            action_label = "Push Item Stats"
-            target_item_id = max(0, self._safe_int(action_payload, 0))
-            event_id = self._ensure_text(action_meta).strip()
-            if target_item_id <= 0 or not event_id or not reply_email:
-                return False
-            payload_text = self._build_item_snapshot_payload_from_live_item(target_item_id, "")
-            if payload_text and self._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
-                queued = 1
-            else:
-                stats_text = self._build_item_stats_from_live_item(target_item_id, "")
-                if not stats_text:
-                    return False
-                if self._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
-                    queued = 1
-                else:
-                    return False
-        elif action_code == "push_item_stats_name":
-            action_label = "Push Item Stats By Name"
-            target_name = self._clean_item_name(action_payload)
-            event_id = self._ensure_text(action_meta).strip()
-            if not target_name or not event_id or not reply_email:
-                return False
-            target_item_id = self._resolve_live_item_id_by_name(target_name, prefer_identified=True)
-            if target_item_id <= 0:
-                return False
-            payload_text = self._build_item_snapshot_payload_from_live_item(target_item_id, target_name)
-            if payload_text and self._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
-                queued = 1
-            else:
-                stats_text = self._build_item_stats_from_live_item(target_item_id, target_name)
-                if not stats_text:
-                    return False
-                if self._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
-                    queued = 1
-                else:
-                    return False
-        else:
-            self.set_status(f"Unknown inventory action: {action_code}")
-            return False
-
-        if queued > 0:
-            self.set_status(f"{action_label}: started ({queued} items queued)")
-            return True
-        self.set_status(f"{action_label}: no matching items")
-        return False
+        return run_inventory_action(self, action_code, action_payload, action_meta, reply_email)
 
     def _broadcast_inventory_action_to_followers(self, action_code: str, action_payload: str = ""):
         sent = 0
@@ -3593,7 +3543,7 @@ class DropViewerWindow:
                 )
                 if sent_index != -1:
                     sent += 1
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Inventory action broadcast failed: {e}", Py4GW.Console.MessageType.Warning)
         return sent
 
@@ -3602,7 +3552,7 @@ class DropViewerWindow:
         try:
             if Player.GetAgentID() != Party.GetPartyLeaderID():
                 return
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return
 
         sent = self._broadcast_inventory_action_to_followers(action_code, action_payload)
@@ -3612,7 +3562,7 @@ class DropViewerWindow:
     def _is_leader_client(self) -> bool:
         try:
             return Player.GetAgentID() == Party.GetPartyLeaderID()
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _get_conset_specs(self):
@@ -3659,7 +3609,7 @@ class DropViewerWindow:
             return int(self.conset_effect_id_cache[key])
         try:
             skill_id = int(GLOBAL_CACHE.Skill.GetID(key))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             skill_id = 0
         self.conset_effect_id_cache[key] = skill_id
         return skill_id
@@ -3670,7 +3620,7 @@ class DropViewerWindow:
             return False
         try:
             item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(model_id)))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             item_id = 0
         if item_id <= 0:
             self.set_status(f"{label}: not found in leader inventory")
@@ -3679,7 +3629,7 @@ class DropViewerWindow:
             GLOBAL_CACHE.Inventory.UseItem(item_id)
             self.set_status(f"{label}: used")
             return True
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             self.set_status(f"{label}: use failed ({e})")
             return False
 
@@ -3696,7 +3646,7 @@ class DropViewerWindow:
                 return
             if Agent.IsDead(Player.GetAgentID()):
                 return
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return
 
         for spec in self._get_conset_specs():
@@ -3707,7 +3657,7 @@ class DropViewerWindow:
             has_effect = False
             try:
                 has_effect = effect_id > 0 and bool(GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_id))
-            except Exception:
+            except EXPECTED_RUNTIME_ERRORS:
                 has_effect = False
             if has_effect:
                 continue
@@ -3737,7 +3687,7 @@ class DropViewerWindow:
             for spec in specs:
                 try:
                     counts[spec["key"]] = int(GLOBAL_CACHE.Inventory.GetModelCount(int(spec["model_id"])))
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     counts[spec["key"]] = 0
 
             if PyImGui.begin_table("DropTrackerConsetIcons", len(specs), PyImGui.TableFlags.SizingStretchSame):
@@ -3776,11 +3726,11 @@ class DropViewerWindow:
         salvage_kit_model = 2992
         try:
             superior_id_model = int(ModelID.Superior_Identification_Kit.value)
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             superior_id_model = 5899
         try:
             salvage_kit_model = int(ModelID.Salvage_Kit.value)
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             salvage_kit_model = 2992
         try:
             bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
@@ -3790,26 +3740,26 @@ class DropViewerWindow:
                     continue
                 try:
                     uses = int(Item.Usage.GetUses(item_id))
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     uses = 0
                 model_id = 0
                 try:
                     model_id = int(Item.GetModelID(item_id))
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     model_id = 0
                 try:
                     if model_id == salvage_kit_model:
                         salvage_kits += 1
                         salvage_uses += max(0, uses)
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     pass
                 try:
                     if model_id == superior_id_model:
                         superior_id_kits += 1
                         superior_id_uses += max(0, uses)
-                except Exception:
+                except EXPECTED_RUNTIME_ERRORS:
                     pass
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             pass
         return {
             "salvage_uses": int(salvage_uses),
@@ -3878,7 +3828,7 @@ class DropViewerWindow:
                 if sent_index != -1:
                     sent += 1
             return sent
-        except Exception as e:
+        except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Kit stats request failed: {e}", Py4GW.Console.MessageType.Warning)
             return 0
 
@@ -3917,7 +3867,7 @@ class DropViewerWindow:
                 ExtraData=(self.inventory_stats_response_tag, my_name[:31], str(my_party_pos)[:31], ""),
             )
             return sent_index != -1
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             return False
 
     def _draw_inventory_kit_stats_tab(self):
@@ -3940,7 +3890,7 @@ class DropViewerWindow:
                 if my_account is not None:
                     my_party_id = int(getattr(my_account.AgentPartyData, "PartyID", 0))
                     my_map_id = int(getattr(my_account.AgentData.Map, "MapID", 0))
-        except Exception:
+        except EXPECTED_RUNTIME_ERRORS:
             pass
 
         rows = []
@@ -3980,72 +3930,131 @@ class DropViewerWindow:
                 PyImGui.text(f"{age_s}s")
             PyImGui.end_table()
 
-    def _log_drop_to_file(self, player_name, item_name, quantity, extra_info, timestamp_override=None, event_id="", item_stats="", item_id=0):
-        self._log_drops_batch([(player_name, item_name, quantity, extra_info, timestamp_override, event_id, item_stats, item_id)])
+    def _log_drop_to_file(
+        self,
+        player_name,
+        item_name,
+        quantity,
+        extra_info,
+        timestamp_override=None,
+        event_id="",
+        item_stats="",
+        item_id=0,
+        sender_email="",
+    ):
+        self._log_drops_batch(
+            [
+                {
+                    "player_name": player_name,
+                    "item_name": item_name,
+                    "quantity": quantity,
+                    "extra_info": extra_info,
+                    "timestamp_override": timestamp_override,
+                    "event_id": event_id,
+                    "item_stats": item_stats,
+                    "item_id": item_id,
+                    "sender_email": sender_email,
+                }
+            ]
+        )
+
+    def _build_drop_log_row_from_entry(self, entry: Any, bot_name: str, map_id: int, map_name: str) -> DropLogRow:
+        if isinstance(entry, DropLogRow):
+            sender_email = self._ensure_text(entry.sender_email).strip().lower()
+            if not sender_email:
+                sender_email = self._resolve_account_email_by_character_name(self._ensure_text(entry.player_name).strip())
+            return DropLogRow(
+                timestamp=self._ensure_text(entry.timestamp) or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                viewer_bot=self._ensure_text(bot_name),
+                map_id=max(0, self._safe_int(map_id, 0)),
+                map_name=self._ensure_text(map_name) or "Unknown",
+                player_name=self._ensure_text(entry.player_name) or "Unknown",
+                item_name=self._ensure_text(entry.item_name) or "Unknown Item",
+                quantity=max(1, self._safe_int(entry.quantity, 1)),
+                rarity=self._normalize_rarity_label(entry.item_name, entry.rarity),
+                event_id=self._ensure_text(entry.event_id).strip(),
+                item_stats=self._ensure_text(entry.item_stats).strip(),
+                item_id=max(0, self._safe_int(entry.item_id, 0)),
+                sender_email=sender_email,
+            )
+        if isinstance(entry, dict):
+            player_name = entry.get("player_name", "Unknown")
+            item_name = entry.get("item_name", "Unknown Item")
+            quantity = entry.get("quantity", 1)
+            extra_info = entry.get("extra_info", "Unknown")
+            timestamp_override = entry.get("timestamp_override", None)
+            event_id = self._ensure_text(entry.get("event_id", "")).strip()
+            item_stats = self._ensure_text(entry.get("item_stats", "")).strip()
+            item_id = max(0, self._safe_int(entry.get("item_id", 0), 0))
+            sender_email = self._ensure_text(entry.get("sender_email", "")).strip().lower()
+        else:
+            player_name = entry[0] if len(entry) > 0 else "Unknown"
+            item_name = entry[1] if len(entry) > 1 else "Unknown Item"
+            quantity = entry[2] if len(entry) > 2 else 1
+            extra_info = entry[3] if len(entry) > 3 else "Unknown"
+            timestamp_override = entry[4] if len(entry) > 4 else None
+            event_id = self._ensure_text(entry[5]).strip() if len(entry) > 5 else ""
+            item_stats = self._ensure_text(entry[6]).strip() if len(entry) > 6 else ""
+            item_id = max(0, self._safe_int(entry[7], 0)) if len(entry) > 7 else 0
+            sender_email = self._ensure_text(entry[8]).strip().lower() if len(entry) > 8 else ""
+        if not sender_email:
+            sender_email = self._resolve_account_email_by_character_name(self._ensure_text(player_name).strip())
+        if event_id and not item_stats:
+            stats_cache_key = self._make_stats_cache_key(event_id, sender_email, player_name)
+            item_stats = self._get_cached_stats_text(self.stats_by_event, stats_cache_key)
+
+        timestamp = timestamp_override if timestamp_override else datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        rarity = self._normalize_rarity_label(item_name, extra_info if extra_info else "Unknown")
+        qty = max(1, self._safe_int(quantity, 1))
+        return DropLogRow(
+            timestamp=timestamp,
+            viewer_bot=self._ensure_text(bot_name),
+            map_id=max(0, self._safe_int(map_id, 0)),
+            map_name=self._ensure_text(map_name) or "Unknown",
+            player_name=self._ensure_text(player_name) or "Unknown",
+            item_name=self._ensure_text(item_name) or "Unknown Item",
+            quantity=qty,
+            rarity=rarity,
+            event_id=event_id,
+            item_stats=item_stats,
+            item_id=item_id,
+            sender_email=sender_email,
+        )
 
     def _log_drops_batch(self, entries):
         try:
             bot_name = Player.GetName()
             map_id = Map.GetMapID()
             map_name = Map.GetMapName(map_id)
-
-            # Write to CSV
-            file_exists = os.path.isfile(self.log_path)
             os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
+            drop_rows: list[DropLogRow] = []
+            for entry in entries:
+                drop_rows.append(self._build_drop_log_row_from_entry(entry, bot_name, map_id, map_name))
+            append_drop_log_rows(self.log_path, drop_rows)
 
-            with open(self.log_path, mode='a', newline='', encoding='utf-8') as f:
-                writer = csv.writer(f)
-                if not file_exists:
-                    writer.writerow(["Timestamp", "ViewerBot", "MapID", "MapName", "Player", "ItemName", "Quantity", "Rarity", "EventID", "ItemStats", "ItemID"])
+            for drop_row in drop_rows:
+                if drop_row.event_id:
+                    sender_email = self._ensure_text(drop_row.sender_email).strip().lower()
+                    stats_cache_key = self._make_stats_cache_key(drop_row.event_id, sender_email, drop_row.player_name)
+                    if stats_cache_key:
+                        self.stats_by_event[stats_cache_key] = drop_row.item_stats
 
-                for entry in entries:
-                    if isinstance(entry, dict):
-                        player_name = entry.get("player_name", "Unknown")
-                        item_name = entry.get("item_name", "Unknown Item")
-                        quantity = entry.get("quantity", 1)
-                        extra_info = entry.get("extra_info", "Unknown")
-                        timestamp_override = entry.get("timestamp_override", None)
-                        event_id = self._ensure_text(entry.get("event_id", "")).strip()
-                        item_stats = self._ensure_text(entry.get("item_stats", "")).strip()
-                        item_id = max(0, self._safe_int(entry.get("item_id", 0), 0))
-                    else:
-                        player_name = entry[0] if len(entry) > 0 else "Unknown"
-                        item_name = entry[1] if len(entry) > 1 else "Unknown Item"
-                        quantity = entry[2] if len(entry) > 2 else 1
-                        extra_info = entry[3] if len(entry) > 3 else "Unknown"
-                        timestamp_override = entry[4] if len(entry) > 4 else None
-                        event_id = self._ensure_text(entry[5]).strip() if len(entry) > 5 else ""
-                        item_stats = self._ensure_text(entry[6]).strip() if len(entry) > 6 else ""
-                        item_id = max(0, self._safe_int(entry[7], 0)) if len(entry) > 7 else 0
-                    if event_id and not item_stats:
-                        item_stats = self._ensure_text(self.stats_by_event.get(event_id, "")).strip()
+                row = drop_row.to_runtime_row()
+                self.raw_drops.append(row)
+                self.total_drops += int(drop_row.quantity)
 
-                    timestamp = timestamp_override if timestamp_override else datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    rarity = self._normalize_rarity_label(item_name, extra_info if extra_info else "Unknown")
-                    qty = int(quantity) if quantity else 1
-                    if qty < 1:
-                        qty = 1
-                    writer.writerow([timestamp, bot_name, map_id, map_name, player_name, item_name, qty, rarity, event_id, item_stats, item_id])
-                    if event_id:
-                        self.stats_by_event[event_id] = item_stats
+                canonical_name = self._canonical_agg_item_name(drop_row.item_name, drop_row.rarity, self.aggregated_drops)
+                key = (canonical_name, drop_row.rarity)
+                if key not in self.aggregated_drops:
+                    self.aggregated_drops[key] = {"Quantity": 0, "Count": 0}
 
-                    # --- Update In-Memory Data ---
-                    row = [timestamp, bot_name, str(map_id), map_name, player_name, item_name, str(qty), rarity, event_id, item_stats, str(item_id)]
-                    self.raw_drops.append(row)
-                    self.total_drops += qty
-
-                    canonical_name = self._canonical_agg_item_name(item_name, rarity, self.aggregated_drops)
-                    key = (canonical_name, rarity)
-                    if key not in self.aggregated_drops:
-                        self.aggregated_drops[key] = {"Quantity": 0, "Count": 0}
-
-                    self.aggregated_drops[key]["Quantity"] += qty
-                    self.aggregated_drops[key]["Count"] += 1
+                self.aggregated_drops[key]["Quantity"] += int(drop_row.quantity)
+                self.aggregated_drops[key]["Count"] += 1
 
             self.last_read_time = os.path.getmtime(self.log_path) if os.path.exists(self.log_path) else time.time()
 
-        except Exception as e:
-            print(f"Log Error: {e}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Log Error: {e}", Py4GW.Console.MessageType.Warning)
 
     def _get_rarity_color(self, rarity):
         col = (1.0, 1.0, 1.0, 1.0)
@@ -4077,3 +4086,4 @@ def update():
 
 if __name__ == "__main__":
     pass
+
