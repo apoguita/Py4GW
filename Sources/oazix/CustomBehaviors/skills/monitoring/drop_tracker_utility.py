@@ -4,7 +4,7 @@ import os
 import re
 import time
 
-from Py4GWCoreLib import GLOBAL_CACHE, Item, ItemArray, Party, Player, Py4GW, Routines
+from Py4GWCoreLib import GLOBAL_CACHE, Item, ItemArray, Map, Party, Player, Py4GW, Routines
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.enums import SharedCommandType
 from Sources.oazix.CustomBehaviors.primitives import constants
@@ -17,6 +17,15 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol impor
     make_name_signature,
 )
 
+try:
+    from Py4GWCoreLib.enums_src.Item_enums import ItemType
+    from Sources.marks_sources.mods_parser import ModDatabase, parse_modifiers, is_matching_item_type
+except Exception:
+    ItemType = None
+    ModDatabase = None
+    parse_modifiers = None
+    is_matching_item_type = None
+
 
 class DropTrackerSender:
     """
@@ -25,7 +34,7 @@ class DropTrackerSender:
     """
 
     _instance = None
-    _STATE_VERSION = 9
+    _STATE_VERSION = 11
 
     def __new__(cls):
         if cls._instance is None:
@@ -65,6 +74,8 @@ class DropTrackerSender:
                     self.enable_perf_logs = False
                 if not hasattr(self, "event_sequence"):
                     self.event_sequence = 0
+                if not hasattr(self, "last_seen_map_id"):
+                    self.last_seen_map_id = 0
                 if not hasattr(self, "runtime_config_path"):
                     self.runtime_config_path = os.path.join(
                         os.path.dirname(constants.DROP_LOG_PATH),
@@ -105,6 +116,7 @@ class DropTrackerSender:
         self.max_retry_attempts = 12
         self.enable_perf_logs = False
         self.event_sequence = 0
+        self.last_seen_map_id = 0
         self.last_process_duration_ms = 0.0
         self.last_ack_count = 0
         self.runtime_config_path = os.path.join(
@@ -113,6 +125,305 @@ class DropTrackerSender:
         )
         self.ack_poll_timer = ThrottledTimer(250)
         self.config_poll_timer = ThrottledTimer(2000)
+        self.mod_db = None
+        self._load_mod_database()
+
+    def _load_mod_database(self):
+        if ModDatabase is None:
+            self.mod_db = None
+            return
+        try:
+            # .../Sources/oazix/CustomBehaviors/skills/monitoring -> .../Sources
+            sources_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
+            data_dir = os.path.join(
+                sources_root,
+                "marks_sources",
+                "mods_data",
+            )
+            self.mod_db = ModDatabase.load(data_dir)
+        except Exception:
+            self.mod_db = None
+
+    def _format_attribute_name(self, attr_name: str) -> str:
+        txt = str(attr_name or "").replace("_", " ").strip()
+        if txt.lower() == "none":
+            return ""
+        return txt
+
+    def _render_mod_description_template(
+        self,
+        description: str,
+        matched_modifiers: list[tuple[int, int, int]],
+        default_value: int = 0,
+        attribute_name: str = "",
+    ) -> list[str]:
+        desc = str(description or "").strip()
+        if not desc:
+            return []
+
+        by_id = {}
+        for ident, arg1, arg2 in matched_modifiers:
+            by_id[int(ident)] = (int(arg1), int(arg2))
+
+        def _resolve(token: str, ident_text: str) -> int:
+            idx = 1 if token == "arg1" else 2
+            if ident_text:
+                pair = by_id.get(int(ident_text))
+                if pair:
+                    return int(pair[idx - 1])
+                return 0
+            for _ident, arg1, arg2 in matched_modifiers:
+                value = int(arg1) if idx == 1 else int(arg2)
+                if value != 0:
+                    return value
+            return int(default_value) if idx == 2 else 0
+
+        rendered = re.sub(
+            r"\{(arg1|arg2)(?:\[(\d+)\])?\}",
+            lambda m: str(_resolve(m.group(1), m.group(2) or "")),
+            desc,
+        )
+        if attribute_name:
+            rendered = rendered.replace("item's attribute", attribute_name).replace("Item's attribute", attribute_name)
+        rendered = rendered.replace("(Chance: +", "(Chance: ")
+        rendered = rendered.replace("  ", " ").strip()
+        return [line.strip() for line in rendered.splitlines() if line.strip()]
+
+    def _match_mod_definition_against_raw(self, definition_modifiers, raw_mods) -> list[tuple[int, int, int]]:
+        meaningful = []
+        for dm in list(definition_modifiers or []):
+            mode = str(getattr(dm, "modifier_value_arg", "")).lower()
+            if "none" in mode:
+                continue
+            meaningful.append(dm)
+        if not meaningful:
+            return []
+
+        matched = []
+        for dm in meaningful:
+            ident = int(getattr(dm, "identifier", 0))
+            arg1 = int(getattr(dm, "arg1", 0))
+            arg2 = int(getattr(dm, "arg2", 0))
+            min_v = int(getattr(dm, "min", 0))
+            max_v = int(getattr(dm, "max", 0))
+            mode = str(getattr(dm, "modifier_value_arg", "")).lower()
+            found = None
+            for rid, ra1, ra2 in raw_mods:
+                if int(rid) != ident:
+                    continue
+                if "arg1" in mode:
+                    if int(ra2) == arg2 and min_v <= int(ra1) <= max_v:
+                        found = (int(rid), int(ra1), int(ra2))
+                        break
+                elif "arg2" in mode:
+                    if int(ra1) == arg1 and min_v <= int(ra2) <= max_v:
+                        found = (int(rid), int(ra1), int(ra2))
+                        break
+                elif "fixed" in mode:
+                    if int(ra1) == arg1 and int(ra2) == arg2:
+                        found = (int(rid), int(ra1), int(ra2))
+                        break
+            if found is None:
+                return []
+            matched.append(found)
+        return matched
+
+    def _weapon_mod_type_matches(self, weapon_mod, item_type) -> bool:
+        if item_type is None or is_matching_item_type is None:
+            return False
+        try:
+            target_types = list(getattr(weapon_mod, "target_types", []) or [])
+            for target in target_types:
+                try:
+                    if is_matching_item_type(item_type, target):
+                        return True
+                except Exception:
+                    continue
+            item_mods = getattr(weapon_mod, "item_mods", {}) or {}
+            for target in list(item_mods.keys()):
+                try:
+                    if is_matching_item_type(item_type, target):
+                        return True
+                except Exception:
+                    continue
+        except Exception:
+            return False
+        return False
+
+    def _collect_fallback_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
+        lines = []
+        if self.mod_db is None:
+            return lines
+        best_by_ident = {}
+        try:
+            for weapon_mod in list(getattr(self.mod_db, "weapon_mods", {}).values()):
+                matched = self._match_mod_definition_against_raw(getattr(weapon_mod, "modifiers", []), raw_mods)
+                if not matched:
+                    continue
+                ident_set = {int(m[0]) for m in matched}
+                if not ident_set:
+                    continue
+                desc = str(getattr(weapon_mod, "description", "") or "").strip()
+                rendered = self._render_mod_description_template(desc, matched, 0, item_attr_txt)
+                if rendered:
+                    first_line = rendered[0]
+                    lower_desc = desc.lower()
+                    has_old_school = "[old school]" in lower_desc
+                    type_match = self._weapon_mod_type_matches(weapon_mod, item_type)
+                    score = 0
+                    if type_match:
+                        score += 100
+                    if has_old_school:
+                        score += 20
+                    if not type_match and not has_old_school:
+                        score -= 60
+                    score += min(len(matched), 3)
+                    for ident in ident_set:
+                        prev = best_by_ident.get(ident, None)
+                        if prev is None or score > int(prev.get("score", -999)):
+                            best_by_ident[ident] = {"line": first_line, "score": score}
+        except Exception:
+            return lines
+        for ident in sorted(best_by_ident.keys()):
+            line = str(best_by_ident[ident].get("line", "")).strip()
+            if line:
+                lines.append(line)
+        return lines
+
+    def _build_known_spellcast_mod_lines(self, raw_mods, item_attr_txt: str) -> list[str]:
+        lines = []
+        attr_txt = str(item_attr_txt or "").strip()
+        attr_phrase = f"{attr_txt} " if attr_txt else "item's attribute "
+        for ident, arg1, _arg2 in list(raw_mods or []):
+            ident_i = int(ident)
+            chance = int(arg1)
+            if chance <= 0:
+                continue
+            if ident_i == 8712:
+                lines.append(f"Halves casting time of spells (Chance: {chance}%)")
+            elif ident_i == 9128:
+                lines.append(f"Halves skill recharge of spells (Chance: {chance}%)")
+            elif ident_i == 10248:
+                lines.append(f"Halves casting time of {attr_phrase}spells (Chance: {chance}%)")
+            elif ident_i == 10280:
+                lines.append(f"Halves skill recharge of {attr_phrase}spells (Chance: {chance}%)")
+        return lines
+
+    def _build_item_stats_text(self, item_id: int, item_name: str = "") -> str:
+        item_id = int(item_id or 0)
+        if item_id <= 0:
+            return ""
+        try:
+            item_instance = Item.item_instance(item_id)
+            if not item_instance:
+                return ""
+            model_id = int(getattr(item_instance, "model_id", 0))
+            value = int(getattr(item_instance, "value", 0))
+            lines: list[str] = []
+            clean_name = str(item_name or "").strip()
+            if clean_name:
+                lines.append(clean_name)
+            if value > 0:
+                lines.append(f"Value: {value} gold")
+
+            raw_mods = []
+            try:
+                for mod in Item.Customization.Modifiers.GetModifiers(item_id):
+                    raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
+            except Exception:
+                raw_mods = []
+            if raw_mods:
+                req_attr = 0
+                req_val = 0
+                for ident, arg1, arg2 in raw_mods:
+                    if ident in (42920, 42120):  # Damage, Damage_NoReq
+                        if int(arg2) > 0 and int(arg1) > 0:
+                            lines.append(f"Damage: {int(arg2)}-{int(arg1)}")
+                    elif ident == 42936:  # ShieldArmor
+                        if int(arg1) > 0:
+                            if int(arg2) > 0:
+                                lines.append(f"Armor: {int(arg1)} (vs {int(arg2)})")
+                            else:
+                                lines.append(f"Armor: {int(arg1)}")
+                    elif ident == 10136:  # Requirement
+                        req_attr = int(arg1)
+                        req_val = int(arg2)
+                if req_val > 0:
+                    attr_txt = ""
+                    try:
+                        from Py4GWCoreLib.enums import Attribute
+                        attr_txt = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
+                    except Exception:
+                        attr_txt = ""
+                    lines.append(f"Requires {req_val} {attr_txt}".rstrip())
+
+            if not raw_mods or self.mod_db is None:
+                return "\n".join(lines)
+
+            try:
+                item_type_int, _ = Item.GetItemType(item_id)
+                item_type = ItemType(item_type_int) if ItemType is not None else None
+            except Exception:
+                item_type = None
+
+            item_attr_txt_for_known = ""
+            if req_val > 0:
+                try:
+                    from Py4GWCoreLib.enums import Attribute
+                    item_attr_txt_for_known = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
+                except Exception:
+                    item_attr_txt_for_known = ""
+
+            if parse_modifiers is not None and item_type is not None:
+                parsed = parse_modifiers(raw_mods, item_type, model_id, self.mod_db)
+                item_attr_txt = self._format_attribute_name(getattr(parsed.attribute, "name", ""))
+                if item_attr_txt:
+                    item_attr_txt_for_known = item_attr_txt
+                min_dmg, max_dmg = parsed.damage
+                armor_val, armor_vs = parsed.shield_armor
+                if int(min_dmg) > 0 and int(max_dmg) > 0:
+                    lines.append(f"Damage: {int(min_dmg)}-{int(max_dmg)}")
+                if int(armor_val) > 0:
+                    if int(armor_vs) > 0:
+                        lines.append(f"Armor: {int(armor_val)} (vs {int(armor_vs)})")
+                    else:
+                        lines.append(f"Armor: {int(armor_val)}")
+                if int(parsed.requirements) > 0:
+                    attr_txt = self._format_attribute_name(getattr(parsed.attribute, "name", ""))
+                    if attr_txt:
+                        lines.append(f"Requires {int(parsed.requirements)} {attr_txt}")
+                    else:
+                        lines.append(f"Requires {int(parsed.requirements)}")
+
+                if parsed.weapon_mods:
+                    for mod in parsed.weapon_mods:
+                        name = str(getattr(mod.weapon_mod, "name", "") or "").strip()
+                        value = int(getattr(mod, "value", 0))
+                        if not name:
+                            continue
+                        matched_mods = list(getattr(mod, "matched_modifiers", []) or [])
+                        desc = str(getattr(mod.weapon_mod, "description", "") or "").strip()
+                        rendered_lines = self._render_mod_description_template(desc, matched_mods, value, item_attr_txt)
+                        if rendered_lines:
+                            lines.extend(rendered_lines)
+                        else:
+                            lines.append(f"{name} ({value})" if value else name)
+                elif parsed.runes:
+                    for rune in parsed.runes:
+                        name = str(getattr(rune.rune, "name", "") or "").strip()
+                        desc = str(getattr(rune.rune, "description", "") or "").strip()
+                        rune_mods = list(getattr(rune, "modifiers", []) or [])
+                        rendered_lines = self._render_mod_description_template(desc, rune_mods, 0, item_attr_txt)
+                        if rendered_lines:
+                            lines.extend(rendered_lines)
+                        elif name:
+                            lines.append(name)
+                lines.extend(self._collect_fallback_mod_lines(raw_mods, item_attr_txt, item_type))
+            lines.extend(self._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known))
+
+            return "\n".join(lines)
+        except Exception:
+            return ""
 
     def _reset_tracking_state(self, clear_outbox: bool = True):
         self.last_inventory_snapshot = {}
@@ -200,6 +511,32 @@ class DropTrackerSender:
                     ExtraData=(
                         "TrackerNameV2",
                         (name_signature or "")[:31],
+                        (chunk or "")[:31],
+                        encode_name_chunk_meta(idx, total)[:31],
+                    ),
+                )
+                if sent_index == -1:
+                    return False
+            return True
+        except Exception:
+            return False
+
+    def _send_stats_chunks(self, receiver_email: str, my_email: str, event_id: str, stats_text: str) -> bool:
+        try:
+            if not event_id:
+                return True
+            if not stats_text:
+                return True
+            chunks = build_name_chunks(stats_text or "", 31)
+            for idx, total, chunk in chunks:
+                sent_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email=my_email,
+                    receiver_email=receiver_email,
+                    command=SharedCommandType.CustomBehaviors,
+                    params=(0.0, 0.0, 0.0, 0.0),
+                    ExtraData=(
+                        "TrackerStatsV1",
+                        (event_id or "")[:31],
                         (chunk or "")[:31],
                         encode_name_chunk_meta(idx, total)[:31],
                     ),
@@ -304,6 +641,8 @@ class DropTrackerSender:
             "event_id": self._next_event_id(),
             "name_signature": make_name_signature(item_name or "Unknown Item"),
             "name_chunks_sent": False,
+            "stats_chunks_sent": False,
+            "stats_text": self._build_item_stats_text(int(item_id), item_name or "Unknown Item"),
             "attempts": 0,
             "next_retry_at": 0.0,
             "acked": False,
@@ -425,6 +764,17 @@ class DropTrackerSender:
                     if not ok_chunks:
                         break
                 entry["name_chunks_sent"] = True
+
+            if not entry.get("stats_chunks_sent", False):
+                ok_stats = self._send_stats_chunks(
+                    receiver_email=receiver_email,
+                    my_email=my_email,
+                    event_id=str(entry.get("event_id", "")),
+                    stats_text=str(entry.get("stats_text", "") or ""),
+                )
+                # Stats are best-effort; never block the drop event itself.
+                if ok_stats:
+                    entry["stats_chunks_sent"] = True
 
             if not self._send_drop(
                 entry.get("item_name", "Unknown Item"),
@@ -894,7 +1244,16 @@ class DropTrackerSender:
         try:
             if not Routines.Checks.Map.MapValid():
                 self._reset_tracking_state()
+                self.last_seen_map_id = 0
                 return
+            current_map_id = int(Map.GetMapID() or 0)
+            if current_map_id > 0:
+                if int(self.last_seen_map_id) <= 0:
+                    self.last_seen_map_id = current_map_id
+                elif current_map_id != int(self.last_seen_map_id):
+                    self.last_seen_map_id = current_map_id
+                    self._reset_tracking_state()
+                    return
             if self.config_poll_timer.IsExpired():
                 self.config_poll_timer.Reset()
                 self._load_runtime_config()
