@@ -1,18 +1,18 @@
 {
-    "name": "The Way is blocked",
-    "max_heroes": 6,
-    "take_quest": {
-        "outpost_id": 134,
-        "quest_npc_location": [9086, 5816],
-        "dialog_id": ["0x80C603","0x80C601"],
-        "wait_ms": 500,
-        "name": "Take Quest"
-    },
-    "steps": [
-        {"type": "exit_map", "x": 9200, "y": 4000, "target_map_id": 99},
-        {"type": "auto_path", "name": "Killing path", "points": [[7508, -1496], [3061, -4286], [2134, -9007], [135, -11701], [-1453, -12890], [-5887, -12414], [-8536, -9960], [-10752, -8461] ]},
-        {"type": "exit_map", "x": -11100, "y": -8500,   "target_map_id": 25},
-        {"type": "auto_path", "name": "Quest npc", "points": [[24274, -2211]]},
-        {"type": "dialog", "x": 23672, "y": -2776, "id": "0x80C607"}
-    ]
+  "name": "The Way is blocked",
+  "max_heroes": 6,
+  "take_quest": {
+    "outpost_id": 134,
+    "quest_npc_location": [9086, 5816],
+    "dialog_id": ["0x80C603", "0x80C601"],
+    "wait_ms": 500,
+    "name": "Take Quest"
+  },
+  "steps": [
+    {"type": "exit_map", "x": 9200, "y": 4000, "target_map_id": 99},
+    {"type": "auto_path", "name": "Killing path", "points": [[7508, -1496], [3061, -4286], [2134, -9007], [135, -11701], [-1453, -12890], [-5887, -12414], [-8536, -9960], [-10752, -8461]]},
+    {"type": "exit_map", "x": -11100, "y": -8500, "target_map_id": 25},
+    {"type": "auto_path", "name": "Quest npc", "points": [[24274, -2211]]},
+    {"type": "dialog", "x": 23672, "y": -2776, "id": "0x80C607"}
+  ]
 }
