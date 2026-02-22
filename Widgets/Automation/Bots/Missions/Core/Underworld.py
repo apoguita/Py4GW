@@ -748,7 +748,6 @@ def _draw_help():
     PyImGui.bullet_text("You have to do the missing quests manually")
     PyImGui.bullet_text("Main Account sometimes leaves the team alone - Dont be the Healer")
     PyImGui.bullet_text("You should either have some evas or 1 melee char to trigger traps in the mountains")
-    PyImGui.bullet_text('You should change the line 39 in Sources/oazix/CustomBehaviors/skills/botting/wait_if_party_member_too_far.py with * 1.25 for faster runs')
     PyImGui.separator()
     PyImGui.bullet_text("Have fun :) - sch0l0ka")
 
