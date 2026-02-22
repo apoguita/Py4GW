@@ -32,7 +32,9 @@ from .shared_memory_src.Globals import (
 
     MISSION_BITMAP_ENTRIES,
     SKILL_BITMAP_ENTRIES,
-    SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS
+    SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS,
+    SHMEM_HERO_UPDATE_THROTTLE_MS,
+    SHMEM_PET_UPDATE_THROTTLE_MS,
 )
 
 from .shared_memory_src.SharedMessageStruct import SharedMessageStruct
@@ -71,6 +73,8 @@ class Py4GWSharedMemoryManager:
             ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area already exists but could not be attached.", Py4GW.Console.MessageType.Error)
             raise
 
+        self._hero_update_timer = ThrottledTimer(SHMEM_HERO_UPDATE_THROTTLE_MS)
+        self._pet_update_timer = ThrottledTimer(SHMEM_PET_UPDATE_THROTTLE_MS)
         self._initialized = True
         
     #Base Methods
@@ -80,7 +84,9 @@ class Py4GWSharedMemoryManager:
     def GetAllAccounts(self) -> AllAccounts:
         if self.shm.buf is None:
             raise RuntimeError("Shared memory is not initialized.")
+
         return AllAccounts.from_buffer(self.shm.buf)
+
     
     def GetAccountData(self, index: int) -> AccountStruct:
         return self.GetAllAccounts().GetAccountData(index)
@@ -268,8 +274,12 @@ class Py4GWSharedMemoryManager:
     def update_callback(self):
         """Callback function to update shared memory data."""
         self.SetPlayerData(Player.GetAccountEmail())
-        self.SetHeroesData()
-        self.SetPetData()
+        if self._hero_update_timer.IsExpired():
+            self.SetHeroesData()
+            self._hero_update_timer.Reset()
+        if self._pet_update_timer.IsExpired():
+            self.SetPetData()
+            self._pet_update_timer.Reset()
         
         
     @staticmethod
