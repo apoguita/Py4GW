@@ -164,11 +164,31 @@ def _mouse_in_current_window_rect():
         return False
 
 
+def _get_display_size():
+    io = PyImGui.get_io()
+    w = _safe_float(getattr(io, "display_size_x", 1920.0), 1920.0)
+    h = _safe_float(getattr(io, "display_size_y", 1080.0), 1080.0)
+    return max(320.0, w), max(240.0, h)
+
+
+def _clamp_pos(x, y, w, h, margin=4.0):
+    disp_w, disp_h = _get_display_size()
+    max_x = max(margin, disp_w - w - margin)
+    max_y = max(margin, disp_h - h - margin)
+    return min(max(float(x), margin), max_x), min(max(float(y), margin), max_y)
+
+
+def _clamp_size(w, h, min_w=420.0, min_h=280.0, margin=20.0):
+    disp_w, disp_h = _get_display_size()
+    max_w = max(min_w, disp_w - margin)
+    max_h = max(min_h, disp_h - margin)
+    return min(max(float(w), min_w), max_w), min(max(float(h), min_h), max_h)
+
+
 def _draw_hover_handle() -> bool:
     global hover_pin_open, hover_handle_initialized
 
-    io = PyImGui.get_io()
-    display_w = _safe_float(getattr(io, "display_size_x", 1920.0), 1920.0)
+    display_w, _ = _get_display_size()
 
     btn_w = 48.0
     btn_h = 48.0
@@ -181,6 +201,8 @@ def _draw_hover_handle() -> bool:
         _set_saved_pair("handle", (default_x, default_y))
 
     x, y = saved_handle_pos if saved_handle_pos is not None else (default_x, default_y)
+    x, y = _clamp_pos(x, y, btn_w, btn_h)
+    _set_saved_pair("handle", (x, y))
     button_rect = (x, y, btn_w, btn_h)
 
     PyImGui.set_next_window_pos(x, y)
@@ -242,7 +264,8 @@ def _draw_hover_handle() -> bool:
         elif PyImGui.is_item_active():
             delta = PyImGui.get_mouse_drag_delta(0, 0.0)
             PyImGui.reset_mouse_drag_delta(0)
-            _set_saved_pair("handle", (x + delta[0], y + delta[1]))
+            nx, ny = _clamp_pos(x + delta[0], y + delta[1], btn_w, btn_h)
+            _set_saved_pair("handle", (nx, ny))
 
         if PyImGui.is_item_hovered():
             tip = "Custom Behaviors (click to pin)" if not hover_pin_open else "Custom Behaviors (click to unpin)"
@@ -266,9 +289,13 @@ def gui():
 
     if not widget_window_initialized:
         if saved_window_pos is not None:
-            PyImGui.set_next_window_pos(saved_window_pos[0], saved_window_pos[1])
+            sw, sh = saved_window_size if saved_window_size is not None else (640.0, 420.0)
+            sw, sh = _clamp_size(sw, sh)
+            px, py = _clamp_pos(saved_window_pos[0], saved_window_pos[1], sw, sh)
+            PyImGui.set_next_window_pos(px, py)
         if saved_window_size is not None:
-            PyImGui.set_next_window_size(saved_window_size[0], saved_window_size[1])
+            sw, sh = _clamp_size(saved_window_size[0], saved_window_size[1])
+            PyImGui.set_next_window_size(sw, sh)
 
     hovered = False
     if PyImGui.begin(WIDGET_TITLE, PyImGui.WindowFlags.NoFlag):

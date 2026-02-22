@@ -438,6 +438,18 @@ def _mouse_in_window_rect() -> bool:
     except Exception:
         return False
 
+def _get_display_size():
+    io = PyImGui.get_io()
+    w = float(getattr(io, "display_size_x", 1920.0) or 1920.0)
+    h = float(getattr(io, "display_size_y", 1080.0) or 1080.0)
+    return max(320.0, w), max(240.0, h)
+
+def _clamp_pos(x, y, w, h, margin=4.0):
+    sw, sh = _get_display_size()
+    max_x = max(margin, sw - w - margin)
+    max_y = max(margin, sh - h - margin)
+    return min(max(float(x), margin), max_x), min(max(float(y), margin), max_y)
+
 def _draw_themed_handle(button_rect):
     is_hover = ImGui.is_mouse_in_rect(button_rect)
     try:
@@ -469,6 +481,7 @@ def _draw_themed_handle(button_rect):
 def DrawLootManagerHandle():
     global loot_handle_x, loot_handle_y, loot_handle_pin
     btn_w, btn_h = 48.0, 48.0
+    loot_handle_x, loot_handle_y = _clamp_pos(loot_handle_x, loot_handle_y, btn_w, btn_h)
     button_rect = (loot_handle_x, loot_handle_y, btn_w, btn_h)
 
     PyImGui.set_next_window_pos(loot_handle_x, loot_handle_y)
@@ -509,6 +522,7 @@ def DrawLootManagerHandle():
             PyImGui.reset_mouse_drag_delta(0)
             loot_handle_x += delta[0]
             loot_handle_y += delta[1]
+            loot_handle_x, loot_handle_y = _clamp_pos(loot_handle_x, loot_handle_y, btn_w, btn_h)
 
         if PyImGui.is_item_hovered():
             tip = "Loot Manager (click to pin)" if not loot_handle_pin else "Loot Manager (click to unpin)"
@@ -529,6 +543,7 @@ def DrawWindow():
 
     # 1) On first draw, restore last position & collapsed state
     if first_run:
+        win_x, win_y = _clamp_pos(win_x, win_y, 520.0, 420.0)
         PyImGui.set_next_window_pos(win_x, win_y)
         PyImGui.set_next_window_collapsed(win_collapsed, 0)
         first_run = False
