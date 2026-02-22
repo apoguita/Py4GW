@@ -344,6 +344,29 @@ class _Items:
 
         return True
 
+    @_yield_step(label="WithdrawUpTo", counter_key="WITHDRAW_UP_TO")
+    def withdraw_up_to(self, model_id: int, max_quantity: int) -> Generator[Any, Any, None]:
+        """Withdraw up to max_quantity of model_id from storage. No-op if none available."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawUpTo(model_id, max_quantity)
+
+    @_yield_step(label="DepositAllInventory", counter_key="DEPOSIT_ALL_INVENTORY")
+    def deposit_all_inventory(self) -> Generator[Any, Any, None]:
+        """Deposits all items from inventory bags to storage."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.DepositAllInventory()
+
+    @_yield_step(label="DepositItem", counter_key="DEPOSIT_ITEM")
+    def deposit_item(self, model_id: int) -> Generator[Any, Any, bool]:
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+        if not item_id:
+            return True  # nothing to deposit
+        GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+        yield from Routines.Yield.wait(350)
+        return True
+
     @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")
     def use_all_consumables(self) -> Generator[Any, Any, None]:
         """
