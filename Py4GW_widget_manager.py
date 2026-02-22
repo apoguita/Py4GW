@@ -92,6 +92,24 @@ def _mouse_in_window_rect() -> bool:
     except Exception:
         return False
 
+def _get_display_size():
+    io = PyImGui.get_io()
+    w = float(getattr(io, "display_size_x", 1920.0) or 1920.0)
+    h = float(getattr(io, "display_size_y", 1080.0) or 1080.0)
+    return max(320.0, w), max(240.0, h)
+
+def _clamp_pos(x, y, w, h, margin=4.0):
+    sw, sh = _get_display_size()
+    max_x = max(margin, sw - w - margin)
+    max_y = max(margin, sh - h - margin)
+    return min(max(float(x), margin), max_x), min(max(float(y), margin), max_y)
+
+def _clamp_size(w, h, min_w=360.0, min_h=240.0, margin=20.0):
+    sw, sh = _get_display_size()
+    max_w = max(min_w, sw - margin)
+    max_h = max(min_h, sh - margin)
+    return min(max(float(w), min_w), max_w), min(max(float(h), min_h), max_h)
+
 def _draw_themed_button(button_rect):
     hovered = ImGui.is_mouse_in_rect(button_rect)
     try:
@@ -124,6 +142,7 @@ def _draw_widget_manager_handle() -> bool:
     global wm_handle_x, wm_handle_y, wm_handle_pin
 
     btn_w, btn_h = 48.0, 48.0
+    wm_handle_x, wm_handle_y = _clamp_pos(wm_handle_x, wm_handle_y, btn_w, btn_h)
     button_rect = (wm_handle_x, wm_handle_y, btn_w, btn_h)
 
     PyImGui.set_next_window_pos(wm_handle_x, wm_handle_y)
@@ -165,6 +184,7 @@ def _draw_widget_manager_handle() -> bool:
             PyImGui.reset_mouse_drag_delta(0)
             wm_handle_x += delta[0]
             wm_handle_y += delta[1]
+            wm_handle_x, wm_handle_y = _clamp_pos(wm_handle_x, wm_handle_y, btn_w, btn_h)
 
         hovered = ImGui.is_mouse_in_rect(button_rect)
         if PyImGui.is_item_hovered():
@@ -239,6 +259,8 @@ def main():
                 wy = float(IniManager().getFloat(key=INI_KEY, var_name="wm_window_y", default=100.0, section=WINDOW_SECTION))
                 ww = float(IniManager().getFloat(key=INI_KEY, var_name="wm_window_w", default=520.0, section=WINDOW_SECTION))
                 wh = float(IniManager().getFloat(key=INI_KEY, var_name="wm_window_h", default=380.0, section=WINDOW_SECTION))
+                ww, wh = _clamp_size(ww, wh)
+                wx, wy = _clamp_pos(wx, wy, ww, wh)
                 PyImGui.set_next_window_pos(wx, wy)
                 PyImGui.set_next_window_size(ww, wh)
             if ImGui.Begin(ini_key=INI_KEY, name="Widget Manager", flags=PyImGui.WindowFlags.NoFlag):

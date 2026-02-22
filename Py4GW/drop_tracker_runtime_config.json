@@ -9,5 +9,32 @@
   "verbose_shmem_item_logs": false,
   "max_shmem_messages_per_tick": 80,
   "max_shmem_scan_per_tick": 600,
-  "send_tracker_ack_enabled": true
+  "send_tracker_ack_enabled": true,
+  "id_sel_white": false,
+  "id_sel_blue": true,
+  "id_sel_green": true,
+  "id_sel_purple": true,
+  "id_sel_gold": true,
+  "salvage_sel_white": true,
+  "salvage_sel_blue": true,
+  "salvage_sel_green": false,
+  "salvage_sel_purple": true,
+  "salvage_sel_gold": false,
+  "auto_conset_enabled": false,
+  "auto_conset_armor": false,
+  "auto_conset_grail": false,
+  "auto_conset_essence": false,
+  "auto_conset_legionnaire": true,
+  "drop_viewer_handle_pos": [
+    523.0,
+    955.0
+  ],
+  "drop_viewer_window_pos": [
+    16.0,
+    16.0
+  ],
+  "drop_viewer_window_size": [
+    573.0,
+    419.0
+  ]
 }
