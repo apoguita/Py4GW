@@ -56,6 +56,10 @@ class _ITEMS:
         "Withdraw up to max_quantity of model_id from storage. No-op if none available."
         self._helpers.Items.withdraw_up_to(model_id, max_quantity)
 
+    def WithdrawFirstAvailable(self, model_ids: list, max_quantity: int):
+        "Withdraw up to max_quantity from the first model_id in the list that has stock in storage."
+        self._helpers.Items.withdraw_first_available(model_ids, max_quantity)
+
     def Deposit(self, model_id: int):
         "Deposit the first matching item (by model_id) from inventory to storage."
         self._helpers.Items.deposit_item(model_id)
