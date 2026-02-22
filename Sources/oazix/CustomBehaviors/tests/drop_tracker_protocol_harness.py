@@ -50,11 +50,16 @@ def test_chunk_roundtrip():
     assert merged == full_name
 
 
-def stress_delivery_simulation(total_events=2000, duplicate_rate=0.35, drop_rate=0.0):
+def stress_delivery_simulation(
+    total_events=2000,
+    duplicate_rate=0.35,
+    drop_rate=0.0,
+):
     random.seed(1337)
     sender_email = "sender@test"
 
     generated = []
+    generated_by_id = {}
     packets = []
 
     for seq in range(1, total_events + 1):
@@ -64,6 +69,7 @@ def stress_delivery_simulation(total_events=2000, duplicate_rate=0.35, drop_rate
         event_id = make_event_id(seq, 1711111111111 + seq)
         meta = build_drop_meta(event_id, sig, "04:01 PM")
         generated.append((event_id, full_name))
+        generated_by_id[event_id] = full_name
 
         # Name side-channel packets
         if len(full_name) > 31 or full_name != short_name:
@@ -97,6 +103,7 @@ def stress_delivery_simulation(total_events=2000, duplicate_rate=0.35, drop_rate
     chunk_buf = defaultdict(lambda: {"total": 0, "chunks": {}})
     names_by_sig = {}
     received_unique = {}
+    max_open_name_buffers = 0
 
     for pkt in packets:
         if random.random() < drop_rate:
@@ -109,6 +116,7 @@ def stress_delivery_simulation(total_events=2000, duplicate_rate=0.35, drop_rate
             buf["chunks"][idx] = pkt["chunk"]
             if len(buf["chunks"]) >= buf["total"]:
                 names_by_sig[sig] = "".join(buf["chunks"].get(i, "") for i in range(1, buf["total"] + 1))
+            max_open_name_buffers = max(max_open_name_buffers, len(chunk_buf))
             continue
 
         parsed = parse_drop_meta(pkt["meta"])
@@ -125,10 +133,25 @@ def stress_delivery_simulation(total_events=2000, duplicate_rate=0.35, drop_rate
     received_ids = set(received_unique.keys())
     missing = generated_ids - received_ids
     extra = received_ids - generated_ids
+    corrupted = []
+    for event_id, received_name in received_unique.items():
+        expected_full = generated_by_id.get(event_id, "")
+        expected_short = expected_full[:31]
+        if received_name not in (expected_full, expected_short):
+            corrupted.append(event_id)
 
     assert not extra, f"Unexpected extra events: {len(extra)}"
     assert len(missing) == 0, f"Missing events: {len(missing)}"
+    assert not corrupted, f"Corrupted names: {len(corrupted)}"
     print(f"[HARNESS] events={total_events} unique_received={len(received_ids)} missing=0 duplicates_filtered={len(packets)-len(received_ids)}")
+    return {
+        "events": total_events,
+        "missing": len(missing),
+        "extra": len(extra),
+        "corrupted": len(corrupted),
+        "duplicates_filtered": len(packets) - len(received_ids),
+        "max_open_name_buffers": max_open_name_buffers,
+    }
 
 
 if __name__ == "__main__":
