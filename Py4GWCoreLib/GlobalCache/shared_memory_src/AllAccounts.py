@@ -180,10 +180,7 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for account {account_email}.", Py4GW.Console.MessageType.Warning)
             return
         
-        new_account = AccountStruct()
-        new_account.from_context(account_email, index)
-        
-        self.AccountData[index] = new_account
+        self.AccountData[index].from_context(account_email, index)
         
     def SetHeroesData(self):
         """Set data for all heroes in the given list."""
@@ -203,11 +200,10 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for hero {hero_data.hero_id.GetName()} (ID: {hero_data.hero_id.GetID()}).", Py4GW.Console.MessageType.Warning)
             return
         
-        new_account = AccountStruct()
-        new_account.from_hero_context(hero_data, index)
-        if new_account.AgentData.AgentID== 0:
+        account = self.AccountData[index]
+        account.from_hero_context(hero_data, index)
+        if account.AgentData.AgentID == 0:
             return
-        self.AccountData[index] = new_account
         
     def SetPetData(self):
         """Set pet data for the account with the given email."""
@@ -225,11 +221,10 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for pet {pet_info.agent_id}.", Py4GW.Console.MessageType.Warning)
             return
         
-        new_account = AccountStruct()
-        new_account.from_pet_context(pet_info, index)
-        if new_account.AgentData.AgentID == 0:
+        account = self.AccountData[index]
+        account.from_pet_context(pet_info, index)
+        if account.AgentData.AgentID == 0:
             return
-        self.AccountData[index] = new_account
 
     
     def GetSlotByEmail(self, account_email: str) -> int:
