@@ -14,6 +14,7 @@ from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import IdentifyResponseScheduler
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import run_inventory_action
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import DROP_LOG_HEADER
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import append_drop_log_rows
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import parse_drop_log_file
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
@@ -47,6 +48,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels impo
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import draw_runtime_controls_panel
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
     build_name_chunks,
+    make_name_signature,
     encode_name_chunk_meta,
     decode_name_chunk_meta,
 )
@@ -119,6 +121,7 @@ class DropViewerWindow:
         self.stats_payload_by_event = {}
         self.stats_payload_chunk_buffers = {}
         self.stats_render_cache_by_event = {}
+        self.stats_name_signature_by_event = {}
         self.mod_db = self._load_mod_database()
         self.enable_chat_item_tracking = False
         self.max_shmem_messages_per_tick = 80
@@ -783,7 +786,7 @@ class DropViewerWindow:
             os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
             with open(self.log_path, mode='w', newline='', encoding='utf-8') as f:
                 writer = csv.writer(f)
-                writer.writerow(["Timestamp", "ViewerBot", "MapID", "MapName", "Player", "ItemName", "Quantity", "Rarity"])
+                writer.writerow(list(DROP_LOG_HEADER))
             self.last_read_time = os.path.getmtime(self.log_path)
         except EXPECTED_RUNTIME_ERRORS as e:
             Py4GW.Console.Log("DropViewer", f"Failed to reset live log file: {e}", Py4GW.Console.MessageType.Warning)
@@ -800,6 +803,7 @@ class DropViewerWindow:
         self.stats_payload_by_event = {}
         self.stats_payload_chunk_buffers = {}
         self.stats_render_cache_by_event = {}
+        self.stats_name_signature_by_event = {}
         self.identify_response_scheduler.clear()
         self._reset_live_log_file()
 
@@ -850,6 +854,7 @@ class DropViewerWindow:
         self.aggregated_drops = temp_agg
         self.total_drops = total
         self.stats_by_event = temp_stats_by_event
+        self.stats_name_signature_by_event = {}
 
     def set_status(self, msg):
         self.status_message = msg
@@ -1086,6 +1091,61 @@ class DropViewerWindow:
                 continue
             if not self._item_names_match(target_name, inv_name):
                 continue
+            if best_any <= 0:
+                best_any = inv_item_id
+            if prefer_identified:
+                try:
+                    if bool(Item.Usage.IsIdentified(inv_item_id)):
+                        best_identified = inv_item_id
+                        break
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+        if prefer_identified and best_identified > 0:
+            return int(best_identified)
+        if best_any > 0:
+            return int(best_any)
+        return 0
+
+    def _resolve_live_item_id_by_signature(
+        self,
+        name_signature: Any,
+        rarity_hint: Any = "",
+        prefer_identified: bool = False,
+    ) -> int:
+        target_sig = self._ensure_text(name_signature).strip().lower()
+        if not target_sig:
+            return 0
+        target_rarity = self._ensure_text(rarity_hint).strip() or "Unknown"
+        try:
+            bags = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_ids = list(ItemArray.GetItemArray(bags) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_ids = []
+        if not item_ids:
+            return 0
+
+        best_any = 0
+        best_identified = 0
+        for inv_item_id in item_ids:
+            inv_item_id = int(inv_item_id)
+            try:
+                if not Item.IsNameReady(inv_item_id):
+                    Item.RequestName(inv_item_id)
+                    continue
+                inv_name = self._clean_item_name(Item.GetName(inv_item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            if not inv_name:
+                continue
+            if make_name_signature(inv_name) != target_sig:
+                continue
+            if target_rarity != "Unknown":
+                try:
+                    inv_rarity = self._ensure_text(Item.Rarity.GetRarity(inv_item_id)[1]).strip() or "Unknown"
+                except EXPECTED_RUNTIME_ERRORS:
+                    inv_rarity = "Unknown"
+                if inv_rarity != target_rarity:
+                    continue
             if best_any <= 0:
                 best_any = inv_item_id
             if prefer_identified:
@@ -1474,6 +1534,7 @@ class DropViewerWindow:
                 self.stats_render_cache_by_event,
                 self.remote_stats_request_last_by_event,
                 self.remote_stats_pending_by_event,
+                self.stats_name_signature_by_event,
             )
             for cache_map in cache_maps:
                 for key in list(cache_map.keys()):
@@ -1488,6 +1549,7 @@ class DropViewerWindow:
             self.stats_render_cache_by_event.pop(event_key, None)
             self.remote_stats_request_last_by_event.pop(event_key, None)
             self.remote_stats_pending_by_event.pop(event_key, None)
+            self.stats_name_signature_by_event.pop(event_key, None)
 
     def _render_payload_stats_cached(self, cache_key: str, payload_text: str, fallback_item_name: str = "") -> str:
         event_key = self._ensure_text(cache_key).strip()
@@ -1517,6 +1579,7 @@ class DropViewerWindow:
         event_id = self._extract_row_event_id(row)
         item_id = self._extract_row_item_id(row)
         item_name = self._clean_item_name(parsed.item_name)
+        item_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
         if not event_id:
             return
         event_cache_key = self._resolve_stats_cache_key_for_row(row)
@@ -1535,8 +1598,28 @@ class DropViewerWindow:
         sent = False
         if item_id > 0:
             sent = self._send_inventory_action_to_email(target_email, "push_item_stats", str(item_id), event_id)
-        if (not sent) and item_name:
-            sent_by_name = self._send_inventory_action_to_email(target_email, "push_item_stats_name", item_name[:31], event_id)
+        if not sent:
+            item_signature = self._ensure_text(self.stats_name_signature_by_event.get(event_cache_key, "")).strip().lower()
+            if not item_signature and item_name:
+                item_signature = make_name_signature(item_name)
+            if item_signature:
+                sig_payload = item_signature[:8]
+                if item_rarity:
+                    sig_payload = f"{sig_payload}|{item_rarity[:20]}"
+                sent_by_sig = self._send_inventory_action_to_email(
+                    target_email,
+                    "push_item_stats_sig",
+                    sig_payload,
+                    event_id,
+                )
+                sent = sent or sent_by_sig
+        if (not sent) and item_name and len(item_name) <= 31:
+            sent_by_name = self._send_inventory_action_to_email(
+                target_email,
+                "push_item_stats_name",
+                item_name,
+                event_id,
+            )
             sent = sent or sent_by_name
         if sent:
             self.remote_stats_request_last_by_event[event_cache_key] = now_ts
@@ -3289,6 +3372,8 @@ class DropViewerWindow:
                     sender_name = sender_name_raw or "Follower"
                     stats_cache_key = self._make_stats_cache_key(event_id, sender_email, sender_name_raw)
                     stats_text = self._get_cached_stats_text(self.stats_by_event, stats_cache_key)
+                    if stats_cache_key and drop_msg.name_signature:
+                        self.stats_name_signature_by_event[stats_cache_key] = self._ensure_text(drop_msg.name_signature).strip().lower()
 
                     event_key = drop_msg.event_key
                     is_duplicate = is_duplicate_event(self.seen_events, event_key)
