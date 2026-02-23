@@ -1,6 +1,7 @@
 {
   "name": "Report to the White Mantle",
   "max_heroes": 6,
+  "hero_team": "party_6",
   "take_quest": {
     "outpost_id": 55,
     "quest_npc_location": [2376, 9268],
