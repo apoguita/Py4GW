@@ -6,10 +6,12 @@ import os
 import shutil
 import json
 import datetime
-from typing import Any
+from typing import Any, Generator
 import PyInventory
+import PyAgent
 from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.ItemArray import ItemArray
+from Py4GWCoreLib.native_src.internals.helpers import encoded_wstr_to_str
 from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import IdentifyResponseScheduler
@@ -190,6 +192,8 @@ class DropViewerWindow:
         self.identify_response_scheduler = IdentifyResponseScheduler()
         self.auto_id_timer = ThrottledTimer(2500)
         self.auto_salvage_timer = ThrottledTimer(3000)
+        self.auto_buy_kits_timer = ThrottledTimer(4000)
+        self.auto_gold_balance_timer = ThrottledTimer(4000)
         self.auto_inventory_snapshot_timer = ThrottledTimer(900)
         self.auto_id_pending_jobs = 0
         self.auto_salvage_pending_jobs = 0
@@ -202,6 +206,27 @@ class DropViewerWindow:
         self.auto_queue_progress_cap = 25
         self.auto_id_job_running = False
         self.auto_salvage_job_running = False
+        self.auto_buy_kits_enabled = False
+        self.auto_buy_kits_job_running = False
+        self.auto_buy_kits_handled_entry_key = ""
+        # Merchant restock priority list (first matching name in this order is used).
+        self.auto_buy_kits_merchant_names = [
+            "Answa",
+            "Volsung",
+            "Bodrus the Outfitter",
+            "Hasrah",
+            "Acolyte Singpa",
+        ]
+        self.auto_buy_kits_last_seen_npc_names = []
+        self.auto_buy_kits_last_seen_npc_models = []
+        self.auto_buy_kits_debug_trace = []
+        self.auto_buy_kits_merchant_model_ids_loaded = False
+        self.auto_buy_kits_merchant_model_ids = set()
+        self.auto_buy_kits_map_model_hints = self._default_auto_buy_kits_map_model_hints()
+        self.auto_gold_balance_enabled = False
+        self.auto_gold_balance_target = 10_000
+        self.auto_gold_balance_job_running = False
+        self.auto_gold_balance_handled_entry_key = ""
         self.auto_outpost_store_enabled = False
         self.auto_outpost_store_job_running = False
         self.auto_outpost_store_last_is_outpost = False
@@ -286,6 +311,10 @@ class DropViewerWindow:
             "salvage_sel_purple": True,
             "salvage_sel_gold": False,
             "auto_salvage_enabled": False,
+            "auto_buy_kits_enabled": False,
+            "auto_buy_kits_map_model_hints": self._default_auto_buy_kits_map_model_hints(),
+            "auto_gold_balance_enabled": False,
+            "auto_gold_balance_target": 10000,
             "auto_outpost_store_enabled": False,
             "auto_conset_enabled": False,
             "auto_conset_armor": True,
@@ -318,6 +347,18 @@ class DropViewerWindow:
         self.salvage_sel_purple = bool(cfg.get("salvage_sel_purple", self.salvage_sel_purple))
         self.salvage_sel_gold = bool(cfg.get("salvage_sel_gold", self.salvage_sel_gold))
         self.auto_salvage_enabled = bool(cfg.get("auto_salvage_enabled", self.auto_salvage_enabled))
+        self.auto_buy_kits_enabled = bool(cfg.get("auto_buy_kits_enabled", self.auto_buy_kits_enabled))
+        loaded_map_hints = self._sanitize_map_model_hints(cfg.get("auto_buy_kits_map_model_hints", self.auto_buy_kits_map_model_hints))
+        default_map_hints = self._default_auto_buy_kits_map_model_hints()
+        for map_key, default_models in default_map_hints.items():
+            current_models = [int(v) for v in list(loaded_map_hints.get(map_key, []) or []) if self._safe_int(v, 0) > 0]
+            merged_models = [int(v) for v in list(default_models or []) if self._safe_int(v, 0) > 0]
+            merged_models.extend([v for v in current_models if v not in merged_models])
+            if merged_models:
+                loaded_map_hints[map_key] = merged_models[:16]
+        self.auto_buy_kits_map_model_hints = loaded_map_hints
+        self.auto_gold_balance_enabled = bool(cfg.get("auto_gold_balance_enabled", self.auto_gold_balance_enabled))
+        self.auto_gold_balance_target = max(0, int(cfg.get("auto_gold_balance_target", self.auto_gold_balance_target)))
         self.auto_outpost_store_enabled = bool(cfg.get("auto_outpost_store_enabled", self.auto_outpost_store_enabled))
         self.auto_conset_enabled = bool(cfg.get("auto_conset_enabled", self.auto_conset_enabled))
         self.auto_conset_armor = bool(cfg.get("auto_conset_armor", self.auto_conset_armor))
@@ -435,6 +476,10 @@ class DropViewerWindow:
         cfg["salvage_sel_purple"] = bool(self.salvage_sel_purple)
         cfg["salvage_sel_gold"] = bool(self.salvage_sel_gold)
         cfg["auto_salvage_enabled"] = bool(self.auto_salvage_enabled)
+        cfg["auto_buy_kits_enabled"] = bool(self.auto_buy_kits_enabled)
+        cfg["auto_buy_kits_map_model_hints"] = self._sanitize_map_model_hints(self.auto_buy_kits_map_model_hints)
+        cfg["auto_gold_balance_enabled"] = bool(self.auto_gold_balance_enabled)
+        cfg["auto_gold_balance_target"] = int(self.auto_gold_balance_target)
         cfg["auto_outpost_store_enabled"] = bool(self.auto_outpost_store_enabled)
         cfg["auto_conset_enabled"] = bool(self.auto_conset_enabled)
         cfg["auto_conset_armor"] = bool(self.auto_conset_armor)
@@ -478,6 +523,124 @@ class DropViewerWindow:
             except EXPECTED_RUNTIME_ERRORS:
                 return ""
         return str(value)
+
+    def _normalize_name_for_compare(self, value: Any) -> str:
+        return " ".join(self._ensure_text(value).strip().lower().split())
+
+    def _trace_auto_buy_kits(self, message: Any):
+        ts = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        text = self._ensure_text(message).strip()
+        if not text:
+            return
+        line = f"{ts} {text}"
+        trace = list(getattr(self, "auto_buy_kits_debug_trace", []) or [])
+        trace.append(line)
+        self.auto_buy_kits_debug_trace = trace[-120:]
+
+    def _default_auto_buy_kits_map_model_hints(self) -> dict[str, list[int]]:
+        # Known working merchant model IDs per map (can be extended/overridden by runtime learning).
+        return {
+            "55": [2043],   # Lions Arch
+            "156": [2161],  # The Granite Citadel
+        }
+
+    def _sanitize_map_model_hints(self, value: Any) -> dict[str, list[int]]:
+        result: dict[str, list[int]] = {}
+        if not isinstance(value, dict):
+            return result
+        for raw_map_id, raw_models in value.items():
+            map_key = self._ensure_text(raw_map_id).strip()
+            if not map_key:
+                continue
+            models: list[int] = []
+            if isinstance(raw_models, (list, tuple, set)):
+                for raw_mid in raw_models:
+                    try:
+                        mid = int(raw_mid)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        continue
+                    if mid > 0 and mid not in models:
+                        models.append(mid)
+            if models:
+                result[map_key] = models[:16]
+        return result
+
+    def _get_known_merchant_model_ids(self) -> set[int]:
+        if bool(getattr(self, "auto_buy_kits_merchant_model_ids_loaded", False)):
+            return set(getattr(self, "auto_buy_kits_merchant_model_ids", set()) or set())
+
+        tokens = ("merchant", "trader", "outfitter")
+        model_ids: set[int] = set()
+
+        try:
+            if isinstance(ModelData, dict):
+                for raw_mid, row in ModelData.items():
+                    try:
+                        mid = int(raw_mid)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        continue
+                    if mid <= 0 or not isinstance(row, dict):
+                        continue
+                    name_text = self._normalize_name_for_compare(row.get("name", ""))
+                    if any(tok in name_text for tok in tokens):
+                        model_ids.add(mid)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        try:
+            converter_path = os.path.join(PathLocator.get_project_root_directory(), "Py4GWCoreLib", "model_id_converter.py")
+            if os.path.exists(converter_path):
+                pat = re.compile(r"Ids\s*=\s*new\s*int\[\]\s*\{(?P<ids>[^}]*)\}.*?Name\s*=\s*\"(?P<name>[^\"]+)\"")
+                with open(converter_path, mode="r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        if "Ids" not in line or "Name" not in line:
+                            continue
+                        match = pat.search(line)
+                        if not match:
+                            continue
+                        name_text = self._normalize_name_for_compare(match.group("name"))
+                        if not any(tok in name_text for tok in tokens):
+                            continue
+                        for raw_num in re.findall(r"-?\d+", self._ensure_text(match.group("ids"))):
+                            try:
+                                mid = int(raw_num)
+                            except EXPECTED_RUNTIME_ERRORS:
+                                continue
+                            if mid > 0:
+                                model_ids.add(mid)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        self.auto_buy_kits_merchant_model_ids = set(model_ids)
+        self.auto_buy_kits_merchant_model_ids_loaded = True
+        return set(model_ids)
+
+    def _record_successful_kit_merchant_model(self, agent_id: int):
+        aid = max(0, self._safe_int(agent_id, 0))
+        if aid <= 0:
+            return
+        try:
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            map_id = 0
+        if map_id <= 0:
+            return
+        try:
+            model_id = max(0, self._safe_int(Agent.GetModelID(aid), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            model_id = 0
+        if model_id <= 0:
+            return
+        map_key = str(int(map_id))
+        hints = self.auto_buy_kits_map_model_hints if isinstance(getattr(self, "auto_buy_kits_map_model_hints", None), dict) else {}
+        current = [int(v) for v in list(hints.get(map_key, []) or []) if self._safe_int(v, 0) > 0]
+        if model_id in current:
+            current = [model_id] + [v for v in current if v != model_id]
+        else:
+            current = [model_id] + current
+        hints[map_key] = current[:16]
+        self.auto_buy_kits_map_model_hints = hints
+        self.runtime_config_dirty = True
 
     def _strip_tags(self, text: Any) -> str:
         return re.sub(r"<[^>]+>", "", self._ensure_text(text))
@@ -2630,6 +2793,16 @@ class DropViewerWindow:
                 "success" if self.auto_salvage_enabled else "secondary",
                 "Auto Salvage loop status.",
             ),
+            (
+                f"Auto Kits: {'ON' if self.auto_buy_kits_enabled else 'OFF'}",
+                "success" if self.auto_buy_kits_enabled else "secondary",
+                "Auto buy kits loop status.",
+            ),
+            (
+                f"Auto Gold: {'ON' if self.auto_gold_balance_enabled else 'OFF'}",
+                "success" if self.auto_gold_balance_enabled else "secondary",
+                f"Auto keep {int(self.auto_gold_balance_target)}g on character in outpost.",
+            ),
         ]
 
         self._draw_section_header("Live Status")
@@ -2798,6 +2971,24 @@ class DropViewerWindow:
                     "tooltip": "Run Auto Salvage Now: one immediate salvage pass.",
                     "action": "run_salvage_now",
                 },
+                {
+                    "label": f"[KT] Auto {'ON' if self.auto_buy_kits_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_buy_kits_enabled else "secondary",
+                    "tooltip": "Auto Buy Kits: while in outpost, periodically buy kits if uses are below threshold.",
+                    "action": "toggle_auto_buy_kits",
+                },
+                {
+                    "label": f"[GD] Auto {'ON' if self.auto_gold_balance_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_gold_balance_enabled else "secondary",
+                    "tooltip": f"Auto Gold Balance: keep {int(self.auto_gold_balance_target)} gold on character in outpost.",
+                    "action": "toggle_auto_gold_balance",
+                },
+                {
+                    "label": "[DBG] Merch Dump",
+                    "variant": "secondary",
+                    "tooltip": "Temporary debug: dump full merchant scan report to file and clipboard.",
+                    "action": "dump_merchant_debug",
+                },
             ]
 
             gap = 8.0
@@ -2817,12 +3008,22 @@ class DropViewerWindow:
                     next_store_enabled = not self.auto_outpost_store_enabled
                     store_payload = "1" if next_store_enabled else "0"
                     self._trigger_inventory_action("cfg_auto_outpost_store", store_payload)
+                elif action_code == "toggle_auto_buy_kits":
+                    next_kits_enabled = not self.auto_buy_kits_enabled
+                    kits_payload = "1" if next_kits_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_buy_kits", kits_payload)
+                elif action_code == "toggle_auto_gold_balance":
+                    next_gold_enabled = not self.auto_gold_balance_enabled
+                    gold_payload = "1" if next_gold_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_gold_balance", gold_payload)
                 elif action_code == "sync_config":
                     self._sync_auto_inventory_config_to_followers()
                 elif action_code == "run_id_now":
                     self._trigger_inventory_action("id_selected", self._encode_rarities(self._get_selected_id_rarities()))
                 elif action_code == "run_salvage_now":
                     self._trigger_inventory_action("salvage_selected", self._encode_rarities(self._get_selected_salvage_rarities()))
+                elif action_code == "dump_merchant_debug":
+                    self._dump_auto_buy_kits_merchant_debug_report()
 
             for row_idx in range(0, len(cards), 2):
                 left_card = cards[row_idx]
@@ -3087,6 +3288,25 @@ class DropViewerWindow:
         self.auto_outpost_store_enabled = bool(next_enabled)
         if changed and self.auto_outpost_store_enabled:
             self.auto_outpost_store_handled_entry_key = ""
+        self.runtime_config_dirty = True
+
+    def _apply_auto_buy_kits_config_payload(self, payload: str):
+        next_enabled = self._parse_toggle_payload(payload, self.auto_buy_kits_enabled)
+        previous = bool(self.auto_buy_kits_enabled)
+        self.auto_buy_kits_enabled = bool(next_enabled)
+        if (not previous) and self.auto_buy_kits_enabled and bool(Map.IsOutpost()):
+            self.auto_buy_kits_handled_entry_key = ""
+            # Run one immediate one-time outpost check when enabling.
+            self._run_auto_buy_kits_once_on_outpost_entry_tick()
+        self.runtime_config_dirty = True
+
+    def _apply_auto_gold_balance_config_payload(self, payload: str):
+        previous = bool(self.auto_gold_balance_enabled)
+        next_enabled = self._parse_toggle_payload(payload, self.auto_gold_balance_enabled)
+        self.auto_gold_balance_enabled = bool(next_enabled)
+        if (not previous) and self.auto_gold_balance_enabled:
+            # Allow one immediate check in current outpost after enabling.
+            self.auto_gold_balance_handled_entry_key = ""
         self.runtime_config_dirty = True
 
     def _mouse_in_current_window_rect(self):
@@ -4412,7 +4632,7 @@ class DropViewerWindow:
     def _queue_identify_for_rarities(self, rarities):
         now_ts = time.time()
         self.auto_id_last_run_ts = now_ts
-        if self.auto_id_job_running or self.auto_salvage_job_running:
+        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
             return 0
         try:
             items = Routines.Items.GetUnidentifiedItems(list(rarities), [])
@@ -4461,7 +4681,7 @@ class DropViewerWindow:
     def _queue_salvage_for_rarities(self, rarities):
         now_ts = time.time()
         self.auto_salvage_last_run_ts = now_ts
-        if self.auto_id_job_running or self.auto_salvage_job_running:
+        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
             return 0
         try:
             items = Routines.Items.GetSalvageableItems(list(rarities), [])
@@ -4501,6 +4721,1134 @@ class DropViewerWindow:
             Py4GW.Console.Log("DropViewer", f"Salvage queue failed: {e}", Py4GW.Console.MessageType.Warning)
             self.auto_salvage_last_queued = 0
             return 0
+
+    def _get_nearby_merchant_candidate_agent_ids(self) -> list[int]:
+        configured_names = [self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_merchant_names", []) or []) if self._ensure_text(v).strip()]
+        if not configured_names:
+            self.auto_buy_kits_last_seen_npc_names = []
+            self.auto_buy_kits_last_seen_npc_models = []
+            return []
+        configured_norm = [self._normalize_name_for_compare(v) for v in configured_names]
+
+        def _extract_base_name(full_name: str) -> str:
+            # "Volsung [Merchant]" -> "Volsung"
+            raw = self._ensure_text(full_name).strip()
+            if not raw:
+                return ""
+            bracket_pos = raw.find("[")
+            if bracket_pos > 0:
+                raw = raw[:bracket_pos].strip()
+            return raw
+
+        def _agent_name(agent_id: int) -> str:
+            try:
+                agent_name = self._ensure_text(encoded_wstr_to_str(PyAgent.PyAgent.GetNameByID(int(agent_id)))).strip()
+                if agent_name:
+                    return agent_name
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+            try:
+                agent_name = self._ensure_text(Agent.GetNameByID(int(agent_id))).strip()
+                if "feature disabled" in agent_name.lower():
+                    return ""
+                return agent_name
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        npc_ids = []
+        neutral_ids = []
+        all_agents_ids = []
+        try:
+            npc_ids = list(AgentArray.GetNPCMinipetArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            npc_ids = []
+        try:
+            neutral_ids = list(AgentArray.GetNeutralArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            neutral_ids = []
+        try:
+            all_agents_ids = list(AgentArray.GetAgentArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            all_agents_ids = []
+
+        all_npc_ids = list(AgentArray.Manipulation.Merge(npc_ids, neutral_ids) or [])
+        if not all_npc_ids and all_agents_ids:
+            all_npc_ids = list(all_agents_ids)
+        elif all_agents_ids and len(all_npc_ids) < 10:
+            # Some maps expose merchants only through the full agent list.
+            all_npc_ids = list(AgentArray.Manipulation.Merge(all_npc_ids, all_agents_ids) or [])
+
+        if not all_npc_ids:
+            self.auto_buy_kits_last_seen_npc_names = []
+            self.auto_buy_kits_last_seen_npc_models = []
+            return []
+
+        filtered_ids = list(all_npc_ids)
+        try:
+            filtered_ids = list(AgentArray.Filter.ByDistance(filtered_ids, Player.GetXY(), 10000.0) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            filtered_ids = list(all_npc_ids)
+        if not filtered_ids:
+            filtered_ids = list(all_npc_ids)
+
+        try:
+            player_xy = Player.GetXY()
+        except EXPECTED_RUNTIME_ERRORS:
+            player_xy = (0.0, 0.0)
+
+        matches_by_name_idx: dict[int, list[tuple[float, int]]] = {idx: [] for idx in range(len(configured_names))}
+        seen_base_names: list[str] = []
+        seen_base_names_set: set[str] = set()
+        seen_models: list[str] = []
+        seen_models_set: set[str] = set()
+        map_hint_candidates: list[tuple[float, int]] = []
+        merchant_model_candidates: list[tuple[float, int]] = []
+        trade_probe_candidates: list[tuple[float, int]] = []
+        merchant_model_ids = self._get_known_merchant_model_ids()
+        try:
+            map_id_key = str(max(0, self._safe_int(Map.GetMapID(), 0)))
+        except EXPECTED_RUNTIME_ERRORS:
+            map_id_key = "0"
+        hints_raw = []
+        try:
+            hints_raw = list((self.auto_buy_kits_map_model_hints or {}).get(map_id_key, []) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            hints_raw = []
+        map_hint_model_ids = {max(0, self._safe_int(v, 0)) for v in hints_raw if max(0, self._safe_int(v, 0)) > 0}
+        has_strict_map_hints = len(map_hint_model_ids) > 0
+
+        target_id = 0
+        try:
+            target_id = max(0, self._safe_int(Player.GetTargetID(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            target_id = 0
+        for raw_agent_id in list(filtered_ids or []):
+            aid = max(0, self._safe_int(raw_agent_id, 0))
+            if aid <= 0:
+                continue
+            try:
+                if not Agent.IsValid(aid):
+                    continue
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+
+            raw_name = _agent_name(aid)
+            base_name = _extract_base_name(raw_name)
+            if base_name and base_name not in seen_base_names_set:
+                seen_base_names_set.add(base_name)
+                seen_base_names.append(base_name)
+            try:
+                ax, ay = Agent.GetXY(aid)
+                dist_sq = ((float(ax) - float(player_xy[0])) ** 2) + ((float(ay) - float(player_xy[1])) ** 2)
+            except EXPECTED_RUNTIME_ERRORS:
+                dist_sq = float("inf")
+
+            model_id = 0
+            model_name = ""
+            try:
+                model_id = max(0, self._safe_int(Agent.GetModelID(aid), 0))
+                model_row = ModelData.get(model_id, {}) if isinstance(ModelData, dict) else {}
+                model_name = self._ensure_text(model_row.get("name", "")).strip() if hasattr(model_row, "get") else ""
+            except EXPECTED_RUNTIME_ERRORS:
+                model_id = 0
+                model_name = ""
+            if model_id > 0:
+                model_dbg = f"{model_id}:{model_name or '?'}"
+                if model_dbg not in seen_models_set:
+                    seen_models_set.add(model_dbg)
+                    seen_models.append(model_dbg)
+
+            model_norm = self._normalize_name_for_compare(model_name)
+            if model_id in map_hint_model_ids:
+                target_bonus = -0.25 if aid == target_id else 0.0
+                map_hint_candidates.append((float(dist_sq) + target_bonus, int(aid)))
+            if model_id in merchant_model_ids or ("merchant" in model_norm) or ("trader" in model_norm):
+                target_bonus = -0.25 if aid == target_id else 0.0
+                merchant_model_candidates.append((float(dist_sq) + target_bonus, int(aid)))
+
+            # Constrained fallback for builds where NPC names are unavailable.
+            # Keep only likely trade NPCs (non-player + neutral/NPC allegiance).
+            try:
+                is_npc = bool(Agent.IsNPC(aid))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_npc = False
+            alleg_name = ""
+            try:
+                _, alleg_name = Agent.GetAllegiance(aid)
+                alleg_name = self._normalize_name_for_compare(alleg_name)
+            except EXPECTED_RUNTIME_ERRORS:
+                alleg_name = ""
+            if is_npc and alleg_name in ("neutral", "npc/minipet"):
+                target_bonus = -0.25 if aid == target_id else 0.0
+                trade_probe_candidates.append((float(dist_sq) + target_bonus, int(aid)))
+
+            # Match against all configured names (exact, normalized, and partial).
+            list_idx = None
+            base_norm = self._normalize_name_for_compare(base_name)
+            for idx, cfg_name in enumerate(configured_names):
+                cfg_norm = configured_norm[idx]
+                if base_name == cfg_name:
+                    list_idx = idx
+                    break
+                if base_norm and cfg_norm:
+                    if base_norm == cfg_norm or (cfg_norm in base_norm) or (base_norm in cfg_norm):
+                        list_idx = idx
+                        break
+
+            if list_idx is None:
+                continue
+
+            target_bonus = -0.25 if aid == target_id else 0.0
+            matches_by_name_idx[int(list_idx)].append((float(dist_sq) + target_bonus, int(aid)))
+
+        self.auto_buy_kits_last_seen_npc_names = seen_base_names[:20]
+        self.auto_buy_kits_last_seen_npc_models = seen_models[:20]
+
+        # Strict behavior: first configured merchant name that exists on map wins.
+        ordered: list[int] = []
+        for idx in range(len(configured_names)):
+            rows = list(matches_by_name_idx.get(idx, []) or [])
+            if not rows:
+                continue
+            rows.sort(key=lambda row: row[0])
+            ordered = [int(aid) for _, aid in rows if int(aid) > 0]
+            if ordered:
+                break
+
+        hint_near_ids: list[int] = []
+        hint_far_ids: list[int] = []
+        if map_hint_candidates:
+            map_hint_candidates.sort(key=lambda row: row[0])
+            # Avoid forcing very far stale map hints first (causes long idle in big outposts).
+            # Keep close hints prioritized, defer far hints behind nearby candidates.
+            for dist_sq, aid in map_hint_candidates:
+                a = int(aid)
+                if a <= 0:
+                    continue
+                # 2,500 range split between "near" vs "far" hinted targets.
+                if float(dist_sq) <= (2500.0 * 2500.0):
+                    hint_near_ids.append(a)
+                else:
+                    hint_far_ids.append(a)
+            # Strict behavior requested: when map hints exist, only use those hinted models.
+            strict_hint_only_ids = hint_near_ids + hint_far_ids
+            if strict_hint_only_ids:
+                deduped_hint_ids: list[int] = []
+                seen_hint_ids: set[int] = set()
+                for a in strict_hint_only_ids:
+                    if a in seen_hint_ids:
+                        continue
+                    seen_hint_ids.add(a)
+                    deduped_hint_ids.append(int(a))
+                return deduped_hint_ids[:30]
+        if has_strict_map_hints:
+            # Strict mode for hinted maps: if hinted model isn't currently visible, do not
+            # fall back to arbitrary NPCs (prevents wandering to wrong NPC types).
+            return []
+
+        merchant_model_ids_ordered: list[int] = []
+        if merchant_model_candidates:
+            merchant_model_candidates.sort(key=lambda row: row[0])
+            merchant_model_ids_ordered = [int(aid) for _, aid in merchant_model_candidates if int(aid) > 0]
+
+        trade_probe_ids: list[int] = []
+        if trade_probe_candidates:
+            trade_probe_candidates.sort(key=lambda row: row[0])
+            # Keep this constrained: only a small nearest fallback set.
+            trade_probe_ids = [int(aid) for _, aid in trade_probe_candidates[:12] if int(aid) > 0]
+
+        # Priority order:
+        # 1) nearby map hints (explicitly learned/provided)
+        # 2) configured-name matches
+        # 3) known merchant/trader model IDs
+        # 4) constrained nearby NPC probes (last-resort)
+        # 5) far map hints
+        merged: list[int] = []
+        seen: set[int] = set()
+        for aid in hint_near_ids + ordered + merchant_model_ids_ordered + trade_probe_ids + hint_far_ids:
+            if aid in seen:
+                continue
+            seen.add(aid)
+            merged.append(int(aid))
+        return merged[:30]
+
+    def _find_nearby_merchant_agent_id(self) -> int:
+        candidates = self._get_nearby_merchant_candidate_agent_ids()
+        if not candidates:
+            return 0
+        return int(max(0, self._safe_int(candidates[0], 0)))
+
+    def _is_merchant_frame_open(self) -> bool:
+        merchant_frame_hash = 3613855137
+        try:
+            merchant_frame_id = UIManager.GetFrameIDByHash(merchant_frame_hash)
+            return bool(UIManager.FrameExists(merchant_frame_id))
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _handle_lions_arch_merchant_dialog_if_visible(self) -> bool:
+        # Lions Arch merchant flow can require selecting dialog option:
+        # "Let me see what you've got" before trade window opens.
+        try:
+            if max(0, self._safe_int(Map.GetMapID(), 0)) != 55:
+                return False
+            if not bool(Map.IsOutpost()):
+                return False
+            if self._is_merchant_frame_open():
+                return False
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+        try:
+            if not bool(UIManager.IsNPCDialogVisible()):
+                return False
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+        try:
+            count = max(0, self._safe_int(UIManager.GetDialogButtonCount(False), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            count = 0
+
+        clicked = False
+        try:
+            if count >= 2:
+                clicked = bool(UIManager.ClickDialogButton(2, False))
+                if clicked:
+                    self._trace_auto_buy_kits("lions_arch_dialog: clicked option #2 (trade)")
+        except EXPECTED_RUNTIME_ERRORS:
+            clicked = False
+
+        # Fallback if dialog ordering differs.
+        if not clicked:
+            try:
+                clicked = bool(UIManager.ClickDialogButton(1, False))
+                if clicked:
+                    self._trace_auto_buy_kits("lions_arch_dialog: clicked fallback option #1")
+            except EXPECTED_RUNTIME_ERRORS:
+                clicked = False
+
+        return clicked
+
+    def _get_offered_merchant_items(self) -> list[int]:
+        try:
+            offered = list(Trading.Trader.GetOfferedItems() or [])
+            if offered:
+                return [int(v) for v in offered if int(v) > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        try:
+            offered = list(GLOBAL_CACHE.Trading.Merchant.GetOfferedItems() or [])
+            return [int(v) for v in offered if int(v) > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            return []
+
+    def _find_merchant_item_by_model(self, model_id: int) -> int:
+        target_model = max(0, self._safe_int(model_id, 0))
+        if target_model <= 0:
+            return 0
+        for offered_item_id in self._get_offered_merchant_items():
+            try:
+                if int(Item.GetModelID(offered_item_id)) == target_model:
+                    return int(offered_item_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+        return 0
+
+    def _build_auto_buy_kits_merchant_debug_report(self) -> str:
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        lines: list[str] = [f"Merchant Scan Debug @ {ts}"]
+        map_id = 0
+
+        try:
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+            map_name = self._ensure_text(Map.GetMapName(map_id)).strip() if map_id > 0 else ""
+            lines.append(f"Map: {map_id} {map_name}")
+        except EXPECTED_RUNTIME_ERRORS:
+            lines.append("Map: <unavailable>")
+        try:
+            lines.append(f"Outpost: {bool(Map.IsOutpost())}")
+        except EXPECTED_RUNTIME_ERRORS:
+            lines.append("Outpost: <unavailable>")
+
+        try:
+            px, py = Player.GetXY()
+            lines.append(f"Player XY: ({float(px):.1f}, {float(py):.1f})")
+        except EXPECTED_RUNTIME_ERRORS:
+            px, py = (0.0, 0.0)
+            lines.append("Player XY: <unavailable>")
+
+        configured_names = [self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_merchant_names", []) or []) if self._ensure_text(v).strip()]
+        lines.append("Configured merchant names:")
+        if configured_names:
+            for idx, name in enumerate(configured_names, start=1):
+                lines.append(f"  {idx}. {name}")
+        else:
+            lines.append("  <empty>")
+
+        npc_ids = []
+        neutral_ids = []
+        all_agent_ids = []
+        try:
+            npc_ids = list(AgentArray.GetNPCMinipetArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            npc_ids = []
+        try:
+            neutral_ids = list(AgentArray.GetNeutralArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            neutral_ids = []
+        try:
+            all_agent_ids = list(AgentArray.GetAgentArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            all_agent_ids = []
+
+        merged_ids = list(AgentArray.Manipulation.Merge(npc_ids, neutral_ids) or [])
+        if not merged_ids and all_agent_ids:
+            merged_ids = list(all_agent_ids)
+        elif all_agent_ids and len(merged_ids) < 10:
+            merged_ids = list(AgentArray.Manipulation.Merge(merged_ids, all_agent_ids) or [])
+
+        filtered_ids = list(merged_ids)
+        try:
+            filtered_ids = list(AgentArray.Filter.ByDistance(filtered_ids, (px, py), 10000.0) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            filtered_ids = list(merged_ids)
+        if not filtered_ids:
+            filtered_ids = list(merged_ids)
+
+        lines.append(f"Scan counts: npc={len(npc_ids)} neutral={len(neutral_ids)} all_agents={len(all_agent_ids)} merged={len(merged_ids)} filtered={len(filtered_ids)}")
+        known_model_ids = self._get_known_merchant_model_ids()
+        lines.append(f"Known merchant/trader model IDs: {len(known_model_ids)}")
+        map_hint_ids = []
+        try:
+            map_hint_ids = list((self.auto_buy_kits_map_model_hints or {}).get(str(map_id), []) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            map_hint_ids = []
+        lines.append(f"Map model hints: {', '.join([str(int(v)) for v in map_hint_ids]) if map_hint_ids else '<none>'}")
+
+        configured_norm = [self._normalize_name_for_compare(v) for v in configured_names]
+
+        def _extract_base_name(full_name: str) -> str:
+            raw = self._ensure_text(full_name).strip()
+            if not raw:
+                return ""
+            bracket_pos = raw.find("[")
+            if bracket_pos > 0:
+                raw = raw[:bracket_pos].strip()
+            return raw
+
+        def _name_from_pyagent(agent_id: int) -> str:
+            try:
+                return self._ensure_text(encoded_wstr_to_str(PyAgent.PyAgent.GetNameByID(int(agent_id)))).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        def _name_from_agent(agent_id: int) -> str:
+            try:
+                return self._ensure_text(Agent.GetNameByID(int(agent_id))).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        def _first_list_match(base_name: str) -> int:
+            base_norm = self._normalize_name_for_compare(base_name)
+            for idx, cfg_name in enumerate(configured_names):
+                cfg_norm = configured_norm[idx]
+                if base_name == cfg_name:
+                    return idx
+                if base_norm and cfg_norm and (base_norm == cfg_norm or (cfg_norm in base_norm) or (base_norm in cfg_norm)):
+                    return idx
+            return -1
+
+        lines.append("NPC rows:")
+        for raw_agent_id in list(filtered_ids or []):
+            aid = max(0, self._safe_int(raw_agent_id, 0))
+            if aid <= 0:
+                continue
+            try:
+                is_valid = bool(Agent.IsValid(aid))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_valid = False
+            if not is_valid:
+                continue
+
+            try:
+                ax, ay = Agent.GetXY(aid)
+                dist = (((float(ax) - float(px)) ** 2) + ((float(ay) - float(py)) ** 2)) ** 0.5
+            except EXPECTED_RUNTIME_ERRORS:
+                ax, ay, dist = (0.0, 0.0, 999999.0)
+
+            name_py = _name_from_pyagent(aid)
+            name_agent = _name_from_agent(aid)
+            base_name = _extract_base_name(name_py or name_agent)
+
+            model_id = 0
+            model_name = ""
+            try:
+                model_id = max(0, self._safe_int(Agent.GetModelID(aid), 0))
+                if isinstance(ModelData, dict):
+                    row = ModelData.get(model_id, {})
+                    if isinstance(row, dict):
+                        model_name = self._ensure_text(row.get("name", "")).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                model_id = 0
+                model_name = ""
+
+            is_npc = False
+            try:
+                is_npc = bool(Agent.IsNPC(aid))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_npc = False
+            alleg_name = "?"
+            try:
+                _, alleg_name = Agent.GetAllegiance(aid)
+            except EXPECTED_RUNTIME_ERRORS:
+                alleg_name = "?"
+
+            list_idx = _first_list_match(base_name)
+            list_match = configured_names[list_idx] if 0 <= list_idx < len(configured_names) else "-"
+            lines.append(
+                f"  aid={aid} dist={dist:.1f} xy=({float(ax):.1f},{float(ay):.1f}) "
+                f"model={model_id}:{model_name or '?'} base='{base_name}' "
+                f"py='{name_py}' agent='{name_agent}' is_npc={is_npc} allegiance='{alleg_name}' "
+                f"known_model={model_id in known_model_ids} list_match={list_match}"
+            )
+
+        candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+        lines.append(f"Chosen candidates: {', '.join([str(int(v)) for v in candidates]) if candidates else '<none>'}")
+        lines.append(f"Cached seen names: {', '.join(list(getattr(self, 'auto_buy_kits_last_seen_npc_names', []) or [])) or '<none>'}")
+        lines.append(f"Cached seen models: {', '.join(list(getattr(self, 'auto_buy_kits_last_seen_npc_models', []) or [])) or '<none>'}")
+        lines.append("AutoBuyKits trace:")
+        trace_rows = list(getattr(self, "auto_buy_kits_debug_trace", []) or [])
+        if trace_rows:
+            for row in trace_rows[-60:]:
+                lines.append(f"  {self._ensure_text(row)}")
+        else:
+            lines.append("  <none>")
+        return "\n".join(lines)
+
+    def _dump_auto_buy_kits_merchant_debug_report(self) -> int:
+        try:
+            report = self._build_auto_buy_kits_merchant_debug_report()
+            debug_dir = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "merchant_debug")
+            os.makedirs(debug_dir, exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            out_path = os.path.join(debug_dir, f"merchant_scan_{ts}.txt")
+            with open(out_path, mode="w", encoding="utf-8") as f:
+                f.write(report)
+            clip_state = "file only"
+            try:
+                PyImGui.set_clipboard_text(report)
+                clip_state = "copied to clipboard"
+            except EXPECTED_RUNTIME_ERRORS:
+                clip_state = "clipboard failed"
+            self.set_status(f"Merchant debug dumped: {out_path} ({clip_state})")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Merchant debug dump failed: {e}")
+            return 0
+
+    def _build_inventory_slot_order(self) -> list[tuple[int, int]]:
+        slot_order: list[tuple[int, int]] = []
+        try:
+            bag_enums = ItemArray.CreateBagList(1, 2, 3, 4)
+        except EXPECTED_RUNTIME_ERRORS:
+            bag_enums = []
+        for bag_enum in list(bag_enums or []):
+            try:
+                bag_id = int(getattr(bag_enum, "value", 0))
+                bag_name = self._ensure_text(getattr(bag_enum, "name", ""))
+                if bag_id <= 0:
+                    continue
+                bag_instance = PyInventory.Bag(bag_id, bag_name)
+                bag_size = max(0, int(bag_instance.GetSize()))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            for slot_idx in range(bag_size):
+                slot_order.append((bag_id, int(slot_idx)))
+        return slot_order
+
+    def _collect_kit_item_ids_for_sort(self) -> list[int]:
+        try:
+            salvage_kit_model = int(ModelID.Salvage_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            salvage_kit_model = 2992
+        try:
+            id_kit_model = int(ModelID.Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            id_kit_model = 2989
+        try:
+            superior_id_model = int(ModelID.Superior_Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            superior_id_model = 5899
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = list(ItemArray.GetItemArray(bags_to_check) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_array = []
+
+        kit_item_ids: list[int] = []
+        for raw_item_id in item_array:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+            try:
+                model_id = int(Item.GetModelID(item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            if model_id in (salvage_kit_model, superior_id_model, id_kit_model):
+                kit_item_ids.append(item_id)
+
+        def _sort_key(item_id: int):
+            bag_id, slot = Inventory.FindItemBagAndSlot(item_id)
+            return (self._safe_int(bag_id, 99), self._safe_int(slot, 999))
+
+        try:
+            kit_item_ids.sort(key=_sort_key)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return kit_item_ids
+
+    def _sort_kits_to_front(self) -> Generator[Any, Any, int]:
+        slot_order = self._build_inventory_slot_order()
+        if not slot_order:
+            return 0
+        kit_item_ids = self._collect_kit_item_ids_for_sort()
+        if not kit_item_ids:
+            return 0
+
+        moved = 0
+        for idx, kit_item_id in enumerate(kit_item_ids):
+            if idx >= len(slot_order):
+                break
+            target_bag, target_slot = slot_order[idx]
+            current_bag, current_slot = Inventory.FindItemBagAndSlot(kit_item_id)
+            current_bag_i = self._safe_int(current_bag, 0)
+            current_slot_i = self._safe_int(current_slot, -1)
+            if current_bag_i == target_bag and current_slot_i == target_slot:
+                continue
+            try:
+                Inventory.MoveItem(kit_item_id, target_bag, target_slot, 1)
+                moved += 1
+                yield from Routines.Yield.wait(100)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+        return int(moved)
+
+    def _buy_item_from_merchant(self, offered_item_id: int, quantity: int) -> Generator[Any, Any, int]:
+        item_id = max(0, self._safe_int(offered_item_id, 0))
+        to_buy = max(0, self._safe_int(quantity, 0))
+        if item_id <= 0 or to_buy <= 0:
+            return 0
+
+        bought = 0
+        for _ in range(to_buy):
+            # Merchant API expects buy cost (sell value * 2) in many maps/frames.
+            buy_cost = 0
+            try:
+                buy_cost = max(0, int(GLOBAL_CACHE.Item.Properties.GetValue(item_id)) * 2)
+            except EXPECTED_RUNTIME_ERRORS:
+                buy_cost = 0
+            if buy_cost <= 0:
+                # Fallback for edge cases where property value is unavailable.
+                try:
+                    GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
+                    wait_elapsed_ms = 0
+                    while wait_elapsed_ms < 1000:
+                        yield from Routines.Yield.wait(50)
+                        wait_elapsed_ms += 50
+                        quote_value = int(Trading.Trader.GetQuotedValue())
+                        if quote_value >= 0:
+                            buy_cost = quote_value
+                            break
+                except EXPECTED_RUNTIME_ERRORS:
+                    buy_cost = 0
+            if buy_cost <= 0:
+                break
+
+            try:
+                GLOBAL_CACHE.Trading.Merchant.BuyItem(item_id, buy_cost)
+            except EXPECTED_RUNTIME_ERRORS:
+                try:
+                    GLOBAL_CACHE.Trading.Trader.BuyItem(item_id, buy_cost)
+                except EXPECTED_RUNTIME_ERRORS:
+                    break
+
+            # Small settle delay between purchases.
+            yield from Routines.Yield.wait(125)
+            bought += 1
+        return int(bought)
+
+    def _approach_and_open_merchant(self, agent_id: int) -> Generator[Any, Any, bool]:
+        target_agent_id = max(0, self._safe_int(agent_id, 0))
+        if target_agent_id <= 0:
+            self._trace_auto_buy_kits("approach: invalid target agent id")
+            return False
+
+        try:
+            px, py = Player.GetXY()
+            nx, ny = Agent.GetXY(target_agent_id)
+            dist_sq = ((float(nx) - float(px)) ** 2) + ((float(ny) - float(py)) ** 2)
+            model_id_dbg = 0
+            try:
+                model_id_dbg = max(0, self._safe_int(Agent.GetModelID(target_agent_id), 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                model_id_dbg = 0
+            self._trace_auto_buy_kits(
+                f"approach: target aid={target_agent_id} model={model_id_dbg} dist={float(dist_sq) ** 0.5:.1f}"
+            )
+            if dist_sq > (165.0 * 165.0):
+                moved_via_path = False
+                try:
+                    from Py4GWCoreLib.Pathing import AutoPathing
+
+                    path3d = yield from AutoPathing().get_path_to(
+                        float(nx),
+                        float(ny),
+                        smooth_by_los=True,
+                        margin=100.0,
+                        step_dist=300.0,
+                    )
+                    path2d = [(x, y) for (x, y, *_) in list(path3d or [])]
+                    if path2d:
+                        self._trace_auto_buy_kits(
+                            f"approach: path_to target built (nodes={len(path2d)})"
+                        )
+                        moved_via_path = bool((yield from Routines.Yield.Movement.FollowPath(
+                            path_points=path2d,
+                            custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+                            tolerance=150,
+                            log=constants.DEBUG,
+                            timeout=10000,
+                            custom_pause_fn=lambda: False,
+                            stop_on_party_wipe=False,
+                        )))
+                        self._trace_auto_buy_kits(
+                            f"approach: FollowPath(path2d) result={moved_via_path}"
+                        )
+                    else:
+                        self._trace_auto_buy_kits("approach: AutoPathing returned empty path")
+                except EXPECTED_RUNTIME_ERRORS:
+                    self._trace_auto_buy_kits("approach: AutoPathing/FollowPath(path2d) raised")
+                    pass
+                if not moved_via_path:
+                    try:
+                        self._trace_auto_buy_kits("approach: fallback FollowPath direct-to-NPC")
+                        yield from Routines.Yield.Movement.FollowPath(
+                            path_points=[(float(nx), float(ny))],
+                            custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+                            tolerance=175,
+                            log=constants.DEBUG,
+                            timeout=12000,
+                            custom_pause_fn=lambda: False,
+                            stop_on_party_wipe=False,
+                        )
+                        self._trace_auto_buy_kits("approach: fallback FollowPath finished")
+                    except EXPECTED_RUNTIME_ERRORS:
+                        self._trace_auto_buy_kits("approach: fallback FollowPath raised")
+                        pass
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: failed reading player/target XY")
+            pass
+
+        try:
+            yield from Routines.Yield.Player.ChangeTarget(target_agent_id, log=False)
+            self._trace_auto_buy_kits(f"approach: changed target to aid={target_agent_id}")
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: ChangeTarget raised")
+            pass
+
+        try:
+            yield from Routines.Yield.Player.InteractAgent(target_agent_id, log=False)
+            self._trace_auto_buy_kits(f"approach: InteractAgent(aid={target_agent_id}) yielded")
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: InteractAgent raised")
+            pass
+
+        try:
+            Player.Interact(target_agent_id, call_target=True)
+            self._trace_auto_buy_kits(f"approach: Player.Interact(aid={target_agent_id}) queued")
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: Player.Interact raised")
+            return False
+
+        try:
+            if self._handle_lions_arch_merchant_dialog_if_visible():
+                yield from Routines.Yield.wait(250)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        wait_elapsed_ms = 0
+        reinteract_elapsed_ms = 0
+        while wait_elapsed_ms < 3500:
+            if self._is_merchant_frame_open():
+                self._trace_auto_buy_kits(f"approach: merchant frame opened after {wait_elapsed_ms}ms")
+                return True
+            try:
+                if self._handle_lions_arch_merchant_dialog_if_visible():
+                    yield from Routines.Yield.wait(250)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+            yield from Routines.Yield.wait(200)
+            wait_elapsed_ms += 200
+            reinteract_elapsed_ms += 200
+            if reinteract_elapsed_ms >= 600:
+                reinteract_elapsed_ms = 0
+                try:
+                    Player.Interact(target_agent_id, call_target=True)
+                    self._trace_auto_buy_kits(f"approach: re-interact aid={target_agent_id}")
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+        opened = self._is_merchant_frame_open()
+        self._trace_auto_buy_kits(f"approach: merchant frame final_open={opened} after wait={wait_elapsed_ms}ms")
+        return opened
+
+    def _run_buy_kits_if_needed_job(self, verbose_status: bool = True) -> Generator[Any, Any, None]:
+        self.auto_buy_kits_job_running = True
+        try:
+            self._trace_auto_buy_kits("job: started")
+            if not bool(Map.IsOutpost()):
+                self._trace_auto_buy_kits("job: aborted, not in outpost")
+                if verbose_status:
+                    self.set_status("Auto Buy Kits: only available in outpost/town")
+                return
+
+            stats = self._collect_local_inventory_kit_stats()
+            salvage_uses = max(0, self._safe_int(stats.get("salvage_uses", 0), 0))
+            total_id_uses = max(0, self._safe_int(self._collect_total_identification_uses(), 0))
+            need_salvage = salvage_uses < 25
+            need_id = total_id_uses < 25
+            self._trace_auto_buy_kits(
+                f"job: needs salvage={need_salvage} id={need_id} (salvage_uses={salvage_uses}, total_id_uses={total_id_uses})"
+            )
+            if not need_salvage and not need_id:
+                self._trace_auto_buy_kits("job: skipped, enough kits/uses")
+                if verbose_status:
+                    self.set_status("Auto Buy Kits: skipped (>=25 uses for salvage and total ID)")
+                return
+
+            try:
+                salvage_kit_model = int(ModelID.Salvage_Kit.value)
+            except EXPECTED_RUNTIME_ERRORS:
+                salvage_kit_model = 2992
+            try:
+                id_kit_model = int(ModelID.Identification_Kit.value)
+            except EXPECTED_RUNTIME_ERRORS:
+                id_kit_model = 2989
+            try:
+                superior_id_model = int(ModelID.Superior_Identification_Kit.value)
+            except EXPECTED_RUNTIME_ERRORS:
+                superior_id_model = 5899
+
+            merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+            self._trace_auto_buy_kits(f"job: initial candidates={','.join([str(int(v)) for v in merchant_candidates]) or '<none>'}")
+            if not merchant_candidates:
+                # After zoning, NPC/name data can lag briefly; rescan before failing.
+                wait_elapsed_ms = 0
+                while wait_elapsed_ms < 2000 and not merchant_candidates:
+                    yield from Routines.Yield.wait(200)
+                    wait_elapsed_ms += 200
+                    merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+                self._trace_auto_buy_kits(
+                    f"job: rescan candidates after {wait_elapsed_ms}ms => {','.join([str(int(v)) for v in merchant_candidates]) or '<none>'}"
+                )
+            if not merchant_candidates:
+                # Lions Arch special case: move to Bodrus area once, then rescan hinted model.
+                map_id_now = 0
+                try:
+                    map_id_now = max(0, self._safe_int(Map.GetMapID(), 0))
+                except EXPECTED_RUNTIME_ERRORS:
+                    map_id_now = 0
+                if map_id_now == 55:
+                    self._trace_auto_buy_kits("job: LA bootstrap move to merchant hub (7396,6327)")
+                    try:
+                        yield from Routines.Yield.Movement.FollowPath(
+                            path_points=[(7396.0, 6327.0)],
+                            custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+                            tolerance=225,
+                            log=constants.DEBUG,
+                            timeout=15000,
+                            custom_pause_fn=lambda: False,
+                            stop_on_party_wipe=False,
+                        )
+                    except EXPECTED_RUNTIME_ERRORS:
+                        self._trace_auto_buy_kits("job: LA bootstrap FollowPath raised")
+                    yield from Routines.Yield.wait(350)
+                    merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+                    self._trace_auto_buy_kits(
+                        f"job: LA post-move candidates={','.join([str(int(v)) for v in merchant_candidates]) or '<none>'}"
+                    )
+            merchant_agent_id = int(max(0, self._safe_int(merchant_candidates[0], 0))) if merchant_candidates else 0
+            if merchant_agent_id <= 0:
+                self._trace_auto_buy_kits("job: failed, no candidate merchant agent id")
+                npc_count = 0
+                try:
+                    npc_count = len(list(AgentArray.GetNPCMinipetArray() or []))
+                except EXPECTED_RUNTIME_ERRORS:
+                    npc_count = 0
+                if verbose_status:
+                    configured = ", ".join([self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_merchant_names", []) or []) if self._ensure_text(v).strip()])
+                    seen_names = ", ".join([self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_last_seen_npc_names", []) or []) if self._ensure_text(v).strip()])
+                    seen_models = ", ".join([self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_last_seen_npc_models", []) or []) if self._ensure_text(v).strip()])
+                    if configured:
+                        if seen_names or seen_models:
+                            if seen_models:
+                                self.set_status(f"Auto Buy Kits failed: no listed merchant found (NPCs scanned: {npc_count}; list: {configured}; seen: {seen_names or '-'}; models: {seen_models})")
+                            else:
+                                self.set_status(f"Auto Buy Kits failed: no listed merchant found (NPCs scanned: {npc_count}; list: {configured}; seen: {seen_names})")
+                        else:
+                            self.set_status(f"Auto Buy Kits failed: no listed merchant found (NPCs scanned: {npc_count}; list: {configured})")
+                    else:
+                        self.set_status(f"Auto Buy Kits failed: no merchant list configured (NPCs scanned: {npc_count})")
+                return
+
+            bought_salvage = 0
+            bought_superior = 0
+            bought_regular_id = 0
+            missing_items: set[str] = set()
+            remaining_need_salvage = bool(need_salvage)
+            remaining_need_id = bool(need_id)
+
+            merchant_opened_any = False
+            tried_npcs = 0
+            for candidate_id in merchant_candidates[:30]:
+                cid = int(max(0, self._safe_int(candidate_id, 0)))
+                if cid <= 0:
+                    continue
+                tried_npcs += 1
+                c_model = 0
+                try:
+                    c_model = max(0, self._safe_int(Agent.GetModelID(cid), 0))
+                except EXPECTED_RUNTIME_ERRORS:
+                    c_model = 0
+                self._trace_auto_buy_kits(f"job: trying candidate aid={cid} model={c_model} ({tried_npcs}/{len(merchant_candidates[:30])})")
+                merchant_opened = bool((yield from self._approach_and_open_merchant(cid)))
+                self._trace_auto_buy_kits(f"job: candidate aid={cid} merchant_opened={merchant_opened}")
+                if not merchant_opened:
+                    continue
+                merchant_opened_any = True
+                candidate_bought_any = False
+
+                salvage_offer_id = self._find_merchant_item_by_model(salvage_kit_model) if remaining_need_salvage else 0
+                superior_offer_id = self._find_merchant_item_by_model(superior_id_model) if remaining_need_id else 0
+                regular_offer_id = self._find_merchant_item_by_model(id_kit_model) if remaining_need_id else 0
+                self._trace_auto_buy_kits(
+                    f"job: offers aid={cid} salvage={salvage_offer_id} superior={superior_offer_id} regular={regular_offer_id}"
+                )
+
+                # Learn this NPC model for current map as soon as it exposes kit offers.
+                if salvage_offer_id > 0 or superior_offer_id > 0 or regular_offer_id > 0:
+                    self._record_successful_kit_merchant_model(cid)
+
+                if remaining_need_salvage and salvage_offer_id <= 0:
+                    missing_items.add("salvage kit")
+                if remaining_need_id and superior_offer_id <= 0 and regular_offer_id <= 0:
+                    missing_items.add("superior ID kit (and regular ID kit)")
+
+                if remaining_need_salvage and salvage_offer_id > 0:
+                    bought_now = int((yield from self._buy_item_from_merchant(salvage_offer_id, 4)) or 0)
+                    self._trace_auto_buy_kits(f"job: buy salvage offer={salvage_offer_id} bought={bought_now}")
+                    if bought_now > 0:
+                        bought_salvage += int(bought_now)
+                        candidate_bought_any = True
+                        remaining_need_salvage = False
+                        if "salvage kit" in missing_items:
+                            missing_items.discard("salvage kit")
+
+                if remaining_need_id:
+                    if superior_offer_id > 0:
+                        bought_now = int((yield from self._buy_item_from_merchant(superior_offer_id, 1)) or 0)
+                        self._trace_auto_buy_kits(f"job: buy superior offer={superior_offer_id} bought={bought_now}")
+                        if bought_now > 0:
+                            bought_superior += int(bought_now)
+                            candidate_bought_any = True
+                            remaining_need_id = False
+                            if "superior ID kit (and regular ID kit)" in missing_items:
+                                missing_items.discard("superior ID kit (and regular ID kit)")
+                    if remaining_need_id and regular_offer_id > 0:
+                        bought_now = int((yield from self._buy_item_from_merchant(regular_offer_id, 2)) or 0)
+                        self._trace_auto_buy_kits(f"job: buy regular offer={regular_offer_id} bought={bought_now}")
+                        if bought_now > 0:
+                            bought_regular_id += int(bought_now)
+                            candidate_bought_any = True
+                            remaining_need_id = False
+                            if "superior ID kit (and regular ID kit)" in missing_items:
+                                missing_items.discard("superior ID kit (and regular ID kit)")
+
+                if candidate_bought_any:
+                    self._record_successful_kit_merchant_model(cid)
+
+                if not remaining_need_salvage and not remaining_need_id:
+                    break
+
+            if not merchant_opened_any:
+                self._trace_auto_buy_kits(f"job: failed, merchant window not opened (tried={tried_npcs})")
+                if verbose_status:
+                    self.set_status(f"Auto Buy Kits failed: merchant window not opened (NPCs tried: {tried_npcs})")
+                return
+
+            if bought_salvage <= 0 and bought_superior <= 0 and bought_regular_id <= 0:
+                self._trace_auto_buy_kits(
+                    f"job: failed, no purchases (missing={','.join(sorted(list(missing_items))) if missing_items else '<none>'})"
+                )
+                if missing_items:
+                    if verbose_status:
+                        self.set_status(f"Auto Buy Kits failed: merchant missing {', '.join(sorted(list(missing_items)))}")
+                else:
+                    if verbose_status:
+                        self.set_status("Auto Buy Kits failed: purchase rejected or insufficient gold")
+                return
+
+            status_parts = []
+            if bought_salvage > 0:
+                status_parts.append(f"salvage kits x{bought_salvage}")
+            if bought_superior > 0:
+                status_parts.append(f"superior ID kits x{bought_superior}")
+            if bought_regular_id > 0:
+                status_parts.append(f"ID kits x{bought_regular_id}")
+            sorted_count = int((yield from self._sort_kits_to_front()) or 0)
+            if sorted_count > 0:
+                status_parts.append(f"sorted x{sorted_count}")
+            if missing_items:
+                status_parts.append(f"missing {', '.join(sorted(list(missing_items)))}")
+            self.set_status(f"Auto Buy Kits: bought {', '.join(status_parts)}")
+            self._trace_auto_buy_kits(f"job: success => {', '.join(status_parts)}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self._trace_auto_buy_kits(f"job: exception => {e}")
+            if verbose_status:
+                self.set_status(f"Auto Buy Kits failed: {e}")
+        finally:
+            self._trace_auto_buy_kits("job: finished")
+            self.auto_buy_kits_job_running = False
+
+    def _queue_buy_kits_if_needed(self, verbose_status: bool = True) -> int:
+        if self.auto_buy_kits_job_running:
+            self._trace_auto_buy_kits("queue: rejected, already running")
+            if verbose_status:
+                self.set_status("Auto Buy Kits: already running")
+            return 0
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running:
+            self._trace_auto_buy_kits("queue: rejected, busy with other inventory job")
+            if verbose_status:
+                self.set_status("Auto Buy Kits: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_buy_kits_if_needed_job(verbose_status=verbose_status))
+            self._trace_auto_buy_kits("queue: queued")
+            if verbose_status:
+                self.set_status("Auto Buy Kits: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self._trace_auto_buy_kits(f"queue: failed => {e}")
+            if verbose_status:
+                self.set_status(f"Auto Buy Kits queue failed: {e}")
+            return 0
+
+    def _run_auto_gold_balance_job(self, verbose_status: bool = True) -> Generator[Any, Any, None]:
+        self.auto_gold_balance_job_running = True
+        target_amount = max(0, int(self.auto_gold_balance_target))
+        try:
+            if not bool(Map.IsOutpost()):
+                if verbose_status:
+                    self.set_status("Auto Gold: only available in outpost/town")
+                return
+            before_char = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter(), 0))
+            before_storage = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldInStorage(), 0))
+            if before_char == target_amount:
+                if verbose_status:
+                    self.set_status(f"Auto Gold: already balanced at {target_amount}")
+                return
+
+            yield from Routines.Yield.Items.DepositGold(target_amount, log=False)
+            yield from Routines.Yield.wait(125)
+
+            after_char = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter(), 0))
+            after_storage = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldInStorage(), 0))
+            if after_char == before_char and after_storage == before_storage:
+                if verbose_status:
+                    self.set_status("Auto Gold: no transfer (storage/character limits)")
+                return
+            if verbose_status:
+                self.set_status(f"Auto Gold: balanced to {after_char} (target {target_amount})")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Auto Gold failed: {e}")
+        finally:
+            self.auto_gold_balance_job_running = False
+
+    def _queue_auto_gold_balance(self, verbose_status: bool = True) -> int:
+        if self.auto_gold_balance_job_running:
+            if verbose_status:
+                self.set_status("Auto Gold: already running")
+            return 0
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
+            if verbose_status:
+                self.set_status("Auto Gold: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_auto_gold_balance_job(verbose_status=verbose_status))
+            if verbose_status:
+                self.set_status("Auto Gold: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Auto Gold queue failed: {e}")
+            return 0
+
+    def _run_auto_gold_balance_once_on_outpost_entry_tick(self) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            return False
+        if not self.auto_gold_balance_enabled:
+            return False
+        if self.auto_gold_balance_handled_entry_key == entry_key:
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+            return False
+
+        target_amount = max(0, int(self.auto_gold_balance_target))
+        current_gold = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter(), 0))
+        if current_gold == target_amount:
+            self.auto_gold_balance_handled_entry_key = entry_key
+            return False
+
+        queued = self._queue_auto_gold_balance(verbose_status=False)
+        if queued > 0:
+            self.auto_gold_balance_handled_entry_key = entry_key
+            return True
+        return False
+
+    def _run_auto_buy_kits_once_on_outpost_entry_tick(self) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            self._trace_auto_buy_kits("entry: skipped, no entry key")
+            return False
+        if not self.auto_buy_kits_enabled:
+            self._trace_auto_buy_kits("entry: skipped, feature disabled")
+            return False
+        if self.auto_buy_kits_handled_entry_key == entry_key:
+            self._trace_auto_buy_kits(f"entry: skipped, already handled entry={entry_key}")
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+            self._trace_auto_buy_kits("entry: skipped, busy with other running job")
+            return False
+
+        stats = self._collect_local_inventory_kit_stats()
+        salvage_uses = max(0, self._safe_int(stats.get("salvage_uses", 0), 0))
+        total_id_uses = max(0, self._safe_int(self._collect_total_identification_uses(), 0))
+        if salvage_uses >= 25 and total_id_uses >= 25:
+            self._trace_auto_buy_kits(
+                f"entry: skipped, enough kits (salvage_uses={salvage_uses}, total_id_uses={total_id_uses})"
+            )
+            self.auto_buy_kits_handled_entry_key = entry_key
+            return False
+
+        queued = self._queue_buy_kits_if_needed(verbose_status=True)
+        if queued > 0:
+            self._trace_auto_buy_kits(f"entry: queued job for entry={entry_key}")
+            self.auto_buy_kits_handled_entry_key = entry_key
+            return True
+        self._trace_auto_buy_kits(f"entry: queue failed for entry={entry_key}")
+        return False
 
     def _refresh_auto_outpost_store_entry_key(self) -> str:
         is_outpost = False
@@ -4602,7 +5950,7 @@ class DropViewerWindow:
             return False
         if not force and not self.auto_outpost_store_enabled:
             return False
-        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
             return False
         if self.auto_outpost_store_handled_entry_key == entry_key:
             return False
@@ -4656,7 +6004,13 @@ class DropViewerWindow:
             if self.auto_outpost_store_enabled and self._run_auto_outpost_store_tick():
                 return
 
-            if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running:
+            if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+                return
+
+            if self._run_auto_gold_balance_once_on_outpost_entry_tick():
+                return
+
+            if self._run_auto_buy_kits_once_on_outpost_entry_tick():
                 return
 
             queued_id = 0
@@ -4750,10 +6104,14 @@ class DropViewerWindow:
 
         id_payload = self._encode_auto_action_payload(self.auto_id_enabled, self._get_selected_id_rarities())
         salvage_payload = self._encode_auto_action_payload(self.auto_salvage_enabled, self._get_selected_salvage_rarities())
+        kits_payload = "1" if self.auto_buy_kits_enabled else "0"
+        gold_payload = "1" if self.auto_gold_balance_enabled else "0"
         store_payload = "1" if self.auto_outpost_store_enabled else "0"
         sent = 0
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_id", id_payload)
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_salvage", salvage_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_buy_kits", kits_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_gold_balance", gold_payload)
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_outpost_store", store_payload)
         if sent > 0:
             self.set_status(f"Auto inventory config synced to followers ({sent} messages)")
@@ -5053,6 +6411,38 @@ class DropViewerWindow:
             "superior_id_uses": int(superior_id_uses),
             "superior_id_kits": int(superior_id_kits),
         }
+
+    def _collect_total_identification_uses(self) -> int:
+        total_id_uses = 0
+        try:
+            superior_id_model = int(ModelID.Superior_Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            superior_id_model = 5899
+        try:
+            regular_id_model = int(ModelID.Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            regular_id_model = 2989
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = ItemArray.GetItemArray(bags_to_check)
+            for item_id in list(item_array or []):
+                iid = max(0, self._safe_int(item_id, 0))
+                if iid <= 0:
+                    continue
+                try:
+                    model_id = int(Item.GetModelID(iid))
+                except EXPECTED_RUNTIME_ERRORS:
+                    continue
+                if model_id not in (superior_id_model, regular_id_model):
+                    continue
+                try:
+                    uses = max(0, int(Item.Usage.GetUses(iid)))
+                except EXPECTED_RUNTIME_ERRORS:
+                    uses = 0
+                total_id_uses += int(uses)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return int(total_id_uses)
 
     def _upsert_inventory_kit_stats(self, email: str, character_name: str, party_position: int, stats: dict, map_id: int = 0, party_id: int = 0):
         if not email:
