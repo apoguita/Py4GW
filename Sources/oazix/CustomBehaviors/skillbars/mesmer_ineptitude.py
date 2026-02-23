@@ -33,6 +33,7 @@ from Sources.oazix.CustomBehaviors.skills.mesmer.unnatural_signet_utility import
 from Sources.oazix.CustomBehaviors.skills.mesmer.wandering_eye_utility import WanderingEyeUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
+from Sources.oazix.CustomBehaviors.skills.monk.judges_insight_utility import JudgesInsightUtility
 
 class MesmerIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
 
@@ -56,6 +57,7 @@ class MesmerIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
         # utilities
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.drain_enchantment_utility: CustomSkillUtilityBase = DrainEnchantmentUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(89))
+        self.judges_insight_utility: CustomSkillUtilityBase = JudgesInsightUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(91))
 
         #common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
@@ -78,6 +80,7 @@ class MesmerIneptitude_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.ineptitude_utility,
             self.cry_of_pain_utility,
             self.power_drain_utility,
+            self.judges_insight_utility,
             self.wandering_eye_utility,
             self.arcane_conundrum_utility,
             self.drain_enchantment_utility,
