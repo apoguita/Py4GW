@@ -1,6 +1,7 @@
 {
   "name": "The Way is blocked",
   "max_heroes": 6,
+  "hero_team": "party_6",
   "take_quest": {
     "outpost_id": 134,
     "quest_npc_location": [9086, 5816],
