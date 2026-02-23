@@ -11,6 +11,7 @@ _INIT_OK = False
 _INIT_ERROR = None
 
 try:
+    from typing import Any, cast
     import PyImGui
     from Py4GWCoreLib import (
         ConsoleLog,
@@ -24,7 +25,7 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Agent
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
     import threading
 
@@ -160,26 +161,38 @@ try:
         if not disabled:
             return None
         try:
-            if hasattr(PyImGui, "begin_disabled"):
+            fn_begin_disabled = getattr(PyImGui, "begin_disabled", None)
+            if callable(fn_begin_disabled):
                 try:
-                    PyImGui.begin_disabled(True)
+                    fn_begin_disabled(True)
                 except Exception:
-                    PyImGui.begin_disabled()
+                    fn_begin_disabled()
                 return "begin_disabled"
         except Exception:
             pass
         try:
-            if hasattr(PyImGui, "push_item_flag") and hasattr(PyImGui, "ImGuiItemFlags") and hasattr(PyImGui.ImGuiItemFlags, "Disabled"):
-                PyImGui.push_item_flag(PyImGui.ImGuiItemFlags.Disabled, True)
+            item_flags = getattr(PyImGui, "ImGuiItemFlags", None)
+            disabled_flag = getattr(item_flags, "Disabled", None) if item_flags is not None else None
+            style_vars = getattr(PyImGui, "ImGuiStyleVar", None)
+            alpha_var = getattr(style_vars, "Alpha", None) if style_vars is not None else None
+            fn_push_item_flag = getattr(PyImGui, "push_item_flag", None)
+            if callable(fn_push_item_flag) and disabled_flag is not None:
+                fn_push_item_flag(disabled_flag, True)
                 try:
-                    PyImGui.push_style_var(PyImGui.ImGuiStyleVar.Alpha, 0.5)
-                    return "flag+alpha"
+                    if alpha_var is not None:
+                        PyImGui.push_style_var(alpha_var, 0.5)
+                        return "flag+alpha"
+                    return "flag"
                 except Exception:
                     return "flag"
         except Exception:
             pass
         try:
-            PyImGui.push_style_var(PyImGui.ImGuiStyleVar.Alpha, 0.5)
+            style_vars = getattr(PyImGui, "ImGuiStyleVar", None)
+            alpha_var = getattr(style_vars, "Alpha", None) if style_vars is not None else None
+            if alpha_var is None:
+                return None
+            PyImGui.push_style_var(alpha_var, 0.5)
             return "alpha"
         except Exception:
             return None
@@ -196,12 +209,16 @@ try:
             except Exception:
                 pass
             try:
-                PyImGui.pop_item_flag()
+                fn_pop_item_flag = getattr(PyImGui, "pop_item_flag", None)
+                if callable(fn_pop_item_flag):
+                    fn_pop_item_flag()
             except Exception:
                 pass
         elif mode == "flag":
             try:
-                PyImGui.pop_item_flag()
+                fn_pop_item_flag = getattr(PyImGui, "pop_item_flag", None)
+                if callable(fn_pop_item_flag):
+                    fn_pop_item_flag()
             except Exception:
                 pass
         elif mode == "alpha":
@@ -1354,7 +1371,7 @@ try:
             self._dirty = False
 
     # Config will be lazy-loaded on first main() call to ensure account email is available
-    cfg = None
+    cfg = cast("Config", None)
 
     def _apply_mbdp_defaults():
         global _last_mbdp_party_ms
@@ -1838,6 +1855,7 @@ try:
                 if callable(fn):
                     v = fn()
                     try:
+                        v = cast(Any, v)
                         v = int(v)
                     except Exception:
                         continue
@@ -3656,6 +3674,10 @@ except Exception as e:
     _INIT_OK = False
     _INIT_ERROR = e
     try:
-        ConsoleLog("Pycons", f"Init failed: {e}", Console.MessageType.Error)
+        fn_console_log = globals().get("ConsoleLog")
+        console_mod = globals().get("Console")
+        msg_type = getattr(getattr(console_mod, "MessageType", None), "Error", None)
+        if callable(fn_console_log) and msg_type is not None:
+            fn_console_log("Pycons", f"Init failed: {e}", msg_type)
     except Exception:
         pass
