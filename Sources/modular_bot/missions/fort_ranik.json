@@ -5,7 +5,7 @@
   "hero_team": "party_4",
   "entry": {
     "type": "enter_challenge",
-    "delay": 3000,
+    "delay": 5000,
     "target_map_id": 29
   },
   "steps": [

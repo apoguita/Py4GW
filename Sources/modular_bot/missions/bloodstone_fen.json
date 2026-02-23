@@ -5,7 +5,7 @@
   "hero_team": "party_6_no_spirits_minions",
   "entry": {
     "type": "enter_challenge",
-    "delay": 2000,
+    "delay": 5000,
     "target_map_id": 10
   },
   "steps": [

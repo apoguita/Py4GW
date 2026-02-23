@@ -155,6 +155,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     hero_team = str(data.get("hero_team", "") or "")
     take_quest = data.get("take_quest")
     steps = data.get("steps", [])
+    total_registered_steps = 0
 
     travel_outpost_id = (take_quest or {}).get("outpost_id")
 
@@ -173,12 +174,36 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     _register_take_quest(bot, take_quest)
 
     # 4. Execute quest steps
-    for idx, step in enumerate(steps):
-        _register_step(bot, step, idx)
+    for source_idx, step in enumerate(steps):
+        repeat_raw = step.get("repeat", 1)
+        try:
+            repeat = int(repeat_raw)
+        except (TypeError, ValueError):
+            ConsoleLog(
+                "Recipe:Quest",
+                f"Invalid repeat at source step {source_idx}: {repeat_raw!r}. Using 1.",
+            )
+            repeat = 1
+
+        if repeat <= 0:
+            ConsoleLog(
+                "Recipe:Quest",
+                f"Skipping source step {source_idx} because repeat={repeat}.",
+            )
+            continue
+
+        for rep_idx in range(repeat):
+            step_to_register = step
+            if repeat > 1 and "name" in step:
+                step_to_register = dict(step)
+                step_to_register["name"] = f"{step['name']} [{rep_idx + 1}/{repeat}]"
+
+            _register_step(bot, step_to_register, total_registered_steps)
+            total_registered_steps += 1
 
     ConsoleLog(
         "Recipe:Quest",
-        f"Registered quest: {display_name} ({len(steps)} steps, outpost {travel_outpost_id})",
+        f"Registered quest: {display_name} ({total_registered_steps} expanded steps from {len(steps)} source steps, outpost {travel_outpost_id})",
     )
 
 
