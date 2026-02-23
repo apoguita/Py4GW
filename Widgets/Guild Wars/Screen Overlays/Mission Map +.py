@@ -1248,6 +1248,10 @@ def tooltip():
 
     PyImGui.end_tooltip()
 
+#def update():
+#   if Map.MissionMap.IsWindowOpen():
+#        mission_map.update()
+
 def draw():  
     try:  
         if not Routines.Checks.Map.MapValid():
@@ -1255,8 +1259,8 @@ def draw():
             mission_map.Map_load_timer.Reset()
             return
         
-        if not mission_map.Map_load_timer.HasElapsed(1000):
-            return
+        #if not mission_map.Map_load_timer.HasElapsed(1000):
+        #    return
         
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
