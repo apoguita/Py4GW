@@ -166,9 +166,9 @@ class Py4GWSharedMemoryManager:
         """Get all active slot data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
         return self.GetAllAccounts().GetAllActiveSlotsData()
     
-    def GetAllAccountData(self) -> list[AccountStruct]:
-        """Get all player data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
-        return self.GetAllAccounts().GetAllActivePlayers()
+    def GetAllAccountData(self, sort_results: bool = True) -> list[AccountStruct]:
+        """Get active account-player data. Sorted by default for backward compatibility."""
+        return self.GetAllAccounts().GetAllActivePlayers(sort_results=sort_results)
     
     def GetNumActivePlayers(self) -> int:
         """Get the number of active players in shared memory."""
@@ -197,6 +197,10 @@ class Py4GWSharedMemoryManager:
     def GetAllAccountHeroAIOptions(self) -> list[HeroAIOptionStruct]:
         """Get HeroAI options for all accounts."""
         return self.GetAllAccounts().GetAllAccountHeroAIOptions()
+
+    def GetAllActiveAccountHeroAIPairs(self, sort_results: bool = True) -> list[tuple[AccountStruct, HeroAIOptionStruct]]:
+        """Get active account-player data and HeroAI options in one pass."""
+        return self.GetAllAccounts().GetAllActiveAccountHeroAIPairs(sort_results=sort_results)
     
     def GetHeroAIOptionsFromEmail(self, account_email: str) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given email."""
