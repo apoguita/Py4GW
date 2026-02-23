@@ -11,6 +11,7 @@ _INIT_OK = False
 _INIT_ERROR = None
 
 try:
+    from typing import Any, cast
     import PyImGui
     from Py4GWCoreLib import (
         ConsoleLog,
@@ -24,7 +25,7 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Agent
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
     import threading
 
@@ -160,26 +161,38 @@ try:
         if not disabled:
             return None
         try:
-            if hasattr(PyImGui, "begin_disabled"):
+            fn_begin_disabled = getattr(PyImGui, "begin_disabled", None)
+            if callable(fn_begin_disabled):
                 try:
-                    PyImGui.begin_disabled(True)
+                    fn_begin_disabled(True)
                 except Exception:
-                    PyImGui.begin_disabled()
+                    fn_begin_disabled()
                 return "begin_disabled"
         except Exception:
             pass
         try:
-            if hasattr(PyImGui, "push_item_flag") and hasattr(PyImGui, "ImGuiItemFlags") and hasattr(PyImGui.ImGuiItemFlags, "Disabled"):
-                PyImGui.push_item_flag(PyImGui.ImGuiItemFlags.Disabled, True)
+            item_flags = getattr(PyImGui, "ImGuiItemFlags", None)
+            disabled_flag = getattr(item_flags, "Disabled", None) if item_flags is not None else None
+            style_vars = getattr(PyImGui, "ImGuiStyleVar", None)
+            alpha_var = getattr(style_vars, "Alpha", None) if style_vars is not None else None
+            fn_push_item_flag = getattr(PyImGui, "push_item_flag", None)
+            if callable(fn_push_item_flag) and disabled_flag is not None:
+                fn_push_item_flag(disabled_flag, True)
                 try:
-                    PyImGui.push_style_var(PyImGui.ImGuiStyleVar.Alpha, 0.5)
-                    return "flag+alpha"
+                    if alpha_var is not None:
+                        PyImGui.push_style_var(alpha_var, 0.5)
+                        return "flag+alpha"
+                    return "flag"
                 except Exception:
                     return "flag"
         except Exception:
             pass
         try:
-            PyImGui.push_style_var(PyImGui.ImGuiStyleVar.Alpha, 0.5)
+            style_vars = getattr(PyImGui, "ImGuiStyleVar", None)
+            alpha_var = getattr(style_vars, "Alpha", None) if style_vars is not None else None
+            if alpha_var is None:
+                return None
+            PyImGui.push_style_var(alpha_var, 0.5)
             return "alpha"
         except Exception:
             return None
@@ -196,12 +209,16 @@ try:
             except Exception:
                 pass
             try:
-                PyImGui.pop_item_flag()
+                fn_pop_item_flag = getattr(PyImGui, "pop_item_flag", None)
+                if callable(fn_pop_item_flag):
+                    fn_pop_item_flag()
             except Exception:
                 pass
         elif mode == "flag":
             try:
-                PyImGui.pop_item_flag()
+                fn_pop_item_flag = getattr(PyImGui, "pop_item_flag", None)
+                if callable(fn_pop_item_flag):
+                    fn_pop_item_flag()
             except Exception:
                 pass
         elif mode == "alpha":
@@ -614,6 +631,7 @@ try:
             pass
 
     PRESET_SLOT_COUNT = 3
+    LEADER_FORCE_PRESET_KEY = "leader_force_target_morale"
     PRESET_BOOL_KEYS = {
         "debug_logging",
         "only_show_available_inventory",
@@ -668,6 +686,20 @@ try:
         cfg.enabled[key] = bool(enabled)
         _rt.runtime_selected[key] = bool(selected)
         _rt.runtime_enabled[key] = bool(enabled)
+
+    BUILTIN_PRESET_NAMES = {
+        "Solo Safe",
+        "Full Team Sync",
+        "Leader - Force Team Morale",
+    }
+
+    def _mark_mbdp_preset_custom():
+        if not cfg:
+            return
+        current = str(getattr(cfg, "last_applied_preset", "") or "")
+        if current in BUILTIN_PRESET_NAMES:
+            cfg.last_applied_preset = "Custom"
+            cfg.mark_dirty()
 
     def _apply_builtin_preset(key: str, announce: bool = True):
         global _last_mbdp_party_ms
@@ -724,7 +756,7 @@ try:
             cfg.mark_dirty()
             if announce:
                 _log("Applied preset: Full Team Sync.", Console.MessageType.Info)
-        elif key == "leader_force_plus10_team_morale":
+        elif key in ("leader_force_plus10_team_morale", LEADER_FORCE_PRESET_KEY):
             cfg.mbdp_enabled = True
             cfg.team_broadcast = True
             cfg.team_consume_opt_in = False
@@ -734,8 +766,6 @@ try:
             cfg.mbdp_strict_party_plus10 = True
             cfg.mbdp_party_min_members = 2
             cfg.mbdp_party_min_interval_ms = 12000
-            cfg.mbdp_party_min_total_gain_5 = 0
-            cfg.mbdp_party_min_total_gain_10 = 120
             _set_item_toggle("honeycomb", True, True)
             _set_item_toggle("elixir_of_valor", False, False)
             _set_item_toggle("rainbow_candy_cane", False, False)
@@ -1072,6 +1102,46 @@ try:
         {"key": "zehtukas_jug", "label": "Zehtukas Jug", "model_id": int(_model_id_value("Zehtukas_Jug", 0)), "drunk_add": 5, "use_where": "both"},
     ]
     ALCOHOL_BY_KEY = {a["key"]: a for a in ALCOHOL_ITEMS}
+    CONSUMABLE_TOOLTIPS = {
+        "armor_of_salvation": "Grant your party members immunity to 50% of critical hits, +10 armor, +1 Health regeneration, and damage reduction of 5 for the next 30 minutes.",
+        "birthday_cupcake": "For 30 minutes, your maximum Health is increased by 100, your maximum energy is increased by 10, and your movement speed is increased by 25%.",
+        "blue_rock_candy": "You move and attack 25% faster and your skill activation times are reduced by 20% for the next 30 minutes.",
+        "bowl_of_skalefin_soup": "For 30 minutes you have +1 Health regeneration.",
+        "candy_apple": "For 30 minutes, your maximum Health is increased by 100 and your maximum Energy is increased by 10.",
+        "candy_corn": "For 30 minutes, all of your attributes are raised by 1.",
+        "chocolate_bunny": "For 5 minutes, you move 50% faster.",
+        "creme_brulee": "For 10 minutes, you move 25% faster.",
+        "drake_kabob": "For 30 minutes you have +5 armor.",
+        "elixir_of_valor": "Grant your party members a 10% morale boost",
+        "essence_of_celerity": "Grant your party members 20% faster movement and attack speeds, and to reduce their skill activation and recharge times by 20% for the next 30 minutes.",
+        "four_leaf_clover": "Remove a random amount of DP (5%-15%) from your entire party. If 15% DP is removed, you gain 4 points towards the Lucky title track.",
+        "fruitcake": "For 5 minutes you run 25% faster.",
+        "golden_egg": "For 30 minutes, all of your attributes are raised by 1.",
+        "grail_of_might": "Grants your party members +100 maximum health, +10 maximum energy, and +1 to all of their attributes for 30 minutes.",
+        "green_rock_candy": "You move and attack 15% faster and your skill activation times are reduced by 15% for the next 30 minutes.",
+        "honeycomb": "Give your party a 5% morale boost. This morale boost does not cause skills to instantly recharge.",
+        "jar_of_honey": "For 10 minutes, you move 25% faster.",
+        "oath_of_purity": "Remove 15% of all party member's Death Penalty.",
+        "pahnai_salad": "For 30 minutes you have +20 maximum Health.",
+        "peppermint_candy_cane": "Remove all Death Penalty from yourself",
+        "powerstone_of_courage": "Remove all Death Penalty from your party. Your entire party then receives a 10% Morale Boost.",
+        "pumpkin_cookie": "Give yourself a 10% morale boost.",
+        "rainbow_candy_cane": "Give your party a 5% morale boost. This morale boost does not cause skills to instantly recharge.",
+        "red_bean_cake": "For 5 minutes you run 25% faster.",
+        "red_rock_candy": "You move and attack 33% faster and your skill activation times are reduced by 25% for the next 30 minutes.",
+        "refined_jelly": "Remove 15% of your Death Penalty.",
+        "seal_of_the_dragon_empire": "Give yourself a 10% morale boost.",
+        "slice_of_pumpkin_pie": "You attack 25% faster and your skill activation times are reduced by 15% for the next 30 minutes.",
+        "sugary_blue_drink": "For 2 minutes, you move 50% faster.",
+        "war_supplies": "For 30 minutes, you have +5 armor and +1 Health Regeneration.",
+        "wintergreen_candy_cane": "Remove 15% of your Death Penalty.",
+    }
+
+    def _consumable_tooltip_text(key: str) -> str:
+        tooltip = str(CONSUMABLE_TOOLTIPS.get(str(key or ""), "") or "").strip()
+        if tooltip:
+            return tooltip
+        return "No description available."
 
     def _alcohol_display_label(spec: dict) -> str:
         base = str(spec.get("label", "") or "")
@@ -1301,7 +1371,7 @@ try:
             self._dirty = False
 
     # Config will be lazy-loaded on first main() call to ensure account email is available
-    cfg = None
+    cfg = cast("Config", None)
 
     def _apply_mbdp_defaults():
         global _last_mbdp_party_ms
@@ -1785,6 +1855,7 @@ try:
                 if callable(fn):
                     v = fn()
                     try:
+                        v = cast(Any, v)
                         v = int(v)
                     except Exception:
                         continue
@@ -2400,22 +2471,27 @@ try:
                 ("four_leaf_clover", f"light_cnt={light_cnt} trigger={_fmt_effective(cfg.mbdp_party_light_dp_threshold)} (~{party_light_dp_threshold}% DP)")
             )
 
-        if bool(cfg.mbdp_strict_party_plus10) and strict_target_missing > 0:
-            strict_reason = (
-                f"strict_target={_fmt_effective(strict_target)} "
-                f"members_below_target={strict_target_members} total_missing={strict_target_missing}"
-            )
-            candidate_choices.append(("elixir_of_valor", strict_reason))
-            if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
-                candidate_choices.append(("rainbow_candy_cane", strict_reason + " fallback+5"))
-            candidate_choices.append(("honeycomb", strict_reason + " fallback+5"))
-        elif gain_10 >= int(cfg.mbdp_party_min_total_gain_10):
-            candidate_choices.append(("elixir_of_valor", f"gain10={gain_10} min={cfg.mbdp_party_min_total_gain_10}"))
-        elif gain_5 >= int(cfg.mbdp_party_min_total_gain_5):
-            gain5_reason = f"gain5={gain_5} min={cfg.mbdp_party_min_total_gain_5}"
-            if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
-                candidate_choices.append(("rainbow_candy_cane", gain5_reason))
-            candidate_choices.append(("honeycomb", gain5_reason))
+        leader_force_active = bool(cfg.mbdp_strict_party_plus10)
+        if leader_force_active:
+            # In leader force mode, morale spending is strictly target-driven.
+            # Only add morale candidates if party members are below the configured target.
+            if strict_target_missing > 0:
+                strict_reason = (
+                    f"strict_target={_fmt_effective(strict_target)} "
+                    f"members_below_target={strict_target_members} total_missing={strict_target_missing}"
+                )
+                candidate_choices.append(("elixir_of_valor", strict_reason))
+                if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                    candidate_choices.append(("rainbow_candy_cane", strict_reason + " fallback+5"))
+                candidate_choices.append(("honeycomb", strict_reason + " fallback+5"))
+        else:
+            if gain_10 >= int(cfg.mbdp_party_min_total_gain_10):
+                candidate_choices.append(("elixir_of_valor", f"gain10={gain_10} min={cfg.mbdp_party_min_total_gain_10}"))
+            elif gain_5 >= int(cfg.mbdp_party_min_total_gain_5):
+                gain5_reason = f"gain5={gain_5} min={cfg.mbdp_party_min_total_gain_5}"
+                if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                    candidate_choices.append(("rainbow_candy_cane", gain5_reason))
+                candidate_choices.append(("honeycomb", gain5_reason))
 
         if not candidate_choices:
             _debug(
@@ -2583,9 +2659,11 @@ try:
         _, enabled = ui_checkbox(f"##{id_prefix}_cb_{key}", bool(enabled_now))
         _same_line(10)
         PyImGui.text(label)
+        _tooltip_if_hovered(_consumable_tooltip_text(key))
         _same_line(12)
         if _badge_button("ON" if enabled else "OFF", enabled=bool(enabled), id_suffix=f"{id_prefix}_btn_{key}"):
             enabled = not enabled
+        _tooltip_if_hovered(_consumable_tooltip_text(key))
         changed = (bool(enabled_now) != bool(enabled))
         return bool(enabled), bool(changed)
 
@@ -2617,28 +2695,6 @@ try:
 
         if PyImGui.button("Settings##pycons_settings"):
             show_settings[0] = not show_settings[0]
-
-        _same_line(10)
-        if PyImGui.button("Enable all##pycons_enable_all"):
-            for c in ALL_CONSUMABLES:
-                k = c["key"]
-                if bool(cfg.selected.get(k, False)):
-                    _rt.runtime_enabled[k] = True
-            for a in ALCOHOL_ITEMS:
-                k = a["key"]
-                if bool(cfg.alcohol_selected.get(k, False)):
-                    _rt.runtime_alcohol_enabled[k] = True
-
-        _same_line(10)
-        if PyImGui.button("Disable all##pycons_disable_all"):
-            for c in ALL_CONSUMABLES:
-                k = c["key"]
-                if bool(cfg.selected.get(k, False)):
-                    _rt.runtime_enabled[k] = False
-            for a in ALCOHOL_ITEMS:
-                k = a["key"]
-                if bool(cfg.alcohol_selected.get(k, False)):
-                    _rt.runtime_alcohol_enabled[k] = False
 
         PyImGui.separator()
 
@@ -2806,7 +2862,32 @@ try:
 
                 if selected_mbdp:
                     PyImGui.text("Morale Boost & Death Penalty:")
-                    for c in selected_mbdp:
+                    mbdp_party_keys = {
+                        "elixir_of_valor",
+                        "four_leaf_clover",
+                        "honeycomb",
+                        "oath_of_purity",
+                        "powerstone_of_courage",
+                        "rainbow_candy_cane",
+                    }
+                    mbdp_self_keys = {
+                        "peppermint_candy_cane",
+                        "pumpkin_cookie",
+                        "refined_jelly",
+                        "seal_of_the_dragon_empire",
+                        "wintergreen_candy_cane",
+                    }
+
+                    mbdp_by_key = {str(s.get("key", "")): s for s in MB_DP_ITEMS}
+                    missing_party_keys = sorted([k for k in mbdp_party_keys if k not in mbdp_by_key])
+                    missing_self_keys = sorted([k for k in mbdp_self_keys if k not in mbdp_by_key])
+
+                    party_specs = [c for c in selected_mbdp if str(c.get("key", "")) in mbdp_party_keys]
+                    self_specs = [c for c in selected_mbdp if str(c.get("key", "")) in mbdp_self_keys]
+                    unmapped_specs = [c for c in selected_mbdp if str(c.get("key", "")) not in mbdp_party_keys and str(c.get("key", "")) not in mbdp_self_keys]
+
+                    PyImGui.text("Party:")
+                    for c in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
                         k = c["key"]
                         suffix = _stock_suffix_for_model_id(int(c.get("model_id", 0)))
                         new_enabled, chg = _draw_main_row_checkbox_and_badge(
@@ -2814,6 +2895,35 @@ try:
                         )
                         if chg:
                             _rt.runtime_enabled[k] = bool(new_enabled)
+
+                    if missing_party_keys:
+                        PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
+
+                    PyImGui.spacing()
+                    PyImGui.text("Self:")
+                    for c in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
+                        k = c["key"]
+                        suffix = _stock_suffix_for_model_id(int(c.get("model_id", 0)))
+                        new_enabled, chg = _draw_main_row_checkbox_and_badge(
+                            k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons_mbdp"
+                        )
+                        if chg:
+                            _rt.runtime_enabled[k] = bool(new_enabled)
+
+                    if missing_self_keys:
+                        PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
+
+                    if unmapped_specs:
+                        PyImGui.separator()
+                        PyImGui.text("Unmapped:")
+                        for c in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
+                            k = c["key"]
+                            suffix = _stock_suffix_for_model_id(int(c.get("model_id", 0)))
+                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
+                                k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons_mbdp"
+                            )
+                            if chg:
+                                _rt.runtime_enabled[k] = bool(new_enabled)
                     PyImGui.separator()
 
                 if selected_alcohol:
@@ -2866,6 +2976,7 @@ try:
         model_id = int(spec.get("model_id", 0))
         stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
         PyImGui.text(label + stock_suffix)
+        _tooltip_if_hovered(_consumable_tooltip_text(k))
 
         _draw_min_interval_editor(k)
 
@@ -2890,6 +3001,7 @@ try:
         model_id = int(spec.get("model_id", 0))
         stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
         PyImGui.text(label + stock_suffix)
+        _tooltip_if_hovered(_consumable_tooltip_text(k))
 
         selected = bool(selected)
         if prev != selected:
@@ -2958,6 +3070,15 @@ try:
             cfg.show_advanced_intervals = bool(v)
             cfg.mark_dirty()
         _show_setting_tooltip("advanced_intervals")
+
+        if PyImGui.button("Set all other party accounts: Opt-in ON##pycons_preset_set_other_optin"):
+            _set_other_party_accounts_opt_in()
+        _show_setting_tooltip("preset_set_others_optin")
+
+        if PyImGui.button("Set all other party accounts: Opt-in OFF##pycons_preset_set_other_optout"):
+            _set_other_party_accounts_opt_out()
+        _show_setting_tooltip("preset_set_others_optout")
+        PyImGui.text(f"Last party opt toggle: {str(cfg.last_party_opt_toggle_summary or 'None')}")
 
         PyImGui.separator()
         if ui_collapsing_header("Tooltip settings##pycons_settings_tooltip_dropdown", False):
@@ -3047,28 +3168,33 @@ try:
             if _badge_button("ON" if cfg.mbdp_enabled else "OFF", enabled=bool(cfg.mbdp_enabled), id_suffix="pycons_settings_mbdp_toggle"):
                 cfg.mbdp_enabled = not bool(cfg.mbdp_enabled)
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_enabled")
 
             changed, v = ui_checkbox("Allow party-wide in human parties##pycons_mbdp_human", bool(cfg.mbdp_allow_partywide_in_human_parties))
             if changed:
                 cfg.mbdp_allow_partywide_in_human_parties = bool(v)
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_allow_partywide_in_human_parties")
 
             changed, v = ui_checkbox("Receiver requires item enabled locally##pycons_mbdp_receiver_require_enabled", bool(cfg.mbdp_receiver_require_enabled))
             if changed:
                 cfg.mbdp_receiver_require_enabled = bool(v)
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_receiver_require_enabled")
 
             changed, v = ui_checkbox("Prefer Seal over Pumpkin for self +10 morale##pycons_mbdp_prefer_seal", bool(cfg.mbdp_prefer_seal_for_recharge))
             if changed:
                 cfg.mbdp_prefer_seal_for_recharge = bool(v)
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_prefer_seal_for_recharge")
 
             if PyImGui.button("Restore default MB/DP settings##pycons_mbdp_restore_defaults"):
                 _apply_mbdp_defaults()
+                _mark_mbdp_preset_custom()
                 _debug("MB/DP settings restored to defaults.", Console.MessageType.Info)
                 cfg.save_if_dirty_throttled(0)
             _show_setting_tooltip("mbdp_restore_defaults")
@@ -3079,6 +3205,7 @@ try:
             if changed:
                 cfg.mbdp_self_dp_minor_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_self_dp_minor_threshold")
 
             PyImGui.text(f"Self major DP trigger ({_fmt_effective(cfg.mbdp_self_dp_major_threshold)}):")
@@ -3087,6 +3214,7 @@ try:
             if changed:
                 cfg.mbdp_self_dp_major_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_self_dp_major_threshold")
 
             PyImGui.text(f"Self target effective ({_fmt_effective(cfg.mbdp_self_morale_target_effective)}):")
@@ -3095,6 +3223,7 @@ try:
             if changed:
                 cfg.mbdp_self_morale_target_effective = max(-60, min(10, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_self_morale_target_effective")
 
             PyImGui.text("Self minimum useful morale benefit:")
@@ -3103,6 +3232,7 @@ try:
             if changed:
                 cfg.mbdp_self_min_morale_gain = max(0, min(10, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_self_min_morale_gain")
 
             PyImGui.text("Party minimum eligible members:")
@@ -3111,6 +3241,7 @@ try:
             if changed:
                 cfg.mbdp_party_min_members = max(2, min(8, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_min_members")
 
             PyImGui.text("Party trigger interval (ms):")
@@ -3119,6 +3250,7 @@ try:
             if changed:
                 cfg.mbdp_party_min_interval_ms = max(1000, int(val))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_min_interval_ms")
 
             PyImGui.text(f"Party target effective ({_fmt_effective(cfg.mbdp_party_target_effective)}):")
@@ -3127,6 +3259,7 @@ try:
             if changed:
                 cfg.mbdp_party_target_effective = max(-60, min(10, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_target_effective")
 
             PyImGui.text("Party +5 minimum total benefit:")
@@ -3135,6 +3268,7 @@ try:
             if changed:
                 cfg.mbdp_party_min_total_gain_5 = max(0, min(60, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_min_total_gain_5")
 
             PyImGui.text("Party +10 minimum total benefit:")
@@ -3143,6 +3277,7 @@ try:
             if changed:
                 cfg.mbdp_party_min_total_gain_10 = max(0, min(120, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_min_total_gain_10")
 
             PyImGui.text(f"Party light DP trigger ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
@@ -3151,6 +3286,7 @@ try:
             if changed:
                 cfg.mbdp_party_light_dp_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_light_dp_threshold")
 
             PyImGui.text(f"Party heavy DP trigger ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
@@ -3159,6 +3295,7 @@ try:
             if changed:
                 cfg.mbdp_party_heavy_dp_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_heavy_dp_threshold")
 
             PyImGui.text(f"Powerstone emergency trigger ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
@@ -3167,6 +3304,7 @@ try:
             if changed:
                 cfg.mbdp_powerstone_dp_threshold = max(-60, min(0, int(val)))
                 cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_powerstone_dp_threshold")
 
             PyImGui.separator()
@@ -3174,7 +3312,6 @@ try:
         if ui_collapsing_header("MB/DP Presets##pycons_settings_presets_dropdown", False):
             _show_setting_tooltip("presets_section")
             PyImGui.text(f"Active preset: {str(cfg.last_applied_preset or 'None')}")
-            PyImGui.text(f"Last party opt toggle: {str(cfg.last_party_opt_toggle_summary or 'None')}")
             PyImGui.separator()
 
             if PyImGui.button("Apply: Solo Safe##pycons_preset_apply_solo_safe"):
@@ -3186,7 +3323,7 @@ try:
             _show_setting_tooltip("preset_full_team_sync")
 
             if PyImGui.button("Apply: Leader - Force Team Morale##pycons_preset_apply_leader_force"):
-                _apply_builtin_preset("leader_force_plus10_team_morale")
+                _apply_builtin_preset(LEADER_FORCE_PRESET_KEY)
             _same_line(10)
             PyImGui.text("Value:")
             _same_line(6)
@@ -3200,17 +3337,23 @@ try:
                 if int(getattr(cfg, "force_team_morale_value", 0)) != int(new_force):
                     cfg.force_team_morale_value = int(new_force)
                     cfg.mark_dirty()
-                    # Live-apply through the existing preset path; no extra apply click required.
-                    _apply_builtin_preset("leader_force_plus10_team_morale", announce=False)
+                    # Keep live-apply behavior only when strict mode is currently active.
+                    if bool(cfg.mbdp_strict_party_plus10):
+                        _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
+                    _mark_mbdp_preset_custom()
+            _same_line(8)
+            if _badge_button(
+                "ON" if bool(cfg.mbdp_strict_party_plus10) else "OFF",
+                enabled=bool(cfg.mbdp_strict_party_plus10),
+                id_suffix="pycons_preset_leader_force_strict_toggle",
+            ):
+                cfg.mbdp_strict_party_plus10 = not bool(cfg.mbdp_strict_party_plus10)
+                if bool(cfg.mbdp_strict_party_plus10):
+                    _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
+                else:
+                    _mark_mbdp_preset_custom()
+                    cfg.mark_dirty()
             _show_setting_tooltip("preset_leader_force_plus10_team")
-
-            if PyImGui.button("Set all other party accounts: Opt-in ON##pycons_preset_set_other_optin"):
-                _set_other_party_accounts_opt_in()
-            _show_setting_tooltip("preset_set_others_optin")
-
-            if PyImGui.button("Set all other party accounts: Opt-in OFF##pycons_preset_set_other_optout"):
-                _set_other_party_accounts_opt_out()
-            _show_setting_tooltip("preset_set_others_optout")
 
             PyImGui.separator()
             PyImGui.text("Custom preset slots:")
@@ -3378,8 +3521,50 @@ try:
                 cfg.mark_dirty()
             if mbdp_open:
                 before_mbdp = len(visible_regular_keys)
-                for spec in mbdp_items:
+                mbdp_party_keys = {
+                    "elixir_of_valor",
+                    "four_leaf_clover",
+                    "honeycomb",
+                    "oath_of_purity",
+                    "powerstone_of_courage",
+                    "rainbow_candy_cane",
+                }
+                mbdp_self_keys = {
+                    "peppermint_candy_cane",
+                    "pumpkin_cookie",
+                    "refined_jelly",
+                    "seal_of_the_dragon_empire",
+                    "wintergreen_candy_cane",
+                }
+
+                mbdp_by_key = {str(s.get("key", "")): s for s in mbdp_items}
+                party_specs = [mbdp_by_key[k] for k in mbdp_party_keys if k in mbdp_by_key]
+                self_specs = [mbdp_by_key[k] for k in mbdp_self_keys if k in mbdp_by_key]
+                unmapped_specs = [s for s in mbdp_items if str(s.get("key", "")) not in mbdp_party_keys and str(s.get("key", "")) not in mbdp_self_keys]
+
+                missing_party_keys = sorted([k for k in mbdp_party_keys if k not in mbdp_by_key])
+                missing_self_keys = sorted([k for k in mbdp_self_keys if k not in mbdp_by_key])
+
+                PyImGui.text("Party:")
+                for spec in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
                     _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+
+                if missing_party_keys:
+                    PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
+
+                PyImGui.separator()
+                PyImGui.text("Self:")
+                for spec in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
+                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+
+                if missing_self_keys:
+                    PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
+
+                if unmapped_specs:
+                    PyImGui.separator()
+                    PyImGui.text("Unmapped:")
+                    for spec in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
                 if only_available_settings and len(visible_regular_keys) == before_mbdp:
                     PyImGui.text_disabled("No available items.")
 
@@ -3489,6 +3674,10 @@ except Exception as e:
     _INIT_OK = False
     _INIT_ERROR = e
     try:
-        ConsoleLog("Pycons", f"Init failed: {e}", Console.MessageType.Error)
+        fn_console_log = globals().get("ConsoleLog")
+        console_mod = globals().get("Console")
+        msg_type = getattr(getattr(console_mod, "MessageType", None), "Error", None)
+        if callable(fn_console_log) and msg_type is not None:
+            fn_console_log("Pycons", f"Init failed: {e}", msg_type)
     except Exception:
         pass
