@@ -18,6 +18,7 @@ Each step object must include:
 Every step supports optional:
 
 - `ms`: post-step wait in milliseconds (default: `500`)
+- `repeat`: how many times to register/execute that step (default: `1`)
 
 Special case:
 
@@ -57,11 +58,13 @@ Special case:
 {"type": "wait_map_change", "target_map_id": 0}
 {"type": "set_auto_combat", "enabled": true}
 {"type": "set_auto_combat", "enabled": false}
+{"type": "auto_path", "name": "Wait in place", "points": [[0, 0]], "ms": 25000, "repeat": 20}
 ```
 
 ## Notes
 
 - `kind`-specific recipe wrappers still exist (`Mission(...)`, `Quest(...)`) but action handling is shared.
+- `repeat <= 0` skips that source step.
 - `key_press` supported keys: `F1`, `F2`, `SPACE`, `ENTER`, `ESCAPE`/`ESC`.
 - `force_hero_state` values: `fight`, `guard`, `avoid`.
   Numeric override: `behavior` = `0`/`1`/`2`.
@@ -93,4 +96,3 @@ Options:
 - `dialog_id`: required; int, `"0x..."`, or list of them
 - `wait_ms`: optional
 - `name`: optional
-
