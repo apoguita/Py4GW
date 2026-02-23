@@ -23,9 +23,13 @@ class _FakeViewer:
         self.status_message = ""
         self.identify_calls = []
         self.salvage_calls = []
+        self.buy_kits_calls = 0
+        self.buy_kits_result = 1
         self.identify_response_scheduler = _FakeScheduler()
         self.auto_id_enabled = False
         self.auto_salvage_enabled = False
+        self.auto_buy_kits_enabled = False
+        self.auto_gold_balance_enabled = False
         self.selected_id_rarities = ["Blue", "Purple"]
         self.selected_salvage_rarities = ["Gold"]
         self.payload_text = ""
@@ -50,6 +54,10 @@ class _FakeViewer:
     def _queue_salvage_for_rarities(self, rarities):
         self.salvage_calls.append(list(rarities))
         return len(rarities)
+
+    def _queue_buy_kits_if_needed(self):
+        self.buy_kits_calls += 1
+        return int(self.buy_kits_result)
 
     def _decode_rarities(self, payload):
         return [r for r in str(payload).split(",") if r]
@@ -92,6 +100,14 @@ class _FakeViewer:
             return int(value)
         except Exception:
             return int(default)
+
+    def _apply_auto_buy_kits_config_payload(self, payload):
+        text = str(payload or "").strip().lower()
+        self.auto_buy_kits_enabled = text in ("1", "true", "on", "yes", "y", "enable", "enabled")
+
+    def _apply_auto_gold_balance_config_payload(self, payload):
+        text = str(payload or "").strip().lower()
+        self.auto_gold_balance_enabled = text in ("1", "true", "on", "yes", "y", "enable", "enabled")
 
     def _build_item_snapshot_payload_from_live_item(self, item_id, item_name=""):
         self._snapshot_calls.append((int(item_id), str(item_name)))
@@ -294,6 +310,22 @@ def test_run_inventory_action_salvage_variants(action_code, expected):
     assert ok is True
     assert viewer.salvage_calls[-1] == expected
     assert "started" in viewer.status_message
+
+
+def test_run_inventory_action_buy_kits_if_needed_success():
+    viewer = _FakeViewer()
+    viewer.buy_kits_result = 1
+    ok = run_inventory_action(viewer, "buy_kits_if_needed")
+    assert ok is True
+    assert viewer.buy_kits_calls == 1
+
+
+def test_run_inventory_action_buy_kits_if_needed_returns_false_when_not_queued():
+    viewer = _FakeViewer()
+    viewer.buy_kits_result = 0
+    ok = run_inventory_action(viewer, "buy_kits_if_needed")
+    assert ok is False
+    assert viewer.buy_kits_calls == 1
 
 
 def test_run_inventory_action_id_selected_uses_selected_rarities():
@@ -526,6 +558,22 @@ def test_run_inventory_action_cfg_auto_salvage_applies_enabled_and_rarities():
     assert viewer.auto_salvage_enabled is False
     assert viewer.selected_salvage_rarities == ["White", "Purple"]
     assert "Auto Salvage Config" in viewer.status_message
+
+
+def test_run_inventory_action_cfg_auto_buy_kits_applies_toggle():
+    viewer = _FakeViewer()
+    ok = run_inventory_action(viewer, "cfg_auto_buy_kits", "1")
+    assert ok is True
+    assert viewer.auto_buy_kits_enabled is True
+    assert "Auto Buy Kits Config" in viewer.status_message
+
+
+def test_run_inventory_action_cfg_auto_gold_balance_applies_toggle():
+    viewer = _FakeViewer()
+    ok = run_inventory_action(viewer, "cfg_auto_gold_balance", "1")
+    assert ok is True
+    assert viewer.auto_gold_balance_enabled is True
+    assert "Auto Gold Balance Config" in viewer.status_message
 
 
 def test_run_inventory_action_push_item_stats_prefers_payload_send():
