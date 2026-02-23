@@ -1,6 +1,5 @@
 {
   "name": "To kryta: the Ice Cave",
-  "max_heroes": 6,
   "take_quest": {
     "quest_npc_location": [7376, 5948],
     "dialog_id": ["0x80B301"],
@@ -10,6 +9,6 @@
   "steps": [
     {"type": "auto_path", "name": "Quest Path", "points": [[3191, 8329], [-126, 7270], [-2977, 7689], [-5901, 3994], [-6562, -154], [-3521, -1323], [-1601, -3120], [-2302, -7371]]},
     {"type": "dialog", "x": -2206, "y": -7537, "id": "0x80B307"},
-    {"type": "auto_path", "name": "Reward Path", "points": [[-7086, -20774], [-10818, -21968]]}
+    {"type": "auto_path", "name": "Reward Path", "points": [[172, -6473], [-2270, -7409]]}
   ]
 }
