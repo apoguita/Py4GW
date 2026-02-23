@@ -3,7 +3,7 @@ from typing import Literal, Tuple
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          Map, ImGui, ActionQueueManager)
+                          Map, ImGui, ActionQueueManager, Agent, Player, AgentArray)
 
 
 class BotSettings:
@@ -28,6 +28,240 @@ class BotSettings:
 
     # Misc
     DEBUG: bool = False
+
+
+# ── Combat AI constants ───────────────────────────────────────────────────────
+_MIKU_MODEL_ID      = 8433
+_SHADOWSONG_ID      = 4264
+_SOS_SPIRIT_IDS     = frozenset({4280, 4281, 4282})  # Anger, Hate, Suffering
+_AOE_SKILLS         = {1380: 2000, 1372: 2000, 1083: 2000, 830: 2000, 192: 5000}
+_MIKU_FAR_DIST      = 1400.0
+_MIKU_CLOSE_DIST    = 1100.0
+_SPIRIT_FLEE_DIST   = 1600.0
+_AOE_SIDESTEP_DIST  = 350.0
+
+# White Mantle Ritualist priority targets (in kill priority order, highest first).
+# IDs are base values + 10 adjustment for post-update model IDs.
+_PRIORITY_TARGET_MODELS = [
+    8301,  # PRIMARY  – Shadowsong / Bloodsong / Pain / Anguish rit
+    8299,  # PRIMARY  – Rit/Monk: Preservation, strong heal, hex-remove, spirits
+    8303,  # PRIORITY – Weapon of Remedy rit (hard-rez)
+    8298,  #            Rit/Paragon spear caster
+    8300,  #            SoS rit
+    8302,  # 2nd prio – Minion-summoning rit
+    8254,  #            Ritualist (additional)
+]
+_TARGET_SWITCH_INTERVAL = 1.0   # seconds between priority-target checks
+_PRIORITY_TARGET_RANGE  = Range.Earshot.value  # only target priority enemies within this distance
+
+
+def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, dist: float):
+    """Return a point 'dist' away from threat, in the direction away from it."""
+    import math
+    dx = me_x - threat_x
+    dy = me_y - threat_y
+    length = math.sqrt(dx * dx + dy * dy)
+    if length < 1:
+        return me_x + dist, me_y
+    return me_x + (dx / length) * dist, me_y + (dy / length) * dist
+
+
+def _perp_point(me_x: float, me_y: float, enemy_x: float, enemy_y: float, dist: float):
+    """Return a point 'dist' perpendicular to the line from me to enemy."""
+    import math
+    dx = enemy_x - me_x
+    dy = enemy_y - me_y
+    length = math.sqrt(dx * dx + dy * dy)
+    if length < 1:
+        return me_x + dist, me_y
+    return me_x + (dy / length) * dist, me_y + (-dx / length) * dist
+
+
+def _dist(x1: float, y1: float, x2: float, y2: float) -> float:
+    import math
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+
+def _combat_ai_loop(bot: "Botting"):
+    """
+    Managed coroutine that runs every frame (even when FSM is paused).
+    Handles: Miku dead/far, spirit avoidance, AoE dodge, priority targeting.
+    """
+    import time
+    BOT_NAME = "CombatAI_AB"
+    AB_MAP = BotSettings.AUSPICIOUS_BEGINNINGS_MAP_ID
+    fsm = bot.config.FSM
+    pause_reasons: set = set()
+    ai_paused_fsm = False   # True only when THIS coroutine issued the pause
+    aoe_sidestep_at = 0.0
+    aoe_caster_id = 0
+    last_target_check = 0.0
+    locked_target_id = 0                            # priority target we're locked onto
+    locked_priority = len(_PRIORITY_TARGET_MODELS)  # priority index of locked target
+    _prev_reasons: set = set()  # used to log changes once, not every frame
+
+    ConsoleLog(BOT_NAME, "CombatAI loop started", Py4GW.Console.MessageType.Info)
+
+    def _set_pause(reason: str):
+        nonlocal ai_paused_fsm
+        pause_reasons.add(reason)
+        if not fsm.is_paused():
+            fsm.pause()
+            ai_paused_fsm = True
+
+    def _clear_pause(reason: str):
+        nonlocal ai_paused_fsm
+        pause_reasons.discard(reason)
+        # Only resume if WE were the ones who paused — avoids clobbering pause_on_danger
+        if not pause_reasons and ai_paused_fsm and fsm.is_paused():
+            fsm.resume()
+            ai_paused_fsm = False
+
+    while Map.GetMapID() == AB_MAP:
+        me_id = Player.GetAgentID()
+        if not Agent.IsValid(me_id) or Agent.IsDead(me_id):
+            yield
+            continue
+
+        me_x, me_y = Agent.GetXY(me_id)
+        enemy_array = AgentArray.GetEnemyArray()
+
+        # ── 1. Miku tracking ─────────────────────────────────────────────────
+        miku_id = Routines.Agents.GetAgentIDByModelID(_MIKU_MODEL_ID)
+        miku_dead = miku_id != 0 and Agent.IsDead(miku_id)
+        miku_far = False
+        mk_x = mk_y = 0.0
+        if miku_id != 0 and not miku_dead:
+            mk_x, mk_y = Agent.GetXY(miku_id)
+            miku_far = _dist(me_x, me_y, mk_x, mk_y) > _MIKU_FAR_DIST
+
+        if miku_dead:
+            _set_pause("miku_dead")
+        else:
+            _clear_pause("miku_dead")
+
+        if miku_far:
+            _set_pause("miku_far")
+        else:
+            _clear_pause("miku_far")
+
+        # ── 2. Spirit avoidance ───────────────────────────────────────────────
+        spirit_id = 0
+        sp_x = sp_y = 0.0
+        for eid in enemy_array:
+            if Agent.IsDead(eid):
+                continue
+            model = Agent.GetModelID(eid)
+            if model == _SHADOWSONG_ID or model in _SOS_SPIRIT_IDS:
+                ex, ey = Agent.GetXY(eid)
+                if _dist(me_x, me_y, ex, ey) < _SPIRIT_FLEE_DIST:
+                    spirit_id = eid
+                    sp_x, sp_y = ex, ey
+                    break
+
+        if spirit_id != 0:
+            _set_pause("spirit")
+        else:
+            _clear_pause("spirit")
+
+        # ── Debug: log reason changes once per transition ─────────────────────
+        if BotSettings.DEBUG and pause_reasons != _prev_reasons:
+            added   = pause_reasons - _prev_reasons
+            removed = _prev_reasons - pause_reasons
+            for r in added:
+                ConsoleLog(BOT_NAME, f"PAUSE reason added: {r}", Py4GW.Console.MessageType.Warning)
+            for r in removed:
+                ConsoleLog(BOT_NAME, f"PAUSE reason cleared: {r}", Py4GW.Console.MessageType.Info)
+            _prev_reasons = set(pause_reasons)
+
+        now = time.time()
+
+        # ── 3. Priority target selection (runs every frame, before movement) ──
+        if now - last_target_check >= _TARGET_SWITCH_INTERVAL:
+            last_target_check = now
+            # Validate locked target: drop it if dead or out of range
+            if locked_target_id != 0:
+                if not Agent.IsValid(locked_target_id) or Agent.IsDead(locked_target_id):
+                    locked_target_id = 0
+                    locked_priority = len(_PRIORITY_TARGET_MODELS)
+                else:
+                    lx, ly = Agent.GetXY(locked_target_id)
+                    if _dist(me_x, me_y, lx, ly) > _PRIORITY_TARGET_RANGE:
+                        locked_target_id = 0
+                        locked_priority = len(_PRIORITY_TARGET_MODELS)
+            # Scan for a strictly higher-priority target (or any if none locked)
+            best_id = 0
+            best_priority = len(_PRIORITY_TARGET_MODELS)
+            for eid in enemy_array:
+                if Agent.IsDead(eid):
+                    continue
+                ex, ey = Agent.GetXY(eid)
+                if _dist(me_x, me_y, ex, ey) > _PRIORITY_TARGET_RANGE:
+                    continue
+                model = Agent.GetModelID(eid)
+                if model in _PRIORITY_TARGET_MODELS:
+                    prio = _PRIORITY_TARGET_MODELS.index(model)
+                    if prio < best_priority:
+                        best_priority = prio
+                        best_id = eid
+            # Lock onto new target only if strictly higher priority than current lock
+            if best_id != 0 and best_priority < locked_priority:
+                locked_target_id = best_id
+                locked_priority = best_priority
+                if BotSettings.DEBUG:
+                    ConsoleLog(BOT_NAME,
+                               f"Locked priority target: model {_PRIORITY_TARGET_MODELS[locked_priority]} "
+                               f"(prio {locked_priority}) agent {locked_target_id}",
+                               Py4GW.Console.MessageType.Info)
+            # Call the locked target every interval until dead
+            if locked_target_id != 0:
+                Player.ChangeTarget(locked_target_id)
+                bot.Player.CallTarget()
+
+        # ── 4. Act on movement conditions (priority order) ────────────────────
+        if miku_dead:
+            # Wait for Miku to revive — nothing to do but stay paused
+            yield
+            continue
+
+        if spirit_id != 0:
+            ex_x, ex_y = _escape_point(me_x, me_y, sp_x, sp_y, 600)
+            Player.Move(ex_x, ex_y)
+            yield from Routines.Yield.wait(200)
+            continue
+
+        if miku_far:
+            Player.Move(mk_x, mk_y)
+            yield from Routines.Yield.wait(200)
+            continue
+
+        # ── 5. AoE dodge ─────────────────────────────────────────────────────
+        if aoe_caster_id != 0 and now >= aoe_sidestep_at:
+            if Agent.IsValid(aoe_caster_id) and not Agent.IsDead(aoe_caster_id):
+                tx, ty = Agent.GetXY(aoe_caster_id)
+                sx, sy = _perp_point(me_x, me_y, tx, ty, _AOE_SIDESTEP_DIST)
+                Player.Move(sx, sy)
+                if BotSettings.DEBUG:
+                    ConsoleLog(BOT_NAME, f"AoE dodge: stepping to ({sx:.0f}, {sy:.0f})", Py4GW.Console.MessageType.Info)
+            aoe_caster_id = 0
+        elif aoe_caster_id == 0:
+            for eid in enemy_array:
+                if Agent.IsDead(eid):
+                    continue
+                skill = Agent.GetCastingSkillID(eid)
+                if skill in _AOE_SKILLS:
+                    aoe_sidestep_at = now + _AOE_SKILLS[skill] / 1000.0
+                    aoe_caster_id = eid
+                    if BotSettings.DEBUG:
+                        ConsoleLog(BOT_NAME, f"AoE detected: skill {skill} from agent {eid}, dodging in {_AOE_SKILLS[skill]}ms", Py4GW.Console.MessageType.Warning)
+                    break
+
+        yield
+
+    # Cleanup: don't leave the FSM paused when exiting the map
+    ConsoleLog(BOT_NAME, "CombatAI loop exiting map — cleaning up", Py4GW.Console.MessageType.Info)
+    for reason in list(pause_reasons):
+        _clear_pause(reason)
 
 
 bot = Botting("Auspicious Beginnings",
@@ -247,9 +481,10 @@ def EnterQuest(bot: Botting) -> None:
     bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63F) #enter quest with pool
     bot.Wait.ForMapLoad(target_map_id=BotSettings.AUSPICIOUS_BEGINNINGS_MAP_ID)
     
-def RunQuest(bot: Botting) -> None:    
+def RunQuest(bot: Botting) -> None:
     bot.States.AddHeader("Run Quest")
     _EnableCombat(bot)
+    bot.States.AddManagedCoroutine("CombatAI_AB", lambda: _combat_ai_loop(bot))
     bot.Move.XY(11864.74, -4899.19)
     
     bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")

@@ -30,7 +30,6 @@ cached_data = CacheData()
 
 MODULE_NAME = "Messaging"
 OPTIONAL = False
-USEITEM_SYNC_DEBUG = False
 
 SUMMON_SPIRITS_LUXON = "Summon_Spirits_luxon"
 SUMMON_SPIRITS_KURZICK = "Summon_Spirits_kurzick"
@@ -246,7 +245,7 @@ def EnableHeroAIOptions(account_email: str):
 # region InviteToParty
 
 
-def InviteToParty(index: int, message: SharedMessageStruct):
+def InviteToParty(index :int, message: SharedMessageStruct):
     # ConsoleLog(MODULE_NAME, f"Processing InviteToParty message: {message}", Console.MessageType.Info)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -826,7 +825,7 @@ def OpenChest(index: int, message: SharedMessageStruct):
     
 
 # region PickUpLoot
-def PickUpLoot(index: int, message: SharedMessageStruct):
+def PickUpLoot(index:int , message: SharedMessageStruct):
     def _exit_if_not_map_valid():
         if not Routines.Checks.Map.MapValid():
             RestoreHeroAISnapshot(message.ReceiverEmail)
@@ -1174,12 +1173,8 @@ def _should_block_item_use() -> bool:
     return False
 
 def UseItem(index: int, message: SharedMessageStruct):
-    ConsoleLog(MODULE_NAME, f"Processing UseItem message: {message}", Console.MessageType.Info, False)
+    ConsoleLog(MODULE_NAME, "UseItem: received broadcast.", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-
-    def _useitem_dbg(text: str):
-        if USEITEM_SYNC_DEBUG:
-            ConsoleLog(MODULE_NAME, f"UseItem[debug]: {text}", Console.MessageType.Info)
 
     # Check if the user has opted in to team broadcasts (Pycons setting)
     # Use Player.GetAccountEmail() to match the hash used by Pycons.py
@@ -1191,137 +1186,25 @@ def UseItem(index: int, message: SharedMessageStruct):
         email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
         ini_path = f"Widgets/Config/Pycons_{email_hash}.ini"
         
-        _useitem_dbg(f"Reading opt-in from {ini_path} (account: {account_email})")
-        
         ini_handler = IniHandler(ini_path)
         opt_in = ini_handler.read_bool("Pycons", "team_consume_opt_in", False)
         receiver_require_enabled = ini_handler.read_bool("Pycons", "mbdp_receiver_require_enabled", True)
-        _useitem_dbg(f"team_consume_opt_in setting read as: {opt_in}")
         if not opt_in:
-            ConsoleLog(MODULE_NAME, "UseItem: team_consume_opt_in is disabled, ignoring broadcast.", Console.MessageType.Info)
+            ConsoleLog(MODULE_NAME, "UseItem: blocked (opt-in disabled).", Console.MessageType.Info, False)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             return
     except Exception as e:
-        ConsoleLog(MODULE_NAME, f"UseItem: failed to read team_consume_opt_in setting: {e}", Console.MessageType.Warning)
+        ConsoleLog(MODULE_NAME, f"UseItem: blocked (failed to read opt-in: {e}).", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    # Sender must be in the same live party/map, and sender character must appear in current party roster.
-    try:
-        sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
-        receiver_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.ReceiverEmail)
-        if not sender_data or not receiver_data:
-            ConsoleLog(MODULE_NAME, "UseItem: missing sender/receiver shared data, ignoring.", Console.MessageType.Info)
-            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-            return
-
-        sender_email = str(getattr(sender_data, "AccountEmail", "") or "").strip().lower()
-        message_sender_email = str(message.SenderEmail or "").strip().lower()
-        if not sender_email or sender_email != message_sender_email:
-            _useitem_dbg(
-                f"sender identity failed (email mismatch): message_sender='{message.SenderEmail}', "
-                f"sender_data_email='{getattr(sender_data, 'AccountEmail', '')}'"
-            )
-            ConsoleLog(MODULE_NAME, "UseItem: sender identity validation failed, ignoring.", Console.MessageType.Info)
-            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-            return
-
-        sender_party_id = int(getattr(getattr(sender_data, "AgentPartyData", None), "PartyID", 0) or 0)
-        receiver_party_id = int(getattr(getattr(receiver_data, "AgentPartyData", None), "PartyID", 0) or 0)
-
-        sender_map = getattr(getattr(sender_data, "AgentData", None), "Map", None)
-        receiver_map = getattr(getattr(receiver_data, "AgentData", None), "Map", None)
-        sender_map_id = int(getattr(sender_map, "MapID", 0) or 0)
-        sender_region = int(getattr(sender_map, "Region", 0) or 0)
-        sender_district = int(getattr(sender_map, "District", 0) or 0)
-        sender_language = int(getattr(sender_map, "Language", 0) or 0)
-        receiver_map_id = int(getattr(receiver_map, "MapID", 0) or 0)
-        receiver_region = int(getattr(receiver_map, "Region", 0) or 0)
-        receiver_district = int(getattr(receiver_map, "District", 0) or 0)
-        receiver_language = int(getattr(receiver_map, "Language", 0) or 0)
-
-        local_party_id = int(Party.GetPartyID() or 0)
-        local_map_id = int(Map.GetMapID() or 0)
-        local_region = int(Map.GetRegion()[0] or 0)
-        local_district = int(Map.GetDistrict() or 0)
-        local_language = int(Map.GetLanguage()[0] or 0)
-
-        sender_char_name = str(getattr(getattr(sender_data, "AgentData", None), "CharacterName", "") or "")
-        sender_name_norm = " ".join(sender_char_name.strip().lower().split())
-        sender_login = int(getattr(getattr(sender_data, "AgentData", None), "LoginNumber", 0) or 0)
-        sender_agent_id = int(getattr(getattr(sender_data, "AgentData", None), "AgentID", 0) or 0)
-
-        _useitem_dbg(
-            f"sender ids: email='{message.SenderEmail}', char='{sender_char_name}', login={sender_login}, "
-            f"agent_id={sender_agent_id}, party_id={sender_party_id}, "
-            f"map=({sender_map_id},{sender_region},{sender_district},{sender_language})"
-        )
-        _useitem_dbg(
-            f"receiver ids: email='{message.ReceiverEmail}', party_id(shmem)={receiver_party_id}, "
-            f"party_id(local)={local_party_id}, map(shmem)=({receiver_map_id},{receiver_region},{receiver_district},{receiver_language}), "
-            f"map(local)=({local_map_id},{local_region},{local_district},{local_language})"
-        )
-
-        if sender_party_id <= 0 or sender_party_id != receiver_party_id:
-            _useitem_dbg(
-                f"sub-check failed: party (sender_party_id={sender_party_id}, receiver_party_id={receiver_party_id})"
-            )
-            ConsoleLog(MODULE_NAME, "UseItem: sender is not in same party/map, ignoring.", Console.MessageType.Info)
-            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-            return
-
-        same_map_instance = (
-            sender_map_id == receiver_map_id and
-            sender_region == receiver_region and
-            sender_district == receiver_district and
-            sender_language == receiver_language
-        )
-        if not same_map_instance:
-            _useitem_dbg(
-                "sub-check failed: map "
-                f"(sender=({sender_map_id},{sender_region},{sender_district},{sender_language}), "
-                f"receiver=({receiver_map_id},{receiver_region},{receiver_district},{receiver_language}))"
-            )
-            ConsoleLog(MODULE_NAME, "UseItem: sender is not in same party/map, ignoring.", Console.MessageType.Info)
-            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-            return
-
-        roster_names = set()
-        roster_logins = set()
-        for p in Party.GetPlayers() or []:
-            try:
-                ln = int(getattr(p, "login_number", 0) or 0)
-                if ln <= 0:
-                    continue
-                roster_logins.add(ln)
-                nm = str(Party.Players.GetPlayerNameByLoginNumber(ln) or "")
-                if nm:
-                    roster_names.add(" ".join(nm.strip().lower().split()))
-            except Exception:
-                continue
-
-        _useitem_dbg(f"receiver roster: logins={sorted(list(roster_logins))}, names={sorted(list(roster_names))}")
-
-        sender_in_roster = False
-        if sender_login > 0:
-            sender_in_roster = sender_login in roster_logins
-        elif sender_name_norm:
-            sender_in_roster = sender_name_norm in roster_names
-
-        if not sender_in_roster:
-            _useitem_dbg(
-                f"sub-check failed: sender identity/roster (sender_login={sender_login}, sender_name='{sender_char_name}')"
-            )
-            ConsoleLog(MODULE_NAME, "UseItem: sender character not present in current party roster, ignoring.", Console.MessageType.Info)
-            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-            return
-    except Exception as e:
-        ConsoleLog(MODULE_NAME, f"UseItem: failed same-party sender check: {e}", Console.MessageType.Warning)
+    if str(message.SenderEmail or "") == str(message.ReceiverEmail or ""):
+        ConsoleLog(MODULE_NAME, "UseItem: blocked (self-message loop guard).", Console.MessageType.Info, False)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
     if _should_block_item_use():
-        ConsoleLog(MODULE_NAME, "UseItem: blocked by safety checks (dead/loading/inventory not ready/map invalid).", Console.MessageType.Info, False)
+        ConsoleLog(MODULE_NAME, "UseItem: blocked (safety checks).", Console.MessageType.Info, False)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -1387,7 +1270,7 @@ def UseItem(index: int, message: SharedMessageStruct):
 
     count = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
     if count < 1:
-        ConsoleLog(MODULE_NAME, f"UseItem: no items with model_id {model_id} in inventory.", Console.MessageType.Warning)
+        ConsoleLog(MODULE_NAME, f"UseItem: blocked (model_id {model_id} not in inventory).", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
     if effect_id > 0 and _local_has_effect(effect_id):
@@ -1415,7 +1298,7 @@ def UseItem(index: int, message: SharedMessageStruct):
 
         yield from Routines.Yield.wait(150)
 
-    ConsoleLog(MODULE_NAME, f"UseItem: finished. Requested {repeat}, actually used {used}.", Console.MessageType.Info)
+    ConsoleLog(MODULE_NAME, f"UseItem: executed (requested={repeat}, used={used}, model_id={model_id}).", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
@@ -1455,7 +1338,7 @@ def UseSkillCombatPrep(index: int, message: SharedMessageStruct):
     ]
     full_ritualist_skills = skills_to_precast + spirit_skills_to_prep + skills_to_postcast
 
-    def curr_agent_has_ritualist_skills():
+    def curr_agent_has_ritualist_skills() -> bool:
         for skill in full_ritualist_skills:
             skill_id = GLOBAL_CACHE.Skill.GetID(skill)
             slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
@@ -1464,7 +1347,7 @@ def UseSkillCombatPrep(index: int, message: SharedMessageStruct):
                 return True
         return False
 
-    def curr_agent_has_paragon_skills():
+    def curr_agent_has_paragon_skills() -> bool:
         for skill in paragon_skills:
             skill_id = GLOBAL_CACHE.Skill.GetID(skill)
             slot_number = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
@@ -1584,6 +1467,7 @@ def ResumeWidgets(index: int, message: SharedMessageStruct):
         return
     
     widget_handler = get_widget_handler()
+    widget_handler.resume_widgets()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "ResumeWidgets message processed and finished.", Console.MessageType.Info, False)
@@ -1768,9 +1652,9 @@ def ProcessMessages():
 # endregion
 
 
-def update():
+def main():
     ProcessMessages()
 
 
 if __name__ == "__main__":
-    update()
+    main()

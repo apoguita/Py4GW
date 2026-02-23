@@ -12,7 +12,7 @@ from ctypes import (
 from typing import Optional, List
 from dataclasses import dataclass
 from ..internals.types import Vec2f, Vec3f, GamePos
-from ..internals.gw_array import GW_Array, GW_Array_View, GW_Array_Value_View
+from ..internals.gw_array import GW_Array, GW_BaseArray, GW_Array_View, GW_Array_Value_View
 from ..internals.gw_list import GW_TList, GW_TList_View, GW_TLink
 from ..context.CharContext import CharContext
 from ..context.InstanceInfoContext import InstanceInfo
@@ -251,13 +251,54 @@ class YNodeStruct(NodeStruct):  # inherits: type + id (8 bytes)
         )
     
 
+#region SpawnPoint
+@dataclass(slots=True)
+class SpawnPoint:
+    x: float
+    y: float
+    angle: float    # radians; 0.0 for spawns3 entries
+    tag: str        # 4-char FourCC (e.g. '0558', 'sub1'); '' for untagged
+
+    @property
+    def map_id(self) -> Optional[int]:
+        """Zone map ID if tag is a numeric reference (e.g. '0558' → 558), else None.
+        Tags assign spawns to zones within shared FFNA geometry, not connectivity."""
+        if self.tag and self.tag.isdigit():
+            return int(self.tag)
+        return None
+
+    @property
+    def is_default(self) -> bool:
+        """True if this is the default/fallback spawn (tag '0000')."""
+        return self.tag == '0000'
+
+class SpawnEntryStruct(Structure):
+    _pack_ = 1
+    _fields_ = [
+        ("x", c_float),              # +0x00
+        ("y", c_float),              # +0x04
+        ("angle", c_float),          # +0x08  facing angle in radians
+        ("tag_raw", c_uint32),       # +0x0C  big-endian FourCC
+    ]
+
+    @property
+    def tag(self) -> str:
+        import struct as _struct
+        tag_be = _struct.pack('>I', self.tag_raw)
+        return ''.join(chr(c) if 32 <= c < 127 else '' for c in tag_be)
+
+    def snapshot(self) -> SpawnPoint:
+        return SpawnPoint(x=float(self.x), y=float(self.y),
+                          angle=float(self.angle), tag=self.tag)
+#endregion
+
 #region Portal
 @dataclass(slots=True)
 class Portal:
     left_layer_id: int
     right_layer_id: int
-    h0004: int
-    pair_index: int          # index of paired portal, or UINT32_MAX
+    flags: int               # +0x0004: bit 2 = skip expansion
+    pair_index: int          # index of paired portal in right_layer's portal list, or UINT32_MAX
     count: int
     trapezoid_indices: list[int]
     
@@ -298,21 +339,12 @@ class PortalStruct(Structure):
 
         return result
     
-    def snapshot(self, all_portals: list["PortalStruct"]) -> Portal:
-        pair_index = 0xFFFFFFFF  # UINT32_MAX
-
-        pair = self.pair
-        if pair is not None:
-            for i, p in enumerate(all_portals):
-                if p is pair:
-                    pair_index = i
-                    break
-
+    def snapshot(self) -> Portal:
         return Portal(
             left_layer_id=int(self.left_layer_id),
             right_layer_id=int(self.right_layer_id),
-            h0004=int(self.h0004),
-            pair_index=pair_index,
+            flags=int(self.flags),
+            pair_index=0xFFFFFFFF,  # resolved in post-processing
             count=int(self.count),
             trapezoid_indices=list(self.trapezoid_indices),
         )
@@ -323,7 +355,7 @@ class PortalStruct(Structure):
 PortalStruct._fields_ = [
     ("left_layer_id",  c_uint16),                           # +0x0000
     ("right_layer_id", c_uint16),                           # +0x0002
-    ("h0004",          c_uint32),                           # +0x0004
+    ("flags",          c_uint32),                           # +0x0004  bit 2 = skip expansion
     ("pair_ptr",           POINTER(PortalStruct)),                    # +0x0008 Portal*
     ("count",          c_uint32),                           # +0x000C
     ("trapezoids_ptr_ptr",     POINTER(POINTER(PathingTrapezoidStruct))), # +0x0010 PathingTrapezoid**
@@ -449,7 +481,7 @@ def snapshot(self) -> PathingMap:
     #sink_nodes = [s.snapshot_sinknode() for s in sink_structs]
     #x_nodes = [x.snapshot_xnode() for x in x_structs]
     #y_nodes = [y.snapshot_ynode() for y in y_structs]
-    portals = [p.snapshot(portal_structs) for p in portal_structs]
+    portals = [p.snapshot() for p in portal_structs]
 
     # root node id (C++ uses root_node_id in PathingMap; you have root_node_ptr)
     root = self.root_node
@@ -596,7 +628,8 @@ class PropsContextStruct(Structure):
     
     @property
     def props(self) -> list[MapPropStruct]:
-        ptrs = GW_Array_Value_View(self.propArray_array, MapPropStruct).to_list()
+        # propArray_array is Array<MapProp*> (pointer array), not value array
+        ptrs = GW_Array_View(self.propArray_array, MapPropStruct).to_list()
         if not ptrs:
             return []
         return [ptr for ptr in ptrs]
@@ -605,11 +638,28 @@ class PropsContextStruct(Structure):
 # Nested structs first, as per layout
 # ---------------------------------------
 
-class MapContext_sub1_sub2Struct(Structure):
+class BlockingPropStruct(Structure):
+    """Props with collision that aren't on the pathing map (mostly trees)."""
     _pack_ = 1
     _fields_ = [
-        ("pad1", c_uint32 * 6),     # +0x0000
-        ("pmaps_array", GW_Array),        # +0x0018 -> Array<PathingMap>
+        ("pos", Vec2f),      # +0x000
+        ("radius", c_float), # +0x008
+    ]
+
+
+class MapStaticDataStruct(Structure):
+    """GWCA: MapStaticData (0xA0 bytes)."""
+    _pack_ = 1
+    _fields_ = [
+        ("h0000", c_uint32 * 6),            # +0x000
+        ("pmaps_array", GW_Array),          # +0x018  Array<PathingMap>
+        ("h0028", c_uint32 * 4),            # +0x028
+        ("blocking_props", GW_BaseArray),   # +0x038  BaseArray<BlockingProp> — collision-only props (trees etc.)
+        ("h0044", c_uint32 * 16),           # +0x044
+        ("trapezoid_count", c_uint32),      # +0x084  GWCA: nextTrapezoidId. Starts at 0, incremented per trap — equals total count.
+        ("h0088", c_uint32),                # +0x088
+        ("map_id", c_uint32),               # +0x08C  GW::Constants::MapID
+        ("h0090", c_uint32 * 4),            # +0x090
     ]
     @property
     def pathing_maps(self) -> list[PathingMapStruct]:
@@ -623,121 +673,141 @@ class MapContext_sub1_sub2Struct(Structure):
         ptrs = GW_Array_Value_View(self.pmaps_array, PathingMapStruct).to_list()
         if not ptrs:
             return []
-        
-        result = []
+
+        # First pass: snapshot all planes (pair_index unresolved)
+        result: list[PathingMap] = []
         for pmap_struct in ptrs:
             pmap_snapshot = snapshot(pmap_struct)
             result.append(pmap_snapshot)
+
+        # Second pass: resolve pair_index across planes via pair_ptr addresses
+        import ctypes as _ct
+        portal_size = _ct.sizeof(PortalStruct)
+
+        # Build address → (plane_idx, portal_idx) map
+        addr_map: dict[int, tuple[int, int]] = {}
+        for pi, pmap_struct in enumerate(ptrs):
+            if not pmap_struct.portals_ptr or pmap_struct.portal_count == 0:
+                continue
+            base = _ct.cast(pmap_struct.portals_ptr, _ct.c_void_p).value
+            for idx in range(pmap_struct.portal_count):
+                if base is None:
+                    continue
+                addr_map[base + idx * portal_size] = (pi, idx)
+
+        # Resolve each portal's pair_index
+        for pi, pmap_struct in enumerate(ptrs):
+            if not pmap_struct.portals_ptr or pmap_struct.portal_count == 0:
+                continue
+            for idx in range(pmap_struct.portal_count):
+                p = pmap_struct.portals_ptr[idx]
+                if not p.pair_ptr:
+                    continue
+                pair_addr = _ct.cast(p.pair_ptr, _ct.c_void_p).value
+                if pair_addr is None:
+                    continue
+                loc = addr_map.get(pair_addr)
+                if loc is not None:
+                    result[pi].portals[idx].pair_index = loc[1]
+
         return result
 
 
-class MapContext_sub1Struct(Structure):
+class PathContextStruct(Structure):
+    """GWCA: PathContext (0x94 bytes). Holds pathfinding state for the current map."""
     _pack_ = 1
     _fields_ = [
-        ("sub2_ptr", POINTER(MapContext_sub1_sub2Struct)),  # +0x0000
-        ("pathing_map_block_array", GW_Array), # +0x0004 Array<uint32_t> pathing_map_block
-        ("total_trapezoid_count", c_uint32),      # +0x0018
-        ("0x001C", c_uint32 * 0x12),               # +0x001C (0x12 * 4 = 72 bytes)
-        ("something_else_for_props_array", GW_Array),   # +0x0060 Array<TList<void*>> 
+        ("static_data_ptr", POINTER(MapStaticDataStruct)),  # +0x000  MapStaticData*
+        ("blocked_planes", GW_BaseArray),    # +0x004  BaseArray<uint32_t> (0x0C)
+        ("path_nodes", GW_BaseArray),        # +0x010  BaseArray<PathNode*> — indexed by trapezoid id
+        ("node_cache", c_uint32 * 5),        # +0x01C  NodeCache (0x14): cachedCount*, m_mask, BaseArray<uint32_t>
+        ("open_list", c_uint32 * 5),         # +0x030  PrioQ<PathNode> (0x14)
+        ("free_ipath_node", c_uint32 * 3),   # +0x044  ObjectPool (0x0C)
+        ("allocated_path_nodes", GW_BaseArray),  # +0x050  BaseArray<PathNode*> — cleanup array
+        ("h005C", c_uint32),                 # +0x05C
+        ("h0060", c_uint32),                 # +0x060
+        ("waypoints", GW_Array),             # +0x064  Array<PathWaypoint>
+        ("node_stack", GW_Array),            # +0x074  Array<struct Node*>
+        ("h0084", c_uint32 * 4),             # +0x084
     ]
+
     @property
-    def sub2(self) -> Optional[MapContext_sub1_sub2Struct]:
-        if not self.sub2_ptr:
+    def static_data(self) -> Optional[MapStaticDataStruct]:
+        if not self.static_data_ptr:
             return None
-        return self.sub2_ptr.contents
-    @property
-    def pathing_map_block(self) -> list[int]:
-        ptrs = GW_Array_Value_View(self.pathing_map_block_array, c_uint32).to_list()
-        if not ptrs:
-            return []
-        return [int(ptr) for ptr in ptrs]
-    @property
-    def something_else_for_props(self) -> list[list[int]]:
-        """
-        C++: Array<TList<void*>> something_else_for_props;
-        Python:
-          1) GW_Array_Value_View(..., GW_TList) -> [GW_TList, GW_TList, ...]
-          2) For each GW_TList -> GW_TList_View(tlist, c_uint32).to_list()
-        """
-        result: list[list[int]] = []
+        return self.static_data_ptr.contents
 
-        # Step 1: get the array of TList<void*> heads
-        tlist_heads = GW_Array_Value_View(self.something_else_for_props_array, GW_TList).to_list()
-        if not tlist_heads:
-            return result
-
-        # Step 2: for each TList head, walk the list into a python list[int]
-        for tlist in tlist_heads:
-            group_ptrs = GW_TList_View(tlist, c_uint32).to_list()
-            group = [int(ptr) for ptr in group_ptrs]
-            result.append(group)
-
-        return result
+    # backward compat alias
+    sub2 = static_data
     
 # ---------------------------------------
 #Region MapContextStruct
 # ---------------------------------------
 
 class MapContextStruct(Structure):
+    """GWCA: MapContext (0x138 bytes)."""
     _pack_ = 1
     _fields_ = [
-        ("map_boundaries", c_float * 5),          # +0x0000 (5 floats)
-        ("h0014", c_uint32 * 6),                  # +0x0014
-        ("spawns1_array", GW_Array),              # +0x002C # Array<void*>// Seem to be arena spawns. struct is X,Y,unk 4 byte value,unk 4 byte value.
-        ("spawns2_array", GW_Array),              # +0x003C # Array<void*>// Same as above
-        ("spawns3_array", GW_Array),              # +0x004C # Array<void*>// Same as above
-        ("h005C", c_float * 6),                   # +0x005C
-        ("sub1_ptr", POINTER(MapContext_sub1Struct)),   # +0x0074
-        ("pad1", c_uint8 * 4),                    # +0x0078
-        ("props_ptr", POINTER(PropsContextStruct)),     # +0x007C
-        ("h0080", c_uint32),                      # +0x0080
-        ("terrain", c_void_p),                    # +0x0084 (unknown struct)
-        ("h0088", c_uint32 * 42),                 # +0x0088
-        ("zones", c_void_p),                      # +0x0130
+        ("map_type", c_uint32),                   # +0x000  "less than 4"
+        ("start_pos", Vec2f),                     # +0x004
+        ("end_pos", Vec2f),                       # +0x00C
+        ("h0014", c_uint32 * 6),                  # +0x014
+        ("spawns1_array", GW_Array),              # +0x02C  Array<SpawnEntryStruct>
+        ("spawns2_array", GW_Array),              # +0x03C  Array<SpawnEntryStruct>
+        ("spawns3_array", GW_Array),              # +0x04C  Array<SpawnEntryStruct>
+        ("h005C", c_float * 6),                   # +0x05C  "Some trapezoid i think" — GWCA
+        ("path_ptr", POINTER(PathContextStruct)),    # +0x074  PathContext*
+        ("path_engine_ptr", c_void_p),            # +0x078  PathEngineContext* (optional DLL-based pathfinder)
+        ("props_ptr", POINTER(PropsContextStruct)),      # +0x07C  PropsContext*
+        ("h0080", c_uint32),                      # +0x080
+        ("terrain", c_void_p),                    # +0x084
+        ("h0088", c_uint32),                      # +0x088
+        ("map_id", c_uint32),                     # +0x08C  GW::Constants::MapID
+        ("h0090", c_uint32 * 40),                 # +0x090
+        ("zones", c_void_p),                      # +0x130
+        ("h0134", c_uint32),                      # +0x134
     ]
     @property
-    def spawns1(self) -> list[int]:
-        ptrs = GW_Array_Value_View(self.spawns1_array, c_uint32).to_list()
-        if not ptrs:
-            return []
-        return [int(ptr) for ptr in ptrs]
+    def spawns1(self) -> list[SpawnPoint]:
+        entries = GW_Array_Value_View(self.spawns1_array, SpawnEntryStruct).to_list()
+        return [e.snapshot() for e in entries] if entries else []
     @property
-    def spawns2(self) -> list[int]:
-        ptrs = GW_Array_Value_View(self.spawns2_array, c_uint32).to_list()
-        if not ptrs:
-            return []
-        return [int(ptr) for ptr in ptrs]
+    def spawns2(self) -> list[SpawnPoint]:
+        entries = GW_Array_Value_View(self.spawns2_array, SpawnEntryStruct).to_list()
+        return [e.snapshot() for e in entries] if entries else []
     @property
-    def spawns3(self) -> list[int]:
-        ptrs = GW_Array_Value_View(self.spawns3_array, c_uint32).to_list()
-        if not ptrs:
-            return []
-        return [int(ptr) for ptr in ptrs]
+    def spawns3(self) -> list[SpawnPoint]:
+        entries = GW_Array_Value_View(self.spawns3_array, SpawnEntryStruct).to_list()
+        return [e.snapshot() for e in entries] if entries else []
     @property
-    def sub1(self) -> Optional[MapContext_sub1Struct]:
-        if not self.sub1_ptr:
+    def path(self) -> Optional[PathContextStruct]:
+        """PathContext — pathfinding state for the current map."""
+        if not self.path_ptr:
             return None
-        return self.sub1_ptr.contents
-    
+        return self.path_ptr.contents
+
+    # backward compat alias
+    sub1 = path
+
     @property
     def pathing_maps(self) -> list[PathingMapStruct]:
-        sub1 = self.sub1
-        if not sub1:
+        pc = self.path
+        if not pc:
             return []
-        sub2 = sub1.sub2
-        if not sub2:
+        sd = pc.static_data
+        if not sd:
             return []
-        return sub2.pathing_maps
-    
+        return sd.pathing_maps
+
     @property
     def pathing_maps_snapshot(self) -> list[PathingMap]:
-        sub1 = self.sub1
-        if not sub1:
+        pc = self.path
+        if not pc:
             return []
-        sub2 = sub1.sub2
-        if not sub2:
+        sd = pc.static_data
+        if not sd:
             return []
-        return sub2.pathing_maps_snapshot
+        return sd.pathing_maps_snapshot
     
     @property
     def props(self) -> Optional[PropsContextStruct]:
@@ -745,6 +815,72 @@ class MapContextStruct(Structure):
             return None
         return self.props_ptr.contents
     
+# ── Travel portal types & detection ──────────────────────────────────────
+
+@dataclass(slots=True)
+class TravelPortal:
+    x: float
+    y: float
+    z: float
+    model_file_id: int
+
+# Model file IDs for travel portal props (from GWToolbox++)
+_PORTAL_MODEL_FILE_IDS: dict[int, str] = {
+    0x4E6B2: "EotN Asura Gate",
+    0x3C5AC: "EotN/Nightfall",
+    0x0A825: "Prophecies/Factions",
+}
+
+
+def _file_hash_to_file_id(hash_ptr: int) -> int:
+    """Replicate ArenaNetFileParser::FileHashToFileId from GW client.
+
+    Converts wchar_t* file hash in game memory to a .dat file ID.
+    """
+    if hash_ptr < 0x10000:
+        return 0
+    wchars = cast(hash_ptr, POINTER(c_uint16))
+    w0, w1, w2 = wchars[0], wchars[1], wchars[2]
+    w3 = wchars[3] if w2 != 0 else 0
+    if not (w0 > 0xFF and w1 > 0xFF and (w2 == 0 or (w2 > 0xFF and w3 == 0))):
+        return 0
+    temp = (w0 - 0xFF00FF) & 0xFFFFFFFF
+    return (temp + w1 * 0xFF00) & 0xFFFFFFFF
+
+
+def _get_prop_model_file_id(prop: MapPropStruct) -> int:
+    """Extract model file ID from a MapProp via h0034[4] → sub[1] pointer chain."""
+    ptr4 = prop.h0034[4]
+    if ptr4 < 0x10000:
+        return 0
+    try:
+        sub = cast(ptr4, POINTER(c_uint32))
+        hash_ptr = sub[1]
+        return _file_hash_to_file_id(hash_ptr)
+    except Exception:
+        return 0
+
+
+def _get_travel_portals(mc: 'MapContextStruct') -> list[TravelPortal]:
+    """Get travel portal positions from runtime map props."""
+    props_ctx = mc.props
+    if props_ctx is None:
+        return []
+
+    prop_view = GW_Array_View(props_ctx.propArray_array, MapPropStruct)
+    if not prop_view.valid():
+        return []
+
+    portals: list[TravelPortal] = []
+    for i in range(len(prop_view)):
+        p = prop_view[i]
+        fid = _get_prop_model_file_id(p)
+        if fid in _PORTAL_MODEL_FILE_IDS:
+            pos = p.position
+            portals.append(TravelPortal(x=pos.x, y=pos.y, z=pos.z, model_file_id=fid))
+    return portals
+
+
 #region MapContext Facade
 class MapContext:
     _ptr: int = 0
@@ -778,7 +914,8 @@ class MapContext:
             MapContext._callback_name,
             PyCallback.Phase.PreUpdate,
             MapContext._update_ptr,
-            priority=1
+            priority=1,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod
@@ -838,5 +975,21 @@ class MapContext:
         MapContext._pathing_maps_cache_raw[map_id] = pathing_maps
         return pathing_maps
 
-              
+    @staticmethod
+    def GetTravelPortals() -> list[TravelPortal]:
+        """Get travel portal positions from current map's runtime props."""
+        mc = MapContext._cached_ctx
+        if not mc:
+            return []
+        return _get_travel_portals(mc)
+
+    @staticmethod
+    def GetSpawns() -> tuple[list[SpawnPoint], list[SpawnPoint], list[SpawnPoint]]:
+        """Return (spawns1, spawns2, spawns3) for the current map."""
+        mc = MapContext._cached_ctx
+        if not mc:
+            return [], [], []
+        return mc.spawns1, mc.spawns2, mc.spawns3
+
+
 MapContext.enable()

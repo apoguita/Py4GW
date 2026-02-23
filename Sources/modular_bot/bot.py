@@ -31,7 +31,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List, Optional, Union, Any
+from typing import Callable, Dict, List, Optional, Union, Any, Tuple
 import re
 
 from Py4GWCoreLib import Botting, Routines, ConsoleLog, Agent, Player
@@ -148,10 +148,17 @@ class ModularBot:
         on_party_wipe: Optional[Union[str, Callable]] = None,
         on_death: Optional[Union[str, Callable]] = None,
         background: Optional[Dict[str, Callable]] = None,
+        main_ui: Optional[Callable[[], None]] = None,
+        icon_path: str = "",
+        main_child_dimensions: Tuple[int, int] = (350, 275),
         settings_ui: Optional[Callable[[], None]] = None,
         help_ui: Optional[Callable[[], None]] = None,
         **botting_kwargs: Any,
     ) -> None:
+        # Defensive: never forward modular-only UI sizing to Botting kwargs.
+        botting_kwargs.pop("main_child_dimensions", None)
+        # Defensive: icon path is for UI draw_window, not Botting constructor.
+        legacy_icon_path = str(botting_kwargs.pop("icon_path", "") or "")
         # ── Store config ──────────────────────────────────────────────
         self._name = name
         self._phases = phases
@@ -165,6 +172,9 @@ class ModularBot:
         self._on_party_wipe = on_party_wipe
         self._on_death = on_death
         self._background = background or {}
+        self._main_ui = main_ui
+        self._icon_path = icon_path or legacy_icon_path
+        self._main_child_dimensions = main_child_dimensions
         self._settings_ui = settings_ui
         self._help_ui = help_ui
 
@@ -197,7 +207,11 @@ class ModularBot:
         Handles map validation, FSM ticking, and UI rendering.
         """
         self._bot.Update()
-        self._bot.UI.draw_window()
+        self._bot.UI.draw_window(
+            main_child_dimensions=self._main_child_dimensions,
+            icon_path=self._icon_path,
+            additional_ui=self._main_ui,
+        )
 
     def get_phase_header(self, phase_name: str) -> Optional[str]:
         """

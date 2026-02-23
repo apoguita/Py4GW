@@ -1,10 +1,16 @@
 from ctypes import Structure, c_uint, c_bool, c_wchar
 import Py4GW
 from PyParty import HeroPartyMember, PetInfo
+from Py4GWCoreLib import ThrottledTimer
 from .Globals import (
     SHMEM_MAX_PLAYERS,
     SHMEM_MAX_EMAIL_LEN,
     SHMEM_MAX_CHAR_LEN,
+    SHMEM_PLAYER_META_UPDATE_THROTTLE_MS,
+    SHMEM_PLAYER_PROGRESS_UPDATE_THROTTLE_MS,
+    SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS,
+    SHMEM_HERO_EXTRA_UPDATE_THROTTLE_MS,
+    SHMEM_PET_EXTRA_UPDATE_THROTTLE_MS,
 )
 
 from .RankStruct import RankStruct
@@ -18,6 +24,29 @@ from .AvailableCharacterStruct import AvailableCharacterStruct
 from .KeyStruct import KeyStruct
 from .AgentPartyStruct import AgentPartyStruct
 from .AgentDataStruct import AgentDataStruct
+
+
+_player_meta_timers: dict[int, ThrottledTimer] = {}
+_player_progress_timers: dict[int, ThrottledTimer] = {}
+_player_static_timers: dict[int, ThrottledTimer] = {}
+
+_hero_meta_timers: dict[int, ThrottledTimer] = {}
+_hero_progress_timers: dict[int, ThrottledTimer] = {}
+_hero_static_timers: dict[int, ThrottledTimer] = {}
+
+_pet_meta_timers: dict[int, ThrottledTimer] = {}
+_pet_progress_timers: dict[int, ThrottledTimer] = {}
+_pet_static_timers: dict[int, ThrottledTimer] = {}
+
+
+def _get_slot_timer(timer_map: dict[int, ThrottledTimer], slot_index: int, throttle_ms: int) -> ThrottledTimer:
+    timer = timer_map.get(slot_index)
+    if timer is None:
+        timer = ThrottledTimer(throttle_ms)
+        timer_map[slot_index] = timer
+    elif timer.throttle_time != throttle_ms:
+        timer.SetThrottleTime(throttle_ms)
+    return timer
 
 class AccountStruct(Structure):
     _pack_ = 1
@@ -111,6 +140,8 @@ class AccountStruct(Structure):
         if slot_index < 0 or slot_index >= SHMEM_MAX_PLAYERS:
             raise ValueError(f"Invalid slot index: {slot_index}")
         
+        force_full = (self.LastUpdated == 0)
+
         self.SlotNumber = slot_index
         self.IsSlotActive = True
         self.IsAccount = True
@@ -118,6 +149,8 @@ class AccountStruct(Structure):
         self.IsHero = False
         self.IsPet = False
         self.IsNPC = False
+        self.AgentData.OwnerAgentID = 0
+        self.AgentData.HeroID = 0
         
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
@@ -125,22 +158,33 @@ class AccountStruct(Structure):
         if not Party.IsPartyLoaded(): return
         if Map.IsInCinematic(): return
         
-        self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
+        if self.AccountName == "":
+            self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
         
         agent_id = Player.GetAgentID()
-        self.AgentData.from_context(agent_id)
-        self.AgentData.OwnerAgentID = 0
-        self.AgentData.HeroID = 0
-        
-        self.AgentPartyData.from_context()
-        self.RankData.from_context()
-        self.FactionData.from_context()
-        self.TitlesData.from_context()
-        self.QuestLog.from_context()
-        self.ExperienceData.from_context()
-        self.AvailableCharacters.from_context()
-        self.MissionData.from_context()
-        self.UnlockedSkills.from_context()
+        self.AgentData.from_context(agent_id, throttle_key=slot_index)
+
+        meta_timer = _get_slot_timer(_player_meta_timers, slot_index, SHMEM_PLAYER_META_UPDATE_THROTTLE_MS)
+        if force_full or meta_timer.IsExpired():
+            self.AgentPartyData.from_context()
+            self.RankData.from_context()
+            self.FactionData.from_context()
+            self.ExperienceData.from_context()
+            meta_timer.Reset()
+
+        progress_timer = _get_slot_timer(_player_progress_timers, slot_index, SHMEM_PLAYER_PROGRESS_UPDATE_THROTTLE_MS)
+        if force_full or progress_timer.IsExpired():
+            self.TitlesData.from_context()
+            self.QuestLog.from_context()
+            
+            progress_timer.Reset()
+
+        static_timer = _get_slot_timer(_player_static_timers, slot_index, SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS)
+        if force_full or static_timer.IsExpired():
+            self.AvailableCharacters.from_context()
+            self.UnlockedSkills.from_context()
+            self.MissionData.from_context()
+            static_timer.Reset()
         
         self.LastUpdated = Py4GW.Game.get_tick_count64()
         
@@ -152,10 +196,13 @@ class AccountStruct(Structure):
         if slot_index < 0 or slot_index >= SHMEM_MAX_PLAYERS:
             raise ValueError(f"Invalid slot index: {slot_index}")
         
+        force_full = (self.LastUpdated == 0) or (not self.IsHero)
+        
         self.SlotNumber = slot_index
         self.IsSlotActive = True
         self.IsAccount = False
-        self.AccountEmail = Player.GetAccountEmail()
+        if self.AccountEmail == "":
+            self.AccountEmail = Player.GetAccountEmail()
         self.IsHero = True
         self.IsPet = False
         self.IsNPC = False
@@ -166,29 +213,39 @@ class AccountStruct(Structure):
         if not Party.IsPartyLoaded(): return
         if Map.IsInCinematic(): return
         
-        self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
+        if self.AccountName == "":
+            self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
         
         agent_id = hero_data.agent_id
-        self.AgentData.from_context(agent_id)
-        self.AgentData.AgentID = agent_id
-        self.AgentData.CharacterName = hero_data.hero_id.GetName()
-        self.AgentData.OwnerAgentID = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
-        self.AgentData.HeroID = hero_data.hero_id.GetID()
+        self.AgentData.from_context(agent_id, throttle_key=slot_index)
         self.AgentData.Morale = 100
         self.AgentData.TargetID = 0
         self.AgentData.LoginNumber = 0
-        self.AgentData.Skillbar.from_hero_context(slot_index, agent_id) 
+        self.AgentData.AgentID = agent_id
+        self.AgentData.CharacterName = hero_data.hero_id.GetName()
+        if self.AgentData.OwnerAgentID == 0:
+            self.AgentData.OwnerAgentID = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
+        self.AgentData.HeroID = hero_data.hero_id.GetID()
         
-        self.AgentPartyData.from_context()
+
+        meta_timer = _get_slot_timer(_hero_meta_timers, slot_index, SHMEM_HERO_EXTRA_UPDATE_THROTTLE_MS)
+        if force_full or meta_timer.IsExpired():
+            self.AgentData.Skillbar.from_hero_context(slot_index, agent_id)
+            self.AgentPartyData.from_context()
+            meta_timer.Reset()
         self.AgentPartyData.IsPartyLeader = False
-        self.RankData.from_context()
-        self.FactionData.reset()
-        self.TitlesData.reset()
-        self.QuestLog.reset()
-        self.ExperienceData.reset()
-        self.AvailableCharacters.reset()
-        self.MissionData.reset()
-        self.UnlockedSkills.reset()
+
+        static_timer = _get_slot_timer(_hero_static_timers, slot_index, SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS)
+        if force_full or static_timer.IsExpired():
+            self.FactionData.reset()
+            self.TitlesData.reset()
+            self.QuestLog.reset()
+            self.ExperienceData.reset()
+            self.RankData.reset()
+            self.AvailableCharacters.reset()
+            self.MissionData.reset()
+            self.UnlockedSkills.reset()
+            static_timer.Reset()
         self.LastUpdated = Py4GW.Game.get_tick_count64()
         
     def from_pet_context(self, pet_data: PetInfo, slot_index: int) -> None:
@@ -199,10 +256,13 @@ class AccountStruct(Structure):
         if slot_index < 0 or slot_index >= SHMEM_MAX_PLAYERS:
             raise ValueError(f"Invalid slot index: {slot_index}")
         
+        force_full = (self.LastUpdated == 0) or (not self.IsPet)
+        
         self.SlotNumber = slot_index
         self.IsSlotActive = True
         self.IsAccount = False
-        self.AccountEmail = Player.GetAccountEmail()
+        if self.AccountEmail == "":
+            self.AccountEmail = Player.GetAccountEmail()
         
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
@@ -210,13 +270,14 @@ class AccountStruct(Structure):
         if not Party.IsPartyLoaded(): return
         if Map.IsInCinematic(): return
         
-        self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
+        if self.AccountName == "":
+            self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
         self.IsHero = False
         self.IsPet = True
         self.IsNPC = False
         
         agent_id = pet_data.agent_id
-        self.AgentData.from_context(agent_id)
+        self.AgentData.from_context(agent_id, throttle_key=slot_index)
         self.AgentData.AgentID = agent_id
         self.AgentData.CharacterName = pet_data.pet_name or f"PET {pet_data.owner_agent_id}s Pet"
         self.AgentData.OwnerAgentID = pet_data.owner_agent_id
@@ -224,17 +285,20 @@ class AccountStruct(Structure):
         self.AgentData.Morale = 100
         self.AgentData.TargetID = pet_data.locked_target_id
         self.AgentData.LoginNumber = 0
-        self.AgentData.Skillbar.reset()
-        
-        self.AgentPartyData.from_context()
         self.AgentPartyData.IsPartyLeader = False
-        self.RankData.from_context()
-        self.FactionData.reset()
-        self.TitlesData.reset()
-        self.QuestLog.reset()
-        self.ExperienceData.reset()
-        self.AvailableCharacters.reset()
-        self.MissionData.reset()
-        self.UnlockedSkills.reset()
+
+        static_timer = _get_slot_timer(_pet_static_timers, slot_index, SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS)
+        if force_full or static_timer.IsExpired():
+            self.AgentData.Skillbar.reset()
+            self.FactionData.reset()
+            self.TitlesData.reset()
+            self.QuestLog.reset()
+            self.ExperienceData.reset()
+            self.AgentPartyData.reset()
+            self.RankData.reset()
+            self.AvailableCharacters.reset()
+            self.MissionData.reset()
+            self.UnlockedSkills.reset()
+            static_timer.Reset()
         self.LastUpdated = Py4GW.Game.get_tick_count64()
         

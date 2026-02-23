@@ -206,6 +206,7 @@ class AgentArray:
     class Sort:
         @staticmethod
         def ByAttribute(agent_array, attribute, descending=False):
+            from .Agent import Agent
             """
             Sorts agents by a specific attribute (e.g., health, distance, etc.).
             sorted_agents_by_health = Sort.ByAttribute(agent_array, 'GetHealth', descending=True)
@@ -270,6 +271,7 @@ class AgentArray:
     class Filter:
         @staticmethod
         def ByAttribute(agent_array, attribute, condition_func=None, negate=False):
+            from .Agent import Agent
             """
             Filters agents by an attribute, with support for negation.
             moving_agents = AgentArray.Filter.ByAttribute(agent_array, 'IsMoving')

@@ -42,7 +42,8 @@ class GameplayContext:
             GameplayContext._callback_name,
             PyCallback.Phase.PreUpdate,
             GameplayContext._update_ptr,
-            priority=7
+            priority=7,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod

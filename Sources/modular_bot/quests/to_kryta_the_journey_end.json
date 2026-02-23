@@ -1,0 +1,21 @@
+{
+  "name": "To kryta: the Ice Cave",
+  "max_heroes": 6,
+  "take_quest": {
+    "quest_npc_location": [-2206, -7537],
+    "dialog_id": ["0x800401"],
+    "wait_ms": 2000,
+    "name": "Take Quest"
+  },
+  "steps": [
+    {"type": "auto_path", "name": "To Scoundrels ", "points": [[-4224, -6972], [-6140, -6063], [-7719, -7262]]},
+    {"type": "exit_map", "x": -7750, "y": -7500, "target_map_id": 54},
+    {"type": "wait_map_change", "target_map_id": 54},
+    {"type": "dialog", "x": 7630, "y": 7520, "id": "0x800404"},
+    {"type": "auto_path", "name": "To Kryta ", "points": [[7435, 6732], [6179, 3505], [4165, -1131], [1043, -2484], [-2181, -5573]]},
+    {"type": "exit_map", "x": -1200, "y": -7100, "target_map_id": 14},
+    {"type": "wait_map_change", "target_map_id": 14},
+    {"type": "auto_path", "name": "To Kryta ", "points": [[-2248, 25151], [-701, 24655]]},
+    {"type": "dialog", "x": 425, "y": 23794, "id": "0x800407"}
+  ]
+}

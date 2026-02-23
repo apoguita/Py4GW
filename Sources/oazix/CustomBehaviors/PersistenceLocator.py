@@ -302,6 +302,7 @@ class PersistenceLocator:
         """
 
         SECTION = "GridAssignments"
+        SECTION_FOLLOW_FLAG = "FollowFlag"
 
         def __init__(self):
             self._ini_filename = "flagging.ini"
@@ -423,3 +424,76 @@ class PersistenceLocator:
             node = IniManager()._handlers.get(key)
             if node:
                 node.ini_handler.write_key("Settings", "spacing_radius", str(radius))
+
+        def read_follow_flag_threshold(self) -> float | None:
+            """Read the follow flag normal threshold setting.
+
+            Returns:
+                The threshold value, or None if not found.
+            """
+            key = self._ensure_key()
+            if not key:
+                return None
+            result = IniManager().read_key(key, self.SECTION_FOLLOW_FLAG, "threshold", "")
+            if result:
+                try:
+                    return float(result)
+                except ValueError:
+                    pass
+            return None
+
+        def write_follow_flag_threshold(self, threshold: float) -> None:
+            """Write the follow flag normal threshold setting.
+
+            Args:
+                threshold: The threshold value to save.
+            """
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.write_key(self.SECTION_FOLLOW_FLAG, "threshold", str(threshold))
+
+        def read_follow_flag_required_threshold(self) -> float | None:
+            """Read the follow flag required threshold setting.
+
+            Returns:
+                The threshold value, or None if not found.
+            """
+            key = self._ensure_key()
+            if not key:
+                return None
+            result = IniManager().read_key(key, self.SECTION_FOLLOW_FLAG, "required_threshold", "")
+            if result:
+                try:
+                    return float(result)
+                except ValueError:
+                    pass
+            return None
+
+        def write_follow_flag_required_threshold(self, threshold: float) -> None:
+            """Write the follow flag required threshold setting.
+
+            Args:
+                threshold: The threshold value to save.
+            """
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.write_key(self.SECTION_FOLLOW_FLAG, "required_threshold", str(threshold))
+
+        def delete_follow_flag_thresholds(self) -> None:
+            """Delete both follow flag threshold settings."""
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.delete_key(self.SECTION_FOLLOW_FLAG, "threshold")
+                node.ini_handler.delete_key(self.SECTION_FOLLOW_FLAG, "required_threshold")
