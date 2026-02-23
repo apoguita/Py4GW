@@ -5,7 +5,9 @@ from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorStat
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
+from Sources.oazix.CustomBehaviors.primitives.helpers.lock_key_helper import LockKeyHelper
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -42,11 +44,17 @@ class SmiteHexUtility(CustomSkillUtilityBase):
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
         return targets
 
+    def _get_lock_key(self, agent_id: int) -> str:
+        return LockKeyHelper.hex_removal(agent_id)
+
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
         targets = self._get_targets()
         if len(targets) == 0: return None
+
+        lock_key = self._get_lock_key(targets[0].agent_id)
+        if CustomBehaviorParty().get_shared_lock_manager().is_lock_taken(lock_key): return None
 
         return self.score_definition.get_score()
 
@@ -56,6 +64,15 @@ class SmiteHexUtility(CustomSkillUtilityBase):
         targets = self._get_targets()
         if len(targets) == 0: return BehaviorResult.ACTION_SKIPPED
         target = targets[0]
-        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
+
+        lock_key = self._get_lock_key(target.agent_id)
+        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key) == False:
+            yield
+            return BehaviorResult.ACTION_SKIPPED
+
+        try:
+            result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
+        finally:
+            CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
         return result
 
