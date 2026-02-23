@@ -10,10 +10,9 @@ from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 
 bot = Botting("Factions Leveler",
-              upkeep_birthday_cupcake_restock=10,
               upkeep_candy_apple_restock=10,
               upkeep_honeycomb_restock=20,
-              upkeep_war_supplies_restock=2,
+              upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
@@ -72,21 +71,13 @@ def create_bot_routine(bot: Botting) -> None:
 #region Battle configuration
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Templates.Pacifist()
-    #bot.Properties.Enable("birthday_cupcake")
-    bot.Properties.Enable("candy_apple")
-    bot.Properties.Disable("honeycomb")
-    bot.Properties.Disable("war_supplies")
-    bot.Items.Restock.BirthdayCupcake()
-    bot.Items.Restock.CandyApple()
-    bot.Items.Restock.WarSupplies()
     
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
-    #bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("candy_apple")
-    bot.Properties.Enable("honeycomb")
     bot.Properties.Enable("war_supplies")
+    bot.Properties.Enable("honeycomb")
 #endregion
 
 #region Henchmen / Hero team
@@ -128,7 +119,7 @@ def StandardHeroTeam():
             "OQhkAsC8gFKgGckjHFRUGCA",  # Gwen
             "OgVDI8gsCawROeUEtZIA",     # Vekk
             "OwUUMsG/E4GgMnZskzkIZQAA", # Ogden
-            "OgCikys8wchuD4xb5VAAAAAA"       # MOX
+            "OgCikys8wchuD4xb5VAAAAAA"  # MOX
         ]
     
     # Add all heroes quickly
@@ -196,10 +187,9 @@ def PrepareForBattle(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmen, "Add Henchmen")
-    #bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.CandyApple()
-    bot.Items.Restock.Honeycomb()
     bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.Honeycomb()
 
 #endregion
 
@@ -405,8 +395,8 @@ _MAX_ARMOR_DATA = {
             (23794, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25,  4]),         # Head
         ],
     },
-    "Monk": {  # Ascalon armor — crafter: Ryoko
-        "crafter":     (-1682.00, -3970.00),
+    "Monk": {  # Shin Jea armor — crafter: Suki
+        "crafter":     (-891.00, -5382.00),
         "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 18), (ModelID.Feather.value, 1)],
         "buy_rare":    [(ModelID.Roll_Of_Parchment.value, 5), (ModelID.Vial_Of_Ink.value, 4), (ModelID.Bolt_Of_Linen.value, 28)],
         "pieces": [
@@ -769,7 +759,9 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
     bot.Wait.ForTime(3000)
     bot.UI.CancelSkillRewardWindow()
     bot.Wait.ForTime(3000)
-    bot.UI.CancelSkillRewardWindow()
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary != "Mesmer":
+        bot.UI.CancelSkillRewardWindow()
     bot.Dialogs.AtXY(-92, 9217,  0x813D07) #Reward
     bot.Wait.ForTime(3000)
     bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
@@ -1186,6 +1178,7 @@ def To_Boreal_Station(bot: Botting):
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(3000)
     ConfigurePacifistEnv(bot)
+    bot.Items.UseAllConsumables()
     auto_path_list = [(4523.25, 15448.03), (-43.80, 18365.45), (-10234.92, 16691.96),
                       (-17917.68, 18480.57), (-18775, 19097)]
     bot.Move.FollowAutoPath(auto_path_list)
@@ -2124,7 +2117,6 @@ def To_Kamadan(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=543)
     bot.Wait.ForTime(2000)
     bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(4829, 0x82E101)  # Model id updated 20.12.2025 GW Reforged
 
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
@@ -2487,19 +2479,13 @@ def _draw_texture():
 def _draw_settings(bot: Botting):
     import PyImGui
     PyImGui.text("Bot Settings")
-    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
-    bc_restock_qty = bot.Properties.Get("birthday_cupcake", "restock_quantity")
-
     use_candy_apple = bot.Properties.Get("candy_apple", "active")
     bc_restock_qty = bot.Properties.Get("candy_apple", "restock_quantity")
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
 
-    use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
-    bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
-
-    use_candy_apple = PyImGui.checkbox("Use Candy Apple", use_birthday_cupcake)
+    use_candy_apple = PyImGui.checkbox("Use Candy Apple", use_candy_apple)
     bc_restock_qty = PyImGui.input_int("Candy Apple Restock Quantity", bc_restock_qty)
 
     use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
@@ -2514,8 +2500,6 @@ def _draw_settings(bot: Botting):
 
     bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
     bot.Properties.ApplyNow("war_supplies", "restock_quantity", ws_restock_qty)
-    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
-    bot.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
     bot.Properties.ApplyNow("candy_apple", "active", use_candy_apple)
     bot.Properties.ApplyNow("candy_apple", "restock_quantity", bc_restock_qty)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)

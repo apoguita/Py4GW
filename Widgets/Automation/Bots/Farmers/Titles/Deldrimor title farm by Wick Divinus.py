@@ -1,6 +1,8 @@
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog
+from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 import Py4GW
 import os
+import time
 
 bot = Botting("Deldrimor title farm by Wick Divinus",
               upkeep_honeycomb_active=True)
@@ -145,10 +147,47 @@ def tooltip():
     PyImGui.bullet_text("Developed by Wick Divinus")
     PyImGui.end_tooltip()
 
+_session_baselines: dict[str, int] = {}
+_session_start_times: dict[str, float] = {}
+
+def _draw_title_track():
+    global _session_baselines, _session_start_times
+    import PyImGui
+    title_idx = int(TitleID.Deldrimor)
+    tiers = TITLE_TIERS.get(TitleID.Deldrimor, [])
+    now = time.time()
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        name = account.AgentData.CharacterName
+        pts = account.TitlesData.Titles[title_idx].CurrentPoints
+        if name not in _session_baselines:
+            _session_baselines[name] = pts
+            _session_start_times[name] = now
+        tier_name = "Unranked"
+        prev_required = 0
+        next_required = tiers[0].required if tiers else 0
+        for i, tier in enumerate(tiers):
+            if pts >= tier.required:
+                tier_name = tier.name
+                prev_required = tier.required
+                next_required = tiers[i + 1].required if i + 1 < len(tiers) else tier.required
+            else:
+                next_required = tier.required
+                break
+        gained = pts - _session_baselines[name]
+        elapsed = now - _session_start_times[name]
+        pts_hr = int(gained / elapsed * 3600) if elapsed > 0 else 0
+        PyImGui.separator()
+        PyImGui.text(f"{name}  [{tier_name}]")
+        PyImGui.text(f"Points: {pts:,} / {next_required:,}")
+        if next_required > prev_required:
+            frac = min((pts - prev_required) / (next_required - prev_required), 1.0)
+            PyImGui.progress_bar(frac, -1, 0, f"{pts - prev_required:,} / {next_required - prev_required:,}")
+        PyImGui.text(f"+{gained:,}  ({pts_hr:,}/hr)")
+
 REFORGED_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "Wick Divinus bots", "Reforged_Icon.png")
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path=REFORGED_TEXTURE)
+    bot.UI.draw_window(icon_path=REFORGED_TEXTURE, additional_ui=_draw_title_track)
 
 if __name__ == "__main__":
     main()

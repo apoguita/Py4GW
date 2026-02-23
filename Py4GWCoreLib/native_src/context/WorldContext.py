@@ -1163,15 +1163,13 @@ class WorldContextStruct(Structure):
     
     @property
     def titles(self) -> list[TitleStruct] | None:
-        return None
         titles = GW_Array_Value_View(self.titles_array, TitleStruct).to_list()
         if not titles:
             return None
         return [title for title in titles]
-    
+
     @property
     def title_tiers(self) -> list[TitleTierStruct] | None:
-        return None
         tiers = GW_Array_Value_View(self.title_tiers_array, TitleTierStruct).to_list()
         if not tiers:
             return None
@@ -1215,8 +1213,7 @@ class WorldContext:
             WorldContext._callback_name,
             PyCallback.Phase.PreUpdate,
             WorldContext._update_ptr,
-            priority=4,
-            context=PyCallback.Context.Draw
+            priority=4
         )
 
     @staticmethod
