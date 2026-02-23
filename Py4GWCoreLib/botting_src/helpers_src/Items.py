@@ -293,6 +293,11 @@ class _Items:
         yield from inventory_handler.DepositItemsAuto()
         inventory_handler.module_active = current_state
         
+    @_yield_step(label="WithdrawGold", counter_key="WITHDRAW_GOLD")
+    def withdraw_gold(self, target_gold: int = 20000, deposit_all: bool = True) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawGold(target_gold, deposit_all)
+
     @_yield_step(label="AutodepositGold", counter_key="AUTO_DEPOSIT_GOLD")
     def auto_deposit_gold(self) -> Generator[Any, Any, None]:
         from ...py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
@@ -337,6 +342,35 @@ class _Items:
             self._Events.on_unmanaged_fail()
             return False
 
+        return True
+
+    @_yield_step(label="WithdrawUpTo", counter_key="WITHDRAW_UP_TO")
+    def withdraw_up_to(self, model_id: int, max_quantity: int) -> Generator[Any, Any, None]:
+        """Withdraw up to max_quantity of model_id from storage. No-op if none available."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawUpTo(model_id, max_quantity)
+
+    @_yield_step(label="WithdrawFirstAvailable", counter_key="WITHDRAW_FIRST_AVAILABLE")
+    def withdraw_first_available(self, model_ids: list, max_quantity: int) -> Generator[Any, Any, None]:
+        """Withdraw up to max_quantity from the first model_id in the list that has stock in storage."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawFirstAvailable(model_ids, max_quantity)
+
+    @_yield_step(label="DepositAllInventory", counter_key="DEPOSIT_ALL_INVENTORY")
+    def deposit_all_inventory(self) -> Generator[Any, Any, None]:
+        """Deposits all items from inventory bags to storage."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.DepositAllInventory()
+
+    @_yield_step(label="DepositItem", counter_key="DEPOSIT_ITEM")
+    def deposit_item(self, model_id: int) -> Generator[Any, Any, bool]:
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+        if not item_id:
+            return True  # nothing to deposit
+        GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+        yield from Routines.Yield.wait(350)
         return True
 
     @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")

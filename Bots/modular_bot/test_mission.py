@@ -1,43 +1,68 @@
 """
-Test bot: Mission recipe — The Great Northern Wall.
+Mission runner with GUI selection.
 
-The bot will:
-1. Travel to the outpost (map 28)
-2. Set hard mode
-3. Leave party, add heroes from hero_config.json (party_4 = 3 heroes)
-4. Enter the mission via EnterChallenge
-5. Follow paths with combat (CB handles fighting)
-6. Interact with quest NPCs, gadgets, items along the way
-7. Mission concludes automatically when objectives are met
-
-Hero configuration: edit Bots/modular_bot/missions/hero_config.json
+Select a mission from the Settings tab, then start the bot.
 """
 
-import sys
-import os
-import Py4GW
+import PyImGui
 
-bots_dir = os.path.join(Py4GW.Console.get_projects_path(), "Bots")
-if bots_dir not in sys.path:
-    sys.path.insert(0, bots_dir)
-
-from modular_bot import ModularBot, Phase
-from modular_bot.recipes import Mission
+from Sources.modular_bot import ModularBot, Phase
+from Sources.modular_bot.recipes import list_available_missions, mission_run
+from Sources.modular_bot.hero_setup import draw_setup_tab
 
 
-def set_normal_mode(bot):
-    bot.Party.SetHardMode(False)
+MISSION_NAMES = list_available_missions()
+SELECTED_INDEX = 0
+
+
+def _get_selected_mission() -> str:
+    if not MISSION_NAMES:
+        return "the_great_northern_wall"
+    idx = max(0, min(SELECTED_INDEX, len(MISSION_NAMES) - 1))
+    return MISSION_NAMES[idx]
+
+
+def _draw_settings() -> None:
+    draw_setup_tab()
+
+
+def _draw_main() -> None:
+    global SELECTED_INDEX
+
+    if not MISSION_NAMES:
+        PyImGui.text("No mission files found in Sources/modular_bot/missions")
+    else:
+        PyImGui.text("Select mission:")
+        if PyImGui.begin_table("mission_select_table", 2, PyImGui.TableFlags.SizingStretchSame):
+            for idx, mission_name in enumerate(MISSION_NAMES):
+                PyImGui.table_next_column()
+                label = f"{idx + 1:02d}. {mission_name.replace('_', ' ').title()}"
+                if PyImGui.button(f"{label}##mission_{idx}"):
+                    SELECTED_INDEX = idx
+            PyImGui.end_table()
+        PyImGui.text(f"Selected: {_get_selected_mission()}")
+        PyImGui.text("Press Start to run selected mission.")
+
+
+def _run_selected_mission(bot) -> None:
+    mission_run(bot, _get_selected_mission())
+
+
+def _main_dimensions() -> tuple[int, int]:
+    rows = (len(MISSION_NAMES) + 1) // 2
+    height = max(320, 240 + (rows * 28))
+    return (612, min(int(height * 1.15), 900))
 
 
 bot = ModularBot(
-    name="Test: Mission",
-    phases=[
-        Phase("Set Normal Mode", set_normal_mode),
-        Mission("the_great_northern_wall"),
-    ],
+    name="Mission Runner",
+    phases=[Phase("Run Selected Mission", _run_selected_mission, condition=lambda: True)],
     loop=False,
     template="aggressive",
     use_custom_behaviors=True,
+    main_ui=_draw_main,
+    main_child_dimensions=_main_dimensions(),
+    settings_ui=_draw_settings,
 )
 
 

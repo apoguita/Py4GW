@@ -236,7 +236,8 @@ class PartyContext:
             PartyContext._callback_name,
             PyCallback.Phase.PreUpdate,
             PartyContext._update_ptr,
-            priority=6
+            priority=6,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod
