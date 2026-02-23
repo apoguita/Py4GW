@@ -13,7 +13,10 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
-class CureHexUtility(CustomSkillUtilityBase):
+class SmiteConditionUtility(CustomSkillUtilityBase):
+    """
+    Smite Condition utility - removes condition from an ally (including player).
+    """
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
@@ -24,7 +27,7 @@ class CureHexUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("Cure_Hex"),
+            skill=CustomSkill("Smite_Condition"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
@@ -33,15 +36,15 @@ class CureHexUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
-        """Get allies that are hexed, ordered by lowest health first."""
+        """Get allies (including player) that are conditioned, ordered by lowest health first."""
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: Agent.IsHexed(agent_id),
+            condition=lambda agent_id: Agent.IsConditioned(agent_id),
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
         return targets
 
     def _get_lock_key(self, agent_id: int) -> str:
-        return LockKeyHelper.hex_removal(agent_id)
+        return LockKeyHelper.condition_removal(agent_id)
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:

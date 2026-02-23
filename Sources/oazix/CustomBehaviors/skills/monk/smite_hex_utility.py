@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import Range, Agent
+from Py4GWCoreLib import Range, Agent, Player
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -13,7 +13,10 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
-class CureHexUtility(CustomSkillUtilityBase):
+class SmiteHexUtility(CustomSkillUtilityBase):
+    """
+    Smite Hex utility - removes hex from an ally (not player).
+    """
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
@@ -24,7 +27,7 @@ class CureHexUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("Cure_Hex"),
+            skill=CustomSkill("Smite_Hex"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
@@ -33,10 +36,11 @@ class CureHexUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
-        """Get allies that are hexed, ordered by lowest health first."""
+        """Get allies (excluding player) that are hexed, ordered by lowest health first."""
+        player_agent_id = Player.GetAgentID()
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: Agent.IsHexed(agent_id),
+            condition=lambda agent_id: Agent.IsHexed(agent_id) and agent_id != player_agent_id,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
         return targets
 
