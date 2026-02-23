@@ -123,6 +123,24 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
             f"(materials+tomes)"
         )
         return True
+    elif action_code == "cfg_auto_buy_kits":
+        action_label = "Auto Buy Kits Config"
+        viewer._apply_auto_buy_kits_config_payload(action_payload)
+        viewer.set_status(
+            f"{action_label}: {'ON' if viewer.auto_buy_kits_enabled else 'OFF'} "
+            f"(outpost auto-check)"
+        )
+        return True
+    elif action_code == "cfg_auto_gold_balance":
+        action_label = "Auto Gold Balance Config"
+        viewer._apply_auto_gold_balance_config_payload(action_payload)
+        viewer.set_status(
+            f"{action_label}: {'ON' if viewer.auto_gold_balance_enabled else 'OFF'} "
+            f"(once per outpost entry)"
+        )
+        return True
+    elif action_code == "buy_kits_if_needed":
+        return bool(viewer._queue_buy_kits_if_needed())
     elif action_code == "id_blue":
         action_label = "ID Blue Items"
         queued = viewer._queue_identify_for_rarities(["Blue"])

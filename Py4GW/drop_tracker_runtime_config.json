@@ -10,7 +10,7 @@
   "max_shmem_messages_per_tick": 80,
   "max_shmem_scan_per_tick": 600,
   "send_tracker_ack_enabled": true,
-  "debug_item_stats_panel": true,
+  "debug_item_stats_panel": false,
   "debug_item_stats_panel_height": 180,
   "id_sel_white": false,
   "id_sel_blue": true,
@@ -24,25 +24,36 @@
   "salvage_sel_purple": true,
   "salvage_sel_gold": false,
   "auto_salvage_enabled": false,
+  "auto_buy_kits_enabled": true,
+  "auto_buy_kits_map_model_hints": {
+    "156": [
+      2161
+    ],
+    "55": [
+      2043
+    ]
+  },
+  "auto_gold_balance_enabled": true,
+  "auto_gold_balance_target": 10000,
   "auto_outpost_store_enabled": false,
   "auto_conset_enabled": true,
   "auto_conset_armor": false,
   "auto_conset_grail": false,
   "auto_conset_essence": true,
   "auto_conset_legionnaire": true,
-  "runtime_controls_popout": false,
-  "compact_mode": true,
+  "runtime_controls_popout": true,
+  "compact_mode": false,
   "ui_theme_name": "Steel Ember",
   "drop_viewer_window_pos": [
-    169.0,
-    -52.0
+    69.0,
+    28.0
   ],
   "drop_viewer_window_size": [
-    1238.0,
-    921.0
+    947.0,
+    656.0
   ],
   "drop_viewer_handle_pos": [
-    517.0,
+    516.0,
     955.0
   ]
 }
