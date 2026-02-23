@@ -39,103 +39,80 @@ class Agent:
         Args: agent_id (int): The ID of the agent.
         Returns: bool
         """
-        return Agent.GetAgentByID(agent_id) is not None
-
-    _agent_cache: dict[int, "AgentStruct"] = {}
-    _living_cache: dict[int, "AgentLivingStruct"] = {}
-    _item_cache: dict[int, "AgentItemStruct"] = {}
-    _gadget_cache: dict[int, "AgentGadgetStruct"] = {}
+        from .AgentArray import AgentArray
+        agent = AgentArray.GetAgentByID(agent_id)
+        if agent is None:
+            return False
+        return True
+    
+    @staticmethod
+    def _require_valid(func):
+        """
+        Decorator for safe agent access.
+        Ensures the agent_id is valid before calling the function.
+        """
+        def wrapper(agent_id, *args, **kwargs):
+            if not Agent.IsValid(agent_id):
+                return None
+            return func(agent_id, *args, **kwargs)
+        return wrapper
 
     @staticmethod
-    def _invalidate_property_cache() -> None:
-        Agent._agent_cache.clear()
-        Agent._living_cache.clear()
-        Agent._item_cache.clear()
-        Agent._gadget_cache.clear()
-
-    @staticmethod
-    def enable() -> None:
-        import PyCallback
-        PyCallback.PyCallback.Register(
-            "Agent.InvalidatePropertyCache",
-            PyCallback.Phase.PreUpdate,
-            Agent._invalidate_property_cache,
-            priority=7
-        )
-
-    @staticmethod
-    def GetAgentByID(agent_id: int):
+    @_require_valid
+    def GetAgentByID(agent_id: int) -> AgentStruct | None:
         """
         Purpose: Retrieve an agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
-        cached = Agent._agent_cache.get(agent_id)
-        if cached is not None:
-            return cached
         from .AgentArray import AgentArray
         agent = AgentArray.GetAgentByID(agent_id)
-        if agent is not None:
-            Agent._agent_cache[agent_id] = agent
+        if agent is None:
+            return None
         return agent
-
+    
     @staticmethod
-    def GetLivingAgentByID(agent_id: int):
+    @_require_valid
+    def GetLivingAgentByID(agent_id: int) -> AgentLivingStruct | None:
         """
         Purpose: Retrieve a living agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
-        cached = Agent._living_cache.get(agent_id)
-        if cached is not None:
-            return cached
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
             return None
-        living = agent.GetAsAgentLiving()
-        if living is not None:
-            Agent._living_cache[agent_id] = living
-        return living
-
+        return agent.GetAsAgentLiving()
+    
     @staticmethod
-    def GetItemAgentByID(agent_id: int):
+    @_require_valid
+    def GetItemAgentByID(agent_id: int) -> AgentItemStruct | None:
         """
         Purpose: Retrieve an item agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
-        cached = Agent._item_cache.get(agent_id)
-        if cached is not None:
-            return cached
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
             return None
-        item = agent.GetAsAgentItem()
-        if item is not None:
-            Agent._item_cache[agent_id] = item
-        return item
-
+        return agent.GetAsAgentItem()
+    
     @staticmethod
-    def GetGadgetAgentByID(agent_id: int):
+    @_require_valid
+    def GetGadgetAgentByID(agent_id: int) -> AgentGadgetStruct | None:
         """
         Purpose: Retrieve a gadget agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
-        cached = Agent._gadget_cache.get(agent_id)
-        if cached is not None:
-            return cached
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
             return None
-        gadget = agent.GetAsAgentGadget()
-        if gadget is not None:
-            Agent._gadget_cache[agent_id] = gadget
-        return gadget
+        return agent.GetAsAgentGadget()
     
     @staticmethod
     def GetNameByID(agent_id : int) -> str:
@@ -1311,7 +1288,6 @@ class Agent:
         return gadget.h00D4
 
 
-Agent.enable()
 
     
 
