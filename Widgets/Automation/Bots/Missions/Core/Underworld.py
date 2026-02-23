@@ -1,5 +1,6 @@
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
@@ -40,45 +41,148 @@ class BotSettings:
 
 
 # Precomputed spread points keep Servants of Grenth flags spaced without extra imports.
-def _toggle_wait_if_aggro(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
+def _get_custom_behavior(initialize_if_needed: bool = True):
+    loader = CustomBehaviorLoader()
+    behavior = loader.custom_combat_behavior
+
+    if behavior is None and initialize_if_needed:
+        loader.initialize_custom_behavior_candidate()
+        behavior = loader.custom_combat_behavior
+
+    return behavior
+
+
+def _set_custom_utility_enabled(
+    enabled: bool,
+    *,
+    skill_names: tuple[str, ...] = (),
+    class_names: tuple[str, ...] = (),
+) -> bool:
+    behavior = _get_custom_behavior(initialize_if_needed=True)
     if behavior is None:
-        return
+        return False
+
     for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "wait_if_in_aggro":
+        utility_skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
+        utility_class_name = utility.__class__.__name__
+
+        if utility_skill_name in skill_names or utility_class_name in class_names:
             utility.is_enabled = enabled
-            break
+            return True
+
+    return False
+
+
+def _toggle_wait_if_aggro(enabled: bool) -> None:
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_in_aggro",),
+        class_names=("WaitIfInAggroUtility",),
+    )
 
 def _toggle_wait_for_party(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
-    if behavior is None:
-        return
-    for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "wait_if_party_member_too_far":
-            utility.is_enabled = enabled
-            break
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_party_member_too_far",),
+        class_names=("WaitIfPartyMemberTooFarUtility",),
+    )
 
 def _toggle_move_if_aggro(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
-    if behavior is None:
-        return
-    for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "move_to_party_member_if_in_aggro":
-            utility.is_enabled = enabled
-            break
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("move_to_party_member_if_in_aggro",),
+        class_names=("MoveToPartyMemberIfInAggroUtility",),
+    )
 
 def _toggle_lock(enabled: bool) -> None:
-    behavior = CustomBehaviorLoader().custom_combat_behavior
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_lock_taken",),
+        class_names=("WaitIfLockTakenUtility",),
+    )
+
+
+def _toggle_wait_if_party_member_mana_too_low(enabled: bool) -> None:
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_party_member_mana_too_low",),
+        class_names=("WaitIfPartyMemberManaTooLowUtility",),
+    )
+
+
+def _setup_custom_behavior_integration(bot_instance: Botting) -> None:
+    behavior = _get_custom_behavior(initialize_if_needed=True)
     if behavior is None:
+        ConsoleLog(BOT_NAME, "[CB] Kein Custom-Behavior gefunden. Bot läuft ohne CB-Integration.", Py4GW.Console.MessageType.Warning)
         return
-    for utility in behavior.get_skills_final_list():
-        if utility.custom_skill.skill_name == "wait_if_lock_taken":
-            utility.is_enabled = enabled
-            break
+
+    _ensure_custom_botting_skills_enabled()
+    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+    BottingFsmHelpers.UseCustomBehavior(
+        bot_instance,
+        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
+        on_party_death=BottingHelpers.botting_unrecoverable_issue,
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue,
+    )
+
+
+def _sync_custom_behavior_runtime() -> None:
+    loader = CustomBehaviorLoader()
+    loader.ensure_botting_daemon_running()
+
+    behavior = loader.custom_combat_behavior
+    if behavior is None:
+        loader.initialize_custom_behavior_candidate()
+
+
+def _ensure_custom_botting_skills_enabled() -> None:
+    """
+    Erzwingt aktivierte Botting-Skills für diesen Bot beim Start,
+    auch wenn sie in der globalen CB-Konfiguration zuvor deaktiviert wurden.
+    """
+    manager = BottingManager()
+
+    required_skill_keys = {
+        "WaitIfPartyMemberTooFarUtility",
+        "WaitIfInAggroUtility",
+        "MoveToPartyMemberIfInAggroUtility",
+        "WaitIfLockTakenUtility",
+    }
+
+    changed = False
+
+    for entry in manager.aggressive_skills:
+        if entry.name in required_skill_keys and not entry.enabled:
+            entry.enabled = True
+            changed = True
+
+    if changed:
+        manager.save()
+        ConsoleLog(BOT_NAME, "[CB] Benötigte Botting-Skills wurden für diesen Bot aktiviert.", Py4GW.Console.MessageType.Info)
+
+
+def _reactivate_custom_behavior_for_step(bot_instance: Botting, step_label: str) -> None:
+    """
+    Re-aktiviert die benötigte CB-Integration vor jedem größeren Schritt/Questabschnitt.
+    """
+    behavior = _get_custom_behavior(initialize_if_needed=True)
+    if behavior is None:
+        ConsoleLog(BOT_NAME, f"[CB] Kein Behavior für Schritt '{step_label}' verfügbar.", Py4GW.Console.MessageType.Warning)
+        return
+
+    _ensure_custom_botting_skills_enabled()
+    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+    BottingFsmHelpers.UseCustomBehavior(
+        bot_instance,
+        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
+        on_party_death=BottingHelpers.botting_unrecoverable_issue,
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue,
+    )
 
 def _enqueue_section(bot_instance: Botting, attr_name: str, label: str, section_fn):
     def _queue_section():
         if getattr(BotSettings, attr_name, False):
+            _reactivate_custom_behavior_for_step(bot_instance, label)
             section_fn(bot_instance)
     bot_instance.States.AddCustomState(_queue_section, f"[Toggle] {label}")
 
@@ -157,11 +261,7 @@ def bot_routine(bot: Botting):
     global MAIN_LOOP_HEADER_NAME
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
-    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot)
-    bot.Templates.Routines.UseCustomBehaviors(
-    on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
-    on_party_death=BottingHelpers.botting_unrecoverable_issue,
-    on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
+    _setup_custom_behavior_integration(bot)
     
     bot.Templates.Aggressive()
     
@@ -176,7 +276,7 @@ def bot_routine(bot: Botting):
     Clear_the_Chamber(bot)
     _enqueue_section(bot, "RestoreVale", "Restore Vale", Restore_Vale)
     _enqueue_section(bot, "WrathfullSpirits", "Wrathfull Spirits", Wrathfull_Spirits)
-    _enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
+    #_enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
     _enqueue_section(bot, "UnwantedGuests", "Unwanted Guests", Unwanted_Guests)
     _enqueue_section(bot, "RestoreWastes", "Restore Wastes", Restore_Wastes)
     _enqueue_section(bot, "ServantsOfGrenth", "Servants of Grenth", Servants_of_Grenth)
@@ -218,8 +318,12 @@ def enable_default_party_behavior(bot_instance: Botting):
 
 def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddHeader("Clear the Chamber")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
+    
     enable_default_party_behavior(bot_instance)
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
@@ -243,6 +347,8 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
 
 def Restore_Vale(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestoreVale:
         bot_instance.States.AddHeader("Restore Vale")
         BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
@@ -265,6 +371,8 @@ def Restore_Vale(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Wrathfull_Spirits(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.WrathfullSpirits:
         bot_instance.States.AddHeader("Wrathfull Spirits")
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
@@ -289,6 +397,8 @@ def Wrathfull_Spirits(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Escort_of_Souls(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.EscortOfSouls:
         bot_instance.States.AddHeader("Escort of Souls")
         bot_instance.Wait.ForTime(5000)
@@ -306,6 +416,8 @@ def Escort_of_Souls(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Unwanted_Guests(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     #This Quest is not working
     if BotSettings.UnwantedGuests:
         bot_instance.States.AddHeader("Unwanted Guests")
@@ -345,6 +457,8 @@ def Unwanted_Guests(bot_instance: Botting):
         bot_instance.Move.XY(-6907, 7256)
 
 def Restore_Wastes(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestoreWastes:
         bot_instance.Templates.Aggressive()
         bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
@@ -362,11 +476,12 @@ def Restore_Wastes(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Servants_of_Grenth(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.ServantsOfGrenth:
         bot_instance.Templates.Aggressive()
         bot_instance.States.AddHeader("Servants of Grenth")
         bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
-        bot_instance.Party.FlagAllHeroes(2559, 20301)
         SERVANTS_OF_GRENTH_FLAG_POINTS = [
             (2559, 20301),
             (3032, 20148),
@@ -377,6 +492,10 @@ def Servants_of_Grenth(bot_instance: Botting):
             (2039, 20175),
             ]
         bot_instance.States.AddCustomState(
+            lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+            "Clear Flags",
+        )
+        bot_instance.States.AddCustomState(
             lambda: _auto_assign_flag_emails(),
             "Set Flag",
         )
@@ -385,15 +504,21 @@ def Servants_of_Grenth(bot_instance: Botting):
                 lambda i=idx, x=flag_x, y=flag_y: _set_flag_position(i, x, y),
                 f"Set Flag {idx}",
             )
+        def _flag_hero_by_party_pos(party_pos: int, x: float, y: float) -> None:
+            agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(party_pos)
+            if agent_id:
+                GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
+
+        hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        for hero_idx, (flag_x, flag_y) in enumerate(SERVANTS_OF_GRENTH_FLAG_POINTS[:hero_count], start=1):
+            bot_instance.States.AddCustomState(
+                lambda h=hero_idx, x=flag_x, y=flag_y: _flag_hero_by_party_pos(h, x, y),
+                f"Flag Hero {hero_idx}",
+            )
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
-        bot_instance.States.AddCustomState(
-            lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
-            "Clear Flags",
-        )
-        
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
@@ -402,6 +527,14 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
         bot_instance.Party.UnflagAllHeroes()
+        bot_instance.Party.FlagAllHeroes(3032, 20148)
+        bot_instance.Party.UnflagAllHeroes()
+        bot_instance.Wait.ForTime(5000)
+        bot_instance.Party.UnflagAllHeroes()
+        bot_instance.States.AddCustomState(
+            lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+            "Clear Flags",
+        )
         bot_instance.Wait.ForTime(10000)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
@@ -410,6 +543,8 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Pass_The_Mountains(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.PassTheMountains:
         bot_instance.States.AddHeader("Pass the Mountains")
         bot_instance.Move.XY(-220, 1691, "Pass the Mountains 1")
@@ -419,6 +554,8 @@ def Pass_The_Mountains(bot_instance: Botting):
     
 
 def Restore_Mountains(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestoreMountains:
         bot_instance.States.AddHeader("Restore the Mountains")
         bot_instance.Move.XY(7013, -7582, "Restore the Mountains 1")
@@ -426,6 +563,8 @@ def Restore_Mountains(bot_instance: Botting):
         bot_instance.Move.XY(-8373, -5016, "Restore the Mountains 3")
 
 def Deamon_Assassin(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.DeamonAssassin:
         bot_instance.States.AddHeader("Deamon Assassin")
         bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
@@ -437,6 +576,8 @@ def Deamon_Assassin(bot_instance: Botting):
         #ModelID Slayer 2391
 
 def Restore_Planes(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestorePlanes:
         bot_instance.States.AddHeader("Restore Planes")
         Wait_for_Spawns(bot_instance,10371, -10510)
@@ -450,6 +591,8 @@ def Restore_Planes(bot_instance: Botting):
         Wait_for_Spawns(bot_instance,11218, -17404)
 
 def The_Four_Horsemen(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.TheFourHorsemen:
         bot_instance.States.AddHeader("The Four Horseman")
         bot_instance.Move.XY(13473, -12091, "The Four Horseman 1")
@@ -491,6 +634,8 @@ def The_Four_Horsemen(bot_instance: Botting):
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
 
 def Restore_Pools(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestorePools:
         bot_instance.States.AddHeader("Restore Pools")
         Wait_for_Spawns(bot_instance,4647, -16833)
@@ -506,6 +651,8 @@ def Restore_Pools(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Terrorweb_Queen(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.TerrorwebQueen:
         bot_instance.States.AddHeader("Terrorweb Queen")
         bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
@@ -518,6 +665,8 @@ def Terrorweb_Queen(bot_instance: Botting):
         bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
     
 def Restore_Pit(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.RestorePit:
         bot_instance.States.AddHeader("Restore Pit")
         bot_instance.Move.XY(13145, -8740, "Restore Pit 1")
@@ -533,6 +682,8 @@ def Restore_Pit(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
 
 def Imprisoned_Spirits(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     if BotSettings.ImprisonedSpirits:
         bot_instance.States.AddHeader("Imprisoned Spirits")
         bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 1")
@@ -542,6 +693,8 @@ def Imprisoned_Spirits(bot_instance: Botting):
         #bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "Back to Chamber")
         bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 2")
+
+
 def ResignAndRepeat(bot_instance: Botting):
     if BotSettings.Repeat:
         bot_instance.Multibox.ResignParty()
@@ -595,7 +748,6 @@ def _draw_help():
     PyImGui.bullet_text("You have to do the missing quests manually")
     PyImGui.bullet_text("Main Account sometimes leaves the team alone - Dont be the Healer")
     PyImGui.bullet_text("You should either have some evas or 1 melee char to trigger traps in the mountains")
-    PyImGui.bullet_text('You should change the line 39 in Sources\oazix\CustomBehaviors\skills\botting\wait_if_party_member_too_far.py with * 1.25 for faster runs')
     PyImGui.separator()
     PyImGui.bullet_text("Have fun :) - sch0l0ka")
 
@@ -682,6 +834,7 @@ def _on_party_wipe(bot: "Botting"):
 
 
 def main():
+    _sync_custom_behavior_runtime()
     bot.Update()
     bot.UI.draw_window()
 

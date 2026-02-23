@@ -21,6 +21,7 @@ AlcoholProc.ini
 alcohol_procs.json
 Widgets/Config/Travel.ini
 Widgets/Config/*
+Sources/modular_bot/configs/*
 Widgets/Data/Inventory/**
 Widgets/Data/InventoryModelIds/**
 Widgets/Data/InventoryModHash/**

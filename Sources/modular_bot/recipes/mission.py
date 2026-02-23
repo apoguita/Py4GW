@@ -1,63 +1,67 @@
 """
-Mission recipe — Run a mission from a structured JSON data file.
+Mission recipe - run a mission from a structured JSON data file.
 
-Mission data files define a sequence of steps (move, wait, interact,
-dialog, etc.) that the bot executes in order. Combat is handled by
-CustomBehaviors.
+Mission files live in:
+    Sources/modular_bot/missions/<mission_name>.json
 
-JSON format (stored in Bots/modular_bot/missions/<name>.json):
-
+Minimal mission template:
     {
-        "name": "The Great Northern Wall",
-        "outpost_id": 28,
-        "hard_mode": true,
-        "entry": {
-            "type": "enter_challenge",
-            "delay": 3000
-        },
-        "steps": [
-            {"type": "path",              "points": [[5770, -12799], [5085, -12095]]},
-            {"type": "auto_path",         "points": [[6269, -10220], [3830, -6054]]},
-            {"type": "wait",              "ms": 5000},
-            {"type": "wait_out_of_combat"},
-            {"type": "wait_map_load",     "map_id": 72},
-            {"type": "interact_npc",      "x": -3389, "y": 4087},
-            {"type": "dialog",            "x": -3389, "y": 4087, "id": 133},
-            {"type": "exit_map",          "x": 5580, "y": 946, "target_map_id": 380},
-            {"type": "move",              "x": 769, "y": 6564}
-        ]
+      "name": "Mission Name",
+      "outpost_id": 28,
+      "max_heroes": 4,
+      "entry": {"type": "enter_challenge", "delay": 3000, "target_map_id": 28},
+      "steps": []
     }
 
-Entry types:
-    - "enter_challenge": calls bot.Map.EnterChallenge(delay)
-    - "dialog":          moves to NPC and sends dialog to enter mission
-    - null/missing:      no special entry (already in mission zone)
+Entry block catalog:
+    - enter_challenge:
+      {"type": "enter_challenge", "delay": 3000, "target_map_id": 0}
+    - dialog:
+      {"type": "dialog", "x": 0, "y": 0, "id": 0}
+    - omit/null:
+      no entry step
 
-Step types:
-    - "path":              Follow exact path (list of [x,y] points)
-    - "auto_path":         Follow auto-pathed path (list of [x,y] waypoints)
-    - "wait":              Wait fixed time (ms)
-    - "wait_out_of_combat": Wait until no enemies in aggro
-    - "wait_map_load":     Wait for specific map to load
-    - "move":              Move to single coordinate (x, y)
-    - "exit_map":          Move to coordinate and exit to target map
-    - "interact_npc":      Move to NPC at (x,y) and interact
-    - "interact_gadget":   Interact with nearest gadget (wait ms)
-    - "interact_item":     Interact with nearest item (wait ms)
-    - "interact_quest_npc": Interact with nearest NPC that has a quest marker (wait ms)
-    - "interact_nearest_npc": Interact with nearest NPC (wait ms)
-    - "dialog":            Move to (x,y) and send dialog ID
-    - "dialog_multibox":   Send dialog to all accounts
-    - "skip_cinematic":    Wait for cinematic to start, then skip it
-    - "set_title":         Set active title by ID
-    - "resign":            Resign party
-    - "wait_map_change":   Wait for map to change to target
+Step catalog (copy/paste):
+    {"type": "path", "name": "Path 1", "points": [[0, 0], [100, 100]]}
+    {"type": "auto_path", "name": "AutoPath 1", "points": [[0, 0], [100, 100]]}
+    {"type": "auto_path_delayed", "name": "Delay Path", "points": [[0, 0], [100, 100]], "delay_ms": 35000}
+    {"type": "wait", "ms": 1000}
+    {"type": "wait_out_of_combat"}
+    {"type": "wait_map_load", "map_id": 72}
+    {"type": "move", "name": "Move", "x": 0, "y": 0}
+    {"type": "exit_map", "x": 0, "y": 0, "target_map_id": 0}
+    {"type": "interact_npc", "name": "Talk NPC", "x": 0, "y": 0}
+    {"type": "interact_gadget", "ms": 2000}
+    {"type": "interact_item", "ms": 2000}
+    {"type": "interact_quest_npc", "ms": 5000}
+    {"type": "interact_nearest_npc", "ms": 5000}
+    {"type": "dialog", "name": "Dialog", "x": 0, "y": 0, "id": 0}
+    {"type": "dialog_multibox", "id": 0}
+    {"type": "skip_cinematic", "wait_ms": 500}
+    {"type": "set_title", "id": 0}
+    {"type": "key_press", "key": "F1", "ms": 1000}
+    {"type": "force_hero_state", "state": "fight", "ms": 1000}
+    {"type": "force_hero_state", "state": "guard", "ms": 1000}
+    {"type": "force_hero_state", "state": "avoid", "ms": 1000}
+    {"type": "force_hero_state", "behavior": 2, "ms": 1000}
+    {"type": "flag_heroes", "x": 0, "y": 0, "ms": 2000}
+    {"type": "unflag_heroes", "ms": 2000}
+    {"type": "resign"}
+    {"type": "wait_map_change", "target_map_id": 0}
+    {"type": "set_auto_combat", "enabled": true}
+    {"type": "set_auto_combat", "enabled": false}
+
+Notes:
+    - Formatting convention for JSON steps:
+      one step object per line, with key order ``type``, then ``name``, then ``ms`` (if used),
+      then all other arguments.
+    - key_press supported keys: F1, F2, SPACE, ENTER, ESCAPE/ESC
+    - force_hero_state values: fight, guard, avoid
+      (or behavior: 0=fight, 1=guard, 2=avoid)
+    - set_auto_combat enabled: true/false (toggles CustomBehaviors combat)
 
 Two APIs:
-    # Direct function
     mission_run(bot, "the_great_northern_wall")
-
-    # Phase factory
     Mission("the_great_northern_wall")
 """
 
@@ -71,6 +75,7 @@ if TYPE_CHECKING:
     from Py4GWCoreLib import Botting
 
 from ..phase import Phase
+from ..hero_setup import get_team_for_size, load_hero_teams
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -79,31 +84,27 @@ from ..phase import Phase
 
 def _get_missions_dir() -> str:
     """Return the missions data directory path."""
-    import Py4GW
-    return os.path.join(
-        Py4GW.Console.get_projects_path(),
-        "Bots", "modular_bot", "missions",
-    )
+    return os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "missions"))
 
 
 def _load_hero_config() -> Dict[str, Any]:
     """
-    Load hero configuration from ``Bots/modular_bot/missions/hero_config.json``.
+    Load hero configuration used by modular recipes.
 
     Returns:
-        Dict with keys ``"party_4"``, ``"party_6"``, ``"party_8"`` mapping
-        to lists of hero IDs.
+        Dict containing team keys mapped to hero ID lists.
+
+    Resolution order:
+        1) ``Sources/modular_bot/configs/<account_email>.json`` -> ``hero_teams``
+        2) ``Sources/modular_bot/configs/default.json`` -> ``hero_teams``
+        3) Legacy hero config paths
     """
-    filepath = os.path.join(_get_missions_dir(), "hero_config.json")
-    if not os.path.isfile(filepath):
-        return {"party_4": [], "party_6": [], "party_8": []}
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_hero_teams()
 
 
 def _load_mission_data(mission_name: str) -> Dict[str, Any]:
     """
-    Load mission data from ``Bots/modular_bot/missions/<mission_name>.json``.
+    Load mission data from ``Sources/modular_bot/missions/<mission_name>.json``.
 
     Args:
         mission_name: File name without extension (e.g. "the_great_northern_wall").
@@ -125,6 +126,27 @@ def _load_mission_data(mission_name: str) -> Dict[str, Any]:
 
     with open(filepath, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def list_available_missions() -> List[str]:
+    """
+    Return all available mission names (without .json extension).
+
+    Excludes non-mission support files such as ``hero_config.json``.
+    """
+    missions_dir = _get_missions_dir()
+    if not os.path.isdir(missions_dir):
+        return []
+
+    names = []
+    for filename in os.listdir(missions_dir):
+        if not filename.endswith(".json"):
+            continue
+        if filename.lower() == "hero_config.json":
+            continue
+        names.append(filename[:-5])
+
+    return sorted(names)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -167,6 +189,20 @@ def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
         points = [tuple(p) for p in step["points"]]
         name = step.get("name", f"AutoPath {step_idx + 1}")
         bot.Move.FollowAutoPath(points, step_name=name)
+
+    elif step_type == "auto_path_delayed":
+        points = [tuple(p) for p in step["points"]]
+        name = step.get("name", f"AutoPathDelayed {step_idx + 1}")
+        delay_ms = int(step.get("delay_ms", 35000))
+        if delay_ms < 0:
+            delay_ms = 0
+
+        # Emulate delayed waypoint advance: move to one point, then pause.
+        for point_i, (x, y) in enumerate(points):
+            step_name = f"{name} [{point_i + 1}/{len(points)}]"
+            bot.Move.XY(x, y, step_name)
+            if point_i < len(points) - 1 and delay_ms > 0:
+                bot.Wait.ForTime(delay_ms)
 
     elif step_type == "wait":
         ms = step.get("ms", 1000)
@@ -288,6 +324,68 @@ def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
         title_id = step["id"]
         bot.Player.SetTitle(title_id)
 
+    elif step_type == "key_press":
+        key_name = str(step["key"]).upper()
+        key_map = {
+            "F1": "F1",
+            "F2": "F2",
+            "SPACE": "Space",
+            "ENTER": "Enter",
+            "ESCAPE": "Escape",
+            "ESC": "Escape",
+        }
+        mapped = key_map.get(key_name)
+        if mapped is None:
+            from Py4GWCoreLib import ConsoleLog
+            ConsoleLog("Recipe:Mission", f"Unsupported key_press key: {key_name!r}")
+        else:
+            from Py4GWCoreLib import Keystroke, Key
+            bot.States.AddCustomState(
+                lambda _k=mapped: Keystroke.PressAndRelease(getattr(Key, _k).value),
+                f"KeyPress {key_name}",
+            )
+            ms = int(step.get("ms", 1000))
+            if ms > 0:
+                bot.Wait.ForTime(ms)
+
+    elif step_type == "force_hero_state":
+        raw_state = str(step.get("state", "")).strip().lower()
+        behavior_map = {
+            "fight": 0,
+            "guard": 1,
+            "avoid": 2,
+        }
+
+        # Optional numeric behavior override (0=fight, 1=guard, 2=avoid)
+        if "behavior" in step:
+            try:
+                behavior = int(step["behavior"])
+            except (TypeError, ValueError):
+                behavior = -1
+        else:
+            behavior = behavior_map.get(raw_state, -1)
+
+        if behavior not in (0, 1, 2):
+            from Py4GWCoreLib import ConsoleLog
+            ConsoleLog(
+                "Recipe:Mission",
+                f"Invalid force_hero_state at index {step_idx}: state={raw_state!r}, behavior={step.get('behavior')!r}",
+            )
+        else:
+            state_name = step.get("name", f"Force Hero State ({raw_state or behavior})")
+
+            def _set_hero_behavior_all(behavior_value: int = behavior):
+                from Py4GWCoreLib import Party
+                for hero in Party.GetHeroes():
+                    hero_agent_id = getattr(hero, "agent_id", 0)
+                    if hero_agent_id:
+                        Party.Heroes.SetHeroBehavior(hero_agent_id, behavior_value)
+
+            bot.States.AddCustomState(_set_hero_behavior_all, state_name)
+            ms = int(step.get("ms", 1000))
+            if ms > 0:
+                bot.Wait.ForTime(ms)
+
     elif step_type == "flag_heroes":
         x, y = step["x"], step["y"]
         ms = step.get("ms", 2000)
@@ -305,6 +403,36 @@ def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
     elif step_type == "wait_map_change":
         target_map_id = step["target_map_id"]
         bot.Wait.ForMapToChange(target_map_id=target_map_id)
+
+    elif step_type == "set_auto_combat":
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
+            CustomBehaviorParty,
+        )
+
+        enabled_raw = step.get("enabled", True)
+        if isinstance(enabled_raw, str):
+            enabled = enabled_raw.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            enabled = bool(enabled_raw)
+
+        bot.States.AddCustomState(
+            lambda e=enabled: CustomBehaviorParty().set_party_is_combat_enabled(e),
+            f"Set CB Combat {'On' if enabled else 'Off'}",
+        )
+
+        if enabled:
+            bot.Templates.Aggressive()
+        else:
+            bot.Templates.Pacifist()
+
+
+    
+    
+    
+
+        ms = int(step.get("ms", 500))
+        if ms > 0:
+            bot.Wait.ForTime(ms)
 
     else:
         from Py4GWCoreLib import ConsoleLog
@@ -329,6 +457,7 @@ def mission_run(bot: "Botting", mission_name: str) -> None:
     display_name = data.get("name", mission_name)
     outpost_id = data.get("outpost_id")
     max_heroes = data.get("max_heroes", 0)
+    hero_team = str(data.get("hero_team", "") or "")
     entry = data.get("entry")
     steps = data.get("steps", [])
 
@@ -338,9 +467,7 @@ def mission_run(bot: "Botting", mission_name: str) -> None:
 
     # ── 2. Add heroes from config ─────────────────────────────────────
     if max_heroes > 0:
-        hero_config = _load_hero_config()
-        party_key = f"party_{max_heroes}"
-        hero_ids = hero_config.get(party_key, [])
+        hero_ids = get_team_for_size(max_heroes, hero_team)
         if hero_ids:
             bot.Party.LeaveParty()
             bot.Party.AddHeroList(hero_ids)
@@ -386,4 +513,5 @@ def Mission(
             name = f"Mission: {mission_name}"
 
     return Phase(name, lambda bot: mission_run(bot, mission_name))
+
 

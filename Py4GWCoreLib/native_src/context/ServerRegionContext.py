@@ -60,7 +60,8 @@ class ServerRegion:
             ServerRegion._callback_name,
             PyCallback.Phase.PreUpdate,
             ServerRegion._update_ptr,
-            priority = 0
+            priority = 0,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod

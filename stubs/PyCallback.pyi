@@ -6,6 +6,11 @@ class Phase(IntEnum):
     PreUpdate = 0
     Data = 1
     Update = 2
+    
+class Context(IntEnum):
+    Update = 0
+    Draw = 1
+    Main = 2
 
 class PyCallback:
     """
@@ -22,7 +27,9 @@ class PyCallback:
         name: str,
         phase: Phase,
         fn: Callable[[], None],
-        priority: int = 99
+        priority: int = 99,
+        context: Context = Context.Draw
+        
     ) -> int:
         """
         Register or replace a callback.
@@ -60,6 +67,38 @@ class PyCallback:
         Alias for RemoveAll().
         """
         ...
+        
+    @staticmethod
+    def PauseById(id: int) -> bool:
+        """
+        Pause callback by id.
+        Returns True if paused.
+        """
+        ...
+        
+    @staticmethod
+    def ResumeById(id: int) -> bool:
+        """
+        Resume callback by id.
+        Returns True if resumed.
+        """
+        ...
+        
+    @staticmethod
+    def IsPaused(id: int) -> bool:
+        """
+        Check if callback is paused by id.
+        Returns True if paused.
+        """
+        ...
+        
+    @staticmethod
+    def IsRegistered(id: int) -> bool:
+        """
+        Check if callback is registered by id.
+        Returns True if registered.
+        """
+        ...
 
     @staticmethod
     def GetCallbackInfo() -> List[
@@ -67,8 +106,10 @@ class PyCallback:
             int,  # id
             str,         # name
             int,         # phase (int)
+            int,        # context (int)
             int,         # priority
-            int          # order
+            int,         # order
+            bool         # paused / enabled
         ]
     ]:
         """

@@ -1,6 +1,11 @@
 from typing import Optional, Iterator, TypeVar, Generic
 from ctypes import Structure
 
+class GW_BaseArray(Structure):
+    m_buffer: int
+    m_capacity: int
+    m_size: int
+
 class GW_Array(Structure):
     m_buffer: int
     m_capacity: int

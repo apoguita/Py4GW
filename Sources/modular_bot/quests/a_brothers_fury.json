@@ -1,0 +1,29 @@
+{
+  "name": "Report to the White Mantle",
+  "max_heroes": 6,
+  "take_quest": {
+    "outpost_id": 140,
+    "quest_npc_location": [4575, -9946],
+    "dialog_id": ["0x805F03", "0x805F01"],
+    "wait_ms": 500,
+    "name": "Take Quest"
+  },
+  "steps": [
+    {"type": "auto_path", "name": "Safety sidestep", "points": [[4330, -10225]]},
+    {"type": "exit_map", "x": 3150, "y": -9450, "target_map_id": 41},
+    {"type": "wait_map_change", "target_map_id": 41},
+    {"type": "auto_path", "name": "To Thommis", "points": [[1520, -8305], [1269, -6183]]},
+    {"type": "dialog", "x": 1520, "y": -8305, "id": "0x805F04"},
+    {"type": "auto_path", "name": "To Amon", "points": [[2817, -5953]]},
+    {"type": "dialog", "x": 2817, "y": -5953, "id": "0x805F04"},
+    {"type": "auto_path", "name": "To Lanalt", "points": [[638, -3198], [166, -2255], [0, -1750]]},
+    {"type": "dialog", "x": -40, "y": -1859, "id": "0x805F04"},
+    {"type": "auto_path", "name": "To Rionel ", "points": [[-945.82, 1488.35], [-4336.98, 2136.03], [-6339.26, 3538.42]]},
+    {"type": "dialog", "x": -6438, "y": 3482, "id": "0x805F04"},
+    {"type": "auto_path", "name": "To the Wilds ", "points": [[-5413.57, 6429.74], [-7885.27, 7606.53], [-10742.32, 11073.03], [-13928.21, 9754.99], [-16479.97, 10136.52]]},
+    {"type": "exit_map", "x": -16900, "y": 9900, "target_map_id": 11},
+    {"type": "wait_map_change", "target_map_id": 11},
+    {"type": "auto_path", "name": "To Giselle", "points": [[24314, -11233], [24042, -11911]]},
+    {"type": "dialog", "x": 24113, "y": -12030, "id": "0x805F07"}
+  ]
+}

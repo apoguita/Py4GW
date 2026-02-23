@@ -1,4 +1,5 @@
 from ctypes import Structure, c_int, c_uint, c_float, c_wchar
+from Py4GWCoreLib import ThrottledTimer
 
 from .AttributesStruct import AttributesStruct
 from .BuffStruct import BuffStruct
@@ -9,7 +10,24 @@ from .HealthStruct import HealthStruct
 from ...native_src.internals.types import Vec2f, Vec3f
 from .Globals import (
     SHMEM_MAX_CHAR_LEN,
+    SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS,
+    SHMEM_AGENT_MEDIUM_UPDATE_THROTTLE_MS,
+    SHMEM_AGENT_SLOW_UPDATE_THROTTLE_MS,
 )
+
+
+_agent_medium_timers: dict[int, ThrottledTimer] = {}
+_agent_slow_timers: dict[int, ThrottledTimer] = {}
+
+
+def _get_agent_timer(timer_map: dict[int, ThrottledTimer], key: int, throttle_ms: int) -> ThrottledTimer:
+    timer = timer_map.get(key)
+    if timer is None:
+        timer = ThrottledTimer(throttle_ms)
+        timer_map[key] = timer
+    elif timer.throttle_time != throttle_ms:
+        timer.SetThrottleTime(throttle_ms)
+    return timer
 
 class AgentDataStruct(Structure):
     _pack_ = 1
@@ -225,7 +243,7 @@ class AgentDataStruct(Structure):
         self.RotationAngle = 0.0
         self.Velocity = Vec2f(0.0, 0.0)
         
-    def from_context(self, agent_id:int):
+    def from_context(self, agent_id:int, throttle_key: int | None = None):
         from ...Party import Party
         from ...Player import Player
         from ...Agent import Agent
@@ -233,43 +251,67 @@ class AgentDataStruct(Structure):
         if agent_id == 0:
             self.reset()
             return
+
+        timer_key = throttle_key if throttle_key is not None else agent_id
+        force_full = (self.AgentID == 0)
         
-        self.CharacterName = Party.Players.GetPlayerNameByLoginNumber(Player.GetLoginNumber())
-        self.AgentID = Player.GetAgentID()
-        self.UUID = Player.GetPlayerUUID()
+        
+        self.AgentID = Player.GetAgentID() 
         self.OwnerAgentID = 0
         self.HeroID = 0
         self.TargetID = Player.GetTargetID()
-        self.ObservingID = Player.GetObservingID()
-        self.PlayerNumber = Agent.GetPlayerNumber(agent_id)
-        self.LoginNumber = Agent.GetLoginNumber(agent_id)
-        self.Map.from_context()
-        self.Skillbar.from_context()
-        self.Attributes.from_context(agent_id)
-        self.Buffs.from_context(agent_id)
         
         self.Health.from_context(agent_id)
         self.Energy.from_context(agent_id)
-        
-        self.Overcast = Agent.GetOvercast(agent_id)
-        self.Level = Agent.GetLevel(agent_id)
-        self.Profession = Agent.GetProfessionIDs(Player.GetAgentID())
-        self.Morale = Player.GetMorale()
+
         self.Pos = Vec3f(*Agent.GetXYZ(agent_id))
         self.ZPlane = Agent.GetZPlane(agent_id)
         self.RotationAngle = Agent.GetRotationAngle(agent_id)
         self.Velocity = Vec2f(*Agent.GetVelocityXY(agent_id))
         
-        self.DaggerStatus = Agent.GetDaggerStatus(agent_id)
-        self.WeaponType = Agent.GetWeaponType(agent_id)[0]
-        self.WeaponItemType = Agent.GetWeaponItemType(agent_id)
-        self.OffhandItemType = Agent.GetOffhandItemType(agent_id)
-        self.WeaponAttackSpeed = Agent.GetWeaponAttackSpeed(agent_id)
-        self.AttackSpeedModifier = Agent.GetAttackSpeedModifier(agent_id)
+        
         self.EffectsMask = Agent.GetAgentEffects(agent_id)
-        self.VisualEffectsMask = Agent.GetVisualEffects(agent_id)
+        
         self.TypeMap = Agent.GetTypeMap(agent_id)
-        self.ModelState = Agent.GetModelState(agent_id)
-        self.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
-        self.AnimationCode = Agent.GetAnimationCode(agent_id)
-        self.AnimationID = Agent.GetAnimationID(agent_id)
+       
+        
+        fast_timer = _get_agent_timer(_agent_medium_timers, timer_key, SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS)
+        if force_full or fast_timer.IsExpired():
+            self.Map.from_context()
+            self.Skillbar.from_context()
+            self.Buffs.from_context(agent_id)
+            
+            self.Overcast = Agent.GetOvercast(agent_id)
+            self.Morale = Player.GetMorale()
+
+            fast_timer.Reset()
+
+        medium_timer = _get_agent_timer(_agent_medium_timers, timer_key, SHMEM_AGENT_MEDIUM_UPDATE_THROTTLE_MS)
+        if force_full or medium_timer.IsExpired():
+            self.DaggerStatus = Agent.GetDaggerStatus(agent_id)
+            self.WeaponAttackSpeed = Agent.GetWeaponAttackSpeed(agent_id)
+            self.AttackSpeedModifier = Agent.GetAttackSpeedModifier(agent_id)
+            self.VisualEffectsMask = Agent.GetVisualEffects(agent_id)
+            self.ModelState = Agent.GetModelState(agent_id)
+            self.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
+            self.AnimationCode = Agent.GetAnimationCode(agent_id)
+            self.AnimationID = Agent.GetAnimationID(agent_id)
+            
+            self.ObservingID = Player.GetObservingID()
+            
+            medium_timer.Reset()
+
+        slow_timer = _get_agent_timer(_agent_slow_timers, timer_key, SHMEM_AGENT_SLOW_UPDATE_THROTTLE_MS)
+        if force_full or slow_timer.IsExpired():
+            self.CharacterName = Party.Players.GetPlayerNameByLoginNumber(Player.GetLoginNumber())
+            self.UUID = Player.GetPlayerUUID()
+            self.Attributes.from_context(agent_id)
+            self.PlayerNumber = Agent.GetPlayerNumber(agent_id)
+            self.LoginNumber = Agent.GetLoginNumber(agent_id)
+            
+            self.Level = Agent.GetLevel(agent_id)
+            self.Profession = Agent.GetProfessionIDs(Player.GetAgentID())
+            self.WeaponType = Agent.GetWeaponType(agent_id)[0]
+            self.WeaponItemType = Agent.GetWeaponItemType(agent_id)
+            self.OffhandItemType = Agent.GetOffhandItemType(agent_id)
+            slow_timer.Reset()

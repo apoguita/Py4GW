@@ -1238,6 +1238,38 @@ class Yield:
 
 
         @staticmethod
+        def WithdrawGold(target_gold: int, deposit_all: bool = True, log: bool = False):
+            """Ensure the character has exactly `target_gold` on hand.
+            If deposit_all is True and the character has more than target_gold, the excess is deposited first.
+            Then, if the character has less than target_gold, the shortfall is withdrawn from storage.
+            """
+            gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+            if deposit_all and gold_on_char > target_gold:
+                to_deposit = gold_on_char - target_gold
+                gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+                available_space = 1_000_000 - gold_in_storage
+                to_deposit = min(to_deposit, available_space)
+                if to_deposit > 0:
+                    GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+                    yield from Yield.wait(350)
+                    if log:
+                        ConsoleLog("WithdrawGold", f"Deposited {to_deposit} gold (excess).", Console.MessageType.Info)
+                    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+            if gold_on_char < target_gold:
+                to_withdraw = target_gold - gold_on_char
+                gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+                to_withdraw = min(to_withdraw, gold_in_storage)
+                if to_withdraw > 0:
+                    GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+                    yield from Yield.wait(350)
+                    if log:
+                        ConsoleLog("WithdrawGold", f"Withdrew {to_withdraw} gold.", Console.MessageType.Info)
+                elif log:
+                    ConsoleLog("WithdrawGold", "Not enough gold in storage to reach target.", Console.MessageType.Warning)
+
+        @staticmethod
         def LootItems(item_array:list[int], log=False, progress_callback: Optional[Callable[[float], None]] = None, pickup_timeout:int=5000):
             from ..AgentArray import AgentArray
             from .Checks import Checks
@@ -1376,7 +1408,7 @@ class Yield:
 
         @staticmethod
         def WithdrawItems(model_id:int, quantity:int) -> Generator[Any, Any, bool]:
-            
+
             item_in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
             if item_in_storage < quantity:
                 return False
@@ -1387,7 +1419,35 @@ class Yield:
                 return False
 
             return True
-        
+
+        @staticmethod
+        def WithdrawUpTo(model_id: int, max_quantity: int) -> Generator[Any, Any, None]:
+            """Withdraw up to max_quantity of model_id from storage. No-op if none available."""
+            available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+            to_withdraw = min(available, max_quantity)
+            if to_withdraw > 0:
+                GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, to_withdraw)
+                yield from Yield.wait(500)
+
+        @staticmethod
+        def WithdrawFirstAvailable(model_ids: list, max_quantity: int) -> Generator[Any, Any, None]:
+            """Withdraw up to max_quantity from the first model_id in the list that has stock in storage."""
+            for model_id in model_ids:
+                available = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+                if available > 0:
+                    to_withdraw = min(available, max_quantity)
+                    GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, to_withdraw)
+                    yield from Yield.wait(500)
+                    return
+
+        @staticmethod
+        def DepositAllInventory() -> Generator[Any, Any, None]:
+            """Deposits all items from inventory bags (Backpack, Belt Pouch, Bag 1, Bag 2) to storage."""
+            item_ids = GLOBAL_CACHE.Inventory.GetAllInventoryItemIds()
+            for item_id in item_ids:
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                yield from Yield.wait(350)
+
         @staticmethod
         def RestockItems(model_id: int, desired_quantity: int) -> Generator[Any, Any, bool]:
             """
