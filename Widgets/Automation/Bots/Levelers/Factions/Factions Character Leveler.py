@@ -2117,7 +2117,6 @@ def To_Kamadan(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=543)
     bot.Wait.ForTime(2000)
     bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(4829, 0x82E101)  # Model id updated 20.12.2025 GW Reforged
 
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
