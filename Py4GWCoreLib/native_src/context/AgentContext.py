@@ -1211,8 +1211,29 @@ class AgentArrayStruct(Structure):
 
 
     
+    # ------------------------------------------------------------
+    # O(1) lookup (uses the snapshot dictionary built per frame)
+    # ------------------------------------------------------------
     def GetAgentByID(self, agent_id: int) -> Optional["AgentStruct"]:
-        return self._agent_by_id.get(agent_id)
+        self._ensure_fields()
+        
+        map_ctx = MapContext.get_context()
+        char_ctx = CharContext.get_context()
+        instance_info_ctx = InstanceInfo.get_context()
+        world_ctx = WorldContext.get_context()
+        acc_agent_ctx = AccAgentContext.get_context()
+
+        if not (map_ctx and char_ctx and instance_info_ctx and world_ctx and acc_agent_ctx):
+            self._drop_cache()
+            return None
+        
+        instance_type = instance_info_ctx.instance_type
+        if instance_type not in (0, 1):  # explorable, story, pvp
+            self._drop_cache()
+            return None
+        
+        agent =  self._agent_by_id.get(agent_id)
+        return agent
 
 
     
