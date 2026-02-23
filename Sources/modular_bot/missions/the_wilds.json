@@ -5,13 +5,12 @@
   "hero_team": "party_6",
   "entry": {
     "type": "enter_challenge",
-    "delay": 2000,
+    "delay": 5000,
     "target_map_id": 11
   },
   "steps": [
-    {"type": "key_press", "ms": 1000, "key": "ENTER"},
     {"type": "auto_path", "name": "Path 1", "points": [[15697, -9078], [15993, -6660], [16228, -4981], [14238, -5132], [13663, -5325], [11794, -8248], [10462, -10732], [10117, -12495], [8546, -12935], [7207, -12876], [4647, -12872], [2748, -12521], [823, -12575], [58, -12561]]},
-    {"type": "key_press", "ms": 90000, "key": "ENTER"},
+    {"type": "wait", "ms": 90000},
     {"type": "auto_path", "name": "Path 2", "points": [[-1228, -12699], [-1858, -12620]]},
     {"type": "wait", "ms": 10000},
     {"type": "interact_item", "ms": 2000},
