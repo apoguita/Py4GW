@@ -192,8 +192,44 @@ class _Items:
     @_yield_step(label="EquipItem", counter_key="EQUIP_ITEM")
     def equip(self, model_id: int):
         return (yield from self._equip(model_id))
-    
-        
+
+    def _equip_on_hero(self, hero_type, model_id: int):
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        import Py4GW
+        from ...Py4GWcorelib import ConsoleLog
+        from ...enums_src.Hero_enums import HeroType
+
+        hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        for position in range(1, hero_count + 1):
+            hero_agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(position)
+            if hero_agent_id <= 0:
+                continue
+            hero_id = GLOBAL_CACHE.Party.Heroes.GetHeroIDByAgentID(hero_agent_id)
+            if hero_id <= 0:
+                continue
+            try:
+                found_hero_type = HeroType(hero_id)
+            except ValueError:
+                continue
+            if found_hero_type == hero_type:
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if not item_id:
+                    ConsoleLog("EquipOnHero", f"Item model {model_id} not found in inventory.", Py4GW.Console.MessageType.Error)
+                    self._Events.on_unmanaged_fail()
+                    return False
+                GLOBAL_CACHE.Inventory.EquipItem(item_id, hero_agent_id)
+                yield from Routines.Yield.wait(750)
+                return True
+
+        ConsoleLog("EquipOnHero", f"Hero {hero_type} not found in party.", Py4GW.Console.MessageType.Warning)
+        return False
+
+    @_yield_step(label="EquipOnHero", counter_key="EQUIP_ON_HERO")
+    def equip_on_hero(self, hero_type, model_id: int):
+        return (yield from self._equip_on_hero(hero_type, model_id))
+
+
     @_yield_step(label="DestroyItem", counter_key="DESTROY_ITEM")
     def destroy(self, model_id: int) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
