@@ -26,11 +26,15 @@ SHMEM_PET_UPDATE_THROTTLE_MS = 50
 # Player account payload tiers
 # Fast data (AgentData / AgentPartyData) is updated every callback.
 SHMEM_PLAYER_META_UPDATE_THROTTLE_MS = 500      # rank/faction/experience
-SHMEM_PLAYER_PROGRESS_UPDATE_THROTTLE_MS = 1000 # titles/questlog/mission
-SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS = 15000   # unlocked skills/available chars
+SHMEM_PLAYER_PROGRESS_UPDATE_THROTTLE_MS = 3000 # titles/questlog/mission
+SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS = 7500   # unlocked skills/available chars
 
 # AgentData payload tiers
-SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS = 50
+SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS = 100
 SHMEM_AGENT_MEDIUM_UPDATE_THROTTLE_MS = 250      # map/skillbar/attributes/buffs
 SHMEM_AGENT_SLOW_UPDATE_THROTTLE_MS = 500       # level/profession/weapon metadata
+
+# Hero/Pet wrapper extras (AccountStruct side)
+SHMEM_HERO_EXTRA_UPDATE_THROTTLE_MS = 250
+SHMEM_PET_EXTRA_UPDATE_THROTTLE_MS = 250
 
