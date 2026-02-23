@@ -61,6 +61,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils impor
     sort_stats_lines_like_ingame,
 )
 from Py4GWCoreLib import * # Includes Map, Player
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
@@ -1298,6 +1299,22 @@ class DropViewerWindow:
     def set_status(self, msg):
         self.status_message = msg
         self.status_time = time.time()
+
+    def _toggle_follower_inventory_viewer(self):
+        try:
+            widget_handler = get_widget_handler()
+            widget_info = widget_handler.get_widget_info("TeamInventoryViewer")
+            if widget_info is None:
+                self.set_status("TeamInventoryViewer widget not found")
+                return
+            if widget_handler.is_widget_enabled("TeamInventoryViewer"):
+                widget_handler.disable_widget("TeamInventoryViewer")
+                self.set_status("Closed Follower Inventory viewer")
+            else:
+                widget_handler.enable_widget("TeamInventoryViewer")
+                self.set_status("Opened Follower Inventory viewer")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Failed to toggle Follower Inventory: {e}")
 
     def _safe_int(self, value, default=0):
         try:
@@ -3653,6 +3670,25 @@ class DropViewerWindow:
                      PyImGui.text("Directory not found")
                  PyImGui.end_popup()
 
+            PyImGui.same_line(0.0, 10.0)
+            if self._styled_button("Follower Inventory", "secondary", tooltip="Toggle follower inventory viewer."):
+                self._toggle_follower_inventory_viewer()
+
+            PyImGui.same_line(0.0, 10.0)
+            if self._styled_button("Sell Gold (No Runes)", "danger", tooltip="Manually sell all Gold-rarity items except anything named Rune."):
+                PyImGui.open_popup("ConfirmSellGoldNoRunes")
+
+            if PyImGui.begin_popup_modal("ConfirmSellGoldNoRunes", True, PyImGui.WindowFlags.AlwaysAutoResize):
+                PyImGui.text("Sell all GOLD-rarity inventory items?")
+                PyImGui.text("Runes will NOT be sold.")
+                PyImGui.separator()
+                if self._styled_button("Yes, Sell", "danger"):
+                    self._trigger_inventory_action("sell_gold_no_runes")
+                    PyImGui.close_current_popup()
+                PyImGui.same_line(0.0, 10.0)
+                if self._styled_button("Cancel", "secondary"):
+                    PyImGui.close_current_popup()
+                PyImGui.end_popup_modal()
 
             PyImGui.same_line(0.0, 40.0)
             if self._styled_button("Clear/Reset", "danger", tooltip="Clear live file and in-memory drop stats"):
@@ -5928,6 +5964,101 @@ class DropViewerWindow:
 
         return int(deposit_count)
 
+    def _sell_gold_items_except_runes(self):
+        sell_item_ids: list[int] = []
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = list(ItemArray.GetItemArray(bags_to_check) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_array = []
+
+        for raw_item_id in item_array:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+
+            try:
+                rarity_name = self._ensure_text(Item.Rarity.GetRarity(item_id)[1]).strip() or "Unknown"
+            except EXPECTED_RUNTIME_ERRORS:
+                rarity_name = "Unknown"
+            if rarity_name != "Gold":
+                continue
+
+            try:
+                item_name = self._ensure_text(Item.GetName(item_id)).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                item_name = ""
+            if "rune" in item_name.lower():
+                continue
+
+            sell_item_ids.append(item_id)
+
+        if not sell_item_ids:
+            return int(0)
+
+        merchant_open = False
+        try:
+            merchant_open = bool(self._is_merchant_frame_open())
+        except EXPECTED_RUNTIME_ERRORS:
+            merchant_open = False
+
+        if not merchant_open:
+            try:
+                merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+            except EXPECTED_RUNTIME_ERRORS:
+                merchant_candidates = []
+            for candidate_id in merchant_candidates[:12]:
+                cid = max(0, self._safe_int(candidate_id, 0))
+                if cid <= 0:
+                    continue
+                try:
+                    merchant_open = bool((yield from self._approach_and_open_merchant(cid)))
+                except EXPECTED_RUNTIME_ERRORS:
+                    merchant_open = False
+                if merchant_open:
+                    break
+
+        if not merchant_open:
+            return int(0)
+
+        try:
+            yield from Routines.Yield.wait(250)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        try:
+            yield from Routines.Yield.Merchant.SellItems(sell_item_ids, log=False)
+        except EXPECTED_RUNTIME_ERRORS:
+            return int(0)
+
+        return int(len(sell_item_ids))
+
+    def _run_manual_sell_gold_items_job(self):
+        self.auto_outpost_store_job_running = True
+        sold = 0
+        try:
+            sold = int((yield from self._sell_gold_items_except_runes()) or 0)
+            if sold > 0:
+                self.set_status(f"Sell Gold: sold {sold} gold items (runes kept)")
+            else:
+                self.set_status("Sell Gold: no sellable gold items found")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Sell Gold failed: {e}")
+        finally:
+            self.auto_outpost_store_job_running = False
+
+    def _queue_manual_sell_gold_items(self) -> int:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+            self.set_status("Sell Gold: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_manual_sell_gold_items_job())
+            self.set_status("Sell Gold: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Sell Gold queue failed: {e}")
+            return 0
+
     def _run_outpost_store_job(self, entry_key: str):
         self.auto_outpost_store_job_running = True
         deposited = 0
@@ -6307,14 +6438,21 @@ class DropViewerWindow:
         self.auto_legionnaire_last_instance_uptime_ms = instance_uptime_ms
         return self.auto_legionnaire_current_entry_key
 
-    def _draw_conset_controls(self, card_height: float = 250.0):
+    def _draw_conset_controls(self, card_height=None):
         self._draw_section_header("Conset")
         PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, self._ui_colors()["panel_bg"])
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
-        card_h = max(220.0, float(card_height or 0.0))
+        settings_expanded = bool(getattr(self, "conset_settings_expanded", False))
+        default_h = 232.0 if settings_expanded else 140.0
+        if card_height is None:
+            card_h = default_h
+        else:
+            card_h = max(120.0, float(card_height or 0.0))
         if PyImGui.begin_child("DropTrackerConsetCard", size=(0, card_h), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
             before = (self.auto_conset_enabled, self.auto_conset_armor, self.auto_conset_grail, self.auto_conset_essence, self.auto_conset_legionnaire)
-            if PyImGui.collapsing_header("Conset Settings"):
+            settings_expanded = bool(PyImGui.collapsing_header("Conset Settings"))
+            self.conset_settings_expanded = settings_expanded
+            if settings_expanded:
                 self.auto_conset_enabled = PyImGui.checkbox("Auto Conset (Leader Only)", self.auto_conset_enabled)
                 self.auto_conset_armor = PyImGui.checkbox("Auto Armor of Salvation", self.auto_conset_armor)
                 self.auto_conset_grail = PyImGui.checkbox("Auto Grail of Might", self.auto_conset_grail)

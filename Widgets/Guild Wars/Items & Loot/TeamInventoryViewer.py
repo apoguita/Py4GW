@@ -897,6 +897,42 @@ def search(query: str, items: list[str]) -> list[str]:
     return sorted(partial_matches)
 
 
+def get_party_follower_emails() -> set[str]:
+    follower_emails: set[str] = set()
+    try:
+        own_email = str(Player.GetAccountEmail() or "").strip()
+        if not own_email:
+            return follower_emails
+
+        shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+        if shmem is None:
+            return follower_emails
+
+        self_account = shmem.GetAccountDataFromEmail(own_email)
+        if self_account is None:
+            return follower_emails
+
+        self_party_id = int(getattr(self_account.AgentPartyData, "PartyID", 0))
+        self_map_id = int(getattr(self_account.AgentData.Map, "MapID", 0))
+        if self_party_id <= 0 or self_map_id <= 0:
+            return follower_emails
+
+        for account in shmem.GetAllAccountData():
+            email = str(getattr(account, "AccountEmail", "") or "").strip()
+            if not email or email == own_email:
+                continue
+            if not bool(getattr(account, "IsAccount", False)):
+                continue
+
+            party_id = int(getattr(account.AgentPartyData, "PartyID", 0))
+            map_id = int(getattr(account.AgentData.Map, "MapID", 0))
+            if party_id == self_party_id and map_id == self_map_id:
+                follower_emails.add(email)
+    except Exception:
+        return set()
+    return follower_emails
+
+
 def get_armor_name_from_modifiers(item):
     try:
         base_name = ModelID(item.model_id).name.replace("_", " ")
@@ -999,12 +1035,19 @@ def draw_widget():
         available_height = PyImGui.get_window_height() - 190  # leave room for buttons + footer
         PyImGui.begin_child("ScrollableContent", (0.0, float(available_height)), True, 1)
 
+        follower_emails = get_party_follower_emails()
+        visible_inventory_cache = OrderedDict(
+            (email, account_data)
+            for email, account_data in TEAM_INVENTORY_CACHE.items()
+            if email in follower_emails
+        )
+
         # === TABS BY ACCOUNT ===
-        if TEAM_INVENTORY_CACHE:
+        if visible_inventory_cache:
             if PyImGui.begin_tab_bar("AccountTabs"):
                 # === GLOBAL SEARCH TAB ===
                 if PyImGui.begin_tab_item("Search View"):
-                    PyImGui.text("Search for items across all accounts")
+                    PyImGui.text("Search for items across follower accounts in current party")
                     PyImGui.separator()
 
                     all_accounts_search_query = PyImGui.input_text("##GlobalSearchBar", all_accounts_search_query, 128)
@@ -1013,7 +1056,7 @@ def draw_widget():
                     if all_accounts_search_query:
                         # === Gather all matching results across accounts ===
                         search_results = []
-                        for email, account_data in TEAM_INVENTORY_CACHE.items():
+                        for email, account_data in visible_inventory_cache.items():
                             # Build a neat identifier like: email — [Char1, Char2]
                             character_names = list(account_data.get("Characters", {}).keys())
                             if character_names:
@@ -1121,9 +1164,9 @@ def draw_widget():
                         else:
                             PyImGui.text("No matching items found.")
                     else:
-                        PyImGui.text("Type above to search across all accounts.")
+                        PyImGui.text("Type above to search follower accounts in current party.")
                     PyImGui.end_tab_item()
-                for email, account_data in TEAM_INVENTORY_CACHE.items():
+                for email, account_data in visible_inventory_cache.items():
                     if PyImGui.begin_tab_item(email):
                         PyImGui.text(f"Account: {email}")
                         PyImGui.separator()
@@ -1258,12 +1301,12 @@ def draw_widget():
                         PyImGui.end_tab_item()
                 PyImGui.end_tab_bar()
         else:
-            PyImGui.text("No recorded accounts found yet.")
+            PyImGui.text("No follower accounts found in current party.")
         PyImGui.end_child()  # End scrollable section
 
         PyImGui.separator()
         current_character = f'Current Character: {current_character_name}'
-        PyImGui.text(f"{"Waiting for ..." if not current_character_name else current_character}")
+        PyImGui.text("Waiting for ..." if not current_character_name else current_character)
         if PyImGui.collapsing_header("Advanced Clearing", True):
             PyImGui.text(
                 f'Save timer: {(inventory_write_timer.GetTimeRemaining() / 1000):.1f}(s), Read timer: {(inventory_read_timer.GetTimeRemaining() / 1000):.1f}(s)'

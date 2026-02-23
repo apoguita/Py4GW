@@ -139,6 +139,8 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
             f"(once per outpost entry)"
         )
         return True
+    elif action_code == "sell_gold_no_runes":
+        return bool(viewer._queue_manual_sell_gold_items())
     elif action_code == "buy_kits_if_needed":
         return bool(viewer._queue_buy_kits_if_needed())
     elif action_code == "id_blue":
