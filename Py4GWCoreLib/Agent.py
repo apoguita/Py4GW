@@ -15,6 +15,7 @@ class Agent:
     
     @staticmethod
     def _update_cache() -> None:
+        return
         import PyAgent
         """Should be called every frame to resolve names when ready."""
         now = time.time() * 1000
@@ -116,6 +117,7 @@ class Agent:
     
     @staticmethod
     def GetNameByID(agent_id : int) -> str:
+        return "FEATURE_DISABLED"
         import PyAgent
         """Purpose: Get the native name of an agent by its ID."""
         now = time.time() * 1000  # current time in ms
