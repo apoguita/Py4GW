@@ -748,8 +748,9 @@ class Py4GWLibrary:
             win_size = PyImGui.get_window_size()
             win_pos = PyImGui.get_window_pos()
             self.win_size = (win_size[0], win_size[1])
+            collapsed = PyImGui.is_window_collapsed()
     
-            if self.previous_size != self.win_size and self.layout_mode is LayoutMode.Library:
+            if self.previous_size != self.win_size and self.layout_mode is LayoutMode.Library and not collapsed:
                 self.previous_size = self.win_size
                 IniManager().set(key=self.ini_key, section="Configuration", var_name="library_width", value=self.win_size[0])
                 IniManager().set(key=self.ini_key, section="Configuration", var_name="library_height", value=self.win_size[1])
@@ -765,6 +766,7 @@ class Py4GWLibrary:
                 PyImGui.text(f"Collapse to a single button showing only the Python icon.\nOpening the full library view when clicked." )
                 PyImGui.end_tooltip()
             
+            close_rect = (win_pos[0] + win_size[0] - 21, win_pos[1] + 2, 16, 16)
             minimize_rect = (win_pos[0] + 4 + win_size[0] - 50, win_pos[1] + 2, 24, 20)
             cursor_pos = PyImGui.get_cursor_screen_pos()
             PyImGui.set_cursor_screen_pos(minimize_rect[0], minimize_rect[1])
@@ -777,6 +779,12 @@ class Py4GWLibrary:
             style.Button.pop_color()
             ImGui.pop_font()
             ImGui.show_tooltip("Switch to Minimalistic View")
+            
+            if ImGui.is_mouse_in_rect(close_rect):
+                PyImGui.begin_tooltip()
+                PyImGui.text("Switch to One Button View")
+                PyImGui.end_tooltip()
+            
             PyImGui.set_cursor_screen_pos(cursor_pos[0], cursor_pos[1])
             PyImGui.pop_clip_rect()
             
@@ -1139,7 +1147,7 @@ class Py4GWLibrary:
                 ImGui.end_child()
                 ImGui.end_table()
 
-        if PyImGui.is_window_collapsed():
+        if PyImGui.is_window_collapsed() or not window_open:
             self.set_layout_mode(LayoutMode.SingleButton)   
         
         ImGui.End(self.ini_key)
