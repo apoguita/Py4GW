@@ -1248,9 +1248,9 @@ def tooltip():
 
     PyImGui.end_tooltip()
 
-#def update():
-#   if Map.MissionMap.IsWindowOpen():
-#        mission_map.update()
+def update():
+   if Map.MissionMap.IsWindowOpen():
+        mission_map.update()
 
 def draw():  
     try:  
@@ -1263,7 +1263,7 @@ def draw():
         #    return
         
         if Map.MissionMap.IsWindowOpen():
-            mission_map.update()
+            #mission_map.update()
             DrawFrame()
             FloatingCoordsStrip(
                 mission_map.left,

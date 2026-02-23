@@ -1225,14 +1225,14 @@ def configure():
     if InventoryPlusWidgetInstance.show_config_window: return
     InventoryPlusWidgetInstance.show_config_window = True
 
-#def update():
-#    if not InventoryPlusWidgetInstance.initialized:return
-#    InventoryPlusWidgetInstance.update_auto_handler()
+def update():
+    if not InventoryPlusWidgetInstance.initialized:return
+    InventoryPlusWidgetInstance.update_auto_handler()
 
 def draw():
     if not InventoryPlusWidgetInstance.initialized: return
     
-    InventoryPlusWidgetInstance.update_auto_handler()
+    #InventoryPlusWidgetInstance.update_auto_handler()
     
     InventoryPlusWidgetInstance.DetectInventoryAction()
     if InventoryPlusWidgetInstance.show_config_window:
