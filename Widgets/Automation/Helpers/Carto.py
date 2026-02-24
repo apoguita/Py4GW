@@ -14,7 +14,7 @@ import math
 
 import PyImGui
 
-from Py4GWCoreLib import Map, Player, Routines, ThrottledTimer, Utils, PyPathing, GWContext
+from Py4GWCoreLib import Map, Player, Routines, ThrottledTimer, Utils, AutoPathing, GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import NavMesh
 
 
@@ -50,6 +50,8 @@ class _State:
         self.last_status = "Bereit"
         self.navmesh: NavMesh | None = None
         self.navmesh_map_id: int = 0
+        self.current_path: list[tuple[float, float]] = []
+        self.path_computing: bool = False
 
 
 cfg = _Config()
@@ -81,99 +83,6 @@ def _ui_slider_float(label: str, current: float, min_v: float, max_v: float) -> 
 
 def _distance(a: tuple[float, float], b: tuple[float, float]) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])
-
-
-# ── Mission-map transform helpers (explicit, matching Mission Map +.py) ────────
-# All read params fresh every call so zoom / pan changes are always reflected.
-
-GWINCHES = 96.0
-
-
-def _mm_params() -> tuple | None:
-    """Return (zoom, pan_x, pan_y, scale_x, scale_y, center_x, center_y,
-    left_bound, top_bound, boundaries) or None if context not ready."""
-    try:
-        zoom        = Map.MissionMap.GetZoom()
-        pan_x, pan_y  = Map.MissionMap.GetPanOffset()
-        scale_x, scale_y = Map.MissionMap.GetScale()
-        center_x, center_y = Map.MissionMap.GetMapScreenCenter()
-        left_bound, top_bound, _, _ = Map.GetMapWorldMapBounds()
-        boundaries  = Map.GetMapBoundaries()
-        if not boundaries or len(boundaries) < 4:
-            return None
-        return (zoom, pan_x, pan_y, scale_x, scale_y,
-                center_x, center_y, left_bound, top_bound, boundaries)
-    except Exception:
-        return None
-
-
-def _game_to_screen(gx: float, gy: float) -> tuple[float, float] | None:
-    """Game-space → screen pixel, using live mission-map transform params."""
-    p = _mm_params()
-    if p is None:
-        return None
-    zoom, pan_x, pan_y, scale_x, scale_y, cx, cy, lb, tb, bounds = p
-    min_x = bounds[0]
-    max_y = bounds[3]
-    origin_x = lb + abs(min_x) / GWINCHES
-    origin_y = tb + abs(max_y) / GWINCHES
-    # game → world map
-    wx = (gx / GWINCHES) + origin_x
-    wy = (-gy / GWINCHES) + origin_y
-    # world map → screen
-    sx = ((wx - pan_x) * scale_x) * zoom + cx
-    sy = ((wy - pan_y) * scale_y) * zoom + cy
-    return sx, sy
-
-
-def _screen_to_game(sx: float, sy: float) -> tuple[float, float] | None:
-    """Screen pixel → game-space, using live mission-map transform params."""
-    p = _mm_params()
-    if p is None:
-        return None
-    zoom, pan_x, pan_y, scale_x, scale_y, cx, cy, lb, tb, bounds = p
-    if zoom == 0:
-        zoom = 1.0
-    min_x = bounds[0]
-    max_y = bounds[3]
-    origin_x = lb + abs(min_x) / GWINCHES
-    origin_y = tb + abs(max_y) / GWINCHES
-    # reverse zoom + center
-    scaled_x = (sx - cx) / zoom
-    scaled_y = (sy - cy) / zoom
-    # reverse scale + pan
-    wx = scaled_x / (scale_x if scale_x != 0 else 1.0) + pan_x
-    wy = scaled_y / (scale_y if scale_y != 0 else 1.0) + pan_y
-    # world map → game
-    gx = (wx - origin_x) * GWINCHES
-    gy = -(wy - origin_y) * GWINCHES
-    return gx, gy
-
-
-def _normed_to_game(nx: float, ny: float) -> tuple[float, float] | None:
-    """Normalised mission-map coords [-1,1] → game-space."""
-    # normed → content-rect pixels (exact same mapping GW uses)
-    left, top, right, bottom = Map.MissionMap.GetMissionMapContentsCoords()
-    sx = left + ((nx + 1.0) * 0.5) * (right - left)
-    sy = top  + ((1.0 - ny) * 0.5) * (bottom - top)
-    return _screen_to_game(sx, sy)
-
-
-def _is_normalized_pair(p: tuple[float, float]) -> bool:
-    return -1.2 <= p[0] <= 1.2 and -1.2 <= p[1] <= 1.2
-
-
-def _point_in_rect(p: tuple[float, float], rect: tuple[float, float, float, float]) -> bool:
-    left, top, right, bottom = rect
-    return left <= p[0] <= right and top <= p[1] <= bottom
-
-
-def _get_player_xyz() -> tuple[float, float, float]:
-    player = Player.GetAgent()
-    if player is None:
-        x, y = Player.GetXY()
-        return x, y, 0.0
-    return float(player.pos.x), float(player.pos.y), float(player.pos.zplane)
 
 
 def _is_inside_bounds(point: tuple[float, float]) -> bool:
@@ -219,27 +128,13 @@ def _is_on_navmesh(point: tuple[float, float], margin: float = 20.0) -> bool:
     return nav._bsp.find_with_margin(point[0], point[1], margin)
 
 
-def _compute_path(start: tuple[float, float, float], goal: tuple[float, float, float]) -> list[tuple[float, float, float]]:
-    planner = PyPathing.PathPlanner()
-    if hasattr(planner, "compute_immediate"):
-        try:
-            path = planner.compute_immediate(
-                start[0], start[1], start[2],
-                goal[0], goal[1], goal[2],
-            )
-            if isinstance(path, list):
-                return path
-        except Exception:
-            return []
-    return []
-
-
-def _reachable_path(start: tuple[float, float, float], goal_xy: tuple[float, float]) -> tuple[bool, int]:
-    goal = (goal_xy[0], goal_xy[1], start[2])
-    path = _compute_path(start, goal)
-    if not path:
-        return False, 0
-    return True, len(path)
+def _launch_path_computation(goal_x: float, goal_y: float):
+    """Coroutine: compute path from player to goal and store in state.current_path."""
+    state.path_computing = True
+    state.current_path = []
+    path = yield from AutoPathing().get_path_to(goal_x, goal_y)
+    state.current_path = list(path) if path else []
+    state.path_computing = False
 
 
 def _ring_candidates(target_xy: tuple[float, float]) -> list[tuple[float, float]]:
@@ -311,73 +206,35 @@ def _on_mission_map_right_click(click_game: tuple[float, float]) -> None:
     state.last_status = "Erreichbarer Punkt gefunden"
 
     if cfg.auto_move:
-        player = Player.GetAgent()
-        zplane = int(player.pos.zplane) if player is not None else 0
-        #Player.Move(snapped[0], snapped[1], zplane)
-        state.last_status = "MoveTo auf gesnappten Punkt gesetzt"
+        state.current_path = []
+        GLOBAL_CACHE.Coroutines.append(_launch_path_computation(snapped[0], snapped[1]))
+        Player.Move(snapped[0], snapped[1])
+        state.last_status = "Pfad wird berechnet …"
 
 
 def _try_get_mission_right_click_game_pos() -> tuple[bool, tuple[float, float] | None]:
-    """Detect a new right-click on the mission map.
+    """Detect a new right-click on the mission map via Map.MissionMap.GetLastRightClickCoords().
 
-    GW intercepts right-mouse-down before ImGui so is_mouse_clicked(1) never
-    fires for mission-map right-clicks.  We read last_mouse_location directly
-    from the GW native context struct, which is updated on every right-click
-    regardless of ImGui / IsWindowOpen state.
+    Returns the last click coords as game-space (gwinches) when a new click is detected.
+    Uses timestamp-deduplicated event from Map.MissionMap which reads GWContext internally.
     """
-    # ── Source 1: direct GWContext poll (no IsWindowOpen guard needed) ─────────
-    try:
-        ctx = GWContext.MissionMap.GetContext()
-        if ctx is not None:
-            nx = float(ctx.last_mouse_location.x)
-            ny = float(ctx.last_mouse_location.y)
-            new_pos = (nx, ny)
-            # Trigger on any position change (including from 0,0 → first click).
-            if new_pos != state.gw_last_mouse_location:
-                state.gw_last_mouse_location = new_pos
-                if new_pos == (0.0, 0.0):
-                    # position was reset by GW (e.g. map change) – ignore
-                    return False, None
-                gx_gy = _normed_to_game(nx, ny)
-                if gx_gy is None:
-                    return False, None
-                gx, gy = gx_gy
-                left, top, right, bottom = Map.MissionMap.GetMissionMapContentsCoords()
-                sx = left + ((nx + 1.0) * 0.5) * (right - left)
-                sy = top  + ((1.0 - ny) * 0.5) * (bottom - top)
-                state.raw_right_click_norm = new_pos
-                state.raw_right_click_screen = (float(sx), float(sy))
-                state.raw_right_click_game = (float(gx), float(gy))
-                state.last_mission_event_normalized = new_pos
-                state.last_detection_mode = "gw_ctx_direct"
-                return True, state.raw_right_click_game
-    except Exception:
-        pass
+    nx, ny = Map.MissionMap.GetLastRightClickCoords()
+    new_pos = (float(nx), float(ny))
 
-    # ── Source 2: ImGui fallback (only works if GW passes the event through) ───
-    if not Map.MissionMap.IsWindowOpen():
+    if new_pos == (0.0, 0.0):
         return False, None
-    io = PyImGui.get_io()
-    mx, my = float(io.mouse_pos_x), float(io.mouse_pos_y)
-    if PyImGui.is_mouse_clicked(1) and Map.MissionMap.IsMouseOver():
-        gx_gy = _screen_to_game(mx, my)
-        if gx_gy is None:
-            return False, None
-        gx, gy = gx_gy
-        left, top, right, bottom = Map.MissionMap.GetMissionMapContentsCoords()
-        w, h = right - left, bottom - top
-        nx2 = ((mx - left) / w) * 2.0 - 1.0 if w else 0.0
-        ny2 = (1.0 - (my - top) / h) * 2.0 - 1.0 if h else 0.0
-        norm2 = (float(nx2), float(ny2))
-        state.raw_right_click_screen = (mx, my)
-        state.raw_right_click_game = (float(gx), float(gy))
-        state.raw_right_click_norm = norm2
-        state.last_mission_event_normalized = norm2
-        state.gw_last_mouse_location = norm2
-        state.last_detection_mode = "imgui_direct"
-        return True, state.raw_right_click_game
+    if new_pos == state.gw_last_mouse_location:
+        return False, None
 
-    return False, None
+    state.gw_last_mouse_location = new_pos
+    gx, gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(nx, ny)
+    sx, sy = Map.MissionMap.MapProjection.NormalizedScreenToScreen(nx, ny)
+    state.raw_right_click_norm = new_pos
+    state.raw_right_click_screen = (float(sx), float(sy))
+    state.raw_right_click_game = (float(gx), float(gy))
+    state.last_mission_event_normalized = new_pos
+    state.last_detection_mode = "mission_map_event"
+    return True, state.raw_right_click_game
 
 
 def _update_runtime() -> None:
@@ -397,15 +254,11 @@ def _update_runtime() -> None:
         state.last_detection_mode = "none"
         state.navmesh = None
         state.navmesh_map_id = 0
-        # Seed from current GWContext so we don't fire spuriously on the first click
-        try:
-            _seed_ctx = GWContext.MissionMap.GetContext()
-            state.gw_last_mouse_location = (
-                float(_seed_ctx.last_mouse_location.x),
-                float(_seed_ctx.last_mouse_location.y),
-            ) if _seed_ctx is not None else (0.0, 0.0)
-        except Exception:
-            state.gw_last_mouse_location = (0.0, 0.0)
+        state.current_path = []
+        state.path_computing = False
+        # Seed detect-state so we don't fire spuriously on the first click after map load
+        _seed = Map.MissionMap.GetLastRightClickCoords()
+        state.gw_last_mouse_location = (float(_seed[0]), float(_seed[1]))
         state.last_clicked_target = None
         state.last_snapped_target = None
         state.last_path_points = 0
@@ -436,6 +289,8 @@ def _draw_config_ui() -> None:
         state.last_mission_event_normalized = None
         state.last_clicked_target = None
         state.last_snapped_target = None
+        state.current_path = []
+        state.path_computing = False
         state.last_path_points = 0
         state.last_distance_to_click = 0.0
         state.last_query_count = 0
@@ -454,20 +309,11 @@ def _draw_status_panel() -> None:
         PyImGui.text(f"Mouse over: {Map.MissionMap.IsMouseOver()}")
         PyImGui.text(f"Detect mode: {state.last_detection_mode}")
         PyImGui.text(f"Status: {state.last_status}")
-        # Live GWContext read so you can see the native value change on right-click
-        try:
-            _ctx = GWContext.MissionMap.GetContext()
-            if _ctx is not None:
-                _lx = _ctx.last_mouse_location.x
-                _ly = _ctx.last_mouse_location.y
-                PyImGui.text(f"GWCtx mouse loc: ({_lx:.4f}, {_ly:.4f})")
-                PyImGui.text(f"State gw_last:   ({state.gw_last_mouse_location[0]:.4f}, {state.gw_last_mouse_location[1]:.4f})")
-                PyImGui.text(f"Values differ: {(float(_lx), float(_ly)) != state.gw_last_mouse_location}")
-            else:
-                PyImGui.text("GWCtx mouse loc: (no context)")
-        except Exception as _e:
-            PyImGui.text(f"GWCtx: {_e}")
-        PyImGui.text(f"Path points: {state.last_path_points}")
+        _live_nx, _live_ny = Map.MissionMap.GetLastRightClickCoords()
+        PyImGui.text(f"Last RC (map event):  ({_live_nx:.4f}, {_live_ny:.4f})")
+        PyImGui.text(f"State gw_last:        ({state.gw_last_mouse_location[0]:.4f}, {state.gw_last_mouse_location[1]:.4f})")
+        PyImGui.text(f"Values differ: {(_live_nx, _live_ny) != state.gw_last_mouse_location}")
+        PyImGui.text(f"Path points: {len(state.current_path)} {'(computing…)' if state.path_computing else ''}")
         PyImGui.text(f"Path queries: {state.last_query_count}")
         PyImGui.text(f"Distance click->snap: {state.last_distance_to_click:.1f}")
         nm = state.navmesh
@@ -533,14 +379,22 @@ def _draw_mission_markers() -> None:
 
     # Calculate projected positions first
     if state.last_clicked_target is not None:
-        cs = _game_to_screen(state.last_clicked_target[0], state.last_clicked_target[1])
-        if cs is not None:
-            click_screen = cs
+        click_screen = Map.MissionMap.MapProjection.GameMapToScreen(
+            state.last_clicked_target[0], state.last_clicked_target[1])
 
     if state.last_snapped_target is not None:
-        ss = _game_to_screen(state.last_snapped_target[0], state.last_snapped_target[1])
-        if ss is not None:
-            snap_screen = ss
+        snap_screen = Map.MissionMap.MapProjection.GameMapToScreen(
+            state.last_snapped_target[0], state.last_snapped_target[1])
+
+    # Computed navmesh path (player → snapped point)
+    if len(state.current_path) >= 2:
+        path_color = Utils.RGBToColor(80, 160, 255, 210)
+        prev_s: tuple[float, float] | None = None
+        for px, py in state.current_path:
+            cur_s = Map.MissionMap.MapProjection.GameMapToScreen(px, py)
+            if prev_s is not None:
+                PyImGui.draw_list_add_line(prev_s[0], prev_s[1], cur_s[0], cur_s[1], path_color, 2.5)
+            prev_s = cur_s
 
     # Thin line from click to snap (draw first, markers on top)
     if click_screen is not None and snap_screen is not None:
