@@ -1,6 +1,7 @@
 {
   "name": "To kryta: Refugees",
-  "max_heroes": 4,
+  "max_heroes": 6,
+  "hero_team": "party_6",
   "take_quest": {
     "outpost_id": 133,
     "quest_npc_location": [-10183, 35115],

@@ -1,37 +1,14 @@
+import struct
 
-import time
-
+import PyAgent
 from .model_data import ModelData
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 from .native_src.context.WorldContext import AttributeStruct
-from .native_src.internals.helpers import encoded_wstr_to_str
+from .native_src.internals.string_table import decode as decode_codepoints
 
-# Agent
+
 class Agent:
-    name_cache: dict[int, tuple[str, float]] = {}  # agent_id -> (name, timestamp)
-    name_requested: set[int] = set()
-    name_timeout_ms = 1_000
 
-    
-    @staticmethod
-    def _update_cache() -> None:
-        import PyAgent
-        """Should be called every frame to resolve names when ready."""
-        now = time.time() * 1000
-        for agent_id in list(Agent.name_requested):
-            name = encoded_wstr_to_str(PyAgent.PyAgent.GetNameByID(agent_id))
-            if name is None:
-                name = "INVALID"
-
-            Agent.name_cache[agent_id] = (name, now)
-            Agent.name_requested.discard(agent_id)
-            
-    @staticmethod
-    def _reset_cache() -> None:
-        """Resets the name cache and requested set."""
-        Agent.name_cache.clear()
-        Agent.name_requested.clear()
-        
     @staticmethod
     def IsValid(agent_id: int) -> bool:
         """
@@ -138,36 +115,25 @@ class Agent:
         return gadget
     
     @staticmethod
-    def GetNameByID(agent_id : int) -> str:
-        import PyAgent
-        """Purpose: Get the native name of an agent by its ID."""
-        now = time.time() * 1000  # current time in ms
-        # Cached and still valid
-        if agent_id in Agent.name_cache:
-            name, timestamp = Agent.name_cache[agent_id]
-            if now - timestamp < Agent.name_timeout_ms:
-                return name
-            else:
-                # Expired; refresh
-                if agent_id not in Agent.name_requested:    
-                    PyAgent.PyAgent.GetNameByID(agent_id)
-                    Agent.name_requested.add(agent_id)
-                return name  # Still return old while waiting
-
-        # Already requested but not ready
-        if agent_id in Agent.name_requested:
+    def GetNameByID(agent_id: int) -> str:
+        """Get the decoded display name of an agent by its ID."""
+        enc_bytes = PyAgent.PyAgent.GetAgentEncName(agent_id)
+        if not enc_bytes:
             return ""
+        # Convert byte pairs to uint16 codepoints via struct (C-level, no Python loop)
+        raw = bytes(enc_bytes)
+        n = len(raw) & ~1
+        vals = struct.unpack_from(f'<{n // 2}H', raw)
+        try:
+            vals = vals[:vals.index(0)]
+        except ValueError:
+            pass
+        return decode_codepoints(vals)
 
-        PyAgent.PyAgent.GetNameByID(agent_id)
-        Agent.name_requested.add(agent_id)
-        return ""
-
-    #aliases for retro compatibility
     RequestName = GetNameByID
-        
+
     @staticmethod
     def IsNameReady(agent_id: int) -> bool:
-        """Purpose: Check if the agent name is ready."""
         return Agent.GetNameByID(agent_id) != ""
  
     

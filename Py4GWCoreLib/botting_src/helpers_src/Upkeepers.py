@@ -370,6 +370,12 @@ class _Upkeepers:
                     yield from Routines.Yield.wait(1000)
                     continue
                 
+                # Check if player has skill points (required to use summoning stones)
+                current_sp, _ = Player.GetSkillPointData()
+                if current_sp <= 0:
+                    yield from Routines.Yield.wait(1000)
+                    continue
+
                 # Check if player has Summoning Sickness effect
                 has_summoning_sickness = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id)
                 

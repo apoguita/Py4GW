@@ -49,20 +49,20 @@ class NecromancerPromiseSpiker_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.assassins_promise_utility: CustomSkillUtilityBase = AssassinsPromiseUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,
-            score_definition=ScoreStaticDefinition(90),
+            score_definition=ScoreStaticDefinition(95),
         )
         self.putrid_bile_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(
             event_bus=self.event_bus,
             skill=CustomSkill("Putrid_Bile"),
             current_build=in_game_build,
-            score_definition=ScoreStaticDefinition(86),
+            score_definition=ScoreStaticDefinition(70),
             mana_required_to_cast=10,
         )
         self.putrid_explosion_utility: CustomSkillUtilityBase = PutridExplosionUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,
             score_definition=ScorePerAgentQuantityDefinition(
-                lambda enemy_qte: 88 if enemy_qte >= 2 else 50
+                lambda enemy_qte: 80 if enemy_qte >= 2 else 50
             ),
             mana_required_to_cast=5,
         )
@@ -77,7 +77,7 @@ class NecromancerPromiseSpiker_UtilitySkillBar(CustomBehaviorBaseUtility):
             EbonVanguardAssassinSupportUtility(
                 event_bus=self.event_bus,
                 current_build=in_game_build,
-                score_definition=ScoreStaticDefinition(85),
+                score_definition=ScoreStaticDefinition(89),
                 mana_required_to_cast=15,
             )
         )

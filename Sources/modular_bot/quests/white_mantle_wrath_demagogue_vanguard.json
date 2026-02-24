@@ -1,6 +1,7 @@
 {
   "name": "White Mantle Wrath: Demagogue's Vanguard",
   "max_heroes": 6,
+  "hero_team": "party_6",
   "take_quest": {
     "outpost_id": 142,
     "quest_npc_location": [533, -4100],
