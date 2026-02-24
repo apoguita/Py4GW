@@ -40,6 +40,7 @@ class _Multibox:
             self.MapID = account_data.AgentData.Map.MapID
             self.MapRegion = account_data.AgentData.Map.Region
             self.MapDistrict = account_data.AgentData.Map.District
+            self.MapLanguage = account_data.AgentData.Map.Language
             self.PlayerID = account_data.AgentData.AgentID
             self.PlayerHP = account_data.AgentData.Health.Current
             self.PlayerMaxHP = account_data.AgentData.Health.Max
@@ -153,10 +154,11 @@ class _Multibox:
         for account in all_accounts:
             if (player_data.MapID == account.MapID and
                 player_data.MapRegion == account.MapRegion and
-                player_data.MapDistrict == account.MapDistrict):
+                player_data.MapDistrict == account.MapDistrict and
+                player_data.MapLanguage == account.MapLanguage):
                 continue
 
-            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, 0))
+            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, player_data.MapLanguage))
             yield from Routines.Yield.wait(500)
         yield
 
@@ -171,10 +173,11 @@ class _Multibox:
         
         if (player_data.MapID == account.MapID and
             player_data.MapRegion == account.MapRegion and
-            player_data.MapDistrict == account.MapDistrict):
+            player_data.MapDistrict == account.MapDistrict and
+            player_data.MapLanguage == account.MapLanguage):
             return
 
-        GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, 0))
+        GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, player_data.MapLanguage))
         yield from  Routines.Yield.wait(500)
         
     def _invite_all_accounts(self):
@@ -190,6 +193,7 @@ class _Multibox:
             if (player_data.MapID == account.MapID and
                 player_data.MapRegion == account.MapRegion and
                 player_data.MapDistrict == account.MapDistrict and
+                player_data.MapLanguage == account.MapLanguage and
                 player_data.PartyID != account.PartyID):
                 GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
                 GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
@@ -208,6 +212,7 @@ class _Multibox:
         if (player_data.MapID == account.MapID and
             player_data.MapRegion == account.MapRegion and
             player_data.MapDistrict == account.MapDistrict and
+            player_data.MapLanguage == account.MapLanguage and
             player_data.PartyID != account.PartyID):
             GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
             GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
