@@ -16,6 +16,7 @@ from .Globals import (
 )
 
 
+_agent_fast_timers: dict[int, ThrottledTimer] = {}
 _agent_medium_timers: dict[int, ThrottledTimer] = {}
 _agent_slow_timers: dict[int, ThrottledTimer] = {}
 
@@ -275,7 +276,7 @@ class AgentDataStruct(Structure):
         self.TypeMap = Agent.GetTypeMap(agent_id)
        
         
-        fast_timer = _get_agent_timer(_agent_medium_timers, timer_key, SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS)
+        fast_timer = _get_agent_timer(_agent_fast_timers, timer_key, SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS)
         if force_full or fast_timer.IsExpired():
             self.Map.from_context()
             self.Skillbar.from_context()
