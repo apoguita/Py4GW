@@ -1232,6 +1232,8 @@ def update():
 def draw():
     if not InventoryPlusWidgetInstance.initialized: return
     
+    #InventoryPlusWidgetInstance.update_auto_handler()
+    
     InventoryPlusWidgetInstance.DetectInventoryAction()
     if InventoryPlusWidgetInstance.show_config_window:
         InventoryPlusWidgetInstance.ShowConfigWindow()

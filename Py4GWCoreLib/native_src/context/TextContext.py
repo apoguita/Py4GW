@@ -127,6 +127,7 @@ class TextParser:
     _ptr: int = 0
     _cached_ctx: TextParserStruct | None = None
     _callback_name = "TextParser.UpdatePtr"
+    _string_table_triggered: bool = False
 
     @staticmethod
     def get_ptr() -> int:
@@ -148,10 +149,9 @@ class TextParser:
         TextParser._ptr = tp_ptr
         TextParser._cached_ctx = cast(tp_ptr, POINTER(TextParserStruct)).contents
 
-        # Synchronous string table load on first frame where TextParser is valid.
-        # Already on game thread (PreUpdate/Draw callback), so no enqueue needed.
-        from ..internals.string_table import _string_table_loaded, _do_load_string_table
-        if not _string_table_loaded:
+        if not TextParser._string_table_triggered:
+            TextParser._string_table_triggered = True
+            from ..internals.string_table import _do_load_string_table
             _do_load_string_table(TextParser._cached_ctx.language_id)
 
     @staticmethod
