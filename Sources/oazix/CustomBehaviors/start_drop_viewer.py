@@ -48,6 +48,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport impo
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import payload_has_valid_mods_json
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import default_ui_colors
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import draw_runtime_controls_panel
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
     build_name_chunks,
     make_name_signature,
@@ -65,6 +66,78 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
+
+# IDs in this set are known or structural helper modifiers and should not be
+# counted as "unknown" even if they are not present in local mods_data files.
+UNKNOWN_MOD_EXCLUDE_IDS = frozenset(
+    {
+        8408,
+        8680,
+        8728,
+        8920,
+        8952,
+        8968,
+        8984,
+        9000,
+        9112,
+        9128,
+        9240,
+        9400,
+        9656,
+        9720,
+        9736,
+        9880,
+        10136,
+        10296,
+        25288,
+        26568,
+        42120,
+        42920,
+        42936,
+        49152,
+    }
+)
+
+# Human-readable hints for known IDs that can still exist in historical exports.
+UNKNOWN_MOD_KNOWN_NAME_HINTS = {
+    8408: "Health loss component",
+    8680: "Rune attribute component",
+    8728: "Halves casting time of [Attribute] spells",
+    8920: "Energy +X",
+    8952: "Energy +X (while Enchanted)",
+    8968: "Energy +X (while Health is above X%)",
+    8984: "Energy +X (while Health is below X%)",
+    9000: "Energy +X (while hexed)",
+    9112: "Halves skill recharge of [Attribute] spells",
+    9128: "Halves skill recharge of spells",
+    9240: "[Attribute] +1 (Chance while using skills)",
+    9400: "Damage type component",
+    9656: "Target item type component",
+    9720: "Improved sale value",
+    9736: "Highly salvageable",
+    9880: "Caster metadata marker",
+    10136: "Requirement",
+    10296: "[Attribute] +1 (Chance: X%)",
+    25288: "Energy +X",
+    26568: "Energy +X",
+    42120: "Damage (no requirement)",
+    42920: "Damage",
+    42936: "Shield armor",
+    49152: "Structural marker",
+}
+
+UNKNOWN_MOD_ITEM_TYPE_HINTS = {
+    0: "Salvage",
+    5: "Upgrade",
+    9: "Tome",
+    11: "Material",
+    12: "Offhand",
+    22: "Wand",
+    24: "Shield",
+    26: "Staff",
+    27: "Sword",
+    32: "Daggers",
+}
 
 try:
     from Py4GWCoreLib.enums_src.Item_enums import ItemType
@@ -127,13 +200,42 @@ class DropViewerWindow:
         self.stats_name_signature_by_event = {}
         self.mod_db = self._load_mod_database()
         self.known_mod_ids = self._collect_known_mod_ids()
+        self.unknown_mod_exclude_ids = set(UNKNOWN_MOD_EXCLUDE_IDS)
         self.unknown_mod_catalog_path = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "drop_tracker_unknown_mod_ids.json")
+        self.unknown_mod_guess_report_path = os.path.join(
+            os.path.dirname(constants.DROP_LOG_PATH),
+            "drop_tracker_unknown_mod_guesses.json",
+        )
+        self.unknown_mod_pending_notes_path = os.path.join(
+            os.path.dirname(constants.DROP_LOG_PATH),
+            "drop_tracker_unknown_mod_pending.json",
+        )
+        self.unknown_mod_name_map_path = os.path.join(
+            os.path.dirname(constants.DROP_LOG_PATH),
+            "drop_tracker_unknown_mod_names.json",
+        )
         self.unknown_mod_catalog = {}
         self.unknown_mod_catalog_dirty = False
         self.unknown_mod_catalog_flush_timer = ThrottledTimer(1500)
+        self.unknown_mod_auto_export_enabled = True
+        self.unknown_mod_auto_export_timer = ThrottledTimer(1200)
+        self.unknown_mod_guess_auto_export_timer = ThrottledTimer(2500)
         self.unknown_mod_recent_seen = {}
         self.unknown_mod_recent_ttl_s = 15.0
+        self.unknown_mod_notify_enabled = True
+        self.unknown_mod_recent_notifications: list[str] = []
+        self.unknown_mod_recent_notifications_max = 10
+        self.unknown_mod_last_notify_status_ts = 0.0
+        self.unknown_mod_pending_notes: dict[str, dict[str, Any]] = {}
+        self.unknown_mod_popup_enabled = True
+        self.unknown_mod_popup_pending = False
+        self.unknown_mod_popup_message = ""
+        self.unknown_mod_custom_names: dict[str, str] = {}
+        self.unknown_mod_name_edit_id = 0
+        self.unknown_mod_name_edit_text = ""
         self._load_unknown_mod_catalog()
+        self._load_unknown_mod_pending_notes()
+        self._load_unknown_mod_name_map()
         self.enable_chat_item_tracking = False
         self.max_shmem_messages_per_tick = 80
         self.max_shmem_scan_per_tick = 600
@@ -191,6 +293,9 @@ class DropViewerWindow:
         self.auto_legionnaire_current_entry_key = ""
         self.auto_legionnaire_used_entry_key = ""
         self.identify_response_scheduler = IdentifyResponseScheduler()
+        self.pending_identify_mod_capture: dict[int, float] = {}
+        self.pending_identify_mod_capture_ttl_s = 20.0
+        self.pending_identify_mod_capture_max_scan_per_tick = 16
         self.auto_id_timer = ThrottledTimer(2500)
         self.auto_salvage_timer = ThrottledTimer(3000)
         self.auto_buy_kits_timer = ThrottledTimer(4000)
@@ -204,6 +309,8 @@ class DropViewerWindow:
         self.auto_salvage_total_queued = 0
         self.auto_id_last_run_ts = 0.0
         self.auto_salvage_last_run_ts = 0.0
+        self.auto_monitoring_settle_seconds = 1.2
+        self.auto_monitoring_last_gate_status_ts = 0.0
         self.auto_queue_progress_cap = 25
         self.auto_id_job_running = False
         self.auto_salvage_job_running = False
@@ -799,6 +906,267 @@ class DropViewerWindow:
         except EXPECTED_RUNTIME_ERRORS:
             self.unknown_mod_catalog = {}
 
+    def _load_unknown_mod_name_map(self):
+        self.unknown_mod_custom_names = {}
+        path = self._ensure_text(self.unknown_mod_name_map_path).strip()
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict) and isinstance(loaded.get("names", None), dict):
+                loaded = loaded.get("names", {})
+            if not isinstance(loaded, dict):
+                return
+            mapped = {}
+            for raw_key, raw_name in loaded.items():
+                ident = max(0, self._safe_int(raw_key, 0))
+                name_txt = self._ensure_text(raw_name).strip()
+                if ident <= 0 or not name_txt:
+                    continue
+                mapped[str(ident)] = name_txt[:120]
+            self.unknown_mod_custom_names = mapped
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_custom_names = {}
+
+    def _load_unknown_mod_pending_notes(self):
+        self.unknown_mod_pending_notes = {}
+        path = self._ensure_text(self.unknown_mod_pending_notes_path).strip()
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict) and isinstance(loaded.get("pending", None), dict):
+                loaded = loaded.get("pending", {})
+            if not isinstance(loaded, dict):
+                return
+            normalized = {}
+            for raw_key, raw_value in loaded.items():
+                ident = max(0, self._safe_int(raw_key, 0))
+                if ident <= 0:
+                    continue
+                if not isinstance(raw_value, dict):
+                    continue
+                note = {
+                    "id": ident,
+                    "owner": self._ensure_text(raw_value.get("owner", "")).strip(),
+                    "item": self._clean_item_name(raw_value.get("item", "")),
+                    "arg1": self._safe_int(raw_value.get("arg1", 0), 0),
+                    "arg2": self._safe_int(raw_value.get("arg2", 0), 0),
+                    "item_type": self._safe_int(raw_value.get("item_type", 0), 0),
+                    "model_id": self._safe_int(raw_value.get("model_id", 0), 0),
+                    "source": self._ensure_text(raw_value.get("source", "")).strip(),
+                    "first_seen": self._ensure_text(raw_value.get("first_seen", "")).strip(),
+                    "last_seen": self._ensure_text(raw_value.get("last_seen", "")).strip(),
+                    "count": max(1, self._safe_int(raw_value.get("count", 1), 1)),
+                }
+                normalized[str(ident)] = note
+            self.unknown_mod_pending_notes = normalized
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_pending_notes = {}
+
+    def _save_unknown_mod_pending_notes(self) -> bool:
+        path = self._ensure_text(self.unknown_mod_pending_notes_path).strip()
+        if not path:
+            return False
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            payload_notes = {}
+            for key in sorted(self.unknown_mod_pending_notes.keys(), key=lambda value: int(value)):
+                ident = max(0, self._safe_int(key, 0))
+                if ident <= 0:
+                    continue
+                note = dict(self.unknown_mod_pending_notes.get(key, {}) or {})
+                if not note:
+                    continue
+                payload_notes[str(ident)] = {
+                    "id": ident,
+                    "owner": self._ensure_text(note.get("owner", "")).strip(),
+                    "item": self._clean_item_name(note.get("item", "")),
+                    "arg1": self._safe_int(note.get("arg1", 0), 0),
+                    "arg2": self._safe_int(note.get("arg2", 0), 0),
+                    "item_type": self._safe_int(note.get("item_type", 0), 0),
+                    "model_id": self._safe_int(note.get("model_id", 0), 0),
+                    "source": self._ensure_text(note.get("source", "")).strip(),
+                    "first_seen": self._ensure_text(note.get("first_seen", "")).strip(),
+                    "last_seen": self._ensure_text(note.get("last_seen", "")).strip(),
+                    "count": max(1, self._safe_int(note.get("count", 1), 1)),
+                }
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "pending": payload_notes,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod pending save failed: {e}", Py4GW.Console.MessageType.Warning)
+            return False
+
+    def _upsert_unknown_mod_pending_note(
+        self,
+        ident: int,
+        owner_name: str = "",
+        item_name: str = "",
+        arg1: int = 0,
+        arg2: int = 0,
+        item_type: int = 0,
+        model_id: int = 0,
+        source: str = "",
+    ):
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return
+        key = str(ident_i)
+        now_txt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        note = dict(self.unknown_mod_pending_notes.get(key, {}) or {})
+        if not note:
+            note = {
+                "id": ident_i,
+                "owner": self._ensure_text(owner_name).strip(),
+                "item": self._clean_item_name(item_name),
+                "arg1": self._safe_int(arg1, 0),
+                "arg2": self._safe_int(arg2, 0),
+                "item_type": self._safe_int(item_type, 0),
+                "model_id": self._safe_int(model_id, 0),
+                "source": self._ensure_text(source).strip(),
+                "first_seen": now_txt,
+                "last_seen": now_txt,
+                "count": 1,
+            }
+        else:
+            note["owner"] = self._ensure_text(owner_name).strip() or self._ensure_text(note.get("owner", "")).strip()
+            note["item"] = self._clean_item_name(item_name) or self._clean_item_name(note.get("item", ""))
+            note["arg1"] = self._safe_int(arg1, note.get("arg1", 0))
+            note["arg2"] = self._safe_int(arg2, note.get("arg2", 0))
+            note["item_type"] = self._safe_int(item_type, note.get("item_type", 0))
+            note["model_id"] = self._safe_int(model_id, note.get("model_id", 0))
+            note["source"] = self._ensure_text(source).strip() or self._ensure_text(note.get("source", "")).strip()
+            note["last_seen"] = now_txt
+            note["count"] = max(1, self._safe_int(note.get("count", 1), 1) + 1)
+            if not self._ensure_text(note.get("first_seen", "")).strip():
+                note["first_seen"] = now_txt
+        self.unknown_mod_pending_notes[key] = note
+        self._save_unknown_mod_pending_notes()
+
+    def _remove_unknown_mod_pending_note(self, ident: int) -> bool:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return False
+        key = str(ident_i)
+        if key not in self.unknown_mod_pending_notes:
+            return False
+        self.unknown_mod_pending_notes.pop(key, None)
+        return self._save_unknown_mod_pending_notes()
+
+    def _unknown_mod_pending_lines(self, limit: int = 8) -> list[str]:
+        rows = []
+        for key, note in self.unknown_mod_pending_notes.items():
+            ident = max(0, self._safe_int(key, 0))
+            if ident <= 0:
+                continue
+            count = max(1, self._safe_int(note.get("count", 1), 1))
+            owner = self._ensure_text(note.get("owner", "")).strip() or "Unknown"
+            item = self._clean_item_name(note.get("item", "")) or "Unknown Item"
+            arg1 = self._safe_int(note.get("arg1", 0), 0)
+            arg2 = self._safe_int(note.get("arg2", 0), 0)
+            rows.append((count, ident, owner, item, arg1, arg2))
+        rows.sort(key=lambda row: (-row[0], row[1]))
+        return [
+            f"id={ident} x{count} | {owner} | {item} | a1={arg1} a2={arg2}"
+            for count, ident, owner, item, arg1, arg2 in rows[: max(1, int(limit))]
+        ]
+
+    def _unknown_mod_pending_count(self) -> int:
+        return len(self.unknown_mod_pending_notes)
+
+    def _save_unknown_mod_name_map(self) -> bool:
+        path = self._ensure_text(self.unknown_mod_name_map_path).strip()
+        if not path:
+            return False
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            sorted_names = {}
+            for key in sorted(self.unknown_mod_custom_names.keys(), key=lambda value: int(value)):
+                name_txt = self._ensure_text(self.unknown_mod_custom_names.get(key, "")).strip()
+                if name_txt:
+                    sorted_names[key] = name_txt
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "names": sorted_names,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod name map save failed: {e}", Py4GW.Console.MessageType.Warning)
+            return False
+
+    def _set_unknown_mod_custom_name(self, ident: int, name: str) -> bool:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return False
+        key = str(ident_i)
+        name_txt = self._ensure_text(name).strip()
+        if name_txt:
+            self.unknown_mod_custom_names[key] = name_txt[:120]
+            self.unknown_mod_name_edit_id = ident_i
+            self.unknown_mod_name_edit_text = self.unknown_mod_custom_names[key]
+            self._push_unknown_mod_notification(f"Mapped unknown mod id={ident_i} -> {self.unknown_mod_custom_names[key]}")
+            self._remove_unknown_mod_pending_note(ident_i)
+            if self._save_unknown_mod_name_map():
+                return True
+            return False
+        if key in self.unknown_mod_custom_names:
+            self.unknown_mod_custom_names.pop(key, None)
+            self.unknown_mod_name_edit_id = ident_i
+            self.unknown_mod_name_edit_text = ""
+            if self._save_unknown_mod_name_map():
+                return True
+            return False
+        return False
+
+    def _get_unknown_mod_custom_name(self, ident: int) -> str:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return ""
+        return self._ensure_text(self.unknown_mod_custom_names.get(str(ident_i), "")).strip()
+
+    def _unknown_mod_name_map_summary_lines(self, limit: int = 4) -> list[str]:
+        rows = []
+        for key, val in self.unknown_mod_custom_names.items():
+            ident = max(0, self._safe_int(key, 0))
+            name_txt = self._ensure_text(val).strip()
+            if ident > 0 and name_txt:
+                rows.append((ident, name_txt))
+        rows.sort(key=lambda it: it[0])
+        return [f"mapped id={ident}: {name_txt}" for ident, name_txt in rows[: max(1, int(limit))]]
+
+    def _collect_manual_named_mod_lines(self, raw_mods) -> list[str]:
+        lines = []
+        if not raw_mods:
+            return lines
+        seen = set()
+        for mod in list(raw_mods or []):
+            if not isinstance(mod, (list, tuple)) or len(mod) < 3:
+                continue
+            ident = max(0, self._safe_int(mod[0], 0))
+            if ident <= 0:
+                continue
+            custom_name = self._get_unknown_mod_custom_name(ident)
+            if not custom_name:
+                continue
+            arg1 = self._safe_int(mod[1], 0)
+            arg2 = self._safe_int(mod[2], 0)
+            line = custom_name if (arg1 == 0 and arg2 == 0) else f"{custom_name} [{arg1},{arg2}]"
+            key = re.sub(r"[^a-z0-9]+", "", f"{ident}:{line}".lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            lines.append(line)
+        return lines
+
     def _save_unknown_mod_catalog(self):
         path = self._ensure_text(self.unknown_mod_catalog_path).strip()
         if not path:
@@ -832,6 +1200,39 @@ class DropViewerWindow:
     def _get_unknown_mod_count(self) -> int:
         return len(self.unknown_mod_catalog)
 
+    def _is_known_or_excluded_mod_id(self, ident: int) -> bool:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return True
+        if ident_i in self.known_mod_ids:
+            return True
+        if self._get_unknown_mod_custom_name(ident_i):
+            return True
+        if ident_i in self.unknown_mod_exclude_ids:
+            return True
+        if ident_i in UNKNOWN_MOD_KNOWN_NAME_HINTS:
+            return True
+        return False
+
+    def _unknown_mod_item_type_labels(self, item_types, limit: int = 3) -> list[str]:
+        labels = []
+        for raw_type in list(item_types or []):
+            item_type_int = max(0, self._safe_int(raw_type, 0))
+            if item_type_int <= 0:
+                continue
+            type_name = UNKNOWN_MOD_ITEM_TYPE_HINTS.get(item_type_int, "")
+            if not type_name and ItemType is not None:
+                try:
+                    type_name = self._ensure_text(getattr(ItemType(item_type_int), "name", "")).strip()
+                except EXPECTED_RUNTIME_ERRORS:
+                    type_name = ""
+            label = f"{item_type_int}({type_name})" if type_name else str(item_type_int)
+            if label not in labels:
+                labels.append(label)
+            if len(labels) >= max(1, int(limit)):
+                break
+        return labels
+
     def _unknown_mod_summary_lines(self, limit: int = 8) -> list[str]:
         lines = []
         if not self.unknown_mod_catalog:
@@ -850,7 +1251,7 @@ class DropViewerWindow:
             arg1_max = value.get("arg1_max", None)
             arg2_min = value.get("arg2_min", None)
             arg2_max = value.get("arg2_max", None)
-            item_types = ",".join(str(v) for v in list(value.get("item_types", []) or [])[:3])
+            item_types = ",".join(self._unknown_mod_item_type_labels(value.get("item_types", []), limit=3))
             lines.append(
                 f"id={ident} hits={count} "
                 f"a1=[{arg1_min},{arg1_max}] "
@@ -859,11 +1260,330 @@ class DropViewerWindow:
             )
         return lines
 
-    def _record_unknown_mod_identifiers(self, raw_mods, snapshot: dict[str, Any] | None = None, source: str = ""):
-        known_ids = self.known_mod_ids
-        if not raw_mods or not known_ids:
+    def _push_unknown_mod_notification(self, line: str):
+        msg = self._ensure_text(line).strip()
+        if not msg:
             return
+        max_items = max(3, int(getattr(self, "unknown_mod_recent_notifications_max", 10)))
+        notes = list(getattr(self, "unknown_mod_recent_notifications", []) or [])
+        if not notes or notes[0] != msg:
+            notes.insert(0, msg)
+        self.unknown_mod_recent_notifications = notes[:max_items]
+
+    def _unknown_mod_notification_lines(self, limit: int = 4) -> list[str]:
+        notes = list(getattr(self, "unknown_mod_recent_notifications", []) or [])
+        out = []
+        for line in notes[: max(1, int(limit))]:
+            txt = self._ensure_text(line).strip()
+            if txt:
+                out.append(txt)
+        return out
+
+    def _notify_new_unknown_mod_discovered(
+        self,
+        ident: int,
+        arg1: int,
+        arg2: int,
+        owner_name: str = "",
+        item_name: str = "",
+        item_type: int = 0,
+        model_id: int = 0,
+        source: str = "",
+    ):
+        if not bool(getattr(self, "unknown_mod_notify_enabled", True)):
+            return
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return
+        owner_txt = self._ensure_text(owner_name).strip() or "Unknown"
+        item_txt = self._clean_item_name(item_name) or "Unknown Item"
+        source_txt = self._ensure_text(source).strip() or "unknown"
+        item_kind_labels = self._unknown_mod_item_type_labels([item_type], limit=1)
+        item_kind_txt = item_kind_labels[0] if item_kind_labels else str(int(item_type))
+        msg = (
+            f"New unknown mod: id={ident_i} owner='{owner_txt}' item='{item_txt}' "
+            f"a1={int(arg1)} a2={int(arg2)} type={item_kind_txt} model={int(model_id)} src={source_txt}"
+        )
+        self._upsert_unknown_mod_pending_note(
+            ident=ident_i,
+            owner_name=owner_txt,
+            item_name=item_txt,
+            arg1=int(arg1),
+            arg2=int(arg2),
+            item_type=int(item_type),
+            model_id=int(model_id),
+            source=source_txt,
+        )
+        self._push_unknown_mod_notification(msg)
+        Py4GW.Console.Log("DropViewer", msg, Py4GW.Console.MessageType.Info)
+        if bool(getattr(self, "unknown_mod_popup_enabled", True)):
+            self.unknown_mod_popup_message = msg
+            self.unknown_mod_popup_pending = True
+        now_ts = time.time()
+        last_status_ts = float(getattr(self, "unknown_mod_last_notify_status_ts", 0.0) or 0.0)
+        if (now_ts - last_status_ts) >= 0.7:
+            self.unknown_mod_last_notify_status_ts = now_ts
+            self.set_status(msg)
+
+    def _guess_unknown_mod_entry(self, ident: int, entry: dict[str, Any]) -> dict[str, Any]:
+        ident_i = max(0, self._safe_int(ident, 0))
+        normalized = self._normalize_unknown_mod_entry(entry)
+        count = max(0, self._safe_int(normalized.get("count", 0), 0))
+        arg1_min = normalized.get("arg1_min", None)
+        arg1_max = normalized.get("arg1_max", None)
+        arg2_min = normalized.get("arg2_min", None)
+        arg2_max = normalized.get("arg2_max", None)
+        item_types = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("item_types", []) or [])]
+        item_types = [v for v in item_types if v > 0]
+        co_mod_ids = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("co_mod_ids", []) or [])]
+        co_mod_ids = [v for v in co_mod_ids if v > 0 and v != ident_i]
+        sample_items = [self._clean_item_name(v) for v in list(normalized.get("sample_items", []) or [])]
+        sample_items = [v for v in sample_items if v]
+        sample_items_lower = [v.lower() for v in sample_items]
+        co_mod_set = set(co_mod_ids)
+        item_type_set = set(item_types)
+
+        custom_name = self._get_unknown_mod_custom_name(ident_i)
+        if custom_name:
+            return {
+                "guess": custom_name,
+                "confidence": 100,
+                "confidence_label": "High",
+                "basis": ["manual mapping"],
+                "is_known_hint": True,
+            }
+
+        known_hint = self._ensure_text(UNKNOWN_MOD_KNOWN_NAME_HINTS.get(ident_i, "")).strip()
+        if known_hint:
+            return {
+                "guess": known_hint,
+                "confidence": 100,
+                "confidence_label": "High",
+                "basis": ["known modifier hint"],
+                "is_known_hint": True,
+            }
+
+        guess = "Unmapped modifier (manual label needed)"
+        score = 28
+        basis = []
+
+        caster_markers = {8728, 8920, 8952, 8968, 8984, 9000, 9112, 9128, 9880, 25288, 26568}
+        base_stat_markers = {10136, 42120, 42920, 42936}
+        armor_markers = {8408, 8680, 9224, 9520, 10218, 41928, 42288}
+
+        if sample_items and all("tome" in name for name in sample_items_lower[: min(3, len(sample_items_lower))]):
+            guess = "Tome metadata/profession marker"
+            score = 66
+            basis.append("seen only on Tome items")
+        else:
+            material_tokens = ("ingot", "hide", "square", "dust", "wood", "cloth", "fiber", "bone", "scale")
+            is_material_name = any(any(token in name for token in material_tokens) for name in sample_items_lower)
+            if is_material_name and co_mod_set.issubset({49152}):
+                guess = "Material stack marker"
+                score = 62
+                basis.append("material names + structural co-mods")
+
+        if guess.startswith("Unmapped"):
+            if item_type_set & {12, 22, 26} and co_mod_set & caster_markers:
+                guess = "Caster weapon mod family (HCT/HSR/Energy)"
+                score = 64
+                basis.append("caster item types + caster co-mod IDs")
+            elif item_type_set & {24, 27} and co_mod_set & base_stat_markers:
+                guess = "Melee/shield companion modifier"
+                score = 55
+                basis.append("melee/shield co-mod IDs")
+
+        if co_mod_set & armor_markers:
+            if arg1_min == arg1_max == 40 and arg2_min == arg2_max == 0:
+                guess = "Armor bonus scalar (+40 family)"
+                score = max(score, 74)
+                basis.append("fixed a1=40 with armor markers")
+            elif arg1_min == arg1_max == 0 and arg2_min == arg2_max == 10:
+                guess = "Armor bonus scalar (+10 family)"
+                score = max(score, 68)
+                basis.append("fixed a2=10 with armor markers")
+            elif guess.startswith("Unmapped"):
+                guess = "Armor/rune metadata modifier"
+                score = max(score, 58)
+                basis.append("co-occurs with armor/rune markers")
+
+        if arg1_min == arg1_max == 0 and arg2_min == arg2_max == 0 and len(co_mod_set) >= 3:
+            if guess.startswith("Unmapped"):
+                guess = "Structural marker (no direct tooltip line)"
+                score = max(score, 52)
+                basis.append("always zero args + broad co-occurrence")
+
+        if count >= 25:
+            score += 12
+            basis.append("high observation count")
+        elif count >= 10:
+            score += 8
+        elif count >= 5:
+            score += 4
+        elif count <= 2:
+            score -= 8
+
+        score = max(15, min(99, int(score)))
+        if score >= 85:
+            confidence_label = "High"
+        elif score >= 60:
+            confidence_label = "Medium"
+        else:
+            confidence_label = "Low"
+
+        if not basis:
+            basis.append("not enough correlated data yet")
+
+        return {
+            "guess": guess,
+            "confidence": score,
+            "confidence_label": confidence_label,
+            "basis": list(dict.fromkeys(basis))[:4],
+            "is_known_hint": False,
+        }
+
+    def _unknown_mod_guess_report_entries(self, include_known: bool = True) -> list[dict[str, Any]]:
+        entries = []
+        for key, value in self.unknown_mod_catalog.items():
+            ident = max(0, self._safe_int(key, 0))
+            if ident <= 0:
+                continue
+            normalized = self._normalize_unknown_mod_entry(value or {})
+            guess = self._guess_unknown_mod_entry(ident, normalized)
+            if not include_known and bool(guess.get("is_known_hint", False)):
+                continue
+            item_types = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("item_types", []) or [])]
+            item_types = [v for v in item_types if v > 0]
+            co_mod_ids = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("co_mod_ids", []) or [])]
+            co_mod_ids = [v for v in co_mod_ids if v > 0 and v != ident]
+            sample_items = [self._clean_item_name(v) for v in list(normalized.get("sample_items", []) or [])]
+            sample_items = [v for v in sample_items if v]
+            entries.append(
+                {
+                    "id": ident,
+                    "hits": max(0, self._safe_int(normalized.get("count", 0), 0)),
+                    "guess": self._ensure_text(guess.get("guess", "")).strip() or "Unmapped modifier",
+                    "confidence": max(0, min(100, self._safe_int(guess.get("confidence", 0), 0))),
+                    "confidence_label": self._ensure_text(guess.get("confidence_label", "")).strip() or "Low",
+                    "is_known_hint": bool(guess.get("is_known_hint", False)),
+                    "basis": list(guess.get("basis", []) or []),
+                    "arg1_min": normalized.get("arg1_min", None),
+                    "arg1_max": normalized.get("arg1_max", None),
+                    "arg2_min": normalized.get("arg2_min", None),
+                    "arg2_max": normalized.get("arg2_max", None),
+                    "item_types": item_types,
+                    "item_type_labels": self._unknown_mod_item_type_labels(item_types, limit=12),
+                    "sample_items": sample_items[:12],
+                    "co_mod_ids": co_mod_ids[:40],
+                    "last_seen": self._ensure_text(normalized.get("last_seen", "")).strip(),
+                }
+            )
+        entries.sort(key=lambda row: (-int(row.get("hits", 0)), int(row.get("id", 0))))
+        return entries
+
+    def _get_unknown_mod_unresolved_count(self) -> int:
+        return len(self._unknown_mod_guess_report_entries(include_known=False))
+
+    def _unknown_mod_guess_summary_lines(self, limit: int = 8, include_known: bool = False) -> list[str]:
+        lines = []
+        entries = self._unknown_mod_guess_report_entries(include_known=include_known)
+        for row in entries[: max(1, int(limit))]:
+            ident = max(0, self._safe_int(row.get("id", 0), 0))
+            hits = max(0, self._safe_int(row.get("hits", 0), 0))
+            confidence = max(0, min(100, self._safe_int(row.get("confidence", 0), 0)))
+            confidence_label = self._ensure_text(row.get("confidence_label", "")).strip() or "Low"
+            guess = self._ensure_text(row.get("guess", "")).strip() or "Unmapped modifier"
+            basis = list(row.get("basis", []) or [])
+            basis_txt = f" ({basis[0]})" if basis else ""
+            lines.append(
+                f"id={ident} hits={hits} {confidence_label}({confidence}%): {guess}{basis_txt}"
+            )
+        return lines
+
+    def _export_unknown_mod_guess_report(self, include_known: bool = True) -> str:
+        self._flush_unknown_mod_catalog_if_dirty(force=True)
+        path = self._ensure_text(self.unknown_mod_guess_report_path).strip()
+        if not path:
+            return ""
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            entries = self._unknown_mod_guess_report_entries(include_known=include_known)
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "source_catalog_path": self.unknown_mod_catalog_path,
+                "entry_count": int(len(entries)),
+                "entries": entries,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return path
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod guess export failed: {e}", Py4GW.Console.MessageType.Warning)
+            return ""
+
+    def _auto_export_unknown_mod_artifacts_if_due(self, force: bool = False):
+        if not bool(getattr(self, "unknown_mod_auto_export_enabled", True)):
+            return
+        if not self.unknown_mod_catalog_dirty and not force:
+            return
+
+        should_export_catalog = bool(force)
+        if not should_export_catalog:
+            try:
+                should_export_catalog = bool(self.unknown_mod_auto_export_timer.IsExpired())
+            except EXPECTED_RUNTIME_ERRORS:
+                should_export_catalog = True
+        if not should_export_catalog:
+            return
+
+        try:
+            self.unknown_mod_auto_export_timer.Reset()
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        self._flush_unknown_mod_catalog_if_dirty(force=True)
+        if not self.unknown_mod_catalog:
+            return
+
+        should_export_guess = bool(force)
+        if not should_export_guess:
+            try:
+                should_export_guess = bool(self.unknown_mod_guess_auto_export_timer.IsExpired())
+            except EXPECTED_RUNTIME_ERRORS:
+                should_export_guess = True
+        if not should_export_guess:
+            return
+
+        try:
+            self.unknown_mod_guess_auto_export_timer.Reset()
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        self._export_unknown_mod_guess_report(include_known=True)
+
+    def _record_unknown_mod_identifiers(
+        self,
+        raw_mods,
+        snapshot: dict[str, Any] | None = None,
+        source: str = "",
+        suppress_mod_ids: set[int] | None = None,
+    ):
+        if not raw_mods:
+            return
+        suppressed = {max(0, self._safe_int(v, 0)) for v in list(suppress_mod_ids or set())}
+        suppressed = {v for v in suppressed if v > 0}
+        removed_known = False
+        for ident_i in suppressed:
+            key_i = str(ident_i)
+            if key_i in self.unknown_mod_catalog:
+                self.unknown_mod_catalog.pop(key_i, None)
+                removed_known = True
+            self._remove_unknown_mod_pending_note(ident_i)
+        if removed_known:
+            self.unknown_mod_catalog_dirty = True
+            self._auto_export_unknown_mod_artifacts_if_due(force=True)
         src = self._ensure_text(source).strip() or self._ensure_text((snapshot or {}).get("_source", "")).strip() or "unknown"
+        owner_name = self._ensure_text((snapshot or {}).get("_owner", "")).strip()
         item_name = self._clean_item_name((snapshot or {}).get("name", ""))
         event_id = self._ensure_text((snapshot or {}).get("event_id", "")).strip()
         model_id = max(0, self._safe_int((snapshot or {}).get("model_id", 0), 0))
@@ -891,11 +1611,15 @@ class DropViewerWindow:
             self.unknown_mod_recent_seen = {}
 
         changed = False
+        was_dirty_before = bool(self.unknown_mod_catalog_dirty)
         for mod in list(raw_mods or []):
             if not isinstance(mod, (list, tuple)) or len(mod) < 3:
                 continue
             ident = max(0, self._safe_int(mod[0], 0))
-            if ident <= 0 or ident in known_ids:
+            if ident in suppressed:
+                self._remove_unknown_mod_pending_note(ident)
+                continue
+            if self._is_known_or_excluded_mod_id(ident):
                 continue
             arg1 = self._safe_int(mod[1], 0)
             arg2 = self._safe_int(mod[2], 0)
@@ -905,6 +1629,7 @@ class DropViewerWindow:
             self.unknown_mod_recent_seen[dedupe_key] = now_ts
 
             key = str(ident)
+            is_new_mod_id = key not in self.unknown_mod_catalog
             entry = self._normalize_unknown_mod_entry(self.unknown_mod_catalog.get(key, {}))
             entry["count"] = max(0, int(entry.get("count", 0))) + 1
 
@@ -951,10 +1676,22 @@ class DropViewerWindow:
             entry["sources"] = source_map
             entry["last_seen"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.unknown_mod_catalog[key] = entry
+            if is_new_mod_id:
+                self._notify_new_unknown_mod_discovered(
+                    ident=ident,
+                    arg1=arg1,
+                    arg2=arg2,
+                    owner_name=owner_name,
+                    item_name=item_name,
+                    item_type=item_type,
+                    model_id=model_id,
+                    source=src,
+                )
             changed = True
 
         if changed:
             self.unknown_mod_catalog_dirty = True
+            self._auto_export_unknown_mod_artifacts_if_due(force=not was_dirty_before)
 
     def _export_unknown_mod_catalog(self) -> str:
         self._flush_unknown_mod_catalog_if_dirty(force=True)
@@ -1245,6 +1982,7 @@ class DropViewerWindow:
         self.stats_render_cache_by_event = {}
         self.stats_name_signature_by_event = {}
         self.identify_response_scheduler.clear()
+        self.pending_identify_mod_capture = {}
         self._reset_live_log_file()
 
     def load_drops(self):
@@ -1714,8 +2452,13 @@ class DropViewerWindow:
             "item_type": 0,
             "raw_mods": [],
             "_source": "local_api",
+            "_owner": "",
         }
         try:
+            try:
+                snapshot["_owner"] = self._ensure_text(Player.GetName()).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                snapshot["_owner"] = ""
             clean_name = ""
             try:
                 if Item.IsNameReady(item_id):
@@ -1796,11 +2539,6 @@ class DropViewerWindow:
                 if not isinstance(mod, (list, tuple)) or len(mod) < 3:
                     continue
                 raw_mods.append((int(mod[0]), int(mod[1]), int(mod[2])))
-            self._record_unknown_mod_identifiers(
-                raw_mods,
-                snapshot=snapshot,
-                source=self._ensure_text(snapshot.get("_source", "")),
-            )
             if not raw_mods:
                 return "\n".join(lines)
 
@@ -1818,6 +2556,8 @@ class DropViewerWindow:
                     req_val = int(arg2)
                 elif ident == 9720:
                     lines.append("Improved sale value")
+                elif ident == 9736:
+                    lines.append("Highly salvageable")
             if req_val > 0:
                 attr_txt = ""
                 try:
@@ -1842,6 +2582,7 @@ class DropViewerWindow:
                     item_attr_txt_for_known = ""
 
             parsed_any_mod_line = False
+            suppress_unknown_ids: set[int] = set()
             if self.mod_db is not None:
                 parser_attr_txt = item_attr_txt_for_known
                 if parse_modifiers is not None and item_type is not None:
@@ -1865,6 +2606,9 @@ class DropViewerWindow:
                             else:
                                 lines.append(f"{nm} ({val})" if val else nm)
                                 parsed_any_mod_line = True
+                            for matched in list(getattr(mod, "matched_modifiers", []) or []):
+                                if isinstance(matched, (list, tuple)) and len(matched) >= 1:
+                                    suppress_unknown_ids.add(max(0, self._safe_int(matched[0], 0)))
                         for rune in parsed.runes:
                             rune_name = self._ensure_text(getattr(rune.rune, "name", "")).strip()
                             rune_desc = self._ensure_text(getattr(rune.rune, "description", "")).strip()
@@ -1876,6 +2620,9 @@ class DropViewerWindow:
                             if rendered_lines:
                                 lines.extend(rendered_lines)
                                 parsed_any_mod_line = True
+                            for matched in list(getattr(rune, "modifiers", []) or []):
+                                if isinstance(matched, (list, tuple)) and len(matched) >= 1:
+                                    suppress_unknown_ids.add(max(0, self._safe_int(matched[0], 0)))
                     except EXPECTED_RUNTIME_ERRORS:
                         pass
                 # Broad fallback matching is only trustworthy when item type is known.
@@ -1891,7 +2638,14 @@ class DropViewerWindow:
                     lines.extend(name_mod_lines)
                     parsed_any_mod_line = True
 
+            lines.extend(self._collect_manual_named_mod_lines(raw_mods))
             lines.extend(self._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
+            self._record_unknown_mod_identifiers(
+                raw_mods,
+                snapshot=snapshot,
+                source=self._ensure_text(snapshot.get("_source", "")),
+                suppress_mod_ids=suppress_unknown_ids,
+            )
 
             normalized_lines = []
             split_pattern = re.compile(
@@ -1961,7 +2715,12 @@ class DropViewerWindow:
         canonical = sort_stats_lines_like_ingame(canonical)
         return "\n".join(canonical)
 
-    def _build_item_stats_from_payload_text(self, payload_text: str, fallback_item_name: str = "") -> str:
+    def _build_item_stats_from_payload_text(
+        self,
+        payload_text: str,
+        fallback_item_name: str = "",
+        owner_name: str = "",
+    ) -> str:
         payload_raw = self._ensure_text(payload_text).strip()
         if not payload_raw:
             return ""
@@ -1978,6 +2737,7 @@ class DropViewerWindow:
             "item_type": self._safe_int(payload.get("t", 0), 0),
             "raw_mods": payload.get("mods", []),
             "_source": "shared_payload",
+            "_owner": self._ensure_text(owner_name).strip(),
         }
         return self._build_item_stats_from_snapshot(snapshot)
 
@@ -2014,7 +2774,13 @@ class DropViewerWindow:
             self.remote_stats_pending_by_event.pop(event_key, None)
             self.stats_name_signature_by_event.pop(event_key, None)
 
-    def _render_payload_stats_cached(self, cache_key: str, payload_text: str, fallback_item_name: str = "") -> str:
+    def _render_payload_stats_cached(
+        self,
+        cache_key: str,
+        payload_text: str,
+        fallback_item_name: str = "",
+        owner_name: str = "",
+    ) -> str:
         event_key = self._ensure_text(cache_key).strip()
         payload_raw = self._ensure_text(payload_text).strip()
         if not event_key or not payload_raw:
@@ -2025,11 +2791,11 @@ class DropViewerWindow:
             if isinstance(cached, dict):
                 cached["updated_at"] = time.time()
             return cached_rendered
-        rendered = self._build_item_stats_from_payload_text(payload_raw, fallback_item_name).strip()
+        rendered = self._build_item_stats_from_payload_text(payload_raw, fallback_item_name, owner_name=owner_name).strip()
         update_render_cache(self.stats_render_cache_by_event, event_key, payload_raw, rendered, time.time())
         return rendered
 
-    def _request_remote_stats_for_row(self, row):
+    def _request_remote_stats_for_row(self, row, force_refresh: bool = False):
         parsed = self._parse_drop_row(row)
         if parsed is None:
             return
@@ -2046,7 +2812,7 @@ class DropViewerWindow:
         if not event_id:
             return
         event_cache_key = self._resolve_stats_cache_key_for_row(row)
-        if self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key):
+        if (not force_refresh) and self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key):
             return
         now_ts = time.time()
         pending_ts = float(self.remote_stats_pending_by_event.get(event_cache_key, 0.0))
@@ -2061,6 +2827,8 @@ class DropViewerWindow:
         sent = False
         if item_id > 0:
             sent = self._send_inventory_action_to_email(target_email, "push_item_stats", str(item_id), event_id)
+        if not sent:
+            sent = self._send_inventory_action_to_email(target_email, "push_item_stats_event", str(item_id), event_id)
         if not sent:
             item_signature = self._ensure_text(self.stats_name_signature_by_event.get(event_cache_key, "")).strip().lower()
             if not item_signature and item_name:
@@ -2181,6 +2949,7 @@ class DropViewerWindow:
             if result is False:
                 self.set_status("Identify failed: API rejected request")
                 return False
+            self._remember_identify_mod_capture_candidates([item_id])
             if event_id:
                 row_sender_email = self._extract_row_sender_email(row)
                 row_player_name = self._ensure_text(parsed.player_name).strip() if parsed else ""
@@ -2229,10 +2998,13 @@ class DropViewerWindow:
                 event_cache_key,
                 payload_text,
                 self._ensure_text(parsed.item_name) if parsed else "",
+                owner_name=self._ensure_text(parsed.player_name) if parsed else "",
             ).strip()
             if rendered:
                 self._set_row_item_stats(row, rendered)
                 self.stats_by_event[event_cache_key] = rendered
+                if not is_local_row and self._stats_text_is_basic(rendered):
+                    self._request_remote_stats_for_row(row, force_refresh=True)
                 return rendered
 
         text = self._extract_row_item_stats(row)
@@ -2396,6 +3168,39 @@ class DropViewerWindow:
                 break
         return list(best_with_item_id) if best_with_item_id is not None else (list(best_any) if best_any is not None else None)
 
+    def _get_selected_item_rows(self, rows=None) -> list[list[Any]]:
+        pool = rows if rows is not None else self.raw_drops
+        if not pool or not self.selected_item_key:
+            return []
+        matches: list[list[Any]] = []
+        for row in reversed(list(pool)):
+            if self._row_matches_selected_item(row):
+                matches.append(list(row))
+        return matches
+
+    def _get_selected_row_index(self, selected_rows: list[list[Any]]) -> int:
+        if not selected_rows:
+            return -1
+        selected_event_id = self._extract_row_event_id(self.selected_log_row) if self.selected_log_row else ""
+        if selected_event_id:
+            for idx, row in enumerate(selected_rows):
+                if self._extract_row_event_id(row) == selected_event_id:
+                    return idx
+        if self.selected_log_row:
+            selected_parsed = self._parse_drop_row(self.selected_log_row)
+            selected_name = self._ensure_text(selected_parsed.item_name if selected_parsed else "").strip().lower()
+            selected_player = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip().lower()
+            selected_ts = self._ensure_text(selected_parsed.timestamp if selected_parsed else "").strip()
+            for idx, row in enumerate(selected_rows):
+                row_parsed = self._parse_drop_row(row)
+                if (
+                    self._ensure_text(row_parsed.item_name if row_parsed else "").strip().lower() == selected_name
+                    and self._ensure_text(row_parsed.player_name if row_parsed else "").strip().lower() == selected_player
+                    and self._ensure_text(row_parsed.timestamp if row_parsed else "").strip() == selected_ts
+                ):
+                    return idx
+        return 0
+
     def _identify_item_for_all_characters(self, item_name: str, rarity: str, rows=None) -> bool:
         pool = rows if rows is not None else self.raw_drops
         if not pool:
@@ -2507,20 +3312,46 @@ class DropViewerWindow:
         PyImGui.text(f"Total Quantity: {stats['quantity']}")
         PyImGui.text(f"Drop Count: {stats['count']}")
 
+        selected_rows = self._get_selected_item_rows()
+        if selected_rows:
+            selected_idx = self._get_selected_row_index(selected_rows)
+            selected_idx = max(0, min(selected_idx, len(selected_rows) - 1))
+            if self.selected_log_row is None or not self._row_matches_selected_item(self.selected_log_row):
+                self.selected_log_row = list(selected_rows[selected_idx])
+
+            if PyImGui.button("Prev Item"):
+                selected_idx = (selected_idx - 1) % len(selected_rows)
+                self.selected_log_row = list(selected_rows[selected_idx])
+            PyImGui.same_line(0.0, 8.0)
+            if PyImGui.button("Next Item"):
+                selected_idx = (selected_idx + 1) % len(selected_rows)
+                self.selected_log_row = list(selected_rows[selected_idx])
+            PyImGui.same_line(0.0, 12.0)
+            PyImGui.text_colored(
+                f"Showing Item {selected_idx + 1}/{len(selected_rows)}",
+                (0.78, 0.78, 0.78, 1.0),
+            )
+
         if self.selected_log_row and self._row_matches_selected_item(self.selected_log_row):
             selected_parsed = self._parse_drop_row(self.selected_log_row)
             selected_char = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip() or "Unknown"
             selected_map = self._ensure_text(selected_parsed.map_name if selected_parsed else "").strip() or "Unknown"
             selected_ts = self._ensure_text(selected_parsed.timestamp if selected_parsed else "").strip() or "Unknown"
-            PyImGui.text(f"Selected Entry: {selected_char} | {selected_map} | {selected_ts}")
+            selected_qty = int(selected_parsed.quantity) if selected_parsed is not None else 1
+            if selected_qty < 1:
+                selected_qty = 1
+            selected_rarity = self._ensure_text(selected_parsed.rarity if selected_parsed else "").strip() or self._ensure_text(stats.get("rarity", "Unknown")).strip() or "Unknown"
+            rarity_color = self._get_rarity_color(selected_rarity)
+            PyImGui.text_colored(f"Selected Entry: {selected_char} | {selected_map} | {selected_ts}", rarity_color)
+            PyImGui.text_colored(f"Selected Qty: {selected_qty}", rarity_color)
             stats_text = self._get_row_stats_text(self.selected_log_row)
             if stats_text:
                 PyImGui.separator()
-                PyImGui.text("Item Mods / Stats")
+                PyImGui.text_colored("Item Mods / Stats", rarity_color)
                 for line in stats_text.splitlines():
                     line_txt = self._ensure_text(line).strip()
                     if line_txt:
-                        PyImGui.text(line_txt)
+                        PyImGui.text_colored(line_txt, rarity_color)
             else:
                 PyImGui.text_colored("No detailed mod stats available for this row.", (0.78, 0.78, 0.78, 1.0))
             if self.debug_item_stats_panel:
@@ -3690,6 +4521,20 @@ class DropViewerWindow:
                     PyImGui.close_current_popup()
                 PyImGui.end_popup_modal()
 
+            if self.unknown_mod_popup_pending:
+                PyImGui.open_popup("UnknownModAlert")
+                self.unknown_mod_popup_pending = False
+            if PyImGui.begin_popup_modal("UnknownModAlert", True, PyImGui.WindowFlags.AlwaysAutoResize):
+                PyImGui.text_colored("New Unknown Mod Detected", (1.0, 0.86, 0.40, 1.0))
+                PyImGui.separator()
+                popup_msg = self._ensure_text(getattr(self, "unknown_mod_popup_message", "")).strip()
+                if popup_msg:
+                    PyImGui.text_wrapped(popup_msg)
+                PyImGui.separator()
+                if self._styled_button("OK", "primary"):
+                    PyImGui.close_current_popup()
+                PyImGui.end_popup_modal()
+
             PyImGui.same_line(0.0, 40.0)
             if self._styled_button("Clear/Reset", "danger", tooltip="Clear live file and in-memory drop stats"):
                  try:
@@ -4016,6 +4861,8 @@ class DropViewerWindow:
         self.last_update_time = now
 
         try:
+            self._process_pending_identify_mod_capture()
+
             if self.config_poll_timer.IsExpired():
                 self.config_poll_timer.Reset()
                 self._load_runtime_config()
@@ -4348,7 +5195,12 @@ class DropViewerWindow:
                                 self.stats_render_cache_by_event.pop(stats_cache_key, None)
                                 return
 
-                            rendered = self._render_payload_stats_cached(stats_cache_key, merged_payload, "").strip()
+                            rendered = self._render_payload_stats_cached(
+                                stats_cache_key,
+                                merged_payload,
+                                "",
+                                owner_name=stats_sender_name,
+                            ).strip()
                             if rendered:
                                 self.stats_by_event[stats_cache_key] = rendered
                             self.stats_payload_by_event[stats_cache_key] = merged_payload
@@ -4665,9 +5517,42 @@ class DropViewerWindow:
              Py4GW.Console.Log("RarityDebug", f"Snapshot Error: {e}", Py4GW.Console.MessageType.Error)
         return snapshot
 
+    def _is_monitoring_settled_for_auto_inventory(self, set_status: bool = False) -> bool:
+        reason = ""
+        now_ts = time.time()
+        try:
+            sender = DropTrackerSender()
+            if not bool(getattr(sender, "is_warmed_up", True)):
+                reason = "drop monitor warming up"
+            elif int(getattr(sender, "last_snapshot_total", 0)) > 0 and int(getattr(sender, "last_snapshot_ready", 0)) == 0:
+                reason = "inventory snapshot unstable"
+            else:
+                pending_names = len(getattr(sender, "pending_slot_deltas", {}) or {})
+                if pending_names > 0:
+                    reason = f"pending name resolution ({pending_names})"
+                else:
+                    settle_seconds = max(0.2, float(getattr(self, "auto_monitoring_settle_seconds", 1.2)))
+                    activity_ts = float(getattr(sender, "last_inventory_activity_ts", 0.0) or 0.0)
+                    if activity_ts > 0.0:
+                        elapsed = max(0.0, now_ts - activity_ts)
+                        if elapsed < settle_seconds:
+                            reason = f"inventory changed {elapsed:.1f}s ago"
+        except EXPECTED_RUNTIME_ERRORS:
+            reason = ""
+
+        if reason and set_status:
+            last_gate_ts = float(getattr(self, "auto_monitoring_last_gate_status_ts", 0.0) or 0.0)
+            if (now_ts - last_gate_ts) >= 1.5:
+                self.auto_monitoring_last_gate_status_ts = now_ts
+                self.set_status(f"Auto inventory paused: {reason}")
+        return reason == ""
+
     def _queue_identify_for_rarities(self, rarities):
         now_ts = time.time()
         self.auto_id_last_run_ts = now_ts
+        if not self._is_monitoring_settled_for_auto_inventory(set_status=False):
+            self.auto_id_last_queued = 0
+            return 0
         if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
             return 0
         try:
@@ -4676,6 +5561,7 @@ class DropViewerWindow:
                 self.auto_id_last_queued = 0
                 self._refresh_auto_inventory_pending_counts(force=True)
                 return 0
+            self._remember_identify_mod_capture_candidates(items)
             GLOBAL_CACHE.Coroutines.append(
                 self._run_inventory_routine_job(
                     Routines.Yield.Items.IdentifyItems(items, log=True),
@@ -4717,6 +5603,9 @@ class DropViewerWindow:
     def _queue_salvage_for_rarities(self, rarities):
         now_ts = time.time()
         self.auto_salvage_last_run_ts = now_ts
+        if not self._is_monitoring_settled_for_auto_inventory(set_status=False):
+            self.auto_salvage_last_queued = 0
+            return 0
         if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
             return 0
         try:
@@ -6094,6 +6983,51 @@ class DropViewerWindow:
             self.set_status(f"Outpost Store queue failed: {e}")
             return False
 
+    def _remember_identify_mod_capture_candidates(self, item_ids) -> int:
+        try:
+            raw_list = list(item_ids or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            raw_list = []
+        if not raw_list:
+            return 0
+        now_ts = time.time()
+        ttl_s = max(5.0, float(getattr(self, "pending_identify_mod_capture_ttl_s", 20.0)))
+        deadline = now_ts + ttl_s
+        remembered = 0
+        for raw_item_id in raw_list:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+            prev_deadline = float(self.pending_identify_mod_capture.get(item_id, 0.0) or 0.0)
+            self.pending_identify_mod_capture[item_id] = max(prev_deadline, deadline)
+            remembered += 1
+        return remembered
+
+    def _process_pending_identify_mod_capture(self):
+        pending = getattr(self, "pending_identify_mod_capture", None)
+        if not isinstance(pending, dict) or not pending:
+            return
+        now_ts = time.time()
+        max_scan = max(1, int(getattr(self, "pending_identify_mod_capture_max_scan_per_tick", 16)))
+        scanned = 0
+        for item_id in list(pending.keys()):
+            if scanned >= max_scan:
+                break
+            scanned += 1
+            deadline = float(pending.get(item_id, 0.0) or 0.0)
+            if deadline > 0.0 and now_ts >= deadline:
+                pending.pop(item_id, None)
+                continue
+            try:
+                if not bool(Item.Usage.IsIdentified(int(item_id))):
+                    continue
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+
+            # Rebuild stats after identification so newly exposed mods get tracked/exported.
+            self._build_item_stats_from_live_item(int(item_id), "")
+            pending.pop(item_id, None)
+
     def _process_pending_identify_responses(self):
         def _is_identified(item_id: int) -> bool:
             try:
@@ -6142,6 +7076,9 @@ class DropViewerWindow:
                 return
 
             if self._run_auto_buy_kits_once_on_outpost_entry_tick():
+                return
+
+            if (self.auto_id_enabled or self.auto_salvage_enabled) and not self._is_monitoring_settled_for_auto_inventory(set_status=True):
                 return
 
             queued_id = 0
