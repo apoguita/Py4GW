@@ -307,6 +307,7 @@ class ProfilerMetricNameCatalog:
         """Clear cached profiler timing stats while keeping parsed names/indexes."""
         self.stats_by_raw_name.clear()
         self.history_by_raw_name.clear()
+        Py4GW.Console.clear_profiler_history()
 
     def get_stats(self, raw_name: str) -> dict[str, float] | None:
         """Return timing stats for a raw metric name, if available."""

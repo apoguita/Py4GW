@@ -227,12 +227,12 @@ def read_dat_file(
     return _read_record(rec)
 
 
-def read_dat_file_by_hash(file_hash: int) -> Optional[bytes]:
+def read_dat_file_by_hash(file_hash: int | str) -> Optional[bytes]:
     """Read a gw.dat entry by file hash.
 
-    The hash is the value decoded from ``AreaInfoStruct.file_id``
-    (e.g. ``file_id1`` / ``file_id2``).  Internally converted to a
-    null-terminated ``wchar_t`` string and passed to ``FileHashToRecObj``.
+    Accepts either a single int (converted to one wchar) or a str
+    (multi-char hash, e.g. from TextParser file slots). Passed as a
+    null-terminated ``wchar_t`` string to ``FileHashToRecObj``.
 
     Call from any game-thread context (e.g. widget ``update()`` or
     ``Phase.Data`` callback).
@@ -241,7 +241,9 @@ def read_dat_file_by_hash(file_hash: int) -> Optional[bytes]:
     _ensure_hooks()
     if not dat_hooks_available():
         return None
-    # Null-terminated single-wchar string
-    buf = (ctypes.c_wchar * 2)(chr(file_hash), '\0')
+    if isinstance(file_hash, int):
+        buf = (ctypes.c_wchar * 2)(chr(file_hash), '\0')
+    else:
+        buf = (ctypes.c_wchar * (len(file_hash) + 1))(*file_hash, '\0')
     rec = _FileHashToRecObj_Func.directCall(buf, 1, 0)
     return _read_record(rec)
