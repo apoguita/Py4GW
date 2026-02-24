@@ -71,6 +71,10 @@ class _ITEMS:
     def Equip(self, model_id: int):
         self._helpers.Items.equip(model_id)
 
+    def EquipOnHero(self, hero_type, model_id: int):
+        """Equip item (by model_id) on the hero matching hero_type (HeroType enum)."""
+        self._helpers.Items.equip_on_hero(hero_type, model_id)
+
     def Destroy(self, model_id: int):
         self._helpers.Items.destroy(model_id)
 

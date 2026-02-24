@@ -3,7 +3,8 @@ from typing import Literal, Tuple
 
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          Map, ImGui, ActionQueueManager, Agent, Player, AgentArray)
+                          Map, ImGui, ActionQueueManager, Agent, Player, AgentArray,
+                          TitleID, TITLE_TIERS)
 
 
 class BotSettings:
@@ -11,6 +12,8 @@ class BotSettings:
     EOTN_OUTPOST_ID = 642
     HOM_OUTPOST_ID = 646
     AUSPICIOUS_BEGINNINGS_MAP_ID = 849
+
+    CUSTOM_BOW_ID = 0 # Change this is you already have a custom bow made for AB. Oppressor Flatbow 35405
 
     # Gold threshold for deposit
     GOLD_THRESHOLD_DEPOSIT: int = 90000
@@ -26,34 +29,25 @@ class BotSettings:
     # Material purchases
     ECTOS_BOUGHT: int = 0
 
+    # Vanguard title cache (populated at start and after each successful run)
+    VANGUARD_SCANNED: bool = False
+    VANGUARD_RANK: int = 0
+    VANGUARD_TIER_NAME: str = "–"
+    VANGUARD_POINTS: int = 0
+    VANGUARD_NEXT_REQUIRED: int | None = None
+
     # Misc
     DEBUG: bool = False
 
 
 # ── Combat AI constants ───────────────────────────────────────────────────────
-_MIKU_MODEL_ID      = 8433
+_MIKU_MODEL_ID      = 8443
 _SHADOWSONG_ID      = 4264
 _SOS_SPIRIT_IDS     = frozenset({4280, 4281, 4282})  # Anger, Hate, Suffering
 _AOE_SKILLS         = {1380: 2000, 1372: 2000, 1083: 2000, 830: 2000, 192: 5000}
-_MIKU_FAR_DIST      = 1400.0
-_MIKU_CLOSE_DIST    = 1100.0
-_SPIRIT_FLEE_DIST   = 1600.0
+_MIKU_FAR_DIST      = 1000.0
+_SPIRIT_FLEE_DIST   = 1700.0
 _AOE_SIDESTEP_DIST  = 350.0
-
-# White Mantle Ritualist priority targets (in kill priority order, highest first).
-# IDs are base values + 10 adjustment for post-update model IDs.
-_PRIORITY_TARGET_MODELS = [
-    8301,  # PRIMARY  – Shadowsong / Bloodsong / Pain / Anguish rit
-    8299,  # PRIMARY  – Rit/Monk: Preservation, strong heal, hex-remove, spirits
-    8303,  # PRIORITY – Weapon of Remedy rit (hard-rez)
-    8298,  #            Rit/Paragon spear caster
-    8300,  #            SoS rit
-    8302,  # 2nd prio – Minion-summoning rit
-    8254,  #            Ritualist (additional)
-]
-_TARGET_SWITCH_INTERVAL = 1.0   # seconds between priority-target checks
-_PRIORITY_TARGET_RANGE  = Range.Earshot.value  # only target priority enemies within this distance
-
 
 def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, dist: float):
     """Return a point 'dist' away from threat, in the direction away from it."""
@@ -95,10 +89,8 @@ def _combat_ai_loop(bot: "Botting"):
     ai_paused_fsm = False   # True only when THIS coroutine issued the pause
     aoe_sidestep_at = 0.0
     aoe_caster_id = 0
-    last_target_check = 0.0
-    locked_target_id = 0                            # priority target we're locked onto
-    locked_priority = len(_PRIORITY_TARGET_MODELS)  # priority index of locked target
     _prev_reasons: set = set()  # used to log changes once, not every frame
+    auto_combat_suppressed_by_empathy = False
 
     ConsoleLog(BOT_NAME, "CombatAI loop started", Py4GW.Console.MessageType.Info)
 
@@ -130,20 +122,32 @@ def _combat_ai_loop(bot: "Botting"):
         miku_id = Routines.Agents.GetAgentIDByModelID(_MIKU_MODEL_ID)
         miku_dead = miku_id != 0 and Agent.IsDead(miku_id)
         miku_far = False
+        miku_combat = False
+        me_combat = False
         mk_x = mk_y = 0.0
         if miku_id != 0 and not miku_dead:
             mk_x, mk_y = Agent.GetXY(miku_id)
             miku_far = _dist(me_x, me_y, mk_x, mk_y) > _MIKU_FAR_DIST
+            miku_combat = Agent.IsInCombatStance(miku_id)
+            me_combat = Agent.IsInCombatStance(me_id)
 
-        if miku_dead:
+        if miku_dead and me_combat:
+            nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Earshot.value)
+            ne_x, ne_y = Agent.GetXY(nearest_enemy)
+            ex_x, ex_y = _escape_point(me_x, me_y, ne_x, ne_y, 1500)
+            Player.Move(ex_x, ex_y)
+            yield from Routines.Yield.wait(200)
+            continue
+        elif miku_dead:
             _set_pause("miku_dead")
         else:
             _clear_pause("miku_dead")
-
-        if miku_far:
-            _set_pause("miku_far")
-        else:
-            _clear_pause("miku_far")
+        
+        if miku_far and not miku_dead and (me_combat or miku_combat):
+            mk_x, mk_y = Agent.GetXY(miku_id)
+            ex_x, ex_y = _escape_point(me_x, me_y, mk_x, mk_y, -200)
+            Player.Move(ex_x, ex_y)
+            yield from Routines.Yield.wait(200)
 
         # ── 2. Spirit avoidance ───────────────────────────────────────────────
         spirit_id = 0
@@ -159,11 +163,6 @@ def _combat_ai_loop(bot: "Botting"):
                     sp_x, sp_y = ex, ey
                     break
 
-        if spirit_id != 0:
-            _set_pause("spirit")
-        else:
-            _clear_pause("spirit")
-
         # ── Debug: log reason changes once per transition ─────────────────────
         if BotSettings.DEBUG and pause_reasons != _prev_reasons:
             added   = pause_reasons - _prev_reasons
@@ -176,62 +175,31 @@ def _combat_ai_loop(bot: "Botting"):
 
         now = time.time()
 
-        # ── 3. Priority target selection (runs every frame, before movement) ──
-        if now - last_target_check >= _TARGET_SWITCH_INTERVAL:
-            last_target_check = now
-            # Validate locked target: drop it if dead or out of range
-            if locked_target_id != 0:
-                if not Agent.IsValid(locked_target_id) or Agent.IsDead(locked_target_id):
-                    locked_target_id = 0
-                    locked_priority = len(_PRIORITY_TARGET_MODELS)
-                else:
-                    lx, ly = Agent.GetXY(locked_target_id)
-                    if _dist(me_x, me_y, lx, ly) > _PRIORITY_TARGET_RANGE:
-                        locked_target_id = 0
-                        locked_priority = len(_PRIORITY_TARGET_MODELS)
-            # Scan for a strictly higher-priority target (or any if none locked)
-            best_id = 0
-            best_priority = len(_PRIORITY_TARGET_MODELS)
-            for eid in enemy_array:
-                if Agent.IsDead(eid):
-                    continue
-                ex, ey = Agent.GetXY(eid)
-                if _dist(me_x, me_y, ex, ey) > _PRIORITY_TARGET_RANGE:
-                    continue
-                model = Agent.GetModelID(eid)
-                if model in _PRIORITY_TARGET_MODELS:
-                    prio = _PRIORITY_TARGET_MODELS.index(model)
-                    if prio < best_priority:
-                        best_priority = prio
-                        best_id = eid
-            # Lock onto new target only if strictly higher priority than current lock
-            if best_id != 0 and best_priority < locked_priority:
-                locked_target_id = best_id
-                locked_priority = best_priority
-                if BotSettings.DEBUG:
-                    ConsoleLog(BOT_NAME,
-                               f"Locked priority target: model {_PRIORITY_TARGET_MODELS[locked_priority]} "
-                               f"(prio {locked_priority}) agent {locked_target_id}",
-                               Py4GW.Console.MessageType.Info)
-            # Call the locked target every interval until dead
-            if locked_target_id != 0:
-                Player.ChangeTarget(locked_target_id)
-                bot.Player.CallTarget()
-
         # ── 4. Act on movement conditions (priority order) ────────────────────
-        if miku_dead:
-            # Wait for Miku to revive — nothing to do but stay paused
-            yield
-            continue
-
-        if spirit_id != 0:
+        enemy_array_close = Routines.Agents.GetFilteredEnemyArray(me_x, me_y, 250, True)
+        enemies_in_range = Routines.Agents.GetFilteredEnemyArray(me_x, me_y, 2000)
+        enemies_close_alive = 0
+        
+        # Player will avoid spirits as long as other enemies exist, once all real enemies are dead and we are healthy engage spirits, makes runs slight faster
+        if (spirit_id != 0 and len(enemies_in_range) > 3) or (spirit_id != 0 and Agent.GetHealth(Player.GetAgentID()) < 0.5):
             ex_x, ex_y = _escape_point(me_x, me_y, sp_x, sp_y, 600)
             Player.Move(ex_x, ex_y)
             yield from Routines.Yield.wait(200)
             continue
-
-        if miku_far:
-            Player.Move(mk_x, mk_y)
+        # Moves player closer to enemies if Miku has not agroed yet
+        if me_combat and not miku_combat:
+            nearest_enemy = Routines.Agents.GetNearestEnemy(1200)
+            ne_x, ne_y = Agent.GetXY(nearest_enemy)
+            ex_x, ex_y = _escape_point(me_x, me_y, ne_x, ne_y, -200)
+            Player.Move(ex_x, ex_y)
+            yield from Routines.Yield.wait(200)
+            continue
+        # If two or more enemies are within melee of player, player will kite
+        if len(enemy_array_close) > 1:
+            nearest_enemy = Routines.Agents.GetNearestEnemy(300)
+            ne_x, ne_y = Agent.GetXY(nearest_enemy)
+            ex_x, ex_y = _escape_point(me_x, me_y, ne_x, ne_y, 200)
+            Player.Move(ex_x, ex_y)
             yield from Routines.Yield.wait(200)
             continue
 
@@ -260,6 +228,8 @@ def _combat_ai_loop(bot: "Botting"):
 
     # Cleanup: don't leave the FSM paused when exiting the map
     ConsoleLog(BOT_NAME, "CombatAI loop exiting map — cleaning up", Py4GW.Console.MessageType.Info)
+    if auto_combat_suppressed_by_empathy:
+        bot.Properties.ApplyNow("auto_combat", "active", True)
     for reason in list(pause_reasons):
         _clear_pause(reason)
 
@@ -269,6 +239,10 @@ bot = Botting("Auspicious Beginnings",
      
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)
+    def _initial_vanguard_scan():
+        _update_vanguard_cache()
+        yield
+    bot.States.AddCustomState(lambda: _initial_vanguard_scan(), "ScanVanguardRank")
     GoToEOTN(bot)
     GetBonusBow(bot)
     QuestLoopEntry(bot)  # Start the quest loop
@@ -288,10 +262,12 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("movement_timeout","value", 15000)
     bot.Properties.ApplyNow("auto_combat","active", False)
     yield from Routines.Yield.wait(8000)
+    yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.HOM_OUTPOST_ID, timeout=30000)
+    bot.Properties.ApplyNow("halt_on_death","active", False)
     fsm = bot.config.FSM
-    fsm.jump_to_state_by_name("[H]Prepare for Quest_5") 
-    fsm.resume()                           
-    yield  
+    fsm.jump_to_state_by_name("[H]Prepare for Quest_5")
+    fsm.resume()
+    yield
     
 def on_death(bot: "Botting"):
     print ("Player is dead. Run Failed, Restarting...")
@@ -323,28 +299,65 @@ def GoToEOTN(bot: Botting) -> None:
             return
 
         Map.Travel(BotSettings.EOTN_OUTPOST_ID)
-        yield from Routines.Yield.wait(1000)
-        yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID) 
+        yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID, timeout=15000)
 
     bot.States.AddCustomState(lambda: _go_to_eotn(bot), "GoToEOTN")
       
 def GetBonusBow(bot: Botting):
     bot.States.AddHeader("Check for Bonus Bow")
 
-    def _get_bonus_bow(bot: Botting):
-        current_map = Map.GetMapID()
-        should_skip_bonus_bow = current_map == BotSettings.HOM_OUTPOST_ID
-        if should_skip_bonus_bow:
-            if BotSettings.DEBUG:   
-                print(f"[DEBUG] Already in HOM, skipping bonus bow")
-            return
+    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventoryOrEquipped(11730):
+        return
+    else:
+        bot.Map.Travel(194)
+        bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
+        bot.States.AddCustomState(withdraw_gold, "Withdraw 20k Gold")
+        bot.Move.XYAndInteractNPC(1592.00, -796.00)  # Common material merchant
+        bot.States.AddCustomState(BuyShortbowMaterials, "Buy Weapoon Materials")
+        bot.Wait.ForTime(1500)
+        bot.Move.XYAndInteractNPC(-1387.00, -3910.00)  # Weapon crafter in Shing Jea Monastery
+        bot.Wait.ForTime(1000)
+        exec_fn = lambda: DoCraftShortbow(bot)
+        bot.States.AddCustomState(exec_fn, "Craft Weapons")
 
-        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Bonus_Nevermore_Flatbow.value):
-            yield from bot.helpers.Items._spawn_bonus_items()
-        yield from Routines.Yield.wait(1000)
-        yield from bot.helpers.Items._destroy_bonus_items(exclude_list=[ModelID.Bonus_Nevermore_Flatbow.value])
+_SHORTBOW_DATA = {
+    "buy":    [(ModelID.Wood_Plank.value, 10), (ModelID.Plant_Fiber.value, 5)],
+    "pieces": [(11730, [ModelID.Wood_Plank.value, ModelID.Plant_Fiber.value], [100, 50])],  # Longbow, 10 wood planks
+}
 
-    bot.States.AddCustomState(lambda: _get_bonus_bow(bot), "GetBonusBow")
+def withdraw_gold(target_gold=20000, deposit_all=True):
+    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+
+    if gold_on_char > target_gold and deposit_all:
+        to_deposit = gold_on_char - target_gold
+        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+        yield from Routines.Yield.wait(250)
+
+    if gold_on_char < target_gold:
+        to_withdraw = target_gold - gold_on_char
+        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+        yield from Routines.Yield.wait(250)
+
+def BuyShortbowMaterials():
+    for mat, count in _SHORTBOW_DATA["buy"]:
+        for _ in range(count):
+            yield from Routines.Yield.Merchant.BuyMaterial(mat)
+
+def DoCraftShortbow(bot: Botting):
+    for weapon_id, mats, qtys in _SHORTBOW_DATA["pieces"]:
+        result = yield from Routines.Yield.Items.CraftItem(weapon_id, 5000, mats, qtys)
+        if not result:
+            ConsoleLog("DoCraftWeapon", f"Failed to craft weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+        result = yield from Routines.Yield.Items.EquipItem(weapon_id)
+        if not result:
+            ConsoleLog("DoCraftWeapon", f"Failed to equip weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+    return True
 
 def CheckAndDepositGold(bot: Botting) -> None:
     """Check gold on character, deposit if needed"""
@@ -366,8 +379,7 @@ def CheckAndDepositGold(bot: Botting) -> None:
                     print(f"[DEBUG] Traveling to EOTN from map {current_map}")
 
                 Map.Travel(BotSettings.EOTN_OUTPOST_ID)
-                yield from Routines.Yield.wait(1000)
-                yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID)
+                yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID, timeout=15000)
                 current_map = BotSettings.EOTN_OUTPOST_ID
 
             # Deposit gold only if storage hasn't reached 800k
@@ -410,8 +422,7 @@ def ExitToHOM(bot: Botting) -> None:
                 if BotSettings.DEBUG:   
                     print(f"[DEBUG] Not in EOTN, traveling there first")
                 Map.Travel(BotSettings.EOTN_OUTPOST_ID)
-                yield from Routines.Yield.wait(1000)
-                yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID)
+                yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID, timeout=15000)
 
             if BotSettings.DEBUG:   
                 print(f"[DEBUG] Moving to portal coordinates and exiting to HOM")
@@ -428,7 +439,7 @@ def ExitToHOM(bot: Botting) -> None:
 def PrepareForQuest(bot: Botting) -> None:
     """Prepare for quest in HOM: acquire and equip Keiran's Bow"""
     bot.States.AddHeader("Prepare for Quest")
-    bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID)
+    #bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID)
 
     def _prepare_for_quest(bot: Botting):
         # Get Keiran's Bow if we don't have it
@@ -447,12 +458,12 @@ def deposit_gold(bot: Botting):
     # Deposit all gold if character has 90k or more
     if gold_on_char >= 90000:
         bot.Map.Travel(target_map_id=642)
-        bot.Wait.ForMapLoad(target_map_id=642)
+        #bot.Wait.ForMapLoad(target_map_id=642)
         yield from Routines.Yield.wait(500)
         GLOBAL_CACHE.Inventory.DepositGold(gold_on_char)
         yield from Routines.Yield.wait(500)
         bot.Move.XYAndExitMap(-4873.00, 5284.00, target_map_id=646)
-        bot.Wait.ForMapLoad(target_map_id=646)
+        #bot.Wait.ForMapLoad(target_map_id=646)
         yield
 
 def BuyMaterials(bot: Botting):
@@ -474,7 +485,7 @@ def BuyMaterials(bot: Botting):
                 break
             yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Glob_Of_Ectoplasm.value)
             BotSettings.ECTOS_BOUGHT += 1  # Increment ecto counter
-            yield from Routines.Yield.wait(100)  # Small delay between purchases
+            yield from Routines.Yield.wait(500)  # Small delay between purchases
 
 def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
@@ -495,36 +506,50 @@ def RunQuest(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _handle_war_supplies(bot, False), "DisableWarSupplies")
 
     bot.Move.XY(10165.07, -6181.43, step_name="First Spawn")
-    #bot.Wait.UntilOutOfCombat()
+
     bot.Properties.Disable("pause_on_danger")
-    path = [(8859.57, -7388.68), (9012.46, -9027.44)]
-    bot.Move.FollowAutoPath(path, step_name="To corner")
+    bot.Move.XY(9724.85, -9671.76)
     bot.Properties.Enable("pause_on_danger")
+    bot.Move.XY(8660.40, -8289.95)
+    bot.Move.XY(5314.61, -7081.49)
+    bot.Move.XY(3258.03, -7818.52)
+    bot.Move.XY(2626.34, -10105.07)
+    bot.Move.XY(-1015.23, -11944.23)
+    bot.Move.XY(-2292.38, -9034.12)
+    bot.Move.XY(-4000.69, -10906.09)
+    bot.Move.XY(-5762.23, -10164.04)
+    bot.Move.XY(-10148.25, -7884.56)
+    bot.Move.XY(-13609.29, -8113.12)
+    bot.Move.XY(-16070.03, -8736.15)
+    #bot.Wait.UntilOutOfCombat()
+    #bot.Properties.Disable("pause_on_danger")
+    #path = [(8859.57, -7388.68), (9012.46, -9027.44)]
+    #bot.Move.FollowAutoPath(path, step_name="To corner")
+    #bot.Properties.Enable("pause_on_danger")
     #bot.Wait.UntilOutOfCombat()
 
-    bot.Move.XY(4518.81, -9504.34, step_name="To safe spot 0")
-    bot.Wait.ForTime(4000)
-    bot.Properties.Disable("pause_on_danger")
-    bot.Move.XY(2622.71, -9575.04, step_name="To patrol")
-    bot.Properties.Enable("pause_on_danger")
-    bot.Move.XY(325.22, -11728.24)
+    #bot.Move.XY(3113.68, -7008.46)
+    #bot.Properties.Disable("pause_on_danger")
+    #bot.Move.XY(2622.71, -9575.04, step_name="To patrol")
+    #bot.Properties.Enable("pause_on_danger")
+    #bot.Move.XY(325.22, -11728.24)
     
-    bot.Properties.Disable("pause_on_danger")
-    bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
-    bot.Move.XY(-5109.05, -12717.40, step_name="To patrol 3")
-    bot.Move.XY(-6868.76, -12248.82, step_name="To patrol 4")
-    bot.Properties.Enable("pause_on_danger")
+    
+    #bot.Move.XY(-2860.21, -12198.37, step_name="To middle")
+    #bot.Move.XY(-2934.80, -9382.55)
+    
+    #bot.Move.XY(-5109.05, -12717.40, step_name="To patrol 3")
+    #bot.Properties.Disable("pause_on_danger")
+    #bot.Move.XY(-6868.76, -12248.82, step_name="To patrol 4")
+    #bot.Properties.Enable("pause_on_danger")
 
-    bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
-    bot.Wait.ForMapToChange(target_map_id=BotSettings.HOM_OUTPOST_ID)
-
-    _DisableCombat(bot)
-
+    #bot.Move.XY(-15858.25, -8840.35, step_name="To End of Path")
     bot.Wait.ForMapLoad(target_map_id=BotSettings.HOM_OUTPOST_ID)
     
     # Increment success counter at runtime, not setup time
     def _increment_success():
         _increment_runs_counters(bot, "success")
+        _update_vanguard_cache()
         yield
     
     bot.States.AddCustomState(lambda: _increment_success(), "IncrementSuccessCounter")
@@ -533,11 +558,15 @@ def RunQuest(bot: Botting) -> None:
     bot.States.JumpToStepName("[H]Check and Deposit Gold_3")
 
 def _handle_bonus_bow(bot: Botting):
-    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventory(ModelID.Bonus_Nevermore_Flatbow.value)
+    bonus_bow_id = 11730
+
+    if BotSettings.CUSTOM_BOW_ID != 0:
+        bonus_bow_id = BotSettings.CUSTOM_BOW_ID
+    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventory(bonus_bow_id)
     if has_bonus_bow:
         if BotSettings.DEBUG:   
             print(f"[DEBUG] Bonus bow found, equipping")
-        yield from bot.helpers.Items._equip(ModelID.Bonus_Nevermore_Flatbow.value)
+        yield from bot.helpers.Items._equip(bonus_bow_id)
     else:
         if BotSettings.DEBUG:
             print(f"[DEBUG] Bonus bow not found in inventory or equipped")
@@ -545,7 +574,7 @@ def _handle_bonus_bow(bot: Botting):
 
 def _handle_war_supplies(bot: Botting, value: bool):
     if BotSettings.WAR_SUPPLIES_ENABLED:
-        if BotSettings.DEBUG:   
+        if BotSettings.DEBUG:
             print(f"[DEBUG] War supplies { 'enabled' if value else 'disabled' }")
         bot.Properties.ApplyNow("war_supplies", "active", value)
     yield
@@ -567,6 +596,38 @@ def _fail_rate():
     if BotSettings.TOTAL_RUNS == 0:
         return "0.00%"
     return f"{BotSettings.FAILED_RUNS / BotSettings.TOTAL_RUNS * 100:.2f}%"
+
+def _get_vanguard_rank_info():
+    """Returns (rank, tier_name, current_points, next_required) for the Ebon Vanguard title.
+    next_required is None if the title is maxed (rank 10)."""
+    tiers = TITLE_TIERS.get(TitleID.Ebon_Vanguard, [])
+    title = Player.GetTitle(TitleID.Ebon_Vanguard)
+    current_points = title.current_points if title is not None else 0
+
+    current_rank = 0
+    tier_name = "Unranked"
+    for t in tiers:
+        if current_points >= t.required:
+            current_rank = t.tier
+            tier_name = t.name
+        else:
+            break
+
+    if current_rank >= len(tiers):
+        return current_rank, tier_name, current_points, None  # Maxed
+
+    next_required = tiers[current_rank].required
+    return current_rank, tier_name, current_points, next_required
+
+
+def _update_vanguard_cache():
+    rank, tier_name, pts, pts_next = _get_vanguard_rank_info()
+    BotSettings.VANGUARD_RANK = rank
+    BotSettings.VANGUARD_TIER_NAME = tier_name
+    BotSettings.VANGUARD_POINTS = pts
+    BotSettings.VANGUARD_NEXT_REQUIRED = pts_next
+    BotSettings.VANGUARD_SCANNED = True
+
 
 def war_supplies_obtained():
     return 5 * BotSettings.SUCCESSFUL_RUNS # 5 war supplies per run
@@ -631,9 +692,29 @@ def main():
                         PyImGui.pop_style_color(1)
 
                     if PyImGui.collapsing_header("Items/Gold obtained"):
-                        PyImGui.LabelTextV("Gold", "%s", [str(gold_obtained())])    	
+                        PyImGui.LabelTextV("Gold", "%s", [str(gold_obtained())])
                         PyImGui.LabelTextV("War Supplies", "%s", [str(war_supplies_obtained())])
-                        PyImGui.LabelTextV("Glob of Ectoplasm", "%s", [str(BotSettings.ECTOS_BOUGHT)])    	
+                        PyImGui.LabelTextV("Glob of Ectoplasm", "%s", [str(BotSettings.ECTOS_BOUGHT)])
+
+                    if PyImGui.collapsing_header("Vanguard Rank"):
+                        if not BotSettings.VANGUARD_SCANNED:
+                            PyImGui.text("Not scanned yet...")
+                        else:
+                            rank = BotSettings.VANGUARD_RANK
+                            tier_name = BotSettings.VANGUARD_TIER_NAME
+                            pts = BotSettings.VANGUARD_POINTS
+                            pts_next = BotSettings.VANGUARD_NEXT_REQUIRED
+                            if rank >= 10:
+                                PyImGui.LabelTextV("Rank", "%s", [f"10 - {tier_name}"])
+                                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.0, 0.84, 0.0, 1.0))
+                                PyImGui.LabelTextV("Status", "%s", ["Title Maxed!"])
+                                PyImGui.pop_style_color(1)
+                            else:
+                                rank_label = f"{rank} - {tier_name}" if rank > 0 else "Unranked"
+                                PyImGui.LabelTextV("Rank", "%s", [rank_label])
+                                if pts_next is not None:
+                                    PyImGui.LabelTextV("Points", "%s", [f"{pts:,} / {pts_next:,}"])
+                                    PyImGui.LabelTextV("Needed", "%s", [f"{pts_next - pts:,} to next rank"])
                     
                 PyImGui.end_tab_item()
             PyImGui.end_tab_bar()

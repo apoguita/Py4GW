@@ -34,6 +34,17 @@ class Style:
 
             self.pushed_stack.insert(0, var)
 
+        def push_style_var_direct(self, value1: float, value2: float | None = None):
+            if self.img_style_enum:                
+                if value2 is not None:
+                    PyImGui.push_style_var2(self.img_style_enum, value1, value2)
+                else:
+                    PyImGui.push_style_var(self.img_style_enum, value1)
+        
+        def pop_style_var_direct(self):
+            if self.img_style_enum:
+                PyImGui.pop_style_var(1)
+
         def pop_style_var(self):
             if self.pushed_stack:
                 self.pushed_stack.pop(0)
@@ -87,6 +98,15 @@ class Style:
                 self.pushed_stack.pop(0)
                 
             if col.img_color_enum:
+                PyImGui.pop_style_color(1)
+
+        def push_color_direct(self, rgba: tuple[int, int, int, int]):
+            col = Color(*rgba)
+            if self.img_color_enum is not None:
+                PyImGui.push_style_color(self.img_color_enum, col.color_tuple)
+            
+        def pop_color_direct(self):
+            if self.img_color_enum is not None:
                 PyImGui.pop_style_color(1)
 
         def get_current(self): return self.pushed_stack[0] if self.pushed_stack else self
