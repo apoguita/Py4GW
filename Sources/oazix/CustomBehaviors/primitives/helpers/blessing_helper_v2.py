@@ -33,7 +33,7 @@ class BlessingNpcV2(Enum):
     Forgotten_Warden            = ([], "Forgotten Warden")
     Kurzick_Priest              = ([], "Kurzick Priest")
     Luxon_Priest                = ([], "Luxon Priest")
-    Beacons_of_Droknar          = ([], "Beacons of Droknar")
+    Beacons_of_Droknar          = ([[2, 129, 189, 34, 175, 164, 87, 198, 207, 23, 0, 0]], "Beacons of Droknar")
     Ascalonian_Refugees         = ([], "Ascalonian Refugees")
     Asuran_Krewe                = ([], "Asuran Krewe")
     Norn_Hunters                = ([], "Norn Hunters")
