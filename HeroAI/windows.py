@@ -525,41 +525,57 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawFlags(cached_data:CacheData):
-        leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)    
+        shmem = GLOBAL_CACHE.ShMem
+        party = GLOBAL_CACHE.Party
+        party_heroes = party.Heroes
+        active_account_option_pairs: list[tuple[AccountStruct, HeroAIOptionStruct]] = shmem.GetAllActiveAccountHeroAIPairs(sort_results=False)
+        options_by_party: list[HeroAIOptionStruct | None] = [None] * MAX_NUM_PLAYERS
+        accounts_by_party: list[AccountStruct | None] = [None] * MAX_NUM_PLAYERS
+
+        # Build once per frame, keyed by party position; source is active IsAccount-only.
+        for account, options in active_account_option_pairs:
+            party_index: int = account.AgentPartyData.PartyPosition
+            if 0 <= party_index < MAX_NUM_PLAYERS:
+                accounts_by_party[party_index] = account
+                options_by_party[party_index] = options
+
+        leader_options: HeroAIOptionStruct | None = options_by_party[0]
         
-        if HeroAI_Windows.capture_hero_flag:        
+        if HeroAI_Windows.capture_hero_flag:
             x, y, _ = Overlay().GetMouseWorldPos()
             if HeroAI_Windows.capture_flag_all:
                 DrawFlagAll(x, y)
-                pass
-            
             else:
                 DrawHeroFlag(x, y)
-                
-            if PyImGui.is_mouse_clicked(0) and HeroAI_Windows.one_time_set_flag:
+
+            mouse_clicked = PyImGui.is_mouse_clicked(0)
+            if mouse_clicked and HeroAI_Windows.one_time_set_flag:
                 HeroAI_Windows.one_time_set_flag = False
                 return
-            
-            if PyImGui.is_mouse_clicked(0) and not HeroAI_Windows.one_time_set_flag:
-                if HeroAI_Windows.capture_hero_index > 0 and HeroAI_Windows.capture_hero_index <= GLOBAL_CACHE.Party.GetHeroCount():
-                    if not HeroAI_Windows.capture_flag_all:   
-                        agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(HeroAI_Windows.capture_hero_index)
-                        GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
+
+            if mouse_clicked:
+                capture_index = HeroAI_Windows.capture_hero_index
+                hero_count = party.GetHeroCount()
+
+                if 0 < capture_index <= hero_count:
+                    if not HeroAI_Windows.capture_flag_all:
+                        agent_id = party_heroes.GetHeroAgentIDByPartyPosition(capture_index)
+                        party_heroes.FlagHero(agent_id, x, y)
                         HeroAI_Windows.one_time_set_flag = True
                 else:
-                    if HeroAI_Windows.capture_hero_index == 0:
+                    if capture_index == 0:
                         hero_ai_index = 0
-                        GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(x, y)
+                        party_heroes.FlagAllHeroes(x, y)
                     else:
-                        hero_ai_index = HeroAI_Windows.capture_hero_index - GLOBAL_CACHE.Party.GetHeroCount()
-                    
-                    options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(hero_ai_index)
+                        hero_ai_index = capture_index - hero_count
+
+                    options: HeroAIOptionStruct | None = options_by_party[hero_ai_index] if 0 <= hero_ai_index < MAX_NUM_PLAYERS else None
                     if options:
                         options.FlagPosX = x
                         options.FlagPosY = y
                         options.IsFlagged = True
-                        options.FlagFacingAngle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
-                    
+                        options.FlagFacingAngle = Agent.GetRotationAngle(party.GetPartyLeaderID())
+
                     HeroAI_Windows.one_time_set_flag = True
 
                 HeroAI_Windows.capture_flag_all = False
@@ -571,19 +587,18 @@ class HeroAI_Windows():
         if leader_options and leader_options.IsFlagged:
             DrawFlagAll(leader_options.FlagPosX, leader_options.FlagPosY)
             
-        for i in range(1, MAX_NUM_PLAYERS):            
-            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
-            account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(i)
-            
-            if options is None:
+        for i in range(1, MAX_NUM_PLAYERS):
+            options: HeroAIOptionStruct | None = options_by_party[i]
+            if options is None or not options.IsFlagged:
                 continue
-            
-            if options.IsFlagged and account and account.IsSlotActive and not account.IsHero:
+
+            account: AccountStruct | None = accounts_by_party[i]
+            if account:
                 DrawHeroFlag(options.FlagPosX, options.FlagPosY)
 
-        if HeroAI_Windows.ClearFlags:            
+        if HeroAI_Windows.ClearFlags:
             for i in range(MAX_NUM_PLAYERS):
-                options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
+                options: HeroAIOptionStruct | None = options_by_party[i]
             
                 if options:
                     options.IsFlagged = False
@@ -591,9 +606,9 @@ class HeroAI_Windows():
                     options.FlagPosY = 0.0
                     options.FlagFacingAngle = 0.0
                     
-                GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
+                party_heroes.UnflagHero(i)
                 
-            GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
+            party_heroes.UnflagAllHeroes()
             HeroAI_Windows.ClearFlags = False
                 
         

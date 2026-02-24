@@ -1,19 +1,24 @@
 from __future__ import annotations
 from typing import List, Tuple, Generator, Any
-import PyImGui
 import os
+import PyImGui
 from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, HeroType)
+                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, HeroType, Skill, AgentArray)
+from Py4GWCoreLib.Builds import KeiranThackerayEOTN
+from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 
 bot = Botting("Factions Leveler",
-              upkeep_birthday_cupcake_restock=10,
+              upkeep_candy_apple_restock=10,
               upkeep_honeycomb_restock=20,
-              upkeep_war_supplies_restock=2,
+              upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
+
+class BotSettings:
+    CUSTOM_BOW_ID = 0 #Change this if you have already have a bow crafted for War supply farm runs.
 
 #region MainRoutine
 def create_bot_routine(bot: Botting) -> None:
@@ -23,7 +28,9 @@ def create_bot_routine(bot: Botting) -> None:
     Unlock_Secondary_Profession(bot)
     Unlock_Xunlai_Storage(bot)
     Craft_Weapon(bot)
-    #Charm_Pet(bot)
+    Craft_Monastery_Armor(bot)
+    Destroy_Starter_Armor_And_Useless_Items(bot)
+    Extend_Inventory_Space(bot)
     To_Minister_Chos_Estate(bot)
     Unlock_Skills_Trainer(bot)
     Minister_Chos_Estate_Mission(bot)
@@ -32,126 +39,54 @@ def create_bot_routine(bot: Botting) -> None:
     The_Threat_Grows(bot)
     The_Road_Less_Traveled(bot)
     Craft_Seitung_Armor(bot)
+    Destroy_Monastery_Armor(bot)
     To_Zen_Daijun(bot)
+    Complete_Skills_Training(bot)
     Zen_Daijun_Mission(bot)
-    Craft_Remaining_Seitung_Armor(bot)
-    Destroy_Starter_Armor_And_Useless_Items(bot)
     To_Marketplace(bot)
     To_Kaineng_Center(bot)
     Craft_Max_Armor(bot)
     Destroy_Seitung_Armor(bot)
-    Extend_Inventory_Space(bot)
+    The_Search_For_A_Cure(bot)
+    A_Masters_Burden(bot)
     To_Boreal_Station(bot)
     To_Eye_of_the_North(bot)
     Unlock_Eye_Of_The_North_Pool(bot)
-    Attribute_Points_Quest_2(bot)
     To_Gunnars_Hold(bot)
     Unlock_Kilroy_Stonekin(bot)
+    Farm_Until_Level_20(bot)
+    Attribute_Points_Quest_2(bot)
     To_Longeyes_Edge(bot)
     Unlock_NPC_For_Vaettir_Farm(bot)
     To_Lions_Arch(bot)
-    To_Temple_of_The_Ages(bot)
+    #To_Temple_of_The_Ages(bot)
     To_Kamadan(bot)
     To_Consulate_Docks(bot)
     Unlock_Olias(bot)
-    Unlock_Xunlai_Material_Panel(bot)
     Unlock_Remaining_Secondary_Professions(bot)
     Unlock_Mercenary_Heroes(bot)
 
 #region Helpers
+
+#region Battle configuration
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Templates.Pacifist()
-    bot.Properties.Enable("birthday_cupcake")
-    bot.Properties.Disable("honeycomb")
-    bot.Properties.Disable("war_supplies")
-    bot.Items.SpawnAndDestroyBonusItems()
-    bot.Items.Restock.BirthdayCupcake()
-    bot.Items.Restock.WarSupplies()
     
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
-    bot.Properties.Enable("birthday_cupcake")
-    bot.Properties.Enable("honeycomb")
+    bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
+    bot.Properties.Enable("candy_apple")
     bot.Properties.Enable("war_supplies")
-    bot.Items.SpawnAndDestroyBonusItems()
+    bot.Properties.Enable("honeycomb")
+#endregion
 
-    
-def EquipSkillBar(skillbar = ""): 
-    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    level = Agent.GetLevel(Player.GetAgentID())
-
-    if profession == "Warrior":
-        if level <= 3: #10 attribute points available
-            skillbar = "OQIRkpQxw23AAAAg2CA"
-        elif level <= 4: #15 attribute points available
-            skillbar = "OQIRkrQxw23AAAAg2CA"
-        elif level <= 5: #20 attribute points available
-            skillbar = "OQIUEDrgjcFKG2+GAAAA0WAA"
-        elif level <= 6: #25 attribute points available
-            skillbar = "OQITEDsktQxw23AAAAg2CAA"
-        elif level <= 7: #45 attribute points available (including 15 attribute points from quests)
-            skillbar = "OQIUED7gjMGKG2+GAAAA0WAA"
-        elif level <= 8: #50 attribute points available
-            skillbar = "OQITYDckzQxw23AAAAg2CAA"
-        elif level <= 9: #55 attribute points available
-            skillbar = "OQITYHckzQxw23AAAAg2CAA"
-        elif level <= 10: #55 attribute points available
-            skillbar = "OQIUEDLhjcGKG2+GAAAA0WAA"
-        else: #20 attribute points available
-            skillbar = "OQITYN8kzQxw23AAAAg2CAA"
-    elif profession == "Ranger":
-        skillbar = "OggjYZZIYMKG1pvBAAAAA0GBAA"
-    elif profession == "Monk":
-        skillbar = "OwISYxcGKG2o03AAA0WA"
-    elif profession == "Necromancer":
-        skillbar = "OAVBIlkDcdGoBCAAAAAA"
-    elif profession == "Mesmer":
-        skillbar = "OQJTYJckzQxw23AAAAg2CAA"
-    elif profession == "Elementalist":
-        skillbar = "OgJUwCLhjcGKG2+GAAAA0WAA"
-    elif profession == "Ritualist":
-        skillbar = "OAKkYRYRWCGjiB24b+mAAAAtRAA"
-    elif profession == "Assassin":
-        if level <= 3: #10 attribute points available
-            skillbar = "OwVBIkkDcdGoBAAAAACA"
-        elif level <= 4: #15 attribute points available
-            skillbar = "OwVBIlkDcdGoBAAAAACA"
-        elif level <= 5: #20 attribute points available
-            skillbar = "OwVBIlkDcdGoBAAAAACA"
-        elif level <= 6: #25 attribute points available
-            skillbar = "OwVBImkDcdGoBAAAAACA"
-        elif level <= 7: #45 attribute points available (including 15 attribute points from quests)
-            skillbar = "OwVBIokDcdGoBAAAAACA"
-        elif level <= 8: #50 attribute points available
-            skillbar = "OwVBIpkDcdGoBAAAAACA"
-        elif level <= 9: #55 attribute points available
-            skillbar = "OwVCI5MSOw1ZgGAAAAAIAA"
-        elif level <= 10: #55 attribute points available
-            skillbar = "OwVCI5QSOw1ZgGAAAAAIAA"
-        else: #20 attribute points available
-            skillbar = "OwVBIpkDcdGoBAAAAACA"
-
-    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
-
-def EquipCaptureSkillBar(skillbar = ""): 
-    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if profession == "Warrior": skillbar = "OQIAEbGAAAAAAAAAAA"
-    elif profession == "Ranger": skillbar = "OgAAEbGAAAAAAAAAAA"
-    elif profession == "Monk": skillbar = "OwIAEbGAAAAAAAAAAA"
-    elif profession == "Necromancer": skillbar = "OAJAEbGAAAAAAAAAAA"
-    elif profession == "Mesmer": skillbar = "OQJAEbGAAAAAAAAAAA"
-    elif profession == "Elementalist": skillbar = "OgJAEbGAAAAAAAAAAA"
-    elif profession == "Ritualist": skillbar = "OAKkYRYRWCGxmBAAAAAAAAAA"
-    elif profession == "Assassin": skillbar = "OwJkYRZ5XMGxmBAAAAAAAAAA"
-
-    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
-
+#region Henchmen / Hero team
 def AddHenchmen():
     party_size = Map.GetMaxPartySize()
 
     henchmen_list = []
     if party_size <= 4:
-        henchmen_list.extend([2, 3, 1]) 
+        henchmen_list.extend([2, 5, 1]) 
     elif Map.GetMapID() == Map.GetMapIDByName("Seitung Harbor"):
         henchmen_list.extend([2, 3, 1, 6, 5]) 
     elif Map.GetMapID() == 213: # Zen_daijun_map_id
@@ -173,27 +108,6 @@ def AddHenchmen():
     # Single wait for all henchmen to join
     yield from Routines.Yield.wait(1000)
 
-def AddHenchmenLA():
-    party_size = Map.GetMaxPartySize()
-
-    henchmen_list = []
-    if party_size <= 4:
-        henchmen_list.extend([2, 3, 1]) 
-    elif Map.GetMapID() == Map.GetMapIDByName("Lions Arch"):
-        henchmen_list.extend([7, 2, 5, 3, 1]) 
-    elif Map.GetMapID() == Map.GetMapIDByName("Ascalon City"):
-        henchmen_list.extend([2, 3, 1])
-    else:
-        henchmen_list.extend([2,8,6,7,3,5,1])
-    
-    # Add all henchmen quickly
-    for henchman_id in henchmen_list:
-        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
-        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
-    
-    # Single wait for all henchmen to join
-    yield from Routines.Yield.wait(1000)
-
 def StandardHeroTeam():
     party_size = Map.GetMaxPartySize()
 
@@ -205,7 +119,7 @@ def StandardHeroTeam():
             "OQhkAsC8gFKgGckjHFRUGCA",  # Gwen
             "OgVDI8gsCawROeUEtZIA",     # Vekk
             "OwUUMsG/E4GgMnZskzkIZQAA", # Ogden
-            "OgVDI8gsCawROeUEtZIA"       # MOX
+            "OgCikys8wchuD4xb5VAAAAAA"  # MOX
         ]
     
     # Add all heroes quickly
@@ -228,121 +142,217 @@ def StandardHeroTeam():
         if hero_agent_id > 0:
             GLOBAL_CACHE.Party.Heroes.SetHeroBehavior(hero_agent_id, 1)  # 1 = Guard mode
             yield from Routines.Yield.wait(100)
+#endregion
+
+#region Skill template
+def EquipSkillBar(skillbar = ""):
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    level = Agent.GetLevel(Player.GetAgentID())
+
+    if profession == "Warrior":
+        skillbar = "OQUBIskDcdG0DaAHUECA"
+    elif profession == "Ranger":
+        skillbar = "OgUBIskDcdG0DaAHUECA"
+    elif profession == "Monk":
+        skillbar = "OwUBIskDcdG0DaAHUECA"
+    elif profession == "Necromancer":
+        skillbar = "OAVBIskDcdG0DaAHUECA"
+    elif profession == "Mesmer":
+        skillbar = "OQBBIskDcdG0DaAHUECA"
+    elif profession == "Elementalist":
+        skillbar = "OgVBIskDcdG0DaAHUECA"
+    elif profession == "Ritualist":
+        skillbar = "OAWBIskDcdG0DaAHUECA"
+    elif profession == "Assassin":
+        skillbar = "OwVBIskDcdG0DaAHUECA"
+
+    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
+
+def EquipCaptureSkillBar(skillbar = ""):
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if profession == "Warrior": skillbar = "OQIAEbGAAAAAAAAAAA"
+    elif profession == "Ranger": skillbar = "OgAAEbGAAAAAAAAAAA"
+    elif profession == "Monk": skillbar = "OwIAEbGAAAAAAAAAAA"
+    elif profession == "Necromancer": skillbar = "OAJAEbGAAAAAAAAAAA"
+    elif profession == "Mesmer": skillbar = "OQJAEbGAAAAAAAAAAA"
+    elif profession == "Elementalist": skillbar = "OgJAEbGAAAAAAAAAAA"
+    elif profession == "Ritualist": skillbar = "OAKkYRYRWCGxmBAAAAAAAAAA"
+    elif profession == "Assassin": skillbar = "OwJkYRZ5XMGxmBAAAAAAAAAA"
+
+    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
+#endregion
 
 def PrepareForBattle(bot: Botting):
     ConfigureAggressiveEnv(bot)
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmen, "Add Henchmen")
-    bot.Items.Restock.BirthdayCupcake()
-    bot.Items.Restock.Honeycomb()
+    bot.Items.Restock.CandyApple()
     bot.Items.Restock.WarSupplies()
-  
-def GetArmorMaterialPerProfession(headpiece = False) -> int:
+    bot.Items.Restock.Honeycomb()
+
+#endregion
+
+#region Armor
+# Per-profession monastery and seitung armor data.
+# "buy": materials to purchase as (model_id, count) pairs.
+# "monastery" / "seitung": pieces to craft in order as (item_id, [mat], [qty]).
+_EARLY_ARMOR_DATA = {
+    "Warrior": {
+        "buy":       [(ModelID.Bolt_Of_Cloth.value, 6)],
+        "monastery": [
+            (10156, [ModelID.Bolt_Of_Cloth.value], [3]),   # Chest
+            (10158, [ModelID.Bolt_Of_Cloth.value], [2]),   # Pants
+            (10155, [ModelID.Bolt_Of_Cloth.value], [1]),   # Boots
+            (10030, [ModelID.Bolt_Of_Cloth.value], [1]),   # Head
+            (10157, [ModelID.Bolt_Of_Cloth.value], [1]),   # Gloves
+        ],
+        "seitung": [
+            (10164, [ModelID.Bolt_Of_Cloth.value], [18]),  # Chest
+            (10166, [ModelID.Bolt_Of_Cloth.value], [12]),  # Pants
+            (10163, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Boots
+            (10046, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Head
+            (10165, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Gloves
+        ],
+    },
+    "Ranger": {
+        "buy":       [(ModelID.Tanned_Hide_Square.value, 6)],
+        "monastery": [
+            (10605, [ModelID.Tanned_Hide_Square.value], [3]),   # Chest
+            (10607, [ModelID.Tanned_Hide_Square.value], [2]),   # Pants
+            (10604, [ModelID.Tanned_Hide_Square.value], [1]),   # Boots
+            (14655, [ModelID.Tanned_Hide_Square.value], [1]),   # Head
+            (10606, [ModelID.Tanned_Hide_Square.value], [1]),   # Gloves
+        ],
+        "seitung": [
+            (10613, [ModelID.Tanned_Hide_Square.value], [18]),  # Chest
+            (10615, [ModelID.Tanned_Hide_Square.value], [12]),  # Pants
+            (10612, [ModelID.Tanned_Hide_Square.value], [ 6]),  # Boots
+            (10483, [ModelID.Tanned_Hide_Square.value], [ 6]),  # Head
+            (10614, [ModelID.Tanned_Hide_Square.value], [ 6]),  # Gloves
+        ],
+    },
+    "Monk": {
+        "buy":       [(ModelID.Bolt_Of_Cloth.value, 6), (ModelID.Pile_Of_Glittering_Dust.value, 1)],
+        "monastery": [
+            (9611, [ModelID.Bolt_Of_Cloth.value],           [3]),   # Chest
+            (9613, [ModelID.Bolt_Of_Cloth.value],           [2]),   # Pants
+            (9610, [ModelID.Bolt_Of_Cloth.value],           [1]),   # Boots
+            (9590, [ModelID.Pile_Of_Glittering_Dust.value], [1]),   # Head
+            (9612, [ModelID.Bolt_Of_Cloth.value],           [1]),   # Gloves
+        ],
+        "seitung": [
+            (9619, [ModelID.Bolt_Of_Cloth.value],           [18]),  # Chest
+            (9621, [ModelID.Bolt_Of_Cloth.value],           [12]),  # Pants
+            (9618, [ModelID.Bolt_Of_Cloth.value],           [ 6]),  # Boots
+            (9600, [ModelID.Pile_Of_Glittering_Dust.value], [ 6]),  # Head
+            (9620, [ModelID.Bolt_Of_Cloth.value],           [ 6]),  # Gloves
+        ],
+    },
+    "Assassin": {
+        "buy":       [(ModelID.Bolt_Of_Cloth.value, 6)],
+        "monastery": [
+            (7185, [ModelID.Bolt_Of_Cloth.value], [3]),   # Chest
+            (7187, [ModelID.Bolt_Of_Cloth.value], [2]),   # Pants
+            (7184, [ModelID.Bolt_Of_Cloth.value], [1]),   # Boots
+            (7116, [ModelID.Bolt_Of_Cloth.value], [1]),   # Head
+            (7186, [ModelID.Bolt_Of_Cloth.value], [1]),   # Gloves
+        ],
+        "seitung": [
+            (7193, [ModelID.Bolt_Of_Cloth.value], [18]),  # Chest
+            (7195, [ModelID.Bolt_Of_Cloth.value], [12]),  # Pants
+            (7192, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Boots
+            (7126, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Head
+            (7194, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Gloves
+        ],
+    },
+    "Mesmer": {
+        "buy":       [(ModelID.Bolt_Of_Cloth.value, 6)],
+        "monastery": [
+            (7538, [ModelID.Bolt_Of_Cloth.value], [3]),   # Chest
+            (7540, [ModelID.Bolt_Of_Cloth.value], [2]),   # Pants
+            (7537, [ModelID.Bolt_Of_Cloth.value], [1]),   # Boots
+            (7517, [ModelID.Bolt_Of_Cloth.value], [1]),   # Head
+            (7539, [ModelID.Bolt_Of_Cloth.value], [1]),   # Gloves
+        ],
+        "seitung": [
+            (7546, [ModelID.Bolt_Of_Cloth.value], [18]),  # Chest
+            (7548, [ModelID.Bolt_Of_Cloth.value], [12]),  # Pants
+            (7545, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Boots
+            (7528, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Head
+            (7547, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Gloves
+        ],
+    },
+    "Necromancer": {
+        "buy":       [(ModelID.Tanned_Hide_Square.value, 6), (ModelID.Pile_Of_Glittering_Dust.value, 1)],
+        "monastery": [
+            (8749, [ModelID.Tanned_Hide_Square.value],      [3]),   # Chest
+            (8751, [ModelID.Tanned_Hide_Square.value],      [2]),   # Pants
+            (8748, [ModelID.Tanned_Hide_Square.value],      [1]),   # Boots
+            (8731, [ModelID.Pile_Of_Glittering_Dust.value], [1]),   # Head
+            (8750, [ModelID.Tanned_Hide_Square.value],      [1]),   # Gloves
+        ],
+        "seitung": [
+            (8757, [ModelID.Tanned_Hide_Square.value],      [18]),  # Chest
+            (8759, [ModelID.Tanned_Hide_Square.value],      [12]),  # Pants
+            (8756, [ModelID.Tanned_Hide_Square.value],      [ 6]),  # Boots
+            (8741, [ModelID.Pile_Of_Glittering_Dust.value], [ 6]),  # Head
+            (8758, [ModelID.Tanned_Hide_Square.value],      [ 6]),  # Gloves
+        ],
+    },
+    "Ritualist": {
+        "buy":       [(ModelID.Bolt_Of_Cloth.value, 6)],
+        "monastery": [
+            (11310, [ModelID.Bolt_Of_Cloth.value], [3]),   # Chest
+            (11313, [ModelID.Bolt_Of_Cloth.value], [2]),   # Pants
+            (11309, [ModelID.Bolt_Of_Cloth.value], [3]),   # Boots (costs 3 cloth)
+            (11194, [ModelID.Bolt_Of_Cloth.value], [1]),   # Head
+            (11311, [ModelID.Bolt_Of_Cloth.value], [1]),   # Gloves
+        ],
+        "seitung": [
+            (11320, [ModelID.Bolt_Of_Cloth.value], [18]),  # Chest
+            (11323, [ModelID.Bolt_Of_Cloth.value], [12]),  # Pants
+            (11319, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Boots
+            (11203, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Head
+            (11321, [ModelID.Bolt_Of_Cloth.value], [ 6]),  # Gloves
+        ],
+    },
+    "Elementalist": {
+        "buy":       [(ModelID.Bolt_Of_Cloth.value, 6), (ModelID.Pile_Of_Glittering_Dust.value, 1)],
+        "monastery": [
+            (9194, [ModelID.Bolt_Of_Cloth.value],           [3]),   # Chest
+            (9196, [ModelID.Bolt_Of_Cloth.value],           [2]),   # Pants
+            (9193, [ModelID.Bolt_Of_Cloth.value],           [1]),   # Boots
+            (9171, [ModelID.Pile_Of_Glittering_Dust.value], [1]),   # Head
+            (9195, [ModelID.Bolt_Of_Cloth.value],           [1]),   # Gloves
+        ],
+        "seitung": [
+            (9202, [ModelID.Bolt_Of_Cloth.value],           [18]),  # Chest
+            (9204, [ModelID.Bolt_Of_Cloth.value],           [12]),  # Pants
+            (9201, [ModelID.Bolt_Of_Cloth.value],           [ 6]),  # Boots
+            (9183, [ModelID.Pile_Of_Glittering_Dust.value], [ 6]),  # Head
+            (9203, [ModelID.Bolt_Of_Cloth.value],           [ 6]),  # Gloves
+        ],
+    },
+}
+
+def _get_early_armor_data() -> dict:
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary == "Warrior":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Ranger":
-        return ModelID.Tanned_Hide_Square.value
-    elif primary == "Monk":
-        if headpiece:
-            return ModelID.Pile_Of_Glittering_Dust.value
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Assassin":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Mesmer":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Necromancer":
-        if headpiece:
-            return ModelID.Pile_Of_Glittering_Dust.value
-        return ModelID.Tanned_Hide_Square.value
-    elif primary == "Ritualist":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Elementalist":
-        if headpiece:
-            return ModelID.Pile_Of_Glittering_Dust.value
-        return ModelID.Bolt_Of_Cloth.value
-    else:
-        return ModelID.Tanned_Hide_Square.value
-      
+    return _EARLY_ARMOR_DATA.get(primary, _EARLY_ARMOR_DATA["Warrior"])
+
 def BuyMaterials():
-    for _ in range(5):
-        yield from Routines.Yield.Merchant.BuyMaterial(GetArmorMaterialPerProfession())
+    for mat, count in _get_early_armor_data()["buy"]:
+        for _ in range(count):
+            yield from Routines.Yield.Merchant.BuyMaterial(mat)
+        yield from Routines.Yield.wait(500)
 
-def GetArmorPiecesByProfession(bot: Botting):
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    HEAD,CHEST,GLOVES ,PANTS ,BOOTS = 0,0,0,0,0
-
-    if primary == "Warrior":
-        HEAD = 10046 #6 bolts of cloth
-        CHEST = 10164 #18 bolts of cloth
-        GLOVES = 10165 #6 bolts of cloth
-        PANTS = 10166 #12 bolts of cloth
-        BOOTS = 10163 #6 bolts of cloth
-    if primary == "Ranger":
-        HEAD = 10483 #6 tanned hides
-        CHEST = 10613 #18 tanned hides
-        GLOVES = 10614 #6 tanned hides
-        PANTS = 10615 #12 tanned hides
-        BOOTS = 10612 #6 tanned hides
-    if primary == "Monk":
-        HEAD = 9600 #6 piles of glittering dust
-        CHEST = 9619 #18 tanned hides
-        GLOVES = 9620 #6 tanned hides
-        PANTS = 9621 #12 tanned hides
-        BOOTS = 9618 #6 tanned hides
-    if primary == "Assassin":
-        HEAD = 7126 #6 tanned hides
-        CHEST = 7193 #18 tanned hides
-        GLOVES = 7194 #6 tanned hides
-        PANTS = 7195 #12 tanned hides
-        BOOTS = 7192 #6 tanned hides
-    if primary == "Mesmer":
-        HEAD = 7528 #6 bolts of cloth
-        CHEST = 7546 #18 bolts of cloth
-        GLOVES = 7547 #6 bolts of cloth
-        PANTS = 7548 #12 bolts of cloth
-        BOOTS = 7545 #6 bolts of cloth
-    if primary == "Necromancer":
-        HEAD = 8741 #6 piles of glittering dust
-        CHEST = 8757 #18 tanned hides
-        GLOVES = 8758 #6 tanned hides
-        PANTS = 8759 #12 tanned hides
-        BOOTS = 8756 #6 tanned hides
-    if primary == "Ritualist":
-        HEAD = 11203 #6 bolts of cloth
-        CHEST = 11320 #18 bolts of cloth
-        GLOVES = 11321 #6 bolts of cloth
-        PANTS = 11323 #12 bolts of cloth
-        BOOTS = 11319 #6 bolts of cloth
-    if primary == "Elementalist":
-        HEAD = 9183 #6 bolts of cloth
-        CHEST = 9202 #18 bolts of cloth
-        GLOVES = 9203 #6 bolts of cloth
-        PANTS = 9204 #12 bolts of cloth
-        BOOTS = 9201 #6 bolts of cloth
-
-    return HEAD, CHEST, GLOVES, PANTS, BOOTS
-
-
-def CraftArmor(bot: Botting):
-    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
-
-    armor_pieces = [
-        (CHEST, [GetArmorMaterialPerProfession()], [18]),
-        (PANTS, [GetArmorMaterialPerProfession()], [12]),
-        (BOOTS,   [GetArmorMaterialPerProfession()], [6]),
-    ]
-
-    for item_id, mats, qtys in armor_pieces:
-        # --- Craft ---
-        result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
+def _craft_armor_set(bot: Botting, armor_key: str, gold_cost: int):
+    for item_id, mats, qtys in _get_early_armor_data()[armor_key]:
+        result = yield from Routines.Yield.Items.CraftItem(item_id, gold_cost, mats, qtys)
         if not result:
             ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
             return False
-
-        # --- Equip ---
         result = yield from Routines.Yield.Items.EquipItem(item_id)
         if not result:
             ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
@@ -351,302 +361,129 @@ def CraftArmor(bot: Botting):
         yield
     return True
 
-def CraftRemainingArmor():
-    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetArmorPiecesByProfession(bot)
+def CraftMonasteryArmor(bot: Botting):
+    return (yield from _craft_armor_set(bot, "monastery", 20))
 
-    armor_pieces = [
-        (HEAD,  [GetArmorMaterialPerProfession(headpiece=True)], [6]),
-        (GLOVES,  [GetArmorMaterialPerProfession()], [6]),
-    ]
-    
-    if GetArmorMaterialPerProfession(headpiece=True) == ModelID.Pile_Of_Glittering_Dust.value:
-        #delete HEAD from the list
-        armor_pieces = [piece for piece in armor_pieces if piece[0] != HEAD]
+def CraftArmor(bot: Botting):
+    return (yield from _craft_armor_set(bot, "seitung", 200))
 
-    item_in_storage = GLOBAL_CACHE.Inventory.GetModelCount(GetArmorMaterialPerProfession())
-    if item_in_storage > 12:
+# All per-profession max armor data in one place.
+# Each entry: crafter NPC coords, materials to buy (common/rare as lists of (model_id, count)),
+# and pieces to craft in order: (item_id, [mats], [qtys]).
+_MAX_ARMOR_DATA = {
+    "Warrior": {  # Ascalon armor — crafter: Suki
+        "crafter":     (-891.00, -5382.00),
+        "buy_common":  [(ModelID.Tanned_Hide_Square.value, 20)],
+        "buy_rare":    [(ModelID.Steel_Ingot.value, 32)],
+        "pieces": [
+            (23395, [ModelID.Tanned_Hide_Square.value, ModelID.Steel_Ingot.value], [25,  4]),   # Gloves
+            (23393, [ModelID.Tanned_Hide_Square.value, ModelID.Steel_Ingot.value], [25,  4]),   # Boots
+            (23396, [ModelID.Tanned_Hide_Square.value, ModelID.Steel_Ingot.value], [50,  8]),   # Pants
+            (23394, [ModelID.Tanned_Hide_Square.value, ModelID.Steel_Ingot.value], [75, 12]),   # Chest
+            (23391, [ModelID.Tanned_Hide_Square.value, ModelID.Steel_Ingot.value], [25,  4]),   # Head
+        ],
+    },
+    "Ranger": {  # Canthan armor — crafter: Kakumei
+        "crafter":     (-700.00, -5156.00),
+        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 20)],
+        "buy_rare":    [(ModelID.Fur_Square.value, 32)],
+        "pieces": [
+            (23798, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25,  4]),         # Gloves
+            (23796, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25,  4]),         # Boots
+            (23799, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [50,  8]),         # Pants
+            (23797, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [75, 12]),         # Chest
+            (23794, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25,  4]),         # Head
+        ],
+    },
+    "Monk": {  # Shin Jea armor — crafter: Suki
+        "crafter":     (-891.00, -5382.00),
+        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 18), (ModelID.Feather.value, 1)],
+        "buy_rare":    [(ModelID.Roll_Of_Parchment.value, 5), (ModelID.Vial_Of_Ink.value, 4), (ModelID.Bolt_Of_Linen.value, 28)],
+        "pieces": [
+            (23378, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [25,  4]),  # Gloves
+            (23376, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [25,  4]),  # Boots
+            (23379, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [50,  8]),  # Pants
+            (23377, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [75, 12]),  # Chest
+            (23200, [ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value],     [ 5,  4]),  # Head
+        ],
+    },
+    "Assassin": {  # Canthan armor — crafter: Kakumei
+        "crafter":     (-700.00, -5156.00),
+        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 20)],
+        "buy_rare":    [(ModelID.Leather_Square.value, 32)],
+        "pieces": [
+            (23442, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [25,  4]),     # Gloves
+            (23440, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [25,  4]),     # Boots
+            (23443, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [50,  8]),     # Pants
+            (23441, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [75, 12]),     # Chest
+            (23435, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [25,  4]),     # Head
+        ],
+    },
+    "Mesmer": {  # Shinjea armor — crafter: Ryoko
+        "crafter":     (-1682.00, -3970.00),
+        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 20)],
+        "buy_rare":    [(ModelID.Bolt_Of_Silk.value, 32)],
+        "pieces": [
+            (23582, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Silk.value], [25,  4]),       # Gloves
+            (23580, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Silk.value], [25,  4]),       # Boots
+            (23583, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Silk.value], [50,  8]),       # Pants
+            (23581, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Silk.value], [75, 12]),       # Chest
+            (23576, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Silk.value], [25,  4]),       # Head
+        ],
+    },
+    "Necromancer": {  # Shinjea armor — crafter: Ryoko
+        "crafter":     (-1682.00, -3970.00),
+        "buy_common":  [(ModelID.Tanned_Hide_Square.value, 18), (ModelID.Bone.value, 18)],
+        "buy_rare":    [(ModelID.Roll_Of_Parchment.value, 5), (ModelID.Vial_Of_Ink.value, 4)],
+        "pieces": [
+            (23638, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value],         [25, 25]),  # Gloves
+            (23636, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value],         [25, 25]),  # Boots
+            (23639, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value],         [50, 50]),  # Pants
+            (23637, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value],         [75, 75]),  # Chest
+            (23632, [ModelID.Roll_Of_Parchment.value,  ModelID.Vial_Of_Ink.value], [ 5,  4]),  # Head
+        ],
+    },
+    "Ritualist": {  # Shinjea armor — crafter: Ryoko
+        "crafter":     (-1682.00, -3970.00),
+        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 23)],
+        "buy_rare":    [(ModelID.Leather_Square.value, 32)],
+        "pieces": [
+            (23942, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [25,  4]),     # Gloves
+            (23940, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [25,  4]),     # Boots
+            (23943, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [50,  8]),     # Pants
+            (23941, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [75, 12]),     # Chest
+            (23939, [ModelID.Bolt_Of_Cloth.value, ModelID.Leather_Square.value], [25,  4]),     # Head
+        ],
+    },
+    "Elementalist": {  # Shinjea armor — crafter: Ryoko
+        "crafter":     (-1682.00, -3970.00),
+        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 18), (ModelID.Pile_Of_Glittering_Dust.value, 3)],
+        "buy_rare":    [(ModelID.Bolt_Of_Silk.value, 28), (ModelID.Tempered_Glass_Vial.value, 4)],
+        "pieces": [
+            (23671, [ModelID.Bolt_Of_Cloth.value,           ModelID.Bolt_Of_Silk.value],        [25,  4]),  # Gloves
+            (23669, [ModelID.Bolt_Of_Cloth.value,           ModelID.Bolt_Of_Silk.value],        [25,  4]),  # Boots
+            (23672, [ModelID.Bolt_Of_Cloth.value,           ModelID.Bolt_Of_Silk.value],        [50,  8]),  # Pants
+            (23670, [ModelID.Bolt_Of_Cloth.value,           ModelID.Bolt_Of_Silk.value],        [75, 12]),  # Chest
+            (23643, [ModelID.Pile_Of_Glittering_Dust.value, ModelID.Tempered_Glass_Vial.value], [25,  4]),  # Head
+        ],
+    },
+}
 
-        path = yield from AutoPathing().get_path_to(20508.00, 9497.00)
-        path = path.copy()
-
-        yield from Routines.Yield.Movement.FollowPath(path_points=path)
-        yield from Routines.Yield.Agents.InteractWithAgentXY(20508.00, 9497.00)
-
-        for item_id, mats, qtys in armor_pieces:
-            # --- Craft ---
-            result = yield from Routines.Yield.Items.CraftItem(item_id, 200, mats, qtys)
-            if not result:
-                ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
-                bot.helpers.Events.on_unmanaged_fail()
-                return False
-
-            # --- Equip ---
-            result = yield from Routines.Yield.Items.EquipItem(item_id)
-            if not result:
-                ConsoleLog("CraftArmor", f"Failed to equip item ({item_id}).", Py4GW.Console.MessageType.Error)
-                bot.helpers.Events.on_unmanaged_fail()
-                return False
-
-    return True
-
-def GetMaxArmorCommonMaterial() -> int:
-    """Returns the common material type for max armor crafting in Kaineng."""
+def _get_max_armor_data() -> dict:
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary == "Warrior":
-        return ModelID.Tanned_Hide_Square.value
-    elif primary == "Ranger":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Monk":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Assassin":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Mesmer":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Necromancer":
-        return ModelID.Tanned_Hide_Square.value
-    elif primary == "Ritualist":
-        return ModelID.Bolt_Of_Cloth.value
-    elif primary == "Elementalist":
-        return ModelID.Bolt_Of_Cloth.value
-    else:
-        return ModelID.Bolt_Of_Cloth.value
-
-def GetMaxArmorRareMaterial() -> int | None:
-    """Returns the rare material type for max armor, None if not needed.
-    Note: Necromancer and Monk need 2 rare materials (handled in BuyMaxArmorMaterials and DoCraftMaxArmor)."""
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary == "Warrior":
-        return ModelID.Steel_Ingot.value
-    elif primary == "Ranger":
-        return ModelID.Fur_Square.value
-    elif primary == "Monk":
-        return ModelID.Roll_Of_Parchment.value  # Also needs Bolt_Of_Linen (handled separately)
-    elif primary == "Assassin":
-        return ModelID.Leather_Square.value
-    elif primary == "Mesmer":
-        return ModelID.Bolt_Of_Silk.value
-    elif primary == "Necromancer":
-        return ModelID.Roll_Of_Parchment.value  # Also needs Vial_Of_Ink (handled separately)
-    elif primary == "Ritualist":
-        return ModelID.Leather_Square.value
-    elif primary == "Elementalist":
-        return ModelID.Bolt_Of_Silk.value
-    else:
-        return None
+    return _MAX_ARMOR_DATA.get(primary, _MAX_ARMOR_DATA["Elementalist"])
 
 def GetArmorCrafterCoords() -> tuple[float, float]:
-    """Returns the armor crafter coordinates based on profession."""
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary == "Warrior":
-        return (-891.00, -5382.00) #Suki armor npc
-    elif primary == "Ranger":
-        return (-700.00, -5156.00) #Kakumei armor npc
-    elif primary == "Monk":
-        return (-891.00, -5382.00)  #Suki armor npc
-    elif primary == "Assassin":
-        return (-700.00, -5156.00) #Kakumei armor npc
-    elif primary == "Mesmer":
-        return (-1682.00, -3970.00) #Ryoko armor npc
-    elif primary == "Necromancer":
-        return (-1682.00, -3970.00) #Ryoko armor npc
-    elif primary == "Ritualist":
-        return (-1682.00, -3970.00) #Ryoko armor npc
-    elif primary == "Elementalist":
-        return (-1682.00, -3970.00) #Ryoko armor npc
-    else:
-        return (-1682.00, -3970.00) #default Ryoko armor npc
-
-def GetMaxArmorPiecesByProfession(bot: Botting):
-    """Returns model IDs for max armor pieces in Kaineng."""
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    HEAD, CHEST, GLOVES, PANTS, BOOTS = 0, 0, 0, 0, 0
-
-    if primary == "Warrior":
-        HEAD = 23391    # Ascalon
-        CHEST = 23394
-        GLOVES = 23395
-        PANTS = 23396
-        BOOTS = 23393
-    elif primary == "Ranger":
-        HEAD = 23794    # Canthan
-        CHEST = 23797
-        GLOVES = 23798
-        PANTS = 23799
-        BOOTS = 23796
-    elif primary == "Monk":
-        HEAD = 23200    # Ascalon
-        CHEST = 23377
-        GLOVES = 23378
-        PANTS = 23379
-        BOOTS = 23376
-    elif primary == "Assassin":
-        HEAD = 23435    # Canthan
-        CHEST = 23441
-        GLOVES = 23442
-        PANTS = 23443
-        BOOTS = 23440
-    elif primary == "Mesmer":
-        HEAD = 23576    # Shinjea
-        CHEST = 23581
-        GLOVES = 23582
-        PANTS = 23583
-        BOOTS = 23580
-    elif primary == "Necromancer":
-        HEAD = 23632    # Shinjea
-        CHEST = 23637
-        GLOVES = 23638
-        PANTS = 23639
-        BOOTS = 23636
-    elif primary == "Ritualist":
-        HEAD = 23939    # Shinjea
-        CHEST = 23941
-        GLOVES = 23942
-        PANTS = 23943
-        BOOTS = 23940
-    elif primary == "Elementalist":
-        HEAD = 23643    # Shinjea
-        CHEST = 23670
-        GLOVES = 23671
-        PANTS = 23672
-        BOOTS = 23669
-
-    return HEAD, CHEST, GLOVES, PANTS, BOOTS
+    return _get_max_armor_data()["crafter"]
 
 def BuyMaxArmorMaterials(material_type: str = "common"):
-    """Buy max armor materials. Pass 'common' or 'rare' to specify which type."""
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    
-    if material_type == "common":
-        # Necromancer needs two common materials: Tanned Hide and Bone
-        if primary == "Necromancer":
-            for _ in range(18):  # Buy 180 tanned hide (18 purchases x 10 per unit = 180)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Tanned_Hide_Square.value)
-            for _ in range(18):  # Buy 180 bone (18 purchases x 10 per unit = 180)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bone.value)
-        # Monk needs two common materials: Bolt of Cloth and Feathers
-        elif primary == "Monk":
-            for _ in range(18):  # Buy 180 bolt of cloth (18 purchases x 10 per unit = 180)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Cloth.value)
-            yield from Routines.Yield.wait(500)  # Wait between material types
-            for _ in range(1):  # Buy 10 feathers (1 purchase x 10 per unit = 10)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Feather.value)
-        # Ranger needs only bolt of cloth as common material
-        elif primary == "Ranger":
-            for _ in range(20):  # Buy 200 bolt of cloth (20 purchases x 10 per unit = 200)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Cloth.value)
-        # Elementalist needs two common materials: Bolt of Cloth and Pile of Glittering Dust
-        elif primary == "Elementalist":
-            for _ in range(18):  # Buy 180 bolt of cloth (18 purchases x 10 per unit = 180)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Cloth.value)
-            yield from Routines.Yield.wait(500)  # Wait between material types
-            for _ in range(3):  # Buy 30 pile of glittering dust (3 purchases x 10 per unit = 30)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Pile_Of_Glittering_Dust.value)
-        # Ritualist needs standard 200 + additional 30 bolt of cloth
-        elif primary == "Ritualist":
-            for _ in range(23):  # Buy 230 bolt of cloth (23 purchases x 10 per unit = 230)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Cloth.value)
-        else:
-            for _ in range(20):  # Buy 200 common materials (20 purchases x 10 per unit = 200)
-                yield from Routines.Yield.Merchant.BuyMaterial(GetMaxArmorCommonMaterial())
-    elif material_type == "rare":
-        # Necromancer needs two rare materials: Roll of Parchment and Vial of Ink
-        if primary == "Necromancer":
-            for _ in range(5):  # Buy 5 Roll of Parchment
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Roll_Of_Parchment.value)
-            for _ in range(4):  # Buy 4 Vial of Ink
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Vial_Of_Ink.value)
-        # Monk needs two rare materials: Roll of Parchment and Bolt of Linen
-        elif primary == "Monk":
-            for _ in range(25):  # Buy 25 Roll of Parchment
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Roll_Of_Parchment.value)
-            yield from Routines.Yield.wait(500)  # Wait between material types
-            for _ in range(28):  # Buy 28 Bolt of Linen
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Linen.value)
-        # Ranger needs only fur square as rare material
-        elif primary == "Ranger":
-            for _ in range(32):  # Buy 32 Fur Square
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Fur_Square.value)
-        # Elementalist needs two rare materials: Bolt of Silk and Tempered Glass Vial
-        elif primary == "Elementalist":
-            for _ in range(28):  # Buy 28 Bolt of Silk
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Bolt_Of_Silk.value)
-            yield from Routines.Yield.wait(500)  # Wait between material types
-            for _ in range(4):  # Buy 4 Tempered Glass Vial
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Tempered_Glass_Vial.value)
-        # Ritualist needs standard 32 + additional 4 leather square
-        elif primary == "Ritualist":
-            for _ in range(36):  # Buy 36 Leather Square (32 + 4)
-                yield from Routines.Yield.Merchant.BuyMaterial(ModelID.Leather_Square.value)
-        else:
-            rare_material = GetMaxArmorRareMaterial()
-            if rare_material is not None:
-                for _ in range(32):  # Buy 32 rare materials (32 purchases x 1 per unit = 32)
-                    yield from Routines.Yield.Merchant.BuyMaterial(rare_material)
+    for mat, count in _get_max_armor_data()[f"buy_{material_type}"]:
+        for _ in range(count):
+            yield from Routines.Yield.Merchant.BuyMaterial(mat)
+        yield from Routines.Yield.wait(500)
 
 def DoCraftMaxArmor(bot: Botting):
-    """Core max armor crafting logic - assumes already at armor crafter NPC."""
-    HEAD, CHEST, GLOVES, PANTS, BOOTS = GetMaxArmorPiecesByProfession(bot)
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    
-    # Max armor needs both common and rare materials
-    rare_mat = GetMaxArmorRareMaterial()
-    if rare_mat is not None:
-        # Necromancer has unique materials: 180 tanned hide + 180 bone + 5 parchment + 4 ink
-        if primary == "Necromancer":
-            armor_pieces = [
-                (GLOVES, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [25, 25]),
-                (BOOTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [25, 25]),
-                (PANTS, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [50, 50]),
-                (CHEST, [ModelID.Tanned_Hide_Square.value, ModelID.Bone.value], [75, 75]),
-                (HEAD, [ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value], [5, 4]),
-            ]
-        # Monk has unique materials: 175 bolt of cloth + 4 feathers + 25 parchment + 28 linen
-        elif primary == "Monk":
-            armor_pieces = [
-                (GLOVES, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [25, 4]),
-                (BOOTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [25, 4]),
-                (PANTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [50, 8]),
-                (CHEST, [ModelID.Bolt_Of_Cloth.value, ModelID.Bolt_Of_Linen.value], [75, 12]),
-                (HEAD, [ModelID.Roll_Of_Parchment.value, ModelID.Feather.value], [25, 4]),
-            ]
-        # Ranger has standard materials: 200 bolt of cloth + 32 fur square (uses default case)
-        elif primary == "Ranger":
-            armor_pieces = [
-                (GLOVES, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25, 4]),
-                (BOOTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25, 4]),
-                (PANTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [50, 8]),
-                (CHEST, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [75, 12]),
-                (HEAD, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25, 4]),
-            ]
-        # Elementalist has unique materials: 180 bolt of cloth + 30 glittering dust + 28 bolt of silk + 4 glass vial
-        elif primary == "Elementalist":
-            armor_pieces = [
-                (GLOVES, [ModelID.Bolt_Of_Cloth.value, ModelID.Pile_Of_Glittering_Dust.value, ModelID.Bolt_Of_Silk.value, ModelID.Tempered_Glass_Vial.value], [20, 3, 4, 0]),
-                (BOOTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Pile_Of_Glittering_Dust.value, ModelID.Bolt_Of_Silk.value, ModelID.Tempered_Glass_Vial.value], [20, 3, 4, 1]),
-                (PANTS, [ModelID.Bolt_Of_Cloth.value, ModelID.Pile_Of_Glittering_Dust.value, ModelID.Bolt_Of_Silk.value, ModelID.Tempered_Glass_Vial.value], [45, 8, 8, 1]),
-                (CHEST, [ModelID.Bolt_Of_Cloth.value, ModelID.Pile_Of_Glittering_Dust.value, ModelID.Bolt_Of_Silk.value, ModelID.Tempered_Glass_Vial.value], [70, 11, 8, 1]),
-                (HEAD, [ModelID.Bolt_Of_Cloth.value, ModelID.Pile_Of_Glittering_Dust.value, ModelID.Bolt_Of_Silk.value, ModelID.Tempered_Glass_Vial.value], [25, 5, 4, 1]),
-            ]
-        else:
-            # Standard quantities for other professions
-            armor_pieces = [
-                (GLOVES, [GetMaxArmorCommonMaterial(), rare_mat], [25, 4]),
-                (BOOTS, [GetMaxArmorCommonMaterial(), rare_mat], [25, 4]),
-                (PANTS, [GetMaxArmorCommonMaterial(), rare_mat], [50, 8]),
-                (CHEST, [GetMaxArmorCommonMaterial(), rare_mat], [75, 12]),
-                (HEAD, [GetMaxArmorCommonMaterial(), rare_mat], [25, 4]),
-            ]
-    else:
-        # Fallback in case rare material not defined (shouldn't happen for max armor)
-        armor_pieces = [
-            (GLOVES, [GetMaxArmorCommonMaterial()], [25]),
-            (BOOTS, [GetMaxArmorCommonMaterial()], [25]),
-            (PANTS, [GetMaxArmorCommonMaterial()], [50]),
-            (CHEST, [GetMaxArmorCommonMaterial()], [75]),
-            (HEAD, [GetMaxArmorCommonMaterial()], [25]),
-        ]
-    
-    for item_id, mats, qtys in armor_pieces:
+    for item_id, mats, qtys in _get_max_armor_data()["pieces"]:
         result = yield from Routines.Yield.Items.CraftItem(item_id, 1000, mats, qtys)
         if not result:
             ConsoleLog("CraftMaxArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
@@ -662,39 +499,24 @@ def DoCraftMaxArmor(bot: Botting):
         yield
     return True
 
-def GetWeaponCommonMaterial() -> int:
-    """Returns the primary material type for weapon crafting (Wood Plank)."""
-    return ModelID.Wood_Plank.value
-
-def GetWeaponByProfession(bot: Botting):
-    """Returns weapon IDs for the character's profession."""
-    # All professions get Longbow
-    return [11641]  # Longbow
+_WEAPON_DATA = {
+    "buy":    [(ModelID.Wood_Plank.value, 1)],
+    "pieces": [(11641, [ModelID.Wood_Plank.value], [10])],  # Longbow, 10 wood planks
+}
 
 def BuyWeaponMaterials():
-    """Buy weapon materials (Wood Planks only).
-    Note: Common materials are sold in stacks of 10, so quantity 1 = 10 materials."""
-    for _ in range(1):  # Buy 1 unit = 10 Wood Planks (1 × 10)
-        yield from Routines.Yield.Merchant.BuyMaterial(GetWeaponCommonMaterial())
+    for mat, count in _WEAPON_DATA["buy"]:
+        for _ in range(count):
+            yield from Routines.Yield.Merchant.BuyMaterial(mat)
 
 def DoCraftWeapon(bot: Botting):
-    """Core weapon crafting logic - assumes already at weapon crafter NPC."""
-    weapon_ids = GetWeaponByProfession(bot)
-    material = GetWeaponCommonMaterial()  # Returns Wood Plank
-    
-    # Structure weapon data like armor pieces - (weapon_id, materials_list, quantities_list)
-    weapon_pieces = []
-    for weapon_id in weapon_ids:
-        weapon_pieces.append((weapon_id, [material], [10]))  # 10 Wood Planks per weapon
-    
-    for weapon_id, mats, qtys in weapon_pieces:
+    for weapon_id, mats, qtys in _WEAPON_DATA["pieces"]:
         result = yield from Routines.Yield.Items.CraftItem(weapon_id, 100, mats, qtys)
         if not result:
             ConsoleLog("DoCraftWeapon", f"Failed to craft weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
             return False
         yield
-
         result = yield from Routines.Yield.Items.EquipItem(weapon_id)
         if not result:
             ConsoleLog("DoCraftWeapon", f"Failed to equip weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
@@ -703,32 +525,31 @@ def DoCraftWeapon(bot: Botting):
         yield
     return True
 
-def withdraw_gold(target_gold=20000, deposit_all=True):
-    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+_SHORTBOW_DATA = {
+    "buy":    [(ModelID.Wood_Plank.value, 10), (ModelID.Plant_Fiber.value, 5)],
+    "pieces": [(11730, [ModelID.Wood_Plank.value, ModelID.Plant_Fiber.value], [100, 50])],  # Longbow, 10 wood planks
+}
 
-    if gold_on_char > target_gold and deposit_all:
-        to_deposit = gold_on_char - target_gold
-        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
-        yield from Routines.Yield.wait(250)
+def BuyShortbowMaterials():
+    for mat, count in _SHORTBOW_DATA["buy"]:
+        for _ in range(count):
+            yield from Routines.Yield.Merchant.BuyMaterial(mat)
 
-    if gold_on_char < target_gold:
-        to_withdraw = target_gold - gold_on_char
-        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
-        yield from Routines.Yield.wait(250)
-
-def withdraw_gold_weapon(target_gold=500, deposit_all=True):
-    """Withdraw gold for weapon crafting. Deposits all first if deposit_all is True."""
-    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
-
-    if deposit_all:
-        GLOBAL_CACHE.Inventory.DepositGold(gold_on_char)
-        yield from Routines.Yield.wait(250)
-        gold_on_char = 0
-
-    if gold_on_char < target_gold:
-        to_withdraw = target_gold - gold_on_char
-        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
-        yield from Routines.Yield.wait(250)
+def DoCraftShortbow(bot: Botting):
+    for weapon_id, mats, qtys in _SHORTBOW_DATA["pieces"]:
+        result = yield from Routines.Yield.Items.CraftItem(weapon_id, 5000, mats, qtys)
+        if not result:
+            ConsoleLog("DoCraftShortbow", f"Failed to craft shortbow ({weapon_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+        result = yield from Routines.Yield.Items.EquipItem(weapon_id)
+        if not result:
+            ConsoleLog("DoCraftShortbow", f"Failed to equip shortbow ({weapon_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+    return True
 
 def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     """Destroy starter armor pieces based on profession and useless items."""
@@ -794,10 +615,16 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
                         ]
     
     useless_items = [5819,  # Monastery Credit
-                     6387,  # Starter Daggers
-                     477,    # Starter Bow
+                     6387,  # A Starter Daggers
+                     2724,  # E Starter Elemental Rod
+                     2652,  # Me Starter Cane
+                     2787,  # Mo Starter Holy Rod
+                     2694,  # N Starter Truncheon
+                     477,   # R Starter Bow
+                     6498,  # Rt Starter Ritualist Wand                   
+                     2982,  # W Starter Sword
                      30853, # MOX Manual
-                     24897 #Brass Knuckles
+                     24897  #Brass Knuckles
                     ]
     
     for model in starter_armor:
@@ -806,41 +633,30 @@ def destroy_starter_armor_and_useless_items() -> Generator[Any, Any, None]:
     for model in useless_items:
         result = yield from Routines.Yield.Items.DestroyItem(model)
 
+def destroy_monastery_armor() -> Generator[Any, Any, None]:
+    for item_id, _, _ in _get_early_armor_data()["monastery"]:
+        yield from Routines.Yield.Items.DestroyItem(item_id)
+
 def destroy_seitung_armor() -> Generator[Any, Any, None]:
-    """Destroy Seitung armor pieces based on profession."""
-    global seitung_armor
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    
-    # Profession-specific Seitung armor model IDs
-    if primary == "Warrior":
-        seitung_armor = [10046, 10164, 10165, 10166, 10163]  # Head, Chest, Gloves, Pants, Boots
-    elif primary == "Ranger":
-        seitung_armor = [10483, 10613, 10614, 10615, 10612]
-    elif primary == "Monk":
-        seitung_armor = [9600, 9619, 9620, 9621, 9618]
-    elif primary == "Assassin":
-        seitung_armor = [7126, 7193, 7194, 7195, 7192]
-    elif primary == "Mesmer":
-        seitung_armor = [7528, 7546, 7547, 7548, 7545]
-    elif primary == "Necromancer":
-        seitung_armor = [8741, 8757, 8758, 8759, 8756]
-    elif primary == "Ritualist":
-        seitung_armor = [11203, 11320, 11321, 11323, 11319]
-    elif primary == "Elementalist":
-        seitung_armor = [9183, 9202, 9203, 9204, 9201]
+    for item_id, _, _ in _get_early_armor_data()["seitung"]:
+        yield from Routines.Yield.Items.DestroyItem(item_id)
+#endregion
 
-    for model in seitung_armor:
-        result = yield from Routines.Yield.Items.DestroyItem(model)
-
+#endregion
 #region Routines
 def _on_death(bot: "Botting"):
-    """Player died (in-map): wait for respawn, then resume."""
+    """Player died (in-map): halt movement, wait for outpost, then resume."""
+    died_in_ab = (Map.GetMapID() == _AB_MAP_ID)  # capture before the wait
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
     bot.Properties.ApplyNow("auto_combat", "active", False)
     yield from Routines.Yield.wait(8000)
     fsm = bot.config.FSM
+    if died_in_ab:
+        target_step = _resolve_waypoint_state_name(fsm, _FARM_RESTART_STEP)
+        if target_step:
+            fsm.jump_to_state_by_name(target_step)
     fsm.resume()
     bot.Properties.ApplyNow("auto_combat", "active", True)
     bot.Templates.Aggressive()
@@ -848,20 +664,24 @@ def _on_death(bot: "Botting"):
 
 
 def _on_party_defeated(bot: "Botting", step_name: str):
-    """Party wiped: wait for 'Return to Outpost' widget to bring us back, then restart from the same step."""
+    """Party wiped: trigger return to outpost, then restart from the same step."""
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("auto_combat", "active", False)
-    # Widget "Return to Outpost on Defeat" handles ReturnToOutpost(); just wait until we're in outpost
+    # Short grace period, then keep retrying ReturnToOutpost until we reach the outpost
+    yield from Routines.Yield.wait(1000)
     while True:
         yield from Routines.Yield.wait(500)
         if not Routines.Checks.Map.MapValid():
             continue
         if Routines.Checks.Map.IsOutpost() and Map.IsMapReady():
             break
+        # Still in explorable / defeat screen — keep calling ReturnToOutpost
+        if GLOBAL_CACHE.Party.IsPartyDefeated():
+            GLOBAL_CACHE.Party.ReturnToOutpost()
     fsm = bot.config.FSM
     if not step_name or not fsm.has_state(step_name):
         state_names = fsm.get_state_names()
-        step_name = state_names[0] if state_names else None
+        step_name = state_names[0] if state_names else ""
     if not step_name:
         fsm.resume()
         yield
@@ -871,14 +691,12 @@ def _on_party_defeated(bot: "Botting", step_name: str):
     bot.Templates.Aggressive()
     yield
 
-
 def on_death(bot: "Botting"):
     print("Player is dead. Run Failed, Restarting...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
     fsm.pause()
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
-
 
 def _get_mission_header_step(fsm) -> str | None:
     """Return the [H] header state name for the current state (so we restart the mission, not a sub-step)."""
@@ -893,16 +711,17 @@ def _get_mission_header_step(fsm) -> str | None:
             return fsm.states[i].name
     return None
 
-
 def on_party_defeated(bot: "Botting"):
+    # In AB the player is solo — OnDeathCallback fires first and handles it.
+    # Skip here to avoid double-recovery.
+    if Map.GetMapID() == _AB_MAP_ID:
+        return
     print("Party defeated. Returning to outpost and retrying current step...")
     ActionQueueManager().ResetAllQueues()
     fsm = bot.config.FSM
-    # Use mission header [H]... so we restart the whole mission, not a sub-step
-    current_step = _get_mission_header_step(fsm) or (fsm.current_state.name if fsm.current_state else None)
+    current_step = _get_mission_header_step(fsm) or (fsm.current_state.name if fsm.current_state else "")
     fsm.pause()  # Stop main state (no movement/combat); recovery still runs (managed coroutines run before pause check)
     fsm.AddManagedCoroutine("OnPartyDefeated", _on_party_defeated(bot, current_step))
-
 
 def InitializeBot(bot: Botting) -> None:
     bot.Events.OnDeathCallback(lambda: on_death(bot))
@@ -917,6 +736,7 @@ def Forming_A_Party(bot: Botting) -> None:
     bot.States.AddHeader("Quest: Forming A Party")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     PrepareForBattle(bot)
+    bot.Items.SpawnAndDestroyBonusItems()
     bot.Move.XYAndDialog(-14063.00, 10044.00, 0x81B801)
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
     bot.Move.XYAndDialog(19673.00, -6982.00, 0x81B807)
@@ -925,8 +745,8 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
         global bot
         primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-        if primary == "Ranger":
-            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0A)
+        if primary == "Mesmer":
+            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D08)
         else:
             yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0E)
 
@@ -936,9 +756,14 @@ def Unlock_Secondary_Profession(bot: Botting) -> None:
     bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
     bot.Move.XY(-159, 9174)
     bot.States.AddCustomState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
+    bot.Wait.ForTime(3000)
     bot.UI.CancelSkillRewardWindow()
-    bot.UI.CancelSkillRewardWindow()
+    bot.Wait.ForTime(3000)
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary != "Mesmer":
+        bot.UI.CancelSkillRewardWindow()
     bot.Dialogs.AtXY(-92, 9217,  0x813D07) #Reward
+    bot.Wait.ForTime(3000)
     bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
     bot.Move.XYAndExitMap(-3762, 9471, target_map_name="Shing Jea Monastery")
 
@@ -946,16 +771,19 @@ def Unlock_Xunlai_Storage(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Xunlai Storage")
     path_to_xunlai: List[Tuple[float, float]] = [(-4958, 9472),(-5465, 9727),(-4791, 10140),(-3945, 10328),(-3825.09, 10386.81),]
     bot.Move.FollowPathAndDialog(path_to_xunlai, 0x84)
+    bot.Dialogs.WithModel(283, 0x800001) # Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(283, 0x800002) # Model id updated 20.12.2025 GW Reforged
 
 def Craft_Weapon(bot: Botting):
     bot.States.AddHeader("Craft weapon")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
-    bot.States.AddCustomState(withdraw_gold_weapon, "Withdraw 500 Gold")
+    bot.Items.WithdrawGold(5000)
     bot.Move.XY(-10896.94, 10807.54)
     bot.Move.XY(-10942.73, 10783.19)
     bot.Move.XYAndInteractNPC(-10614.00, 10996.00)  # Common material merchant
     exec_fn_wood = lambda: BuyWeaponMaterials()
     bot.States.AddCustomState(exec_fn_wood, "Buy Wood Planks")
+    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
     bot.Move.XY(-10896.94, 10807.54)
     bot.Move.XY(-6519.00, 12335.00)
     bot.Move.XYAndInteractNPC(-6519.00, 12335.00)  # Weapon crafter in Shing Jea Monastery
@@ -963,69 +791,48 @@ def Craft_Weapon(bot: Botting):
     exec_fn = lambda: DoCraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapons")
 
-def Locate_Sujun(bot: Botting) -> Generator[Any, Any, None]:
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary != "Ranger": return
-    yield from bot.Move._coro_get_path_to(-7782.00, 6687.00)
-    yield from bot.Move._coro_follow_path_to()
-    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810403) #Locate Sujun
-    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810401)
-    yield from bot.helpers.UI._cancel_skill_reward_window()
+def Craft_Monastery_Armor(bot: Botting):
+    bot.States.AddHeader("Craft monastery armor")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.Move.XYAndInteractNPC(-7115.00, 12636.00)  # Armor crafter in Shing Jea Monastery
+    exec_fn = lambda: CraftMonasteryArmor(bot)
+    bot.States.AddCustomState(exec_fn, "Craft Armor")
 
-def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
-    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if primary != "Ranger": return
-    yield from bot.Move._coro_get_path_to(5103.00, -4769.00)
-    yield from bot.Move._coro_follow_path_to()
-    yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
-    yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x811401) #of course i will help
-
-def switchFilter():
-    # Switch to profession sort
-    Game.enqueue(lambda: UIManager.SendUIMessage(UIMessage.kPreferenceValueChanged,[18,2], False))
-    Game.enqueue(lambda: UIManager.SendUIMessage(UIMessage.kPreferenceValueChanged,[17,4], False))
-    yield from Routines.Yield.wait(500)
-    return
-
-def TrainSkills():
-    secondary_skills_grandparent = 1746895597
-    secondary_skills_offset = [0,0,0,5,1]
-    skills_to_train_frames = [
-        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [57,0]), # Cry of Pain
-        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [25,0]), # Power Drain
-        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [860,0]), # Signet of Disruption
-    ]
-    for skill_frame_id in skills_to_train_frames:
-        Game.enqueue(lambda: UIManager.TestMouseClickAction(skill_frame_id, 0, 0))
-        yield from Routines.Yield.wait(200)
-        Game.enqueue(lambda: UIManager.FrameClick(UIManager.GetFrameIDByHash(4162812990)))
-        yield from Routines.Yield.wait(200)
-    return
+def Extend_Inventory_Space(bot: Botting):
+    bot.States.AddHeader("Extend Inventory Space")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.helpers.UI.open_all_bags()
+    bot.Move.XY(-11866, 11444)
+    bot.Move.XYAndInteractNPC(-11866, 11444) # Merchant NPC in Shingjea Monastery
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(2988, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(2988, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
+    bot.Wait.ForTime(250)
+    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
+    bot.Wait.ForTime(500) # Wait for equip to complete
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.Wait.ForTime(500)
+    bot.Items.MoveModelToBagSlot(35, 1, 0)
+    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
 
 def Unlock_Skills_Trainer(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Skills Trainer")
-    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if profession == "Mesmer":
-        return
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     bot.Move.XYAndDialog(-8790.00, 10366.00, 0x84)
-    bot.States.AddCustomState(switchFilter, "Switch Skill Filter")
     bot.Wait.ForTime(3000)
-    bot.States.AddCustomState(TrainSkills, "Train Skills")
-
-def Charm_Pet(bot: Botting) -> None:
-    bot.States.AddHeader("Charm Pet")
-    bot.Map.Travel(target_map_name="Shing Jea Monastery")
-    bot.States.AddCustomState(lambda:Locate_Sujun(bot), "Unlock Skills")
-    bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
-    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
-    bot.Move.XY(13970.94, -13085.83)
-    bot.Move.ToModel(3005) #Tiger model id updated 20.12.2025 GW Reforged
-    bot.Wait.ForTime(500)
-    bot.Target.Model(3005) #Tiger model id updated 20.12.2025 GW Reforged
-    bot.SkillBar.UseSkill(411)
-    bot.Wait.ForTime(14000)
-    bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
+    bot.Player.BuySkill(57)
+    bot.Wait.ForTime(250)
+    bot.Player.BuySkill(25)
+    bot.Wait.ForTime(250)
+    bot.Player.BuySkill(860)
 
 def To_Minister_Chos_Estate(bot: Botting):
     bot.States.AddHeader("To Minister Cho's Estate")
@@ -1059,12 +866,13 @@ def Minister_Chos_Estate_Mission(bot: Botting) -> None:
     bot.Move.XY(333.32, 1124.44)
     bot.Move.XY(-3337.14, -4741.27)
     bot.Wait.ForTime(35000)
-    #ConfigureAggressiveEnv(bot)
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(-4661.99, -6285.81)
     bot.Move.XY(-7454, -7384)  # Move to Zoo Entrance
     bot.Move.XY(-9138, -4191)  # Move to First Zoo Fight
     bot.Move.XY(-7109, -25)    # Move to Bridge Waypoint
     bot.Move.XY(-7443, 2243)   # Move to Zoo Exit
+    bot.Wait.ForTime(5000)
     bot.Move.XY(-16924, 2445)  # Move to Final Destination
     bot.Interact.WithNpcAtXY(-17031, 2448) #"Interact with Minister Cho"
     bot.Wait.ForMapToChange(target_map_id=251) #Ran Musu Gardens
@@ -1118,6 +926,7 @@ def The_Threat_Grows(bot: Botting):
     bot.Wait.UntilModelHasQuest(3367) #Sister Tai model id updated 20.12.2025 GW Reforged
     ConfigurePacifistEnv(bot)
     bot.Dialogs.WithModel(3367, 0x815407) #Sister Tai model id updated 20.12.2025 GW Reforged
+    bot.Wait.ForTime(5000)
     bot.Dialogs.WithModel(3367, 0x815501) #Sister Tai model id updated 20.12.2025 GW Reforged
      
 def The_Road_Less_Traveled(bot: Botting):
@@ -1137,8 +946,6 @@ def The_Road_Less_Traveled(bot: Botting):
 def Craft_Seitung_Armor(bot: Botting):
     bot.States.AddHeader("Craft Seitung armor")
     bot.Map.Travel(target_map_id=250) #Seitung Harbor
-    bot.Move.XYAndInteractNPC(17520.00, 13805.00)
-    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
     bot.Move.XY(19823.66, 9547.78)
     bot.Move.XYAndInteractNPC(20508.00, 9497.00)
     exec_fn = lambda: CraftArmor(bot)
@@ -1152,54 +959,83 @@ def To_Zen_Daijun(bot: Botting):
     bot.Move.XYAndDialog(16489, -22213, 0x80000B)
     bot.Wait.ForTime(7000)
     bot.Wait.ForMapLoad(target_map_id=213) #Zen Daijun
+
+def Complete_Skills_Training(bot: Botting) -> None:
+    bot.States.AddHeader("Complete Skills Training")
+    bot.Party.LeaveParty()
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.Move.XYAndDialog(-8790.00, 10366.00, 0x84)
+    bot.Wait.ForTime(3000)
+    bot.Player.BuySkill(61)
     
+def _register_spirit_rift_watcher():
+    bot.config.FSM.AddManagedCoroutine("SpiritRiftWatcher", _zen_daijun_interrupt_loop())
+    yield
+
+def _zen_daijun_interrupt_loop():
+    """Poll each tick for Spirit Rift casts (ID 910) and interrupt with unlocked mesmer skills."""
+    SPIRIT_RIFT_ID = 910
+    INTERRUPT_SKILLS = [57, 25, 860]  # Cry of Pain, Power Drain, Signet of Disruption
+    cooldown = 0
+
+    while Map.GetMapID() == 213:
+        if cooldown > 0:
+            cooldown -= 1
+            yield
+            continue
+
+        for enemy_id in AgentArray.GetEnemyArray():
+            if Agent.GetCastingSkillID(enemy_id) == SPIRIT_RIFT_ID:
+                for skill_id in INTERRUPT_SKILLS:
+                    slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+                    if slot > 0:
+                        Player.ChangeTarget(enemy_id)
+                        GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=enemy_id)
+                        cooldown = 30  # ~1 s before scanning again
+                        break
+                break
+        yield
+
 def Zen_Daijun_Mission(bot:Botting):
     bot.States.AddHeader("Zen Daijun Mission")
-    for _ in range (4):
-        bot.Map.Travel(target_map_id=213)
-        #PrepareForBattle(bot)
-        bot.States.AddCustomState(AddHenchmen, "Add Henchmen")
-        bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
-        bot.Wait.ForMapToChange(target_map_id=213)
-        ConfigureAggressiveEnv(bot)
-        bot.Move.XY(15120.68, 10456.73)
-        bot.Wait.ForTime(15000)
-        bot.Move.XY(11990.38, 10782.05)
-        bot.Wait.ForTime(10000)
-        bot.Move.XY(10161.92, 9751.41)
-        bot.Move.XY(9723.10, 7968.76)
-        bot.Wait.UntilOutOfCombat()
-        bot.Interact.WithGadgetAtXY(9632.00, 8058.00)
-        bot.Move.XY(9412.15, 7257.83)
-        bot.Move.XY(9183.47, 6653.42)
-        bot.Move.XY(8966.42, 6203.29)
-        bot.Move.XY(3510.94, 2724.63)
-        bot.Move.XY(2120.18, 1690.91)
-        bot.Move.XY(928.27, 2782.67)
-        bot.Move.XY(744.67, 4187.17)
-        bot.Move.XY(242.27, 6558.48)
-        bot.Move.XY(-4565.76, 8326.51)
-        bot.Move.XY(-5374.88, 8626.30)
-        bot.Move.XY(-10291.65, 8519.68)
-        bot.Move.XY(-11009.76, 6292.73)
-        bot.Move.XY(-12762.20, 6112.31)
-        bot.Move.XY(-14029.90, 3699.97)
-        bot.Move.XY(-13243.47, 1253.06)
-        bot.Move.XY(-11907.05, 28.87)
-        bot.Move.XY(-11306.09, 802.47)
-        bot.Wait.ForTime(5000)
-        bot.Move.XY(-10255.23, 178.48)
-        bot.Move.XY(-9068.41, -553.94)
-        bot.Wait.ForTime(5000)
-        bot.Move.XY(-7949.79, -1376.02)
-        bot.Move.XY(-7688.63, -1538.34)
-        bot.Wait.ForMapToChange(target_map_name="Seitung Harbor")
-
-def Craft_Remaining_Seitung_Armor(bot: Botting):
-    bot.States.AddHeader("Craft remaining Seitung armor")
-    bot.Map.Travel(target_map_name="Seitung Harbor")
-    #bot.States.AddCustomState(withdraw_gold_weapon, "Withdraw 500 Gold")
-    bot.States.AddCustomState(CraftRemainingArmor, "Craft Remaining Seitung Armor")
+    bot.Map.Travel(target_map_id=213)
+    PrepareForBattle(bot)
+    bot.Map.EnterChallenge(6000, target_map_id=213) #Zen Daijun
+    bot.Wait.ForMapToChange(target_map_id=213)
+    bot.States.AddCustomState(_register_spirit_rift_watcher, "Start Spirit Rift Watcher")
+    #ConfigureAggressiveEnv(bot)
+    bot.Move.XY(15120.68, 10456.73)
+    bot.Wait.ForTime(15000)
+    bot.Move.XY(11990.38, 10782.05)
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(10161.92, 9751.41)
+    bot.Move.XY(9723.10, 7968.76)
+    bot.Wait.UntilOutOfCombat()
+    bot.Interact.WithGadgetAtXY(9632.00, 8058.00)
+    bot.Move.XY(9412.15, 7257.83)
+    bot.Move.XY(9183.47, 6653.42)
+    bot.Move.XY(8966.42, 6203.29)
+    bot.Move.XY(3510.94, 2724.63)
+    bot.Move.XY(2120.18, 1690.91)
+    bot.Move.XY(928.27, 2782.67)
+    bot.Move.XY(744.67, 4187.17)
+    bot.Move.XY(242.27, 6558.48)
+    bot.Move.XY(-4565.76, 8326.51)
+    bot.Move.XY(-5374.88, 8626.30)
+    bot.Move.XY(-10291.65, 8519.68)
+    bot.Move.XY(-11009.76, 6292.73)
+    bot.Move.XY(-12762.20, 6112.31)
+    bot.Move.XY(-14029.90, 3699.97)
+    bot.Move.XY(-13243.47, 1253.06)
+    bot.Move.XY(-11907.05, 28.87)
+    bot.Move.XY(-11306.09, 802.47)
+    bot.Wait.ForTime(5000)
+    bot.Move.XY(-10255.23, 178.48)
+    bot.Move.XY(-9068.41, -553.94)
+    bot.Wait.ForTime(5000)
+    bot.Move.XY(-7949.79, -1376.02)
+    bot.Move.XY(-7688.63, -1538.34)
+    bot.Wait.ForMapToChange(target_map_name="Seitung Harbor")
 
 def Destroy_Starter_Armor_And_Useless_Items(bot: Botting):
     bot.States.AddHeader("Destroy starter armor and useless items")
@@ -1229,14 +1065,13 @@ def Craft_Max_Armor(bot: Botting):
     # Buy common materials (cloth or hide)
     bot.Map.Travel(194)
     bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
-    bot.States.AddCustomState(withdraw_gold, "Withdraw 20k Gold")
+    bot.Items.WithdrawGold(20000)
     bot.Move.XYAndInteractNPC(1592.00, -796.00)  # Common material merchant
     exec_fn_common = lambda: BuyMaxArmorMaterials("common")
     bot.States.AddCustomState(exec_fn_common, "Buy Common Materials")
     bot.Wait.ForTime(1500)  # Wait for common material purchases to complete
     # Buy rare materials (steel ingot, linen, or damask)
-    rare_material = GetMaxArmorRareMaterial()
-    if rare_material is not None:
+    if _get_max_armor_data()["buy_rare"]:
         bot.Move.XYAndInteractNPC(1495.00, -1315.00)  # Rare material merchant
         exec_fn_rare = lambda: BuyMaxArmorMaterials("rare")
         bot.States.AddCustomState(exec_fn_rare, "Buy Rare Materials")
@@ -1248,31 +1083,78 @@ def Craft_Max_Armor(bot: Botting):
     exec_fn = lambda: DoCraftMaxArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Max Armor")
 
+def _ensure_bonus_bow(bot: Botting):
+    """Runtime check: craft the AB shortbow only if not already owned."""
+    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventoryOrEquipped(11730):
+        yield
+        return
+    if Map.GetMapID() != 194:
+        Map.Travel(194)
+        yield from Routines.Yield.Map.WaitforMapLoad(194, timeout=30000)
+    yield from bot.Move._coro_xy(1592.00, -796.00)
+    yield from Routines.Yield.Items.WithdrawGold(20000)
+    yield from bot.Move._coro_xy_and_interact_npc(1592.00, -796.00)  # Common material merchant
+    yield from Routines.Yield.wait(1000)
+    yield from BuyShortbowMaterials()
+    yield from bot.Move._coro_xy_and_interact_npc(-1387.00, -3910.00)  # Weapon crafter
+    yield from Routines.Yield.wait(1000)
+    yield from DoCraftShortbow(bot)
+    yield
+
+def Destroy_Monastery_Armor(bot: Botting):
+    bot.States.AddHeader("Destroy old armor")
+    bot.States.AddCustomState(destroy_monastery_armor, "Destroy Seitung Armor")
+
 def Destroy_Seitung_Armor(bot: Botting):
     bot.States.AddHeader("Destroy old armor")
     bot.States.AddCustomState(destroy_seitung_armor, "Destroy Seitung Armor")
 
-def Extend_Inventory_Space(bot: Botting):
-    bot.States.AddHeader("Extend Inventory Space")
+def The_Search_For_A_Cure(bot: Botting) -> None:
+    bot.States.AddHeader("Quest: The Search For A Cure")
     bot.Map.Travel(194)
-    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
-    bot.helpers.UI.open_all_bags()
-    bot.Move.XY(1448.00, -2024.00)
-    bot.Move.XYAndInteractNPC(1448.00, -2024.00) # Merchant NPC in Kaineng Center
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
-    bot.Wait.ForTime(250)
-    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
-    bot.Wait.ForTime(500) # Wait for equip to complete
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-    bot.Wait.ForTime(500)
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.Move.XYAndDialog(3772.00, -961.00, 0x815001)
+    bot.Move.XYAndDialog(1784.00, 991.00, 0x815004)
+    bot.Map.Travel(target_map_name="The Marketplace")
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(11430.00, 15200.00, target_map_name="Wajjun Bazaar")
+    bot.Items.AddModelToLootWhitelist(6496)
+    bot.Move.XY(10350.00, 14100.00)
+    bot.Move.XY(8300.00, 14100.00)
+    bot.Items.LootItems()
+    bot.Wait.ForTime(5000)
+    bot.Map.Travel(194)
+    bot.Move.XYAndDialog(1784.00, 991.00, 0x815007)
+
+def A_Masters_Burden(bot: Botting) -> None:
+    bot.States.AddHeader("Quest: A Master's Burden")
+    bot.Map.Travel(194)
+    bot.Move.XYAndDialog(1784.00, 991.00, 0x815101)
+    bot.Map.Travel(target_map_name="The Marketplace")
+    PrepareForBattle(bot)
+    bot.Move.XYAndExitMap(11430.00, 15200.00, target_map_name="Wajjun Bazaar")
+    bot.Move.XY(10033.88, 13838.59)
+    bot.Move.XY(11637.23, 11837.92)
+    bot.Move.XY(10007.72, 10951.80)
+    bot.Move.XY(8200.78, 12134.04)
+    bot.Move.XY(8133.31, 7629.99)
+    bot.Move.XY(5329.09, 7626.73)
+    bot.Move.XY(4145.20, 6584.09)
+    bot.Move.XY(-1663.82, 7113.72)
+    bot.Move.XYAndDialog(-1893.00, 6922.00, 0x815D04)
+    bot.Move.XY(4207.15, 6226.59)
+    bot.Move.XY(4944.20, 3398.03)
+    bot.Move.XY(4401.08, 618.24)
+    bot.Move.XY(5802.95, -2295.56)
+    bot.Move.XY(4671.93, -5007.46)
+    bot.Move.XY(10977.27, -5479.92)
+    bot.Move.XYAndDialog(10774.00, -6636.00, 0x815D04)
+    bot.Wait.ForTime(1000)
+    bot.Map.Travel(target_map_name="The Marketplace")
+    bot.Move.XY(12250, 18236)
+    bot.Move.XY(10343, 20329)
+    bot.Wait.ForMapLoad(target_map_id=302)
+    bot.Move.XYAndDialog(9950.00, 20033.00, 0x815D07)
+    #bot.Quest.AbandonQuest(337) #Abandon Seek out Brother Tosai quest
 
 def To_Boreal_Station(bot: Botting):
     bot.States.AddHeader("To Boreal Station")
@@ -1281,20 +1163,31 @@ def To_Boreal_Station(bot: Botting):
     bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)
     bot.Move.XY(3444.90, -1728.31)
     PrepareForBattle(bot)
+    def _disable_dead_behind():
+        bot.Events.OnPartyMemberDeadBehindCallback(lambda: None)
+        yield
+    bot.States.AddCustomState(_disable_dead_behind, "Disable DeadBehind Callback")
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
     bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
+    bot.Wait.ForTime(1000)
+    bot.States.AddCustomState(destroy_starter_armor_and_useless_items, "Destroy starter armor and useless items")
     bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
     bot.Wait.ForMapLoad(target_map_id=692)
     auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
-                      (3918.55, 10383.79), (8435, 14378), (10134,16742)]    
+                      (3918.55, 10383.79), (8435, 14378), (10134,16742)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(3000)
-    ConfigurePacifistEnv(bot)    
+    ConfigurePacifistEnv(bot)
+    bot.Items.UseAllConsumables()
     auto_path_list = [(4523.25, 15448.03), (-43.80, 18365.45), (-10234.92, 16691.96),
                       (-17917.68, 18480.57), (-18775, 19097)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(8000)
     bot.Wait.ForMapLoad(target_map_id=675)
+    def _enable_dead_behind():
+        bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
+        yield
+    bot.States.AddCustomState(_enable_dead_behind, "Enable DeadBehind Callback")
 
 def To_Eye_of_the_North(bot: Botting):
     bot.States.AddHeader("To Eye of the North")
@@ -1339,6 +1232,17 @@ def Attribute_Points_Quest_2(bot: Botting):
         bot.Properties.Disable("auto_combat")
  
     bot.States.AddHeader("Attribute points quest n. 2")
+
+    def _cleanup_farm_settings():
+        """Clear Keiran's build override and reset farm-specific properties."""
+        bot.OverrideBuild(AutoCombat())
+        bot.Properties.ApplyNow("halt_on_death",   "active", False)
+        bot.Properties.ApplyNow("pause_on_danger", "active", False)
+        bot.Properties.ApplyNow("auto_loot",       "active", False)
+        bot.Properties.ApplyNow("imp",             "active", False)
+        yield
+
+    bot.States.AddCustomState(_cleanup_farm_settings, "Cleanup Farm Settings")
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_name="Seitung Harbor")
     auto_path_list = [(16602.23, 11612.10), (16886.80, 9577.24), (16940.28, 9860.90), 
@@ -1351,7 +1255,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     #bot.Party.AddHenchmanList([1, 5])
     bot.Party.AddHenchmanList([5])
-    bot.Dialogs.AtXY(20350.00, 9087.00, 0x80000B)
+    bot.Move.XYAndDialog(20350.00, 9087.00, 0x80000B)
     bot.Wait.ForMapLoad(target_map_id=246)  #Zen Daijun
     ConfigureAggressiveEnv(bot)
     auto_path_list:List[Tuple[float, float]] = [
@@ -1460,17 +1364,444 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Wait.ForTime(5000)
     bot.Dialogs.WithModel(4009,0x815C07) #Zunraa model id updated 20.12.2025 GW Reforged
 
+# Re-entry step when the AB farm run fails (re-equips bow, enters quest from HOM, waits for map)
+_FARM_RESTART_STEP = "[H]Prepare for Quest (Farm)_34"
+_AB_MAP_ID = 849
+
+# ── Farm AB — Combat AI constants ────────────────────────────────────────────
+_FARM_DEBUG         = False   # set True to see combat AI logs in console
+_MIKU_MODEL_ID      = 8443
+_SHADOWSONG_ID      = 4264
+_SOS_SPIRIT_IDS     = frozenset({4280, 4281, 4282})  # Anger, Hate, Suffering
+_AOE_SKILLS         = {1380: 2000, 1372: 2000, 1083: 2000, 830: 2000, 192: 5000}
+_MIKU_FAR_DIST      = 1400.0
+_SPIRIT_FLEE_DIST   = 1600.0
+_AOE_SIDESTEP_DIST  = 350.0
+_EMPATHY_SKILL_IDS  = frozenset({26, 3151})  # Empathy, Empathy (PvP)
+_SPIRIT_SHACKLES_SKILL_IDS = frozenset({66})  # Spirit Shackles
+
+# White Mantle Ritualist priority targets (in kill priority order, highest first).
+# IDs are base values + 10 adjustment for post-update model IDs.
+_PRIORITY_TARGET_MODELS = [
+    8301,  # PRIMARY  – Shadowsong / Bloodsong / Pain / Anguish rit
+    8299,  # PRIMARY  – Rit/Monk: Preservation, strong heal, hex-remove, spirits
+    8303,  # PRIORITY – Weapon of Remedy rit (hard-rez)
+    8298,  #            Rit/Paragon spear caster
+    8300,  #            SoS rit
+    8302,  # 2nd prio – Minion-summoning rit
+    8254,  #            Ritualist (additional)
+]
+_TARGET_SWITCH_INTERVAL = 1.0   # seconds between priority-target checks
+_PRIORITY_TARGET_RANGE  = Range.Earshot.value  # only target priority enemies within this distance
+
+def _handle_bonus_bow(bot: Botting):
+    bonus_bow_id = 11730
+
+    if BotSettings.CUSTOM_BOW_ID != 0:
+        bonus_bow_id = BotSettings.CUSTOM_BOW_ID
+    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventory(bonus_bow_id)
+    if has_bonus_bow:
+        yield from bot.helpers.Items._equip(bonus_bow_id)
+
+def _farm_escape_point(me_x: float, me_y: float, tx: float, ty: float, dist: float):
+    import math
+    dx = me_x - tx; dy = me_y - ty
+    length = math.sqrt(dx * dx + dy * dy)
+    if length < 1:
+        return me_x + dist, me_y
+    return me_x + (dx / length) * dist, me_y + (dy / length) * dist
+
+
+def _farm_perp_point(me_x: float, me_y: float, tx: float, ty: float, dist: float):
+    import math
+    dx = tx - me_x; dy = ty - me_y
+    length = math.sqrt(dx * dx + dy * dy)
+    if length < 1:
+        return me_x + dist, me_y
+    return me_x + (dy / length) * dist, me_y + (-dx / length) * dist
+
+
+def _farm_dist(x1: float, y1: float, x2: float, y2: float) -> float:
+    import math
+    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+def _farm_combat_ai_loop(bot: Botting):
+    """
+    Managed coroutine for Farm_Until_Level_20 — runs every frame even when FSM is paused.
+    Handles: Miku dead/far, spirit avoidance, AoE dodge.
+    """
+    import time
+    BOT_NAME = "FarmCombatAI"
+    AB_MAP = 849
+    fsm = bot.config.FSM
+    pause_reasons: set = set()
+    ai_paused_fsm = False   # True only when THIS coroutine issued the pause
+    aoe_sidestep_at = 0.0
+    aoe_caster_id = 0
+    last_target_check = 0.0
+    locked_target_id = 0                          # priority target we're locked onto
+    locked_priority = len(_PRIORITY_TARGET_MODELS)  # priority index of locked target
+    _prev_reasons: set = set()
+    last_reposition_at = 0.0
+    last_reposition_pos = (0.0, 0.0)
+    last_reposition_target = (0.0, 0.0)
+    path_recover_cooldown_until = 0.0
+    empathy_skill_ids: tuple[int, ...] = tuple()
+    empathy_resolved = False
+    auto_combat_suppressed_by_empathy = False
+    natures_blessing_id = 0
+
+    ConsoleLog(BOT_NAME, "Farm combat AI loop started", Py4GW.Console.MessageType.Info)
+
+    def _set_pause(reason: str):
+        nonlocal ai_paused_fsm
+        pause_reasons.add(reason)
+        if not fsm.is_paused():
+            fsm.pause()
+            ai_paused_fsm = True
+
+    def _clear_pause(reason: str):
+        nonlocal ai_paused_fsm
+        pause_reasons.discard(reason)
+        if not pause_reasons and ai_paused_fsm and fsm.is_paused():
+            fsm.resume()
+            ai_paused_fsm = False
+
+    def _issue_reposition(target_x: float, target_y: float, me_x: float, me_y: float, now: float):
+        nonlocal last_reposition_at, last_reposition_pos, last_reposition_target, path_recover_cooldown_until
+        same_target = _farm_dist(target_x, target_y, last_reposition_target[0], last_reposition_target[1]) < 120
+        low_progress = _farm_dist(me_x, me_y, last_reposition_pos[0], last_reposition_pos[1]) < 80
+        if same_target and low_progress and (now - last_reposition_at) >= 1.2 and now >= path_recover_cooldown_until:
+            # Stuck recovery: use pathing-aware movement occasionally instead of raw straight-line move.
+            bot.Move.XY(target_x, target_y)
+            path_recover_cooldown_until = now + 2.0
+            if _FARM_DEBUG:
+                ConsoleLog(BOT_NAME, f"Stuck recovery path move -> ({target_x:.0f}, {target_y:.0f})", Py4GW.Console.MessageType.Warning)
+        else:
+            Player.Move(target_x, target_y)
+
+        last_reposition_at = now
+        last_reposition_pos = (me_x, me_y)
+        last_reposition_target = (target_x, target_y)
+
+    while Map.GetMapID() == AB_MAP:
+        me_id = Player.GetAgentID()
+        if not Agent.IsValid(me_id) or Agent.IsDead(me_id):
+            yield
+            continue
+
+        me_x, me_y = Agent.GetXY(me_id)
+        enemy_array = AgentArray.GetEnemyArray()
+        if not empathy_resolved:
+            ids = set(_EMPATHY_SKILL_IDS)
+            ids.update(_SPIRIT_SHACKLES_SKILL_IDS)
+            empathy_id = GLOBAL_CACHE.Skill.GetID("Empathy")
+            if empathy_id > 0:
+                ids.add(empathy_id)
+            empathy_pvp_id = GLOBAL_CACHE.Skill.GetID("Empathy_(PvP)")
+            if empathy_pvp_id > 0:
+                ids.add(empathy_pvp_id)
+            spirit_shackles_id = GLOBAL_CACHE.Skill.GetID("Spirit_Shackles")
+            if spirit_shackles_id > 0:
+                ids.add(spirit_shackles_id)
+            empathy_skill_ids = tuple(ids)
+            natures_blessing_id = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
+            empathy_resolved = True
+
+        # ── 1. Miku tracking ─────────────────────────────────────────────────
+        miku_id = Routines.Agents.GetAgentIDByModelID(_MIKU_MODEL_ID)
+        miku_dead = miku_id != 0 and Agent.IsDead(miku_id)
+        miku_far = False
+        mk_x = mk_y = 0.0
+        if miku_id != 0 and not miku_dead:
+            mk_x, mk_y = Agent.GetXY(miku_id)
+            miku_far = _farm_dist(me_x, me_y, mk_x, mk_y) > _MIKU_FAR_DIST
+
+        if miku_dead:
+            _set_pause("miku_dead")
+        else:
+            _clear_pause("miku_dead")
+
+        if miku_far:
+            _set_pause("miku_far")
+        else:
+            _clear_pause("miku_far")
+
+        # ── 2. Spirit avoidance ───────────────────────────────────────────────
+        spirit_id = 0
+        sp_x = sp_y = 0.0
+        for eid in enemy_array:
+            if Agent.IsDead(eid):
+                continue
+            model = Agent.GetModelID(eid)
+            if model == _SHADOWSONG_ID or model in _SOS_SPIRIT_IDS:
+                ex, ey = Agent.GetXY(eid)
+                if _farm_dist(me_x, me_y, ex, ey) < _SPIRIT_FLEE_DIST:
+                    spirit_id = eid
+                    sp_x, sp_y = ex, ey
+                    break
+
+        if spirit_id != 0:
+            _set_pause("spirit")
+        else:
+            _clear_pause("spirit")
+
+        has_empathy = any(Routines.Checks.Agents.HasEffect(me_id, sid) for sid in empathy_skill_ids)
+        if has_empathy:
+            if not auto_combat_suppressed_by_empathy:
+                yield from Routines.Yield.Keybinds.CancelAction()
+                bot.Properties.ApplyNow("auto_combat", "active", False)
+                auto_combat_suppressed_by_empathy = True
+                if _FARM_DEBUG:
+                    ConsoleLog(BOT_NAME, "Empathy/Spirit Shackles detected: auto_combat paused", Py4GW.Console.MessageType.Warning)
+            Player.ChangeTarget(0)  # clear target every frame to stop auto-attack
+            if natures_blessing_id > 0 and Agent.GetHealth(me_id) < 0.80:
+                if (yield from Routines.Yield.Skills.IsSkillIDUsable(natures_blessing_id)):
+                    yield from Routines.Yield.Skills.CastSkillID(natures_blessing_id, aftercast_delay=100)
+        elif auto_combat_suppressed_by_empathy:
+            bot.Properties.ApplyNow("auto_combat", "active", True)
+            auto_combat_suppressed_by_empathy = False
+            if _FARM_DEBUG:
+                ConsoleLog(BOT_NAME, "Empathy/Spirit Shackles cleared: auto_combat resumed", Py4GW.Console.MessageType.Info)
+
+        # ── Debug: log reason changes once per transition ─────────────────────
+        if _FARM_DEBUG and pause_reasons != _prev_reasons:
+            added   = pause_reasons - _prev_reasons
+            removed = _prev_reasons - pause_reasons
+            for r in added:
+                ConsoleLog(BOT_NAME, f"PAUSE added: {r}", Py4GW.Console.MessageType.Warning)
+            for r in removed:
+                ConsoleLog(BOT_NAME, f"PAUSE cleared: {r}", Py4GW.Console.MessageType.Info)
+            _prev_reasons = set(pause_reasons)
+
+        now = time.time()
+
+        # ── 3. Priority target selection (runs every frame, before movement) ──
+        if now - last_target_check >= _TARGET_SWITCH_INTERVAL:
+            last_target_check = now
+            # Validate locked target: drop it if dead or out of range
+            if locked_target_id != 0:
+                if not Agent.IsValid(locked_target_id) or Agent.IsDead(locked_target_id):
+                    locked_target_id = 0
+                    locked_priority = len(_PRIORITY_TARGET_MODELS)
+                else:
+                    lx, ly = Agent.GetXY(locked_target_id)
+                    if _farm_dist(me_x, me_y, lx, ly) > _PRIORITY_TARGET_RANGE:
+                        locked_target_id = 0
+                        locked_priority = len(_PRIORITY_TARGET_MODELS)
+            # Scan for a strictly higher-priority target (or any if none locked)
+            best_id = 0
+            best_priority = len(_PRIORITY_TARGET_MODELS)
+            for eid in enemy_array:
+                if Agent.IsDead(eid):
+                    continue
+                ex, ey = Agent.GetXY(eid)
+                if _farm_dist(me_x, me_y, ex, ey) > _PRIORITY_TARGET_RANGE:
+                    continue
+                model = Agent.GetModelID(eid)
+                if model in _PRIORITY_TARGET_MODELS:
+                    prio = _PRIORITY_TARGET_MODELS.index(model)
+                    if prio < best_priority:
+                        best_priority = prio
+                        best_id = eid
+            # Lock onto new target only if strictly higher priority than current lock
+            if best_id != 0 and best_priority < locked_priority:
+                locked_target_id = best_id
+                locked_priority = best_priority
+                if _FARM_DEBUG:
+                    ConsoleLog(BOT_NAME,
+                               f"Locked priority target: model {_PRIORITY_TARGET_MODELS[locked_priority]} "
+                               f"(prio {locked_priority}) agent {locked_target_id}",
+                               Py4GW.Console.MessageType.Info)
+            # Call the locked target every interval until dead
+            if locked_target_id != 0:
+                Player.ChangeTarget(locked_target_id)
+                bot.Player.CallTarget()
+
+        # ── 4. Act on movement conditions (priority order) ────────────────────
+        if miku_dead:
+            yield
+            continue
+
+        if spirit_id != 0:
+            ex_x, ex_y = _farm_escape_point(me_x, me_y, sp_x, sp_y, 600)
+            _issue_reposition(ex_x, ex_y, me_x, me_y, now)
+            yield from Routines.Yield.wait(200)
+            continue
+
+        if miku_far:
+            _issue_reposition(mk_x, mk_y, me_x, me_y, now)
+            yield from Routines.Yield.wait(200)
+            continue
+
+        # ── 5. AoE dodge ─────────────────────────────────────────────────────
+        if aoe_caster_id != 0 and now >= aoe_sidestep_at:
+            if Agent.IsValid(aoe_caster_id) and not Agent.IsDead(aoe_caster_id):
+                tx, ty = Agent.GetXY(aoe_caster_id)
+                sx, sy = _farm_perp_point(me_x, me_y, tx, ty, _AOE_SIDESTEP_DIST)
+                _issue_reposition(sx, sy, me_x, me_y, now)
+                if _FARM_DEBUG:
+                    ConsoleLog(BOT_NAME, f"AoE dodge: stepping to ({sx:.0f}, {sy:.0f})", Py4GW.Console.MessageType.Info)
+            aoe_caster_id = 0
+        elif aoe_caster_id == 0:
+            for eid in enemy_array:
+                if Agent.IsDead(eid):
+                    continue
+                skill = Agent.GetCastingSkillID(eid)
+                if skill in _AOE_SKILLS:
+                    aoe_sidestep_at = now + _AOE_SKILLS[skill] / 1000.0
+                    aoe_caster_id = eid
+                    if _FARM_DEBUG:
+                        ConsoleLog(BOT_NAME, f"AoE detected: skill {skill}, dodging in {_AOE_SKILLS[skill]}ms", Py4GW.Console.MessageType.Warning)
+                    break
+
+        yield
+
+    # Cleanup: clear AI state on map exit.
+    # If party was defeated, _on_party_defeated is handling the FSM — don't resume it.
+    ConsoleLog(BOT_NAME, "Farm combat AI loop exiting — cleaning up", Py4GW.Console.MessageType.Info)
+    if auto_combat_suppressed_by_empathy:
+        bot.Properties.ApplyNow("auto_combat", "active", True)
+    if GLOBAL_CACHE.Party.IsPartyDefeated():
+        ai_paused_fsm = False   # prevent _clear_pause from calling fsm.resume()
+        pause_reasons.clear()
+    else:
+        for reason in list(pause_reasons):
+            _clear_pause(reason)
+
+
+def Farm_Until_Level_20(bot: Botting):
+    """Farm Auspicious Beginnings until level 20 using KeiranThackerayEOTN build (solo, no heroes)."""
+    FARM_PREPARE_STEP = "[H]Prepare for Quest (Farm)_33"
+    NEXT_STEP_AFTER_FARM = "[H]Attribute points quest n. 2_35"
+    EOTN_MAP_ID      = 642
+    HOM_MAP_ID       = 646
+    AB_MAP_ID        = 849
+
+    # ── Header _32: loop entry / early exit check ──────────────────────────
+    bot.States.AddHeader("Farm Until Level 20")
+
+    def _level_check_entry():
+        level = Player.GetLevel()
+        ConsoleLog("FarmUntil20", f"[Farm] Entry level check: level={level}", Py4GW.Console.MessageType.Info)
+        if level >= 20:
+            fsm = bot.config.FSM
+            target_step = _resolve_waypoint_state_name(fsm, NEXT_STEP_AFTER_FARM)
+            if not target_step:
+                ConsoleLog("FarmUntil20", f"[Farm] Target state not found: {NEXT_STEP_AFTER_FARM}", Py4GW.Console.MessageType.Error)
+                yield
+                return
+            fsm.pause()
+            yield
+            fsm.jump_to_state_by_name(target_step)
+            yield
+            fsm.resume()
+            yield
+        # Keep coroutine semantics even when level < 20.
+        yield
+
+    bot.States.AddCustomState(_level_check_entry, "Level Check (Farm Entry)")
+    bot.States.AddCustomState(lambda: _ensure_bonus_bow(bot), "Ensure Bonus Bow (Farm)")
+
+    # Travel EotN → HOM (solo, no heroes)
+    bot.Map.Travel(target_map_id=EOTN_MAP_ID)
+    bot.Party.LeaveParty()
+    bot.Move.XYAndExitMap(-4873.00, 5284.00, target_map_id=HOM_MAP_ID)
+
+    # ── Header _33: prepare for quest ─────────────────────────────────────
+    bot.States.AddHeader("Prepare for Quest (Farm)")
+    bot.Wait.ForMapLoad(target_map_id=HOM_MAP_ID)
+
+    def _equip_keirans_bow():
+        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Keirans_Bow.value):
+            yield from bot.Move._coro_xy_and_dialog(-6583.00, 6672.00, dialog_id=0x0000008A)
+        if not Routines.Checks.Inventory.IsModelEquipped(ModelID.Keirans_Bow.value):
+            yield from bot.helpers.Items._equip(ModelID.Keirans_Bow.value)
+
+    bot.States.AddCustomState(_equip_keirans_bow, "Equip Keiran's Bow (Farm)")
+    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63F)   # enter quest via HOM pool
+    bot.Wait.ForMapLoad(target_map_id=AB_MAP_ID)
+
+    # ── Header _34: run the quest ─────────────────────────────────────────
+    bot.States.AddHeader("Run Quest (Farm)")
+
+    def _setup_keiran_combat():
+        bot.OverrideBuild(KeiranThackerayEOTN())
+        bot.Properties.ApplyNow("pause_on_danger", "active", True)
+        bot.Properties.ApplyNow("halt_on_death",   "active", False)
+        bot.Properties.ApplyNow("auto_combat",     "active", True)
+        bot.Properties.ApplyNow("auto_loot",       "active", True)
+        bot.Properties.ApplyNow("imp",             "active", False)
+        yield
+
+    bot.States.AddCustomState(_setup_keiran_combat, "Setup Keiran Combat (Farm)")
+    bot.States.AddManagedCoroutine("FarmCombatAI_AB", lambda: _farm_combat_ai_loop(bot))
+
+    # Quest path (from AuspiciousBeginnings.py)
+    bot.Move.XY(11864.74, -4899.19)
+    bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
+    bot.Wait.UntilOnCombat(Range.Spirit)
+
+    bot.Move.XY(10165.07, -6181.43)
+    bot.Properties.Disable("pause_on_danger")
+    bot.Move.FollowAutoPath([(8859.57, -7388.68), (9012.46, -9027.44)])
+    bot.Properties.Enable("pause_on_danger")
+
+    bot.Move.XY(4518.81, -9504.34)
+    bot.Wait.ForTime(4000)
+    bot.Properties.Disable("pause_on_danger")
+    bot.Move.XY(2622.71, -9575.04)
+    bot.Properties.Enable("pause_on_danger")
+
+    bot.Move.XY(325.22, -11728.24)
+    bot.Properties.Disable("pause_on_danger")
+    bot.Move.XY(-2860.21, -12198.37)
+    bot.Move.XY(-5109.05, -12717.40)
+    bot.Move.XY(-6868.76, -12248.82)
+    bot.Properties.Enable("pause_on_danger")
+
+    bot.Move.XY(-15858.25, -8840.35)
+    bot.Wait.ForMapLoad(target_map_id=HOM_MAP_ID)
+
+    def _disable_farm_combat():
+        bot.Properties.ApplyNow("pause_on_danger", "active", False)
+        bot.Properties.ApplyNow("auto_combat",     "active", False)
+        yield
+
+    bot.States.AddCustomState(_disable_farm_combat, "Disable Farm Combat")
+
+    def _level_check_and_loop():
+        level = Player.GetLevel()
+        ConsoleLog("FarmUntil20", f"[Farm] End-of-run level check: level={level}", Py4GW.Console.MessageType.Info)
+        if level < 20:
+            fsm = bot.config.FSM
+            target_step = _resolve_waypoint_state_name(fsm, FARM_PREPARE_STEP)
+            if not target_step:
+                ConsoleLog("FarmUntil20", f"[Farm] Target state not found: {FARM_PREPARE_STEP}", Py4GW.Console.MessageType.Error)
+                yield
+                return
+            fsm.pause()
+            yield
+            fsm.jump_to_state_by_name(target_step)
+            yield
+            fsm.resume()
+            yield
+        # Keep coroutine semantics even when level >= 20.
+        yield
+
+    bot.States.AddCustomState(_level_check_and_loop, "Level Check and Loop (Farm)")
+
 def To_Gunnars_Hold(bot: Botting):
     bot.States.AddHeader("To Gunnar's Hold")
     bot.Map.Travel(target_map_id=642)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
-    #bot.Party.AddHenchmanList([5, 6, 7, 9])
     bot.Party.AddHenchmanList([4, 5, 6])
     path = [(-1814.0, 2917.0), (-964.0, 2270.0), (-115.0, 1677.0), (718.0, 1060.0), 
             (1522.0, 464.0)]
     bot.Move.FollowPath(path)
     bot.Wait.ForMapLoad(target_map_id=499)
+    ConfigureAggressiveEnv(bot)
     bot.Move.XYAndDialog(2825, -481, 0x832801)
     path = [(2548.84, 7266.08),
             (1233.76, 13803.42),
@@ -1478,12 +1809,14 @@ def To_Gunnars_Hold(bot: Botting):
             (-4031.0, 27872.0),]
     bot.Move.FollowAutoPath(path)
     bot.Wait.ForMapLoad(target_map_id=548)
+    ConfigureAggressiveEnv(bot)
     bot.Move.XY(14546.0, -6043.0)
     bot.Move.XYAndExitMap(15578, -6548, target_map_id=644)
     bot.Wait.ForMapLoad(target_map_id=644)
 
 def Unlock_Kilroy_Stonekin(bot: Botting):
     bot.States.AddHeader("Unlock Kilroy Stonekin")
+    bot.States.AddManagedCoroutine("OnDeath_OPD", lambda: OnDeathKillroy(bot))
     bot.Templates.Aggressive(enable_imp=False)
     bot.Map.Travel(target_map_id=644)
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
@@ -1494,10 +1827,47 @@ def Unlock_Kilroy_Stonekin(bot: Botting):
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
     bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)
+    bot.States.RemoveManagedCoroutine("OnDeath_OPD")
     bot.Items.Equip(35829) #Keiran's bow
+
+def OnDeathKillroy(bot: "Botting"):
+    import PySkillbar
+    skillbar = PySkillbar.Skillbar()
+    slot = 8 # slot 8 is the default "revive" skill
+    while True:
+        if not Routines.Checks.Map.MapValid():
+            yield from Routines.Yield.wait(1000)
+            continue
+        
+        energy = Agent.GetEnergy(Player.GetAgentID())
+        max_energy = Agent.GetMaxEnergy(Player.GetAgentID())
+        if max_energy >= 80: #we can go much higher but were dying too much, not worth the time
+            bot.config.FSM.pause()
+            yield from bot.Map._coro_travel(644)
+            bot.config.FSM.jump_to_state_by_name("[H]Killroy Stoneskin_1")
+            bot.config.FSM.resume()
+            yield from Routines.Yield.wait(1000)
+            continue
+        
+        
+        while energy < 0.9999:
+            ActionQueueManager().AddAction("FAST", skillbar.UseSkillTargetless, slot)
+            yield from Routines.Yield.wait(20)
+            energy = Agent.GetEnergy(Player.GetAgentID())
+            if energy >= 0.9999:
+                ActionQueueManager().ResetAllQueues()
+
+        yield from Routines.Yield.wait(500)
+            
+    
+def OnDeath(bot: "Botting"):
+    bot.States.AddManagedCoroutine("OnDeath_OPD", lambda: OnDeathKillroy(bot))
 
 def To_Longeyes_Edge(bot: Botting):
     bot.States.AddHeader("To Longeye's Edge")
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary not in ("Assassin", "Mesmer"):
+        return
     bot.Map.Travel(target_map_id=644)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
@@ -1534,6 +1904,9 @@ def To_Longeyes_Edge(bot: Botting):
 
 def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
     bot.States.AddHeader("Unlock NPC for vaettir farm")
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary not in ("Assassin", "Mesmer"):
+        return
     bot.Map.Travel(target_map_id=650)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
@@ -1744,7 +2117,6 @@ def To_Kamadan(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=543)
     bot.Wait.ForTime(2000)
     bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(4829, 0x82E101)  # Model id updated 20.12.2025 GW Reforged
 
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
@@ -1786,20 +2158,11 @@ def Unlock_Olias(bot:Botting):
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8149.02, 14900.65)
     bot.Move.XYAndDialog(-6480.00, 16331.00, 0x830E07)
-    
-def Unlock_Xunlai_Material_Panel(bot: Botting) -> None:
-    bot.States.AddHeader("Unlock Xunlai Material Panel")
-    bot.Party.LeaveParty()
-    bot.Map.Travel(target_map_id=248)  # GTOB
-    path_to_xunlai = [(-5540.40, -5733.11),(-7050.04, -6392.59),]
-    bot.Move.FollowPath(path_to_xunlai)
-    bot.Dialogs.WithModel(221, 0x800001) # Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(221, 0x800002) # Model id updated 20.12.2025 GW Reforged
 
 def Unlock_Remaining_Secondary_Professions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
     bot.Map.Travel(target_map_id=248)  # GTOB
-    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.Items.WithdrawGold(5000)
     bot.Move.XY(-5540.40, -5733.11)
     bot.Move.XY(-3151.22, -7255.13)
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
@@ -1898,30 +2261,65 @@ def on_party_wipe_coroutine(bot: "Botting", target_name: str):
     yield                                    # keep coroutine semantics
 
 class WaypointData:
-    def __init__(self, label: str, MapID: int,step_name: str):
+    def __init__(self, label: str, MapID: int, step_name: str, section: str = ""):
         self.step_name = step_name
         self.MapID = MapID
         self.label = label
-        
+        self.section = section
+
+def _resolve_waypoint_state_name(fsm, configured_name: str) -> str:
+    """Resolve a waypoint state name even if header index suffixes changed."""
+    if not configured_name:
+        return ""
+    if fsm.has_state(configured_name):
+        return configured_name
+    if "_" not in configured_name:
+        return ""
+    # Convert "[H]Header Text_32" -> prefix "[H]Header Text_"
+    prefix = configured_name.rsplit("_", 1)[0] + "_"
+    for s in fsm.states:
+        if s.name.startswith(prefix):
+            return s.name
+    return ""
+
 WAYPOINTS: dict[int, WaypointData] = {
-    # step_num: WaypointData(label, MapID, step_name)
-    # Based on actual AddHeader calls in the bot routine
-    3: WaypointData(label="Unlock Secondary Profession", MapID=242, step_name="[H]Unlock Secondary Profession_2"),
-    4: WaypointData(label="Unlock Xunlai Storage", MapID=242, step_name="[H]Unlock Xunlai Storage_3"),
-    6: WaypointData(label="Charm Pet", MapID=242, step_name="[H]Charm Pet_5"),
-    10: WaypointData(label="Minister Cho's Estate Mission", MapID=214, step_name="[H]Minister Cho's Estate mission_7"),
-    12: WaypointData(label="Attribute point quest n. 1", MapID=251, step_name="[H]Attribute points quest n. 1_8"),
-    17: WaypointData(label="Craft Seitung armor", MapID=250, step_name="[H]Craft Seitung armor_14"),
-    19: WaypointData(label="Zen Daijun Mission", MapID=213, step_name="[H]Zen Daijun Mission_16"),
-    22: WaypointData(label="Attribute point quest n. 2", MapID=250, step_name="[H]Attribute points quest n. 2_12"),
-    23: WaypointData(label="To Marketplace", MapID=250, step_name="[H]To Marketplace_18"),
-    24: WaypointData(label="To Kaineng Center", MapID=303, step_name="[H]To Kaineng Center_19"),
-    26: WaypointData(label="Craft max armor", MapID=194, step_name="[H]Craft max armor_20"),
-    34: WaypointData(label="To LA", MapID=194, step_name="[H]To Lion's Arch_30"),
-    35: WaypointData(label="To Temple of Ages", MapID=55, step_name="[H]To Temple of the Ages_31"),
-    36: WaypointData(label="To Kamadan", MapID=194, step_name="[H]To Kamadan_32"),
-    37: WaypointData(label="To Consulate Docks", MapID=194, step_name="[H]To Consulate Docks_33"),
-    38: WaypointData(label="Unlock Olias", MapID=493, step_name="[H]Unlock Olias_34"),
+    # step_num : WaypointData(label, MapID, step_name, section)
+    # step_name format: [H]<AddHeader text>_<1-based AddHeader call index in the routine>
+    # ── Shing Jea Island ──────────────────────────────────────────────────────
+     1: WaypointData(label="Forming A Party",               MapID=242, step_name="[H]Quest: Forming A Party_2",              section="Shing Jea Island"),
+     2: WaypointData(label="Unlock Secondary Profession",   MapID=242, step_name="[H]Unlock Secondary Profession_3"),
+     3: WaypointData(label="Craft Weapon",                  MapID=242, step_name="[H]Craft weapon_5"),
+     4: WaypointData(label="Craft Monastery Armor",         MapID=242, step_name="[H]Craft monastery armor_6"),
+     5: WaypointData(label="Unlock Skills Trainer",         MapID=242, step_name="[H]Unlock Skills Trainer_10"),
+     6: WaypointData(label="Minister Cho's Estate Mission", MapID=214, step_name="[H]Minister Cho's Estate mission_11"),
+     7: WaypointData(label="Attribute Points Quest 1",      MapID=251, step_name="[H]Attribute points quest n. 1_12"),
+     8: WaypointData(label="Quest: Warning the Tengu",      MapID=251, step_name="[H]Quest: Warning the Tengu_13"),
+     9: WaypointData(label="Quest: The Road Less Traveled", MapID=242, step_name="[H]Quest: The Road Less Traveled_15"),
+    10: WaypointData(label="Craft Seitung Armor",           MapID=250, step_name="[H]Craft Seitung armor_16"),
+    11: WaypointData(label="To Zen Daijun",                 MapID=250, step_name="[H]To Zen Daijun_18"),
+    12: WaypointData(label="Complete Skills Training",      MapID=242, step_name="[H]Complete Skills Training_19"),
+    13: WaypointData(label="Zen Daijun Mission",            MapID=213, step_name="[H]Zen Daijun Mission_20"),
+    # ── Factions Mainland ─────────────────────────────────────────────────────
+    14: WaypointData(label="To Marketplace",                MapID=250, step_name="[H]To Marketplace_21",                    section="Factions Mainland"),
+    15: WaypointData(label="Craft Max Armor",               MapID=194, step_name="[H]Craft max armor_23"),
+    16: WaypointData(label="Quest: The Search For A Cure",  MapID=194, step_name="[H]Quest: The Search For A Cure_25"),
+    17: WaypointData(label="Quest: A Master's Burden",      MapID=194, step_name="[H]Quest: A Master's Burden_26"),
+    18: WaypointData(label="To Boreal Station",             MapID=194, step_name="[H]To Boreal Station_27"),
+    # ── Eye of the North ──────────────────────────────────────────────────────
+    19: WaypointData(label="To Eye of the North",           MapID=675, step_name="[H]To Eye of the North_28",               section="Eye of the North"),
+    20: WaypointData(label="Unlock EotN Pool",              MapID=642, step_name="[H]Unlock Eye Of The North Pool_29"),
+    21: WaypointData(label="To Gunnar's Hold",              MapID=642, step_name="[H]To Gunnar's Hold_30"),
+    22: WaypointData(label="Unlock Kilroy Stonekin",        MapID=644, step_name="[H]Unlock Kilroy Stonekin_31"),
+    23: WaypointData(label="Farm Until Level 20",           MapID=642, step_name="[H]Farm Until Level 20_32"),
+    24: WaypointData(label="Attribute Points Quest 2",      MapID=250, step_name="[H]Attribute points quest n. 2_35"),
+    25: WaypointData(label="To Longeye's Edge",             MapID=644, step_name="[H]To Longeye's Edge_36"),
+    26: WaypointData(label="Unlock Vaettir NPC",            MapID=650, step_name="[H]Unlock NPC for vaettir farm_37"),
+    # ── Prophecies / NF / GToB ────────────────────────────────────────────────
+    27: WaypointData(label="To Lion's Arch",                MapID=194, step_name="[H]To Lion's Arch_38",                    section="Prophecies / NF / GToB"),
+    28: WaypointData(label="To Kamadan",                    MapID=194, step_name="[H]To Kamadan_39"),
+    29: WaypointData(label="Unlock Olias",                  MapID=493, step_name="[H]Unlock Olias_41"),
+    30: WaypointData(label="Unlock Secondary Professions",  MapID=449, step_name="[H]Unlock remaining secondary professions_42"),
+    31: WaypointData(label="Unlock Mercenary Heroes",       MapID=248, step_name="[H] Unlock Mercenary Heroes_43"),
 }
 
 def on_party_wipe(bot: "Botting"):
@@ -1963,6 +2361,89 @@ def on_party_wipe(bot: "Botting"):
     return True
 
 
+#region Deprecated
+# Functions kept for reference / potential future use but not active in the bot routine.
+
+def AddHenchmenLA():
+    party_size = Map.GetMaxPartySize()
+
+    henchmen_list = []
+    if party_size <= 4:
+        henchmen_list.extend([2, 3, 1])
+    elif Map.GetMapID() == Map.GetMapIDByName("Lions Arch"):
+        henchmen_list.extend([7, 2, 5, 3, 1])
+    elif Map.GetMapID() == Map.GetMapIDByName("Ascalon City"):
+        henchmen_list.extend([2, 3, 1])
+    else:
+        henchmen_list.extend([2,8,6,7,3,5,1])
+
+    # Add all henchmen quickly
+    for henchman_id in henchmen_list:
+        GLOBAL_CACHE.Party.Henchmen.AddHenchman(henchman_id)
+        ConsoleLog("addhenchman",f"Added Henchman: {henchman_id}", log=False)
+
+    # Single wait for all henchmen to join
+    yield from Routines.Yield.wait(1000)
+
+def switchFilter():
+    # Switch to profession sort
+    Game.enqueue(lambda: UIManager.SendUIMessage(UIMessage.kPreferenceValueChanged,[18,2], False))
+    Game.enqueue(lambda: UIManager.SendUIMessage(UIMessage.kPreferenceValueChanged,[17,4], False))
+    yield from Routines.Yield.wait(500)
+    return
+
+def TrainSkills():
+    """Train Cry of Pain, Power Drain, Signet of Disruption via UI (same off-child path as workspace)."""
+    secondary_skills_grandparent = 1746895597
+    secondary_skills_offset = [0, 0, 0, 5, 1]
+    skills_to_train_frames = [
+        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [57, 0]),   # Cry of Pain
+        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [25, 0]),   # Power Drain
+        UIManager.GetChildFrameID(secondary_skills_grandparent, secondary_skills_offset + [860, 0]),  # Signet of Disruption
+    ]
+    for skill_frame_id in skills_to_train_frames:
+        Game.enqueue(lambda fid=skill_frame_id: UIManager.TestMouseClickAction(fid, 0, 0))
+        yield from Routines.Yield.wait(200)
+        Game.enqueue(lambda: UIManager.FrameClick(UIManager.GetFrameIDByHash(4162812990)))
+        yield from Routines.Yield.wait(200)
+    return
+
+def Charm_Pet(bot: Botting) -> None:
+    bot.States.AddHeader("Charm Pet")
+    bot.Map.Travel(target_map_name="Shing Jea Monastery")
+    bot.States.AddCustomState(lambda:Locate_Sujun(bot), "Unlock Skills")
+    bot.States.AddCustomState(EquipCaptureSkillBar, "Equip Capture Skill Bar")
+    bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
+    bot.Move.XY(13970.94, -13085.83)
+    bot.Move.ToModel(3005) #Tiger model id updated 20.12.2025 GW Reforged
+    bot.Wait.ForTime(500)
+    bot.Target.Model(3005) #Tiger model id updated 20.12.2025 GW Reforged
+    bot.SkillBar.UseSkill(411)
+    bot.Wait.ForTime(14000)
+    bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
+
+def Locate_Sujun(bot: Botting) -> Generator[Any, Any, None]:
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary != "Ranger": return
+    yield from bot.Move._coro_get_path_to(-7782.00, 6687.00)
+    yield from bot.Move._coro_follow_path_to()
+    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810403) #Locate Sujun
+    yield from bot.Interact._coro_with_agent((-7782.00, 6687.00), 0x810401)
+    yield from bot.helpers.UI._cancel_skill_reward_window()
+
+def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary != "Ranger": return
+    yield from bot.Move._coro_get_path_to(5103.00, -4769.00)
+    yield from bot.Move._coro_follow_path_to()
+    yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
+    yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x811401) #of course i will help
+
+def OnCompletion(bot: "Botting"):
+    bot.States.RemoveManagedCoroutine("OnDeath_OPD")
+
+#endregion
+
 #region MAIN
 selected_step = 0
 filter_header_steps = True
@@ -1998,14 +2479,14 @@ def _draw_texture():
 def _draw_settings(bot: Botting):
     import PyImGui
     PyImGui.text("Bot Settings")
-    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
-    bc_restock_qty = bot.Properties.Get("birthday_cupcake", "restock_quantity")
+    use_candy_apple = bot.Properties.Get("candy_apple", "active")
+    bc_restock_qty = bot.Properties.Get("candy_apple", "restock_quantity")
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
 
-    use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
-    bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
+    use_candy_apple = PyImGui.checkbox("Use Candy Apple", use_candy_apple)
+    bc_restock_qty = PyImGui.input_int("Candy Apple Restock Quantity", bc_restock_qty)
 
     use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
     hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
@@ -2019,87 +2500,99 @@ def _draw_settings(bot: Botting):
 
     bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
     bot.Properties.ApplyNow("war_supplies", "restock_quantity", ws_restock_qty)
-    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
-    bot.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
+    bot.Properties.ApplyNow("candy_apple", "active", use_candy_apple)
+    bot.Properties.ApplyNow("candy_apple", "restock_quantity", bc_restock_qty)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
 
     
-def _draw_help():
-    import PyImGui
-
-    PyImGui.text("Bot Help")
-    PyImGui.separator()
-
-    PyImGui.text_wrapped("This bot will take your character from FACTIONS from level 1 to 10 by skipping most of the starter zone.")
-    PyImGui.text_wrapped("It only completes the quests needed to hit level 10 as quickly as possible.")
-    PyImGui.text_wrapped("It includes both Attribute Point Quests.")
-
-    PyImGui.separator()
-    PyImGui.text_wrapped("Because of the rushed nature of the run, you'll be fighting enemies that are much more stronger than you and your party.")
-    PyImGui.text_colored("Tip: Use Birthday Cupcakes and Honeycombs to boost your survivability!", (255, 200, 0, 255))
-
-    PyImGui.separator()
-    PyImGui.text_wrapped("This script is completely standalone — no other bots are required.")
-    PyImGui.text_wrapped("Make sure your Hero AI is turned OFF before you start.")
-
-    PyImGui.separator()
-    PyImGui.text_wrapped("Looting is disabled: the bot will NOT pick up any items.")
-    PyImGui.text_wrapped("The entire focus is leveling speed.")
-
-    PyImGui.separator()
-    PyImGui.text_wrapped("You can restart the bot at any time - whether after an error or resuming from a previous session.")
-    PyImGui.text_wrapped("Just be sure you are standing in the correct map before restarting at the matching step.")
-
-
-
 bot.SetMainRoutine(create_bot_routine)
 bot.UI.override_draw_texture(lambda: _draw_texture())
 bot.UI.override_draw_config(lambda: _draw_settings(bot))
-bot.UI.override_draw_help(lambda: _draw_help())
+bot.UI.override_draw_help(lambda: _draw_readme())
 
+
+def _draw_readme():
+    import PyImGui
+
+    PyImGui.text_colored("Before You Start", (100, 220, 100, 255))
+    PyImGui.separator()
+    PyImGui.text_colored("  Required:", (255, 200, 0, 255))
+    PyImGui.text_wrapped("  - At least 40k stored in your Xunlai Storage chest.")
+    PyImGui.text_wrapped("  - Highly recommended to have Apples and War supplies in your Xunlai Storage chest.")
+    PyImGui.text_wrapped("  - Character must be level 1, freshly created in Factions.")
+    PyImGui.text_wrapped("  - No other bots or automation scripts running at the same time.")
+    PyImGui.text_wrapped("  - Start from Monastery Overlook (the default Factions starting map).")
+
+    PyImGui.spacing()
+    PyImGui.text_colored("What the Bot Does", (100, 220, 100, 255))
+    PyImGui.separator()
+    PyImGui.text_wrapped("Levels your character through Factions and Eye of the North.")
+    PyImGui.text_wrapped("Along the way it will:")
+    PyImGui.text_wrapped("  - Craft Monastery, Seitung, and Max (Kaineng Center) armor sets.")
+    PyImGui.text_wrapped("  - Craft a starter weapon in Shing Jea Monastery.")
+    PyImGui.text_wrapped("  - Unlock secondary professions, heroes, and key skills.")
+    PyImGui.text_wrapped("  - Unlock the Kilroy Stonekin and Vaettir farming runs for fast XP.")
+    PyImGui.text_wrapped("  - Unlock Olias hero and remaining secondary professions.")
+
+    PyImGui.spacing()
+    PyImGui.text_colored("Important Notes", (100, 220, 100, 255))
+    PyImGui.separator()
+    PyImGui.text_wrapped("  - Gold is managed automatically: the bot withdraws and deposits as needed.")
+    PyImGui.text_wrapped("  - Consumables (Candy Apple, Honeycomb, War Supplies) are restocked each fight.")
+    PyImGui.text_colored("  - Do not manually move the character or interact with the game while the bot is running.", (255, 100, 100, 255))
+
+    PyImGui.spacing()
+    PyImGui.text_colored("Restarting / Resuming", (100, 220, 100, 255))
+    PyImGui.separator()
+    PyImGui.text_wrapped("If the bot stops or errors out, you can resume from any step.")
+    PyImGui.text_wrapped("Use the 'Direct Navigation' panel in the Main tab to travel to the correct map,")
+    PyImGui.text_wrapped("then use 'Go to Step' to jump the FSM to the matching point in the routine.")
 
 def configure():
     global bot
     bot.UI.draw_configure_window()
     
     
+def _draw_direct_nav():
+    if PyImGui.collapsing_header("Direct Navigation"):
+        if PyImGui.button("Dump FSM Header States to Console"):
+            for s in bot.config.FSM.states:
+                if s.name.startswith("[H]"):
+                    Py4GW.Console.Log(bot.config.bot_name, s.name, Py4GW.Console.MessageType.Info)
+        current_section = ""
+        for step_num, waypoint in WAYPOINTS.items():
+            if waypoint.section and waypoint.section != current_section:
+                current_section = waypoint.section
+                PyImGui.spacing()
+                PyImGui.text_colored(current_section, (180, 160, 80, 255))
+                PyImGui.separator()
+
+            if PyImGui.tree_node(f"{waypoint.label}##wp_{step_num}"):
+                if PyImGui.button(f"Travel##travel_{step_num}"):
+                    Map.Travel(waypoint.MapID)
+                PyImGui.same_line(0,-1)
+                if PyImGui.button(f"Go to Step##step_{step_num}"):
+                    target_state = _resolve_waypoint_state_name(bot.config.FSM, waypoint.step_name)
+                    if not target_state:
+                        Py4GW.Console.Log(
+                            bot.config.bot_name,
+                            f"Waypoint state not found: {waypoint.step_name}",
+                            Py4GW.Console.MessageType.Error,
+                        )
+                        PyImGui.tree_pop()
+                        continue
+                    bot.config.fsm_running = True
+                    bot.config.FSM.reset()
+                    bot.config.FSM.jump_to_state_by_name(target_state)
+                PyImGui.tree_pop()
+
+
 def main():
     global bot
-    main_child_dimensions: Tuple[int, int] = (350, 275)
     try:
         bot.Update()
-        bot.UI.draw_window()
-        if PyImGui.begin(bot.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
-            if PyImGui.begin_tab_bar(bot.config.bot_name + "_tabs"):
-                if PyImGui.begin_tab_item("Main"):
-                    PyImGui.dummy(*main_child_dimensions)
-                    if PyImGui.collapsing_header("Direct Navigation"):
-                        for step_num, waypoint in WAYPOINTS.items():
-
-                            map_name = Map.GetMapName(waypoint.MapID)
-
-                            # Tree node: visible label is waypoint.label, ID is unique
-                            if PyImGui.tree_node(f"{waypoint.label}##wp_{step_num}"):
-
-                                # Travel button
-                                if PyImGui.button(f"Travel##travel_{step_num}"):
-                                    Map.Travel(waypoint.MapID)
-
-                                PyImGui.same_line(0,-1)
-
-                                # Jump to FSM step button
-                                if PyImGui.button(f"Go to Step##step_{step_num}"):
-               
-                                    bot.config.fsm_running = True
-                                    bot.config.FSM.reset()
-                                    bot.config.FSM.jump_to_state_by_name(waypoint.step_name)
-
-                                PyImGui.tree_pop()
-                    PyImGui.end_tab_item()
-                PyImGui.end_tab_bar()
-        PyImGui.end()
-        
+        bot.UI.draw_window(additional_ui=_draw_direct_nav)
 
     except Exception as e:
         Py4GW.Console.Log(bot.config.bot_name, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)

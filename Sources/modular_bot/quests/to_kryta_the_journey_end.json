@@ -1,6 +1,5 @@
 {
   "name": "To kryta: the Ice Cave",
-  "max_heroes": 6,
   "take_quest": {
     "quest_npc_location": [-2206, -7537],
     "dialog_id": ["0x800401"],
