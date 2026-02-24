@@ -3,7 +3,6 @@ from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 
 from Py4GWCoreLib import Map
-from Py4GWCoreLib import Agent
 
 from .CameraCache import CameraCache
 from .EffectCache import EffectsCache
@@ -48,7 +47,6 @@ class GlobalCache:
         
       
     def _reset(self):
-        Agent._reset_cache()
         self.Effects._reset_cache()
 
         self.Item._reset_cache()
@@ -62,8 +60,6 @@ class GlobalCache:
 
             self._RawItemCache.update()
             self.Item._update_cache()
-
-            Agent._update_cache()
 
             self.SkillBar._update_cache()
         #end force update block
@@ -82,8 +78,6 @@ class GlobalCache:
                 self.Camera._update_cache()
 
              
-            Agent._update_cache()
-
             self.SkillBar._update_cache()
                        
 
