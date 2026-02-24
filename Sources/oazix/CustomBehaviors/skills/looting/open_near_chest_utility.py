@@ -1,14 +1,12 @@
-import math
-from tkinter.constants import N
+import time
 from typing import Any, Generator, override
 
 import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, AgentArray, Agent, Party, Routines, Range, Player, Map
-from Py4GWCoreLib.enums_src.UI_enums import ChatChannel as Channel
-from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, LootConfig, ThrottledTimer, Utils
+from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer
 from Py4GWCoreLib.UIManager import UIManager
-from Py4GWCoreLib.enums_src.Model_enums import ModelID, GadgetModelID
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
 from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
@@ -17,17 +15,16 @@ from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Sources.oazix.CustomBehaviors.primitives.helpers.cooldown_timer import CooldownTimer
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class OpenNearChestUtility(CustomSkillUtilityBase):
+    TERMINAL_CHEST_STATUSES = frozenset({1, 3, 4, 5, 6, 7})
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]) -> None:
         super().__init__(
@@ -56,6 +53,9 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         self.is_active = False # Flag to indicate critical section
         self.is_reporting = False # Flag to prevent combat interrupt during reporting
         self.interrupted_chest_agent_id: int = 0
+        self.party_sync_wait_timeout_s: float = 25.0
+        self.leader_waiting_target_id: int = 0
+        self.leader_waiting_since: float = 0.0
 
         self.event_bus.subscribe(EventType.MAP_CHANGED, self.map_changed, subscriber_name=self.custom_skill.skill_name)
         self.event_bus.subscribe(EventType.CHEST_OPENED, self.chest_opened, subscriber_name=self.custom_skill.skill_name)
@@ -66,6 +66,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         self.failed_chest_agent_ids = set()
         self.my_slot_index = -1
         self.interrupted_chest_agent_id = 0
+        self._reset_leader_wait_state()
         yield
 
     def chest_opened(self, message: EventMessage) -> Generator[Any, Any, Any]:
@@ -82,6 +83,48 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         player_pos = Player.GetXY()
         enemies_in_range = AgentArray.Filter.ByDistance(enemies, player_pos, Range.Earshot.value)
         return len(enemies_in_range) > 0
+
+    def _reset_leader_wait_state(self):
+        self.leader_waiting_target_id = 0
+        self.leader_waiting_since = 0.0
+
+    def _get_expected_party_slot_count(self, config) -> int:
+        slot_cap = len(config.ChestStatus)
+        if slot_cap <= 0:
+            return 0
+
+        expected = 1
+        try:
+            expected = max(1, min(int(Party.GetPlayerCount()), slot_cap))
+        except Exception:
+            expected = 1
+
+        try:
+            highest_claimed = -1
+            for i in range(slot_cap):
+                if str(config.SlotEmails[i].value or "").strip():
+                    highest_claimed = max(highest_claimed, i)
+            if highest_claimed >= 0:
+                expected = max(expected, min(highest_claimed + 1, slot_cap))
+        except Exception:
+            pass
+
+        return max(1, min(expected, slot_cap))
+
+    def _is_chest_complete_for_expected_party(self, config, chest_agent_id: int) -> bool:
+        if chest_agent_id == 0:
+            return False
+        if int(config.ChestAgentID) != int(chest_agent_id):
+            return False
+
+        expected_slots = self._get_expected_party_slot_count(config)
+        if expected_slots <= 0:
+            return False
+
+        for i in range(expected_slots):
+            if int(config.ChestStatus[i]) not in self.TERMINAL_CHEST_STATUSES:
+                return False
+        return True
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -138,28 +181,34 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         if self.interrupted_chest_agent_id != 0 and not Agent.IsValid(self.interrupted_chest_agent_id):
             self.interrupted_chest_agent_id = 0
-
-        # Party-wide sync: if anyone reported success for this chest, treat it as opened locally too.
-        current_shared_target = int(config.ChestAgentID)
-        if current_shared_target != 0:
-            if any(status == 1 for status in config.ChestStatus):
-                self.opened_chest_agent_ids.add(current_shared_target)
-                if self.interrupted_chest_agent_id == current_shared_target:
-                    self.interrupted_chest_agent_id = 0
         
         # 1. LEADER LOGIC: Set/Reset Shared Target
         if is_leader:
-            current_target = config.ChestAgentID
-            
-            # Need to search if:
-            # A) No target set (0)
-            # B) Current target is already opened by me (Leader)
-            # C) Current target is invalid
-            need_new_target = (current_target == 0) or \
-                              (current_target in self.opened_chest_agent_ids) or \
-                              (not Agent.IsValid(current_target))
+            current_target = int(config.ChestAgentID)
+            current_target_valid = current_target != 0 and Agent.IsValid(current_target)
+            chest_complete_for_party = (
+                self._is_chest_complete_for_expected_party(config, current_target)
+                if current_target != 0
+                else False
+            )
+
+            # If leader is done but followers are not, hold target for a while instead of rotating early.
+            if current_target != 0 and current_target in self.opened_chest_agent_ids and current_target_valid and not chest_complete_for_party:
+                if self.leader_waiting_target_id != current_target:
+                    self.leader_waiting_target_id = current_target
+                    self.leader_waiting_since = time.time()
+                elif self.leader_waiting_since > 0 and (time.time() - self.leader_waiting_since) >= self.party_sync_wait_timeout_s:
+                    chest_complete_for_party = True
+                    if self.dedicated_debug:
+                        print(f"Party chest sync timeout reached for chest {current_target}, continuing.")
+            else:
+                self._reset_leader_wait_state()
+
+            # Rotate only when no target, invalid target, or party-level completion/timeout.
+            need_new_target = (current_target == 0) or (not current_target_valid) or chest_complete_for_party
 
             if need_new_target:
+                self._reset_leader_wait_state()
                 # Scan for NEAREST locked chest
                 new_target = custom_behavior_helpers.Resources.get_nearest_locked_chest(300)
                 
@@ -194,8 +243,8 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         
         # Guard: Check if I already finished this specific chest
         if self.my_slot_index != -1 and config.ChestStatus[self.my_slot_index] == 1:
-             if chest_agent_id in self.opened_chest_agent_ids:
-                 return 0.0
+             self.opened_chest_agent_ids.add(chest_agent_id)
+             return 0.0
 
         if chest_agent_id in self.opened_chest_agent_ids: 
              return 0.0
@@ -233,13 +282,6 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                 self.my_slot_index = -1
             else:
                 chest_agent_id = self.interrupted_chest_agent_id
-
-        if chest_agent_id != 0 and any(status == 1 for status in config.ChestStatus):
-            self.opened_chest_agent_ids.add(chest_agent_id)
-            if self.interrupted_chest_agent_id == chest_agent_id:
-                self.interrupted_chest_agent_id = 0
-            yield
-            return BehaviorResult.ACTION_PERFORMED
         
         # EARLY EXIT: If already done
         if chest_agent_id in self.opened_chest_agent_ids:
@@ -294,7 +336,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             # 3. ACQUIRE LOCK (while near the chest)
             lock_acquired = False
             loop_count = 0
-            max_lock_wait = 2000 # 200 seconds max
+            max_lock_wait = 350 # 35 seconds max
             while loop_count < max_lock_wait:
                 # Combat check: if enemies appear, bail out and let combat AI handle
                 enemies = AgentArray.GetEnemyArray()
@@ -348,7 +390,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                     return BehaviorResult.ACTION_SKIPPED
                 
                 # ----------- 2 SEND DIALOG AND WAIT FOR CHEST WINDOW TO CLOSE PHASE ------------
-                is_chest_window_closed = yield from self.wait_for_chest_window_to_close()
+                is_chest_window_closed = yield from self.wait_for_chest_window_to_close(chest_agent_id)
 
                 if is_chest_window_closed is None:
                     self.interrupted_chest_agent_id = chest_agent_id
@@ -364,28 +406,9 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                     return BehaviorResult.ACTION_SKIPPED
 
                 self.opened_chest_agent_ids.add(chest_agent_id) # LOCAL EXCLUSION
-                yield from custom_behavior_helpers.Helpers.wait_for(1000) # Wait for drop animation
-                
-                # Scan for loot in a small radius (500 units) to ensure it's ours
-                loot_array = LootConfig().GetfilteredLootArray(500, multibox_loot=True)
-                for item_agent_id in loot_array:
-                    if Agent.IsValid(item_agent_id):
-                        pos = Agent.GetXY(item_agent_id)
-                        yield from Routines.Yield.Movement.FollowPath([pos], timeout=2000)
-                        Player.Interact(item_agent_id, call_target=False)
-                        
-                        # Wait for it to disappear
-                        p_timer = ThrottledTimer(2000)
-                        while not p_timer.IsExpired():
-                            if not Agent.IsValid(item_agent_id): break
-                            yield from custom_behavior_helpers.Helpers.wait_for(100)
-
-                # B) COMBAT CHECK: If enemies in range, abort and let combat AI handle
-                enemies = AgentArray.GetEnemyArray()
-                enemies = AgentArray.Filter.ByCondition(enemies, lambda e: Agent.IsAlive(e))
-                player_pos = Player.GetXY()
-                enemies_in_range = AgentArray.Filter.ByDistance(enemies, player_pos, Range.Earshot.value)
-                yield from custom_behavior_helpers.Helpers.wait_for(2000)
+                # Keep chest utility focused on opening only.
+                # Loot pickup is delegated to LootUtility; this avoids drifting away from chest.
+                yield from custom_behavior_helpers.Helpers.wait_for(500)
 
                 # D) FINALIZE: Mark success to signal NEXT person
                 self._update_chest_status(chest_agent_id, 1) # Success
@@ -488,61 +511,54 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         if self.window_open_timeout.IsStopped():
             self.window_open_timeout.Reset()
 
-        # 2) now repeat those step until timeout
+        # 2) HeroAI-style: interact once, then poll visibility.
+        # Re-interact only occasionally to avoid toggling/flickering the lockpick popup.
+        Player.Interact(chest_agent_id, call_target=False)
+        yield from custom_behavior_helpers.Helpers.wait_for(200)
+        reinteract_tick = 0
+
+        # 3) poll until timeout
         while not self.window_open_timeout.IsExpired():
             if self._has_nearby_enemies():
                 self.window_open_timeout.Stop()
                 return None
 
-            # 2.a) interact with the chest
-            if self.dedicated_debug: print(f"Interact")
-            Player.Interact(chest_agent_id, call_target=False)
-            yield from custom_behavior_helpers.Helpers.wait_for(150)
-
-            # 2.b) Send dialog if window not yet open (or to force it)
-            # We assume the interaction triggers a dialog.
-            # 2.b) Send dialog if window not yet open (or to force it)
-            # REMOVED: Don't send dialog while opening, it might cancel/close the window!
-            pass
-
-            # 2.c) wait for the chest window to open
             if self.dedicated_debug: print(f"wait_for_chest_window_to_open")
             if UIManager.IsLockedChestWindowVisible():
                 self.window_open_timeout.Stop()
                 return True
-            
-            # Fallback: Locked chests often use the generic Dialog window ID 1 (0x1) 
-            # If IsLockedChestWindowVisible fails (bad offsets?), check for Frame 1
-            if UIManager.FrameExists(1): 
-                 self.window_open_timeout.Stop()
-                 return True
 
-        # 3) timeout
+            reinteract_tick += 1
+            if reinteract_tick % 10 == 0:
+                Player.Interact(chest_agent_id, call_target=False)
+                yield from custom_behavior_helpers.Helpers.wait_for(200)
+            else:
+                yield from custom_behavior_helpers.Helpers.wait_for(100)
+
+        # 4) timeout
         print(f"TIMEOUT waiting for chest window to open (chest_agent_id={chest_agent_id})")
         self.window_open_timeout.Stop()
         return False
 
-    def wait_for_chest_window_to_close(self) -> Generator[Any, None, bool | None]:
+    def wait_for_chest_window_to_close(self, chest_agent_id: int) -> Generator[Any, None, bool | None]:
 
         # 1) reset the timer if not running
         if self.window_close_timeout.IsStopped():
             self.window_close_timeout.Reset()
 
-        # 2) Matching HeroAI OpenChest pattern: SendDialog(2) while window is visible
+        # 2) Confirm the lockpick choice until the window closes (API chest flow).
         while not self.window_close_timeout.IsExpired():
             if self._has_nearby_enemies():
                 self.window_close_timeout.Stop()
                 return None
 
             # Already closed? Done.
-            # Do not gate on FrameExists(1): this generic frame can remain visible for unrelated dialogs.
             if not UIManager.IsLockedChestWindowVisible():
                 self.window_close_timeout.Stop()
                 return True
 
-            # Send dialog 2 (Use Lockpick) - matches HeroAI Messaging.py OpenChest logic
             Player.SendDialog(2)
-            yield from custom_behavior_helpers.Helpers.wait_for(1500)
+            yield from custom_behavior_helpers.Helpers.wait_for(300)
 
         # 3) timeout
         print(f"TIMEOUT waiting for chest window to close")
