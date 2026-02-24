@@ -12,6 +12,9 @@ _INIT_ERROR = None
 
 try:
     from typing import Any, cast
+    import os
+    import re
+    import unicodedata
     import PyImGui
     from Py4GWCoreLib import (
         ConsoleLog,
@@ -48,6 +51,25 @@ try:
 
     # Scan only these bags, and only on-demand
     SCAN_BAGS = [Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2]
+
+    # Consumable icon discovery
+    _ICON_SEARCH_ROOT = "."
+    _ICON_PREFERRED_ROOTS = (
+        os.path.normpath("Textures\\Consumables\\Trimmed"),
+        os.path.normpath("Textures\\Consumables"),
+        os.path.normpath("Textures\\Item Models"),
+    )
+    # Aliases keep matching deterministic for known name variations.
+    CONSUMABLE_ICON_NAME_ALIASES = {
+        "creme_brulee": ("creme brulee",),
+        "witchs_brew": ("witchs brew", "witch brew", "witch's brew"),
+        "hunters_ale": ("hunters ale", "hunter ale"),
+        "elixir_of_valor": ("elixir of valor",),
+        "powerstone_of_courage": ("powerstone of courage",),
+        "seal_of_the_dragon_empire": ("seal of the dragon empire",),
+    }
+    _icon_candidates_cache = None
+    _icon_path_by_key_cache = {}
 
     # -------------------------
     # Window position persistence (minimal)
@@ -528,19 +550,14 @@ try:
             "why": "Useful when switching between solo, leader, and team-sync playstyles without manually changing many fields.",
         },
         "preset_leader_force_plus10_team": {
-            "short": "Leader preset for forced +10 team morale upkeep.",
-            "long": "Applies a leader-oriented MB/DP setup that aggressively keeps party morale near the selected target using strict party morale upkeep behavior.",
-            "why": "Uses the current force value as the active target. Use this when the priority is highest morale uptime, not consumable conservation.",
+            "short": "Leader mode that enforces a team morale target.",
+            "long": "ON enables leader-force target enforcement for party morale. Value sets the effective morale target to maintain for eligible party members. In this mode, morale items are only used when eligible members are below that target; if everyone is already at or above target, no morale item is spent. OFF disables this specific leader-force target-enforcement mode only. OFF does not disable MB/DP as a whole, and other MB/DP settings, thresholds, and presets can still run separately. DP cleanup can still be handled by your regular MB/DP DP trigger settings.",
+            "why": "Use this when one leader account should enforce a specific team morale target without turning off the rest of MB/DP behavior.",
         },
         "preset_solo_safe": {
             "short": "Safe single-account preset with local-only behavior.",
             "long": "Applies a conservative solo profile: no team broadcast/opt-in, MB/DP enabled with safe defaults, and receiver-local safety protections kept on.",
             "why": "Good baseline when you are not coordinating consumables across accounts.",
-        },
-        "preset_full_team_sync": {
-            "short": "Coordinated team preset for shared MB/DP behavior.",
-            "long": "Applies a synchronized team profile with broadcasting and receiving enabled, party-wide MB/DP allowed in coordinated human groups, and practical thresholds for frequent team upkeep.",
-            "why": "Reduces manual setup time when running multi-account synchronized groups.",
         },
         "preset_save_slot": {
             "short": "Save current settings into this slot.",
@@ -689,7 +706,6 @@ try:
 
     BUILTIN_PRESET_NAMES = {
         "Solo Safe",
-        "Full Team Sync",
         "Leader - Force Team Morale",
     }
 
@@ -700,6 +716,28 @@ try:
         if current in BUILTIN_PRESET_NAMES:
             cfg.last_applied_preset = "Custom"
             cfg.mark_dirty()
+
+    def _is_leader_force_team_morale_active() -> bool:
+        if not cfg:
+            return False
+        expected_target = max(-60, min(10, int(getattr(cfg, "force_team_morale_value", 0))))
+        return (
+            bool(cfg.mbdp_enabled)
+            and bool(cfg.team_broadcast)
+            and (not bool(cfg.team_consume_opt_in))
+            and (not bool(cfg.mbdp_allow_partywide_in_human_parties))
+            and bool(cfg.mbdp_receiver_require_enabled)
+            and bool(cfg.mbdp_strict_party_plus10)
+            and int(cfg.mbdp_party_target_effective) == int(expected_target)
+            and int(cfg.mbdp_party_min_members) == 2
+            and int(cfg.mbdp_party_min_interval_ms) == 12000
+            and bool(cfg.selected.get("honeycomb", False))
+            and bool(cfg.enabled.get("honeycomb", False))
+            and (not bool(cfg.selected.get("elixir_of_valor", False)))
+            and (not bool(cfg.enabled.get("elixir_of_valor", False)))
+            and (not bool(cfg.selected.get("rainbow_candy_cane", False)))
+            and (not bool(cfg.enabled.get("rainbow_candy_cane", False)))
+        )
 
     def _apply_builtin_preset(key: str, announce: bool = True):
         global _last_mbdp_party_ms
@@ -728,34 +766,6 @@ try:
             cfg.mark_dirty()
             if announce:
                 _log("Applied preset: Solo Safe.", Console.MessageType.Info)
-        elif key == "full_team_sync":
-            cfg.team_broadcast = True
-            cfg.team_consume_opt_in = True
-            cfg.mbdp_enabled = True
-            cfg.mbdp_allow_partywide_in_human_parties = True
-            cfg.mbdp_receiver_require_enabled = True
-            cfg.mbdp_self_dp_minor_threshold = -25
-            cfg.mbdp_self_dp_major_threshold = -40
-            cfg.mbdp_self_morale_target_effective = 0
-            cfg.mbdp_self_min_morale_gain = 3
-            cfg.mbdp_party_min_members = 2
-            cfg.mbdp_party_min_interval_ms = 10000
-            cfg.mbdp_party_target_effective = 10
-            cfg.mbdp_strict_party_plus10 = False
-            cfg.mbdp_party_min_total_gain_5 = 4
-            cfg.mbdp_party_min_total_gain_10 = 16
-            cfg.mbdp_party_light_dp_threshold = -12
-            cfg.mbdp_party_heavy_dp_threshold = -28
-            cfg.mbdp_powerstone_dp_threshold = -45
-            cfg.mbdp_prefer_seal_for_recharge = False
-            _set_item_toggle("honeycomb", True, True)
-            _set_item_toggle("elixir_of_valor", True, True)
-            _set_item_toggle("rainbow_candy_cane", True, True)
-            _last_mbdp_party_ms = 0
-            cfg.last_applied_preset = "Full Team Sync"
-            cfg.mark_dirty()
-            if announce:
-                _log("Applied preset: Full Team Sync.", Console.MessageType.Info)
         elif key in ("leader_force_plus10_team_morale", LEADER_FORCE_PRESET_KEY):
             cfg.mbdp_enabled = True
             cfg.team_broadcast = True
@@ -1142,6 +1152,190 @@ try:
         if tooltip:
             return tooltip
         return "No description available."
+
+    def _consumable_tooltip_with_label(key: str, label: str) -> str:
+        base_label = str(label or "").strip()
+        extra = str(_consumable_tooltip_text(key) or "").strip()
+        if extra and extra != "No description available.":
+            return f"{base_label}\n{extra}" if base_label else extra
+        return base_label if base_label else extra
+
+    def _normalize_icon_name(value: str) -> str:
+        txt = str(value or "")
+        txt = unicodedata.normalize("NFKD", txt).encode("ascii", "ignore").decode("ascii")
+        txt = txt.lower().replace("&", " and ")
+        txt = re.sub(r"[^a-z0-9]+", " ", txt)
+        txt = re.sub(r"\s+", " ", txt).strip()
+        return txt
+
+    def _singularize_token(tok: str) -> str:
+        t = str(tok or "").strip()
+        if len(t) > 4 and t.endswith("ies"):
+            return t[:-3] + "y"
+        if len(t) > 4 and t.endswith("es"):
+            return t[:-2]
+        if len(t) > 3 and t.endswith("s"):
+            return t[:-1]
+        return t
+
+    def _icon_tokens(value: str) -> set[str]:
+        stop = {"of", "the", "and", "a", "an", "item", "items"}
+        norm = _normalize_icon_name(value)
+        if not norm:
+            return set()
+        out = set()
+        for tok in norm.split(" "):
+            if not tok or tok in stop:
+                continue
+            out.add(tok)
+            out.add(_singularize_token(tok))
+        return {t for t in out if t}
+
+    def _candidate_name_variants(stem: str) -> list[str]:
+        raw = str(stem or "")
+        out = [raw]
+        # Item model textures commonly use "<id>-Item_Name".
+        if "-" in raw:
+            left, right = raw.split("-", 1)
+            if left.isdigit() and right:
+                out.append(right)
+        return out
+
+    def _icon_dir_priority(rel_path_lc: str) -> int:
+        rp = str(rel_path_lc or "").replace("/", "\\")
+        preferred_scores = (300, 260, 180)
+        for idx, base in enumerate(_ICON_PREFERRED_ROOTS):
+            base_lc = str(base).replace("/", "\\").lower()
+            if base_lc and base_lc in rp:
+                return preferred_scores[idx]
+        if "\\textures\\" in rp:
+            return 40
+        return 0
+
+    def _to_texture_path(full_path: str) -> str:
+        try:
+            rel = os.path.relpath(full_path, os.getcwd())
+            return rel.replace("/", "\\")
+        except Exception:
+            return str(full_path or "").replace("/", "\\")
+
+    def _build_icon_candidates():
+        candidates = []
+        root = os.path.abspath(_ICON_SEARCH_ROOT)
+        for dirpath, _dirnames, filenames in os.walk(root):
+            _dirnames.sort()
+            filenames.sort()
+            for filename in filenames:
+                if not str(filename).lower().endswith(".png"):
+                    continue
+                full_path = os.path.join(dirpath, filename)
+                rel_path = _to_texture_path(full_path)
+                rel_lc = rel_path.lower()
+                stem = os.path.splitext(filename)[0]
+                variants = _candidate_name_variants(stem)
+                tokens = set()
+                norm_variants = set()
+                for variant in variants:
+                    tokens.update(_icon_tokens(variant))
+                    n = _normalize_icon_name(variant)
+                    if n:
+                        norm_variants.add(n)
+                if not tokens:
+                    continue
+                candidates.append({
+                    "path": rel_path,
+                    "tokens": tokens,
+                    "norm_variants": norm_variants,
+                    "priority": _icon_dir_priority(rel_lc),
+                    "path_lc": rel_lc,
+                })
+        return candidates
+
+    def _score_icon_candidate(key: str, label: str, cand: dict) -> int:
+        key_norm = _normalize_icon_name(key.replace("_", " "))
+        label_norm = _normalize_icon_name(label)
+        key_tokens = _icon_tokens(key)
+        label_tokens = _icon_tokens(label)
+        wanted = set(key_tokens) | set(label_tokens)
+        for alias in CONSUMABLE_ICON_NAME_ALIASES.get(str(key or ""), ()):
+            wanted.update(_icon_tokens(alias))
+        if not wanted:
+            return -1
+        overlap = wanted.intersection(set(cand.get("tokens", set())))
+        if not overlap:
+            return -1
+        strong_overlap = [t for t in overlap if len(t) >= 4]
+        score = int(cand.get("priority", 0))
+        score += len(overlap) * 7
+        score += len(strong_overlap) * 11
+        cand_norms = set(cand.get("norm_variants", set()))
+        if key_norm in cand_norms:
+            score += 160
+        if label_norm in cand_norms:
+            score += 160
+        if key_tokens and key_tokens.issubset(set(cand.get("tokens", set()))):
+            score += 80
+        if label_tokens and label_tokens.issubset(set(cand.get("tokens", set()))):
+            score += 70
+        if "\\textures\\consumables\\" in str(cand.get("path_lc", "")):
+            score += 20
+        return score
+
+    def _resolve_consumable_icon_path(key: str, label: str) -> str:
+        global _icon_candidates_cache, _icon_path_by_key_cache
+        k = str(key or "")
+        if not k:
+            return ""
+        if k in _icon_path_by_key_cache:
+            return str(_icon_path_by_key_cache.get(k, "") or "")
+        if _icon_candidates_cache is None:
+            _icon_candidates_cache = _build_icon_candidates()
+        best_score = -1
+        best_path = ""
+        for cand in _icon_candidates_cache:
+            score = _score_icon_candidate(k, label, cand)
+            if score > best_score:
+                best_score = score
+                best_path = str(cand.get("path", "") or "")
+            elif score == best_score and score >= 0:
+                cand_path = str(cand.get("path", "") or "")
+                if cand_path and (not best_path or cand_path < best_path):
+                    best_path = cand_path
+        if best_score < 50:
+            best_path = ""
+        _icon_path_by_key_cache[k] = best_path
+        return best_path
+
+    def _draw_icon_toggle_or_checkbox(state_now: bool, key: str, label: str, id_prefix: str, icon_size: float = 20.0):
+        tooltip_text = _consumable_tooltip_with_label(key, label)
+        icon_path = _resolve_consumable_icon_path(key, label)
+        current = bool(state_now)
+        if icon_path:
+            pushed_alpha = False
+            try:
+                if not current:
+                    style_vars = getattr(PyImGui, "ImGuiStyleVar", None)
+                    alpha_var = getattr(style_vars, "Alpha", None) if style_vars is not None else None
+                    if alpha_var is not None and hasattr(PyImGui, "push_style_var"):
+                        PyImGui.push_style_var(alpha_var, 0.45)
+                        pushed_alpha = True
+                if ImGui.ImageButton(f"##{id_prefix}_icon_{key}", icon_path, float(icon_size), float(icon_size)):
+                    current = not current
+            finally:
+                if pushed_alpha:
+                    try:
+                        PyImGui.pop_style_var(1)
+                    except Exception:
+                        pass
+            _tooltip_if_hovered(tooltip_text)
+            changed = bool(current) != bool(state_now)
+            return bool(current), bool(changed), True
+
+        # Fallback path when no icon can be resolved for this consumable.
+        _, current = ui_checkbox(f"##{id_prefix}_cb_{key}", bool(state_now))
+        _tooltip_if_hovered(tooltip_text)
+        changed = bool(current) != bool(state_now)
+        return bool(current), bool(changed), False
 
     def _alcohol_display_label(spec: dict) -> str:
         base = str(spec.get("label", "") or "")
@@ -2656,14 +2850,16 @@ try:
         return False
 
     def _draw_main_row_checkbox_and_badge(key: str, label: str, enabled_now: bool, id_prefix: str):
-        _, enabled = ui_checkbox(f"##{id_prefix}_cb_{key}", bool(enabled_now))
+        enabled, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
+            bool(enabled_now), key, label, f"{id_prefix}_main", icon_size=20.0
+        )
         _same_line(10)
         PyImGui.text(label)
-        _tooltip_if_hovered(_consumable_tooltip_text(key))
+        _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
         _same_line(12)
         if _badge_button("ON" if enabled else "OFF", enabled=bool(enabled), id_suffix=f"{id_prefix}_btn_{key}"):
             enabled = not enabled
-        _tooltip_if_hovered(_consumable_tooltip_text(key))
+        _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
         changed = (bool(enabled_now) != bool(enabled))
         return bool(enabled), bool(changed)
 
@@ -2971,12 +3167,15 @@ try:
             visible_keys_out.append(k)
 
         prev = bool(cfg.selected.get(k, False))
-        _, selected = ui_checkbox(f"##pycons_selected_{k}", prev)
-        _same_line(10)
         model_id = int(spec.get("model_id", 0))
         stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
-        PyImGui.text(label + stock_suffix)
-        _tooltip_if_hovered(_consumable_tooltip_text(k))
+        display_label = label + stock_suffix
+        selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
+            prev, k, display_label, "pycons_selected", icon_size=18.0
+        )
+        _same_line(10)
+        PyImGui.text(display_label)
+        _tooltip_if_hovered(_consumable_tooltip_with_label(k, display_label))
 
         _draw_min_interval_editor(k)
 
@@ -2996,12 +3195,15 @@ try:
             visible_keys_out.append(k)
 
         prev = bool(cfg.alcohol_selected.get(k, False))
-        _, selected = ui_checkbox(f"##pycons_alcohol_selected_{k}", prev)
-        _same_line(10)
         model_id = int(spec.get("model_id", 0))
         stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
-        PyImGui.text(label + stock_suffix)
-        _tooltip_if_hovered(_consumable_tooltip_text(k))
+        display_label = label + stock_suffix
+        selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
+            prev, k, display_label, "pycons_alcohol_selected", icon_size=18.0
+        )
+        _same_line(10)
+        PyImGui.text(display_label)
+        _tooltip_if_hovered(_consumable_tooltip_with_label(k, display_label))
 
         selected = bool(selected)
         if prev != selected:
@@ -3318,12 +3520,9 @@ try:
                 _apply_builtin_preset("solo_safe")
             _show_setting_tooltip("preset_solo_safe")
 
-            if PyImGui.button("Apply: Full Team Sync##pycons_preset_apply_full_sync"):
-                _apply_builtin_preset("full_team_sync")
-            _show_setting_tooltip("preset_full_team_sync")
-
             if PyImGui.button("Apply: Leader - Force Team Morale##pycons_preset_apply_leader_force"):
                 _apply_builtin_preset(LEADER_FORCE_PRESET_KEY)
+            _show_setting_tooltip("preset_leader_force_plus10_team")
             _same_line(10)
             PyImGui.text("Value:")
             _same_line(6)
@@ -3341,18 +3540,20 @@ try:
                     if bool(cfg.mbdp_strict_party_plus10):
                         _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
                     _mark_mbdp_preset_custom()
+            _show_setting_tooltip("preset_leader_force_plus10_team")
             _same_line(8)
+            leader_force_active = _is_leader_force_team_morale_active()
             if _badge_button(
-                "ON" if bool(cfg.mbdp_strict_party_plus10) else "OFF",
-                enabled=bool(cfg.mbdp_strict_party_plus10),
+                "ON" if leader_force_active else "OFF",
+                enabled=leader_force_active,
                 id_suffix="pycons_preset_leader_force_strict_toggle",
             ):
-                cfg.mbdp_strict_party_plus10 = not bool(cfg.mbdp_strict_party_plus10)
-                if bool(cfg.mbdp_strict_party_plus10):
-                    _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
-                else:
+                if leader_force_active:
+                    cfg.mbdp_strict_party_plus10 = False
                     _mark_mbdp_preset_custom()
                     cfg.mark_dirty()
+                else:
+                    _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
             _show_setting_tooltip("preset_leader_force_plus10_team")
 
             PyImGui.separator()
