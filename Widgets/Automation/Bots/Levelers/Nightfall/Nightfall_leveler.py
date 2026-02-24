@@ -1375,8 +1375,6 @@ def Farm_Until_Level_10(bot):
 
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
-    bot.Map.Travel(target_map_id=194)
-    bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8075.89, 14592.47)
     bot.Move.XY(-6743.29, 16663.21)
