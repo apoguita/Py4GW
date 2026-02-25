@@ -400,72 +400,95 @@ class Py4GWLibrary:
                 
         return clicked or hovered
     
-    def draw_global_toggles(self, button_width : float, spacing : float, search : bool = False): 
+    def draw_global_toggles(self, button_width : float, spacing : float, search : bool = False, library : bool = False): 
+        any_hovered_or_clicked = False
+        
         if ImGui.button("##one_button_layout", width=button_width):
+            any_hovered_or_clicked = True
+            
             if self.layout_mode != LayoutMode.SingleButton:
                 self.set_layout_mode(LayoutMode.SingleButton)
         
+        any_hovered_or_clicked = PyImGui.is_item_hovered() or PyImGui.is_item_clicked(0) or any_hovered_or_clicked
         item_min, _, item_size = ImGui.get_item_rect()
         image_size = item_size[1] - 4
         pos_x = item_min[0] + ((item_size[0] - image_size) / 2)
         pos_y = item_min[1] + ((item_size[1] - image_size) / 2)
         ImGui.DrawTextureInDrawList((pos_x, pos_y), (image_size, image_size), "python_icon_round_20px.png")
         ImGui.show_tooltip("Switch to Single Button View")        
-        
         PyImGui.same_line(0, spacing)
         
+        if library:
+            if ImGui.icon_button(IconsFontAwesome5.ICON_TH_LIST, button_width):
+                any_hovered_or_clicked = True
+                self.set_layout_mode(LayoutMode.Library)
+            
+            any_hovered_or_clicked = PyImGui.is_item_hovered() or PyImGui.is_item_clicked(0) or any_hovered_or_clicked
+            ImGui.show_tooltip("Switch to Library view")            
+            PyImGui.same_line(0, spacing)     
+            
         if search:
             if ImGui.icon_button(IconsFontAwesome5.ICON_SEARCH + "##FocusSearch", button_width):
+                any_hovered_or_clicked = True
                 self.set_layout_mode(LayoutMode.Compact)
             
-            ImGui.show_tooltip("Search widgets")
-            
-            PyImGui.same_line(0, spacing)      
+            any_hovered_or_clicked = PyImGui.is_item_hovered() or PyImGui.is_item_clicked(0) or any_hovered_or_clicked
+            ImGui.show_tooltip("Search widgets")            
+            PyImGui.same_line(0, spacing)  
         
         if ImGui.icon_button(IconsFontAwesome5.ICON_RETWEET + "##Reload Widgets", button_width):
+            any_hovered_or_clicked = True
             self.widget_manager.discovered = False
             self.widget_manager.discover()
             self.queue_filter_widgets = True
                 
+        any_hovered_or_clicked = PyImGui.is_item_hovered() or PyImGui.is_item_clicked(0) or any_hovered_or_clicked
         ImGui.show_tooltip("Reload all widgets")
-        PyImGui.same_line(0, spacing)
         
-        new_enable_all = ImGui.toggle_icon_button(
-            (IconsFontAwesome5.ICON_TOGGLE_ON if self.widget_manager.enable_all else IconsFontAwesome5.ICON_TOGGLE_OFF) + "##widget_disable",
-            self.widget_manager.enable_all,
+        ### Deprecated the user does not need a quick toggle for ALL widgets. System critical widgets will be protected and optional widgets can be toggled in bulk with the next button.
+        """PyImGui.same_line(0, spacing)
+        
+        paused = ImGui.toggle_icon_button(
+            (IconsFontAwesome5.ICON_TOGGLE_ON if not self.widget_manager.paused else IconsFontAwesome5.ICON_TOGGLE_OFF) + "##widget_disable",
+            not self.widget_manager.paused,
             button_width
         )
 
-        if new_enable_all != self.widget_manager.enable_all:
-            self.widget_manager.enable_all = new_enable_all
-            IniManager().set(key= self.ini_key, var_name="enable_all", value=new_enable_all, section="Configuration")
-            IniManager().save_vars(self.ini_key)
+        if paused != (not self.widget_manager.paused):
+            if paused:
+                self.widget_manager.ResumeAllWidgets()
+            else:
+                self.widget_manager.PauseAllWidgets()                
 
-
-        ImGui.show_tooltip(f"{("Run" if not self.widget_manager.enable_all else "Pause")} all widgets")
+        ImGui.show_tooltip(f"{("Resume" if self.widget_manager.paused else "Pause")} all widgets")"""
         
-        PyImGui.same_line(0, spacing)
+        ### Deprecated since the widget system now runs on callbacks on cpp side
+        """PyImGui.same_line(0, spacing)
         show_widget_ui = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_EYE if self.widget_manager.show_widget_ui else IconsFontAwesome5.ICON_EYE_SLASH) + "##Show Widget UIs", self.widget_manager.show_widget_ui, button_width)
         if show_widget_ui != self.widget_manager.show_widget_ui:
             self.widget_manager.set_widget_ui_visibility(show_widget_ui)
-        ImGui.show_tooltip(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs")
+        ImGui.show_tooltip(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs")"""
         
         PyImGui.same_line(0, spacing)
-        pause_non_env = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_PAUSE if self.widget_manager.pause_optional_widgets else IconsFontAwesome5.ICON_PLAY) + "##Pause Non-Env Widgets", not self.widget_manager.pause_optional_widgets, button_width)
-        if pause_non_env != (not self.widget_manager.pause_optional_widgets):
-            if not self.widget_manager.pause_optional_widgets:
-                self.widget_manager.pause_widgets()
+        pause_non_env = ImGui.toggle_icon_button((IconsFontAwesome5.ICON_TOGGLE_OFF if self.widget_manager.optional_widgets_paused else IconsFontAwesome5.ICON_TOGGLE_ON) + "##Pause Non-Env Widgets", not self.widget_manager.optional_widgets_paused, button_width)
+        if pause_non_env != (not self.widget_manager.optional_widgets_paused):
+            any_hovered_or_clicked = True
+            
+            if not self.widget_manager.optional_widgets_paused:
+                self.widget_manager.pause_optional_widgets()
             else:
-                self.widget_manager.resume_widgets()
+                self.widget_manager.resume_optional_widgets()
                 
             own_email = Player.GetAccountEmail()
             for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
                 if acc.AccountEmail == own_email:
                     continue
                 
-                GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if self.widget_manager.pause_optional_widgets else SharedCommandType.ResumeWidgets)
+                GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if self.widget_manager.optional_widgets_paused else SharedCommandType.ResumeWidgets)
             
-        ImGui.show_tooltip(f"{("Pause" if not self.widget_manager.pause_optional_widgets else "Resume")} all optional widgets")
+        any_hovered_or_clicked = PyImGui.is_item_hovered() or PyImGui.is_item_clicked(0) or any_hovered_or_clicked
+        ImGui.show_tooltip(f"{("Pause" if not self.widget_manager.optional_widgets_paused else "Resume")} all optional widgets")
+        return any_hovered_or_clicked
     
     def get_button_width(self, width, num_buttons, spacing) -> float:        
         button_width = (width - spacing * (num_buttons - 1)) / num_buttons
@@ -486,8 +509,8 @@ class Py4GWLibrary:
             
             spacing = 5
             width = win_size[0] - style.WindowPadding.value1 * 2
-            button_width = self.get_button_width(width, 6, spacing)        
-            self.draw_global_toggles(button_width, spacing, search=True)
+            button_width = self.get_button_width(width, 5, spacing)        
+            self.draw_global_toggles(button_width, spacing, search=True, library=True)
                             
         ImGui.End(self.ini_key)
             
@@ -544,11 +567,9 @@ class Py4GWLibrary:
             width = win_size[0] - style.WindowPadding.value1 * 2
             
             spacing = 5
-            button_width = self.get_button_width(width, 5, spacing)     
-            self.draw_global_toggles(button_width, spacing)
-            ImGui.separator()
-            toggle_interacted = self.draw_toggle_view_mode_button()   
-            PyImGui.same_line(0, spacing)      
+            button_width = self.get_button_width(width, 4, spacing)     
+            toggle_hovered_or_clicked = self.draw_global_toggles(button_width, spacing, library=True)
+            ImGui.separator()     
             
             search_width = PyImGui.get_content_region_avail()[0] - 30
             PyImGui.push_item_width(search_width)
@@ -574,9 +595,9 @@ class Py4GWLibrary:
             window_hovered = PyImGui.is_window_hovered() or PyImGui.is_item_hovered() or window_hovered 
             suggestions_opened = self.draw_suggestions(win_size, style, search_active, window_hovered, presets_opened)
             
-            if not presets_opened and not suggestions_opened and not window_hovered and not PyImGui.is_window_appearing():
+            if not toggle_hovered_or_clicked and not presets_opened and not suggestions_opened and not window_hovered and not PyImGui.is_window_appearing():
                 clicked_outside = PyImGui.is_mouse_down(0) and not PyImGui.is_any_item_hovered()
-                if not toggle_interacted and (clicked_outside or not search_active):
+                if (clicked_outside or not search_active):
                     if self.jump_to_minimalistic and self.layout_mode is LayoutMode.Compact:
                         self.set_layout_mode(LayoutMode.Minimalistic)
                             
@@ -820,23 +841,26 @@ class Py4GWLibrary:
                         self.queue_filter_widgets = True
                     ImGui.show_tooltip("Reload all widgets")
                     
-                    if ImGui.menu_item(f"{("Run" if not self.widget_manager.enable_all else "Pause")} all widgets"):
-                        self.widget_manager.enable_all = not self.widget_manager.enable_all
-                        IniManager().save_vars(self.ini_key)
-                        IniManager().set(key=self.ini_key, var_name="enable_all", value=self.widget_manager.enable_all, section="Configuration")
-                    ImGui.show_tooltip(f"{("Run" if not self.widget_manager.enable_all else "Pause")} all widgets")
+                    if ImGui.menu_item(f"{("Resume" if self.widget_manager.paused else "Pause")} all widgets"):
+                        if self.widget_manager.paused:
+                            self.widget_manager.ResumeAllWidgets()
+                        else:
+                            self.widget_manager.PauseAllWidgets()
+                            
+                    ImGui.show_tooltip(f"{("Resume" if self.widget_manager.paused else "Pause")} all widgets")
                     
-                    if ImGui.menu_item(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs"):
+                    ### Deprecated since the widget system now runs on callbacks on cpp side
+                    """if ImGui.menu_item(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs"):
                         show_widget_ui = not self.widget_manager.show_widget_ui
                         self.widget_manager.set_widget_ui_visibility(show_widget_ui)
-                    ImGui.show_tooltip(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs by setting the alpha of imgui to 0 or 1")
+                    ImGui.show_tooltip(f"{("Show" if not self.widget_manager.show_widget_ui else "Hide")} all widget UIs by setting the alpha of imgui to 0 or 1")"""
                         
-                    if ImGui.menu_item(f"{("Pause" if not self.widget_manager.pause_optional_widgets else "Resume")} all optional widgets"):
-                        pause_non_env = not self.widget_manager.pause_optional_widgets
-                        if not self.widget_manager.pause_optional_widgets:
-                            self.widget_manager.pause_widgets()
+                    if ImGui.menu_item(f"{("Pause" if not self.widget_manager.optional_widgets_paused else "Resume")} all optional widgets"):
+                        pause_non_env = not self.widget_manager.optional_widgets_paused
+                        if not self.widget_manager.optional_widgets_paused:
+                            self.widget_manager.pause_optional_widgets()
                         else:
-                            self.widget_manager.resume_widgets()
+                            self.widget_manager.resume_optional_widgets()
                             
                         own_email = Player.GetAccountEmail()
                         for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
@@ -844,7 +868,7 @@ class Py4GWLibrary:
                                 continue
                             
                             GLOBAL_CACHE.ShMem.SendMessage(own_email, acc.AccountEmail, SharedCommandType.PauseWidgets if pause_non_env else SharedCommandType.ResumeWidgets)
-                    ImGui.show_tooltip(f"{("Pause" if not self.widget_manager.pause_optional_widgets else "Resume")} all optional/non system widgets")
+                    ImGui.show_tooltip(f"{("Pause" if not self.widget_manager.optional_widgets_paused else "Resume")} all optional/non system widgets")
                     
                     ImGui.end_menu()                   
                 
