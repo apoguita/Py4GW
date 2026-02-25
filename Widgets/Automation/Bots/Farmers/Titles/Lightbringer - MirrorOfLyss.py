@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 import Py4GW
 import os
+import time
 
 BOT_NAME = "Lightbringer - MirrorOfLyss"
 OUTPOST_TO_TRAVEL = 414
@@ -25,10 +26,10 @@ KILLING_PATH:list[tuple[float, float]] = [
 	(12932, 6907),
 	(12956, 2637)
 ]
-COORD_TO_EXIT_MAP = (-850, 4700)
-COORD_FOR_RESIGN = (-19350.00, -16900.00)
+COORD_TO_EXIT_MAP = (-850.00, 4700.00)
+COORD_TO_ENTER_MAP = (-19350.00, -16900.00)
 
-TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "ApoSource", "textures", "VQ_Helmet.png")
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[1813] - Lightbringer.jpg")
 
 bot = Botting(BOT_NAME)
 
@@ -43,15 +44,14 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Multibox_Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OUTPOST_TO_TRAVEL)
     bot.Party.SetHardMode(True)
-    # Start resign setup
-    bot.Move.XY(-850, 4700, "Exit Outpost")
-    bot.Wait.ForMapLoad(EXPLORABLE_TO_TRAVEL)
-    bot.Move.XY(-19350, -16900, "Enter Outpost")
-    bot.Wait.ForMapLoad(OUTPOST_TO_TRAVEL)
-    # End resign setup
+    
+    # Resign setup
+    bot.Move.XYAndExitMap(*COORD_TO_EXIT_MAP, target_map_id=EXPLORABLE_TO_TRAVEL)
+    bot.Move.XYAndExitMap(*COORD_TO_ENTER_MAP, target_map_id=OUTPOST_TO_TRAVEL)
+    
+    # Combat loop
     bot.States.AddHeader(f"{BOT_NAME}_loop") # 3
-    bot.Move.XY(-850, 4700, "Exit Outpost")
-    bot.Wait.ForMapLoad(EXPLORABLE_TO_TRAVEL)
+    bot.Move.XYAndExitMap(*COORD_TO_EXIT_MAP, target_map_id=EXPLORABLE_TO_TRAVEL)
     bot.Move.XYAndInteractNPC(-20928, -13121) # Bounty coords
     bot.Multibox.SendDialogToTarget(0x85) # Get Bounty
     bot.Move.FollowAutoPath(KILLING_PATH)
@@ -108,9 +108,49 @@ def OnPartyWipe(bot: "Botting"):
 
 bot.SetMainRoutine(bot_routine)
 
+_session_baselines: dict[str, int] = {}
+_session_start_times: dict[str, float] = {}
+
+def _draw_title_track():
+    global _session_baselines, _session_start_times
+    import PyImGui
+    title_idx = int(TitleID.Lightbringer)
+    tiers = TITLE_TIERS.get(TitleID.Lightbringer, [])
+    now = time.time()
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        name = account.AgentData.CharacterName
+        pts = account.TitlesData.Titles[title_idx].CurrentPoints
+        if name not in _session_baselines:
+            _session_baselines[name] = pts
+            _session_start_times[name] = now
+        tier_name = "Unranked"
+        tier_rank = 0
+        tier_max_rank = len(tiers)
+        prev_required = 0
+        next_required = tiers[0].required if tiers else 0
+        for i, tier in enumerate(tiers):
+            if pts >= tier.required:
+                tier_rank = i
+                tier_name = tier.name
+                prev_required = tier.required
+                next_required = tiers[i + 1].required if i + 1 < len(tiers) else tier.required
+            else:
+                next_required = tier.required
+                break
+        gained = pts - _session_baselines[name]
+        elapsed = now - _session_start_times[name]
+        pts_hr = int(gained / elapsed * 3600) if elapsed > 0 else 0
+        PyImGui.separator()
+        PyImGui.text(f"{name} - {tier_rank}/{tier_max_rank} - {tier_name}")
+        PyImGui.text(f"Points: {pts:,} / {next_required:,}")
+        if next_required > prev_required:
+            frac = min((pts - prev_required) / (next_required - prev_required), 1.0)
+            PyImGui.progress_bar(frac, -1, 0, f"{pts - prev_required:,} / {next_required - prev_required:,}")
+        PyImGui.text(f"+{gained:,}  ({pts_hr:,}/hr)")
+
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path=TEXTURE)
+    bot.UI.draw_window(icon_path=TEXTURE, additional_ui=_draw_title_track)
 
 if __name__ == "__main__":
     main()
