@@ -10,8 +10,9 @@ from Py4GWCoreLib import Utils
 from Py4GWCoreLib import Range
 from Py4GWCoreLib import Rarity
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib import Map, Player
+from Py4GWCoreLib import Map, Player, AutoPathing
 from Py4GWCoreLib import Agent, AgentArray
+from Py4GWCoreLib.Pathing import NavMesh
 from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct
 
 from typing import Any, Union, cast
@@ -28,6 +29,12 @@ PET_MODEL_IDS = set(e.value for e in PetModelID)
 AREA_SPIRIT_MODELS = [SpiritModelID.DESTRUCTION, SpiritModelID.PRESERVATION]
 EARSHOT_SPIRIT_MODELS = [SpiritModelID.AGONY, SpiritModelID.REJUVENATION]
 CHEST_GADGET_IDS = [9,69,4579,8141, 9523, 4582]
+
+# NavMesh right-click snap constants
+_SNAP_MAX_RING_RADIUS  = 2800.0
+_SNAP_RING_STEP        = 280.0
+_SNAP_BASE_RING_POINTS = 12
+_SNAP_ARRIVAL_RADIUS   = 200.0
 
 #end region
 
@@ -218,6 +225,40 @@ def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_
     pixels_per_gwinch = (scale_x * (zoom + zoom_offset)) / GWINCHES
     return gwinch_value * pixels_per_gwinch
 
+def FloatingMoveToggle(x: float, y: float, enabled: bool, margin: int = 8) -> bool:
+    """Draw a small checkbox in the top-left of the mission map to toggle NavMesh snap."""
+    win_x = x + margin + 2
+    win_y = y + margin + 20
+    PyImGui.set_next_window_pos(win_x, win_y)
+
+    flags = (
+        PyImGui.WindowFlags.NoCollapse |
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.NoMove |
+        PyImGui.WindowFlags.AlwaysAutoResize |
+        PyImGui.WindowFlags.NoBackground
+    )
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 2.0, 2.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.0, 0.0, 0.0, 0.0))
+
+    result = enabled
+    if PyImGui.begin("##mm_move_toggle", flags):
+        cb = PyImGui.checkbox("Move", bool(enabled))
+        if isinstance(cb, tuple) and len(cb) == 2:
+            result = bool(cb[1])
+        else:
+            result = bool(cb)
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip("Right-click on map moves player to nearest NavMesh point.")
+    PyImGui.end()
+
+    PyImGui.pop_style_color(1)
+    PyImGui.pop_style_var(2)
+    return result
+
+
 def FloatingCoordsStrip(x, y, last_x, last_y, color, width=None, margin=8, label="Cords"):
     # place just above the bottom edge with a small margin
     win_x = x + margin
@@ -251,6 +292,83 @@ def FloatingCoordsStrip(x, y, last_x, last_y, color, width=None, margin=8, label
 
     PyImGui.pop_style_color(2)
     PyImGui.pop_style_var(3)
+
+# ── NavMesh snap helpers ──────────────────────────────────────────────
+
+def _snap_distance(a: tuple[float, float], b: tuple[float, float]) -> float:
+    return math.hypot(a[0] - b[0], a[1] - b[1])
+
+
+def _snap_is_inside_bounds(point: tuple[float, float], boundaries: tuple[float, float, float, float]) -> bool:
+    min_x, min_y, max_x, max_y = boundaries
+    if min_x > max_x: min_x, max_x = max_x, min_x
+    if min_y > max_y: min_y, max_y = max_y, min_y
+    return min_x <= point[0] <= max_x and min_y <= point[1] <= max_y
+
+
+def _snap_get_navmesh(mm: "MissionMap") -> "NavMesh | None":
+    map_id = int(Map.GetMapID())
+    if map_id == 0:
+        return None
+    if mm.snap_navmesh is not None and mm.snap_navmesh_map_id == map_id:
+        return mm.snap_navmesh
+    try:
+        pathing_maps = Map.Pathing.GetPathingMaps()
+        if not pathing_maps:
+            return None
+        mm.snap_navmesh = NavMesh(pathing_maps, map_id)
+        mm.snap_navmesh_map_id = map_id
+    except Exception:
+        return None
+    return mm.snap_navmesh
+
+
+def _snap_is_on_navmesh(mm: "MissionMap", point: tuple[float, float], margin: float = 20.0) -> bool:
+    nav = _snap_get_navmesh(mm)
+    if nav is None:
+        return False
+    return nav._bsp.find_with_margin(point[0], point[1], margin)
+
+
+def _snap_ring_candidates(target_xy: tuple[float, float]) -> list[tuple[float, float]]:
+    out: list[tuple[float, float]] = []
+    radius = _SNAP_RING_STEP
+    while radius <= _SNAP_MAX_RING_RADIUS:
+        count = max(8, int(_SNAP_BASE_RING_POINTS + radius / 280.0))
+        for i in range(count):
+            angle = (2.0 * math.pi * i) / count
+            out.append((
+                target_xy[0] + math.cos(angle) * radius,
+                target_xy[1] + math.sin(angle) * radius,
+            ))
+        radius += _SNAP_RING_STEP
+    return out
+
+
+def _snap_find_best_reachable(mm: "MissionMap", click_xy: tuple[float, float]) -> "tuple[float, float] | None":
+    if _snap_is_on_navmesh(mm, click_xy):
+        return click_xy
+    best: tuple[float, float] | None = None
+    best_dist = float("inf")
+    bounds = mm.boundaries
+    for c in _snap_ring_candidates(click_xy):
+        if not _snap_is_inside_bounds(c, bounds):
+            continue
+        if _snap_is_on_navmesh(mm, c):
+            d = _snap_distance(c, click_xy)
+            if d < best_dist:
+                best_dist = d
+                best = c
+    return best
+
+
+def _snap_launch_path_coroutine(goal_x: float, goal_y: float, mm: "MissionMap"):
+    """Coroutine: compute AutoPathing path to goal and store in mm.snap_current_path."""
+    mm.snap_path_computing = True
+    mm.snap_current_path = []
+    path = yield from AutoPathing().get_path_to(goal_x, goal_y)
+    mm.snap_current_path = list(path) if path else []
+    mm.snap_path_computing = False
 
 #endregion
 #region MARKERS
@@ -708,6 +826,7 @@ class MissionMap:
         self.height = 0
 
         self.player_screen_x, self.player_screen_y = 0, 0
+        self.player_x, self.player_y = 0.0, 0.0
         self.player_agent_id = 0
         self.player_target_id = 0
         
@@ -750,7 +869,17 @@ class MissionMap:
         
         self.target_accent_color = Color(235, 235, 50, 255)
         self.boss_glow_accent_color = Color(0, 200, 45, 255)
-        
+
+        # NavMesh right-click snap state
+        self.snap_navmesh: NavMesh | None = None
+        self.snap_navmesh_map_id: int = 0
+        self.snap_gw_last_right_click: tuple[float, float] = (0.0, 0.0)
+        self.snap_clicked_target: tuple[float, float] | None = None
+        self.snap_snapped_target: tuple[float, float] | None = None
+        self.snap_current_path: list[tuple[float, float]] = []
+        self.snap_path_computing: bool = False
+        self.snap_enabled: bool = True
+
         self.ally_marker = GLOBAL_CONFIGS.get("Ally")
         self.player_marker = GLOBAL_CONFIGS.get("Player")
         self.players_marker = GLOBAL_CONFIGS.get("Players")
@@ -772,9 +901,16 @@ class MissionMap:
         self.renderer.world_space.set_world_space(True)
         self.mega_zoom_renderer.world_space.set_world_space(True)
         self._mask_enabled = True
-                   
 
-    def update(self):  
+    def snap_clear(self) -> None:
+        """Clear snap markers, path, and stop any running movement."""
+        self.snap_clicked_target = None
+        self.snap_snapped_target = None
+        self.snap_current_path   = []
+        Player.Move(self.player_x, self.player_y)
+        
+
+    def update(self):
 
         #if not self.throttle_timer.IsExpired():
         #    return
@@ -789,6 +925,17 @@ class MissionMap:
             self.pathing_geometry_built_by_map_id.clear()
             self._last_mission_map_coords = None
             self._last_transform_signature = None
+            # Reset NavMesh snap state on map change
+            self.snap_navmesh = None
+            self.snap_navmesh_map_id = 0
+            self.snap_gw_last_right_click = (0.0, 0.0)
+            self.snap_clicked_target = None
+            self.snap_snapped_target = None
+            self.snap_current_path = []
+            self.snap_path_computing = False
+            # Seed right-click state so first frame doesn't fire spuriously
+            _rc = Map.MissionMap.GetLastRightClickCoords()
+            self.snap_gw_last_right_click = (float(_rc[0]), float(_rc[1]))
 
         if map_id in self.map_boundaries_by_map_id:
             self.boundaries = self.map_boundaries_by_map_id[map_id]
@@ -887,7 +1034,39 @@ class MissionMap:
                     self.mission_map_screen_center_x, self.mission_map_screen_center_y
                 )
                 self.last_click_x, self.last_click_y = gx, gy
+                # Left-click on the map cancels any active snap navigation
+                if self.snap_snapped_target is not None:
+                    self.snap_clear()
         # aC  ---
+
+        # NavMesh right-click snap (explorable maps only, when enabled)
+        _rc_nx, _rc_ny = Map.MissionMap.GetLastRightClickCoords()
+        _rc_new = (float(_rc_nx), float(_rc_ny))
+        if _rc_new != (0.0, 0.0) and _rc_new != self.snap_gw_last_right_click:
+            self.snap_gw_last_right_click = _rc_new
+            if self.snap_enabled and Map.IsExplorable():
+                _gx, _gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(_rc_nx, _rc_ny)
+                click_game: tuple[float, float] = (float(_gx), float(_gy))
+                self.snap_clicked_target = click_game
+                snapped = _snap_find_best_reachable(self, click_game)
+                self.snap_snapped_target = snapped
+                if snapped is not None:
+                    self.snap_current_path = []
+                    GLOBAL_CACHE.Coroutines.append(
+                        _snap_launch_path_coroutine(snapped[0], snapped[1], self)
+                    )
+                    Player.Move(snapped[0], snapped[1])
+            else:
+                self.snap_clicked_target = None
+                self.snap_snapped_target = None
+                self.snap_current_path = []
+
+        # Arrival check: clear snap markers once the player reaches the snapped point
+        if self.snap_snapped_target is not None and not self.snap_path_computing:
+            _dx = self.player_x - self.snap_snapped_target[0]
+            _dy = self.player_y - self.snap_snapped_target[1]
+            if (_dx * _dx + _dy * _dy) <= (_SNAP_ARRIVAL_RADIUS * _SNAP_ARRIVAL_RADIUS):
+                self.snap_clear()
 
         if not self._mask_enabled:
             self.renderer.mask.set_rectangle_mask(True)
@@ -1207,7 +1386,70 @@ def DrawFrame():
         
         alternate_color, size = _get_alternate_color(agent_id)
         Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
-        
+
+    # ── NavMesh snap overlay ────────────────────────────────────────────
+    def _snap_to_screen(gx: float, gy: float) -> tuple[float, float]:
+        return RawGamePosToScreen(
+            gx, gy,
+            mission_map.zoom, mission_map.mega_zoom,
+            mission_map.left_bound, mission_map.top_bound,
+            mission_map.boundaries,
+            mission_map.pan_offset_x, mission_map.pan_offset_y,
+            mission_map.scale_x, mission_map.scale_y,
+            mission_map.mission_map_screen_center_x, mission_map.mission_map_screen_center_y,
+        )
+
+    _snap_click_screen:  tuple[float, float] | None = None
+    _snap_snapped_screen: tuple[float, float] | None = None
+
+    if mission_map.snap_clicked_target is not None:
+        _snap_click_screen = _snap_to_screen(*mission_map.snap_clicked_target)
+
+    if mission_map.snap_snapped_target is not None:
+        _snap_snapped_screen = _snap_to_screen(*mission_map.snap_snapped_target)
+
+    # Computed path (blue polyline)
+    if len(mission_map.snap_current_path) >= 2:
+        _path_color = Utils.RGBToColor(80, 160, 255, 210)
+        _prev_s: tuple[float, float] | None = None
+        for _px, _py in mission_map.snap_current_path:
+            _cur_s = _snap_to_screen(_px, _py)
+            if _prev_s is not None:
+                DLLine(_prev_s[0], _prev_s[1], _cur_s[0], _cur_s[1], _path_color, 2.5)
+            _prev_s = _cur_s
+
+    # Thin connector line from click to snap
+    if _snap_click_screen is not None and _snap_snapped_screen is not None:
+        _line_col = Utils.RGBToColor(255, 255, 255, 160)
+        DLLine(_snap_click_screen[0], _snap_click_screen[1],
+               _snap_snapped_screen[0], _snap_snapped_screen[1], _line_col, 1.0)
+
+    # Click marker (small white ring) – hide when nearly on top of snap marker
+    _draw_click = _snap_click_screen is not None
+    if _snap_click_screen is not None and _snap_snapped_screen is not None:
+        if _snap_distance(_snap_click_screen, _snap_snapped_screen) <= 12.0:
+            _draw_click = False
+    if _draw_click and _snap_click_screen is not None:
+        _c_col = Utils.RGBToColor(220, 220, 220, 200)
+        DLCircleFilled(_snap_click_screen[0], _snap_click_screen[1], 2.5, _c_col, 12)
+        DLCircle(_snap_click_screen[0], _snap_click_screen[1], 4.0, _c_col, 12, 1.0)
+
+    # Snap marker (red crosshair)
+    if _snap_snapped_screen is not None:
+        _sx, _sy = _snap_snapped_screen
+        _red     = Utils.RGBToColor(255,   0,   0, 255)
+        _redring = Utils.RGBToColor(255,  50,  50, 255)
+        _cross   = 15.0
+        _r_inner =  6.0
+        _r_outer = 11.0
+        DLCircleFilled(_sx, _sy, _r_inner, _red, 20)
+        DLCircle(_sx, _sy, _r_outer, _redring, 24, 2.5)
+        DLLine(_sx - _cross, _sy, _sx - _r_outer, _sy, _redring, 1.5)
+        DLLine(_sx + _r_outer, _sy, _sx + _cross, _sy, _redring, 1.5)
+        DLLine(_sx, _sy - _cross, _sx, _sy - _r_outer, _redring, 1.5)
+        DLLine(_sx, _sy + _r_outer, _sx, _sy + _cross, _redring, 1.5)
+    # ── end NavMesh snap overlay ────────────────────────────────────────
+
     _end_imgui_draw_window()
                
 def tooltip():
@@ -1261,6 +1503,10 @@ def draw():
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
             DrawFrame()
+            mission_map.snap_enabled = FloatingMoveToggle(
+                mission_map.left, mission_map.top,
+                mission_map.snap_enabled,
+            )
             FloatingCoordsStrip(
                 mission_map.left,
                 mission_map.top,
