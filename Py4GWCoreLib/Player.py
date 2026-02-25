@@ -1,4 +1,5 @@
 import PyPlayer
+import Py4GW
 
 from .enums import *
 from .native_src.internals.helpers import encoded_wstr_to_str
@@ -10,6 +11,41 @@ from .py4gwcorelib_src.ActionQueue import ActionQueueManager
 
 # Player
 class Player:
+    _ACCOUNT_EMAIL_MAX_LEN = 64
+
+    @staticmethod
+    def _hwnd_account_fallback() -> str:
+        """Deterministic ASCII-safe account identifier for unsupported/missing email cases."""
+        try:
+            hwnd = int(Py4GW.Console.get_gw_window_handle() or 0)
+        except Exception:
+            hwnd = 0
+        value = f"{hwnd}@Py4GW"
+        return value[:Player._ACCOUNT_EMAIL_MAX_LEN]
+
+    @staticmethod
+    def _sanitize_account_email_or_fallback(account_email: str | None) -> str:
+        """
+        Normalize account email for shared-memory usage.
+        Falls back to HWND identity for unsupported encodings/non-ASCII accounts.
+        """
+        if not account_email:
+            return Player._hwnd_account_fallback()
+        try:
+            account_email = str(account_email).strip()
+            if not account_email:
+                return Player._hwnd_account_fallback()
+
+            # Some account strings (e.g. unsupported locale/corrupt decode cases) are not safe
+            # for downstream paths; collapse them to HWND identity.
+            account_email.encode("ascii")
+
+            if len(account_email) > Player._ACCOUNT_EMAIL_MAX_LEN:
+                account_email = account_email[:Player._ACCOUNT_EMAIL_MAX_LEN]
+            return account_email
+        except Exception:
+            return Player._hwnd_account_fallback()
+
     @staticmethod
     def _format_uuid_as_email(player_uuid) -> str:
         if not player_uuid:
@@ -223,16 +259,16 @@ class Player:
             
             if (char_ctx := GWContext.Char.GetContext()) is None:
                 return ""
-            account_email = char_ctx.player_email_str
+            try:
+                account_email = char_ctx.player_email_str
+            except Exception:
+                return Player._hwnd_account_fallback()
+            account_email = Player._sanitize_account_email_or_fallback(account_email)
             if account_email:
                 return account_email
-            player_uuid = Player.GetPlayerUUID()
-            if all(part == 0 for part in player_uuid):
-                return ""
-            #return Player._format_uuid_as_email(player_uuid)
-            return "steam_account"  # Placeholder for Steam accounts
+            return Player._hwnd_account_fallback()
         except Exception:
-            return ""
+            return Player._hwnd_account_fallback()
     
     @staticmethod
     def GetPlayerUUID() -> tuple[int, int, int, int]:

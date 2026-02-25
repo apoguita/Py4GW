@@ -165,15 +165,7 @@ class NecromancerSkills:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.SacrificeHealth = 0.20
-        skill_data[skill.SkillID] = skill
-
-        skill = CustomSkill()
-        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Dark_Fury")
-        skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.SacrificeHealth = 0.3
+        skill.Conditions.SacrificeHealth = 0.2
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

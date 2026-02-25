@@ -192,8 +192,44 @@ class _Items:
     @_yield_step(label="EquipItem", counter_key="EQUIP_ITEM")
     def equip(self, model_id: int):
         return (yield from self._equip(model_id))
-    
-        
+
+    def _equip_on_hero(self, hero_type, model_id: int):
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        import Py4GW
+        from ...Py4GWcorelib import ConsoleLog
+        from ...enums_src.Hero_enums import HeroType
+
+        hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        for position in range(1, hero_count + 1):
+            hero_agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(position)
+            if hero_agent_id <= 0:
+                continue
+            hero_id = GLOBAL_CACHE.Party.Heroes.GetHeroIDByAgentID(hero_agent_id)
+            if hero_id <= 0:
+                continue
+            try:
+                found_hero_type = HeroType(hero_id)
+            except ValueError:
+                continue
+            if found_hero_type == hero_type:
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if not item_id:
+                    ConsoleLog("EquipOnHero", f"Item model {model_id} not found in inventory.", Py4GW.Console.MessageType.Error)
+                    self._Events.on_unmanaged_fail()
+                    return False
+                GLOBAL_CACHE.Inventory.EquipItem(item_id, hero_agent_id)
+                yield from Routines.Yield.wait(750)
+                return True
+
+        ConsoleLog("EquipOnHero", f"Hero {hero_type} not found in party.", Py4GW.Console.MessageType.Warning)
+        return False
+
+    @_yield_step(label="EquipOnHero", counter_key="EQUIP_ON_HERO")
+    def equip_on_hero(self, hero_type, model_id: int):
+        return (yield from self._equip_on_hero(hero_type, model_id))
+
+
     @_yield_step(label="DestroyItem", counter_key="DESTROY_ITEM")
     def destroy(self, model_id: int) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
@@ -293,6 +329,11 @@ class _Items:
         yield from inventory_handler.DepositItemsAuto()
         inventory_handler.module_active = current_state
         
+    @_yield_step(label="WithdrawGold", counter_key="WITHDRAW_GOLD")
+    def withdraw_gold(self, target_gold: int = 20000, deposit_all: bool = True) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawGold(target_gold, deposit_all)
+
     @_yield_step(label="AutodepositGold", counter_key="AUTO_DEPOSIT_GOLD")
     def auto_deposit_gold(self) -> Generator[Any, Any, None]:
         from ...py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
@@ -337,6 +378,35 @@ class _Items:
             self._Events.on_unmanaged_fail()
             return False
 
+        return True
+
+    @_yield_step(label="WithdrawUpTo", counter_key="WITHDRAW_UP_TO")
+    def withdraw_up_to(self, model_id: int, max_quantity: int) -> Generator[Any, Any, None]:
+        """Withdraw up to max_quantity of model_id from storage. No-op if none available."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawUpTo(model_id, max_quantity)
+
+    @_yield_step(label="WithdrawFirstAvailable", counter_key="WITHDRAW_FIRST_AVAILABLE")
+    def withdraw_first_available(self, model_ids: list, max_quantity: int) -> Generator[Any, Any, None]:
+        """Withdraw up to max_quantity from the first model_id in the list that has stock in storage."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.WithdrawFirstAvailable(model_ids, max_quantity)
+
+    @_yield_step(label="DepositAllInventory", counter_key="DEPOSIT_ALL_INVENTORY")
+    def deposit_all_inventory(self) -> Generator[Any, Any, None]:
+        """Deposits all items from inventory bags to storage."""
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.DepositAllInventory()
+
+    @_yield_step(label="DepositItem", counter_key="DEPOSIT_ITEM")
+    def deposit_item(self, model_id: int) -> Generator[Any, Any, bool]:
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+        if not item_id:
+            return True  # nothing to deposit
+        GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+        yield from Routines.Yield.wait(350)
         return True
 
     @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")

@@ -1,66 +1,11 @@
 """
-Mission recipe — Run a mission from a structured JSON data file.
+Mission recipe - run a mission from a structured JSON data file.
 
-Mission data files define a sequence of steps (move, wait, interact,
-dialog, etc.) that the bot executes in order. Combat is handled by
-CustomBehaviors.
+Mission files:
+    Sources/modular_bot/missions/<mission_name>.json
 
-JSON format (stored in Sources/modular_bot/missions/<name>.json):
-
-    {
-        "name": "The Great Northern Wall",
-        "outpost_id": 28,
-        "hard_mode": true,
-        "entry": {
-            "type": "enter_challenge",
-            "delay": 3000
-        },
-        "steps": [
-            {"type": "path",              "points": [[5770, -12799], [5085, -12095]]},
-            {"type": "auto_path",         "points": [[6269, -10220], [3830, -6054]]},
-            {"type": "wait",              "ms": 5000},
-            {"type": "wait_out_of_combat"},
-            {"type": "wait_map_load",     "map_id": 72},
-            {"type": "interact_npc",      "x": -3389, "y": 4087},
-            {"type": "dialog",            "x": -3389, "y": 4087, "id": 133},
-            {"type": "exit_map",          "x": 5580, "y": 946, "target_map_id": 380},
-            {"type": "move",              "x": 769, "y": 6564}
-        ]
-    }
-
-Entry types:
-    - "enter_challenge": calls bot.Map.EnterChallenge(delay)
-    - "dialog":          moves to NPC and sends dialog to enter mission
-    - null/missing:      no special entry (already in mission zone)
-
-Step types:
-    - "path":              Follow exact path (list of [x,y] points)
-    - "auto_path":         Follow auto-pathed path (list of [x,y] waypoints)
-    - "auto_path_delayed": Move waypoint-by-waypoint with delay between points
-    - "wait":              Wait fixed time (ms)
-    - "wait_out_of_combat": Wait until no enemies in aggro
-    - "wait_map_load":     Wait for specific map to load
-    - "move":              Move to single coordinate (x, y)
-    - "exit_map":          Move to coordinate and exit to target map
-    - "interact_npc":      Move to NPC at (x,y) and interact
-    - "interact_gadget":   Interact with nearest gadget (wait ms)
-    - "interact_item":     Interact with nearest item (wait ms)
-    - "interact_quest_npc": Interact with nearest NPC that has a quest marker (wait ms)
-    - "interact_nearest_npc": Interact with nearest NPC (wait ms)
-    - "dialog":            Move to (x,y) and send dialog ID
-    - "dialog_multibox":   Send dialog to all accounts
-    - "skip_cinematic":    Wait for cinematic to start, then skip it
-    - "set_title":         Set active title by ID
-    - "key_press":         Press a game key once (e.g. "F1", "F2", "SPACE")
-    - "resign":            Resign party
-    - "wait_map_change":   Wait for map to change to target
-
-Two APIs:
-    # Direct function
-    mission_run(bot, "the_great_northern_wall")
-
-    # Phase factory
-    Mission("the_great_northern_wall")
+Action reference:
+    Sources/modular_bot/recipes/README_actionlist.md
 """
 
 from __future__ import annotations
@@ -73,6 +18,8 @@ if TYPE_CHECKING:
     from Py4GWCoreLib import Botting
 
 from ..phase import Phase
+from ..hero_setup import get_team_for_size, load_hero_teams
+from .modular_actions import register_step as _register_shared_step
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -86,17 +33,17 @@ def _get_missions_dir() -> str:
 
 def _load_hero_config() -> Dict[str, Any]:
     """
-    Load hero configuration from ``Sources/modular_bot/missions/hero_config.json``.
+    Load hero configuration used by modular recipes.
 
     Returns:
-        Dict with keys ``"party_4"``, ``"party_6"``, ``"party_8"`` mapping
-        to lists of hero IDs.
+        Dict containing team keys mapped to hero ID lists.
+
+    Resolution order:
+        1) ``Sources/modular_bot/configs/<account_email>.json`` -> ``hero_teams``
+        2) ``Sources/modular_bot/configs/default.json`` -> ``hero_teams``
+        3) Legacy hero config paths
     """
-    filepath = os.path.join(_get_missions_dir(), "hero_config.json")
-    if not os.path.isfile(filepath):
-        return {"party_4": [], "party_6": [], "party_8": []}
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_hero_teams()
 
 
 def _load_mission_data(mission_name: str) -> Dict[str, Any]:
@@ -174,203 +121,9 @@ def _register_entry(bot: "Botting", entry: Optional[Dict[str, Any]]) -> None:
 
 
 def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
-    """Register a single mission step as FSM state(s)."""
-    step_type = step.get("type", "")
+    """Register a single step via shared modular action handlers."""
+    _register_shared_step(bot, step, step_idx, recipe_name="Mission")
 
-    if step_type == "path":
-        points = [tuple(p) for p in step["points"]]
-        name = step.get("name", f"Path {step_idx + 1}")
-        bot.Move.FollowPath(points, step_name=name)
-
-    elif step_type == "auto_path":
-        points = [tuple(p) for p in step["points"]]
-        name = step.get("name", f"AutoPath {step_idx + 1}")
-        bot.Move.FollowAutoPath(points, step_name=name)
-
-    elif step_type == "auto_path_delayed":
-        points = [tuple(p) for p in step["points"]]
-        name = step.get("name", f"AutoPathDelayed {step_idx + 1}")
-        delay_ms = int(step.get("delay_ms", 35000))
-        if delay_ms < 0:
-            delay_ms = 0
-
-        # Emulate delayed waypoint advance: move to one point, then pause.
-        for point_i, (x, y) in enumerate(points):
-            step_name = f"{name} [{point_i + 1}/{len(points)}]"
-            bot.Move.XY(x, y, step_name)
-            if point_i < len(points) - 1 and delay_ms > 0:
-                bot.Wait.ForTime(delay_ms)
-
-    elif step_type == "wait":
-        ms = step.get("ms", 1000)
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "wait_out_of_combat":
-        bot.Wait.UntilOutOfCombat()
-
-    elif step_type == "wait_map_load":
-        map_id = step["map_id"]
-        bot.Wait.ForMapLoad(target_map_id=map_id)
-
-    elif step_type == "move":
-        x, y = step["x"], step["y"]
-        name = step.get("name", "")
-        bot.Move.XY(x, y, name)
-
-    elif step_type == "exit_map":
-        x, y = step["x"], step["y"]
-        target_map_id = step.get("target_map_id", 0)
-        bot.Move.XYAndExitMap(x, y, target_map_id)
-
-    elif step_type == "interact_npc":
-        x, y = step["x"], step["y"]
-        name = step.get("name", "")
-        bot.Move.XYAndInteractNPC(x, y, name)
-
-    elif step_type == "dialog":
-        x, y = step["x"], step["y"]
-        dialog_id = step["id"]
-        name = step.get("name", "")
-        bot.Dialogs.AtXY(x, y, dialog_id, name)
-
-    elif step_type == "dialog_multibox":
-        dialog_id = step["id"]
-        bot.Multibox.SendDialogToTarget(dialog_id)
-
-    elif step_type == "interact_gadget":
-        ms = step.get("ms", 2000)
-
-        def _make_gadget_interact():
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Player
-                gadget_array = AgentArray.GetGadgetArray()
-                px, py = Player.GetXY()
-                gadget_array = AgentArray.Filter.ByDistance(gadget_array, (px, py), 800)
-                if gadget_array:
-                    Player.Interact(gadget_array[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_gadget_interact(), f"Interact Gadget")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "interact_item":
-        ms = step.get("ms", 2000)
-
-        def _make_item_interact():
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Player
-                item_array = AgentArray.GetItemArray()
-                px, py = Player.GetXY()
-                item_array = AgentArray.Filter.ByDistance(item_array, (px, py), 1200)
-                if item_array:
-                    item_array = AgentArray.Sort.ByDistance(item_array, (px, py))
-                    Player.Interact(item_array[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_item_interact(), f"Interact Item")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "interact_quest_npc":
-        ms = step.get("ms", 5000)
-
-        def _make_quest_interact(wait_ms):
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Agent, Player
-                ally_array = AgentArray.GetNPCMinipetArray()
-                px, py = Player.GetXY()
-                ally_array = AgentArray.Filter.ByDistance(ally_array, (px, py), 5000)
-                quest_npcs = [a for a in ally_array if Agent.HasQuest(a)]
-                if quest_npcs:
-                    Player.Interact(quest_npcs[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_quest_interact(ms), f"Interact Quest NPC")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "interact_nearest_npc":
-        ms = step.get("ms", 5000)
-
-        def _make_npc_interact(wait_ms):
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Player
-                npc_array = AgentArray.GetNPCMinipetArray()
-                px, py = Player.GetXY()
-                npc_array = AgentArray.Filter.ByDistance(npc_array, (px, py), 800)
-                if npc_array:
-                    Player.Interact(npc_array[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_npc_interact(ms), f"Interact Nearest NPC")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "skip_cinematic":
-        ms = step.get("wait_ms", 500)
-
-        def _make_skip_cinematic(wait_ms):
-            def _skip():
-                from Py4GWCoreLib import Map
-                if Map.IsInCinematic():
-                    Map.SkipCinematic()
-            return _skip
-
-        bot.Wait.ForTime(ms)
-        bot.States.AddCustomState(_make_skip_cinematic(ms), "Skip Cinematic")
-        bot.Wait.ForTime(1000)
-
-    elif step_type == "set_title":
-        title_id = step["id"]
-        bot.Player.SetTitle(title_id)
-
-    elif step_type == "key_press":
-        key_name = str(step["key"]).upper()
-        key_map = {
-            "F1": "F1",
-            "F2": "F2",
-            "SPACE": "Space",
-            "ENTER": "Enter",
-            "ESCAPE": "Escape",
-            "ESC": "Escape",
-        }
-        mapped = key_map.get(key_name)
-        if mapped is None:
-            from Py4GWCoreLib import ConsoleLog
-            ConsoleLog("Recipe:Mission", f"Unsupported key_press key: {key_name!r}")
-        else:
-            from Py4GWCoreLib import Keystroke, Key
-            bot.States.AddCustomState(
-                lambda _k=mapped: Keystroke.PressAndRelease(getattr(Key, _k).value),
-                f"KeyPress {key_name}",
-            )
-            ms = int(step.get("ms", 1000))
-            if ms > 0:
-                bot.Wait.ForTime(ms)
-
-    elif step_type == "flag_heroes":
-        x, y = step["x"], step["y"]
-        ms = step.get("ms", 2000)
-        bot.Party.FlagAllHeroes(x, y)
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "unflag_heroes":
-        ms = step.get("ms", 2000)
-        bot.Party.UnflagAllHeroes()
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "resign":
-        bot.Multibox.ResignParty()
-
-    elif step_type == "wait_map_change":
-        target_map_id = step["target_map_id"]
-        bot.Wait.ForMapToChange(target_map_id=target_map_id)
-
-    else:
-        from Py4GWCoreLib import ConsoleLog
-        ConsoleLog("Recipe:Mission", f"Unknown step type: {step_type!r} at index {step_idx}")
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Direct function — registers FSM states on a Botting instance
-# ──────────────────────────────────────────────────────────────────────────────
 
 def mission_run(bot: "Botting", mission_name: str) -> None:
     """
@@ -386,8 +139,10 @@ def mission_run(bot: "Botting", mission_name: str) -> None:
     display_name = data.get("name", mission_name)
     outpost_id = data.get("outpost_id")
     max_heroes = data.get("max_heroes", 0)
+    hero_team = str(data.get("hero_team", "") or "")
     entry = data.get("entry")
     steps = data.get("steps", [])
+    total_registered_steps = 0
 
     # ── 1. Travel to outpost ──────────────────────────────────────────
     if outpost_id:
@@ -395,9 +150,7 @@ def mission_run(bot: "Botting", mission_name: str) -> None:
 
     # ── 2. Add heroes from config ─────────────────────────────────────
     if max_heroes > 0:
-        hero_config = _load_hero_config()
-        party_key = f"party_{max_heroes}"
-        hero_ids = hero_config.get(party_key, [])
+        hero_ids = get_team_for_size(max_heroes, hero_team)
         if hero_ids:
             bot.Party.LeaveParty()
             bot.Party.AddHeroList(hero_ids)
@@ -407,12 +160,36 @@ def mission_run(bot: "Botting", mission_name: str) -> None:
         _register_entry(bot, entry)
 
     # ── 4. Execute steps ──────────────────────────────────────────────
-    for idx, step in enumerate(steps):
-        _register_step(bot, step, idx)
+    for source_idx, step in enumerate(steps):
+        repeat_raw = step.get("repeat", 1)
+        try:
+            repeat = int(repeat_raw)
+        except (TypeError, ValueError):
+            ConsoleLog(
+                "Recipe:Mission",
+                f"Invalid repeat at source step {source_idx}: {repeat_raw!r}. Using 1.",
+            )
+            repeat = 1
+
+        if repeat <= 0:
+            ConsoleLog(
+                "Recipe:Mission",
+                f"Skipping source step {source_idx} because repeat={repeat}.",
+            )
+            continue
+
+        for rep_idx in range(repeat):
+            step_to_register = step
+            if repeat > 1 and "name" in step:
+                step_to_register = dict(step)
+                step_to_register["name"] = f"{step['name']} [{rep_idx + 1}/{repeat}]"
+
+            _register_step(bot, step_to_register, total_registered_steps)
+            total_registered_steps += 1
 
     ConsoleLog(
         "Recipe:Mission",
-        f"Registered mission: {display_name} ({len(steps)} steps, outpost {outpost_id})",
+        f"Registered mission: {display_name} ({total_registered_steps} expanded steps from {len(steps)} source steps, outpost {outpost_id})",
     )
 
 
@@ -443,4 +220,5 @@ def Mission(
             name = f"Mission: {mission_name}"
 
     return Phase(name, lambda bot: mission_run(bot, mission_name))
+
 

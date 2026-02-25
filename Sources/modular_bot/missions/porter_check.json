@@ -1,0 +1,7 @@
+{
+  "name": "Porter_check",
+  "steps": [
+    {"type": "exit_map", "x": -10800, "y": 35400, "target_map_id": 100},
+    {"type": "exit_map", "x": 13800, "y": -22750, "target_map_id": 133}
+  ]
+}

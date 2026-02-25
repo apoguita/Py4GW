@@ -131,6 +131,17 @@ class Color:
         """Return packed ABGR int color."""
         return self.to_color()
     
+    def to_hex(self, include_alpha: bool = True) -> str:
+        """Return color as hex string '#RRGGBBAA' or '#RRGGBB'."""
+        if include_alpha:
+            return f"#{self.r:02X}{self.g:02X}{self.b:02X}{self.a:02X}"
+        else:
+            return f"#{self.r:02X}{self.g:02X}{self.b:02X}"
+    
+    def to_rgba_string(self) -> str:
+        """Return color as string 'R, G, B, A'."""
+        return f"{self.r}, {self.g}, {self.b}, {self.a}"
+    
     def to_abgr(self) -> int:
         return self._pack_abgr(self.r, self.g, self.b, self.a)
     
@@ -235,6 +246,35 @@ class Color:
             data.get("b", 255),
             data.get("a", 255)
         )
+
+    @classmethod
+    def from_hex(cls, hex_str: str) -> "Color":
+        """Create a Color from a hex string like '#RRGGBBAA' or '#RRGGBB'."""
+        hex_str = hex_str.lstrip('#')
+        if len(hex_str) == 6:
+            r, g, b = int(hex_str[0:2], 16), int(hex_str[2:4], 16), int(hex_str[4:6], 16)
+            return cls(r, g, b)
+        elif len(hex_str) == 8:
+            r, g, b, a = int(hex_str[0:2], 16), int(hex_str[2:4], 16), int(hex_str[4:6], 16), int(hex_str[6:8], 16)
+            return cls(r, g, b, a)
+        else:
+            raise ValueError("Hex string must be in format '#RRGGBB' or '#RRGGBBAA'")
+        
+        return cls(r, g, b, a if 'a' in locals() else 255)
+    
+    @classmethod
+    def from_rgba_string(cls, rgba_str: str) -> "Color":
+        """Create a Color from a string like 'R, G, B, A' or 'R, G, B'."""
+        parts = rgba_str.split(',')
+        if len(parts) not in (3, 4):
+            raise ValueError("RGBA string must be in format 'R, G, B' or 'R, G, B, A'")
+        
+        r = int(parts[0].strip())
+        g = int(parts[1].strip())
+        b = int(parts[2].strip())
+        a = int(parts[3].strip()) if len(parts) == 4 else 255
+        
+        return cls(r, g, b, a)
 
     @classmethod
     def random(cls, a: int = 255) -> "Color":
