@@ -49,13 +49,14 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-19350, -16900, "Enter Outpost")
     bot.Wait.ForMapLoad(OUTPOST_TO_TRAVEL)
     # End resign setup
-    bot.States.AddHeader(f"{BOT_NAME}_loop")
+    bot.States.AddHeader(f"{BOT_NAME}_loop") # 3
     bot.Move.XY(-850, 4700, "Exit Outpost")
     bot.Wait.ForMapLoad(EXPLORABLE_TO_TRAVEL)
     bot.Move.XYAndInteractNPC(-20928, -13121) # Bounty coords
     bot.Multibox.SendDialogToTarget(0x85) # Get Bounty
     bot.Move.FollowAutoPath(KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
+    bot.States.AddHeader("Resign") # 4
     bot.Multibox.ResignParty()
     bot.Wait.ForTime(1000)
     bot.Wait.UntilOnOutpost()
@@ -96,7 +97,7 @@ def _on_party_wipe(bot: "Botting"):
             return
 
     # Player revived on same map → jump to recovery step
-    bot.States.JumpToStepName("[H]Start Combat_3")
+    bot.States.JumpToStepName("[H]Resign_4")
     bot.config.FSM.resume()
     
 def OnPartyWipe(bot: "Botting"):
