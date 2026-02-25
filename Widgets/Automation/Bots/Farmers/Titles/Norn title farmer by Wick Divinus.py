@@ -165,6 +165,30 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC(-2217.00, 14914.00)
     bot.Multibox.SendDialogToTarget(0x84) #Blessing 6
     bot.Wait.ForTime(10000)
+
+    # The Path to Revelations (The quest is required beforehand, otherwise the enemies will not spawn)
+    bot.Move.XY(24169.45, -4288.69)
+    bot.Move.XY(24169.45, -4288.69)
+    bot.Move.XY(19745, -2718)
+    bot.Move.XY(23504, 1801) # First boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Second boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Third boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Fourth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Fifth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Sixth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(22523, 1198)
     
     # Continue route
     # bot.Move.XY(-2290, 14879, "Aggro: Modnir")
