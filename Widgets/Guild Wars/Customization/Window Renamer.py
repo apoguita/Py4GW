@@ -1,28 +1,21 @@
 from Py4GWCoreLib import Player
-from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import SharedCommandType
-from Py4GWCoreLib import Timer
 from Py4GWCoreLib import Map
+import Py4GW
 import PyImGui
 from Py4GWCoreLib import ImGui, Color
 
-#Disabled for debug
-#from Py4GWCoreLib import Py4GW
-
 MODULE_NAME = "Window Renamer"
-window_renamer_wait_time = 1000 # Set the throttle time to 1 second
-window_renamer_wait_timer = Timer()
-window_renamer_wait_timer.Start()
+_last_char_name: str = ""
 
 def main():
-    global window_renamer_wait_timer,window_renamer_wait_time
-    if window_renamer_wait_timer.HasElapsed(window_renamer_wait_time) and Map.IsMapReady():
-        #Py4GW.Console.Log(MODULE_NAME, f"Map is loaded.")
-        account_email = Player.GetAccountEmail()
-        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        for account in accounts:
-            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.SetWindowTitle, ExtraData=(account.AgentData.CharacterName, "", "", ""))
-        window_renamer_wait_timer.Start()
+    global _last_char_name
+    if not Map.IsMapReady():
+        return
+    char_name = Player.GetName()
+    if not char_name or char_name == _last_char_name:
+        return
+    _last_char_name = char_name
+    Py4GW.Console.set_window_title(char_name)
 
 def tooltip():
     PyImGui.begin_tooltip()
@@ -37,13 +30,13 @@ def tooltip():
 
     # Description
     #ellaborate a better description 
-    PyImGui.text("Periodically renames the game window")
+    PyImGui.text("Renames game windows to character names")
     
     PyImGui.spacing()
 
     # Features
     PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Periodically renames the game window")
+    PyImGui.bullet_text("Renames game windows on character change")
     PyImGui.bullet_text("Sets window title to character name")
 
     PyImGui.spacing()

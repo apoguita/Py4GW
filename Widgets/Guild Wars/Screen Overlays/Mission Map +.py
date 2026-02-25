@@ -3,7 +3,6 @@ from Py4GWCoreLib import Color
 from Py4GWCoreLib import GLOBAL_CACHE
 import PyImGui
 from Py4GWCoreLib import ImGui, Color
-from Py4GWCoreLib import Overlay
 from Py4GWCoreLib import DXOverlay
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Timer
@@ -15,7 +14,7 @@ from Py4GWCoreLib import Map, Player
 from Py4GWCoreLib import Agent, AgentArray
 from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct
 
-from typing import Union
+from typing import Any, Union, cast
 import math
 
 #region CONSTANTS
@@ -255,6 +254,37 @@ def FloatingCoordsStrip(x, y, last_x, last_y, color, width=None, margin=8, label
 
 #endregion
 #region MARKERS
+def DLLine(x1, y1, x2, y2, color, thickness=1.0):
+    PyImGui.draw_list_add_line(float(x1), float(y1), float(x2), float(y2), color, float(thickness))
+
+def DLCircle(x, y, radius, color, numsegments=16, thickness=1.0):
+    PyImGui.draw_list_add_circle(float(x), float(y), float(radius), color, int(numsegments), float(thickness))
+
+def DLCircleFilled(x, y, radius, color, numsegments=16):
+    PyImGui.draw_list_add_circle_filled(float(x), float(y), float(radius), color, int(numsegments))
+
+def DLTriangle(x1, y1, x2, y2, x3, y3, color, thickness=1.0):
+    PyImGui.draw_list_add_triangle(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), color, float(thickness))
+
+def DLTriangleFilled(x1, y1, x2, y2, x3, y3, color):
+    PyImGui.draw_list_add_triangle_filled(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), color)
+
+def DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color, thickness=1.0):
+    PyImGui.draw_list_add_quad(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), float(x4), float(y4), color, float(thickness))
+
+def DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color):
+    PyImGui.draw_list_add_quad_filled(float(x1), float(y1), float(x2), float(y2), float(x3), float(y3), float(x4), float(y4), color)
+
+_COLOR_INT_CACHE: dict[tuple[int, int, int, int], int] = {}
+def ColorToIntCached(color: Color) -> int:
+    key = color.get_rgba()
+    cached = _COLOR_INT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    packed = color.to_color()
+    _COLOR_INT_CACHE[key] = packed
+    return packed
+
 class Shape:
     def __init__(self, name: str, color: Color,accent_color: Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
         self.name: str = name
@@ -275,6 +305,10 @@ class Shape:
 
 class Triangle(Shape):
     global BASE_ANGLE
+    UNIT_POINTS = tuple(
+        (math.cos(i * (2 * MATH_PI / 3)), math.sin(i * (2 * MATH_PI / 3)))
+        for i in range(3)
+    )
     def __init__(self, color: Color, accent_color:Color,x: float, y:float, size: float = 5.0, offset_angle: float = 0.0):
         super().__init__("Triangle", color, accent_color, x, y, size)
         self.accent_color: Color = accent_color
@@ -282,27 +316,28 @@ class Triangle(Shape):
         self.base_angle:float = 0.0 # + Utils.DegToRad(self.offset_angle)
 
     def draw(self) -> None:
-        
-        # Generate 3 points spaced 120° apart
+        angle_offset = self.base_angle + self.offset_angle
+        cos_o = math.cos(angle_offset)
+        sin_o = math.sin(angle_offset)
         points = []
-        for i in range(3):
-            angle = (self.base_angle + self.offset_angle) + i * (2 * MATH_PI / 3)  # 0°, 120°, 240°
-            x = self.x + math.cos(angle) * self.size
-            y = self.y + math.sin(angle) * self.size
-            points.append((x, y))
+        for ux, uy in Triangle.UNIT_POINTS:
+            rx = ux * cos_o - uy * sin_o
+            ry = ux * sin_o + uy * cos_o
+            points.append((self.x + (rx * self.size), self.y + (ry * self.size)))
 
-        Overlay().DrawTriangleFilled(
+
+        DLTriangleFilled(
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
-            self.color.to_color()
+            ColorToIntCached(self.color)
         )
         # Draw the triangle outline     
-        Overlay().DrawTriangle(
+        DLTriangle(
             points[0][0], points[0][1],
             points[1][0], points[1][1],
             points[2][0], points[2][1],
-            self.accent_color.to_color(),
+            ColorToIntCached(self.accent_color),
             thickness=2.0
         )
  
@@ -313,10 +348,15 @@ class Circle(Shape):
         self.accent_color: Color = accent_color
 
     def draw(self) -> None:
-        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(),numsegments=self.segments)
-        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
+        DLCircleFilled(self.x, self.y, radius=self.size, color=ColorToIntCached(self.color), numsegments=self.segments)
+        DLCircle(self.x, self.y, radius=self.size, color=ColorToIntCached(self.accent_color), numsegments=self.segments, thickness=2)
         
 class Teardrop(Shape):
+    ARROW_LOCAL_POINTS_UNIT = (
+        (0.0, -SQRT_2),
+        (-SQRT_2 / 2, -SQRT_2 / 2),
+        (SQRT_2 / 2, -SQRT_2 / 2),
+    )
     def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float, offset_angle: float = 0.0, segments: int = 16):
         self.segments: int = segments
         super().__init__("Teardrop", color, accent_color, x, y, size)
@@ -326,18 +366,10 @@ class Teardrop(Shape):
 
     def draw(self) -> None:
         # 1. Draw unrotated circle
-        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(), numsegments=self.segments)
-        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
+        DLCircleFilled(self.x, self.y, radius=self.size, color=ColorToIntCached(self.color), numsegments=self.segments)
+        DLCircle(self.x, self.y, radius=self.size, color=ColorToIntCached(self.accent_color), numsegments=self.segments, thickness=2)
 
-        # 2. Build arrow points (relative to center)
-        half_side = (self.size * SQRT_2) / 2
-        local_points = [
-            (0          , -half_side * 2),     # p1 - arrow tip
-            (-half_side , -half_side),# p2 - left base
-            (half_side  , -half_side), # p4 - right base
-        ]
-
-        # 3. Calculate rotation angle (negated for in-game rotation match)
+        # 2. Calculate rotation angle (negated for in-game rotation match)
         angle = -(self.base_angle + self.offset_angle)
         cos_a = math.cos(angle)
         sin_a = math.sin(angle)
@@ -348,14 +380,14 @@ class Teardrop(Shape):
             ry = px * sin_a + py * cos_a + self.y
             return (rx, ry)
 
-        p1 = rotate(*local_points[0])
-        p2 = rotate(*local_points[1])
-        p4 = rotate(*local_points[2])
+        p1 = rotate(self.ARROW_LOCAL_POINTS_UNIT[0][0] * self.size, self.ARROW_LOCAL_POINTS_UNIT[0][1] * self.size)
+        p2 = rotate(self.ARROW_LOCAL_POINTS_UNIT[1][0] * self.size, self.ARROW_LOCAL_POINTS_UNIT[1][1] * self.size)
+        p4 = rotate(self.ARROW_LOCAL_POINTS_UNIT[2][0] * self.size, self.ARROW_LOCAL_POINTS_UNIT[2][1] * self.size)
         
         # 5. Draw the arrow
-        Overlay().DrawTriangleFilled(p1[0], p1[1], p2[0], p2[1], p4[0], p4[1], color=self.color.to_color())
-        Overlay().DrawLine(p1[0], p1[1], p2[0], p2[1], color=self.accent_color.to_color(), thickness=2.0)
-        Overlay().DrawLine(p1[0], p1[1], p4[0], p4[1], color=self.accent_color.to_color(), thickness=2.0)
+        DLTriangleFilled(p1[0], p1[1], p2[0], p2[1], p4[0], p4[1], color=ColorToIntCached(self.color))
+        DLLine(p1[0], p1[1], p2[0], p2[1], color=ColorToIntCached(self.accent_color), thickness=2.0)
+        DLLine(p1[0], p1[1], p4[0], p4[1], color=ColorToIntCached(self.accent_color), thickness=2.0)
      
 class Penta(Shape):
     def __init__(self, color: Color,accent_color:Color, x: float, y: float, size: float):
@@ -364,8 +396,8 @@ class Penta(Shape):
         self.accent_color: Color = accent_color
 
     def draw(self) -> None:
-        Overlay().DrawPolyFilled(self.x, self.y, radius=self.size, color=self.color.to_color(),numsegments=self.segments)
-        Overlay().DrawPoly(self.x, self.y, radius=self.size, color=self.accent_color.to_color(), numsegments=self.segments, thickness=2)
+        DLCircleFilled(self.x, self.y, radius=self.size, color=ColorToIntCached(self.color), numsegments=self.segments)
+        DLCircle(self.x, self.y, radius=self.size, color=ColorToIntCached(self.accent_color), numsegments=self.segments, thickness=2)
         
 class Square(Shape):
     def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
@@ -382,8 +414,8 @@ class Square(Shape):
         x3, y3 = self.x + half_side, self.y + half_side  # bottom-right
         x4, y4 = self.x - half_side, self.y + half_side  # bottom-left
 
-        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
-        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
         
 class Lock(Shape):
     def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
@@ -401,10 +433,10 @@ class Lock(Shape):
         x3, y3 = self.x + half_side, self.y + half_side  # bottom-right
         x4, y4 = self.x - half_side, self.y + half_side  # bottom-left
 
-        Overlay().DrawPoly(self.x, self.y -half_side - eighth_side, radius=self.size / 2, color=self.accent_color.to_color(), numsegments=12, thickness=3)
-        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
-        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
-        Overlay().DrawQuadFilled(self.x- eighth_side, self.y- eighth_side, self.x+eighth_side, self.y-eighth_side, self.x+eighth_side, self.y+eighth_side, self.x-eighth_side, self.y+eighth_side, color=self.accent_color.to_color())
+        DLCircle(self.x, self.y -half_side - eighth_side, radius=self.size / 2, color=ColorToIntCached(self.accent_color), numsegments=12, thickness=3)
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
+        DLQuadFilled(self.x- eighth_side, self.y- eighth_side, self.x+eighth_side, self.y-eighth_side, self.x+eighth_side, self.y+eighth_side, self.x-eighth_side, self.y+eighth_side, color=ColorToIntCached(self.accent_color))
         
 class SignPost(Shape):
     def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 5.0, offset_angle: float = 0.0):
@@ -413,8 +445,8 @@ class SignPost(Shape):
 
     def draw(self) -> None:
         def _draw_text_line (x1, y1, x2, y2, color: Color):
-            Overlay().DrawLine(x1, y1, x2, y2, color=color.to_color(), thickness=1.0)
-            Overlay().DrawLine(x1, y1, x2, y2, color=color.to_color(), thickness=1.0)
+            DLLine(x1, y1, x2, y2, color=ColorToIntCached(color), thickness=1.0)
+            DLLine(x1, y1, x2, y2, color=ColorToIntCached(color), thickness=1.0)
             
         half_side = (self.size * SQRT_2) / 2
         quarter_side = half_side / 2
@@ -427,8 +459,8 @@ class SignPost(Shape):
         x3, y3 = self.x + three_quarter_side, self.y + half_side  # bottom-right
         x4, y4 = self.x - three_quarter_side, self.y + half_side  # bottom-left
 
-        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
-        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
         
         l1_x1, l1_y1 = self.x - half_side, self.y - quarter_side  # top-left
         l1_x2, l1_y2 = self.x + half_side, self.y - quarter_side  # top-right
@@ -441,6 +473,12 @@ class SignPost(Shape):
     
 
 class Tear(Shape):
+    LOCAL_POINTS_UNIT = (
+        (0.0, -SQRT_2),
+        (SQRT_2 / 2, 0.0),
+        (0.0, SQRT_2 / 2),
+        (-SQRT_2 / 2, 0.0),
+    )
     def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 8.0, offset_angle: float = 0.0):
         super().__init__("Tear", color, accent_color, x, y, size)
         self.base_angle: float = BASE_ANGLE
@@ -452,20 +490,11 @@ class Tear(Shape):
         cos_a = math.cos(angle)
         sin_a = math.sin(angle)
 
-        # Geometry setup
-        half_side = (self.size * SQRT_2) / 2
-
-        # Define original points relative to center (self.x, self.y)
-        points = [
-            (0          , -half_side * 2),  # top
-            (half_side  , 0),       # right
-            (0          , half_side),       # bottom
-            (-half_side , 0)       # left
-        ]
-
         # Rotate and translate points
         rotated = []
-        for px, py in points:
+        for ux, uy in self.LOCAL_POINTS_UNIT:
+            px = ux * self.size
+            py = uy * self.size
             rx = px * cos_a - py * sin_a + self.x
             ry = px * sin_a + py * cos_a + self.y
             rotated.append((rx, ry))
@@ -474,8 +503,8 @@ class Tear(Shape):
         (x1, y1), (x2, y2), (x3, y3), (x4, y4) = rotated
 
         # Draw filled and outlined quad
-        Overlay().DrawQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=self.color.to_color())
-        Overlay().DrawQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=self.accent_color.to_color(), thickness=2.0)
+        DLQuadFilled(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.color))
+        DLQuad(x1, y1, x2, y2, x3, y3, x4, y4, color=ColorToIntCached(self.accent_color), thickness=2.0)
         
 class Scale(Shape):
     def __init__(self, color: Color, accent_color:Color, x: float, y: float, size: float = 8.0, offset_angle: float = 0.0):
@@ -489,12 +518,12 @@ class Scale(Shape):
         x1, y1 = self.x, self.y + half_side 
         x2, y2 = self.x, self.y - half_side 
         
-        Overlay().DrawLine(x1, y1, x2, y2, color=self.color.to_color(), thickness=2.0)
+        DLLine(x1, y1, x2, y2, color=ColorToIntCached(self.color), thickness=2.0)
         
         x1, y1 = self.x - half_side, self.y - half_side
         x2, y2 = self.x + half_side, self.y - half_side
 
-        Overlay().DrawLine(x1, y1, x2, y2, color=self.color.to_color(), thickness=2.0)
+        DLLine(x1, y1, x2, y2, color=ColorToIntCached(self.color), thickness=2.0)
         
         
 
@@ -543,6 +572,27 @@ class Marker:
 
     def draw(self) -> None:
         self.shape.draw()
+
+
+_SHAPE_INSTANCE_CACHE: dict[str, Shape] = {}
+def DrawMarkerCached(shape_type: str, color: Color, accent_color: Color, x: float, y: float, size: float, **kwargs) -> None:
+    shape = _SHAPE_INSTANCE_CACHE.get(shape_type)
+    if shape is None:
+        shape_cls = shapes.get(shape_type)
+        if shape_cls is None:
+            raise ValueError(f"Unknown shape type: {shape_type}")
+        shape_ctor = cast(Any, shape_cls)
+        shape = shape_ctor(x=x, y=y, color=color, accent_color=accent_color, size=size, **kwargs)
+        _SHAPE_INSTANCE_CACHE[shape_type] = shape
+    else:
+        shape.x = x
+        shape.y = y
+        shape.size = size
+        shape.color = color
+        shape.accent_color = accent_color
+        if hasattr(shape, "offset_angle") and "offset_angle" in kwargs:
+            shape.offset_angle = kwargs["offset_angle"]
+    shape.draw()
 
 #endregion
 
@@ -673,6 +723,13 @@ class MissionMap:
         self.mega_zoom = 0.0
         self.map_origin = (0.0, 0.0)
         self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = 0.0, 0.0, 0.0, 0.0
+        self.cached_map_id = 0
+        self.map_boundaries_by_map_id: dict[int, tuple[float, float, float, float]] = {}
+        self.world_bounds_by_map_id: dict[int, tuple[float, float, float, float]] = {}
+        self.pathing_geometry_built_by_map_id: dict[int, bool] = {}
+        self._mask_enabled = False
+        self._last_mission_map_coords: tuple[int, int, int, int] | None = None
+        self._last_transform_signature: tuple | None = None
         
         self.pan_offset_x, self.pan_offset_y = 0.0, 0.0
         self.scale_x, self.scale_y = 1.0, 1.0
@@ -709,47 +766,98 @@ class MissionMap:
         self.default_marker = GLOBAL_CONFIGS.get("Default")
         self.chest_marker = GLOBAL_CONFIGS.get("Chest")
         self.merchant_marker = GLOBAL_CONFIGS.get("Merchant")
+        
+        self.renderer.mask.set_rectangle_mask(True)
+        self.mega_zoom_renderer.mask.set_rectangle_mask(True)
+        self.renderer.world_space.set_world_space(True)
+        self.mega_zoom_renderer.world_space.set_world_space(True)
+        self._mask_enabled = True
                    
 
     def update(self):  
 
-        if not self.throttle_timer.IsExpired():
-            return
-        self.throttle_timer.Reset()    
+        #if not self.throttle_timer.IsExpired():
+        #    return
+        #self.throttle_timer.Reset()    
 
         
-        self.boundaries = Map.GetMapBoundaries()
-        self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
+        map_id = Map.GetMapID()
+        if self.cached_map_id != map_id:
+            self.cached_map_id = map_id
+            self.map_boundaries_by_map_id.clear()
+            self.world_bounds_by_map_id.clear()
+            self.pathing_geometry_built_by_map_id.clear()
+            self._last_mission_map_coords = None
+            self._last_transform_signature = None
+
+        if map_id in self.map_boundaries_by_map_id:
+            self.boundaries = self.map_boundaries_by_map_id[map_id]
+        else:
+            self.boundaries = Map.GetMapBoundaries()
+            self.map_boundaries_by_map_id[map_id] = self.boundaries
+
+        if map_id in self.world_bounds_by_map_id:
+            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = self.world_bounds_by_map_id[map_id]
+        else:
+            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound = Map.GetMapWorldMapBounds()
+            self.world_bounds_by_map_id[map_id] = (self.left_bound, self.top_bound, self.right_bound, self.bottom_bound)
         
         #self.geometry = Map.Pathing.GetComputedGeometry()
         #self.renderer.set_primitives(self.geometry, Color(255, 255, 255, 80).to_dx_color())
         #self.mega_zoom_renderer.set_primitives(self.geometry, Color(255, 255, 255, 100).to_dx_color())
-        self.renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 80).to_dx_color())
-        self.mega_zoom_renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 100).to_dx_color())
+        if not self.pathing_geometry_built_by_map_id.get(map_id, False):
+            self.renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 80).to_dx_color())
+            self.mega_zoom_renderer.build_pathing_trapezoid_geometry(Color(255, 255, 255, 100).to_dx_color())
+            self.pathing_geometry_built_by_map_id[map_id] = True
         
-        self.renderer.mask.set_rectangle_mask(True)
-        self.mega_zoom_renderer.mask.set_rectangle_mask(True)
-            
         coords = Map.MissionMap.GetMissionMapContentsCoords()
-        self.left, self.top, self.right, self.bottom = int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3])
-        self.width = self.right - self.left
-        self.height = self.bottom - self.top
+        coords_i = (int(coords[0]), int(coords[1]), int(coords[2]), int(coords[3]))
+        if self._last_mission_map_coords != coords_i:
+            self._last_mission_map_coords = coords_i
+            self.left, self.top, self.right, self.bottom = coords_i
+            self.width = self.right - self.left
+            self.height = self.bottom - self.top
+            self.renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
+            self.mega_zoom_renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
         
         self.pan_offset_x, self.pan_offset_y = Map.MissionMap.GetPanOffset()
         self.scale_x, self.scale_y = Map.MissionMap.GetScale()
 
         self.zoom = Map.MissionMap.GetZoom()
         self.mission_map_screen_center_x, self.mission_map_screen_center_y = Map.MissionMap.GetCenter()
-        
-        self.left_world, self.top_world = RawScreenToRawGamePos(self.left, self.top, 
-                                                                self.zoom, self.mega_zoom,
-                                                                self.left_bound, self.top_bound, self.boundaries,
-                                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
-                                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
-        self.right_world, self.bottom_world = RawScreenToRawGamePos(self.right, self.bottom, self.zoom, self.mega_zoom,
-                                                                self.left_bound, self.top_bound, self.boundaries,
-                                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
-                                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+
+        transform_signature = (
+            self.left, self.top, self.right, self.bottom,
+            self.zoom, self.mega_zoom,
+            self.pan_offset_x, self.pan_offset_y,
+            self.scale_x, self.scale_y,
+            self.mission_map_screen_center_x, self.mission_map_screen_center_y,
+            self.boundaries,
+            self.left_bound, self.top_bound, self.right_bound, self.bottom_bound,
+        )
+        if self._last_transform_signature != transform_signature:
+            self._last_transform_signature = transform_signature
+            self.left_world, self.top_world = RawScreenToRawGamePos(self.left, self.top, 
+                                                                    self.zoom, self.mega_zoom,
+                                                                    self.left_bound, self.top_bound, self.boundaries,
+                                                                    self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                                    self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+            self.right_world, self.bottom_world = RawScreenToRawGamePos(self.right, self.bottom, self.zoom, self.mega_zoom,
+                                                                    self.left_bound, self.top_bound, self.boundaries,
+                                                                    self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                                    self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+            self.map_origin = RawGamePosToScreen(0.0, 0.0, 
+                                                self.zoom, self.mega_zoom,
+                                                self.left_bound, self.top_bound, self.boundaries,
+                                                self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
+                                                self.mission_map_screen_center_x, self.mission_map_screen_center_y)
+            self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+            self.mega_zoom_renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
+            zoom = Map.MissionMap.GetAdjustedZoom(self.zoom, zoom_offset=self.mega_zoom)
+            self.renderer.world_space.set_zoom(zoom/100.0)
+            self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
+            self.renderer.world_space.set_scale(self.scale_x)
+            self.mega_zoom_renderer.world_space.set_scale(self.scale_x)
 
         
         self.player_agent_id = Player.GetAgentID()
@@ -781,29 +889,12 @@ class MissionMap:
                 self.last_click_x, self.last_click_y = gx, gy
         # aC  ---
 
-        self.renderer.world_space.set_world_space(True)
-        self.mega_zoom_renderer.world_space.set_world_space(True)
-        
-        self.renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
-        self.mega_zoom_renderer.mask.set_rectangle_mask_bounds(self.left, self.top, self.width, self.height)
-        
-        self.map_origin = RawGamePosToScreen(0.0, 0.0, 
-                                            self.zoom, self.mega_zoom,
-                                            self.left_bound, self.top_bound, self.boundaries,
-                                            self.pan_offset_x, self.pan_offset_y, self.scale_x, self.scale_y,
-                                            self.mission_map_screen_center_x, self.mission_map_screen_center_y)
-        
-        self.renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
-        self.mega_zoom_renderer.world_space.set_pan(self.map_origin[0], self.map_origin[1])
-        zoom = Map.MissionMap.GetAdjustedZoom(self.zoom, zoom_offset=self.mega_zoom)
-        self.renderer.world_space.set_zoom(zoom/100.0)
-        self.mega_zoom_renderer.world_space.set_zoom(zoom/100.0)
-        self.renderer.world_space.set_scale(self.scale_x)
-        self.mega_zoom_renderer.world_space.set_scale(self.scale_x)
-        
-        
-        
-        
+        if not self._mask_enabled:
+            self.renderer.mask.set_rectangle_mask(True)
+            self.mega_zoom_renderer.mask.set_rectangle_mask(True)
+            self.renderer.world_space.set_world_space(True)
+            self.mega_zoom_renderer.world_space.set_world_space(True)
+            self._mask_enabled = True
 mission_map = MissionMap()
 
 #endregion
@@ -811,8 +902,8 @@ mission_map = MissionMap()
 #region DRAWING
 def DrawFrame():
     global mission_map
-    def _get_agent_xy(agent_id:int):
-        x,y = RawGamePosToScreen(*Agent.GetXY(agent_id), 
+    def _get_agent_xy_from_obj(agent_obj: AgentStruct):
+        x,y = RawGamePosToScreen(agent_obj.pos.x, agent_obj.pos.y, 
                                  mission_map.zoom, mission_map.mega_zoom,
                                  mission_map.left_bound, mission_map.top_bound,
                                  mission_map.boundaries, 
@@ -827,12 +918,51 @@ def DrawFrame():
             size_offset =2.0
             return accent_color, size_offset
         return mission_map.default_marker.AlternateColor, 0.0
+
+    def _begin_imgui_draw_window() -> bool:
+        PyImGui.set_next_window_pos(mission_map.left, mission_map.top)
+        PyImGui.set_next_window_size(mission_map.width, mission_map.height)
+        flags = (
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoMove |
+            PyImGui.WindowFlags.NoSavedSettings |
+            PyImGui.WindowFlags.NoBackground |
+            PyImGui.WindowFlags.NoInputs
+        )
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0.0, 0.0)
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 0.0, 0.0)
+        return PyImGui.begin("##mission_map_imgui_drawlist", flags)
+
+    def _end_imgui_draw_window() -> None:
+        PyImGui.end()
+        PyImGui.pop_style_var(2)
+
+    def _draw_circle_stroke(x: float, y: float, radius: float, color: int, segments: int, thickness: float) -> None:
+        PyImGui.draw_list_add_circle(x, y, radius, color, segments, thickness)
+
+    def _draw_circle_fill(x: float, y: float, radius: float, color: int, segments: int) -> None:
+        PyImGui.draw_list_add_circle_filled(x, y, radius, color, segments)
+
+    def _segments_for_radius(radius: float) -> int:
+        if radius < 18:
+            return 12
+        if radius < 35:
+            return 16
+        if radius < 70:
+            return 24
+        if radius < 130:
+            return 32
+        if radius < 220:
+            return 48
+        return 64
     
     def _draw_aggro_bubble():
-        radius = RawGwinchToPixels(Range.Earshot.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
-        color = mission_map.aggro_bubble_color
-        Overlay().DrawPoly      (mission_map.player_screen_x, mission_map.player_screen_y, radius=radius-2, color=color,numsegments=64,thickness=4.0)
-        Overlay().DrawPolyFilled(mission_map.player_screen_x, mission_map.player_screen_y, radius=radius, color=color,numsegments=64)
+        radius = aggro_radius_px
+        color = aggro_bubble_color
+        segments = _segments_for_radius(radius)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius-2, color, segments, 4.0)
+        _draw_circle_fill(mission_map.player_screen_x, mission_map.player_screen_y, radius, color, segments)
         
     def _draw_terrain(zoom):
         if zoom >3.5:
@@ -842,17 +972,28 @@ def DrawFrame():
             mission_map.renderer.render()
             
     def _draw_compass_range(zoom):
-        radius = RawGwinchToPixels(Range.Compass.value,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
-        color = mission_map.aggro_bubble_color
-        Overlay().DrawPoly (mission_map.player_screen_x, mission_map.player_screen_y, radius=radius, color=Utils.RGBToColor(0, 0, 0, 255),numsegments=360,thickness=1.0)
-        Overlay().DrawPoly (mission_map.player_screen_x, mission_map.player_screen_y, radius=radius-(2.85*zoom), color=color,numsegments=360,thickness=(5.7*zoom))
+        radius = compass_radius_px
+        color = aggro_bubble_color
+        segments = _segments_for_radius(radius)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius, compass_outline_color, segments, 1.0)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius-(2.85*zoom), color, segments, (5.7*zoom))
     
-    Overlay().BeginDraw("MissionMapOverlay", mission_map.left, mission_map.top, mission_map.width, mission_map.height)
     #terrain 
     zoom = mission_map.zoom + mission_map.mega_zoom
+    aggro_bubble_color = mission_map.aggro_bubble_color
+    compass_outline_color = Utils.RGBToColor(0, 0, 0, 255)
+    aggro_radius_px = RawGwinchToPixels(Range.Earshot.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+    compass_radius_px = RawGwinchToPixels(Range.Compass.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+    spirit_range_radius_px = {
+        Range.Spirit.value: RawGwinchToPixels(Range.Spirit.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x),
+        Range.Area.value: RawGwinchToPixels(Range.Area.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x),
+        Range.Earshot.value: RawGwinchToPixels(Range.Earshot.value, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x),
+    }
     _draw_terrain(zoom)    
-    _draw_aggro_bubble()
-    _draw_compass_range(zoom)
+    imgui_draw_window_open = _begin_imgui_draw_window()
+    if imgui_draw_window_open:
+        _draw_aggro_bubble()
+        _draw_compass_range(zoom)
     
       
     neutral_array = AgentArray.GetNeutralArray()
@@ -862,105 +1003,140 @@ def DrawFrame():
     ally_array = AgentArray.GetAllyArray()
     npc_minipet_array = AgentArray.GetNPCMinipetArray()
     for agent_id in neutral_array:
-        x,y = _get_agent_xy(agent_id)
-        if Agent.IsLiving(agent_id) and Agent.IsAlive(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            marker = mission_map.neutral_marker
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        marker = mission_map.neutral_marker
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
 
     for agent_id in minion_array:
-        x,y = _get_agent_xy(agent_id)
-        if Agent.IsLiving(agent_id) and Agent.IsAlive(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            marker = mission_map.minion_marker
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()  
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        marker = mission_map.minion_marker
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()  
             
     for agent_id in spirit_pet_array:
-        x,y = _get_agent_xy(agent_id)
-
-        if Agent.IsLiving(agent_id) and Agent.IsAlive(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            if not Agent.IsSpawned(agent_id):
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        if not living.is_spawned:
                marker = mission_map.pet_marker
+        else:
+            model_id = living.player_number
+            spirit_name = get_spirit_name(model_id)
+            if spirit_name == "Unknown":
+                marker = mission_map.neutral_marker
             else:
-                model_id = Agent.GetPlayerNumber(agent_id)
-                spirit_name = get_spirit_name(model_id)
-                if spirit_name == "Unknown":
-                    marker = mission_map.neutral_marker
-                else:
-                    marker = GLOBAL_CONFIGS.get(spirit_name)
-                    area = Range.Spirit.value
-                    if Agent.GetPlayerNumber(agent_id) in AREA_SPIRIT_MODELS:
-                        area = Range.Area.value
-                    if Agent.GetPlayerNumber(agent_id) in EARSHOT_SPIRIT_MODELS:
-                        area = Range.Earshot.value
-                    spirit_area = RawGwinchToPixels(area,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+                marker = GLOBAL_CONFIGS.get(spirit_name)
+                area = Range.Spirit.value
+                if model_id in AREA_SPIRIT_MODELS:
+                    area = Range.Area.value
+                if model_id in EARSHOT_SPIRIT_MODELS:
+                    area = Range.Earshot.value
+                spirit_area = spirit_range_radius_px.get(area, spirit_range_radius_px[Range.Spirit.value])
+                aura_color = ColorToIntCached(marker.AlternateColor)
+                aura_segments = _segments_for_radius(spirit_area)
+            
+                _draw_circle_stroke(x, y, spirit_area-2, aura_color, aura_segments, 1.0)
+                _draw_circle_fill(x, y, spirit_area, aura_color, aura_segments)
                 
-                    Overlay().DrawPoly      (x, y, radius=spirit_area-2, color=marker.AlternateColor.to_color(),numsegments=32,thickness=1.0)
-                    Overlay().DrawPolyFilled(x, y, radius=spirit_area, color=marker.AlternateColor.to_color(),numsegments=32)
-                    
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
         
     for agent_id in enemy_array:
-        x,y = _get_agent_xy(agent_id)
-
-        if Agent.IsLiving(agent_id) and Agent.IsAlive(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            if not Agent.IsSpawned(agent_id):
-                if Agent.GetPlayerNumber(agent_id) in PET_MODEL_IDS:
-                        marker = mission_map.enemy_pet_marker
-                else:
-                    marker = mission_map.enemy_marker
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        model_id = living.player_number
+        if not living.is_spawned:
+            if model_id in PET_MODEL_IDS:
+                marker = mission_map.enemy_pet_marker
             else:
-                model_id = Agent.GetPlayerNumber(agent_id)
-                spirit_name = get_spirit_name(model_id)
-                if spirit_name == "Unknown":
-                    marker = mission_map.enemy_marker
-                else:
-                    marker = GLOBAL_CONFIGS.get(spirit_name)
-                    area = Range.Spirit.value
-                    if Agent.GetPlayerNumber(agent_id) in AREA_SPIRIT_MODELS:
-                        area = Range.Area.value
-                    if Agent.GetPlayerNumber(agent_id) in EARSHOT_SPIRIT_MODELS:
-                        area = Range.Earshot.value
-                        
-                    enemy_marker = mission_map.enemy_marker
-                    shifted_color = marker.Color.shift(enemy_marker.Color, 0.55)
-                    shifted_color.set_a(int(shifted_color.get_a() * 0.25))
-                        
-                    spirit_area = RawGwinchToPixels(area,mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
-                
-                    Overlay().DrawPoly      (x, y, radius=spirit_area-2, color=shifted_color.to_color(),numsegments=32,thickness=1.0)
-                    Overlay().DrawPolyFilled(x, y, radius=spirit_area, color=shifted_color.to_color(),numsegments=32)
+                marker = mission_map.enemy_marker
+        else:
+            spirit_name = get_spirit_name(model_id)
+            if spirit_name == "Unknown":
+                marker = mission_map.enemy_marker
+            else:
+                marker = GLOBAL_CONFIGS.get(spirit_name)
+                area = Range.Spirit.value
+                if model_id in AREA_SPIRIT_MODELS:
+                    area = Range.Area.value
+                if model_id in EARSHOT_SPIRIT_MODELS:
+                    area = Range.Earshot.value
                     
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+                enemy_marker = mission_map.enemy_marker
+                shifted_color = marker.Color.shift(enemy_marker.Color, 0.55)
+                shifted_color.set_a(int(shifted_color.get_a() * 0.25))
+                    
+                spirit_area = spirit_range_radius_px.get(area, spirit_range_radius_px[Range.Spirit.value])
+                shifted_color_dx = ColorToIntCached(shifted_color)
+                aura_segments = _segments_for_radius(spirit_area)
+            
+                _draw_circle_stroke(x, y, spirit_area-2, shifted_color_dx, aura_segments, 1.0)
+                _draw_circle_fill(x, y, spirit_area, shifted_color_dx, aura_segments)
+                
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
         
       
 
     for agent_id in ally_array:
-
-            
-        x,y = _get_agent_xy(agent_id)
-
-        if Agent.IsLiving(agent_id) and Agent.IsAlive(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            if Agent.IsNPC(agent_id):
-                    marker = mission_map.npc_marker
-            else:
-                    marker = mission_map.players_marker  
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw() 
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        if living.is_npc:
+            marker = mission_map.npc_marker
+        else:
+            marker = mission_map.players_marker  
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw() 
      
     if Player.IsPlayerLoaded():
         agent_id = Player.GetAgentID()
-        x,y = _get_agent_xy(agent_id)
-
-        if Agent.IsLiving(agent_id) and Agent.IsAlive(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
+        obj = Agent.GetAgentByID(agent_id)
+        if obj:
+            living = obj.GetAsAgentLiving()
+        else:
+            living = None
+        if living and (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            if obj is None:
+                return
+            x,y = _get_agent_xy_from_obj(obj)
+            rotation_angle = obj.rotation_angle
             marker = mission_map.player_marker
             alternate_color, size = _get_alternate_color(agent_id)
             Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
@@ -968,58 +1144,71 @@ def DrawFrame():
      
         
     for agent_id in npc_minipet_array:
-        x,y = _get_agent_xy(agent_id)
-
-        if Agent.IsLiving(agent_id) and Agent.IsAlive(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            level = Agent.GetLevel(agent_id)
-            if level > 1:
-                agent_name = Agent.GetNameByID(agent_id)
-                if "MERCHANT" in agent_name.upper():
-                    marker = mission_map.merchant_marker
-                else:
-                    marker = mission_map.npc_marker   
-            else: 
-                marker = mission_map.minipet_marker     
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        living = obj.GetAsAgentLiving()
+        if not living:
+            continue
+        if not (living.hp > 0.0 and not (living.is_dead or living.is_dead_by_type_map)):
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        level = living.level
+        if level > 1:
+            agent_name = Agent.GetNameByID(agent_id)
+            if "MERCHANT" in agent_name.upper():
+                marker = mission_map.merchant_marker
+            else:
+                marker = mission_map.npc_marker   
+        else: 
+            marker = mission_map.minipet_marker     
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
         
     for agent_id in AgentArray.GetGadgetArray():
-        x,y = _get_agent_xy(agent_id)
-        if Agent.IsGadget(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            gadget_id = Agent.GetGadgetID(agent_id)
-            if gadget_id in CHEST_GADGET_IDS:
-                marker = mission_map.chest_marker
-            else:
-                marker = mission_map.gadget_marker
-                
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        gadget = obj.GetAsAgentGadget()
+        if not gadget:
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        gadget_id = gadget.gadget_id
+        if gadget_id in CHEST_GADGET_IDS:
+            marker = mission_map.chest_marker
+        else:
+            marker = mission_map.gadget_marker
+            
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
     for agent_id in AgentArray.GetItemArray():
-        x,y = _get_agent_xy(agent_id)
-        if Agent.IsItem(agent_id):
-            rotation_angle = Agent.GetRotationAngle(agent_id)
-            marker = mission_map.item_marker
-            
-            item_id = Agent.GetItemAgentItemID(agent_id)
-            item = GLOBAL_CACHE.Item.raw_item_array.get_item_by_id(item_id)
-            item_rarity = item.rarity if item is not None else 0
-            if item_rarity == Rarity.Blue.value:
-                marker.Color = mission_map.item_rarity_blue_color
-            elif item_rarity == Rarity.Purple.value:
-                marker.Color = mission_map.item_rarity_purple_color
-            elif item_rarity == Rarity.Gold.value:
-                marker.Color = mission_map.item_rarity_gold_color
-            elif item_rarity == Rarity.Green.value:
-                marker.Color = mission_map.item_rarity_green_color
-            else:
-                marker.Color = mission_map.item_rarity_white_color
-            
-            alternate_color, size = _get_alternate_color(agent_id)
-            Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        obj = Agent.GetAgentByID(agent_id)
+        if not obj: continue
+        item_agent = obj.GetAsAgentItem()
+        if not item_agent:
+            continue
+        x,y = _get_agent_xy_from_obj(obj)
+        rotation_angle = obj.rotation_angle
+        marker = mission_map.item_marker
         
-    Overlay().EndDraw()  
+        item_id = item_agent.item_id
+        item = GLOBAL_CACHE.Item.raw_item_array.get_item_by_id(item_id)
+        item_rarity = item.rarity if item is not None else 0
+        if item_rarity == Rarity.Blue.value:
+            marker.Color = mission_map.item_rarity_blue_color
+        elif item_rarity == Rarity.Purple.value:
+            marker.Color = mission_map.item_rarity_purple_color
+        elif item_rarity == Rarity.Gold.value:
+            marker.Color = mission_map.item_rarity_gold_color
+        elif item_rarity == Rarity.Green.value:
+            marker.Color = mission_map.item_rarity_green_color
+        else:
+            marker.Color = mission_map.item_rarity_white_color
+        
+        alternate_color, size = _get_alternate_color(agent_id)
+        Marker(marker.Marker, marker.Color, alternate_color, x, y, marker.size + size, offset_angle=rotation_angle).draw()
+        
+    _end_imgui_draw_window()
                
 def tooltip():
     PyImGui.begin_tooltip()
@@ -1059,18 +1248,15 @@ def tooltip():
 
     PyImGui.end_tooltip()
 
-def main():  
+def draw():  
     try:  
         if not Routines.Checks.Map.MapValid():
             mission_map.geometry = [] 
             mission_map.Map_load_timer.Reset()
             return
         
-        #if Party.GetPartyLeaderID() != Player.GetAgentID():
+        #if not mission_map.Map_load_timer.HasElapsed(1000):
         #    return
-            
-        if not mission_map.Map_load_timer.HasElapsed(1000):
-            return
         
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
@@ -1097,4 +1283,4 @@ def main():
         
     
 if __name__ == "__main__":
-    main()
+    draw()

@@ -1,5 +1,3 @@
-import Py4GW
-
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import GLOBAL_CACHE
@@ -11,11 +9,8 @@ from Py4GWCoreLib import ImGui
 from Py4GWCoreLib import PetBehavior
 from Py4GWCoreLib import Keystroke
 from Py4GWCoreLib import Key
-from Py4GWCoreLib import Map, Player, Color
+from Py4GWCoreLib import Map, Player
 import PyImGui
-
-
-module_name = "PetHelper"
 
 class frame_coords:
     def __init__(self, left,top,right,bottom):
@@ -26,7 +21,6 @@ class frame_coords:
 
 class Global_Vars:
     def __init__(self):
-        self.title_frame = None
         self.title_frame_parent_hash = 3332025202
         self.title_frame_offsets = [0,0,0,8,1]
         self.title_frame_id = 0
@@ -34,53 +28,37 @@ class Global_Vars:
         self.title_frame_visible = False
         
         self.widget_active = True
-        self.log_action = False
         self.pet_window = False
         self.pet_window_timer = Timer()
         self.pet_window_delay = 3000
-        self.wipe_log = True
-        self.throttle_timer = ThrottledTimer(100)
+        self.throttle_timer = ThrottledTimer(500)
         self.update_target_throttle_timer = ThrottledTimer(1000)
+        self.checks_timer = ThrottledTimer(500)
+        self.non_enemy_target_grace_timer = Timer()
+        self.non_enemy_target_grace_ms = 750
         
         self.pet_id = 0
         self.pet_target_id = 0
         self.pet_bahavior = 2
-        self.party_target_id = 0
         self.owner_target_id = 0
+        self.owner_has_non_enemy_target = False
 
-        self.pet_name = ""
-        self.player_name = ""
-        self.party_target_name = ""
-        self.owner_target_name = ""
+    def _validate_enemy_target(self, agent_id):
+        if agent_id == 0 or not Agent.IsValid(agent_id):
+            return 0
 
-    def wipe(self):
-        players = GLOBAL_CACHE.Party.GetPlayers()
-        players_dead = {player: False for player in players}
-        wipe = False
-        all_dead = True
-        if Agent.GetHealth(Player.GetAgentID()) == 1.0 or Agent.IsAlive(Player.GetAgentID()):
-            if not self.wipe_log:
-                self.wipe_log = True
+        _, allegiance = Agent.GetAllegiance(agent_id)
+        if allegiance != "Enemy":
+            return 0
 
-        if len(players) >= 1:
-            for player in players:
-                player_agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-                if Agent.GetHealth(player_agent_id) < 0.001 or Agent.IsDead(player_agent_id):
-                    players_dead[player] = True
+        # Keep a minimal death sanity check; dead reporting is not always consistent.
+        if Agent.GetHealth(agent_id) == 0.0 or Agent.IsDead(agent_id):
+            return 0
 
-            for player in players_dead:
-                if players_dead[player] == False:
-                    all_dead = False
-
-            if all_dead and self.wipe_log and self.log_action:
-                self.wipe_log = False
-                Py4GW.Console.Log(module_name, f"Wipe: Set Pet to Guard", Py4GW.Console.MessageType.Info)
-
-            if all_dead:
-                wipe = True
-        return wipe
+        return agent_id
 
     def update(self):
+        
         self.player_agent_id = Player.GetAgentID()
         self.pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(self.player_agent_id)
 
@@ -96,46 +74,25 @@ class Global_Vars:
         self.title_frame_visible = UIManager.FrameExists(self.title_frame_id)
         
         if self.pet_id != 0:
-            self.pet_target_id = GLOBAL_CACHE.Party.Pets.GetPetInfo(self.player_agent_id).locked_target_id
-            self.pet_bahavior = GLOBAL_CACHE.Party.Pets.GetPetInfo(self.player_agent_id).behavior
-            
-        if Agent.IsDead(global_vars.pet_target_id):
-            self.pet_target_id = 0
-            
-        self.party_target_id = Routines.Agents.GetPartyTargetID()
-        _, alliegance = Agent.GetAllegiance(self.party_target_id)
-        if not (alliegance == "Enemy"):
-            self.party_target_id = 0
-            
-        if Agent.GetHealth(self.party_target_id) < 1.0:
-            if Agent.GetHealth(self.party_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
-                self.party_target_id = 0
+            pet_info = GLOBAL_CACHE.Party.Pets.GetPetInfo(self.player_agent_id)
+            self.pet_target_id = pet_info.locked_target_id
+            self.pet_bahavior = pet_info.behavior
 
-        if Agent.IsDead(self.party_target_id):
-            self.party_target_id = 0
-        
-        self.owner_target_id = Player.GetTargetID()
-        _, alliegance = Agent.GetAllegiance(self.owner_target_id)
-        if not (alliegance == "Enemy"):
-            self.owner_target_id = 0
+        raw_owner_target_id = Player.GetTargetID()
+        self.owner_has_non_enemy_target = False
+        self.owner_target_id = 0
 
-        if Agent.GetHealth(self.owner_target_id) < 1.0:
-            if Agent.GetHealth(self.owner_target_id) == 0.0: # The client doesn't always reconise if a agent is dead, hence this check
-                self.owner_target_id = 0
-
-        if Agent.IsDead(self.owner_target_id):
-            self.owner_target_id = 0
-
-        if self.wipe():
-            self.party_target_id = 0
-            self.owner_target_id = 0
-
-        if self.pet_name == "":
-            self.pet_name = Agent.GetNameByID(self.pet_id).replace("Pet - ", "")
-        if self.player_name == "":
-            self.player_name = Agent.GetNameByID(self.player_agent_id)
-        self.party_target_name = Agent.GetNameByID(self.party_target_id)
-        self.owner_target_name = Agent.GetNameByID(self.owner_target_id)
+        if raw_owner_target_id != 0 and Agent.IsValid(raw_owner_target_id):
+            _, allegiance = Agent.GetAllegiance(raw_owner_target_id)
+            if allegiance != "Enemy":
+                self.owner_has_non_enemy_target = True
+                if self.non_enemy_target_grace_timer.IsRunning():
+                    self.non_enemy_target_grace_timer.Stop()
+                self.non_enemy_target_grace_timer.Start()
+            else:
+                self.owner_target_id = self._validate_enemy_target(raw_owner_target_id)
+                if self.owner_target_id != 0 and self.non_enemy_target_grace_timer.IsRunning():
+                    self.non_enemy_target_grace_timer.Stop()
 
 global_vars = Global_Vars()
 
@@ -143,11 +100,8 @@ def DrawWindow():
     global global_vars
     caption = "Helper ON" if global_vars.widget_active else "Helper OFF"
     caption_color = Color(0, 255, 0, 255) if global_vars.widget_active and global_vars.pet_bahavior != PetBehavior.Heel else Color(243, 230, 0, 255) if global_vars.widget_active and global_vars.pet_bahavior == PetBehavior.Heel else Color(255, 0, 0, 255)
-    log_caption_color = Color(0, 255, 0, 255) if global_vars.log_action else Color(255, 0, 0, 255)
     if ImGui.floating_button(caption=caption, x=global_vars.title_frame_coords.left+75, y=global_vars.title_frame_coords.top+3, width=90, height=30, color=caption_color):
         global_vars.widget_active = not global_vars.widget_active
-    if ImGui.floating_button(caption="Log", x=global_vars.title_frame_coords.left+135, y=global_vars.title_frame_coords.top+3, width=50, height=30, color= log_caption_color):
-        global_vars.log_action = not global_vars.log_action
     
 
 def tooltip():
@@ -172,7 +126,6 @@ def tooltip():
     PyImGui.bullet_text("Auto-Targeting: Automatically commands pets to attack the party's current target")
     PyImGui.bullet_text("Behavior Sync: Switches pet states between 'Guard' and 'Fight' dynamically")
     PyImGui.bullet_text("UI Integration: Monitors the game's internal Pet Window for real-time status")
-    PyImGui.bullet_text("Combat Logging: Optional console feedback for pet commands and target changes")
     PyImGui.bullet_text("Throttled Execution: Prevents command spamming through smart update timers")
 
     PyImGui.spacing()
@@ -185,14 +138,14 @@ def tooltip():
     PyImGui.bullet_text("Contributors: Apo")
 
     PyImGui.end_tooltip()
-def main():
+    
+def draw():
     global global_vars
+    map_valid = Routines.Checks.Map.MapValid()
+    map_explorable = Map.IsExplorable()
 
-    if not Routines.Checks.Map.MapValid() or not Map.IsExplorable():
-        if global_vars.pet_name != "":
-            global_vars.pet_name = ""
-        if global_vars.player_name != "":
-            global_vars.player_name = ""
+
+    if not map_valid or not map_explorable:
         if global_vars.pet_window_timer.IsRunning():
             global_vars.pet_window_timer.Stop()
         if global_vars.pet_window:
@@ -210,6 +163,10 @@ def main():
     if global_vars.title_frame_visible:
         DrawWindow()
 
+
+    if not map_valid or not map_explorable:
+        return
+    
     if not global_vars.widget_active:
         return
 
@@ -219,8 +176,11 @@ def main():
         if global_vars.pet_window_timer.HasElapsed(global_vars.pet_window_delay):
             global_vars.pet_window = True
             Keystroke.PressAndRelease(Key.Apostrophe.value)
-            if global_vars.log_action:
-                Py4GW.Console.Log(module_name, f"Opening Pet Window", Py4GW.Console.MessageType.Info)
+            
+    if not global_vars.checks_timer.IsExpired():
+        return
+    
+    global_vars.checks_timer.Reset()
 
     if not Routines.Checks.Agents.InDanger():
         return
@@ -228,27 +188,24 @@ def main():
     if not global_vars.update_target_throttle_timer.IsExpired():
         return
 
-    # Set Party Target to Pet
-    if global_vars.party_target_id != 0 and global_vars.party_target_id != global_vars.pet_target_id and (global_vars.pet_bahavior == PetBehavior.Guard or global_vars.pet_bahavior == PetBehavior.Fight):
-        
-        GLOBAL_CACHE.Party.Pets.SetPetBehavior(PetBehavior.Fight, global_vars.party_target_id)
-        #ActionQueueManager().AddAction("ACTION", GLOBAL_CACHE.Party.Pets.SetPetBehavior, PetBehavior.Fight, global_vars.party_target_id)
-        if global_vars.log_action:
-            Py4GW.Console.Log(module_name, f"{global_vars.pet_name} Fight {global_vars.party_target_name} ({global_vars.party_target_id})", Py4GW.Console.MessageType.Info)
-        global_vars.update_target_throttle_timer.Reset()
-    elif global_vars.owner_target_id != 0 and global_vars.owner_target_id != global_vars.pet_target_id and (global_vars.pet_bahavior == PetBehavior.Guard or global_vars.pet_bahavior == PetBehavior.Fight):
+    # Player is targeting self/ally/NPC while using another skill; do not override pet state.
+    if global_vars.owner_has_non_enemy_target:
+        return
+
+    # Keep pet target aligned to the player's current enemy target.
+    if global_vars.owner_target_id != 0 and global_vars.owner_target_id != global_vars.pet_target_id and (global_vars.pet_bahavior == PetBehavior.Guard or global_vars.pet_bahavior == PetBehavior.Fight):
         GLOBAL_CACHE.Party.Pets.SetPetBehavior(PetBehavior.Fight, global_vars.owner_target_id)
         #ActionQueueManager().AddAction("ACTION", Party.Pets.SetPetBehavior, PetBehavior.Fight, global_vars.owner_target_id)
-        if global_vars.log_action:
-            Py4GW.Console.Log(module_name, f"{global_vars.pet_name} Fight {global_vars.owner_target_name} ({global_vars.owner_target_id})", Py4GW.Console.MessageType.Info)
         global_vars.update_target_throttle_timer.Reset()
-    elif global_vars.party_target_id == 0 and global_vars.owner_target_id == 0 and global_vars.pet_bahavior == PetBehavior.Fight:
+    elif global_vars.owner_target_id == 0 and global_vars.pet_bahavior == PetBehavior.Fight:
+        if global_vars.non_enemy_target_grace_timer.IsRunning() and not global_vars.non_enemy_target_grace_timer.HasElapsed(global_vars.non_enemy_target_grace_ms):
+            return
+        if global_vars.non_enemy_target_grace_timer.IsRunning():
+            global_vars.non_enemy_target_grace_timer.Stop()
         GLOBAL_CACHE.Party.Pets.SetPetBehavior(PetBehavior.Guard, global_vars.player_agent_id)
         #ActionQueueManager().AddAction("ACTION", Party.Pets.SetPetBehavior, PetBehavior.Guard, global_vars.player_agent_id)
-        if global_vars.log_action:
-            Py4GW.Console.Log(module_name, f"{global_vars.pet_name} Guard {global_vars.player_name}", Py4GW.Console.MessageType.Info)
         global_vars.update_target_throttle_timer.Reset()
 
 
 if __name__ == "__main__":
-    main()
+    draw()

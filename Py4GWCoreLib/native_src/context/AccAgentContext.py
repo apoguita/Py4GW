@@ -237,7 +237,8 @@ class AccAgentContext:
             AccAgentContext._callback_name,
             PyCallback.Phase.PreUpdate,
             AccAgentContext._update_ptr,
-            priority=5
+            priority=5,
+            context=PyCallback.Context.Draw
         )
 
 

@@ -92,6 +92,22 @@ class InventoryCache:
         total_items, total_capacity = self.GetInventorySpace()
         return max(total_capacity - total_items, 0)
 
+    def GetAllInventoryItemIds(self) -> list:
+        """Returns all item_ids currently in inventory bags (Backpack, Belt Pouch, Bag 1, Bag 2)."""
+        bags_to_check = [
+            Bag_enum.Backpack.value,
+            Bag_enum.Belt_Pouch.value,
+            Bag_enum.Bag_1.value,
+            Bag_enum.Bag_2.value
+        ]
+        bag_array = self._raw_item_cache.get_bags(bags_to_check)
+        item_ids = []
+        for bag in bag_array:
+            for item in bag.GetItems():
+                if item.item_id:
+                    item_ids.append(item.item_id)
+        return item_ids
+
     def GetItemCount(self, item_id: int) -> int:
         """
         Purpose: Count the total quantity of items with the specified item_id 

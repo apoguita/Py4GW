@@ -1,40 +1,14 @@
+import struct
 
-import time
-
+import PyAgent
 from .model_data import ModelData
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 from .native_src.context.WorldContext import AttributeStruct
-from .native_src.internals.helpers import encoded_wstr_to_str
+from .native_src.internals.string_table import decode as decode_codepoints
 
-# Agent
+
 class Agent:
-    name_cache: dict[int, tuple[str, float]] = {}  # agent_id -> (name, timestamp)
-    name_requested: set[int] = set()
-    name_timeout_ms = 1_000
 
-    
-    @staticmethod
-    def _update_cache() -> None:
-        import PyAgent
-        return
-    
-    
-        """Should be called every frame to resolve names when ready."""
-        now = time.time() * 1000
-        for agent_id in list(Agent.name_requested):
-            name = encoded_wstr_to_str(PyAgent.PyAgent.GetNameByID(agent_id))
-            if name is None:
-                name = "INVALID"
-
-            Agent.name_cache[agent_id] = (name, now)
-            Agent.name_requested.discard(agent_id)
-            
-    @staticmethod
-    def _reset_cache() -> None:
-        """Resets the name cache and requested set."""
-        Agent.name_cache.clear()
-        Agent.name_requested.clear()
-        
     @staticmethod
     def IsValid(agent_id: int) -> bool:
         """
@@ -42,113 +16,124 @@ class Agent:
         Args: agent_id (int): The ID of the agent.
         Returns: bool
         """
-        from .AgentArray import AgentArray
-        agent = AgentArray.GetAgentByID(agent_id)
-        if agent is None:
-            return False
-        return True
-    
-    @staticmethod
-    def _require_valid(func):
-        """
-        Decorator for safe agent access.
-        Ensures the agent_id is valid before calling the function.
-        """
-        def wrapper(agent_id, *args, **kwargs):
-            if not Agent.IsValid(agent_id):
-                return None
-            return func(agent_id, *args, **kwargs)
-        return wrapper
+        return Agent.GetAgentByID(agent_id) is not None
+
+    _agent_cache: dict[int, "AgentStruct"] = {}
+    _living_cache: dict[int, "AgentLivingStruct"] = {}
+    _item_cache: dict[int, "AgentItemStruct"] = {}
+    _gadget_cache: dict[int, "AgentGadgetStruct"] = {}
 
     @staticmethod
-    @_require_valid
-    def GetAgentByID(agent_id: int) -> AgentStruct | None:
+    def _invalidate_property_cache() -> None:
+        Agent._agent_cache.clear()
+        Agent._living_cache.clear()
+        Agent._item_cache.clear()
+        Agent._gadget_cache.clear()
+
+    @staticmethod
+    def enable() -> None:
+        import PyCallback
+        PyCallback.PyCallback.Register(
+            "Agent.InvalidatePropertyCache",
+            PyCallback.Phase.PreUpdate,
+            Agent._invalidate_property_cache,
+            priority=7
+        )
+
+    @staticmethod
+    def GetAgentByID(agent_id: int):
         """
         Purpose: Retrieve an agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
+        cached = Agent._agent_cache.get(agent_id)
+        if cached is not None:
+            return cached
         from .AgentArray import AgentArray
         agent = AgentArray.GetAgentByID(agent_id)
-        if agent is None:
-            return None
+        if agent is not None:
+            Agent._agent_cache[agent_id] = agent
         return agent
-    
+
     @staticmethod
-    @_require_valid
-    def GetLivingAgentByID(agent_id: int) -> AgentLivingStruct | None:
+    def GetLivingAgentByID(agent_id: int):
         """
         Purpose: Retrieve a living agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
+        cached = Agent._living_cache.get(agent_id)
+        if cached is not None:
+            return cached
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
             return None
-        return agent.GetAsAgentLiving()
-    
+        living = agent.GetAsAgentLiving()
+        if living is not None:
+            Agent._living_cache[agent_id] = living
+        return living
+
     @staticmethod
-    @_require_valid
-    def GetItemAgentByID(agent_id: int) -> AgentItemStruct | None:
+    def GetItemAgentByID(agent_id: int):
         """
         Purpose: Retrieve an item agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
+        cached = Agent._item_cache.get(agent_id)
+        if cached is not None:
+            return cached
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
             return None
-        return agent.GetAsAgentItem()
-    
+        item = agent.GetAsAgentItem()
+        if item is not None:
+            Agent._item_cache[agent_id] = item
+        return item
+
     @staticmethod
-    @_require_valid
-    def GetGadgetAgentByID(agent_id: int) -> AgentGadgetStruct | None:
+    def GetGadgetAgentByID(agent_id: int):
         """
         Purpose: Retrieve a gadget agent by its ID.
         Args:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
+        cached = Agent._gadget_cache.get(agent_id)
+        if cached is not None:
+            return cached
         agent = Agent.GetAgentByID(agent_id)
         if agent is None:
             return None
-        return agent.GetAsAgentGadget()
+        gadget = agent.GetAsAgentGadget()
+        if gadget is not None:
+            Agent._gadget_cache[agent_id] = gadget
+        return gadget
     
     @staticmethod
-    def GetNameByID(agent_id : int) -> str:
-        import PyAgent
-        return "FEATURE DISABLED"
-        """Purpose: Get the native name of an agent by its ID."""
-        now = time.time() * 1000  # current time in ms
-        # Cached and still valid
-        if agent_id in Agent.name_cache:
-            name, timestamp = Agent.name_cache[agent_id]
-            if now - timestamp < Agent.name_timeout_ms:
-                return name
-            else:
-                # Expired; refresh
-                if agent_id not in Agent.name_requested:    
-                    PyAgent.PyAgent.GetNameByID(agent_id)
-                    Agent.name_requested.add(agent_id)
-                return name  # Still return old while waiting
-
-        # Already requested but not ready
-        if agent_id in Agent.name_requested:
+    def GetNameByID(agent_id: int) -> str:
+        """Get the decoded display name of an agent by its ID."""
+        enc_bytes = PyAgent.PyAgent.GetAgentEncName(agent_id)
+        if not enc_bytes:
             return ""
+        # Convert byte pairs to uint16 codepoints via struct (C-level, no Python loop)
+        raw = bytes(enc_bytes)
+        n = len(raw) & ~1
+        vals = struct.unpack_from(f'<{n // 2}H', raw)
+        try:
+            vals = vals[:vals.index(0)]
+        except ValueError:
+            pass
+        return decode_codepoints(vals)
 
-        PyAgent.PyAgent.GetNameByID(agent_id)
-        Agent.name_requested.add(agent_id)
-        return ""
-
-    #aliases for retro compatibility
     RequestName = GetNameByID
-        
+
     @staticmethod
     def IsNameReady(agent_id: int) -> bool:
-        """Purpose: Check if the agent name is ready."""
         return Agent.GetNameByID(agent_id) != ""
  
     
@@ -1292,6 +1277,7 @@ class Agent:
         return gadget.h00D4
 
 
+Agent.enable()
 
     
 

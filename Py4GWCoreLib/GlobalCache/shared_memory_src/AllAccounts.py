@@ -180,10 +180,7 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for account {account_email}.", Py4GW.Console.MessageType.Warning)
             return
         
-        new_account = AccountStruct()
-        new_account.from_context(account_email, index)
-        
-        self.AccountData[index] = new_account
+        self.AccountData[index].from_context(account_email, index)
         
     def SetHeroesData(self):
         """Set data for all heroes in the given list."""
@@ -203,11 +200,10 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for hero {hero_data.hero_id.GetName()} (ID: {hero_data.hero_id.GetID()}).", Py4GW.Console.MessageType.Warning)
             return
         
-        new_account = AccountStruct()
-        new_account.from_hero_context(hero_data, index)
-        if new_account.AgentData.AgentID== 0:
+        account = self.AccountData[index]
+        account.from_hero_context(hero_data, index)
+        if account.AgentData.AgentID == 0:
             return
-        self.AccountData[index] = new_account
         
     def SetPetData(self):
         """Set pet data for the account with the given email."""
@@ -225,11 +221,10 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for pet {pet_info.agent_id}.", Py4GW.Console.MessageType.Warning)
             return
         
-        new_account = AccountStruct()
-        new_account.from_pet_context(pet_info, index)
-        if new_account.AgentData.AgentID == 0:
+        account = self.AccountData[index]
+        account.from_pet_context(pet_info, index)
+        if account.AgentData.AgentID == 0:
             return
-        self.AccountData[index] = new_account
 
     
     def GetSlotByEmail(self, account_email: str) -> int:
@@ -293,25 +288,27 @@ class AllAccounts(Structure):
                 return i
         return self.SubmitPetData(pet_data)
     
-    def GetAllActivePlayers(self) -> list[AccountStruct]:
-        """Get all active players in shared memory."""
+    def GetAllActivePlayers(self, sort_results: bool = True) -> list[AccountStruct]:
+        """Get all active account players in shared memory."""
         players : list[AccountStruct] = []
+        all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
-            account = self.AccountData[i]
+            account = all_accounts[i]
             if account.IsSlotActive and account.IsAccount:
                 players.append(account)
-                
-        players.sort(key=lambda p: (
-            p.AgentData.Map.MapID,
-            p.AgentData.Map.Region,
-            p.AgentData.Map.District,
-            p.AgentData.Map.Language,
-            p.AgentPartyData.PartyID,
-            p.AgentPartyData.PartyPosition,
-            p.AgentData.LoginNumber,
-            p.AgentData.CharacterName
-        ))
-            
+
+        if sort_results and len(players) > 1:
+            players.sort(key=lambda p: (
+                p.AgentData.Map.MapID,
+                p.AgentData.Map.Region,
+                p.AgentData.Map.District,
+                p.AgentData.Map.Language,
+                p.AgentPartyData.PartyID,
+                p.AgentPartyData.PartyPosition,
+                p.AgentData.LoginNumber,
+                p.AgentData.CharacterName
+            ))
+             
         return players
     
     def GetNumActivePlayers(self) -> int:
@@ -402,6 +399,31 @@ class AllAccounts(Structure):
             if self._is_slot_active(i) and player.IsAccount:
                 options.append(self.HeroAIOptions[i])
         return options
+
+    def GetAllActiveAccountHeroAIPairs(self, sort_results: bool = True) -> list[tuple[AccountStruct, HeroAIOptionStruct]]:
+        """Get active account players and their HeroAI options in a single pass."""
+        pairs: list[tuple[AccountStruct, HeroAIOptionStruct]] = []
+        all_accounts = self.AccountData
+        all_options = self.HeroAIOptions
+
+        for i in range(SHMEM_MAX_PLAYERS):
+            account = all_accounts[i]
+            if account.IsSlotActive and account.IsAccount:
+                pairs.append((account, all_options[i]))
+
+        if sort_results and len(pairs) > 1:
+            pairs.sort(key=lambda item: (
+                item[0].AgentData.Map.MapID,
+                item[0].AgentData.Map.Region,
+                item[0].AgentData.Map.District,
+                item[0].AgentData.Map.Language,
+                item[0].AgentPartyData.PartyID,
+                item[0].AgentPartyData.PartyPosition,
+                item[0].AgentData.LoginNumber,
+                item[0].AgentData.CharacterName
+            ))
+
+        return pairs
     
     def GetHeroAIOptionsFromEmail(self, account_email: str) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given email."""

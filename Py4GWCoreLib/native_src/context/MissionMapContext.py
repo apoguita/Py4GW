@@ -82,7 +82,8 @@ class MissionMapContext:
             MissionMapContext._callback_name,
             PyCallback.Phase.PreUpdate,
             MissionMapContext._update_ptr,
-            priority=99
+            priority=99,
+            context=PyCallback.Context.Draw
         )
 
     @staticmethod

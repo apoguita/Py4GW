@@ -1,57 +1,11 @@
 """
 Quest recipe - run a quest from a structured JSON data file.
 
-Quest data files define a sequence of steps (move, wait, interact,
-dialog, etc.) that the bot executes in order. Combat is handled by
-CustomBehaviors.
+Quest files:
+    Sources/modular_bot/quests/<quest_name>.json
 
-JSON format (stored in Sources/modular_bot/quests/<name>.json):
-
-    {
-        "name": "Ruins of Surmia",
-        "max_heroes": 4,
-        "take_quest": {
-            "outpost_id": 30,
-            "quest_npc_location": [0, 0],
-            "dialog_id": "0x00000000",
-            "wait_ms": 2000,
-            "name": "Take Quest"
-        },
-        "steps": [
-            {"type": "auto_path", "points": [[0, 0], [100, 100]]},
-            {"type": "dialog", "x": 120, "y": 250, "id": 133}
-        ]
-    }
-
-Top-level fields:
-    - take_quest: optional quest pickup block with:
-      - outpost_id (optional)
-      - quest_npc_location [x,y] (required)
-      - dialog_id (required, int/"0x..." or list of them)
-      - wait_ms (optional)
-      - name (optional)
-
-Step types:
-    - path
-    - auto_path
-    - wait
-    - wait_out_of_combat
-    - wait_map_load
-    - move
-    - exit_map
-    - interact_npc
-    - interact_gadget
-    - interact_item
-    - interact_quest_npc
-    - interact_nearest_npc
-    - dialog
-    - dialog_multibox
-    - skip_cinematic
-    - set_title
-    - flag_heroes
-    - unflag_heroes
-    - resign
-    - wait_map_change
+Action reference:
+    Sources/modular_bot/recipes/README_actionlist.md
 """
 
 from __future__ import annotations
@@ -64,6 +18,8 @@ if TYPE_CHECKING:
     from Py4GWCoreLib import Botting
 
 from ..phase import Phase
+from ..hero_setup import get_team_for_size, load_hero_teams
+from .modular_actions import register_step as _register_shared_step
 
 
 def _get_quests_dir() -> str:
@@ -73,17 +29,17 @@ def _get_quests_dir() -> str:
 
 def _load_hero_config() -> Dict[str, Any]:
     """
-    Load hero configuration from ``Sources/modular_bot/quests/hero_config.json``.
+    Load hero configuration used by modular recipes.
 
     Returns:
-        Dict with keys ``party_4``, ``party_6``, ``party_8`` mapping
-        to lists of hero IDs.
+        Dict containing team keys mapped to hero ID lists.
+
+    Resolution order:
+        1) ``Sources/modular_bot/configs/<account_email>.json`` -> ``hero_teams``
+        2) ``Sources/modular_bot/configs/default.json`` -> ``hero_teams``
+        3) Legacy hero config paths
     """
-    filepath = os.path.join(_get_quests_dir(), "hero_config.json")
-    if not os.path.isfile(filepath):
-        return {"party_4": [], "party_6": [], "party_8": []}
-    with open(filepath, "r", encoding="utf-8") as f:
-        return json.load(f)
+    return load_hero_teams()
 
 
 def _load_quest_data(quest_name: str) -> Dict[str, Any]:
@@ -179,160 +135,8 @@ def _register_take_quest(bot: "Botting", take_quest: Optional[Dict[str, Any]]) -
 
 
 def _register_step(bot: "Botting", step: Dict[str, Any], step_idx: int) -> None:
-    """Register a single quest step as FSM state(s)."""
-    step_type = step.get("type", "")
-
-    if step_type == "path":
-        points = [tuple(p) for p in step["points"]]
-        name = step.get("name", f"Path {step_idx + 1}")
-        bot.Move.FollowPath(points, step_name=name)
-
-    elif step_type == "auto_path":
-        points = [tuple(p) for p in step["points"]]
-        name = step.get("name", f"AutoPath {step_idx + 1}")
-        bot.Move.FollowAutoPath(points, step_name=name)
-
-    elif step_type == "wait":
-        ms = step.get("ms", 1000)
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "wait_out_of_combat":
-        bot.Wait.UntilOutOfCombat()
-
-    elif step_type == "wait_map_load":
-        map_id = step["map_id"]
-        bot.Wait.ForMapLoad(target_map_id=map_id)
-
-    elif step_type == "move":
-        x, y = step["x"], step["y"]
-        name = step.get("name", "")
-        bot.Move.XY(x, y, name)
-
-    elif step_type == "exit_map":
-        x, y = step["x"], step["y"]
-        target_map_id = step.get("target_map_id", 0)
-        bot.Move.XYAndExitMap(x, y, target_map_id)
-
-    elif step_type == "interact_npc":
-        x, y = step["x"], step["y"]
-        name = step.get("name", "")
-        bot.Move.XYAndInteractNPC(x, y, name)
-
-    elif step_type == "dialog":
-        x, y = step["x"], step["y"]
-        dialog_id = step["id"]
-        name = step.get("name", "")
-        bot.Dialogs.AtXY(x, y, dialog_id, name)
-
-    elif step_type == "dialog_multibox":
-        dialog_id = step["id"]
-        bot.Multibox.SendDialogToTarget(dialog_id)
-
-    elif step_type == "interact_gadget":
-        ms = step.get("ms", 2000)
-
-        def _make_gadget_interact():
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Player
-                gadget_array = AgentArray.GetGadgetArray()
-                px, py = Player.GetXY()
-                gadget_array = AgentArray.Filter.ByDistance(gadget_array, (px, py), 800)
-                if gadget_array:
-                    Player.Interact(gadget_array[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_gadget_interact(), "Interact Gadget")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "interact_item":
-        ms = step.get("ms", 2000)
-
-        def _make_item_interact():
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Player
-                item_array = AgentArray.GetItemArray()
-                px, py = Player.GetXY()
-                item_array = AgentArray.Filter.ByDistance(item_array, (px, py), 1200)
-                if item_array:
-                    item_array = AgentArray.Sort.ByDistance(item_array, (px, py))
-                    Player.Interact(item_array[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_item_interact(), "Interact Item")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "interact_quest_npc":
-        ms = step.get("ms", 5000)
-
-        def _make_quest_interact():
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Agent, Player
-                ally_array = AgentArray.GetNPCMinipetArray()
-                px, py = Player.GetXY()
-                ally_array = AgentArray.Filter.ByDistance(ally_array, (px, py), 5000)
-                quest_npcs = [a for a in ally_array if Agent.HasQuest(a)]
-                if quest_npcs:
-                    Player.Interact(quest_npcs[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_quest_interact(), "Interact Quest NPC")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "interact_nearest_npc":
-        ms = step.get("ms", 5000)
-
-        def _make_npc_interact():
-            def _interact():
-                from Py4GWCoreLib import AgentArray, Player
-                npc_array = AgentArray.GetNPCMinipetArray()
-                px, py = Player.GetXY()
-                npc_array = AgentArray.Filter.ByDistance(npc_array, (px, py), 800)
-                if npc_array:
-                    Player.Interact(npc_array[0], call_target=False)
-            return _interact
-
-        bot.States.AddCustomState(_make_npc_interact(), "Interact Nearest NPC")
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "skip_cinematic":
-        ms = step.get("wait_ms", 500)
-
-        def _make_skip_cinematic():
-            def _skip():
-                from Py4GWCoreLib import Map
-                if Map.IsInCinematic():
-                    Map.SkipCinematic()
-            return _skip
-
-        bot.Wait.ForTime(ms)
-        bot.States.AddCustomState(_make_skip_cinematic(), "Skip Cinematic")
-        bot.Wait.ForTime(1000)
-
-    elif step_type == "set_title":
-        title_id = step["id"]
-        bot.Player.SetTitle(title_id)
-
-    elif step_type == "flag_heroes":
-        x, y = step["x"], step["y"]
-        ms = step.get("ms", 2000)
-        bot.Party.FlagAllHeroes(x, y)
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "unflag_heroes":
-        ms = step.get("ms", 2000)
-        bot.Party.UnflagAllHeroes()
-        bot.Wait.ForTime(ms)
-
-    elif step_type == "resign":
-        bot.Multibox.ResignParty()
-
-    elif step_type == "wait_map_change":
-        target_map_id = step["target_map_id"]
-        bot.Wait.ForMapToChange(target_map_id=target_map_id)
-
-    else:
-        from Py4GWCoreLib import ConsoleLog
-        ConsoleLog("Recipe:Quest", f"Unknown step type: {step_type!r} at index {step_idx}")
+    """Register a single step via shared modular action handlers."""
+    _register_shared_step(bot, step, step_idx, recipe_name="Quest")
 
 
 def quest_run(bot: "Botting", quest_name: str) -> None:
@@ -348,8 +152,10 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     data = _load_quest_data(quest_name)
     display_name = data.get("name", quest_name)
     max_heroes = data.get("max_heroes", 0)
+    hero_team = str(data.get("hero_team", "") or "")
     take_quest = data.get("take_quest")
     steps = data.get("steps", [])
+    total_registered_steps = 0
 
     travel_outpost_id = (take_quest or {}).get("outpost_id")
 
@@ -359,9 +165,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
 
     # 2. Add heroes from config
     if max_heroes > 0:
-        hero_config = _load_hero_config()
-        party_key = f"party_{max_heroes}"
-        hero_ids = hero_config.get(party_key, [])
+        hero_ids = get_team_for_size(max_heroes, hero_team)
         if hero_ids:
             bot.Party.LeaveParty()
             bot.Party.AddHeroList(hero_ids)
@@ -370,12 +174,36 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     _register_take_quest(bot, take_quest)
 
     # 4. Execute quest steps
-    for idx, step in enumerate(steps):
-        _register_step(bot, step, idx)
+    for source_idx, step in enumerate(steps):
+        repeat_raw = step.get("repeat", 1)
+        try:
+            repeat = int(repeat_raw)
+        except (TypeError, ValueError):
+            ConsoleLog(
+                "Recipe:Quest",
+                f"Invalid repeat at source step {source_idx}: {repeat_raw!r}. Using 1.",
+            )
+            repeat = 1
+
+        if repeat <= 0:
+            ConsoleLog(
+                "Recipe:Quest",
+                f"Skipping source step {source_idx} because repeat={repeat}.",
+            )
+            continue
+
+        for rep_idx in range(repeat):
+            step_to_register = step
+            if repeat > 1 and "name" in step:
+                step_to_register = dict(step)
+                step_to_register["name"] = f"{step['name']} [{rep_idx + 1}/{repeat}]"
+
+            _register_step(bot, step_to_register, total_registered_steps)
+            total_registered_steps += 1
 
     ConsoleLog(
         "Recipe:Quest",
-        f"Registered quest: {display_name} ({len(steps)} steps, outpost {travel_outpost_id})",
+        f"Registered quest: {display_name} ({total_registered_steps} expanded steps from {len(steps)} source steps, outpost {travel_outpost_id})",
     )
 
 
@@ -401,3 +229,4 @@ def Quest(
             name = f"Quest: {quest_name}"
 
     return Phase(name, lambda bot: quest_run(bot, quest_name))
+

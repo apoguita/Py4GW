@@ -737,7 +737,7 @@ class RouteBuilderWidget:
         if not Map.IsMapReady():
             return
         if ImGui.Begin(INI_KEY, MODULE_NAME,
-                       flags=PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
+                       flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse)):
             self._draw_header()
             self._draw_main_area()
         ImGui.End(INI_KEY)
