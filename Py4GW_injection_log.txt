@@ -1,2 +1,0 @@
-2026-02-25 15:54:21 [INFO] STOC_HEADER_COUNT [487]
-2026-02-25 15:54:21 [INFO] ############ StoCMgr initialization completed ############
