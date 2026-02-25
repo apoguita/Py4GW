@@ -31,9 +31,6 @@ EARSHOT_SPIRIT_MODELS = [SpiritModelID.AGONY, SpiritModelID.REJUVENATION]
 CHEST_GADGET_IDS = [9,69,4579,8141, 9523, 4582]
 
 # NavMesh right-click snap constants
-_SNAP_MAX_RING_RADIUS  = 2800.0
-_SNAP_RING_STEP        = 280.0
-_SNAP_BASE_RING_POINTS = 12
 _SNAP_ARRIVAL_RADIUS   = 200.0
 
 #end region
@@ -295,17 +292,6 @@ def FloatingCoordsStrip(x, y, last_x, last_y, color, width=None, margin=8, label
 
 # ── NavMesh snap helpers ──────────────────────────────────────────────
 
-def _snap_distance(a: tuple[float, float], b: tuple[float, float]) -> float:
-    return math.hypot(a[0] - b[0], a[1] - b[1])
-
-
-def _snap_is_inside_bounds(point: tuple[float, float], boundaries: tuple[float, float, float, float]) -> bool:
-    min_x, min_y, max_x, max_y = boundaries
-    if min_x > max_x: min_x, max_x = max_x, min_x
-    if min_y > max_y: min_y, max_y = max_y, min_y
-    return min_x <= point[0] <= max_x and min_y <= point[1] <= max_y
-
-
 def _snap_get_navmesh(mm: "MissionMap") -> "NavMesh | None":
     map_id = int(Map.GetMapID())
     if map_id == 0:
@@ -321,45 +307,6 @@ def _snap_get_navmesh(mm: "MissionMap") -> "NavMesh | None":
     except Exception:
         return None
     return mm.snap_navmesh
-
-
-def _snap_is_on_navmesh(mm: "MissionMap", point: tuple[float, float], margin: float = 20.0) -> bool:
-    nav = _snap_get_navmesh(mm)
-    if nav is None:
-        return False
-    return nav._bsp.find_with_margin(point[0], point[1], margin)
-
-
-def _snap_ring_candidates(target_xy: tuple[float, float]) -> list[tuple[float, float]]:
-    out: list[tuple[float, float]] = []
-    radius = _SNAP_RING_STEP
-    while radius <= _SNAP_MAX_RING_RADIUS:
-        count = max(8, int(_SNAP_BASE_RING_POINTS + radius / 280.0))
-        for i in range(count):
-            angle = (2.0 * math.pi * i) / count
-            out.append((
-                target_xy[0] + math.cos(angle) * radius,
-                target_xy[1] + math.sin(angle) * radius,
-            ))
-        radius += _SNAP_RING_STEP
-    return out
-
-
-def _snap_find_best_reachable(mm: "MissionMap", click_xy: tuple[float, float]) -> "tuple[float, float] | None":
-    if _snap_is_on_navmesh(mm, click_xy):
-        return click_xy
-    best: tuple[float, float] | None = None
-    best_dist = float("inf")
-    bounds = mm.boundaries
-    for c in _snap_ring_candidates(click_xy):
-        if not _snap_is_inside_bounds(c, bounds):
-            continue
-        if _snap_is_on_navmesh(mm, c):
-            d = _snap_distance(c, click_xy)
-            if d < best_dist:
-                best_dist = d
-                best = c
-    return best
 
 
 def _snap_launch_path_coroutine(goal_x: float, goal_y: float, mm: "MissionMap"):
@@ -1048,7 +995,8 @@ class MissionMap:
                 _gx, _gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(_rc_nx, _rc_ny)
                 click_game: tuple[float, float] = (float(_gx), float(_gy))
                 self.snap_clicked_target = click_game
-                snapped = _snap_find_best_reachable(self, click_game)
+                _nav = _snap_get_navmesh(self)
+                snapped = _nav.find_nearest_reachable(click_game, self.boundaries) if _nav else None
                 self.snap_snapped_target = snapped
                 if snapped is not None:
                     self.snap_current_path = []
@@ -1427,7 +1375,8 @@ def DrawFrame():
     # Click marker (small white ring) – hide when nearly on top of snap marker
     _draw_click = _snap_click_screen is not None
     if _snap_click_screen is not None and _snap_snapped_screen is not None:
-        if _snap_distance(_snap_click_screen, _snap_snapped_screen) <= 12.0:
+        if math.hypot(_snap_click_screen[0] - _snap_snapped_screen[0],
+                      _snap_click_screen[1] - _snap_snapped_screen[1]) <= 12.0:
             _draw_click = False
     if _draw_click and _snap_click_screen is not None:
         _c_col = Utils.RGBToColor(220, 220, 220, 200)
