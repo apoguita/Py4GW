@@ -41,6 +41,8 @@ class _FakeViewer:
         self.resolved_item_id_by_sig = 0
         self._snapshot_calls = []
         self._stats_calls = []
+        self.event_identity_resolve_grace_s = 0.0
+        self.event_identity_resolve_poll_s = 0.05
 
     def _ensure_text(self, value):
         return "" if value is None else str(value)
@@ -177,12 +179,26 @@ def _install_fake_py4gw(
     monkeypatch.setitem(sys.modules, "Py4GWCoreLib.Item", item_mod)
 
 
-def _install_fake_drop_tracker_sender(monkeypatch, get_cached_stats_fn):
+def _install_fake_drop_tracker_sender(
+    monkeypatch,
+    get_cached_stats_fn,
+    get_cached_identity_fn=None,
+    resolve_live_item_id_for_event_fn=None,
+):
     cleared = []
+    identity_fn = get_cached_identity_fn or (lambda _event_id: {})
+    resolve_fn = resolve_live_item_id_for_event_fn or (lambda _event_id, preferred_item_id=0: int(preferred_item_id))
 
     class _DropTrackerSender:
         def get_cached_event_stats_text(self, event_id, item_id=0, model_id=0):
             return get_cached_stats_fn(str(event_id), int(item_id), int(model_id))
+
+        def get_cached_event_identity(self, event_id):
+            identity = identity_fn(str(event_id))
+            return dict(identity) if isinstance(identity, dict) else {}
+
+        def resolve_live_item_id_for_event(self, event_id, preferred_item_id=0):
+            return int(resolve_fn(str(event_id), int(preferred_item_id)))
 
         def clear_cached_event_stats(self, event_id, item_id=0):
             cleared.append((str(event_id), int(item_id)))
@@ -749,6 +765,48 @@ def test_run_inventory_action_push_item_stats_name_prefers_cached_event_stats(mo
     assert viewer._stats_calls == []
 
 
+def test_run_inventory_action_push_item_stats_name_does_not_fallback_when_event_identity_unresolved(monkeypatch):
+    _install_fake_drop_tracker_sender(
+        monkeypatch,
+        lambda _ev, _item_id, _model_id: "",
+        get_cached_identity_fn=lambda _ev: {"item_id": 987, "model_id": 111, "name_signature": "deadbeef"},
+        resolve_live_item_id_for_event_fn=lambda _ev, _preferred: 0,
+    )
+    viewer = _FakeViewer()
+    viewer.resolved_item_id = 77
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_name",
+        action_payload="Holy Staff",
+        action_meta="ev-name-strict",
+        reply_email="leader@test",
+    )
+    assert ok is False
+    assert viewer._snapshot_calls == []
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_name_strict_mode_requires_identity(monkeypatch):
+    _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "")
+    viewer = _FakeViewer()
+    viewer.strict_event_stats_binding = True
+    viewer.resolved_item_id = 77
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_name",
+        action_payload="Holy Staff",
+        action_meta="ev-name-no-identity",
+        reply_email="leader@test",
+    )
+    assert ok is False
+    assert viewer._snapshot_calls == []
+    assert viewer._stats_calls == []
+
+
 def test_run_inventory_action_push_item_stats_sig_invalid_payload_and_missing_item():
     viewer = _FakeViewer()
     assert run_inventory_action(viewer, "push_item_stats_sig", "deadbeef", "ev-a", "") is False
@@ -786,6 +844,48 @@ def test_run_inventory_action_push_item_stats_sig_prefers_cached_event_stats(mon
         reply_email="leader@test",
     )
     assert ok is True
+    assert viewer._snapshot_calls == []
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_sig_does_not_fallback_when_event_identity_unresolved(monkeypatch):
+    _install_fake_drop_tracker_sender(
+        monkeypatch,
+        lambda _ev, _item_id, _model_id: "",
+        get_cached_identity_fn=lambda _ev: {"item_id": 765, "model_id": 222, "name_signature": "deadbeef"},
+        resolve_live_item_id_for_event_fn=lambda _ev, _preferred: 0,
+    )
+    viewer = _FakeViewer()
+    viewer.resolved_item_id_by_sig = 88
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_sig",
+        action_payload="deadbeef|Gold",
+        action_meta="ev-sig-strict",
+        reply_email="leader@test",
+    )
+    assert ok is False
+    assert viewer._snapshot_calls == []
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_sig_strict_mode_requires_identity(monkeypatch):
+    _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "")
+    viewer = _FakeViewer()
+    viewer.strict_event_stats_binding = True
+    viewer.resolved_item_id_by_sig = 88
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_sig",
+        action_payload="deadbeef|Gold",
+        action_meta="ev-sig-no-identity",
+        reply_email="leader@test",
+    )
+    assert ok is False
     assert viewer._snapshot_calls == []
     assert viewer._stats_calls == []
 

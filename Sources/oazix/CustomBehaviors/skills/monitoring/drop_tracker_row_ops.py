@@ -104,6 +104,7 @@ def update_rows_item_stats_by_event_and_sender(
     sender_email: str,
     item_stats: str,
     player_name: str = "",
+    allow_player_fallback: bool = True,
 ) -> int:
     event_key = str(event_id or "").strip()
     sender_key = str(sender_email or "").strip().lower()
@@ -123,4 +124,8 @@ def update_rows_item_stats_by_event_and_sender(
             updated += 1
         if updated > 0:
             return updated
+        if not allow_player_fallback:
+            return 0
+    if not allow_player_fallback:
+        return 0
     return update_rows_item_stats_by_event_and_player(rows, event_id, player_name, item_stats)

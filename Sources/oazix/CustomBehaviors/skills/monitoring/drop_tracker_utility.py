@@ -651,6 +651,66 @@ class DropTrackerSender:
             if (now - created_at) > ttl_s:
                 cache.pop(event_id, None)
 
+    def _remember_event_identity(
+        self,
+        event_id: str,
+        item_id: int,
+        model_id: int,
+        item_name: str,
+        name_signature: str = "",
+    ):
+        event_key = str(event_id or "").strip()
+        if not event_key:
+            return
+        now_ts = time.time()
+        self._prune_sent_event_stats_cache(now_ts)
+        cache = getattr(self, "sent_event_stats_cache", None)
+        if not isinstance(cache, dict):
+            self.sent_event_stats_cache = {}
+            cache = self.sent_event_stats_cache
+        existing = cache.get(event_key, {})
+        if not isinstance(existing, dict):
+            existing = {}
+        existing["item_id"] = int(item_id)
+        existing["model_id"] = int(model_id)
+        existing["item_name"] = str(item_name or "").strip()
+        existing["name_signature"] = str(name_signature or "").strip().lower()
+        existing["created_at"] = float(now_ts)
+        # Preserve any already-built stats text.
+        existing["stats_text"] = str(existing.get("stats_text", "") or "").strip()
+        cache[event_key] = existing
+
+    def get_cached_event_identity(self, event_id: str) -> dict:
+        event_key = str(event_id or "").strip()
+        if not event_key:
+            return {}
+        self._prune_sent_event_stats_cache()
+        cache = getattr(self, "sent_event_stats_cache", {})
+        if not isinstance(cache, dict):
+            return {}
+        entry = cache.get(event_key, None)
+        if not isinstance(entry, dict):
+            return {}
+        return dict(entry)
+
+    def resolve_live_item_id_for_event(self, event_id: str, preferred_item_id: int = 0) -> int:
+        event_key = str(event_id or "").strip()
+        preferred = int(preferred_item_id or 0)
+        identity = self.get_cached_event_identity(event_key) if event_key else {}
+        has_identity = bool(identity)
+        if not has_identity:
+            return max(0, preferred)
+        probe_entry = {
+            "item_id": max(0, preferred) if preferred > 0 else int(identity.get("item_id", 0)),
+            "model_id": int(identity.get("model_id", 0)),
+            "name_signature": str(identity.get("name_signature", "") or "").strip().lower(),
+        }
+        resolved = self._resolve_event_item_id_for_stats(probe_entry)
+        if resolved > 0:
+            return int(resolved)
+        # Identity exists but cannot be matched unambiguously; avoid unsafe fallback.
+        return 0
+
     def clear_cached_event_stats(self, event_id: str, item_id: int = 0):
         event_key = str(event_id or "").strip()
         if not event_key:
@@ -695,6 +755,7 @@ class DropTrackerSender:
         model_id: int,
         item_name: str,
         stats_text: str,
+        name_signature: str = "",
     ):
         event_key = str(event_id or "").strip()
         if not event_key:
@@ -708,10 +769,15 @@ class DropTrackerSender:
         if not isinstance(cache, dict):
             self.sent_event_stats_cache = {}
             cache = self.sent_event_stats_cache
+        existing = cache.get(event_key, {})
+        if not isinstance(existing, dict):
+            existing = {}
+        resolved_name_sig = str(name_signature or existing.get("name_signature", "") or "").strip().lower()
         cache[event_key] = {
             "item_id": int(item_id),
             "model_id": int(model_id),
             "item_name": str(item_name or "").strip(),
+            "name_signature": resolved_name_sig,
             "stats_text": stats_value,
             "created_at": float(now_ts),
         }
@@ -1014,6 +1080,13 @@ class DropTrackerSender:
             "acked": False,
             "last_receiver_email": "",
         }
+        self._remember_event_identity(
+            event_id=str(entry.get("event_id", "")),
+            item_id=int(entry.get("item_id", 0)),
+            model_id=int(entry.get("model_id", 0)),
+            item_name=str(entry.get("item_name", "") or ""),
+            name_signature=str(entry.get("name_signature", "") or ""),
+        )
         if len(self.outbox_queue) >= int(self.max_outbox_size):
             self.outbox_queue.pop(0)
             if self.warn_timer.IsExpired():
@@ -1166,6 +1239,7 @@ class DropTrackerSender:
                             model_id=int(entry.get("model_id", 0)),
                             item_name=str(entry.get("item_name", "") or ""),
                             stats_text=stats_text,
+                            name_signature=str(entry.get("name_signature", "") or ""),
                         )
                 ok_stats = self._send_stats_chunks(
                     receiver_email=receiver_email,
