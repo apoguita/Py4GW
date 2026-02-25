@@ -188,7 +188,6 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(23504, 1801) # Sixth boss
     bot.Wait.ForTime(10000)
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(22523, 1198)
     
     # Continue route
     # bot.Move.XY(-2290, 14879, "Aggro: Modnir")
