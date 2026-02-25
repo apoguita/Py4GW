@@ -52,8 +52,8 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader(f"{BOT_NAME}_loop")
     bot.Move.XY(-850, 4700, "Exit Outpost")
     bot.Wait.ForMapLoad(EXPLORABLE_TO_TRAVEL)
-    bot.Move.XYAndInteractNPC(-20928, -13121) # blessing coords
-    bot.Multibox.SendDialogToTarget(0x85) #Get Bounty
+    bot.Move.XYAndInteractNPC(-20928, -13121) # Bounty coords
+    bot.Multibox.SendDialogToTarget(0x85) # Get Bounty
     bot.Move.FollowAutoPath(KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
     bot.Multibox.ResignParty()
@@ -82,9 +82,9 @@ def tooltip():
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Aura")
-    PyImGui.bullet_text("Contributors: Wick-Divinus for script template")
+    PyImGui.bullet_text("Contributors:")
     PyImGui.bullet_text("- Wick-Divinus for script template")
-    PyImGui.bullet_text("- Kronos for idea and coords")
+    PyImGui.bullet_text("- Kronos for script idea and coords")
     PyImGui.end_tooltip()
 
 def _on_party_wipe(bot: "Botting"):
