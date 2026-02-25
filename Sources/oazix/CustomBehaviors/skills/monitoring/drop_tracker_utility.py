@@ -560,6 +560,63 @@ class DropTrackerSender:
         except EXPECTED_RUNTIME_ERRORS:
             return ""
 
+    def _entry_item_identity_matches(self, item_id: int, expected_model_id: int, expected_name_signature: str) -> bool:
+        live_item_id = int(item_id or 0)
+        if live_item_id <= 0:
+            return False
+        wanted_model_id = int(expected_model_id or 0)
+        wanted_signature = str(expected_name_signature or "").strip().lower()
+        unknown_item_sig = make_name_signature("Unknown Item")
+        try:
+            live_model_id = int(Item.GetModelID(live_item_id))
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+        if wanted_model_id > 0 and live_model_id > 0 and live_model_id != wanted_model_id:
+            return False
+        if wanted_signature and wanted_signature != unknown_item_sig:
+            try:
+                if not Item.IsNameReady(live_item_id):
+                    Item.RequestName(live_item_id)
+                    return False
+                live_name = Item.GetName(live_item_id) or ""
+                live_name = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(live_name)).strip())
+                if not live_name:
+                    return False
+                if make_name_signature(live_name) != wanted_signature:
+                    return False
+            except EXPECTED_RUNTIME_ERRORS:
+                return False
+        return True
+
+    def _resolve_event_item_id_for_stats(self, entry: dict) -> int:
+        if not isinstance(entry, dict):
+            return 0
+        expected_item_id = int(entry.get("item_id", 0))
+        expected_model_id = int(entry.get("model_id", 0))
+        expected_name_signature = str(entry.get("name_signature", "") or "").strip().lower()
+
+        if self._entry_item_identity_matches(expected_item_id, expected_model_id, expected_name_signature):
+            return expected_item_id
+
+        try:
+            bags = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_ids = list(ItemArray.GetItemArray(bags) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            return 0
+
+        candidates: list[int] = []
+        for inv_item_id in item_ids:
+            inv_item_id = int(inv_item_id)
+            if not self._entry_item_identity_matches(inv_item_id, expected_model_id, expected_name_signature):
+                continue
+            candidates.append(inv_item_id)
+            if len(candidates) > 1:
+                # Ambiguous matches are unsafe for stat attribution.
+                return 0
+        if len(candidates) == 1:
+            return int(candidates[0])
+        return 0
+
     def _reset_tracking_state(self, clear_outbox: bool = True):
         self.last_inventory_snapshot = {}
         self.pending_slot_deltas = {}
@@ -593,6 +650,43 @@ class DropTrackerSender:
             created_at = float(entry.get("created_at", now))
             if (now - created_at) > ttl_s:
                 cache.pop(event_id, None)
+
+    def clear_cached_event_stats(self, event_id: str, item_id: int = 0):
+        event_key = str(event_id or "").strip()
+        if not event_key:
+            return
+        cache = getattr(self, "sent_event_stats_cache", {})
+        if not isinstance(cache, dict):
+            return
+        entry = cache.get(event_key)
+        if not isinstance(entry, dict):
+            return
+        wanted_item_id = int(item_id or 0)
+        if wanted_item_id > 0 and int(entry.get("item_id", 0)) > 0 and int(entry.get("item_id", 0)) != wanted_item_id:
+            return
+        cache.pop(event_key, None)
+
+    def clear_cached_event_stats_for_item(self, item_id: int = 0, model_id: int = 0):
+        wanted_item_id = int(item_id or 0)
+        wanted_model_id = int(model_id or 0)
+        if wanted_item_id <= 0 and wanted_model_id <= 0:
+            return
+        cache = getattr(self, "sent_event_stats_cache", {})
+        if not isinstance(cache, dict) or not cache:
+            return
+        to_remove: list[str] = []
+        for event_key, entry in cache.items():
+            if not isinstance(entry, dict):
+                continue
+            cached_item_id = int(entry.get("item_id", 0))
+            cached_model_id = int(entry.get("model_id", 0))
+            if wanted_item_id > 0 and cached_item_id > 0 and cached_item_id == wanted_item_id:
+                to_remove.append(str(event_key))
+                continue
+            if wanted_model_id > 0 and cached_model_id > 0 and cached_model_id == wanted_model_id:
+                to_remove.append(str(event_key))
+        for event_key in to_remove:
+            cache.pop(event_key, None)
 
     def _remember_event_stats_snapshot(
         self,
@@ -1054,10 +1148,14 @@ class DropTrackerSender:
             if (not send_failed) and (not entry.get("stats_chunks_sent", False)):
                 stats_text = str(entry.get("stats_text", "") or "")
                 if not stats_text and stats_build_budget > 0:
-                    built_text = self._build_item_stats_text(
-                        int(entry.get("item_id", 0)),
-                        str(entry.get("item_name", "Unknown Item") or "Unknown Item"),
-                    )
+                    stats_item_id = self._resolve_event_item_id_for_stats(entry)
+                    built_text = ""
+                    if stats_item_id > 0:
+                        entry["item_id"] = int(stats_item_id)
+                        built_text = self._build_item_stats_text(
+                            int(stats_item_id),
+                            str(entry.get("item_name", "Unknown Item") or "Unknown Item"),
+                        )
                     entry["stats_text"] = str(built_text or "")
                     stats_text = str(entry.get("stats_text", "") or "")
                     stats_build_budget -= 1

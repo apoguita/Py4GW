@@ -52,6 +52,7 @@ class IdentifyResponseScheduler:
         send_payload_fn: Callable[[str, str, str], bool],
         build_stats_fn: Callable[[int], str],
         send_stats_fn: Callable[[str, str, str], bool],
+        payload_ready_fn: Callable[[str, int, bool, bool], bool] | None = None,
     ) -> int:
         now_ts = time.time()
         completed: list[str] = []
@@ -63,8 +64,17 @@ class IdentifyResponseScheduler:
             payload_text = str(build_payload_fn(pending.item_id) or "").strip()
             identified = bool(is_identified_fn(pending.item_id))
             timed_out = now_ts >= float(pending.deadline_at)
+            payload_ready = True
+            if payload_text and payload_ready_fn is not None:
+                try:
+                    payload_ready = bool(payload_ready_fn(payload_text, int(pending.item_id), identified, timed_out))
+                except (TypeError, ValueError, RuntimeError, AttributeError):
+                    payload_ready = True
 
             sent = False
+            if identified and (not timed_out) and payload_text and (not payload_ready):
+                pending.next_poll_at = now_ts + max(0.05, float(pending.poll_interval_s))
+                continue
             if payload_text and (identified or timed_out):
                 sent = bool(send_payload_fn(pending.reply_email, pending.event_id, payload_text))
 
@@ -96,6 +106,24 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
     action_code = viewer._ensure_text(action_code).strip().lower()
     action_label = action_code
     queued = 0
+
+    def _get_cached_event_stats(event_id_text: str, target_item_id: int = 0) -> str:
+        event_key = viewer._ensure_text(event_id_text).strip()
+        if not event_key:
+            return ""
+        try:
+            from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
+
+            sender = DropTrackerSender()
+            strict_item_id = max(0, int(target_item_id or 0))
+            cached = sender.get_cached_event_stats_text(event_key, strict_item_id, 0)
+            if not cached and strict_item_id > 0:
+                # Item IDs can drift after sorting/identify actions; event_id is the
+                # stable identity for this request path.
+                cached = sender.get_cached_event_stats_text(event_key, 0, 0)
+            return viewer._ensure_text(cached).strip()
+        except (TypeError, ValueError, RuntimeError, AttributeError, ImportError, ModuleNotFoundError):
+            return ""
 
     if action_code == "cfg_auto_id":
         action_label = "Auto ID Config"
@@ -129,6 +157,14 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         viewer.set_status(
             f"{action_label}: {'ON' if viewer.auto_buy_kits_enabled else 'OFF'} "
             f"(outpost auto-check)"
+        )
+        return True
+    elif action_code == "cfg_auto_buy_kits_sort":
+        action_label = "Auto Kit Sort Config"
+        viewer._apply_auto_buy_kits_sort_config_payload(action_payload)
+        viewer.set_status(
+            f"{action_label}: {'ON' if viewer.auto_buy_kits_sort_to_front_enabled else 'OFF'} "
+            f"(outpost-entry reorder)"
         )
         return True
     elif action_code == "cfg_auto_gold_balance":
@@ -211,6 +247,13 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
             except (TypeError, ValueError, RuntimeError, AttributeError):
                 pass
             event_id = viewer._ensure_text(action_meta).strip()
+            if event_id:
+                try:
+                    from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
+
+                    DropTrackerSender().clear_cached_event_stats(event_id, target_item_id)
+                except (TypeError, ValueError, RuntimeError, AttributeError, ImportError, ModuleNotFoundError):
+                    pass
             if reply_email and event_id:
                 viewer.identify_response_scheduler.schedule(
                     target_item_id,
@@ -224,36 +267,57 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         event_id = viewer._ensure_text(action_meta).strip()
         if target_item_id <= 0 or not event_id or not reply_email:
             return False
-        payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, "")
-        if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
-            queued = 1
+        prefer_fresh_payload = False
+        try:
+            from Py4GWCoreLib.Item import Item
+
+            prefer_fresh_payload = bool(Item.Usage.IsIdentified(target_item_id))
+        except (TypeError, ValueError, RuntimeError, AttributeError, ImportError, ModuleNotFoundError):
+            prefer_fresh_payload = False
+        if prefer_fresh_payload:
+            payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, "")
+            if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
+                queued = 1
+            else:
+                cached_stats = _get_cached_event_stats(event_id, target_item_id)
+                if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
+                    queued = 1
+                else:
+                    stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
+                    if not stats_text:
+                        return False
+                    if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+                        queued = 1
+                    else:
+                        return False
         else:
-            try:
-                from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
-                cached_stats = DropTrackerSender().get_cached_event_stats_text(event_id, target_item_id, 0)
-            except (TypeError, ValueError, RuntimeError, AttributeError, ImportError, ModuleNotFoundError):
-                cached_stats = ""
+            cached_stats = _get_cached_event_stats(event_id, target_item_id)
             if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
                 queued = 1
             else:
-                stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
-                if not stats_text:
-                    return False
-                if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+                payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, "")
+                if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
                     queued = 1
                 else:
-                    return False
+                    if not cached_stats:
+                        cached_stats = _get_cached_event_stats(event_id, target_item_id)
+                    if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
+                        queued = 1
+                    else:
+                        stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
+                        if not stats_text:
+                            return False
+                        if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+                            queued = 1
+                        else:
+                            return False
     elif action_code == "push_item_stats_event":
         action_label = "Push Item Stats By Event"
         target_item_id = max(0, viewer._safe_int(action_payload, 0))
         event_id = viewer._ensure_text(action_meta).strip()
         if not event_id or not reply_email:
             return False
-        try:
-            from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
-            cached_stats = DropTrackerSender().get_cached_event_stats_text(event_id, target_item_id, 0)
-        except (TypeError, ValueError, RuntimeError, AttributeError, ImportError, ModuleNotFoundError):
-            cached_stats = ""
+        cached_stats = _get_cached_event_stats(event_id, target_item_id)
         if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
             queued = 1
         else:
@@ -264,49 +328,57 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         event_id = viewer._ensure_text(action_meta).strip()
         if not target_name or not event_id or not reply_email:
             return False
-        target_item_id = viewer._resolve_live_item_id_by_name(target_name, prefer_identified=True)
-        if target_item_id <= 0:
-            return False
-        payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, target_name)
-        if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
+        cached_stats = _get_cached_event_stats(event_id, 0)
+        if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
             queued = 1
         else:
-            stats_text = viewer._build_item_stats_from_live_item(target_item_id, target_name)
-            if not stats_text:
+            target_item_id = viewer._resolve_live_item_id_by_name(target_name, prefer_identified=True)
+            if target_item_id <= 0:
                 return False
-            if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+            payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, target_name)
+            if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
                 queued = 1
             else:
-                return False
+                stats_text = viewer._build_item_stats_from_live_item(target_item_id, target_name)
+                if not stats_text:
+                    return False
+                if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+                    queued = 1
+                else:
+                    return False
     elif action_code == "push_item_stats_sig":
         action_label = "Push Item Stats By Signature"
         sig_payload = viewer._ensure_text(action_payload).strip()
         event_id = viewer._ensure_text(action_meta).strip()
         if not sig_payload or not event_id or not reply_email:
             return False
-        if "|" in sig_payload:
-            target_sig, rarity_hint = sig_payload.split("|", 1)
-            target_sig = viewer._ensure_text(target_sig).strip().lower()
-            rarity_hint = viewer._ensure_text(rarity_hint).strip()
-        else:
-            target_sig = sig_payload.lower()
-            rarity_hint = ""
-        if not target_sig:
-            return False
-        target_item_id = viewer._resolve_live_item_id_by_signature(target_sig, rarity_hint, prefer_identified=True)
-        if target_item_id <= 0:
-            return False
-        payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, "")
-        if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
+        cached_stats = _get_cached_event_stats(event_id, 0)
+        if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
             queued = 1
         else:
-            stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
-            if not stats_text:
+            if "|" in sig_payload:
+                target_sig, rarity_hint = sig_payload.split("|", 1)
+                target_sig = viewer._ensure_text(target_sig).strip().lower()
+                rarity_hint = viewer._ensure_text(rarity_hint).strip()
+            else:
+                target_sig = sig_payload.lower()
+                rarity_hint = ""
+            if not target_sig:
                 return False
-            if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+            target_item_id = viewer._resolve_live_item_id_by_signature(target_sig, rarity_hint, prefer_identified=True)
+            if target_item_id <= 0:
+                return False
+            payload_text = viewer._build_item_snapshot_payload_from_live_item(target_item_id, "")
+            if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
                 queued = 1
             else:
-                return False
+                stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
+                if not stats_text:
+                    return False
+                if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+                    queued = 1
+                else:
+                    return False
     else:
         viewer.set_status(f"Unknown inventory action: {action_code}")
         return False
