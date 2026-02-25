@@ -996,7 +996,7 @@ class MissionMap:
                 click_game: tuple[float, float] = (float(_gx), float(_gy))
                 self.snap_clicked_target = click_game
                 _nav = _snap_get_navmesh(self)
-                snapped = _nav.find_nearest_reachable(click_game, self.boundaries) if _nav else None
+                snapped = _nav.find_nearest_reachable(click_game) if _nav else None
                 self.snap_snapped_target = snapped
                 if snapped is not None:
                     self.snap_current_path = []

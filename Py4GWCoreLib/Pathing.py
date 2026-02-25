@@ -305,50 +305,41 @@ class NavMesh:
         """Return True if (x, y) lies on the NavMesh with the given inset margin."""
         return self._bsp.find_with_margin(x, y, margin)
 
+    def find_nearest_trapezoid_id(self, x: float, y: float) -> Optional[int]:
+        """Return the ID of the trapezoid whose centroid is closest to (x, y).
+        """
+        best_id: Optional[int] = None
+        best_dist = float("inf")
+        for t_id, t in self.trapezoids.items():
+            cx = (t.XTL + t.XTR + t.XBL + t.XBR) / 4
+            cy = (t.YT + t.YB) / 2
+            d = math.hypot(cx - x, cy - y)
+            if d < best_dist:
+                best_dist = d
+                best_id = t_id
+        return best_id
+
     def find_nearest_reachable(
         self,
-        origincoords: Tuple[float, float],
-        boundaries: Tuple[float, float, float, float],
-        max_radius: float = 2800.0,
-        ring_step: float = 280.0,
-        base_ring_points: int = 12,
+        origin: Tuple[float, float],
         margin: float = 20.0,
     ) -> Optional[Tuple[float, float]]:
-        """Find the nearest NavMesh point to origincoords within max_radius.
+        """Return the nearest reachable NavMesh position to origin.
 
-        Returns origincoords itself if it already lies on the mesh.  Otherwise
-        performs an outward ring search (ring_step increments up to
-        max_radius) and returns the closest reachable candidate, or None
-        if nothing is found.
+        If origin already lies on the mesh it is returned as-is.  Otherwise
+        the centroid of the closest trapezoid is returned.  Returns None only
+        when the NavMesh is empty.
 
         Can be used for any position query – player location, click
         coordinates, waypoints, etc.
         """
-        if self.contains(origincoords[0], origincoords[1], margin):
-            return origincoords
+        if self.contains(origin[0], origin[1], margin):
+            return origin
 
-        min_x, min_y, max_x, max_y = boundaries
-        if min_x > max_x: min_x, max_x = max_x, min_x
-        if min_y > max_y: min_y, max_y = max_y, min_y
-
-        best: Optional[Tuple[float, float]] = None
-        best_dist = float("inf")
-        radius = ring_step
-        while radius <= max_radius:
-            count = max(8, int(base_ring_points + radius / 280.0))
-            for i in range(count):
-                angle = (2.0 * math.pi * i) / count
-                cx = origincoords[0] + math.cos(angle) * radius
-                cy = origincoords[1] + math.sin(angle) * radius
-                if not (min_x <= cx <= max_x and min_y <= cy <= max_y):
-                    continue
-                if self.contains(cx, cy, margin):
-                    d = math.hypot(cx - origincoords[0], cy - origincoords[1])
-                    if d < best_dist:
-                        best_dist = d
-                        best = (cx, cy)
-            radius += ring_step
-        return best
+        t_id = self.find_nearest_trapezoid_id(origin[0], origin[1])
+        if t_id is None:
+            return None
+        return self.get_position(t_id)
 
     def has_line_of_sight(self,
                           p1: Tuple[float, float],
