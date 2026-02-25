@@ -206,6 +206,10 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
             viewer.set_status(f"Identify failed: {e}")
             return False
         if queued > 0:
+            try:
+                viewer._remember_identify_mod_capture_candidates([target_item_id])
+            except (TypeError, ValueError, RuntimeError, AttributeError):
+                pass
             event_id = viewer._ensure_text(action_meta).strip()
             if reply_email and event_id:
                 viewer.identify_response_scheduler.schedule(
@@ -224,13 +228,36 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
             queued = 1
         else:
-            stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
-            if not stats_text:
-                return False
-            if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+            try:
+                from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
+                cached_stats = DropTrackerSender().get_cached_event_stats_text(event_id, target_item_id, 0)
+            except (TypeError, ValueError, RuntimeError, AttributeError, ImportError, ModuleNotFoundError):
+                cached_stats = ""
+            if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
                 queued = 1
             else:
-                return False
+                stats_text = viewer._build_item_stats_from_live_item(target_item_id, "")
+                if not stats_text:
+                    return False
+                if viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, stats_text):
+                    queued = 1
+                else:
+                    return False
+    elif action_code == "push_item_stats_event":
+        action_label = "Push Item Stats By Event"
+        target_item_id = max(0, viewer._safe_int(action_payload, 0))
+        event_id = viewer._ensure_text(action_meta).strip()
+        if not event_id or not reply_email:
+            return False
+        try:
+            from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
+            cached_stats = DropTrackerSender().get_cached_event_stats_text(event_id, target_item_id, 0)
+        except (TypeError, ValueError, RuntimeError, AttributeError, ImportError, ModuleNotFoundError):
+            cached_stats = ""
+        if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
+            queued = 1
+        else:
+            return False
     elif action_code == "push_item_stats_name":
         action_label = "Push Item Stats By Name"
         target_name = viewer._clean_item_name(action_payload)

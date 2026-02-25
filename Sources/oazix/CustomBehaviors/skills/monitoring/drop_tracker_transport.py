@@ -343,10 +343,22 @@ def handle_tracker_drop_branch(
         getattr(shared_msg, "Params", ()),
     )
     name_sig = str(drop_msg.name_signature or "").strip()
+    raw_name_clean = str(item_name_raw or "").strip()
+    raw_name_clean_lc = raw_name_clean.lower()
     if name_sig:
         resolved_name = str(resolve_full_name_fn(name_sig) or "").strip()
         if resolved_name:
-            drop_msg.item_name = resolved_name
+            resolved_name_lc = resolved_name.lower()
+            # Guard against stale/signature-collision substitutions:
+            # only accept if resolved long name is compatible with raw drop name.
+            if (
+                not raw_name_clean_lc
+                or resolved_name_lc.startswith(raw_name_clean_lc)
+                or raw_name_clean_lc.startswith(resolved_name_lc)
+            ):
+                drop_msg.item_name = resolved_name
+            elif len(drop_msg.item_name) >= 31:
+                drop_msg.item_name = f"{drop_msg.item_name}~{name_sig[:4]}"
         elif len(drop_msg.item_name) >= 31:
             drop_msg.item_name = f"{drop_msg.item_name}~{name_sig[:4]}"
     drop_msg.rarity = str(normalize_rarity_label_fn(drop_msg.item_name, drop_msg.rarity) or "").strip() or drop_msg.rarity

@@ -17,7 +17,7 @@
   "id_sel_green": true,
   "id_sel_purple": true,
   "id_sel_gold": true,
-  "auto_id_enabled": false,
+  "auto_id_enabled": true,
   "salvage_sel_white": true,
   "salvage_sel_blue": true,
   "salvage_sel_green": false,
@@ -35,25 +35,25 @@
   },
   "auto_gold_balance_enabled": true,
   "auto_gold_balance_target": 10000,
-  "auto_outpost_store_enabled": false,
+  "auto_outpost_store_enabled": true,
   "auto_conset_enabled": true,
   "auto_conset_armor": false,
   "auto_conset_grail": false,
   "auto_conset_essence": true,
   "auto_conset_legionnaire": true,
-  "runtime_controls_popout": true,
+  "runtime_controls_popout": false,
   "compact_mode": false,
   "ui_theme_name": "Steel Ember",
   "drop_viewer_window_pos": [
-    69.0,
-    28.0
+    47.0,
+    16.0
   ],
   "drop_viewer_window_size": [
-    947.0,
-    656.0
+    1601.0,
+    888.0
   ],
   "drop_viewer_handle_pos": [
-    516.0,
-    955.0
+    1360.0,
+    4.0
   ]
 }

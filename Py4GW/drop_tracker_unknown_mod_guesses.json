@@ -1,0 +1,731 @@
+{
+  "updated_at": "2026-02-25 13:20:32",
+  "source_catalog_path": "Py4GW\\drop_tracker_unknown_mod_ids.json",
+  "entry_count": 17,
+  "entries": [
+    {
+      "id": 10136,
+      "hits": 31,
+      "guess": "Requirement",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 1,
+      "arg1_max": 36,
+      "arg2_min": 9,
+      "arg2_max": 13,
+      "item_types": [
+        2,
+        5,
+        12,
+        15,
+        22,
+        24,
+        26,
+        27
+      ],
+      "item_type_labels": [
+        "2(Axe)",
+        "5(Upgrade)",
+        "12(Offhand)",
+        "15(Hammer)",
+        "22(Wand)",
+        "24(Shield)",
+        "26(Staff)",
+        "27(Sword)"
+      ],
+      "sample_items": [
+        "Cane",
+        "Cleaver",
+        "Fire Wand",
+        "Spiked Axe",
+        "Grim Cesta",
+        "Storm Artifact",
+        "Fiery Dragon Sword",
+        "Protective Icon",
+        "Smiting Rod",
+        "Fellblade",
+        "Long Sword",
+        "Magmas Arm"
+      ],
+      "co_mod_ids": [
+        8328,
+        8424,
+        8456,
+        8520,
+        8600,
+        8648,
+        8712,
+        8728,
+        8792,
+        8840,
+        8856,
+        8872,
+        8920,
+        8968,
+        8984,
+        9000,
+        9032,
+        9128,
+        9224,
+        9240,
+        9320,
+        9336,
+        9400,
+        9512,
+        9520,
+        9752,
+        9800,
+        9880,
+        25288,
+        26568,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        42936,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    {
+      "id": 9752,
+      "hits": 20,
+      "guess": "Armor/rune metadata modifier",
+      "confidence": 66,
+      "confidence_label": "Medium",
+      "is_known_hint": false,
+      "basis": [
+        "co-occurs with armor/rune markers"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        5
+      ],
+      "item_type_labels": [
+        "5(Upgrade)"
+      ],
+      "sample_items": [
+        "Black Hawk's Lust",
+        "Longbow",
+        "Feathered Longbow",
+        "Giant Slayers Hammer",
+        "Flatbow",
+        "Shortbow",
+        "Lockpicks"
+      ],
+      "co_mod_ids": [
+        8216,
+        8456,
+        8488,
+        8536,
+        8760,
+        8824,
+        8840,
+        8856,
+        8872,
+        8888,
+        8920,
+        9032,
+        9208,
+        9224,
+        9240,
+        9320,
+        9400,
+        9520,
+        9736,
+        9800,
+        9880,
+        10136,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-25 13:20:32"
+    },
+    {
+      "id": 42920,
+      "hits": 20,
+      "guess": "Damage",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 20,
+      "arg1_max": 35,
+      "arg2_min": 6,
+      "arg2_max": 19,
+      "item_types": [
+        2,
+        5,
+        15,
+        22,
+        26,
+        27
+      ],
+      "item_type_labels": [
+        "2(Axe)",
+        "5(Upgrade)",
+        "15(Hammer)",
+        "22(Wand)",
+        "26(Staff)",
+        "27(Sword)"
+      ],
+      "sample_items": [
+        "Cane",
+        "Cleaver",
+        "Fire Wand",
+        "Spiked Axe",
+        "Fiery Dragon Sword",
+        "Smiting Rod",
+        "Fellblade",
+        "Long Sword",
+        "Magmas Arm",
+        "Superior Identification Kit",
+        "Holy Rod",
+        "Earth Wand"
+      ],
+      "co_mod_ids": [
+        8424,
+        8456,
+        8712,
+        8728,
+        8792,
+        8840,
+        8856,
+        8872,
+        8920,
+        8968,
+        8984,
+        9000,
+        9032,
+        9128,
+        9224,
+        9240,
+        9320,
+        9336,
+        9400,
+        9512,
+        9520,
+        9752,
+        9800,
+        9880,
+        10136,
+        25288,
+        32880,
+        32896,
+        41544,
+        42288,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    {
+      "id": 9880,
+      "hits": 13,
+      "guess": "Caster metadata marker",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 5,
+      "item_types": [
+        22,
+        26
+      ],
+      "item_type_labels": [
+        "22(Wand)",
+        "26(Staff)"
+      ],
+      "sample_items": [
+        "Cane",
+        "Fire Wand",
+        "Smiting Rod",
+        "Superior Identification Kit",
+        "Holy Rod",
+        "Earth Wand",
+        "Raven Staff"
+      ],
+      "co_mod_ids": [
+        8712,
+        8728,
+        8968,
+        8984,
+        9000,
+        9128,
+        9336,
+        9400,
+        10136,
+        25288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    {
+      "id": 26568,
+      "hits": 9,
+      "guess": "Energy +X",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 12,
+      "arg1_max": 12,
+      "arg2_min": 6,
+      "arg2_max": 6,
+      "item_types": [
+        12
+      ],
+      "item_type_labels": [
+        "12(Offhand)"
+      ],
+      "sample_items": [
+        "Grim Cesta",
+        "Storm Artifact",
+        "Protective Icon",
+        "Wolf's Greed",
+        "Jeweled Chakram",
+        "Identification Kit"
+      ],
+      "co_mod_ids": [
+        8520,
+        8600,
+        8648,
+        8712,
+        9240,
+        9336,
+        10136,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:40:39"
+    },
+    {
+      "id": 9800,
+      "hits": 8,
+      "guess": "Melee/shield companion modifier",
+      "confidence": 59,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "melee/shield co-mod IDs"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        2,
+        5,
+        15,
+        27
+      ],
+      "item_type_labels": [
+        "2(Axe)",
+        "5(Upgrade)",
+        "15(Hammer)",
+        "27(Sword)"
+      ],
+      "sample_items": [
+        "Fiery Dragon Sword",
+        "Magmas Arm",
+        "Feathered Longbow",
+        "Spiked Axe",
+        "Flatbow",
+        "Longbow"
+      ],
+      "co_mod_ids": [
+        8216,
+        8456,
+        8536,
+        8760,
+        8792,
+        8856,
+        8872,
+        8888,
+        9032,
+        9224,
+        9240,
+        9400,
+        9520,
+        9752,
+        9880,
+        10136,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-25 11:34:24"
+    },
+    {
+      "id": 8728,
+      "hits": 3,
+      "guess": "Halves casting time of [Attribute] spells",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 19,
+      "arg1_max": 19,
+      "arg2_min": 4,
+      "arg2_max": 13,
+      "item_types": [
+        22
+      ],
+      "item_type_labels": [
+        "22(Wand)"
+      ],
+      "sample_items": [
+        "Superior Identification Kit",
+        "Earth Wand",
+        "Smiting Rod"
+      ],
+      "co_mod_ids": [
+        9400,
+        9880,
+        10136,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 01:00:59"
+    },
+    {
+      "id": 9480,
+      "hits": 2,
+      "guess": "Material stack marker",
+      "confidence": 54,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "material names + structural co-mods"
+      ],
+      "arg1_min": 1,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        11
+      ],
+      "item_type_labels": [
+        "11(Material)"
+      ],
+      "sample_items": [
+        "Tanned Hide Squares",
+        "Iron Ingots"
+      ],
+      "co_mod_ids": [
+        49152
+      ],
+      "last_seen": "2026-02-24 07:50:33"
+    },
+    {
+      "id": 10216,
+      "hits": 2,
+      "guess": "Armor/rune metadata modifier",
+      "confidence": 50,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "co-occurs with armor/rune markers"
+      ],
+      "arg1_min": 2,
+      "arg1_max": 2,
+      "arg2_min": 183,
+      "arg2_max": 234,
+      "item_types": [],
+      "item_type_labels": [],
+      "sample_items": [
+        "Dolyak Cladding",
+        "Titan Armor"
+      ],
+      "co_mod_ids": [
+        9224,
+        9520,
+        10218,
+        32880,
+        33056,
+        41208,
+        41928,
+        42288,
+        49152
+      ],
+      "last_seen": "2026-02-24 10:00:13"
+    },
+    {
+      "id": 32912,
+      "hits": 2,
+      "guess": "Armor/rune metadata modifier",
+      "confidence": 50,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "co-occurs with armor/rune markers"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [],
+      "item_type_labels": [],
+      "sample_items": [
+        "Titan Armor",
+        "Dwarven Sage Outfit"
+      ],
+      "co_mod_ids": [
+        8408,
+        8680,
+        9224,
+        9520,
+        32880,
+        41208,
+        41928,
+        42288,
+        49152
+      ],
+      "last_seen": "2026-02-24 10:41:04"
+    },
+    {
+      "id": 42936,
+      "hits": 2,
+      "guess": "Shield armor",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 15,
+      "arg1_max": 16,
+      "arg2_min": 8,
+      "arg2_max": 8,
+      "item_types": [
+        24
+      ],
+      "item_type_labels": [
+        "24(Shield)"
+      ],
+      "sample_items": [
+        "Lockpicks",
+        "Magmas Shield"
+      ],
+      "co_mod_ids": [
+        8328,
+        10136,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:45:47"
+    },
+    {
+      "id": 9112,
+      "hits": 1,
+      "guess": "Halves skill recharge of [Attribute] spells",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 20,
+      "arg1_max": 20,
+      "arg2_min": 8,
+      "arg2_max": 8,
+      "item_types": [
+        22
+      ],
+      "item_type_labels": [
+        "22(Wand)"
+      ],
+      "sample_items": [
+        "Fire Wand"
+      ],
+      "co_mod_ids": [
+        9000,
+        9400,
+        9880,
+        10136,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:47:26"
+    },
+    {
+      "id": 9304,
+      "hits": 1,
+      "guess": "Tome metadata/profession marker",
+      "confidence": 58,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "seen only on Tome items"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 1,
+      "arg2_max": 1,
+      "item_types": [
+        9
+      ],
+      "item_type_labels": [
+        "9(Tome)"
+      ],
+      "sample_items": [
+        "Necromancer Tome"
+      ],
+      "co_mod_ids": [
+        9784,
+        10120,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:22:12"
+    },
+    {
+      "id": 9784,
+      "hits": 1,
+      "guess": "Tome metadata/profession marker",
+      "confidence": 58,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "seen only on Tome items"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        9
+      ],
+      "item_type_labels": [
+        "9(Tome)"
+      ],
+      "sample_items": [
+        "Necromancer Tome"
+      ],
+      "co_mod_ids": [
+        9304,
+        10120,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:22:12"
+    },
+    {
+      "id": 10120,
+      "hits": 1,
+      "guess": "Tome metadata/profession marker",
+      "confidence": 58,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "seen only on Tome items"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 28,
+      "arg2_max": 28,
+      "item_types": [
+        9
+      ],
+      "item_type_labels": [
+        "9(Tome)"
+      ],
+      "sample_items": [
+        "Necromancer Tome"
+      ],
+      "co_mod_ids": [
+        9304,
+        9784,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:22:12"
+    },
+    {
+      "id": 25288,
+      "hits": 1,
+      "guess": "Energy +X",
+      "confidence": 100,
+      "confidence_label": "High",
+      "is_known_hint": true,
+      "basis": [
+        "known modifier hint"
+      ],
+      "arg1_min": 10,
+      "arg1_max": 10,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        26
+      ],
+      "item_type_labels": [
+        "26(Staff)"
+      ],
+      "sample_items": [
+        "Raven Staff"
+      ],
+      "co_mod_ids": [
+        9128,
+        9336,
+        9400,
+        9880,
+        10136,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    {
+      "id": 33056,
+      "hits": 1,
+      "guess": "Armor/rune metadata modifier",
+      "confidence": 50,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "co-occurs with armor/rune markers"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [],
+      "item_type_labels": [],
+      "sample_items": [
+        "Titan Armor"
+      ],
+      "co_mod_ids": [
+        9224,
+        9520,
+        10216,
+        32880,
+        41208,
+        41928,
+        42288,
+        49152
+      ],
+      "last_seen": "2026-02-24 10:00:13"
+    }
+  ]
+}
