@@ -311,6 +311,9 @@ class DropViewerWindow:
         self.auto_salvage_last_run_ts = 0.0
         self.auto_monitoring_settle_seconds = 1.2
         self.auto_monitoring_last_gate_status_ts = 0.0
+        self.strict_event_stats_binding = True
+        self.event_identity_resolve_grace_s = 1.2
+        self.event_identity_resolve_poll_s = 0.12
         self.auto_queue_progress_cap = 25
         self.auto_id_job_running = False
         self.auto_salvage_job_running = False
@@ -410,6 +413,9 @@ class DropViewerWindow:
             "send_tracker_ack_enabled": True,
             "debug_item_stats_panel": False,
             "debug_item_stats_panel_height": 180,
+            "strict_event_stats_binding": True,
+            "event_identity_resolve_grace_s": 1.2,
+            "event_identity_resolve_poll_s": 0.12,
             "id_sel_white": False,
             "id_sel_blue": True,
             "id_sel_green": True,
@@ -446,6 +452,13 @@ class DropViewerWindow:
         self.send_tracker_ack_enabled = bool(cfg.get("send_tracker_ack_enabled", self.send_tracker_ack_enabled))
         self.debug_item_stats_panel = bool(cfg.get("debug_item_stats_panel", self.debug_item_stats_panel))
         self.debug_item_stats_panel_height = max(120, min(900, int(cfg.get("debug_item_stats_panel_height", self.debug_item_stats_panel_height))))
+        self.strict_event_stats_binding = bool(cfg.get("strict_event_stats_binding", self.strict_event_stats_binding))
+        self.event_identity_resolve_grace_s = max(
+            0.0, min(3.0, float(cfg.get("event_identity_resolve_grace_s", self.event_identity_resolve_grace_s)))
+        )
+        self.event_identity_resolve_poll_s = max(
+            0.02, min(0.5, float(cfg.get("event_identity_resolve_poll_s", self.event_identity_resolve_poll_s)))
+        )
         self.enable_perf_logs = bool(cfg.get("enable_perf_logs", self.enable_perf_logs))
         self.id_sel_white = bool(cfg.get("id_sel_white", self.id_sel_white))
         self.id_sel_blue = bool(cfg.get("id_sel_blue", self.id_sel_blue))
@@ -578,6 +591,9 @@ class DropViewerWindow:
         cfg["send_tracker_ack_enabled"] = bool(self.send_tracker_ack_enabled)
         cfg["debug_item_stats_panel"] = bool(self.debug_item_stats_panel)
         cfg["debug_item_stats_panel_height"] = int(self.debug_item_stats_panel_height)
+        cfg["strict_event_stats_binding"] = bool(self.strict_event_stats_binding)
+        cfg["event_identity_resolve_grace_s"] = float(self.event_identity_resolve_grace_s)
+        cfg["event_identity_resolve_poll_s"] = float(self.event_identity_resolve_poll_s)
         cfg["enable_perf_logs"] = bool(self.enable_perf_logs)
         cfg["id_sel_white"] = bool(self.id_sel_white)
         cfg["id_sel_blue"] = bool(self.id_sel_blue)
@@ -2837,12 +2853,12 @@ class DropViewerWindow:
             sent = self._send_inventory_action_to_email(target_email, "push_item_stats", str(item_id), event_id)
         if not sent:
             sent = self._send_inventory_action_to_email(target_email, "push_item_stats_event", str(item_id), event_id)
-        if not sent:
+        if not sent and (not bool(getattr(self, "strict_event_stats_binding", True))):
             item_signature = self._ensure_text(self.stats_name_signature_by_event.get(event_cache_key, "")).strip().lower()
             if not item_signature and item_name:
                 item_signature = make_name_signature(item_name)
             if item_signature:
-                sig_payload = item_signature[:8]
+                sig_payload = item_signature
                 if item_rarity:
                     sig_payload = f"{sig_payload}|{item_rarity[:20]}"
                 sent_by_sig = self._send_inventory_action_to_email(
@@ -2852,7 +2868,7 @@ class DropViewerWindow:
                     event_id,
                 )
                 sent = sent or sent_by_sig
-        if (not sent) and item_name and len(item_name) <= 31:
+        if (not sent) and (not bool(getattr(self, "strict_event_stats_binding", True))) and item_name and len(item_name) <= 31:
             sent_by_name = self._send_inventory_action_to_email(
                 target_email,
                 "push_item_stats_name",
@@ -3146,7 +3162,7 @@ class DropViewerWindow:
             if self._extract_row_item_id(row) > 0:
                 best_with_item_id = row
                 break
-        return list(best_with_item_id) if best_with_item_id is not None else (list(best_any) if best_any is not None else None)
+        return best_with_item_id if best_with_item_id is not None else best_any
 
     def _find_best_row_for_item_and_character(self, item_name: str, rarity: str, character_name: str, rows=None) -> Any:
         pool = rows if rows is not None else self.raw_drops
@@ -3174,19 +3190,19 @@ class DropViewerWindow:
             if self._extract_row_item_id(row) > 0:
                 best_with_item_id = row
                 break
-        return list(best_with_item_id) if best_with_item_id is not None else (list(best_any) if best_any is not None else None)
+        return best_with_item_id if best_with_item_id is not None else best_any
 
-    def _get_selected_item_rows(self, rows=None) -> list[list[Any]]:
+    def _get_selected_item_rows(self, rows=None) -> list[Any]:
         pool = rows if rows is not None else self.raw_drops
         if not pool or not self.selected_item_key:
             return []
-        matches: list[list[Any]] = []
+        matches: list[Any] = []
         for row in reversed(list(pool)):
             if self._row_matches_selected_item(row):
-                matches.append(list(row))
+                matches.append(row)
         return matches
 
-    def _get_selected_row_index(self, selected_rows: list[list[Any]]) -> int:
+    def _get_selected_row_index(self, selected_rows: list[Any]) -> int:
         if not selected_rows:
             return -1
         selected_event_id = self._extract_row_event_id(self.selected_log_row) if self.selected_log_row else ""
@@ -3199,12 +3215,15 @@ class DropViewerWindow:
             selected_name = self._ensure_text(selected_parsed.item_name if selected_parsed else "").strip().lower()
             selected_player = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip().lower()
             selected_ts = self._ensure_text(selected_parsed.timestamp if selected_parsed else "").strip()
+            selected_sender = self._extract_row_sender_email(self.selected_log_row)
             for idx, row in enumerate(selected_rows):
                 row_parsed = self._parse_drop_row(row)
+                row_sender = self._extract_row_sender_email(row)
                 if (
                     self._ensure_text(row_parsed.item_name if row_parsed else "").strip().lower() == selected_name
                     and self._ensure_text(row_parsed.player_name if row_parsed else "").strip().lower() == selected_player
                     and self._ensure_text(row_parsed.timestamp if row_parsed else "").strip() == selected_ts
+                    and row_sender == selected_sender
                 ):
                     return idx
         return 0
@@ -3325,15 +3344,15 @@ class DropViewerWindow:
             selected_idx = self._get_selected_row_index(selected_rows)
             selected_idx = max(0, min(selected_idx, len(selected_rows) - 1))
             if self.selected_log_row is None or not self._row_matches_selected_item(self.selected_log_row):
-                self.selected_log_row = list(selected_rows[selected_idx])
+                self.selected_log_row = selected_rows[selected_idx]
 
             if PyImGui.button("Prev Item"):
                 selected_idx = (selected_idx - 1) % len(selected_rows)
-                self.selected_log_row = list(selected_rows[selected_idx])
+                self.selected_log_row = selected_rows[selected_idx]
             PyImGui.same_line(0.0, 8.0)
             if PyImGui.button("Next Item"):
                 selected_idx = (selected_idx + 1) % len(selected_rows)
-                self.selected_log_row = list(selected_rows[selected_idx])
+                self.selected_log_row = selected_rows[selected_idx]
             PyImGui.same_line(0.0, 12.0)
             PyImGui.text_colored(
                 f"Showing Item {selected_idx + 1}/{len(selected_rows)}",
@@ -4863,7 +4882,7 @@ class DropViewerWindow:
                             (0.0, 0.0)
                         ):
                             self.selected_item_key = selected_key
-                            self.selected_log_row = list(row)
+                            self.selected_log_row = row
                         if PyImGui.is_item_clicked(1):
                             PyImGui.open_popup(f"DropLogRowMenu##{row_idx}")
                         if PyImGui.begin_popup(f"DropLogRowMenu##{row_idx}"):
@@ -5244,6 +5263,7 @@ class DropViewerWindow:
                                     stats_sender_email,
                                     rendered,
                                     player_name=stats_sender_name,
+                                    allow_player_fallback=False,
                                 )
                             if self.selected_log_row and self._extract_row_event_id(self.selected_log_row) == event_id:
                                 selected_row = self._parse_drop_row(self.selected_log_row)
@@ -5320,6 +5340,7 @@ class DropViewerWindow:
                                 stats_sender_email,
                                 normalized_merged,
                                 player_name=stats_sender_name,
+                                allow_player_fallback=False,
                             )
                             if self.selected_log_row and self._extract_row_event_id(self.selected_log_row) == event_id:
                                 selected_row = self._parse_drop_row(self.selected_log_row)
