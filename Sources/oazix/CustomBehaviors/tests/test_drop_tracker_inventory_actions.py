@@ -29,6 +29,7 @@ class _FakeViewer:
         self.auto_id_enabled = False
         self.auto_salvage_enabled = False
         self.auto_buy_kits_enabled = False
+        self.auto_buy_kits_sort_to_front_enabled = True
         self.auto_gold_balance_enabled = False
         self.selected_id_rarities = ["Blue", "Purple"]
         self.selected_salvage_rarities = ["Gold"]
@@ -105,6 +106,10 @@ class _FakeViewer:
         text = str(payload or "").strip().lower()
         self.auto_buy_kits_enabled = text in ("1", "true", "on", "yes", "y", "enable", "enabled")
 
+    def _apply_auto_buy_kits_sort_config_payload(self, payload):
+        text = str(payload or "").strip().lower()
+        self.auto_buy_kits_sort_to_front_enabled = text in ("1", "true", "on", "yes", "y", "enable", "enabled")
+
     def _apply_auto_gold_balance_config_payload(self, payload):
         text = str(payload or "").strip().lower()
         self.auto_gold_balance_enabled = text in ("1", "true", "on", "yes", "y", "enable", "enabled")
@@ -172,6 +177,26 @@ def _install_fake_py4gw(
     monkeypatch.setitem(sys.modules, "Py4GWCoreLib.Item", item_mod)
 
 
+def _install_fake_drop_tracker_sender(monkeypatch, get_cached_stats_fn):
+    cleared = []
+
+    class _DropTrackerSender:
+        def get_cached_event_stats_text(self, event_id, item_id=0, model_id=0):
+            return get_cached_stats_fn(str(event_id), int(item_id), int(model_id))
+
+        def clear_cached_event_stats(self, event_id, item_id=0):
+            cleared.append((str(event_id), int(item_id)))
+
+    sender_mod = types.ModuleType("Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility")
+    sender_mod.DropTrackerSender = _DropTrackerSender
+    monkeypatch.setitem(
+        sys.modules,
+        "Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility",
+        sender_mod,
+    )
+    return cleared
+
+
 def test_identify_scheduler_sends_payload_when_identified():
     scheduler = IdentifyResponseScheduler()
     scheduler.schedule(item_id=42, reply_email="leader@test", event_id="ev-1", timeout_s=0.5)
@@ -223,6 +248,39 @@ def test_identify_scheduler_falls_back_to_stats_on_timeout():
     assert not sent_payload
     assert len(sent_stats) == 1
     assert sent_stats[0][1] == "ev-timeout"
+    assert scheduler.pending_count() == 0
+
+
+def test_identify_scheduler_waits_for_payload_ready_until_timeout():
+    scheduler = IdentifyResponseScheduler()
+    scheduler.schedule(item_id=101, reply_email="leader@test", event_id="ev-ready", timeout_s=0.2)
+
+    sent_payload = []
+
+    completed = scheduler.tick(
+        build_payload_fn=lambda _item_id: '{"mods":[]}',
+        is_identified_fn=lambda _item_id: True,
+        send_payload_fn=lambda email, event_id, payload: sent_payload.append((email, event_id, payload)) or True,
+        build_stats_fn=lambda _item_id: "",
+        send_stats_fn=lambda _email, _event_id, _stats: True,
+        payload_ready_fn=lambda _payload, _item_id, identified, timed_out: bool((not identified) or timed_out),
+    )
+    assert completed == 0
+    assert scheduler.pending_count() == 1
+    assert sent_payload == []
+
+    time.sleep(0.25)
+    completed = scheduler.tick(
+        build_payload_fn=lambda _item_id: '{"mods":[]}',
+        is_identified_fn=lambda _item_id: True,
+        send_payload_fn=lambda email, event_id, payload: sent_payload.append((email, event_id, payload)) or True,
+        build_stats_fn=lambda _item_id: "",
+        send_stats_fn=lambda _email, _event_id, _stats: True,
+        payload_ready_fn=lambda _payload, _item_id, identified, timed_out: bool((not identified) or timed_out),
+    )
+    assert completed == 1
+    assert len(sent_payload) == 1
+    assert sent_payload[0][1] == "ev-ready"
     assert scheduler.pending_count() == 0
 
 
@@ -522,6 +580,7 @@ def test_run_inventory_action_id_item_id_api_exception(monkeypatch):
 
 def test_run_inventory_action_id_item_id_success_schedules_response(monkeypatch):
     _install_fake_py4gw(monkeypatch, kit_id=1, identified=False, identify_result=True)
+    cleared = _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "")
     viewer = _FakeViewer()
     ok = run_inventory_action(
         viewer,
@@ -532,6 +591,7 @@ def test_run_inventory_action_id_item_id_success_schedules_response(monkeypatch)
     )
     assert ok is True
     assert viewer.identify_response_scheduler.calls == [(42, "leader@test", "ev-9", 2.0)]
+    assert cleared == [("ev-9", 42)]
     assert "started" in viewer.status_message
 
 
@@ -568,6 +628,14 @@ def test_run_inventory_action_cfg_auto_buy_kits_applies_toggle():
     assert "Auto Buy Kits Config" in viewer.status_message
 
 
+def test_run_inventory_action_cfg_auto_buy_kits_sort_applies_toggle():
+    viewer = _FakeViewer()
+    ok = run_inventory_action(viewer, "cfg_auto_buy_kits_sort", "0")
+    assert ok is True
+    assert viewer.auto_buy_kits_sort_to_front_enabled is False
+    assert "Auto Kit Sort Config" in viewer.status_message
+
+
 def test_run_inventory_action_cfg_auto_gold_balance_applies_toggle():
     viewer = _FakeViewer()
     ok = run_inventory_action(viewer, "cfg_auto_gold_balance", "1")
@@ -591,6 +659,64 @@ def test_run_inventory_action_push_item_stats_prefers_payload_send():
     assert viewer._stats_calls == []
 
 
+def test_run_inventory_action_push_item_stats_prefers_cached_event_stats_over_payload(monkeypatch):
+    _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "cached stats")
+    viewer = _FakeViewer()
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats",
+        action_payload="42",
+        action_meta="ev-cached",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert viewer._snapshot_calls == []
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_identified_prefers_payload_over_cached(monkeypatch):
+    _install_fake_py4gw(monkeypatch, kit_id=1, identified=True, identify_result=True)
+    _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "cached stats")
+    viewer = _FakeViewer()
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats",
+        action_payload="42",
+        action_meta="ev-identified",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert viewer._snapshot_calls == [(42, "")]
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_event_falls_back_to_event_only_cache(monkeypatch):
+    calls = []
+
+    def _cache(ev, item_id, model_id):
+        calls.append((ev, item_id, model_id))
+        if item_id > 0:
+            return ""
+        return "cached by event"
+
+    _install_fake_drop_tracker_sender(monkeypatch, _cache)
+    viewer = _FakeViewer()
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_event",
+        action_payload="999",
+        action_meta="ev-cache-fallback",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert calls[0][1] == 999
+    assert any(item_id == 0 for _, item_id, _ in calls)
+
+
 def test_run_inventory_action_push_item_stats_name_prefers_payload_send():
     viewer = _FakeViewer()
     viewer.resolved_item_id = 77
@@ -604,6 +730,22 @@ def test_run_inventory_action_push_item_stats_name_prefers_payload_send():
         reply_email="leader@test",
     )
     assert ok is True
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_name_prefers_cached_event_stats(monkeypatch):
+    _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "cached by event")
+    viewer = _FakeViewer()
+    viewer.resolved_item_id = 0
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_name",
+        action_payload="Holy Staff",
+        action_meta="ev-name-cached",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert viewer._snapshot_calls == []
     assert viewer._stats_calls == []
 
 
@@ -629,6 +771,22 @@ def test_run_inventory_action_push_item_stats_sig_prefers_payload_send():
         reply_email="leader@test",
     )
     assert ok is True
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_sig_prefers_cached_event_stats(monkeypatch):
+    _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "cached by event")
+    viewer = _FakeViewer()
+    viewer.resolved_item_id_by_sig = 0
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_sig",
+        action_payload="deadbeef|Gold",
+        action_meta="ev-sig-cached",
+        reply_email="leader@test",
+    )
+    assert ok is True
+    assert viewer._snapshot_calls == []
     assert viewer._stats_calls == []
 
 

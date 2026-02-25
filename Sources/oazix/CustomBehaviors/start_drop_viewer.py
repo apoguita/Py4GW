@@ -315,8 +315,11 @@ class DropViewerWindow:
         self.auto_id_job_running = False
         self.auto_salvage_job_running = False
         self.auto_buy_kits_enabled = False
+        self.auto_buy_kits_sort_to_front_enabled = True
         self.auto_buy_kits_job_running = False
         self.auto_buy_kits_handled_entry_key = ""
+        self.auto_inventory_reorder_job_running = False
+        self.auto_inventory_reorder_handled_entry_key = ""
         # Merchant restock priority list (first matching name in this order is used).
         self.auto_buy_kits_merchant_names = [
             "Answa",
@@ -420,6 +423,7 @@ class DropViewerWindow:
             "salvage_sel_gold": False,
             "auto_salvage_enabled": False,
             "auto_buy_kits_enabled": False,
+            "auto_buy_kits_sort_to_front_enabled": True,
             "auto_buy_kits_map_model_hints": self._default_auto_buy_kits_map_model_hints(),
             "auto_gold_balance_enabled": False,
             "auto_gold_balance_target": 10000,
@@ -456,6 +460,9 @@ class DropViewerWindow:
         self.salvage_sel_gold = bool(cfg.get("salvage_sel_gold", self.salvage_sel_gold))
         self.auto_salvage_enabled = bool(cfg.get("auto_salvage_enabled", self.auto_salvage_enabled))
         self.auto_buy_kits_enabled = bool(cfg.get("auto_buy_kits_enabled", self.auto_buy_kits_enabled))
+        self.auto_buy_kits_sort_to_front_enabled = bool(
+            cfg.get("auto_buy_kits_sort_to_front_enabled", self.auto_buy_kits_sort_to_front_enabled)
+        )
         loaded_map_hints = self._sanitize_map_model_hints(cfg.get("auto_buy_kits_map_model_hints", self.auto_buy_kits_map_model_hints))
         default_map_hints = self._default_auto_buy_kits_map_model_hints()
         for map_key, default_models in default_map_hints.items():
@@ -585,6 +592,7 @@ class DropViewerWindow:
         cfg["salvage_sel_gold"] = bool(self.salvage_sel_gold)
         cfg["auto_salvage_enabled"] = bool(self.auto_salvage_enabled)
         cfg["auto_buy_kits_enabled"] = bool(self.auto_buy_kits_enabled)
+        cfg["auto_buy_kits_sort_to_front_enabled"] = bool(self.auto_buy_kits_sort_to_front_enabled)
         cfg["auto_buy_kits_map_model_hints"] = self._sanitize_map_model_hints(self.auto_buy_kits_map_model_hints)
         cfg["auto_gold_balance_enabled"] = bool(self.auto_gold_balance_enabled)
         cfg["auto_gold_balance_target"] = int(self.auto_gold_balance_target)
@@ -3647,6 +3655,11 @@ class DropViewerWindow:
                 "Auto buy kits loop status.",
             ),
             (
+                f"Inv Sort: {'ON' if self.auto_buy_kits_sort_to_front_enabled else 'OFF'}",
+                "success" if self.auto_buy_kits_sort_to_front_enabled else "secondary",
+                "Outpost-entry inventory reorder status.",
+            ),
+            (
                 f"Auto Gold: {'ON' if self.auto_gold_balance_enabled else 'OFF'}",
                 "success" if self.auto_gold_balance_enabled else "secondary",
                 f"Auto keep {int(self.auto_gold_balance_target)}g on character in outpost.",
@@ -3826,6 +3839,12 @@ class DropViewerWindow:
                     "action": "toggle_auto_buy_kits",
                 },
                 {
+                    "label": f"[KS] Sort {'ON' if self.auto_buy_kits_sort_to_front_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_buy_kits_sort_to_front_enabled else "secondary",
+                    "tooltip": "Outpost entry: kits to front, then followers reorder non-kits by rarity/type priority.",
+                    "action": "toggle_auto_buy_kits_sort",
+                },
+                {
                     "label": f"[GD] Auto {'ON' if self.auto_gold_balance_enabled else 'OFF'}",
                     "variant": "success" if self.auto_gold_balance_enabled else "secondary",
                     "tooltip": f"Auto Gold Balance: keep {int(self.auto_gold_balance_target)} gold on character in outpost.",
@@ -3860,6 +3879,10 @@ class DropViewerWindow:
                     next_kits_enabled = not self.auto_buy_kits_enabled
                     kits_payload = "1" if next_kits_enabled else "0"
                     self._trigger_inventory_action("cfg_auto_buy_kits", kits_payload)
+                elif action_code == "toggle_auto_buy_kits_sort":
+                    next_sort_enabled = not self.auto_buy_kits_sort_to_front_enabled
+                    sort_payload = "1" if next_sort_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_buy_kits_sort", sort_payload)
                 elif action_code == "toggle_auto_gold_balance":
                     next_gold_enabled = not self.auto_gold_balance_enabled
                     gold_payload = "1" if next_gold_enabled else "0"
@@ -4146,6 +4169,15 @@ class DropViewerWindow:
             self.auto_buy_kits_handled_entry_key = ""
             # Run one immediate one-time outpost check when enabling.
             self._run_auto_buy_kits_once_on_outpost_entry_tick()
+        self.runtime_config_dirty = True
+
+    def _apply_auto_buy_kits_sort_config_payload(self, payload: str):
+        previous = bool(self.auto_buy_kits_sort_to_front_enabled)
+        next_enabled = self._parse_toggle_payload(payload, self.auto_buy_kits_sort_to_front_enabled)
+        self.auto_buy_kits_sort_to_front_enabled = bool(next_enabled)
+        if (not previous) and self.auto_buy_kits_sort_to_front_enabled and bool(Map.IsOutpost()):
+            # Allow immediate one-time run in current outpost after enabling.
+            self.auto_inventory_reorder_handled_entry_key = ""
         self.runtime_config_dirty = True
 
     def _apply_auto_gold_balance_config_payload(self, payload: str):
@@ -5553,7 +5585,7 @@ class DropViewerWindow:
         if not self._is_monitoring_settled_for_auto_inventory(set_status=False):
             self.auto_id_last_queued = 0
             return 0
-        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
+        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_inventory_reorder_job_running:
             return 0
         try:
             items = Routines.Items.GetUnidentifiedItems(list(rarities), [])
@@ -5606,7 +5638,7 @@ class DropViewerWindow:
         if not self._is_monitoring_settled_for_auto_inventory(set_status=False):
             self.auto_salvage_last_queued = 0
             return 0
-        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
+        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_inventory_reorder_job_running:
             return 0
         try:
             items = Routines.Items.GetSalvageableItems(list(rarities), [])
@@ -6233,13 +6265,108 @@ class DropViewerWindow:
             pass
         return kit_item_ids
 
-    def _sort_kits_to_front(self) -> Generator[Any, Any, int]:
+    def _collect_kit_quantity_map(self) -> dict[int, int]:
+        quantities: dict[int, int] = {}
+        for item_id in self._collect_kit_item_ids_for_sort():
+            try:
+                quantities[int(item_id)] = max(0, self._safe_int(Item.Properties.GetQuantity(int(item_id)), 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                quantities[int(item_id)] = 0
+        return quantities
+
+    def _is_rune_item_for_reorder(self, item_id: int) -> bool:
+        try:
+            _, item_type_name = Item.GetItemType(int(item_id))
+            type_text = self._ensure_text(item_type_name).strip().lower()
+            return "rune" in type_text
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _inventory_reorder_bucket(self, item_id: int) -> int:
+        try:
+            _, rarity_name = Item.Rarity.GetRarity(int(item_id))
+            rarity = self._ensure_text(rarity_name).strip().lower()
+        except EXPECTED_RUNTIME_ERRORS:
+            rarity = ""
+
+        if rarity == "gold":
+            return 1
+        if rarity == "purple":
+            return 2
+        if rarity == "blue":
+            return 3
+        if rarity == "white":
+            return 4
+        try:
+            if bool(Item.Type.IsTome(int(item_id))):
+                return 5
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        if self._is_rune_item_for_reorder(int(item_id)):
+            return 6
+        return 7
+
+    def _reorder_inventory_after_kits(self) -> Generator[Any, Any, int]:
+        slot_order = self._build_inventory_slot_order()
+        if not slot_order:
+            return 0
+
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            all_item_ids = [max(0, self._safe_int(v, 0)) for v in list(ItemArray.GetItemArray(bags_to_check) or [])]
+            all_item_ids = [v for v in all_item_ids if v > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            all_item_ids = []
+        if not all_item_ids:
+            return 0
+
+        kit_item_ids = self._collect_kit_item_ids_for_sort()
+        kit_set = set(int(v) for v in list(kit_item_ids or []) if self._safe_int(v, 0) > 0)
+        non_kit_item_ids = [int(v) for v in all_item_ids if int(v) not in kit_set]
+        if not non_kit_item_ids:
+            return 0
+
+        target_slots = slot_order[len(kit_set):]
+        if not target_slots:
+            return 0
+
+        def _pos_key(item_id: int) -> tuple[int, int]:
+            bag_id, slot = Inventory.FindItemBagAndSlot(int(item_id))
+            return (self._safe_int(bag_id, 99), self._safe_int(slot, 999))
+
+        non_kit_item_ids.sort(key=lambda item_id: (self._inventory_reorder_bucket(int(item_id)), _pos_key(int(item_id))))
+
+        moved = 0
+        for idx, item_id in enumerate(non_kit_item_ids):
+            if idx >= len(target_slots):
+                break
+            target_bag, target_slot = target_slots[idx]
+            current_bag, current_slot = Inventory.FindItemBagAndSlot(int(item_id))
+            current_bag_i = self._safe_int(current_bag, 0)
+            current_slot_i = self._safe_int(current_slot, -1)
+            if current_bag_i == target_bag and current_slot_i == target_slot:
+                continue
+            try:
+                qty = max(1, self._safe_int(Item.Properties.GetQuantity(int(item_id)), 1))
+                Inventory.MoveItem(int(item_id), int(target_bag), int(target_slot), int(qty))
+                moved += 1
+                yield from Routines.Yield.wait(90)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+        return int(moved)
+
+    def _sort_kits_to_front(self, priority_item_ids: list[int] | None = None) -> Generator[Any, Any, int]:
         slot_order = self._build_inventory_slot_order()
         if not slot_order:
             return 0
         kit_item_ids = self._collect_kit_item_ids_for_sort()
         if not kit_item_ids:
             return 0
+        if priority_item_ids:
+            priority_set = {int(v) for v in list(priority_item_ids or []) if self._safe_int(v, 0) > 0}
+            prioritized = [item_id for item_id in kit_item_ids if item_id in priority_set]
+            if prioritized:
+                kit_item_ids = prioritized
 
         moved = 0
         for idx, kit_item_id in enumerate(kit_item_ids):
@@ -6630,9 +6757,7 @@ class DropViewerWindow:
                 status_parts.append(f"superior ID kits x{bought_superior}")
             if bought_regular_id > 0:
                 status_parts.append(f"ID kits x{bought_regular_id}")
-            sorted_count = int((yield from self._sort_kits_to_front()) or 0)
-            if sorted_count > 0:
-                status_parts.append(f"sorted x{sorted_count}")
+            # Sorting/reordering runs on outpost-entry tick, not inside buy flow.
             if missing_items:
                 status_parts.append(f"missing {', '.join(sorted(list(missing_items)))}")
             self.set_status(f"Auto Buy Kits: bought {', '.join(status_parts)}")
@@ -6651,7 +6776,7 @@ class DropViewerWindow:
             if verbose_status:
                 self.set_status("Auto Buy Kits: already running")
             return 0
-        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
             self._trace_auto_buy_kits("queue: rejected, busy with other inventory job")
             if verbose_status:
                 self.set_status("Auto Buy Kits: busy with another inventory job")
@@ -6705,7 +6830,7 @@ class DropViewerWindow:
             if verbose_status:
                 self.set_status("Auto Gold: already running")
             return 0
-        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_inventory_reorder_job_running:
             if verbose_status:
                 self.set_status("Auto Gold: busy with another inventory job")
             return 0
@@ -6727,7 +6852,7 @@ class DropViewerWindow:
             return False
         if self.auto_gold_balance_handled_entry_key == entry_key:
             return False
-        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
             return False
 
         target_amount = max(0, int(self.auto_gold_balance_target))
@@ -6742,6 +6867,69 @@ class DropViewerWindow:
             return True
         return False
 
+    def _run_auto_inventory_reorder_job(self, verbose_status: bool = True) -> Generator[Any, Any, None]:
+        self.auto_inventory_reorder_job_running = True
+        try:
+            if not bool(Map.IsOutpost()):
+                if verbose_status:
+                    self.set_status("Inventory Sort: only available in outpost/town")
+                return
+            sorted_count = int((yield from self._sort_kits_to_front()) or 0)
+            reordered_count = 0
+            # Leader keeps manual non-kit ordering; followers get full reorder.
+            if not self._is_leader_client():
+                reordered_count = int((yield from self._reorder_inventory_after_kits()) or 0)
+            if verbose_status:
+                parts = []
+                if sorted_count > 0:
+                    parts.append(f"kits x{sorted_count}")
+                if reordered_count > 0:
+                    parts.append(f"items x{reordered_count}")
+                if not parts:
+                    parts.append("no moves needed")
+                self.set_status(f"Inventory Sort: {', '.join(parts)}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Inventory Sort failed: {e}")
+        finally:
+            self.auto_inventory_reorder_job_running = False
+
+    def _queue_auto_inventory_reorder(self, verbose_status: bool = True) -> int:
+        if self.auto_inventory_reorder_job_running:
+            if verbose_status:
+                self.set_status("Inventory Sort: already running")
+            return 0
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+            if verbose_status:
+                self.set_status("Inventory Sort: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_auto_inventory_reorder_job(verbose_status=verbose_status))
+            if verbose_status:
+                self.set_status("Inventory Sort: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Inventory Sort queue failed: {e}")
+            return 0
+
+    def _run_auto_inventory_reorder_once_on_outpost_entry_tick(self) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            return False
+        if not self.auto_buy_kits_sort_to_front_enabled:
+            return False
+        if self.auto_inventory_reorder_handled_entry_key == entry_key:
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+            return False
+
+        queued = self._queue_auto_inventory_reorder(verbose_status=False)
+        if queued > 0:
+            self.auto_inventory_reorder_handled_entry_key = entry_key
+            return True
+        return False
+
     def _run_auto_buy_kits_once_on_outpost_entry_tick(self) -> bool:
         entry_key = self._refresh_auto_outpost_store_entry_key()
         if not entry_key:
@@ -6753,7 +6941,7 @@ class DropViewerWindow:
         if self.auto_buy_kits_handled_entry_key == entry_key:
             self._trace_auto_buy_kits(f"entry: skipped, already handled entry={entry_key}")
             return False
-        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
             self._trace_auto_buy_kits("entry: skipped, busy with other running job")
             return False
 
@@ -6937,7 +7125,7 @@ class DropViewerWindow:
             self.auto_outpost_store_job_running = False
 
     def _queue_manual_sell_gold_items(self) -> int:
-        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
             self.set_status("Sell Gold: busy with another inventory job")
             return 0
         try:
@@ -6970,7 +7158,7 @@ class DropViewerWindow:
             return False
         if not force and not self.auto_outpost_store_enabled:
             return False
-        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
             return False
         if self.auto_outpost_store_handled_entry_key == entry_key:
             return False
@@ -7024,6 +7212,16 @@ class DropViewerWindow:
             except EXPECTED_RUNTIME_ERRORS:
                 continue
 
+            # Auto-ID can make previously cached event stats stale (name/value only).
+            # Drop sender-side cached snapshots for this item so next remote request
+            # rebuilds from the freshly identified live state.
+            try:
+                sender = DropTrackerSender()
+                model_id = max(0, self._safe_int(Item.GetModelID(int(item_id)), 0))
+                sender.clear_cached_event_stats_for_item(int(item_id), model_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+
             # Rebuild stats after identification so newly exposed mods get tracked/exported.
             self._build_item_stats_from_live_item(int(item_id), "")
             pending.pop(item_id, None)
@@ -7034,6 +7232,21 @@ class DropViewerWindow:
                 return bool(Item.Usage.IsIdentified(int(item_id)))
             except (TypeError, ValueError, RuntimeError, AttributeError):
                 return False
+
+        def _payload_ready_for_identify(payload_text: str, item_id: int, identified: bool, timed_out: bool) -> bool:
+            if not identified or timed_out:
+                return True
+            try:
+                payload_obj = json.loads(self._ensure_text(payload_text).strip())
+            except EXPECTED_RUNTIME_ERRORS:
+                return False
+            if not isinstance(payload_obj, dict):
+                return False
+            mods = list(payload_obj.get("mods", []) or [])
+            if mods:
+                return True
+            # Keep polling briefly after identify; modifier data can lag one or two ticks.
+            return False
 
         try:
             completed = self.identify_response_scheduler.tick(
@@ -7050,6 +7263,7 @@ class DropViewerWindow:
                     event_id,
                     stats,
                 ),
+                payload_ready_fn=_payload_ready_for_identify,
             )
             if completed > 0 and self.verbose_shmem_item_logs:
                 Py4GW.Console.Log(
@@ -7069,13 +7283,16 @@ class DropViewerWindow:
             if self.auto_outpost_store_enabled and self._run_auto_outpost_store_tick():
                 return
 
-            if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+            if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
                 return
 
             if self._run_auto_gold_balance_once_on_outpost_entry_tick():
                 return
 
             if self._run_auto_buy_kits_once_on_outpost_entry_tick():
+                return
+
+            if self._run_auto_inventory_reorder_once_on_outpost_entry_tick():
                 return
 
             if (self.auto_id_enabled or self.auto_salvage_enabled) and not self._is_monitoring_settled_for_auto_inventory(set_status=True):
@@ -7173,12 +7390,14 @@ class DropViewerWindow:
         id_payload = self._encode_auto_action_payload(self.auto_id_enabled, self._get_selected_id_rarities())
         salvage_payload = self._encode_auto_action_payload(self.auto_salvage_enabled, self._get_selected_salvage_rarities())
         kits_payload = "1" if self.auto_buy_kits_enabled else "0"
+        kits_sort_payload = "1" if self.auto_buy_kits_sort_to_front_enabled else "0"
         gold_payload = "1" if self.auto_gold_balance_enabled else "0"
         store_payload = "1" if self.auto_outpost_store_enabled else "0"
         sent = 0
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_id", id_payload)
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_salvage", salvage_payload)
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_buy_kits", kits_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_buy_kits_sort", kits_sort_payload)
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_gold_balance", gold_payload)
         sent += self._broadcast_inventory_action_to_followers("cfg_auto_outpost_store", store_payload)
         if sent > 0:
