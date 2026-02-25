@@ -425,7 +425,20 @@ def build_known_spellcasting_mod_lines(
 
         if ident_i in (26568, 25288, 8920):
             # Common spellcaster/offhand base-energy encodings.
-            energy_val = arg2_i if arg2_i > 0 else arg1_i
+            # 26568 (offhand focus base) commonly carries full energy in arg1 and
+            # a half-scale mirror in arg2 (e.g. arg1=12, arg2=6).
+            if ident_i == 26568:
+                if arg1_i > 0:
+                    energy_val = arg1_i
+                elif arg2_i > 0:
+                    energy_val = arg2_i * 2
+                else:
+                    energy_val = 0
+            elif ident_i == 25288:
+                energy_val = arg1_i if arg1_i > 0 else arg2_i
+            else:
+                # 8920 can carry noisy arg1 values on some payloads; prefer arg2.
+                energy_val = arg2_i if arg2_i > 0 else arg1_i
             if energy_val > 0:
                 lines.append(f"Energy +{energy_val}")
             continue

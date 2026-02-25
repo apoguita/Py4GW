@@ -1,0 +1,72 @@
+Merchant Scan Debug @ 2026-02-23 18:14:28
+Map: 55 Lions Arch
+Outpost: True
+Player XY: (4107.0, 9495.0)
+Configured merchant names:
+  1. Answa
+  2. Volsung
+  3. Bodrus the Outfitter
+  4. Hasrah
+  5. Acolyte Singpa
+Scan counts: npc=36 neutral=0 all_agents=51 merged=36 filtered=36
+Known merchant/trader model IDs: 74
+Map model hints: 2043
+NPC rows:
+  aid=24 dist=2416.2 xy=(1695.0,9638.0) model=8025:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=25 dist=4913.4 xy=(7297.0,5758.0) model=2080:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=26 dist=4179.5 xy=(6.0,8689.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=27 dist=3682.3 xy=(7611.0,10627.0) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=28 dist=2081.8 xy=(2072.0,9056.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=29 dist=2462.0 xy=(2586.0,7559.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=30 dist=2583.6 xy=(2490.0,7480.0) model=2010:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=31 dist=2469.6 xy=(2675.0,7483.0) model=3307:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=32 dist=2416.0 xy=(2771.0,7482.0) model=5269:Kournan Elite Zealot base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=33 dist=2650.3 xy=(2389.0,7477.0) model=2116:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=34 dist=1745.8 xy=(2376.0,9268.0) model=2065:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=35 dist=1190.9 xy=(3233.0,10304.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=36 dist=3185.1 xy=(2343.0,6843.0) model=2008:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=37 dist=4566.6 xy=(7396.0,6327.0) model=2043:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=38 dist=2914.5 xy=(2806.0,6887.0) model=2018:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=39 dist=3044.4 xy=(7081.0,10146.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=40 dist=3241.4 xy=(7336.0,9778.0) model=2008:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=41 dist=3780.3 xy=(328.0,9594.0) model=2042:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=42 dist=4828.2 xy=(7052.0,5669.0) model=2035:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=43 dist=4814.1 xy=(7483.0,6063.0) model=2033:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=44 dist=4417.7 xy=(6988.0,6146.0) model=2071:Ascalon base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=45 dist=2225.6 xy=(6332.0,9444.0) model=2020:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=46 dist=1404.8 xy=(3089.0,8527.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=47 dist=3288.8 xy=(7306.4,10256.7) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=48 dist=3919.6 xy=(918.0,11773.9) model=2013:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=49 dist=2555.7 xy=(3551.8,7000.3) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=50 dist=2580.8 xy=(3710.7,6944.8) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=51 dist=3279.8 xy=(960.4,10420.3) model=2013:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=52 dist=3951.9 xy=(4340.6,5550.0) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=53 dist=4112.4 xy=(159.0,10646.0) model=221:Xunlai Agent base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=54 dist=4124.6 xy=(196.0,10805.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=55 dist=4237.9 xy=(20.0,10616.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=56 dist=2717.7 xy=(2215.0,11446.0) model=2034:Captured Chosen base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=57 dist=2552.3 xy=(6635.0,9144.0) model=2014:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=58 dist=2593.1 xy=(6589.0,8744.0) model=222:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=59 dist=1625.1 xy=(5726.0,9636.0) model=7799:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+Chosen candidates: 37
+Cached seen names: Feature Disabled
+Cached seen models: 8025:?, 2080:?, 2041:?, 2011:?, 2010:?, 3307:?, 5269:Kournan Elite Zealot, 2116:?, 2065:?, 2008:Krytan, 2043:?, 2018:?, 2042:?, 2035:?, 2033:?, 2071:Ascalon, 2020:Krytan, 2013:?, 221:Xunlai Agent, 5052:Corsair Seer
+AutoBuyKits trace:
+  18:14:19.391 entry: skipped, no entry key
+  18:14:19.897 entry: skipped, no entry key
+  18:14:20.500 entry: skipped, no entry key
+  18:14:20.990 entry: skipped, no entry key
+  18:14:21.865 entry: skipped, no entry key
+  18:14:22.386 entry: skipped, enough kits (salvage_uses=25, total_id_uses=100)
+  18:14:22.915 entry: skipped, already handled entry=55:1
+  18:14:23.399 entry: skipped, already handled entry=55:1
+  18:14:23.904 entry: skipped, already handled entry=55:1
+  18:14:24.414 entry: skipped, already handled entry=55:1
+  18:14:24.916 entry: skipped, already handled entry=55:1
+  18:14:25.421 entry: skipped, already handled entry=55:1
+  18:14:25.936 entry: skipped, already handled entry=55:1
+  18:14:26.437 entry: skipped, already handled entry=55:1
+  18:14:26.939 entry: skipped, already handled entry=55:1
+  18:14:27.439 entry: skipped, already handled entry=55:1
+  18:14:27.943 entry: skipped, already handled entry=55:1
+  18:14:28.443 entry: skipped, already handled entry=55:1

@@ -183,6 +183,29 @@ def test_build_known_spellcasting_mod_lines_uses_arg2_for_energy_value():
     assert "Energy +99" not in lines
 
 
+def test_build_known_spellcasting_mod_lines_uses_arg1_for_offhand_26568():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(26568, 12, 6)],
+        item_attr_txt="",
+        item_type=12,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Energy +12" in lines
+    assert "Energy +6" not in lines
+
+
+def test_build_known_spellcasting_mod_lines_doubles_arg2_for_offhand_26568_when_arg1_missing():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(26568, 0, 6)],
+        item_attr_txt="",
+        item_type=12,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Energy +12" in lines
+
+
 def test_build_known_spellcasting_mod_lines_rejects_invalid_10296_chance():
     lines = build_known_spellcasting_mod_lines(
         raw_mods=[(10296, 50, 0)],

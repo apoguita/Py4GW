@@ -16,6 +16,9 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol impor
     make_event_id,
     make_name_signature,
 )
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_delta_filter import (
+    filter_candidate_events_by_model_delta,
+)
 from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
     build_known_spellcasting_mod_lines,
     prune_generic_attribute_bonus_lines,
@@ -43,7 +46,7 @@ class DropTrackerSender:
     """
 
     _instance = None
-    _STATE_VERSION = 11
+    _STATE_VERSION = 15
 
     def __new__(cls):
         if cls._instance is None:
@@ -90,12 +93,21 @@ class DropTrackerSender:
                         os.path.dirname(constants.DROP_LOG_PATH),
                         "drop_tracker_runtime_config.json",
                     )
+                if not hasattr(self, "last_inventory_activity_ts"):
+                    self.last_inventory_activity_ts = 0.0
+                if not hasattr(self, "sent_event_stats_cache"):
+                    self.sent_event_stats_cache = {}
+                if not hasattr(self, "sent_event_stats_ttl_seconds"):
+                    self.sent_event_stats_ttl_seconds = 600.0
+                if not hasattr(self, "max_stats_builds_per_tick"):
+                    self.max_stats_builds_per_tick = 2
+                self.inventory_poll_timer = ThrottledTimer(250)
                 self.state_version = self._STATE_VERSION
                 self._reset_tracking_state()
             return
         self._initialized = True
         self.state_version = self._STATE_VERSION
-        self.inventory_poll_timer = ThrottledTimer(350)
+        self.inventory_poll_timer = ThrottledTimer(250)
         self.last_inventory_snapshot: dict[tuple[int, int], tuple[str, str, int, int, int]] = {}
         self.enabled = True
         self.gold_regex = re.compile(r"^(?:\[([\d: ]+[ap]m)\] )?Your party shares ([\d,]+) gold\.$")
@@ -128,6 +140,10 @@ class DropTrackerSender:
         self.last_seen_map_id = 0
         self.last_process_duration_ms = 0.0
         self.last_ack_count = 0
+        self.last_inventory_activity_ts = 0.0
+        self.sent_event_stats_cache: dict[str, dict] = {}
+        self.sent_event_stats_ttl_seconds = 600.0
+        self.max_stats_builds_per_tick = 2
         self.runtime_config_path = os.path.join(
             os.path.dirname(constants.DROP_LOG_PATH),
             "drop_tracker_runtime_config.json",
@@ -557,9 +573,142 @@ class DropTrackerSender:
         self.warmup_grace_until = 0.0
         self.last_process_duration_ms = 0.0
         self.last_ack_count = 0
+        self.last_inventory_activity_ts = 0.0
+        self.sent_event_stats_cache = {}
 
     def _strip_tags(self, text: str) -> str:
         return re.sub(r"<[^>]+>", "", text or "")
+
+    def _prune_sent_event_stats_cache(self, now_ts: float | None = None):
+        now = float(now_ts if now_ts is not None else time.time())
+        ttl_s = max(30.0, float(getattr(self, "sent_event_stats_ttl_seconds", 600.0)))
+        cache = getattr(self, "sent_event_stats_cache", {})
+        if not isinstance(cache, dict) or not cache:
+            return
+        for event_id in list(cache.keys()):
+            entry = cache.get(event_id)
+            if not isinstance(entry, dict):
+                cache.pop(event_id, None)
+                continue
+            created_at = float(entry.get("created_at", now))
+            if (now - created_at) > ttl_s:
+                cache.pop(event_id, None)
+
+    def _remember_event_stats_snapshot(
+        self,
+        event_id: str,
+        item_id: int,
+        model_id: int,
+        item_name: str,
+        stats_text: str,
+    ):
+        event_key = str(event_id or "").strip()
+        if not event_key:
+            return
+        stats_value = str(stats_text or "").strip()
+        if not stats_value:
+            return
+        now_ts = time.time()
+        self._prune_sent_event_stats_cache(now_ts)
+        cache = getattr(self, "sent_event_stats_cache", None)
+        if not isinstance(cache, dict):
+            self.sent_event_stats_cache = {}
+            cache = self.sent_event_stats_cache
+        cache[event_key] = {
+            "item_id": int(item_id),
+            "model_id": int(model_id),
+            "item_name": str(item_name or "").strip(),
+            "stats_text": stats_value,
+            "created_at": float(now_ts),
+        }
+
+    def get_cached_event_stats_text(self, event_id: str, item_id: int = 0, model_id: int = 0) -> str:
+        event_key = str(event_id or "").strip()
+        if not event_key:
+            return ""
+        self._prune_sent_event_stats_cache()
+        cache = getattr(self, "sent_event_stats_cache", {})
+        if not isinstance(cache, dict):
+            return ""
+        entry = cache.get(event_key, None)
+        if not isinstance(entry, dict):
+            return ""
+        cached_item_id = int(entry.get("item_id", 0))
+        cached_model_id = int(entry.get("model_id", 0))
+        wanted_item_id = int(item_id or 0)
+        wanted_model_id = int(model_id or 0)
+        if wanted_item_id > 0 and cached_item_id > 0 and wanted_item_id != cached_item_id:
+            return ""
+        if wanted_model_id > 0 and cached_model_id > 0 and wanted_model_id != cached_model_id:
+            return ""
+        return str(entry.get("stats_text", "") or "").strip()
+
+    def _make_orphan_pending_slot_key(self, item_id: int, now_ts: float) -> tuple[int, int]:
+        if int(item_id) > 0:
+            return 0, -abs(int(item_id))
+        fallback_seed = int(now_ts * 1000.0) & 0x7FFFFFFF
+        return 0, -max(1, fallback_seed)
+
+    def _buffer_pending_slot_delta(
+        self,
+        slot_key: tuple[int, int],
+        delta_qty: int,
+        model_id: int,
+        item_id: int,
+        rarity: str,
+        now_ts: float,
+    ):
+        qty_to_add = max(1, int(delta_qty))
+        pending = self.pending_slot_deltas.get(slot_key)
+        if pending is None or not isinstance(pending, dict):
+            self.pending_slot_deltas[slot_key] = {
+                "qty": int(qty_to_add),
+                "model_id": int(model_id),
+                "item_id": int(item_id),
+                "rarity": rarity,
+                "first_seen": now_ts,
+                "last_seen": now_ts,
+            }
+            return
+
+        pending_item_id = int(pending.get("item_id", 0))
+        pending_model_id = int(pending.get("model_id", 0))
+        same_item = pending_item_id > 0 and pending_item_id == int(item_id)
+        same_model = pending_item_id <= 0 and pending_model_id > 0 and pending_model_id == int(model_id)
+        if not (same_item or same_model):
+            # Slot got reused by another unresolved item. Move previous pending to an
+            # orphan key (by item_id) so we can still resolve it without mixing records.
+            orphan_key = self._make_orphan_pending_slot_key(pending_item_id, now_ts)
+            orphan_entry = self.pending_slot_deltas.get(orphan_key)
+            if orphan_entry is None or not isinstance(orphan_entry, dict):
+                preserved = dict(pending)
+                preserved["last_seen"] = now_ts
+                self.pending_slot_deltas[orphan_key] = preserved
+            else:
+                orphan_entry["qty"] = int(orphan_entry.get("qty", 0)) + int(pending.get("qty", 0))
+                orphan_entry["model_id"] = int(pending.get("model_id", orphan_entry.get("model_id", 0)))
+                orphan_entry["item_id"] = int(pending.get("item_id", orphan_entry.get("item_id", 0)))
+                orphan_entry["rarity"] = orphan_entry.get("rarity") or pending.get("rarity") or rarity
+                orphan_entry["first_seen"] = min(
+                    float(orphan_entry.get("first_seen", now_ts)),
+                    float(pending.get("first_seen", now_ts)),
+                )
+                orphan_entry["last_seen"] = now_ts
+            self.pending_slot_deltas[slot_key] = {
+                "qty": int(qty_to_add),
+                "model_id": int(model_id),
+                "item_id": int(item_id),
+                "rarity": rarity,
+                "first_seen": now_ts,
+                "last_seen": now_ts,
+            }
+            return
+
+        pending["qty"] = int(pending.get("qty", 0)) + int(qty_to_add)
+        pending["model_id"] = int(model_id)
+        pending["item_id"] = int(item_id)
+        pending["rarity"] = pending.get("rarity") or rarity
+        pending["last_seen"] = now_ts
 
     def _resolve_party_leader_email(self) -> str | None:
         try:
@@ -613,6 +762,9 @@ class DropTrackerSender:
             self.max_outbox_size = max(20, int(data.get("max_outbox_size", self.max_outbox_size)))
             self.retry_interval_seconds = max(0.2, float(data.get("retry_interval_seconds", self.retry_interval_seconds)))
             self.max_retry_attempts = max(1, int(data.get("max_retry_attempts", self.max_retry_attempts)))
+            self.max_stats_builds_per_tick = max(
+                0, int(data.get("max_stats_builds_per_tick", self.max_stats_builds_per_tick))
+            )
         except EXPECTED_RUNTIME_ERRORS:
             return
 
@@ -761,7 +913,8 @@ class DropTrackerSender:
             "name_signature": make_name_signature(item_name or "Unknown Item"),
             "name_chunks_sent": False,
             "stats_chunks_sent": False,
-            "stats_text": self._build_item_stats_text(int(item_id), item_name or "Unknown Item"),
+            # Build stats lazily in _flush_outbox; eager builds can stall on burst pickups.
+            "stats_text": "",
             "attempts": 0,
             "next_retry_at": 0.0,
             "acked": False,
@@ -843,6 +996,7 @@ class DropTrackerSender:
             self._poll_ack_messages()
 
         now_ts = time.time()
+        stats_build_budget = max(0, int(getattr(self, "max_stats_builds_per_tick", 2)))
         kept_entries = []
         for entry in self.outbox_queue:
             if entry.get("acked", False):
@@ -898,11 +1052,28 @@ class DropTrackerSender:
                 entry["name_chunks_sent"] = True
 
             if (not send_failed) and (not entry.get("stats_chunks_sent", False)):
+                stats_text = str(entry.get("stats_text", "") or "")
+                if not stats_text and stats_build_budget > 0:
+                    built_text = self._build_item_stats_text(
+                        int(entry.get("item_id", 0)),
+                        str(entry.get("item_name", "Unknown Item") or "Unknown Item"),
+                    )
+                    entry["stats_text"] = str(built_text or "")
+                    stats_text = str(entry.get("stats_text", "") or "")
+                    stats_build_budget -= 1
+                    if stats_text:
+                        self._remember_event_stats_snapshot(
+                            event_id=str(entry.get("event_id", "")),
+                            item_id=int(entry.get("item_id", 0)),
+                            model_id=int(entry.get("model_id", 0)),
+                            item_name=str(entry.get("item_name", "") or ""),
+                            stats_text=stats_text,
+                        )
                 ok_stats = self._send_stats_chunks(
                     receiver_email=receiver_email,
                     my_email=my_email,
                     event_id=str(entry.get("event_id", "")),
-                    stats_text=str(entry.get("stats_text", "") or ""),
+                    stats_text=stats_text,
                 )
                 # Stats are best-effort; never block the drop event itself.
                 if ok_stats:
@@ -993,7 +1164,22 @@ class DropTrackerSender:
                         rarity = "Keys"
                     elif Item.Type.IsMaterial(item_id) or Item.Type.IsRareMaterial(item_id):
                         rarity = "Material"
-                    snapshot[(bag_id, slot_id)] = (clean_name, rarity, qty, model_id, int(item_id))
+                    slot_key = (bag_id, int(slot_id))
+                    existing_entry = snapshot.get(slot_key)
+                    if (
+                        existing_entry is not None
+                        and isinstance(existing_entry, tuple)
+                        and len(existing_entry) > 4
+                        and int(existing_entry[4]) != int(item_id)
+                    ):
+                        # Transient slot collisions can happen while inventory is mutating.
+                        # Keep both items by switching to a deterministic synthetic key.
+                        synthetic_slot_id = -max(1, abs(int(item_id)))
+                        slot_key = (bag_id, synthetic_slot_id)
+                        while slot_key in snapshot:
+                            synthetic_slot_id -= 1
+                            slot_key = (bag_id, synthetic_slot_id)
+                    snapshot[slot_key] = (clean_name, rarity, qty, model_id, int(item_id))
 
             self.last_snapshot_ready = ready_count
             self.last_snapshot_not_ready = not_ready_count
@@ -1056,39 +1242,58 @@ class DropTrackerSender:
 
         time_str = datetime.datetime.now().strftime("%I:%M %p")
         candidate_events: list[dict] = []
+        prev_model_qty: dict[int, int] = {}
+        current_model_qty: dict[int, int] = {}
+        for snapshot_entry in self.last_inventory_snapshot.values():
+            if not isinstance(snapshot_entry, tuple) or len(snapshot_entry) < 4:
+                continue
+            prev_model_id = int(snapshot_entry[3])
+            prev_qty = max(1, int(snapshot_entry[2])) if len(snapshot_entry) > 2 else 1
+            prev_model_qty[prev_model_id] = int(prev_model_qty.get(prev_model_id, 0)) + int(prev_qty)
+        for snapshot_entry in current_snapshot.values():
+            if not isinstance(snapshot_entry, tuple) or len(snapshot_entry) < 4:
+                continue
+            curr_model_id = int(snapshot_entry[3])
+            curr_qty = max(1, int(snapshot_entry[2])) if len(snapshot_entry) > 2 else 1
+            current_model_qty[curr_model_id] = int(current_model_qty.get(curr_model_id, 0)) + int(curr_qty)
         prev_item_ids = {int(v[4]) for v in self.last_inventory_snapshot.values() if isinstance(v, tuple) and len(v) > 4}
+        prev_item_state_by_id: dict[int, tuple[int, int]] = {
+            int(v[4]): (int(v[3]), int(v[2]))
+            for v in self.last_inventory_snapshot.values()
+            if isinstance(v, tuple) and len(v) > 4
+        }
         # Only names from slots that changed this tick are safe for pending-name resolution.
         changed_itemid_to_ready_name: dict[int, tuple[str, str]] = {}
         changed_model_rarity_to_ready_name: dict[tuple[int, str], str] = {}
         live_slots = set()
+        live_item_ids = set()
+        live_item_model_by_id: dict[int, int] = {}
         for slot_key, (name, rarity, qty, _model_id, _item_id) in current_snapshot.items():
             live_slots.add(slot_key)
+            live_item_ids.add(int(_item_id))
+            live_item_model_by_id[int(_item_id)] = int(_model_id)
             previous = self.last_inventory_snapshot.get(slot_key)
             is_unknown_name = name.startswith("Model#")
             changed_this_tick = False
             if previous is None:
                 # Item moved between slots: do not treat as pickup.
                 if int(_item_id) in prev_item_ids:
-                    continue
+                    prev_state = prev_item_state_by_id.get(int(_item_id))
+                    if prev_state is not None:
+                        prev_model_for_item, prev_qty_for_item = prev_state
+                        if int(prev_model_for_item) == int(_model_id) and int(prev_qty_for_item) == int(qty):
+                            continue
                 changed_this_tick = True
                 if is_unknown_name:
-                    pending = self.pending_slot_deltas.get(slot_key)
                     now_ts = time.time()
-                    if pending is None or not isinstance(pending, dict):
-                        self.pending_slot_deltas[slot_key] = {
-                            "qty": int(qty),
-                            "model_id": int(_model_id),
-                            "item_id": int(_item_id),
-                            "rarity": rarity,
-                            "first_seen": now_ts,
-                            "last_seen": now_ts,
-                        }
-                    else:
-                        pending["qty"] = int(pending.get("qty", 0)) + int(qty)
-                        pending["model_id"] = int(_model_id)
-                        pending["item_id"] = int(_item_id)
-                        pending["rarity"] = pending.get("rarity") or rarity
-                        pending["last_seen"] = now_ts
+                    self._buffer_pending_slot_delta(
+                        slot_key=slot_key,
+                        delta_qty=int(qty),
+                        model_id=int(_model_id),
+                        item_id=int(_item_id),
+                        rarity=str(rarity or "Unknown"),
+                        now_ts=now_ts,
+                    )
                 else:
                     candidate_events.append({
                         "name": name,
@@ -1110,26 +1315,22 @@ class DropTrackerSender:
             if int(_item_id) != prev_item_id:
                 # Replacement can be pure slot rearrangement; count only truly new item IDs.
                 if int(_item_id) in prev_item_ids:
-                    continue
+                    prev_state = prev_item_state_by_id.get(int(_item_id))
+                    if prev_state is not None:
+                        prev_model_for_item, prev_qty_for_item = prev_state
+                        if int(prev_model_for_item) == int(_model_id) and int(prev_qty_for_item) == int(qty):
+                            continue
                 changed_this_tick = True
                 if is_unknown_name:
-                    pending = self.pending_slot_deltas.get(slot_key)
                     now_ts = time.time()
-                    if pending is None or not isinstance(pending, dict):
-                        self.pending_slot_deltas[slot_key] = {
-                            "qty": int(qty),
-                            "model_id": int(_model_id),
-                            "item_id": int(_item_id),
-                            "rarity": rarity,
-                            "first_seen": now_ts,
-                            "last_seen": now_ts,
-                        }
-                    else:
-                        pending["qty"] = int(pending.get("qty", 0)) + int(qty)
-                        pending["model_id"] = int(_model_id)
-                        pending["item_id"] = int(_item_id)
-                        pending["rarity"] = pending.get("rarity") or rarity
-                        pending["last_seen"] = now_ts
+                    self._buffer_pending_slot_delta(
+                        slot_key=slot_key,
+                        delta_qty=int(qty),
+                        model_id=int(_model_id),
+                        item_id=int(_item_id),
+                        rarity=str(rarity or "Unknown"),
+                        now_ts=now_ts,
+                    )
                 else:
                     candidate_events.append({
                         "name": name,
@@ -1146,23 +1347,15 @@ class DropTrackerSender:
                 changed_this_tick = True
                 delta = qty - prev_qty
                 if is_unknown_name:
-                    pending = self.pending_slot_deltas.get(slot_key)
                     now_ts = time.time()
-                    if pending is None or not isinstance(pending, dict):
-                        self.pending_slot_deltas[slot_key] = {
-                            "qty": int(delta),
-                            "model_id": int(_model_id),
-                            "item_id": int(_item_id),
-                            "rarity": rarity,
-                            "first_seen": now_ts,
-                            "last_seen": now_ts,
-                        }
-                    else:
-                        pending["qty"] = int(pending.get("qty", 0)) + int(delta)
-                        pending["model_id"] = int(_model_id)
-                        pending["item_id"] = int(_item_id)
-                        pending["rarity"] = pending.get("rarity") or rarity
-                        pending["last_seen"] = now_ts
+                    self._buffer_pending_slot_delta(
+                        slot_key=slot_key,
+                        delta_qty=int(delta),
+                        model_id=int(_model_id),
+                        item_id=int(_item_id),
+                        rarity=str(rarity or "Unknown"),
+                        now_ts=now_ts,
+                    )
                 else:
                     candidate_events.append({
                         "name": name,
@@ -1214,10 +1407,14 @@ class DropTrackerSender:
                 continue
             pending_model_id = int(pending_entry.get("model_id", 0))
             pending_item_id = int(pending_entry.get("item_id", 0))
+            live_model_for_pending = int(live_item_model_by_id.get(pending_item_id, 0))
+            pending_item_is_live = pending_item_id in live_item_ids and (
+                pending_model_id <= 0 or live_model_for_pending <= 0 or live_model_for_pending == pending_model_id
+            )
             pending_rarity = str(pending_entry.get("rarity") or "Unknown")
 
             # Best match: exact item identity.
-            if pending_item_id > 0:
+            if pending_item_id > 0 and pending_item_is_live:
                 try:
                     # Direct resolve from live item_id first (most accurate).
                     if Item.IsNameReady(pending_item_id):
@@ -1312,6 +1509,14 @@ class DropTrackerSender:
             if not isinstance(entry, dict):
                 self.pending_slot_deltas.pop(slot_key, None)
                 continue
+            pending_item_id = int(entry.get("item_id", 0))
+            pending_model_id = int(entry.get("model_id", 0))
+            live_model_for_pending = int(live_item_model_by_id.get(pending_item_id, 0))
+            pending_item_still_live = pending_item_id > 0 and pending_item_id in live_item_ids and (
+                pending_model_id <= 0 or live_model_for_pending <= 0 or live_model_for_pending == pending_model_id
+            )
+            if pending_item_still_live:
+                continue
             last_seen = float(entry.get("last_seen", now_ts))
             if (now_ts - last_seen) > self.pending_ttl_seconds:
                 qty = int(entry.get("qty", 0))
@@ -1329,6 +1534,26 @@ class DropTrackerSender:
                         "reason": "stale_slot_ttl_fallback",
                     })
                 self.pending_slot_deltas.pop(slot_key, None)
+
+        if candidate_events or self.pending_slot_deltas:
+            self.last_inventory_activity_ts = time.time()
+
+        # Suppress false positives caused by transient item-id churn/reordering.
+        # Keep truly new item identities to avoid missing real pickups that are
+        # picked/consumed between snapshots.
+        candidate_events, suppressed_by_model_delta = filter_candidate_events_by_model_delta(
+            candidate_events=candidate_events,
+            prev_model_qty=prev_model_qty,
+            current_model_qty=current_model_qty,
+            prev_item_ids=prev_item_ids,
+        )
+
+        if self.debug_pipeline_logs and suppressed_by_model_delta > 0:
+            Py4GW.Console.Log(
+                "DropTrackerSender",
+                f"SUPPRESSED by model-delta filter: {suppressed_by_model_delta}",
+                Py4GW.Console.MessageType.Info,
+            )
 
         if self.debug_pipeline_logs and candidate_events:
             for event in candidate_events[:20]:

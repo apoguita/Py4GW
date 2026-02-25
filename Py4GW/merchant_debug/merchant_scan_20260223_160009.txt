@@ -1,0 +1,33 @@
+Merchant Scan Debug @ 2026-02-23 16:00:09
+Map: 156 The Granite Citadel
+Outpost: True
+Player XY: (-12568.5, 17819.8)
+Configured merchant names:
+  1. Answa
+  2. Volsung
+  3. Bodrus the Outfitter
+  4. Hasrah
+  5. Acolyte Singpa
+Scan counts: npc=6 neutral=0 all_agents=17 merged=17 filtered=17
+Known merchant/trader model IDs: 74
+NPC rows:
+  aid=1 dist=1253.6 xy=(-12689.0,16572.0) model=1928:Lina base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=2 dist=1276.3 xy=(-12648.0,16546.0) model=1934:Aidan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=3 dist=1195.2 xy=(-12740.0,16637.0) model=1926:Mhenlo base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=4 dist=1103.2 xy=(-12752.0,16732.0) model=1936:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=5 dist=1152.4 xy=(-12751.0,16682.0) model=1930:Little Thom base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=6 dist=1313.8 xy=(-12566.0,16506.0) model=1922:Eve base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=7 dist=1294.3 xy=(-12605.0,16526.0) model=1924:Cynn base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=8 dist=1061.7 xy=(-12757.0,16775.0) model=1932:Devona base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=9 dist=2398.0 xy=(-11614.0,15620.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Unknown' known_model=False list_match=-
+  aid=10 dist=2653.0 xy=(-10189.0,18993.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Unknown' known_model=False list_match=-
+  aid=20 dist=2011.5 xy=(-11020.0,16536.0) model=2161:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=21 dist=391.1 xy=(-12914.0,18003.0) model=1559:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=22 dist=2707.2 xy=(-11504.4,20309.1) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=23 dist=2620.3 xy=(-11150.0,20023.0) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=24 dist=1568.8 xy=(-12236.0,19353.0) model=221:Xunlai Agent base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=25 dist=1454.2 xy=(-12353.0,19258.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=26 dist=0.0 xy=(-12568.5,17819.8) model=2:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=False allegiance='Ally' known_model=False list_match=-
+Chosen candidates: 21, 25, 24, 20, 23, 22
+Cached seen names: Feature Disabled
+Cached seen models: 1928:Lina, 1934:Aidan, 1926:Mhenlo, 1936:?, 1930:Little Thom, 1922:Eve, 1924:Cynn, 1932:Devona, 2161:?, 1559:?, 1549:?, 221:Xunlai Agent, 5052:Corsair Seer, 2:?

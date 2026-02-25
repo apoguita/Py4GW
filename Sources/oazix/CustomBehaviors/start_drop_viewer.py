@@ -49,6 +49,8 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport impo
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import default_ui_colors
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import draw_runtime_controls_panel
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_chat import make_chat_dedupe_key
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_chat import pickup_regex
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
     build_name_chunks,
     make_name_signature,
@@ -175,9 +177,7 @@ class DropViewerWindow:
         self.last_chat_index = -1
         
         # Regex matches: "[Timestamp] Player picks up [Quantity] <Color>ItemName</Color>."
-        self.pickup_regex = re.compile(
-            r"^(?:\[([\d: ]+[ap]m)\] )?(?:<c=#(?:[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})>)?(You|.+?)(?:<\/c>)? (?:picks? up) (?:the )?(?:(\d+) )?(?:<c=#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})>)?(.+?)(?:<\/c>)?\.?$"
-        )
+        self.pickup_regex = pickup_regex()
         
         # Regex matches: "Monster drops [a/an/the] <Color>ItemName</Color>..."
         # Captures: 1=Monster, 2=ColorHex, 3=ItemName
@@ -4551,7 +4551,7 @@ class DropViewerWindow:
                      Py4GW.Console.Log("DropViewer", f"Clear failed: {e}", Py4GW.Console.MessageType.Error)
 
             filtered_rows = self._get_filtered_rows()
-            table_rows = [row for row in filtered_rows if not self._is_gold_row(row)]
+            table_rows = filtered_rows
             self._draw_summary_bar(filtered_rows)
             self._draw_top_control_strip()
             self._draw_live_status_chips()
@@ -4986,7 +4986,7 @@ class DropViewerWindow:
             quantity = int(quantity_text)
 
         rarity = self._get_rarity_from_color_hex(color_hex) if color_hex else "Unknown"
-        if not self._is_recent_duplicate(player_name, item_name, quantity):
+        if not self._is_recent_duplicate(player_name, item_name, quantity, text):
             self._log_drop_to_file(player_name, item_name, quantity, rarity)
             Py4GW.Console.Log(
                 "DropViewer",
@@ -5457,7 +5457,7 @@ class DropViewerWindow:
                     Py4GW.Console.MessageType.Info,
                 )
 
-    def _is_recent_duplicate(self, player_name, item_name, quantity, window_seconds=0.35):
+    def _is_recent_duplicate(self, player_name, item_name, quantity, raw_message_text="", window_seconds=0.12):
         now = time.time()
         # Keep only very recent keys to avoid suppressing legitimate repeated loots.
         self.recent_log_cache = {
@@ -5465,7 +5465,7 @@ class DropViewerWindow:
             if now - ts <= window_seconds
         }
 
-        key = (str(player_name), str(item_name), int(quantity))
+        key = make_chat_dedupe_key(player_name, item_name, quantity, raw_message_text)
         previous = self.recent_log_cache.get(key)
         if previous is not None and (now - previous) <= window_seconds:
             return True

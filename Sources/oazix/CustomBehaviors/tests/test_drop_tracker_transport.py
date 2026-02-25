@@ -317,6 +317,26 @@ def test_handle_tracker_drop_branch_suffixes_truncated_name_when_unresolved():
     assert drop_msg.item_name.endswith("~abcd")
 
 
+def test_handle_tracker_drop_branch_ignores_mismatched_resolved_name():
+    meta = build_drop_meta("85e69930000a", "abcd1234", "03:48 PM")
+    long_name = "A" * 31
+    drop_msg = handle_tracker_drop_branch(
+        extra_0="TrackerDrop",
+        expected_tag="TrackerDrop",
+        extra_data_list=["TrackerDrop", long_name, "White", meta],
+        shared_msg=_FakeSharedMsg("follower@test", (1.0, 777.0, 888.0, 0.0)),
+        to_text_fn=lambda v: str(v),
+        normalize_text_fn=lambda v: str(v).strip(),
+        build_tracker_drop_message_fn=build_tracker_drop_message,
+        resolve_full_name_fn=lambda _sig: "Completely Different Item Name",
+        normalize_rarity_label_fn=lambda _name, rarity: rarity,
+    )
+    assert drop_msg is not None
+    # Keep raw/truncated name (with suffix) instead of applying mismatched resolved name.
+    assert drop_msg.item_name.endswith("~abcd")
+    assert drop_msg.item_name.startswith("A" * 31)
+
+
 def test_extract_event_id_hint_for_tracker_drop_and_stats():
     drop_meta = build_drop_meta("85e699300010", "beadfeed", "03:49 PM")
     drop_hint = extract_event_id_hint(

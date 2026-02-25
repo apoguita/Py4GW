@@ -1,0 +1,35 @@
+Merchant Scan Debug @ 2026-02-23 17:21:25
+Map: 156 The Granite Citadel
+Outpost: True
+Player XY: (-11102.0, 16573.7)
+Configured merchant names:
+  1. Answa
+  2. Volsung
+  3. Bodrus the Outfitter
+  4. Hasrah
+  5. Acolyte Singpa
+Scan counts: npc=7 neutral=0 all_agents=18 merged=18 filtered=18
+Known merchant/trader model IDs: 74
+Map model hints: <none>
+NPC rows:
+  aid=1 dist=1587.0 xy=(-12689.0,16572.0) model=1928:Lina base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=2 dist=1546.2 xy=(-12648.0,16546.0) model=1934:Aidan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=3 dist=1639.2 xy=(-12740.0,16637.0) model=1926:Mhenlo base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=4 dist=1657.6 xy=(-12752.0,16732.0) model=1936:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=5 dist=1652.6 xy=(-12751.0,16682.0) model=1930:Little Thom base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=6 dist=1465.6 xy=(-12566.0,16506.0) model=1922:Eve base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=7 dist=1503.8 xy=(-12605.0,16526.0) model=1924:Cynn base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=8 dist=1667.2 xy=(-12757.0,16775.0) model=1932:Devona base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=9 dist=1082.4 xy=(-11614.0,15620.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Unknown' known_model=False list_match=-
+  aid=10 dist=2585.9 xy=(-10189.0,18993.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Unknown' known_model=False list_match=-
+  aid=12 dist=0.0 xy=(-11102.0,16573.7) model=1:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=False allegiance='Ally' known_model=False list_match=-
+  aid=13 dist=90.2 xy=(-11020.0,16536.0) model=2161:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=14 dist=2307.9 xy=(-12914.0,18003.0) model=1559:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=15 dist=3819.0 xy=(-11507.2,20371.1) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=16 dist=3872.9 xy=(-11733.0,20394.9) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=17 dist=3449.7 xy=(-11150.0,20023.0) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=18 dist=3001.8 xy=(-12236.0,19353.0) model=221:Xunlai Agent base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=19 dist=2961.5 xy=(-12353.0,19258.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+Chosen candidates: 13, 14, 19, 18, 17, 15, 16
+Cached seen names: Feature Disabled
+Cached seen models: 1928:Lina, 1934:Aidan, 1926:Mhenlo, 1936:?, 1930:Little Thom, 1922:Eve, 1924:Cynn, 1932:Devona, 1:?, 2161:?, 1559:?, 1549:?, 221:Xunlai Agent, 5052:Corsair Seer

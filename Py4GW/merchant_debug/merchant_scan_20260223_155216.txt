@@ -1,0 +1,32 @@
+Merchant Scan Debug @ 2026-02-23 15:52:16
+Map: 156 The Granite Citadel
+Outpost: True
+Player XY: (-12094.0, 16647.0)
+Configured merchant names:
+  1. Answa
+  2. Volsung
+  3. Bodrus the Outfitter
+  4. Hasrah
+  5. Acolyte Singpa
+Scan counts: npc=6 neutral=0 all_agents=17 merged=17 filtered=17
+NPC rows:
+  aid=1 dist=599.7 xy=(-12689.0,16572.0) model=1928:Lina base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=2 dist=563.1 xy=(-12648.0,16546.0) model=1934:Aidan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=3 dist=646.1 xy=(-12740.0,16637.0) model=1926:Mhenlo base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=4 dist=663.5 xy=(-12752.0,16732.0) model=1936:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=5 dist=657.9 xy=(-12751.0,16682.0) model=1930:Little Thom base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=6 dist=492.6 xy=(-12566.0,16506.0) model=1922:Eve base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=7 dist=525.1 xy=(-12605.0,16526.0) model=1924:Cynn base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=8 dist=675.2 xy=(-12757.0,16775.0) model=1932:Devona base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=9 dist=1133.6 xy=(-11614.0,15620.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=10 dist=3022.0 xy=(-10189.0,18993.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=12 dist=0.0 xy=(-12094.0,16647.0) model=1:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=13 dist=1079.7 xy=(-11020.0,16536.0) model=2161:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=14 dist=1584.7 xy=(-12914.0,18003.0) model=1559:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=15 dist=3722.1 xy=(-11497.1,20320.9) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=16 dist=3505.5 xy=(-11150.0,20023.0) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=17 dist=2709.7 xy=(-12236.0,19353.0) model=221:Xunlai Agent base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+  aid=18 dist=2623.8 xy=(-12353.0,19258.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' list_match=-
+Chosen candidates: <none>
+Cached seen names: Feature Disabled
+Cached seen models: 1928:Lina, 1934:Aidan, 1926:Mhenlo, 1936:?, 1930:Little Thom, 1922:Eve, 1924:Cynn, 1932:Devona, 1:?, 2161:?, 1559:?, 1549:?, 221:Xunlai Agent, 5052:Corsair Seer

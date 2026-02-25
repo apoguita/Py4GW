@@ -146,7 +146,8 @@ def draw_runtime_controls_panel(viewer, PyImGui) -> None:
 
     PyImGui.separator()
     unknown_count = viewer._get_unknown_mod_count()
-    PyImGui.text(f"Unknown mod IDs tracked: {unknown_count}")
+    unresolved_count = viewer._get_unknown_mod_unresolved_count()
+    PyImGui.text(f"Unknown mod IDs tracked: {unknown_count} (unresolved: {unresolved_count})")
     if viewer._styled_button(
         "Export Unknown Mods",
         "secondary",
@@ -157,8 +158,61 @@ def draw_runtime_controls_panel(viewer, PyImGui) -> None:
             viewer.set_status(f"Unknown mods exported: {export_path}")
         else:
             viewer.set_status("Unknown mods export failed.")
-    for summary_line in viewer._unknown_mod_summary_lines(limit=6):
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button(
+        "Export Unknown Guesses",
+        "secondary",
+        tooltip="Save guessed modifier names with confidence to JSON.",
+    ):
+        guess_export_path = viewer._export_unknown_mod_guess_report(include_known=True)
+        if guess_export_path:
+            viewer.set_status(f"Unknown mod guess report exported: {guess_export_path}")
+        else:
+            viewer.set_status("Unknown mod guess export failed.")
+    for summary_line in viewer._unknown_mod_summary_lines(limit=4):
         PyImGui.text(summary_line)
+    for summary_line in viewer._unknown_mod_guess_summary_lines(limit=6, include_known=False):
+        PyImGui.text(summary_line)
+    for notify_line in viewer._unknown_mod_notification_lines(limit=4):
+        PyImGui.text_colored(notify_line, (1.0, 0.86, 0.40, 1.0))
+    pending_count = int(viewer._unknown_mod_pending_count())
+    PyImGui.text_colored(f"Pending unknown notes: {pending_count}", (1.0, 0.80, 0.45, 1.0))
+    for pending_line in viewer._unknown_mod_pending_lines(limit=6):
+        PyImGui.text_colored(pending_line, (1.0, 0.80, 0.45, 1.0))
+
+    PyImGui.separator()
+    PyImGui.text("Unknown Mod Name Mapper")
+    viewer.unknown_mod_name_edit_id = max(
+        0,
+        int(PyImGui.input_int("Mod ID##UnknownModMap", int(getattr(viewer, "unknown_mod_name_edit_id", 0)))),
+    )
+    viewer.unknown_mod_name_edit_text = PyImGui.input_text(
+        "Name##UnknownModMap",
+        viewer._ensure_text(getattr(viewer, "unknown_mod_name_edit_text", "")),
+    )
+    if viewer._styled_button("Save Mapping", "success", tooltip="Save ID -> name mapping for unknown mod rendering."):
+        if viewer._set_unknown_mod_custom_name(
+            int(getattr(viewer, "unknown_mod_name_edit_id", 0)),
+            viewer._ensure_text(getattr(viewer, "unknown_mod_name_edit_text", "")),
+        ):
+            viewer.set_status(f"Unknown mod mapping saved for id={int(getattr(viewer, 'unknown_mod_name_edit_id', 0))}")
+        else:
+            viewer.set_status("Unknown mod mapping save failed.")
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button("Remove Mapping", "warning", tooltip="Remove saved name for this mod ID."):
+        if viewer._set_unknown_mod_custom_name(int(getattr(viewer, "unknown_mod_name_edit_id", 0)), ""):
+            viewer.set_status(f"Unknown mod mapping removed for id={int(getattr(viewer, 'unknown_mod_name_edit_id', 0))}")
+        else:
+            viewer.set_status("No mapping removed.")
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button("Remove Pending", "secondary", tooltip="Remove this ID from pending unknown notes without mapping it."):
+        pending_id = int(getattr(viewer, "unknown_mod_name_edit_id", 0))
+        if viewer._remove_unknown_mod_pending_note(pending_id):
+            viewer.set_status(f"Pending unknown note removed for id={pending_id}")
+        else:
+            viewer.set_status("No pending note removed.")
+    for mapped_line in viewer._unknown_mod_name_map_summary_lines(limit=4):
+        PyImGui.text_colored(mapped_line, (0.62, 0.90, 0.72, 1.0))
 
     if viewer.runtime_config_dirty:
         viewer._flush_runtime_config_if_dirty()
