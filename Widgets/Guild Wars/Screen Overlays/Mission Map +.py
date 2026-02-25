@@ -1039,12 +1039,12 @@ class MissionMap:
                     self.snap_clear()
         # aC  ---
 
-        # NavMesh right-click snap (explorable maps only, when enabled)
+        # NavMesh right-click snap (when enabled)
         _rc_nx, _rc_ny = Map.MissionMap.GetLastRightClickCoords()
         _rc_new = (float(_rc_nx), float(_rc_ny))
         if _rc_new != (0.0, 0.0) and _rc_new != self.snap_gw_last_right_click:
             self.snap_gw_last_right_click = _rc_new
-            if self.snap_enabled and Map.IsExplorable():
+            if self.snap_enabled:
                 _gx, _gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(_rc_nx, _rc_ny)
                 click_game: tuple[float, float] = (float(_gx), float(_gy))
                 self.snap_clicked_target = click_game
