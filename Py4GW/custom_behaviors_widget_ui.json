@@ -1,16 +1,16 @@
 {
   "handle_pos": [
-    531.0,
-    956.0
+    553.0,
+    430.0
   ],
   "window_pos": [
-    155.0,
-    71.0
+    16.0,
+    4.0
   ],
   "window_size": [
-    420.0,
-    360.0
+    594.0,
+    453.0
   ],
-  "pin_open": false,
+  "pin_open": true,
   "hover_handle_mode": true
 }

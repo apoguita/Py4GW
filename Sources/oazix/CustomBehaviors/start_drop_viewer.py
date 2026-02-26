@@ -198,6 +198,7 @@ class DropViewerWindow:
         self.stats_payload_chunk_buffers = {}
         self.stats_render_cache_by_event = {}
         self.stats_name_signature_by_event = {}
+        self.model_name_by_id = {}
         self.mod_db = self._load_mod_database()
         self.known_mod_ids = self._collect_known_mod_ids()
         self.unknown_mod_exclude_ids = set(UNKNOWN_MOD_EXCLUDE_IDS)
@@ -780,7 +781,43 @@ class DropViewerWindow:
     def _clean_item_name(self, name: Any) -> str:
         cleaned = self._strip_tags(name).strip()
         cleaned = re.sub(r"^[\d,]+\s+", "", cleaned)
+        # Normalize unresolved fallback names like "Item#12345".
+        if re.match(r"(?i)^item#\d+$", cleaned):
+            return "Unknown Item"
         return cleaned
+
+    def _is_unknown_item_label(self, name: Any) -> bool:
+        txt = self._clean_item_name(name).strip()
+        if not txt:
+            return True
+        txt_lc = txt.lower()
+        if txt_lc in {"unknown", "unknown item"}:
+            return True
+        if re.match(r"(?i)^unknown item\s*\(model\s*\d+\)$", txt):
+            return True
+        return False
+
+    def _remember_model_name(self, model_id: Any, item_name: Any):
+        mid = max(0, self._safe_int(model_id, 0))
+        if mid <= 0:
+            return
+        clean = self._clean_item_name(item_name).strip()
+        if not clean or self._is_unknown_item_label(clean):
+            return
+        self.model_name_by_id[mid] = clean
+
+    def _resolve_unknown_name_from_model(self, item_name: Any, model_id: Any) -> str:
+        clean = self._clean_item_name(item_name).strip()
+        mid = max(0, self._safe_int(model_id, 0))
+        if not self._is_unknown_item_label(clean):
+            self._remember_model_name(mid, clean)
+            return clean
+        if mid > 0:
+            cached = self._clean_item_name(self.model_name_by_id.get(mid, "")).strip()
+            if cached and not self._is_unknown_item_label(cached):
+                return cached
+            return f"Unknown Item (Model {mid})"
+        return "Unknown Item"
 
     def _load_mod_database(self):
         if ModDatabase is None:
@@ -3813,7 +3850,7 @@ class DropViewerWindow:
         c = self._ui_colors()
         PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
         PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
-        if PyImGui.begin_child("DropTrackerInventoryActionCards", size=(0, 184), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+        if PyImGui.begin_child("DropTrackerInventoryActionCards", size=(0, 224), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
             cards = [
                 {
                     "label": f"[ID] Auto {'ON' if self.auto_id_enabled else 'OFF'}",
@@ -3840,16 +3877,16 @@ class DropViewerWindow:
                     "action": "sync_config",
                 },
                 {
-                    "label": "[ID] Run Now",
-                    "variant": "primary",
-                    "tooltip": "Run Auto Identify Now: one immediate identify pass.",
-                    "action": "run_id_now",
+                    "label": f"[CH] Chest {'ON' if self._get_party_chesting_enabled() else 'OFF'}",
+                    "variant": "success" if self._get_party_chesting_enabled() else "secondary",
+                    "tooltip": "Party chesting toggle (leader): enable/disable chesting for all members including leader.",
+                    "action": "toggle_party_chesting",
                 },
                 {
-                    "label": "[SV] Run Now",
+                    "label": "[IT] Interact Leader Target",
                     "variant": "primary",
-                    "tooltip": "Run Auto Salvage Now: one immediate salvage pass.",
-                    "action": "run_salvage_now",
+                    "tooltip": "Ask all party members (including leader) to interact with the leader-selected target.",
+                    "action": "interact_leader_target",
                 },
                 {
                     "label": f"[KT] Auto {'ON' if self.auto_buy_kits_enabled else 'OFF'}",
@@ -3908,6 +3945,10 @@ class DropViewerWindow:
                     self._trigger_inventory_action("cfg_auto_gold_balance", gold_payload)
                 elif action_code == "sync_config":
                     self._sync_auto_inventory_config_to_followers()
+                elif action_code == "toggle_party_chesting":
+                    self._toggle_party_chesting()
+                elif action_code == "interact_leader_target":
+                    self._trigger_party_interact_leader_target()
                 elif action_code == "run_id_now":
                     self._trigger_inventory_action("id_selected", self._encode_rarities(self._get_selected_id_rarities()))
                 elif action_code == "run_salvage_now":
@@ -5404,7 +5445,7 @@ class DropViewerWindow:
                         continue
 
                     event_id = drop_msg.event_id
-                    item_name = drop_msg.item_name
+                    item_name = self._resolve_unknown_name_from_model(drop_msg.item_name, drop_msg.model_id)
                     exact_rarity = drop_msg.rarity
                     quantity = drop_msg.quantity
                     row_item_id = drop_msg.item_id
@@ -5438,6 +5479,7 @@ class DropViewerWindow:
                                 "sender_email": sender_email,
                             }
                         )
+                        self._remember_model_name(model_id_param, item_name)
 
                     if event_id and self._send_tracker_ack(sender_email, event_id):
                         ack_sent_this_tick += 1
@@ -7464,6 +7506,49 @@ class DropViewerWindow:
         return self._schedule_party_action(
             PartyCommandConstants.invite_all_to_leader_party,
             "Join Followers",
+        )
+
+    def _get_party_chesting_enabled(self) -> bool:
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            return bool(CustomBehaviorParty().get_party_is_chesting_enabled())
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _toggle_party_chesting(self) -> bool:
+        if not self._is_leader_client():
+            self.set_status("Party chesting: leader only")
+            return False
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            party_controller = CustomBehaviorParty()
+            next_value = not bool(party_controller.get_party_is_chesting_enabled())
+            party_controller.set_party_is_chesting_enabled(next_value)
+            self.set_status(f"Party chesting: {'ON' if next_value else 'OFF'}")
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Party chesting: failed ({e})")
+            return False
+
+    def _trigger_party_interact_leader_target(self) -> bool:
+        if not self._is_leader_client():
+            self.set_status("Interact Leader Target: leader only")
+            return False
+        try:
+            target_id = int(Player.GetTargetID())
+            if target_id <= 0:
+                from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+                target_id = int(CustomBehaviorParty().get_party_custom_target() or 0)
+            if target_id is None or int(target_id) <= 0:
+                self.set_status("Interact Leader Target: no leader target selected")
+                return False
+        except EXPECTED_RUNTIME_ERRORS:
+            self.set_status("Interact Leader Target: no leader target selected")
+            return False
+        from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+        return self._schedule_party_action(
+            PartyCommandConstants.interract_with_leader_selected_target,
+            "Interact Leader Target",
         )
 
     def _get_conset_specs(self):

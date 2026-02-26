@@ -392,7 +392,13 @@ def build_known_spellcasting_mod_lines(
                 7: "Dazed",
                 8: "Weakness",
             }
-            cond = cond_by_arg1.get(arg1_i, "")
+            # Some payloads encode this condition in arg1, others in arg2.
+            # Prefer arg2 when arg1 is the default zero bucket and arg2 carries
+            # a specific non-zero condition code.
+            if arg1_i == 0 and arg2_i in cond_by_arg1 and arg2_i != 0:
+                cond = cond_by_arg1.get(arg2_i, "")
+            else:
+                cond = cond_by_arg1.get(arg1_i, "") or cond_by_arg1.get(arg2_i, "")
             if cond:
                 lines.append(f"Reduces {cond} duration on you by 20%")
             continue

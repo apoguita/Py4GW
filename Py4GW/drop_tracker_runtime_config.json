@@ -26,7 +26,7 @@
   "salvage_sel_green": false,
   "salvage_sel_purple": true,
   "salvage_sel_gold": false,
-  "auto_salvage_enabled": false,
+  "auto_salvage_enabled": true,
   "auto_buy_kits_enabled": true,
   "auto_buy_kits_sort_to_front_enabled": true,
   "auto_buy_kits_map_model_hints": {
@@ -49,15 +49,15 @@
   "compact_mode": true,
   "ui_theme_name": "Steel Ember",
   "drop_viewer_window_pos": [
-    4.0,
-    4.0
+    16.0,
+    16.0
   ],
   "drop_viewer_window_size": [
-    1795.0,
-    943.0
+    594.0,
+    470.0
   ],
   "drop_viewer_handle_pos": [
-    601.0,
-    956.0
+    612.0,
+    949.0
   ]
 }
