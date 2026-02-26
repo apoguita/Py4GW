@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-02-25 17:11:38",
+  "updated_at": "2026-02-26 21:44:15",
   "known_mod_id_count": 62,
   "unknown_mods": {
     "8728": {
@@ -116,7 +116,7 @@
       "last_seen": "2026-02-24 07:50:33"
     },
     "9752": {
-      "count": 24,
+      "count": 25,
       "arg1_min": 0,
       "arg1_max": 4,
       "arg2_min": 0,
@@ -135,7 +135,7 @@
       ],
       "sources": {
         "shared_payload": 1,
-        "local_api": 23
+        "local_api": 24
       },
       "sample_items": [
         "Black Hawk's Lust",
@@ -147,7 +147,8 @@
         "Lockpicks",
         "Ivory Bow",
         "Half Moon",
-        "Salvage Kit"
+        "Salvage Kit",
+        "Accursed Staff of Trollslaying"
       ],
       "sample_events": [],
       "co_mod_ids": [
@@ -180,7 +181,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-25 16:55:20"
+      "last_seen": "2026-02-26 19:15:55"
     },
     "9784": {
       "count": 1,
@@ -209,7 +210,7 @@
       "last_seen": "2026-02-24 00:22:12"
     },
     "9800": {
-      "count": 11,
+      "count": 12,
       "arg1_min": 0,
       "arg1_max": 2,
       "arg2_min": 0,
@@ -231,7 +232,7 @@
       ],
       "sources": {
         "shared_payload": 2,
-        "local_api": 9
+        "local_api": 10
       },
       "sample_items": [
         "Fiery Dragon Sword",
@@ -268,7 +269,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-25 16:50:05"
+      "last_seen": "2026-02-26 18:45:59"
     },
     "9880": {
       "count": 13,
@@ -550,6 +551,80 @@
         49152
       ],
       "last_seen": "2026-02-24 10:00:13"
+    },
+    "41928": {
+      "count": 3,
+      "arg1_min": 39,
+      "arg1_max": 40,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [],
+      "model_ids": [
+        1121
+      ],
+      "sources": {
+        "shared_payload": 3
+      },
+      "sample_items": [
+        "Dwarven Armor"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        49152
+      ],
+      "last_seen": "2026-02-26 21:44:15"
+    },
+    "42152": {
+      "count": 1,
+      "arg1_min": 17,
+      "arg1_max": 17,
+      "arg2_min": 4,
+      "arg2_max": 4,
+      "item_types": [
+        32
+      ],
+      "model_ids": [
+        27664
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Titan Armor"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9400,
+        42184,
+        49152
+      ],
+      "last_seen": "2026-02-26 21:43:35"
+    },
+    "42184": {
+      "count": 1,
+      "arg1_min": 30,
+      "arg1_max": 30,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        32
+      ],
+      "model_ids": [
+        27664
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Titan Armor"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9400,
+        42152,
+        49152
+      ],
+      "last_seen": "2026-02-26 21:43:35"
     },
     "42920": {
       "count": 20,

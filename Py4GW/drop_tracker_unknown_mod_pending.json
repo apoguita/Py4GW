@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-02-25 17:11:38",
+  "updated_at": "2026-02-26 21:43:35",
   "pending": {
     "9864": {
       "id": 9864,
@@ -12,6 +12,45 @@
       "source": "shared_payload",
       "first_seen": "2026-02-24 12:05:15",
       "last_seen": "2026-02-24 12:05:15",
+      "count": 1
+    },
+    "41928": {
+      "id": 41928,
+      "owner": "Mesmer Sedam",
+      "item": "Dwarven Armor",
+      "arg1": 40,
+      "arg2": 0,
+      "item_type": 0,
+      "model_id": 1121,
+      "source": "shared_payload",
+      "first_seen": "2026-02-26 21:43:24",
+      "last_seen": "2026-02-26 21:43:24",
+      "count": 1
+    },
+    "42152": {
+      "id": 42152,
+      "owner": "Mesmer Pett",
+      "item": "Titan Armor",
+      "arg1": 17,
+      "arg2": 4,
+      "item_type": 32,
+      "model_id": 27664,
+      "source": "shared_payload",
+      "first_seen": "2026-02-26 21:43:35",
+      "last_seen": "2026-02-26 21:43:35",
+      "count": 1
+    },
+    "42184": {
+      "id": 42184,
+      "owner": "Mesmer Pett",
+      "item": "Titan Armor",
+      "arg1": 30,
+      "arg2": 0,
+      "item_type": 32,
+      "model_id": 27664,
+      "source": "shared_payload",
+      "first_seen": "2026-02-26 21:43:35",
+      "last_seen": "2026-02-26 21:43:35",
       "count": 1
     }
   }

@@ -160,6 +160,17 @@ def test_build_known_spellcasting_mod_lines_renders_10328_duration_line():
     assert "Reduces Crippled duration on you by 20%" in lines
 
 
+def test_build_known_spellcasting_mod_lines_renders_10328_duration_line_when_condition_in_arg2():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(10328, 0, 7)],
+        item_attr_txt="",
+        item_type=24,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Reduces Dazed duration on you by 20%" in lines
+
+
 def test_build_spellcast_hct_hsr_lines_does_not_use_attribute_id_as_chance():
     lines = build_spellcast_hct_hsr_lines(
         raw_mods=[(9112, 30, 14)],

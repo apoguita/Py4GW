@@ -110,14 +110,49 @@ class PartyCommandConstants:
     def interract_with_target() -> Generator[Any, None, None]:
         # todo with a random.
         account_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+        self_party_id = int(self_account.AgentPartyData.PartyID) if self_account is not None else 0
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         target = Player.GetTargetID()
         for account in accounts:
             if account.AccountEmail == account_email:
                 continue
+            if self_party_id <= 0 or int(account.AgentPartyData.PartyID) != self_party_id:
+                continue
             if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
             GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (target,0,0,0))
             # randomize wait
+            yield from custom_behavior_helpers.Helpers.wait_for(random.randint(100, 800))
+        yield
+
+    @staticmethod
+    def interract_with_leader_selected_target() -> Generator[Any, None, None]:
+        """
+        Interact using leader's currently selected target.
+        Fallback to shared party custom target if no live target is selected.
+        Applies to all members, including the sender/leader.
+        """
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+        account_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+        self_party_id = int(self_account.AgentPartyData.PartyID) if self_account is not None else 0
+        target = Player.GetTargetID()
+        if target is None or int(target) == 0:
+            target = CustomBehaviorParty().get_party_custom_target()
+        if target is None or int(target) == 0:
+            yield
+            return
+
+        Player.Interact(int(target), call_target=False)
+
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            if account.AccountEmail == account_email:
+                continue
+            if self_party_id <= 0 or int(account.AgentPartyData.PartyID) != self_party_id:
+                continue
+            if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
+            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.InteractWithTarget, (int(target), 0, 0, 0))
             yield from custom_behavior_helpers.Helpers.wait_for(random.randint(100, 800))
         yield
 

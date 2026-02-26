@@ -33,7 +33,7 @@ class OpenNearDungeonChestUtility(CustomSkillUtilityBase):
             in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(CommonScore.LOOT.value + 0.001), 
             allowed_states = [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
-            utility_skill_typology=UtilitySkillTypology.LOOTING,
+            utility_skill_typology=UtilitySkillTypology.CHESTING,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
         self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)

@@ -1,7 +1,7 @@
 {
-  "updated_at": "2026-02-25 17:11:38",
+  "updated_at": "2026-02-26 21:44:15",
   "source_catalog_path": "Py4GW\\drop_tracker_unknown_mod_ids.json",
-  "entry_count": 15,
+  "entry_count": 18,
   "entries": [
     {
       "id": 10136,
@@ -94,13 +94,14 @@
     },
     {
       "id": 9752,
-      "hits": 24,
+      "hits": 25,
       "guess": "Armor/rune metadata modifier",
-      "confidence": 66,
+      "confidence": 70,
       "confidence_label": "Medium",
       "is_known_hint": false,
       "basis": [
-        "co-occurs with armor/rune markers"
+        "co-occurs with armor/rune markers",
+        "high observation count"
       ],
       "arg1_min": 0,
       "arg1_max": 4,
@@ -122,7 +123,8 @@
         "Lockpicks",
         "Ivory Bow",
         "Half Moon",
-        "Salvage Kit"
+        "Salvage Kit",
+        "Accursed Staff of Trollslaying"
       ],
       "co_mod_ids": [
         8216,
@@ -154,7 +156,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-25 16:55:20"
+      "last_seen": "2026-02-26 19:15:55"
     },
     {
       "id": 42920,
@@ -284,7 +286,7 @@
     },
     {
       "id": 9800,
-      "hits": 11,
+      "hits": 12,
       "guess": "Melee/shield companion modifier",
       "confidence": 63,
       "confidence_label": "Medium",
@@ -342,7 +344,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-25 16:50:05"
+      "last_seen": "2026-02-26 18:45:59"
     },
     {
       "id": 26568,
@@ -417,6 +419,30 @@
         49152
       ],
       "last_seen": "2026-02-24 01:00:59"
+    },
+    {
+      "id": 41928,
+      "hits": 3,
+      "guess": "Unmapped modifier (manual label needed)",
+      "confidence": 28,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "not enough correlated data yet"
+      ],
+      "arg1_min": 39,
+      "arg1_max": 40,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [],
+      "item_type_labels": [],
+      "sample_items": [
+        "Dwarven Armor"
+      ],
+      "co_mod_ids": [
+        49152
+      ],
+      "last_seen": "2026-02-26 21:44:15"
     },
     {
       "id": 9480,
@@ -665,6 +691,66 @@
         49152
       ],
       "last_seen": "2026-02-24 10:00:13"
+    },
+    {
+      "id": 42152,
+      "hits": 1,
+      "guess": "Unmapped modifier (manual label needed)",
+      "confidence": 20,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "not enough correlated data yet"
+      ],
+      "arg1_min": 17,
+      "arg1_max": 17,
+      "arg2_min": 4,
+      "arg2_max": 4,
+      "item_types": [
+        32
+      ],
+      "item_type_labels": [
+        "32(Daggers)"
+      ],
+      "sample_items": [
+        "Titan Armor"
+      ],
+      "co_mod_ids": [
+        9400,
+        42184,
+        49152
+      ],
+      "last_seen": "2026-02-26 21:43:35"
+    },
+    {
+      "id": 42184,
+      "hits": 1,
+      "guess": "Unmapped modifier (manual label needed)",
+      "confidence": 20,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "not enough correlated data yet"
+      ],
+      "arg1_min": 30,
+      "arg1_max": 30,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        32
+      ],
+      "item_type_labels": [
+        "32(Daggers)"
+      ],
+      "sample_items": [
+        "Titan Armor"
+      ],
+      "co_mod_ids": [
+        9400,
+        42152,
+        49152
+      ],
+      "last_seen": "2026-02-26 21:43:35"
     }
   ]
 }

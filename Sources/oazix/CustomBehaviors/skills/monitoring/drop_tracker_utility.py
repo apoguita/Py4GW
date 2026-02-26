@@ -1658,7 +1658,7 @@ class DropTrackerSender:
 
             first_seen = float(pending_entry.get("first_seen", now_ts))
             if (now_ts - first_seen) >= self.pending_ttl_seconds:
-                fallback_name = f"Item#{pending_model_id}" if pending_model_id > 0 else "Unknown Item"
+                fallback_name = "Unknown Item"
                 fallback_rarity = pending_entry.get("rarity") or "Unknown"
                 candidate_events.append({
                     "name": fallback_name,
@@ -1695,7 +1695,7 @@ class DropTrackerSender:
                 if qty > 0:
                     model_id = int(entry.get("model_id", 0))
                     rarity = entry.get("rarity") or "Unknown"
-                    fallback_name = f"Item#{model_id}" if model_id > 0 else "Unknown Item"
+                    fallback_name = "Unknown Item"
                     candidate_events.append({
                         "name": fallback_name,
                         "qty": int(qty),
