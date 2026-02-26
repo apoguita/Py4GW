@@ -776,6 +776,7 @@ class InventoryPlusWidget:
         
         if not UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags):
             self.selected_item = None
+            print("Inventory window not visible, skipping inventory action detection.")
             return
         
         # refresh slot frames
@@ -847,10 +848,8 @@ class InventoryPlusWidget:
 
         # Detect right click
         if PyImGui.is_mouse_released(MouseButton.Right.value):
-
             # Only trigger if user clicked over inventory window
             if WindowFrames["Inventory Bags"].IsMouseOver():
-                
                 self.selected_item = None  # first assume empty click
                 for slot_frame in self.InventorySlots:
                     if slot_frame.IsMouseOver():
@@ -892,6 +891,7 @@ class InventoryPlusWidget:
     #region ShowConfigWindow
     def DrawPopUps(self):
         for popup in self.PopUps.values():
+            print(f"Drawing popup: {popup.Title}, is_open: {popup.is_open}")
             if popup.is_open:
                 popup.Show()
                 if popup.result_blacklist is not None:
@@ -1225,16 +1225,6 @@ def configure():
     if InventoryPlusWidgetInstance.show_config_window: return
     InventoryPlusWidgetInstance.show_config_window = True
 
-def draw():
-    if not InventoryPlusWidgetInstance.initialized: return
-    
-    InventoryPlusWidgetInstance.update_auto_handler()
-    
-    InventoryPlusWidgetInstance.DetectInventoryAction()
-    if InventoryPlusWidgetInstance.show_config_window:
-        InventoryPlusWidgetInstance.ShowConfigWindow()
-        InventoryPlusWidgetInstance._sync_popups_with_handler()
-        InventoryPlusWidgetInstance.DrawPopUps()
 
 def main():
     if not InventoryPlusWidgetInstance.initialized:
@@ -1247,6 +1237,14 @@ def main():
         InventoryPlusWidgetInstance.load_auto_handler_settings()
         InventoryPlusWidgetInstance.load_blacklists_from_ini()
         InventoryPlusWidgetInstance.initialized = True
+        
+    InventoryPlusWidgetInstance.update_auto_handler()
+    
+    InventoryPlusWidgetInstance.DetectInventoryAction()
+    if InventoryPlusWidgetInstance.show_config_window:
+        InventoryPlusWidgetInstance.ShowConfigWindow()
+        InventoryPlusWidgetInstance._sync_popups_with_handler()
+        InventoryPlusWidgetInstance.DrawPopUps()
 
 
 if __name__ == "__main__":
