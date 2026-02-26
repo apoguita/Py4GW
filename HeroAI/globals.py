@@ -16,6 +16,7 @@ class HeroAI_Window_varsClass:
         self.main_window = ImGui.WindowModule(MODULE_NAME, "HeroAI - Follower", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
         self.control_window = ImGui.WindowModule(MODULE_NAME, "HeroAI", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
         self.tools_window = ImGui.WindowModule(MODULE_NAME, "Multibox Tools", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+        self.follow_formations_window = ImGui.WindowModule(MODULE_NAME, "Follow Formations", window_size=(100, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
 
 class DebugWindowClass:
     global MODULE_NAME
@@ -42,6 +43,8 @@ overlay_explorable_initialized = False
 show_area_rings = True
 show_hero_follow_grid = True
 show_distance_on_followers = True
+show_broadcast_follow_positions = True
+show_broadcast_follow_threshold_rings = True
 
 capture_flag_all = False
 capture_hero_flag = False
