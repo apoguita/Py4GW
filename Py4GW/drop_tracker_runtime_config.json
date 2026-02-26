@@ -12,6 +12,9 @@
   "send_tracker_ack_enabled": true,
   "debug_item_stats_panel": false,
   "debug_item_stats_panel_height": 180,
+  "strict_event_stats_binding": true,
+  "event_identity_resolve_grace_s": 1.2,
+  "event_identity_resolve_poll_s": 0.12,
   "id_sel_white": false,
   "id_sel_blue": true,
   "id_sel_green": true,
@@ -25,6 +28,7 @@
   "salvage_sel_gold": false,
   "auto_salvage_enabled": false,
   "auto_buy_kits_enabled": true,
+  "auto_buy_kits_sort_to_front_enabled": true,
   "auto_buy_kits_map_model_hints": {
     "156": [
       2161
@@ -42,18 +46,18 @@
   "auto_conset_essence": true,
   "auto_conset_legionnaire": true,
   "runtime_controls_popout": false,
-  "compact_mode": false,
+  "compact_mode": true,
   "ui_theme_name": "Steel Ember",
   "drop_viewer_window_pos": [
-    47.0,
-    16.0
+    4.0,
+    4.0
   ],
   "drop_viewer_window_size": [
-    1601.0,
-    888.0
+    1795.0,
+    943.0
   ],
   "drop_viewer_handle_pos": [
-    1360.0,
-    4.0
+    601.0,
+    956.0
   ]
 }

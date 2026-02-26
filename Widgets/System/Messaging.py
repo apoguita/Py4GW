@@ -214,11 +214,7 @@ def RestoreHeroAISnapshot(account_email: str):
 
 
 
-<<<<<<< HEAD
-def DisableHeroAIOptions(account_email):
-=======
 def DisableHeroAIOptions(account_email: str):
->>>>>>> upstream/main
     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return
@@ -231,11 +227,7 @@ def DisableHeroAIOptions(account_email: str):
 
 
 
-<<<<<<< HEAD
-def EnableHeroAIOptions(account_email):
-=======
 def EnableHeroAIOptions(account_email: str):
->>>>>>> upstream/main
     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return

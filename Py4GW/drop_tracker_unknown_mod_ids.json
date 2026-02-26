@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-02-25 13:20:32",
+  "updated_at": "2026-02-25 17:11:38",
   "known_mod_id_count": 62,
   "unknown_mods": {
     "8728": {
@@ -116,9 +116,9 @@
       "last_seen": "2026-02-24 07:50:33"
     },
     "9752": {
-      "count": 20,
+      "count": 24,
       "arg1_min": 0,
-      "arg1_max": 2,
+      "arg1_max": 4,
       "arg2_min": 0,
       "arg2_max": 0,
       "item_types": [
@@ -127,6 +127,7 @@
       "model_ids": [
         132,
         134,
+        136,
         137,
         138,
         144,
@@ -134,7 +135,7 @@
       ],
       "sources": {
         "shared_payload": 1,
-        "local_api": 19
+        "local_api": 23
       },
       "sample_items": [
         "Black Hawk's Lust",
@@ -143,7 +144,10 @@
         "Giant Slayers Hammer",
         "Flatbow",
         "Shortbow",
-        "Lockpicks"
+        "Lockpicks",
+        "Ivory Bow",
+        "Half Moon",
+        "Salvage Kit"
       ],
       "sample_events": [],
       "co_mod_ids": [
@@ -176,7 +180,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-25 13:20:32"
+      "last_seen": "2026-02-25 16:55:20"
     },
     "9784": {
       "count": 1,
@@ -205,7 +209,7 @@
       "last_seen": "2026-02-24 00:22:12"
     },
     "9800": {
-      "count": 8,
+      "count": 11,
       "arg1_min": 0,
       "arg1_max": 2,
       "arg2_min": 0,
@@ -219,14 +223,15 @@
       "model_ids": [
         126,
         132,
+        136,
         137,
         138,
         221,
         402
       ],
       "sources": {
-        "shared_payload": 1,
-        "local_api": 7
+        "shared_payload": 2,
+        "local_api": 9
       },
       "sample_items": [
         "Fiery Dragon Sword",
@@ -234,7 +239,8 @@
         "Feathered Longbow",
         "Spiked Axe",
         "Flatbow",
-        "Longbow"
+        "Longbow",
+        "Ivory Bow"
       ],
       "sample_events": [],
       "co_mod_ids": [
@@ -243,6 +249,7 @@
         8536,
         8760,
         8792,
+        8840,
         8856,
         8872,
         8888,
@@ -261,7 +268,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-25 11:34:24"
+      "last_seen": "2026-02-25 16:50:05"
     },
     "9880": {
       "count": 13,
@@ -444,39 +451,6 @@
       ],
       "last_seen": "2026-02-24 08:46:07"
     },
-    "10216": {
-      "count": 2,
-      "arg1_min": 2,
-      "arg1_max": 2,
-      "arg2_min": 183,
-      "arg2_max": 234,
-      "item_types": [],
-      "model_ids": [
-        90,
-        1115
-      ],
-      "sources": {
-        "shared_payload": 1,
-        "local_api": 1
-      },
-      "sample_items": [
-        "Dolyak Cladding",
-        "Titan Armor"
-      ],
-      "sample_events": [],
-      "co_mod_ids": [
-        9224,
-        9520,
-        10218,
-        32880,
-        33056,
-        41208,
-        41928,
-        42288,
-        49152
-      ],
-      "last_seen": "2026-02-24 10:00:13"
-    },
     "25288": {
       "count": 1,
       "arg1_min": 10,
@@ -547,39 +521,6 @@
         49152
       ],
       "last_seen": "2026-02-24 00:40:39"
-    },
-    "32912": {
-      "count": 2,
-      "arg1_min": 0,
-      "arg1_max": 0,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [],
-      "model_ids": [
-        89,
-        1122
-      ],
-      "sources": {
-        "shared_payload": 1,
-        "local_api": 1
-      },
-      "sample_items": [
-        "Titan Armor",
-        "Dwarven Sage Outfit"
-      ],
-      "sample_events": [],
-      "co_mod_ids": [
-        8408,
-        8680,
-        9224,
-        9520,
-        32880,
-        41208,
-        41928,
-        42288,
-        49152
-      ],
-      "last_seen": "2026-02-24 10:41:04"
     },
     "33056": {
       "count": 1,

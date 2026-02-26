@@ -1,7 +1,7 @@
 {
-  "updated_at": "2026-02-25 13:20:32",
+  "updated_at": "2026-02-25 17:11:38",
   "source_catalog_path": "Py4GW\\drop_tracker_unknown_mod_ids.json",
-  "entry_count": 17,
+  "entry_count": 15,
   "entries": [
     {
       "id": 10136,
@@ -94,7 +94,7 @@
     },
     {
       "id": 9752,
-      "hits": 20,
+      "hits": 24,
       "guess": "Armor/rune metadata modifier",
       "confidence": 66,
       "confidence_label": "Medium",
@@ -103,7 +103,7 @@
         "co-occurs with armor/rune markers"
       ],
       "arg1_min": 0,
-      "arg1_max": 2,
+      "arg1_max": 4,
       "arg2_min": 0,
       "arg2_max": 0,
       "item_types": [
@@ -119,7 +119,10 @@
         "Giant Slayers Hammer",
         "Flatbow",
         "Shortbow",
-        "Lockpicks"
+        "Lockpicks",
+        "Ivory Bow",
+        "Half Moon",
+        "Salvage Kit"
       ],
       "co_mod_ids": [
         8216,
@@ -151,7 +154,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-25 13:20:32"
+      "last_seen": "2026-02-25 16:55:20"
     },
     {
       "id": 42920,
@@ -280,6 +283,68 @@
       "last_seen": "2026-02-24 08:46:07"
     },
     {
+      "id": 9800,
+      "hits": 11,
+      "guess": "Melee/shield companion modifier",
+      "confidence": 63,
+      "confidence_label": "Medium",
+      "is_known_hint": false,
+      "basis": [
+        "melee/shield co-mod IDs"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        2,
+        5,
+        15,
+        27
+      ],
+      "item_type_labels": [
+        "2(Axe)",
+        "5(Upgrade)",
+        "15(Hammer)",
+        "27(Sword)"
+      ],
+      "sample_items": [
+        "Fiery Dragon Sword",
+        "Magmas Arm",
+        "Feathered Longbow",
+        "Spiked Axe",
+        "Flatbow",
+        "Longbow",
+        "Ivory Bow"
+      ],
+      "co_mod_ids": [
+        8216,
+        8456,
+        8536,
+        8760,
+        8792,
+        8840,
+        8856,
+        8872,
+        8888,
+        9032,
+        9224,
+        9240,
+        9400,
+        9520,
+        9752,
+        9880,
+        10136,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-25 16:50:05"
+    },
+    {
       "id": 26568,
       "hits": 9,
       "guess": "Energy +X",
@@ -318,66 +383,6 @@
         49152
       ],
       "last_seen": "2026-02-24 00:40:39"
-    },
-    {
-      "id": 9800,
-      "hits": 8,
-      "guess": "Melee/shield companion modifier",
-      "confidence": 59,
-      "confidence_label": "Low",
-      "is_known_hint": false,
-      "basis": [
-        "melee/shield co-mod IDs"
-      ],
-      "arg1_min": 0,
-      "arg1_max": 2,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [
-        2,
-        5,
-        15,
-        27
-      ],
-      "item_type_labels": [
-        "2(Axe)",
-        "5(Upgrade)",
-        "15(Hammer)",
-        "27(Sword)"
-      ],
-      "sample_items": [
-        "Fiery Dragon Sword",
-        "Magmas Arm",
-        "Feathered Longbow",
-        "Spiked Axe",
-        "Flatbow",
-        "Longbow"
-      ],
-      "co_mod_ids": [
-        8216,
-        8456,
-        8536,
-        8760,
-        8792,
-        8856,
-        8872,
-        8888,
-        9032,
-        9224,
-        9240,
-        9400,
-        9520,
-        9752,
-        9880,
-        10136,
-        32880,
-        32896,
-        41544,
-        42288,
-        42920,
-        49152
-      ],
-      "last_seen": "2026-02-25 11:34:24"
     },
     {
       "id": 8728,
@@ -441,72 +446,6 @@
         49152
       ],
       "last_seen": "2026-02-24 07:50:33"
-    },
-    {
-      "id": 10216,
-      "hits": 2,
-      "guess": "Armor/rune metadata modifier",
-      "confidence": 50,
-      "confidence_label": "Low",
-      "is_known_hint": false,
-      "basis": [
-        "co-occurs with armor/rune markers"
-      ],
-      "arg1_min": 2,
-      "arg1_max": 2,
-      "arg2_min": 183,
-      "arg2_max": 234,
-      "item_types": [],
-      "item_type_labels": [],
-      "sample_items": [
-        "Dolyak Cladding",
-        "Titan Armor"
-      ],
-      "co_mod_ids": [
-        9224,
-        9520,
-        10218,
-        32880,
-        33056,
-        41208,
-        41928,
-        42288,
-        49152
-      ],
-      "last_seen": "2026-02-24 10:00:13"
-    },
-    {
-      "id": 32912,
-      "hits": 2,
-      "guess": "Armor/rune metadata modifier",
-      "confidence": 50,
-      "confidence_label": "Low",
-      "is_known_hint": false,
-      "basis": [
-        "co-occurs with armor/rune markers"
-      ],
-      "arg1_min": 0,
-      "arg1_max": 0,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [],
-      "item_type_labels": [],
-      "sample_items": [
-        "Titan Armor",
-        "Dwarven Sage Outfit"
-      ],
-      "co_mod_ids": [
-        8408,
-        8680,
-        9224,
-        9520,
-        32880,
-        41208,
-        41928,
-        42288,
-        49152
-      ],
-      "last_seen": "2026-02-24 10:41:04"
     },
     {
       "id": 42936,
