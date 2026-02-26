@@ -209,12 +209,9 @@ widget_manager_initialized = False
 widget_manager_initializing = False
 
 def main():
-<<<<<<< HEAD
-    global INI_KEY, init_coro, widget_manager_initialized, widget_manager_initializing
-    global wm_handle_x, wm_handle_y, wm_handle_pin, wm_hover_mode, wm_handle_visible, wm_hide_deadline, wm_layout_last_save, wm_window_initialized
-=======
     global INI_KEY, widget_manager_initialized, widget_manager_initializing
->>>>>>> upstream/main
+    global wm_handle_x, wm_handle_y, wm_handle_pin, wm_hover_mode
+    global wm_handle_visible, wm_hide_deadline, wm_layout_last_save, wm_window_initialized
 
     if not INI_KEY:
         if not os.path.exists(INI_PATH):
