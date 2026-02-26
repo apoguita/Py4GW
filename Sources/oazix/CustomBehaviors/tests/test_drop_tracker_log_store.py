@@ -1,0 +1,294 @@
+from __future__ import annotations
+
+import shutil
+import uuid
+from pathlib import Path
+
+from Sources.oazix.CustomBehaviors.skills.monitoring import drop_tracker_log_store as log_store
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import parse_drop_log_text
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import parse_drop_log_file
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import render_drop_log_csv
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import append_drop_log_rows
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
+
+
+def test_parse_old_csv_format_back_compat():
+    csv_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,Player,ItemName,Quantity,Rarity",
+            "2026-02-22 12:00:00,BotA,55,Mesmer Tri,Holy Staff,1,White",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda map_id: f"Map#{map_id}")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.map_name == "Map#55"
+    assert row.player_name == "Mesmer Tri"
+    assert row.item_name == "Holy Staff"
+    assert row.quantity == 1
+
+
+def test_parse_drop_log_text_empty_returns_no_rows():
+    assert parse_drop_log_text("", map_name_resolver=lambda _map_id: "unused") == []
+
+
+def test_parse_headerless_rows_include_first_and_following_rows():
+    csv_text = "\n".join(
+        [
+            "2026-02-22 12:00:03,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,ev-hl-1,\"line\",489,mesmer@test",
+            "2026-02-22 12:00:04,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,2,White,ev-hl-2,\"line\",490,mesmer@test",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 2
+    assert rows[0].event_id == "ev-hl-1"
+    assert rows[1].event_id == "ev-hl-2"
+
+
+def test_parse_old_csv_invalid_map_id_uses_unknown_fallback():
+    csv_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,Player,ItemName,Quantity,Rarity",
+            "2026-02-22 12:00:05,BotA,not-a-map,Mesmer Tri,Holy Staff,1,White",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _map_id: "MapShouldNotResolve")
+    assert len(rows) == 1
+    assert rows[0].map_name == "Unknown"
+
+
+def test_log_store_private_helper_edges():
+    assert log_store._is_header_row([]) is False
+    assert log_store._is_int_text("") is False
+    assert log_store._is_int_text("+42") is True
+    assert log_store._is_int_text("-7") is True
+
+    assert log_store._infer_has_map_name("not-a-list") is True
+    assert log_store._infer_has_map_name(["a", "b"]) is True
+    assert log_store._infer_has_map_name(["a", "b", "c", "d", "e", "1", "f"]) is False
+    assert log_store._infer_has_map_name(["a", "b", "c", "d", "e", "x", "5", "z"]) is True
+    assert log_store._infer_has_map_name(["a", "b", "c", "d", "e", "5", "x", "z"]) is False
+    assert log_store._infer_has_map_name(["a", "b", "c", "d", "e", "x", "x", "z"]) is True
+
+
+def test_parse_new_csv_format_with_event_fields():
+    csv_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity,EventID,ItemStats,ItemID",
+            "2026-02-22 12:00:01,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,85e699300008,\"Holy Staff\\nValue: 224 gold\",487",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.event_id == "85e699300008"
+    assert row.item_id == 487
+    assert "Value: 224 gold" in row.item_stats
+    assert row.sender_email == ""
+
+
+def test_parse_new_csv_format_with_sender_email():
+    csv_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity,EventID,ItemStats,ItemID,SenderEmail",
+            "2026-02-22 12:00:02,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,85e699300009,\"line\",488,mesmer@test",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.event_id == "85e699300009"
+    assert row.item_id == 488
+    assert row.sender_email == "mesmer@test"
+
+
+def test_parse_old_header_with_extended_columns_keeps_event_fields():
+    csv_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity",
+            "2026-02-22 12:00:02,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,85e699300009,\"line\",488,mesmer@test",
+        ]
+    )
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.event_id == "85e699300009"
+    assert row.item_stats == "line"
+    assert row.item_id == 488
+    assert row.sender_email == "mesmer@test"
+
+
+def test_parse_headerless_new_format_row():
+    csv_text = "2026-02-22 12:00:03,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,ev-hl,\"line\",489,mesmer@test\n"
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row.player_name == "Mesmer Tri"
+    assert row.item_name == "Holy Staff"
+    assert row.event_id == "ev-hl"
+    assert row.item_id == 489
+    assert row.sender_email == "mesmer@test"
+
+
+def test_append_and_parse_roundtrip():
+    expected = DropLogRow(
+        timestamp="2026-02-22 13:00:00",
+        viewer_bot="BotA",
+        map_id=200,
+        map_name="Ascalon",
+        player_name="Mesmer Tri",
+        item_name="Holy Staff",
+        quantity=2,
+        rarity="White",
+        event_id="abc123",
+        item_stats="Holy Staff",
+        item_id=321,
+    )
+    csv_text = render_drop_log_csv([expected])
+    rows = parse_drop_log_text(csv_text, map_name_resolver=lambda _: "unused")
+    assert len(rows) == 1
+    got = rows[0]
+    assert got.to_runtime_row() == expected.to_runtime_row()
+
+
+def _make_local_temp_dir() -> Path:
+    root = Path(".tmp") / "pytest-local"
+    root.mkdir(parents=True, exist_ok=True)
+    temp_dir = root / f"drop-tracker-{uuid.uuid4().hex}"
+    temp_dir.mkdir(parents=True, exist_ok=False)
+    return temp_dir
+
+
+def test_parse_drop_log_file_roundtrip():
+    expected = DropLogRow(
+        timestamp="2026-02-22 13:05:00",
+        viewer_bot="BotB",
+        map_id=248,
+        map_name="Temple of the Ages",
+        player_name="Mesmer Tri",
+        item_name="Holy Staff",
+        quantity=1,
+        rarity="White",
+        event_id="ev-file",
+        item_stats="Value: 224 gold",
+        item_id=487,
+    )
+    temp_dir = _make_local_temp_dir()
+    try:
+        csv_text = render_drop_log_csv([expected])
+        file_path = temp_dir / "drops.csv"
+        file_path.write_text(csv_text, encoding="utf-8")
+        parsed = parse_drop_log_file(str(file_path))
+        assert len(parsed) == 1
+        assert parsed[0].to_runtime_row() == expected.to_runtime_row()
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_append_drop_log_rows_writes_header_once():
+    temp_dir = _make_local_temp_dir()
+    file_path = temp_dir / "append_log.csv"
+    row_a = DropLogRow(
+        timestamp="2026-02-22 13:06:00",
+        viewer_bot="BotA",
+        map_id=248,
+        map_name="Temple of the Ages",
+        player_name="PlayerA",
+        item_name="ItemA",
+        quantity=1,
+        rarity="White",
+        event_id="ev-a",
+        item_stats="",
+        item_id=1,
+    )
+    row_b = DropLogRow(
+        timestamp="2026-02-22 13:07:00",
+        viewer_bot="BotB",
+        map_id=249,
+        map_name="Ascalon",
+        player_name="PlayerB",
+        item_name="ItemB",
+        quantity=2,
+        rarity="Blue",
+        event_id="ev-b",
+        item_stats="line",
+        item_id=2,
+    )
+    try:
+        append_drop_log_rows(str(file_path), [row_a])
+        append_drop_log_rows(str(file_path), [row_b])
+        append_drop_log_rows(str(file_path), [])
+        lines = file_path.read_text(encoding="utf-8").splitlines()
+        assert lines[0].startswith("Timestamp,ViewerBot,MapID,MapName,Player")
+        assert len([line for line in lines if line.startswith("Timestamp,ViewerBot,MapID,MapName,Player")]) == 1
+        assert len(lines) == 3
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_append_drop_log_rows_upgrades_legacy_header_and_preserves_existing_fields():
+    temp_dir = _make_local_temp_dir()
+    file_path = temp_dir / "legacy_header.csv"
+    legacy_text = "\n".join(
+        [
+            "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity",
+            "2026-02-22 12:00:02,BotA,248,Temple of the Ages,Mesmer Tri,Holy Staff,1,White,ev-old,\"line-old\",488,mesmer@test",
+        ]
+    ) + "\n"
+    file_path.write_text(legacy_text, encoding="utf-8")
+    row_new = DropLogRow(
+        timestamp="2026-02-22 13:10:00",
+        viewer_bot="BotB",
+        map_id=249,
+        map_name="Ascalon",
+        player_name="PlayerB",
+        item_name="ItemB",
+        quantity=2,
+        rarity="Blue",
+        event_id="ev-new",
+        item_stats="line-new",
+        item_id=2,
+        sender_email="playerb@test",
+    )
+    try:
+        append_drop_log_rows(str(file_path), [row_new])
+        lines = file_path.read_text(encoding="utf-8").splitlines()
+        assert lines[0] == "Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity,EventID,ItemStats,ItemID,SenderEmail"
+        parsed = parse_drop_log_file(str(file_path))
+        assert len(parsed) == 2
+        assert parsed[0].event_id == "ev-old"
+        assert parsed[0].item_stats == "line-old"
+        assert parsed[0].item_id == 488
+        assert parsed[0].sender_email == "mesmer@test"
+        assert parsed[1].event_id == "ev-new"
+        assert parsed[1].sender_email == "playerb@test"
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_append_drop_log_rows_tolerates_upgrade_probe_oserror(monkeypatch):
+    temp_dir = _make_local_temp_dir()
+    file_path = temp_dir / "probe_oserror.csv"
+    file_path.write_text("Timestamp,ViewerBot,MapID,MapName,Player,ItemName,Quantity,Rarity\n", encoding="utf-8")
+    row_new = DropLogRow(
+        timestamp="2026-02-22 13:12:00",
+        viewer_bot="BotC",
+        map_id=250,
+        map_name="Kaineng Center",
+        player_name="PlayerC",
+        item_name="ItemC",
+        quantity=3,
+        rarity="Gold",
+        event_id="ev-oserror",
+        item_stats="line-oserror",
+        item_id=33,
+        sender_email="playerc@test",
+    )
+    try:
+        monkeypatch.setattr(log_store.os.path, "getsize", lambda _path: (_ for _ in ()).throw(OSError("boom")))
+        append_drop_log_rows(str(file_path), [row_new])
+        parsed = parse_drop_log_file(str(file_path))
+        assert len(parsed) == 1
+        assert parsed[0].event_id == "ev-oserror"
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)

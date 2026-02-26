@@ -37,6 +37,16 @@ win_y         = ini_window.read_int("Loot Manager", "y", 100)
 win_collapsed = ini_window.read_bool("Loot Manager", "collapsed", False)
 first_run     = True
 
+# --- Hover Icon Handle state ---
+loot_handle_x = ini_window.read_int("Loot Manager Handle", "x", 40)
+loot_handle_y = ini_window.read_int("Loot Manager Handle", "y", 120)
+loot_handle_pin = ini_window.read_bool("Loot Manager Handle", "pin", False)
+loot_handle_hover_mode = ini_window.read_bool("Loot Manager Handle", "hover_mode", True)
+loot_handle_visible = True
+loot_handle_hide_delay_s = 0.35
+loot_handle_hide_deadline = 0.0
+LOOT_HANDLE_ICON = os.path.join(script_directory, "Widgets", "Assets", "LootManager", "goblin.jpg")
+
 # --- File paths setup ---
 CONFIG_FILE = os.path.join(script_directory, "Widgets", "Config", "loot_config.json")
 MODELID_DROP_DATA_FILE = os.path.join(script_directory, "Widgets", "Data", "modelid_drop_data.json")
@@ -417,6 +427,112 @@ def get_current_nick_item_by_formula():
     except IndexError:
         return None
 
+def _mouse_in_window_rect() -> bool:
+    try:
+        io = PyImGui.get_io()
+        mx = float(getattr(io, "mouse_pos_x", -1.0))
+        my = float(getattr(io, "mouse_pos_y", -1.0))
+        wx, wy = PyImGui.get_window_pos()
+        ww, wh = PyImGui.get_window_size()
+        return (mx >= wx) and (mx <= (wx + ww)) and (my >= wy) and (my <= (wy + wh))
+    except Exception:
+        return False
+
+def _get_display_size():
+    io = PyImGui.get_io()
+    w = float(getattr(io, "display_size_x", 1920.0) or 1920.0)
+    h = float(getattr(io, "display_size_y", 1080.0) or 1080.0)
+    return max(320.0, w), max(240.0, h)
+
+def _clamp_pos(x, y, w, h, margin=4.0):
+    sw, sh = _get_display_size()
+    max_x = max(margin, sw - w - margin)
+    max_y = max(margin, sh - h - margin)
+    return min(max(float(x), margin), max_x), min(max(float(y), margin), max_y)
+
+def _draw_themed_handle(button_rect):
+    is_hover = ImGui.is_mouse_in_rect(button_rect)
+    try:
+        match(ImGui.get_style().Theme):
+            case Style.StyleTheme.Guild_Wars:
+                ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
+                    button_rect[:2], button_rect[2:],
+                    tint=(255, 255, 255, 255) if is_hover else (200, 200, 200, 255),
+                )
+                ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
+                    button_rect[:2], button_rect[2:],
+                    tint=(255, 255, 255, 255) if is_hover else (200, 200, 200, 255),
+                )
+            case _:
+                PyImGui.draw_list_add_rect_filled(
+                    button_rect[0] + 1, button_rect[1] + 1,
+                    button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                    Utils.RGBToColor(51, 76, 102, 255) if is_hover else Utils.RGBToColor(26, 38, 51, 255),
+                    4, 0
+                )
+                PyImGui.draw_list_add_rect(
+                    button_rect[0] + 1, button_rect[1] + 1,
+                    button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                    Utils.RGBToColor(204, 204, 212, 50), 4, 0, 1
+                )
+    except Exception:
+        pass
+
+def DrawLootManagerHandle():
+    global loot_handle_x, loot_handle_y, loot_handle_pin
+    btn_w, btn_h = 48.0, 48.0
+    loot_handle_x, loot_handle_y = _clamp_pos(loot_handle_x, loot_handle_y, btn_w, btn_h)
+    button_rect = (loot_handle_x, loot_handle_y, btn_w, btn_h)
+
+    PyImGui.set_next_window_pos(loot_handle_x, loot_handle_y)
+    PyImGui.set_next_window_size(btn_w + 4.0, btn_h + 4.0)
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0.0, 0.0)
+    flags = (
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoResize |
+        PyImGui.WindowFlags.NoMove |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.NoScrollWithMouse |
+        PyImGui.WindowFlags.NoCollapse |
+        PyImGui.WindowFlags.NoBackground
+    )
+
+    hovered = False
+    if PyImGui.begin("##LootManagerHandle", flags):
+        _draw_themed_handle(button_rect)
+
+        border_col = Utils.RGBToColor(76, 235, 89, 255) if loot_handle_pin else Utils.RGBToColor(242, 71, 56, 255)
+        PyImGui.draw_list_add_rect(
+            button_rect[0] + 1, button_rect[1] + 1,
+            button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+            border_col, 4, 0, 3
+        )
+
+        icon_rect = (button_rect[0] + 8, button_rect[1] + 6, 32, 32)
+        if os.path.exists(LOOT_HANDLE_ICON):
+            ImGui.DrawTextureInDrawList(
+                icon_rect[:2], icon_rect[2:], LOOT_HANDLE_ICON,
+                tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (210, 210, 210, 255),
+            )
+
+        if PyImGui.invisible_button("##LootManagerHandleBtn", btn_w, btn_h):
+            loot_handle_pin = not loot_handle_pin
+        elif PyImGui.is_item_active():
+            delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+            PyImGui.reset_mouse_drag_delta(0)
+            loot_handle_x += delta[0]
+            loot_handle_y += delta[1]
+            loot_handle_x, loot_handle_y = _clamp_pos(loot_handle_x, loot_handle_y, btn_w, btn_h)
+
+        if PyImGui.is_item_hovered():
+            tip = "Loot Manager (click to pin)" if not loot_handle_pin else "Loot Manager (click to unpin)"
+            ImGui.show_tooltip(tip)
+
+        hovered = ImGui.is_mouse_in_rect(button_rect)
+    PyImGui.end()
+    PyImGui.pop_style_var(1)
+    return hovered
+
 def DrawWindow():
     global include_model_id_in_tooltip, show_white_list, show_filtered_loot_list
     global show_manual_editor, show_black_list
@@ -427,16 +543,19 @@ def DrawWindow():
 
     # 1) On first draw, restore last position & collapsed state
     if first_run:
+        win_x, win_y = _clamp_pos(win_x, win_y, 520.0, 420.0)
         PyImGui.set_next_window_pos(win_x, win_y)
         PyImGui.set_next_window_collapsed(win_collapsed, 0)
         first_run = False
 
     # 2) Begin the window (returns False if collapsed)
-    opened = PyImGui.begin("Loot Manager", PyImGui.WindowFlags.AlwaysAutoResize)
+    opened = PyImGui.begin("Loot Manager", PyImGui.WindowFlags.NoFlag)
 
     # 3) Immediately grab the live collapse & position, even if collapsed
     new_collapsed = PyImGui.is_window_collapsed()
     end_pos       = PyImGui.get_window_pos()
+
+    main_hovered = _mouse_in_window_rect() or PyImGui.is_window_hovered()
 
     if opened:
         # —— Debug Settings ——
@@ -707,7 +826,12 @@ def DrawWindow():
         if new_collapsed != win_collapsed:
             win_collapsed = new_collapsed
             ini_window.write_key("Loot Manager", "collapsed", str(win_collapsed))
+        ini_window.write_key("Loot Manager Handle", "x", str(int(loot_handle_x)))
+        ini_window.write_key("Loot Manager Handle", "y", str(int(loot_handle_y)))
+        ini_window.write_key("Loot Manager Handle", "pin", str(bool(loot_handle_pin)))
+        ini_window.write_key("Loot Manager Handle", "hover_mode", str(bool(loot_handle_hover_mode)))
         save_window_timer.Reset()
+    return main_hovered
 
 def DrawWhitelistViewer():
     if show_white_list:
@@ -908,6 +1032,7 @@ def tooltip():
 
 def render():
     global last_config_check_time, last_config_timestamp, last_rarity_timestamp
+    global loot_handle_visible, loot_handle_hide_deadline
 
     current_time = time.time()
     if current_time - last_config_check_time > 2.0:
@@ -930,19 +1055,41 @@ def render():
                 last_rarity_timestamp = new_rarity_timestamp
 
     # Draw GUI
-    DrawWindow()
+    now = time.time()
+    handle_hovered = False
+    main_hovered = False
 
-    if show_white_list:
-        DrawWhitelistViewer()
+    if loot_handle_hover_mode:
+        handle_hovered = DrawLootManagerHandle()
+        if handle_hovered:
+            loot_handle_visible = True
+            loot_handle_hide_deadline = now + loot_handle_hide_delay_s
+        if loot_handle_pin:
+            loot_handle_visible = True
 
-    if show_filtered_loot_list:
-        DrawFilteredLootList()
+        if loot_handle_visible or loot_handle_pin:
+            main_hovered = DrawWindow()
+    else:
+        loot_handle_visible = True
+        main_hovered = DrawWindow()
 
-    if show_manual_editor:
-        DrawManualLootConfig()
+    if loot_handle_hover_mode:
+        if main_hovered:
+            loot_handle_visible = True
+            loot_handle_hide_deadline = now + loot_handle_hide_delay_s
+        if not loot_handle_pin and not handle_hovered and not main_hovered and now >= loot_handle_hide_deadline:
+            loot_handle_visible = False
 
-    if show_black_list:
-        DrawBlacklistViewer()
+    # sub-windows follow visibility/pin state
+    if (loot_handle_visible or loot_handle_pin or not loot_handle_hover_mode):
+        if show_white_list:
+            DrawWhitelistViewer()
+        if show_filtered_loot_list:
+            DrawFilteredLootList()
+        if show_manual_editor:
+            DrawManualLootConfig()
+        if show_black_list:
+            DrawBlacklistViewer()
 
 # --- Exports ---
 __all__ = ['main']

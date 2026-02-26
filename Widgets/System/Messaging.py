@@ -727,6 +727,7 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
 #region Open Chest
 def OpenChest(index: int, message: SharedMessageStruct):
     start_time = time.time()
+    unlock_success = False
     
     cascade = int(message.Params[1]) == 1
     chest_id = int(message.Params[0])
@@ -737,6 +738,7 @@ def OpenChest(index: int, message: SharedMessageStruct):
     SnapshotHeroAIOptions(email_owner)
     
     def unlock_chest():
+        nonlocal unlock_success
         has_lockpick = GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Lockpick) > 0
         
         if not has_lockpick:
@@ -750,7 +752,10 @@ def OpenChest(index: int, message: SharedMessageStruct):
         yield from Routines.Yield.wait(100)
         x, y = Agent.GetXY(chest_id)
         ConsoleLog(MODULE_NAME, f"Moving to chest at ({x}, {y})", Console.MessageType.Info)
-        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        move_success = yield from Routines.Yield.Movement.FollowPath([(x, y)], timeout=15000)
+        if not move_success:
+            ConsoleLog(MODULE_NAME, "Failed to reach chest, halting.", Console.MessageType.Warning)
+            return
         yield from Routines.Yield.wait(100)
         
         ConsoleLog(MODULE_NAME, f"Interacting with chest ID {chest_id}", Console.MessageType.Info)
@@ -763,13 +768,15 @@ def OpenChest(index: int, message: SharedMessageStruct):
                 if time.time() - start_time > 30:
                     ConsoleLog(MODULE_NAME, "Timeout reached while opening chest, halting.", Console.MessageType.Warning)
                     return
-            
-                Player.SendDialog(2)
-                yield from Routines.Yield.wait(1500)    
-            
+
                 if not UIManager.IsLockedChestWindowVisible():
+                    unlock_success = True
                     ConsoleLog(MODULE_NAME, "Chest successfully unlocked.", Console.MessageType.Info)
                     return
+
+                # Keep API-defined chest flow: confirm lockpick via dialog id 2.
+                Player.SendDialog(2)
+                yield from Routines.Yield.wait(300)
         else:
             ConsoleLog(MODULE_NAME, "Chest is not locked or already opened.", Console.MessageType.Info)
                 
@@ -781,7 +788,7 @@ def OpenChest(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(email_owner, index)
           
         #Get Party Index and cascade to the next party index
-        if cascade:
+        if cascade and unlock_success:
             ConsoleLog(MODULE_NAME, "Cascading OpenChest to next party member.", Console.MessageType.Info)
             account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(email_owner)     
                    
@@ -802,11 +809,10 @@ def OpenChest(index: int, message: SharedMessageStruct):
                             account.MapLanguage == map_language)
                 
                 all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
-                chest_pos = Agent.GetXY(chest_id)
-                                
                 sorted_by_party_index = sorted(
-                    [acc for acc in all_accounts if Utils.Distance((acc.AgentData.Pos.x, acc.AgentData.Pos.y), chest_pos) < 2500.0], 
-                key=lambda acc: acc.AgentPartyData.PartyPosition ) if all_accounts else []
+                    all_accounts,
+                    key=lambda acc: acc.AgentPartyData.PartyPosition
+                ) if all_accounts else []
                 
                 if sorted_by_party_index:
                     next_account = sorted_by_party_index[0]
@@ -819,6 +825,8 @@ def OpenChest(index: int, message: SharedMessageStruct):
                     )
             else:
                 ConsoleLog(MODULE_NAME, f"Account data of {email_owner} not found for cascading.", Console.MessageType.Warning)
+        elif cascade:
+            ConsoleLog(MODULE_NAME, "Skipping OpenChest cascade because unlock was not confirmed.", Console.MessageType.Warning)
                     
         else:
             ConsoleLog(MODULE_NAME, "OpenChest routine finished without cascading.", Console.MessageType.Info)

@@ -1,0 +1,86 @@
+name: Drop Tracker CI
+
+on:
+  push:
+    paths:
+      - "Sources/oazix/CustomBehaviors/skills/monitoring/**"
+      - "Sources/oazix/CustomBehaviors/tests/**"
+      - "pyproject.toml"
+      - "pyrightconfig.json"
+      - "pytest.ini"
+      - ".github/workflows/drop_tracker_ci.yml"
+  pull_request:
+    paths:
+      - "Sources/oazix/CustomBehaviors/skills/monitoring/**"
+      - "Sources/oazix/CustomBehaviors/tests/**"
+      - "pyproject.toml"
+      - "pyrightconfig.json"
+      - "pytest.ini"
+      - ".github/workflows/drop_tracker_ci.yml"
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest ruff mypy pyright
+
+      - name: Run tests
+        run: |
+          pytest Sources/oazix/CustomBehaviors/tests
+
+      - name: Ruff lint + complexity gates
+        run: |
+          ruff check \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_models.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_log_store.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_row_ops.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_transport.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_inventory_actions.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_stats_render.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_ui_panels.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_protocol.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/item_mod_render_utils.py \
+            Sources/oazix/CustomBehaviors/tests/test_drop_tracker_log_store.py \
+            Sources/oazix/CustomBehaviors/tests/test_drop_tracker_row_ops.py \
+            Sources/oazix/CustomBehaviors/tests/test_drop_tracker_integration_flow.py \
+            Sources/oazix/CustomBehaviors/tests/test_drop_tracker_transport.py \
+            Sources/oazix/CustomBehaviors/tests/test_drop_tracker_inventory_actions.py \
+            Sources/oazix/CustomBehaviors/tests/test_drop_tracker_inventory_router.py \
+            Sources/oazix/CustomBehaviors/tests/test_drop_tracker_protocol_retries.py
+
+      - name: Mypy type check
+        run: |
+          mypy \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_models.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_log_store.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_row_ops.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_transport.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_inventory_actions.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_stats_render.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_ui_panels.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_protocol.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/item_mod_render_utils.py
+
+      - name: Pyright type check
+        run: |
+          pyright \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_models.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_log_store.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_row_ops.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_transport.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_inventory_actions.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_stats_render.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_ui_panels.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_protocol.py \
+            Sources/oazix/CustomBehaviors/skills/monitoring/item_mod_render_utils.py

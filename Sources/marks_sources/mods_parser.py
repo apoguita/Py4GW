@@ -176,11 +176,17 @@ class ModifierInfo(BaseModifierInfo):
 
 class Rune:
     def __init__(
-        self, identifier: str, modifiers: list[ModifierInfo], name: str = "", mod_type: ModType = ModType.None_
+        self,
+        identifier: str,
+        modifiers: list[ModifierInfo],
+        name: str = "",
+        description: str = "",
+        mod_type: ModType = ModType.None_,
     ):
         self.identifier = identifier
         self.modifiers = modifiers
         self.name = name
+        self.description = description
         self.mod_type = mod_type
 
     def matches_modifiers(self, modifiers: list[tuple[int, int, int]]) -> tuple[bool, bool]:
@@ -228,6 +234,7 @@ class Rune:
         return Rune(
             identifier=data["Identifier"],
             name=data.get("Names", {}).get("English", ""),
+            description=data.get("Descriptions", {}).get("English", ""),
             mod_type=ModType[data["ModType"]] if "ModType" in data else ModType.None_,
             modifiers=[ModifierInfo.from_dict(m) for m in data["Modifiers"]],
         )
@@ -244,6 +251,7 @@ class WeaponMod:
         identifier: str,
         modifiers: list[ModifierInfo],
         name: str = "",
+        description: str = "",
         mod_type: ModType = ModType.None_,
         item_mods: dict | None = None,
         item_type_specific: dict | None = None,
@@ -252,6 +260,7 @@ class WeaponMod:
         self.identifier = identifier
         self.modifiers = modifiers
         self.name = name
+        self.description = description
         self.mod_type = mod_type
         self.item_mods: dict = item_mods or {}
         self.item_type_specific: dict = item_type_specific or {}
@@ -283,6 +292,7 @@ class WeaponMod:
         return WeaponMod(
             identifier=data["Identifier"],
             name=data.get("Names", {}).get("English", ""),
+            description=data.get("Descriptions", {}).get("English", ""),
             mod_type=ModType[data["ModType"]] if "ModType" in data else ModType.None_,
             item_mods=item_mods,
             item_type_specific=item_type_specific,

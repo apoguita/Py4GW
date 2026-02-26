@@ -1,0 +1,105 @@
+Merchant Scan Debug @ 2026-02-23 18:23:51
+Map: 55 Lions Arch
+Outpost: True
+Player XY: (2221.2, 7527.9)
+Configured merchant names:
+  1. Answa
+  2. Volsung
+  3. Bodrus the Outfitter
+  4. Hasrah
+  5. Acolyte Singpa
+Scan counts: npc=28 neutral=0 all_agents=46 merged=28 filtered=28
+Known merchant/trader model IDs: 74
+Map model hints: 2043
+NPC rows:
+  aid=24 dist=2174.7 xy=(1695.0,9638.0) model=8025:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=25 dist=2501.1 xy=(6.0,8689.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=26 dist=1535.4 xy=(2072.0,9056.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=27 dist=366.1 xy=(2586.0,7559.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=28 dist=273.0 xy=(2490.0,7480.0) model=2010:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=29 dist=456.0 xy=(2675.0,7483.0) model=3307:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=30 dist=551.7 xy=(2771.0,7482.0) model=5269:Kournan Elite Zealot base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=31 dist=175.3 xy=(2389.0,7477.0) model=2116:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=32 dist=1747.0 xy=(2376.0,9268.0) model=2065:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=33 dist=2954.7 xy=(3233.0,10304.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=34 dist=695.6 xy=(2343.0,6843.0) model=2008:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=35 dist=867.6 xy=(2806.0,6887.0) model=2018:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=36 dist=2802.3 xy=(328.0,9594.0) model=2042:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=37 dist=1323.4 xy=(3089.0,8527.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=38 dist=1355.1 xy=(1908.0,8846.3) model=2013:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=39 dist=2954.4 xy=(1926.5,10467.6) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=40 dist=2189.9 xy=(2343.1,9714.4) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=41 dist=1486.1 xy=(1078.3,8477.7) model=2013:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=42 dist=3034.5 xy=(2513.1,4507.5) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=43 dist=3738.4 xy=(159.0,10646.0) model=221:Xunlai Agent base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=44 dist=3852.4 xy=(196.0,10805.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=45 dist=3792.3 xy=(20.0,10616.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=46 dist=3918.1 xy=(2215.0,11446.0) model=2034:Captured Chosen base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=51 dist=4535.4 xy=(6332.0,9444.0) model=2020:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=53 dist=1591.0 xy=(3608.9,6749.8) model=2014:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=54 dist=4533.9 xy=(6589.0,8744.0) model=222:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=55 dist=4089.9 xy=(5726.0,9636.0) model=7799:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=56 dist=4963.1 xy=(6988.0,6146.0) model=2071:Ascalon base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+Chosen candidates: 31, 28, 27, 29, 30, 34, 35, 37, 38, 41, 26, 53
+Cached seen names: Feature Disabled
+Cached seen models: 8025:?, 2041:?, 2010:?, 3307:?, 5269:Kournan Elite Zealot, 2116:?, 2065:?, 2008:Krytan, 2018:?, 2042:?, 2013:?, 2011:?, 221:Xunlai Agent, 5052:Corsair Seer, 2034:Captured Chosen, 2020:Krytan, 2014:?, 222:?, 7799:?, 2071:Ascalon
+AutoBuyKits trace:
+  18:22:51.316 entry: skipped, no entry key
+  18:22:51.822 entry: skipped, no entry key
+  18:22:52.396 entry: skipped, no entry key
+  18:22:52.901 entry: skipped, no entry key
+  18:22:53.755 entry: skipped, no entry key
+  18:22:54.576 queue: queued
+  18:22:54.576 entry: queued job for entry=55:1
+  18:22:54.577 job: started
+  18:22:54.578 job: needs salvage=True id=False (salvage_uses=0, total_id_uses=100)
+  18:22:54.585 job: initial candidates=38,34,42,35,31,28,29,30,27,40,25,37
+  18:22:54.585 job: trying candidate aid=38 model=2013 (1/12)
+  18:22:54.585 approach: target aid=38 model=2013 dist=7047.5
+  18:22:54.632 approach: AutoPathing returned empty path
+  18:22:54.632 approach: fallback FollowPath direct-to-NPC
+  18:23:01.209 approach: fallback FollowPath finished
+  18:23:01.496 approach: changed target to aid=38
+  18:23:01.625 approach: InteractAgent(aid=38) yielded
+  18:23:01.625 approach: Player.Interact(aid=38) queued
+  18:23:02.244 approach: re-interact aid=38
+  18:23:02.860 approach: re-interact aid=38
+  18:23:03.491 approach: re-interact aid=38
+  18:23:04.113 approach: re-interact aid=38
+  18:23:04.758 approach: re-interact aid=38
+  18:23:05.377 approach: re-interact aid=38
+  18:23:05.377 approach: merchant frame final_open=False after wait=3600ms
+  18:23:05.377 job: candidate aid=38 merchant_opened=False
+  18:23:05.377 job: trying candidate aid=34 model=2008 (2/12)
+  18:23:05.377 approach: target aid=34 model=2008 dist=498.6
+  18:23:05.514 approach: path_to target built (nodes=2)
+  18:23:06.823 approach: FollowPath(path2d) result=True
+  18:23:07.103 approach: changed target to aid=34
+  18:23:07.236 approach: InteractAgent(aid=34) yielded
+  18:23:07.236 approach: Player.Interact(aid=34) queued
+  18:23:07.236 approach: merchant frame opened after 0ms
+  18:23:07.236 job: candidate aid=34 merchant_opened=True
+  18:23:07.236 job: offers aid=34 salvage=0 superior=0 regular=0
+  18:23:07.236 job: trying candidate aid=42 model=2011 (3/12)
+  18:23:07.237 approach: target aid=42 model=2011 dist=1943.8
+  18:23:07.352 approach: path_to target built (nodes=16)
+  18:23:24.544 approach: FollowPath(path2d) result=True
+  18:23:24.815 approach: changed target to aid=42
+  18:23:24.945 approach: InteractAgent(aid=42) yielded
+  18:23:24.946 approach: Player.Interact(aid=42) queued
+  18:23:24.946 approach: merchant frame opened after 0ms
+  18:23:24.946 job: candidate aid=42 merchant_opened=True
+  18:23:24.946 job: offers aid=42 salvage=0 superior=0 regular=0
+  18:23:24.946 job: trying candidate aid=35 model=2018 (4/12)
+  18:23:24.946 approach: target aid=35 model=2018 dist=1623.8
+  18:23:25.064 approach: path_to target built (nodes=15)
+  18:23:40.479 approach: FollowPath(path2d) result=True
+  18:23:40.761 approach: changed target to aid=35
+  18:23:40.885 approach: InteractAgent(aid=35) yielded
+  18:23:40.885 approach: Player.Interact(aid=35) queued
+  18:23:40.885 approach: merchant frame opened after 0ms
+  18:23:40.885 job: candidate aid=35 merchant_opened=True
+  18:23:40.885 job: offers aid=35 salvage=0 superior=0 regular=0
+  18:23:40.885 job: trying candidate aid=31 model=2116 (5/12)
+  18:23:40.885 approach: target aid=31 model=2116 dist=760.8
+  18:23:41.002 approach: path_to target built (nodes=10)

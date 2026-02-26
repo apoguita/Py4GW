@@ -1,0 +1,670 @@
+{
+  "updated_at": "2026-02-25 17:11:38",
+  "known_mod_id_count": 62,
+  "unknown_mods": {
+    "8728": {
+      "count": 3,
+      "arg1_min": 19,
+      "arg1_max": 19,
+      "arg2_min": 4,
+      "arg2_max": 13,
+      "item_types": [
+        22
+      ],
+      "model_ids": [
+        261,
+        274,
+        288
+      ],
+      "sources": {
+        "shared_payload": 3
+      },
+      "sample_items": [
+        "Superior Identification Kit",
+        "Earth Wand",
+        "Smiting Rod"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9400,
+        9880,
+        10136,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 01:00:59"
+    },
+    "9112": {
+      "count": 1,
+      "arg1_min": 20,
+      "arg1_max": 20,
+      "arg2_min": 8,
+      "arg2_max": 8,
+      "item_types": [
+        22
+      ],
+      "model_ids": [
+        277
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Fire Wand"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9000,
+        9400,
+        9880,
+        10136,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:47:26"
+    },
+    "9304": {
+      "count": 1,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 1,
+      "arg2_max": 1,
+      "item_types": [
+        9
+      ],
+      "model_ids": [
+        21798
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Necromancer Tome"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9784,
+        10120,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:22:12"
+    },
+    "9480": {
+      "count": 2,
+      "arg1_min": 1,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        11
+      ],
+      "model_ids": [
+        940,
+        948
+      ],
+      "sources": {
+        "shared_payload": 2
+      },
+      "sample_items": [
+        "Tanned Hide Squares",
+        "Iron Ingots"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        49152
+      ],
+      "last_seen": "2026-02-24 07:50:33"
+    },
+    "9752": {
+      "count": 24,
+      "arg1_min": 0,
+      "arg1_max": 4,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        5
+      ],
+      "model_ids": [
+        132,
+        134,
+        136,
+        137,
+        138,
+        144,
+        2010
+      ],
+      "sources": {
+        "shared_payload": 1,
+        "local_api": 23
+      },
+      "sample_items": [
+        "Black Hawk's Lust",
+        "Longbow",
+        "Feathered Longbow",
+        "Giant Slayers Hammer",
+        "Flatbow",
+        "Shortbow",
+        "Lockpicks",
+        "Ivory Bow",
+        "Half Moon",
+        "Salvage Kit"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8216,
+        8456,
+        8488,
+        8536,
+        8760,
+        8824,
+        8840,
+        8856,
+        8872,
+        8888,
+        8920,
+        9032,
+        9208,
+        9224,
+        9240,
+        9320,
+        9400,
+        9520,
+        9736,
+        9800,
+        9880,
+        10136,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-25 16:55:20"
+    },
+    "9784": {
+      "count": 1,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        9
+      ],
+      "model_ids": [
+        21798
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Necromancer Tome"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9304,
+        10120,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:22:12"
+    },
+    "9800": {
+      "count": 11,
+      "arg1_min": 0,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        2,
+        5,
+        15,
+        27
+      ],
+      "model_ids": [
+        126,
+        132,
+        136,
+        137,
+        138,
+        221,
+        402
+      ],
+      "sources": {
+        "shared_payload": 2,
+        "local_api": 9
+      },
+      "sample_items": [
+        "Fiery Dragon Sword",
+        "Magmas Arm",
+        "Feathered Longbow",
+        "Spiked Axe",
+        "Flatbow",
+        "Longbow",
+        "Ivory Bow"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8216,
+        8456,
+        8536,
+        8760,
+        8792,
+        8840,
+        8856,
+        8872,
+        8888,
+        9032,
+        9224,
+        9240,
+        9400,
+        9520,
+        9752,
+        9880,
+        10136,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-25 16:50:05"
+    },
+    "9880": {
+      "count": 13,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 5,
+      "item_types": [
+        22,
+        26
+      ],
+      "model_ids": [
+        255,
+        257,
+        258,
+        261,
+        274,
+        275,
+        277,
+        285,
+        288,
+        289,
+        391
+      ],
+      "sources": {
+        "shared_payload": 13
+      },
+      "sample_items": [
+        "Cane",
+        "Fire Wand",
+        "Smiting Rod",
+        "Superior Identification Kit",
+        "Holy Rod",
+        "Earth Wand",
+        "Raven Staff"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8712,
+        8728,
+        8968,
+        8984,
+        9000,
+        9128,
+        9336,
+        9400,
+        10136,
+        25288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    "10120": {
+      "count": 1,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 28,
+      "arg2_max": 28,
+      "item_types": [
+        9
+      ],
+      "model_ids": [
+        21798
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Necromancer Tome"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9304,
+        9784,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:22:12"
+    },
+    "10136": {
+      "count": 31,
+      "arg1_min": 1,
+      "arg1_max": 36,
+      "arg2_min": 9,
+      "arg2_max": 13,
+      "item_types": [
+        2,
+        5,
+        12,
+        15,
+        22,
+        24,
+        26,
+        27
+      ],
+      "model_ids": [
+        122,
+        126,
+        154,
+        169,
+        173,
+        194,
+        198,
+        221,
+        255,
+        257,
+        258,
+        261,
+        274,
+        275,
+        277,
+        285,
+        288,
+        289,
+        341,
+        344,
+        391,
+        400,
+        402,
+        412,
+        2010,
+        2091
+      ],
+      "sources": {
+        "shared_payload": 31
+      },
+      "sample_items": [
+        "Cane",
+        "Cleaver",
+        "Fire Wand",
+        "Spiked Axe",
+        "Grim Cesta",
+        "Storm Artifact",
+        "Fiery Dragon Sword",
+        "Protective Icon",
+        "Smiting Rod",
+        "Fellblade",
+        "Long Sword",
+        "Magmas Arm"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8328,
+        8424,
+        8456,
+        8520,
+        8600,
+        8648,
+        8712,
+        8728,
+        8792,
+        8840,
+        8856,
+        8872,
+        8920,
+        8968,
+        8984,
+        9000,
+        9032,
+        9128,
+        9224,
+        9240,
+        9320,
+        9336,
+        9400,
+        9512,
+        9520,
+        9752,
+        9800,
+        9880,
+        25288,
+        26568,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        42936,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    "25288": {
+      "count": 1,
+      "arg1_min": 10,
+      "arg1_max": 10,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        26
+      ],
+      "model_ids": [
+        391
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Raven Staff"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9128,
+        9336,
+        9400,
+        9880,
+        10136,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    "26568": {
+      "count": 9,
+      "arg1_min": 12,
+      "arg1_max": 12,
+      "arg2_min": 6,
+      "arg2_max": 6,
+      "item_types": [
+        12
+      ],
+      "model_ids": [
+        154,
+        169,
+        173,
+        194,
+        198,
+        2091
+      ],
+      "sources": {
+        "shared_payload": 9
+      },
+      "sample_items": [
+        "Grim Cesta",
+        "Storm Artifact",
+        "Protective Icon",
+        "Wolf's Greed",
+        "Jeweled Chakram",
+        "Identification Kit"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8520,
+        8600,
+        8648,
+        8712,
+        9240,
+        9336,
+        10136,
+        49152
+      ],
+      "last_seen": "2026-02-24 00:40:39"
+    },
+    "33056": {
+      "count": 1,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [],
+      "model_ids": [
+        90
+      ],
+      "sources": {
+        "local_api": 1
+      },
+      "sample_items": [
+        "Titan Armor"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9224,
+        9520,
+        10216,
+        32880,
+        41208,
+        41928,
+        42288,
+        49152
+      ],
+      "last_seen": "2026-02-24 10:00:13"
+    },
+    "42920": {
+      "count": 20,
+      "arg1_min": 20,
+      "arg1_max": 35,
+      "arg2_min": 6,
+      "arg2_max": 19,
+      "item_types": [
+        2,
+        5,
+        15,
+        22,
+        26,
+        27
+      ],
+      "model_ids": [
+        122,
+        126,
+        221,
+        255,
+        257,
+        258,
+        261,
+        274,
+        275,
+        277,
+        285,
+        288,
+        289,
+        391,
+        400,
+        402,
+        412,
+        2010
+      ],
+      "sources": {
+        "shared_payload": 20
+      },
+      "sample_items": [
+        "Cane",
+        "Cleaver",
+        "Fire Wand",
+        "Spiked Axe",
+        "Fiery Dragon Sword",
+        "Smiting Rod",
+        "Fellblade",
+        "Long Sword",
+        "Magmas Arm",
+        "Superior Identification Kit",
+        "Holy Rod",
+        "Earth Wand"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8424,
+        8456,
+        8712,
+        8728,
+        8792,
+        8840,
+        8856,
+        8872,
+        8920,
+        8968,
+        8984,
+        9000,
+        9032,
+        9128,
+        9224,
+        9240,
+        9320,
+        9336,
+        9400,
+        9512,
+        9520,
+        9752,
+        9800,
+        9880,
+        10136,
+        25288,
+        32880,
+        32896,
+        41544,
+        42288,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:46:07"
+    },
+    "42936": {
+      "count": 2,
+      "arg1_min": 15,
+      "arg1_max": 16,
+      "arg2_min": 8,
+      "arg2_max": 8,
+      "item_types": [
+        24
+      ],
+      "model_ids": [
+        341,
+        344
+      ],
+      "sources": {
+        "shared_payload": 2
+      },
+      "sample_items": [
+        "Lockpicks",
+        "Magmas Shield"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8328,
+        10136,
+        49152
+      ],
+      "last_seen": "2026-02-24 08:45:47"
+    }
+  }
+}

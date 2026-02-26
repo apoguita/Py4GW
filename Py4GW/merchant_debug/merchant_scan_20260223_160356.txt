@@ -1,0 +1,34 @@
+Merchant Scan Debug @ 2026-02-23 16:03:56
+Map: 156 The Granite Citadel
+Outpost: True
+Player XY: (-9387.3, 17392.8)
+Configured merchant names:
+  1. Answa
+  2. Volsung
+  3. Bodrus the Outfitter
+  4. Hasrah
+  5. Acolyte Singpa
+Scan counts: npc=7 neutral=0 all_agents=18 merged=18 filtered=18
+Known merchant/trader model IDs: 74
+NPC rows:
+  aid=1 dist=3402.2 xy=(-12689.0,16572.0) model=1928:Lina base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=2 dist=3368.8 xy=(-12648.0,16546.0) model=1934:Aidan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=3 dist=3436.8 xy=(-12740.0,16637.0) model=1926:Mhenlo base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=4 dist=3428.9 xy=(-12752.0,16732.0) model=1936:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=5 dist=3438.0 xy=(-12751.0,16682.0) model=1930:Little Thom base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=6 dist=3300.1 xy=(-12566.0,16506.0) model=1922:Eve base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=7 dist=3332.4 xy=(-12605.0,16526.0) model=1924:Cynn base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=8 dist=3425.8 xy=(-12757.0,16775.0) model=1932:Devona base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Ally' known_model=False list_match=-
+  aid=9 dist=2846.2 xy=(-11614.0,15620.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Unknown' known_model=False list_match=-
+  aid=10 dist=1789.8 xy=(-10189.0,18993.0) model=0:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='Unknown' known_model=False list_match=-
+  aid=12 dist=0.0 xy=(-9387.3,17392.8) model=1:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=False allegiance='Ally' known_model=False list_match=-
+  aid=13 dist=1843.8 xy=(-11020.0,16536.0) model=2161:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=14 dist=3579.1 xy=(-12914.0,18003.0) model=1559:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=15 dist=3727.1 xy=(-11572.2,20412.3) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=16 dist=3293.1 xy=(-11237.6,20116.9) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=17 dist=3116.6 xy=(-11054.8,20025.7) model=1549:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=18 dist=3458.0 xy=(-12236.0,19353.0) model=221:Xunlai Agent base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=19 dist=3503.5 xy=(-12353.0,19258.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+Chosen candidates: 13, 17, 16, 18, 19, 14, 15
+Cached seen names: Feature Disabled
+Cached seen models: 1928:Lina, 1934:Aidan, 1926:Mhenlo, 1936:?, 1930:Little Thom, 1922:Eve, 1924:Cynn, 1932:Devona, 1:?, 2161:?, 1559:?, 1549:?, 221:Xunlai Agent, 5052:Corsair Seer

@@ -1,0 +1,47 @@
+Merchant Scan Debug @ 2026-02-23 17:44:09
+Map: 55 Lions Arch
+Outpost: True
+Player XY: (7326.1, 6401.5)
+Configured merchant names:
+  1. Answa
+  2. Volsung
+  3. Bodrus the Outfitter
+  4. Hasrah
+  5. Acolyte Singpa
+Scan counts: npc=30 neutral=0 all_agents=37 merged=30 filtered=30
+Known merchant/trader model IDs: 74
+Map model hints: <none>
+NPC rows:
+  aid=29 dist=644.2 xy=(7297.0,5758.0) model=2080:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=30 dist=4879.3 xy=(2586.0,7559.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=31 dist=4954.9 xy=(2490.0,7480.0) model=2010:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=32 dist=4775.1 xy=(2675.0,7483.0) model=3307:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=33 dist=4681.4 xy=(2771.0,7482.0) model=5269:Kournan Elite Zealot base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=36 dist=5002.6 xy=(2343.0,6843.0) model=2008:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=37 dist=102.2 xy=(7396.0,6327.0) model=2043:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=38 dist=4546.1 xy=(2806.0,6887.0) model=2018:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=39 dist=642.5 xy=(7523.0,5790.0) model=2070:Ascalonian Farmer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=40 dist=782.1 xy=(7052.0,5669.0) model=2035:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=41 dist=373.2 xy=(7483.0,6063.0) model=2033:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=42 dist=423.8 xy=(6988.0,6146.0) model=2071:Ascalon base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=43 dist=4740.3 xy=(3089.0,8527.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=45 dist=3685.3 xy=(5516.4,9612.0) model=2013:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=46 dist=5004.3 xy=(2348.8,6920.6) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=47 dist=3382.2 xy=(3978.1,5921.7) model=2013:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=49 dist=978.2 xy=(7654.0,5480.0) model=2087:Projects/NPC models/Humans/Ascalon base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=50 dist=1142.5 xy=(7700.0,5322.0) model=2081:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=51 dist=2455.7 xy=(6589.0,8744.0) model=222:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=52 dist=2879.8 xy=(9830.0,4979.0) model=221:Xunlai Agent base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=53 dist=2784.6 xy=(9812.0,5147.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=54 dist=3086.5 xy=(10037.0,4926.0) model=5052:Corsair Seer base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=55 dist=4509.1 xy=(9409.0,2402.4) model=2013:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=57 dist=3795.9 xy=(4377.9,8792.7) model=2014:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=58 dist=3200.7 xy=(6332.0,9444.0) model=2020:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=59 dist=3608.6 xy=(5726.0,9636.0) model=7799:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=60 dist=3376.5 xy=(7336.0,9778.0) model=2008:Krytan base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=61 dist=3752.5 xy=(7081.0,10146.0) model=2041:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=62 dist=3582.3 xy=(7531.0,9978.0) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+  aid=63 dist=4235.0 xy=(7611.0,10627.0) model=2011:? base='Feature Disabled' py='Feature Disabled' agent='FEATURE DISABLED' is_npc=True allegiance='NPC/Minipet' known_model=False list_match=-
+Chosen candidates: 37, 41, 42, 39, 29, 40, 49, 50, 51, 53, 52, 54
+Cached seen names: Feature Disabled
+Cached seen models: 2080:?, 2041:?, 2010:?, 3307:?, 5269:Kournan Elite Zealot, 2008:Krytan, 2043:?, 2018:?, 2070:Ascalonian Farmer, 2035:?, 2033:?, 2071:Ascalon, 2013:?, 2011:?, 2087:Projects/NPC models/Humans/Ascalon, 2081:?, 222:?, 221:Xunlai Agent, 5052:Corsair Seer, 2014:?

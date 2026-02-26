@@ -1,0 +1,8080 @@
+import re
+import difflib
+import time
+import csv
+import os
+import shutil
+import json
+import datetime
+from typing import Any, Generator
+import PyInventory
+import PyAgent
+from Py4GWCoreLib.Item import Item
+from Py4GWCoreLib.ItemArray import ItemArray
+from Py4GWCoreLib.native_src.internals.helpers import encoded_wstr_to_str
+from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
+from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import IdentifyResponseScheduler
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import run_inventory_action
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import DROP_LOG_HEADER
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import append_drop_log_rows
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store import parse_drop_log_file
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_event_id
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_item_id
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_sender_email
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_item_stats
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import parse_runtime_row
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import set_runtime_row_item_id
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import set_runtime_row_item_stats
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import update_rows_item_stats_by_event_and_sender
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_stats_render import get_cached_rendered_stats
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_stats_render import prune_render_cache
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_stats_render import update_render_cache
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import build_tracker_drop_message
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_inventory_action_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_inventory_stats_request_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_inventory_stats_response_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_drop_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_name_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_stats_payload_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_stats_text_branch
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import extract_event_id_hint
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import is_duplicate_event
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import mark_seen_event
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_name_chunk
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_stats_payload_chunk
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_stats_text_chunk
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import payload_has_valid_mods_json
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import default_ui_colors
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_ui_panels import draw_runtime_controls_panel
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_chat import make_chat_dedupe_key
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_chat import pickup_regex
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
+    build_name_chunks,
+    make_name_signature,
+    encode_name_chunk_meta,
+    decode_name_chunk_meta,
+)
+from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
+    build_known_spellcasting_mod_lines,
+    prune_generic_attribute_bonus_lines,
+    render_mod_description_template,
+    sort_stats_lines_like_ingame,
+)
+from Py4GWCoreLib import * # Includes Map, Player
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
+EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
+
+# IDs in this set are known or structural helper modifiers and should not be
+# counted as "unknown" even if they are not present in local mods_data files.
+UNKNOWN_MOD_EXCLUDE_IDS = frozenset(
+    {
+        8408,
+        8680,
+        8728,
+        8920,
+        8952,
+        8968,
+        8984,
+        9000,
+        9112,
+        9128,
+        9240,
+        9400,
+        9656,
+        9720,
+        9736,
+        9880,
+        10136,
+        10296,
+        25288,
+        26568,
+        42120,
+        42920,
+        42936,
+        49152,
+    }
+)
+
+# Human-readable hints for known IDs that can still exist in historical exports.
+UNKNOWN_MOD_KNOWN_NAME_HINTS = {
+    8408: "Health loss component",
+    8680: "Rune attribute component",
+    8728: "Halves casting time of [Attribute] spells",
+    8920: "Energy +X",
+    8952: "Energy +X (while Enchanted)",
+    8968: "Energy +X (while Health is above X%)",
+    8984: "Energy +X (while Health is below X%)",
+    9000: "Energy +X (while hexed)",
+    9112: "Halves skill recharge of [Attribute] spells",
+    9128: "Halves skill recharge of spells",
+    9240: "[Attribute] +1 (Chance while using skills)",
+    9400: "Damage type component",
+    9656: "Target item type component",
+    9720: "Improved sale value",
+    9736: "Highly salvageable",
+    9880: "Caster metadata marker",
+    10136: "Requirement",
+    10296: "[Attribute] +1 (Chance: X%)",
+    25288: "Energy +X",
+    26568: "Energy +X",
+    42120: "Damage (no requirement)",
+    42920: "Damage",
+    42936: "Shield armor",
+    49152: "Structural marker",
+}
+
+UNKNOWN_MOD_ITEM_TYPE_HINTS = {
+    0: "Salvage",
+    5: "Upgrade",
+    9: "Tome",
+    11: "Material",
+    12: "Offhand",
+    22: "Wand",
+    24: "Shield",
+    26: "Staff",
+    27: "Sword",
+    32: "Daggers",
+}
+
+try:
+    from Py4GWCoreLib.enums_src.Item_enums import ItemType
+    from Sources.marks_sources.mods_parser import ModDatabase, parse_modifiers, is_matching_item_type
+except IMPORT_OPTIONAL_ERRORS:
+    ItemType = None
+    ModDatabase = None
+    parse_modifiers = None
+    is_matching_item_type = None
+
+class DropViewerWindow:
+    def __init__(self):
+        self.window_name = "Drop Tracker Viewer"
+        self.log_path = constants.DROP_LOG_PATH
+        self.saved_logs_dir = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "SavedLogs")
+        
+        # Data
+        self.raw_drops = []
+        self.aggregated_drops = {} # Key: ItemName, Value: {Quantity, Rarity, Count}
+        self.total_drops = 0
+        
+        # State
+        self.last_read_time = 0
+        self.auto_scroll = True
+        self.view_mode = "Aggregated" # "Log", "Aggregated"
+        self.show_save_popup = False
+        self.save_filename = "Run_001"
+        self.status_message = ""
+        self.status_time = 0
+        
+        # Logging State
+        self.last_processed_message = None
+        self.last_update_time = 0
+        self.chat_requested = False
+        self.last_chat_index = -1
+        
+        # Regex matches: "[Timestamp] Player picks up [Quantity] <Color>ItemName</Color>."
+        self.pickup_regex = pickup_regex()
+        
+        # Regex matches: "Monster drops [a/an/the] <Color>ItemName</Color>..."
+        # Captures: 1=Monster, 2=ColorHex, 3=ItemName
+        self.drop_regex = re.compile(
+            r"^(?:\[([\d: ]+[ap]m)\] )?(?:<c=#(?:[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})>)?(.+?)(?:<\/c>)? drops (?:an?|the)?\s*(?:<c=#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})>)?(.+?)(?:<\/c>)?(?:, which your party reserves for .+)?\.?$"
+        )
+        
+        self.gold_regex = re.compile(r"^(?:\[([\d: ]+[ap]m)\] )?Your party shares ([\d,]+) gold\.$")
+        
+        self.last_auto_refresh_time = 0
+        self.paused = False
+        self.shmem_bootstrap_done = False
+        self.player_name = "Unknown"
+        self.recent_log_cache = {}
+        self.stats_by_event = {}
+        self.stats_chunk_buffers = {}
+        self.stats_payload_by_event = {}
+        self.stats_payload_chunk_buffers = {}
+        self.stats_render_cache_by_event = {}
+        self.stats_name_signature_by_event = {}
+        self.mod_db = self._load_mod_database()
+        self.known_mod_ids = self._collect_known_mod_ids()
+        self.unknown_mod_exclude_ids = set(UNKNOWN_MOD_EXCLUDE_IDS)
+        self.unknown_mod_catalog_path = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "drop_tracker_unknown_mod_ids.json")
+        self.unknown_mod_guess_report_path = os.path.join(
+            os.path.dirname(constants.DROP_LOG_PATH),
+            "drop_tracker_unknown_mod_guesses.json",
+        )
+        self.unknown_mod_pending_notes_path = os.path.join(
+            os.path.dirname(constants.DROP_LOG_PATH),
+            "drop_tracker_unknown_mod_pending.json",
+        )
+        self.unknown_mod_name_map_path = os.path.join(
+            os.path.dirname(constants.DROP_LOG_PATH),
+            "drop_tracker_unknown_mod_names.json",
+        )
+        self.unknown_mod_catalog = {}
+        self.unknown_mod_catalog_dirty = False
+        self.unknown_mod_catalog_flush_timer = ThrottledTimer(1500)
+        self.unknown_mod_auto_export_enabled = True
+        self.unknown_mod_auto_export_timer = ThrottledTimer(1200)
+        self.unknown_mod_guess_auto_export_timer = ThrottledTimer(2500)
+        self.unknown_mod_recent_seen = {}
+        self.unknown_mod_recent_ttl_s = 15.0
+        self.unknown_mod_notify_enabled = True
+        self.unknown_mod_recent_notifications: list[str] = []
+        self.unknown_mod_recent_notifications_max = 10
+        self.unknown_mod_last_notify_status_ts = 0.0
+        self.unknown_mod_pending_notes: dict[str, dict[str, Any]] = {}
+        self.unknown_mod_popup_enabled = True
+        self.unknown_mod_popup_pending = False
+        self.unknown_mod_popup_message = ""
+        self.unknown_mod_custom_names: dict[str, str] = {}
+        self.unknown_mod_name_edit_id = 0
+        self.unknown_mod_name_edit_text = ""
+        self._load_unknown_mod_catalog()
+        self._load_unknown_mod_pending_notes()
+        self._load_unknown_mod_name_map()
+        self.enable_chat_item_tracking = False
+        self.max_shmem_messages_per_tick = 80
+        self.max_shmem_scan_per_tick = 600
+        self.verbose_shmem_item_logs = False
+        self.debug_item_stats_panel = False
+        self.debug_item_stats_panel_height = 180
+        self.send_tracker_ack_enabled = True
+        self.enable_perf_logs = False
+        self.seen_event_ttl_seconds = 900.0
+        self.seen_events = {}
+        self.name_chunk_buffers = {}
+        self.full_name_by_signature = {}
+        self.last_shmem_poll_ms = 0.0
+        self.last_shmem_processed = 0
+        self.last_shmem_scanned = 0
+        self.last_ack_sent = 0
+        self.last_seen_map_id = 0
+        self.map_change_ignore_until = 0.0
+        self.perf_timer = ThrottledTimer(5000)
+        self.shmem_error_timer = ThrottledTimer(5000)
+        self.config_poll_timer = ThrottledTimer(2000)
+        self.runtime_config_path = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "drop_tracker_runtime_config.json")
+        self.runtime_config = self._default_runtime_config()
+        self.runtime_config_dirty = False
+        self.inventory_action_tag = "TrackerInvActionV1"
+        self.inventory_stats_request_tag = "TrackerInvStatReq"
+        self.inventory_stats_response_tag = "TrackerInvStatRes"
+        self.id_sel_white = False
+        self.id_sel_blue = True
+        self.id_sel_green = True
+        self.id_sel_purple = True
+        self.id_sel_gold = True
+        self.auto_id_enabled = False
+        self.salvage_sel_white = True
+        self.salvage_sel_blue = True
+        self.salvage_sel_green = False
+        self.salvage_sel_purple = True
+        self.salvage_sel_gold = False
+        self.auto_salvage_enabled = False
+        self.inventory_kit_stats_by_email = {}
+        self.inventory_kit_stats_refresh_timer = ThrottledTimer(3000)
+        self.remote_stats_request_last_by_event = {}
+        self.remote_stats_pending_by_event = {}
+        self.auto_conset_enabled = False
+        self.auto_conset_armor = True
+        self.auto_conset_grail = True
+        self.auto_conset_essence = True
+        self.auto_conset_legionnaire = True
+        self.auto_conset_timer = ThrottledTimer(1500)
+        self.conset_effect_id_cache = {}
+        self.auto_legionnaire_last_explorable = False
+        self.auto_legionnaire_last_map_id = 0
+        self.auto_legionnaire_last_instance_uptime_ms = 0
+        self.auto_legionnaire_entry_nonce = 0
+        self.auto_legionnaire_current_entry_key = ""
+        self.auto_legionnaire_used_entry_key = ""
+        self.identify_response_scheduler = IdentifyResponseScheduler()
+        self.pending_identify_mod_capture: dict[int, float] = {}
+        self.pending_identify_mod_capture_ttl_s = 20.0
+        self.pending_identify_mod_capture_max_scan_per_tick = 16
+        self.auto_id_timer = ThrottledTimer(2500)
+        self.auto_salvage_timer = ThrottledTimer(3000)
+        self.auto_buy_kits_timer = ThrottledTimer(4000)
+        self.auto_gold_balance_timer = ThrottledTimer(4000)
+        self.auto_inventory_snapshot_timer = ThrottledTimer(900)
+        self.auto_id_pending_jobs = 0
+        self.auto_salvage_pending_jobs = 0
+        self.auto_id_last_queued = 0
+        self.auto_salvage_last_queued = 0
+        self.auto_id_total_queued = 0
+        self.auto_salvage_total_queued = 0
+        self.auto_id_last_run_ts = 0.0
+        self.auto_salvage_last_run_ts = 0.0
+        self.auto_monitoring_settle_seconds = 1.2
+        self.auto_monitoring_last_gate_status_ts = 0.0
+        self.strict_event_stats_binding = True
+        self.event_identity_resolve_grace_s = 1.2
+        self.event_identity_resolve_poll_s = 0.12
+        self.auto_queue_progress_cap = 25
+        self.auto_id_job_running = False
+        self.auto_salvage_job_running = False
+        self.auto_buy_kits_enabled = False
+        self.auto_buy_kits_sort_to_front_enabled = True
+        self.auto_buy_kits_job_running = False
+        self.auto_buy_kits_handled_entry_key = ""
+        self.auto_inventory_reorder_job_running = False
+        self.auto_inventory_reorder_handled_entry_key = ""
+        # Merchant restock priority list (first matching name in this order is used).
+        self.auto_buy_kits_merchant_names = [
+            "Answa",
+            "Volsung",
+            "Bodrus the Outfitter",
+            "Hasrah",
+            "Acolyte Singpa",
+        ]
+        self.auto_buy_kits_last_seen_npc_names = []
+        self.auto_buy_kits_last_seen_npc_models = []
+        self.auto_buy_kits_debug_trace = []
+        self.auto_buy_kits_merchant_model_ids_loaded = False
+        self.auto_buy_kits_merchant_model_ids = set()
+        self.auto_buy_kits_map_model_hints = self._default_auto_buy_kits_map_model_hints()
+        self.auto_gold_balance_enabled = False
+        self.auto_gold_balance_target = 10_000
+        self.auto_gold_balance_job_running = False
+        self.auto_gold_balance_handled_entry_key = ""
+        self.auto_outpost_store_enabled = False
+        self.auto_outpost_store_job_running = False
+        self.auto_outpost_store_last_is_outpost = False
+        self.auto_outpost_store_last_map_id = 0
+        self.auto_outpost_store_last_instance_uptime_ms = 0
+        self.auto_outpost_store_entry_nonce = 0
+        self.auto_outpost_store_current_entry_key = ""
+        self.auto_outpost_store_handled_entry_key = ""
+        self.drop_viewer_assets_dir = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Assets", "DropViewer")
+        self.conset_armor_icon = os.path.join(self.drop_viewer_assets_dir, "ArmorOfSalvation.jpg")
+        self.conset_grail_icon = os.path.join(self.drop_viewer_assets_dir, "GrailOfMight.jpg")
+        self.conset_essence_icon = os.path.join(self.drop_viewer_assets_dir, "EssenceOfCelerity.jpg")
+        self.conset_legionnaire_icon = os.path.join(self.drop_viewer_assets_dir, "LegiStone.jpg")
+
+        # Fancy/friendly UI state
+        self.search_text = ""
+        self.filter_player = ""
+        self.filter_map = ""
+        self.filter_rarity_idx = 0
+        self.filter_rarity_options = [
+            "All", "Blue", "Purple", "Gold", "Green",
+            "Dyes", "Keys", "Tomes", "Currency", "Unknown"
+        ]
+        self.only_rare = False
+        self.hide_gold = False
+        self.min_qty = 1
+        self.show_runtime_panel = False
+        self.runtime_controls_popout = False
+        self.runtime_popout_initialized = False
+        self.compact_mode = False
+        self.ui_theme_name = "Midnight"
+        self.selected_item_key = None
+        self.selected_log_row = None
+        self.hover_handle_mode = True
+        self.hover_pin_open = False
+        self.hover_is_visible = True
+        self.hover_hide_delay_s = 0.35
+        self.hover_hide_deadline = 0.0
+        self.hover_icon_path = PathLocator.get_custom_behaviors_root_directory() + "\\gui\\textures\\loot.png"
+        self.hover_handle_initialized = False
+        self.viewer_window_initialized = False
+        self.saved_hover_handle_pos = None
+        self.saved_viewer_window_pos = None
+        self.saved_viewer_window_size = None
+        self.last_main_window_rect = (0.0, 0.0, 0.0, 0.0)
+        self.left_rail_scroll_y = 0.0
+        self.layout_save_timer = ThrottledTimer(750)
+
+        # Ensure directories exist
+        os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
+        os.makedirs(self.saved_logs_dir, exist_ok=True)
+
+        self._load_runtime_config()
+        self._load_ui_layout_from_config()
+        # Always start each run with a fresh live log file + empty runtime data.
+        self._reset_live_session()
+
+    def _default_runtime_config(self):
+        return {
+            "debug_pipeline_logs": False,
+            "enable_perf_logs": False,
+            "enable_delivery_ack": True,
+            "max_send_per_tick": 12,
+            "max_outbox_size": 2000,
+            "retry_interval_seconds": 1.0,
+            "max_retry_attempts": 12,
+            "verbose_shmem_item_logs": False,
+            "max_shmem_messages_per_tick": 80,
+            "max_shmem_scan_per_tick": 600,
+            "send_tracker_ack_enabled": True,
+            "debug_item_stats_panel": False,
+            "debug_item_stats_panel_height": 180,
+            "strict_event_stats_binding": True,
+            "event_identity_resolve_grace_s": 1.2,
+            "event_identity_resolve_poll_s": 0.12,
+            "id_sel_white": False,
+            "id_sel_blue": True,
+            "id_sel_green": True,
+            "id_sel_purple": True,
+            "id_sel_gold": True,
+            "auto_id_enabled": False,
+            "salvage_sel_white": True,
+            "salvage_sel_blue": True,
+            "salvage_sel_green": False,
+            "salvage_sel_purple": True,
+            "salvage_sel_gold": False,
+            "auto_salvage_enabled": False,
+            "auto_buy_kits_enabled": False,
+            "auto_buy_kits_sort_to_front_enabled": True,
+            "auto_buy_kits_map_model_hints": self._default_auto_buy_kits_map_model_hints(),
+            "auto_gold_balance_enabled": False,
+            "auto_gold_balance_target": 10000,
+            "auto_outpost_store_enabled": False,
+            "auto_conset_enabled": False,
+            "auto_conset_armor": True,
+            "auto_conset_grail": True,
+            "auto_conset_essence": True,
+            "auto_conset_legionnaire": True,
+            "runtime_controls_popout": False,
+            "compact_mode": False,
+            "ui_theme_name": "Midnight",
+        }
+
+    def _apply_runtime_config(self):
+        cfg = self.runtime_config if isinstance(self.runtime_config, dict) else self._default_runtime_config()
+        self.verbose_shmem_item_logs = bool(cfg.get("verbose_shmem_item_logs", self.verbose_shmem_item_logs))
+        self.max_shmem_messages_per_tick = max(5, int(cfg.get("max_shmem_messages_per_tick", self.max_shmem_messages_per_tick)))
+        self.max_shmem_scan_per_tick = max(20, int(cfg.get("max_shmem_scan_per_tick", self.max_shmem_scan_per_tick)))
+        self.send_tracker_ack_enabled = bool(cfg.get("send_tracker_ack_enabled", self.send_tracker_ack_enabled))
+        self.debug_item_stats_panel = bool(cfg.get("debug_item_stats_panel", self.debug_item_stats_panel))
+        self.debug_item_stats_panel_height = max(120, min(900, int(cfg.get("debug_item_stats_panel_height", self.debug_item_stats_panel_height))))
+        self.strict_event_stats_binding = bool(cfg.get("strict_event_stats_binding", self.strict_event_stats_binding))
+        self.event_identity_resolve_grace_s = max(
+            0.0, min(3.0, float(cfg.get("event_identity_resolve_grace_s", self.event_identity_resolve_grace_s)))
+        )
+        self.event_identity_resolve_poll_s = max(
+            0.02, min(0.5, float(cfg.get("event_identity_resolve_poll_s", self.event_identity_resolve_poll_s)))
+        )
+        self.enable_perf_logs = bool(cfg.get("enable_perf_logs", self.enable_perf_logs))
+        self.id_sel_white = bool(cfg.get("id_sel_white", self.id_sel_white))
+        self.id_sel_blue = bool(cfg.get("id_sel_blue", self.id_sel_blue))
+        self.id_sel_green = bool(cfg.get("id_sel_green", self.id_sel_green))
+        self.id_sel_purple = bool(cfg.get("id_sel_purple", self.id_sel_purple))
+        self.id_sel_gold = bool(cfg.get("id_sel_gold", self.id_sel_gold))
+        self.auto_id_enabled = bool(cfg.get("auto_id_enabled", self.auto_id_enabled))
+        self.salvage_sel_white = bool(cfg.get("salvage_sel_white", self.salvage_sel_white))
+        self.salvage_sel_blue = bool(cfg.get("salvage_sel_blue", self.salvage_sel_blue))
+        self.salvage_sel_green = bool(cfg.get("salvage_sel_green", self.salvage_sel_green))
+        self.salvage_sel_purple = bool(cfg.get("salvage_sel_purple", self.salvage_sel_purple))
+        self.salvage_sel_gold = bool(cfg.get("salvage_sel_gold", self.salvage_sel_gold))
+        self.auto_salvage_enabled = bool(cfg.get("auto_salvage_enabled", self.auto_salvage_enabled))
+        self.auto_buy_kits_enabled = bool(cfg.get("auto_buy_kits_enabled", self.auto_buy_kits_enabled))
+        self.auto_buy_kits_sort_to_front_enabled = bool(
+            cfg.get("auto_buy_kits_sort_to_front_enabled", self.auto_buy_kits_sort_to_front_enabled)
+        )
+        loaded_map_hints = self._sanitize_map_model_hints(cfg.get("auto_buy_kits_map_model_hints", self.auto_buy_kits_map_model_hints))
+        default_map_hints = self._default_auto_buy_kits_map_model_hints()
+        for map_key, default_models in default_map_hints.items():
+            current_models = [int(v) for v in list(loaded_map_hints.get(map_key, []) or []) if self._safe_int(v, 0) > 0]
+            merged_models = [int(v) for v in list(default_models or []) if self._safe_int(v, 0) > 0]
+            merged_models.extend([v for v in current_models if v not in merged_models])
+            if merged_models:
+                loaded_map_hints[map_key] = merged_models[:16]
+        self.auto_buy_kits_map_model_hints = loaded_map_hints
+        self.auto_gold_balance_enabled = bool(cfg.get("auto_gold_balance_enabled", self.auto_gold_balance_enabled))
+        self.auto_gold_balance_target = max(0, int(cfg.get("auto_gold_balance_target", self.auto_gold_balance_target)))
+        self.auto_outpost_store_enabled = bool(cfg.get("auto_outpost_store_enabled", self.auto_outpost_store_enabled))
+        self.auto_conset_enabled = bool(cfg.get("auto_conset_enabled", self.auto_conset_enabled))
+        self.auto_conset_armor = bool(cfg.get("auto_conset_armor", self.auto_conset_armor))
+        self.auto_conset_grail = bool(cfg.get("auto_conset_grail", self.auto_conset_grail))
+        self.auto_conset_essence = bool(cfg.get("auto_conset_essence", self.auto_conset_essence))
+        self.auto_conset_legionnaire = bool(cfg.get("auto_conset_legionnaire", self.auto_conset_legionnaire))
+        self.runtime_controls_popout = bool(cfg.get("runtime_controls_popout", self.runtime_controls_popout))
+        self.compact_mode = bool(cfg.get("compact_mode", self.compact_mode))
+        known_themes = self._theme_names()
+        theme_name = self._ensure_text(cfg.get("ui_theme_name", self.ui_theme_name)).strip()
+        if theme_name not in known_themes:
+            theme_name = known_themes[0]
+        self.ui_theme_name = theme_name
+        if self.compact_mode:
+            self.show_runtime_panel = False
+
+    def _load_ui_layout_from_config(self):
+        cfg = self.runtime_config if isinstance(self.runtime_config, dict) else {}
+        try:
+            pos = cfg.get("drop_viewer_handle_pos", None)
+            if isinstance(pos, list) and len(pos) == 2:
+                self.saved_hover_handle_pos = (float(pos[0]), float(pos[1]))
+        except EXPECTED_RUNTIME_ERRORS:
+            self.saved_hover_handle_pos = None
+        try:
+            pos = cfg.get("drop_viewer_window_pos", None)
+            if isinstance(pos, list) and len(pos) == 2:
+                self.saved_viewer_window_pos = (float(pos[0]), float(pos[1]))
+        except EXPECTED_RUNTIME_ERRORS:
+            self.saved_viewer_window_pos = None
+        try:
+            size = cfg.get("drop_viewer_window_size", None)
+            if isinstance(size, list) and len(size) == 2:
+                self.saved_viewer_window_size = (float(size[0]), float(size[1]))
+        except EXPECTED_RUNTIME_ERRORS:
+            self.saved_viewer_window_size = None
+
+    def _persist_layout_value(self, key: str, value: tuple[float, float] | None):
+        if value is None:
+            return False
+        current = self.runtime_config.get(key, None) if isinstance(self.runtime_config, dict) else None
+        next_value = [float(value[0]), float(value[1])]
+        if isinstance(current, list) and len(current) == 2:
+            try:
+                if abs(float(current[0]) - next_value[0]) < 0.5 and abs(float(current[1]) - next_value[1]) < 0.5:
+                    return False
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+        self.runtime_config[key] = next_value
+        self.runtime_config_dirty = True
+        return True
+
+    def _flush_runtime_config_if_dirty(self):
+        if not self.runtime_config_dirty:
+            return
+        if not self.layout_save_timer.IsExpired():
+            return
+        self.layout_save_timer.Reset()
+        self._sync_runtime_config_from_state()
+        self._save_runtime_config()
+        self.runtime_config_dirty = False
+
+    def _load_runtime_config(self):
+        current_cfg = self.runtime_config if isinstance(getattr(self, "runtime_config", None), dict) else None
+        try:
+            if not os.path.exists(self.runtime_config_path):
+                if current_cfg is None:
+                    self.runtime_config = self._default_runtime_config()
+                    self._apply_runtime_config()
+                return
+            with open(self.runtime_config_path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                cfg = self._default_runtime_config()
+                cfg.update(loaded)
+                self.runtime_config = cfg
+            else:
+                if current_cfg is None:
+                    self.runtime_config = self._default_runtime_config()
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if current_cfg is None:
+                self.runtime_config = self._default_runtime_config()
+                self._apply_runtime_config()
+            else:
+                Py4GW.Console.Log("DropViewer", f"Runtime config reload skipped: {e}", Py4GW.Console.MessageType.Warning)
+            return
+        self._apply_runtime_config()
+
+    def _save_runtime_config(self):
+        try:
+            os.makedirs(os.path.dirname(self.runtime_config_path), exist_ok=True)
+            with open(self.runtime_config_path, mode="w", encoding="utf-8") as f:
+                json.dump(self.runtime_config, f, indent=2)
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Runtime config save failed: {e}", Py4GW.Console.MessageType.Warning)
+
+    def _sync_runtime_config_from_state(self):
+        cfg = self.runtime_config if isinstance(self.runtime_config, dict) else self._default_runtime_config()
+        cfg["verbose_shmem_item_logs"] = bool(self.verbose_shmem_item_logs)
+        cfg["max_shmem_messages_per_tick"] = int(self.max_shmem_messages_per_tick)
+        cfg["max_shmem_scan_per_tick"] = int(self.max_shmem_scan_per_tick)
+        cfg["send_tracker_ack_enabled"] = bool(self.send_tracker_ack_enabled)
+        cfg["debug_item_stats_panel"] = bool(self.debug_item_stats_panel)
+        cfg["debug_item_stats_panel_height"] = int(self.debug_item_stats_panel_height)
+        cfg["strict_event_stats_binding"] = bool(self.strict_event_stats_binding)
+        cfg["event_identity_resolve_grace_s"] = float(self.event_identity_resolve_grace_s)
+        cfg["event_identity_resolve_poll_s"] = float(self.event_identity_resolve_poll_s)
+        cfg["enable_perf_logs"] = bool(self.enable_perf_logs)
+        cfg["id_sel_white"] = bool(self.id_sel_white)
+        cfg["id_sel_blue"] = bool(self.id_sel_blue)
+        cfg["id_sel_green"] = bool(self.id_sel_green)
+        cfg["id_sel_purple"] = bool(self.id_sel_purple)
+        cfg["id_sel_gold"] = bool(self.id_sel_gold)
+        cfg["auto_id_enabled"] = bool(self.auto_id_enabled)
+        cfg["salvage_sel_white"] = bool(self.salvage_sel_white)
+        cfg["salvage_sel_blue"] = bool(self.salvage_sel_blue)
+        cfg["salvage_sel_green"] = bool(self.salvage_sel_green)
+        cfg["salvage_sel_purple"] = bool(self.salvage_sel_purple)
+        cfg["salvage_sel_gold"] = bool(self.salvage_sel_gold)
+        cfg["auto_salvage_enabled"] = bool(self.auto_salvage_enabled)
+        cfg["auto_buy_kits_enabled"] = bool(self.auto_buy_kits_enabled)
+        cfg["auto_buy_kits_sort_to_front_enabled"] = bool(self.auto_buy_kits_sort_to_front_enabled)
+        cfg["auto_buy_kits_map_model_hints"] = self._sanitize_map_model_hints(self.auto_buy_kits_map_model_hints)
+        cfg["auto_gold_balance_enabled"] = bool(self.auto_gold_balance_enabled)
+        cfg["auto_gold_balance_target"] = int(self.auto_gold_balance_target)
+        cfg["auto_outpost_store_enabled"] = bool(self.auto_outpost_store_enabled)
+        cfg["auto_conset_enabled"] = bool(self.auto_conset_enabled)
+        cfg["auto_conset_armor"] = bool(self.auto_conset_armor)
+        cfg["auto_conset_grail"] = bool(self.auto_conset_grail)
+        cfg["auto_conset_essence"] = bool(self.auto_conset_essence)
+        cfg["auto_conset_legionnaire"] = bool(self.auto_conset_legionnaire)
+        cfg["runtime_controls_popout"] = bool(self.runtime_controls_popout)
+        cfg["compact_mode"] = bool(self.compact_mode)
+        cfg["ui_theme_name"] = self._ensure_text(self.ui_theme_name).strip() or "Midnight"
+        self.runtime_config = cfg
+
+    def _send_tracker_ack(self, receiver_email: str, event_id: str) -> bool:
+        if not self.send_tracker_ack_enabled:
+            return False
+        event_id_text = (event_id or "").strip()
+        if not receiver_email or not event_id_text:
+            return False
+        try:
+            my_email = Player.GetAccountEmail()
+            if not my_email:
+                return False
+            sent_index = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email=my_email,
+                receiver_email=receiver_email,
+                command=SharedCommandType.CustomBehaviors,
+                params=(0.0, 0.0, 0.0, 0.0),
+                ExtraData=("TrackerAckV2", event_id_text[:31], "", ""),
+            )
+            if sent_index != -1:
+                self.last_ack_sent += 1
+            return sent_index != -1
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _ensure_text(self, value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, bytes):
+            try:
+                return value.decode("utf-8", errors="ignore")
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+        return str(value)
+
+    def _normalize_name_for_compare(self, value: Any) -> str:
+        return " ".join(self._ensure_text(value).strip().lower().split())
+
+    def _trace_auto_buy_kits(self, message: Any):
+        ts = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        text = self._ensure_text(message).strip()
+        if not text:
+            return
+        line = f"{ts} {text}"
+        trace = list(getattr(self, "auto_buy_kits_debug_trace", []) or [])
+        trace.append(line)
+        self.auto_buy_kits_debug_trace = trace[-120:]
+
+    def _default_auto_buy_kits_map_model_hints(self) -> dict[str, list[int]]:
+        # Known working merchant model IDs per map (can be extended/overridden by runtime learning).
+        return {
+            "55": [2043],   # Lions Arch
+            "156": [2161],  # The Granite Citadel
+        }
+
+    def _sanitize_map_model_hints(self, value: Any) -> dict[str, list[int]]:
+        result: dict[str, list[int]] = {}
+        if not isinstance(value, dict):
+            return result
+        for raw_map_id, raw_models in value.items():
+            map_key = self._ensure_text(raw_map_id).strip()
+            if not map_key:
+                continue
+            models: list[int] = []
+            if isinstance(raw_models, (list, tuple, set)):
+                for raw_mid in raw_models:
+                    try:
+                        mid = int(raw_mid)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        continue
+                    if mid > 0 and mid not in models:
+                        models.append(mid)
+            if models:
+                result[map_key] = models[:16]
+        return result
+
+    def _get_known_merchant_model_ids(self) -> set[int]:
+        if bool(getattr(self, "auto_buy_kits_merchant_model_ids_loaded", False)):
+            return set(getattr(self, "auto_buy_kits_merchant_model_ids", set()) or set())
+
+        tokens = ("merchant", "trader", "outfitter")
+        model_ids: set[int] = set()
+
+        try:
+            if isinstance(ModelData, dict):
+                for raw_mid, row in ModelData.items():
+                    try:
+                        mid = int(raw_mid)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        continue
+                    if mid <= 0 or not isinstance(row, dict):
+                        continue
+                    name_text = self._normalize_name_for_compare(row.get("name", ""))
+                    if any(tok in name_text for tok in tokens):
+                        model_ids.add(mid)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        try:
+            converter_path = os.path.join(PathLocator.get_project_root_directory(), "Py4GWCoreLib", "model_id_converter.py")
+            if os.path.exists(converter_path):
+                pat = re.compile(r"Ids\s*=\s*new\s*int\[\]\s*\{(?P<ids>[^}]*)\}.*?Name\s*=\s*\"(?P<name>[^\"]+)\"")
+                with open(converter_path, mode="r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        if "Ids" not in line or "Name" not in line:
+                            continue
+                        match = pat.search(line)
+                        if not match:
+                            continue
+                        name_text = self._normalize_name_for_compare(match.group("name"))
+                        if not any(tok in name_text for tok in tokens):
+                            continue
+                        for raw_num in re.findall(r"-?\d+", self._ensure_text(match.group("ids"))):
+                            try:
+                                mid = int(raw_num)
+                            except EXPECTED_RUNTIME_ERRORS:
+                                continue
+                            if mid > 0:
+                                model_ids.add(mid)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        self.auto_buy_kits_merchant_model_ids = set(model_ids)
+        self.auto_buy_kits_merchant_model_ids_loaded = True
+        return set(model_ids)
+
+    def _record_successful_kit_merchant_model(self, agent_id: int):
+        aid = max(0, self._safe_int(agent_id, 0))
+        if aid <= 0:
+            return
+        try:
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            map_id = 0
+        if map_id <= 0:
+            return
+        try:
+            model_id = max(0, self._safe_int(Agent.GetModelID(aid), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            model_id = 0
+        if model_id <= 0:
+            return
+        map_key = str(int(map_id))
+        hints = self.auto_buy_kits_map_model_hints if isinstance(getattr(self, "auto_buy_kits_map_model_hints", None), dict) else {}
+        current = [int(v) for v in list(hints.get(map_key, []) or []) if self._safe_int(v, 0) > 0]
+        if model_id in current:
+            current = [model_id] + [v for v in current if v != model_id]
+        else:
+            current = [model_id] + current
+        hints[map_key] = current[:16]
+        self.auto_buy_kits_map_model_hints = hints
+        self.runtime_config_dirty = True
+
+    def _strip_tags(self, text: Any) -> str:
+        return re.sub(r"<[^>]+>", "", self._ensure_text(text))
+
+    def _clean_item_name(self, name: Any) -> str:
+        cleaned = self._strip_tags(name).strip()
+        cleaned = re.sub(r"^[\d,]+\s+", "", cleaned)
+        return cleaned
+
+    def _load_mod_database(self):
+        if ModDatabase is None:
+            return None
+        candidate_dirs = []
+        try:
+            sources_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            candidate_dirs.append(os.path.join(sources_root, "marks_sources", "mods_data"))
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        try:
+            project_root = PathLocator.get_project_root_directory()
+            candidate_dirs.append(os.path.join(project_root, "Sources", "marks_sources", "mods_data"))
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        seen = set()
+        for data_dir in candidate_dirs:
+            norm = os.path.normcase(os.path.normpath(self._ensure_text(data_dir)))
+            if not norm or norm in seen:
+                continue
+            seen.add(norm)
+            if not os.path.isdir(data_dir):
+                continue
+            try:
+                return ModDatabase.load(data_dir)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+        return None
+
+    def _collect_known_mod_ids(self) -> set[int]:
+        known_ids: set[int] = set()
+        db = self.mod_db
+        if db is None:
+            return known_ids
+        try:
+            for weapon_mod in list(getattr(db, "weapon_mods", {}).values()):
+                for mod in list(getattr(weapon_mod, "modifiers", []) or []):
+                    ident = max(0, int(getattr(mod, "identifier", 0)))
+                    if ident > 0:
+                        known_ids.add(ident)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        try:
+            for rune in list(getattr(db, "runes", {}).values()):
+                for mod in list(getattr(rune, "modifiers", []) or []):
+                    ident = max(0, int(getattr(mod, "identifier", 0)))
+                    if ident > 0:
+                        known_ids.add(ident)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return known_ids
+
+    def _normalize_unknown_mod_entry(self, entry: Any) -> dict[str, Any]:
+        normalized = {
+            "count": 0,
+            "arg1_min": None,
+            "arg1_max": None,
+            "arg2_min": None,
+            "arg2_max": None,
+            "item_types": [],
+            "model_ids": [],
+            "sources": {},
+            "sample_items": [],
+            "sample_events": [],
+            "co_mod_ids": [],
+            "last_seen": "",
+        }
+        if not isinstance(entry, dict):
+            return normalized
+        try:
+            normalized["count"] = max(0, int(entry.get("count", 0)))
+        except EXPECTED_RUNTIME_ERRORS:
+            normalized["count"] = 0
+
+        for key in ("arg1_min", "arg1_max", "arg2_min", "arg2_max"):
+            try:
+                value = entry.get(key, None)
+                normalized[key] = None if value is None else int(value)
+            except EXPECTED_RUNTIME_ERRORS:
+                normalized[key] = None
+
+        for key, cap in (("item_types", 24), ("model_ids", 40), ("sample_items", 12), ("sample_events", 12), ("co_mod_ids", 40)):
+            values = []
+            try:
+                raw = list(entry.get(key, []) or [])
+            except EXPECTED_RUNTIME_ERRORS:
+                raw = []
+            for raw_value in raw:
+                if key in ("sample_items", "sample_events"):
+                    val = self._ensure_text(raw_value).strip()
+                    if not val or val in values:
+                        continue
+                    values.append(val)
+                else:
+                    try:
+                        val = int(raw_value)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        continue
+                    if val <= 0 or val in values:
+                        continue
+                    values.append(val)
+                if len(values) >= cap:
+                    break
+            normalized[key] = values
+
+        source_map = {}
+        try:
+            raw_sources = entry.get("sources", {}) or {}
+            if isinstance(raw_sources, dict):
+                for src, count in raw_sources.items():
+                    src_key = self._ensure_text(src).strip() or "unknown"
+                    try:
+                        src_count = max(0, int(count))
+                    except EXPECTED_RUNTIME_ERRORS:
+                        src_count = 0
+                    if src_count > 0:
+                        source_map[src_key] = src_count
+        except EXPECTED_RUNTIME_ERRORS:
+            source_map = {}
+        normalized["sources"] = source_map
+        normalized["last_seen"] = self._ensure_text(entry.get("last_seen", "")).strip()
+        return normalized
+
+    def _load_unknown_mod_catalog(self):
+        self.unknown_mod_catalog = {}
+        path = self._ensure_text(self.unknown_mod_catalog_path).strip()
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict) and isinstance(loaded.get("unknown_mods", None), dict):
+                loaded = loaded.get("unknown_mods", {})
+            if not isinstance(loaded, dict):
+                return
+            normalized_catalog = {}
+            for key, entry in loaded.items():
+                try:
+                    ident = max(0, int(key))
+                except EXPECTED_RUNTIME_ERRORS:
+                    continue
+                if ident <= 0:
+                    continue
+                normalized_catalog[str(ident)] = self._normalize_unknown_mod_entry(entry)
+            self.unknown_mod_catalog = normalized_catalog
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_catalog = {}
+
+    def _load_unknown_mod_name_map(self):
+        self.unknown_mod_custom_names = {}
+        path = self._ensure_text(self.unknown_mod_name_map_path).strip()
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict) and isinstance(loaded.get("names", None), dict):
+                loaded = loaded.get("names", {})
+            if not isinstance(loaded, dict):
+                return
+            mapped = {}
+            for raw_key, raw_name in loaded.items():
+                ident = max(0, self._safe_int(raw_key, 0))
+                name_txt = self._ensure_text(raw_name).strip()
+                if ident <= 0 or not name_txt:
+                    continue
+                mapped[str(ident)] = name_txt[:120]
+            self.unknown_mod_custom_names = mapped
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_custom_names = {}
+
+    def _load_unknown_mod_pending_notes(self):
+        self.unknown_mod_pending_notes = {}
+        path = self._ensure_text(self.unknown_mod_pending_notes_path).strip()
+        if not path or not os.path.exists(path):
+            return
+        try:
+            with open(path, mode="r", encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict) and isinstance(loaded.get("pending", None), dict):
+                loaded = loaded.get("pending", {})
+            if not isinstance(loaded, dict):
+                return
+            normalized = {}
+            for raw_key, raw_value in loaded.items():
+                ident = max(0, self._safe_int(raw_key, 0))
+                if ident <= 0:
+                    continue
+                if not isinstance(raw_value, dict):
+                    continue
+                note = {
+                    "id": ident,
+                    "owner": self._ensure_text(raw_value.get("owner", "")).strip(),
+                    "item": self._clean_item_name(raw_value.get("item", "")),
+                    "arg1": self._safe_int(raw_value.get("arg1", 0), 0),
+                    "arg2": self._safe_int(raw_value.get("arg2", 0), 0),
+                    "item_type": self._safe_int(raw_value.get("item_type", 0), 0),
+                    "model_id": self._safe_int(raw_value.get("model_id", 0), 0),
+                    "source": self._ensure_text(raw_value.get("source", "")).strip(),
+                    "first_seen": self._ensure_text(raw_value.get("first_seen", "")).strip(),
+                    "last_seen": self._ensure_text(raw_value.get("last_seen", "")).strip(),
+                    "count": max(1, self._safe_int(raw_value.get("count", 1), 1)),
+                }
+                normalized[str(ident)] = note
+            self.unknown_mod_pending_notes = normalized
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_pending_notes = {}
+
+    def _save_unknown_mod_pending_notes(self) -> bool:
+        path = self._ensure_text(self.unknown_mod_pending_notes_path).strip()
+        if not path:
+            return False
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            payload_notes = {}
+            for key in sorted(self.unknown_mod_pending_notes.keys(), key=lambda value: int(value)):
+                ident = max(0, self._safe_int(key, 0))
+                if ident <= 0:
+                    continue
+                note = dict(self.unknown_mod_pending_notes.get(key, {}) or {})
+                if not note:
+                    continue
+                payload_notes[str(ident)] = {
+                    "id": ident,
+                    "owner": self._ensure_text(note.get("owner", "")).strip(),
+                    "item": self._clean_item_name(note.get("item", "")),
+                    "arg1": self._safe_int(note.get("arg1", 0), 0),
+                    "arg2": self._safe_int(note.get("arg2", 0), 0),
+                    "item_type": self._safe_int(note.get("item_type", 0), 0),
+                    "model_id": self._safe_int(note.get("model_id", 0), 0),
+                    "source": self._ensure_text(note.get("source", "")).strip(),
+                    "first_seen": self._ensure_text(note.get("first_seen", "")).strip(),
+                    "last_seen": self._ensure_text(note.get("last_seen", "")).strip(),
+                    "count": max(1, self._safe_int(note.get("count", 1), 1)),
+                }
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "pending": payload_notes,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod pending save failed: {e}", Py4GW.Console.MessageType.Warning)
+            return False
+
+    def _upsert_unknown_mod_pending_note(
+        self,
+        ident: int,
+        owner_name: str = "",
+        item_name: str = "",
+        arg1: int = 0,
+        arg2: int = 0,
+        item_type: int = 0,
+        model_id: int = 0,
+        source: str = "",
+    ):
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return
+        key = str(ident_i)
+        now_txt = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        note = dict(self.unknown_mod_pending_notes.get(key, {}) or {})
+        if not note:
+            note = {
+                "id": ident_i,
+                "owner": self._ensure_text(owner_name).strip(),
+                "item": self._clean_item_name(item_name),
+                "arg1": self._safe_int(arg1, 0),
+                "arg2": self._safe_int(arg2, 0),
+                "item_type": self._safe_int(item_type, 0),
+                "model_id": self._safe_int(model_id, 0),
+                "source": self._ensure_text(source).strip(),
+                "first_seen": now_txt,
+                "last_seen": now_txt,
+                "count": 1,
+            }
+        else:
+            note["owner"] = self._ensure_text(owner_name).strip() or self._ensure_text(note.get("owner", "")).strip()
+            note["item"] = self._clean_item_name(item_name) or self._clean_item_name(note.get("item", ""))
+            note["arg1"] = self._safe_int(arg1, note.get("arg1", 0))
+            note["arg2"] = self._safe_int(arg2, note.get("arg2", 0))
+            note["item_type"] = self._safe_int(item_type, note.get("item_type", 0))
+            note["model_id"] = self._safe_int(model_id, note.get("model_id", 0))
+            note["source"] = self._ensure_text(source).strip() or self._ensure_text(note.get("source", "")).strip()
+            note["last_seen"] = now_txt
+            note["count"] = max(1, self._safe_int(note.get("count", 1), 1) + 1)
+            if not self._ensure_text(note.get("first_seen", "")).strip():
+                note["first_seen"] = now_txt
+        self.unknown_mod_pending_notes[key] = note
+        self._save_unknown_mod_pending_notes()
+
+    def _remove_unknown_mod_pending_note(self, ident: int) -> bool:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return False
+        key = str(ident_i)
+        if key not in self.unknown_mod_pending_notes:
+            return False
+        self.unknown_mod_pending_notes.pop(key, None)
+        return self._save_unknown_mod_pending_notes()
+
+    def _unknown_mod_pending_lines(self, limit: int = 8) -> list[str]:
+        rows = []
+        for key, note in self.unknown_mod_pending_notes.items():
+            ident = max(0, self._safe_int(key, 0))
+            if ident <= 0:
+                continue
+            count = max(1, self._safe_int(note.get("count", 1), 1))
+            owner = self._ensure_text(note.get("owner", "")).strip() or "Unknown"
+            item = self._clean_item_name(note.get("item", "")) or "Unknown Item"
+            arg1 = self._safe_int(note.get("arg1", 0), 0)
+            arg2 = self._safe_int(note.get("arg2", 0), 0)
+            rows.append((count, ident, owner, item, arg1, arg2))
+        rows.sort(key=lambda row: (-row[0], row[1]))
+        return [
+            f"id={ident} x{count} | {owner} | {item} | a1={arg1} a2={arg2}"
+            for count, ident, owner, item, arg1, arg2 in rows[: max(1, int(limit))]
+        ]
+
+    def _unknown_mod_pending_count(self) -> int:
+        return len(self.unknown_mod_pending_notes)
+
+    def _save_unknown_mod_name_map(self) -> bool:
+        path = self._ensure_text(self.unknown_mod_name_map_path).strip()
+        if not path:
+            return False
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            sorted_names = {}
+            for key in sorted(self.unknown_mod_custom_names.keys(), key=lambda value: int(value)):
+                name_txt = self._ensure_text(self.unknown_mod_custom_names.get(key, "")).strip()
+                if name_txt:
+                    sorted_names[key] = name_txt
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "names": sorted_names,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod name map save failed: {e}", Py4GW.Console.MessageType.Warning)
+            return False
+
+    def _set_unknown_mod_custom_name(self, ident: int, name: str) -> bool:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return False
+        key = str(ident_i)
+        name_txt = self._ensure_text(name).strip()
+        if name_txt:
+            self.unknown_mod_custom_names[key] = name_txt[:120]
+            self.unknown_mod_name_edit_id = ident_i
+            self.unknown_mod_name_edit_text = self.unknown_mod_custom_names[key]
+            self._push_unknown_mod_notification(f"Mapped unknown mod id={ident_i} -> {self.unknown_mod_custom_names[key]}")
+            self._remove_unknown_mod_pending_note(ident_i)
+            if self._save_unknown_mod_name_map():
+                return True
+            return False
+        if key in self.unknown_mod_custom_names:
+            self.unknown_mod_custom_names.pop(key, None)
+            self.unknown_mod_name_edit_id = ident_i
+            self.unknown_mod_name_edit_text = ""
+            if self._save_unknown_mod_name_map():
+                return True
+            return False
+        return False
+
+    def _get_unknown_mod_custom_name(self, ident: int) -> str:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return ""
+        return self._ensure_text(self.unknown_mod_custom_names.get(str(ident_i), "")).strip()
+
+    def _unknown_mod_name_map_summary_lines(self, limit: int = 4) -> list[str]:
+        rows = []
+        for key, val in self.unknown_mod_custom_names.items():
+            ident = max(0, self._safe_int(key, 0))
+            name_txt = self._ensure_text(val).strip()
+            if ident > 0 and name_txt:
+                rows.append((ident, name_txt))
+        rows.sort(key=lambda it: it[0])
+        return [f"mapped id={ident}: {name_txt}" for ident, name_txt in rows[: max(1, int(limit))]]
+
+    def _collect_manual_named_mod_lines(self, raw_mods) -> list[str]:
+        lines = []
+        if not raw_mods:
+            return lines
+        seen = set()
+        for mod in list(raw_mods or []):
+            if not isinstance(mod, (list, tuple)) or len(mod) < 3:
+                continue
+            ident = max(0, self._safe_int(mod[0], 0))
+            if ident <= 0:
+                continue
+            custom_name = self._get_unknown_mod_custom_name(ident)
+            if not custom_name:
+                continue
+            arg1 = self._safe_int(mod[1], 0)
+            arg2 = self._safe_int(mod[2], 0)
+            line = custom_name if (arg1 == 0 and arg2 == 0) else f"{custom_name} [{arg1},{arg2}]"
+            key = re.sub(r"[^a-z0-9]+", "", f"{ident}:{line}".lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            lines.append(line)
+        return lines
+
+    def _save_unknown_mod_catalog(self):
+        path = self._ensure_text(self.unknown_mod_catalog_path).strip()
+        if not path:
+            return False
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            sorted_entries = {}
+            for key in sorted(self.unknown_mod_catalog.keys(), key=lambda value: int(value)):
+                sorted_entries[key] = self._normalize_unknown_mod_entry(self.unknown_mod_catalog.get(key, {}))
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "known_mod_id_count": int(len(self.known_mod_ids)),
+                "unknown_mods": sorted_entries,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod catalog save failed: {e}", Py4GW.Console.MessageType.Warning)
+            return False
+
+    def _flush_unknown_mod_catalog_if_dirty(self, force: bool = False):
+        if not self.unknown_mod_catalog_dirty:
+            return
+        if not force and not self.unknown_mod_catalog_flush_timer.IsExpired():
+            return
+        self.unknown_mod_catalog_flush_timer.Reset()
+        if self._save_unknown_mod_catalog():
+            self.unknown_mod_catalog_dirty = False
+
+    def _get_unknown_mod_count(self) -> int:
+        return len(self.unknown_mod_catalog)
+
+    def _is_known_or_excluded_mod_id(self, ident: int) -> bool:
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return True
+        if ident_i in self.known_mod_ids:
+            return True
+        if self._get_unknown_mod_custom_name(ident_i):
+            return True
+        if ident_i in self.unknown_mod_exclude_ids:
+            return True
+        if ident_i in UNKNOWN_MOD_KNOWN_NAME_HINTS:
+            return True
+        return False
+
+    def _unknown_mod_item_type_labels(self, item_types, limit: int = 3) -> list[str]:
+        labels = []
+        for raw_type in list(item_types or []):
+            item_type_int = max(0, self._safe_int(raw_type, 0))
+            if item_type_int <= 0:
+                continue
+            type_name = UNKNOWN_MOD_ITEM_TYPE_HINTS.get(item_type_int, "")
+            if not type_name and ItemType is not None:
+                try:
+                    type_name = self._ensure_text(getattr(ItemType(item_type_int), "name", "")).strip()
+                except EXPECTED_RUNTIME_ERRORS:
+                    type_name = ""
+            label = f"{item_type_int}({type_name})" if type_name else str(item_type_int)
+            if label not in labels:
+                labels.append(label)
+            if len(labels) >= max(1, int(limit)):
+                break
+        return labels
+
+    def _unknown_mod_summary_lines(self, limit: int = 8) -> list[str]:
+        lines = []
+        if not self.unknown_mod_catalog:
+            return lines
+        entries = []
+        for key, value in self.unknown_mod_catalog.items():
+            try:
+                ident = int(key)
+                count = int((value or {}).get("count", 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            entries.append((count, ident, value or {}))
+        entries.sort(key=lambda item: (-item[0], item[1]))
+        for count, ident, value in entries[: max(1, int(limit))]:
+            arg1_min = value.get("arg1_min", None)
+            arg1_max = value.get("arg1_max", None)
+            arg2_min = value.get("arg2_min", None)
+            arg2_max = value.get("arg2_max", None)
+            item_types = ",".join(self._unknown_mod_item_type_labels(value.get("item_types", []), limit=3))
+            lines.append(
+                f"id={ident} hits={count} "
+                f"a1=[{arg1_min},{arg1_max}] "
+                f"a2=[{arg2_min},{arg2_max}] "
+                f"types=[{item_types}]"
+            )
+        return lines
+
+    def _push_unknown_mod_notification(self, line: str):
+        msg = self._ensure_text(line).strip()
+        if not msg:
+            return
+        max_items = max(3, int(getattr(self, "unknown_mod_recent_notifications_max", 10)))
+        notes = list(getattr(self, "unknown_mod_recent_notifications", []) or [])
+        if not notes or notes[0] != msg:
+            notes.insert(0, msg)
+        self.unknown_mod_recent_notifications = notes[:max_items]
+
+    def _unknown_mod_notification_lines(self, limit: int = 4) -> list[str]:
+        notes = list(getattr(self, "unknown_mod_recent_notifications", []) or [])
+        out = []
+        for line in notes[: max(1, int(limit))]:
+            txt = self._ensure_text(line).strip()
+            if txt:
+                out.append(txt)
+        return out
+
+    def _notify_new_unknown_mod_discovered(
+        self,
+        ident: int,
+        arg1: int,
+        arg2: int,
+        owner_name: str = "",
+        item_name: str = "",
+        item_type: int = 0,
+        model_id: int = 0,
+        source: str = "",
+    ):
+        if not bool(getattr(self, "unknown_mod_notify_enabled", True)):
+            return
+        ident_i = max(0, self._safe_int(ident, 0))
+        if ident_i <= 0:
+            return
+        owner_txt = self._ensure_text(owner_name).strip() or "Unknown"
+        item_txt = self._clean_item_name(item_name) or "Unknown Item"
+        source_txt = self._ensure_text(source).strip() or "unknown"
+        item_kind_labels = self._unknown_mod_item_type_labels([item_type], limit=1)
+        item_kind_txt = item_kind_labels[0] if item_kind_labels else str(int(item_type))
+        msg = (
+            f"New unknown mod: id={ident_i} owner='{owner_txt}' item='{item_txt}' "
+            f"a1={int(arg1)} a2={int(arg2)} type={item_kind_txt} model={int(model_id)} src={source_txt}"
+        )
+        self._upsert_unknown_mod_pending_note(
+            ident=ident_i,
+            owner_name=owner_txt,
+            item_name=item_txt,
+            arg1=int(arg1),
+            arg2=int(arg2),
+            item_type=int(item_type),
+            model_id=int(model_id),
+            source=source_txt,
+        )
+        self._push_unknown_mod_notification(msg)
+        Py4GW.Console.Log("DropViewer", msg, Py4GW.Console.MessageType.Info)
+        if bool(getattr(self, "unknown_mod_popup_enabled", True)):
+            self.unknown_mod_popup_message = msg
+            self.unknown_mod_popup_pending = True
+        now_ts = time.time()
+        last_status_ts = float(getattr(self, "unknown_mod_last_notify_status_ts", 0.0) or 0.0)
+        if (now_ts - last_status_ts) >= 0.7:
+            self.unknown_mod_last_notify_status_ts = now_ts
+            self.set_status(msg)
+
+    def _guess_unknown_mod_entry(self, ident: int, entry: dict[str, Any]) -> dict[str, Any]:
+        ident_i = max(0, self._safe_int(ident, 0))
+        normalized = self._normalize_unknown_mod_entry(entry)
+        count = max(0, self._safe_int(normalized.get("count", 0), 0))
+        arg1_min = normalized.get("arg1_min", None)
+        arg1_max = normalized.get("arg1_max", None)
+        arg2_min = normalized.get("arg2_min", None)
+        arg2_max = normalized.get("arg2_max", None)
+        item_types = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("item_types", []) or [])]
+        item_types = [v for v in item_types if v > 0]
+        co_mod_ids = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("co_mod_ids", []) or [])]
+        co_mod_ids = [v for v in co_mod_ids if v > 0 and v != ident_i]
+        sample_items = [self._clean_item_name(v) for v in list(normalized.get("sample_items", []) or [])]
+        sample_items = [v for v in sample_items if v]
+        sample_items_lower = [v.lower() for v in sample_items]
+        co_mod_set = set(co_mod_ids)
+        item_type_set = set(item_types)
+
+        custom_name = self._get_unknown_mod_custom_name(ident_i)
+        if custom_name:
+            return {
+                "guess": custom_name,
+                "confidence": 100,
+                "confidence_label": "High",
+                "basis": ["manual mapping"],
+                "is_known_hint": True,
+            }
+
+        known_hint = self._ensure_text(UNKNOWN_MOD_KNOWN_NAME_HINTS.get(ident_i, "")).strip()
+        if known_hint:
+            return {
+                "guess": known_hint,
+                "confidence": 100,
+                "confidence_label": "High",
+                "basis": ["known modifier hint"],
+                "is_known_hint": True,
+            }
+
+        guess = "Unmapped modifier (manual label needed)"
+        score = 28
+        basis = []
+
+        caster_markers = {8728, 8920, 8952, 8968, 8984, 9000, 9112, 9128, 9880, 25288, 26568}
+        base_stat_markers = {10136, 42120, 42920, 42936}
+        armor_markers = {8408, 8680, 9224, 9520, 10218, 41928, 42288}
+
+        if sample_items and all("tome" in name for name in sample_items_lower[: min(3, len(sample_items_lower))]):
+            guess = "Tome metadata/profession marker"
+            score = 66
+            basis.append("seen only on Tome items")
+        else:
+            material_tokens = ("ingot", "hide", "square", "dust", "wood", "cloth", "fiber", "bone", "scale")
+            is_material_name = any(any(token in name for token in material_tokens) for name in sample_items_lower)
+            if is_material_name and co_mod_set.issubset({49152}):
+                guess = "Material stack marker"
+                score = 62
+                basis.append("material names + structural co-mods")
+
+        if guess.startswith("Unmapped"):
+            if item_type_set & {12, 22, 26} and co_mod_set & caster_markers:
+                guess = "Caster weapon mod family (HCT/HSR/Energy)"
+                score = 64
+                basis.append("caster item types + caster co-mod IDs")
+            elif item_type_set & {24, 27} and co_mod_set & base_stat_markers:
+                guess = "Melee/shield companion modifier"
+                score = 55
+                basis.append("melee/shield co-mod IDs")
+
+        if co_mod_set & armor_markers:
+            if arg1_min == arg1_max == 40 and arg2_min == arg2_max == 0:
+                guess = "Armor bonus scalar (+40 family)"
+                score = max(score, 74)
+                basis.append("fixed a1=40 with armor markers")
+            elif arg1_min == arg1_max == 0 and arg2_min == arg2_max == 10:
+                guess = "Armor bonus scalar (+10 family)"
+                score = max(score, 68)
+                basis.append("fixed a2=10 with armor markers")
+            elif guess.startswith("Unmapped"):
+                guess = "Armor/rune metadata modifier"
+                score = max(score, 58)
+                basis.append("co-occurs with armor/rune markers")
+
+        if arg1_min == arg1_max == 0 and arg2_min == arg2_max == 0 and len(co_mod_set) >= 3:
+            if guess.startswith("Unmapped"):
+                guess = "Structural marker (no direct tooltip line)"
+                score = max(score, 52)
+                basis.append("always zero args + broad co-occurrence")
+
+        if count >= 25:
+            score += 12
+            basis.append("high observation count")
+        elif count >= 10:
+            score += 8
+        elif count >= 5:
+            score += 4
+        elif count <= 2:
+            score -= 8
+
+        score = max(15, min(99, int(score)))
+        if score >= 85:
+            confidence_label = "High"
+        elif score >= 60:
+            confidence_label = "Medium"
+        else:
+            confidence_label = "Low"
+
+        if not basis:
+            basis.append("not enough correlated data yet")
+
+        return {
+            "guess": guess,
+            "confidence": score,
+            "confidence_label": confidence_label,
+            "basis": list(dict.fromkeys(basis))[:4],
+            "is_known_hint": False,
+        }
+
+    def _unknown_mod_guess_report_entries(self, include_known: bool = True) -> list[dict[str, Any]]:
+        entries = []
+        for key, value in self.unknown_mod_catalog.items():
+            ident = max(0, self._safe_int(key, 0))
+            if ident <= 0:
+                continue
+            normalized = self._normalize_unknown_mod_entry(value or {})
+            guess = self._guess_unknown_mod_entry(ident, normalized)
+            if not include_known and bool(guess.get("is_known_hint", False)):
+                continue
+            item_types = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("item_types", []) or [])]
+            item_types = [v for v in item_types if v > 0]
+            co_mod_ids = [max(0, self._safe_int(v, 0)) for v in list(normalized.get("co_mod_ids", []) or [])]
+            co_mod_ids = [v for v in co_mod_ids if v > 0 and v != ident]
+            sample_items = [self._clean_item_name(v) for v in list(normalized.get("sample_items", []) or [])]
+            sample_items = [v for v in sample_items if v]
+            entries.append(
+                {
+                    "id": ident,
+                    "hits": max(0, self._safe_int(normalized.get("count", 0), 0)),
+                    "guess": self._ensure_text(guess.get("guess", "")).strip() or "Unmapped modifier",
+                    "confidence": max(0, min(100, self._safe_int(guess.get("confidence", 0), 0))),
+                    "confidence_label": self._ensure_text(guess.get("confidence_label", "")).strip() or "Low",
+                    "is_known_hint": bool(guess.get("is_known_hint", False)),
+                    "basis": list(guess.get("basis", []) or []),
+                    "arg1_min": normalized.get("arg1_min", None),
+                    "arg1_max": normalized.get("arg1_max", None),
+                    "arg2_min": normalized.get("arg2_min", None),
+                    "arg2_max": normalized.get("arg2_max", None),
+                    "item_types": item_types,
+                    "item_type_labels": self._unknown_mod_item_type_labels(item_types, limit=12),
+                    "sample_items": sample_items[:12],
+                    "co_mod_ids": co_mod_ids[:40],
+                    "last_seen": self._ensure_text(normalized.get("last_seen", "")).strip(),
+                }
+            )
+        entries.sort(key=lambda row: (-int(row.get("hits", 0)), int(row.get("id", 0))))
+        return entries
+
+    def _get_unknown_mod_unresolved_count(self) -> int:
+        return len(self._unknown_mod_guess_report_entries(include_known=False))
+
+    def _unknown_mod_guess_summary_lines(self, limit: int = 8, include_known: bool = False) -> list[str]:
+        lines = []
+        entries = self._unknown_mod_guess_report_entries(include_known=include_known)
+        for row in entries[: max(1, int(limit))]:
+            ident = max(0, self._safe_int(row.get("id", 0), 0))
+            hits = max(0, self._safe_int(row.get("hits", 0), 0))
+            confidence = max(0, min(100, self._safe_int(row.get("confidence", 0), 0)))
+            confidence_label = self._ensure_text(row.get("confidence_label", "")).strip() or "Low"
+            guess = self._ensure_text(row.get("guess", "")).strip() or "Unmapped modifier"
+            basis = list(row.get("basis", []) or [])
+            basis_txt = f" ({basis[0]})" if basis else ""
+            lines.append(
+                f"id={ident} hits={hits} {confidence_label}({confidence}%): {guess}{basis_txt}"
+            )
+        return lines
+
+    def _export_unknown_mod_guess_report(self, include_known: bool = True) -> str:
+        self._flush_unknown_mod_catalog_if_dirty(force=True)
+        path = self._ensure_text(self.unknown_mod_guess_report_path).strip()
+        if not path:
+            return ""
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            entries = self._unknown_mod_guess_report_entries(include_known=include_known)
+            payload = {
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "source_catalog_path": self.unknown_mod_catalog_path,
+                "entry_count": int(len(entries)),
+                "entries": entries,
+            }
+            with open(path, mode="w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2)
+            return path
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Unknown mod guess export failed: {e}", Py4GW.Console.MessageType.Warning)
+            return ""
+
+    def _auto_export_unknown_mod_artifacts_if_due(self, force: bool = False):
+        if not bool(getattr(self, "unknown_mod_auto_export_enabled", True)):
+            return
+        if not self.unknown_mod_catalog_dirty and not force:
+            return
+
+        should_export_catalog = bool(force)
+        if not should_export_catalog:
+            try:
+                should_export_catalog = bool(self.unknown_mod_auto_export_timer.IsExpired())
+            except EXPECTED_RUNTIME_ERRORS:
+                should_export_catalog = True
+        if not should_export_catalog:
+            return
+
+        try:
+            self.unknown_mod_auto_export_timer.Reset()
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        self._flush_unknown_mod_catalog_if_dirty(force=True)
+        if not self.unknown_mod_catalog:
+            return
+
+        should_export_guess = bool(force)
+        if not should_export_guess:
+            try:
+                should_export_guess = bool(self.unknown_mod_guess_auto_export_timer.IsExpired())
+            except EXPECTED_RUNTIME_ERRORS:
+                should_export_guess = True
+        if not should_export_guess:
+            return
+
+        try:
+            self.unknown_mod_guess_auto_export_timer.Reset()
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        self._export_unknown_mod_guess_report(include_known=True)
+
+    def _record_unknown_mod_identifiers(
+        self,
+        raw_mods,
+        snapshot: dict[str, Any] | None = None,
+        source: str = "",
+        suppress_mod_ids: set[int] | None = None,
+    ):
+        if not raw_mods:
+            return
+        suppressed = {max(0, self._safe_int(v, 0)) for v in list(suppress_mod_ids or set())}
+        suppressed = {v for v in suppressed if v > 0}
+        removed_known = False
+        for ident_i in suppressed:
+            key_i = str(ident_i)
+            if key_i in self.unknown_mod_catalog:
+                self.unknown_mod_catalog.pop(key_i, None)
+                removed_known = True
+            self._remove_unknown_mod_pending_note(ident_i)
+        if removed_known:
+            self.unknown_mod_catalog_dirty = True
+            self._auto_export_unknown_mod_artifacts_if_due(force=True)
+        src = self._ensure_text(source).strip() or self._ensure_text((snapshot or {}).get("_source", "")).strip() or "unknown"
+        owner_name = self._ensure_text((snapshot or {}).get("_owner", "")).strip()
+        item_name = self._clean_item_name((snapshot or {}).get("name", ""))
+        event_id = self._ensure_text((snapshot or {}).get("event_id", "")).strip()
+        model_id = max(0, self._safe_int((snapshot or {}).get("model_id", 0), 0))
+        item_type = max(0, self._safe_int((snapshot or {}).get("item_type", 0), 0))
+        co_mod_ids = []
+        try:
+            co_mod_ids = sorted({
+                max(0, int(mod[0]))
+                for mod in list(raw_mods or [])
+                if isinstance(mod, (list, tuple)) and len(mod) >= 3
+            })
+            co_mod_ids = [mid for mid in co_mod_ids if mid > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            co_mod_ids = []
+
+        now_ts = time.time()
+        ttl = max(2.0, float(self.unknown_mod_recent_ttl_s))
+        try:
+            self.unknown_mod_recent_seen = {
+                key: ts
+                for key, ts in self.unknown_mod_recent_seen.items()
+                if (now_ts - float(ts)) <= ttl
+            }
+        except EXPECTED_RUNTIME_ERRORS:
+            self.unknown_mod_recent_seen = {}
+
+        changed = False
+        was_dirty_before = bool(self.unknown_mod_catalog_dirty)
+        for mod in list(raw_mods or []):
+            if not isinstance(mod, (list, tuple)) or len(mod) < 3:
+                continue
+            ident = max(0, self._safe_int(mod[0], 0))
+            if ident in suppressed:
+                self._remove_unknown_mod_pending_note(ident)
+                continue
+            if self._is_known_or_excluded_mod_id(ident):
+                continue
+            arg1 = self._safe_int(mod[1], 0)
+            arg2 = self._safe_int(mod[2], 0)
+            dedupe_key = f"{src}|{model_id}|{item_type}|{ident}|{arg1}|{arg2}|{event_id}"
+            if dedupe_key in self.unknown_mod_recent_seen:
+                continue
+            self.unknown_mod_recent_seen[dedupe_key] = now_ts
+
+            key = str(ident)
+            is_new_mod_id = key not in self.unknown_mod_catalog
+            entry = self._normalize_unknown_mod_entry(self.unknown_mod_catalog.get(key, {}))
+            entry["count"] = max(0, int(entry.get("count", 0))) + 1
+
+            arg1_min = entry.get("arg1_min", None)
+            arg1_max = entry.get("arg1_max", None)
+            arg2_min = entry.get("arg2_min", None)
+            arg2_max = entry.get("arg2_max", None)
+            entry["arg1_min"] = arg1 if arg1_min is None else min(int(arg1_min), int(arg1))
+            entry["arg1_max"] = arg1 if arg1_max is None else max(int(arg1_max), int(arg1))
+            entry["arg2_min"] = arg2 if arg2_min is None else min(int(arg2_min), int(arg2))
+            entry["arg2_max"] = arg2 if arg2_max is None else max(int(arg2_max), int(arg2))
+
+            item_types = list(entry.get("item_types", []) or [])
+            if item_type > 0 and item_type not in item_types and len(item_types) < 24:
+                item_types.append(item_type)
+            entry["item_types"] = sorted(item_types)
+
+            model_ids = list(entry.get("model_ids", []) or [])
+            if model_id > 0 and model_id not in model_ids and len(model_ids) < 40:
+                model_ids.append(model_id)
+            entry["model_ids"] = sorted(model_ids)
+
+            co_ids = [mid for mid in co_mod_ids if mid != ident]
+            existing_co = list(entry.get("co_mod_ids", []) or [])
+            for co_id in co_ids:
+                if co_id not in existing_co:
+                    existing_co.append(co_id)
+                if len(existing_co) >= 40:
+                    break
+            entry["co_mod_ids"] = sorted(existing_co)
+
+            sample_items = list(entry.get("sample_items", []) or [])
+            if item_name and item_name not in sample_items and len(sample_items) < 12:
+                sample_items.append(item_name)
+            entry["sample_items"] = sample_items
+
+            sample_events = list(entry.get("sample_events", []) or [])
+            if event_id and event_id not in sample_events and len(sample_events) < 12:
+                sample_events.append(event_id)
+            entry["sample_events"] = sample_events
+
+            source_map = dict(entry.get("sources", {}) or {})
+            source_map[src] = max(0, int(source_map.get(src, 0))) + 1
+            entry["sources"] = source_map
+            entry["last_seen"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.unknown_mod_catalog[key] = entry
+            if is_new_mod_id:
+                self._notify_new_unknown_mod_discovered(
+                    ident=ident,
+                    arg1=arg1,
+                    arg2=arg2,
+                    owner_name=owner_name,
+                    item_name=item_name,
+                    item_type=item_type,
+                    model_id=model_id,
+                    source=src,
+                )
+            changed = True
+
+        if changed:
+            self.unknown_mod_catalog_dirty = True
+            self._auto_export_unknown_mod_artifacts_if_due(force=not was_dirty_before)
+
+    def _export_unknown_mod_catalog(self) -> str:
+        self._flush_unknown_mod_catalog_if_dirty(force=True)
+        path = self._ensure_text(self.unknown_mod_catalog_path).strip()
+        if path and os.path.exists(path):
+            return path
+        if self._save_unknown_mod_catalog():
+            self.unknown_mod_catalog_dirty = False
+            return path
+        return ""
+
+    def _format_attribute_name(self, attr_name: Any) -> str:
+        txt = self._ensure_text(attr_name).replace("_", " ").strip()
+        txt = re.sub(r"([a-z])([A-Z])", r"\1 \2", txt)
+        return txt
+
+    def _render_mod_description_template(
+        self,
+        description: str,
+        matched_modifiers: list[tuple[int, int, int]],
+        default_value: int = 0,
+        attribute_name: str = "",
+    ) -> list[str]:
+        def _resolve_attribute_name(attr_id: int) -> str:
+            try:
+                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        return render_mod_description_template(
+            description=self._ensure_text(description),
+            matched_modifiers=list(matched_modifiers or []),
+            default_value=int(default_value),
+            attribute_name=self._ensure_text(attribute_name),
+            resolve_attribute_name_fn=_resolve_attribute_name,
+            format_attribute_name_fn=self._format_attribute_name,
+            unknown_attribute_template="Attribute {id}",
+        )
+
+    def _match_mod_definition_against_raw(self, definition_modifiers, raw_mods) -> list[tuple[int, int, int]]:
+        meaningful = []
+        for dm in list(definition_modifiers or []):
+            mode = self._ensure_text(getattr(dm, "modifier_value_arg", "")).lower()
+            if "none" in mode:
+                continue
+            meaningful.append(dm)
+        if not meaningful:
+            return []
+
+        matched = []
+        for dm in meaningful:
+            ident = int(getattr(dm, "identifier", 0))
+            arg1 = int(getattr(dm, "arg1", 0))
+            arg2 = int(getattr(dm, "arg2", 0))
+            min_v = int(getattr(dm, "min", 0))
+            max_v = int(getattr(dm, "max", 0))
+            mode = self._ensure_text(getattr(dm, "modifier_value_arg", "")).lower()
+            found = None
+            for rid, ra1, ra2 in raw_mods:
+                if int(rid) != ident:
+                    continue
+                if "arg1" in mode:
+                    if int(ra2) == arg2 and min_v <= int(ra1) <= max_v:
+                        found = (int(rid), int(ra1), int(ra2))
+                        break
+                elif "arg2" in mode:
+                    if int(ra1) == arg1 and min_v <= int(ra2) <= max_v:
+                        found = (int(rid), int(ra1), int(ra2))
+                        break
+                elif "fixed" in mode:
+                    if int(ra1) == arg1 and int(ra2) == arg2:
+                        found = (int(rid), int(ra1), int(ra2))
+                        break
+            if found is None:
+                return []
+            matched.append(found)
+        return matched
+
+    def _weapon_mod_type_matches(self, weapon_mod, item_type) -> bool:
+        if item_type is None or is_matching_item_type is None:
+            return False
+        try:
+            target_types = list(getattr(weapon_mod, "target_types", []) or [])
+            for target in target_types:
+                try:
+                    if is_matching_item_type(item_type, target):
+                        return True
+                except EXPECTED_RUNTIME_ERRORS:
+                    continue
+            item_mods = getattr(weapon_mod, "item_mods", {}) or {}
+            for target in list(item_mods.keys()):
+                try:
+                    if is_matching_item_type(item_type, target):
+                        return True
+                except EXPECTED_RUNTIME_ERRORS:
+                    continue
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+        return False
+
+    def _collect_fallback_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
+        lines = []
+        if self.mod_db is None:
+            return lines
+        best_by_ident = {}
+        try:
+            for weapon_mod in list(getattr(self.mod_db, "weapon_mods", {}).values()):
+                matched = self._match_mod_definition_against_raw(getattr(weapon_mod, "modifiers", []), raw_mods)
+                if not matched:
+                    continue
+                ident_set = {int(m[0]) for m in matched}
+                if not ident_set:
+                    continue
+                desc = self._ensure_text(getattr(weapon_mod, "description", "")).strip()
+                rendered = self._render_mod_description_template(desc, matched, 0, item_attr_txt)
+                if rendered:
+                    first_line = rendered[0]
+                    lower_desc = desc.lower()
+                    has_old_school = "[old school]" in lower_desc
+                    type_match = self._weapon_mod_type_matches(weapon_mod, item_type)
+                    # Ranking:
+                    # - direct type match is strongest signal,
+                    # - old-school descriptors are allowed cross-type fallback,
+                    # - plain cross-type matches are heavily penalized.
+                    score = 0
+                    if type_match:
+                        score += 100
+                    if has_old_school:
+                        score += 20
+                    if not type_match and not has_old_school:
+                        score -= 60
+                    score += min(len(matched), 3)
+                    for ident in ident_set:
+                        prev = best_by_ident.get(ident, None)
+                        if prev is None or score > int(prev.get("score", -999)):
+                            best_by_ident[ident] = {"line": first_line, "score": score}
+        except EXPECTED_RUNTIME_ERRORS:
+            return lines
+        for ident in sorted(best_by_ident.keys()):
+            line = self._ensure_text(best_by_ident[ident].get("line", "")).strip()
+            if line:
+                lines.append(line)
+        return lines
+
+    def _collect_fallback_rune_lines(self, raw_mods, item_attr_txt: str) -> list[str]:
+        lines = []
+        if self.mod_db is None:
+            return lines
+        best_by_ident = {}
+        try:
+            for rune in list(getattr(self.mod_db, "runes", {}).values()):
+                matched = self._match_mod_definition_against_raw(getattr(rune, "modifiers", []), raw_mods)
+                if not matched:
+                    continue
+                ident_set = {int(m[0]) for m in matched}
+                if not ident_set:
+                    continue
+                desc = self._ensure_text(getattr(rune, "description", "")).strip()
+                rune_name = self._ensure_text(getattr(rune, "name", "")).strip()
+                rendered = self._render_mod_description_template(desc, matched, 0, item_attr_txt)
+                candidate_lines = []
+                if rune_name:
+                    candidate_lines.append(rune_name)
+                candidate_lines.extend(rendered)
+                if not candidate_lines and rune_name:
+                    candidate_lines = [rune_name]
+                deduped_candidates = []
+                seen_line_keys = set()
+                for candidate in candidate_lines:
+                    candidate_txt = self._ensure_text(candidate).strip()
+                    if not candidate_txt:
+                        continue
+                    line_key = re.sub(r"[^a-z0-9]+", "", candidate_txt.lower())
+                    if line_key in seen_line_keys:
+                        continue
+                    seen_line_keys.add(line_key)
+                    deduped_candidates.append(candidate_txt)
+                candidate_lines = deduped_candidates
+                if not candidate_lines:
+                    continue
+                score = min(len(matched), 4)
+                for ident in ident_set:
+                    prev = best_by_ident.get(ident, None)
+                    if prev is None or score > int(prev.get("score", -999)):
+                        best_by_ident[ident] = {"lines": list(candidate_lines), "score": score}
+        except EXPECTED_RUNTIME_ERRORS:
+            return lines
+        for ident in sorted(best_by_ident.keys()):
+            for line in list(best_by_ident[ident].get("lines", []) or []):
+                txt = self._ensure_text(line).strip()
+                if txt:
+                    lines.append(txt)
+        return lines
+
+    def _build_known_spellcast_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
+        def _resolve_attribute_name(attr_id: int) -> str:
+            try:
+                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+        return build_known_spellcasting_mod_lines(
+            raw_mods,
+            item_attr_txt=self._ensure_text(item_attr_txt),
+            item_type=item_type,
+            resolve_attribute_name_fn=_resolve_attribute_name,
+            include_raw_when_no_chance=False,
+            use_range_chance=True,
+        )
+
+    def _normalize_item_name(self, name: Any) -> str:
+        return self._clean_item_name(name).lower()
+
+    def _extract_mod_lines_from_item_name(self, item_name: Any) -> list[str]:
+        name_text = self._clean_item_name(item_name)
+        if "|" not in name_text:
+            return []
+        parts = [self._ensure_text(part).strip() for part in name_text.split("|")]
+        if len(parts) <= 1:
+            return []
+        lines = []
+        seen = set()
+        for part in parts[1:]:
+            if not part:
+                continue
+            key = re.sub(r"[^a-z0-9]+", "", part.lower())
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            lines.append(part)
+        return lines
+
+    def _canonical_agg_item_name(self, item_name: Any, rarity: Any, agg: dict) -> str:
+        name = self._clean_item_name(item_name)
+        if not name:
+            return "Unknown Item"
+        if name == "Gold":
+            return "Gold"
+
+        rarity_text = self._ensure_text(rarity).strip() or "Unknown"
+        lower_name = name.lower()
+        singular = lower_name[:-1] if lower_name.endswith("s") and len(lower_name) > 1 else lower_name
+        plural = singular + "s"
+
+        for (existing_name, existing_rarity) in agg.keys():
+            if self._ensure_text(existing_rarity).strip() != rarity_text:
+                continue
+            ex_lower = self._clean_item_name(existing_name).lower()
+            if ex_lower == lower_name:
+                return existing_name
+            # Conservative singular/plural normalization for same-rarity rows.
+            if ex_lower == singular or ex_lower == plural:
+                return existing_name
+        return name
+
+    def _normalize_rarity_label(self, item_name: Any, rarity: Any) -> str:
+        name = self._clean_item_name(item_name)
+        r = self._ensure_text(rarity).strip() or "Unknown"
+        # Canonical buckets override color rarities.
+        if "Key" in name:
+            return "Keys"
+        if "Vial of Dye" in name or "Dye" in name:
+            return "Dyes"
+        if "Tome" in name:
+            return "Tomes"
+        return r
+
+    def _reset_live_log_file(self):
+        try:
+            os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
+            with open(self.log_path, mode='w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(list(DROP_LOG_HEADER))
+            self.last_read_time = os.path.getmtime(self.log_path)
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Failed to reset live log file: {e}", Py4GW.Console.MessageType.Warning)
+
+    def _reset_live_session(self):
+        self.raw_drops = []
+        self.aggregated_drops = {}
+        self.total_drops = 0
+        self.shmem_bootstrap_done = False
+        self.last_read_time = 0
+        self.recent_log_cache = {}
+        self.stats_by_event = {}
+        self.stats_chunk_buffers = {}
+        self.stats_payload_by_event = {}
+        self.stats_payload_chunk_buffers = {}
+        self.stats_render_cache_by_event = {}
+        self.stats_name_signature_by_event = {}
+        self.identify_response_scheduler.clear()
+        self.pending_identify_mod_capture = {}
+        self._reset_live_log_file()
+
+    def load_drops(self):
+        if not os.path.isfile(self.log_path):
+            self.raw_drops = []
+            self.aggregated_drops = {}
+            self.total_drops = 0
+            return
+
+        try:
+            current_mtime = os.path.getmtime(self.log_path)
+            if current_mtime <= self.last_read_time:
+                return # No change
+            
+            self.last_read_time = current_mtime
+            
+            self._parse_log_file(self.log_path)
+            
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Error reading log: {e}")
+
+    def _parse_log_file(self, filepath):
+        temp_drops = []
+        temp_agg = {}
+        total = 0
+        temp_stats_by_event = {}
+        parsed_rows = parse_drop_log_file(filepath, map_name_resolver=Map.GetMapName)
+        for parsed in parsed_rows:
+            row = parsed.to_runtime_row()
+            temp_drops.append(row)
+            total += int(parsed.quantity)
+            if parsed.event_id:
+                sender_email = self._ensure_text(parsed.sender_email).strip().lower()
+                stats_cache_key = self._make_stats_cache_key(parsed.event_id, sender_email, parsed.player_name)
+                if stats_cache_key:
+                    temp_stats_by_event[stats_cache_key] = parsed.item_stats
+
+            canonical_name = self._canonical_agg_item_name(parsed.item_name, parsed.rarity, temp_agg)
+            key = (canonical_name, parsed.rarity)
+            if key not in temp_agg:
+                temp_agg[key] = {"Quantity": 0, "Count": 0}
+
+            temp_agg[key]["Quantity"] += int(parsed.quantity)
+            temp_agg[key]["Count"] += 1
+                
+        self.raw_drops = temp_drops
+        self.aggregated_drops = temp_agg
+        self.total_drops = total
+        self.stats_by_event = temp_stats_by_event
+        self.stats_name_signature_by_event = {}
+
+    def set_status(self, msg):
+        self.status_message = msg
+        self.status_time = time.time()
+
+    def _toggle_follower_inventory_viewer(self):
+        try:
+            widget_handler = get_widget_handler()
+            widget_info = widget_handler.get_widget_info("TeamInventoryViewer")
+            if widget_info is None:
+                self.set_status("TeamInventoryViewer widget not found")
+                return
+            if widget_handler.is_widget_enabled("TeamInventoryViewer"):
+                widget_handler.disable_widget("TeamInventoryViewer")
+                self.set_status("Closed Follower Inventory viewer")
+            else:
+                widget_handler.enable_widget("TeamInventoryViewer")
+                self.set_status("Opened Follower Inventory viewer")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Failed to toggle Follower Inventory: {e}")
+
+    def _safe_int(self, value, default=0):
+        try:
+            return int(value)
+        except EXPECTED_RUNTIME_ERRORS:
+            return default
+
+    def _parse_drop_row(self, row: Any) -> DropLogRow | None:
+        return parse_runtime_row(row)
+
+    def _set_row_item_stats(self, row: Any, item_stats: str) -> None:
+        set_runtime_row_item_stats(row, self._ensure_text(item_stats).strip())
+
+    def _set_row_item_id(self, row: Any, item_id: int) -> None:
+        set_runtime_row_item_id(row, int(item_id))
+
+    def _is_rare_rarity(self, rarity):
+        return rarity == "Gold"
+
+    def _passes_filters(self, row):
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
+            return False
+
+        player_name = self._ensure_text(parsed.player_name)
+        item_name = self._ensure_text(parsed.item_name)
+        qty = int(parsed.quantity)
+        rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+        map_name = self._ensure_text(parsed.map_name)
+
+        if qty < max(1, int(self.min_qty)):
+            return False
+        if self.only_rare and not self._is_rare_rarity(rarity):
+            return False
+        if self.hide_gold and self._clean_item_name(item_name) == "Gold":
+            return False
+        if self.filter_rarity_idx > 0:
+            wanted = self.filter_rarity_options[self.filter_rarity_idx]
+            if wanted == "Unknown":
+                if "Unknown" not in rarity:
+                    return False
+            elif rarity != wanted:
+                return False
+
+        search = self.search_text.strip().lower()
+        if search:
+            haystack = f"{item_name} {player_name} {map_name} {rarity}".lower()
+            if search not in haystack:
+                return False
+
+        fp = self.filter_player.strip().lower()
+        if fp and fp not in player_name.lower():
+            return False
+
+        fm = self.filter_map.strip().lower()
+        if fm and fm not in map_name.lower():
+            return False
+
+        return True
+
+    def _get_filtered_rows(self):
+        return [row for row in self.raw_drops if self._passes_filters(row)]
+
+    def _is_gold_row(self, row):
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
+            return False
+        return self._clean_item_name(parsed.item_name) == "Gold"
+
+    def _get_filtered_aggregated(self, filtered_rows):
+        agg = {}
+        total_qty = 0
+        for row in filtered_rows:
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            item_name = parsed.item_name
+            rarity = parsed.rarity
+            qty = int(parsed.quantity)
+            total_qty += qty
+            canonical_name = self._canonical_agg_item_name(item_name, rarity, agg)
+            key = (canonical_name, rarity)
+            if key not in agg:
+                agg[key] = {"Quantity": 0, "Count": 0}
+            agg[key]["Quantity"] += qty
+            agg[key]["Count"] += 1
+        return agg, total_qty
+
+    def _extract_row_event_id(self, row) -> str:
+        return self._ensure_text(extract_runtime_row_event_id(row)).strip()
+
+    def _extract_row_item_stats(self, row) -> str:
+        return self._ensure_text(extract_runtime_row_item_stats(row)).strip()
+
+    def _extract_row_item_id(self, row) -> int:
+        return max(0, int(extract_runtime_row_item_id(row)))
+
+    def _extract_row_sender_email(self, row) -> str:
+        return self._ensure_text(extract_runtime_row_sender_email(row)).strip().lower()
+
+    def _make_sender_identifier(self, sender_email: str = "", player_name: str = "") -> str:
+        sender_key = self._ensure_text(sender_email).strip().lower()
+        if sender_key:
+            return f"email:{sender_key}"
+        player_key = self._ensure_text(player_name).strip().lower()
+        if player_key:
+            return f"player:{player_key}"
+        return "unknown"
+
+    def _make_stats_cache_key(self, event_id: str, sender_email: str = "", player_name: str = "") -> str:
+        event_key = self._ensure_text(event_id).strip()
+        if not event_key:
+            return ""
+        sender_ident = self._make_sender_identifier(sender_email, player_name)
+        return f"{sender_ident}:{event_key}"
+
+    def _resolve_sender_name_from_email(self, sender_email: str) -> str:
+        sender_name = ""
+        try:
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            sender_account = shmem.GetAccountDataFromEmail(sender_email) if shmem is not None else None
+            if sender_account:
+                sender_name = sender_account.AgentData.CharacterName
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return sender_name
+
+    def _resolve_stats_cache_key_for_row(self, row) -> str:
+        event_id = self._extract_row_event_id(row)
+        if not event_id:
+            return ""
+        parsed = self._parse_drop_row(row)
+        player_name = self._ensure_text(parsed.player_name).strip() if parsed else ""
+        sender_email = self._extract_row_sender_email(row)
+        return self._make_stats_cache_key(event_id, sender_email, player_name)
+
+    def _get_cached_stats_text(self, cache: dict[str, str], event_key: str) -> str:
+        lookup_key = self._ensure_text(event_key).strip()
+        if not lookup_key:
+            return ""
+        return self._ensure_text(cache.get(lookup_key, "")).strip()
+
+    def _resolve_live_item_id_for_row(self, row, prefer_unidentified: bool = False) -> int:
+        parsed = self._parse_drop_row(row)
+        target_name = self._clean_item_name(parsed.item_name) if parsed else ""
+        target_rarity = self._ensure_text(parsed.rarity).strip() if parsed else ""
+        target_rarity = target_rarity or "Unknown"
+        recorded_item_id = max(0, int(parsed.item_id)) if parsed else 0
+
+        try:
+            bags = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_ids = list(ItemArray.GetItemArray(bags) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_ids = []
+
+        if not item_ids:
+            return 0
+
+        item_id_set = {int(i) for i in item_ids}
+        if recorded_item_id > 0 and recorded_item_id in item_id_set:
+            return int(recorded_item_id)
+
+        best_any = 0
+        best_unidentified = 0
+        for inv_item_id in item_ids:
+            inv_item_id = int(inv_item_id)
+            try:
+                if not Item.IsNameReady(inv_item_id):
+                    Item.RequestName(inv_item_id)
+                    continue
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+
+            try:
+                inv_name = self._clean_item_name(Item.GetName(inv_item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                inv_name = ""
+            if target_name and inv_name and not self._item_names_match(target_name, inv_name):
+                continue
+
+            inv_rarity = "Unknown"
+            try:
+                inv_rarity = self._ensure_text(Item.Rarity.GetRarity(inv_item_id)[1]).strip() or "Unknown"
+            except EXPECTED_RUNTIME_ERRORS:
+                inv_rarity = "Unknown"
+            if target_rarity != "Unknown" and inv_rarity != target_rarity:
+                # Keep as fallback when only rarity differs due transient name/rarity resolution.
+                if best_any <= 0:
+                    best_any = inv_item_id
+                continue
+
+            if best_any <= 0:
+                best_any = inv_item_id
+            try:
+                is_identified = bool(Item.Usage.IsIdentified(inv_item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_identified = False
+            if not is_identified and best_unidentified <= 0:
+                best_unidentified = inv_item_id
+                if prefer_unidentified:
+                    break
+
+        if prefer_unidentified and best_unidentified > 0:
+            return int(best_unidentified)
+        if best_any > 0:
+            return int(best_any)
+        return 0
+
+    def _resolve_live_item_id_by_name(self, item_name: Any, prefer_identified: bool = False) -> int:
+        target_name = self._clean_item_name(item_name)
+        if not target_name:
+            return 0
+        try:
+            bags = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_ids = list(ItemArray.GetItemArray(bags) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_ids = []
+        if not item_ids:
+            return 0
+        best_any = 0
+        best_identified = 0
+        for inv_item_id in item_ids:
+            inv_item_id = int(inv_item_id)
+            try:
+                if not Item.IsNameReady(inv_item_id):
+                    Item.RequestName(inv_item_id)
+                    continue
+                inv_name = self._clean_item_name(Item.GetName(inv_item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            if not self._item_names_match(target_name, inv_name):
+                continue
+            if best_any <= 0:
+                best_any = inv_item_id
+            if prefer_identified:
+                try:
+                    if bool(Item.Usage.IsIdentified(inv_item_id)):
+                        best_identified = inv_item_id
+                        break
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+        if prefer_identified and best_identified > 0:
+            return int(best_identified)
+        if best_any > 0:
+            return int(best_any)
+        return 0
+
+    def _resolve_live_item_id_by_signature(
+        self,
+        name_signature: Any,
+        rarity_hint: Any = "",
+        prefer_identified: bool = False,
+    ) -> int:
+        target_sig = self._ensure_text(name_signature).strip().lower()
+        if not target_sig:
+            return 0
+        target_rarity = self._ensure_text(rarity_hint).strip() or "Unknown"
+        try:
+            bags = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_ids = list(ItemArray.GetItemArray(bags) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_ids = []
+        if not item_ids:
+            return 0
+
+        best_any = 0
+        best_identified = 0
+        for inv_item_id in item_ids:
+            inv_item_id = int(inv_item_id)
+            try:
+                if not Item.IsNameReady(inv_item_id):
+                    Item.RequestName(inv_item_id)
+                    continue
+                inv_name = self._clean_item_name(Item.GetName(inv_item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            if not inv_name:
+                continue
+            if make_name_signature(inv_name) != target_sig:
+                continue
+            if target_rarity != "Unknown":
+                try:
+                    inv_rarity = self._ensure_text(Item.Rarity.GetRarity(inv_item_id)[1]).strip() or "Unknown"
+                except EXPECTED_RUNTIME_ERRORS:
+                    inv_rarity = "Unknown"
+                if inv_rarity != target_rarity:
+                    continue
+            if best_any <= 0:
+                best_any = inv_item_id
+            if prefer_identified:
+                try:
+                    if bool(Item.Usage.IsIdentified(inv_item_id)):
+                        best_identified = inv_item_id
+                        break
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+        if prefer_identified and best_identified > 0:
+            return int(best_identified)
+        if best_any > 0:
+            return int(best_any)
+        return 0
+
+    def _resolve_account_email_by_character_name(self, character_name: str) -> str:
+        target_name = self._ensure_text(character_name).strip().lower()
+        if not target_name:
+            return ""
+        try:
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            if shmem is None:
+                return ""
+            my_email = self._ensure_text(Player.GetAccountEmail()).strip()
+            my_account = shmem.GetAccountDataFromEmail(my_email) if my_email else None
+            my_party_id = int(getattr(my_account.AgentPartyData, "PartyID", 0)) if my_account else 0
+            my_map_id = int(getattr(my_account.AgentData.Map, "MapID", 0)) if my_account else 0
+            for account in shmem.GetAllAccountData():
+                account_email = self._ensure_text(getattr(account, "AccountEmail", "")).strip()
+                if not account_email:
+                    continue
+                account_name = self._ensure_text(getattr(account.AgentData, "CharacterName", "")).strip().lower()
+                if account_name != target_name:
+                    continue
+                if my_party_id > 0 and int(getattr(account.AgentPartyData, "PartyID", 0)) != my_party_id:
+                    continue
+                if my_map_id > 0 and int(getattr(account.AgentData.Map, "MapID", 0)) != my_map_id:
+                    continue
+                return account_email
+        except EXPECTED_RUNTIME_ERRORS:
+            return ""
+        return ""
+
+    def _send_inventory_action_to_email(self, receiver_email: str, action_code: str, action_payload: str = "", action_meta: str = "") -> bool:
+        receiver = self._ensure_text(receiver_email).strip()
+        if not receiver:
+            return False
+        try:
+            sender_email = self._ensure_text(Player.GetAccountEmail()).strip()
+            if not sender_email:
+                return False
+            sent_index = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email=sender_email,
+                receiver_email=receiver,
+                command=SharedCommandType.CustomBehaviors,
+                params=(0.0, 0.0, 0.0, 0.0),
+                ExtraData=(
+                    self.inventory_action_tag,
+                    self._ensure_text(action_code)[:31],
+                    self._ensure_text(action_payload)[:31],
+                    self._ensure_text(action_meta)[:31],
+                ),
+            )
+            return sent_index != -1
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _send_tracker_stats_chunks_to_email(self, receiver_email: str, event_id: str, item_stats: str, tag: str = "TrackerStatsV1") -> bool:
+        receiver = self._ensure_text(receiver_email).strip()
+        event_id_text = self._ensure_text(event_id).strip()
+        stats_text = self._ensure_text(item_stats).strip()
+        if not receiver or not event_id_text or not stats_text:
+            return False
+        try:
+            sender_email = self._ensure_text(Player.GetAccountEmail()).strip()
+            if not sender_email:
+                return False
+            # Keep chunks conservative; 31-char shmem slots can truncate edge characters.
+            chunks = build_name_chunks(stats_text, 24)
+            for idx, total, chunk in chunks:
+                sent_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email=sender_email,
+                    receiver_email=receiver,
+                    command=SharedCommandType.CustomBehaviors,
+                    params=(0.0, 0.0, 0.0, 0.0),
+                    ExtraData=(
+                        self._ensure_text(tag).strip() or "TrackerStatsV1",
+                        event_id_text[:31],
+                        (chunk or "")[:31],
+                        encode_name_chunk_meta(idx, total)[:31],
+                    ),
+                )
+                if sent_index == -1:
+                    return False
+            return True
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _send_tracker_stats_payload_chunks_to_email(self, receiver_email: str, event_id: str, payload_text: str) -> bool:
+        return self._send_tracker_stats_chunks_to_email(receiver_email, event_id, payload_text, tag="TrackerStatsV2")
+
+    def _get_live_item_snapshot(self, item_id: int, item_name: str = "") -> dict[str, Any]:
+        item_id = int(item_id or 0)
+        if item_id <= 0:
+            return {}
+        snapshot: dict[str, Any] = {
+            "name": "",
+            "value": 0,
+            "model_id": 0,
+            "item_type": 0,
+            "raw_mods": [],
+            "_source": "local_api",
+            "_owner": "",
+        }
+        try:
+            try:
+                snapshot["_owner"] = self._ensure_text(Player.GetName()).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                snapshot["_owner"] = ""
+            clean_name = ""
+            try:
+                if Item.IsNameReady(item_id):
+                    clean_name = self._clean_item_name(Item.GetName(item_id))
+                else:
+                    Item.RequestName(item_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                clean_name = ""
+            if not clean_name:
+                clean_name = self._clean_item_name(item_name)
+            snapshot["name"] = clean_name
+
+            try:
+                snapshot["value"] = max(0, self._safe_int(Item.Properties.GetValue(item_id), 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                snapshot["value"] = 0
+            try:
+                snapshot["model_id"] = max(0, self._safe_int(Item.GetModelID(item_id), 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                snapshot["model_id"] = 0
+            try:
+                item_type_int, _ = Item.GetItemType(item_id)
+                snapshot["item_type"] = max(0, self._safe_int(item_type_int, 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                snapshot["item_type"] = 0
+                try:
+                    item_instance = Item.item_instance(item_id)
+                    if item_instance and getattr(item_instance, "item_type", None):
+                        snapshot["item_type"] = max(0, self._safe_int(item_instance.item_type.ToInt(), 0))
+                except EXPECTED_RUNTIME_ERRORS:
+                    snapshot["item_type"] = 0
+
+            raw_mods = []
+            for mod in Item.Customization.Modifiers.GetModifiers(item_id):
+                raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
+            snapshot["raw_mods"] = raw_mods
+        except EXPECTED_RUNTIME_ERRORS:
+            return {}
+        return snapshot
+
+    def _build_item_snapshot_payload_from_live_item(self, item_id: int, item_name: str = "") -> str:
+        snapshot = self._get_live_item_snapshot(item_id, item_name)
+        if not snapshot:
+            return ""
+        try:
+            payload = {
+                "n": self._ensure_text(snapshot.get("name", "")),
+                "v": int(self._safe_int(snapshot.get("value", 0), 0)),
+                "m": int(self._safe_int(snapshot.get("model_id", 0), 0)),
+                "t": int(self._safe_int(snapshot.get("item_type", 0), 0)),
+                "mods": [
+                    [int(mod[0]), int(mod[1]), int(mod[2])]
+                    for mod in list(snapshot.get("raw_mods", []) or [])
+                    if isinstance(mod, (list, tuple)) and len(mod) >= 3
+                ],
+            }
+            return json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
+        except EXPECTED_RUNTIME_ERRORS:
+            return ""
+
+    def _build_item_stats_from_snapshot(self, snapshot: dict[str, Any]) -> str:
+        try:
+            if not isinstance(snapshot, dict):
+                return ""
+            lines = []
+            clean_name = self._clean_item_name(snapshot.get("name", ""))
+            if "|" in clean_name:
+                clean_name = clean_name.split("|", 1)[0].strip()
+            if clean_name:
+                lines.append(clean_name)
+
+            value = max(0, self._safe_int(snapshot.get("value", 0), 0))
+            if value > 0:
+                lines.append(f"Value: {value} gold")
+
+            raw_mods = []
+            for mod in list(snapshot.get("raw_mods", []) or []):
+                if not isinstance(mod, (list, tuple)) or len(mod) < 3:
+                    continue
+                raw_mods.append((int(mod[0]), int(mod[1]), int(mod[2])))
+            if not raw_mods:
+                return "\n".join(lines)
+
+            req_attr = 0
+            req_val = 0
+            for ident, arg1, arg2 in raw_mods:
+                if ident in (42920, 42120):
+                    if int(arg2) > 0 and int(arg1) > 0:
+                        lines.append(f"Damage: {int(arg2)}-{int(arg1)}")
+                elif ident == 42936:
+                    if int(arg1) > 0:
+                        lines.append(f"Armor: {int(arg1)}" if int(arg2) <= 0 else f"Armor: {int(arg1)} (vs {int(arg2)})")
+                elif ident == 10136:
+                    req_attr = int(arg1)
+                    req_val = int(arg2)
+                elif ident == 9720:
+                    lines.append("Improved sale value")
+                elif ident == 9736:
+                    lines.append("Highly salvageable")
+            if req_val > 0:
+                attr_txt = ""
+                try:
+                    attr_txt = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
+                except EXPECTED_RUNTIME_ERRORS:
+                    attr_txt = ""
+                lines.append(f"Requires {req_val} {attr_txt}".rstrip())
+
+            item_type = None
+            item_type_int = max(0, self._safe_int(snapshot.get("item_type", 0), 0))
+            if ItemType is not None:
+                try:
+                    item_type = ItemType(item_type_int)
+                except EXPECTED_RUNTIME_ERRORS:
+                    item_type = None
+
+            item_attr_txt_for_known = ""
+            if req_val > 0:
+                try:
+                    item_attr_txt_for_known = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
+                except EXPECTED_RUNTIME_ERRORS:
+                    item_attr_txt_for_known = ""
+
+            parsed_any_mod_line = False
+            suppress_unknown_ids: set[int] = set()
+            if self.mod_db is not None:
+                parser_attr_txt = item_attr_txt_for_known
+                if parse_modifiers is not None and item_type is not None:
+                    try:
+                        parsed = parse_modifiers(raw_mods, item_type, int(self._safe_int(snapshot.get("model_id", 0), 0)), self.mod_db)
+                        item_attr_txt = self._format_attribute_name(getattr(parsed.attribute, "name", ""))
+                        if item_attr_txt:
+                            parser_attr_txt = item_attr_txt
+                            item_attr_txt_for_known = item_attr_txt
+                        for mod in parsed.weapon_mods:
+                            nm = self._ensure_text(getattr(mod.weapon_mod, "name", "")).strip()
+                            if not nm:
+                                continue
+                            val = int(getattr(mod, "value", 0))
+                            matched_mods = list(getattr(mod, "matched_modifiers", []) or [])
+                            desc = self._ensure_text(getattr(mod.weapon_mod, "description", "")).strip()
+                            rendered_lines = self._render_mod_description_template(desc, matched_mods, val, parser_attr_txt)
+                            if rendered_lines:
+                                lines.extend(rendered_lines)
+                                parsed_any_mod_line = True
+                            else:
+                                lines.append(f"{nm} ({val})" if val else nm)
+                                parsed_any_mod_line = True
+                            for matched in list(getattr(mod, "matched_modifiers", []) or []):
+                                if isinstance(matched, (list, tuple)) and len(matched) >= 1:
+                                    suppress_unknown_ids.add(max(0, self._safe_int(matched[0], 0)))
+                        for rune in parsed.runes:
+                            rune_name = self._ensure_text(getattr(rune.rune, "name", "")).strip()
+                            rune_desc = self._ensure_text(getattr(rune.rune, "description", "")).strip()
+                            rune_mods = list(getattr(rune, "modifiers", []) or [])
+                            rendered_lines = self._render_mod_description_template(rune_desc, rune_mods, 0, parser_attr_txt)
+                            if rune_name:
+                                lines.append(rune_name)
+                                parsed_any_mod_line = True
+                            if rendered_lines:
+                                lines.extend(rendered_lines)
+                                parsed_any_mod_line = True
+                            for matched in list(getattr(rune, "modifiers", []) or []):
+                                if isinstance(matched, (list, tuple)) and len(matched) >= 1:
+                                    suppress_unknown_ids.add(max(0, self._safe_int(matched[0], 0)))
+                    except EXPECTED_RUNTIME_ERRORS:
+                        pass
+                # Broad fallback matching is only trustworthy when item type is known.
+                # With unknown type (common on remote payloads), it can produce false rune/mod lines.
+                if item_type is not None:
+                    if not parsed_any_mod_line:
+                        lines.extend(self._collect_fallback_mod_lines(raw_mods, parser_attr_txt, item_type))
+                    lines.extend(self._collect_fallback_rune_lines(raw_mods, parser_attr_txt))
+
+            if not parsed_any_mod_line:
+                name_mod_lines = self._extract_mod_lines_from_item_name(snapshot.get("name", ""))
+                if name_mod_lines:
+                    lines.extend(name_mod_lines)
+                    parsed_any_mod_line = True
+
+            lines.extend(self._collect_manual_named_mod_lines(raw_mods))
+            lines.extend(self._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
+            self._record_unknown_mod_identifiers(
+                raw_mods,
+                snapshot=snapshot,
+                source=self._ensure_text(snapshot.get("_source", "")),
+                suppress_mod_ids=suppress_unknown_ids,
+            )
+
+            normalized_lines = []
+            split_pattern = re.compile(
+                r"(?i)(?<!^)(requires\s+\d+|damage:\s*\d|armor:\s*\d|energy\s*[+-]\d|halves\s|reduces\s|value:\s*\d|improved sale value)"
+            )
+            for line in lines:
+                txt = self._ensure_text(line).strip()
+                if not txt:
+                    continue
+                # Fix occasional glued lines such as "Armor16(vs8)requires11 tactics".
+                while True:
+                    m = split_pattern.search(txt)
+                    if not m:
+                        break
+                    left = txt[:m.start()].strip()
+                    right = txt[m.start():].strip()
+                    if left:
+                        normalized_lines.append(left)
+                    txt = right
+                if txt:
+                    normalized_lines.append(txt)
+
+            return self._normalize_stats_text("\n".join(normalized_lines))
+        except EXPECTED_RUNTIME_ERRORS:
+            return ""
+
+    def _normalize_stats_text(self, stats_text: Any) -> str:
+        text = self._ensure_text(stats_text).strip()
+        if not text:
+            return ""
+        split_pattern = re.compile(
+            r"(?i)(?<!^)(requires\s+\d+|damage:\s*\d|damage\s*\d|armor:\s*\d|armor\s*\d|energy\s*[+-]\d|halves\s|reduces\s|value:\s*\d|improved sale value)"
+        )
+        normalized_lines = []
+        for raw in text.splitlines():
+            txt = self._ensure_text(raw).strip()
+            if not txt:
+                continue
+            while True:
+                m = split_pattern.search(txt)
+                if not m:
+                    break
+                left = txt[:m.start()].strip()
+                right = txt[m.start():].strip()
+                if left:
+                    normalized_lines.append(left)
+                txt = right
+            if txt:
+                normalized_lines.append(txt)
+
+        canonical = []
+        seen = set()
+        for line in normalized_lines:
+            l = self._ensure_text(line).strip()
+            if not l:
+                continue
+            l = re.sub(r"(?i)^damage\s*(\d+\s*-\s*\d+)$", r"Damage: \1", l)
+            l = re.sub(r"(?i)^armor\s*(\d+)(\b.*)$", r"Armor: \1\2", l)
+            l = re.sub(r"(?i)^requires\s*(\d+)\s*", r"Requires \1 ", l)
+            l = re.sub(r"\s+", " ", l).strip()
+            key = re.sub(r"[^a-z0-9]+", "", l.lower())
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            canonical.append(l)
+        canonical = prune_generic_attribute_bonus_lines(canonical)
+        canonical = sort_stats_lines_like_ingame(canonical)
+        return "\n".join(canonical)
+
+    def _build_item_stats_from_payload_text(
+        self,
+        payload_text: str,
+        fallback_item_name: str = "",
+        owner_name: str = "",
+    ) -> str:
+        payload_raw = self._ensure_text(payload_text).strip()
+        if not payload_raw:
+            return ""
+        try:
+            payload = json.loads(payload_raw)
+            if not isinstance(payload, dict):
+                return ""
+        except EXPECTED_RUNTIME_ERRORS:
+            return ""
+        snapshot = {
+            "name": self._clean_item_name(payload.get("n", "")) or self._clean_item_name(fallback_item_name),
+            "value": self._safe_int(payload.get("v", 0), 0),
+            "model_id": self._safe_int(payload.get("m", 0), 0),
+            "item_type": self._safe_int(payload.get("t", 0), 0),
+            "raw_mods": payload.get("mods", []),
+            "_source": "shared_payload",
+            "_owner": self._ensure_text(owner_name).strip(),
+        }
+        return self._build_item_stats_from_snapshot(snapshot)
+
+    def _clear_event_stats_cache(self, event_id: str, sender_email: str = "", player_name: str = "", clear_all_matching: bool = False):
+        event_id_key = self._ensure_text(event_id).strip()
+        if not event_id_key:
+            return
+        scoped_key = self._make_stats_cache_key(event_id_key, sender_email, player_name)
+        clear_keys = {scoped_key} if scoped_key else set()
+        if clear_all_matching:
+            suffix = f":{event_id_key}".lower()
+            cache_maps = (
+                self.stats_by_event,
+                self.stats_payload_by_event,
+                self.stats_chunk_buffers,
+                self.stats_payload_chunk_buffers,
+                self.stats_render_cache_by_event,
+                self.remote_stats_request_last_by_event,
+                self.remote_stats_pending_by_event,
+                self.stats_name_signature_by_event,
+            )
+            for cache_map in cache_maps:
+                for key in list(cache_map.keys()):
+                    key_text = self._ensure_text(key).strip().lower()
+                    if key_text.endswith(suffix):
+                        clear_keys.add(self._ensure_text(key).strip())
+        for event_key in clear_keys:
+            self.stats_by_event.pop(event_key, None)
+            self.stats_payload_by_event.pop(event_key, None)
+            self.stats_chunk_buffers.pop(event_key, None)
+            self.stats_payload_chunk_buffers.pop(event_key, None)
+            self.stats_render_cache_by_event.pop(event_key, None)
+            self.remote_stats_request_last_by_event.pop(event_key, None)
+            self.remote_stats_pending_by_event.pop(event_key, None)
+            self.stats_name_signature_by_event.pop(event_key, None)
+
+    def _render_payload_stats_cached(
+        self,
+        cache_key: str,
+        payload_text: str,
+        fallback_item_name: str = "",
+        owner_name: str = "",
+    ) -> str:
+        event_key = self._ensure_text(cache_key).strip()
+        payload_raw = self._ensure_text(payload_text).strip()
+        if not event_key or not payload_raw:
+            return ""
+        cached_rendered = get_cached_rendered_stats(self.stats_render_cache_by_event, event_key, payload_raw)
+        if cached_rendered:
+            cached = self.stats_render_cache_by_event.get(event_key, None)
+            if isinstance(cached, dict):
+                cached["updated_at"] = time.time()
+            return cached_rendered
+        rendered = self._build_item_stats_from_payload_text(payload_raw, fallback_item_name, owner_name=owner_name).strip()
+        update_render_cache(self.stats_render_cache_by_event, event_key, payload_raw, rendered, time.time())
+        return rendered
+
+    def _request_remote_stats_for_row(self, row, force_refresh: bool = False):
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
+            return
+        target_player = self._ensure_text(parsed.player_name).strip()
+        if not target_player:
+            return
+        my_name = self._ensure_text(Player.GetName()).strip()
+        if my_name and target_player.lower() == my_name.lower():
+            return
+        event_id = self._extract_row_event_id(row)
+        item_id = self._extract_row_item_id(row)
+        item_name = self._clean_item_name(parsed.item_name)
+        item_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+        if not event_id:
+            return
+        event_cache_key = self._resolve_stats_cache_key_for_row(row)
+        if (not force_refresh) and self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key):
+            return
+        now_ts = time.time()
+        pending_ts = float(self.remote_stats_pending_by_event.get(event_cache_key, 0.0))
+        if pending_ts > 0 and (now_ts - pending_ts) < 8.0:
+            return
+        last_ts = float(self.remote_stats_request_last_by_event.get(event_cache_key, 0.0))
+        if (now_ts - last_ts) < 1.5:
+            return
+        target_email = self._resolve_account_email_by_character_name(target_player)
+        if not target_email:
+            return
+        sent = False
+        if item_id > 0:
+            sent = self._send_inventory_action_to_email(target_email, "push_item_stats", str(item_id), event_id)
+        if not sent:
+            sent = self._send_inventory_action_to_email(target_email, "push_item_stats_event", str(item_id), event_id)
+        if not sent and (not bool(getattr(self, "strict_event_stats_binding", True))):
+            item_signature = self._ensure_text(self.stats_name_signature_by_event.get(event_cache_key, "")).strip().lower()
+            if not item_signature and item_name:
+                item_signature = make_name_signature(item_name)
+            if item_signature:
+                sig_payload = item_signature
+                if item_rarity:
+                    sig_payload = f"{sig_payload}|{item_rarity[:20]}"
+                sent_by_sig = self._send_inventory_action_to_email(
+                    target_email,
+                    "push_item_stats_sig",
+                    sig_payload,
+                    event_id,
+                )
+                sent = sent or sent_by_sig
+        if (not sent) and (not bool(getattr(self, "strict_event_stats_binding", True))) and item_name and len(item_name) <= 31:
+            sent_by_name = self._send_inventory_action_to_email(
+                target_email,
+                "push_item_stats_name",
+                item_name,
+                event_id,
+            )
+            sent = sent or sent_by_name
+        if sent:
+            self.remote_stats_request_last_by_event[event_cache_key] = now_ts
+            self.remote_stats_pending_by_event[event_cache_key] = now_ts
+            if self.verbose_shmem_item_logs:
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    f"STATS REQ ev={event_id} player={target_player} item_id={item_id} item_name={item_name}",
+                    Py4GW.Console.MessageType.Info,
+                )
+
+    def _build_item_stats_from_live_item(self, item_id: int, item_name: str = "") -> str:
+        snapshot = self._get_live_item_snapshot(item_id, item_name)
+        if not snapshot:
+            return ""
+        return self._build_item_stats_from_snapshot(snapshot)
+
+    def _stats_text_is_basic(self, stats_text: Any) -> bool:
+        text = self._normalize_stats_text(stats_text)
+        if not text:
+            return True
+        lines = [self._ensure_text(line).strip() for line in text.splitlines() if self._ensure_text(line).strip()]
+        if not lines:
+            return True
+        lower_lines = [line.lower() for line in lines]
+        detail_markers = (
+            "rune",
+            "insignia",
+            "halves ",
+            "reduces ",
+            "lengthens ",
+            "increases ",
+            "while ",
+            "chance while using skills",
+            "(chance:",
+            "improved sale value",
+        )
+        for line in lower_lines:
+            if any(marker in line for marker in detail_markers):
+                return False
+            if re.match(r"^[a-z][a-z ']+\s*\+\s*\d+\s*\(\d+% chance while using skills\)$", line):
+                return False
+        # Name-only or name + value rows are considered basic.
+        if len(lines) <= 2:
+            return True
+        # Three+ generic lines without detail markers are still likely non-useful.
+        return True
+
+    def _identify_item_from_row(self, row) -> bool:
+        parsed = self._parse_drop_row(row)
+        target_player = self._ensure_text(parsed.player_name).strip() if parsed else ""
+        my_name = self._ensure_text(Player.GetName()).strip()
+        event_id = self._extract_row_event_id(row)
+        if target_player and my_name and target_player.lower() != my_name.lower():
+            remote_item_id = self._extract_row_item_id(row)
+            target_email = self._resolve_account_email_by_character_name(target_player)
+            if not target_email:
+                self.set_status(f"Identify failed: follower '{target_player}' not found")
+                return False
+            if remote_item_id <= 0:
+                self.set_status("Identify failed: remote item_id unavailable")
+                return False
+            if self._send_inventory_action_to_email(target_email, "id_item_id", str(remote_item_id), event_id):
+                if event_id:
+                    self._clear_event_stats_cache(event_id, target_email, target_player)
+                    self._set_row_item_stats(row, "")
+                    if self.selected_log_row and isinstance(self.selected_log_row, list):
+                        if self._extract_row_event_id(self.selected_log_row) == event_id:
+                            self._set_row_item_stats(self.selected_log_row, "")
+                self.set_status(f"Identify request sent to {target_player}")
+                return True
+            self.set_status(f"Identify failed: could not send request to {target_player}")
+            return False
+
+        item_id = self._resolve_live_item_id_for_row(row, prefer_unidentified=True)
+        if item_id <= 0:
+            self.set_status("Identify failed: live item not found in inventory")
+            return False
+        self._set_row_item_id(row, item_id)
+        try:
+            if Item.Usage.IsIdentified(item_id):
+                self.set_status("Item already identified")
+                return False
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        kit_id = 0
+        try:
+            kit_id = int(GLOBAL_CACHE.Inventory.GetFirstIDKit())
+        except EXPECTED_RUNTIME_ERRORS:
+            kit_id = 0
+        if kit_id <= 0:
+            self.set_status("Identify failed: no ID kit found")
+            return False
+        try:
+            result = GLOBAL_CACHE.Inventory.IdentifyItem(item_id, kit_id)
+            if result is False:
+                self.set_status("Identify failed: API rejected request")
+                return False
+            self._remember_identify_mod_capture_candidates([item_id])
+            if event_id:
+                row_sender_email = self._extract_row_sender_email(row)
+                row_player_name = self._ensure_text(parsed.player_name).strip() if parsed else ""
+                self._clear_event_stats_cache(event_id, row_sender_email, row_player_name)
+                self._set_row_item_stats(row, "")
+                if self.selected_log_row and isinstance(self.selected_log_row, list):
+                    if self._extract_row_event_id(self.selected_log_row) == event_id:
+                        self._set_row_item_stats(self.selected_log_row, "")
+            self.set_status("Identify queued for selected item")
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Identify failed: {e}")
+            return False
+
+    def _get_row_stats_text(self, row) -> str:
+        event_id = self._extract_row_event_id(row)
+        event_cache_key = self._resolve_stats_cache_key_for_row(row)
+        parsed = self._parse_drop_row(row)
+        row_player = self._ensure_text(parsed.player_name).strip() if parsed else ""
+        my_player = self._ensure_text(Player.GetName()).strip()
+        is_local_row = bool(row_player and my_player and row_player.lower() == my_player.lower())
+
+        # For follower-owned rows, never resolve by local inventory name matching on leader.
+        # That can bind to unrelated local items and overwrite valid remote stats.
+        if is_local_row:
+            live_item_id = self._resolve_live_item_id_for_row(row, prefer_unidentified=False)
+            if live_item_id > 0:
+                self._set_row_item_id(row, live_item_id)
+                live_text = self._build_item_stats_from_live_item(
+                    live_item_id,
+                    "",
+                ).strip()
+                if live_text:
+                    # Prefer local live item data so stats update after identification.
+                    self._set_row_item_stats(row, live_text)
+                    if event_cache_key:
+                        self.stats_by_event[event_cache_key] = live_text
+                    if self.selected_log_row and isinstance(self.selected_log_row, list):
+                        selected_event_id = self._extract_row_event_id(self.selected_log_row)
+                        if selected_event_id and selected_event_id == event_id:
+                            self._set_row_item_stats(self.selected_log_row, live_text)
+                    return live_text
+        payload_text = self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key)
+        if event_cache_key and payload_text:
+            rendered = self._render_payload_stats_cached(
+                event_cache_key,
+                payload_text,
+                self._ensure_text(parsed.item_name) if parsed else "",
+                owner_name=self._ensure_text(parsed.player_name) if parsed else "",
+            ).strip()
+            if rendered:
+                self._set_row_item_stats(row, rendered)
+                self.stats_by_event[event_cache_key] = rendered
+                if not is_local_row and self._stats_text_is_basic(rendered):
+                    self._request_remote_stats_for_row(row, force_refresh=True)
+                return rendered
+
+        text = self._extract_row_item_stats(row)
+        if text:
+            normalized_text = self._normalize_stats_text(text)
+            self._set_row_item_stats(row, normalized_text)
+            if event_cache_key:
+                self.stats_by_event[event_cache_key] = normalized_text
+            if not is_local_row and (
+                (not payload_text) and self._stats_text_is_basic(normalized_text)
+            ):
+                self._request_remote_stats_for_row(row)
+            return normalized_text
+        if event_cache_key:
+            cached_text = self._normalize_stats_text(self._get_cached_stats_text(self.stats_by_event, event_cache_key))
+            if cached_text:
+                self._set_row_item_stats(row, cached_text)
+                return cached_text
+            if not is_local_row:
+                self._request_remote_stats_for_row(row)
+            return ""
+        return ""
+
+    def _build_selected_row_debug_lines(self, row) -> list[str]:
+        lines = []
+        parsed = self._parse_drop_row(row)
+        if parsed is None:
+            return lines
+        event_id = self._extract_row_event_id(row)
+        item_id = self._extract_row_item_id(row)
+        row_player = self._ensure_text(parsed.player_name).strip()
+        row_name = self._clean_item_name(parsed.item_name)
+        my_player = self._ensure_text(Player.GetName()).strip()
+        is_local_row = bool(row_player and my_player and row_player.lower() == my_player.lower())
+        lines.append(f"event_id={event_id or '-'}")
+        lines.append(f"row_player={row_player or '-'} local_row={is_local_row}")
+        lines.append(f"row_item_name={row_name or '-'} row_item_id={item_id}")
+        event_cache_key = self._resolve_stats_cache_key_for_row(row)
+        if event_cache_key:
+            last_req = float(self.remote_stats_request_last_by_event.get(event_cache_key, 0.0))
+            pending_req = float(self.remote_stats_pending_by_event.get(event_cache_key, 0.0))
+            now_ts = time.time()
+            lines.append(
+                f"req_last_age_s={(now_ts - last_req):.2f}" if last_req > 0 else "req_last_age_s=-"
+            )
+            lines.append(
+                f"req_pending_age_s={(now_ts - pending_req):.2f}" if pending_req > 0 else "req_pending_age_s=-"
+            )
+
+        payload_text = self._get_cached_stats_text(self.stats_payload_by_event, event_cache_key)
+        lines.append(f"payload_cached={bool(payload_text)} payload_len={len(payload_text)}")
+        if payload_text:
+            preview = payload_text[:220].replace("\n", " ")
+            lines.append(f"payload_head={preview}")
+        if payload_text:
+            try:
+                payload = json.loads(payload_text)
+                if isinstance(payload, dict):
+                    mods = list(payload.get("mods", []) or [])
+                    lines.append(
+                        f"payload_name={self._clean_item_name(payload.get('n', '')) or '-'} "
+                        f"type={self._safe_int(payload.get('t', 0), 0)} model={self._safe_int(payload.get('m', 0), 0)} "
+                        f"value={self._safe_int(payload.get('v', 0), 0)} mods={len(mods)}"
+                    )
+                    for idx, mod in enumerate(mods[:30]):
+                        if isinstance(mod, (list, tuple)) and len(mod) >= 3:
+                            lines.append(f"mod[{idx}] id={self._safe_int(mod[0], 0)} a1={self._safe_int(mod[1], 0)} a2={self._safe_int(mod[2], 0)}")
+                else:
+                    lines.append("payload_parse=non-dict")
+            except EXPECTED_RUNTIME_ERRORS as e:
+                lines.append(f"payload_parse_error={e}")
+        elif is_local_row:
+            live_item_id = self._resolve_live_item_id_for_row(row, prefer_unidentified=False)
+            lines.append(f"live_resolved_item_id={live_item_id}")
+            if live_item_id > 0:
+                snap = self._get_live_item_snapshot(live_item_id, row_name)
+                mods = list(snap.get("raw_mods", []) or [])
+                lines.append(
+                    f"live_name={self._clean_item_name(snap.get('name', '')) or '-'} "
+                    f"type={self._safe_int(snap.get('item_type', 0), 0)} model={self._safe_int(snap.get('model_id', 0), 0)} "
+                    f"value={self._safe_int(snap.get('value', 0), 0)} mods={len(mods)}"
+                )
+                for idx, mod in enumerate(mods[:30]):
+                    if isinstance(mod, (list, tuple)) and len(mod) >= 3:
+                        lines.append(f"mod[{idx}] id={self._safe_int(mod[0], 0)} a1={self._safe_int(mod[1], 0)} a2={self._safe_int(mod[2], 0)}")
+
+        rendered_text = self._ensure_text(self._extract_row_item_stats(row)).strip()
+        if rendered_text:
+            lines.append("rendered_lines:")
+            for idx, line in enumerate(rendered_text.splitlines()[:25]):
+                lines.append(f"  [{idx}] {self._ensure_text(line).strip()}")
+        return lines
+
+    def _item_names_match(self, selected_name: Any, row_name: Any) -> bool:
+        selected_norm = self._normalize_item_name(selected_name)
+        row_norm = self._normalize_item_name(row_name)
+        if selected_norm == row_norm:
+            return True
+        if selected_norm.endswith("s") and selected_norm[:-1] == row_norm:
+            return True
+        if row_norm.endswith("s") and row_norm[:-1] == selected_norm:
+            return True
+        return False
+
+    def _row_matches_selected_item(self, row) -> bool:
+        parsed = self._parse_drop_row(row)
+        if not self.selected_item_key or parsed is None:
+            return False
+        sel_name, sel_rarity = self.selected_item_key
+        row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+        if row_rarity != sel_rarity:
+            return False
+        return self._item_names_match(sel_name, parsed.item_name)
+
+    def _find_best_row_for_item(self, item_name: str, rarity: str, rows) -> Any:
+        if not rows:
+            return None
+        best_with_item_id = None
+        best_any = None
+        for row in reversed(list(rows)):
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+            if row_rarity != rarity:
+                continue
+            if not self._item_names_match(item_name, parsed.item_name):
+                continue
+            if best_any is None:
+                best_any = row
+            if self._extract_row_item_id(row) > 0:
+                best_with_item_id = row
+                break
+        return best_with_item_id if best_with_item_id is not None else best_any
+
+    def _find_best_row_for_item_and_character(self, item_name: str, rarity: str, character_name: str, rows=None) -> Any:
+        pool = rows if rows is not None else self.raw_drops
+        if not pool:
+            return None
+        target_char = self._ensure_text(character_name).strip().lower()
+        if not target_char:
+            return None
+        best_with_item_id = None
+        best_any = None
+        for row in reversed(list(pool)):
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            row_char = self._ensure_text(parsed.player_name).strip().lower()
+            if row_char != target_char:
+                continue
+            row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+            if row_rarity != rarity:
+                continue
+            if not self._item_names_match(item_name, parsed.item_name):
+                continue
+            if best_any is None:
+                best_any = row
+            if self._extract_row_item_id(row) > 0:
+                best_with_item_id = row
+                break
+        return best_with_item_id if best_with_item_id is not None else best_any
+
+    def _get_selected_item_rows(self, rows=None) -> list[Any]:
+        pool = rows if rows is not None else self.raw_drops
+        if not pool or not self.selected_item_key:
+            return []
+        matches: list[Any] = []
+        for row in reversed(list(pool)):
+            if self._row_matches_selected_item(row):
+                matches.append(row)
+        return matches
+
+    def _get_selected_row_index(self, selected_rows: list[Any]) -> int:
+        if not selected_rows:
+            return -1
+        selected_event_id = self._extract_row_event_id(self.selected_log_row) if self.selected_log_row else ""
+        if selected_event_id:
+            for idx, row in enumerate(selected_rows):
+                if self._extract_row_event_id(row) == selected_event_id:
+                    return idx
+        if self.selected_log_row:
+            selected_parsed = self._parse_drop_row(self.selected_log_row)
+            selected_name = self._ensure_text(selected_parsed.item_name if selected_parsed else "").strip().lower()
+            selected_player = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip().lower()
+            selected_ts = self._ensure_text(selected_parsed.timestamp if selected_parsed else "").strip()
+            selected_sender = self._extract_row_sender_email(self.selected_log_row)
+            for idx, row in enumerate(selected_rows):
+                row_parsed = self._parse_drop_row(row)
+                row_sender = self._extract_row_sender_email(row)
+                if (
+                    self._ensure_text(row_parsed.item_name if row_parsed else "").strip().lower() == selected_name
+                    and self._ensure_text(row_parsed.player_name if row_parsed else "").strip().lower() == selected_player
+                    and self._ensure_text(row_parsed.timestamp if row_parsed else "").strip() == selected_ts
+                    and row_sender == selected_sender
+                ):
+                    return idx
+        return 0
+
+    def _identify_item_for_all_characters(self, item_name: str, rarity: str, rows=None) -> bool:
+        pool = rows if rows is not None else self.raw_drops
+        if not pool:
+            self.set_status("Identify failed: no matching rows")
+            return False
+
+        target_chars = []
+        seen_chars = set()
+        for row in reversed(list(pool)):
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            row_rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+            if row_rarity != rarity:
+                continue
+            if not self._item_names_match(item_name, parsed.item_name):
+                continue
+            char_name = self._ensure_text(parsed.player_name).strip()
+            if not char_name:
+                continue
+            char_key = char_name.lower()
+            if char_key in seen_chars:
+                continue
+            seen_chars.add(char_key)
+            target_chars.append(char_name)
+
+        if not target_chars:
+            self.set_status("Identify failed: no matching characters")
+            return False
+
+        success = 0
+        selected_row = None
+        for char_name in target_chars:
+            target_row = self._find_best_row_for_item_and_character(item_name, rarity, char_name, pool)
+            if target_row is None:
+                continue
+            if self._identify_item_from_row(target_row):
+                success += 1
+                if selected_row is None:
+                    selected_row = target_row
+
+        if selected_row is not None:
+            self.selected_log_row = selected_row
+
+        total = len(target_chars)
+        if success <= 0:
+            self.set_status(f"Identify failed for all characters ({total})")
+            return False
+        if success < total:
+            self.set_status(f"Identify sent to {success}/{total} characters")
+            return True
+        self.set_status(f"Identify sent to all {total} characters")
+        return True
+
+    def _collect_selected_item_stats(self):
+        if not self.selected_item_key:
+            return None
+
+        sel_name, sel_rarity = self.selected_item_key
+        total_qty = 0
+        total_count = 0
+        by_character = {}
+
+        for row in self.raw_drops:
+            if not self._row_matches_selected_item(row):
+                continue
+
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            qty = int(parsed.quantity)
+            if qty < 1:
+                qty = 1
+            character = self._ensure_text(parsed.player_name).strip() or "Unknown"
+
+            total_qty += qty
+            total_count += 1
+            if character not in by_character:
+                by_character[character] = {"Quantity": 0, "Count": 0}
+            by_character[character]["Quantity"] += qty
+            by_character[character]["Count"] += 1
+
+        if total_count <= 0:
+            return None
+
+        sorted_characters = sorted(
+            by_character.items(),
+            key=lambda kv: (-kv[1]["Quantity"], -kv[1]["Count"], kv[0].lower())
+        )
+        return {
+            "name": sel_name,
+            "rarity": sel_rarity,
+            "quantity": total_qty,
+            "count": total_count,
+            "characters": sorted_characters,
+        }
+
+    def _draw_selected_item_details(self):
+        stats = self._collect_selected_item_stats()
+        if not stats:
+            return
+
+        PyImGui.separator()
+        PyImGui.text("Selected Item Stats")
+        PyImGui.text_colored(
+            f"{stats['name']} ({stats['rarity']})",
+            self._get_rarity_color(stats["rarity"])
+        )
+        PyImGui.text(f"Total Quantity: {stats['quantity']}")
+        PyImGui.text(f"Drop Count: {stats['count']}")
+
+        selected_rows = self._get_selected_item_rows()
+        if selected_rows:
+            selected_idx = self._get_selected_row_index(selected_rows)
+            selected_idx = max(0, min(selected_idx, len(selected_rows) - 1))
+            if self.selected_log_row is None or not self._row_matches_selected_item(self.selected_log_row):
+                self.selected_log_row = selected_rows[selected_idx]
+
+            if PyImGui.button("Prev Item"):
+                selected_idx = (selected_idx - 1) % len(selected_rows)
+                self.selected_log_row = selected_rows[selected_idx]
+            PyImGui.same_line(0.0, 8.0)
+            if PyImGui.button("Next Item"):
+                selected_idx = (selected_idx + 1) % len(selected_rows)
+                self.selected_log_row = selected_rows[selected_idx]
+            PyImGui.same_line(0.0, 12.0)
+            PyImGui.text_colored(
+                f"Showing Item {selected_idx + 1}/{len(selected_rows)}",
+                (0.78, 0.78, 0.78, 1.0),
+            )
+
+        if self.selected_log_row and self._row_matches_selected_item(self.selected_log_row):
+            selected_parsed = self._parse_drop_row(self.selected_log_row)
+            selected_char = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip() or "Unknown"
+            selected_map = self._ensure_text(selected_parsed.map_name if selected_parsed else "").strip() or "Unknown"
+            selected_ts = self._ensure_text(selected_parsed.timestamp if selected_parsed else "").strip() or "Unknown"
+            selected_qty = int(selected_parsed.quantity) if selected_parsed is not None else 1
+            if selected_qty < 1:
+                selected_qty = 1
+            selected_rarity = self._ensure_text(selected_parsed.rarity if selected_parsed else "").strip() or self._ensure_text(stats.get("rarity", "Unknown")).strip() or "Unknown"
+            rarity_color = self._get_rarity_color(selected_rarity)
+            PyImGui.text_colored(f"Selected Entry: {selected_char} | {selected_map} | {selected_ts}", rarity_color)
+            PyImGui.text_colored(f"Selected Qty: {selected_qty}", rarity_color)
+            stats_text = self._get_row_stats_text(self.selected_log_row)
+            if stats_text:
+                PyImGui.separator()
+                PyImGui.text_colored("Item Mods / Stats", rarity_color)
+                for line in stats_text.splitlines():
+                    line_txt = self._ensure_text(line).strip()
+                    if line_txt:
+                        PyImGui.text_colored(line_txt, rarity_color)
+            else:
+                PyImGui.text_colored("No detailed mod stats available for this row.", (0.78, 0.78, 0.78, 1.0))
+            if self.debug_item_stats_panel:
+                debug_lines = self._build_selected_row_debug_lines(self.selected_log_row)
+                PyImGui.separator()
+                PyImGui.text_colored("Debug Item Pipeline", (0.95, 0.78, 0.38, 1.0))
+                if self._styled_button("Copy Debug", "secondary", tooltip="Copy debug pipeline text to clipboard."):
+                    try:
+                        PyImGui.set_clipboard_text("\n".join(debug_lines))
+                        self.set_status("Debug pipeline copied to clipboard")
+                    except EXPECTED_RUNTIME_ERRORS as e:
+                        self.set_status(f"Clipboard copy failed: {e}")
+                if PyImGui.begin_child(
+                    "DropTrackerItemDebugPanel",
+                    size=(0.0, float(self.debug_item_stats_panel_height)),
+                    border=True,
+                    flags=PyImGui.WindowFlags.HorizontalScrollbar
+                ):
+                    for line in debug_lines:
+                        PyImGui.text(self._ensure_text(line))
+                PyImGui.end_child()
+
+        flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.SizingStretchProp
+        if PyImGui.begin_table("DropTrackerSelectedItemCharacters", 3, flags, 0.0, 150.0):
+            PyImGui.table_setup_column("Character")
+            PyImGui.table_setup_column("Qty")
+            PyImGui.table_setup_column("Drops")
+            PyImGui.table_headers_row()
+
+            selected_char_name = ""
+            if self.selected_log_row and self._row_matches_selected_item(self.selected_log_row):
+                selected_parsed = self._parse_drop_row(self.selected_log_row)
+                selected_char_name = self._ensure_text(selected_parsed.player_name if selected_parsed else "").strip().lower()
+
+            for char_idx, (character, char_stats) in enumerate(stats["characters"]):
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                row_is_selected = bool(selected_char_name and selected_char_name == self._ensure_text(character).strip().lower())
+                if PyImGui.selectable(
+                    f"{character}##char_pick_{char_idx}",
+                    row_is_selected,
+                    PyImGui.SelectableFlags.NoFlag,
+                    (0.0, 0.0)
+                ):
+                    target_row = self._find_best_row_for_item_and_character(stats["name"], stats["rarity"], character)
+                    if target_row is not None:
+                        self.selected_log_row = target_row
+                if PyImGui.is_item_hovered():
+                    ImGui.show_tooltip("Click to view this character's item stats.")
+                PyImGui.table_set_column_index(1)
+                PyImGui.text(str(char_stats["Quantity"]))
+                PyImGui.table_set_column_index(2)
+                PyImGui.text(str(char_stats["Count"]))
+            PyImGui.end_table()
+
+    def _get_session_duration_text(self):
+        if len(self.raw_drops) < 2:
+            return "00:00"
+        try:
+            fmt = "%Y-%m-%d %H:%M:%S"
+            first_row = self._parse_drop_row(self.raw_drops[0]) if self.raw_drops else None
+            last_row = self._parse_drop_row(self.raw_drops[-1]) if self.raw_drops else None
+            if first_row is None or last_row is None:
+                return "--:--"
+            first_ts = datetime.datetime.strptime(first_row.timestamp, fmt)
+            last_ts = datetime.datetime.strptime(last_row.timestamp, fmt)
+            total_seconds = max(0, int((last_ts - first_ts).total_seconds()))
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            if hours > 0:
+                return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            return f"{minutes:02d}:{seconds:02d}"
+        except EXPECTED_RUNTIME_ERRORS:
+            return "--:--"
+
+    def _ui_colors(self):
+        palette = dict(default_ui_colors())
+        theme_name = self._ensure_text(getattr(self, "ui_theme_name", "Midnight")).strip()
+        palette.update(self._theme_presets().get(theme_name, {}))
+        return palette
+
+    def _theme_presets(self):
+        return {
+            "Midnight": {},
+            "High Contrast": {
+                "accent": (0.52, 0.88, 1.0, 1.0),
+                "muted": (0.79, 0.84, 0.92, 1.0),
+                "panel_bg": (0.06, 0.08, 0.11, 0.96),
+                "primary_btn": (0.08, 0.56, 0.96, 0.98),
+                "primary_hover": (0.18, 0.66, 1.0, 1.0),
+                "primary_active": (0.05, 0.48, 0.84, 1.0),
+                "secondary_btn": (0.17, 0.21, 0.29, 0.98),
+                "secondary_hover": (0.24, 0.30, 0.40, 1.0),
+                "secondary_active": (0.14, 0.18, 0.25, 1.0),
+                "success_btn": (0.10, 0.63, 0.36, 0.98),
+                "success_hover": (0.15, 0.75, 0.43, 1.0),
+                "success_active": (0.08, 0.52, 0.31, 1.0),
+                "warn_btn": (0.72, 0.49, 0.14, 0.98),
+                "warn_hover": (0.84, 0.58, 0.18, 1.0),
+                "warn_active": (0.62, 0.42, 0.11, 1.0),
+                "danger_btn": (0.78, 0.21, 0.20, 0.98),
+                "danger_hover": (0.91, 0.29, 0.26, 1.0),
+                "danger_active": (0.66, 0.17, 0.16, 1.0),
+            },
+            "Steel Ember": {
+                "accent": (0.95, 0.67, 0.35, 1.0),
+                "muted": (0.80, 0.77, 0.72, 1.0),
+                "panel_bg": (0.12, 0.11, 0.10, 0.95),
+                "primary_btn": (0.26, 0.44, 0.63, 0.98),
+                "primary_hover": (0.32, 0.52, 0.74, 1.0),
+                "primary_active": (0.21, 0.37, 0.55, 1.0),
+                "secondary_btn": (0.24, 0.21, 0.18, 0.98),
+                "secondary_hover": (0.33, 0.28, 0.24, 1.0),
+                "secondary_active": (0.20, 0.17, 0.14, 1.0),
+                "success_btn": (0.19, 0.52, 0.31, 0.98),
+                "success_hover": (0.25, 0.62, 0.38, 1.0),
+                "success_active": (0.15, 0.43, 0.26, 1.0),
+                "warn_btn": (0.76, 0.44, 0.20, 0.98),
+                "warn_hover": (0.88, 0.54, 0.27, 1.0),
+                "warn_active": (0.66, 0.37, 0.16, 1.0),
+                "danger_btn": (0.74, 0.24, 0.19, 0.98),
+                "danger_hover": (0.86, 0.32, 0.25, 1.0),
+                "danger_active": (0.62, 0.20, 0.16, 1.0),
+            },
+        }
+
+    def _theme_names(self):
+        return list(self._theme_presets().keys())
+
+    def _push_button_style(self, variant: str = "secondary"):
+        c = self._ui_colors()
+        styles = {
+            "primary": (c["primary_btn"], c["primary_hover"], c["primary_active"], (1.0, 1.0, 1.0, 1.0)),
+            "secondary": (c["secondary_btn"], c["secondary_hover"], c["secondary_active"], (0.96, 0.96, 0.98, 1.0)),
+            "success": (c["success_btn"], c["success_hover"], c["success_active"], (1.0, 1.0, 1.0, 1.0)),
+            "warning": (c["warn_btn"], c["warn_hover"], c["warn_active"], (1.0, 0.98, 0.90, 1.0)),
+            "danger": (c["danger_btn"], c["danger_hover"], c["danger_active"], (1.0, 0.95, 0.95, 1.0)),
+        }
+        btn, hover, active, text_col = styles.get(variant, styles["secondary"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, btn)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, hover)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, active)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text_col)
+
+    def _styled_button(self, label: str, variant: str = "secondary", width: float = 0.0, height: float = 0.0, tooltip: str = ""):
+        self._push_button_style(variant)
+        clicked = PyImGui.button(label, width, height)
+        PyImGui.pop_style_color(4)
+        if tooltip and PyImGui.is_item_hovered():
+            ImGui.show_tooltip(tooltip)
+        return clicked
+
+    def _draw_section_header(self, title: str):
+        c = self._ui_colors()
+        PyImGui.text_colored(title, c["accent"])
+        PyImGui.separator()
+
+    def _draw_status_chip(self, label: str, variant: str = "secondary", tooltip: str = ""):
+        chip_label = self._ensure_text(label).strip()
+        if not chip_label:
+            return
+        self._push_button_style(variant)
+        PyImGui.button(chip_label)
+        PyImGui.pop_style_color(4)
+        if tooltip and PyImGui.is_item_hovered():
+            ImGui.show_tooltip(tooltip)
+
+    def _collect_live_status_snapshot(self):
+        is_leader = False
+        party_size = 0
+        map_id = 0
+        map_name = "Unknown"
+
+        try:
+            is_leader = bool(Player.GetAgentID() == Party.GetPartyLeaderID())
+        except EXPECTED_RUNTIME_ERRORS:
+            is_leader = False
+
+        try:
+            party_size = max(0, int(GLOBAL_CACHE.Party.GetPartySize()))
+        except EXPECTED_RUNTIME_ERRORS:
+            party_size = 0
+        if party_size <= 0:
+            try:
+                players = GLOBAL_CACHE.Party.GetPlayers() or []
+                heroes = GLOBAL_CACHE.Party.GetHeroes() or []
+                henchmen = GLOBAL_CACHE.Party.GetHenchmen() or []
+                party_size = max(0, len(players) + len(heroes) + len(henchmen))
+            except EXPECTED_RUNTIME_ERRORS:
+                party_size = 0
+
+        try:
+            map_id = max(0, int(Map.GetMapID()))
+        except EXPECTED_RUNTIME_ERRORS:
+            map_id = 0
+        try:
+            if map_id > 0:
+                map_name = self._ensure_text(Map.GetMapName(map_id)).strip() or "Unknown"
+        except EXPECTED_RUNTIME_ERRORS:
+            map_name = "Unknown"
+
+        display_map_name = map_name
+        if len(display_map_name) > 20:
+            display_map_name = f"{display_map_name[:17]}..."
+
+        return {
+            "is_leader": bool(is_leader),
+            "party_size": int(party_size),
+            "map_id": int(map_id),
+            "map_name": map_name,
+            "display_map_name": display_map_name,
+        }
+
+    def _draw_top_control_strip(self):
+        c = self._ui_colors()
+        self._draw_section_header("Quick Control")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerQuickControlStrip", size=(0, 66), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            action_gap = 8.0
+            action_h = 32.0
+            action_row_w = max(180.0, float(PyImGui.get_content_region_avail()[0]))
+            action_w = max(110.0, (action_row_w - (action_gap * 2.0)) / 3.0)
+            inline = action_w >= 118.0
+            button_w = action_w if inline else action_row_w
+
+            if self._styled_button(
+                "Resign + Outpost",
+                "danger",
+                width=button_w,
+                height=action_h,
+                tooltip="Resign all party clients and return to outpost.",
+            ):
+                self._trigger_party_resign_to_outpost()
+            if inline:
+                PyImGui.same_line(0.0, action_gap)
+
+            if self._styled_button(
+                "Join Followers",
+                "warning",
+                width=button_w,
+                height=action_h,
+                tooltip="Invite all eligible followers in the current map.",
+            ):
+                self._trigger_party_invite_all_followers()
+            if inline:
+                PyImGui.same_line(0.0, action_gap)
+
+            if self._styled_button(
+                "Resume Tracking" if self.paused else "Pause Tracking",
+                "success" if self.paused else "warning",
+                width=button_w,
+                height=action_h,
+                tooltip="Pause or resume local drop tracking updates.",
+            ):
+                self.paused = not self.paused
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_live_status_chips(self):
+        c = self._ui_colors()
+        snapshot = self._collect_live_status_snapshot()
+        chips = [
+            (
+                f"Role: {'Leader' if snapshot['is_leader'] else 'Follower'}",
+                "success" if snapshot["is_leader"] else "secondary",
+                "Leader can broadcast actions to followers.",
+            ),
+            (
+                f"Map: {snapshot['map_id']} {snapshot['display_map_name']}",
+                "primary",
+                f"Current map: {snapshot['map_name']} ({snapshot['map_id']})",
+            ),
+            (
+                f"Party: {snapshot['party_size']}",
+                "secondary",
+                "Current full party size (players + heroes + henchmen).",
+            ),
+            (
+                f"Auto ID: {'ON' if self.auto_id_enabled else 'OFF'}",
+                "success" if self.auto_id_enabled else "secondary",
+                "Auto ID loop status.",
+            ),
+            (
+                f"Auto Salv: {'ON' if self.auto_salvage_enabled else 'OFF'}",
+                "success" if self.auto_salvage_enabled else "secondary",
+                "Auto Salvage loop status.",
+            ),
+            (
+                f"Auto Kits: {'ON' if self.auto_buy_kits_enabled else 'OFF'}",
+                "success" if self.auto_buy_kits_enabled else "secondary",
+                "Auto buy kits loop status.",
+            ),
+            (
+                f"Inv Sort: {'ON' if self.auto_buy_kits_sort_to_front_enabled else 'OFF'}",
+                "success" if self.auto_buy_kits_sort_to_front_enabled else "secondary",
+                "Outpost-entry inventory reorder status.",
+            ),
+            (
+                f"Auto Gold: {'ON' if self.auto_gold_balance_enabled else 'OFF'}",
+                "success" if self.auto_gold_balance_enabled else "secondary",
+                f"Auto keep {int(self.auto_gold_balance_target)}g on character in outpost.",
+            ),
+        ]
+
+        self._draw_section_header("Live Status")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerLiveStatusStrip", size=(0, 70), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            for idx, (label, variant, tooltip) in enumerate(chips):
+                self._draw_status_chip(label, variant, tooltip=tooltip)
+                if idx < (len(chips) - 1):
+                    remaining_w = max(0.0, float(PyImGui.get_content_region_avail()[0]))
+                    if remaining_w > 130.0:
+                        PyImGui.same_line(0.0, 6.0)
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _format_elapsed_since(self, timestamp_value: float) -> str:
+        ts = float(timestamp_value or 0.0)
+        if ts <= 0:
+            return "never"
+        elapsed = max(0, int(time.time() - ts))
+        if elapsed < 60:
+            return f"{elapsed}s ago"
+        if elapsed < 3600:
+            mins = elapsed // 60
+            secs = elapsed % 60
+            return f"{mins}m {secs:02d}s"
+        hours = elapsed // 3600
+        mins = (elapsed % 3600) // 60
+        return f"{hours}h {mins:02d}m"
+
+    def _refresh_auto_inventory_pending_counts(self, force: bool = False):
+        if not force and not self.auto_inventory_snapshot_timer.IsExpired():
+            return
+        self.auto_inventory_snapshot_timer.Reset()
+
+        id_pending = 0
+        salvage_pending = 0
+        try:
+            id_rarities = self._get_selected_id_rarities()
+            if id_rarities:
+                id_items = Routines.Items.GetUnidentifiedItems(list(id_rarities), [])
+                id_pending = len(id_items) if id_items else 0
+        except EXPECTED_RUNTIME_ERRORS:
+            id_pending = 0
+        try:
+            salvage_rarities = self._get_selected_salvage_rarities()
+            if salvage_rarities:
+                salvage_items = Routines.Items.GetSalvageableItems(list(salvage_rarities), [])
+                salvage_pending = len(salvage_items) if salvage_items else 0
+        except EXPECTED_RUNTIME_ERRORS:
+            salvage_pending = 0
+
+        self.auto_id_pending_jobs = max(0, int(id_pending))
+        self.auto_salvage_pending_jobs = max(0, int(salvage_pending))
+
+    def _draw_auto_inventory_activity(self):
+        c = self._ui_colors()
+        self._refresh_auto_inventory_pending_counts()
+        self._draw_section_header("Queue Activity")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerAutoQueueActivity", size=(0, 106), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            width = max(110.0, float(PyImGui.get_content_region_avail()[0]))
+            cap = max(1, int(self.auto_queue_progress_cap))
+            id_pending = max(0, int(self.auto_id_pending_jobs))
+            salvage_pending = max(0, int(self.auto_salvage_pending_jobs))
+            id_progress = min(1.0, float(id_pending) / float(cap))
+            salvage_progress = min(1.0, float(salvage_pending) / float(cap))
+
+            PyImGui.text_colored(
+                f"ID: pending {id_pending}, last run {self._format_elapsed_since(self.auto_id_last_run_ts)}",
+                c["muted"],
+            )
+            PyImGui.progress_bar(id_progress, width, f"{id_pending} queued")
+            if PyImGui.is_item_hovered():
+                ImGui.show_tooltip(
+                    f"Last queued: {int(self.auto_id_last_queued)}\n"
+                    f"Total queued this session: {int(self.auto_id_total_queued)}"
+                )
+
+            PyImGui.text_colored(
+                f"Salvage: pending {salvage_pending}, last run {self._format_elapsed_since(self.auto_salvage_last_run_ts)}",
+                c["muted"],
+            )
+            PyImGui.progress_bar(salvage_progress, width, f"{salvage_pending} queued")
+            if PyImGui.is_item_hovered():
+                ImGui.show_tooltip(
+                    f"Last queued: {int(self.auto_salvage_last_queued)}\n"
+                    f"Total queued this session: {int(self.auto_salvage_total_queued)}"
+                )
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_view_and_theme_controls(self):
+        c = self._ui_colors()
+        self._draw_section_header("View")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerViewCard", size=(0, 98), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            width = max(120.0, float(PyImGui.get_content_region_avail()[0]))
+            if self._styled_button(
+                f"Compact Mode: {'ON' if self.compact_mode else 'OFF'}",
+                "success" if self.compact_mode else "secondary",
+                width=width,
+                height=28.0,
+                tooltip="Hide advanced settings and show only core controls in the left panel.",
+            ):
+                self.compact_mode = not self.compact_mode
+                if self.compact_mode:
+                    self.show_runtime_panel = False
+                self.runtime_config_dirty = True
+
+            PyImGui.text_colored("Theme Preset", c["muted"])
+            theme_names = self._theme_names()
+            current_theme_idx = 0
+            try:
+                current_theme_idx = max(0, theme_names.index(self.ui_theme_name))
+            except EXPECTED_RUNTIME_ERRORS:
+                current_theme_idx = 0
+            next_theme_idx = int(PyImGui.combo("##DropTrackerThemePreset", current_theme_idx, theme_names))
+            if 0 <= next_theme_idx < len(theme_names) and next_theme_idx != current_theme_idx:
+                self.ui_theme_name = theme_names[next_theme_idx]
+                self.runtime_config_dirty = True
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_inventory_action_cards(self):
+        c = self._ui_colors()
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child("DropTrackerInventoryActionCards", size=(0, 184), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            cards = [
+                {
+                    "label": f"[ID] Auto {'ON' if self.auto_id_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_id_enabled else "secondary",
+                    "tooltip": "Auto ID Loop: enable/disable periodic identify using ID settings.",
+                    "action": "toggle_auto_id",
+                },
+                {
+                    "label": f"[SV] Auto {'ON' if self.auto_salvage_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_salvage_enabled else "secondary",
+                    "tooltip": "Auto Salvage Loop: enable/disable periodic salvage using Salvage settings.",
+                    "action": "toggle_auto_salvage",
+                },
+                {
+                    "label": f"[ST] Outpost {'ON' if self.auto_outpost_store_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_outpost_store_enabled else "secondary",
+                    "tooltip": "Auto Store in Outpost: deposit Materials + Tomes (including Elite Tomes) on outpost entry.",
+                    "action": "toggle_auto_outpost_store",
+                },
+                {
+                    "label": "[CFG] Sync",
+                    "variant": "secondary",
+                    "tooltip": "Sync Config -> Followers: push auto ID/salvage/outpost-store settings.",
+                    "action": "sync_config",
+                },
+                {
+                    "label": "[ID] Run Now",
+                    "variant": "primary",
+                    "tooltip": "Run Auto Identify Now: one immediate identify pass.",
+                    "action": "run_id_now",
+                },
+                {
+                    "label": "[SV] Run Now",
+                    "variant": "primary",
+                    "tooltip": "Run Auto Salvage Now: one immediate salvage pass.",
+                    "action": "run_salvage_now",
+                },
+                {
+                    "label": f"[KT] Auto {'ON' if self.auto_buy_kits_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_buy_kits_enabled else "secondary",
+                    "tooltip": "Auto Buy Kits: while in outpost, periodically buy kits if uses are below threshold.",
+                    "action": "toggle_auto_buy_kits",
+                },
+                {
+                    "label": f"[KS] Sort {'ON' if self.auto_buy_kits_sort_to_front_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_buy_kits_sort_to_front_enabled else "secondary",
+                    "tooltip": "Outpost entry: kits to front, then followers reorder non-kits by rarity/type priority.",
+                    "action": "toggle_auto_buy_kits_sort",
+                },
+                {
+                    "label": f"[GD] Auto {'ON' if self.auto_gold_balance_enabled else 'OFF'}",
+                    "variant": "success" if self.auto_gold_balance_enabled else "secondary",
+                    "tooltip": f"Auto Gold Balance: keep {int(self.auto_gold_balance_target)} gold on character in outpost.",
+                    "action": "toggle_auto_gold_balance",
+                },
+                {
+                    "label": "[DBG] Merch Dump",
+                    "variant": "secondary",
+                    "tooltip": "Temporary debug: dump full merchant scan report to file and clipboard.",
+                    "action": "dump_merchant_debug",
+                },
+            ]
+
+            gap = 8.0
+            avail_w = max(140.0, float(PyImGui.get_content_region_avail()[0]))
+            half_w = max(110.0, (avail_w - gap) * 0.5)
+
+            def _run_card_action(action_code: str):
+                if action_code == "toggle_auto_id":
+                    next_id_enabled = not self.auto_id_enabled
+                    id_payload = self._encode_auto_action_payload(next_id_enabled, self._get_selected_id_rarities())
+                    self._trigger_inventory_action("cfg_auto_id", id_payload)
+                elif action_code == "toggle_auto_salvage":
+                    next_salvage_enabled = not self.auto_salvage_enabled
+                    salvage_payload = self._encode_auto_action_payload(next_salvage_enabled, self._get_selected_salvage_rarities())
+                    self._trigger_inventory_action("cfg_auto_salvage", salvage_payload)
+                elif action_code == "toggle_auto_outpost_store":
+                    next_store_enabled = not self.auto_outpost_store_enabled
+                    store_payload = "1" if next_store_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_outpost_store", store_payload)
+                elif action_code == "toggle_auto_buy_kits":
+                    next_kits_enabled = not self.auto_buy_kits_enabled
+                    kits_payload = "1" if next_kits_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_buy_kits", kits_payload)
+                elif action_code == "toggle_auto_buy_kits_sort":
+                    next_sort_enabled = not self.auto_buy_kits_sort_to_front_enabled
+                    sort_payload = "1" if next_sort_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_buy_kits_sort", sort_payload)
+                elif action_code == "toggle_auto_gold_balance":
+                    next_gold_enabled = not self.auto_gold_balance_enabled
+                    gold_payload = "1" if next_gold_enabled else "0"
+                    self._trigger_inventory_action("cfg_auto_gold_balance", gold_payload)
+                elif action_code == "sync_config":
+                    self._sync_auto_inventory_config_to_followers()
+                elif action_code == "run_id_now":
+                    self._trigger_inventory_action("id_selected", self._encode_rarities(self._get_selected_id_rarities()))
+                elif action_code == "run_salvage_now":
+                    self._trigger_inventory_action("salvage_selected", self._encode_rarities(self._get_selected_salvage_rarities()))
+                elif action_code == "dump_merchant_debug":
+                    self._dump_auto_buy_kits_merchant_debug_report()
+
+            for row_idx in range(0, len(cards), 2):
+                left_card = cards[row_idx]
+                right_card = cards[row_idx + 1] if (row_idx + 1) < len(cards) else None
+
+                if self._styled_button(
+                    left_card["label"],
+                    left_card["variant"],
+                    width=half_w,
+                    height=30.0,
+                    tooltip=left_card["tooltip"],
+                ):
+                    _run_card_action(left_card["action"])
+                if right_card is not None:
+                    PyImGui.same_line(0.0, gap)
+                    if self._styled_button(
+                        right_card["label"],
+                        right_card["variant"],
+                        width=half_w,
+                        height=30.0,
+                        tooltip=right_card["tooltip"],
+                    ):
+                        _run_card_action(right_card["action"])
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_status_toast(self, message: str):
+        msg = self._ensure_text(message).strip()
+        if not msg:
+            return
+        col = self._status_color(msg)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, (col[0] * 0.22, col[1] * 0.22, col[2] * 0.22, 0.96))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (col[0], col[1], col[2], 0.95))
+        if PyImGui.begin_child("DropTrackerStatusToast", size=(0, 28), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            PyImGui.text_colored(msg, col)
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_rarity_chips(self, prefix: str, rarities: list[str]):
+        c = self._ui_colors()
+        PyImGui.text_colored(prefix, c["muted"])
+        if not rarities:
+            PyImGui.same_line(0.0, 6.0)
+            PyImGui.text_colored("[None]", c["muted"])
+            return
+        for idx, rarity in enumerate(rarities):
+            PyImGui.same_line(0.0, 6.0)
+            r, g, b, a = self._get_rarity_color(rarity)
+            PyImGui.text_colored(f"[{rarity}]", (r, g, b, a))
+            if idx >= 6:
+                PyImGui.same_line(0.0, 6.0)
+                PyImGui.text_colored("...", c["muted"])
+                break
+
+    def _status_color(self, msg: str):
+        txt = self._ensure_text(msg).lower()
+        if "fail" in txt or "error" in txt:
+            return (1.0, 0.46, 0.42, 1.0)
+        if "warn" in txt:
+            return (1.0, 0.80, 0.34, 1.0)
+        return (0.40, 0.95, 0.56, 1.0)
+
+    def _draw_metric_card(self, card_id, title, value, accent_color):
+        c = self._ui_colors()
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, c["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        if PyImGui.begin_child(card_id, size=(0, 52), border=True, flags=PyImGui.WindowFlags.NoFlag):
+            PyImGui.text_colored(title, accent_color)
+            PyImGui.text_colored(value, (0.94, 0.96, 1.0, 1.0))
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _draw_summary_bar(self, filtered_rows):
+        total_qty_without_gold = 0
+        rare_count = 0
+        gold_qty = 0
+        for row in filtered_rows:
+            parsed = self._parse_drop_row(row)
+            if parsed is None:
+                continue
+            qty = int(parsed.quantity)
+            rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+            if self._is_rare_rarity(rarity):
+                rare_count += 1
+            if self._is_gold_row(row):
+                gold_qty += qty
+            else:
+                total_qty_without_gold += qty
+
+        session_time = self._get_session_duration_text()
+
+        c = self._ui_colors()
+        PyImGui.text_colored("Session Snapshot", c["accent"])
+        flags = PyImGui.TableFlags.SizingStretchSame
+        if PyImGui.begin_table("DropViewerSummary", 4, flags):
+            PyImGui.table_next_row()
+
+            PyImGui.table_set_column_index(0)
+            self._draw_metric_card("CardSession", "Session", session_time, (0.55, 0.85, 1.0, 1.0))
+            PyImGui.table_set_column_index(1)
+            self._draw_metric_card("CardDrops", "Total Drops", str(total_qty_without_gold), (0.8, 0.9, 1.0, 1.0))
+            PyImGui.table_set_column_index(2)
+            self._draw_metric_card("CardGold", "Gold Value", f"{gold_qty:,}", (0.72, 0.72, 0.72, 1.0))
+            PyImGui.table_set_column_index(3)
+            self._draw_metric_card("CardRare", "Rare Drops", str(rare_count), (1.0, 0.84, 0.0, 1.0))
+
+            PyImGui.end_table()
+
+    def _draw_runtime_controls(self):
+        draw_runtime_controls_panel(self, PyImGui)
+
+    def _draw_runtime_controls_popout(self):
+        if not self.runtime_controls_popout:
+            return
+        if not self.runtime_popout_initialized:
+            try:
+                display_w, display_h = self._get_display_size()
+                pop_w = min(760.0, max(560.0, display_w * 0.45))
+                pop_h = min(680.0, max(460.0, display_h * 0.58))
+                pop_x = max(20.0, (display_w - pop_w) * 0.5)
+                pop_y = max(20.0, (display_h - pop_h) * 0.16)
+                PyImGui.set_next_window_pos(pop_x, pop_y)
+                PyImGui.set_next_window_size(pop_w, pop_h)
+                PyImGui.set_next_window_focus()
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+            self.runtime_popout_initialized = True
+        if PyImGui.begin("Drop Tracker Runtime Controls"):
+            PyImGui.text_colored("Advanced Runtime Controls", self._ui_colors()["accent"])
+            PyImGui.same_line(0.0, 10.0)
+            if self._styled_button("Close Popout", "secondary"):
+                self.runtime_controls_popout = False
+                self.runtime_config_dirty = True
+            PyImGui.separator()
+            self._draw_runtime_controls()
+        PyImGui.end()
+
+    def _get_selected_id_rarities(self):
+        rarities = []
+        if self.id_sel_white:
+            rarities.append("White")
+        if self.id_sel_blue:
+            rarities.append("Blue")
+        if self.id_sel_green:
+            rarities.append("Green")
+        if self.id_sel_purple:
+            rarities.append("Purple")
+        if self.id_sel_gold:
+            rarities.append("Gold")
+        return rarities
+
+    def _get_selected_salvage_rarities(self):
+        rarities = []
+        if self.salvage_sel_white:
+            rarities.append("White")
+        if self.salvage_sel_blue:
+            rarities.append("Blue")
+        if self.salvage_sel_green:
+            rarities.append("Green")
+        if self.salvage_sel_purple:
+            rarities.append("Purple")
+        if self.salvage_sel_gold:
+            rarities.append("Gold")
+        return rarities
+
+    def _encode_rarities(self, rarities):
+        return ",".join(rarities)
+
+    def _decode_rarities(self, payload):
+        txt = self._ensure_text(payload).strip()
+        if not txt:
+            return []
+        out = []
+        allowed = {"White", "Blue", "Green", "Purple", "Gold"}
+        for r in txt.split(","):
+            rt = r.strip().title()
+            if rt in allowed:
+                out.append(rt)
+        return out
+
+    def _apply_selected_id_rarities(self, rarities):
+        selected = {self._ensure_text(r).strip().title() for r in list(rarities or [])}
+        self.id_sel_white = "White" in selected
+        self.id_sel_blue = "Blue" in selected
+        self.id_sel_green = "Green" in selected
+        self.id_sel_purple = "Purple" in selected
+        self.id_sel_gold = "Gold" in selected
+
+    def _apply_selected_salvage_rarities(self, rarities):
+        selected = {self._ensure_text(r).strip().title() for r in list(rarities or [])}
+        self.salvage_sel_white = "White" in selected
+        self.salvage_sel_blue = "Blue" in selected
+        self.salvage_sel_green = "Green" in selected
+        self.salvage_sel_purple = "Purple" in selected
+        self.salvage_sel_gold = "Gold" in selected
+
+    def _rarities_to_bitmask(self, rarities):
+        ordered = ("White", "Blue", "Green", "Purple", "Gold")
+        selected = {self._ensure_text(r).strip().title() for r in list(rarities or [])}
+        mask = 0
+        for idx, rarity in enumerate(ordered):
+            if rarity in selected:
+                mask |= (1 << idx)
+        return int(mask)
+
+    def _bitmask_to_rarities(self, mask):
+        ordered = ("White", "Blue", "Green", "Purple", "Gold")
+        resolved = []
+        m = max(0, int(mask))
+        for idx, rarity in enumerate(ordered):
+            if (m & (1 << idx)) != 0:
+                resolved.append(rarity)
+        return resolved
+
+    def _encode_auto_action_payload(self, enabled: bool, rarities):
+        return f"{1 if bool(enabled) else 0}:{self._rarities_to_bitmask(rarities)}"
+
+    def _decode_auto_action_payload(self, payload, default_enabled: bool, default_rarities):
+        text = self._ensure_text(payload).strip()
+        enabled = bool(default_enabled)
+        rarities = list(default_rarities or [])
+        if not text:
+            return enabled, rarities
+        if ":" not in text:
+            decoded_rarities = self._decode_rarities(text)
+            return enabled, decoded_rarities if decoded_rarities else rarities
+        left, right = text.split(":", 1)
+        left_txt = left.strip()
+        if left_txt in ("0", "1"):
+            enabled = (left_txt == "1")
+        try:
+            mask = int(right.strip())
+        except EXPECTED_RUNTIME_ERRORS:
+            mask = -1
+        if mask >= 0:
+            rarities = self._bitmask_to_rarities(mask)
+        return enabled, rarities
+
+    def _apply_auto_id_config_payload(self, payload):
+        enabled, rarities = self._decode_auto_action_payload(payload, self.auto_id_enabled, self._get_selected_id_rarities())
+        self.auto_id_enabled = bool(enabled)
+        self._apply_selected_id_rarities(rarities)
+        self.runtime_config_dirty = True
+
+    def _apply_auto_salvage_config_payload(self, payload):
+        enabled, rarities = self._decode_auto_action_payload(payload, self.auto_salvage_enabled, self._get_selected_salvage_rarities())
+        self.auto_salvage_enabled = bool(enabled)
+        self._apply_selected_salvage_rarities(rarities)
+        self.runtime_config_dirty = True
+
+    def _parse_toggle_payload(self, payload: str, fallback: bool = False) -> bool:
+        txt = self._ensure_text(payload).strip().lower()
+        if txt in ("1", "true", "on", "yes", "y", "enable", "enabled"):
+            return True
+        if txt in ("0", "false", "off", "no", "n", "disable", "disabled"):
+            return False
+        return bool(fallback)
+
+    def _apply_auto_outpost_store_config_payload(self, payload: str):
+        next_enabled = self._parse_toggle_payload(payload, self.auto_outpost_store_enabled)
+        changed = bool(next_enabled) != bool(self.auto_outpost_store_enabled)
+        self.auto_outpost_store_enabled = bool(next_enabled)
+        if changed and self.auto_outpost_store_enabled:
+            self.auto_outpost_store_handled_entry_key = ""
+        self.runtime_config_dirty = True
+
+    def _apply_auto_buy_kits_config_payload(self, payload: str):
+        next_enabled = self._parse_toggle_payload(payload, self.auto_buy_kits_enabled)
+        previous = bool(self.auto_buy_kits_enabled)
+        self.auto_buy_kits_enabled = bool(next_enabled)
+        if (not previous) and self.auto_buy_kits_enabled and bool(Map.IsOutpost()):
+            self.auto_buy_kits_handled_entry_key = ""
+            # Run one immediate one-time outpost check when enabling.
+            self._run_auto_buy_kits_once_on_outpost_entry_tick()
+        self.runtime_config_dirty = True
+
+    def _apply_auto_buy_kits_sort_config_payload(self, payload: str):
+        previous = bool(self.auto_buy_kits_sort_to_front_enabled)
+        next_enabled = self._parse_toggle_payload(payload, self.auto_buy_kits_sort_to_front_enabled)
+        self.auto_buy_kits_sort_to_front_enabled = bool(next_enabled)
+        if (not previous) and self.auto_buy_kits_sort_to_front_enabled and bool(Map.IsOutpost()):
+            # Allow immediate one-time run in current outpost after enabling.
+            self.auto_inventory_reorder_handled_entry_key = ""
+        self.runtime_config_dirty = True
+
+    def _apply_auto_gold_balance_config_payload(self, payload: str):
+        previous = bool(self.auto_gold_balance_enabled)
+        next_enabled = self._parse_toggle_payload(payload, self.auto_gold_balance_enabled)
+        self.auto_gold_balance_enabled = bool(next_enabled)
+        if (not previous) and self.auto_gold_balance_enabled:
+            # Allow one immediate check in current outpost after enabling.
+            self.auto_gold_balance_handled_entry_key = ""
+        self.runtime_config_dirty = True
+
+    def _mouse_in_current_window_rect(self):
+        rect = None
+        try:
+            wx, wy = PyImGui.get_window_pos()
+            ww, wh = PyImGui.get_window_size()
+            rect = (float(wx), float(wy), float(ww), float(wh))
+            if rect[2] > 0.0 and rect[3] > 0.0 and ImGui.is_mouse_in_rect(rect):
+                return True
+        except EXPECTED_RUNTIME_ERRORS:
+            rect = None
+
+        try:
+            io = PyImGui.get_io()
+            mx = -1.0
+            my = -1.0
+            try:
+                mx = float(getattr(io, "mouse_pos_x", -1.0))
+                my = float(getattr(io, "mouse_pos_y", -1.0))
+            except EXPECTED_RUNTIME_ERRORS:
+                mx = -1.0
+                my = -1.0
+
+            if mx < 0.0 or my < 0.0:
+                raw_mouse_pos = getattr(io, "mouse_pos", None)
+                if isinstance(raw_mouse_pos, (list, tuple)) and len(raw_mouse_pos) >= 2:
+                    mx = float(raw_mouse_pos[0])
+                    my = float(raw_mouse_pos[1])
+                elif raw_mouse_pos is not None:
+                    mx = float(getattr(raw_mouse_pos, "x", -1.0))
+                    my = float(getattr(raw_mouse_pos, "y", -1.0))
+
+            if mx < 0.0 or my < 0.0:
+                return False
+
+            if rect is None:
+                wx, wy = PyImGui.get_window_pos()
+                ww, wh = PyImGui.get_window_size()
+                rect = (float(wx), float(wy), float(ww), float(wh))
+            return (mx >= rect[0]) and (mx <= (rect[0] + rect[2])) and (my >= rect[1]) and (my <= (rect[1] + rect[3]))
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _get_display_size(self):
+        io = PyImGui.get_io()
+        w = float(getattr(io, "display_size_x", 1920.0) or 1920.0)
+        h = float(getattr(io, "display_size_y", 1080.0) or 1080.0)
+        return max(320.0, w), max(240.0, h)
+
+    def _clamp_pos(self, x, y, w, h, margin=4.0):
+        disp_w, disp_h = self._get_display_size()
+        max_x = max(margin, disp_w - w - margin)
+        max_y = max(margin, disp_h - h - margin)
+        return min(max(float(x), margin), max_x), min(max(float(y), margin), max_y)
+
+    def _clamp_size(self, w, h, min_w=420.0, min_h=280.0, margin=20.0):
+        disp_w, disp_h = self._get_display_size()
+        max_w = max(min_w, disp_w - margin)
+        max_h = max(min_h, disp_h - margin)
+        cw = min(max(float(w), min_w), max_w)
+        ch = min(max(float(h), min_h), max_h)
+        return cw, ch
+
+    def _draw_hover_handle(self):
+        display_w, _ = self._get_display_size()
+
+        btn_w = 48.0
+        btn_h = 48.0
+        win_w = btn_w + 4.0
+        win_h = btn_h + 4.0
+        default_x = max(8.0, (display_w * 0.5) - (btn_w * 0.5))
+        default_y = 4.0
+
+        if self.saved_hover_handle_pos is None:
+            self.saved_hover_handle_pos = (default_x, default_y)
+
+        x, y = self.saved_hover_handle_pos
+        x, y = self._clamp_pos(x, y, btn_w, btn_h)
+        self.saved_hover_handle_pos = (x, y)
+        button_rect = (x, y, btn_w, btn_h)
+
+        PyImGui.set_next_window_pos(x, y)
+        PyImGui.set_next_window_size(win_w, win_h)
+        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0.0, 0.0)
+        flags = (
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoResize |
+            PyImGui.WindowFlags.NoMove |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse |
+            PyImGui.WindowFlags.NoCollapse |
+            PyImGui.WindowFlags.NoBackground
+        )
+
+        hovered = False
+        if PyImGui.begin("Drop Tracker##HoverHandle", flags):
+            # Travel-like themed floating background.
+            is_hover = ImGui.is_mouse_in_rect(button_rect)
+            try:
+                match(ImGui.get_style().Theme):
+                    case Style.StyleTheme.Guild_Wars:
+                        ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
+                            button_rect[:2], button_rect[2:],
+                            tint=(255, 255, 255, 255) if is_hover else (200, 200, 200, 255),
+                        )
+                        ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
+                            button_rect[:2], button_rect[2:],
+                            tint=(255, 255, 255, 255) if is_hover else (200, 200, 200, 255),
+                        )
+                    case _:
+                        PyImGui.draw_list_add_rect_filled(
+                            button_rect[0] + 1, button_rect[1] + 1,
+                            button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                            Utils.RGBToColor(51, 76, 102, 255) if is_hover else Utils.RGBToColor(26, 38, 51, 255),
+                            4, 0
+                        )
+                        PyImGui.draw_list_add_rect(
+                            button_rect[0] + 1, button_rect[1] + 1,
+                            button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                            Utils.RGBToColor(204, 204, 212, 50), 4, 0, 1
+                        )
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+
+            # Pin indicator frame (green pinned / red unpinned)
+            frame_col = Utils.RGBToColor(76, 235, 89, 255) if self.hover_pin_open else Utils.RGBToColor(242, 71, 56, 255)
+            PyImGui.draw_list_add_rect(
+                button_rect[0] + 1, button_rect[1] + 1,
+                button_rect[0] + button_rect[2] - 1, button_rect[1] + button_rect[3] - 1,
+                frame_col, 4, 0, 3
+            )
+
+            # Icon in drawlist, centered in the floating button.
+            tint = (255, 255, 255, 255) if is_hover else (210, 210, 210, 255)
+            icon_rect = (button_rect[0] + 8, button_rect[1] + 6, 32, 32)
+            if os.path.exists(self.hover_icon_path):
+                ImGui.DrawTextureInDrawList(icon_rect[:2], icon_rect[2:], self.hover_icon_path, tint=tint)
+
+            if PyImGui.invisible_button("##DropHandleBtn", button_rect[2], button_rect[3]):
+                self.hover_pin_open = not self.hover_pin_open
+            elif PyImGui.is_item_active():
+                delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+                PyImGui.reset_mouse_drag_delta(0)
+                x = x + delta[0]
+                y = y + delta[1]
+                x, y = self._clamp_pos(x, y, btn_w, btn_h)
+                self.saved_hover_handle_pos = (x, y)
+                self._persist_layout_value("drop_viewer_handle_pos", self.saved_hover_handle_pos)
+
+            if PyImGui.is_item_hovered():
+                tip = "Drop Tracker (click to pin)" if not self.hover_pin_open else "Drop Tracker (click to unpin)"
+                ImGui.show_tooltip(tip)
+
+            hovered = ImGui.is_mouse_in_rect(button_rect)
+        PyImGui.end()
+        PyImGui.pop_style_var(1)
+        return hovered
+
+    def save_run(self):
+        if not os.path.exists(self.saved_logs_dir):
+            os.makedirs(self.saved_logs_dir)
+            
+        target = os.path.join(self.saved_logs_dir, f"{self.save_filename}.csv")
+        try:
+            shutil.copy2(self.log_path, target)
+            self.set_status(f"Saved to {self.save_filename}.csv")
+            self.show_save_popup = False
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Save failed: {e}")
+
+    def load_run(self, filename):
+        target = os.path.join(self.saved_logs_dir, filename)
+        if not os.path.exists(target): return
+        
+        self.paused = True
+        try:
+            self._parse_log_file(target)
+            self.set_status(f"Loaded {filename}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Load failed: {e}")
+
+    def merge_run(self, filename):
+        target = os.path.join(self.saved_logs_dir, filename)
+        if not os.path.exists(target): return
+        
+        self.paused = True
+        
+        temp_agg = self.aggregated_drops.copy()
+        temp_drops = list(self.raw_drops)
+        total = self.total_drops
+        
+        try:
+             with open(target, mode='r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                header = next(reader, None)
+                has_map_name = header and "MapName" in header
+                event_idx = header.index("EventID") if header and "EventID" in header else -1
+                stats_idx = header.index("ItemStats") if header and "ItemStats" in header else -1
+                item_id_idx = header.index("ItemID") if header and "ItemID" in header else -1
+                
+                for row in reader:
+                    fallback_map_name = "Unknown"
+                    if not has_map_name:
+                        try:
+                            fallback_map_name = self._ensure_text(Map.GetMapName(self._safe_int(row[2], 0))) or "Unknown"
+                        except EXPECTED_RUNTIME_ERRORS:
+                            fallback_map_name = "Unknown"
+
+                    parsed = DropLogRow.from_csv_row(
+                        row,
+                        has_map_name=bool(has_map_name),
+                        event_idx=event_idx,
+                        stats_idx=stats_idx,
+                        item_id_idx=item_id_idx,
+                        map_name_fallback=fallback_map_name,
+                    )
+                    if parsed is None:
+                        continue
+
+                    temp_drops.append(parsed.to_runtime_row())
+                    total += int(parsed.quantity)
+                    
+                    canonical_name = self._canonical_agg_item_name(parsed.item_name, parsed.rarity, temp_agg)
+                    key = (canonical_name, parsed.rarity)
+                    if key not in temp_agg:
+                        temp_agg[key] = {"Quantity": 0, "Count": 0}
+                    temp_agg[key]["Quantity"] += int(parsed.quantity)
+                    temp_agg[key]["Count"] += 1
+            
+             self.raw_drops = temp_drops
+             self.aggregated_drops = temp_agg
+             self.total_drops = total
+             self.set_status(f"Merged {filename}")
+             
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Merge failed: {e}")
+
+    def draw(self):
+        now = time.time()
+        handle_hovered = False
+        if self.hover_handle_mode:
+            handle_hovered = self._draw_hover_handle()
+            if handle_hovered:
+                self.hover_is_visible = True
+                self.hover_hide_deadline = now + self.hover_hide_delay_s
+            if self.hover_pin_open:
+                self.hover_is_visible = True
+            if not self.hover_is_visible and not self.hover_pin_open:
+                return
+        else:
+            self.hover_is_visible = True
+
+        main_window_hovered = False
+        main_window_rect = self.last_main_window_rect
+        if not self.viewer_window_initialized:
+            if self.saved_viewer_window_pos is not None:
+                sw, sh = self.saved_viewer_window_size if self.saved_viewer_window_size is not None else (760.0, 520.0)
+                sw, sh = self._clamp_size(sw, sh)
+                px, py = self._clamp_pos(self.saved_viewer_window_pos[0], self.saved_viewer_window_pos[1], sw, sh)
+                PyImGui.set_next_window_pos(px, py)
+            if self.saved_viewer_window_size is not None:
+                sw, sh = self._clamp_size(self.saved_viewer_window_size[0], self.saved_viewer_window_size[1])
+                PyImGui.set_next_window_size(sw, sh)
+        if PyImGui.begin(self.window_name):
+            self.viewer_window_initialized = True
+            current_window_pos = PyImGui.get_window_pos()
+            current_window_size = PyImGui.get_window_size()
+            try:
+                main_window_rect = (
+                    float(current_window_pos[0]),
+                    float(current_window_pos[1]),
+                    float(current_window_size[0]),
+                    float(current_window_size[1]),
+                )
+                self.last_main_window_rect = main_window_rect
+            except EXPECTED_RUNTIME_ERRORS:
+                main_window_rect = self.last_main_window_rect
+            self._persist_layout_value("drop_viewer_window_pos", current_window_pos)
+            self._persist_layout_value("drop_viewer_window_size", current_window_size)
+            
+            # -- Auto Refresh --
+            # Live mode already updates in-memory stats from ShMem/chat handlers.
+            # Avoid reparsing full CSV continuously, which can hitch on long sessions.
+            current_time = time.time()
+            if self.paused and current_time - self.last_auto_refresh_time > 1.0:
+                 self.last_auto_refresh_time = current_time
+                 self.load_drops()
+
+            # -- Toolbar --
+            if self._styled_button(
+                "Refresh (Live)" if self.paused else "Refresh",
+                "primary",
+                tooltip="Reload from current live session file."
+            ):
+                self.paused = False
+                self.last_read_time = 0 
+                self.load_drops() # Re-read main log
+            
+            PyImGui.same_line(0.0, 10.0)
+            
+            # View Mode Switch
+            if self.view_mode == "Aggregated":
+                if self._styled_button("Show Logs", "secondary", tooltip="Switch to raw event log view"):
+                    self.view_mode = "Log"
+            else:
+                if self._styled_button("Show Stats", "secondary", tooltip="Switch to aggregated item stats"):
+                    self.view_mode = "Aggregated"
+                
+            PyImGui.same_line(0.0, 10.0)
+            
+            if self._styled_button("Save", "secondary", tooltip="Save current session log snapshot"):
+                self.show_save_popup = not self.show_save_popup
+                
+            if self.show_save_popup:
+                PyImGui.same_line(0.0, 10.0)
+                PyImGui.push_item_width(100)
+                self.save_filename = PyImGui.input_text("", self.save_filename)
+                PyImGui.pop_item_width()
+                PyImGui.same_line(0.0, 10.0)
+                if self._styled_button("OK", "primary"):
+                    self.save_run()
+            
+            PyImGui.same_line(0.0, 10.0)
+            
+            # Load/Merge Logic
+            if self._styled_button("Load/Merge..", "secondary", tooltip="Load or merge a saved log file"):
+                PyImGui.open_popup("LoadMergePopup")
+
+            if PyImGui.begin_popup("LoadMergePopup"):
+                 if os.path.exists(self.saved_logs_dir):
+                     files = [f for f in os.listdir(self.saved_logs_dir) if f.endswith(".csv")]
+                     if not files:
+                         PyImGui.text("No saved logs")
+                     else:
+                         for f in files:
+                             if PyImGui.begin_menu(f):
+                                 if PyImGui.menu_item("Load"):
+                                     self.load_run(f)
+                                 if PyImGui.menu_item("Merge"):
+                                     self.merge_run(f)
+                                 PyImGui.end_menu()
+                 else:
+                     PyImGui.text("Directory not found")
+                 PyImGui.end_popup()
+
+            PyImGui.same_line(0.0, 10.0)
+            if self._styled_button("Follower Inventory", "secondary", tooltip="Toggle follower inventory viewer."):
+                self._toggle_follower_inventory_viewer()
+
+            PyImGui.same_line(0.0, 10.0)
+            if self._styled_button("Sell Gold (No Runes)", "danger", tooltip="Manually sell all Gold-rarity items except anything named Rune."):
+                PyImGui.open_popup("ConfirmSellGoldNoRunes")
+
+            if PyImGui.begin_popup_modal("ConfirmSellGoldNoRunes", True, PyImGui.WindowFlags.AlwaysAutoResize):
+                PyImGui.text("Sell all GOLD-rarity inventory items?")
+                PyImGui.text("Runes will NOT be sold.")
+                PyImGui.separator()
+                if self._styled_button("Yes, Sell", "danger"):
+                    self._trigger_inventory_action("sell_gold_no_runes")
+                    PyImGui.close_current_popup()
+                PyImGui.same_line(0.0, 10.0)
+                if self._styled_button("Cancel", "secondary"):
+                    PyImGui.close_current_popup()
+                PyImGui.end_popup_modal()
+
+            if self.unknown_mod_popup_pending:
+                PyImGui.open_popup("UnknownModAlert")
+                self.unknown_mod_popup_pending = False
+            if PyImGui.begin_popup_modal("UnknownModAlert", True, PyImGui.WindowFlags.AlwaysAutoResize):
+                PyImGui.text_colored("New Unknown Mod Detected", (1.0, 0.86, 0.40, 1.0))
+                PyImGui.separator()
+                popup_msg = self._ensure_text(getattr(self, "unknown_mod_popup_message", "")).strip()
+                if popup_msg:
+                    PyImGui.text_wrapped(popup_msg)
+                PyImGui.separator()
+                if self._styled_button("OK", "primary"):
+                    PyImGui.close_current_popup()
+                PyImGui.end_popup_modal()
+
+            PyImGui.same_line(0.0, 40.0)
+            if self._styled_button("Clear/Reset", "danger", tooltip="Clear live file and in-memory drop stats"):
+                 try:
+                    # Reset file + in-memory state to a clean live session.
+                    self._reset_live_session()
+                    
+                    # Reset chat bookmark state to "from now".
+                    self.last_chat_index = -1 
+                    if Player.IsChatHistoryReady():
+                         self.last_chat_index = len(Player.GetChatHistory())
+
+                    self.set_status("Log Cleared")
+                 except EXPECTED_RUNTIME_ERRORS as e:
+                     Py4GW.Console.Log("DropViewer", f"Clear failed: {e}", Py4GW.Console.MessageType.Error)
+
+            filtered_rows = self._get_filtered_rows()
+            table_rows = filtered_rows
+            self._draw_summary_bar(filtered_rows)
+            self._draw_top_control_strip()
+            self._draw_live_status_chips()
+
+            # -- Status Bar --
+            if time.time() - self.status_time < 5:
+                self._draw_status_toast(self.status_message)
+
+            PyImGui.separator()
+
+            # -- Main Content: Left filter rail + right data panel --
+            total_w = max(520.0, float(current_window_size[0]) if isinstance(current_window_size, (list, tuple)) and len(current_window_size) >= 2 else 760.0)
+            left_w = max(320.0, min(390.0, total_w * 0.46))
+            if (total_w - left_w) < 260.0:
+                left_w = max(280.0, total_w - 260.0)
+            if PyImGui.begin_child("DropViewerLeftRail", size=(left_w, 0), border=True, flags=PyImGui.WindowFlags.NoFlag):
+                self._draw_view_and_theme_controls()
+
+                if self.compact_mode:
+                    self._draw_section_header("Core Actions")
+                    self._draw_inventory_action_cards()
+                    self._draw_auto_inventory_activity()
+                    self._draw_rarity_chips("ID:", self._get_selected_id_rarities())
+                    self._draw_rarity_chips("Salvage:", self._get_selected_salvage_rarities())
+                    PyImGui.text_colored("Compact mode hides filters, tabs, and runtime controls.", self._ui_colors()["muted"])
+                else:
+                    self._draw_section_header("Filters")
+                    if PyImGui.collapsing_header("Filter Settings"):
+                        self.search_text = PyImGui.input_text("Search", self.search_text)
+                        self.filter_player = PyImGui.input_text("Player", self.filter_player)
+                        self.filter_map = PyImGui.input_text("Map", self.filter_map)
+
+                        self.filter_rarity_idx = int(PyImGui.combo("Rarity", int(self.filter_rarity_idx), self.filter_rarity_options))
+                        self.only_rare = PyImGui.checkbox("Only Rare", self.only_rare)
+                        self.hide_gold = PyImGui.checkbox("Hide Gold", self.hide_gold)
+                        self.min_qty = max(1, int(PyImGui.input_int("Min Qty", int(self.min_qty))))
+                        self.auto_scroll = PyImGui.checkbox("Auto Scroll", self.auto_scroll)
+                        prev_hover_mode = self.hover_handle_mode
+                        self.hover_handle_mode = PyImGui.checkbox("Hover Handle Mode", self.hover_handle_mode)
+                        if PyImGui.is_item_hovered():
+                            ImGui.show_tooltip("Show as hoverable floating handle instead of always-open window.")
+                        if self.hover_handle_mode:
+                            self.hover_pin_open = PyImGui.checkbox("Pin Open", self.hover_pin_open)
+                        if self.hover_handle_mode and not prev_hover_mode:
+                            self.hover_is_visible = True
+                            self.hover_hide_deadline = now + self.hover_hide_delay_s
+
+                        if self._styled_button("Quick: Rare Only", "primary", tooltip="Enable Rare-only filters quickly"):
+                            self.only_rare = True
+                            self.hide_gold = True
+                            self.filter_rarity_idx = 0
+                        if self._styled_button("Clear Filters", "secondary", tooltip="Reset all filter fields"):
+                            self.search_text = ""
+                            self.filter_player = ""
+                            self.filter_map = ""
+                            self.filter_rarity_idx = 0
+                            self.only_rare = False
+                            self.hide_gold = False
+                            self.min_qty = 1
+
+                    self._draw_conset_controls()
+                    self._draw_section_header("Inventory Actions")
+                    self._draw_inventory_action_cards()
+                    self._draw_auto_inventory_activity()
+                    self._draw_rarity_chips("ID:", self._get_selected_id_rarities())
+                    self._draw_rarity_chips("Salvage:", self._get_selected_salvage_rarities())
+
+                    if PyImGui.begin_tab_bar("DropTrackerInventoryTabs"):
+                        if PyImGui.begin_tab_item("ID/Salvage Settings"):
+                            if PyImGui.collapsing_header("ID Settings"):
+                                old_id = (self.id_sel_white, self.id_sel_blue, self.id_sel_green, self.id_sel_purple, self.id_sel_gold)
+                                self.id_sel_white = PyImGui.checkbox("ID White", self.id_sel_white)
+                                self.id_sel_blue = PyImGui.checkbox("ID Blue", self.id_sel_blue)
+                                self.id_sel_green = PyImGui.checkbox("ID Green", self.id_sel_green)
+                                self.id_sel_purple = PyImGui.checkbox("ID Purple", self.id_sel_purple)
+                                self.id_sel_gold = PyImGui.checkbox("ID Gold", self.id_sel_gold)
+                                if old_id != (self.id_sel_white, self.id_sel_blue, self.id_sel_green, self.id_sel_purple, self.id_sel_gold):
+                                    self.runtime_config_dirty = True
+                                    id_payload = self._encode_auto_action_payload(self.auto_id_enabled, self._get_selected_id_rarities())
+                                    self._trigger_inventory_action("cfg_auto_id", id_payload)
+
+                            if PyImGui.collapsing_header("Salvage Settings"):
+                                old_salvage = (self.salvage_sel_white, self.salvage_sel_blue, self.salvage_sel_green, self.salvage_sel_purple, self.salvage_sel_gold)
+                                self.salvage_sel_white = PyImGui.checkbox("Salvage White", self.salvage_sel_white)
+                                self.salvage_sel_blue = PyImGui.checkbox("Salvage Blue", self.salvage_sel_blue)
+                                self.salvage_sel_green = PyImGui.checkbox("Salvage Green", self.salvage_sel_green)
+                                self.salvage_sel_purple = PyImGui.checkbox("Salvage Purple", self.salvage_sel_purple)
+                                self.salvage_sel_gold = PyImGui.checkbox("Salvage Gold", self.salvage_sel_gold)
+                                if old_salvage != (self.salvage_sel_white, self.salvage_sel_blue, self.salvage_sel_green, self.salvage_sel_purple, self.salvage_sel_gold):
+                                    self.runtime_config_dirty = True
+                                    salvage_payload = self._encode_auto_action_payload(self.auto_salvage_enabled, self._get_selected_salvage_rarities())
+                                    self._trigger_inventory_action("cfg_auto_salvage", salvage_payload)
+
+                            PyImGui.end_tab_item()
+
+                        if PyImGui.begin_tab_item("Inventory Kits"):
+                            self._draw_inventory_kit_stats_tab()
+                            PyImGui.end_tab_item()
+                        PyImGui.end_tab_bar()
+
+                    self._draw_section_header("Advanced")
+                    self.show_runtime_panel = PyImGui.checkbox("Advanced Runtime Controls", self.show_runtime_panel)
+                    runtime_btn_w = max(120.0, float(PyImGui.get_content_region_avail()[0]))
+                    if self._styled_button(
+                        "Close Runtime Window" if self.runtime_controls_popout else "Open Runtime Window",
+                        "secondary",
+                        width=runtime_btn_w,
+                        height=28.0,
+                        tooltip="Open runtime controls in a separate window.",
+                    ):
+                        self.runtime_controls_popout = not self.runtime_controls_popout
+                        if self.runtime_controls_popout:
+                            self.runtime_popout_initialized = False
+                        self.runtime_config_dirty = True
+                    if self.show_runtime_panel:
+                        if self.runtime_controls_popout:
+                            PyImGui.text_colored("Runtime controls opened in popout window.", self._ui_colors()["muted"])
+                        else:
+                            self._draw_runtime_controls()
+                try:
+                    self.left_rail_scroll_y = max(0.0, float(PyImGui.get_scroll_y()))
+                except EXPECTED_RUNTIME_ERRORS:
+                    self.left_rail_scroll_y = 0.0
+            PyImGui.end_child()
+
+            PyImGui.same_line(0.0, 10.0)
+
+            if PyImGui.begin_child("DropViewerDataPanel", size=(0, 0), border=False, flags=PyImGui.WindowFlags.NoFlag):
+                if self.view_mode == "Aggregated":
+                    self._draw_aggregated(table_rows)
+                else:
+                    self._draw_log(table_rows)
+            PyImGui.end_child()
+
+            main_window_hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered()
+            if not main_window_hovered:
+                try:
+                    if main_window_rect and len(main_window_rect) == 4 and float(main_window_rect[2]) > 0.0 and float(main_window_rect[3]) > 0.0:
+                        main_window_hovered = bool(ImGui.is_mouse_in_rect(main_window_rect))
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+
+        PyImGui.end()
+        if self.runtime_controls_popout:
+            self._draw_runtime_controls_popout()
+        self._flush_runtime_config_if_dirty()
+        self._flush_unknown_mod_catalog_if_dirty()
+        if self.hover_handle_mode:
+            if main_window_hovered:
+                self.hover_is_visible = True
+                self.hover_hide_deadline = now + self.hover_hide_delay_s
+            if not self.hover_pin_open and not handle_hovered and not main_window_hovered and now >= self.hover_hide_deadline:
+                self.hover_is_visible = False
+        
+    def _draw_aggregated(self, filtered_rows):
+        c = self._ui_colors()
+        filtered_agg, total_filtered_qty = self._get_filtered_aggregated(filtered_rows)
+        total_items_without_gold = total_filtered_qty - sum(
+            data["Quantity"] for (name, _), data in filtered_agg.items() if name == "Gold"
+        )
+
+        PyImGui.text_colored(f"Total Items (filtered): {max(0, total_items_without_gold)}", c["muted"])
+        if not filtered_agg:
+            PyImGui.separator()
+            PyImGui.text_colored("No drops match your current filters.", c["muted"])
+            PyImGui.text("Try clearing filters or switching to Log view.")
+            return
+
+        PyImGui.push_style_color(PyImGui.ImGuiCol.TableHeaderBg, (0.16, 0.20, 0.27, 0.95))
+        if PyImGui.begin_table("AggTable", 5, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.Sortable | PyImGui.TableFlags.ScrollY, 0.0, 360.0):
+            PyImGui.table_setup_column("Item Name")
+            PyImGui.table_setup_column("Quantity")
+            PyImGui.table_setup_column("%")
+            PyImGui.table_setup_column("Rarity")
+            PyImGui.table_setup_column("Count") 
+            PyImGui.table_headers_row()
+            
+            # Sort by Item Name then Rarity
+            display_items = list(filtered_agg.items())
+            
+            sorted_items = sorted(display_items, key=lambda x: (x[0][0], x[0][1]))
+            
+            for idx, ((item_name, rarity), data) in enumerate(sorted_items):
+                PyImGui.table_next_row()
+                
+                qty = data["Quantity"]
+                
+                if item_name == "Gold":
+                    pct_str = "---"
+                else:
+                    pct = (qty / total_items_without_gold * 100) if total_items_without_gold > 0 else 0
+                    pct_str = f"{pct:.1f}%"
+                
+                # Get Color
+                r, g, b, a = self._get_rarity_color(rarity)
+
+                row_key = (item_name, rarity)
+
+                PyImGui.table_set_column_index(0)
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (r, g, b, a))
+                if PyImGui.selectable(f"{item_name}##agg_{idx}", self.selected_item_key == row_key, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
+                    self.selected_item_key = row_key
+                    self.selected_log_row = self._find_best_row_for_item(item_name, rarity, filtered_rows)
+                if PyImGui.is_item_clicked(1):
+                    PyImGui.open_popup(f"DropAggRowMenu##{idx}")
+                if PyImGui.begin_popup(f"DropAggRowMenu##{idx}"):
+                    target_row = self._find_best_row_for_item(item_name, rarity, filtered_rows)
+                    if target_row is None:
+                        PyImGui.text("No concrete row available")
+                    else:
+                        self.selected_item_key = row_key
+                        self.selected_log_row = target_row
+                        if PyImGui.menu_item("Identify item"):
+                            self._identify_item_for_all_characters(item_name, rarity)
+                    PyImGui.end_popup()
+                if PyImGui.is_item_hovered():
+                    ImGui.show_tooltip("Left click: view stats. Right click: item actions.")
+                PyImGui.pop_style_color(1)
+                
+                PyImGui.table_set_column_index(1)
+                PyImGui.text(str(qty))
+                
+                PyImGui.table_set_column_index(2)
+                PyImGui.text(pct_str)
+                
+                PyImGui.table_set_column_index(3)
+                PyImGui.text_colored(rarity, (r, g, b, a))
+                
+                PyImGui.table_set_column_index(4)
+                PyImGui.text(str(data["Count"]))
+                
+            PyImGui.end_table()
+        PyImGui.pop_style_color(1)
+        self._draw_selected_item_details()
+
+    def _draw_log(self, filtered_rows):
+        c = self._ui_colors()
+        if not filtered_rows:
+            PyImGui.text_colored("No log entries to show.", c["muted"])
+            PyImGui.text("Drops will appear here as they are tracked.")
+            return
+
+        PyImGui.push_style_color(PyImGui.ImGuiCol.TableHeaderBg, (0.16, 0.20, 0.27, 0.95))
+        if PyImGui.begin_table("DropsLogTable", 8, PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.ScrollY, 0.0, 0.0):
+            PyImGui.table_setup_column("Timestamp")
+            PyImGui.table_setup_column("Logger")     
+            PyImGui.table_setup_column("MapID")
+            PyImGui.table_setup_column("MapName")
+            PyImGui.table_setup_column("Player")     
+            PyImGui.table_setup_column("Item")
+            PyImGui.table_setup_column("Qty")
+            PyImGui.table_setup_column("Rarity")
+            PyImGui.table_headers_row()
+
+            for row_idx, row in enumerate(filtered_rows):
+                PyImGui.table_next_row()
+                parsed = self._parse_drop_row(row)
+                if parsed is None:
+                    continue
+                rarity = self._ensure_text(parsed.rarity).strip() or "Unknown"
+                r, g, b, a = self._get_rarity_color(rarity)
+                selected_key = (
+                    self._canonical_agg_item_name(parsed.item_name, rarity, self.aggregated_drops),
+                    self._ensure_text(rarity).strip() or "Unknown"
+                )
+
+                for i, col in enumerate(row):
+                    if i >= 8: break
+                    PyImGui.table_set_column_index(i)
+                    
+                    if i == 5:
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (r, g, b, a))
+                        if PyImGui.selectable(
+                            f"{str(col)}##log_item_{row_idx}",
+                            self.selected_item_key == selected_key,
+                            PyImGui.SelectableFlags.NoFlag,
+                            (0.0, 0.0)
+                        ):
+                            self.selected_item_key = selected_key
+                            self.selected_log_row = row
+                        if PyImGui.is_item_clicked(1):
+                            PyImGui.open_popup(f"DropLogRowMenu##{row_idx}")
+                        if PyImGui.begin_popup(f"DropLogRowMenu##{row_idx}"):
+                            if PyImGui.menu_item("Identify item"):
+                                self._identify_item_for_all_characters(parsed.item_name, rarity)
+                            PyImGui.end_popup()
+                        if PyImGui.is_item_hovered():
+                            ImGui.show_tooltip("Left click: view stats. Right click: item actions.")
+                        PyImGui.pop_style_color(1)
+                    elif i == 7:
+                        PyImGui.text_colored(str(col), (r, g, b, a))
+                    else:
+                        PyImGui.text(str(col))
+
+            if self.auto_scroll:
+                PyImGui.set_scroll_here_y(1.0)
+
+            PyImGui.end_table()
+        PyImGui.pop_style_color(1)
+        self._draw_selected_item_details()
+
+    def update(self):
+        # Only run every 3 seconds? No, 0.5s is fine for response
+        now = time.time()
+        if now - self.last_update_time < 0.5:
+            return
+        self.last_update_time = now
+
+        try:
+            self._process_pending_identify_mod_capture()
+
+            if self.config_poll_timer.IsExpired():
+                self.config_poll_timer.Reset()
+                self._load_runtime_config()
+
+            # Auto-reset tracking whenever the player enters a new ready map instance.
+            current_map_id = Map.GetMapID()
+            if current_map_id > 0:
+                if self.last_seen_map_id <= 0:
+                    self.last_seen_map_id = current_map_id
+                elif current_map_id != self.last_seen_map_id:
+                    self.last_seen_map_id = current_map_id
+                    self._reset_live_session()
+                    self.map_change_ignore_until = time.time() + 3.0
+                    self.last_chat_index = -1
+                    if Player.IsChatHistoryReady():
+                        self.last_chat_index = len(Player.GetChatHistory())
+                    self.set_status("Auto reset on map change")
+                    return
+                elif self.raw_drops:
+                    try:
+                        last_parsed = self._parse_drop_row(self.raw_drops[-1]) if self.raw_drops else None
+                        last_logged_map = self._safe_int(last_parsed.map_id if last_parsed else 0, 0)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        last_logged_map = 0
+                    if last_logged_map > 0 and last_logged_map != current_map_id:
+                        self._reset_live_session()
+                        self.map_change_ignore_until = time.time() + 3.0
+                        self.last_chat_index = -1
+                        if Player.IsChatHistoryReady():
+                            self.last_chat_index = len(Player.GetChatHistory())
+                        self.set_status("Auto reset on map sync")
+                        return
+
+            # Poll shared memory reliably every tick
+            self._process_pending_identify_responses()
+            self._run_auto_inventory_actions_tick()
+            self._refresh_auto_inventory_pending_counts()
+            self._poll_shared_memory()
+            self._run_auto_conset_tick()
+
+            if self.player_name == "Unknown":
+                try:
+                    self.player_name = Player.GetName()
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+
+            # Step 1: Request chat history for Gold tracking ONLY
+            if not self.chat_requested:
+                Player.player_instance().RequestChatHistory()
+                self.chat_requested = True
+                return
+
+            if not Player.IsChatHistoryReady():
+                return
+
+            chat_history = Player.GetChatHistory()
+            self.chat_requested = False
+            
+            if not chat_history:
+                return
+
+            current_len = len(chat_history)
+            
+            # First run
+            if self.last_chat_index < 0:
+                self.last_chat_index = current_len
+                return
+
+            # Buffer wrapped
+            if current_len < self.last_chat_index:
+                self.last_chat_index = 0
+
+            # Process only NEW messages
+            new_messages = []
+            if current_len > self.last_chat_index:
+                new_messages = chat_history[self.last_chat_index:]
+                self.last_chat_index = current_len
+
+            # Check for chat events
+            for msg in new_messages:
+                self._process_chat_message(msg)
+
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Update error: {e}", Py4GW.Console.MessageType.Error)
+
+    def _process_chat_message(self, msg: Any):
+        text = self._ensure_text(msg)
+
+        # Gold tracking: keep leader-only guard to avoid party-wide duplicates.
+        match_gold = self.gold_regex.search(text)
+        if match_gold:
+            try:
+                my_id = Player.GetAgentID()
+                leader_id = Party.GetPartyLeaderID()
+                if my_id == leader_id:
+                    amount = int(match_gold.group(2).replace(',', ''))
+                    self._log_drop_to_file(Player.GetName(), "Gold", amount, "Currency")
+                    Py4GW.Console.Log("DropViewer", f"TRACKED: Gold x{amount}", Py4GW.Console.MessageType.Info)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+            return
+
+        if not self.enable_chat_item_tracking:
+            return
+
+        # Item pickup tracking from chat:
+        # Examples:
+        # - "Trovacica Dusa picks up the Summit Axe."
+        # - "Mesmer Cetiri picks up 2 Stone Summit Badge."
+        match_pickup = self.pickup_regex.search(text)
+        if not match_pickup:
+            return
+
+        player_name = self._strip_tags(match_pickup.group(2)).strip() if match_pickup.group(2) else "Unknown"
+        quantity_text = match_pickup.group(3)
+        color_hex = match_pickup.group(4)
+        item_name = self._clean_item_name(match_pickup.group(5) if match_pickup.group(5) else "Unknown Item")
+
+        quantity = 1
+        if quantity_text and quantity_text.isdigit():
+            quantity = int(quantity_text)
+
+        rarity = self._get_rarity_from_color_hex(color_hex) if color_hex else "Unknown"
+        if not self._is_recent_duplicate(player_name, item_name, quantity, text):
+            self._log_drop_to_file(player_name, item_name, quantity, rarity)
+            Py4GW.Console.Log(
+                "DropViewer",
+                f"TRACKED CHAT: {item_name} x{quantity} ({rarity}) [{player_name}]",
+                Py4GW.Console.MessageType.Info
+            )
+
+    def _poll_shared_memory(self):
+        def _c_wchar_array_to_str(arr) -> str:
+            return "".join(ch for ch in arr if ch != '\0').rstrip()
+        
+        def _normalize_shmem_text(value: Any) -> str:
+            if value is None:
+                return ""
+            # c_wchar arrays are iterable and need explicit conversion.
+            if not isinstance(value, str) and hasattr(value, "__iter__"):
+                try:
+                    return _c_wchar_array_to_str(value)
+                except (TypeError, ValueError, RuntimeError, AttributeError):
+                    pass
+            return str(value).strip()
+            
+        poll_started = time.perf_counter()
+        processed_tracker_msgs = 0
+        scanned_msgs = 0
+        batch_rows = []
+        ack_sent_this_tick = 0
+        try:
+            my_email = Player.GetAccountEmail()
+            if not my_email:
+                return
+
+            is_leader_client = False
+            try:
+                is_leader_client = (Player.GetAgentID() == Party.GetPartyLeaderID())
+            except EXPECTED_RUNTIME_ERRORS:
+                is_leader_client = False
+
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            if shmem is None:
+                return
+
+            self.shmem_bootstrap_done = True
+
+            # Keep only recent dedupe and partial-name buffers.
+            now_ts = time.time()
+            self.seen_events = {
+                key: ts for key, ts in self.seen_events.items()
+                if (now_ts - ts) <= self.seen_event_ttl_seconds
+            }
+            self.name_chunk_buffers = {
+                sig: data for sig, data in self.name_chunk_buffers.items()
+                if (now_ts - float(data.get("updated_at", now_ts))) <= 30.0
+            }
+            self.stats_chunk_buffers = {
+                sig: data for sig, data in self.stats_chunk_buffers.items()
+                if (now_ts - float(data.get("updated_at", now_ts))) <= 30.0
+            }
+            self.stats_payload_chunk_buffers = {
+                sig: data for sig, data in self.stats_payload_chunk_buffers.items()
+                if (now_ts - float(data.get("updated_at", now_ts))) <= 30.0
+            }
+            self.stats_render_cache_by_event = prune_render_cache(self.stats_render_cache_by_event, now_ts, ttl_seconds=1800.0)
+
+            ignore_tracker_messages = now_ts < float(self.map_change_ignore_until)
+            messages = shmem.GetAllMessages()
+            for msg_idx, shared_msg in messages:
+                if processed_tracker_msgs >= self.max_shmem_messages_per_tick:
+                    break
+                receiver_email = _normalize_shmem_text(getattr(shared_msg, "ReceiverEmail", ""))
+                if receiver_email != my_email:
+                    continue
+
+                command_value = int(getattr(shared_msg, "Command", 0))
+                expected_custom_behavior_command = 997
+                try:
+                    expected_custom_behavior_command = int(SharedCommandType.CustomBehaviors.value)
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+                if command_value != expected_custom_behavior_command and command_value != 997:
+                    continue
+
+                should_finish = False
+                extra_data_list = None
+                try:
+                    should_finish = False
+                    extra_data_list = getattr(shared_msg, "ExtraData", None)
+                    if not extra_data_list or len(extra_data_list) == 0:
+                        continue
+
+                    extra_0 = _c_wchar_array_to_str(extra_data_list[0])
+                    if handle_inventory_action_branch(
+                        extra_0=extra_0,
+                        expected_tag=self.inventory_action_tag,
+                        extra_data_list=extra_data_list,
+                        shared_msg=shared_msg,
+                        to_text_fn=_c_wchar_array_to_str,
+                        normalize_text_fn=_normalize_shmem_text,
+                        run_inventory_action_fn=self._run_inventory_action,
+                    ):
+                        should_finish = True
+                        shmem.MarkMessageAsFinished(my_email, msg_idx)
+                        processed_tracker_msgs += 1
+                        continue
+
+                    if handle_inventory_stats_request_branch(
+                        extra_0=extra_0,
+                        expected_tag=self.inventory_stats_request_tag,
+                        shared_msg=shared_msg,
+                        my_email=my_email,
+                        normalize_text_fn=_normalize_shmem_text,
+                        send_inventory_kit_stats_response_fn=self._send_inventory_kit_stats_response,
+                    ):
+                        should_finish = True
+                        shmem.MarkMessageAsFinished(my_email, msg_idx)
+                        processed_tracker_msgs += 1
+                        continue
+
+                    if handle_inventory_stats_response_branch(
+                        extra_0=extra_0,
+                        expected_tag=self.inventory_stats_response_tag,
+                        extra_data_list=extra_data_list,
+                        shared_msg=shared_msg,
+                        to_text_fn=_c_wchar_array_to_str,
+                        normalize_text_fn=_normalize_shmem_text,
+                        safe_int_fn=self._safe_int,
+                        get_account_data_fn=shmem.GetAccountDataFromEmail,
+                        upsert_inventory_kit_stats_fn=self._upsert_inventory_kit_stats,
+                    ):
+                        should_finish = True
+                        shmem.MarkMessageAsFinished(my_email, msg_idx)
+                        processed_tracker_msgs += 1
+                        continue
+
+                    if extra_0 == "TrackerNameV2":
+                        if not is_leader_client:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+                        if ignore_tracker_messages:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+                        should_finish = True
+                        scanned_msgs += 1
+                        if scanned_msgs > self.max_shmem_scan_per_tick:
+                            break
+                        if handle_tracker_name_branch(
+                            extra_0=extra_0,
+                            expected_tag="TrackerNameV2",
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                            decode_chunk_meta_fn=decode_name_chunk_meta,
+                            merge_name_chunk_fn=merge_name_chunk,
+                            name_chunk_buffers=self.name_chunk_buffers,
+                            full_name_by_signature=self.full_name_by_signature,
+                            now_ts=now_ts,
+                        ):
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+
+                    if extra_0 == "TrackerStatsV2":
+                        if not is_leader_client:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+                        if ignore_tracker_messages:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+                        should_finish = True
+                        scanned_msgs += 1
+                        if scanned_msgs > self.max_shmem_scan_per_tick:
+                            break
+                        stats_sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
+                        stats_sender_name = self._resolve_sender_name_from_email(stats_sender_email)
+
+                        def _merge_payload_chunk_scoped(
+                            buffers: dict[str, dict[str, Any]],
+                            event_id_arg: str,
+                            chunk_text_arg: str,
+                            chunk_idx_arg: int,
+                            chunk_total_arg: int,
+                            now_ts_arg: float,
+                        ) -> str:
+                            scoped_key = self._make_stats_cache_key(event_id_arg, stats_sender_email, stats_sender_name)
+                            return merge_stats_payload_chunk(
+                                buffers,
+                                scoped_key,
+                                chunk_text_arg,
+                                chunk_idx_arg,
+                                chunk_total_arg,
+                                now_ts_arg,
+                            )
+
+                        def _on_payload_merged(event_id: str, merged_payload: str) -> None:
+                            stats_cache_key = self._make_stats_cache_key(event_id, stats_sender_email, stats_sender_name)
+                            payload_ok = payload_has_valid_mods_json(merged_payload)
+                            if not payload_ok:
+                                if self.verbose_shmem_item_logs or self.debug_item_stats_panel:
+                                    preview = merged_payload[:220].replace("\n", " ")
+                                    Py4GW.Console.Log(
+                                        "DropViewer",
+                                        f"STATS V2 parse error ev={event_id} | payload_head={preview}",
+                                        Py4GW.Console.MessageType.Warning,
+                                    )
+                                self.stats_payload_by_event.pop(stats_cache_key, None)
+                                self.remote_stats_pending_by_event.pop(stats_cache_key, None)
+                                self.remote_stats_request_last_by_event[stats_cache_key] = 0.0
+                                self.stats_render_cache_by_event.pop(stats_cache_key, None)
+                                return
+
+                            rendered = self._render_payload_stats_cached(
+                                stats_cache_key,
+                                merged_payload,
+                                "",
+                                owner_name=stats_sender_name,
+                            ).strip()
+                            if rendered:
+                                self.stats_by_event[stats_cache_key] = rendered
+                            self.stats_payload_by_event[stats_cache_key] = merged_payload
+                            self.remote_stats_pending_by_event.pop(stats_cache_key, None)
+                            if rendered:
+                                update_rows_item_stats_by_event_and_sender(
+                                    self.raw_drops,
+                                    event_id,
+                                    stats_sender_email,
+                                    rendered,
+                                    player_name=stats_sender_name,
+                                    allow_player_fallback=False,
+                                )
+                            if self.selected_log_row and self._extract_row_event_id(self.selected_log_row) == event_id:
+                                selected_row = self._parse_drop_row(self.selected_log_row)
+                                selected_player = self._ensure_text(selected_row.player_name).strip() if selected_row else ""
+                                can_update_selected = False
+                                if stats_sender_name:
+                                    can_update_selected = selected_player.lower() == stats_sender_name.lower()
+                                else:
+                                    event_matches = 0
+                                    for raw_row in self.raw_drops:
+                                        if self._extract_row_event_id(raw_row) == event_id:
+                                            event_matches += 1
+                                            if event_matches > 1:
+                                                break
+                                    can_update_selected = event_matches <= 1
+                                if rendered and can_update_selected:
+                                    self._set_row_item_stats(self.selected_log_row, rendered)
+
+                        if handle_tracker_stats_payload_branch(
+                            extra_0=extra_0,
+                            expected_tag="TrackerStatsV2",
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                            decode_chunk_meta_fn=decode_name_chunk_meta,
+                            merge_stats_payload_chunk_fn=_merge_payload_chunk_scoped,
+                            stats_payload_chunk_buffers=self.stats_payload_chunk_buffers,
+                            now_ts=now_ts,
+                            on_merged_payload_fn=_on_payload_merged,
+                        ):
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+
+                    if extra_0 == "TrackerStatsV1":
+                        if not is_leader_client:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+                        if ignore_tracker_messages:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+                        should_finish = True
+                        scanned_msgs += 1
+                        if scanned_msgs > self.max_shmem_scan_per_tick:
+                            break
+                        stats_sender_email = _normalize_shmem_text(getattr(shared_msg, "SenderEmail", ""))
+                        stats_sender_name = self._resolve_sender_name_from_email(stats_sender_email)
+
+                        def _merge_text_chunk_scoped(
+                            buffers: dict[str, dict[str, Any]],
+                            event_id_arg: str,
+                            chunk_text_arg: str,
+                            chunk_idx_arg: int,
+                            chunk_total_arg: int,
+                            now_ts_arg: float,
+                        ) -> str:
+                            scoped_key = self._make_stats_cache_key(event_id_arg, stats_sender_email, stats_sender_name)
+                            return merge_stats_text_chunk(
+                                buffers,
+                                scoped_key,
+                                chunk_text_arg,
+                                chunk_idx_arg,
+                                chunk_total_arg,
+                                now_ts_arg,
+                            )
+
+                        def _on_text_merged(event_id: str, merged: str) -> None:
+                            stats_cache_key = self._make_stats_cache_key(event_id, stats_sender_email, stats_sender_name)
+                            normalized_merged = self._normalize_stats_text(merged)
+                            self.stats_by_event[stats_cache_key] = normalized_merged
+                            self.remote_stats_pending_by_event.pop(stats_cache_key, None)
+                            # Update any existing row for this event_id (overwrite stale/unidentified stats too).
+                            update_rows_item_stats_by_event_and_sender(
+                                self.raw_drops,
+                                event_id,
+                                stats_sender_email,
+                                normalized_merged,
+                                player_name=stats_sender_name,
+                                allow_player_fallback=False,
+                            )
+                            if self.selected_log_row and self._extract_row_event_id(self.selected_log_row) == event_id:
+                                selected_row = self._parse_drop_row(self.selected_log_row)
+                                selected_player = self._ensure_text(selected_row.player_name).strip() if selected_row else ""
+                                can_update_selected = False
+                                if stats_sender_name:
+                                    can_update_selected = selected_player.lower() == stats_sender_name.lower()
+                                else:
+                                    event_matches = 0
+                                    for raw_row in self.raw_drops:
+                                        if self._extract_row_event_id(raw_row) == event_id:
+                                            event_matches += 1
+                                            if event_matches > 1:
+                                                break
+                                    can_update_selected = event_matches <= 1
+                                if can_update_selected:
+                                    self._set_row_item_stats(self.selected_log_row, normalized_merged)
+
+                        if handle_tracker_stats_text_branch(
+                            extra_0=extra_0,
+                            expected_tag="TrackerStatsV1",
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                            decode_chunk_meta_fn=decode_name_chunk_meta,
+                            merge_stats_text_chunk_fn=_merge_text_chunk_scoped,
+                            stats_chunk_buffers=self.stats_chunk_buffers,
+                            now_ts=now_ts,
+                            on_merged_text_fn=_on_text_merged,
+                        ):
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                            continue
+
+                    if extra_0 != "TrackerDrop":
+                        continue
+
+                    if not is_leader_client:
+                        shmem.MarkMessageAsFinished(my_email, msg_idx)
+                        continue
+
+                    if ignore_tracker_messages:
+                        shmem.MarkMessageAsFinished(my_email, msg_idx)
+                        continue
+
+                    should_finish = True
+                    scanned_msgs += 1
+                    if scanned_msgs > self.max_shmem_scan_per_tick:
+                        break
+
+                    drop_msg = handle_tracker_drop_branch(
+                        extra_0=extra_0,
+                        expected_tag="TrackerDrop",
+                        extra_data_list=extra_data_list,
+                        shared_msg=shared_msg,
+                        to_text_fn=_c_wchar_array_to_str,
+                        normalize_text_fn=_normalize_shmem_text,
+                        build_tracker_drop_message_fn=build_tracker_drop_message,
+                        resolve_full_name_fn=lambda sig: self.full_name_by_signature.get(sig, ""),
+                        normalize_rarity_label_fn=self._normalize_rarity_label,
+                    )
+                    if drop_msg is None:
+                        continue
+
+                    event_id = drop_msg.event_id
+                    item_name = drop_msg.item_name
+                    exact_rarity = drop_msg.rarity
+                    quantity = drop_msg.quantity
+                    row_item_id = drop_msg.item_id
+                    model_id_param = drop_msg.model_id
+                    slot_bag = drop_msg.slot_bag
+                    slot_index = drop_msg.slot_index
+                    sender_email = drop_msg.sender_email
+                    sender_name_raw = self._resolve_sender_name_from_email(sender_email)
+                    sender_name = sender_name_raw or "Follower"
+                    stats_cache_key = self._make_stats_cache_key(event_id, sender_email, sender_name_raw)
+                    stats_text = self._get_cached_stats_text(self.stats_by_event, stats_cache_key)
+                    if stats_cache_key and drop_msg.name_signature:
+                        self.stats_name_signature_by_event[stats_cache_key] = self._ensure_text(drop_msg.name_signature).strip().lower()
+
+                    event_key = drop_msg.event_key
+                    is_duplicate = is_duplicate_event(self.seen_events, event_key)
+                    if not is_duplicate:
+                        mark_seen_event(self.seen_events, event_key, now_ts)
+
+                    if not is_duplicate:
+                        batch_rows.append(
+                            {
+                                "player_name": sender_name,
+                                "item_name": item_name,
+                                "quantity": quantity,
+                                "extra_info": exact_rarity,
+                                "timestamp_override": None,
+                                "event_id": event_id,
+                                "item_stats": stats_text,
+                                "item_id": row_item_id,
+                                "sender_email": sender_email,
+                            }
+                        )
+
+                    if event_id and self._send_tracker_ack(sender_email, event_id):
+                        ack_sent_this_tick += 1
+
+                    if self.verbose_shmem_item_logs:
+                        log_msg = (
+                            f"TRACKED: {item_name} x{quantity} ({exact_rarity}) "
+                            f"[{sender_name}] (ShMem idx={msg_idx} item_id={row_item_id} "
+                            f"model_id={model_id_param} slot={slot_bag}:{slot_index} ev={event_id} dup={is_duplicate})"
+                        )
+                        Py4GW.Console.Log("DropViewer", log_msg, Py4GW.Console.MessageType.Info)
+
+                    shmem.MarkMessageAsFinished(my_email, msg_idx)
+                    processed_tracker_msgs += 1
+                except (TypeError, ValueError, RuntimeError, AttributeError, IndexError) as msg_e:
+                    event_hint = ""
+                    tag_hint = ""
+                    try:
+                        tag_hint = _c_wchar_array_to_str(extra_data_list[0]) if extra_data_list and len(extra_data_list) > 0 else ""
+                    except (TypeError, ValueError, RuntimeError, AttributeError, IndexError):
+                        tag_hint = ""
+                    try:
+                        event_hint = extract_event_id_hint(
+                            extra_0=tag_hint,
+                            extra_data_list=extra_data_list,
+                            to_text_fn=_c_wchar_array_to_str,
+                        )
+                    except (TypeError, ValueError, RuntimeError, AttributeError, IndexError):
+                        event_hint = ""
+                    Py4GW.Console.Log(
+                        "DropViewer",
+                        f"ShMem parse warning idx={msg_idx} tag={tag_hint} ev={event_hint}: {msg_e}",
+                        Py4GW.Console.MessageType.Warning,
+                    )
+                    try:
+                        if should_finish:
+                            shmem.MarkMessageAsFinished(my_email, msg_idx)
+                    except (TypeError, ValueError, RuntimeError, AttributeError):
+                        pass
+                    continue
+
+            if batch_rows:
+                self._log_drops_batch(batch_rows)
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    f"TRACKED BATCH: {len(batch_rows)} items (ShMem)",
+                    Py4GW.Console.MessageType.Info
+                )
+        except (TypeError, ValueError, RuntimeError, AttributeError) as e:
+            if self.shmem_error_timer.IsExpired():
+                self.shmem_error_timer.Reset()
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    f"ShMem poll skipped: {e}",
+                    Py4GW.Console.MessageType.Warning,
+                )
+        finally:
+            self.last_shmem_poll_ms = (time.perf_counter() - poll_started) * 1000.0
+            self.last_shmem_processed = processed_tracker_msgs
+            self.last_shmem_scanned = scanned_msgs
+            if self.enable_perf_logs and self.perf_timer.IsExpired():
+                self.perf_timer.Reset()
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    (
+                        f"perf poll_ms={self.last_shmem_poll_ms:.2f} "
+                        f"processed={self.last_shmem_processed} scanned={self.last_shmem_scanned} "
+                        f"ack_sent={ack_sent_this_tick}"
+                    ),
+                    Py4GW.Console.MessageType.Info,
+                )
+
+    def _is_recent_duplicate(self, player_name, item_name, quantity, raw_message_text="", window_seconds=0.12):
+        now = time.time()
+        # Keep only very recent keys to avoid suppressing legitimate repeated loots.
+        self.recent_log_cache = {
+            key: ts for key, ts in self.recent_log_cache.items()
+            if now - ts <= window_seconds
+        }
+
+        key = make_chat_dedupe_key(player_name, item_name, quantity, raw_message_text)
+        previous = self.recent_log_cache.get(key)
+        if previous is not None and (now - previous) <= window_seconds:
+            return True
+
+        self.recent_log_cache[key] = now
+        return False
+
+    def _get_rarity_from_color_hex(self, hex_code):
+        code = (hex_code or "").upper()
+        if len(code) == 8:
+            code = code[-6:]
+        if code == "FFFFFF": return "White"
+        if code in ["0000FF", "8080FF", "00FFFF", "1010FF"]: return "Blue"
+        if code in ["800080", "A020F0", "CC00CC", "990099"]: return "Purple"
+        if code in ["FFD700", "FFFF00", "D9C330", "D4AF37"]: return "Gold"
+        if code in ["00FF00", "00CC00", "008000"]: return "Green"
+        
+        Py4GW.Console.Log("RarityDebug", f"Unknown Color Hex: {code}", Py4GW.Console.MessageType.Warning)
+        return "Unknown (Color)"
+
+    def _get_inventory_snapshot(self):
+        snapshot = {}
+        try:
+             bags = ItemArray.CreateBagList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+             items = ItemArray.GetItemArray(bags)
+             for item_id in items:
+                 is_stackable = Item.Customization.IsStackable(item_id)
+                 is_weapon = Item.Type.IsWeapon(item_id)
+                 is_armor = Item.Type.IsArmor(item_id)
+                 
+                 name = self._ensure_text(Item.GetName(item_id))
+                 
+                 if not name or not Item.IsNameReady(item_id):
+                     Item.RequestName(item_id)
+                     rarity = "Unknown" 
+                 else:
+                     clean_name = self._clean_item_name(name)
+                     rarity = Item.Rarity.GetRarity(item_id)[1]
+                     
+                     if Item.Type.IsTome(item_id): rarity = "Tomes"
+                     elif "Dye" in clean_name or "Vial of Dye" in clean_name: rarity = "Dyes"
+                     elif "Key" in clean_name: rarity = "Keys"
+                     elif Item.Type.IsMaterial(item_id) or Item.Type.IsRareMaterial(item_id): rarity = "Material"
+                     
+                     name = clean_name
+                 
+                 snapshot[item_id] = (name, rarity, is_stackable, is_weapon, is_armor)
+        except EXPECTED_RUNTIME_ERRORS as e:
+             Py4GW.Console.Log("RarityDebug", f"Snapshot Error: {e}", Py4GW.Console.MessageType.Error)
+        return snapshot
+
+    def _is_monitoring_settled_for_auto_inventory(self, set_status: bool = False) -> bool:
+        reason = ""
+        now_ts = time.time()
+        try:
+            sender = DropTrackerSender()
+            if not bool(getattr(sender, "is_warmed_up", True)):
+                reason = "drop monitor warming up"
+            elif int(getattr(sender, "last_snapshot_total", 0)) > 0 and int(getattr(sender, "last_snapshot_ready", 0)) == 0:
+                reason = "inventory snapshot unstable"
+            else:
+                pending_names = len(getattr(sender, "pending_slot_deltas", {}) or {})
+                if pending_names > 0:
+                    reason = f"pending name resolution ({pending_names})"
+                else:
+                    settle_seconds = max(0.2, float(getattr(self, "auto_monitoring_settle_seconds", 1.2)))
+                    activity_ts = float(getattr(sender, "last_inventory_activity_ts", 0.0) or 0.0)
+                    if activity_ts > 0.0:
+                        elapsed = max(0.0, now_ts - activity_ts)
+                        if elapsed < settle_seconds:
+                            reason = f"inventory changed {elapsed:.1f}s ago"
+        except EXPECTED_RUNTIME_ERRORS:
+            reason = ""
+
+        if reason and set_status:
+            last_gate_ts = float(getattr(self, "auto_monitoring_last_gate_status_ts", 0.0) or 0.0)
+            if (now_ts - last_gate_ts) >= 1.5:
+                self.auto_monitoring_last_gate_status_ts = now_ts
+                self.set_status(f"Auto inventory paused: {reason}")
+        return reason == ""
+
+    def _queue_identify_for_rarities(self, rarities):
+        now_ts = time.time()
+        self.auto_id_last_run_ts = now_ts
+        if not self._is_monitoring_settled_for_auto_inventory(set_status=False):
+            self.auto_id_last_queued = 0
+            return 0
+        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_inventory_reorder_job_running:
+            return 0
+        try:
+            items = Routines.Items.GetUnidentifiedItems(list(rarities), [])
+            if not items:
+                self.auto_id_last_queued = 0
+                self._refresh_auto_inventory_pending_counts(force=True)
+                return 0
+            self._remember_identify_mod_capture_candidates(items)
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_routine_job(
+                    Routines.Yield.Items.IdentifyItems(items, log=True),
+                    job_type="identify",
+                )
+            )
+            queued = len(items)
+            self.auto_id_last_queued = int(queued)
+            self.auto_id_total_queued += int(queued)
+            self._refresh_auto_inventory_pending_counts(force=True)
+            return queued
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Identify queue failed: {e}", Py4GW.Console.MessageType.Warning)
+            self.auto_id_last_queued = 0
+            return 0
+
+    def _run_inventory_routine_job(self, routine, job_type: str = ""):
+        job = self._ensure_text(job_type).strip().lower()
+        if job == "identify":
+            self.auto_id_job_running = True
+        elif job == "salvage":
+            self.auto_salvage_job_running = True
+        try:
+            if routine is not None:
+                yield from routine
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log(
+                "DropViewer",
+                f"Auto {job or 'inventory'} routine failed: {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
+        finally:
+            if job == "identify":
+                self.auto_id_job_running = False
+            elif job == "salvage":
+                self.auto_salvage_job_running = False
+            self._refresh_auto_inventory_pending_counts(force=True)
+
+    def _queue_salvage_for_rarities(self, rarities):
+        now_ts = time.time()
+        self.auto_salvage_last_run_ts = now_ts
+        if not self._is_monitoring_settled_for_auto_inventory(set_status=False):
+            self.auto_salvage_last_queued = 0
+            return 0
+        if self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_inventory_reorder_job_running:
+            return 0
+        try:
+            items = Routines.Items.GetSalvageableItems(list(rarities), [])
+            if not items:
+                self.auto_salvage_last_queued = 0
+                self._refresh_auto_inventory_pending_counts(force=True)
+                return 0
+            salvage_checkboxes = {int(item_id): True for item_id in list(items) if int(item_id) > 0}
+            if not salvage_checkboxes:
+                self.auto_salvage_last_queued = 0
+                self._refresh_auto_inventory_pending_counts(force=True)
+                return 0
+            salvage_routine = None
+            try:
+                from Sources.ApoSource.InvPlus.Coroutines import SalvageCheckedItems
+
+                salvage_routine = SalvageCheckedItems(
+                    salvage_checkboxes,
+                    keep_salvage_kits=0,
+                    deposit_materials=False,
+                )
+            except IMPORT_OPTIONAL_ERRORS:
+                salvage_routine = Routines.Yield.Items.SalvageItems(items, log=True)
+
+            GLOBAL_CACHE.Coroutines.append(
+                self._run_inventory_routine_job(
+                    salvage_routine,
+                    job_type="salvage",
+                )
+            )
+            queued = len(items)
+            self.auto_salvage_last_queued = int(queued)
+            self.auto_salvage_total_queued += int(queued)
+            self._refresh_auto_inventory_pending_counts(force=True)
+            return queued
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Salvage queue failed: {e}", Py4GW.Console.MessageType.Warning)
+            self.auto_salvage_last_queued = 0
+            return 0
+
+    def _get_nearby_merchant_candidate_agent_ids(self) -> list[int]:
+        configured_names = [self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_merchant_names", []) or []) if self._ensure_text(v).strip()]
+        if not configured_names:
+            self.auto_buy_kits_last_seen_npc_names = []
+            self.auto_buy_kits_last_seen_npc_models = []
+            return []
+        configured_norm = [self._normalize_name_for_compare(v) for v in configured_names]
+
+        def _extract_base_name(full_name: str) -> str:
+            # "Volsung [Merchant]" -> "Volsung"
+            raw = self._ensure_text(full_name).strip()
+            if not raw:
+                return ""
+            bracket_pos = raw.find("[")
+            if bracket_pos > 0:
+                raw = raw[:bracket_pos].strip()
+            return raw
+
+        def _agent_name(agent_id: int) -> str:
+            try:
+                agent_name = self._ensure_text(encoded_wstr_to_str(PyAgent.PyAgent.GetNameByID(int(agent_id)))).strip()
+                if agent_name:
+                    return agent_name
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+            try:
+                agent_name = self._ensure_text(Agent.GetNameByID(int(agent_id))).strip()
+                if "feature disabled" in agent_name.lower():
+                    return ""
+                return agent_name
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        npc_ids = []
+        neutral_ids = []
+        all_agents_ids = []
+        try:
+            npc_ids = list(AgentArray.GetNPCMinipetArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            npc_ids = []
+        try:
+            neutral_ids = list(AgentArray.GetNeutralArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            neutral_ids = []
+        try:
+            all_agents_ids = list(AgentArray.GetAgentArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            all_agents_ids = []
+
+        all_npc_ids = list(AgentArray.Manipulation.Merge(npc_ids, neutral_ids) or [])
+        if not all_npc_ids and all_agents_ids:
+            all_npc_ids = list(all_agents_ids)
+        elif all_agents_ids and len(all_npc_ids) < 10:
+            # Some maps expose merchants only through the full agent list.
+            all_npc_ids = list(AgentArray.Manipulation.Merge(all_npc_ids, all_agents_ids) or [])
+
+        if not all_npc_ids:
+            self.auto_buy_kits_last_seen_npc_names = []
+            self.auto_buy_kits_last_seen_npc_models = []
+            return []
+
+        filtered_ids = list(all_npc_ids)
+        try:
+            filtered_ids = list(AgentArray.Filter.ByDistance(filtered_ids, Player.GetXY(), 10000.0) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            filtered_ids = list(all_npc_ids)
+        if not filtered_ids:
+            filtered_ids = list(all_npc_ids)
+
+        try:
+            player_xy = Player.GetXY()
+        except EXPECTED_RUNTIME_ERRORS:
+            player_xy = (0.0, 0.0)
+
+        matches_by_name_idx: dict[int, list[tuple[float, int]]] = {idx: [] for idx in range(len(configured_names))}
+        seen_base_names: list[str] = []
+        seen_base_names_set: set[str] = set()
+        seen_models: list[str] = []
+        seen_models_set: set[str] = set()
+        map_hint_candidates: list[tuple[float, int]] = []
+        merchant_model_candidates: list[tuple[float, int]] = []
+        trade_probe_candidates: list[tuple[float, int]] = []
+        merchant_model_ids = self._get_known_merchant_model_ids()
+        try:
+            map_id_key = str(max(0, self._safe_int(Map.GetMapID(), 0)))
+        except EXPECTED_RUNTIME_ERRORS:
+            map_id_key = "0"
+        hints_raw = []
+        try:
+            hints_raw = list((self.auto_buy_kits_map_model_hints or {}).get(map_id_key, []) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            hints_raw = []
+        map_hint_model_ids = {max(0, self._safe_int(v, 0)) for v in hints_raw if max(0, self._safe_int(v, 0)) > 0}
+        has_strict_map_hints = len(map_hint_model_ids) > 0
+
+        target_id = 0
+        try:
+            target_id = max(0, self._safe_int(Player.GetTargetID(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            target_id = 0
+        for raw_agent_id in list(filtered_ids or []):
+            aid = max(0, self._safe_int(raw_agent_id, 0))
+            if aid <= 0:
+                continue
+            try:
+                if not Agent.IsValid(aid):
+                    continue
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+
+            raw_name = _agent_name(aid)
+            base_name = _extract_base_name(raw_name)
+            if base_name and base_name not in seen_base_names_set:
+                seen_base_names_set.add(base_name)
+                seen_base_names.append(base_name)
+            try:
+                ax, ay = Agent.GetXY(aid)
+                dist_sq = ((float(ax) - float(player_xy[0])) ** 2) + ((float(ay) - float(player_xy[1])) ** 2)
+            except EXPECTED_RUNTIME_ERRORS:
+                dist_sq = float("inf")
+
+            model_id = 0
+            model_name = ""
+            try:
+                model_id = max(0, self._safe_int(Agent.GetModelID(aid), 0))
+                model_row = ModelData.get(model_id, {}) if isinstance(ModelData, dict) else {}
+                model_name = self._ensure_text(model_row.get("name", "")).strip() if hasattr(model_row, "get") else ""
+            except EXPECTED_RUNTIME_ERRORS:
+                model_id = 0
+                model_name = ""
+            if model_id > 0:
+                model_dbg = f"{model_id}:{model_name or '?'}"
+                if model_dbg not in seen_models_set:
+                    seen_models_set.add(model_dbg)
+                    seen_models.append(model_dbg)
+
+            model_norm = self._normalize_name_for_compare(model_name)
+            if model_id in map_hint_model_ids:
+                target_bonus = -0.25 if aid == target_id else 0.0
+                map_hint_candidates.append((float(dist_sq) + target_bonus, int(aid)))
+            if model_id in merchant_model_ids or ("merchant" in model_norm) or ("trader" in model_norm):
+                target_bonus = -0.25 if aid == target_id else 0.0
+                merchant_model_candidates.append((float(dist_sq) + target_bonus, int(aid)))
+
+            # Constrained fallback for builds where NPC names are unavailable.
+            # Keep only likely trade NPCs (non-player + neutral/NPC allegiance).
+            try:
+                is_npc = bool(Agent.IsNPC(aid))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_npc = False
+            alleg_name = ""
+            try:
+                _, alleg_name = Agent.GetAllegiance(aid)
+                alleg_name = self._normalize_name_for_compare(alleg_name)
+            except EXPECTED_RUNTIME_ERRORS:
+                alleg_name = ""
+            if is_npc and alleg_name in ("neutral", "npc/minipet"):
+                target_bonus = -0.25 if aid == target_id else 0.0
+                trade_probe_candidates.append((float(dist_sq) + target_bonus, int(aid)))
+
+            # Match against all configured names (exact, normalized, and partial).
+            list_idx = None
+            base_norm = self._normalize_name_for_compare(base_name)
+            for idx, cfg_name in enumerate(configured_names):
+                cfg_norm = configured_norm[idx]
+                if base_name == cfg_name:
+                    list_idx = idx
+                    break
+                if base_norm and cfg_norm:
+                    if base_norm == cfg_norm or (cfg_norm in base_norm) or (base_norm in cfg_norm):
+                        list_idx = idx
+                        break
+
+            if list_idx is None:
+                continue
+
+            target_bonus = -0.25 if aid == target_id else 0.0
+            matches_by_name_idx[int(list_idx)].append((float(dist_sq) + target_bonus, int(aid)))
+
+        self.auto_buy_kits_last_seen_npc_names = seen_base_names[:20]
+        self.auto_buy_kits_last_seen_npc_models = seen_models[:20]
+
+        # Strict behavior: first configured merchant name that exists on map wins.
+        ordered: list[int] = []
+        for idx in range(len(configured_names)):
+            rows = list(matches_by_name_idx.get(idx, []) or [])
+            if not rows:
+                continue
+            rows.sort(key=lambda row: row[0])
+            ordered = [int(aid) for _, aid in rows if int(aid) > 0]
+            if ordered:
+                break
+
+        hint_near_ids: list[int] = []
+        hint_far_ids: list[int] = []
+        if map_hint_candidates:
+            map_hint_candidates.sort(key=lambda row: row[0])
+            # Avoid forcing very far stale map hints first (causes long idle in big outposts).
+            # Keep close hints prioritized, defer far hints behind nearby candidates.
+            for dist_sq, aid in map_hint_candidates:
+                a = int(aid)
+                if a <= 0:
+                    continue
+                # 2,500 range split between "near" vs "far" hinted targets.
+                if float(dist_sq) <= (2500.0 * 2500.0):
+                    hint_near_ids.append(a)
+                else:
+                    hint_far_ids.append(a)
+            # Strict behavior requested: when map hints exist, only use those hinted models.
+            strict_hint_only_ids = hint_near_ids + hint_far_ids
+            if strict_hint_only_ids:
+                deduped_hint_ids: list[int] = []
+                seen_hint_ids: set[int] = set()
+                for a in strict_hint_only_ids:
+                    if a in seen_hint_ids:
+                        continue
+                    seen_hint_ids.add(a)
+                    deduped_hint_ids.append(int(a))
+                return deduped_hint_ids[:30]
+        if has_strict_map_hints:
+            # Strict mode for hinted maps: if hinted model isn't currently visible, do not
+            # fall back to arbitrary NPCs (prevents wandering to wrong NPC types).
+            return []
+
+        merchant_model_ids_ordered: list[int] = []
+        if merchant_model_candidates:
+            merchant_model_candidates.sort(key=lambda row: row[0])
+            merchant_model_ids_ordered = [int(aid) for _, aid in merchant_model_candidates if int(aid) > 0]
+
+        trade_probe_ids: list[int] = []
+        if trade_probe_candidates:
+            trade_probe_candidates.sort(key=lambda row: row[0])
+            # Keep this constrained: only a small nearest fallback set.
+            trade_probe_ids = [int(aid) for _, aid in trade_probe_candidates[:12] if int(aid) > 0]
+
+        # Priority order:
+        # 1) nearby map hints (explicitly learned/provided)
+        # 2) configured-name matches
+        # 3) known merchant/trader model IDs
+        # 4) constrained nearby NPC probes (last-resort)
+        # 5) far map hints
+        merged: list[int] = []
+        seen: set[int] = set()
+        for aid in hint_near_ids + ordered + merchant_model_ids_ordered + trade_probe_ids + hint_far_ids:
+            if aid in seen:
+                continue
+            seen.add(aid)
+            merged.append(int(aid))
+        return merged[:30]
+
+    def _find_nearby_merchant_agent_id(self) -> int:
+        candidates = self._get_nearby_merchant_candidate_agent_ids()
+        if not candidates:
+            return 0
+        return int(max(0, self._safe_int(candidates[0], 0)))
+
+    def _is_merchant_frame_open(self) -> bool:
+        merchant_frame_hash = 3613855137
+        try:
+            merchant_frame_id = UIManager.GetFrameIDByHash(merchant_frame_hash)
+            return bool(UIManager.FrameExists(merchant_frame_id))
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _handle_lions_arch_merchant_dialog_if_visible(self) -> bool:
+        # Lions Arch merchant flow can require selecting dialog option:
+        # "Let me see what you've got" before trade window opens.
+        try:
+            if max(0, self._safe_int(Map.GetMapID(), 0)) != 55:
+                return False
+            if not bool(Map.IsOutpost()):
+                return False
+            if self._is_merchant_frame_open():
+                return False
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+        try:
+            if not bool(UIManager.IsNPCDialogVisible()):
+                return False
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+        try:
+            count = max(0, self._safe_int(UIManager.GetDialogButtonCount(False), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            count = 0
+
+        clicked = False
+        try:
+            if count >= 2:
+                clicked = bool(UIManager.ClickDialogButton(2, False))
+                if clicked:
+                    self._trace_auto_buy_kits("lions_arch_dialog: clicked option #2 (trade)")
+        except EXPECTED_RUNTIME_ERRORS:
+            clicked = False
+
+        # Fallback if dialog ordering differs.
+        if not clicked:
+            try:
+                clicked = bool(UIManager.ClickDialogButton(1, False))
+                if clicked:
+                    self._trace_auto_buy_kits("lions_arch_dialog: clicked fallback option #1")
+            except EXPECTED_RUNTIME_ERRORS:
+                clicked = False
+
+        return clicked
+
+    def _get_offered_merchant_items(self) -> list[int]:
+        try:
+            offered = list(Trading.Trader.GetOfferedItems() or [])
+            if offered:
+                return [int(v) for v in offered if int(v) > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        try:
+            offered = list(GLOBAL_CACHE.Trading.Merchant.GetOfferedItems() or [])
+            return [int(v) for v in offered if int(v) > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            return []
+
+    def _find_merchant_item_by_model(self, model_id: int) -> int:
+        target_model = max(0, self._safe_int(model_id, 0))
+        if target_model <= 0:
+            return 0
+        for offered_item_id in self._get_offered_merchant_items():
+            try:
+                if int(Item.GetModelID(offered_item_id)) == target_model:
+                    return int(offered_item_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+        return 0
+
+    def _build_auto_buy_kits_merchant_debug_report(self) -> str:
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        lines: list[str] = [f"Merchant Scan Debug @ {ts}"]
+        map_id = 0
+
+        try:
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+            map_name = self._ensure_text(Map.GetMapName(map_id)).strip() if map_id > 0 else ""
+            lines.append(f"Map: {map_id} {map_name}")
+        except EXPECTED_RUNTIME_ERRORS:
+            lines.append("Map: <unavailable>")
+        try:
+            lines.append(f"Outpost: {bool(Map.IsOutpost())}")
+        except EXPECTED_RUNTIME_ERRORS:
+            lines.append("Outpost: <unavailable>")
+
+        try:
+            px, py = Player.GetXY()
+            lines.append(f"Player XY: ({float(px):.1f}, {float(py):.1f})")
+        except EXPECTED_RUNTIME_ERRORS:
+            px, py = (0.0, 0.0)
+            lines.append("Player XY: <unavailable>")
+
+        configured_names = [self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_merchant_names", []) or []) if self._ensure_text(v).strip()]
+        lines.append("Configured merchant names:")
+        if configured_names:
+            for idx, name in enumerate(configured_names, start=1):
+                lines.append(f"  {idx}. {name}")
+        else:
+            lines.append("  <empty>")
+
+        npc_ids = []
+        neutral_ids = []
+        all_agent_ids = []
+        try:
+            npc_ids = list(AgentArray.GetNPCMinipetArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            npc_ids = []
+        try:
+            neutral_ids = list(AgentArray.GetNeutralArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            neutral_ids = []
+        try:
+            all_agent_ids = list(AgentArray.GetAgentArray() or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            all_agent_ids = []
+
+        merged_ids = list(AgentArray.Manipulation.Merge(npc_ids, neutral_ids) or [])
+        if not merged_ids and all_agent_ids:
+            merged_ids = list(all_agent_ids)
+        elif all_agent_ids and len(merged_ids) < 10:
+            merged_ids = list(AgentArray.Manipulation.Merge(merged_ids, all_agent_ids) or [])
+
+        filtered_ids = list(merged_ids)
+        try:
+            filtered_ids = list(AgentArray.Filter.ByDistance(filtered_ids, (px, py), 10000.0) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            filtered_ids = list(merged_ids)
+        if not filtered_ids:
+            filtered_ids = list(merged_ids)
+
+        lines.append(f"Scan counts: npc={len(npc_ids)} neutral={len(neutral_ids)} all_agents={len(all_agent_ids)} merged={len(merged_ids)} filtered={len(filtered_ids)}")
+        known_model_ids = self._get_known_merchant_model_ids()
+        lines.append(f"Known merchant/trader model IDs: {len(known_model_ids)}")
+        map_hint_ids = []
+        try:
+            map_hint_ids = list((self.auto_buy_kits_map_model_hints or {}).get(str(map_id), []) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            map_hint_ids = []
+        lines.append(f"Map model hints: {', '.join([str(int(v)) for v in map_hint_ids]) if map_hint_ids else '<none>'}")
+
+        configured_norm = [self._normalize_name_for_compare(v) for v in configured_names]
+
+        def _extract_base_name(full_name: str) -> str:
+            raw = self._ensure_text(full_name).strip()
+            if not raw:
+                return ""
+            bracket_pos = raw.find("[")
+            if bracket_pos > 0:
+                raw = raw[:bracket_pos].strip()
+            return raw
+
+        def _name_from_pyagent(agent_id: int) -> str:
+            try:
+                return self._ensure_text(encoded_wstr_to_str(PyAgent.PyAgent.GetNameByID(int(agent_id)))).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        def _name_from_agent(agent_id: int) -> str:
+            try:
+                return self._ensure_text(Agent.GetNameByID(int(agent_id))).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                return ""
+
+        def _first_list_match(base_name: str) -> int:
+            base_norm = self._normalize_name_for_compare(base_name)
+            for idx, cfg_name in enumerate(configured_names):
+                cfg_norm = configured_norm[idx]
+                if base_name == cfg_name:
+                    return idx
+                if base_norm and cfg_norm and (base_norm == cfg_norm or (cfg_norm in base_norm) or (base_norm in cfg_norm)):
+                    return idx
+            return -1
+
+        lines.append("NPC rows:")
+        for raw_agent_id in list(filtered_ids or []):
+            aid = max(0, self._safe_int(raw_agent_id, 0))
+            if aid <= 0:
+                continue
+            try:
+                is_valid = bool(Agent.IsValid(aid))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_valid = False
+            if not is_valid:
+                continue
+
+            try:
+                ax, ay = Agent.GetXY(aid)
+                dist = (((float(ax) - float(px)) ** 2) + ((float(ay) - float(py)) ** 2)) ** 0.5
+            except EXPECTED_RUNTIME_ERRORS:
+                ax, ay, dist = (0.0, 0.0, 999999.0)
+
+            name_py = _name_from_pyagent(aid)
+            name_agent = _name_from_agent(aid)
+            base_name = _extract_base_name(name_py or name_agent)
+
+            model_id = 0
+            model_name = ""
+            try:
+                model_id = max(0, self._safe_int(Agent.GetModelID(aid), 0))
+                if isinstance(ModelData, dict):
+                    row = ModelData.get(model_id, {})
+                    if isinstance(row, dict):
+                        model_name = self._ensure_text(row.get("name", "")).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                model_id = 0
+                model_name = ""
+
+            is_npc = False
+            try:
+                is_npc = bool(Agent.IsNPC(aid))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_npc = False
+            alleg_name = "?"
+            try:
+                _, alleg_name = Agent.GetAllegiance(aid)
+            except EXPECTED_RUNTIME_ERRORS:
+                alleg_name = "?"
+
+            list_idx = _first_list_match(base_name)
+            list_match = configured_names[list_idx] if 0 <= list_idx < len(configured_names) else "-"
+            lines.append(
+                f"  aid={aid} dist={dist:.1f} xy=({float(ax):.1f},{float(ay):.1f}) "
+                f"model={model_id}:{model_name or '?'} base='{base_name}' "
+                f"py='{name_py}' agent='{name_agent}' is_npc={is_npc} allegiance='{alleg_name}' "
+                f"known_model={model_id in known_model_ids} list_match={list_match}"
+            )
+
+        candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+        lines.append(f"Chosen candidates: {', '.join([str(int(v)) for v in candidates]) if candidates else '<none>'}")
+        lines.append(f"Cached seen names: {', '.join(list(getattr(self, 'auto_buy_kits_last_seen_npc_names', []) or [])) or '<none>'}")
+        lines.append(f"Cached seen models: {', '.join(list(getattr(self, 'auto_buy_kits_last_seen_npc_models', []) or [])) or '<none>'}")
+        lines.append("AutoBuyKits trace:")
+        trace_rows = list(getattr(self, "auto_buy_kits_debug_trace", []) or [])
+        if trace_rows:
+            for row in trace_rows[-60:]:
+                lines.append(f"  {self._ensure_text(row)}")
+        else:
+            lines.append("  <none>")
+        return "\n".join(lines)
+
+    def _dump_auto_buy_kits_merchant_debug_report(self) -> int:
+        try:
+            report = self._build_auto_buy_kits_merchant_debug_report()
+            debug_dir = os.path.join(os.path.dirname(constants.DROP_LOG_PATH), "merchant_debug")
+            os.makedirs(debug_dir, exist_ok=True)
+            ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            out_path = os.path.join(debug_dir, f"merchant_scan_{ts}.txt")
+            with open(out_path, mode="w", encoding="utf-8") as f:
+                f.write(report)
+            clip_state = "file only"
+            try:
+                PyImGui.set_clipboard_text(report)
+                clip_state = "copied to clipboard"
+            except EXPECTED_RUNTIME_ERRORS:
+                clip_state = "clipboard failed"
+            self.set_status(f"Merchant debug dumped: {out_path} ({clip_state})")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Merchant debug dump failed: {e}")
+            return 0
+
+    def _build_inventory_slot_order(self) -> list[tuple[int, int]]:
+        slot_order: list[tuple[int, int]] = []
+        try:
+            bag_enums = ItemArray.CreateBagList(1, 2, 3, 4)
+        except EXPECTED_RUNTIME_ERRORS:
+            bag_enums = []
+        for bag_enum in list(bag_enums or []):
+            try:
+                bag_id = int(getattr(bag_enum, "value", 0))
+                bag_name = self._ensure_text(getattr(bag_enum, "name", ""))
+                if bag_id <= 0:
+                    continue
+                bag_instance = PyInventory.Bag(bag_id, bag_name)
+                bag_size = max(0, int(bag_instance.GetSize()))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            for slot_idx in range(bag_size):
+                slot_order.append((bag_id, int(slot_idx)))
+        return slot_order
+
+    def _collect_kit_item_ids_for_sort(self) -> list[int]:
+        try:
+            salvage_kit_model = int(ModelID.Salvage_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            salvage_kit_model = 2992
+        try:
+            id_kit_model = int(ModelID.Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            id_kit_model = 2989
+        try:
+            superior_id_model = int(ModelID.Superior_Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            superior_id_model = 5899
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = list(ItemArray.GetItemArray(bags_to_check) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_array = []
+
+        kit_item_ids: list[int] = []
+        for raw_item_id in item_array:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+            try:
+                model_id = int(Item.GetModelID(item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+            if model_id in (salvage_kit_model, superior_id_model, id_kit_model):
+                kit_item_ids.append(item_id)
+
+        def _sort_key(item_id: int):
+            bag_id, slot = Inventory.FindItemBagAndSlot(item_id)
+            return (self._safe_int(bag_id, 99), self._safe_int(slot, 999))
+
+        try:
+            kit_item_ids.sort(key=_sort_key)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return kit_item_ids
+
+    def _collect_kit_quantity_map(self) -> dict[int, int]:
+        quantities: dict[int, int] = {}
+        for item_id in self._collect_kit_item_ids_for_sort():
+            try:
+                quantities[int(item_id)] = max(0, self._safe_int(Item.Properties.GetQuantity(int(item_id)), 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                quantities[int(item_id)] = 0
+        return quantities
+
+    def _is_rune_item_for_reorder(self, item_id: int) -> bool:
+        try:
+            _, item_type_name = Item.GetItemType(int(item_id))
+            type_text = self._ensure_text(item_type_name).strip().lower()
+            return "rune" in type_text
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _inventory_reorder_bucket(self, item_id: int) -> int:
+        try:
+            _, rarity_name = Item.Rarity.GetRarity(int(item_id))
+            rarity = self._ensure_text(rarity_name).strip().lower()
+        except EXPECTED_RUNTIME_ERRORS:
+            rarity = ""
+
+        if rarity == "gold":
+            return 1
+        if rarity == "purple":
+            return 2
+        if rarity == "blue":
+            return 3
+        if rarity == "white":
+            return 4
+        try:
+            if bool(Item.Type.IsTome(int(item_id))):
+                return 5
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        if self._is_rune_item_for_reorder(int(item_id)):
+            return 6
+        return 7
+
+    def _reorder_inventory_after_kits(self) -> Generator[Any, Any, int]:
+        slot_order = self._build_inventory_slot_order()
+        if not slot_order:
+            return 0
+
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            all_item_ids = [max(0, self._safe_int(v, 0)) for v in list(ItemArray.GetItemArray(bags_to_check) or [])]
+            all_item_ids = [v for v in all_item_ids if v > 0]
+        except EXPECTED_RUNTIME_ERRORS:
+            all_item_ids = []
+        if not all_item_ids:
+            return 0
+
+        kit_item_ids = self._collect_kit_item_ids_for_sort()
+        kit_set = set(int(v) for v in list(kit_item_ids or []) if self._safe_int(v, 0) > 0)
+        non_kit_item_ids = [int(v) for v in all_item_ids if int(v) not in kit_set]
+        if not non_kit_item_ids:
+            return 0
+
+        target_slots = slot_order[len(kit_set):]
+        if not target_slots:
+            return 0
+
+        def _pos_key(item_id: int) -> tuple[int, int]:
+            bag_id, slot = Inventory.FindItemBagAndSlot(int(item_id))
+            return (self._safe_int(bag_id, 99), self._safe_int(slot, 999))
+
+        non_kit_item_ids.sort(key=lambda item_id: (self._inventory_reorder_bucket(int(item_id)), _pos_key(int(item_id))))
+
+        moved = 0
+        for idx, item_id in enumerate(non_kit_item_ids):
+            if idx >= len(target_slots):
+                break
+            target_bag, target_slot = target_slots[idx]
+            current_bag, current_slot = Inventory.FindItemBagAndSlot(int(item_id))
+            current_bag_i = self._safe_int(current_bag, 0)
+            current_slot_i = self._safe_int(current_slot, -1)
+            if current_bag_i == target_bag and current_slot_i == target_slot:
+                continue
+            try:
+                qty = max(1, self._safe_int(Item.Properties.GetQuantity(int(item_id)), 1))
+                Inventory.MoveItem(int(item_id), int(target_bag), int(target_slot), int(qty))
+                moved += 1
+                yield from Routines.Yield.wait(90)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+        return int(moved)
+
+    def _sort_kits_to_front(self, priority_item_ids: list[int] | None = None) -> Generator[Any, Any, int]:
+        slot_order = self._build_inventory_slot_order()
+        if not slot_order:
+            return 0
+        kit_item_ids = self._collect_kit_item_ids_for_sort()
+        if not kit_item_ids:
+            return 0
+        if priority_item_ids:
+            priority_set = {int(v) for v in list(priority_item_ids or []) if self._safe_int(v, 0) > 0}
+            prioritized = [item_id for item_id in kit_item_ids if item_id in priority_set]
+            if prioritized:
+                kit_item_ids = prioritized
+
+        moved = 0
+        for idx, kit_item_id in enumerate(kit_item_ids):
+            if idx >= len(slot_order):
+                break
+            target_bag, target_slot = slot_order[idx]
+            current_bag, current_slot = Inventory.FindItemBagAndSlot(kit_item_id)
+            current_bag_i = self._safe_int(current_bag, 0)
+            current_slot_i = self._safe_int(current_slot, -1)
+            if current_bag_i == target_bag and current_slot_i == target_slot:
+                continue
+            try:
+                Inventory.MoveItem(kit_item_id, target_bag, target_slot, 1)
+                moved += 1
+                yield from Routines.Yield.wait(100)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+        return int(moved)
+
+    def _buy_item_from_merchant(self, offered_item_id: int, quantity: int) -> Generator[Any, Any, int]:
+        item_id = max(0, self._safe_int(offered_item_id, 0))
+        to_buy = max(0, self._safe_int(quantity, 0))
+        if item_id <= 0 or to_buy <= 0:
+            return 0
+
+        bought = 0
+        for _ in range(to_buy):
+            # Merchant API expects buy cost (sell value * 2) in many maps/frames.
+            buy_cost = 0
+            try:
+                buy_cost = max(0, int(GLOBAL_CACHE.Item.Properties.GetValue(item_id)) * 2)
+            except EXPECTED_RUNTIME_ERRORS:
+                buy_cost = 0
+            if buy_cost <= 0:
+                # Fallback for edge cases where property value is unavailable.
+                try:
+                    GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
+                    wait_elapsed_ms = 0
+                    while wait_elapsed_ms < 1000:
+                        yield from Routines.Yield.wait(50)
+                        wait_elapsed_ms += 50
+                        quote_value = int(Trading.Trader.GetQuotedValue())
+                        if quote_value >= 0:
+                            buy_cost = quote_value
+                            break
+                except EXPECTED_RUNTIME_ERRORS:
+                    buy_cost = 0
+            if buy_cost <= 0:
+                break
+
+            try:
+                GLOBAL_CACHE.Trading.Merchant.BuyItem(item_id, buy_cost)
+            except EXPECTED_RUNTIME_ERRORS:
+                try:
+                    GLOBAL_CACHE.Trading.Trader.BuyItem(item_id, buy_cost)
+                except EXPECTED_RUNTIME_ERRORS:
+                    break
+
+            # Small settle delay between purchases.
+            yield from Routines.Yield.wait(125)
+            bought += 1
+        return int(bought)
+
+    def _approach_and_open_merchant(self, agent_id: int) -> Generator[Any, Any, bool]:
+        target_agent_id = max(0, self._safe_int(agent_id, 0))
+        if target_agent_id <= 0:
+            self._trace_auto_buy_kits("approach: invalid target agent id")
+            return False
+
+        try:
+            px, py = Player.GetXY()
+            nx, ny = Agent.GetXY(target_agent_id)
+            dist_sq = ((float(nx) - float(px)) ** 2) + ((float(ny) - float(py)) ** 2)
+            model_id_dbg = 0
+            try:
+                model_id_dbg = max(0, self._safe_int(Agent.GetModelID(target_agent_id), 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                model_id_dbg = 0
+            self._trace_auto_buy_kits(
+                f"approach: target aid={target_agent_id} model={model_id_dbg} dist={float(dist_sq) ** 0.5:.1f}"
+            )
+            if dist_sq > (165.0 * 165.0):
+                moved_via_path = False
+                try:
+                    from Py4GWCoreLib.Pathing import AutoPathing
+
+                    path3d = yield from AutoPathing().get_path_to(
+                        float(nx),
+                        float(ny),
+                        smooth_by_los=True,
+                        margin=100.0,
+                        step_dist=300.0,
+                    )
+                    path2d = [(x, y) for (x, y, *_) in list(path3d or [])]
+                    if path2d:
+                        self._trace_auto_buy_kits(
+                            f"approach: path_to target built (nodes={len(path2d)})"
+                        )
+                        moved_via_path = bool((yield from Routines.Yield.Movement.FollowPath(
+                            path_points=path2d,
+                            custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+                            tolerance=150,
+                            log=constants.DEBUG,
+                            timeout=10000,
+                            custom_pause_fn=lambda: False,
+                            stop_on_party_wipe=False,
+                        )))
+                        self._trace_auto_buy_kits(
+                            f"approach: FollowPath(path2d) result={moved_via_path}"
+                        )
+                    else:
+                        self._trace_auto_buy_kits("approach: AutoPathing returned empty path")
+                except EXPECTED_RUNTIME_ERRORS:
+                    self._trace_auto_buy_kits("approach: AutoPathing/FollowPath(path2d) raised")
+                    pass
+                if not moved_via_path:
+                    try:
+                        self._trace_auto_buy_kits("approach: fallback FollowPath direct-to-NPC")
+                        yield from Routines.Yield.Movement.FollowPath(
+                            path_points=[(float(nx), float(ny))],
+                            custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+                            tolerance=175,
+                            log=constants.DEBUG,
+                            timeout=12000,
+                            custom_pause_fn=lambda: False,
+                            stop_on_party_wipe=False,
+                        )
+                        self._trace_auto_buy_kits("approach: fallback FollowPath finished")
+                    except EXPECTED_RUNTIME_ERRORS:
+                        self._trace_auto_buy_kits("approach: fallback FollowPath raised")
+                        pass
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: failed reading player/target XY")
+            pass
+
+        try:
+            yield from Routines.Yield.Player.ChangeTarget(target_agent_id, log=False)
+            self._trace_auto_buy_kits(f"approach: changed target to aid={target_agent_id}")
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: ChangeTarget raised")
+            pass
+
+        try:
+            yield from Routines.Yield.Player.InteractAgent(target_agent_id, log=False)
+            self._trace_auto_buy_kits(f"approach: InteractAgent(aid={target_agent_id}) yielded")
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: InteractAgent raised")
+            pass
+
+        try:
+            Player.Interact(target_agent_id, call_target=True)
+            self._trace_auto_buy_kits(f"approach: Player.Interact(aid={target_agent_id}) queued")
+        except EXPECTED_RUNTIME_ERRORS:
+            self._trace_auto_buy_kits("approach: Player.Interact raised")
+            return False
+
+        try:
+            if self._handle_lions_arch_merchant_dialog_if_visible():
+                yield from Routines.Yield.wait(250)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        wait_elapsed_ms = 0
+        reinteract_elapsed_ms = 0
+        while wait_elapsed_ms < 3500:
+            if self._is_merchant_frame_open():
+                self._trace_auto_buy_kits(f"approach: merchant frame opened after {wait_elapsed_ms}ms")
+                return True
+            try:
+                if self._handle_lions_arch_merchant_dialog_if_visible():
+                    yield from Routines.Yield.wait(250)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+            yield from Routines.Yield.wait(200)
+            wait_elapsed_ms += 200
+            reinteract_elapsed_ms += 200
+            if reinteract_elapsed_ms >= 600:
+                reinteract_elapsed_ms = 0
+                try:
+                    Player.Interact(target_agent_id, call_target=True)
+                    self._trace_auto_buy_kits(f"approach: re-interact aid={target_agent_id}")
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+        opened = self._is_merchant_frame_open()
+        self._trace_auto_buy_kits(f"approach: merchant frame final_open={opened} after wait={wait_elapsed_ms}ms")
+        return opened
+
+    def _run_buy_kits_if_needed_job(self, verbose_status: bool = True) -> Generator[Any, Any, None]:
+        self.auto_buy_kits_job_running = True
+        try:
+            self._trace_auto_buy_kits("job: started")
+            if not bool(Map.IsOutpost()):
+                self._trace_auto_buy_kits("job: aborted, not in outpost")
+                if verbose_status:
+                    self.set_status("Auto Buy Kits: only available in outpost/town")
+                return
+
+            stats = self._collect_local_inventory_kit_stats()
+            salvage_uses = max(0, self._safe_int(stats.get("salvage_uses", 0), 0))
+            total_id_uses = max(0, self._safe_int(self._collect_total_identification_uses(), 0))
+            need_salvage = salvage_uses < 25
+            need_id = total_id_uses < 25
+            self._trace_auto_buy_kits(
+                f"job: needs salvage={need_salvage} id={need_id} (salvage_uses={salvage_uses}, total_id_uses={total_id_uses})"
+            )
+            if not need_salvage and not need_id:
+                self._trace_auto_buy_kits("job: skipped, enough kits/uses")
+                if verbose_status:
+                    self.set_status("Auto Buy Kits: skipped (>=25 uses for salvage and total ID)")
+                return
+
+            try:
+                salvage_kit_model = int(ModelID.Salvage_Kit.value)
+            except EXPECTED_RUNTIME_ERRORS:
+                salvage_kit_model = 2992
+            try:
+                id_kit_model = int(ModelID.Identification_Kit.value)
+            except EXPECTED_RUNTIME_ERRORS:
+                id_kit_model = 2989
+            try:
+                superior_id_model = int(ModelID.Superior_Identification_Kit.value)
+            except EXPECTED_RUNTIME_ERRORS:
+                superior_id_model = 5899
+
+            merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+            self._trace_auto_buy_kits(f"job: initial candidates={','.join([str(int(v)) for v in merchant_candidates]) or '<none>'}")
+            if not merchant_candidates:
+                # After zoning, NPC/name data can lag briefly; rescan before failing.
+                wait_elapsed_ms = 0
+                while wait_elapsed_ms < 2000 and not merchant_candidates:
+                    yield from Routines.Yield.wait(200)
+                    wait_elapsed_ms += 200
+                    merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+                self._trace_auto_buy_kits(
+                    f"job: rescan candidates after {wait_elapsed_ms}ms => {','.join([str(int(v)) for v in merchant_candidates]) or '<none>'}"
+                )
+            if not merchant_candidates:
+                # Lions Arch special case: move to Bodrus area once, then rescan hinted model.
+                map_id_now = 0
+                try:
+                    map_id_now = max(0, self._safe_int(Map.GetMapID(), 0))
+                except EXPECTED_RUNTIME_ERRORS:
+                    map_id_now = 0
+                if map_id_now == 55:
+                    self._trace_auto_buy_kits("job: LA bootstrap move to merchant hub (7396,6327)")
+                    try:
+                        yield from Routines.Yield.Movement.FollowPath(
+                            path_points=[(7396.0, 6327.0)],
+                            custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+                            tolerance=225,
+                            log=constants.DEBUG,
+                            timeout=15000,
+                            custom_pause_fn=lambda: False,
+                            stop_on_party_wipe=False,
+                        )
+                    except EXPECTED_RUNTIME_ERRORS:
+                        self._trace_auto_buy_kits("job: LA bootstrap FollowPath raised")
+                    yield from Routines.Yield.wait(350)
+                    merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+                    self._trace_auto_buy_kits(
+                        f"job: LA post-move candidates={','.join([str(int(v)) for v in merchant_candidates]) or '<none>'}"
+                    )
+            merchant_agent_id = int(max(0, self._safe_int(merchant_candidates[0], 0))) if merchant_candidates else 0
+            if merchant_agent_id <= 0:
+                self._trace_auto_buy_kits("job: failed, no candidate merchant agent id")
+                npc_count = 0
+                try:
+                    npc_count = len(list(AgentArray.GetNPCMinipetArray() or []))
+                except EXPECTED_RUNTIME_ERRORS:
+                    npc_count = 0
+                if verbose_status:
+                    configured = ", ".join([self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_merchant_names", []) or []) if self._ensure_text(v).strip()])
+                    seen_names = ", ".join([self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_last_seen_npc_names", []) or []) if self._ensure_text(v).strip()])
+                    seen_models = ", ".join([self._ensure_text(v).strip() for v in list(getattr(self, "auto_buy_kits_last_seen_npc_models", []) or []) if self._ensure_text(v).strip()])
+                    if configured:
+                        if seen_names or seen_models:
+                            if seen_models:
+                                self.set_status(f"Auto Buy Kits failed: no listed merchant found (NPCs scanned: {npc_count}; list: {configured}; seen: {seen_names or '-'}; models: {seen_models})")
+                            else:
+                                self.set_status(f"Auto Buy Kits failed: no listed merchant found (NPCs scanned: {npc_count}; list: {configured}; seen: {seen_names})")
+                        else:
+                            self.set_status(f"Auto Buy Kits failed: no listed merchant found (NPCs scanned: {npc_count}; list: {configured})")
+                    else:
+                        self.set_status(f"Auto Buy Kits failed: no merchant list configured (NPCs scanned: {npc_count})")
+                return
+
+            bought_salvage = 0
+            bought_superior = 0
+            bought_regular_id = 0
+            missing_items: set[str] = set()
+            remaining_need_salvage = bool(need_salvage)
+            remaining_need_id = bool(need_id)
+
+            merchant_opened_any = False
+            tried_npcs = 0
+            for candidate_id in merchant_candidates[:30]:
+                cid = int(max(0, self._safe_int(candidate_id, 0)))
+                if cid <= 0:
+                    continue
+                tried_npcs += 1
+                c_model = 0
+                try:
+                    c_model = max(0, self._safe_int(Agent.GetModelID(cid), 0))
+                except EXPECTED_RUNTIME_ERRORS:
+                    c_model = 0
+                self._trace_auto_buy_kits(f"job: trying candidate aid={cid} model={c_model} ({tried_npcs}/{len(merchant_candidates[:30])})")
+                merchant_opened = bool((yield from self._approach_and_open_merchant(cid)))
+                self._trace_auto_buy_kits(f"job: candidate aid={cid} merchant_opened={merchant_opened}")
+                if not merchant_opened:
+                    continue
+                merchant_opened_any = True
+                candidate_bought_any = False
+
+                salvage_offer_id = self._find_merchant_item_by_model(salvage_kit_model) if remaining_need_salvage else 0
+                superior_offer_id = self._find_merchant_item_by_model(superior_id_model) if remaining_need_id else 0
+                regular_offer_id = self._find_merchant_item_by_model(id_kit_model) if remaining_need_id else 0
+                self._trace_auto_buy_kits(
+                    f"job: offers aid={cid} salvage={salvage_offer_id} superior={superior_offer_id} regular={regular_offer_id}"
+                )
+
+                # Learn this NPC model for current map as soon as it exposes kit offers.
+                if salvage_offer_id > 0 or superior_offer_id > 0 or regular_offer_id > 0:
+                    self._record_successful_kit_merchant_model(cid)
+
+                if remaining_need_salvage and salvage_offer_id <= 0:
+                    missing_items.add("salvage kit")
+                if remaining_need_id and superior_offer_id <= 0 and regular_offer_id <= 0:
+                    missing_items.add("superior ID kit (and regular ID kit)")
+
+                if remaining_need_salvage and salvage_offer_id > 0:
+                    bought_now = int((yield from self._buy_item_from_merchant(salvage_offer_id, 4)) or 0)
+                    self._trace_auto_buy_kits(f"job: buy salvage offer={salvage_offer_id} bought={bought_now}")
+                    if bought_now > 0:
+                        bought_salvage += int(bought_now)
+                        candidate_bought_any = True
+                        remaining_need_salvage = False
+                        if "salvage kit" in missing_items:
+                            missing_items.discard("salvage kit")
+
+                if remaining_need_id:
+                    if superior_offer_id > 0:
+                        bought_now = int((yield from self._buy_item_from_merchant(superior_offer_id, 1)) or 0)
+                        self._trace_auto_buy_kits(f"job: buy superior offer={superior_offer_id} bought={bought_now}")
+                        if bought_now > 0:
+                            bought_superior += int(bought_now)
+                            candidate_bought_any = True
+                            remaining_need_id = False
+                            if "superior ID kit (and regular ID kit)" in missing_items:
+                                missing_items.discard("superior ID kit (and regular ID kit)")
+                    if remaining_need_id and regular_offer_id > 0:
+                        bought_now = int((yield from self._buy_item_from_merchant(regular_offer_id, 2)) or 0)
+                        self._trace_auto_buy_kits(f"job: buy regular offer={regular_offer_id} bought={bought_now}")
+                        if bought_now > 0:
+                            bought_regular_id += int(bought_now)
+                            candidate_bought_any = True
+                            remaining_need_id = False
+                            if "superior ID kit (and regular ID kit)" in missing_items:
+                                missing_items.discard("superior ID kit (and regular ID kit)")
+
+                if candidate_bought_any:
+                    self._record_successful_kit_merchant_model(cid)
+
+                if not remaining_need_salvage and not remaining_need_id:
+                    break
+
+            if not merchant_opened_any:
+                self._trace_auto_buy_kits(f"job: failed, merchant window not opened (tried={tried_npcs})")
+                if verbose_status:
+                    self.set_status(f"Auto Buy Kits failed: merchant window not opened (NPCs tried: {tried_npcs})")
+                return
+
+            if bought_salvage <= 0 and bought_superior <= 0 and bought_regular_id <= 0:
+                self._trace_auto_buy_kits(
+                    f"job: failed, no purchases (missing={','.join(sorted(list(missing_items))) if missing_items else '<none>'})"
+                )
+                if missing_items:
+                    if verbose_status:
+                        self.set_status(f"Auto Buy Kits failed: merchant missing {', '.join(sorted(list(missing_items)))}")
+                else:
+                    if verbose_status:
+                        self.set_status("Auto Buy Kits failed: purchase rejected or insufficient gold")
+                return
+
+            status_parts = []
+            if bought_salvage > 0:
+                status_parts.append(f"salvage kits x{bought_salvage}")
+            if bought_superior > 0:
+                status_parts.append(f"superior ID kits x{bought_superior}")
+            if bought_regular_id > 0:
+                status_parts.append(f"ID kits x{bought_regular_id}")
+            # Sorting/reordering runs on outpost-entry tick, not inside buy flow.
+            if missing_items:
+                status_parts.append(f"missing {', '.join(sorted(list(missing_items)))}")
+            self.set_status(f"Auto Buy Kits: bought {', '.join(status_parts)}")
+            self._trace_auto_buy_kits(f"job: success => {', '.join(status_parts)}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self._trace_auto_buy_kits(f"job: exception => {e}")
+            if verbose_status:
+                self.set_status(f"Auto Buy Kits failed: {e}")
+        finally:
+            self._trace_auto_buy_kits("job: finished")
+            self.auto_buy_kits_job_running = False
+
+    def _queue_buy_kits_if_needed(self, verbose_status: bool = True) -> int:
+        if self.auto_buy_kits_job_running:
+            self._trace_auto_buy_kits("queue: rejected, already running")
+            if verbose_status:
+                self.set_status("Auto Buy Kits: already running")
+            return 0
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+            self._trace_auto_buy_kits("queue: rejected, busy with other inventory job")
+            if verbose_status:
+                self.set_status("Auto Buy Kits: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_buy_kits_if_needed_job(verbose_status=verbose_status))
+            self._trace_auto_buy_kits("queue: queued")
+            if verbose_status:
+                self.set_status("Auto Buy Kits: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self._trace_auto_buy_kits(f"queue: failed => {e}")
+            if verbose_status:
+                self.set_status(f"Auto Buy Kits queue failed: {e}")
+            return 0
+
+    def _run_auto_gold_balance_job(self, verbose_status: bool = True) -> Generator[Any, Any, None]:
+        self.auto_gold_balance_job_running = True
+        target_amount = max(0, int(self.auto_gold_balance_target))
+        try:
+            if not bool(Map.IsOutpost()):
+                if verbose_status:
+                    self.set_status("Auto Gold: only available in outpost/town")
+                return
+            before_char = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter(), 0))
+            before_storage = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldInStorage(), 0))
+            if before_char == target_amount:
+                if verbose_status:
+                    self.set_status(f"Auto Gold: already balanced at {target_amount}")
+                return
+
+            yield from Routines.Yield.Items.DepositGold(target_amount, log=False)
+            yield from Routines.Yield.wait(125)
+
+            after_char = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter(), 0))
+            after_storage = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldInStorage(), 0))
+            if after_char == before_char and after_storage == before_storage:
+                if verbose_status:
+                    self.set_status("Auto Gold: no transfer (storage/character limits)")
+                return
+            if verbose_status:
+                self.set_status(f"Auto Gold: balanced to {after_char} (target {target_amount})")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Auto Gold failed: {e}")
+        finally:
+            self.auto_gold_balance_job_running = False
+
+    def _queue_auto_gold_balance(self, verbose_status: bool = True) -> int:
+        if self.auto_gold_balance_job_running:
+            if verbose_status:
+                self.set_status("Auto Gold: already running")
+            return 0
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_inventory_reorder_job_running:
+            if verbose_status:
+                self.set_status("Auto Gold: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_auto_gold_balance_job(verbose_status=verbose_status))
+            if verbose_status:
+                self.set_status("Auto Gold: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Auto Gold queue failed: {e}")
+            return 0
+
+    def _run_auto_gold_balance_once_on_outpost_entry_tick(self) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            return False
+        if not self.auto_gold_balance_enabled:
+            return False
+        if self.auto_gold_balance_handled_entry_key == entry_key:
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+            return False
+
+        target_amount = max(0, int(self.auto_gold_balance_target))
+        current_gold = max(0, self._safe_int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter(), 0))
+        if current_gold == target_amount:
+            self.auto_gold_balance_handled_entry_key = entry_key
+            return False
+
+        queued = self._queue_auto_gold_balance(verbose_status=False)
+        if queued > 0:
+            self.auto_gold_balance_handled_entry_key = entry_key
+            return True
+        return False
+
+    def _run_auto_inventory_reorder_job(self, verbose_status: bool = True) -> Generator[Any, Any, None]:
+        self.auto_inventory_reorder_job_running = True
+        try:
+            if not bool(Map.IsOutpost()):
+                if verbose_status:
+                    self.set_status("Inventory Sort: only available in outpost/town")
+                return
+            sorted_count = int((yield from self._sort_kits_to_front()) or 0)
+            reordered_count = 0
+            # Leader keeps manual non-kit ordering; followers get full reorder.
+            if not self._is_leader_client():
+                reordered_count = int((yield from self._reorder_inventory_after_kits()) or 0)
+            if verbose_status:
+                parts = []
+                if sorted_count > 0:
+                    parts.append(f"kits x{sorted_count}")
+                if reordered_count > 0:
+                    parts.append(f"items x{reordered_count}")
+                if not parts:
+                    parts.append("no moves needed")
+                self.set_status(f"Inventory Sort: {', '.join(parts)}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Inventory Sort failed: {e}")
+        finally:
+            self.auto_inventory_reorder_job_running = False
+
+    def _queue_auto_inventory_reorder(self, verbose_status: bool = True) -> int:
+        if self.auto_inventory_reorder_job_running:
+            if verbose_status:
+                self.set_status("Inventory Sort: already running")
+            return 0
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running:
+            if verbose_status:
+                self.set_status("Inventory Sort: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_auto_inventory_reorder_job(verbose_status=verbose_status))
+            if verbose_status:
+                self.set_status("Inventory Sort: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if verbose_status:
+                self.set_status(f"Inventory Sort queue failed: {e}")
+            return 0
+
+    def _run_auto_inventory_reorder_once_on_outpost_entry_tick(self) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            return False
+        if not self.auto_buy_kits_sort_to_front_enabled:
+            return False
+        if self.auto_inventory_reorder_handled_entry_key == entry_key:
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+            return False
+
+        queued = self._queue_auto_inventory_reorder(verbose_status=False)
+        if queued > 0:
+            self.auto_inventory_reorder_handled_entry_key = entry_key
+            return True
+        return False
+
+    def _run_auto_buy_kits_once_on_outpost_entry_tick(self) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            self._trace_auto_buy_kits("entry: skipped, no entry key")
+            return False
+        if not self.auto_buy_kits_enabled:
+            self._trace_auto_buy_kits("entry: skipped, feature disabled")
+            return False
+        if self.auto_buy_kits_handled_entry_key == entry_key:
+            self._trace_auto_buy_kits(f"entry: skipped, already handled entry={entry_key}")
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+            self._trace_auto_buy_kits("entry: skipped, busy with other running job")
+            return False
+
+        stats = self._collect_local_inventory_kit_stats()
+        salvage_uses = max(0, self._safe_int(stats.get("salvage_uses", 0), 0))
+        total_id_uses = max(0, self._safe_int(self._collect_total_identification_uses(), 0))
+        if salvage_uses >= 25 and total_id_uses >= 25:
+            self._trace_auto_buy_kits(
+                f"entry: skipped, enough kits (salvage_uses={salvage_uses}, total_id_uses={total_id_uses})"
+            )
+            self.auto_buy_kits_handled_entry_key = entry_key
+            return False
+
+        queued = self._queue_buy_kits_if_needed(verbose_status=True)
+        if queued > 0:
+            self._trace_auto_buy_kits(f"entry: queued job for entry={entry_key}")
+            self.auto_buy_kits_handled_entry_key = entry_key
+            return True
+        self._trace_auto_buy_kits(f"entry: queue failed for entry={entry_key}")
+        return False
+
+    def _refresh_auto_outpost_store_entry_key(self) -> str:
+        is_outpost = False
+        map_id = 0
+        instance_uptime_ms = 0
+        try:
+            is_outpost = bool(Map.IsOutpost())
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+            instance_uptime_ms = max(0, self._safe_int(Map.GetInstanceUptime(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            is_outpost = False
+
+        if not is_outpost:
+            self.auto_outpost_store_last_is_outpost = False
+            self.auto_outpost_store_last_map_id = 0
+            self.auto_outpost_store_last_instance_uptime_ms = 0
+            self.auto_outpost_store_current_entry_key = ""
+            return ""
+
+        entered_new_outpost = False
+        if not self.auto_outpost_store_last_is_outpost:
+            entered_new_outpost = True
+        elif map_id != self.auto_outpost_store_last_map_id:
+            entered_new_outpost = True
+        elif (
+            self.auto_outpost_store_last_instance_uptime_ms > 0
+            and instance_uptime_ms > 0
+            and instance_uptime_ms + 2000 < self.auto_outpost_store_last_instance_uptime_ms
+        ):
+            entered_new_outpost = True
+
+        if entered_new_outpost or not self.auto_outpost_store_current_entry_key:
+            self.auto_outpost_store_entry_nonce += 1
+            self.auto_outpost_store_current_entry_key = f"{map_id}:{self.auto_outpost_store_entry_nonce}"
+
+        self.auto_outpost_store_last_is_outpost = True
+        self.auto_outpost_store_last_map_id = map_id
+        self.auto_outpost_store_last_instance_uptime_ms = instance_uptime_ms
+        return self.auto_outpost_store_current_entry_key
+
+    def _deposit_materials_and_tomes_to_storage(self):
+        deposit_count = 0
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = list(ItemArray.GetItemArray(bags_to_check) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_array = []
+
+        for raw_item_id in item_array:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+
+            try:
+                is_material = bool(GLOBAL_CACHE.Item.Type.IsMaterial(item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_material = False
+
+            try:
+                is_tome = bool(GLOBAL_CACHE.Item.Type.IsTome(item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                is_tome = False
+
+            if not is_material and not is_tome:
+                continue
+
+            try:
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+
+            deposit_count += 1
+            try:
+                yield from Routines.Yield.wait(350)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+
+        return int(deposit_count)
+
+    def _sell_gold_items_except_runes(self):
+        sell_item_ids: list[int] = []
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = list(ItemArray.GetItemArray(bags_to_check) or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            item_array = []
+
+        for raw_item_id in item_array:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+
+            try:
+                rarity_name = self._ensure_text(Item.Rarity.GetRarity(item_id)[1]).strip() or "Unknown"
+            except EXPECTED_RUNTIME_ERRORS:
+                rarity_name = "Unknown"
+            if rarity_name != "Gold":
+                continue
+
+            try:
+                item_name = self._ensure_text(Item.GetName(item_id)).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                item_name = ""
+            if "rune" in item_name.lower():
+                continue
+
+            sell_item_ids.append(item_id)
+
+        if not sell_item_ids:
+            return int(0)
+
+        merchant_open = False
+        try:
+            merchant_open = bool(self._is_merchant_frame_open())
+        except EXPECTED_RUNTIME_ERRORS:
+            merchant_open = False
+
+        if not merchant_open:
+            try:
+                merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
+            except EXPECTED_RUNTIME_ERRORS:
+                merchant_candidates = []
+            for candidate_id in merchant_candidates[:12]:
+                cid = max(0, self._safe_int(candidate_id, 0))
+                if cid <= 0:
+                    continue
+                try:
+                    merchant_open = bool((yield from self._approach_and_open_merchant(cid)))
+                except EXPECTED_RUNTIME_ERRORS:
+                    merchant_open = False
+                if merchant_open:
+                    break
+
+        if not merchant_open:
+            return int(0)
+
+        try:
+            yield from Routines.Yield.wait(250)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        try:
+            yield from Routines.Yield.Merchant.SellItems(sell_item_ids, log=False)
+        except EXPECTED_RUNTIME_ERRORS:
+            return int(0)
+
+        return int(len(sell_item_ids))
+
+    def _run_manual_sell_gold_items_job(self):
+        self.auto_outpost_store_job_running = True
+        sold = 0
+        try:
+            sold = int((yield from self._sell_gold_items_except_runes()) or 0)
+            if sold > 0:
+                self.set_status(f"Sell Gold: sold {sold} gold items (runes kept)")
+            else:
+                self.set_status("Sell Gold: no sellable gold items found")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Sell Gold failed: {e}")
+        finally:
+            self.auto_outpost_store_job_running = False
+
+    def _queue_manual_sell_gold_items(self) -> int:
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+            self.set_status("Sell Gold: busy with another inventory job")
+            return 0
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_manual_sell_gold_items_job())
+            self.set_status("Sell Gold: started")
+            return 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Sell Gold queue failed: {e}")
+            return 0
+
+    def _run_outpost_store_job(self, entry_key: str):
+        self.auto_outpost_store_job_running = True
+        deposited = 0
+        try:
+            deposited = int((yield from self._deposit_materials_and_tomes_to_storage()) or 0)
+            if deposited > 0:
+                self.set_status(f"Outpost Store: deposited {deposited} materials/tomes")
+            else:
+                self.set_status("Outpost Store: no materials/tomes found")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Outpost Store failed: {e}")
+        finally:
+            self.auto_outpost_store_job_running = False
+            if entry_key:
+                self.auto_outpost_store_handled_entry_key = entry_key
+
+    def _run_auto_outpost_store_tick(self, force: bool = False) -> bool:
+        entry_key = self._refresh_auto_outpost_store_entry_key()
+        if not entry_key:
+            return False
+        if not force and not self.auto_outpost_store_enabled:
+            return False
+        if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+            return False
+        if self.auto_outpost_store_handled_entry_key == entry_key:
+            return False
+        try:
+            GLOBAL_CACHE.Coroutines.append(self._run_outpost_store_job(entry_key))
+            self.auto_outpost_store_handled_entry_key = entry_key
+            self.set_status("Outpost Store: started (materials+tomes)")
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"Outpost Store queue failed: {e}")
+            return False
+
+    def _remember_identify_mod_capture_candidates(self, item_ids) -> int:
+        try:
+            raw_list = list(item_ids or [])
+        except EXPECTED_RUNTIME_ERRORS:
+            raw_list = []
+        if not raw_list:
+            return 0
+        now_ts = time.time()
+        ttl_s = max(5.0, float(getattr(self, "pending_identify_mod_capture_ttl_s", 20.0)))
+        deadline = now_ts + ttl_s
+        remembered = 0
+        for raw_item_id in raw_list:
+            item_id = max(0, self._safe_int(raw_item_id, 0))
+            if item_id <= 0:
+                continue
+            prev_deadline = float(self.pending_identify_mod_capture.get(item_id, 0.0) or 0.0)
+            self.pending_identify_mod_capture[item_id] = max(prev_deadline, deadline)
+            remembered += 1
+        return remembered
+
+    def _process_pending_identify_mod_capture(self):
+        pending = getattr(self, "pending_identify_mod_capture", None)
+        if not isinstance(pending, dict) or not pending:
+            return
+        now_ts = time.time()
+        max_scan = max(1, int(getattr(self, "pending_identify_mod_capture_max_scan_per_tick", 16)))
+        scanned = 0
+        for item_id in list(pending.keys()):
+            if scanned >= max_scan:
+                break
+            scanned += 1
+            deadline = float(pending.get(item_id, 0.0) or 0.0)
+            if deadline > 0.0 and now_ts >= deadline:
+                pending.pop(item_id, None)
+                continue
+            try:
+                if not bool(Item.Usage.IsIdentified(int(item_id))):
+                    continue
+            except EXPECTED_RUNTIME_ERRORS:
+                continue
+
+            # Auto-ID can make previously cached event stats stale (name/value only).
+            # Drop sender-side cached snapshots for this item so next remote request
+            # rebuilds from the freshly identified live state.
+            try:
+                sender = DropTrackerSender()
+                model_id = max(0, self._safe_int(Item.GetModelID(int(item_id)), 0))
+                sender.clear_cached_event_stats_for_item(int(item_id), model_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
+
+            # Rebuild stats after identification so newly exposed mods get tracked/exported.
+            self._build_item_stats_from_live_item(int(item_id), "")
+            pending.pop(item_id, None)
+
+    def _process_pending_identify_responses(self):
+        def _is_identified(item_id: int) -> bool:
+            try:
+                return bool(Item.Usage.IsIdentified(int(item_id)))
+            except (TypeError, ValueError, RuntimeError, AttributeError):
+                return False
+
+        def _payload_ready_for_identify(payload_text: str, item_id: int, identified: bool, timed_out: bool) -> bool:
+            if not identified or timed_out:
+                return True
+            try:
+                payload_obj = json.loads(self._ensure_text(payload_text).strip())
+            except EXPECTED_RUNTIME_ERRORS:
+                return False
+            if not isinstance(payload_obj, dict):
+                return False
+            mods = list(payload_obj.get("mods", []) or [])
+            if mods:
+                return True
+            # Keep polling briefly after identify; modifier data can lag one or two ticks.
+            return False
+
+        try:
+            completed = self.identify_response_scheduler.tick(
+                build_payload_fn=lambda item_id: self._build_item_snapshot_payload_from_live_item(int(item_id), ""),
+                is_identified_fn=_is_identified,
+                send_payload_fn=lambda receiver_email, event_id, payload: self._send_tracker_stats_payload_chunks_to_email(
+                    receiver_email,
+                    event_id,
+                    payload,
+                ),
+                build_stats_fn=lambda item_id: self._build_item_stats_from_live_item(int(item_id), ""),
+                send_stats_fn=lambda receiver_email, event_id, stats: self._send_tracker_stats_chunks_to_email(
+                    receiver_email,
+                    event_id,
+                    stats,
+                ),
+                payload_ready_fn=_payload_ready_for_identify,
+            )
+            if completed > 0 and self.verbose_shmem_item_logs:
+                Py4GW.Console.Log(
+                    "DropViewer",
+                    f"ASYNC ID responses completed={completed} pending={self.identify_response_scheduler.pending_count()}",
+                    Py4GW.Console.MessageType.Info,
+                )
+        except (TypeError, ValueError, RuntimeError, AttributeError) as e:
+            Py4GW.Console.Log(
+                "DropViewer",
+                f"ASYNC ID scheduler error: {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
+
+    def _run_auto_inventory_actions_tick(self):
+        try:
+            if self.auto_outpost_store_enabled and self._run_auto_outpost_store_tick():
+                return
+
+            if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_buy_kits_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
+                return
+
+            if self._run_auto_gold_balance_once_on_outpost_entry_tick():
+                return
+
+            if self._run_auto_buy_kits_once_on_outpost_entry_tick():
+                return
+
+            if self._run_auto_inventory_reorder_once_on_outpost_entry_tick():
+                return
+
+            if (self.auto_id_enabled or self.auto_salvage_enabled) and not self._is_monitoring_settled_for_auto_inventory(set_status=True):
+                return
+
+            queued_id = 0
+            id_due = self.auto_id_enabled and self.auto_id_timer.IsExpired()
+            if id_due:
+                self.auto_id_timer.Reset()
+                id_rarities = self._get_selected_id_rarities()
+                if id_rarities:
+                    queued_id = self._queue_identify_for_rarities(id_rarities)
+                    if queued_id > 0:
+                        self.set_status(f"Auto ID: queued {queued_id}")
+                        return
+
+            if self.auto_salvage_enabled and self.auto_salvage_timer.IsExpired():
+                self.auto_salvage_timer.Reset()
+                salvage_rarities = self._get_selected_salvage_rarities()
+                if salvage_rarities:
+                    queued_salvage = self._queue_salvage_for_rarities(salvage_rarities)
+                    if queued_salvage > 0:
+                        self.set_status(f"Auto Salvage: queued {queued_salvage}")
+        except EXPECTED_RUNTIME_ERRORS as e:
+            if self.verbose_shmem_item_logs:
+                Py4GW.Console.Log("DropViewer", f"Auto inventory tick failed: {e}", Py4GW.Console.MessageType.Warning)
+
+    def _run_inventory_action(self, action_code: str, action_payload: str = "", action_meta: str = "", reply_email: str = ""):
+        return run_inventory_action(self, action_code, action_payload, action_meta, reply_email)
+
+    def _broadcast_inventory_action_to_followers(self, action_code: str, action_payload: str = ""):
+        sent = 0
+        try:
+            sender_email = self._ensure_text(Player.GetAccountEmail()).strip()
+            if not sender_email:
+                return 0
+
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            if shmem is None:
+                return 0
+
+            self_account = shmem.GetAccountDataFromEmail(sender_email)
+            if self_account is None:
+                return 0
+
+            self_party_id = int(getattr(self_account.AgentPartyData, "PartyID", 0))
+            self_map_id = int(getattr(self_account.AgentData.Map, "MapID", 0))
+            if self_party_id <= 0 or self_map_id <= 0:
+                return 0
+
+            for account in shmem.GetAllAccountData():
+                target_email = self._ensure_text(getattr(account, "AccountEmail", "")).strip()
+                if not target_email or target_email == sender_email:
+                    continue
+                if not bool(getattr(account, "IsAccount", False)):
+                    continue
+
+                target_party_id = int(getattr(account.AgentPartyData, "PartyID", 0))
+                target_map_id = int(getattr(account.AgentData.Map, "MapID", 0))
+                if target_party_id != self_party_id or target_map_id != self_map_id:
+                    continue
+
+                sent_index = shmem.SendMessage(
+                    sender_email=sender_email,
+                    receiver_email=target_email,
+                    command=SharedCommandType.CustomBehaviors,
+                    params=(0.0, 0.0, 0.0, 0.0),
+                    ExtraData=(self.inventory_action_tag, action_code[:31], action_payload[:31], ""),
+                )
+                if sent_index != -1:
+                    sent += 1
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Inventory action broadcast failed: {e}", Py4GW.Console.MessageType.Warning)
+        return sent
+
+    def _trigger_inventory_action(self, action_code: str, action_payload: str = ""):
+        self._run_inventory_action(action_code, action_payload)
+        try:
+            if Player.GetAgentID() != Party.GetPartyLeaderID():
+                return
+        except EXPECTED_RUNTIME_ERRORS:
+            return
+
+        sent = self._broadcast_inventory_action_to_followers(action_code, action_payload)
+        if sent > 0:
+            self.set_status(f"{self.status_message} | Sent to {sent} follower(s)")
+
+    def _sync_auto_inventory_config_to_followers(self):
+        try:
+            if Player.GetAgentID() != Party.GetPartyLeaderID():
+                return 0
+        except EXPECTED_RUNTIME_ERRORS:
+            return 0
+
+        id_payload = self._encode_auto_action_payload(self.auto_id_enabled, self._get_selected_id_rarities())
+        salvage_payload = self._encode_auto_action_payload(self.auto_salvage_enabled, self._get_selected_salvage_rarities())
+        kits_payload = "1" if self.auto_buy_kits_enabled else "0"
+        kits_sort_payload = "1" if self.auto_buy_kits_sort_to_front_enabled else "0"
+        gold_payload = "1" if self.auto_gold_balance_enabled else "0"
+        store_payload = "1" if self.auto_outpost_store_enabled else "0"
+        sent = 0
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_id", id_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_salvage", salvage_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_buy_kits", kits_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_buy_kits_sort", kits_sort_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_gold_balance", gold_payload)
+        sent += self._broadcast_inventory_action_to_followers("cfg_auto_outpost_store", store_payload)
+        if sent > 0:
+            self.set_status(f"Auto inventory config synced to followers ({sent} messages)")
+        return sent
+
+    def _is_leader_client(self) -> bool:
+        try:
+            return Player.GetAgentID() == Party.GetPartyLeaderID()
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _schedule_party_action(self, action_gen, action_label: str) -> bool:
+        label = self._ensure_text(action_label).strip() or "Party action"
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            party_controller = CustomBehaviorParty()
+            if not party_controller.is_ready_for_action():
+                self.set_status(f"{label}: waiting for previous party action")
+                return False
+            accepted = bool(party_controller.schedule_action(action_gen))
+            if accepted:
+                self.set_status(f"{label}: started")
+                return True
+            self.set_status(f"{label}: busy")
+            return False
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"{label}: failed ({e})")
+            return False
+
+    def _trigger_party_resign_to_outpost(self) -> bool:
+        if Map.IsOutpost():
+            self.set_status("Resign + Outpost: already in outpost")
+            return False
+        from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+        return self._schedule_party_action(
+            PartyCommandConstants.resign_and_return_to_outpost,
+            "Resign + Outpost",
+        )
+
+    def _trigger_party_invite_all_followers(self) -> bool:
+        from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+        return self._schedule_party_action(
+            PartyCommandConstants.invite_all_to_leader_party,
+            "Join Followers",
+        )
+
+    def _get_conset_specs(self):
+        return [
+            {
+                "key": "armor",
+                "name": "Armor of Salvation",
+                "model_id": int(getattr(ModelID, "Armor_Of_Salvation", 24860)),
+                "effect_name": "Armor_of_Salvation_item_effect",
+                "icon": self.conset_armor_icon,
+                "enabled": bool(self.auto_conset_armor),
+            },
+            {
+                "key": "grail",
+                "name": "Grail of Might",
+                "model_id": int(getattr(ModelID, "Grail_Of_Might", 24861)),
+                "effect_name": "Grail_of_Might_item_effect",
+                "icon": self.conset_grail_icon,
+                "enabled": bool(self.auto_conset_grail),
+            },
+            {
+                "key": "essence",
+                "name": "Essence of Celerity",
+                "model_id": int(getattr(ModelID, "Essence_Of_Celerity", 24859)),
+                "effect_name": "Essence_of_Celerity_item_effect",
+                "icon": self.conset_essence_icon,
+                "enabled": bool(self.auto_conset_essence),
+            },
+            {
+                "key": "legionnaire",
+                "name": "Legionnaire Summoning Crystal",
+                "model_id": int(getattr(ModelID, "Legionnaire_Summoning_Crystal", 37810)),
+                "effect_name": "Summoning_Sickness",
+                "icon": self.conset_legionnaire_icon,
+                "enabled": bool(self.auto_conset_legionnaire),
+            },
+        ]
+
+    def _get_effect_id_cached(self, effect_name: str) -> int:
+        key = self._ensure_text(effect_name).strip()
+        if not key:
+            return 0
+        if key in self.conset_effect_id_cache:
+            return int(self.conset_effect_id_cache[key])
+        try:
+            skill_id = int(GLOBAL_CACHE.Skill.GetID(key))
+        except EXPECTED_RUNTIME_ERRORS:
+            skill_id = 0
+        self.conset_effect_id_cache[key] = skill_id
+        return skill_id
+
+    def _use_model_from_leader_inventory(self, model_id: int, label: str) -> bool:
+        if not self._is_leader_client():
+            self.set_status(f"{label}: leader only")
+            return False
+        try:
+            item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(int(model_id)))
+        except EXPECTED_RUNTIME_ERRORS:
+            item_id = 0
+        if item_id <= 0:
+            self.set_status(f"{label}: not found in leader inventory")
+            return False
+        try:
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            self.set_status(f"{label}: used")
+            return True
+        except EXPECTED_RUNTIME_ERRORS as e:
+            self.set_status(f"{label}: use failed ({e})")
+            return False
+
+    def _run_auto_conset_tick(self):
+        if not self.auto_conset_enabled:
+            return
+        if not self._is_leader_client():
+            return
+        if not self.auto_conset_timer.IsExpired():
+            return
+        self.auto_conset_timer.Reset()
+        legionnaire_entry_key = self._refresh_legionnaire_entry_key()
+        try:
+            if not legionnaire_entry_key:
+                return
+            if Agent.IsDead(Player.GetAgentID()):
+                return
+        except EXPECTED_RUNTIME_ERRORS:
+            return
+
+        for spec in self._get_conset_specs():
+            if not bool(spec["enabled"]):
+                continue
+            spec_key = self._ensure_text(spec.get("key", "")).strip().lower()
+            is_legionnaire_spec = spec_key == "legionnaire"
+            if is_legionnaire_spec and self.auto_legionnaire_used_entry_key == legionnaire_entry_key:
+                continue
+            effect_name = self._ensure_text(spec["effect_name"])
+            effect_id = 2886 if effect_name == "Summoning_Sickness" else self._get_effect_id_cached(effect_name)
+            has_effect = False
+            try:
+                has_effect = effect_id > 0 and bool(GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                has_effect = False
+            if has_effect:
+                if is_legionnaire_spec:
+                    self.auto_legionnaire_used_entry_key = legionnaire_entry_key
+                continue
+            used = self._use_model_from_leader_inventory(int(spec["model_id"]), self._ensure_text(spec["name"]))
+            if is_legionnaire_spec:
+                # One-shot behavior: try once on explorable entry, do not retry in this instance.
+                self.auto_legionnaire_used_entry_key = legionnaire_entry_key
+            if used:
+                break
+
+    def _refresh_legionnaire_entry_key(self) -> str:
+        is_explorable = False
+        map_id = 0
+        instance_uptime_ms = 0
+        try:
+            is_explorable = bool(Map.IsExplorable())
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+            instance_uptime_ms = max(0, self._safe_int(Map.GetInstanceUptime(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            is_explorable = False
+
+        if not is_explorable:
+            self.auto_legionnaire_last_explorable = False
+            self.auto_legionnaire_last_map_id = 0
+            self.auto_legionnaire_last_instance_uptime_ms = 0
+            self.auto_legionnaire_current_entry_key = ""
+            return ""
+
+        entered_new_instance = False
+        if not self.auto_legionnaire_last_explorable:
+            entered_new_instance = True
+        elif map_id != self.auto_legionnaire_last_map_id:
+            entered_new_instance = True
+        elif (
+            self.auto_legionnaire_last_instance_uptime_ms > 0
+            and instance_uptime_ms > 0
+            and instance_uptime_ms + 2000 < self.auto_legionnaire_last_instance_uptime_ms
+        ):
+            entered_new_instance = True
+
+        if entered_new_instance or not self.auto_legionnaire_current_entry_key:
+            self.auto_legionnaire_entry_nonce += 1
+            self.auto_legionnaire_current_entry_key = f"{map_id}:{self.auto_legionnaire_entry_nonce}"
+
+        self.auto_legionnaire_last_explorable = True
+        self.auto_legionnaire_last_map_id = map_id
+        self.auto_legionnaire_last_instance_uptime_ms = instance_uptime_ms
+        return self.auto_legionnaire_current_entry_key
+
+    def _draw_conset_controls(self, card_height=None):
+        self._draw_section_header("Conset")
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, self._ui_colors()["panel_bg"])
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
+        settings_expanded = bool(getattr(self, "conset_settings_expanded", False))
+        default_h = 232.0 if settings_expanded else 140.0
+        if card_height is None:
+            card_h = default_h
+        else:
+            card_h = max(120.0, float(card_height or 0.0))
+        if PyImGui.begin_child("DropTrackerConsetCard", size=(0, card_h), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
+            before = (self.auto_conset_enabled, self.auto_conset_armor, self.auto_conset_grail, self.auto_conset_essence, self.auto_conset_legionnaire)
+            settings_expanded = bool(PyImGui.collapsing_header("Conset Settings"))
+            self.conset_settings_expanded = settings_expanded
+            if settings_expanded:
+                self.auto_conset_enabled = PyImGui.checkbox("Auto Conset (Leader Only)", self.auto_conset_enabled)
+                self.auto_conset_armor = PyImGui.checkbox("Auto Armor of Salvation", self.auto_conset_armor)
+                self.auto_conset_grail = PyImGui.checkbox("Auto Grail of Might", self.auto_conset_grail)
+                self.auto_conset_essence = PyImGui.checkbox("Auto Essence of Celerity", self.auto_conset_essence)
+                self.auto_conset_legionnaire = PyImGui.checkbox("Auto Legionnaire Summoning Crystal", self.auto_conset_legionnaire)
+            if before != (self.auto_conset_enabled, self.auto_conset_armor, self.auto_conset_grail, self.auto_conset_essence, self.auto_conset_legionnaire):
+                self.runtime_config_dirty = True
+
+            PyImGui.separator()
+            PyImGui.text_colored("Manual Use", self._ui_colors()["muted"])
+
+            specs = self._get_conset_specs()
+            counts = {}
+            for spec in specs:
+                try:
+                    counts[spec["key"]] = int(GLOBAL_CACHE.Inventory.GetModelCount(int(spec["model_id"])))
+                except EXPECTED_RUNTIME_ERRORS:
+                    counts[spec["key"]] = 0
+
+            if PyImGui.begin_table("DropTrackerConsetIcons", len(specs), PyImGui.TableFlags.SizingStretchSame):
+                PyImGui.table_next_row()
+                for idx, spec in enumerate(specs):
+                    label = self._ensure_text(spec["name"])
+                    icon_path = self._ensure_text(spec["icon"])
+                    PyImGui.table_set_column_index(idx)
+                    clicked = False
+                    if os.path.exists(icon_path):
+                        self._push_button_style("secondary")
+                        clicked = bool(ImGui.ImageButton(f"##droptracker_conset_{spec['key']}", icon_path, 30, 30))
+                        PyImGui.pop_style_color(4)
+                    else:
+                        clicked = self._styled_button(label, "secondary")
+                    if clicked:
+                        self._use_model_from_leader_inventory(int(spec["model_id"]), label)
+                    if PyImGui.is_item_hovered():
+                        ImGui.show_tooltip(f"{label}\nLeader inventory: {counts.get(spec['key'], 0)}\nClick to use now")
+
+                PyImGui.table_next_row()
+                for idx, spec in enumerate(specs):
+                    PyImGui.table_set_column_index(idx)
+                    PyImGui.text_colored(f"x{counts.get(spec['key'], 0)}", self._ui_colors()["muted"])
+
+                PyImGui.end_table()
+
+        PyImGui.end_child()
+        PyImGui.pop_style_color(2)
+
+    def _collect_local_inventory_kit_stats(self):
+        salvage_uses = 0
+        salvage_kits = 0
+        superior_id_uses = 0
+        superior_id_kits = 0
+        salvage_kit_model = 2992
+        try:
+            superior_id_model = int(ModelID.Superior_Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            superior_id_model = 5899
+        try:
+            salvage_kit_model = int(ModelID.Salvage_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            salvage_kit_model = 2992
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = ItemArray.GetItemArray(bags_to_check)
+            for item_id in item_array:
+                if int(item_id) <= 0:
+                    continue
+                try:
+                    uses = int(Item.Usage.GetUses(item_id))
+                except EXPECTED_RUNTIME_ERRORS:
+                    uses = 0
+                model_id = 0
+                try:
+                    model_id = int(Item.GetModelID(item_id))
+                except EXPECTED_RUNTIME_ERRORS:
+                    model_id = 0
+                try:
+                    if model_id == salvage_kit_model:
+                        salvage_kits += 1
+                        salvage_uses += max(0, uses)
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+                try:
+                    if model_id == superior_id_model:
+                        superior_id_kits += 1
+                        superior_id_uses += max(0, uses)
+                except EXPECTED_RUNTIME_ERRORS:
+                    pass
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return {
+            "salvage_uses": int(salvage_uses),
+            "salvage_kits": int(salvage_kits),
+            "superior_id_uses": int(superior_id_uses),
+            "superior_id_kits": int(superior_id_kits),
+        }
+
+    def _collect_total_identification_uses(self) -> int:
+        total_id_uses = 0
+        try:
+            superior_id_model = int(ModelID.Superior_Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            superior_id_model = 5899
+        try:
+            regular_id_model = int(ModelID.Identification_Kit.value)
+        except EXPECTED_RUNTIME_ERRORS:
+            regular_id_model = 2989
+        try:
+            bags_to_check = ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = ItemArray.GetItemArray(bags_to_check)
+            for item_id in list(item_array or []):
+                iid = max(0, self._safe_int(item_id, 0))
+                if iid <= 0:
+                    continue
+                try:
+                    model_id = int(Item.GetModelID(iid))
+                except EXPECTED_RUNTIME_ERRORS:
+                    continue
+                if model_id not in (superior_id_model, regular_id_model):
+                    continue
+                try:
+                    uses = max(0, int(Item.Usage.GetUses(iid)))
+                except EXPECTED_RUNTIME_ERRORS:
+                    uses = 0
+                total_id_uses += int(uses)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return int(total_id_uses)
+
+    def _upsert_inventory_kit_stats(self, email: str, character_name: str, party_position: int, stats: dict, map_id: int = 0, party_id: int = 0):
+        if not email:
+            return
+        self.inventory_kit_stats_by_email[email] = {
+            "email": email,
+            "character_name": character_name or email,
+            "party_position": int(party_position),
+            "map_id": int(map_id),
+            "party_id": int(party_id),
+            "salvage_uses": int(stats.get("salvage_uses", 0)),
+            "salvage_kits": int(stats.get("salvage_kits", 0)),
+            "superior_id_uses": int(stats.get("superior_id_uses", 0)),
+            "superior_id_kits": int(stats.get("superior_id_kits", 0)),
+            "updated_at": float(time.time()),
+        }
+
+    def _request_inventory_kit_stats(self):
+        try:
+            my_email = self._ensure_text(Player.GetAccountEmail()).strip()
+            if not my_email:
+                return 0
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            if shmem is None:
+                return 0
+
+            self_account = shmem.GetAccountDataFromEmail(my_email)
+            if self_account is None:
+                return 0
+
+            my_stats = self._collect_local_inventory_kit_stats()
+            my_name = self._ensure_text(getattr(self_account.AgentData, "CharacterName", "")).strip() or Player.GetName()
+            my_party_pos = int(getattr(self_account.AgentPartyData, "PartyPosition", 0))
+            my_party_id = int(getattr(self_account.AgentPartyData, "PartyID", 0))
+            my_map_id = int(getattr(self_account.AgentData.Map, "MapID", 0))
+            self._upsert_inventory_kit_stats(my_email, my_name, my_party_pos, my_stats, my_map_id, my_party_id)
+
+            if my_party_id <= 0 or my_map_id <= 0:
+                return 0
+
+            sent = 0
+            for account in shmem.GetAllAccountData():
+                target_email = self._ensure_text(getattr(account, "AccountEmail", "")).strip()
+                if not target_email or target_email == my_email:
+                    continue
+                if not bool(getattr(account, "IsAccount", False)):
+                    continue
+                target_party_id = int(getattr(account.AgentPartyData, "PartyID", 0))
+                target_map_id = int(getattr(account.AgentData.Map, "MapID", 0))
+                if target_party_id != my_party_id or target_map_id != my_map_id:
+                    continue
+                sent_index = shmem.SendMessage(
+                    sender_email=my_email,
+                    receiver_email=target_email,
+                    command=SharedCommandType.CustomBehaviors,
+                    params=(0.0, 0.0, 0.0, 0.0),
+                    ExtraData=(self.inventory_stats_request_tag, "", "", ""),
+                )
+                if sent_index != -1:
+                    sent += 1
+            return sent
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Kit stats request failed: {e}", Py4GW.Console.MessageType.Warning)
+            return 0
+
+    def _send_inventory_kit_stats_response(self, receiver_email: str):
+        try:
+            receiver_email = self._ensure_text(receiver_email).strip()
+            if not receiver_email:
+                return False
+            my_email = self._ensure_text(Player.GetAccountEmail()).strip()
+            if not my_email:
+                return False
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            if shmem is None:
+                return False
+            my_account = shmem.GetAccountDataFromEmail(my_email)
+            if my_account is None:
+                return False
+
+            my_name = self._ensure_text(getattr(my_account.AgentData, "CharacterName", "")).strip() or Player.GetName()
+            my_party_pos = int(getattr(my_account.AgentPartyData, "PartyPosition", 0))
+            my_party_id = int(getattr(my_account.AgentPartyData, "PartyID", 0))
+            my_map_id = int(getattr(my_account.AgentData.Map, "MapID", 0))
+            stats = self._collect_local_inventory_kit_stats()
+            self._upsert_inventory_kit_stats(my_email, my_name, my_party_pos, stats, my_map_id, my_party_id)
+
+            sent_index = shmem.SendMessage(
+                sender_email=my_email,
+                receiver_email=receiver_email,
+                command=SharedCommandType.CustomBehaviors,
+                params=(
+                    float(stats["salvage_uses"]),
+                    float(stats["superior_id_uses"]),
+                    float(stats["salvage_kits"]),
+                    float(stats["superior_id_kits"]),
+                ),
+                ExtraData=(self.inventory_stats_response_tag, my_name[:31], str(my_party_pos)[:31], ""),
+            )
+            return sent_index != -1
+        except EXPECTED_RUNTIME_ERRORS:
+            return False
+
+    def _draw_inventory_kit_stats_tab(self):
+        c = self._ui_colors()
+        if self._styled_button("Refresh Kit Stats", "secondary", tooltip="Request updated kit uses from party members in current map."):
+            sent = self._request_inventory_kit_stats()
+            self.set_status(f"Requested kit stats from {sent} member(s)")
+            self.inventory_kit_stats_refresh_timer.Reset()
+        elif self.inventory_kit_stats_refresh_timer.IsExpired():
+            self._request_inventory_kit_stats()
+            self.inventory_kit_stats_refresh_timer.Reset()
+
+        my_party_id = 0
+        my_map_id = 0
+        try:
+            my_email = self._ensure_text(Player.GetAccountEmail()).strip()
+            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+            if shmem is not None and my_email:
+                my_account = shmem.GetAccountDataFromEmail(my_email)
+                if my_account is not None:
+                    my_party_id = int(getattr(my_account.AgentPartyData, "PartyID", 0))
+                    my_map_id = int(getattr(my_account.AgentData.Map, "MapID", 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+
+        rows = []
+        now_ts = time.time()
+        for row in self.inventory_kit_stats_by_email.values():
+            if my_party_id > 0 and my_map_id > 0:
+                if int(row.get("party_id", 0)) != my_party_id or int(row.get("map_id", 0)) != my_map_id:
+                    continue
+            rows.append(row)
+
+        rows = sorted(rows, key=lambda r: (int(r.get("party_position", 99)), self._ensure_text(r.get("character_name", "")).lower()))
+        if not rows:
+            PyImGui.text_colored("No kit data yet. Click refresh and ensure followers run Drop Tracker.", c["muted"])
+            return
+
+        flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.ScrollY
+        if PyImGui.begin_table("DropTrackerKitStats", 5, flags, 0.0, 180.0):
+            PyImGui.table_setup_column("Character")
+            PyImGui.table_setup_column("Role")
+            PyImGui.table_setup_column("Salvage Uses")
+            PyImGui.table_setup_column("Superior ID Uses")
+            PyImGui.table_setup_column("Age")
+            PyImGui.table_headers_row()
+            for row in rows:
+                age_s = max(0, int(now_ts - float(row.get("updated_at", now_ts))))
+                role = "Leader" if int(row.get("party_position", 1)) == 0 else "Follower"
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text(self._ensure_text(row.get("character_name", "")))
+                PyImGui.table_set_column_index(1)
+                PyImGui.text_colored(role, (0.95, 0.86, 0.40, 1.0) if role == "Leader" else c["muted"])
+                PyImGui.table_set_column_index(2)
+                PyImGui.text(str(int(row.get("salvage_uses", 0))))
+                PyImGui.table_set_column_index(3)
+                PyImGui.text(str(int(row.get("superior_id_uses", 0))))
+                PyImGui.table_set_column_index(4)
+                PyImGui.text(f"{age_s}s")
+            PyImGui.end_table()
+
+    def _log_drop_to_file(
+        self,
+        player_name,
+        item_name,
+        quantity,
+        extra_info,
+        timestamp_override=None,
+        event_id="",
+        item_stats="",
+        item_id=0,
+        sender_email="",
+    ):
+        self._log_drops_batch(
+            [
+                {
+                    "player_name": player_name,
+                    "item_name": item_name,
+                    "quantity": quantity,
+                    "extra_info": extra_info,
+                    "timestamp_override": timestamp_override,
+                    "event_id": event_id,
+                    "item_stats": item_stats,
+                    "item_id": item_id,
+                    "sender_email": sender_email,
+                }
+            ]
+        )
+
+    def _build_drop_log_row_from_entry(self, entry: Any, bot_name: str, map_id: int, map_name: str) -> DropLogRow:
+        if isinstance(entry, DropLogRow):
+            sender_email = self._ensure_text(entry.sender_email).strip().lower()
+            if not sender_email:
+                sender_email = self._resolve_account_email_by_character_name(self._ensure_text(entry.player_name).strip())
+            return DropLogRow(
+                timestamp=self._ensure_text(entry.timestamp) or datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                viewer_bot=self._ensure_text(bot_name),
+                map_id=max(0, self._safe_int(map_id, 0)),
+                map_name=self._ensure_text(map_name) or "Unknown",
+                player_name=self._ensure_text(entry.player_name) or "Unknown",
+                item_name=self._ensure_text(entry.item_name) or "Unknown Item",
+                quantity=max(1, self._safe_int(entry.quantity, 1)),
+                rarity=self._normalize_rarity_label(entry.item_name, entry.rarity),
+                event_id=self._ensure_text(entry.event_id).strip(),
+                item_stats=self._ensure_text(entry.item_stats).strip(),
+                item_id=max(0, self._safe_int(entry.item_id, 0)),
+                sender_email=sender_email,
+            )
+        if isinstance(entry, dict):
+            player_name = entry.get("player_name", "Unknown")
+            item_name = entry.get("item_name", "Unknown Item")
+            quantity = entry.get("quantity", 1)
+            extra_info = entry.get("extra_info", "Unknown")
+            timestamp_override = entry.get("timestamp_override", None)
+            event_id = self._ensure_text(entry.get("event_id", "")).strip()
+            item_stats = self._ensure_text(entry.get("item_stats", "")).strip()
+            item_id = max(0, self._safe_int(entry.get("item_id", 0), 0))
+            sender_email = self._ensure_text(entry.get("sender_email", "")).strip().lower()
+        else:
+            player_name = entry[0] if len(entry) > 0 else "Unknown"
+            item_name = entry[1] if len(entry) > 1 else "Unknown Item"
+            quantity = entry[2] if len(entry) > 2 else 1
+            extra_info = entry[3] if len(entry) > 3 else "Unknown"
+            timestamp_override = entry[4] if len(entry) > 4 else None
+            event_id = self._ensure_text(entry[5]).strip() if len(entry) > 5 else ""
+            item_stats = self._ensure_text(entry[6]).strip() if len(entry) > 6 else ""
+            item_id = max(0, self._safe_int(entry[7], 0)) if len(entry) > 7 else 0
+            sender_email = self._ensure_text(entry[8]).strip().lower() if len(entry) > 8 else ""
+        if not sender_email:
+            sender_email = self._resolve_account_email_by_character_name(self._ensure_text(player_name).strip())
+        if event_id and not item_stats:
+            stats_cache_key = self._make_stats_cache_key(event_id, sender_email, player_name)
+            item_stats = self._get_cached_stats_text(self.stats_by_event, stats_cache_key)
+
+        timestamp = timestamp_override if timestamp_override else datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        rarity = self._normalize_rarity_label(item_name, extra_info if extra_info else "Unknown")
+        qty = max(1, self._safe_int(quantity, 1))
+        return DropLogRow(
+            timestamp=timestamp,
+            viewer_bot=self._ensure_text(bot_name),
+            map_id=max(0, self._safe_int(map_id, 0)),
+            map_name=self._ensure_text(map_name) or "Unknown",
+            player_name=self._ensure_text(player_name) or "Unknown",
+            item_name=self._ensure_text(item_name) or "Unknown Item",
+            quantity=qty,
+            rarity=rarity,
+            event_id=event_id,
+            item_stats=item_stats,
+            item_id=item_id,
+            sender_email=sender_email,
+        )
+
+    def _log_drops_batch(self, entries):
+        try:
+            bot_name = Player.GetName()
+            map_id = Map.GetMapID()
+            map_name = Map.GetMapName(map_id)
+            os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
+            drop_rows: list[DropLogRow] = []
+            for entry in entries:
+                drop_rows.append(self._build_drop_log_row_from_entry(entry, bot_name, map_id, map_name))
+            append_drop_log_rows(self.log_path, drop_rows)
+
+            for drop_row in drop_rows:
+                if drop_row.event_id:
+                    sender_email = self._ensure_text(drop_row.sender_email).strip().lower()
+                    stats_cache_key = self._make_stats_cache_key(drop_row.event_id, sender_email, drop_row.player_name)
+                    if stats_cache_key:
+                        self.stats_by_event[stats_cache_key] = drop_row.item_stats
+
+                row = drop_row.to_runtime_row()
+                self.raw_drops.append(row)
+                self.total_drops += int(drop_row.quantity)
+
+                canonical_name = self._canonical_agg_item_name(drop_row.item_name, drop_row.rarity, self.aggregated_drops)
+                key = (canonical_name, drop_row.rarity)
+                if key not in self.aggregated_drops:
+                    self.aggregated_drops[key] = {"Quantity": 0, "Count": 0}
+
+                self.aggregated_drops[key]["Quantity"] += int(drop_row.quantity)
+                self.aggregated_drops[key]["Count"] += 1
+
+            self.last_read_time = os.path.getmtime(self.log_path) if os.path.exists(self.log_path) else time.time()
+
+        except EXPECTED_RUNTIME_ERRORS as e:
+            Py4GW.Console.Log("DropViewer", f"Log Error: {e}", Py4GW.Console.MessageType.Warning)
+
+    def _get_rarity_color(self, rarity):
+        col = (1.0, 1.0, 1.0, 1.0)
+        
+        if rarity == "Blue": col = (0.0, 0.8, 1.0, 1.0)
+        elif rarity == "Purple": col = (0.8, 0.4, 1.0, 1.0)
+        elif rarity == "Gold": col = (1.0, 0.84, 0.0, 1.0)
+        elif rarity == "Green": col = (0.0, 1.0, 0.0, 1.0) 
+        elif rarity == "Dyes": col = (1.0, 0.6, 0.8, 1.0) 
+        elif rarity == "Keys": col = (0.8, 0.8, 0.8, 1.0) 
+        elif rarity == "Tomes": col = (0.0, 0.8, 0.0, 1.0) 
+        elif rarity == "Currency": col = (1.0, 1.0, 0.0, 1.0)
+        elif rarity == "Unknown": col = (0.5, 0.5, 0.5, 1.0) 
+        elif rarity == "...": col = (0.5, 0.5, 0.5, 1.0) 
+        
+        return col
+
+drop_viewer = DropViewerWindow()
+
+def main():
+    pass
+
+def draw_window():
+    drop_viewer.update()    
+    drop_viewer.draw()
+
+def update():
+    drop_viewer.update()
+
+if __name__ == "__main__":
+    pass
+

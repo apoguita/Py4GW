@@ -1,0 +1,63 @@
+{
+  "debug_pipeline_logs": false,
+  "enable_perf_logs": false,
+  "enable_delivery_ack": true,
+  "max_send_per_tick": 12,
+  "max_outbox_size": 2000,
+  "retry_interval_seconds": 1.0,
+  "max_retry_attempts": 12,
+  "verbose_shmem_item_logs": true,
+  "max_shmem_messages_per_tick": 80,
+  "max_shmem_scan_per_tick": 600,
+  "send_tracker_ack_enabled": true,
+  "debug_item_stats_panel": false,
+  "debug_item_stats_panel_height": 180,
+  "strict_event_stats_binding": true,
+  "event_identity_resolve_grace_s": 1.2,
+  "event_identity_resolve_poll_s": 0.12,
+  "id_sel_white": false,
+  "id_sel_blue": true,
+  "id_sel_green": true,
+  "id_sel_purple": true,
+  "id_sel_gold": true,
+  "auto_id_enabled": true,
+  "salvage_sel_white": true,
+  "salvage_sel_blue": true,
+  "salvage_sel_green": false,
+  "salvage_sel_purple": true,
+  "salvage_sel_gold": false,
+  "auto_salvage_enabled": false,
+  "auto_buy_kits_enabled": true,
+  "auto_buy_kits_sort_to_front_enabled": true,
+  "auto_buy_kits_map_model_hints": {
+    "156": [
+      2161
+    ],
+    "55": [
+      2043
+    ]
+  },
+  "auto_gold_balance_enabled": true,
+  "auto_gold_balance_target": 10000,
+  "auto_outpost_store_enabled": true,
+  "auto_conset_enabled": true,
+  "auto_conset_armor": false,
+  "auto_conset_grail": false,
+  "auto_conset_essence": true,
+  "auto_conset_legionnaire": true,
+  "runtime_controls_popout": false,
+  "compact_mode": true,
+  "ui_theme_name": "Steel Ember",
+  "drop_viewer_window_pos": [
+    4.0,
+    4.0
+  ],
+  "drop_viewer_window_size": [
+    1795.0,
+    943.0
+  ],
+  "drop_viewer_handle_pos": [
+    601.0,
+    956.0
+  ]
+}

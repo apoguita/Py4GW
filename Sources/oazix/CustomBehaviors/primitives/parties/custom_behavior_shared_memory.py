@@ -1,11 +1,6 @@
 from ctypes import Structure, c_uint, c_float, c_bool, c_wchar
 from multiprocessing import shared_memory
 from ctypes import sizeof
-from datetime import datetime, timezone
-from datetime import datetime, timezone
-import time
-from threading import Lock
-from typing import Generator
 
 
 from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import (
@@ -89,6 +84,24 @@ class PartyTeamBuildConfigStruct(Structure):
     ]
 
 
+
+class ChestOpeningConfigStruct(Structure):
+    """Struct for chest opening status stored in shared memory"""
+    _pack_ = 1
+    _fields_ = [
+        # Status for each of 12 slots: 0=Unknown, 1=Success, 2=Failed
+        ("ChestStatus", c_uint * MAX_TEMPLATE_SLOTS),
+        # Email for each slot to identify who is who
+        ("SlotEmails", (c_wchar * MAX_EMAIL_LEN) * MAX_TEMPLATE_SLOTS),
+        # ID of the chest currently being processed (to reset on new chest)
+        ("ChestAgentID", c_uint),
+        # Map ID to reset on map change
+        ("MapInstanceID", c_uint),
+        # Flag to indicate if results have been reported
+        ("ChestReported", c_bool),
+    ]
+
+
 class CustomBehaviorWidgetStruct(Structure):
     _pack_ = 1
     _fields_ = [
@@ -108,6 +121,7 @@ class CustomBehaviorWidgetStruct(Structure):
         ("FollowingConfig", PartyFollowingConfigStruct),
         ("FlaggingConfig", PartyFlaggingConfigStruct),
         ("TeamBuildConfig", PartyTeamBuildConfigStruct),
+        ("ChestOpeningConfig", ChestOpeningConfigStruct),
     ]
 
 class CustomBehaviorWidgetData:
@@ -129,19 +143,20 @@ class CustomBehaviorWidgetData:
     
 
 SHMEM_SHARED_MEMORY_FILE_NAME = "CustomBehaviorWidgetMemoryManager"
+SHMEM_SCHEMA_VERSION = 2
 DEBUG = True
 
 class CustomBehaviorWidgetMemoryManager:
     _instance = None  # Singleton instance
 
-    def __new__(cls, name=SHMEM_SHARED_MEMORY_FILE_NAME):
+    def __new__(cls, name=f"{SHMEM_SHARED_MEMORY_FILE_NAME}_v{SHMEM_SCHEMA_VERSION}"):
         if cls._instance is None:
             cls._instance = super(CustomBehaviorWidgetMemoryManager, cls).__new__(cls)
             cls._instance._initialized = False  # Ensure __init__ runs only once
 
         return cls._instance
 
-    def __init__(self, name=SHMEM_SHARED_MEMORY_FILE_NAME):
+    def __init__(self, name=f"{SHMEM_SHARED_MEMORY_FILE_NAME}_v{SHMEM_SCHEMA_VERSION}"):
         if not self._initialized:
             self.shm_name = name
             self.size = sizeof(CustomBehaviorWidgetStruct)
@@ -152,9 +167,13 @@ class CustomBehaviorWidgetMemoryManager:
                 if DEBUG: print(f"Shared memory area '{self.shm_name}' attached.")
                 # we keep current.
             except FileNotFoundError:
-                self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
-                if DEBUG: print(f"Shared memory area '{self.shm_name}' created.")
-                self.__reset_all_data()  # Initialize all player data
+                try:
+                    self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
+                    if DEBUG: print(f"Shared memory area '{self.shm_name}' created.")
+                    self.__reset_all_data()  # Initialize all player data
+                except FileExistsError:
+                    self.shm = shared_memory.SharedMemory(name=self.shm_name)
+                    if DEBUG: print(f"Shared memory area '{self.shm_name}' attached.")
 
             # Attach the shared memory structure
             self.__shared_lock = SharedLockManager(self._get_struct)
@@ -206,6 +225,14 @@ class CustomBehaviorWidgetMemoryManager:
             # Clear email by setting first character to null terminator
             mem.TeamBuildConfig.TemplateAccountEmails[i][0] = '\0'
             mem.TeamBuildConfig.SkillbarTemplates[i][0] = '\0'
+
+        # Initialize chest opening config
+        for i in range(MAX_TEMPLATE_SLOTS):
+            mem.ChestOpeningConfig.ChestStatus[i] = 0
+            mem.ChestOpeningConfig.SlotEmails[i][0] = '\0'
+        mem.ChestOpeningConfig.ChestAgentID = 0
+        mem.ChestOpeningConfig.MapInstanceID = 0
+        mem.ChestOpeningConfig.ChestReported = False
 
         for i in range(MAX_LOCKS):
             mem.LockEntries[i].Key = ""
@@ -292,3 +319,14 @@ class CustomBehaviorWidgetMemoryManager:
         """Set the party team build configuration in shared memory"""
         mem = self._get_struct()
         mem.TeamBuildConfig = config
+
+    # --- Chest Opening Config Methods ---
+    def GetChestOpeningConfig(self) -> ChestOpeningConfigStruct:
+        """Get the chest opening configuration from shared memory"""
+        mem = self._get_struct()
+        return mem.ChestOpeningConfig
+
+    def SetChestOpeningConfig(self, config: ChestOpeningConfigStruct):
+        """Set the chest opening configuration in shared memory"""
+        mem = self._get_struct()
+        mem.ChestOpeningConfig = config

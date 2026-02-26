@@ -79,10 +79,13 @@ class Py4GWSharedMemoryManager:
             ConsoleLog(SHMEM_MODULE_NAME, "Attached to existing shared memory.", Py4GW.Console.MessageType.Info)
             
         except FileNotFoundError:
-            self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
-            self.ResetAllData()  # Initialize all player data
-            
-            ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Success)
+            try:
+                self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
+                self.ResetAllData()  # Initialize all player data
+                ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Success)
+            except FileExistsError:
+                self.shm = shared_memory.SharedMemory(name=self.shm_name)
+                ConsoleLog(SHMEM_MODULE_NAME, "Attached to existing shared memory.", Py4GW.Console.MessageType.Info)
             
         except BufferError:
             ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area already exists but could not be attached.", Py4GW.Console.MessageType.Error)

@@ -101,6 +101,7 @@ class CustomBehaviorBaseUtility():
 
             # INVENTORY_MANAGEMENT
             MerchantRefillIfNeededUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+
         ]
         
         self.utility_generator: Generator[Any | None, Any | None, BehaviorResult] | None = None

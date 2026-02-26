@@ -14,6 +14,8 @@ class AgentModelID(IntEnum):
 class GadgetModelID(IntEnum):
     CHEST_HIDDEN_STASH = 9 #ID for Hidden Stash (Pre-Searing)
     CHEST_ASCALONIAN = 69 #ID for Ascalonian Chest
+    CHEST_KRYTAN = 65 #ID for Krytan Chest
+    CHEST_MAGUUMA = 67 #ID for Maguuma Chest
     CHEST_SHING_JEA = 4579 #ID for Shing Jea Chest
     CHEST_KOURNAN = 6064 #ID for Kournan Chest
     CHEST_DARKSTONE = 73 # ID for Darkstone Chest
@@ -25,6 +27,8 @@ class GadgetModelID(IntEnum):
 
     BURIED_TREASURE_THE_MIRROR_OF_LYSS = 7465
     BURIED_TREASURE_NIGHTFALLEN_JAHAI_AND_DOMAIN_OF_PAIN_AND_KODLONU_HAMLET = 7466
+    
+
     
 SPIRIT_OFFSET = 51
 class SpiritModelID(IntEnum):
