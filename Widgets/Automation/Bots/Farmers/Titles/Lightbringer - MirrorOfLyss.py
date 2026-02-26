@@ -103,8 +103,8 @@ def tooltip():
     # Description
     PyImGui.text("Multi-account bot to " + BotSettings.BOT_NAME)
     PyImGui.spacing()
-    PyImGui.bullet_text("Requirements:")
-    PyImGui.bullet_text("- The Kodash Bazaar outpost.")
+    PyImGui.text_colored("Requirements:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("The Kodash Bazaar outpost.")
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Aura")
@@ -144,7 +144,9 @@ def _draw_title_track():
                 break
         gained = pts - _session_baselines[name]
         elapsed = now - _session_start_times[name]
+        formatted_time = time.strftime('%H:%M:%S', time.gmtime(elapsed))
         pts_hr = int(gained / elapsed * 3600) if elapsed > 0 else 0
+        tier_missing = next_required - pts
 
         PyImGui.separator()
         ImGui.push_font("Regular", 18)
@@ -152,11 +154,11 @@ def _draw_title_track():
         ImGui.pop_font()
 
         PyImGui.text(f"{name} - {tier_name} [{tier_rank}/{tier_max_rank}]")
-        PyImGui.text(f"Points: {pts:,} / {next_required:,}")
+        PyImGui.text(f"Points: {pts:,} / {next_required:,} - Next rank: {tier_missing:,}")
         if next_required > prev_required:
             frac = min((pts - prev_required) / (next_required - prev_required), 1.0)
             PyImGui.progress_bar(frac, -1, 0, f"{pts - prev_required:,} / {next_required - prev_required:,}")
-        PyImGui.text(f"+{gained:,}  ({pts_hr:,}/hr)")
+        PyImGui.text(f"+{gained:,} points ({pts_hr:,}/hr) - Running for: {formatted_time}")
 
 bot.SetMainRoutine(bot_routine)
 
