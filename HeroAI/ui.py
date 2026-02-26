@@ -1222,8 +1222,10 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
                 return -1
             
             options.IsFlagged = False
-            options.FlagPosX = 0.0
-            options.FlagPosY = 0.0
+            options.FlagPos.x = 0.0
+            options.FlagPos.y = 0.0
+            options.AllFlag.x = 0.0
+            options.AllFlag.y = 0.0
             options.FlagFacingAngle = 0.0
             return -1
         
