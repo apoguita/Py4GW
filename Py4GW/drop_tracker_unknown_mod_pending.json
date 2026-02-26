@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-02-26 21:43:35",
+  "updated_at": "2026-02-26 23:36:24",
   "pending": {
     "9864": {
       "id": 9864,
@@ -14,17 +14,17 @@
       "last_seen": "2026-02-24 12:05:15",
       "count": 1
     },
-    "41928": {
-      "id": 41928,
-      "owner": "Mesmer Sedam",
-      "item": "Dwarven Armor",
-      "arg1": 40,
-      "arg2": 0,
-      "item_type": 0,
-      "model_id": 1121,
+    "32880": {
+      "id": 32880,
+      "owner": "Mesmer Cetiri",
+      "item": "Gothic Axe",
+      "arg1": 1,
+      "arg2": 169,
+      "item_type": 2,
+      "model_id": 748,
       "source": "shared_payload",
-      "first_seen": "2026-02-26 21:43:24",
-      "last_seen": "2026-02-26 21:43:24",
+      "first_seen": "2026-02-26 22:07:15",
+      "last_seen": "2026-02-26 22:07:15",
       "count": 1
     },
     "42152": {

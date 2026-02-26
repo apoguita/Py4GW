@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-02-26 21:44:15",
+  "updated_at": "2026-02-26 23:36:24",
   "known_mod_id_count": 62,
   "unknown_mods": {
     "8728": {
@@ -90,33 +90,37 @@
       "last_seen": "2026-02-24 00:22:12"
     },
     "9480": {
-      "count": 2,
+      "count": 4,
       "arg1_min": 1,
-      "arg1_max": 2,
+      "arg1_max": 8,
       "arg2_min": 0,
       "arg2_max": 0,
       "item_types": [
         11
       ],
       "model_ids": [
+        925,
         940,
-        948
+        948,
+        955
       ],
       "sources": {
-        "shared_payload": 2
+        "shared_payload": 4
       },
       "sample_items": [
         "Tanned Hide Squares",
-        "Iron Ingots"
+        "Iron Ingots",
+        "Granite Slabs",
+        "Bolts of Cloth"
       ],
       "sample_events": [],
       "co_mod_ids": [
         49152
       ],
-      "last_seen": "2026-02-24 07:50:33"
+      "last_seen": "2026-02-26 22:18:07"
     },
     "9752": {
-      "count": 25,
+      "count": 27,
       "arg1_min": 0,
       "arg1_max": 4,
       "arg2_min": 0,
@@ -131,11 +135,12 @@
         137,
         138,
         144,
+        754,
         2010
       ],
       "sources": {
         "shared_payload": 1,
-        "local_api": 24
+        "local_api": 26
       },
       "sample_items": [
         "Black Hawk's Lust",
@@ -148,11 +153,13 @@
         "Ivory Bow",
         "Half Moon",
         "Salvage Kit",
-        "Accursed Staff of Trollslaying"
+        "Accursed Staff of Trollslaying",
+        "Amber Longbow"
       ],
       "sample_events": [],
       "co_mod_ids": [
         8216,
+        8424,
         8456,
         8488,
         8536,
@@ -169,6 +176,7 @@
         9240,
         9320,
         9400,
+        9512,
         9520,
         9736,
         9800,
@@ -181,7 +189,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-26 19:15:55"
+      "last_seen": "2026-02-26 22:14:18"
     },
     "9784": {
       "count": 1,
@@ -210,7 +218,7 @@
       "last_seen": "2026-02-24 00:22:12"
     },
     "9800": {
-      "count": 12,
+      "count": 13,
       "arg1_min": 0,
       "arg1_max": 2,
       "arg2_min": 0,
@@ -228,10 +236,11 @@
         137,
         138,
         221,
-        402
+        402,
+        792
       ],
       "sources": {
-        "shared_payload": 2,
+        "shared_payload": 3,
         "local_api": 10
       },
       "sample_items": [
@@ -241,7 +250,8 @@
         "Spiked Axe",
         "Flatbow",
         "Longbow",
-        "Ivory Bow"
+        "Ivory Bow",
+        "Wicked Blade"
       ],
       "sample_events": [],
       "co_mod_ids": [
@@ -250,6 +260,7 @@
         8536,
         8760,
         8792,
+        8824,
         8840,
         8856,
         8872,
@@ -269,7 +280,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-26 18:45:59"
+      "last_seen": "2026-02-26 22:07:26"
     },
     "9880": {
       "count": 13,
@@ -523,6 +534,42 @@
       ],
       "last_seen": "2026-02-24 00:40:39"
     },
+    "32880": {
+      "count": 1,
+      "arg1_min": 1,
+      "arg1_max": 1,
+      "arg2_min": 169,
+      "arg2_max": 169,
+      "item_types": [
+        2
+      ],
+      "model_ids": [
+        748
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Gothic Axe"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        8216,
+        8424,
+        8760,
+        9224,
+        9400,
+        9512,
+        9520,
+        10136,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-26 22:07:15"
+    },
     "33056": {
       "count": 1,
       "arg1_min": 0,
@@ -551,28 +598,6 @@
         49152
       ],
       "last_seen": "2026-02-24 10:00:13"
-    },
-    "41928": {
-      "count": 3,
-      "arg1_min": 39,
-      "arg1_max": 40,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [],
-      "model_ids": [
-        1121
-      ],
-      "sources": {
-        "shared_payload": 3
-      },
-      "sample_items": [
-        "Dwarven Armor"
-      ],
-      "sample_events": [],
-      "co_mod_ids": [
-        49152
-      ],
-      "last_seen": "2026-02-26 21:44:15"
     },
     "42152": {
       "count": 1,

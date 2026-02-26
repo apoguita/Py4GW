@@ -164,7 +164,7 @@ class DropViewerWindow:
         # State
         self.last_read_time = 0
         self.auto_scroll = True
-        self.view_mode = "Aggregated" # "Log", "Aggregated"
+        self.view_mode = "Aggregated" # "Log", "Aggregated", "Materials"
         self.show_save_popup = False
         self.save_filename = "Run_001"
         self.status_message = ""
@@ -321,6 +321,7 @@ class DropViewerWindow:
         self.auto_buy_kits_enabled = False
         self.auto_buy_kits_sort_to_front_enabled = True
         self.auto_buy_kits_job_running = False
+        self.auto_buy_kits_abort_requested = False
         self.auto_buy_kits_handled_entry_key = ""
         self.auto_inventory_reorder_job_running = False
         self.auto_inventory_reorder_handled_entry_key = ""
@@ -669,6 +670,17 @@ class DropViewerWindow:
         trace = list(getattr(self, "auto_buy_kits_debug_trace", []) or [])
         trace.append(line)
         self.auto_buy_kits_debug_trace = trace[-120:]
+
+    def _should_abort_auto_buy_kits(self) -> bool:
+        return bool(getattr(self, "auto_buy_kits_abort_requested", False))
+
+    def _is_auto_buy_kits_allowed_outpost(self) -> bool:
+        try:
+            map_id = max(0, self._safe_int(Map.GetMapID(), 0))
+        except EXPECTED_RUNTIME_ERRORS:
+            map_id = 0
+        # Temporary allowlist until more outposts are validated.
+        return map_id in {55, 156}
 
     def _default_auto_buy_kits_map_model_hints(self) -> dict[str, list[int]]:
         # Known working merchant model IDs per map (can be extended/overridden by runtime learning).
@@ -4041,6 +4053,8 @@ class DropViewerWindow:
                 rare_count += 1
             if self._is_gold_row(row):
                 gold_qty += qty
+            elif rarity == "Material":
+                continue
             else:
                 total_qty_without_gold += qty
 
@@ -4225,6 +4239,13 @@ class DropViewerWindow:
         next_enabled = self._parse_toggle_payload(payload, self.auto_buy_kits_enabled)
         previous = bool(self.auto_buy_kits_enabled)
         self.auto_buy_kits_enabled = bool(next_enabled)
+        if previous and (not self.auto_buy_kits_enabled):
+            self.auto_buy_kits_abort_requested = True
+            if self.auto_buy_kits_job_running:
+                self._trace_auto_buy_kits("job: abort requested (feature toggled OFF)")
+                self.set_status("Auto Buy Kits: abort requested")
+        if (not previous) and self.auto_buy_kits_enabled:
+            self.auto_buy_kits_abort_requested = False
         if (not previous) and self.auto_buy_kits_enabled and bool(Map.IsOutpost()):
             self.auto_buy_kits_handled_entry_key = ""
             # Run one immediate one-time outpost check when enabling.
@@ -4548,16 +4569,6 @@ class DropViewerWindow:
             
             PyImGui.same_line(0.0, 10.0)
             
-            # View Mode Switch
-            if self.view_mode == "Aggregated":
-                if self._styled_button("Show Logs", "secondary", tooltip="Switch to raw event log view"):
-                    self.view_mode = "Log"
-            else:
-                if self._styled_button("Show Stats", "secondary", tooltip="Switch to aggregated item stats"):
-                    self.view_mode = "Aggregated"
-                
-            PyImGui.same_line(0.0, 10.0)
-            
             if self._styled_button("Save", "secondary", tooltip="Save current session log snapshot"):
                 self.show_save_popup = not self.show_save_popup
                 
@@ -4772,10 +4783,22 @@ class DropViewerWindow:
             PyImGui.same_line(0.0, 10.0)
 
             if PyImGui.begin_child("DropViewerDataPanel", size=(0, 0), border=False, flags=PyImGui.WindowFlags.NoFlag):
-                if self.view_mode == "Aggregated":
-                    self._draw_aggregated(table_rows)
-                else:
+                if self._styled_button("Stats", "success" if self.view_mode == "Aggregated" else "secondary", width=116.0, height=30.0, tooltip="Aggregated drops (materials excluded)."):
+                    self.view_mode = "Aggregated"
+                PyImGui.same_line(0.0, 8.0)
+                if self._styled_button("Materials", "success" if self.view_mode == "Materials" else "secondary", width=116.0, height=30.0, tooltip="Material-only aggregated drops."):
+                    self.view_mode = "Materials"
+                PyImGui.same_line(0.0, 8.0)
+                if self._styled_button("Log", "success" if self.view_mode == "Log" else "secondary", width=116.0, height=30.0, tooltip="Raw drop event log."):
+                    self.view_mode = "Log"
+                PyImGui.separator()
+
+                if self.view_mode == "Log":
                     self._draw_log(table_rows)
+                elif self.view_mode == "Materials":
+                    self._draw_aggregated(table_rows, materials_only=True)
+                else:
+                    self._draw_aggregated(table_rows, materials_only=False)
             PyImGui.end_child()
 
             main_window_hovered = self._mouse_in_current_window_rect() or PyImGui.is_window_hovered()
@@ -4798,18 +4821,38 @@ class DropViewerWindow:
             if not self.hover_pin_open and not handle_hovered and not main_window_hovered and now >= self.hover_hide_deadline:
                 self.hover_is_visible = False
         
-    def _draw_aggregated(self, filtered_rows):
+    def _draw_aggregated(self, filtered_rows, materials_only=False):
         c = self._ui_colors()
         filtered_agg, total_filtered_qty = self._get_filtered_aggregated(filtered_rows)
+        if materials_only:
+            filtered_agg = {
+                (name, rarity): data
+                for (name, rarity), data in filtered_agg.items()
+                if self._ensure_text(rarity).strip() == "Material"
+            }
+        else:
+            filtered_agg = {
+                (name, rarity): data
+                for (name, rarity), data in filtered_agg.items()
+                if self._ensure_text(rarity).strip() != "Material"
+            }
+        total_filtered_qty = sum(data["Quantity"] for data in filtered_agg.values())
         total_items_without_gold = total_filtered_qty - sum(
             data["Quantity"] for (name, _), data in filtered_agg.items() if name == "Gold"
         )
 
-        PyImGui.text_colored(f"Total Items (filtered): {max(0, total_items_without_gold)}", c["muted"])
+        if materials_only:
+            PyImGui.text_colored(f"Total Materials (filtered): {max(0, total_items_without_gold)}", c["muted"])
+        else:
+            PyImGui.text_colored(f"Total Items (filtered): {max(0, total_items_without_gold)}", c["muted"])
         if not filtered_agg:
             PyImGui.separator()
-            PyImGui.text_colored("No drops match your current filters.", c["muted"])
-            PyImGui.text("Try clearing filters or switching to Log view.")
+            if materials_only:
+                PyImGui.text_colored("No material drops match your current filters.", c["muted"])
+                PyImGui.text("Try clearing filters or switching to Stats/Log tab.")
+            else:
+                PyImGui.text_colored("No drops match your current filters.", c["muted"])
+                PyImGui.text("Try clearing filters or switching to Log tab.")
             return
 
         PyImGui.push_style_color(PyImGui.ImGuiCol.TableHeaderBg, (0.16, 0.20, 0.27, 0.95))
@@ -4835,7 +4878,7 @@ class DropViewerWindow:
                     pct_str = "---"
                 else:
                     pct = (qty / total_items_without_gold * 100) if total_items_without_gold > 0 else 0
-                    pct_str = f"{pct:.1f}%"
+                    pct_str = f"{pct:.2f}%"
                 
                 # Get Color
                 r, g, b, a = self._get_rarity_color(rarity)
@@ -6457,6 +6500,8 @@ class DropViewerWindow:
 
         bought = 0
         for _ in range(to_buy):
+            if self._should_abort_auto_buy_kits():
+                break
             # Merchant API expects buy cost (sell value * 2) in many maps/frames.
             buy_cost = 0
             try:
@@ -6469,6 +6514,8 @@ class DropViewerWindow:
                     GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
                     wait_elapsed_ms = 0
                     while wait_elapsed_ms < 1000:
+                        if self._should_abort_auto_buy_kits():
+                            break
                         yield from Routines.Yield.wait(50)
                         wait_elapsed_ms += 50
                         quote_value = int(Trading.Trader.GetQuotedValue())
@@ -6490,10 +6537,15 @@ class DropViewerWindow:
 
             # Small settle delay between purchases.
             yield from Routines.Yield.wait(125)
+            if self._should_abort_auto_buy_kits():
+                break
             bought += 1
         return int(bought)
 
     def _approach_and_open_merchant(self, agent_id: int) -> Generator[Any, Any, bool]:
+        if self._should_abort_auto_buy_kits():
+            self._trace_auto_buy_kits("approach: aborted before start")
+            return False
         target_agent_id = max(0, self._safe_int(agent_id, 0))
         if target_agent_id <= 0:
             self._trace_auto_buy_kits("approach: invalid target agent id")
@@ -6512,6 +6564,9 @@ class DropViewerWindow:
                 f"approach: target aid={target_agent_id} model={model_id_dbg} dist={float(dist_sq) ** 0.5:.1f}"
             )
             if dist_sq > (165.0 * 165.0):
+                if self._should_abort_auto_buy_kits():
+                    self._trace_auto_buy_kits("approach: aborted before movement")
+                    return False
                 moved_via_path = False
                 try:
                     from Py4GWCoreLib.Pathing import AutoPathing
@@ -6595,6 +6650,9 @@ class DropViewerWindow:
         wait_elapsed_ms = 0
         reinteract_elapsed_ms = 0
         while wait_elapsed_ms < 3500:
+            if self._should_abort_auto_buy_kits():
+                self._trace_auto_buy_kits("approach: aborted during merchant wait")
+                return False
             if self._is_merchant_frame_open():
                 self._trace_auto_buy_kits(f"approach: merchant frame opened after {wait_elapsed_ms}ms")
                 return True
@@ -6621,10 +6679,20 @@ class DropViewerWindow:
         self.auto_buy_kits_job_running = True
         try:
             self._trace_auto_buy_kits("job: started")
+            if self._should_abort_auto_buy_kits():
+                self._trace_auto_buy_kits("job: aborted before run")
+                if verbose_status:
+                    self.set_status("Auto Buy Kits: aborted")
+                return
             if not bool(Map.IsOutpost()):
                 self._trace_auto_buy_kits("job: aborted, not in outpost")
                 if verbose_status:
                     self.set_status("Auto Buy Kits: only available in outpost/town")
+                return
+            if not self._is_auto_buy_kits_allowed_outpost():
+                self._trace_auto_buy_kits("job: aborted, outpost not in allowlist")
+                if verbose_status:
+                    self.set_status("Auto Buy Kits: only enabled in Lions Arch / Granite Citadel")
                 return
 
             stats = self._collect_local_inventory_kit_stats()
@@ -6660,6 +6728,11 @@ class DropViewerWindow:
                 # After zoning, NPC/name data can lag briefly; rescan before failing.
                 wait_elapsed_ms = 0
                 while wait_elapsed_ms < 2000 and not merchant_candidates:
+                    if self._should_abort_auto_buy_kits():
+                        self._trace_auto_buy_kits("job: aborted while rescanning merchant candidates")
+                        if verbose_status:
+                            self.set_status("Auto Buy Kits: aborted")
+                        return
                     yield from Routines.Yield.wait(200)
                     wait_elapsed_ms += 200
                     merchant_candidates = list(self._get_nearby_merchant_candidate_agent_ids() or [])
@@ -6674,6 +6747,11 @@ class DropViewerWindow:
                 except EXPECTED_RUNTIME_ERRORS:
                     map_id_now = 0
                 if map_id_now == 55:
+                    if self._should_abort_auto_buy_kits():
+                        self._trace_auto_buy_kits("job: aborted before LA bootstrap move")
+                        if verbose_status:
+                            self.set_status("Auto Buy Kits: aborted")
+                        return
                     self._trace_auto_buy_kits("job: LA bootstrap move to merchant hub (7396,6327)")
                     try:
                         yield from Routines.Yield.Movement.FollowPath(
@@ -6726,6 +6804,11 @@ class DropViewerWindow:
             merchant_opened_any = False
             tried_npcs = 0
             for candidate_id in merchant_candidates[:30]:
+                if self._should_abort_auto_buy_kits():
+                    self._trace_auto_buy_kits("job: aborted during merchant candidate loop")
+                    if verbose_status:
+                        self.set_status("Auto Buy Kits: aborted")
+                    return
                 cid = int(max(0, self._safe_int(candidate_id, 0)))
                 if cid <= 0:
                     continue
@@ -6760,6 +6843,11 @@ class DropViewerWindow:
                     missing_items.add("superior ID kit (and regular ID kit)")
 
                 if remaining_need_salvage and salvage_offer_id > 0:
+                    if self._should_abort_auto_buy_kits():
+                        self._trace_auto_buy_kits("job: aborted before salvage purchase")
+                        if verbose_status:
+                            self.set_status("Auto Buy Kits: aborted")
+                        return
                     bought_now = int((yield from self._buy_item_from_merchant(salvage_offer_id, 4)) or 0)
                     self._trace_auto_buy_kits(f"job: buy salvage offer={salvage_offer_id} bought={bought_now}")
                     if bought_now > 0:
@@ -6770,6 +6858,11 @@ class DropViewerWindow:
                             missing_items.discard("salvage kit")
 
                 if remaining_need_id:
+                    if self._should_abort_auto_buy_kits():
+                        self._trace_auto_buy_kits("job: aborted before ID purchase")
+                        if verbose_status:
+                            self.set_status("Auto Buy Kits: aborted")
+                        return
                     if superior_offer_id > 0:
                         bought_now = int((yield from self._buy_item_from_merchant(superior_offer_id, 1)) or 0)
                         self._trace_auto_buy_kits(f"job: buy superior offer={superior_offer_id} bought={bought_now}")
@@ -6831,6 +6924,7 @@ class DropViewerWindow:
                 self.set_status(f"Auto Buy Kits failed: {e}")
         finally:
             self._trace_auto_buy_kits("job: finished")
+            self.auto_buy_kits_abort_requested = False
             self.auto_buy_kits_job_running = False
 
     def _queue_buy_kits_if_needed(self, verbose_status: bool = True) -> int:
@@ -6839,12 +6933,18 @@ class DropViewerWindow:
             if verbose_status:
                 self.set_status("Auto Buy Kits: already running")
             return 0
+        if not self._is_auto_buy_kits_allowed_outpost():
+            self._trace_auto_buy_kits("queue: rejected, outpost not in allowlist")
+            if verbose_status:
+                self.set_status("Auto Buy Kits: only enabled in Lions Arch / Granite Citadel")
+            return 0
         if self.auto_outpost_store_job_running or self.auto_id_job_running or self.auto_salvage_job_running or self.auto_gold_balance_job_running or self.auto_inventory_reorder_job_running:
             self._trace_auto_buy_kits("queue: rejected, busy with other inventory job")
             if verbose_status:
                 self.set_status("Auto Buy Kits: busy with another inventory job")
             return 0
         try:
+            self.auto_buy_kits_abort_requested = False
             GLOBAL_CACHE.Coroutines.append(self._run_buy_kits_if_needed_job(verbose_status=verbose_status))
             self._trace_auto_buy_kits("queue: queued")
             if verbose_status:
@@ -7000,6 +7100,9 @@ class DropViewerWindow:
             return False
         if not self.auto_buy_kits_enabled:
             self._trace_auto_buy_kits("entry: skipped, feature disabled")
+            return False
+        if not self._is_auto_buy_kits_allowed_outpost():
+            self._trace_auto_buy_kits("entry: skipped, outpost not in allowlist")
             return False
         if self.auto_buy_kits_handled_entry_key == entry_key:
             self._trace_auto_buy_kits(f"entry: skipped, already handled entry={entry_key}")

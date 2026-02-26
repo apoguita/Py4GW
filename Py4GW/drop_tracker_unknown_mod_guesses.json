@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-02-26 21:44:15",
+  "updated_at": "2026-02-26 23:36:24",
   "source_catalog_path": "Py4GW\\drop_tracker_unknown_mod_ids.json",
   "entry_count": 18,
   "entries": [
@@ -94,7 +94,7 @@
     },
     {
       "id": 9752,
-      "hits": 25,
+      "hits": 27,
       "guess": "Armor/rune metadata modifier",
       "confidence": 70,
       "confidence_label": "Medium",
@@ -124,10 +124,12 @@
         "Ivory Bow",
         "Half Moon",
         "Salvage Kit",
-        "Accursed Staff of Trollslaying"
+        "Accursed Staff of Trollslaying",
+        "Amber Longbow"
       ],
       "co_mod_ids": [
         8216,
+        8424,
         8456,
         8488,
         8536,
@@ -144,6 +146,7 @@
         9240,
         9320,
         9400,
+        9512,
         9520,
         9736,
         9800,
@@ -156,7 +159,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-26 19:15:55"
+      "last_seen": "2026-02-26 22:14:18"
     },
     {
       "id": 42920,
@@ -238,6 +241,70 @@
       "last_seen": "2026-02-24 08:46:07"
     },
     {
+      "id": 9800,
+      "hits": 13,
+      "guess": "Melee/shield companion modifier",
+      "confidence": 63,
+      "confidence_label": "Medium",
+      "is_known_hint": false,
+      "basis": [
+        "melee/shield co-mod IDs"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        2,
+        5,
+        15,
+        27
+      ],
+      "item_type_labels": [
+        "2(Axe)",
+        "5(Upgrade)",
+        "15(Hammer)",
+        "27(Sword)"
+      ],
+      "sample_items": [
+        "Fiery Dragon Sword",
+        "Magmas Arm",
+        "Feathered Longbow",
+        "Spiked Axe",
+        "Flatbow",
+        "Longbow",
+        "Ivory Bow",
+        "Wicked Blade"
+      ],
+      "co_mod_ids": [
+        8216,
+        8456,
+        8536,
+        8760,
+        8792,
+        8824,
+        8840,
+        8856,
+        8872,
+        8888,
+        9032,
+        9224,
+        9240,
+        9400,
+        9520,
+        9752,
+        9880,
+        10136,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-26 22:07:26"
+    },
+    {
       "id": 9880,
       "hits": 13,
       "guess": "Caster metadata marker",
@@ -285,68 +352,6 @@
       "last_seen": "2026-02-24 08:46:07"
     },
     {
-      "id": 9800,
-      "hits": 12,
-      "guess": "Melee/shield companion modifier",
-      "confidence": 63,
-      "confidence_label": "Medium",
-      "is_known_hint": false,
-      "basis": [
-        "melee/shield co-mod IDs"
-      ],
-      "arg1_min": 0,
-      "arg1_max": 2,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [
-        2,
-        5,
-        15,
-        27
-      ],
-      "item_type_labels": [
-        "2(Axe)",
-        "5(Upgrade)",
-        "15(Hammer)",
-        "27(Sword)"
-      ],
-      "sample_items": [
-        "Fiery Dragon Sword",
-        "Magmas Arm",
-        "Feathered Longbow",
-        "Spiked Axe",
-        "Flatbow",
-        "Longbow",
-        "Ivory Bow"
-      ],
-      "co_mod_ids": [
-        8216,
-        8456,
-        8536,
-        8760,
-        8792,
-        8840,
-        8856,
-        8872,
-        8888,
-        9032,
-        9224,
-        9240,
-        9400,
-        9520,
-        9752,
-        9880,
-        10136,
-        32880,
-        32896,
-        41544,
-        42288,
-        42920,
-        49152
-      ],
-      "last_seen": "2026-02-26 18:45:59"
-    },
-    {
       "id": 26568,
       "hits": 9,
       "guess": "Energy +X",
@@ -387,6 +392,37 @@
       "last_seen": "2026-02-24 00:40:39"
     },
     {
+      "id": 9480,
+      "hits": 4,
+      "guess": "Material stack marker",
+      "confidence": 62,
+      "confidence_label": "Medium",
+      "is_known_hint": false,
+      "basis": [
+        "material names + structural co-mods"
+      ],
+      "arg1_min": 1,
+      "arg1_max": 8,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        11
+      ],
+      "item_type_labels": [
+        "11(Material)"
+      ],
+      "sample_items": [
+        "Tanned Hide Squares",
+        "Iron Ingots",
+        "Granite Slabs",
+        "Bolts of Cloth"
+      ],
+      "co_mod_ids": [
+        49152
+      ],
+      "last_seen": "2026-02-26 22:18:07"
+    },
+    {
       "id": 8728,
       "hits": 3,
       "guess": "Halves casting time of [Attribute] spells",
@@ -419,59 +455,6 @@
         49152
       ],
       "last_seen": "2026-02-24 01:00:59"
-    },
-    {
-      "id": 41928,
-      "hits": 3,
-      "guess": "Unmapped modifier (manual label needed)",
-      "confidence": 28,
-      "confidence_label": "Low",
-      "is_known_hint": false,
-      "basis": [
-        "not enough correlated data yet"
-      ],
-      "arg1_min": 39,
-      "arg1_max": 40,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [],
-      "item_type_labels": [],
-      "sample_items": [
-        "Dwarven Armor"
-      ],
-      "co_mod_ids": [
-        49152
-      ],
-      "last_seen": "2026-02-26 21:44:15"
-    },
-    {
-      "id": 9480,
-      "hits": 2,
-      "guess": "Material stack marker",
-      "confidence": 54,
-      "confidence_label": "Low",
-      "is_known_hint": false,
-      "basis": [
-        "material names + structural co-mods"
-      ],
-      "arg1_min": 1,
-      "arg1_max": 2,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [
-        11
-      ],
-      "item_type_labels": [
-        "11(Material)"
-      ],
-      "sample_items": [
-        "Tanned Hide Squares",
-        "Iron Ingots"
-      ],
-      "co_mod_ids": [
-        49152
-      ],
-      "last_seen": "2026-02-24 07:50:33"
     },
     {
       "id": 42936,
@@ -660,6 +643,46 @@
         49152
       ],
       "last_seen": "2026-02-24 08:46:07"
+    },
+    {
+      "id": 32880,
+      "hits": 1,
+      "guess": "Armor/rune metadata modifier",
+      "confidence": 50,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "co-occurs with armor/rune markers"
+      ],
+      "arg1_min": 1,
+      "arg1_max": 1,
+      "arg2_min": 169,
+      "arg2_max": 169,
+      "item_types": [
+        2
+      ],
+      "item_type_labels": [
+        "2(Axe)"
+      ],
+      "sample_items": [
+        "Gothic Axe"
+      ],
+      "co_mod_ids": [
+        8216,
+        8424,
+        8760,
+        9224,
+        9400,
+        9512,
+        9520,
+        10136,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-02-26 22:07:15"
     },
     {
       "id": 33056,
