@@ -17,7 +17,10 @@ class HeroAIOptionStruct(Structure):
         ("FlagPosX", c_float),
         ("FlagPosY", c_float),
         ("FlagFacingAngle", c_float),
-        ("FollowPos", Vec2f),
+        ("FollowPos", Vec3f),
+        ("FollowMoveThreshold", c_float),
+        ("FollowMoveThresholdCombat", c_float),
+        ("FollowOffset", Vec2f),
         ("FlagPos", Vec2f),
         ("AllFlag", Vec2f),
     ] 
@@ -34,7 +37,10 @@ class HeroAIOptionStruct(Structure):
     FlagPosX : float
     FlagPosY : float
     FlagFacingAngle : float
-    FollowPos : Vec2f
+    FollowPos : Vec3f
+    FollowMoveThreshold : float
+    FollowMoveThresholdCombat : float
+    FollowOffset : Vec2f
     FlagPos : Vec2f
     AllFlag : Vec2f
     
@@ -51,6 +57,9 @@ class HeroAIOptionStruct(Structure):
         self.FlagPosX = 0.0
         self.FlagPosY = 0.0
         self.FlagFacingAngle = 0.0
-        self.FollowPos = Vec2f(0.0, 0.0)
+        self.FollowPos = Vec3f(0.0, 0.0, 0.0)
+        self.FollowMoveThreshold = -1.0
+        self.FollowMoveThresholdCombat = -1.0
+        self.FollowOffset = Vec2f(0.0, 0.0)
         self.FlagPos = Vec2f(0.0, 0.0)
         self.AllFlag = Vec2f(0.0, 0.0)
