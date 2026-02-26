@@ -188,21 +188,22 @@ class UIMessage(IntEnum):
     kChangeSettingsTab          = 0x10000177 # 0x10000177, wparam = uint32_t is_interface_tab
     kDestroyUIPositionOverlay   = 0x10000179 # 0x10000179
     kEnableUIPositionOverlay    = 0x1000017a # 0x1000017a, wparam = uint32_t enable
+      
+    kGuildHall                  = 0x1000017F # was 0x1000017C, wparam = gh key (uint32_t[4])
+    kLeaveGuildHall             = 0x10000181 # was 0x1000017E
+    kTravel                     = 0x10000182 # was 0x1000017F
+    kOpenWikiUrl                = 0x10000183 # was 0x10000180, wparam = char* url
+    kAppendMessageToChat        = 0x10000191 # was 0x1000018E, wparam = wchar_t* message
+    kHideHeroPanel              = 0x1000019F # was 0x1000019C, wparam = hero_id
+    kShowHeroPanel              = 0x100001A0 # was 0x1000019D, wparam = hero_id
+    kGetInventoryAgentId        = 0x100001A4 # was 0x100001A1, wparam = 0, lparam = uint32_t* agent_id_out. Used to fetch which agent is selected
+    kEquipItem                  = 0x100001A5 # was 0x100001A2, wparam = { item_id, agent_id }
+    kMoveItem                   = 0x100001A6 # was 0x100001A3, wparam = { item_id, to_bag, to_slot, bool prompt }
+    kInitiateTrade              = 0x100001A8 # was 0x100001A5
+    kInventoryAgentChanged      = 0x100001B8 # was 0x100001B5, Triggered when inventory needs updating due to agent change; no args
+    kOpenTemplate               = 0x100001C1 # was 0x100001BE, wparam = GW::UI::ChatTemplate*
 
-    kGuildHall                  = 0x1000017C # 0x1000017C, wparam = gh key (uint32_t[4])
-    kLeaveGuildHall             = 0x1000017E # 0x1000017E
-    kTravel                     = 0x1000017F # 0x1000017F
-    kOpenWikiUrl                = 0x10000180 # 0x10000180, wparam = char* url
-    kAppendMessageToChat        = 0x1000018E # 0x1000018E, wparam = wchar_t* message
-    kHideHeroPanel              = 0x1000019C # 0x1000019C, wparam = hero_id
-    kShowHeroPanel              = 0x1000019D # 0x1000019D, wparam = hero_id
-    kGetInventoryAgentId        = 0x100001A1 # 0x100001A1, wparam = 0, lparam = uint32_t* agent_id_out. Used to fetch which agent is selected
-    kEquipItem                  = 0x100001A2 # 0x100001A2, wparam = { item_id, agent_id }
-    kMoveItem                   = 0x100001A3 # 0x100001A3, wparam = { item_id, to_bag, to_slot, bool prompt }
-    kInitiateTrade              = 0x100001A5 # 0x100001A5
-    kInventoryAgentChanged      = 0x100001B5 # 0x100001B5, Triggered when inventory needs updating due to agent change; no args
-    kOpenTemplate               = 0x100001BE # 0x100001BE, wparam = GW::UI::ChatTemplate*
-
+    kCancelEnterMission         = 0x30000001  
     kSendEnterMission           = 0x30000002  # wparam = uint32_t arena_id
     kSendLoadSkillbar           = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
     kSendPingWeaponSet          = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*
