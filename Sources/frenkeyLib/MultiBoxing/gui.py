@@ -168,7 +168,7 @@ class GUI:
                         
                         PyImGui.table_next_row()
                         PyImGui.table_next_column()
-                        card_background = style.WindowBg.opacify(0.6).to_tuple()
+                        card_background = style.WindowBg.opacity(0.6).to_tuple()
                         
                         def draw_configs():                    
                             style.ChildBg.push_color(card_background)
@@ -354,7 +354,7 @@ class GUI:
                                 
                                 for region in self.settings.regions:
                                     if region == self.settings.active_region:       
-                                        style.ChildBg.push_color(region.color.opacify(0.15).to_tuple())
+                                        style.ChildBg.push_color(region.color.opacity(0.15).to_tuple())
                                         style.Border.push_color(region.color.to_tuple())
                                         if ImGui.begin_child("active_region_edit", (0, 285), border=True, flags=PyImGui.WindowFlags.NoScrollbar):
                                             style.Border.pop_color()
@@ -719,9 +719,9 @@ class GUI:
         
         profession_color = profession_colors.get(profession, ColorPalette.GetColor("gw_disabled"))
         is_hovered = ImGui.is_mouse_in_rect((cursor_pos[0], cursor_pos[1], size[0], size[1]))
-        background = profession_color.opacify(0.6).rgb_tuple if is_hovered else profession_color.opacify(0.6).desaturate(0.25).rgb_tuple
+        background = profession_color.opacity(0.6).rgb_tuple if is_hovered else profession_color.opacity(0.6).desaturate(0.25).rgb_tuple
         if is_current_account:
-            background = profession_color.opacify(0.6).desaturate(0.75).rgb_tuple
+            background = profession_color.opacity(0.6).desaturate(0.75).rgb_tuple
             
         border = profession_color.rgb_tuple if is_hovered else profession_color.desaturate(0.25).rgb_tuple
         if is_current_account:

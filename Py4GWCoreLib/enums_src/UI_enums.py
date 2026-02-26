@@ -203,7 +203,6 @@ class UIMessage(IntEnum):
     kInventoryAgentChanged      = 0x100001B8 # was 0x100001B5, Triggered when inventory needs updating due to agent change; no args
     kOpenTemplate               = 0x100001C1 # was 0x100001BE, wparam = GW::UI::ChatTemplate*
 
-    kCancelEnterMission         = 0x30000001  
     kSendEnterMission           = 0x30000002  # wparam = uint32_t arena_id
     kSendLoadSkillbar           = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
     kSendPingWeaponSet          = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*

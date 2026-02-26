@@ -36,9 +36,9 @@ class UI():
     }
     
     QUEST_STATE_COLOR_MAP: dict[str, Color] = {
-        "Completed": ColorPalette.GetColor("bright_green").opacify(0.6),
-        "Active": ColorPalette.GetColor("white").opacify(0.6),
-        "Inactive": ColorPalette.GetColor("light_gray").opacify(0.3),
+        "Completed": ColorPalette.GetColor("bright_green").opacity(0.6),
+        "Active": ColorPalette.GetColor("white").opacity(0.6),
+        "Inactive": ColorPalette.GetColor("light_gray").opacity(0.3),
     }
     gray_color = Color(150, 150, 150, 255)
     
@@ -118,7 +118,7 @@ class UI():
                         if color:
                             style.ChildBg.push_color(color.rgb_tuple)                        
                             
-                        style.Border.push_color(color.opacify(0.1).rgb_tuple if color else (0,0,0,0))
+                        style.Border.push_color(color.opacity(0.1).rgb_tuple if color else (0,0,0,0))
                         style.WindowPadding.push_style_var(4, 4)
                         ImGui.begin_child(f"QuestSelectable_{quest.quest_id}", (0, height_selectable), border=True, flags=PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse)  
                         ImGui.render_tokenized_markup(tokenized_lines, max_width=max_width, COLOR_MAP=UI.COLOR_MAP)

@@ -29,7 +29,7 @@ def _push_card_style(style : Style, enabled : bool):
     style.ChildBg.push_color(CARD_ENABLED_BACKGROUND_COLOR.rgb_tuple if enabled else CARD_BACKGROUND_COLOR.rgb_tuple)
     style.ChildBorderSize.push_style_var(2.0 if enabled else 1.0) 
     style.ChildRounding.push_style_var(4.0)
-    style.Border.push_color(CARD_ENABLED_BACKGROUND_COLOR.opacify(0.6).rgb_tuple if enabled else CARD_BACKGROUND_COLOR.opacify(0.6).rgb_tuple)
+    style.Border.push_color(CARD_ENABLED_BACKGROUND_COLOR.opacity(0.6).rgb_tuple if enabled else CARD_BACKGROUND_COLOR.opacity(0.6).rgb_tuple)
     pass
 
 def _pop_card_style(style : Style):

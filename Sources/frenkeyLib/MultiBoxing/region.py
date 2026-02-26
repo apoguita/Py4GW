@@ -125,7 +125,7 @@ class Region:
 
         # Background + border
         PyImGui.draw_list_add_rect_filled(
-            x1, y1, x2, y2, self.color.opacify(0.15).color_int, 0, 0
+            x1, y1, x2, y2, self.color.opacity(0.15).color_int, 0, 0
         )
         PyImGui.draw_list_add_rect(
             x1, y1, x2, y2, self.color.color_int, 0, 0, 1
@@ -137,7 +137,7 @@ class Region:
             x1, y1 + self.resize_grab_size,
             x1, y1,
             x1 + self.resize_grab_size, y1,
-            self.color.opacify(0.5).color_int
+            self.color.opacity(0.5).color_int
         )
 
         # Top-right
@@ -145,7 +145,7 @@ class Region:
             x2 - 1 - self.resize_grab_size, y1,
             x2 - 1, y1,
             x2 - 1, y1 + self.resize_grab_size,
-            self.color.opacify(0.5).color_int
+            self.color.opacity(0.5).color_int
         )
 
         # Bottom-left
@@ -153,7 +153,7 @@ class Region:
             x1, y2 - 1 - self.resize_grab_size,
             x1, y2 - 1,
             x1 + self.resize_grab_size, y2 - 1,
-            self.color.opacify(0.5).color_int
+            self.color.opacity(0.5).color_int
         )
 
         # Bottom-right
@@ -161,7 +161,7 @@ class Region:
             x2 - 1 - self.resize_grab_size, y2 - 1,
             x2 - 1, y2 - 1,
             x2 - 1, y2 - 1 - self.resize_grab_size,
-            self.color.opacify(0.5).color_int
+            self.color.opacity(0.5).color_int
         )
 
         # --- Improved font scaling ---
@@ -202,7 +202,7 @@ class Region:
         PyImGui.draw_list_add_text(
             x1 + ((width - text_size[0]) / 2),
             y1 + ((height - text_size[1]) / 2),
-            self.color.opacify(1).color_int,
+            self.color.opacity(1).color_int,
             text_display,
         )
         ImGui.pop_font()
@@ -212,7 +212,7 @@ class Region:
         PyImGui.draw_list_add_text(
             x1 + ((width - details_size[0]) / 2),
             y1 + height - details_size[1] - 2,
-            self.color.opacify(1).color_int,
+            self.color.opacity(1).color_int,
             details_text,
         )
         PyImGui.pop_clip_rect()

@@ -859,7 +859,7 @@ class ModuleBrowser:
         style.ChildBg.push_color(self.card_enabled_color.rgb_tuple if enabled else self.card_color.rgb_tuple)
         style.ChildBorderSize.push_style_var(2.0 if enabled else 1.0) 
         style.ChildRounding.push_style_var(self.card_rounding)
-        style.Border.push_color(self.card_enabled_color.opacify(0.6).rgb_tuple if enabled else self.card_color.opacify(0.6).rgb_tuple)
+        style.Border.push_color(self.card_enabled_color.opacity(0.6).rgb_tuple if enabled else self.card_color.opacity(0.6).rgb_tuple)
         pass
 
     def _pop_card_style(self, style : Style):
