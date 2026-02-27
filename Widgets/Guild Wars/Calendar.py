@@ -1,19 +1,47 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional
+from typing import Optional, Protocol, Tuple, cast
 from datetime import date, timedelta
 import ast
 import os
 
 
 import PyImGui
-from Py4GWCoreLib import *
-from Py4GWCoreLib.enums import YEARS, MONTHS, EVENTS, PVE_WEEKLY_BONUSES, PVP_WEEKLY_BONUSES, NICHOLAS_CYCLE
-from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import Widget, WidgetHandler, get_widget_handler
+from Py4GWCoreLib import Color
+from Py4GWCoreLib import ColorPalette
+from Py4GWCoreLib import IconsFontAwesome5
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import IniManager
+from Py4GWCoreLib import ModelID
+from Py4GWCoreLib import Py4GW
+from Py4GWCoreLib import get_texture_for_model
+from Py4GWCoreLib.enums import EVENTS
+from Py4GWCoreLib.enums import MONTHS
+from Py4GWCoreLib.enums import NICHOLAS_CYCLE
+from Py4GWCoreLib.enums import PVE_WEEKLY_BONUSES
+from Py4GWCoreLib.enums import PVP_WEEKLY_BONUSES
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 
 REFERENCE_WEEK = date(2013, 5, 13)  # First Monday after update
 ROTATION_START = REFERENCE_WEEK  # baseline for modulo rotation
 MODULE_NAME = "Calendar"
+
+
+class WidgetLike(Protocol):
+    name: str
+    plain_name: str
+    script_path: str
+    enabled: bool
+
+    def enable(self) -> None: ...
+    def disable(self) -> None: ...
+
+
+class WidgetHandlerLike(Protocol):
+    MANAGER_INI_KEY: str
+    widgets: dict[str, WidgetLike]
+
+    def get_widget_info(self, name: str) -> WidgetLike | None: ...
 
 def get_weekly_bonuses(day: date) -> tuple[dict, dict]:
     """Return (PvE_bonus, PvP_bonus) active for the given date."""
@@ -28,9 +56,6 @@ def get_weekly_bonuses(day: date) -> tuple[dict, dict]:
     pvp_index = weeks % len(PVP_WEEKLY_BONUSES)
 
     return PVE_WEEKLY_BONUSES[pve_index], PVP_WEEKLY_BONUSES[pvp_index]
-
-
-from datetime import date, timedelta
 
 def expand_cycle_if_needed(day: date) -> None:
     """Expand NICHOLAS_CYCLE in place if 'day' is outside its current range."""
@@ -423,7 +448,7 @@ class ButtonLayout:
 
 button_layout = ButtonLayout()
 calendar = Calendar()
-widget_handler: WidgetHandler = get_widget_handler()
+widget_handler: WidgetHandlerLike = cast(WidgetHandlerLike, get_widget_handler())
 calendar_window_open = True
 owned_nicholas_farm_widget_id: Optional[str] = None
 
@@ -600,11 +625,11 @@ def _normalize_script_path(path: str) -> str:
     return os.path.normcase(os.path.abspath(path))
 
 
-def _get_widget_enabled_var_name(widget: Widget) -> str:
+def _get_widget_enabled_var_name(widget: WidgetLike) -> str:
     return f"{widget.name}__enabled"
 
 
-def _save_widget_enabled_state(widget: Widget) -> bool:
+def _save_widget_enabled_state(widget: WidgetLike) -> bool:
     manager_ini_key = widget_handler.MANAGER_INI_KEY
     if not manager_ini_key:
         Py4GW.Console.Log(
@@ -624,7 +649,7 @@ def _save_widget_enabled_state(widget: Widget) -> bool:
     return True
 
 
-def _set_widget_enabled(widget: Widget, enabled: bool) -> bool:
+def _set_widget_enabled(widget: WidgetLike, enabled: bool) -> bool:
     try:
         if enabled:
             widget.enable()
@@ -642,7 +667,7 @@ def _set_widget_enabled(widget: Widget, enabled: bool) -> bool:
     return bool(widget.enabled) == bool(enabled) and state_saved
 
 
-def _resolve_widget_for_script(script_path: str) -> Optional[Widget]:
+def _resolve_widget_for_script(script_path: str) -> WidgetLike | None:
     normalized_script_path = _normalize_script_path(script_path)
 
     for widget in widget_handler.widgets.values():
@@ -785,11 +810,11 @@ def DrawDayCard():
     nicholas = get_nicholas_for_day(selected_day)
 
     # Show the selected date (defaults to today)
-    PyImGui.text_colored(f"{calendar.get_day_of_week()}, {selected_day.strftime('%B %d, %Y')}",  ColorPalette.GetColor("yellow").to_tuple_normalized())
-    PyImGui.text_colored(f"PvE Bonus:",  ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.text_colored(f"{calendar.get_day_of_week()}, {selected_day.strftime('%B %d, %Y')}", ColorPalette.GetColor("yellow").to_tuple_normalized())
+    PyImGui.text_colored("PvE Bonus:", ColorPalette.GetColor("gw_gold").to_tuple_normalized())
     PyImGui.same_line(0, -1)
     PyImGui.text(f"{pve_bonus['name']}")
-    PyImGui.text_colored(f"PvP Bonus:",  ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.text_colored("PvP Bonus:", ColorPalette.GetColor("gw_gold").to_tuple_normalized())
     PyImGui.same_line(0, -1)
     PyImGui.text(f"{pvp_bonus['name']}")
     
@@ -798,7 +823,6 @@ def DrawDayCard():
         if PyImGui.begin_table("Nictable", 2, table_flags):
             iconwidth = 96
             child_width = 300
-            child_height = 275
             PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
             PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, child_width - iconwidth)
             PyImGui.table_next_row()
@@ -810,7 +834,7 @@ def DrawDayCard():
                 PyImGui.table_set_column_index(0)
                 ImGui.push_font("Regular", 20)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ColorPalette.GetColor("yellow").to_tuple_normalized())
-                PyImGui.text(f"Nicholas the Traveler")
+                PyImGui.text("Nicholas the Traveler")
                 PyImGui.pop_style_color(1)
                 ImGui.pop_font()
                 PyImGui.table_next_row()
@@ -840,8 +864,6 @@ def DrawDayCard():
         PyImGui.text(f"No Nicholas data to show for {selected_day}")
 
     if current_event:
-        colors = current_event["colors"]
-
         # Draw the button with event name
         PyImGui.text(f"Current Event: {current_event['name']}")
         if "dropped_items" in current_event and current_event["dropped_items"]:
