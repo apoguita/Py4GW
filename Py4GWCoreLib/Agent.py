@@ -1,10 +1,8 @@
-import struct
-
 import PyAgent
 from .model_data import ModelData
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 from .native_src.context.WorldContext import AttributeStruct
-from .native_src.internals.string_table import decode as decode_codepoints
+from .native_src.internals.string_table import decode as decode_raw
 
 
 class Agent:
@@ -120,15 +118,7 @@ class Agent:
         enc_bytes = PyAgent.PyAgent.GetAgentEncName(agent_id)
         if not enc_bytes:
             return ""
-        # Convert byte pairs to uint16 codepoints via struct (C-level, no Python loop)
-        raw = bytes(enc_bytes)
-        n = len(raw) & ~1
-        vals = struct.unpack_from(f'<{n // 2}H', raw)
-        try:
-            vals = vals[:vals.index(0)]
-        except ValueError:
-            pass
-        return decode_codepoints(vals)
+        return decode_raw(bytes(enc_bytes))
 
     RequestName = GetNameByID
 
