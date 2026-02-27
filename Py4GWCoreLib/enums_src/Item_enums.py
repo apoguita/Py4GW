@@ -1,5 +1,6 @@
 from enum import Enum
 from enum import IntEnum
+from .Model_enums import ModelID
 
 
 # region Rarity
@@ -104,3 +105,42 @@ class ItemType(IntEnum):
 
 
 # endregion
+
+MaterialMap = {
+    ModelID.Bolt_Of_Cloth: "Bolt Of Cloth",
+    ModelID.Bone: "Bone",
+    ModelID.Chitin_Fragment: "Chitin Fragment",
+    ModelID.Feather: "Feather",
+    ModelID.Granite_Slab: "Granite Slab",
+    ModelID.Iron_Ingot: "Iron Ingot",
+    ModelID.Pile_Of_Glittering_Dust: "Pile Of Glittering Dust",
+    ModelID.Plant_Fiber: "Plant Fiber",
+    ModelID.Scale: "Scale",
+    ModelID.Tanned_Hide_Square: "Tanned Hide Square",
+    ModelID.Wood_Plank: "Wood Plank",
+    ModelID.Amber_Chunk: "Amber Chunk",
+    ModelID.Bolt_Of_Damask: "Bolt Of Damask",
+    ModelID.Bolt_Of_Linen: "Bolt Of Linen",
+    ModelID.Bolt_Of_Silk: "Bolt Of Silk",
+    ModelID.Deldrimor_Steel_Ingot: "Deldrimor Steel Ingot",
+    ModelID.Diamond: "Diamond",
+    ModelID.Elonian_Leather_Square: "Elonian Leather Square",
+    ModelID.Fur_Square: "Fur Square",
+    ModelID.Glob_Of_Ectoplasm: "Glob Of Ectoplasm",
+    ModelID.Jadeite_Shard: "Jadeite Shard",
+    ModelID.Leather_Square: "Leather Square",
+    ModelID.Lump_Of_Charcoal: "Lump Of Charcoal",
+    ModelID.Monstrous_Claw: "Monstrous Claw",
+    ModelID.Monstrous_Eye: "Monstrous Eye",
+    ModelID.Monstrous_Fang: "Monstrous Fang",
+    ModelID.Obsidian_Shard: "Obsidian Shard",
+    ModelID.Onyx_Gemstone: "Onyx Gemstone",
+    ModelID.Roll_Of_Parchment: "Roll Of Parchment",
+    ModelID.Roll_Of_Vellum: "Roll Of Vellum",
+    ModelID.Ruby: "Ruby",
+    ModelID.Sapphire: "Sapphire",
+    ModelID.Spiritwood_Plank: "Spiritwood Plank",
+    ModelID.Steel_Ingot: "Steel Ingot",
+    ModelID.Tempered_Glass_Vial: "Tempered Glass Vial",
+    ModelID.Vial_Of_Ink: "Vial Of Ink",
+}

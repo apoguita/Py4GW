@@ -1086,22 +1086,42 @@ class Yield:
             return item_name
 
         @staticmethod
-        def _wait_for_salvage_materials_window():
+        def _wait_for_salvage_materials_window(timeout_ms: int = 1200, poll_ms: int = 50, initial_wait_ms: int = 150):
             from ..UIManager import UIManager
-            yield from Yield.wait(150)
-            salvage_materials_frame = UIManager.GetChildFrameID(140452905, [6, 110, 6])
+            yield from Yield.wait(max(0, initial_wait_ms))
 
-            retries = 0
-            while ((not UIManager.FrameExists(salvage_materials_frame)) and (retries < 20)):
-                yield from Yield.wait(50)
-                retries += 1
-            yield from Yield.wait(50)
+            parent_hash = 140452905
+            yes_button_offsets = [6, 110, 6]
+            waited_ms = 0
+
+            while waited_ms < max(0, timeout_ms):
+                salvage_materials_frame = UIManager.GetChildFrameID(parent_hash, yes_button_offsets)
+                if salvage_materials_frame and UIManager.FrameExists(salvage_materials_frame):
+                    yield from Yield.wait(max(0, poll_ms))
+                    return True
+
+                yield from Yield.wait(max(1, poll_ms))
+                waited_ms += max(1, poll_ms)
+
+            yield from Yield.wait(max(0, poll_ms))
+            return False
             
         @staticmethod
-        def _wait_for_empty_queue(queue_name:str):
+        def _wait_for_empty_queue(queue_name:str, timeout_ms: Optional[int] = None, poll_ms: int = 50):
             from ..Py4GWcorelib import ActionQueueManager
+            poll_ms = max(1, poll_ms)
+            waited_ms = 0
             while not ActionQueueManager().IsEmpty(queue_name):
-                yield from Yield.wait(50)
+                if timeout_ms is not None and waited_ms >= max(0, timeout_ms):
+                    ConsoleLog(
+                        "Yield.Items",
+                        f"Timed out waiting for queue '{queue_name}' to empty.",
+                        Console.MessageType.Warning
+                    )
+                    return False
+                yield from Yield.wait(poll_ms)
+                waited_ms += poll_ms
+            return True
         
         @staticmethod
         def _salvage_item(item_id):
@@ -1118,6 +1138,7 @@ class Yield:
         def SalvageItems(item_array:list[int], log=False):
             from ..Py4GWcorelib import ActionQueueManager, ConsoleLog, Console
             from ..Inventory import Inventory
+            queue_wait_timeout_ms = 5000
             
             if len(item_array) == 0:
                 ActionQueueManager().ResetQueue("SALVAGE")
@@ -1128,12 +1149,21 @@ class Yield:
                 is_purple = rarity == "Purple"
                 is_gold = rarity == "Gold"
                 ActionQueueManager().AddAction("SALVAGE", Yield.Items._salvage_item, item_id)
-                yield from Yield.Items._wait_for_empty_queue("SALVAGE")
+                queue_drained = yield from Yield.Items._wait_for_empty_queue("SALVAGE", timeout_ms=queue_wait_timeout_ms)
+                if not queue_drained:
+                    ConsoleLog("SalvageItems", f"Timed out waiting for salvage queue after starting salvage (item_id={item_id}).", Console.MessageType.Warning)
+                    continue
                 
                 if (is_purple or is_gold):
-                    yield from Yield.Items._wait_for_salvage_materials_window()
+                    found_confirm_window = yield from Yield.Items._wait_for_salvage_materials_window()
+                    if not found_confirm_window:
+                        ConsoleLog("SalvageItems", f"Timed out waiting for salvage confirmation window (item_id={item_id}).", Console.MessageType.Warning)
+                        continue
                     ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
-                    yield from Yield.Items._wait_for_empty_queue("SALVAGE")
+                    queue_drained = yield from Yield.Items._wait_for_empty_queue("SALVAGE", timeout_ms=queue_wait_timeout_ms)
+                    if not queue_drained:
+                        ConsoleLog("SalvageItems", f"Timed out waiting for salvage queue after confirmation (item_id={item_id}).", Console.MessageType.Warning)
+                        continue
                     
                 yield from Yield.wait(100)
                 

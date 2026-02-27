@@ -558,6 +558,8 @@ _ui_include_main = True
 _ui_include_update = True
 _ui_selected_entry = ""
 _ui_show_selected_window = True
+_history_seconds_per_sample = 0.1
+_history_tick_seconds = 5.0
 _ui_entry_color_map: dict[str, str] = {}
 _ui_palette_order: list[str] = []
 
@@ -1077,6 +1079,29 @@ def _draw_sparkline(
         PyImGui.draw_list_add_line(px_prev, py_prev, px, py, draw_line, 1.5)
         PyImGui.draw_list_add_line(px, py, px, y + h - inner_pad, draw_fill, 1.0)
         px_prev, py_prev = px, py
+
+    # Time segmentation overlay (seconds) for easier visual grouping.
+    total_seconds = (len(values) - 1) * _history_seconds_per_sample
+    if total_seconds >= _history_tick_seconds:
+        plot_w = max(1.0, w - inner_pad * 2)
+        tick_seconds = _history_tick_seconds
+        max_ticks = max(2, int(plot_w / 70.0))
+        tick_count = int(total_seconds / tick_seconds)
+        if tick_count > max_ticks:
+            tick_seconds *= int((tick_count + max_ticks - 1) / max_ticks)
+
+        tick_color = _c32("slate_gray", 0.45)
+        label_color = _c32("light_gray", 0.70)
+        tick_time = 0.0
+        while tick_time <= total_seconds + 1e-6:
+            ratio = tick_time / total_seconds
+            px = x + inner_pad + ratio * plot_w
+            PyImGui.draw_list_add_line(px, y + 1.0, px, y + h - 1.0, tick_color, 1.0)
+            label = f"{int(round(total_seconds - tick_time))}s"
+            text_w, _ = PyImGui.calc_text_size(label)
+            tx = max(x + 1.0, min(px - text_w * 0.5, x + w - text_w - 1.0))
+            PyImGui.draw_list_add_text(tx, y + h - 12.0, label_color, label)
+            tick_time += tick_seconds
 
     if PyImGui.is_item_hovered() and PyImGui.begin_tooltip():
         PyImGui.text(f"Samples: {len(values)}")
