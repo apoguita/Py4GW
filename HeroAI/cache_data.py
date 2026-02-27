@@ -8,7 +8,7 @@ from .combat import CombatClass
 from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Timer, ThrottledTimer
 from Py4GWCoreLib import Range, Agent, ConsoleLog, Player
-from Py4GWCoreLib import AgentArray, Weapon, Routines
+from Py4GWCoreLib import AgentArray, Weapon, Routines, Utils, CombatEvents
 from Py4GWCoreLib.IniManager import IniManager
 
 INI_DIR = "HeroAI"
@@ -164,6 +164,10 @@ class CacheData:
             self.ui_state_data = UIStateData()
             self.follow_throttle_timer = ThrottledTimer(300)
             self.follow_throttle_timer.Start()
+            self.shmem_debug_throttle = ThrottledTimer(5000)
+            self.shmem_debug_throttle.Start()
+            self.aggro_debug_throttle = ThrottledTimer(2000)
+            self.aggro_debug_throttle.Start()
             self.option_show_floating_targets = True
             self.global_options = HeroAIOptionStruct()
             
@@ -184,7 +188,67 @@ class CacheData:
         self.data.reset()   
         
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
-        return Routines.Checks.Agents.InAggro(aggro_range) 
+        # 1. Standard nearby enemy check (Local client)
+        if Routines.Checks.Agents.InAggro(aggro_range):
+            return True
+            
+        party_member_ids = AgentArray.GetAllyArray()
+
+        # 2. Party Offensive Action Check (Compass Range / Shared Memory Sync)
+        # Scan party members to see if they are attacking/casting
+        # We use shared memory states (ModelState) to detect auto-attacks reliably across clients
+        acc_count = 0
+        for acc in self.party:
+            if not acc.IsSlotActive:
+                continue
+            acc_count += 1
+            
+            # Use shared memory flags for attacking/casting
+            if acc.PlayerData.AgentData.Is_Attacking or acc.PlayerData.AgentData.Is_Casting:
+                t_id = acc.PlayerTargetID
+                if Agent.IsValid(t_id) and Agent.IsLiving(t_id):
+                    _, alleg = Agent.GetAllegiance(t_id)
+                    if alleg == "Enemy":
+                        if self.aggro_debug_throttle.IsExpired():
+                             ConsoleLog("HeroAI", f"Aggro -> Action Sync: Party Member {acc.PlayerID} (Leader: {acc.PlayerIsPartyLeader}) attacking Enemy {t_id}")
+                             self.aggro_debug_throttle.Reset()
+                        return True
+            
+            # Additional Check: CombatEvents (Faster than animation flags sometimes)
+            # This checks if the game client knows the party member is attacking someone
+            combat_target_id = CombatEvents.get_attack_target(acc.PlayerID) or CombatEvents.get_cast_target(acc.PlayerID)
+            if combat_target_id != 0:
+                 _, alleg = Agent.GetAllegiance(combat_target_id)
+                 if alleg == "Enemy":
+                     if self.aggro_debug_throttle.IsExpired():
+                         ConsoleLog("HeroAI", f"Aggro -> CombatEvent Sync: Party Member {acc.PlayerID} attacking Enemy {combat_target_id}")
+                         self.aggro_debug_throttle.Reset()
+                     return True
+            
+        # 3. Local Action Check (Fallback for immediate responsiveness)
+        for member_id in party_member_ids:
+            if Agent.IsAttacking(member_id) or Agent.IsCasting(member_id):
+                t_id = CombatEvents.get_cast_target(member_id) or CombatEvents.get_attack_target(member_id)
+                if t_id != 0:
+                    _, alleg = Agent.GetAllegiance(t_id)
+                    if alleg == "Enemy":
+                        if self.aggro_debug_throttle.IsExpired():
+                            ConsoleLog("HeroAI", f"Aggro -> Action Local: Party Member {member_id} attacking Enemy {t_id}")
+                            self.aggro_debug_throttle.Reset()
+                        return True
+
+        # 4. Passive Threat Check: Scan all enemies to see if any are attacking a party member
+        all_enemies = AgentArray.GetEnemyArray()
+        for enemy_id in all_enemies:
+            if Utils.Distance(Agent.GetXY(Player.GetAgentID()), Agent.GetXY(enemy_id)) > Range.Compass.value:
+                continue
+                
+            target_id = CombatEvents.get_cast_target(enemy_id) or CombatEvents.get_attack_target(enemy_id)
+            if target_id in party_member_ids:
+                ConsoleLog("HeroAI", f"Aggro -> Threat: Enemy {enemy_id} attacking Party {target_id}")
+                return True
+                
+        return False
         
     def UpdateCombat(self):
         self.combat_handler.Update(self)
@@ -210,9 +274,29 @@ class CacheData:
                 
                 self.party.reset()
                 self.party.update()
+                if self.shmem_debug_throttle.IsExpired():
+                     # Periodically show shared memory status - Suppressed to reduce console spam during combat
+                     # ConsoleLog("HeroAI", f"Shared Memory Sync: Scanning {len(self.party.accounts)} accounts.")
+                     self.shmem_debug_throttle.Reset()
+                
                 
                 self.account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self.account_email) or self.account_data
                 self.account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(self.account_email) or self.account_options
+                
+                # Synchronize targeting mode from leader
+                if not self.account_data.PlayerIsPartyLeader:
+                    leader_acc = self.party.get_by_party_pos(0)
+                    if leader_acc:
+                        leader_options = self.party.options.get(leader_acc.PlayerID)
+                        if leader_options:
+                            leader_mode_idx = int(leader_options.FollowPos.x)
+                            if leader_mode_idx in [0, 1, 2]:
+                                from .settings import Settings
+                                settings = Settings()
+                                if leader_mode_idx != settings.targeting_mode.value:
+                                    settings.targeting_mode = Settings.TargetingMode(leader_mode_idx)
+                                    settings.save_settings()
+                                    ConsoleLog("HeroAI", f"Targeting Mode updated by Leader: {settings.targeting_mode.name}")
                 
                 if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
                     self.data.in_aggro = self.InAggro(AgentArray.GetEnemyArray(), Range.Earshot.value)
@@ -228,7 +312,7 @@ class CacheData:
                 self.auto_attack_time = self.GetWeaponAttackAftercast()
                 
         except Exception as e:
-            ConsoleLog(f"Update Cahe Data Error:", e)
+            ConsoleLog("HeroAI", f"Update Cache Data Error: {str(e)}", 2)
                        
             
                      

@@ -20,8 +20,8 @@ LOCK_MUTEX_TIMEOUT = 1 #SECONDS
 SUBSCRIBE_TIMEOUT_SECONDS = 500 # milliseconds
 
 """ HELPER CONSTANTS """
-MELEE_RANGE_VALUE = Range.Spellcast.value
-RANGED_RANGE_VALUE = Range.Spellcast.value
+MELEE_RANGE_VALUE = 180.0 # Standard melee range + small buffer
+RANGED_RANGE_VALUE = 2520.0 # Longbow range + small buffer
 FOLLOW_DISTANCE_ON_COMBAT = Range.Spellcast.value
 FOLLOW_DISTANCE_OUT_OF_COMBAT = Range.Area.value
 

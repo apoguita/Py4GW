@@ -3,7 +3,6 @@ from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, ImGui, Utils, Over
 from Py4GWCoreLib import UIManager, ModelID, GLOBAL_CACHE, WindowFrames
 from Py4GWCoreLib import Agent, Player
 from Py4GWCoreLib import (Routines, ActionQueueManager,Key, Keystroke, ThrottledTimer)
-from Py4GWCoreLib.IniManager import IniManager
 from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, MELEE_RANGE_VALUE, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS,
                               PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
@@ -12,9 +11,13 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget
-from .globals import capture_mouse_timer, show_area_rings, show_hero_follow_grid, show_distance_on_followers, show_broadcast_follow_positions, show_broadcast_follow_threshold_rings, hero_formation
+from .globals import capture_mouse_timer, show_area_rings, show_hero_follow_grid, show_distance_on_followers, hero_formation
 from .utils import IsHeroFlagged, DrawFlagAll, DrawHeroFlag, DistanceFromWaypoint, SameMapAsAccount
 from HeroAI.settings import Settings
+from HeroAI.following import draw_embedded_config, settings as follow_settings
+from Py4GWCoreLib.ImGui_src.Textures import ThemeTextures
+from Py4GWCoreLib.ImGui_src.types import StyleTheme, ControlAppearance
+
 
 from HeroAI.ui import (draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, 
                        draw_hero_panel, draw_hotbars, draw_party_overlay, draw_party_search_overlay, draw_skip_cutscene_overlay)
@@ -117,17 +120,17 @@ class HeroAI_FloatingWindows():
                 if PyImGui.collapsing_header("Player Control"):
                     for index in range(MAX_NUM_PLAYERS):
                         account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(index)
-                        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(index)
+                        options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(index)
                         
                         if account and not account.IsHero:                            
-                            if PyImGui.tree_node(f"{account.AgentData.CharacterName}##ControlPlayer{index}"):
+                            if PyImGui.tree_node(f"{account.CharacterName}##ControlPlayer{index}"):
                                 if options is not None:
                                     HeroAI_Windows.DrawPanelButtons(account.AccountEmail, options)
                                 
                                 PyImGui.tree_pop()
             else:
                 # follower control panel
-                options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(cached_data.account_email)
+                options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(cached_data.account_email)
                 
                 if options is not None:
                     HeroAI_Windows.DrawPanelButtons(cached_data.account_email, options)
@@ -209,7 +212,7 @@ class HeroAI_FloatingWindows():
     @staticmethod
     def DistanceToDestination(cached_data: CacheData):
         account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
-        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(cached_data.account_email)
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(cached_data.account_email)
         
         if not account:
             return 0.0
@@ -217,13 +220,7 @@ class HeroAI_FloatingWindows():
         if not options:
             return 0.0
                 
-        if options.IsFlagged:
-            if account.AgentPartyData.PartyPosition == 0:
-                destination = (options.AllFlag.x, options.AllFlag.y)
-            else:
-                destination = (options.FlagPos.x, options.FlagPos.y)
-        else:
-            destination = Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+        destination = (options.FlagPosX, options.FlagPosY) if options.IsFlagged else Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
         return Utils.Distance(destination, Agent.GetXY(Player.GetAgentID()))
 
     @staticmethod
@@ -249,7 +246,7 @@ class HeroAI_FloatingWindows():
         combined_identifier = "combined_hero_panel"
         accounts = cached_data.party.accounts.values()
         
-        if not HeroAI_FloatingWindows.settings.ShowPanelOnlyOnLeaderAccount or own_data.AgentPartyData.IsPartyLeader:
+        if not HeroAI_FloatingWindows.settings.ShowPanelOnlyOnLeaderAccount or own_data.PlayerIsPartyLeader:
             if HeroAI_FloatingWindows.settings.ShowHeroPanels:
                 messages = GLOBAL_CACHE.ShMem.GetAllMessages()
             
@@ -321,7 +318,7 @@ class HeroAI_FloatingWindows():
             if HeroAI_FloatingWindows.settings.ShowPartySearchOverlay:
                 draw_party_search_overlay(cached_data)
             
-            if (HeroAI_FloatingWindows.settings.ShowCommandPanel and (own_data.AgentPartyData.IsPartyLeader or not HeroAI_FloatingWindows.settings.ShowCommandPanelOnlyOnLeaderAccount) 
+            if (HeroAI_FloatingWindows.settings.ShowCommandPanel and (own_data.PlayerIsPartyLeader or not HeroAI_FloatingWindows.settings.ShowCommandPanelOnlyOnLeaderAccount) 
                 ):
                 draw_command_panel(HeroAI_FloatingWindows.command_panel_window, cached_data)
             
@@ -393,278 +390,6 @@ class HeroAI_Windows():
     show_confirm_dialog = False
     dialog_options = []
     target_id = 0
-    show_follow_formations_quick_window = False
-    follow_formations_ini_key = ""
-    follow_formations_settings_key = ""
-    follow_runtime_ini_key = ""
-    follow_runtime_ini_vars_registered = False
-    follow_formations_names: list[str] = []
-    follow_formations_ids: list[str] = []
-    follow_formations_selected_index = 0
-    follow_move_threshold_default = float(Range.Area.value)
-    follow_move_threshold_combat = float(Range.Touch.value)
-    follow_move_threshold_flagged = 0.0
-    follow_move_threshold_default_mode = "Area"
-    follow_move_threshold_combat_mode = "Touch"
-    follow_move_threshold_flagged_mode = "Zero"
-
-    @staticmethod
-    def _follow_threshold_presets() -> list[tuple[str, float | None]]:
-        return [
-            ("Manual", None),
-            ("Zero", 0.0),
-            (Range.Touch.name, float(Range.Touch.value)),
-            (Range.Adjacent.name, float(Range.Adjacent.value)),
-            (Range.Nearby.name, float(Range.Nearby.value)),
-            (Range.Area.name, float(Range.Area.value)),
-            (Range.Earshot.name, float(Range.Earshot.value)),
-            (Range.Spellcast.name, float(Range.Spellcast.value)),
-        ]
-
-    @staticmethod
-    def _threshold_mode_index(mode_name: str) -> int:
-        presets = HeroAI_Windows._follow_threshold_presets()
-        for i, (name, _) in enumerate(presets):
-            if name == mode_name:
-                return i
-        return 0
-
-    @staticmethod
-    def _ensure_follow_module_ini_keys():
-        im = IniManager()
-        if not HeroAI_Windows.follow_formations_ini_key:
-            HeroAI_Windows.follow_formations_ini_key = im.ensure_global_key("HeroAI", "FollowModule_Formations.ini")
-        if not HeroAI_Windows.follow_formations_settings_key:
-            HeroAI_Windows.follow_formations_settings_key = im.ensure_global_key("HeroAI", "FollowModule_Settings.ini")
-        if not HeroAI_Windows.follow_runtime_ini_key:
-            HeroAI_Windows.follow_runtime_ini_key = im.ensure_global_key("HeroAI", "FollowRuntime.ini")
-        if HeroAI_Windows.follow_runtime_ini_key and not HeroAI_Windows.follow_runtime_ini_vars_registered:
-            im.add_float(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default", "FollowRuntime", "follow_move_threshold_default", float(Range.Area.value))
-            im.add_float(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat", "FollowRuntime", "follow_move_threshold_combat", float(Range.Touch.value))
-            im.add_float(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged", "FollowRuntime", "follow_move_threshold_flagged", 0.0)
-            im.add_str(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default_mode", "FollowRuntime", "follow_move_threshold_default_mode", "Area")
-            im.add_str(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat_mode", "FollowRuntime", "follow_move_threshold_combat_mode", "Touch")
-            im.add_str(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged_mode", "FollowRuntime", "follow_move_threshold_flagged_mode", "Zero")
-            HeroAI_Windows.follow_runtime_ini_vars_registered = True
-        return bool(HeroAI_Windows.follow_formations_ini_key and HeroAI_Windows.follow_formations_settings_key)
-
-    @staticmethod
-    def _load_follow_runtime_config():
-        if not HeroAI_Windows._ensure_follow_module_ini_keys() or not HeroAI_Windows.follow_runtime_ini_key:
-            return
-        im = IniManager()
-        try:
-            im.reload(HeroAI_Windows.follow_runtime_ini_key)
-            node = im._get_node(HeroAI_Windows.follow_runtime_ini_key)
-            if node:
-                node.vars_loaded = False
-            im.load_once(HeroAI_Windows.follow_runtime_ini_key)
-        except Exception:
-            pass
-        HeroAI_Windows.follow_move_threshold_default = max(
-            0.0,
-            float(im.getFloat(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default", float(Range.Area.value), section="FollowRuntime"))
-        )
-        HeroAI_Windows.follow_move_threshold_combat = max(
-            0.0,
-            float(im.getFloat(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat", float(Range.Touch.value), section="FollowRuntime"))
-        )
-        HeroAI_Windows.follow_move_threshold_flagged = max(
-            0.0,
-            float(im.getFloat(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged", 0.0, section="FollowRuntime"))
-        )
-        HeroAI_Windows.follow_move_threshold_default_mode = str(
-            im.getStr(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default_mode", "Area", section="FollowRuntime")
-        )
-        HeroAI_Windows.follow_move_threshold_combat_mode = str(
-            im.getStr(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat_mode", "Touch", section="FollowRuntime")
-        )
-        HeroAI_Windows.follow_move_threshold_flagged_mode = str(
-            im.getStr(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged_mode", "Zero", section="FollowRuntime")
-        )
-
-    @staticmethod
-    def _save_follow_runtime_config():
-        if not HeroAI_Windows._ensure_follow_module_ini_keys() or not HeroAI_Windows.follow_runtime_ini_key:
-            return
-        im = IniManager()
-        key = HeroAI_Windows.follow_runtime_ini_key
-        im.set(key, "follow_move_threshold_default", float(HeroAI_Windows.follow_move_threshold_default), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_combat", float(HeroAI_Windows.follow_move_threshold_combat), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_flagged", float(HeroAI_Windows.follow_move_threshold_flagged), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_default_mode", str(HeroAI_Windows.follow_move_threshold_default_mode), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_combat_mode", str(HeroAI_Windows.follow_move_threshold_combat_mode), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_flagged_mode", str(HeroAI_Windows.follow_move_threshold_flagged_mode), section="FollowRuntime")
-        im.save_vars(key)
-
-    @staticmethod
-    def _load_follow_formations_quick_data():
-        if not HeroAI_Windows._ensure_follow_module_ini_keys():
-            HeroAI_Windows.follow_formations_names = []
-            HeroAI_Windows.follow_formations_ids = []
-            HeroAI_Windows.follow_formations_selected_index = 0
-            return
-        im = IniManager()
-        try:
-            im.reload(HeroAI_Windows.follow_formations_ini_key)
-            im.reload(HeroAI_Windows.follow_formations_settings_key)
-        except Exception:
-            pass
-
-        count = max(0, im.read_int(HeroAI_Windows.follow_formations_ini_key, "Formations", "count", 0))
-        names: list[str] = []
-        ids: list[str] = []
-        for i in range(count):
-            fid = str(im.read_key(HeroAI_Windows.follow_formations_ini_key, "Formations", f"id_{i}", "") or "").strip()
-            name = str(im.read_key(HeroAI_Windows.follow_formations_ini_key, "Formations", f"name_{i}", "") or "").strip()
-            if not fid or not name:
-                continue
-            ids.append(fid)
-            names.append(name)
-
-        selected_id = str(im.read_key(HeroAI_Windows.follow_formations_settings_key, "Formations", "selected_id", "") or "").strip()
-        selected_index = 0
-        if selected_id and ids:
-            try:
-                selected_index = ids.index(selected_id)
-            except ValueError:
-                selected_index = 0
-
-        HeroAI_Windows.follow_formations_names = names
-        HeroAI_Windows.follow_formations_ids = ids
-        HeroAI_Windows.follow_formations_selected_index = selected_index
-
-    @staticmethod
-    def _set_selected_follow_formation(index: int):
-        if not HeroAI_Windows._ensure_follow_module_ini_keys():
-            return
-        if index < 0 or index >= len(HeroAI_Windows.follow_formations_ids):
-            return
-        HeroAI_Windows.follow_formations_selected_index = index
-        selected_id = HeroAI_Windows.follow_formations_ids[index]
-        selected_name = HeroAI_Windows.follow_formations_names[index]
-
-        im = IniManager()
-        key = HeroAI_Windows.follow_formations_settings_key
-        try:
-            node = im._get_node(key)
-            if node:
-                node.ini_handler.write_key("Formations", "selected_id", selected_id)
-                node.ini_handler.write_key("Formations", "selected", selected_name)
-                if hasattr(node, "cached_values") and node.cached_values is not None:
-                    node.cached_values[("Formations", "selected_id")] = str(selected_id)
-                    node.cached_values[("Formations", "selected")] = str(selected_name)
-                if hasattr(node, "pending_writes") and node.pending_writes is not None:
-                    node.pending_writes.pop(("Formations", "selected_id"), None)
-                    node.pending_writes.pop(("Formations", "selected"), None)
-                return
-        except Exception:
-            pass
-        im.write_key(key, "Formations", "selected_id", selected_id)
-        im.write_key(key, "Formations", "selected", selected_name)
-
-    @staticmethod
-    def DrawFollowFormationsQuickWindow(cached_data:CacheData):
-        global show_broadcast_follow_positions, show_broadcast_follow_threshold_rings
-        if not HeroAI_Windows.show_follow_formations_quick_window:
-            return
-
-        w = cached_data.HeroAI_windows.follow_formations_window
-        w.initialize()
-        if w.begin():
-            HeroAI_Windows._load_follow_formations_quick_data()
-            HeroAI_Windows._load_follow_runtime_config()
-            if PyImGui.button("Refresh Formations"):
-                HeroAI_Windows._load_follow_formations_quick_data()
-                HeroAI_Windows._load_follow_runtime_config()
-
-            if HeroAI_Windows.follow_formations_names:
-                idx = PyImGui.combo(
-                    "Formation",
-                    HeroAI_Windows.follow_formations_selected_index,
-                    HeroAI_Windows.follow_formations_names
-                )
-                if idx != HeroAI_Windows.follow_formations_selected_index:
-                    HeroAI_Windows._set_selected_follow_formation(idx)
-            else:
-                PyImGui.text_disabled("No saved follow formations found.")
-
-            show_broadcast_follow_positions = PyImGui.checkbox(
-                "Draw Followers FollowPos (3D)",
-                show_broadcast_follow_positions
-            )
-            show_broadcast_follow_threshold_rings = PyImGui.checkbox(
-                "Draw Followers Threshold Rings (3D)",
-                show_broadcast_follow_threshold_rings
-            )
-            presets = HeroAI_Windows._follow_threshold_presets()
-            preset_names = [name for name, _ in presets]
-            dirty_runtime_cfg = False
-
-            d_idx = PyImGui.combo(
-                "Follow Threshold Preset",
-                HeroAI_Windows._threshold_mode_index(HeroAI_Windows.follow_move_threshold_default_mode),
-                preset_names
-            )
-            d_name, d_val = presets[d_idx]
-            if d_name != HeroAI_Windows.follow_move_threshold_default_mode:
-                HeroAI_Windows.follow_move_threshold_default_mode = d_name
-                if d_val is not None:
-                    HeroAI_Windows.follow_move_threshold_default = float(d_val)
-                dirty_runtime_cfg = True
-            new_default_thr = max(0.0, float(PyImGui.input_float("Follow Threshold", float(HeroAI_Windows.follow_move_threshold_default))))
-            if abs(new_default_thr - HeroAI_Windows.follow_move_threshold_default) > 0.0001:
-                HeroAI_Windows.follow_move_threshold_default = new_default_thr
-                if HeroAI_Windows.follow_move_threshold_default_mode != "Manual":
-                    HeroAI_Windows.follow_move_threshold_default_mode = "Manual"
-                dirty_runtime_cfg = True
-
-            c_idx = PyImGui.combo(
-                "Combat Threshold Preset",
-                HeroAI_Windows._threshold_mode_index(HeroAI_Windows.follow_move_threshold_combat_mode),
-                preset_names
-            )
-            c_name, c_val = presets[c_idx]
-            if c_name != HeroAI_Windows.follow_move_threshold_combat_mode:
-                HeroAI_Windows.follow_move_threshold_combat_mode = c_name
-                if c_val is not None:
-                    HeroAI_Windows.follow_move_threshold_combat = float(c_val)
-                dirty_runtime_cfg = True
-            new_combat_thr = max(0.0, float(PyImGui.input_float("Combat Follow Threshold", float(HeroAI_Windows.follow_move_threshold_combat))))
-            if abs(new_combat_thr - HeroAI_Windows.follow_move_threshold_combat) > 0.0001:
-                HeroAI_Windows.follow_move_threshold_combat = new_combat_thr
-                if HeroAI_Windows.follow_move_threshold_combat_mode != "Manual":
-                    HeroAI_Windows.follow_move_threshold_combat_mode = "Manual"
-                dirty_runtime_cfg = True
-
-            f_idx = PyImGui.combo(
-                "Flag Threshold Preset",
-                HeroAI_Windows._threshold_mode_index(HeroAI_Windows.follow_move_threshold_flagged_mode),
-                preset_names
-            )
-            f_name, f_val = presets[f_idx]
-            if f_name != HeroAI_Windows.follow_move_threshold_flagged_mode:
-                HeroAI_Windows.follow_move_threshold_flagged_mode = f_name
-                if f_val is not None:
-                    HeroAI_Windows.follow_move_threshold_flagged = float(f_val)
-                dirty_runtime_cfg = True
-            new_flagged_thr = max(0.0, float(PyImGui.input_float("Flag Threshold", float(HeroAI_Windows.follow_move_threshold_flagged))))
-            if abs(new_flagged_thr - HeroAI_Windows.follow_move_threshold_flagged) > 0.0001:
-                HeroAI_Windows.follow_move_threshold_flagged = new_flagged_thr
-                if HeroAI_Windows.follow_move_threshold_flagged_mode != "Manual":
-                    HeroAI_Windows.follow_move_threshold_flagged_mode = "Manual"
-                dirty_runtime_cfg = True
-
-            if dirty_runtime_cfg:
-                HeroAI_Windows._save_follow_runtime_config()
-
-            if Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
-                PyImGui.separator()
-                if PyImGui.collapsing_header("Flagging", PyImGui.TreeNodeFlags.DefaultOpen):
-                    HeroAI_Windows.DrawFlaggingWindow(cached_data)
-
-        w.process_window()
-        w.end()
         
     @staticmethod
     def DrawBuffWindow(cached_data:CacheData):
@@ -676,14 +401,14 @@ class HeroAI_Windows():
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(index)
             
             if account and account.IsSlotActive:
-                if Agent.IsPlayer(account.AgentData.AgentID):
-                    player_name = Agent.GetNameByID(account.AgentData.AgentID)
+                if Agent.IsPlayer(account.PlayerID):
+                    player_name = Agent.GetNameByID(account.PlayerID)
                 else:
-                    player_name = GLOBAL_CACHE.Party.Heroes.GetNameByAgentID(account.AgentData.AgentID)
+                    player_name = GLOBAL_CACHE.Party.Heroes.GetNameByAgentID(account.PlayerID)
 
                 if PyImGui.tree_node(f"{player_name}##DebugBuffsPlayer{index}"):
                     # Retrieve buffs for the player
-                    player_buffs = account.AgentData.Buffs.Buffs
+                    player_buffs = account.PlayerBuffs
                     headers = ["Skill ID", "Skill Name"]
                     data = [(buff.SkillId, GLOBAL_CACHE.Skill.GetName(buff.SkillId)) for buff in player_buffs]
                     ImGui.table(f"{player_name} Buffs", headers, data)
@@ -804,62 +529,41 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawFlags(cached_data:CacheData):
-        global show_broadcast_follow_positions, show_broadcast_follow_threshold_rings
-        shmem = GLOBAL_CACHE.ShMem
-        party = GLOBAL_CACHE.Party
-        party_heroes = party.Heroes
-        active_account_option_pairs: list[tuple[AccountStruct, HeroAIOptionStruct]] = shmem.GetAllActiveAccountHeroAIPairs(sort_results=False)
-        options_by_party: list[HeroAIOptionStruct | None] = [None] * MAX_NUM_PLAYERS
-        accounts_by_party: list[AccountStruct | None] = [None] * MAX_NUM_PLAYERS
-
-        # Build once per frame, keyed by party position; source is active IsAccount-only.
-        for account, options in active_account_option_pairs:
-            party_index: int = account.AgentPartyData.PartyPosition
-            if 0 <= party_index < MAX_NUM_PLAYERS:
-                accounts_by_party[party_index] = account
-                options_by_party[party_index] = options
-
-        leader_options: HeroAIOptionStruct | None = options_by_party[0]
+        leader_options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(0)    
         
-        if HeroAI_Windows.capture_hero_flag:
+        if HeroAI_Windows.capture_hero_flag:        
             x, y, _ = Overlay().GetMouseWorldPos()
             if HeroAI_Windows.capture_flag_all:
                 DrawFlagAll(x, y)
+                pass
+            
             else:
                 DrawHeroFlag(x, y)
-
-            mouse_clicked = PyImGui.is_mouse_clicked(0)
-            if mouse_clicked and HeroAI_Windows.one_time_set_flag:
+                
+            if PyImGui.is_mouse_clicked(0) and HeroAI_Windows.one_time_set_flag:
                 HeroAI_Windows.one_time_set_flag = False
                 return
-
-            if mouse_clicked:
-                capture_index = HeroAI_Windows.capture_hero_index
-                hero_count = party.GetHeroCount()
-
-                if 0 < capture_index <= hero_count:
-                    if not HeroAI_Windows.capture_flag_all:
-                        agent_id = party_heroes.GetHeroAgentIDByPartyPosition(capture_index)
-                        party_heroes.FlagHero(agent_id, x, y)
+            
+            if PyImGui.is_mouse_clicked(0) and not HeroAI_Windows.one_time_set_flag:
+                if HeroAI_Windows.capture_hero_index > 0 and HeroAI_Windows.capture_hero_index <= GLOBAL_CACHE.Party.GetHeroCount():
+                    if not HeroAI_Windows.capture_flag_all:   
+                        agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(HeroAI_Windows.capture_hero_index)
+                        GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
                         HeroAI_Windows.one_time_set_flag = True
                 else:
-                    if capture_index == 0:
+                    if HeroAI_Windows.capture_hero_index == 0:
                         hero_ai_index = 0
-                        party_heroes.FlagAllHeroes(x, y)
+                        GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(x, y)
                     else:
-                        hero_ai_index = capture_index - hero_count
-
-                    options: HeroAIOptionStruct | None = options_by_party[hero_ai_index] if 0 <= hero_ai_index < MAX_NUM_PLAYERS else None
+                        hero_ai_index = HeroAI_Windows.capture_hero_index - GLOBAL_CACHE.Party.GetHeroCount()
+                    
+                    options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(hero_ai_index)
                     if options:
-                        if capture_index == 0:
-                            options.AllFlag.x = x
-                            options.AllFlag.y = y
-                        else:
-                            options.FlagPos.x = x
-                            options.FlagPos.y = y
+                        options.FlagPosX = x
+                        options.FlagPosY = y
                         options.IsFlagged = True
-                        options.FlagFacingAngle = Agent.GetRotationAngle(party.GetPartyLeaderID())
-
+                        options.FlagFacingAngle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+                    
                     HeroAI_Windows.one_time_set_flag = True
 
                 HeroAI_Windows.capture_flag_all = False
@@ -869,71 +573,31 @@ class HeroAI_Windows():
 
         #All flag is handled by the game even with no heroes
         if leader_options and leader_options.IsFlagged:
-            DrawFlagAll(leader_options.AllFlag.x, leader_options.AllFlag.y)
+            DrawFlagAll(leader_options.FlagPosX, leader_options.FlagPosY)
             
-        for i in range(1, MAX_NUM_PLAYERS):
-            options: HeroAIOptionStruct | None = options_by_party[i]
-            if options is None or not options.IsFlagged:
+        for i in range(1, MAX_NUM_PLAYERS):            
+            options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
+            account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(i)
+            
+            if options is None:
                 continue
+            
+            if options.IsFlagged and account and account.IsSlotActive and not account.IsHero:
+                DrawHeroFlag(options.FlagPosX, options.FlagPosY)
 
-            account: AccountStruct | None = accounts_by_party[i]
-            if account:
-                DrawHeroFlag(options.FlagPos.x, options.FlagPos.y)
-
-        if show_broadcast_follow_positions or show_broadcast_follow_threshold_rings:
-            segments = 24
-            Overlay().BeginDraw()
-            for i in range(1, MAX_NUM_PLAYERS):
-                options: HeroAIOptionStruct | None = options_by_party[i]
-                account: AccountStruct | None = accounts_by_party[i]
-                if options is None or account is None or not account.IsSlotActive:
-                    continue
-                fx = float(options.FollowPos.x)
-                fy = float(options.FollowPos.y)
-                if abs(fx) < 0.001 and abs(fy) < 0.001:
-                    continue
-                fz = Overlay().FindZ(fx, fy, 0)
-                if show_broadcast_follow_positions:
-                    Overlay().DrawPoly3D(
-                        fx, fy, fz,
-                        radius=Range.Touch.value / 3,
-                        color=Utils.RGBToColor(0, 255, 255, 140),
-                        numsegments=segments,
-                        thickness=2.0
-                    )
-                    Overlay().DrawText3D(
-                        fx, fy, fz - 110,
-                        f"F{i}",
-                        color=Utils.RGBToColor(0, 255, 255, 220),
-                        autoZ=False, centered=True, scale=1.8
-                    )
-                if show_broadcast_follow_threshold_rings:
-                    thr = max(0.0, float(getattr(options, "FollowMoveThreshold", 0.0)))
-                    if thr > 0.0:
-                        Overlay().DrawPoly3D(
-                            fx, fy, fz,
-                            radius=thr,
-                            color=Utils.RGBToColor(255, 215, 0, 110),
-                            numsegments=max(24, segments),
-                            thickness=2.0
-                        )
-            Overlay().EndDraw()
-
-        if HeroAI_Windows.ClearFlags:
+        if HeroAI_Windows.ClearFlags:            
             for i in range(MAX_NUM_PLAYERS):
-                options: HeroAIOptionStruct | None = options_by_party[i]
+                options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
             
                 if options:
                     options.IsFlagged = False
-                    options.FlagPos.x = 0.0
-                    options.FlagPos.y = 0.0
-                    options.AllFlag.x = 0.0
-                    options.AllFlag.y = 0.0
+                    options.FlagPosX = 0.0
+                    options.FlagPosY = 0.0
                     options.FlagFacingAngle = 0.0
                     
-                party_heroes.UnflagHero(i)
+                GLOBAL_CACHE.Party.Heroes.UnflagHero(i)
                 
-            party_heroes.UnflagAllHeroes()
+            GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
             HeroAI_Windows.ClearFlags = False
                 
         
@@ -1029,19 +693,19 @@ class HeroAI_Windows():
                 if _OnSameMap(self_account, account) and not _OnSameParty(self_account, account):
                     PyImGui.table_next_row()
                     PyImGui.table_next_column()
-                    if PyImGui.button(f"Invite##invite_{account.AgentData.AgentID}"):
-                        GLOBAL_CACHE.Party.Players.InvitePlayer(account.AgentData.CharacterName)
-                        GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.InviteToParty, (self_account.AgentData.AgentID,0,0,0))
+                    if PyImGui.button(f"Invite##invite_{account.PlayerID}"):
+                        GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
+                        GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.InviteToParty, (self_account.PlayerID,0,0,0))
                     PyImGui.table_next_column()
-                    PyImGui.text(f"{account.AgentData.CharacterName}")
+                    PyImGui.text(f"{account.CharacterName}")
                 else:
                     if not _OnSameMap(self_account, account):
                         PyImGui.table_next_row()
                         PyImGui.table_next_column()
-                        if PyImGui.button(f"Summon##summon_{account.AgentData.AgentID}"):
-                            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.TravelToMap, (self_account.AgentData.Map.MapID,self_account.AgentData.Map.Region,self_account.AgentData.Map.District,0))
+                        if PyImGui.button(f"Summon##summon_{account.PlayerID}"):
+                            GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail,SharedCommandType.TravelToMap, (self_account.MapID,self_account.MapRegion,self_account.MapDistrict,0))
                         PyImGui.table_next_column()
-                        PyImGui.text(f"{account.AgentData.CharacterName}")
+                        PyImGui.text(f"{account.CharacterName}")
             PyImGui.end_table()
 
     @staticmethod
@@ -1054,43 +718,37 @@ class HeroAI_Windows():
 
         if PyImGui.button("Submit"):
             self_id = Player.GetAgentID()
-            account = GLOBAL_CACHE.ShMem.GetAllAccounts().AccountData[HeroAI_Windows.slot_to_write]
-            options = GLOBAL_CACHE.ShMem.GetAllAccounts().HeroAIOptions[HeroAI_Windows.slot_to_write]
+            account = GLOBAL_CACHE.ShMem.GetStruct().AccountData[HeroAI_Windows.slot_to_write]
+            options = GLOBAL_CACHE.ShMem.GetStruct().HeroAIOptions[HeroAI_Windows.slot_to_write]
 
-            account.AgentData.AgentID = self_id
+            account.PlayerID = self_id
             player_id = Player.GetAgentID()
-            account.AgentData.Energy.Regen = Agent.GetEnergyRegen(player_id)
-            account.AgentData.Energy.Current = Agent.GetEnergy(player_id)
-            account.AgentData.Energy.Max = Agent.GetMaxEnergy(player_id)
-            account.AgentData.Energy.Pips = Utils.calculate_energy_pips(account.AgentData.Energy.Max, account.AgentData.Energy.Regen)
+            account.PlayerEnergyRegen = Agent.GetEnergyRegen(player_id)
+            account.PlayerEnergy = Agent.GetEnergy(player_id)
             account.IsSlotActive = True
             account.IsHero = False
             
             options.IsFlagged = False
-            options.FlagPos.x = 0.0
-            options.FlagPos.y = 0.0
-            options.AllFlag.x = 0.0
-            options.AllFlag.y = 0.0
+            options.FlagPosX = 0.0
+            options.FlagPosY = 0.0
 
-        headers = ["Slot","PlayerID", "EnergyRegen", "Energy", "IsSlotActive", "IsHero", "IsFlagged", "FlagPosX", "FlagPosY", "AllFlagX", "AllFlagY", "LastUpdated"]
+        headers = ["Slot","PlayerID", "EnergyRegen", "Energy", "IsSlotActive", "IsHero", "IsFlagged", "FlagPosX", "FlagPosY", "LastUpdated"]
 
         data = []
         for i in range(MAX_NUM_PLAYERS):
             account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(i)
-            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
+            options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
             if account and options:
                 data.append((
                     i,  # Slot index
-                    account.AgentData.AgentID,
-                    f"{account.AgentData.Energy.Regen:.4f}", 
-                    f"{account.AgentData.Energy.Current:.4f}",       
+                    account.PlayerID,
+                    f"{account.PlayerEnergyRegen:.4f}", 
+                    f"{account.PlayerEnergy:.4f}",       
                     account.IsSlotActive,
                     account.IsHero,
                     options.IsFlagged,
-                    f"{options.FlagPos.x:.4f}",
-                    f"{options.FlagPos.y:.4f}",
-                    f"{options.AllFlag.x:.4f}",
-                    f"{options.AllFlag.y:.4f}",
+                    f"{options.FlagPosX:.4f}",     
+                    f"{options.FlagPosY:.4f}",     
                     account.LastUpdated
                 ))
 
@@ -1142,7 +800,7 @@ class HeroAI_Windows():
 
         data = []
         for i in range(MAX_NUM_PLAYERS):
-            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(i)
+            options = GLOBAL_CACHE.ShMem.GetGerHeroAIOptionsByPartyNumber(i)
             
             if options is None:
                 continue
@@ -1248,7 +906,7 @@ class HeroAI_Windows():
             
                 if account and account.IsSlotActive:
                     Overlay().BeginDraw()
-                    player_id = account.AgentData.AgentID
+                    player_id = account.PlayerID
                     if player_id == Player.GetAgentID():
                         continue
                     target_x, target_y, target_z = Agent.GetXYZ(player_id)
@@ -1261,7 +919,9 @@ class HeroAI_Windows():
     @staticmethod   
     def DrawOptions(cached_data:CacheData):
         cached_data.ui_state_data.show_classic_controls = PyImGui.checkbox("Show Classic Controls", cached_data.ui_state_data.show_classic_controls)
-        #TODO Select combat engine options
+
+        if PyImGui.collapsing_header("Advanced Pathing & Unstuck"):
+            HeroAI_Windows.DrawAdvancedPathingOptions(cached_data)
 
     @staticmethod
     def DrawMessagingOptions(cached_data:CacheData):
@@ -1300,7 +960,7 @@ class HeroAI_Windows():
                 if self_account.AccountEmail == account.AccountEmail:
                     continue
                 ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
-                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.AgentData.Pos.x,self_account.AgentData.Pos.y,0,0))
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
         ImGui.show_tooltip("Pixel Stack (Carto Helper)")
         
         PyImGui.same_line(0,-1)
@@ -1530,6 +1190,180 @@ class HeroAI_Windows():
         cached_data.HeroAI_windows.tools_window.end()            
 
     @staticmethod
+    def DrawColoredToggle(label: str, v: bool, width:float =0.0, height:float =0.0, disabled:bool =False) -> bool:
+        def group_text_with_icons(text: str):
+            if not text:
+                return []
+            groups = []
+            current_type = text[0] in IconsFontAwesome5.ALL_ICONS
+            current_run = [text[0]]
+            for ch in text[1:]:
+                is_icon = ch in IconsFontAwesome5.ALL_ICONS
+                if is_icon == current_type:
+                    current_run.append(ch)
+                else:
+                    groups.append((current_type, ''.join(current_run)))
+                    current_run = [ch]
+                    current_type = is_icon
+            if current_run:
+                groups.append((current_type, ''.join(current_run)))
+            return groups
+
+        enabled = not disabled
+        clicked = False
+        if disabled: PyImGui.begin_disabled(disabled)
+        style = ImGui.get_style()
+        current_style_var = style.ButtonPadding.get_current()
+        btn_padding = (current_style_var.value1, current_style_var.value2 or 0)
+        
+        if current_style_var.img_style_enum:
+            PyImGui.push_style_var2(current_style_var.img_style_enum, btn_padding[0], btn_padding[1]) 
+        
+        #NON THEMED
+        if style.Theme not in ImGui.Textured_Themes:
+            button_colors = [
+                style.ToggleButtonEnabled,
+                style.ToggleButtonEnabledHovered,
+                style.ToggleButtonEnabledActive,
+            ] if v else [
+                style.ToggleButtonDisabled,
+                style.ToggleButtonDisabledHovered,
+                style.ToggleButtonDisabledActive,
+            ]
+            
+            if enabled:
+                for button_color in button_colors:
+                    button_color.push_color()
+            
+            # Force Green if active and non-themed
+            if v and enabled:
+                 PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.1, 0.6, 0.1, 1.0))
+                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.2, 0.7, 0.2, 1.0))
+                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.05, 0.5, 0.05, 1.0))
+
+            clicked = PyImGui.button(label, width, height)
+
+            if v and enabled:
+                PyImGui.pop_style_color(3)
+
+            if enabled:
+                for button_color in button_colors:
+                    button_color.pop_color()
+            
+            if disabled: PyImGui.end_disabled()
+
+            if clicked:
+                v = not v
+                
+            if current_style_var.img_style_enum:
+                PyImGui.pop_style_var(1)
+            return v
+        
+        #THEMED
+        ImGui.push_style_color(PyImGui.ImGuiCol.Button, (0, 0, 0, 0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0, 0, 0, 0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0, 0, 0, 0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.Text, (0, 0, 0, 0))
+        ImGui.push_style_color(PyImGui.ImGuiCol.TextDisabled, (0, 0, 0, 0))                
+        clicked = PyImGui.button(label, width, height)
+        ImGui.pop_style_color(5)
+
+        item_rect_min, item_rect_max, item_rect_size = ImGui.get_item_rect()
+        button_texture_rect = (item_rect_min[0] - 3, item_rect_min[1] - 4, item_rect_size[0] + 9, item_rect_size[1] + 11) if style.Theme is StyleTheme.Guild_Wars else (item_rect_min[0] - 6, item_rect_min[1] - 4, item_rect_size[0] + 12, item_rect_size[1] + 11)
+        item_rect = (*item_rect_min, *item_rect_size)  
+              
+        display_label = label.split("##")[0]
+        
+        if not v:
+            style.Text.push_color((180, 180, 180, 200))
+        
+        text_color = style.TextDisabled.get_current().color_int if disabled else style.Text.get_current().color_int
+        
+        def get_button_color() -> tuple:
+            if v:
+                return (20, 180, 20, 255) # Green for Active
+            else:
+                return style.ToggleButtonDisabledActive.rgb_tuple if PyImGui.is_item_active() else style.ToggleButtonDisabledHovered.rgb_tuple if PyImGui.is_item_hovered() else style.ToggleButtonDisabled.rgb_tuple
+
+        tint = get_button_color() if enabled else style.ButtonTextureBackgroundDisabled.get_current().rgb_tuple
+                       
+        ThemeTextures.Button_Background.value.get_texture().draw_in_drawlist(
+            button_texture_rect[:2], 
+            button_texture_rect[2:],
+            tint=tint,
+        )
+        
+        frame_tint = (255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_texture_rect) and enabled else (200, 200, 200, 255)
+        ThemeTextures.Button_Frame.value.get_texture().draw_in_drawlist(
+            button_texture_rect[:2], 
+            button_texture_rect[2:],
+            tint=frame_tint,
+        )
+        
+        text_size = PyImGui.calc_text_size(display_label)
+        text_x = button_texture_rect[0] + ((button_texture_rect[2] - text_size[0]) / 2)
+        text_y = item_rect[1] + ((item_rect[3] - text_size[1]) / 2) + 2
+    
+        PyImGui.push_clip_rect(
+            *item_rect,
+            True
+        )
+        
+        default_font_size = int(PyImGui.get_text_line_height())
+        fontawesome_font_size = int(default_font_size * 0.8)
+        offset_size = round((default_font_size - fontawesome_font_size) / 2)
+
+        groups = group_text_with_icons(display_label)
+        font_awesome_string = "".join([run for is_icon, run in groups if is_icon])
+        text_string = "".join([run for is_icon, run in groups if not is_icon]) 
+        
+        text_size_str = PyImGui.calc_text_size(text_string)
+        ImGui.push_font("Regular", fontawesome_font_size)
+        font_awesome_text_size = PyImGui.calc_text_size(font_awesome_string)
+        ImGui.pop_font()
+        
+        total_text_size = (text_size_str[0] + font_awesome_text_size[0], max(text_size_str[1], font_awesome_text_size[1]))
+        
+        text_x = button_texture_rect[0] + ((button_texture_rect[2] - total_text_size[0]) / 2)
+        text_y = button_texture_rect[1] + ((button_texture_rect[3] - total_text_size[1]) / 2)
+        
+        offset = (0, 0)
+
+        for is_icon, run in groups:
+            if is_icon:
+                ImGui.push_font("Regular", fontawesome_font_size)
+            else:
+                ImGui.push_font("Regular", default_font_size)
+            
+            text_size = PyImGui.calc_text_size(run)                
+            vertical_padding = 1 if is_icon else offset_size
+                            
+            PyImGui.draw_list_add_text(
+                text_x + offset[0],
+                text_y + vertical_padding,
+                text_color,
+                run,
+            )
+            
+            offset = (offset[0] + text_size[0], vertical_padding)
+            
+            ImGui.pop_font()
+
+        PyImGui.pop_clip_rect()
+        if not v:
+            style.Text.pop_color()
+
+        if current_style_var.img_style_enum:
+            PyImGui.pop_style_var(1)
+            
+        if disabled:PyImGui.end_disabled()
+        
+        if clicked:
+            v = not v
+        
+        return v
+
+    @staticmethod
     def DrawPanelButtons(identifier: str, source_game_option : HeroAIOptionStruct, set_global : bool = False):
         style = ImGui.get_style()
         
@@ -1542,10 +1376,10 @@ class HeroAI_Windows():
                 return
                     
             for account in accounts:          
-                if not account or not account.IsSlotActive or account.IsHero or account.AgentPartyData.PartyID != GLOBAL_CACHE.Party.GetPartyID():
+                if not account or not account.IsSlotActive or account.IsHero or account.PartyID != GLOBAL_CACHE.Party.GetPartyID():
                     continue
                   
-                account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account.AccountEmail)
+                account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptions(account.AccountEmail)
                 if not account_options:
                     continue
                 
@@ -1562,18 +1396,20 @@ class HeroAI_Windows():
                             ConsoleLog("HeroAI", f"Setting Skills[{skill_index}] to {game_option.Skills[skill_index]} for account {account.AccountEmail}")
                             account_options.Skills[skill_index] = game_option.Skills[skill_index]         
         
-        avail_x, avail_y = PyImGui.get_content_region_avail()
-        table_width = avail_x
-        btn_size = (table_width / 5) - 4
+        style = ImGui.get_style()
+        table_width, _ = PyImGui.get_content_region_avail()
+        btn_size = (table_width / 6) - 4
         skill_size = (table_width / NUMBER_OF_SKILLS) - 4
         
         style.ItemSpacing.push_style_var(0, 0)
         style.CellPadding.push_style_var(2, 2)
         
-        if PyImGui.begin_table(f"GameOptionTable##{identifier}", 5, 0, table_width, btn_size + 2):
+        if PyImGui.begin_table(f"GameOptionTable##{identifier}", 6, 0, table_width, btn_size + 2):
             PyImGui.table_next_row()
             PyImGui.table_next_column()
-            Following = ImGui.toggle_button(IconsFontAwesome5.ICON_RUNNING + "##Following" + identifier, source_game_option.Following, btn_size, btn_size)
+            
+            Following = HeroAI_Windows.DrawColoredToggle(IconsFontAwesome5.ICON_RUNNING + "##Following" + identifier, source_game_option.Following, btn_size, btn_size)
+            
             if Following != source_game_option.Following:
                 source_game_option.Following = Following
                 
@@ -1582,7 +1418,8 @@ class HeroAI_Windows():
                 
             ImGui.show_tooltip("Following")
             PyImGui.table_next_column()
-            Avoidance = ImGui.toggle_button(IconsFontAwesome5.ICON_PODCAST + "##Avoidance" + identifier, source_game_option.Avoidance, btn_size, btn_size)
+            Avoidance = HeroAI_Windows.DrawColoredToggle(IconsFontAwesome5.ICON_PODCAST + "##Avoidance" + identifier, source_game_option.Avoidance, btn_size, btn_size)
+
             if Avoidance != source_game_option.Avoidance:
                 source_game_option.Avoidance = Avoidance
                 
@@ -1591,7 +1428,8 @@ class HeroAI_Windows():
                 
             ImGui.show_tooltip("Avoidance")
             PyImGui.table_next_column()
-            Looting = ImGui.toggle_button(IconsFontAwesome5.ICON_COINS + "##Looting" + identifier, source_game_option.Looting, btn_size, btn_size)
+            Looting = HeroAI_Windows.DrawColoredToggle(IconsFontAwesome5.ICON_COINS + "##Looting" + identifier, source_game_option.Looting, btn_size, btn_size)
+
             if Looting != source_game_option.Looting:
                 source_game_option.Looting = Looting
                 
@@ -1600,7 +1438,8 @@ class HeroAI_Windows():
                 
             ImGui.show_tooltip("Looting")
             PyImGui.table_next_column()
-            Targeting = ImGui.toggle_button(IconsFontAwesome5.ICON_BULLSEYE + "##Targeting" + identifier    , source_game_option.Targeting, btn_size, btn_size)
+            Targeting = HeroAI_Windows.DrawColoredToggle(IconsFontAwesome5.ICON_BULLSEYE + "##Targeting" + identifier    , source_game_option.Targeting, btn_size, btn_size)
+
             if Targeting != source_game_option.Targeting:
                 source_game_option.Targeting = Targeting
                 
@@ -1611,7 +1450,8 @@ class HeroAI_Windows():
                 
             ImGui.show_tooltip("Targeting")
             PyImGui.table_next_column()
-            Combat = ImGui.toggle_button(IconsFontAwesome5.ICON_SKULL_CROSSBONES + "##Combat" + identifier, source_game_option.Combat, btn_size, btn_size)
+            Combat = HeroAI_Windows.DrawColoredToggle(IconsFontAwesome5.ICON_SKULL_CROSSBONES + "##Combat" + identifier, source_game_option.Combat, btn_size, btn_size)
+
             if Combat != source_game_option.Combat:
                 source_game_option.Combat = Combat
                 
@@ -1619,6 +1459,18 @@ class HeroAI_Windows():
                     set_global_option(source_game_option, "Combat")
                 
             ImGui.show_tooltip("Combat")
+
+            PyImGui.table_next_column()
+            
+            # Advanced Pathing Toggle
+            adv_pathing = HeroAI_FloatingWindows.settings.advanced_pathing_enabled
+            new_adv_pathing = HeroAI_Windows.DrawColoredToggle(IconsFontAwesome5.ICON_ROUTE + "##AdvPathing" + identifier, adv_pathing, btn_size, btn_size)
+            
+            if new_adv_pathing != adv_pathing:
+                HeroAI_FloatingWindows.settings.advanced_pathing_enabled = new_adv_pathing
+                HeroAI_FloatingWindows.settings.save_settings()
+                
+            ImGui.show_tooltip("Advanced Pathing & Unstuck (Global Setting)")
             PyImGui.end_table()
 
         style.ButtonPadding.push_style_var(5 if style.Theme not in ImGui.Textured_Themes else 0, 3 if style.Theme not in ImGui.Textured_Themes else 2)
@@ -1626,7 +1478,7 @@ class HeroAI_Windows():
             PyImGui.table_next_row()
             for i in range(NUMBER_OF_SKILLS):
                 PyImGui.table_next_column()
-                skill_active = ImGui.toggle_button(f"{i + 1}##Skill{i}" + identifier, source_game_option.Skills[i], skill_size, skill_size)
+                skill_active = HeroAI_Windows.DrawColoredToggle(f"{i + 1}##Skill{i}" + identifier, source_game_option.Skills[i], skill_size, skill_size)
                 
                 if skill_active != source_game_option.Skills[i]:
                     source_game_option.Skills[i] = skill_active
@@ -1691,8 +1543,7 @@ class HeroAI_Windows():
         table_width = btn_size * 6 + 30
 
         ImGui.push_font("Regular",10)
-        if PyImGui.begin_child("ControlPanelChild", (215, 0), False, PyImGui.WindowFlags.AlwaysAutoResize):
-            if PyImGui.begin_table("MessagingTable", 5):
+        if PyImGui.begin_table("MessagingTable", 5):
                 PyImGui.table_next_row()
                 PyImGui.table_next_column()
                 if ImGui.colored_button(f"{IconsFontAwesome5.ICON_SKULL}##commands_resign", 
@@ -1723,7 +1574,7 @@ class HeroAI_Windows():
                         if self_account.AccountEmail == account.AccountEmail:
                             continue
                         ConsoleLog("Messaging", "Pixelstacking account: " + account.AccountEmail)
-                        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.AgentData.Pos.x,self_account.AgentData.Pos.y,0,0))
+                        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PixelStack, (self_account.PlayerPosX,self_account.PlayerPosY,0,0))
                 ImGui.pop_font()
                 ImGui.show_tooltip("Pixel Stack (Carto Helper)")
                 ImGui.push_font("Regular",10)
@@ -1790,21 +1641,21 @@ class HeroAI_Windows():
                     if account_data is None:
                         return 
                     
-                    party_id = account_data.AgentPartyData.PartyID
-                    map_id = account_data.AgentData.Map.MapID
-                    map_region = account_data.AgentData.Map.Region
-                    map_district = account_data.AgentData.Map.District
-                    map_language = account_data.AgentData.Map.Language
+                    party_id = account_data.PartyID
+                    map_id = account_data.MapID
+                    map_region = account_data.MapRegion
+                    map_district = account_data.MapDistrict
+                    map_language = account_data.MapLanguage
 
                     def on_same_map_and_party(account : AccountStruct) -> bool:                    
-                        return (account.AgentPartyData.PartyID == party_id and
-                                account.AgentData.Map.MapID == map_id and
-                                account.AgentData.Map.Region == map_region and
-                                account.AgentData.Map.District == map_district and
-                                account.AgentData.Map.Language == map_language)
+                        return (account.PartyID == party_id and
+                                account.MapID == map_id and
+                                account.MapRegion == map_region and
+                                account.MapDistrict == map_district and
+                                account.MapLanguage == map_language)
                         
                     all_accounts = [account for account in cached_data.party.accounts.values()]
-                    lowest_party_index_account = min(all_accounts, key=lambda account: account.AgentPartyData.PartyPosition, default=None)
+                    lowest_party_index_account = min(all_accounts, key=lambda account: account.PartyPosition, default=None)
                     if lowest_party_index_account is None:
                         return
                     
@@ -1839,25 +1690,8 @@ class HeroAI_Windows():
                 ImGui.pop_font()
                 ImGui.show_tooltip("Consumables")
                 ImGui.push_font("Regular",10)
-
+                
                 PyImGui.end_table()
-
-            PyImGui.separator()
-            if PyImGui.begin_table("MessagingTable_Row2", 1):
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
-                fv = HeroAI_Windows.show_follow_formations_quick_window
-                new_fv = ImGui.toggle_button(
-                    label=f"{IconsFontAwesome5.ICON_PROJECT_DIAGRAM}##follow_formations_quick",
-                    v=fv,
-                    width=(btn_size * 2),
-                    height=btn_size
-                )
-                if new_fv != fv:
-                    HeroAI_Windows.show_follow_formations_quick_window = new_fv
-                ImGui.show_tooltip("Follow Formations Quick Access")
-                PyImGui.end_table()
-            PyImGui.end_child()
         ImGui.pop_font()
             
     @staticmethod
@@ -1878,33 +1712,31 @@ class HeroAI_Windows():
 
         
         if ImGui.Begin(ini_key=cached_data.ini_key, name="HeroAI Control Panel", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
-            if PyImGui.begin_child("ControlPanelChild", (200, 138), False, PyImGui.WindowFlags.AlwaysAutoResize):
-                style = ImGui.get_style()
-                style.ItemSpacing.push_style_var(2, 2)
-                style.CellPadding.push_style_var(2, 2)
+            style = ImGui.get_style()
+            style.ItemSpacing.push_style_var(2, 2)
+            style.CellPadding.push_style_var(2, 2)
+        
+            HeroAI_Windows.DrawPanelButtons(cached_data.account_email, cached_data.global_options, set_global=True) 
+            _close_spacing() 
+            HeroAI_Windows.DrawButtonBar(cached_data)
             
-                HeroAI_Windows.DrawPanelButtons(cached_data.account_email, cached_data.global_options, set_global=True) 
-                _close_spacing() 
-                HeroAI_Windows.DrawButtonBar(cached_data)
-                
-                style.CellPadding.pop_style_var()
-                style.ItemSpacing.pop_style_var()
-                PyImGui.end_child()
+            style.CellPadding.pop_style_var()
+            style.ItemSpacing.pop_style_var()
                     
             PyImGui.separator()
             if PyImGui.tree_node("Players"):
                 style = ImGui.get_style()
                 style.ItemSpacing.push_style_var(2, 2)
                 style.CellPadding.push_style_var(2, 2)
-                sorted_by_party_position = sorted(cached_data.party.accounts.values(), key=lambda acc: acc.AgentPartyData.PartyPosition)
+                sorted_by_party_position = sorted(cached_data.party.accounts.values(), key=lambda acc: acc.PartyPosition)
                 index = 0
                 
                 for account in sorted_by_party_position:
-                    if account and account.IsSlotActive and not account.IsHero and account.AgentPartyData.PartyID == GLOBAL_CACHE.Party.GetPartyID():
+                    if account and account.IsSlotActive and not account.IsHero and account.PartyID == GLOBAL_CACHE.Party.GetPartyID():
                         index += 1
-                        original_game_option = cached_data.party.options.get(account.AgentData.AgentID)
+                        original_game_option = cached_data.party.options.get(account.PlayerID)
                         
-                        if PyImGui.tree_node(f"{index}. {account.AgentData.CharacterName}##ControlPlayer{index}"):
+                        if PyImGui.tree_node(f"{index}. {account.CharacterName}##ControlPlayer{index}"):
                             if original_game_option is not None:
                                 HeroAI_Windows.DrawPanelButtons(account.AccountEmail, original_game_option)
                             PyImGui.new_line()
@@ -1914,7 +1746,133 @@ class HeroAI_Windows():
                 PyImGui.tree_pop()
                 style.CellPadding.pop_style_var()
                 style.ItemSpacing.pop_style_var()
+
+            PyImGui.separator()
+            if PyImGui.tree_node("Advanced Pathing & Unstuck"):
+                style = ImGui.get_style()
+                style.ItemSpacing.push_style_var(2, 2)
+                style.CellPadding.push_style_var(2, 2)
+                HeroAI_Windows.DrawAdvancedPathingOptions(cached_data)
+                style.CellPadding.pop_style_var()
+                style.ItemSpacing.pop_style_var()
+                PyImGui.tree_pop()
+
+            PyImGui.separator()
+            if PyImGui.tree_node("Follow Module"):
+                style = ImGui.get_style()
+                style.ItemSpacing.push_style_var(2, 2)
+                style.CellPadding.push_style_var(2, 2)
+                
+                # Master Toggle
+                is_enabled = follow_settings.follow_enabled
+                new_enabled = PyImGui.checkbox("Enable Formation Logic", is_enabled)
+                if new_enabled != is_enabled:
+                    follow_settings.follow_enabled = new_enabled
+                    HeroAI_FloatingWindows.settings.save_settings() # Triggers save for all modules if they share ini logic, or we need specific save
+                    # The follow module has its own _save_settings logic triggered by UI changes usually.
+                    # We might need to manually trigger a save or rely on the next loop.
+                    # For now, let's assume the follow module handles its own state or we trigger it.
+                    # Actually, following.py saves when things change in its own UI. 
+                    # We should probably expose a save method or just let it be. 
+                    # Wait, following.py uses a local _save_settings. We can't easily call it.
+                    # But we updated the value in the object. 
+                    # Let's force a save by dirtying it? 
+                    # following.py settings auto-save in its draw functions. 
+                    # We'll rely on draw_embedded_config to handle internal saves, 
+                    # but for this toggle we might need to be careful. 
+                    # Let's just set it. The embedded config will likely save on its own interactions.
+                    from HeroAI.following import _save_settings as follow_save
+                    follow_save()
+                
+                if not follow_settings.follow_enabled:
+                    ImGui.text_colored("Formation logic is DISABLED.", (1.0, 0.0, 0.0, 1.0))
+                else:
+                    ImGui.text_colored("Formation logic is ENABLED.", (0.0, 1.0, 0.0, 1.0))
+                    
+                PyImGui.separator()
+                
+                # Refactor: Button to open separate window instead of embedding
+                btn_text = "Close Configuration Window" if follow_settings.show_config_window else "Open Configuration Window"
+                if PyImGui.button(btn_text):
+                    follow_settings.show_config_window = not follow_settings.show_config_window
+                    
+                if follow_settings.show_config_window:
+                    ImGui.text_colored("Window is OPEN", (0.0, 1.0, 0.0, 1.0))
+                
+                style.CellPadding.pop_style_var()
+                style.ItemSpacing.pop_style_var()
+                PyImGui.tree_pop()
+
+            PyImGui.separator()
+
+            if PyImGui.tree_node("Targeting Module"):
+                # Targeting Mode Selection
+                modes = ["Classic (Nearest)", "Smart (Weighted)", "Assist (Cluster)"]
+                current_mode_idx = HeroAI_FloatingWindows.settings.targeting_mode.value
+                
+                new_mode_idx = PyImGui.combo("Strategy", current_mode_idx, modes)
+                
+                if new_mode_idx != current_mode_idx:
+                    HeroAI_FloatingWindows.settings.targeting_mode = Settings.TargetingMode(new_mode_idx)
+                    HeroAI_FloatingWindows.settings.save_settings()
+                    
+                # Description helper
+                if new_mode_idx == 0:
+                    ImGui.text_colored("Default behavior. Target nearest enemy.", (0.7, 0.7, 0.7, 1.0))
+                elif new_mode_idx == 1:
+                     ImGui.text_colored("Prioritizes Healers > Casters > Low HP.", (0.7, 0.7, 0.7, 1.0))
+                elif new_mode_idx == 2:
+                     ImGui.text_colored("Focus fire on party's target.", (0.7, 0.7, 0.7, 1.0))
+
+                PyImGui.tree_pop()
                 
         ImGui.End(cached_data.ini_key)
-        HeroAI_Windows.DrawFollowFormationsQuickWindow(cached_data)
+
+    @staticmethod
+    def DrawAdvancedPathingOptions(cached_data:CacheData):
+        # Settings for Advanced Pathing & Unstuck module
+        adv_pathing = HeroAI_FloatingWindows.settings.advanced_pathing_enabled
+        new_adv_pathing = PyImGui.checkbox("Enable Advanced Pathing & Unstuck", adv_pathing)
+        if new_adv_pathing != adv_pathing:
+            HeroAI_FloatingWindows.settings.advanced_pathing_enabled = new_adv_pathing
+            HeroAI_FloatingWindows.settings.save_settings()
+        
+        if not HeroAI_FloatingWindows.settings.advanced_pathing_enabled:
+            ImGui.text_colored("Feature is currently DISABLED globally.", (1.0, 0.0, 0.0, 1.0))
+        else:
+            ImGui.text_colored("Feature is ENABLED.", (0.0, 1.0, 0.0, 1.0))
+
+        PyImGui.separator()
+
+        # Sanity Check Distance
+        sanity_val = HeroAI_FloatingWindows.settings.sanity_check_distance
+        new_sanity = ImGui.slider_float("Path Reject Threshold", sanity_val, 100.0, 2000.0)
+        if new_sanity != sanity_val:
+            HeroAI_FloatingWindows.settings.sanity_check_distance = new_sanity
+            HeroAI_FloatingWindows.settings.save_settings()
+        ImGui.show_tooltip("Distance (in game units) to reject a path if the first waypoint is too far.\nPrevents 'Ghost Wall' pathfinding errors.")
+
+        # Unstuck Radius
+        radius_val = HeroAI_FloatingWindows.settings.unstuck_radius
+        new_radius = ImGui.slider_float("Unstuck Radius", radius_val, 50.0, 300.0)
+        if new_radius != radius_val:
+            HeroAI_FloatingWindows.settings.unstuck_radius = new_radius
+            HeroAI_FloatingWindows.settings.save_settings()
+        ImGui.show_tooltip("Distance to move back during an unstuck attempt.")
+
+        # Recidivism Memory
+        memory_val = HeroAI_FloatingWindows.settings.recidivism_memory
+        new_memory = ImGui.slider_float("Recidivism Memory (s)", memory_val, 1.0, 60.0)
+        if new_memory != memory_val:
+            HeroAI_FloatingWindows.settings.recidivism_memory = new_memory
+            HeroAI_FloatingWindows.settings.save_settings()
+        ImGui.show_tooltip("How long (in seconds) the bot remembers it was stuck.\nKeeps hypersensitive mode active to prevent loops.")
+
+        # Hypersensitive Speed
+        speed_val = HeroAI_FloatingWindows.settings.hypersensitive_speed
+        new_speed = ImGui.slider_float("Stuck Check Interval (s)", speed_val, 0.1, 1.0)
+        if new_speed != speed_val:
+            HeroAI_FloatingWindows.settings.hypersensitive_speed = new_speed
+            HeroAI_FloatingWindows.settings.save_settings()
+        ImGui.show_tooltip("Time interval (in seconds) to check for stuck state when in hypersensitive mode.\nLower is faster reaction but higher CPU usage.")
         
