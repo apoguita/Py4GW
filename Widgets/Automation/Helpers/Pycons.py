@@ -68,6 +68,10 @@ try:
         "powerstone_of_courage": ("powerstone of courage",),
         "seal_of_the_dragon_empire": ("seal of the dragon empire",),
     }
+    # Explicit filename overrides for known consumables when deterministic mapping is preferred.
+    CONSUMABLE_ICON_FILE_OVERRIDES = {
+        "powerstone_of_courage": "Powerstone_of_Courage.png",
+    }
     _icon_candidates_cache = None
     _icon_path_by_key_cache = {}
 
@@ -321,19 +325,14 @@ try:
             return "+0"
 
     TOOLTIP_VISIBILITY_OPTIONS = ["Off", "On hover", "Always show"]
-    TOOLTIP_PROFILE_OPTIONS = ["Solo", "Leader-only spending", "Full team sync", "Advanced/technical"]
     TOOLTIP_LENGTH_OPTIONS = ["Short", "Long"]
+    SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "mbdp", "outpost", "alcohol"]
 
     _TOOLTIP_TEXTS = {
         "tooltip_visibility": {
             "short": "Controls when help text is shown.",
             "long": "Choose how tooltip help appears. Off hides all setting help. On hover only shows help when the setting is hovered. Always show displays full help text under each setting.",
             "why": "Use Always show while learning, then switch to On hover once your setup is stable.",
-        },
-        "tooltip_profile": {
-            "short": "Chooses which playstyle guidance to show in tooltips.",
-            "long": "Select the guidance profile used in tooltip recommendations. Solo favors local-only safety, Leader-only favors one spender coordinating others, Full team sync assumes multiple accounts consume, and Advanced/technical includes lower-level behavior notes.",
-            "why": "The same setting can be correct or wrong depending on whether you run solo, lead multibox, or synchronize a full team.",
         },
         "tooltip_length": {
             "short": "Controls short vs detailed help text.",
@@ -354,23 +353,11 @@ try:
             "short": "Send this account's item usage events to team accounts.",
             "long": "This account broadcasts consumable usage events to same-party accounts on the same map. Broadcasters coordinate party MB/DP behavior; receiving accounts still apply their own local safety checks before consuming.",
             "why": "Party-wide MB/DP coordination depends on broadcasters; without it, team sync behavior will not run.",
-            "profiles": {
-                0: "Solo: keep OFF.",
-                1: "Leader-only: ON on leader, OFF on followers.",
-                2: "Full sync: ON on coordinator account.",
-                3: "Advanced: use with coordinator gating and explicit local receiver safety.",
-            },
         },
         "team_consume_opt_in": {
             "short": "Allow this account to consume when teammates broadcast.",
             "long": "This account opts in as a receiver for team consume broadcasts. If disabled, incoming broadcasts are ignored. Receiver-side local enabled checks may still block item use if local safety requires it.",
             "why": "This controls whether followers are passive observers or active consumers in team workflows.",
-            "profiles": {
-                0: "Solo: keep OFF.",
-                1: "Leader-only: ON only if you need eligibility, while leaving follower items disabled.",
-                2: "Full sync: ON for all receiving accounts.",
-                3: "Advanced: combine with strict local enabled checks.",
-            },
         },
         "advanced_intervals": {
             "short": "Shows per-item timing controls.",
@@ -421,23 +408,11 @@ try:
             "short": "Allow party-wide MB/DP with non-eligible humans present.",
             "long": "If OFF, party-wide MB/DP spending is blocked when there are human party members not considered eligible by your team flags. If ON, party-wide logic can still spend even in mixed human groups.",
             "why": "Use OFF for safety; use ON only for fully coordinated teams.",
-            "profiles": {
-                0: "Solo: OFF.",
-                1: "Leader-only: usually OFF.",
-                2: "Full sync: ON only if your whole human party is intentionally coordinated.",
-                3: "Advanced: ON only with explicit party policy.",
-            },
         },
         "mbdp_receiver_require_enabled": {
             "short": "Receivers only consume MB/DP items enabled locally.",
             "long": "If ON, a receiver account will only consume a broadcast MB/DP item if that exact item is also enabled locally on that account. If OFF, broadcast can trigger consumption even if local item toggle is OFF.",
             "why": "ON is safer and prevents accidental follower spending.",
-            "profiles": {
-                0: "Solo: ON.",
-                1: "Leader-only: ON (strongly recommended).",
-                2: "Full sync: ON unless you explicitly want centralized forced triggers.",
-                3: "Advanced: OFF only if you accept centralized control risk.",
-            },
         },
         "mbdp_prefer_seal_for_recharge": {
             "short": "Prefer Seal over Pumpkin for self +10 morale upkeep.",
@@ -611,15 +586,10 @@ try:
             return str(fallback or "")
 
         length_idx = max(0, min(len(TOOLTIP_LENGTH_OPTIONS) - 1, _cfg_int("tooltip_length", 1)))
-        profile_idx = max(0, min(len(TOOLTIP_PROFILE_OPTIONS) - 1, _cfg_int("tooltip_profile", 0)))
         show_why = bool(getattr(cfg, "tooltip_show_why", True))
 
         base = str(data.get("long") if length_idx == 1 else data.get("short", "")) or str(fallback or "")
         base = _sentence_lines(base)
-        profile_map = data.get("profiles", {})
-        profile_line = str(profile_map.get(profile_idx, "")).strip()
-        if profile_line:
-            base = f"{base}\nProfile: {profile_line}"
         if setting_key == "preset_leader_force_plus10_team":
             cur_target = _fmt_effective(int(getattr(cfg, "force_team_morale_value", 0)))
             base = f"{base}\nCurrent force target: {cur_target}"
@@ -646,6 +616,19 @@ try:
                 PyImGui.text(txt)
         except Exception:
             pass
+
+    def _ordered_consumable_category_keys(keys: list[str]) -> list[str]:
+        seen = set()
+        ordered = []
+        for key in SETTINGS_CONSUMABLE_CATEGORY_ORDER:
+            if key in keys and key not in seen:
+                ordered.append(key)
+                seen.add(key)
+        for key in keys:
+            if key not in seen:
+                ordered.append(key)
+                seen.add(key)
+        return ordered
 
     PRESET_SLOT_COUNT = 3
     LEADER_FORCE_PRESET_KEY = "leader_force_target_morale"
@@ -1288,6 +1271,13 @@ try:
             return ""
         if k in _icon_path_by_key_cache:
             return str(_icon_path_by_key_cache.get(k, "") or "")
+        override_filename = str(CONSUMABLE_ICON_FILE_OVERRIDES.get(k, "") or "").strip()
+        if override_filename:
+            for base in _ICON_PREFERRED_ROOTS:
+                override_path = os.path.normpath(os.path.join(base, override_filename))
+                if os.path.exists(override_path):
+                    _icon_path_by_key_cache[k] = override_path.replace("/", "\\")
+                    return str(_icon_path_by_key_cache[k] or "")
         if _icon_candidates_cache is None:
             _icon_candidates_cache = _build_icon_candidates()
         best_score = -1
@@ -1312,7 +1302,16 @@ try:
         current = bool(state_now)
         if icon_path:
             pushed_alpha = False
+            pushed_colors = 0
             try:
+                try:
+                    # Keep a dark backing panel behind icon textures for readability.
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.02, 0.02, 0.02, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.08, 0.08, 0.08, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.00, 0.00, 0.00, 1.00))
+                    pushed_colors = 3
+                except Exception:
+                    pushed_colors = 0
                 if not current:
                     style_vars = getattr(PyImGui, "ImGuiStyleVar", None)
                     alpha_var = getattr(style_vars, "Alpha", None) if style_vars is not None else None
@@ -1325,6 +1324,11 @@ try:
                 if pushed_alpha:
                     try:
                         PyImGui.pop_style_var(1)
+                    except Exception:
+                        pass
+                if pushed_colors > 0:
+                    try:
+                        PyImGui.pop_style_color(pushed_colors)
                     except Exception:
                         pass
             _tooltip_if_hovered(tooltip_text)
@@ -1383,7 +1387,6 @@ try:
             self.show_selected_list = ini_handler.read_bool(INI_SECTION, "show_selected_list", True)
             self.only_show_available_inventory = ini_handler.read_bool(INI_SECTION, "only_show_available_inventory", False)
             self.tooltip_visibility = max(0, min(2, int(ini_handler.read_int(INI_SECTION, "tooltip_visibility", 1))))
-            self.tooltip_profile = max(0, min(3, int(ini_handler.read_int(INI_SECTION, "tooltip_profile", 0))))
             self.tooltip_length = max(0, min(1, int(ini_handler.read_int(INI_SECTION, "tooltip_length", 1))))
             self.tooltip_show_why = ini_handler.read_bool(INI_SECTION, "tooltip_show_why", True)
             self.last_applied_preset = str(ini_handler.read_key(INI_SECTION, "last_applied_preset", "None") or "None")
@@ -1505,7 +1508,6 @@ try:
             ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
             ini_handler.write_key(INI_SECTION, "only_show_available_inventory", str(bool(self.only_show_available_inventory)))
             ini_handler.write_key(INI_SECTION, "tooltip_visibility", str(int(self.tooltip_visibility)))
-            ini_handler.write_key(INI_SECTION, "tooltip_profile", str(int(self.tooltip_profile)))
             ini_handler.write_key(INI_SECTION, "tooltip_length", str(int(self.tooltip_length)))
             ini_handler.write_key(INI_SECTION, "tooltip_show_why", str(bool(self.tooltip_show_why)))
             ini_handler.write_key(INI_SECTION, "last_applied_preset", str(self.last_applied_preset))
@@ -3290,12 +3292,6 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("tooltip_visibility")
 
-            changed, idx = ui_combo("Help profile##pycons_tip_profile", int(cfg.tooltip_profile), TOOLTIP_PROFILE_OPTIONS)
-            if changed:
-                cfg.tooltip_profile = int(idx)
-                cfg.mark_dirty()
-            _show_setting_tooltip("tooltip_profile")
-
             changed, idx = ui_combo("Help length##pycons_tip_length", int(cfg.tooltip_length), TOOLTIP_LENGTH_OPTIONS)
             if changed:
                 cfg.tooltip_length = int(idx)
@@ -3671,118 +3667,134 @@ try:
             visible_regular_keys = []
             visible_alcohol_keys = []
 
-            explorable_open = _collapsing_header_force(
-                "Explorable##pycons_hdr_explorable",
-                force_open=explorable_force,
-                default_open=bool(cfg.settings_explorable_open),
-            )
-            if bool(cfg.settings_explorable_open) != bool(explorable_open):
-                cfg.settings_explorable_open = bool(explorable_open)
-                cfg.mark_dirty()
-            if explorable_open:
-                before_explorable = len(visible_regular_keys)
-                if (not search_active) or conset_has_match:
-                    PyImGui.text("Conset:")
-                for spec in explorable_consets:
-                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-
-                if (not search_active) or _list_has_match(explorable_other, flt):
-                    PyImGui.separator()
-
-                for spec in explorable_other:
-                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-
-                if only_available_settings and len(visible_regular_keys) == before_explorable:
-                    PyImGui.text_disabled("No available items.")
-
-                PyImGui.separator()
-
-            outpost_open = _collapsing_header_force(
-                "In-town speed boosts##pycons_hdr_outpost",
-                force_open=outpost_force,
-                default_open=bool(cfg.settings_outpost_open),
-            )
-            if bool(cfg.settings_outpost_open) != bool(outpost_open):
-                cfg.settings_outpost_open = bool(outpost_open)
-                cfg.mark_dirty()
-            if outpost_open:
-                before_outpost = len(visible_regular_keys)
-                for spec in outpost_items:
-                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-                if only_available_settings and len(visible_regular_keys) == before_outpost:
-                    PyImGui.text_disabled("No available items.")
-
-            mbdp_open = _collapsing_header_force(
-                "Morale Boost & Death Penalty##pycons_hdr_mbdp",
-                force_open=mbdp_force,
-                default_open=bool(cfg.settings_mbdp_open),
-            )
-            if bool(cfg.settings_mbdp_open) != bool(mbdp_open):
-                cfg.settings_mbdp_open = bool(mbdp_open)
-                cfg.mark_dirty()
-            if mbdp_open:
-                before_mbdp = len(visible_regular_keys)
-                mbdp_party_keys = {
-                    "elixir_of_valor",
-                    "four_leaf_clover",
-                    "honeycomb",
-                    "oath_of_purity",
-                    "powerstone_of_courage",
-                    "rainbow_candy_cane",
-                }
-                mbdp_self_keys = {
-                    "peppermint_candy_cane",
-                    "pumpkin_cookie",
-                    "refined_jelly",
-                    "seal_of_the_dragon_empire",
-                    "wintergreen_candy_cane",
-                }
-
-                mbdp_by_key = {str(s.get("key", "")): s for s in mbdp_items}
-                party_specs = [mbdp_by_key[k] for k in mbdp_party_keys if k in mbdp_by_key]
-                self_specs = [mbdp_by_key[k] for k in mbdp_self_keys if k in mbdp_by_key]
-                unmapped_specs = [s for s in mbdp_items if str(s.get("key", "")) not in mbdp_party_keys and str(s.get("key", "")) not in mbdp_self_keys]
-
-                missing_party_keys = sorted([k for k in mbdp_party_keys if k not in mbdp_by_key])
-                missing_self_keys = sorted([k for k in mbdp_self_keys if k not in mbdp_by_key])
-
-                PyImGui.text("Party:")
-                for spec in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
-                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-
-                if missing_party_keys:
-                    PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
-
-                PyImGui.separator()
-                PyImGui.text("Self:")
-                for spec in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
-                    _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-
-                if missing_self_keys:
-                    PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
-
-                if unmapped_specs:
-                    PyImGui.separator()
-                    PyImGui.text("Unmapped:")
-                    for spec in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
+            def _draw_explorable_category():
+                explorable_open = _collapsing_header_force(
+                    "Explorable##pycons_hdr_explorable",
+                    force_open=explorable_force,
+                    default_open=bool(cfg.settings_explorable_open),
+                )
+                if bool(cfg.settings_explorable_open) != bool(explorable_open):
+                    cfg.settings_explorable_open = bool(explorable_open)
+                    cfg.mark_dirty()
+                if explorable_open:
+                    before_explorable = len(visible_regular_keys)
+                    if (not search_active) or conset_has_match:
+                        PyImGui.text("Conset:")
+                    for spec in explorable_consets:
                         _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
-                if only_available_settings and len(visible_regular_keys) == before_mbdp:
-                    PyImGui.text_disabled("No available items.")
 
-            alcohol_open = _collapsing_header_force(
-                "Alcohol##pycons_hdr_alcohol",
-                force_open=alcohol_force,
-                default_open=bool(cfg.settings_alcohol_open),
-            )
-            if bool(cfg.settings_alcohol_open) != bool(alcohol_open):
-                cfg.settings_alcohol_open = bool(alcohol_open)
-                cfg.mark_dirty()
-            if alcohol_open:
-                before_alcohol = len(visible_alcohol_keys)
-                for spec in sorted(alcohol_items, key=lambda x: x.get("label", "")):
-                    _draw_alcohol_settings_row(spec, flt, visible_alcohol_keys, only_available=only_available_settings)
-                if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
-                    PyImGui.text_disabled("No available items.")
+                    if (not search_active) or _list_has_match(explorable_other, flt):
+                        PyImGui.separator()
+
+                    for spec in explorable_other:
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+
+                    if only_available_settings and len(visible_regular_keys) == before_explorable:
+                        PyImGui.text_disabled("No available items.")
+
+                    PyImGui.separator()
+
+            def _draw_mbdp_category():
+                mbdp_open = _collapsing_header_force(
+                    "Morale Boost & Death Penalty##pycons_hdr_mbdp",
+                    force_open=mbdp_force,
+                    default_open=bool(cfg.settings_mbdp_open),
+                )
+                if bool(cfg.settings_mbdp_open) != bool(mbdp_open):
+                    cfg.settings_mbdp_open = bool(mbdp_open)
+                    cfg.mark_dirty()
+                if mbdp_open:
+                    before_mbdp = len(visible_regular_keys)
+                    mbdp_party_keys = {
+                        "elixir_of_valor",
+                        "four_leaf_clover",
+                        "honeycomb",
+                        "oath_of_purity",
+                        "powerstone_of_courage",
+                        "rainbow_candy_cane",
+                    }
+                    mbdp_self_keys = {
+                        "peppermint_candy_cane",
+                        "pumpkin_cookie",
+                        "refined_jelly",
+                        "seal_of_the_dragon_empire",
+                        "wintergreen_candy_cane",
+                    }
+
+                    mbdp_by_key = {str(s.get("key", "")): s for s in mbdp_items}
+                    party_specs = [mbdp_by_key[k] for k in mbdp_party_keys if k in mbdp_by_key]
+                    self_specs = [mbdp_by_key[k] for k in mbdp_self_keys if k in mbdp_by_key]
+                    unmapped_specs = [s for s in mbdp_items if str(s.get("key", "")) not in mbdp_party_keys and str(s.get("key", "")) not in mbdp_self_keys]
+
+                    missing_party_keys = sorted([k for k in mbdp_party_keys if k not in mbdp_by_key])
+                    missing_self_keys = sorted([k for k in mbdp_self_keys if k not in mbdp_by_key])
+
+                    PyImGui.text("Party:")
+                    for spec in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+
+                    if missing_party_keys:
+                        PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
+
+                    PyImGui.separator()
+                    PyImGui.text("Self:")
+                    for spec in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+
+                    if missing_self_keys:
+                        PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
+
+                    if unmapped_specs:
+                        PyImGui.separator()
+                        PyImGui.text("Unmapped:")
+                        for spec in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
+                            _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                    if only_available_settings and len(visible_regular_keys) == before_mbdp:
+                        PyImGui.text_disabled("No available items.")
+
+            def _draw_outpost_category():
+                outpost_open = _collapsing_header_force(
+                    "In-town speed boosts##pycons_hdr_outpost",
+                    force_open=outpost_force,
+                    default_open=bool(cfg.settings_outpost_open),
+                )
+                if bool(cfg.settings_outpost_open) != bool(outpost_open):
+                    cfg.settings_outpost_open = bool(outpost_open)
+                    cfg.mark_dirty()
+                if outpost_open:
+                    before_outpost = len(visible_regular_keys)
+                    for spec in outpost_items:
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                    if only_available_settings and len(visible_regular_keys) == before_outpost:
+                        PyImGui.text_disabled("No available items.")
+
+            def _draw_alcohol_category():
+                alcohol_open = _collapsing_header_force(
+                    "Alcohol##pycons_hdr_alcohol",
+                    force_open=alcohol_force,
+                    default_open=bool(cfg.settings_alcohol_open),
+                )
+                if bool(cfg.settings_alcohol_open) != bool(alcohol_open):
+                    cfg.settings_alcohol_open = bool(alcohol_open)
+                    cfg.mark_dirty()
+                if alcohol_open:
+                    before_alcohol = len(visible_alcohol_keys)
+                    for spec in sorted(alcohol_items, key=lambda x: x.get("label", "")):
+                        _draw_alcohol_settings_row(spec, flt, visible_alcohol_keys, only_available=only_available_settings)
+                    if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
+                        PyImGui.text_disabled("No available items.")
+
+            category_renderers = {
+                "explorable": _draw_explorable_category,
+                "mbdp": _draw_mbdp_category,
+                "outpost": _draw_outpost_category,
+                "alcohol": _draw_alcohol_category,
+            }
+            category_keys = _ordered_consumable_category_keys(list(category_renderers.keys()))
+            for category_key in category_keys:
+                renderer = category_renderers.get(category_key)
+                if callable(renderer):
+                    renderer()
 
             visible_count = len(visible_regular_keys) + len(visible_alcohol_keys)
             last_visible_count[0] = int(visible_count)
