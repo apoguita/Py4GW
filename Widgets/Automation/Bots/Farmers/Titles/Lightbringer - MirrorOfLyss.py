@@ -1,37 +1,39 @@
 from Py4GWCoreLib import *
 import Py4GW
+import PyImGui
 import os
 import time
 
 class BotSettings:
     BOT_NAME = "Lightbringer - MirrorOfLyss"
-    OUTPOST_TO_TRAVEL = 414
+    OUTPOST_TO_TRAVEL = 433
     EXPLORABLE_TO_TRAVEL = 419
-    COORD_TO_EXIT_MAP = (-850.00, 4700.00)
-    COORD_TO_ENTER_MAP = (-19350.00, -16900.00)
+    COORD_TO_EXIT_MAP = (-4779, -1726)
+    COORD_TO_ENTER_MAP = (23342, 10578)
     KILLING_PATH:list[tuple[float, float]] = [
-        (-13760, -13924),
-        (-10600, -12671),
-        (-4785, -14912),
-        (-2451, -15086),
-        (1174,	-13787),
-        (6728,	-12014),
-        (9554,	-14517),
-        (16856, -14068),
-        (19428, -13168),
-        (16961, -7251),
-        (20212, -5510),
-        (20373, -580),
-        (19778, 2882),
-        (19561, 6432),
-        (15914, 10322),
-        (12116, 7908),
-        (12932, 6907),
-        (12956, 2637)
+    (15914,10322),
+    (12202,8074),
+    (13750,5535),
+    (13277,3332),
+    (11737,1475),
+    (10912,3648),
+    (20100,7990),
+    (19201,733),
+    (20273,-5210),
+    (16293,-5574),
+    (19066,-12837),
     ]
+    BOUNTY_COORDS = (19505.00, 11209.00)
+    BOUNTY_DIALOG = 0x85
     TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[1813] - Lightbringer.jpg")
 
-bot = Botting(BotSettings.BOT_NAME)
+bot = Botting(BotSettings.BOT_NAME,
+              upkeep_armor_of_salvation_restock=2,
+              upkeep_essence_of_celerity_restock=2,
+              upkeep_grail_of_might_restock=2,
+              upkeep_war_supplies_restock=2,
+              upkeep_birthday_cupcake_restock=2,
+              upkeep_honeycomb_restock=20)
 
 def bot_routine(bot: Botting) -> None:
     #events
@@ -51,9 +53,10 @@ def bot_routine(bot: Botting) -> None:
     
     # Combat loop
     bot.States.AddHeader(f"{BotSettings.BOT_NAME}_loop") # 3
+    PrepareForBattle(bot)
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
-    bot.Move.XYAndInteractNPC(-20928, -13121) # Bounty coords
-    bot.Multibox.SendDialogToTarget(0x85) # Get Bounty
+    bot.Move.XYAndInteractNPC(*BotSettings.BOUNTY_COORDS) # Bounty coords
+    bot.Multibox.SendDialogToTarget(BotSettings.BOUNTY_DIALOG) # Get Bounty
     bot.Move.FollowAutoPath(BotSettings.KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
     bot.States.AddHeader("Resign") # 4
@@ -61,6 +64,14 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForTime(1000)
     bot.Wait.UntilOnOutpost()
     bot.States.JumpToStepName(f"[H]{BotSettings.BOT_NAME}_loop_3")
+
+def PrepareForBattle(bot: Botting):                  
+    bot.Items.Restock.ArmorOfSalvation()
+    bot.Items.Restock.EssenceOfCelerity()
+    bot.Items.Restock.GrailOfMight()
+    bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.BirthdayCupcake()
+    bot.Items.Restock.Honeycomb()
 
 def _on_party_wipe(bot: "Botting"):
     while Agent.IsDead(Player.GetAgentID()):
@@ -86,12 +97,53 @@ bot.UI.override_draw_help(lambda: _draw_help(bot))
 def _draw_settings(bot:Botting):
     PyImGui.text("Bot Settings")
 
+    # Conset controls
+    use_conset = bot.Properties.Get("armor_of_salvation", "active")
+    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
+    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
+    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
+    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+
+    # War Supplies controls
+    use_war_supplies = bot.Properties.Get("war_supplies", "active")
+    use_war_supplies = PyImGui.checkbox("Restock & use War Supplies", use_war_supplies)
+    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
+
+    # Birthday Cupcake controls
+    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
+    use_birthday_cupcake = PyImGui.checkbox("Restock & use Birthday Cupcakes", use_birthday_cupcake)
+    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
+                            
+    # Honeycomb controls
+    use_honeycomb = bot.Properties.Get("honeycomb", "active")
+    use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
+    bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
+    hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
+    hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
+    bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
+
 def _draw_help(bot:Botting):
-    PyImGui.text("Bot Help")
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.push_font("Regular", 20)
+    PyImGui.text_colored(BotSettings.BOT_NAME + " bot", title_color.to_tuple_normalized())
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    PyImGui.text("Multi-account bot to " + BotSettings.BOT_NAME)
+    PyImGui.spacing()
+    PyImGui.text_colored("Requirements:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Dzagonur Bastion outpost")
+    PyImGui.bullet_text("Quest -The Search for Survivors- should not be active")     
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Aura")
+    PyImGui.bullet_text("Contributors:")
+    PyImGui.bullet_text("- Wick-Divinus for script template")
+    PyImGui.bullet_text("- Kronos for script idea and coords")
 
 def tooltip():
-    import PyImGui
-    from Py4GWCoreLib import ImGui, Color
     PyImGui.begin_tooltip()
     # Title
     title_color = Color(255, 200, 100, 255)
@@ -104,7 +156,8 @@ def tooltip():
     PyImGui.text("Multi-account bot to " + BotSettings.BOT_NAME)
     PyImGui.spacing()
     PyImGui.text_colored("Requirements:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("The Kodash Bazaar outpost.")
+    PyImGui.bullet_text("Dzagonur Bastion outpost")
+    PyImGui.bullet_text("Quest -The Search for Survivors- should not be active")     
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Aura")
