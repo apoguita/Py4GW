@@ -592,7 +592,7 @@ def _c4(name: str, alpha: float | None = None) -> tuple[float, float, float, flo
     """Return a normalized color tuple from ColorPalette, optionally overriding alpha."""
     c = ColorPalette.GetColor(name).copy()
     if alpha is not None:
-        c = c.opacify(alpha)
+        c = c.opacity(alpha)
     return c.to_tuple_normalized()
 
 
@@ -600,7 +600,7 @@ def _c32(name: str, alpha: float | None = None) -> int:
     """Return packed ABGR color from ColorPalette, optionally overriding alpha."""
     c = ColorPalette.GetColor(name).copy()
     if alpha is not None:
-        c = c.opacify(alpha)
+        c = c.opacity(alpha)
     return c.to_color()
 
 
