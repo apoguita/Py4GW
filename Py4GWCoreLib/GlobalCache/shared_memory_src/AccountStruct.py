@@ -82,6 +82,7 @@ class AccountStruct(Structure):
         ("IsHero", c_bool),
         ("IsPet", c_bool),
         ("IsNPC", c_bool),
+        ("IsIsolated", c_bool),
 
         ("LastUpdated", c_uint),
     ]
@@ -110,6 +111,7 @@ class AccountStruct(Structure):
     IsHero: bool
     IsPet: bool
     IsNPC: bool
+    IsIsolated: bool
 
     LastUpdated: int
     
@@ -138,6 +140,7 @@ class AccountStruct(Structure):
         self.IsHero = False
         self.IsPet = False
         self.IsNPC = False
+        self.IsIsolated = False
 
         self.LastUpdated = 0
         
