@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 from typing import Callable
 
@@ -17,6 +18,29 @@ class PendingIdentifyResponse:
     poll_interval_s: float = 0.15
     timeout_retry_count: int = 0
     max_timeout_retries: int = 4
+
+
+class InventoryActionStatus(str, Enum):
+    FINISHED = "finished"
+    DEFERRED = "deferred"
+    FAILED = "failed"
+
+
+@dataclass(slots=True)
+class InventoryActionResult:
+    status: InventoryActionStatus
+
+    @property
+    def is_finished(self) -> bool:
+        return self.status == InventoryActionStatus.FINISHED
+
+    @property
+    def is_deferred(self) -> bool:
+        return self.status == InventoryActionStatus.DEFERRED
+
+    @property
+    def is_failed(self) -> bool:
+        return self.status == InventoryActionStatus.FAILED
 
 
 class IdentifyResponseScheduler:
@@ -101,13 +125,27 @@ class IdentifyResponseScheduler:
         return len(completed)
 
 
-def run_inventory_action(viewer: Any, action_code: str, action_payload: str = "", action_meta: str = "", reply_email: str = "") -> bool:
+def run_inventory_action(
+    viewer: Any,
+    action_code: str,
+    action_payload: str = "",
+    action_meta: str = "",
+    reply_email: str = "",
+    deferred_out: dict[str, bool] | None = None,
+) -> bool:
     """Behavior-preserving inventory action router extracted from DropViewerWindow."""
     action_code = viewer._ensure_text(action_code).strip().lower()
     action_label = action_code
     queued = 0
     strict_event_binding = bool(getattr(viewer, "strict_event_stats_binding", False))
     drop_sender_cache: Any = None
+    if isinstance(deferred_out, dict):
+        deferred_out["deferred"] = False
+
+    def _defer_action() -> bool:
+        if isinstance(deferred_out, dict):
+            deferred_out["deferred"] = True
+        return False
 
     def _get_drop_tracker_sender():
         nonlocal drop_sender_cache
@@ -124,12 +162,12 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
             drop_sender_cache = False
             return None
 
-    def _resolve_event_item_id_with_grace(event_id_text: str, target_item_id: int = 0) -> tuple[int, bool]:
+    def _resolve_event_item_id_with_grace(event_id_text: str, target_item_id: int = 0) -> tuple[int, bool, bool]:
         event_key = viewer._ensure_text(event_id_text).strip()
         fallback_item_id = max(0, int(target_item_id or 0))
         sender = _get_drop_tracker_sender()
         if sender is None or not event_key:
-            return fallback_item_id, False
+            return fallback_item_id, False, False
 
         try:
             identity = sender.get_cached_event_identity(event_key)
@@ -137,33 +175,51 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
             identity = {}
         has_identity = bool(identity)
         if not has_identity:
-            return fallback_item_id, False
+            return fallback_item_id, False, False
 
         try:
             resolved_item_id = max(0, int(sender.resolve_live_item_id_for_event(event_key, fallback_item_id)))
         except (TypeError, ValueError, RuntimeError, AttributeError):
             resolved_item_id = 0
         if resolved_item_id > 0:
-            return resolved_item_id, True
+            try:
+                pending = getattr(viewer, "_event_identity_pending_deadline", None)
+                if isinstance(pending, dict):
+                    pending.pop(event_key, None)
+            except (TypeError, ValueError, RuntimeError, AttributeError):
+                pass
+            return resolved_item_id, True, False
 
-        # Give inventory/name resolution a short grace window to settle before failing.
+        # Non-blocking grace: keep retrying across future action ticks instead of sleeping.
         grace_s = max(0.0, float(getattr(viewer, "event_identity_resolve_grace_s", 1.2)))
-        poll_s = max(0.02, float(getattr(viewer, "event_identity_resolve_poll_s", 0.12)))
         if grace_s <= 0.0:
-            return 0, True
-        deadline = time.time() + grace_s
-        while time.time() < deadline:
+            return 0, True, False
+        now_ts = time.time()
+        pending_deadline = getattr(viewer, "_event_identity_pending_deadline", None)
+        if not isinstance(pending_deadline, dict):
+            pending_deadline = {}
             try:
-                time.sleep(poll_s)
+                setattr(viewer, "_event_identity_pending_deadline", pending_deadline)
             except (TypeError, ValueError, RuntimeError, AttributeError):
-                break
-            try:
-                resolved_item_id = max(0, int(sender.resolve_live_item_id_for_event(event_key, fallback_item_id)))
-            except (TypeError, ValueError, RuntimeError, AttributeError):
-                resolved_item_id = 0
-            if resolved_item_id > 0:
-                return resolved_item_id, True
-        return 0, True
+                pending_deadline = {}
+        try:
+            stale_cutoff = now_ts - 15.0
+            for key in list(pending_deadline.keys()):
+                try:
+                    if float(pending_deadline.get(key, 0.0)) < stale_cutoff:
+                        pending_deadline.pop(key, None)
+                except (TypeError, ValueError, RuntimeError, AttributeError):
+                    pending_deadline.pop(key, None)
+        except (TypeError, ValueError, RuntimeError, AttributeError):
+            pending_deadline = {}
+        existing_deadline = float(pending_deadline.get(event_key, 0.0) or 0.0)
+        if existing_deadline <= 0.0:
+            pending_deadline[event_key] = now_ts + grace_s
+            return 0, True, True
+        if now_ts < existing_deadline:
+            return 0, True, True
+        pending_deadline.pop(event_key, None)
+        return 0, True, False
 
     def _get_event_identity(event_id_text: str) -> dict:
         event_key = viewer._ensure_text(event_id_text).strip()
@@ -338,8 +394,10 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         event_id = viewer._ensure_text(action_meta).strip()
         if target_item_id <= 0 or not event_id or not reply_email:
             return False
-        resolved_item_id, has_event_identity = _resolve_event_item_id_with_grace(event_id, target_item_id)
+        resolved_item_id, has_event_identity, waiting_for_identity = _resolve_event_item_id_with_grace(event_id, target_item_id)
         if resolved_item_id <= 0 and has_event_identity:
+            if waiting_for_identity:
+                return _defer_action()
             cached_stats = _get_cached_event_stats(event_id, target_item_id)
             if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
                 queued = 1
@@ -403,7 +461,7 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
             queued = 1
         else:
-            resolved_item_id, has_event_identity = _resolve_event_item_id_with_grace(event_id, target_item_id)
+            resolved_item_id, has_event_identity, waiting_for_identity = _resolve_event_item_id_with_grace(event_id, target_item_id)
             if resolved_item_id > 0:
                 payload_text = viewer._build_item_snapshot_payload_from_live_item(resolved_item_id, "")
                 if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
@@ -417,6 +475,8 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
                     else:
                         return False
             elif has_event_identity:
+                if waiting_for_identity:
+                    return _defer_action()
                 return False
             else:
                 return False
@@ -432,8 +492,10 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         else:
             identity = _get_event_identity(event_id)
             if identity:
-                resolved_item_id, _ = _resolve_event_item_id_with_grace(event_id, 0)
+                resolved_item_id, _, waiting_for_identity = _resolve_event_item_id_with_grace(event_id, 0)
                 if resolved_item_id <= 0:
+                    if waiting_for_identity:
+                        return _defer_action()
                     return False
                 payload_text = viewer._build_item_snapshot_payload_from_live_item(resolved_item_id, "")
                 if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
@@ -475,8 +537,10 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         else:
             identity = _get_event_identity(event_id)
             if identity:
-                resolved_item_id, _ = _resolve_event_item_id_with_grace(event_id, 0)
+                resolved_item_id, _, waiting_for_identity = _resolve_event_item_id_with_grace(event_id, 0)
                 if resolved_item_id <= 0:
+                    if waiting_for_identity:
+                        return _defer_action()
                     return False
                 payload_text = viewer._build_item_snapshot_payload_from_live_item(resolved_item_id, "")
                 if payload_text and viewer._send_tracker_stats_payload_chunks_to_email(reply_email, event_id, payload_text):
@@ -524,3 +588,28 @@ def run_inventory_action(viewer: Any, action_code: str, action_payload: str = ""
         return True
     viewer.set_status(f"{action_label}: no matching items")
     return False
+
+
+def run_inventory_action_result(
+    viewer: Any,
+    action_code: str,
+    action_payload: str = "",
+    action_meta: str = "",
+    reply_email: str = "",
+) -> InventoryActionResult:
+    deferred_state: dict[str, bool] = {"deferred": False}
+    completed = bool(
+        run_inventory_action(
+            viewer,
+            action_code,
+            action_payload,
+            action_meta,
+            reply_email,
+            deferred_out=deferred_state,
+        )
+    )
+    if completed:
+        return InventoryActionResult(status=InventoryActionStatus.FINISHED)
+    if bool(deferred_state.get("deferred", False)):
+        return InventoryActionResult(status=InventoryActionStatus.DEFERRED)
+    return InventoryActionResult(status=InventoryActionStatus.FAILED)

@@ -11,6 +11,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport impo
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_stats_payload_branch
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import handle_tracker_stats_text_branch
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import extract_event_id_hint
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import iter_circular_indices
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import is_duplicate_event
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_name_chunk
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import merge_stats_payload_chunk
@@ -19,6 +20,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport impo
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import parse_tracker_name_chunk
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import parse_tracker_stats_chunk
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import payload_has_valid_mods_json
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import should_skip_inventory_action_message
 
 
 def test_decode_slot_roundtrip():
@@ -365,6 +367,50 @@ def test_is_duplicate_event_empty_key_is_not_duplicate():
 def test_payload_has_valid_mods_json_rejects_malformed_or_non_object():
     assert payload_has_valid_mods_json("{") is False
     assert payload_has_valid_mods_json('["mods"]') is False
+
+
+def test_iter_circular_indices_rotates_across_ticks():
+    first = list(iter_circular_indices(10, 0, 3))
+    second = list(iter_circular_indices(10, 3, 3))
+    third = list(iter_circular_indices(10, 6, 3))
+    fourth = list(iter_circular_indices(10, 9, 3))
+    assert first == [0, 1, 2]
+    assert second == [3, 4, 5]
+    assert third == [6, 7, 8]
+    assert fourth == [9, 0, 1]
+
+
+def test_iter_circular_indices_handles_empty_and_zero_budget():
+    assert list(iter_circular_indices(0, 0, 5)) == []
+    assert list(iter_circular_indices(10, 3, 0)) == []
+
+
+def test_mixed_backlog_fair_scan_skips_over_cap_inventory_actions():
+    tags = ["TrackerInvActionV1"] * 12 + ["TrackerDrop", "TrackerStatsV1"]
+    seen_tags = []
+    inventory_action_msgs_handled = 0
+    custom_messages_examined = 0
+    max_custom_messages_examined_per_tick = 6
+    max_inventory_action_msgs_per_tick = 2
+
+    for idx in iter_circular_indices(len(tags), 0, 64):
+        tag = tags[idx]
+        if should_skip_inventory_action_message(
+            tag=tag,
+            inventory_action_tag="TrackerInvActionV1",
+            inventory_action_msgs_handled=inventory_action_msgs_handled,
+            max_inventory_action_msgs_per_tick=max_inventory_action_msgs_per_tick,
+        ):
+            continue
+        custom_messages_examined += 1
+        if custom_messages_examined > max_custom_messages_examined_per_tick:
+            break
+        seen_tags.append(tag)
+        if tag == "TrackerInvActionV1":
+            inventory_action_msgs_handled += 1
+
+    assert seen_tags[:2] == ["TrackerInvActionV1", "TrackerInvActionV1"]
+    assert "TrackerDrop" in seen_tags
 
 
 def test_parse_tracker_name_chunk_missing_signature_returns_none():

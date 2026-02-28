@@ -13,7 +13,8 @@ def draw():
     start_drop_viewer.draw_window()
 
 def update():
-    start_drop_viewer.update()
+    # Update is driven from draw_window() to avoid duplicate tick paths.
+    pass
 
 def main():
     pass

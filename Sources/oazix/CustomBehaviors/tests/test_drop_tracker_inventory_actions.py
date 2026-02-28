@@ -7,7 +7,9 @@ import types
 import pytest
 
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import IdentifyResponseScheduler
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import InventoryActionStatus
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import run_inventory_action
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_actions import run_inventory_action_result
 
 
 class _FakeScheduler:
@@ -731,6 +733,125 @@ def test_run_inventory_action_push_item_stats_event_falls_back_to_event_only_cac
     assert ok is True
     assert calls[0][1] == 999
     assert any(item_id == 0 for _, item_id, _ in calls)
+
+
+def test_run_inventory_action_push_item_stats_event_unresolved_identity_is_non_blocking(monkeypatch):
+    _install_fake_drop_tracker_sender(
+        monkeypatch,
+        lambda _ev, _item_id, _model_id: "",
+        get_cached_identity_fn=lambda _ev: {"item_id": 999, "model_id": 123, "name_signature": "deadbeef"},
+        resolve_live_item_id_for_event_fn=lambda _ev, _preferred: 0,
+    )
+    viewer = _FakeViewer()
+    viewer.event_identity_resolve_grace_s = 1.2
+    monkeypatch.setattr(time, "time", lambda: 1000.0)
+
+    def _fail_sleep(_seconds):
+        raise AssertionError("run_inventory_action should not block with time.sleep")
+
+    monkeypatch.setattr(time, "sleep", _fail_sleep)
+
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_event",
+        action_payload="999",
+        action_meta="ev-non-blocking",
+        reply_email="leader@test",
+    )
+    assert ok is False
+    pending_deadline = getattr(viewer, "_event_identity_pending_deadline", {})
+    assert isinstance(pending_deadline, dict)
+    assert pending_deadline.get("ev-non-blocking") == pytest.approx(1001.2)
+
+
+def test_run_inventory_action_push_item_stats_event_defer_window_expires(monkeypatch):
+    _install_fake_drop_tracker_sender(
+        monkeypatch,
+        lambda _ev, _item_id, _model_id: "",
+        get_cached_identity_fn=lambda _ev: {"item_id": 999, "model_id": 123, "name_signature": "deadbeef"},
+        resolve_live_item_id_for_event_fn=lambda _ev, _preferred: 0,
+    )
+    viewer = _FakeViewer()
+    viewer.event_identity_resolve_grace_s = 1.0
+    clock = {"now": 1000.0}
+    monkeypatch.setattr(time, "time", lambda: float(clock["now"]))
+
+    first_ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_event",
+        action_payload="999",
+        action_meta="ev-defer-window",
+        reply_email="leader@test",
+    )
+    assert first_ok is False
+    pending_deadline = getattr(viewer, "_event_identity_pending_deadline", {})
+    assert isinstance(pending_deadline, dict)
+    assert pending_deadline.get("ev-defer-window") == pytest.approx(1001.0)
+
+    clock["now"] = 1001.25
+    second_ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats_event",
+        action_payload="999",
+        action_meta="ev-defer-window",
+        reply_email="leader@test",
+    )
+    assert second_ok is False
+    pending_deadline_after = getattr(viewer, "_event_identity_pending_deadline", {})
+    assert isinstance(pending_deadline_after, dict)
+    assert "ev-defer-window" not in pending_deadline_after
+
+
+def test_run_inventory_action_result_reports_finished_for_success():
+    viewer = _FakeViewer()
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    result = run_inventory_action_result(
+        viewer,
+        action_code="push_item_stats_event",
+        action_payload="42",
+        action_meta="ev-finished",
+        reply_email="leader@test",
+    )
+    assert result.status == InventoryActionStatus.FINISHED
+    assert result.is_finished is True
+    assert result.is_deferred is False
+
+
+def test_run_inventory_action_result_reports_deferred_when_waiting_for_identity(monkeypatch):
+    _install_fake_drop_tracker_sender(
+        monkeypatch,
+        lambda _ev, _item_id, _model_id: "",
+        get_cached_identity_fn=lambda _ev: {"item_id": 999, "model_id": 123, "name_signature": "deadbeef"},
+        resolve_live_item_id_for_event_fn=lambda _ev, _preferred: 0,
+    )
+    viewer = _FakeViewer()
+    viewer.event_identity_resolve_grace_s = 1.0
+    result = run_inventory_action_result(
+        viewer,
+        action_code="push_item_stats_event",
+        action_payload="999",
+        action_meta="ev-wrapper-deferred",
+        reply_email="leader@test",
+    )
+    assert result.status == InventoryActionStatus.DEFERRED
+    assert result.is_deferred is True
+    assert result.is_finished is False
+
+
+def test_run_inventory_action_result_does_not_infer_deferred_from_stale_deadline():
+    viewer = _FakeViewer()
+    viewer._event_identity_pending_deadline = {"ev-stale": time.time() + 10.0}
+    result = run_inventory_action_result(
+        viewer,
+        action_code="push_item_stats_event",
+        action_payload="0",
+        action_meta="ev-stale",
+        reply_email="",
+    )
+    assert result.status == InventoryActionStatus.FAILED
+    assert result.is_deferred is False
+    assert result.is_failed is True
 
 
 def test_run_inventory_action_push_item_stats_name_prefers_payload_send():

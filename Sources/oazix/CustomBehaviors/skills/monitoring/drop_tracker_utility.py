@@ -74,6 +74,8 @@ class DropTrackerSender:
                     self.debug_pipeline_logs = False
                 if not hasattr(self, "max_outbox_size"):
                     self.max_outbox_size = 2000
+                if not hasattr(self, "max_snapshot_size_jump"):
+                    self.max_snapshot_size_jump = 40
                 if not hasattr(self, "last_known_is_leader"):
                     self.last_known_is_leader = False
                 if not hasattr(self, "enable_delivery_ack"):
@@ -127,6 +129,7 @@ class DropTrackerSender:
         self.outbox_queue: list[dict] = []
         self.max_send_per_tick = 12
         self.max_outbox_size = 2000
+        self.max_snapshot_size_jump = 40
         self.warmup_grace_seconds = 3.0
         self.warmup_grace_until = 0.0
         self.pending_ttl_seconds = 6.0
@@ -920,6 +923,10 @@ class DropTrackerSender:
             self.enable_delivery_ack = bool(data.get("enable_delivery_ack", self.enable_delivery_ack))
             self.max_send_per_tick = max(1, int(data.get("max_send_per_tick", self.max_send_per_tick)))
             self.max_outbox_size = max(20, int(data.get("max_outbox_size", self.max_outbox_size)))
+            self.max_snapshot_size_jump = max(
+                6,
+                int(data.get("max_snapshot_size_jump", self.max_snapshot_size_jump)),
+            )
             self.retry_interval_seconds = max(0.2, float(data.get("retry_interval_seconds", self.retry_interval_seconds)))
             self.max_retry_attempts = max(1, int(data.get("max_retry_attempts", self.max_retry_attempts)))
             self.max_stats_builds_per_tick = max(
@@ -1404,11 +1411,22 @@ class DropTrackerSender:
             return
 
         # Guard against mass-delta churn due slot/index instability or inventory refresh.
-        if abs(len(current_snapshot) - len(self.last_inventory_snapshot)) > 12:
+        snapshot_size_jump = abs(len(current_snapshot) - len(self.last_inventory_snapshot))
+        max_jump = max(6, int(getattr(self, "max_snapshot_size_jump", 40)))
+        if snapshot_size_jump > max_jump:
             # Resync snapshot without clearing outbox/warmup to avoid losing captured events.
             self.pending_slot_deltas = {}
             self.last_inventory_snapshot = current_snapshot
             self.last_sent_count = 0
+            if self.debug_pipeline_logs:
+                Py4GW.Console.Log(
+                    "DropTrackerSender",
+                    (
+                        f"Snapshot churn guard resync: jump={snapshot_size_jump} "
+                        f"threshold={max_jump}"
+                    ),
+                    Py4GW.Console.MessageType.Info,
+                )
             self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
             return
 

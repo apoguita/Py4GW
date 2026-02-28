@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from typing import Any
 from typing import Callable
 
@@ -26,6 +27,31 @@ def is_duplicate_event(seen_events: dict[str, float], event_key: str) -> bool:
 def mark_seen_event(seen_events: dict[str, float], event_key: str, now_ts: float) -> None:
     if event_key:
         seen_events[event_key] = float(now_ts)
+
+
+def iter_circular_indices(message_count: int, start_index: int, max_indices: int) -> Iterator[int]:
+    total = max(0, int(message_count))
+    if total <= 0:
+        return
+    budget = max(0, int(max_indices))
+    if budget <= 0:
+        return
+    start = int(start_index) % total
+    limit = min(total, budget)
+    for offset in range(limit):
+        yield int((start + offset) % total)
+
+
+def should_skip_inventory_action_message(
+    *,
+    tag: str,
+    inventory_action_tag: str,
+    inventory_action_msgs_handled: int,
+    max_inventory_action_msgs_per_tick: int,
+) -> bool:
+    if str(tag or "") != str(inventory_action_tag or ""):
+        return False
+    return int(inventory_action_msgs_handled) >= int(max_inventory_action_msgs_per_tick)
 
 
 def build_tracker_drop_message(
