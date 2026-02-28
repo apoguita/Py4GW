@@ -12,6 +12,9 @@ from Py4GWCoreLib import Key
 from Py4GWCoreLib import Map, Player
 import PyImGui
 
+MODULE_NAME = "Pet Helper"
+MODULE_ICON = "Textures\\Module_Icons\\Pet Helper.png"
+
 class frame_coords:
     def __init__(self, left,top,right,bottom):
         self.left = left

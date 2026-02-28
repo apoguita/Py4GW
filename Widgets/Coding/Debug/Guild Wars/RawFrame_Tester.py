@@ -6,7 +6,7 @@ import json
 import PyOverlay
 from typing import Dict, List, Tuple
 
-MODULE_NAME = "Frame Tester"
+MODULE_NAME = "Frame Tester (Basic)"
 json_file_name = ".\\Py4GWCoreLib\\frame_aliases.json"
 
 def RGBToNormal(r, g, b, a):
