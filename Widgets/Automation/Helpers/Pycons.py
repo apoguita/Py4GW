@@ -38,6 +38,7 @@ try:
     MIN_INTERVAL_MS = 250
     DEFAULT_INTERNAL_COOLDOWN_MS = 5000
     AFTERCAST_MS = 350
+    ALCOHOL_EFFECT_TICK_MS = 1000
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
@@ -369,6 +370,11 @@ try:
             "long": "Enables or disables all alcohol upkeep logic. If OFF, alcohol settings below are ignored regardless of target or preference.",
             "why": "Useful to instantly pause alcohol consumption without changing item selections.",
         },
+        "alcohol_disable_effect": {
+            "short": "Hide the drunk screen blur while still being drunk.",
+            "long": "When enabled, Pycons repeatedly clears the Guild Wars drunk post-processing blur while alcohol is active. This only affects the visual blur and does not change drunk level, title progress, or alcohol upkeep decisions.",
+            "why": "Useful when you want alcohol effects and title progress without the screen blur.",
+        },
         "alcohol_use_explorable": {
             "short": "Allow alcohol automation in explorable areas.",
             "long": "When enabled, alcohol upkeep can run in explorable zones (missions, vanquishes, and open areas).",
@@ -637,6 +643,7 @@ try:
         "only_show_available_inventory",
         "show_advanced_intervals",
         "alcohol_enabled",
+        "alcohol_disable_effect",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "mbdp_enabled",
@@ -652,6 +659,7 @@ try:
         "only_show_available_inventory",
         "show_advanced_intervals",
         "alcohol_enabled",
+        "alcohol_disable_effect",
         "alcohol_target_level",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
@@ -1406,6 +1414,7 @@ try:
 
             # Alcohol
             self.alcohol_enabled = ini_handler.read_bool(INI_SECTION, "alcohol_enabled", False)
+            self.alcohol_disable_effect = ini_handler.read_bool(INI_SECTION, "alcohol_disable_effect", False)
             self.alcohol_target_level = max(0, min(5, int(ini_handler.read_int(INI_SECTION, "alcohol_target_level", 3))))
 
             self.alcohol_use_explorable = ini_handler.read_bool(INI_SECTION, "alcohol_use_explorable", True)
@@ -1520,6 +1529,7 @@ try:
                 ini_handler.write_key(INI_SECTION, f"min_interval_{k}", str(int(max(0, int(v)))))
 
             ini_handler.write_key(INI_SECTION, "alcohol_enabled", str(bool(self.alcohol_enabled)))
+            ini_handler.write_key(INI_SECTION, "alcohol_disable_effect", str(bool(self.alcohol_disable_effect)))
             ini_handler.write_key(INI_SECTION, "alcohol_target_level", str(int(self.alcohol_target_level)))
             ini_handler.write_key(INI_SECTION, "alcohol_use_explorable", str(bool(self.alcohol_use_explorable)))
             ini_handler.write_key(INI_SECTION, "alcohol_use_outpost", str(bool(self.alcohol_use_outpost)))
@@ -1557,7 +1567,6 @@ try:
             # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
             # Note: team_consume_opt_in is saved separately (below in settings window) to avoid conflicts
             ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
-            _debug(f"Saved team_broadcast setting: {self.team_broadcast}", Console.MessageType.Debug)
 
             for k, v in self.selected.items():
                 ini_handler.write_key(INI_SECTION, f"selected_{k}", str(bool(v)))
@@ -2084,6 +2093,44 @@ try:
         cur = _alcohol_current_level(now_ms)
         _alcohol_level_base = int(min(5, cur + int(drunk_add)))
         _alcohol_last_drink_ms = int(now_ms)
+
+    def _tick_disable_alcohol_effect() -> bool:
+        if cfg is None or not bool(getattr(cfg, "alcohol_disable_effect", False)):
+            return False
+
+        t = _timer_for("alcohol_disable_effect")
+        if not (t.IsStopped() or t.HasElapsed(int(ALCOHOL_EFFECT_TICK_MS))):
+            return False
+        t.Start()
+
+        try:
+            if not bool(Routines.Checks.Map.IsMapReady()):
+                return False
+        except Exception:
+            if not Routines.Checks.Map.MapValid():
+                return False
+
+        try:
+            current_alcohol_level = int(Effects.GetAlcoholLevel() or 0)
+        except Exception as e:
+            wt = _warn_timer_for("alcohol_disable_effect_read")
+            if wt.IsStopped() or wt.HasElapsed(15000):
+                wt.Start()
+                _debug(f"Alcohol blur disable read failed: {e}", Console.MessageType.Warning)
+            return False
+
+        if current_alcohol_level <= 0:
+            return False
+
+        try:
+            Effects.ApplyDrunkEffect(0, 0)
+            return True
+        except Exception as e:
+            wt = _warn_timer_for("alcohol_disable_effect_apply")
+            if wt.IsStopped() or wt.HasElapsed(15000):
+                wt.Start()
+                _debug(f"Alcohol blur disable apply failed: {e}", Console.MessageType.Warning)
+            return False
 
     # -------------------------
     # Team broadcast helper
@@ -2913,6 +2960,13 @@ try:
                 cfg.alcohol_enabled = not bool(cfg.alcohol_enabled)
                 cfg.mark_dirty()
 
+            changed, v = ui_checkbox("Disable drunk blur##pycons_alc_disable_effect", bool(cfg.alcohol_disable_effect))
+            if changed:
+                cfg.alcohol_disable_effect = bool(v)
+                cfg.mark_dirty()
+                _debug(f"Disable drunk blur setting changed to: {cfg.alcohol_disable_effect}", Console.MessageType.Debug)
+            _tooltip_if_hovered(_tooltip_text_for("alcohol_disable_effect"))
+
             changed, v = ui_checkbox("Explorable##pycons_alc_use_expl", bool(cfg.alcohol_use_explorable))
             if changed:
                 cfg.alcohol_use_explorable = bool(v)
@@ -3313,6 +3367,13 @@ try:
                 cfg.alcohol_enabled = not bool(cfg.alcohol_enabled)
                 cfg.mark_dirty()
             _show_setting_tooltip("alcohol_enabled")
+
+            changed, v = ui_checkbox("Disable drunk blur##pycons_settings_alc_disable_effect", bool(cfg.alcohol_disable_effect))
+            if changed:
+                cfg.alcohol_disable_effect = bool(v)
+                cfg.mark_dirty()
+                _debug(f"Disable drunk blur setting changed to: {cfg.alcohol_disable_effect}", Console.MessageType.Debug)
+            _show_setting_tooltip("alcohol_disable_effect")
 
             changed, v = ui_checkbox("Use in Explorable##pycons_settings_alc_expl", bool(cfg.alcohol_use_explorable))
             if changed:
@@ -3869,6 +3930,7 @@ try:
 
         _draw_main_window()
         _draw_settings_window()
+        _tick_disable_alcohol_effect()
 
         cfg.save_if_dirty_throttled(750)
 
