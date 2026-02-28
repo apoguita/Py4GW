@@ -1294,7 +1294,7 @@ class Py4GWLibrary:
         style.ChildBg.push_color_direct(self.card_enabled_color.rgb_tuple if enabled else self.card_color.rgb_tuple)
         style.ChildBorderSize.push_style_var_direct(2.0 if enabled else 1.0) 
         style.ChildRounding.push_style_var_direct(self.card_rounding)
-        style.Border.push_color_direct(self.card_enabled_color.opacify(0.6).rgb_tuple if enabled else self.card_color.opacify(0.6).rgb_tuple)
+        style.Border.push_color_direct(self.card_enabled_color.opacity(0.6).rgb_tuple if enabled else self.card_color.opacity(0.6).rgb_tuple)
         pass
 
     def _pop_card_style(self, style : Style):
