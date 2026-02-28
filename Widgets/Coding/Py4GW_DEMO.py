@@ -971,7 +971,7 @@ def ShowItemDataWindow(item_id):
                 if item_name:  # Only cache if a valid (non-empty) name is returned
                     _item_names[item_id] = item_name
                 else:
-                    item_name = "Not recieved"  # Show placeholder, don't cache yet
+                    item_name = "Feature Disabled"  # Show placeholder, don't cache yet
 
                 
 

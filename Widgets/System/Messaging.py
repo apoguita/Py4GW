@@ -1454,7 +1454,7 @@ def PauseWidgets(index: int, message: SharedMessageStruct):
         return
     
     widget_handler = get_widget_handler()
-    widget_handler.pause_widgets()
+    widget_handler.pause_optional_widgets()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "PauseWidgets message processed and finished.", Console.MessageType.Info, False)
@@ -1467,7 +1467,7 @@ def ResumeWidgets(index: int, message: SharedMessageStruct):
         return
     
     widget_handler = get_widget_handler()
-    widget_handler.resume_widgets()
+    widget_handler.resume_optional_widgets()
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "ResumeWidgets message processed and finished.", Console.MessageType.Info, False)

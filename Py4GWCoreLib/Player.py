@@ -550,10 +550,6 @@ class Player:
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
             return []
-        if (player_number := Player.GetPlayerNumber()) is None:
-            return []
-        if (player := world_ctx.GetPlayerById(player_number)) is None:
-            return []
         if (titles := world_ctx.titles) is None:
             return []
         return titles
