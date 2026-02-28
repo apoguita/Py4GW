@@ -233,6 +233,7 @@ class Py4GWLibrary:
         except Exception as e:
             Py4GW.Console.Log("Widget Browser", f"Error loading config: {e}", Py4GW.Console.MessageType.Error)
             
+        self.focus_search = False
         pass    
     
     def build_widget_tree(self, widgets: dict[str, "Widget"]) -> WidgetTreeNode:
