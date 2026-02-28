@@ -1196,7 +1196,6 @@ MiniMapFrame = FrameInfo(
 )
 
 PartyWindowFrame = FrameInfo(
-    WindowID=WindowID.WindowID_PartyWindow,
     WindowName="PartyWindow",
     FrameHash=3332025202,
     ChildOffsets=[1]

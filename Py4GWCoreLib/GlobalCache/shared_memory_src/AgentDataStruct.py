@@ -19,6 +19,9 @@ from .Globals import (
 _agent_fast_timers: dict[int, ThrottledTimer] = {}
 _agent_medium_timers: dict[int, ThrottledTimer] = {}
 _agent_slow_timers: dict[int, ThrottledTimer] = {}
+_agent_fast_stage: dict[int, int] = {}
+_agent_medium_stage: dict[int, int] = {}
+_agent_slow_stage: dict[int, int] = {}
 
 
 def _get_agent_timer(timer_map: dict[int, ThrottledTimer], key: int, throttle_ms: int) -> ThrottledTimer:
@@ -278,41 +281,89 @@ class AgentDataStruct(Structure):
         
         fast_timer = _get_agent_timer(_agent_fast_timers, timer_key, SHMEM_AGENT_FAST_UPDATE_THROTTLE_MS)
         if force_full or fast_timer.IsExpired():
-            self.Map.from_context()
-            self.Skillbar.from_context()
-            self.Buffs.from_context(agent_id)
-            
-            self.Overcast = Agent.GetOvercast(agent_id)
-            self.Morale = Player.GetMorale()
+            if force_full:
+                self.Map.from_context()
+                self.Skillbar.from_context()
+                self.Buffs.from_context(agent_id)
+                self.Overcast = Agent.GetOvercast(agent_id)
+                self.Morale = Player.GetMorale()
+                _agent_fast_stage[timer_key] = 0
+            else:
+                fast_stage = _agent_fast_stage.get(timer_key, 0)
+                if fast_stage == 0:
+                    self.Map.from_context()
+                elif fast_stage == 1:
+                    self.Skillbar.from_context()
+                elif fast_stage == 2:
+                    self.Buffs.from_context(agent_id)
+                else:
+                    self.Overcast = Agent.GetOvercast(agent_id)
+                    self.Morale = Player.GetMorale()
+                _agent_fast_stage[timer_key] = (fast_stage + 1) % 4
 
             fast_timer.Reset()
 
         medium_timer = _get_agent_timer(_agent_medium_timers, timer_key, SHMEM_AGENT_MEDIUM_UPDATE_THROTTLE_MS)
         if force_full or medium_timer.IsExpired():
-            self.DaggerStatus = Agent.GetDaggerStatus(agent_id)
-            self.WeaponAttackSpeed = Agent.GetWeaponAttackSpeed(agent_id)
-            self.AttackSpeedModifier = Agent.GetAttackSpeedModifier(agent_id)
-            self.VisualEffectsMask = Agent.GetVisualEffects(agent_id)
-            self.ModelState = Agent.GetModelState(agent_id)
-            self.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
-            self.AnimationCode = Agent.GetAnimationCode(agent_id)
-            self.AnimationID = Agent.GetAnimationID(agent_id)
-            
-            self.ObservingID = Player.GetObservingID()
+            if force_full:
+                self.DaggerStatus = Agent.GetDaggerStatus(agent_id)
+                self.WeaponAttackSpeed = Agent.GetWeaponAttackSpeed(agent_id)
+                self.AttackSpeedModifier = Agent.GetAttackSpeedModifier(agent_id)
+                self.VisualEffectsMask = Agent.GetVisualEffects(agent_id)
+                self.ModelState = Agent.GetModelState(agent_id)
+                self.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
+                self.AnimationCode = Agent.GetAnimationCode(agent_id)
+                self.AnimationID = Agent.GetAnimationID(agent_id)
+                self.ObservingID = Player.GetObservingID()
+                _agent_medium_stage[timer_key] = 0
+            else:
+                medium_stage = _agent_medium_stage.get(timer_key, 0)
+                if medium_stage == 0:
+                    self.DaggerStatus = Agent.GetDaggerStatus(agent_id)
+                    self.WeaponAttackSpeed = Agent.GetWeaponAttackSpeed(agent_id)
+                    self.AttackSpeedModifier = Agent.GetAttackSpeedModifier(agent_id)
+                elif medium_stage == 1:
+                    self.VisualEffectsMask = Agent.GetVisualEffects(agent_id)
+                    self.ModelState = Agent.GetModelState(agent_id)
+                elif medium_stage == 2:
+                    self.AnimationSpeed = Agent.GetAnimationSpeed(agent_id)
+                    self.AnimationCode = Agent.GetAnimationCode(agent_id)
+                    self.AnimationID = Agent.GetAnimationID(agent_id)
+                else:
+                    self.ObservingID = Player.GetObservingID()
+                _agent_medium_stage[timer_key] = (medium_stage + 1) % 4
             
             medium_timer.Reset()
 
         slow_timer = _get_agent_timer(_agent_slow_timers, timer_key, SHMEM_AGENT_SLOW_UPDATE_THROTTLE_MS)
         if force_full or slow_timer.IsExpired():
-            self.CharacterName = Party.Players.GetPlayerNameByLoginNumber(Player.GetLoginNumber())
-            self.UUID = Player.GetPlayerUUID()
-            self.Attributes.from_context(agent_id)
-            self.PlayerNumber = Agent.GetPlayerNumber(agent_id)
-            self.LoginNumber = Agent.GetLoginNumber(agent_id)
-            
-            self.Level = Agent.GetLevel(agent_id)
-            self.Profession = Agent.GetProfessionIDs(Player.GetAgentID())
-            self.WeaponType = Agent.GetWeaponType(agent_id)[0]
-            self.WeaponItemType = Agent.GetWeaponItemType(agent_id)
-            self.OffhandItemType = Agent.GetOffhandItemType(agent_id)
+            if force_full:
+                self.CharacterName = Party.Players.GetPlayerNameByLoginNumber(Player.GetLoginNumber())
+                self.UUID = Player.GetPlayerUUID()
+                self.Attributes.from_context(agent_id)
+                self.PlayerNumber = Agent.GetPlayerNumber(agent_id)
+                self.LoginNumber = Agent.GetLoginNumber(agent_id)
+                self.Level = Agent.GetLevel(agent_id)
+                self.Profession = Agent.GetProfessionIDs(Player.GetAgentID())
+                self.WeaponType = Agent.GetWeaponType(agent_id)[0]
+                self.WeaponItemType = Agent.GetWeaponItemType(agent_id)
+                self.OffhandItemType = Agent.GetOffhandItemType(agent_id)
+                _agent_slow_stage[timer_key] = 0
+            else:
+                slow_stage = _agent_slow_stage.get(timer_key, 0)
+                if slow_stage == 0:
+                    self.CharacterName = Party.Players.GetPlayerNameByLoginNumber(Player.GetLoginNumber())
+                    self.UUID = Player.GetPlayerUUID()
+                elif slow_stage == 1:
+                    self.Attributes.from_context(agent_id)
+                    self.PlayerNumber = Agent.GetPlayerNumber(agent_id)
+                    self.LoginNumber = Agent.GetLoginNumber(agent_id)
+                elif slow_stage == 2:
+                    self.Level = Agent.GetLevel(agent_id)
+                    self.Profession = Agent.GetProfessionIDs(Player.GetAgentID())
+                else:
+                    self.WeaponType = Agent.GetWeaponType(agent_id)[0]
+                    self.WeaponItemType = Agent.GetWeaponItemType(agent_id)
+                    self.OffhandItemType = Agent.GetOffhandItemType(agent_id)
+                _agent_slow_stage[timer_key] = (slow_stage + 1) % 4
             slow_timer.Reset()

@@ -200,7 +200,11 @@ _string_table: dict[int, bytes] = {}
 _string_table_loaded: bool = False
 _load_enqueued: bool = False
 
-_decode_cache: dict[tuple[int, ...], str] = {}
+_decode_cache: dict[bytes, str] = {}
+_pending: set[bytes] = set()
+
+from concurrent.futures import ThreadPoolExecutor as _TPE
+_decode_pool = _TPE(max_workers=1)
 
 
 # ─── Postprocessing ──────────────────────────────────────────────────────
@@ -364,28 +368,58 @@ def _rc4_cng():
 _rc4_decrypt = _rc4_cng() or _rc4_python
 
 
+# ─── Threaded decode helper ───────────────────────────────────────────
+
+def _decode_and_cache(raw: bytes) -> None:
+    """Unpack, parse, decode, postprocess in background thread, cache result."""
+    try:
+        n = len(raw) & ~1
+        cp = struct.unpack_from(f'<{n >> 1}H', raw)
+        try:
+            cp = cp[:cp.index(0)]
+        except ValueError:
+            pass
+        idx, key = _parse_codepoints(cp)
+        if idx == 0:
+            return
+        entry = _string_table.get(idx)
+        if entry is None:
+            return
+        text = _decode_entry(entry, key)
+        if text:
+            text = _postprocess(text)
+            _decode_cache[raw] = text
+    finally:
+        _pending.discard(raw)
+
+
 # ─── Public decode API ────────────────────────────────────────────────
 
-def decode(cp: tuple[int, ...]) -> str:
-    """Decode encoded codepoints to a display string.
+_PLAYER_PREFIX = b'\xa9\x0b'  # 0xBA9 as little-endian uint16
 
-    Handles player names (0xBA9 prefix), cache, string table lookup,
-    decrypt, and postprocessing.
+
+def decode(raw: bytes) -> str:
+    """Decode raw encoded-name bytes to a display string.
+
+    Accepts the raw wchar_t bytes from GetAgentEncName (little-endian uint16
+    with null terminator). Handles player names, cache, and async decode.
     """
-    if not cp:
+    if len(raw) < 4:
         return ""
 
-    # Player names: prefix 0xBA9, inline ASCII terminated by 0 or 1
-    if cp[0] == 0xBA9:
-        end = len(cp)
-        for i in range(2, end):
-            if cp[i] <= 1:
-                end = i
+    # Player names: prefix 0xBA9, inline ASCII
+    if raw[0:2] == _PLAYER_PREFIX:
+        chars: list[int] = []
+        for i in range(4, len(raw) - 1, 2):
+            lo = raw[i]
+            hi = raw[i + 1]
+            if lo <= 1 and hi == 0:
                 break
-        return bytes(cp[2:end]).decode('ascii', 'ignore')
+            chars.append(lo)
+        return bytes(chars).decode('ascii', 'ignore')
 
-    # Cache hit — cp is already a hashable tuple
-    cached = _decode_cache.get(cp)
+    # Cache hit
+    cached = _decode_cache.get(raw)
     if cached is not None:
         return cached
 
@@ -393,17 +427,10 @@ def decode(cp: tuple[int, ...]) -> str:
     if not _string_table_loaded and not _load_enqueued:
         load_string_table(_get_client_language())
 
-    if not _string_table:
+    if not _string_table or raw in _pending:
         return ""
 
-    idx, key = _parse_codepoints(cp)
-    if idx == 0:
-        return ""
-    entry = _string_table.get(idx)
-    if entry is None:
-        return ""
-    text = _decode_entry(entry, key)
-    if text:
-        text = _postprocess(text)
-        _decode_cache[cp] = text
-    return text or ""
+    # Submit decode to background thread — return "" now, cache hit next frame
+    _pending.add(raw)
+    _decode_pool.submit(_decode_and_cache, raw)
+    return ""

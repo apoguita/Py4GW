@@ -1,4 +1,5 @@
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 import Py4GW
 import os
@@ -93,6 +94,7 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader("Start Combat")
     bot.Multibox.UseAllConsumables()
     bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
+    bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
     
     # Initial path to first blessing
     bot.Move.XY(-2484.73, 118.55, "Start")
@@ -163,6 +165,29 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC(-2217.00, 14914.00)
     bot.Multibox.SendDialogToTarget(0x84) #Blessing 6
     bot.Wait.ForTime(10000)
+
+    # The Path to Revelations (The quest is required beforehand, otherwise the enemies will not spawn)
+    bot.Move.XY(24169.45, -4288.69)
+    bot.Move.XY(24169.45, -4288.69)
+    bot.Move.XY(19745, -2718)
+    bot.Move.XY(23504, 1801) # First boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Second boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Third boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Fourth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Fifth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Sixth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
     
     # Continue route
     # bot.Move.XY(-2290, 14879, "Aggro: Modnir")
@@ -257,6 +282,45 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForTime(5000)
     bot.States.JumpToStepName("[H]Norn title farm by Wick Divinus_1")
     
+EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
+
+def _anti_stuck_resign(bot: "Botting"):
+    """Called when the timeout fires: resign, wait for outpost, then restart."""
+    yield from bot.helpers.Multibox._resignParty()
+    while True:
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            break
+    bot.States.JumpToStepName("[H]Norn title farm by Wick Divinus_1")
+    bot.config.FSM.resume()
+    yield
+
+
+def _anti_stuck_watchdog(bot: "Botting"):
+    """Resign the party if stuck in explorable for more than 3 hours."""
+    explorable_entry_time = None
+    while True:
+        yield from bot.Wait._coro_for_time(60000)  # check every minute
+        if not Routines.Checks.Map.MapValid():
+            explorable_entry_time = None
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            explorable_entry_time = None
+            continue
+        # We are in explorable
+        if explorable_entry_time is None:
+            explorable_entry_time = time.time()
+            continue
+        elapsed = time.time() - explorable_entry_time
+        if elapsed >= EXPLORABLE_TIMEOUT_SECONDS:
+            ConsoleLog(BOT_NAME, f"Anti-stuck: {elapsed/3600:.1f}h in explorable — resigning party.", Py4GW.Console.MessageType.Warning)
+            explorable_entry_time = None
+            bot.config.FSM.pause()
+            bot.config.FSM.AddManagedCoroutine("AntiStuck_Resign", lambda: _anti_stuck_resign(bot))
+
+
 def _upkeep_multibox_consumables(bot: "Botting"):
     while True:
         yield from bot.Wait._coro_for_time(15000)
@@ -294,15 +358,41 @@ def _upkeep_multibox_consumables(bot: "Botting"):
             GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
             yield from bot.Wait._coro_for_time(250)
             
+def _nearest_path_index(path: list, x: float, y: float) -> int:
+    best, best_dist = 0, float('inf')
+    for i, (px, py) in enumerate(path):
+        d = (px - x) ** 2 + (py - y) ** 2
+        if d < best_dist:
+            best_dist, best = d, i
+    return best
+
+
+def _all_accounts_alive() -> bool:
+    current_map = Map.GetMapID()
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if account.AgentData.Map.MapID != current_map:
+            continue  # skip accounts not in the same explorable (other maps, outpost, etc.)
+        if account.AgentData.Health.Current <= 0:
+            return False
+    return True
+
+
 def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(Player.GetAgentID()):
+    while Agent.IsDead(Player.GetAgentID()) or not _all_accounts_alive():
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
-            # Map invalid → release FSM and exit
             bot.config.FSM.resume()
             return
 
-    # Player revived on same map → jump to recovery step
+    # All accounts revived — resume route from nearest path point
+    pos = Player.GetXY()
+    if pos:
+        nearest_idx = _nearest_path_index(Norn_Path, pos[0], pos[1])
+        for (wx, wy) in Norn_Path[nearest_idx:]:
+            if not Routines.Checks.Map.MapValid():
+                break
+            yield from bot.Move._coro_xy(wx, wy)
+
     bot.States.JumpToStepName("[H]Start Combat_3")
     bot.config.FSM.resume()
     

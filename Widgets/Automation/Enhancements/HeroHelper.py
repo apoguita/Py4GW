@@ -86,6 +86,7 @@ class Config:
             "smart_con_cleanse_toggled",
             "smart_hex_cleanse_toggled",
             "smart_interrupt_toggled",
+            "smart_incoming_fallback_enabled",
             "user_hex_input",
             "user_skill_input",
             "floating_window_enabled"
@@ -108,6 +109,7 @@ class Config:
         self.smart_con_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_con_cleanse_toggled", False)
         self.smart_hex_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_hex_cleanse_toggled", False)
         self.smart_interrupt_toggled = ini_handler.read_bool(MODULE_NAME, "smart_interrupt_toggled", False)
+        self.smart_incoming_fallback_enabled = ini_handler.read_bool(MODULE_NAME, "smart_incoming_fallback_enabled", False)
         self.floating_window_enabled = ini_handler.read_bool(MODULE_NAME, "floating_window_enabled", False)
         
         self.user_hex_input = ini_handler.read_key(MODULE_NAME, "user_hex_input", "")
@@ -1109,6 +1111,42 @@ def smart_healing():
             execute_hero_skill(*result)
             break  # Cast only one heal per cycle
 
+def smart_incoming_fallback():
+    """Force heroes to use Incoming! and Fall Back! regardless of Essence of Celerity being active."""
+    if Party.GetHeroCount() == 0:
+        return
+    if not Helper.can_execute_with_delay("smart_incoming_fallback", 500):
+        return
+
+    player_id = Player.GetAgentID()
+    if not Helper.is_agent_alive(player_id):
+        return
+
+    # Only use these shouts out of combat
+    if Helper.count_enemies_in_range(Helper.get_spell_cast_range(), Player.GetXY()) > 0:
+        return
+
+    incoming_id = Skill.GetID("Incoming")
+    fallback_id = Skill.GetID("Fall_Back")
+
+    # Both shouts are party-wide: if the player already has either one active, no cast needed
+    if Helper.check_for_effects(player_id, [incoming_id, fallback_id]):
+        return
+
+    # Try Incoming first, then Fall Back — whichever a hero has ready
+    for skill_id in [incoming_id, fallback_id]:
+        result = Helper.smartcast_hero_skill(
+            skill_id=skill_id,
+            min_enemies=0,
+            effect_check=False,          # combined check already done above
+            hero_target=True,            # shout is Self-targeting, cast on the hero itself
+            distance_check_range=Helper.get_spell_cast_range() + 200,
+            allow_out_of_combat=True,
+        )
+        if result:
+            execute_hero_skill(*result)
+            return
+
 # Track which hero skills have been disabled
 last_follow_state = None
 last_player_position = None
@@ -1266,7 +1304,7 @@ def draw_tab_smart_skills(config):
     Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Honor on melee player.")
 
     Helper.create_and_update_checkbox("Smart Life Bond", "smart_life_bond_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Life Bond on melee player.")
-    PyImGui.same_line(0.0, 48)
+    PyImGui.same_line(0.0, 60)
     Helper.create_and_update_checkbox("Smart Dark Aura", "smart_dark_aura_enabled", tooltip_text="Hero maintains Masochism on itself, then Dark Aura on Necromancer player.")
 
     Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="Casts Splinter on melee player in combat.")
@@ -1274,6 +1312,8 @@ def draw_tab_smart_skills(config):
     Helper.create_and_update_checkbox("Smart Vigorous Spirit", "smart_vigorous_enabled", tooltip_text="Casts Vigorous Spirit on melee player in combat.")
     
     Helper.create_and_update_checkbox("Smart Healing", "smart_healing_enabled", tooltip_text="Monk/Rit heals lowest health ally/pet (excludes minions).")
+    PyImGui.same_line(0.0, 10)
+    Helper.create_and_update_checkbox("Smart Incoming/Fall Back", "smart_incoming_fallback_enabled", tooltip_text="Hero uses Incoming! and Fall Back! even when Essence of Celerity is active.")
 
 def draw_tab_condition_cleanse(config):
     if not PyImGui.collapsing_header("Condition Removal", PyImGui.TreeNodeFlags.DefaultOpen):
@@ -1535,6 +1575,7 @@ def draw_options_window():
         ("Smart CC", "smart_con_cleanse_toggled", "Condition Cleanse"),
         ("Smart HR", "smart_hex_cleanse_toggled", "Hex Removal"),
         ("Smart Int", "smart_interrupt_toggled", "Smart Interrupt"),
+        ("Smart I/F", "smart_incoming_fallback_enabled", "Smart Incoming/Fall Back"),
     ])
 
 def draw_window():
@@ -1716,6 +1757,8 @@ def main():
                 smart_sos()
             if widget_config.smart_healing_enabled:
                 smart_healing()
+            if widget_config.smart_incoming_fallback_enabled:
+                smart_incoming_fallback()
 
         if widget_config.floating_window_enabled:
             draw_window()
