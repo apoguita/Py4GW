@@ -10,6 +10,9 @@ __all__ = ["main", "configure"]
 _INIT_OK = False
 _INIT_ERROR = None
 
+MODULE_NAME = "Pycons"
+MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
+
 try:
     from typing import Any, cast
     import os

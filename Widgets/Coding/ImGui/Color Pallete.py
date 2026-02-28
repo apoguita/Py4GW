@@ -1,6 +1,6 @@
 from Py4GWCoreLib import *
 
-MODULE_NAME = "Color Picker"
+MODULE_NAME = "Color Palette Explorer"
 
 def tooltip():
     PyImGui.begin_tooltip()
