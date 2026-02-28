@@ -4,8 +4,13 @@ from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 import Py4GW
 import os
 import time
+
 BOT_NAME = "Norn title farm by Wick Divinus"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "VQ_Helmet.png")
+
+MODULE_NAME = "Norn Title Farm"
+MODULE_ICON = "Textures/Skill_Icons/[2373] - Heart of the Norn.jpg"
+
 OLAFSTEAD = 645
 VARAJAR_FELLS = 553
 

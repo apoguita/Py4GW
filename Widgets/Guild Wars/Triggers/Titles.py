@@ -7,6 +7,9 @@ from Py4GWCoreLib import ImGui, Color
 import PyImGui
 
 
+MODULE_NAME = "Set title on map load"
+MODULE_ICON = "Textures/Module_Icons/Set title on map load.png"
+
 module_name = "Set title on map load"
 
 class config:

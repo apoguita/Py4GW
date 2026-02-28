@@ -11,6 +11,10 @@ import Py4GW
 import os
 
 from Py4GWCoreLib.ImGui_src.types import Alignment
+
+MODULE_NAME = "Vanquish Monitor"
+MODULE_ICON = "Textures\\Module_Icons\\Vanquish Monitor.png"
+
 module_name = "Vanquish Monitor"
 
 root_path =  Py4GW.Console.get_projects_path()

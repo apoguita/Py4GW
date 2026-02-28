@@ -1,6 +1,10 @@
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog
 import Py4GW
 import os
+
+MODULE_NAME = "Vanquish Ferndale"
+MODULE_ICON = "Textures\\Module_Icons\\Echovald_Forest.png"
+
 BOT_NAME = "VQ Ferndale"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "ApoSource", "textures", "VQ_Helmet.png")
 HZH= 77
