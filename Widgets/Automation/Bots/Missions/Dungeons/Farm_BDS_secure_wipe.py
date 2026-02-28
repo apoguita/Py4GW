@@ -21,7 +21,9 @@ from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import Bot
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 
 # ==================== CONFIGURATION ====================
-BOT_NAME = "BDS Farm rezone"
+BOT_NAME = "BDS Farm secure wipe"
+MODULE_NAME = "Shards of Orr (BDS Farm) [Wipe]" 
+MODULE_ICON = "Textures\\Module_Icons\\Shards of Orr.png"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots","BDS","bds.png")
 
 # Map IDs

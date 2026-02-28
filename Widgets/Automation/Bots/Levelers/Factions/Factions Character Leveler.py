@@ -9,6 +9,9 @@ from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 
+MODULE_NAME = "Factions Character Leveler"
+MODULE_ICON = "Textures\\Module_Icons\\Leveler - Factions.png"
+
 bot = Botting("Factions Leveler",
               upkeep_candy_apple_restock=10,
               upkeep_honeycomb_restock=20,

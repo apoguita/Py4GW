@@ -11,7 +11,7 @@ import Py4GW
 
 
 MODULE_NAME = "Underworld Helper"
-MODULE_ICON = "Textures/Module_Icons/Miniature Dhuum.png"
+MODULE_ICON = "Textures/Module_Icons/Underworld.png"
 
 # Override the help window
 BOT_NAME = "Underworld Helper"

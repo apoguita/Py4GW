@@ -3,7 +3,8 @@ import PyImGui
 
 # Farm des Saurian Bones à Riven Earth (sortie de Rata Sum)
 BOT_NAME = "Saurian_Bone_Farmer"
-MODULE_ICON = "Textures\\Module_Icons\\Saurian Bone.png"
+MODULE_NAME = "Saurian Bone Farm (Nicholas the Traveler)"
+MODULE_ICON = "Textures\\Module_Icons\\Nicholas the Traveler - Saurian Bone.png"
 MODEL_ID_TO_FARM = ModelID.Saurian_Bone
 OUTPOST_TO_TRAVEL = 640  # Rata Sum
 COORD_TO_EXIT_MAP = (20091, 16856)  # Sortie vers Riven Earth
