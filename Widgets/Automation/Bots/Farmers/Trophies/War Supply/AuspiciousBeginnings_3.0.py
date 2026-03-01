@@ -2,6 +2,7 @@ import PyImGui
 from typing import Literal, Tuple
 import time
 
+from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           Map, ImGui, ActionQueueManager, Agent, Player, AgentArray, Pathing,
@@ -55,6 +56,10 @@ _keiran_build.set_fsm(bot.config.FSM)
 navmesh = None
      
 def create_bot_routine(bot: Botting) -> None:
+    widget_handler = get_widget_handler()
+    if not widget_handler.is_widget_enabled("Return to outpost on defeat"):
+        widget_handler.enable_widget("Return to outpost on defeat")
+        
     InitializeBot(bot)
     def _initial_vanguard_scan():
         _update_vanguard_cache()
