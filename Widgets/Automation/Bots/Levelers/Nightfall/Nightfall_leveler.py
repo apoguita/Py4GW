@@ -1,8 +1,12 @@
 from __future__ import annotations
 from typing import List, Tuple, Generator, Any
 import os
+
+import PyImGui
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Map, Player, Py4GW, ConsoleLog, ModelID, Botting,
                           Agent, ImGui, ActionQueueManager, HeroType)
+from Py4GWCoreLib.ImGui_src.types import Alignment
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 
 MODULE_NAME = "Nightfall Leveler"
 MODULE_ICON = "Textures\\Module_Icons\\Leveler - Nightfall.png"
@@ -1969,5 +1973,37 @@ def main():
     bot.Update()
     bot.UI.draw_window()
 
+def tooltip():
+    PyImGui.set_next_window_size((600, 0))
+    PyImGui.begin_tooltip()
+    
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
+    ImGui.push_font("Regular", 20)
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    
+    #ellaborate a better description 
+    PyImGui.text_wrapped("This bot levels a character from 1 to 20 in the Nightfall campaign, unlocking key features and content along the way. It is designed to be efficient and user-friendly, providing a smooth leveling experience for new players or those looking to quickly level an alt.") 
+    PyImGui.spacing()
+    
+    # Features
+    PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Levels a character from 1 to 20 in the Nightfall campaign")
+    PyImGui.bullet_text("...")
+    PyImGui.spacing()
+    
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Wick aka Divinus and Kendor")
+    
+    PyImGui.end_tooltip()
+    
 if __name__ == "__main__":
     main()

@@ -10,7 +10,7 @@ import PyImGui
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, Color
 from Py4GWCoreLib.ImGui_src.WindowModule import WindowModule
 from Py4GWCoreLib.ImGui_src.Style import Style 
-from Py4GWCoreLib.ImGui_src.types import ControlAppearance, StyleColorType, StyleTheme
+from Py4GWCoreLib.ImGui_src.types import Alignment, ControlAppearance, StyleColorType, StyleTheme
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 from Py4GWCoreLib import Timer
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
@@ -776,9 +776,12 @@ def tooltip():
 
     # Title
     title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
     ImGui.push_font("Regular", 20)
-    PyImGui.text_colored("Style Manager", title_color.to_tuple_normalized())
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
     ImGui.pop_font()
+    PyImGui.spacing()
     PyImGui.spacing()
     PyImGui.separator()
 

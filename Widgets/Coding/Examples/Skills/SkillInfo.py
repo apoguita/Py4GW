@@ -5,7 +5,8 @@ from Py4GWCoreLib import *
 import webbrowser
 from fractions import Fraction
 
-MODULE_NAME = "Skill Altas"
+MODULE_NAME = "Skill Atlas"
+MODULE_ICON = "Textures/Module_Icons/Skill Atlas.png"
 TEXTURE_FOLDER = "Textures\\Game UI\\Skill Description\\"
 PROFESSION_TEXTURE_FOLDER = "Textures\\Profession_Icons\\"
 

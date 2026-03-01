@@ -2,6 +2,9 @@ from Py4GWCoreLib import *
 import ctypes
 import PyImGui
 
+MODULE_NAME = "Skillbar +"
+MODULE_ICON = "Textures/Module_Icons/SkillBar+.png"
+
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 window_module = ImGui.WindowModule('Skillbar+', window_name = 'Skillbar+', window_flags = PyImGui.WindowFlags.AlwaysAutoResize)
 

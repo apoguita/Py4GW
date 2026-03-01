@@ -8,6 +8,9 @@ import PyImGui
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
 
+MODULE_NAME = "System Monitor"
+MODULE_ICON = "Textures/Module_Icons/Monitor Diagnostic.png"
+
 update_throttle = ThrottledTimer(1000)  # Throttle updates to at most once per second
 
 
