@@ -233,6 +233,7 @@ class Py4GWLibrary:
         except Exception as e:
             Py4GW.Console.Log("Widget Browser", f"Error loading config: {e}", Py4GW.Console.MessageType.Error)
             
+        self.focus_search = False
         pass    
     
     def build_widget_tree(self, widgets: dict[str, "Widget"]) -> WidgetTreeNode:
@@ -379,7 +380,7 @@ class Py4GWLibrary:
                                         (w.category == self.category or not self.category) and 
                                         (self.path in w.widget_path or not self.path) and 
                                         (self.tag in w.tags or not self.tag) and 
-                                        all(kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
+                                        all(kw in w.name.lower() or kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
                 
                 match self.sort_mode:
                     case SortMode.ByName:
@@ -390,7 +391,7 @@ class Py4GWLibrary:
                         self.filtered_widgets.sort(key=lambda w: (not w.enabled, w.name.lower()))
             case LayoutMode.Compact:
                 # check if all keywords are in name or folder
-                self.filtered_widgets = [w for w in prefiltered if all(kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
+                self.filtered_widgets = [w for w in prefiltered if all(kw in w.name.lower() or kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
 
     def draw_toggle_view_mode_button(self) -> bool:
         clicked = False
