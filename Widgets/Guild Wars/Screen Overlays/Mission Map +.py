@@ -33,6 +33,7 @@ CHEST_GADGET_IDS = [9,69,4579,8141, 9523, 4582]
 
 # NavMesh right-click snap constants
 _SNAP_ARRIVAL_RADIUS   = 200.0
+_SNAP_WAYPOINT_RADIUS  = 140.0
 
 #end region
 
@@ -826,6 +827,8 @@ class MissionMap:
         self.snap_snapped_target: tuple[float, float] | None = None
         self.snap_current_path: list[tuple[float, float]] = []
         self.snap_path_computing: bool = False
+        self.snap_path_index: int = 0
+        self.snap_path_following: bool = False
         self.snap_enabled: bool = True
 
         self.ally_marker = GLOBAL_CONFIGS.get("Ally")
@@ -855,6 +858,8 @@ class MissionMap:
         self.snap_clicked_target = None
         self.snap_snapped_target = None
         self.snap_current_path   = []
+        self.snap_path_index = 0
+        self.snap_path_following = False
         Player.Move(self.player_x, self.player_y)
         
 
@@ -881,6 +886,8 @@ class MissionMap:
             self.snap_snapped_target = None
             self.snap_current_path = []
             self.snap_path_computing = False
+            self.snap_path_index = 0
+            self.snap_path_following = False
             # Seed right-click state so first frame doesn't fire spuriously
             _rc = Map.MissionMap.GetLastRightClickCoords()
             self.snap_gw_last_right_click = (float(_rc[0]), float(_rc[1]))
@@ -1001,14 +1008,46 @@ class MissionMap:
                 self.snap_snapped_target = snapped
                 if snapped is not None:
                     self.snap_current_path = []
+                    self.snap_path_index = 0
+                    self.snap_path_following = False
                     GLOBAL_CACHE.Coroutines.append(
                         _snap_launch_path_coroutine(snapped[0], snapped[1], self)
                     )
-                    Player.Move(snapped[0], snapped[1])
             else:
                 self.snap_clicked_target = None
                 self.snap_snapped_target = None
                 self.snap_current_path = []
+                self.snap_path_index = 0
+                self.snap_path_following = False
+
+        # Follow computed AutoPathing path waypoint-by-waypoint
+        if self.snap_snapped_target is not None and not self.snap_path_computing:
+            if len(self.snap_current_path) > 0:
+                if not self.snap_path_following:
+                    self.snap_path_index = 0
+                    while self.snap_path_index < (len(self.snap_current_path) - 1):
+                        _wx, _wy = self.snap_current_path[self.snap_path_index]
+                        _wdx = self.player_x - _wx
+                        _wdy = self.player_y - _wy
+                        if (_wdx * _wdx + _wdy * _wdy) <= (_SNAP_WAYPOINT_RADIUS * _SNAP_WAYPOINT_RADIUS):
+                            self.snap_path_index += 1
+                            continue
+                        break
+                    _nx, _ny = self.snap_current_path[self.snap_path_index]
+                    Player.Move(_nx, _ny)
+                    self.snap_path_following = True
+                else:
+                    if self.snap_path_index < len(self.snap_current_path):
+                        _cx, _cy = self.snap_current_path[self.snap_path_index]
+                        _dx_wp = self.player_x - _cx
+                        _dy_wp = self.player_y - _cy
+                        if (_dx_wp * _dx_wp + _dy_wp * _dy_wp) <= (_SNAP_WAYPOINT_RADIUS * _SNAP_WAYPOINT_RADIUS):
+                            self.snap_path_index += 1
+                            if self.snap_path_index < len(self.snap_current_path):
+                                _nx, _ny = self.snap_current_path[self.snap_path_index]
+                                Player.Move(_nx, _ny)
+                            else:
+                                self.snap_path_following = False
 
         # Arrival check: clear snap markers once the player reaches the snapped point
         if self.snap_snapped_target is not None and not self.snap_path_computing:
