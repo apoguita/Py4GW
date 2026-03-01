@@ -123,7 +123,9 @@ def create_bot_routine(bot: Botting) -> None:
     # === PROPHECIES CONTENT ===
     To_Lions_Arch(bot)
     Unlock_Olias(bot)
-    To_Temple_Of_The_Ages(bot)
+    toa_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if toa_profession in ["Dervish", "Ranger"]:
+        To_Temple_Of_The_Ages(bot)
 
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Templates.Pacifist()
@@ -160,9 +162,9 @@ def StandardHeroTeam():
         # Small party: Gwen, Vekk, Ogden
         hero_list.extend([24, 26, 27])
         skill_templates = [
-            "OQhkAsC8gFKgGckjHFRUGCA",  # 1 Gwen
-            "OgVDI8gsCawROeUEtZIA",     # 2 Vekk
-            "OwUUMsG/E4GgMnZskzkIZQAA"  # 3 Ogden
+            "OQhkAsC8gFKzJY6lDMd40hQG4iB",  # 1 Gwen
+            "OgVDI8gsO5gTw0z0hTFAZgiA",     # 2 Vekk
+            "OwUUMsG/E4SNgbE3N3ETfQgZAMEA"  # 3 Ogden
         ]
     
     # Add all heroes quickly
@@ -367,18 +369,6 @@ def GetWeaponMaterialPerProfession(bot: Botting):
         return [ModelID.Iron_Ingot.value]    
     return []
 
-def withdraw_gold(target_gold=5000, deposit_all=True):
-    gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
-
-    if gold_on_char > target_gold and deposit_all:
-        to_deposit = gold_on_char - target_gold
-        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
-        yield from Routines.Yield.wait(250)
-
-    if gold_on_char < target_gold:
-        to_withdraw = target_gold - gold_on_char
-        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
-        yield from Routines.Yield.wait(250)
 
 def BuyMaterials():
     for _ in range(2):
@@ -510,7 +500,7 @@ def CraftArmorWithDoubleMats(bot: Botting):
     bot.Map.Travel(target_map_id=491)
     
     # Withdraw gold
-    bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
+    bot.Items.WithdrawGold(5000)
     
     # Buy common materials
     bot.Move.XY(3495.80, 2050.97)
@@ -683,9 +673,6 @@ def CraftArmor(bot: Botting):
         (BOOTS,  [GetArmorMaterialPerProfession()], [2]),
     ]
     
-    yield from Routines.Yield.Agents.InteractWithAgentXY(3944, 2378)
-    yield
-
     for item_id, mats, qtys in armor_pieces:
         result = yield from Routines.Yield.Items.CraftItem(item_id, 75, mats, qtys)
         if not result:
@@ -711,9 +698,6 @@ def CraftWeapon(bot: Botting):
     for weapon_id in weapon_ids:
         weapon_pieces.append((weapon_id, materials, [1]))  # 1 = 10 materials per weapon minimum
     
-    yield from Routines.Yield.Agents.InteractWithAgentXY(4101.25, 2194.41)
-    yield
-
     for weapon_id, mats, qtys in weapon_pieces:
         result = yield from Routines.Yield.Items.CraftItem(weapon_id, 50, mats, qtys)
         if not result:
@@ -739,9 +723,6 @@ def Craft1stWeapon(bot: Botting):
     for weapon_id in weapon_ids:
         weapon_pieces.append((weapon_id, materials, [1]))  # 1 = 10 materials per weapon minimum
     
-    yield from Routines.Yield.Agents.InteractWithAgentXY(-11270.00, 8785.00)
-    yield
-
     for weapon_id, mats, qtys in weapon_pieces:
         result = yield from Routines.Yield.Items.CraftItem(weapon_id, 20, mats, qtys)
         if not result:
@@ -1246,7 +1227,7 @@ def Craft_Player_Armor(bot: Botting):
     bot.Map.Travel(target_map_id=491)
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
-    bot.Move.XYAndInteractNPC(3891.62, 2329.84)  # Armor crafter
+    bot.Move.XYAndInteractNPC(3944, 2378)  # Armor crafter
     bot.Wait.ForTime(1000)  # small delay to let the window open
     exec_fn = lambda: CraftArmor(bot)
     bot.States.AddCustomState(exec_fn, "Craft Armor")
@@ -1388,7 +1369,7 @@ def To_Consulate_Docks(bot: Botting):
 def Extend_Inventory_Space(bot: Botting):
     bot.States.AddHeader("Extend Inventory Space")
     bot.Map.Travel(target_map_id=248) #GTOB
-    bot.States.AddCustomState(withdraw_gold, "Withdraw Gold")
+    bot.Items.WithdrawGold(5000)
     bot.helpers.UI.open_all_bags()
     bot.Move.XY(-6017.76, -5899.94)
     bot.Move.XYAndInteractNPC(-4861.00, -7441.00) # Merchant NPC in GTOB
@@ -1410,7 +1391,7 @@ def Extend_Inventory_Space(bot: Botting):
 def Unlock_Remaining_Secondary_Professions(bot: Botting):
     bot.States.AddHeader("Unlock Remaining Secondary Professions")
     bot.Map.Travel(target_map_id=248)  # GTOB
-    bot.States.AddCustomState(withdraw_gold, "Get 5000 gold")
+    bot.Items.WithdrawGold(5000)
     bot.Move.XY(-3151.22, -7255.13)  # Move to profession trainers area
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     
