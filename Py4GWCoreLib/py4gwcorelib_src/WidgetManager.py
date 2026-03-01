@@ -6,6 +6,7 @@ import Py4GW
 import PyImGui
 from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER, HotKey
 from Py4GWCoreLib.ImGui_src.Style import Style
+from Py4GWCoreLib.ImGui_src.types import StyleTheme
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
@@ -1568,6 +1569,7 @@ class Py4GWLibrary:
         style = ImGui.get_style()
         
         padding = self.single_button_size * 0.05
+        ImGui.push_theme(StyleTheme.ImGui)
         style.WindowPadding.push_style_var_direct(padding, padding)
         win_open = ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoResize|
                                                                                                       PyImGui.WindowFlags.NoCollapse|
@@ -1575,6 +1577,7 @@ class Py4GWLibrary:
                                                                                                       PyImGui.WindowFlags.NoScrollbar|
                                                                                                       PyImGui.WindowFlags.NoScrollWithMouse))   
         style.WindowPadding.pop_style_var_direct()
+        ImGui.pop_theme()
         
         if win_open:
             win_size = PyImGui.get_window_size()
