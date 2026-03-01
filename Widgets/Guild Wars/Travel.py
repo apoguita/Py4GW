@@ -389,7 +389,10 @@ def DrawWindow():
         PyImGui.set_next_window_size(button_rect[2], button_rect[3])
         
         style.WindowPadding.push_style_var_direct(padding, padding)
-        if PyImGui.begin("##TravelButton", PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoScrollbar):
+        win_open  = PyImGui.begin("##TravelButton", PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoScrollbar)
+        style.WindowPadding.pop_style_var_direct()
+        
+        if win_open:
             is_hovered = ImGui.is_mouse_in_rect(button_rect)
             button_size = PyImGui.get_content_region_avail()[0] * (1 if is_hovered else 0.8)
             
@@ -412,9 +415,9 @@ def DrawWindow():
                 
                 window_module.end_pos = window_module.window_pos = (int(window_module.window_pos[0] + delta[0]), int(window_module.window_pos[1] + delta[1]))
                 # window_module.open = False
-                            
+            ImGui.show_tooltip("Click to open travel window\nDrag to reposition button")
+            
             PyImGui.end()
-        style.WindowPadding.pop_style_var_direct()
         
         if not window_module.open:
             return
