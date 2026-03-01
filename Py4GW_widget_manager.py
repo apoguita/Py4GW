@@ -49,6 +49,8 @@ def _add_config_vars():
     
     IniManager().add_float(key=INI_KEY, var_name="card_width", section="Card Configuration", name="card_width", default=300)
     
+    IniManager().add_bool(key=INI_KEY, var_name="show_images_compact", section="Card Configuration", name="show_images_compact", default=False)
+    
     IniManager().add_str(key=INI_KEY, var_name="card_color", section="Card Configuration", name="card_color", default="200, 200, 200, 20")
     IniManager().add_str(key=INI_KEY, var_name="card_enabled_color", section="Card Configuration", name="card_enabled_color", default="90, 255, 90, 30")
     IniManager().add_str(key=INI_KEY, var_name="favorites_color", section="Card Configuration", name="favorites_color", default="255, 215, 0, 255")

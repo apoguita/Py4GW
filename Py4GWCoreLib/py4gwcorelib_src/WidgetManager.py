@@ -6,7 +6,7 @@ import Py4GW
 import PyImGui
 from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER, HotKey
 from Py4GWCoreLib.ImGui_src.Style import Style
-from Py4GWCoreLib.ImGui_src.types import StyleTheme
+from Py4GWCoreLib.ImGui_src.types import Alignment, StyleTheme
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
@@ -144,6 +144,8 @@ class Py4GWLibrary:
         self.fixed_card_width = False
         self.card_width = 300
         
+        self.show_images_compact = False
+        
         self.card_enabled_color = Color(90, 255, 90, 30)
         self.card_color = Color(200, 200, 200, 20)
         self.favorites_color = Color(255, 215, 0, 255)
@@ -200,7 +202,9 @@ class Py4GWLibrary:
             self.show_category = IniManager().read_bool(key=self.ini_key, section="Card Configuration", name="show_category", default=True)
             self.show_tags = IniManager().read_bool(key=self.ini_key, section="Card Configuration", name="show_tags", default=True)
             self.fixed_card_width = IniManager().read_bool(key=self.ini_key, section="Card Configuration", name="fixed_card_width", default=False)
-            self.card_width = IniManager().read_float(key=self.ini_key, section="Card Configuration", name="card_width", default=300)            
+            self.card_width = IniManager().read_float(key=self.ini_key, section="Card Configuration", name="card_width", default=300)    
+            
+            self.show_images_compact = IniManager().read_bool(key=self.ini_key, section="Card Configuration", name="show_images_compact", default=False)        
             
             self.card_enabled_color = Color.from_rgba_string(IniManager().read_key(key=self.ini_key, section="Card Configuration", name="card_enabled_color", default="90, 255, 90, 30"))
             self.card_color = Color.from_rgba_string(IniManager().read_key(key=self.ini_key, section="Card Configuration", name="card_color", default="200, 200, 200, 20"))
@@ -658,7 +662,7 @@ class Py4GWLibrary:
                 card_width = PyImGui.get_content_region_avail()[0]
                 open = True
                 
-                self._push_card_style(style, enabled=False)
+                self._push_card_style(style, enabled=False, compact=True)
                 
                 first_visible = False
                 last_visible = False
@@ -681,9 +685,9 @@ class Py4GWLibrary:
                         
                         
                 if self.active_card_style_pushed:
-                    self._pop_card_style(style)
+                    self._pop_card_style(style, compact=True)
                 
-                self._pop_card_style(style)
+                self._pop_card_style(style, compact=True)
                 
                 if self.context_menu_id and self.context_menu_widget:
                     self.card_context_menu(self.context_menu_id, self.context_menu_widget)
@@ -968,112 +972,124 @@ class Py4GWLibrary:
                     
                     if ImGui.begin_menu("Widget Cards"):
                         if ImGui.begin_menu("Layout"):                            
-                            show_configure = ImGui.checkbox("Show Configure Button", self.show_configure_button)
-                            if show_configure != self.show_configure_button:
-                                self.show_configure_button = show_configure
-                                IniManager().set(key=self.ini_key, var_name="show_configure_button", value=self.show_configure_button, section="Configuration")
-                                IniManager().save_vars(self.ini_key)
-                            ImGui.show_tooltip("Show or hide the configure button on each widget card.")
-                            
-                            show_images = ImGui.checkbox("Show Widget Images", self.show_images)
-                            if show_images != self.show_images:
-                                self.show_images = show_images
-                                IniManager().set(key=self.ini_key, var_name="show_images", value=self.show_images, section="Configuration")
-                                IniManager().save_vars(self.ini_key)
-                            ImGui.show_tooltip("Show or hide the images on each widget card.")
-                            
-                            show_separator = ImGui.checkbox("Show Separator", self.show_separator)
-                            if show_separator != self.show_separator:
-                                self.show_separator = show_separator
-                                IniManager().set(key=self.ini_key, var_name="show_separator", value=self.show_separator, section="Configuration")
-                                IniManager().save_vars(self.ini_key)
-                            
-                            show_category = ImGui.checkbox("Show Widget Category", self.show_category)
-                            if show_category != self.show_category:
-                                self.show_category = show_category
-                                IniManager().set(key=self.ini_key, var_name="show_category", value=self.show_category, section="Configuration")
-                                IniManager().save_vars(self.ini_key)
-                            ImGui.show_tooltip("Show or hide the category text on each widget card.")
-                            
-                            show_tags = ImGui.checkbox("Show Widget Tags", self.show_tags)
-                            if show_tags != self.show_tags:
-                                self.show_tags = show_tags
-                                IniManager().set(key=self.ini_key, var_name="show_tags", value=self.show_tags, section="Configuration")
-                                IniManager().save_vars(self.ini_key)
-                            ImGui.show_tooltip("Show or hide the tags on each widget card.")
-                            
-                            fixed_width = ImGui.checkbox("Fixed Card Width", self.fixed_card_width)
-                            if fixed_width != self.fixed_card_width:
-                                self.fixed_card_width = fixed_width
-                                IniManager().set(key=self.ini_key, var_name="fixed_card_width", value=self.fixed_card_width, section="Configuration")
-                                IniManager().save_vars(self.ini_key)
-                            ImGui.show_tooltip("Enable or disable fixed card width.\nIf enabled, all widget cards will have the same width defined by 'Card Width'.\nIf disabled, card width will be determined automatically based on the available space and number of columns.")
-                            
-                            if self.fixed_card_width:
-                                card_width = ImGui.slider_float("Card Width", self.card_width, 100, 600)
-                                if card_width != self.card_width:
-                                    self.card_width = card_width
-                                    IniManager().set(key=self.ini_key, var_name="card_width", value=self.card_width, section="Configuration")
+                            if ImGui.begin_menu("Library View"):                            
+                                show_configure = ImGui.checkbox("Show Configure Button", self.show_configure_button)
+                                if show_configure != self.show_configure_button:
+                                    self.show_configure_button = show_configure
+                                    IniManager().set(key=self.ini_key, var_name="show_configure_button", value=self.show_configure_button, section="Card Configuration")
                                     IniManager().save_vars(self.ini_key)
-                                ImGui.show_tooltip(f"Set the width of each widget card when fixed card width is enabled.\nCard width {self.card_width}px.")
+                                ImGui.show_tooltip("Show or hide the configure button on each widget card.")
+                                
+                                show_images = ImGui.checkbox("Show Widget Images", self.show_images)
+                                if show_images != self.show_images:
+                                    self.show_images = show_images
+                                    IniManager().set(key=self.ini_key, var_name="show_images", value=self.show_images, section="Card Configuration")
+                                    IniManager().save_vars(self.ini_key)
+                                ImGui.show_tooltip("Show or hide the images on each widget card.")
+                                
+                                show_separator = ImGui.checkbox("Show Separator", self.show_separator)
+                                if show_separator != self.show_separator:
+                                    self.show_separator = show_separator
+                                    IniManager().set(key=self.ini_key, var_name="show_separator", value=self.show_separator, section="Card Configuration")
+                                    IniManager().save_vars(self.ini_key)
+                                ImGui.show_tooltip("Show or hide the separator between widget cards.")
+                                
+                                show_category = ImGui.checkbox("Show Widget Category", self.show_category)
+                                if show_category != self.show_category:
+                                    self.show_category = show_category
+                                    IniManager().set(key=self.ini_key, var_name="show_category", value=self.show_category, section="Card Configuration")
+                                    IniManager().save_vars(self.ini_key)
+                                ImGui.show_tooltip("Show or hide the category text on each widget card.")
+                                
+                                show_tags = ImGui.checkbox("Show Widget Tags", self.show_tags)
+                                if show_tags != self.show_tags:
+                                    self.show_tags = show_tags
+                                    IniManager().set(key=self.ini_key, var_name="show_tags", value=self.show_tags, section="Card Configuration")
+                                    IniManager().save_vars(self.ini_key)
+                                ImGui.show_tooltip("Show or hide the tags on each widget card.")
+                                
+                                fixed_width = ImGui.checkbox("Fixed Card Width", self.fixed_card_width)
+                                if fixed_width != self.fixed_card_width:
+                                    self.fixed_card_width = fixed_width
+                                    IniManager().set(key=self.ini_key, var_name="fixed_card_width", value=self.fixed_card_width, section="Card Configuration")
+                                    IniManager().save_vars(self.ini_key)
+                                ImGui.show_tooltip("Enable or disable fixed card width.\nIf enabled, all widget cards will have the same width defined by 'Card Width'.\nIf disabled, card width will be determined automatically based on the available space and number of columns.")
+                                
+                                if self.fixed_card_width:
+                                    card_width = ImGui.slider_float("Card Width", self.card_width, 100, 600)
+                                    if card_width != self.card_width:
+                                        self.card_width = card_width
+                                        IniManager().set(key=self.ini_key, var_name="card_width", value=self.card_width, section="Card Configuration")
+                                        IniManager().save_vars(self.ini_key)
+                                    ImGui.show_tooltip(f"Set the width of each widget card when fixed card width is enabled.\nCard width {self.card_width}px.")
+                                
+                                ImGui.end_menu()
+                            
+                            if ImGui.begin_menu("Compact View"):
+                                show_images = ImGui.checkbox("Show Widget Images", self.show_images_compact)
+                                if show_images != self.show_images_compact:
+                                    self.show_images_compact = show_images
+                                    IniManager().set(key=self.ini_key, var_name="show_images_compact", value=self.show_images_compact, section="Card Configuration")
+                                    IniManager().save_vars(self.ini_key)
+                                ImGui.show_tooltip("Show or hide the images on each widget card in compact view.")
+                                
+                                ImGui.end_menu()
                             
                             ImGui.end_menu()
-                        
-                        if ImGui.begin_menu("Styling"):
-                            
+                        if ImGui.begin_menu("Styling"):                            
                             card_rounding = ImGui.slider_float("Card Rounding", self.card_rounding, 0, 20)
                             if card_rounding != self.card_rounding:
                                 self.card_rounding = card_rounding
-                                IniManager().set(key=self.ini_key, var_name="card_rounding", value=self.card_rounding, section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="card_rounding", value=self.card_rounding, section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)
                             ImGui.show_tooltip("Set the rounding of the widget cards.\nThis controls how rounded the corners of the widget cards are, with 0 being sharp corners and higher values being more rounded.")
                             
                             card_color = ImGui.color_edit4("Card", self.card_color.color_tuple)
                             if not self.is_same_color(card_color, self.card_color.color_tuple):
                                 self.card_color = Color.from_tuple(card_color)
-                                IniManager().set(key=self.ini_key, var_name="card_color", value=self.card_color.to_rgba_string(), section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="card_color", value=self.card_color.to_rgba_string(), section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)
                             ImGui.show_tooltip("Set the background color of the widget cards.\nThis color is used for inactive widgets or when 'Show Enabled State' is disabled.")
                             
                             card_enabled_color = ImGui.color_edit4("Card (Enabled)", self.card_enabled_color.color_tuple)
                             if not self.is_same_color(card_enabled_color, self.card_enabled_color.color_tuple):
                                 self.card_enabled_color = Color.from_tuple(card_enabled_color)
-                                IniManager().set(key=self.ini_key, var_name="card_enabled_color", value=self.card_enabled_color.to_rgba_string(), section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="card_enabled_color", value=self.card_enabled_color.to_rgba_string(), section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)
                             ImGui.show_tooltip("Set the background color of enabled widget cards.\nThis color is used for active widgets when 'Show Enabled State' is enabled.")
                             
                             name_color = ImGui.color_edit4("Name", self.name_color.color_tuple)
                             if not self.is_same_color(name_color, self.name_color.color_tuple):
                                 self.name_color = Color.from_tuple(name_color)
-                                IniManager().set(key=self.ini_key, var_name="name_color", value=self.name_color.to_rgba_string(), section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="name_color", value=self.name_color.to_rgba_string(), section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)
                             ImGui.show_tooltip("Set the color used for widget names.\nThis color is used for the text of the widget names displayed on each widget card.")
                             
                             name_enabled_color = PyImGui.color_edit4("Name (Enabled)", self.name_enabled_color.color_tuple)
                             if not self.is_same_color(name_enabled_color, self.name_enabled_color.color_tuple):
                                 self.name_enabled_color = Color.from_tuple(name_enabled_color)
-                                IniManager().set(key=self.ini_key, var_name="name_enabled_color", value=self.name_enabled_color.to_rgba_string(), section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="name_enabled_color", value=self.name_enabled_color.to_rgba_string(), section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)
                             ImGui.show_tooltip("Set the color used for enabled widget names.\nThis color is used for the text of the widget names displayed on each widget card when the widget is enabled.")
                             
                             favorites_color = ImGui.color_edit4("Favorites", self.favorites_color.color_tuple)
                             if not self.is_same_color(favorites_color, self.favorites_color.color_tuple):
                                 self.favorites_color = Color.from_tuple(favorites_color)
-                                IniManager().set(key=self.ini_key, var_name="favorites_color", value=self.favorites_color.to_rgba_string(), section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="favorites_color", value=self.favorites_color.to_rgba_string(), section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)    
                             ImGui.show_tooltip("Set the color used to indicate favorite widgets.\nThis color is used for the star icon on each widget card.")
                             
                             tag_color = ImGui.color_edit4("Tags", self.tag_color.color_tuple)
                             if not self.is_same_color(tag_color, self.tag_color.color_tuple):
                                 self.tag_color = Color.from_tuple(tag_color)
-                                IniManager().set(key=self.ini_key, var_name="tag_color", value=self.tag_color.to_rgba_string(), section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="tag_color", value=self.tag_color.to_rgba_string(), section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)
                             ImGui.show_tooltip("Set the color used for widget tags.\nThis color is used for the text of the tags displayed on each widget card.")
                             
                             category_color = ImGui.color_edit4("Category", self.category_color.color_tuple)
                             if not self.is_same_color(category_color, self.category_color.color_tuple):
                                 self.category_color = Color.from_tuple(category_color)
-                                IniManager().set(key=self.ini_key, var_name="category_color", value=self.category_color.to_rgba_string(), section="Configuration")
+                                IniManager().set(key=self.ini_key, var_name="category_color", value=self.category_color.to_rgba_string(), section="Card Configuration")
                                 IniManager().save_vars(self.ini_key)
                             ImGui.show_tooltip("Set the color used for widget categories.\nThis color is used for the text of the category displayed on each widget card.")
                             ImGui.end_menu()                        
@@ -1328,21 +1344,28 @@ class Py4GWLibrary:
                 
             PyImGui.end_popup()
 
-    def _push_card_style(self, style : Style, enabled : bool):
+    def _push_card_style(self, style : Style, enabled : bool, compact : bool = False):
         self.active_card_style_pushed = enabled
             
         style.ChildBg.push_color_direct(self.card_enabled_color.rgb_tuple if enabled else self.card_color.rgb_tuple)
         style.ChildBorderSize.push_style_var_direct(2.0 if enabled else 1.0) 
         style.ChildRounding.push_style_var_direct(self.card_rounding)
         style.Border.push_color_direct(self.card_enabled_color.opacity(0.6).rgb_tuple if enabled else self.card_color.opacity(0.6).rgb_tuple)
+
+        if self.show_images_compact and compact:
+            style.WindowPadding.push_style_var_direct(4, 4) 
+
         pass
 
-    def _pop_card_style(self, style : Style):
+    def _pop_card_style(self, style : Style, compact : bool = False):
         self.active_card_style_pushed = False
         style.ChildBg.pop_color_direct()
         style.ChildBorderSize.pop_style_var_direct()
         style.ChildRounding.pop_style_var_direct()
         style.Border.pop_color_direct()
+        
+        if self.show_images_compact and compact:
+            style.WindowPadding.pop_style_var_direct()
         pass
 
     def _push_tag_style(self, style : Style, color : tuple):        
@@ -1510,7 +1533,8 @@ class Py4GWLibrary:
         Must be called inside a grid / SameLine layout.
         """
         
-        rect_visible = PyImGui.is_rect_visible(width, 30)
+        height = 30 if not self.show_images_compact else 36
+        rect_visible = PyImGui.is_rect_visible(width, height)
         clicked = False
         hovered = False
         cog_hovered = False
@@ -1520,24 +1544,33 @@ class Py4GWLibrary:
             
             if enabled:
                 if not self.active_card_style_pushed:
-                    self._push_card_style(style, enabled)
+                    self._push_card_style(style, enabled, compact=True)
             else:
                 if self.active_card_style_pushed:
-                    self._pop_card_style(style)
+                    self._pop_card_style(style, compact=True)
         
             opened = PyImGui.begin_child(
                 f"##widget_card_{widget.folder_script_name}",
-                (width, 30),
+                (width, height),
                 border=True,
                 flags=PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse
             )
             
-            if opened and PyImGui.is_rect_visible(width, 30):
-                available_width = PyImGui.get_content_region_avail()[0]
-
+            if opened:  
                 ImGui.push_font("Regular", 15)
+                
+                if self.show_images_compact:
+                    ImGui.image(widget.image, (height - 10, height - 10), border_color=self.category_color.rgb_tuple)
+                    PyImGui.same_line(0, 5)
+                    
+                available_width = PyImGui.get_content_region_avail()[0]
                 name = ImGui.trim_text_to_width(text=widget.name, max_width=available_width - 20)
-                ImGui.text_colored(name, self.name_color.color_tuple if not widget.enabled else self.name_enabled_color.color_tuple, 15)
+                
+                if self.show_images_compact:
+                    ImGui.text_aligned(name, alignment=Alignment.MidLeft, color=self.name_color.color_tuple if not widget.enabled else self.name_enabled_color.color_tuple, height=height - 8)
+                else:
+                    ImGui.text_colored(name, self.name_color.color_tuple if not widget.enabled else self.name_enabled_color.color_tuple, 15)
+                    
                 ImGui.pop_font()
                                 
                 if widget.has_configure_property:
@@ -1563,12 +1596,12 @@ class Py4GWLibrary:
                 
             if not cog_hovered and PyImGui.is_item_hovered():
                 hovered = True
-                self._pop_card_style(style)
+                self._pop_card_style(style, compact=True)
                 
                 if widget.has_tooltip_property:
                     try:
                         if widget.tooltip:
-                            self._pop_card_style(style)                        
+                            self._pop_card_style(style, compact=True)                        
                             
                             widget.tooltip()
                             
@@ -1578,7 +1611,7 @@ class Py4GWLibrary:
                 else:
                     PyImGui.show_tooltip(f"Enable/Disable {widget.name} widget")
                     
-                self._push_card_style(style, enabled)
+                self._push_card_style(style, enabled, compact=True)
         else:
             ImGui.dummy(width, 30)
             
