@@ -4,11 +4,17 @@ from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+from Py4GWCoreLib.enums_src.Texture_enums import get_texture_for_model
+
 
 from dataclasses import dataclass, field
 
 INI_PATH = "Inventory/InventoryPlus" #path to save ini key
 INI_FILENAME = "InventoryPlus.ini" #ini file name
+
+MODULE_NAME = "Inventory Plus"
+MODULE_ICON = "Textures\\Module_Icons\\inventory_plus.png"
 
 #region dataclasses
 @dataclass
@@ -73,6 +79,8 @@ class SalvageSettings:
         IniManager().add_bool(key=ini_key, section="Salvage", var_name="salvage_greens", name="salvage_greens", default=self.salvage_greens)
         IniManager().add_bool(key=ini_key, section="Salvage", var_name="salvage_purples", name="salvage_purples", default=self.salvage_purples)
         IniManager().add_bool(key=ini_key, section="Salvage", var_name="salvage_golds", name="salvage_golds", default=self.salvage_golds)
+        IniManager().add_bool(key=ini_key, section="Salvage", var_name="show_salvage_all", name="show_salvage_all", default=self.show_salvage_all)
+        # Legacy compatibility for older config files.
         IniManager().add_bool(key=ini_key, section="Salvage", var_name="salvage_all", name="salvage_all", default=self.show_salvage_all)
 
         IniManager().add_bool(key=ini_key, section="Salvage", var_name="salvage_all_whites", name="salvage_all_whites", default=self.salvage_all_whites)
@@ -324,6 +332,13 @@ class InventoryPlusWidget:
         self.PopUps: dict[str, ModelPopUp] = {}
         self.model_id_to_name = {member.value: name for name, member in ModelID.__members__.items()}
         self.item_type_to_name = {member.value: name for name, member in ItemType.__members__.items()}
+
+        # Merchant handling UI/runtime state
+        self.merchant_frame_exists: bool = False
+        self.merchant_sell_checkboxes: dict[int, bool] = {}
+        self.selected_combo_merchant: int = 0
+        self.merchant_buy_quantity: int = 1
+        self.merchant_sell_quantities: dict[int, int] = {}
         
         self._init_popups()
 
@@ -421,7 +436,7 @@ class InventoryPlusWidget:
     def _add_auto_handler_config_vars(self):
         _section = "AutoManager"
         IniManager().add_bool(key=self.ini_key, section=_section, var_name="module_active", name="module_active", default=False)
-        IniManager().add_float(key=self.ini_key, section=_section, var_name="lookup_time", name="lookup_time", default=15000)
+        IniManager().add_int(key=self.ini_key, section=_section, var_name="lookup_time", name="lookup_time", default=15000)
            
         _section = "AutoIdentify"
         IniManager().add_bool(key=self.ini_key, section=_section, var_name="id_whites", name="id_whites", default=False)
@@ -471,6 +486,10 @@ class InventoryPlusWidget:
 
             except:
                 return default_color
+
+        def _get_bool_with_legacy(section: str, primary_var_name: str, legacy_var_name: str, default: bool) -> bool:
+            legacy_value = IniManager().getBool(key=self.ini_key, section=section, var_name=legacy_var_name, default=default)
+            return IniManager().getBool(key=self.ini_key, section=section, var_name=primary_var_name, default=legacy_value)
         
         cfg = self.identification_settings
         cfg.identify_whites = IniManager().getBool(key=self.ini_key, section="Identification", var_name="identify_whites", default=cfg.identify_whites)
@@ -491,7 +510,7 @@ class InventoryPlusWidget:
         cfg.salvage_greens = IniManager().getBool(key=self.ini_key, section="Salvage", var_name="salvage_greens", default=cfg.salvage_greens)
         cfg.salvage_purples = IniManager().getBool(key=self.ini_key, section="Salvage", var_name="salvage_purples", default=cfg.salvage_purples)
         cfg.salvage_golds = IniManager().getBool(key=self.ini_key, section="Salvage", var_name="salvage_golds", default=cfg.salvage_golds)
-        cfg.show_salvage_all = IniManager().getBool(key=self.ini_key, section="Salvage", var_name="salvage_all", default=cfg.show_salvage_all)
+        cfg.show_salvage_all = _get_bool_with_legacy("Salvage", "show_salvage_all", "salvage_all", cfg.show_salvage_all)
         cfg.salvage_all_whites = IniManager().getBool(key=self.ini_key, section="Salvage", var_name="salvage_all_whites", default=cfg.salvage_all_whites)
         cfg.salvage_all_blues = IniManager().getBool(key=self.ini_key, section="Salvage", var_name="salvage_all_blues", default=cfg.salvage_all_blues)
         cfg.salvage_all_greens = IniManager().getBool(key=self.ini_key, section="Salvage", var_name="salvage_all_greens", default=cfg.salvage_all_greens)
@@ -598,10 +617,10 @@ class InventoryPlusWidget:
             return False
 
         
-        if not self.auto_inventory_handler.initialized:
+        if not self.auto_inventory_handler.runtime_initialized:
             self.auto_inventory_handler.lookup_throttle.SetThrottleTime(self.auto_inventory_handler._LOOKUP_TIME)
             self.auto_inventory_handler.lookup_throttle.Reset()
-            self.auto_inventory_handler.initialized = True
+            self.auto_inventory_handler.runtime_initialized = True
             ConsoleLog("AutoInventoryHandler", "Auto Handler Options initialized", Py4GW.Console.MessageType.Success)
             
         if not Map.IsExplorable():
@@ -847,10 +866,8 @@ class InventoryPlusWidget:
 
         # Detect right click
         if PyImGui.is_mouse_released(MouseButton.Right.value):
-
             # Only trigger if user clicked over inventory window
             if WindowFrames["Inventory Bags"].IsMouseOver():
-                
                 self.selected_item = None  # first assume empty click
                 for slot_frame in self.InventorySlots:
                     if slot_frame.IsMouseOver():
@@ -945,8 +962,387 @@ class InventoryPlusWidget:
                             deposit_model_blacklist_str = ",".join(str(mid) for mid in new_blacklist)
                             IniManager().set(key=self.ini_key, section="AutoDeposit", var_name="deposit_model_blacklist", value=deposit_model_blacklist_str)
                 
+ 
+ 
+    #region MerchantWindow
+    def _ensure_legacy_merchant_module(self):
+        if hasattr(self, '_legacy_merchant_module') and self._legacy_merchant_module is not None:
+            return
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+        from Sources.ApoSource.InvPlus.GUI_Helpers import Frame
+        import Sources.ApoSource.InvPlus.Coroutines as LegacyMerchantCoroutines
+        import Sources.ApoSource.InvPlus.MerchantModule as LegacyMerchantModule
+        from Sources.ApoSource.InvPlus.MerchantModule import MerchantModule
 
+        # Keep the old implementation path, but bind Trading to GLOBAL_CACHE.Trading.
+        # This matches the py4gw demo usage path and ensures offered lists/quotes populate.
+        LegacyMerchantModule.Trading = GLOBAL_CACHE.Trading
+        LegacyMerchantCoroutines.Trading = GLOBAL_CACHE.Trading
 
+        self._legacy_inventory_frame = Frame(0)
+        self._legacy_merchant_module = MerchantModule(self._legacy_inventory_frame)
+
+    def _get_merchant_batch_size(self) -> int:
+        try:
+            if bool(self._legacy_merchant_module._is_material_trader()):
+                return 10
+        except Exception:
+            pass
+        try:
+            if bool(self._legacy_merchant_module._is_rare_material_trader()):
+                return 1
+        except Exception:
+            pass
+        return 1
+
+    def _resolve_merchant_item_name(self, item_id):
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+        resolved_item_id = item_id
+        if hasattr(resolved_item_id, "item_id"):
+            resolved_item_id = resolved_item_id.item_id
+
+        try:
+            resolved_item_id = int(resolved_item_id)
+        except Exception:
+            pass
+
+        try:
+            item_name = Utils.StripMarkup(GLOBAL_CACHE.Item.GetName(resolved_item_id))
+            if isinstance(item_name, str) and item_name.strip():
+                return item_name
+        except Exception:
+            pass
+
+        try:
+            model_id = int(GLOBAL_CACHE.Item.GetModelID(resolved_item_id))
+        except Exception:
+            model_id = 0
+
+        model_name = self.model_id_to_name.get(model_id)
+        if model_name:
+            return model_name.replace("_", " ")
+        return f"ModelID {model_id}" if model_id else "Unknown Item"
+
+    def _set_merchant_checkbox_state(self, tick_state: bool):
+        from Py4GWCoreLib import Item, ItemArray, Bags
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+        merchant_item_list = GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
+        merchant_item_models = {
+            int(GLOBAL_CACHE.Item.GetModelID(item_id))
+            for item_id in merchant_item_list
+        }
+        required_quantity = self._get_merchant_batch_size()
+
+        for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+            bag_to_check = ItemArray.CreateBagList(bag_id)
+            item_array = ItemArray.GetItemArray(bag_to_check)
+
+            for item_id in item_array:
+                model = int(Item.GetModelID(item_id))
+                quantity = int(Item.Properties.GetQuantity(item_id))
+                item_value = int(Item.Properties.GetValue(item_id))
+
+                if bool(self._legacy_merchant_module._is_merchant()) and item_value >= 1:
+                    is_on_list = True
+                else:
+                    is_on_list = model in merchant_item_models
+
+                if not is_on_list or quantity < required_quantity:
+                    continue
+
+                self._legacy_merchant_module.merchant_checkboxes[item_id] = tick_state
+
+        for item_id in list(self._legacy_merchant_module.merchant_checkboxes):
+            if not self._legacy_merchant_module.merchant_checkboxes[item_id]:
+                del self._legacy_merchant_module.merchant_checkboxes[item_id]
+                normalized_item_id = self._normalize_item_id(item_id)
+                if normalized_item_id in self.merchant_sell_quantities:
+                    del self.merchant_sell_quantities[normalized_item_id]
+
+    def _normalize_item_id(self, item_id):
+        resolved_item_id = item_id
+        if hasattr(resolved_item_id, "item_id"):
+            resolved_item_id = resolved_item_id.item_id
+        try:
+            return int(resolved_item_id)
+        except Exception:
+            return resolved_item_id
+
+    def _get_max_sell_quantity(self, item_id: int, batch_size: int) -> int:
+        from Py4GWCoreLib import Item
+
+        try:
+            current_qty = int(Item.Properties.GetQuantity(item_id))
+        except Exception:
+            return 0
+        if batch_size <= 1:
+            return max(0, current_qty)
+        return max(0, (current_qty // batch_size) * batch_size)
+
+    def _sell_selected_material_items(self, sell_plan: dict[int, int]):
+        from Py4GWCoreLib import Trading
+        from Py4GWCoreLib import Item
+        from Py4GWCoreLib.Routines import Routines
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+        batch_size = self._get_merchant_batch_size()
+        for item_id, target_quantity in sell_plan.items():
+            remaining = max(0, int(target_quantity))
+            while remaining >= batch_size:
+                try:
+                    current_qty = int(Item.Properties.GetQuantity(item_id))
+                except Exception:
+                    break
+                if current_qty < batch_size:
+                    break
+
+                GLOBAL_CACHE.Trading.Trader.RequestSellQuote(item_id)
+                quoted_value = -1
+                waited_ms = 0
+                while quoted_value < 0 and waited_ms < 3000:
+                    yield from Routines.Yield.wait(50)
+                    waited_ms += 50
+                    quoted_value = Trading.Trader.GetQuotedValue()
+
+                if quoted_value <= 0:
+                    break
+
+                GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted_value)
+                waited_ms = 0
+                while waited_ms < 3000:
+                    yield from Routines.Yield.wait(50)
+                    waited_ms += 50
+                    if Trading.IsTransactionComplete():
+                        break
+
+                remaining -= batch_size
+
+    def _draw_merchant_trade_window(self, merchant_frame_rect: tuple[float, float, float, float] | None = None):
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+        from Sources.ApoSource.InvPlus.Coroutines import BuyMerchantItems
+        from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
+        from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
+
+        merchant_item_list = list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
+        combo_items = [self._resolve_merchant_item_name(item_id) for item_id in merchant_item_list]
+        selected_count = len(self._legacy_merchant_module.merchant_checkboxes)
+        batch_size = self._get_merchant_batch_size()
+        batch_label = "10" if batch_size == 10 else "1"
+
+        if self.selected_combo_merchant >= len(combo_items):
+            self.selected_combo_merchant = 0
+        if self.selected_combo_merchant < 0:
+            self.selected_combo_merchant = 0
+
+        if self.merchant_buy_quantity < batch_size:
+            self.merchant_buy_quantity = batch_size
+
+        selected_item_ids = [
+            self._normalize_item_id(item_id)
+            for item_id, checked in self._legacy_merchant_module.merchant_checkboxes.items()
+            if checked
+        ]
+        selected_item_ids = [item_id for item_id in selected_item_ids if isinstance(item_id, int) and item_id > 0]
+        selected_item_ids = list(dict.fromkeys(selected_item_ids))
+        for item_id in selected_item_ids:
+            if item_id not in self.merchant_sell_quantities:
+                self.merchant_sell_quantities[item_id] = self._get_max_sell_quantity(item_id, batch_size)
+
+        is_rare_material_trader = False
+        try:
+            is_rare_material_trader = bool(self._legacy_merchant_module._is_rare_material_trader())
+        except Exception:
+            is_rare_material_trader = False
+        window_title = "Rare Material bulk trade" if is_rare_material_trader else "Material bulk trader"
+
+        window_flags = PyImGui.WindowFlags.NoFlag
+        if merchant_frame_rect is not None:
+            left, top, right, bottom = merchant_frame_rect
+            top = top + 25
+            width = max(420, int(right - left))
+            height = max(260, int(bottom - top))
+            PyImGui.set_next_window_pos(float(left), float(top))
+            PyImGui.set_next_window_size(float(width), float(height))
+        else:
+            window_flags |= PyImGui.WindowFlags.AlwaysAutoResize
+
+        if PyImGui.begin(window_title, True, window_flags):
+            if PyImGui.begin_tab_bar("MaterialTraderTabs"):
+                if PyImGui.begin_tab_item("Sell"):
+                    if PyImGui.button(f"{IconsFontAwesome5.ICON_SQUARE_CHECK}##Select All"):
+                        self._set_merchant_checkbox_state(True)
+                    ImGui.show_tooltip("Mark all sell-eligible stacks in bags 1-4.")
+                    
+                    PyImGui.same_line(0, -1)
+                    if PyImGui.button(f"{IconsFontAwesome5.ICON_SQUARE}##Clear All"):
+                        self._set_merchant_checkbox_state(False)
+                    ImGui.show_tooltip("Clear all currently selected stacks.")
+                    
+                    if not selected_item_ids:
+                        PyImGui.text("No material available for sale.")  
+                    else:
+                        PyImGui.separator()
+                        PyImGui.text("Selected Material Stacks")
+                        if PyImGui.begin_table("SelectedMaterialStacksTable", 4):
+                            PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch, 220)
+                            PyImGui.table_setup_column("Max Available", PyImGui.TableColumnFlags.WidthFixed, 90)
+                            PyImGui.table_setup_column("Sell Qty", PyImGui.TableColumnFlags.WidthFixed, 130)
+                            PyImGui.table_setup_column("Planned", PyImGui.TableColumnFlags.WidthFixed, 70)
+                            PyImGui.table_headers_row()
+
+                            for item_id in selected_item_ids:
+                                max_qty = self._get_max_sell_quantity(item_id, batch_size)
+                                if max_qty < batch_size:
+                                    continue
+
+                                current_qty = int(self.merchant_sell_quantities.get(item_id, max_qty))
+                                if current_qty > max_qty:
+                                    current_qty = max_qty
+                                if batch_size > 1:
+                                    current_qty = (current_qty // batch_size) * batch_size
+                                    if current_qty < batch_size:
+                                        current_qty = batch_size
+
+                                PyImGui.table_next_row()
+                                PyImGui.table_next_column()
+                                try:
+                                    item_model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
+                                except Exception:
+                                    item_model_id = 0
+                                texture_file = get_texture_for_model(item_model_id)
+                                ImGui.DrawTexture(texture_file, 30, 30)
+                                PyImGui.same_line(0, -1)
+                                PyImGui.text(self._resolve_merchant_item_name(item_id))
+                                PyImGui.table_next_column()
+                                PyImGui.text(str(max_qty))
+                                PyImGui.table_next_column()
+                                old_qty = current_qty
+                                PyImGui.push_item_width(120)
+                                updated_qty = PyImGui.input_int(f"##SellQty_{item_id}", current_qty, batch_size, batch_size, PyImGui.InputTextFlags.NoFlag)
+                                PyImGui.pop_item_width()
+                                if updated_qty < batch_size:
+                                    updated_qty = batch_size
+                                if updated_qty > max_qty:
+                                    updated_qty = max_qty
+                                if batch_size > 1:
+                                    updated_qty = (updated_qty // batch_size) * batch_size
+                                    if updated_qty < batch_size:
+                                        updated_qty = batch_size
+                                if updated_qty != old_qty:
+                                    ConsoleLog(
+                                        self.module_name,
+                                        f"[SellQty] apply item={item_id} old={old_qty} new={updated_qty} max={max_qty} batch={batch_size}",
+                                        Py4GW.Console.MessageType.Info
+                                    )
+                                if updated_qty != old_qty:
+                                    self.merchant_sell_quantities[item_id] = updated_qty
+                                else:
+                                    self.merchant_sell_quantities[item_id] = int(self.merchant_sell_quantities.get(item_id, updated_qty))
+                                PyImGui.table_next_column()
+                                PyImGui.text(str(self.merchant_sell_quantities.get(item_id, updated_qty)))
+
+                            PyImGui.end_table()
+                        
+                        PyImGui.text(f"Selected stacks: {selected_count}")    
+
+                        if PyImGui.button(f"{IconsFontAwesome5.ICON_FILE_INVOICE_DOLLAR} Sell Selected Stacks", 220, 42):
+                            sell_plan: dict[int, int] = {}
+                            for item_id in selected_item_ids:
+                                max_qty = self._get_max_sell_quantity(item_id, batch_size)
+                                requested_qty = int(self.merchant_sell_quantities.get(item_id, max_qty))
+                                if batch_size > 1:
+                                    requested_qty = (requested_qty // batch_size) * batch_size
+                                requested_qty = max(0, min(requested_qty, max_qty))
+                                if requested_qty >= batch_size:
+                                    sell_plan[item_id] = requested_qty
+                            if sell_plan:
+                                GLOBAL_CACHE.Coroutines.append(self._sell_selected_material_items(sell_plan))
+                        ImGui.show_tooltip("Sell all checked stacks.")
+
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("Buy"):
+                    PyImGui.text("Material Trader: Bulk Buy")
+                    if batch_size == 10:
+                        PyImGui.text_wrapped("Pick an offered material, then enter quantity in multiples of 10.")
+                    else:
+                        PyImGui.text_wrapped("Pick an offered material, then enter quantity in units of 1.")
+
+                    if combo_items:
+                        PyImGui.push_item_width(420)
+                        self.selected_combo_merchant = PyImGui.combo("Offered Item", self.selected_combo_merchant, combo_items)
+                        PyImGui.pop_item_width()
+                    else:
+                        PyImGui.text_colored("No offered items detected.", ColorPalette.GetColor("dark_red").to_tuple_normalized())
+
+                    self.merchant_buy_quantity = PyImGui.input_int("Buy Quantity", self.merchant_buy_quantity, batch_size, batch_size, PyImGui.InputTextFlags.NoFlag)
+                    if self.merchant_buy_quantity < batch_size:
+                        self.merchant_buy_quantity = batch_size
+                    if batch_size == 10:
+                        self.merchant_buy_quantity = (self.merchant_buy_quantity // 10) * 10
+                        if self.merchant_buy_quantity < 10:
+                            self.merchant_buy_quantity = 10
+
+                    if PyImGui.button("Buy Selected Item", 180, 42):
+                        if combo_items:
+                            GLOBAL_CACHE.Coroutines.append(
+                                BuyMerchantItems(
+                                    merchant_item_list.copy(),
+                                    self.selected_combo_merchant,
+                                    self.merchant_buy_quantity
+                                )
+                            )
+                    ImGui.show_tooltip("Buy the selected offered item using the configured quantity.")
+                    PyImGui.end_tab_item()
+
+                PyImGui.end_tab_bar()
+        PyImGui.end()
+
+    def DrawMerchantWindow(self):
+        from Py4GWCoreLib.UIManager import UIManager
+        from Sources.ApoSource.InvPlus.GUI_Helpers import MERCHANT_FRAME
+
+        self._ensure_legacy_merchant_module()
+
+        inventory_frame_id = UIManager.GetFrameIDByHash(291586130)
+        if inventory_frame_id == 0 or not UIManager.FrameExists(inventory_frame_id):
+            self.merchant_frame_exists = False
+            return
+
+        merchant_frame_id = UIManager.GetFrameIDByHash(MERCHANT_FRAME)
+        if merchant_frame_id == 0 or not UIManager.FrameExists(merchant_frame_id):
+            self.merchant_frame_exists = False
+            return
+
+        self._legacy_inventory_frame.set_frame_id(inventory_frame_id)
+        is_material_trader = False
+        try:
+            is_material_trader = bool(self._legacy_merchant_module._is_material_trader())
+        except Exception:
+            is_material_trader = False
+        try:
+            is_material_trader = is_material_trader or bool(self._legacy_merchant_module._is_rare_material_trader())
+        except Exception:
+            pass
+        if not is_material_trader:
+            self.merchant_frame_exists = False
+            return
+
+        merchant_left, merchant_top, merchant_right, merchant_bottom = UIManager.GetFrameCoords(merchant_frame_id)
+        merchant_frame_rect: tuple[float, float, float, float] | None = None
+        if merchant_right > merchant_left and merchant_bottom > merchant_top:
+            merchant_frame_rect = (merchant_left, merchant_top, merchant_right, merchant_bottom)
+
+        self._legacy_merchant_module.colorize_merchants()
+        if self._legacy_merchant_module.merchant_frame_exists:
+            if not self.merchant_frame_exists:
+                self._set_merchant_checkbox_state(True)
+            self.merchant_frame_exists = True
+            self._draw_merchant_trade_window(merchant_frame_rect)
+        else:
+            self.merchant_frame_exists = False
     def ShowConfigWindow(self):
         GW_WHITE = ColorPalette.GetColor("GW_White")
         GW_BLUE = ColorPalette.GetColor("GW_Blue")
@@ -971,6 +1367,33 @@ class InventoryPlusWidget:
         
         expanded = ImGui.Begin(ini_key=self.ini_key, name="Inventory Plus Configuration", p_open=self.show_config_window, flags=PyImGui.WindowFlags.AlwaysAutoResize)
         if expanded:
+            auto_state_color = GW_GREEN if self.auto_inventory_handler.module_active else ColorPalette.GetColor("dark_red")
+            auto_state_label = "Enabled" if self.auto_inventory_handler.module_active else "Disabled"
+            total_ignored = (
+                len(self.auto_inventory_handler.id_model_blacklist) +
+                len(self.auto_inventory_handler.item_type_blacklist) +
+                len(self.auto_inventory_handler.salvage_blacklist) +
+                len(self.auto_inventory_handler.deposit_trophies_blacklist) +
+                len(self.auto_inventory_handler.deposit_materials_blacklist) +
+                len(self.auto_inventory_handler.deposit_event_items_blacklist) +
+                len(self.auto_inventory_handler.deposit_dyes_blacklist) +
+                len(self.auto_inventory_handler.deposit_model_blacklist)
+            )
+            if PyImGui.begin_child("InventoryPlusOverview", (0, 88), True, PyImGui.WindowFlags.NoFlag):
+                PyImGui.text("Overview")
+                if PyImGui.begin_table("InventoryPlusOverviewTable", 3):
+                    PyImGui.table_next_column()
+                    PyImGui.text("Auto Handler")
+                    PyImGui.text_colored(auto_state_label, auto_state_color.to_tuple_normalized())
+                    PyImGui.table_next_column()
+                    PyImGui.text("Check Interval")
+                    PyImGui.text(f"{self.auto_inventory_handler._LOOKUP_TIME} ms")
+                    PyImGui.table_next_column()
+                    PyImGui.text("Ignored Entries")
+                    PyImGui.text(str(total_ignored))
+                    PyImGui.end_table()
+            PyImGui.end_child()
+            PyImGui.separator()
             if PyImGui.begin_tab_bar("InventoryPlusConfigTabs"):
                 cfg = self.identification_settings
                 if PyImGui.begin_tab_item("Identification"):
@@ -1005,8 +1428,8 @@ class InventoryPlusWidget:
                     PyImGui.separator()
                     if PyImGui.collapsing_header("Automatic Handling Options:"):
                         color = ColorPalette.GetColor("dark_red")
-                        PyImGui.text_colored("This settings will periodically identify items in your inventory based on the options below.", color.to_tuple_normalized())
-                        PyImGui.text_colored("Also Used by most Bots and other scripts, this is where they will check to see what to Identify.", color.to_tuple_normalized())
+                        PyImGui.text_colored("These settings periodically identify items in your inventory based on the options below.", color.to_tuple_normalized())
+                        PyImGui.text_colored("Used by bots/scripts as the shared auto-identification policy.", color.to_tuple_normalized())
                         self.auto_inventory_handler.id_whites = ini_colored_checkbox("Automatically ID Whites", "AutoIdentify", "id_whites", self.auto_inventory_handler, GW_WHITE, default=self.auto_inventory_handler.id_whites)
                         self.auto_inventory_handler.id_blues = ini_colored_checkbox("Automatically ID Blues", "AutoIdentify", "id_blues", self.auto_inventory_handler, GW_BLUE, default=self.auto_inventory_handler.id_blues)
                         self.auto_inventory_handler.id_purples = ini_colored_checkbox("Automatically ID Purples", "AutoIdentify", "id_purples", self.auto_inventory_handler, GW_PURPLE, default=self.auto_inventory_handler.id_purples)
@@ -1020,8 +1443,8 @@ class InventoryPlusWidget:
                     cfg = self.salvage_settings
                     if PyImGui.collapsing_header("Salvage Menu Options:"):
                         color = ColorPalette.GetColor("dark_red")
-                        PyImGui.text_colored("This settings will periodically salvage items for MATERIALS in your inventory based on the options below.", color.to_tuple_normalized())
-                        PyImGui.text_colored("this script does not handle mods yet.", color.to_tuple_normalized())
+                        PyImGui.text_colored("These settings periodically salvage items for materials based on the options below.", color.to_tuple_normalized())
+                        PyImGui.text_colored("This script does not handle mods yet.", color.to_tuple_normalized())
                         PyImGui.separator()
                         cfg.salvage_whites = ini_colored_checkbox(label="Show Salvage Whites in Menu",section="Salvage",var_name="salvage_whites",cfg_obj=cfg,color=GW_WHITE,default=cfg.salvage_whites)
                         cfg.salvage_blues = ini_colored_checkbox(label="Show Salvage Blues in Menu",section="Salvage",var_name="salvage_blues",cfg_obj=cfg,color=GW_BLUE,default=cfg.salvage_blues)
@@ -1032,9 +1455,9 @@ class InventoryPlusWidget:
                             PyImGui.indent(20)
                             cfg.salvage_all_whites = ini_colored_checkbox("Include Whites", "Salvage", "salvage_all_whites", cfg, GW_WHITE, default=cfg.salvage_all_whites)
                             cfg.salvage_all_blues = ini_colored_checkbox("Include Blues", "Salvage", "salvage_all_blues", cfg, GW_BLUE, default=cfg.salvage_all_blues)
-                            cfg.salvage_all_greens = ini_colored_checkbox("Include Greens", "Salvage", "salvage_all_greens", cfg, GW_GREEN, default=cfg.salvage_all_greens)
                             cfg.salvage_all_purples = ini_colored_checkbox("Include Purples", "Salvage", "salvage_all_purples", cfg, GW_PURPLE, default=cfg.salvage_all_purples)
                             cfg.salvage_all_golds = ini_colored_checkbox("Include Golds", "Salvage", "salvage_all_golds", cfg, GW_GOLD, default=cfg.salvage_all_golds)
+                            PyImGui.text_colored("Green items cannot be salvaged.", GW_GREEN.to_tuple_normalized())
                             PyImGui.unindent(20)
                     PyImGui.separator() 
                     if PyImGui.collapsing_header("Ignore Lists:"):
@@ -1058,8 +1481,8 @@ class InventoryPlusWidget:
 
                     if PyImGui.collapsing_header("Automatic Handling Options:"):
                         color = ColorPalette.GetColor("dark_red")
-                        PyImGui.text_colored("This settings will periodically salvage items in your inventory based on the options below.", color.to_tuple_normalized())
-                        PyImGui.text_colored("Also Used by most Bots and other scripts, this is where they will check to see what to salvage.", color.to_tuple_normalized())
+                        PyImGui.text_colored("These settings periodically salvage items in your inventory based on the options below.", color.to_tuple_normalized())
+                        PyImGui.text_colored("Used by bots/scripts as the shared auto-salvage policy.", color.to_tuple_normalized())
                         self.auto_inventory_handler.salvage_whites = ini_colored_checkbox("Automatically Salvage Whites", "AutoSalvage", "salvage_whites", self.auto_inventory_handler, GW_WHITE, default=self.auto_inventory_handler.salvage_whites)
                         self.auto_inventory_handler.salvage_rare_materials = ini_colored_checkbox("Automatically Salvage Rare Materials", "AutoSalvage", "salvage_rare_materials", self.auto_inventory_handler, GW_WHITE, default=self.auto_inventory_handler.salvage_rare_materials)
                         self.auto_inventory_handler.salvage_blues = ini_colored_checkbox("Automatically Salvage Blues", "AutoSalvage", "salvage_blues", self.auto_inventory_handler, GW_BLUE, default=self.auto_inventory_handler.salvage_blues)
@@ -1096,26 +1519,46 @@ class InventoryPlusWidget:
                     
                     if PyImGui.collapsing_header("Ignore Lists:"):
                         PyImGui.text("Manage the various blacklists for deposit handling here.")
-                        if PyImGui.button("Material Blacklist"):
-                            self.PopUps["Deposit Material ModelID Lookup"].is_open = True
-                        PyImGui.same_line(0,-1)
-                        PyImGui.text(f"{len(self.auto_inventory_handler.deposit_materials_blacklist)} Models Ignored")
-                        if PyImGui.button("Manage Trophy Blacklist"):
-                            self.PopUps["Deposit Trophy ModelID Lookup"].is_open = True
-                        PyImGui.same_line(0,-1)
-                        PyImGui.text(f"{len(self.auto_inventory_handler.deposit_trophies_blacklist)} Models Ignored")
-                        if PyImGui.button("Manage Event Item Blacklist"):
-                            self.PopUps["Deposit Event Item ModelID Lookup"].is_open = True
-                        PyImGui.same_line(0,-1)
-                        PyImGui.text(f"{len(self.auto_inventory_handler.deposit_event_items_blacklist)} Models Ignored")
-                        if PyImGui.button("Manage Dye Blacklist"):
-                            self.PopUps["Deposit Dye ModelID Lookup"].is_open = True
-                        PyImGui.same_line(0,-1)
-                        PyImGui.text(f"{len(self.auto_inventory_handler.deposit_dyes_blacklist)} Colors Ignored")
-                        if PyImGui.button("Model Blacklist"):
-                            self.PopUps["Deposit ModelID Lookup"].is_open = True
-                        PyImGui.same_line(0,-1)
-                        PyImGui.text(f"{len(self.auto_inventory_handler.deposit_model_blacklist)} Models Ignored")
+                        if PyImGui.begin_table("DepositBlacklistTable", 2):
+                            PyImGui.table_setup_column("Action", PyImGui.TableColumnFlags.WidthFixed, 280.0)
+                            PyImGui.table_setup_column("Count", PyImGui.TableColumnFlags.WidthStretch)
+
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            if PyImGui.button("Material Blacklist"):
+                                self.PopUps["Deposit Material ModelID Lookup"].is_open = True
+                            PyImGui.table_next_column()
+                            PyImGui.text(f"{len(self.auto_inventory_handler.deposit_materials_blacklist)} Models Ignored")
+
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            if PyImGui.button("Manage Trophy Blacklist"):
+                                self.PopUps["Deposit Trophy ModelID Lookup"].is_open = True
+                            PyImGui.table_next_column()
+                            PyImGui.text(f"{len(self.auto_inventory_handler.deposit_trophies_blacklist)} Models Ignored")
+
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            if PyImGui.button("Manage Event Item Blacklist"):
+                                self.PopUps["Deposit Event Item ModelID Lookup"].is_open = True
+                            PyImGui.table_next_column()
+                            PyImGui.text(f"{len(self.auto_inventory_handler.deposit_event_items_blacklist)} Models Ignored")
+
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            if PyImGui.button("Manage Dye Blacklist"):
+                                self.PopUps["Deposit Dye ModelID Lookup"].is_open = True
+                            PyImGui.table_next_column()
+                            PyImGui.text(f"{len(self.auto_inventory_handler.deposit_dyes_blacklist)} Colors Ignored")
+
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            if PyImGui.button("Model Blacklist"):
+                                self.PopUps["Deposit ModelID Lookup"].is_open = True
+                            PyImGui.table_next_column()
+                            PyImGui.text(f"{len(self.auto_inventory_handler.deposit_model_blacklist)} Models Ignored")
+
+                            PyImGui.end_table()
                         
                     PyImGui.end_tab_item()
                 if PyImGui.begin_tab_item("Colorize"):
@@ -1225,16 +1668,6 @@ def configure():
     if InventoryPlusWidgetInstance.show_config_window: return
     InventoryPlusWidgetInstance.show_config_window = True
 
-def draw():
-    if not InventoryPlusWidgetInstance.initialized: return
-    
-    InventoryPlusWidgetInstance.update_auto_handler()
-    
-    InventoryPlusWidgetInstance.DetectInventoryAction()
-    if InventoryPlusWidgetInstance.show_config_window:
-        InventoryPlusWidgetInstance.ShowConfigWindow()
-        InventoryPlusWidgetInstance._sync_popups_with_handler()
-        InventoryPlusWidgetInstance.DrawPopUps()
 
 def main():
     if not InventoryPlusWidgetInstance.initialized:
@@ -1247,7 +1680,18 @@ def main():
         InventoryPlusWidgetInstance.load_auto_handler_settings()
         InventoryPlusWidgetInstance.load_blacklists_from_ini()
         InventoryPlusWidgetInstance.initialized = True
+        
+    InventoryPlusWidgetInstance.update_auto_handler()
+    
+    InventoryPlusWidgetInstance.DetectInventoryAction()
+    InventoryPlusWidgetInstance.DrawMerchantWindow()
+    if InventoryPlusWidgetInstance.show_config_window:
+        InventoryPlusWidgetInstance.ShowConfigWindow()
+        InventoryPlusWidgetInstance._sync_popups_with_handler()
+        InventoryPlusWidgetInstance.DrawPopUps()
 
 
 if __name__ == "__main__":
     main()
+
+

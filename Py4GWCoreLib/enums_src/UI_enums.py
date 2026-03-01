@@ -186,8 +186,9 @@ class UIMessage(IntEnum):
     kCheckUIState               = 0x10000175 # 0x10000175
     kCloseSettings              = 0x10000176 # 0x10000176
     kChangeSettingsTab          = 0x10000177 # 0x10000177, wparam = uint32_t is_interface_tab
-    kDestroyUIPositionOverlay   = 0x10000179 # 0x10000179
-    kEnableUIPositionOverlay    = 0x1000017a # 0x1000017a, wparam = uint32_t enable
+    
+    kDestroyUIPositionOverlay   = 0x1000017C # 0x10000179 previously
+    kEnableUIPositionOverlay    = 0x1000017D # 0x1000017a, wparam = uint32_t enable previously
       
     kGuildHall                  = 0x1000017F # was 0x1000017C, wparam = gh key (uint32_t[4])
     kLeaveGuildHall             = 0x10000181 # was 0x1000017E
@@ -203,7 +204,6 @@ class UIMessage(IntEnum):
     kInventoryAgentChanged      = 0x100001B8 # was 0x100001B5, Triggered when inventory needs updating due to agent change; no args
     kOpenTemplate               = 0x100001C1 # was 0x100001BE, wparam = GW::UI::ChatTemplate*
 
-    kCancelEnterMission         = 0x30000001  
     kSendEnterMission           = 0x30000002  # wparam = uint32_t arena_id
     kSendLoadSkillbar           = 0x30000003  # wparam = UIPacket::kSendLoadSkillbar*
     kSendPingWeaponSet          = 0x30000004  # wparam = UIPacket::kSendPingWeaponSet*
@@ -425,37 +425,38 @@ class WindowID(IntEnum):
     WindowID_MissionProgress = 0xF #0xE
     WindowID_MissionStatusAndScoreDisplay = 0xF
     WindowID_Notifications = 0x12
-    WindowID_Skillbar = 0x16
-    WindowID_SkillMonitor = 0x17
-    WindowID_UpkeepMonitor = 0x19
-    WindowID_SkillWarmup = 0x1A
+    #something new at 0x13-16
+    WindowID_Skillbar = 0x17
+    WindowID_SkillMonitor = 0x18
+    WindowID_UpkeepMonitor = 0x1A
+    WindowID_SkillWarmup = 0x1B
     #WindowID_Menu = 0x1A
-    WindowID_EnergyBar = 0x1E
-    WindowID_ExperienceBar = 0x1F
-    WindowID_HealthBar = 0x20
-    WindowID_TargetDisplay = 0x21
-    WindowID_Task_Tracker = 0x23
-    WindowID_TradeButton = 0x24
-    WindowID_WeaponBar = 0x25
+    WindowID_EnergyBar = 0x1F
+    WindowID_ExperienceBar = 0x20
+    WindowID_HealthBar = 0x21
+    WindowID_TargetDisplay = 0x22
+    WindowID_Task_Tracker = 0x24
+    WindowID_TradeButton = 0x25
+    WindowID_WeaponBar = 0x26
 
-    WindowID_Hero1 = 0x36
-    WindowID_Hero2 = 0x37
-    WindowID_Hero3 = 0x38
-    WindowID_Hero = 0x39
+    WindowID_Hero1 = 0x37
+    WindowID_Hero2 = 0x38
+    WindowID_Hero3 = 0x39
+    WindowID_Hero = 0x3A
 
-    WindowID_SkillsAndAttributes = 0x3B #0x38
-    WindowID_Friends = 0x3D #0x3A
-    WindowID_Guild = 0x3E #0x3B
-    WindowID_Help = 0x40 #0x3D
-    WindowID_Inventory = 0x41 #0x3E
-    #WindowID_VaultBox = 0x3B #0x3F # Deprecated
-    WindowID_InventoryBags = 0x43 #old 0x40
-    WindowID_MissionMap = 0x45
-    WindowID_Observe = 0x47
-    WindowID_Options = 0x45
-    WindowID_PartyWindow = 0x4B #0x48  # state flag ignored, position is valid
-    WindowID_PartySearch = 0x4C #0x49
-    WindowID_QuestLog = 0x52 #0x4F
+    WindowID_SkillsAndAttributes = 0x3C
+    WindowID_Friends = 0x3E
+    WindowID_Guild = 0x3F
+    WindowID_Help = 0x41
+    WindowID_Inventory = 0x42
+    #WindowID_VaultBox = 0x3B # Deprecated
+    WindowID_InventoryBags = 0x44
+    WindowID_MissionMap = 0x46
+    WindowID_Observe = 0x48
+    #WindowID_Options = 0x46 #deprecated
+    #WindowID_PartyWindow = 0x4B # Deprecated
+    WindowID_PartySearch = 0x4D
+    WindowID_QuestLog = 0x53 
     #WindowID_Merchant = 0x5F #0x5C # Deprecated
     WindowID_Hero4 = 0x61 #0x5E
     WindowID_Hero5 = 0x62 #0x5F

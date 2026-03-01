@@ -205,7 +205,7 @@ class Color:
 
         return Color(r=new_r, g=new_g, b=new_b, a=self.a)
 
-    def opacify(self, amount: float) -> "Color":
+    def opacity(self, amount: float) -> "Color":
         """
         0.0 = fully transparent, 1.0 = fully solid.
         """

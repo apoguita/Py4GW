@@ -1950,7 +1950,7 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, cached_data: CacheData):
                                         item_rect_min[1] + 1,
                                         item_rect_min[0] + btn_size - 2, 
                                         item_rect_min[1] + btn_size - 2,
-                                        style.Button.opacify(0.3).color_int,
+                                        style.Button.opacity(0.3).color_int,
                                         style.FrameRounding.value1,
                                         0,
                                     )
@@ -1980,7 +1980,7 @@ def draw_hotbar(hotbar: Settings.CommandHotBar, cached_data: CacheData):
                                         item_rect_min[1] + 1,
                                         item_rect_min[0] + btn_size - 2, 
                                         item_rect_min[1] + btn_size - 2,
-                                        style.Button.opacify(0.3).color_int,
+                                        style.Button.opacity(0.3).color_int,
                                         style.FrameRounding.value1,
                                         0,
                                     )

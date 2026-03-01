@@ -19,7 +19,8 @@ from typing import Any, Union, cast
 import math
 
 #region CONSTANTS
-MODULE_NAME = "Mission Map"
+MODULE_NAME = "Mission Map+"
+MODULE_ICON = "Textures\\Module_Icons\\Mission Map+.png"
 MATH_PI = math.pi
 BASE_ANGLE = (-MATH_PI / 2)
 SQRT_2 = math.sqrt(2)

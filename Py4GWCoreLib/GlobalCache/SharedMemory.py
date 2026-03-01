@@ -272,7 +272,7 @@ class Py4GWSharedMemoryManager:
 
         leader_account = all_accounts.AccountData[leader_index]
         leader_options = all_accounts.HeroAIOptions[leader_index]
-        if not leader_account.IsSlotActive or not leader_account.IsAccount:
+        if not leader_account.IsSlotActive or not leader_account.IsAccount or leader_account.IsIsolated:
             return
 
         # Never publish active follow coordinates in outposts/loading screens.
@@ -282,7 +282,7 @@ class Py4GWSharedMemoryManager:
             self._follow_leader_entry_pos = None
             for i in range(self.max_num_players):
                 acc = all_accounts.AccountData[i]
-                if not (acc.IsSlotActive and acc.IsAccount):
+                if not (acc.IsSlotActive and acc.IsAccount) or acc.IsIsolated:
                     continue
                 if not self._same_party_and_map(leader_account, acc):
                     continue
@@ -320,7 +320,7 @@ class Py4GWSharedMemoryManager:
 
         for i in range(self.max_num_players):
             acc = all_accounts.AccountData[i]
-            if not (acc.IsSlotActive and acc.IsAccount):
+            if not (acc.IsSlotActive and acc.IsAccount) or acc.IsIsolated:
                 continue
             if not self._same_party_and_map(leader_account, acc):
                 continue
@@ -415,7 +415,19 @@ class Py4GWSharedMemoryManager:
 
     #region Find and Get Slot Methods
     def GetSlotByEmail(self, account_email: str) -> int:
-        return self.GetAllAccounts().GetSlotByEmail(account_email)
+        return self.GetAllAccounts().GetVisibleSlotByEmail(account_email)
+
+    def IsAccountIsolated(self, account_email: str) -> bool:
+        return self.GetAllAccounts().IsAccountIsolated(account_email)
+
+    def SetAccountIsolationByEmail(self, account_email: str, isolated: bool) -> bool:
+        return self.GetAllAccounts().SetAccountIsolationByEmail(account_email, isolated)
+
+    def SetAccountIsolatedByEmail(self, account_email: str) -> bool:
+        return self.GetAllAccounts().SetAccountIsolatedByEmail(account_email)
+
+    def RemoveAccountIsolationByEmail(self, account_email: str) -> bool:
+        return self.GetAllAccounts().RemoveAccountIsolationByEmail(account_email)
     
     def GetHeroSlotByHeroData(self, hero_data:HeroPartyMember) -> int:
         """Find the index of the hero with the given ID."""
@@ -479,9 +491,9 @@ class Py4GWSharedMemoryManager:
         """Get all active slot data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
         return self.GetAllAccounts().GetAllActiveSlotsData()
     
-    def GetAllAccountData(self, sort_results: bool = True) -> list[AccountStruct]:
+    def GetAllAccountData(self, sort_results: bool = True, include_isolated: bool = False) -> list[AccountStruct]:
         """Get active account-player data. Sorted by default for backward compatibility."""
-        return self.GetAllAccounts().GetAllActivePlayers(sort_results=sort_results)
+        return self.GetAllAccounts().GetAllActivePlayers(sort_results=sort_results, include_isolated=include_isolated)
     
     def GetNumActivePlayers(self) -> int:
         """Get the number of active players in shared memory."""

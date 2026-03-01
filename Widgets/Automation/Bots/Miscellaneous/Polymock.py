@@ -12,7 +12,8 @@ importlib.reload(gui)
 importlib.reload(combat)
 importlib.reload(state)
 
-MODULE_NAME = "Polymock"
+MODULE_NAME = "Polymock Assistant"
+MODULE_ICON = "Textures\\Module_Icons\\Polymock.png"
 throttle_timer = ThrottledTimer(250)
 script_directory = os.path.dirname(os.path.abspath(__file__))
 

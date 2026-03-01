@@ -651,7 +651,7 @@ class AutoPathing:
 
     def load_pathing_maps(self):
         map_id = Map.GetMapID()
-        if not map_id:
+        if not map_id or not Map.IsMapReady():
             yield
             return
 
@@ -659,12 +659,13 @@ class AutoPathing:
         yield
 
         cached = self.pathing_map_cache.get(group_key)
-        if cached is not None and cached.map_id == map_id:
+        if cached is not None and cached.map_id == map_id and cached.trapezoids:
             yield
             return
         pathing_maps = Map.Pathing.GetPathingMaps()
-        navmesh = NavMesh(pathing_maps, map_id)
-        self.pathing_map_cache[group_key] = navmesh
+        navmesh = NavMesh(pathing_maps, map_id) if pathing_maps else None
+        if navmesh and navmesh.trapezoids:
+            self.pathing_map_cache[group_key] = navmesh
         yield
 
 
@@ -676,7 +677,7 @@ class AutoPathing:
         group_key = self._get_group_key(map_id)
         nav = self.pathing_map_cache.get(group_key)
 
-        if nav is None or nav.map_id != map_id:
+        if nav is None or nav.map_id != map_id or not nav.trapezoids:
             return None
 
         return nav

@@ -3,6 +3,8 @@ import Py4GW
 import os
 
 BOT_NAME = "VQ Drazach Thicket"
+MODULE_NAME = "Drazach Thicket (Vanquish)"
+MODULE_ICON = "Textures\\Module_Icons\\Vanquish - Drazach Thicket.png"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "ApoSource", "textures", "VQ_Helmet.png")
 OUTPOST_TO_START = 222 #Eternal Grove Outpost
 COORDS_TO_EXIT_OUTPOST = (-7544,14343) #to Drazach Thicket

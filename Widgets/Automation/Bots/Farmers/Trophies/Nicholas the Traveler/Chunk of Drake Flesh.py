@@ -2,8 +2,9 @@ from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
 #QUEST TO INCREASE SPAWNS 
-BOT_NAME = "Chunk Of Drake Flesh Farmer"
-MODULE_ICON = "Textures\\Module_Icons\\Chunk of Drake Flesh.png"
+BOT_NAME = "Chunk of Drake Flesh Farmer"
+MODULE_NAME = "Chunk of Drake Flesh Farm (Nicholas the Traveler)"
+MODULE_ICON = "Textures\\Module_Icons\\Nicholas the Traveler - Chunk of Drake Flesh.png"
 MODEL_ID_TO_FARM = ModelID.Chunk_Of_Drake_Flesh
 OUTPOST_TO_TRAVEL = 489 #kodlonu hamlet
 COORD_TO_EXIT_MAP = (4682, -3499)

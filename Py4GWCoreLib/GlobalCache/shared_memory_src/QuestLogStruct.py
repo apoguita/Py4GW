@@ -45,7 +45,7 @@ class QuestLogStruct(Structure):
         quest_log = Quest.GetQuestLog()
         for i in range(min(SHMEM_MAX_QUESTS, len(quest_log))):
             quest_data = quest_log[i]
-            self.Quests[i].QuestID = i
+            self.Quests[i].QuestID = quest_data.quest_id if quest_data is not None else 0
             self.Quests[i].IsCompleted = quest_data.is_completed if quest_data is not None else False
   
   

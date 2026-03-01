@@ -5,7 +5,6 @@ from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
 from Sources.Sasemoi.bot_helpers import BotStuckHelper
 from Sources.Sasemoi.bot_helpers.bot_mystic_healing_support import MysticHealingSupport
 
-
 def get_unidentified_items(rarities: list[str], slot_blacklist: list[tuple[int,int]]) -> list[int]:
     ''' Returns a list of all unidentified item IDs in the player's inventory '''
     unidentified_items = []
@@ -44,6 +43,9 @@ def filter_valuable_loot(item_id: int) -> bool:
 HP_RUNNER = "Hell's Precipice Chestrun"
 HELLS_PRECIPICE_OUTPOST = 124
 HELLS_PRECIPICE_MISSION = 124
+
+MODULE_NAME = "Hell's Precipice (Chestrun)"
+MODULE_ICON = "Textures\\Module_Icons\\Chestrun - Hell's Precipice.png"
 
 # Danger Tables
 barbarous_cripple_kd_table: DangerTable = (
