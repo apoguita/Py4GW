@@ -440,7 +440,8 @@ class ImGui:
         height: float = 0.0,
         alignment: Alignment = Alignment.MidCenter,
         font_size: int | None = None,
-        font_style: str | None = None
+        font_style: str | None = None,
+        color: tuple[float, float, float, float] | None = None,
     ):
         """Draws text aligned inside a given width/height box."""
         width = PyImGui.get_content_region_avail()[0] if width == 0 else width
@@ -467,7 +468,10 @@ class ImGui:
             x0, y0 = PyImGui.get_cursor_pos()
             
             PyImGui.set_cursor_pos(x, y)
-            PyImGui.text(text)
+            if color is not None:
+                ImGui.text_colored(text, color)
+            else:
+                PyImGui.text(text)
             _, _, item_rect_size = ImGui.get_item_rect()
             
             #Restore cursor position
@@ -3492,15 +3496,72 @@ class ImGui:
 
                 PyImGui.table_next_row()
                 PyImGui.table_set_column_index(0)
-                PyImGui.bullet_text("")  # draw bullet using ImGui's bullet
+                ImGui.objective_text("")  # draw bullet using ImGui's bullet
                 PyImGui.table_set_column_index(1)
 
                 PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + text_col_width)
-                PyImGui.text_wrapped(text)
+                ImGui.text_wrapped(text)
                 PyImGui.pop_text_wrap_pos()
 
                 PyImGui.end_table()
-            
+                
+    @staticmethod
+    def render_wrapped_objective(text: str, max_width: float = 400.0, completed : bool = False):
+            """
+            Custom bullet renderer that allows wrapped text.
+            The bullet is rendered in the left column; text wraps in the right column.
+            """
+            bullet_col_width = PyImGui.get_text_line_height()
+            text_col_width = max_width - bullet_col_width
+            style = ImGui.get_style()
+
+            if completed:
+                style.TextObjectiveCompleted.get_current().push_color()
+            style.CellPadding.push_style_var(0, 2)
+            if PyImGui.begin_table("bullet_table", 2, PyImGui.TableFlags.NoBordersInBody):
+                PyImGui.table_setup_column("bullet", PyImGui.TableColumnFlags.WidthFixed, bullet_col_width)
+                PyImGui.table_setup_column("text", PyImGui.TableColumnFlags.WidthStretch)
+
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                cursor = PyImGui.get_cursor_screen_pos()
+                texture_rect = (cursor[0], cursor[1], bullet_col_width - 2, bullet_col_width - 2)
+                
+                if style.Theme in ImGui.Textured_Themes:                                
+                    ThemeTextures.Quest_Objective_Bullet_Point.value.get_texture().draw_in_drawlist(
+                        texture_rect[:2],
+                        texture_rect[2:],
+                        state=TextureState.Normal if completed else TextureState.Active,
+                    )
+                else:
+                    PyImGui.set_cursor_screen_pos(cursor[0] - 4, cursor[1])
+                    ImGui.bullet_text("")  # draw bullet using ImGui's bullet
+                
+                PyImGui.table_set_column_index(1)
+
+                PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + text_col_width)
+                ImGui.text_wrapped(text)
+                PyImGui.pop_text_wrap_pos()
+                            
+                item_rect_min, item_rect_max, item_rect_size = ImGui.get_item_rect()
+                if completed:
+                    lines = round(item_rect_size[1] / bullet_col_width)
+                    for i in range(lines):
+                        PyImGui.draw_list_add_line(
+                            item_rect_min[0],
+                            item_rect_min[1] + (i + 0.5) * bullet_col_width,
+                            item_rect_max[0], 
+                            item_rect_min[1] + (i + 0.5) * bullet_col_width,
+                            style.TextObjectiveCompleted.get_current().color_int,
+                            1.0
+                        )
+
+                PyImGui.end_table()
+                
+            style.CellPadding.pop_style_var()
+            if completed:
+                style.TextObjectiveCompleted.get_current().pop_color()
+                
     @staticmethod
     def render_tokenized_markup(tokenized_lines: list[list[dict]], max_width: float, COLOR_MAP: dict[str, tuple[float, float, float, float]]):
         """
@@ -3515,7 +3576,7 @@ class ImGui:
         style.ItemSpacing = (_orig_item[0], 0.0)   # spacing between stacked rows
         style.Push()
         
-        color_stack, inside_bullet, gray_bullet = [], False, False
+        color_stack, inside_bullet, completed = [], False, False
         for tokens in tokenized_lines:  # iterate through lines
             for token in tokens:
                 t = token["type"]
@@ -3525,14 +3586,9 @@ class ImGui:
                     v = ""
                 if t == "text":
                     if inside_bullet:
-                        PyImGui.push_style_color(
-                            PyImGui.ImGuiCol.Text,
-                            (0.6, 0.6, 0.6, 1.0) if gray_bullet else (1.0, 1.0, 1.0, 1.0),
-                        )
-                        ImGui.render_wrapped_bullet(v, max_width=max_width)
-                        PyImGui.pop_style_color(1)
+                        ImGui.render_wrapped_objective(v, max_width=max_width, completed=completed)
                         inside_bullet = False
-                        gray_bullet = False
+                        completed = False
                     elif color_stack:
                         current_color = color_stack[-1]
                         color = COLOR_MAP.get(current_color, (1, 1, 1, 1))
@@ -3550,13 +3606,13 @@ class ImGui:
                     PyImGui.new_line()
                 elif t == "bullet":
                     inside_bullet = True
-                    gray_bullet = token.get("gray", False)
+                    completed = token.get("gray", False)
 
             PyImGui.new_line()
         style.CellPadding = _orig_cell
         style.ItemSpacing = _orig_item
         style.Push()
-
+            
     @staticmethod     
     def PushTransparentWindow():
         PyImGui.push_style_var(ImGuiStyleVar.WindowRounding,0.0)
