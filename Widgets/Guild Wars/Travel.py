@@ -391,7 +391,9 @@ def DrawWindow():
         style.WindowPadding.push_style_var_direct(padding, padding)
         if PyImGui.begin("##TravelButton", PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoScrollbar):
             is_hovered = ImGui.is_mouse_in_rect(button_rect)
-            icon_rect = (button_rect[0] + padding, button_rect[1] + padding, button_rect[2] - 2 * padding, button_rect[3] - 2 * padding) if not is_hovered else button_rect
+            button_size = PyImGui.get_content_region_avail()[0] * (1 if is_hovered else 0.8)
+            
+            icon_rect = (button_rect[0] + (button_rect[2] - button_size) / 2, button_rect[1] + (button_rect[3] - button_size) / 2, button_size, button_size)
 
             ThemeTextures.TravelCursor.value.get_texture().draw_in_drawlist(
                 icon_rect[:2],
