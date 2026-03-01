@@ -96,9 +96,16 @@ class IdentifyResponseScheduler:
                     payload_ready = True
 
             sent = False
-            if identified and (not timed_out) and payload_text and (not payload_ready):
-                pending.next_poll_at = now_ts + max(0.05, float(pending.poll_interval_s))
-                continue
+            waiting_for_payload = bool(identified and payload_text and (not payload_ready))
+            if waiting_for_payload:
+                if timed_out:
+                    pending.timeout_retry_count = int(pending.timeout_retry_count) + 1
+                    if int(pending.timeout_retry_count) < int(pending.max_timeout_retries):
+                        pending.next_poll_at = now_ts + max(0.25, float(pending.poll_interval_s))
+                        continue
+                else:
+                    pending.next_poll_at = now_ts + max(0.05, float(pending.poll_interval_s))
+                    continue
             if payload_text and (identified or timed_out):
                 sent = bool(send_payload_fn(pending.reply_email, pending.event_id, payload_text))
 
@@ -111,6 +118,9 @@ class IdentifyResponseScheduler:
                 completed.append(key)
                 continue
             if timed_out:
+                if waiting_for_payload and int(pending.timeout_retry_count) >= int(pending.max_timeout_retries):
+                    completed.append(key)
+                    continue
                 pending.timeout_retry_count = int(pending.timeout_retry_count) + 1
                 if int(pending.timeout_retry_count) >= int(pending.max_timeout_retries):
                     completed.append(key)
@@ -386,7 +396,7 @@ def run_inventory_action(
                     target_item_id,
                     reply_email,
                     event_id,
-                    timeout_s=2.0,
+                    timeout_s=4.0,
                 )
     elif action_code == "push_item_stats":
         action_label = "Push Item Stats"
@@ -395,6 +405,13 @@ def run_inventory_action(
         if target_item_id <= 0 or not event_id or not reply_email:
             return False
         resolved_item_id, has_event_identity, waiting_for_identity = _resolve_event_item_id_with_grace(event_id, target_item_id)
+        if strict_event_binding and not has_event_identity:
+            cached_stats = _get_cached_event_stats(event_id, target_item_id)
+            if cached_stats and viewer._send_tracker_stats_chunks_to_email(reply_email, event_id, cached_stats):
+                queued = 1
+                viewer.set_status(f"{action_label}: started ({queued} items queued)")
+                return True
+            return False
         if resolved_item_id <= 0 and has_event_identity:
             if waiting_for_identity:
                 return _defer_action()

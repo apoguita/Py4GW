@@ -37,9 +37,17 @@ def _normalize_time_code(display_time: str) -> str:
     return digits[:4] if len(digits) >= 4 else ""
 
 
-def build_drop_meta(event_id: str, name_signature: str, display_time: str = "") -> str:
+def build_drop_meta(
+    event_id: str,
+    name_signature: str,
+    display_time: str = "",
+    sender_session_id: int = 0,
+) -> str:
     event_part = (event_id or "")[:16]
     sig_part = (name_signature or "")[:8]
+    session_part = int(sender_session_id or 0)
+    if session_part > 0:
+        return f"v3|{event_part}|{sig_part}|{session_part & 0xFFFF:04x}"[:31]
     time_part = _normalize_time_code(display_time)
     # v2|<event>|<sig>|<hhmm>
     return f"v2|{event_part}|{sig_part}|{time_part}"[:31]
@@ -52,8 +60,17 @@ def parse_drop_meta(meta_text: str) -> dict[str, str]:
         "event_id": "",
         "name_signature": "",
         "display_time": "",
+        "sender_session_id": "",
     }
     if not text:
+        return result
+
+    if text.startswith("v3|"):
+        parts = text.split("|", 3)
+        result["version"] = "v3"
+        result["event_id"] = parts[1].strip() if len(parts) > 1 else ""
+        result["name_signature"] = parts[2].strip() if len(parts) > 2 else ""
+        result["sender_session_id"] = parts[3].strip() if len(parts) > 3 else ""
         return result
 
     if text.startswith("v2|"):

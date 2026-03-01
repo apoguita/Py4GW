@@ -46,7 +46,7 @@ class DropTrackerSender:
     """
 
     _instance = None
-    _STATE_VERSION = 15
+    _STATE_VERSION = 17
 
     def __new__(cls):
         if cls._instance is None:
@@ -62,6 +62,8 @@ class DropTrackerSender:
                     self.pending_slot_deltas = {}
                 if not hasattr(self, "outbox_queue"):
                     self.outbox_queue = []
+                if not hasattr(self, "pending_name_refresh_by_event"):
+                    self.pending_name_refresh_by_event = {}
                 if not hasattr(self, "stable_snapshot_count"):
                     self.stable_snapshot_count = 0
                 if not hasattr(self, "warmup_grace_seconds"):
@@ -90,6 +92,10 @@ class DropTrackerSender:
                     self.event_sequence = 0
                 if not hasattr(self, "last_seen_map_id"):
                     self.last_seen_map_id = 0
+                if not hasattr(self, "last_seen_instance_uptime_ms"):
+                    self.last_seen_instance_uptime_ms = 0
+                if not hasattr(self, "sender_session_id"):
+                    self.sender_session_id = 1
                 if not hasattr(self, "runtime_config_path"):
                     self.runtime_config_path = os.path.join(
                         os.path.dirname(constants.DROP_LOG_PATH),
@@ -103,6 +109,12 @@ class DropTrackerSender:
                     self.sent_event_stats_ttl_seconds = 600.0
                 if not hasattr(self, "max_stats_builds_per_tick"):
                     self.max_stats_builds_per_tick = 2
+                if not hasattr(self, "name_refresh_ttl_seconds"):
+                    self.name_refresh_ttl_seconds = 4.0
+                if not hasattr(self, "name_refresh_poll_interval_seconds"):
+                    self.name_refresh_poll_interval_seconds = 0.25
+                if not hasattr(self, "max_name_refresh_per_tick"):
+                    self.max_name_refresh_per_tick = 4
                 self.inventory_poll_timer = ThrottledTimer(250)
                 self.state_version = self._STATE_VERSION
                 self._reset_tracking_state()
@@ -127,6 +139,7 @@ class DropTrackerSender:
         self.stable_snapshot_count = 0
         self.pending_slot_deltas: dict[tuple[int, int], dict] = {}
         self.outbox_queue: list[dict] = []
+        self.pending_name_refresh_by_event: dict[str, dict] = {}
         self.max_send_per_tick = 12
         self.max_outbox_size = 2000
         self.max_snapshot_size_jump = 40
@@ -141,12 +154,21 @@ class DropTrackerSender:
         self.enable_perf_logs = False
         self.event_sequence = 0
         self.last_seen_map_id = 0
+        self.last_seen_instance_uptime_ms = 0
+        self.sender_session_id = 1
         self.last_process_duration_ms = 0.0
         self.last_ack_count = 0
         self.last_inventory_activity_ts = 0.0
         self.sent_event_stats_cache: dict[str, dict] = {}
         self.sent_event_stats_ttl_seconds = 600.0
         self.max_stats_builds_per_tick = 2
+        self.name_refresh_ttl_seconds = 4.0
+        self.name_refresh_poll_interval_seconds = 0.25
+        self.max_name_refresh_per_tick = 4
+        self.debug_reset_trace_until = 0.0
+        self.debug_reset_trace_snapshot_logs_remaining = 0
+        self.debug_reset_trace_event_logs_remaining = 0
+        self.debug_reset_trace_lines: list[str] = []
         self.runtime_config_path = os.path.join(
             os.path.dirname(constants.DROP_LOG_PATH),
             "drop_tracker_runtime_config.json",
@@ -445,18 +467,144 @@ class DropTrackerSender:
         canonical = sort_stats_lines_like_ingame(canonical)
         return canonical
 
+    def _extract_parsed_mod_name_parts(self, parsed_result) -> tuple[str, str, str]:
+        prefix = ""
+        suffix = ""
+        inherent = ""
+        try:
+            parsed_prefix = getattr(parsed_result, "prefix", None)
+            if parsed_prefix is not None:
+                prefix = str(
+                    getattr(getattr(parsed_prefix, "weapon_mod", None), "name", "")
+                    or getattr(getattr(parsed_prefix, "rune", None), "name", "")
+                    or ""
+                ).strip()
+            parsed_suffix = getattr(parsed_result, "suffix", None)
+            if parsed_suffix is not None:
+                suffix = str(
+                    getattr(getattr(parsed_suffix, "weapon_mod", None), "name", "")
+                    or getattr(getattr(parsed_suffix, "rune", None), "name", "")
+                    or ""
+                ).strip()
+            parsed_inherent = getattr(parsed_result, "inherent", None)
+            if parsed_inherent is not None:
+                inherent = str(
+                    getattr(getattr(parsed_inherent, "weapon_mod", None), "name", "")
+                    or getattr(getattr(parsed_inherent, "rune", None), "name", "")
+                    or ""
+                ).strip()
+        except EXPECTED_RUNTIME_ERRORS:
+            return "", "", ""
+        return prefix, suffix, inherent
+
+    def _build_identified_name_from_modifiers(
+        self,
+        base_name: str,
+        raw_mods: list[tuple[int, int, int]],
+        item_type_int: int,
+        model_id: int,
+    ) -> str:
+        clean_base = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(base_name or "")).strip()).strip()
+        if not clean_base or not raw_mods or self.mod_db is None or parse_modifiers is None or ItemType is None:
+            return ""
+        try:
+            item_type = ItemType(int(item_type_int))
+        except EXPECTED_RUNTIME_ERRORS:
+            return ""
+        try:
+            parsed = parse_modifiers(list(raw_mods), item_type, int(model_id or 0), self.mod_db)
+        except EXPECTED_RUNTIME_ERRORS:
+            return ""
+        prefix, suffix, inherent = self._extract_parsed_mod_name_parts(parsed)
+        lower_base = clean_base.lower()
+        parts = []
+        changed = False
+        if prefix and prefix.lower() not in lower_base:
+            parts.append(prefix)
+            changed = True
+        parts.append(clean_base)
+        if suffix and suffix.lower() not in lower_base:
+            parts.append(suffix)
+            changed = True
+        elif inherent and inherent.lower() not in lower_base and not suffix:
+            parts.append(f"({inherent})")
+            changed = True
+        candidate = " ".join(str(part or "").strip() for part in parts if str(part or "").strip()).strip()
+        if not changed or not candidate or candidate.lower() == lower_base:
+            return ""
+        return candidate
+
+    def _resolve_best_live_item_name(self, item_id: int, fallback_name: str = "") -> str:
+        live_item_id = int(item_id or 0)
+        if live_item_id <= 0:
+            return ""
+        clean_name = ""
+        try:
+            if Item.IsNameReady(live_item_id):
+                clean_name = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(Item.GetName(live_item_id) or "").strip())).strip()
+            else:
+                Item.RequestName(live_item_id)
+        except EXPECTED_RUNTIME_ERRORS:
+            clean_name = ""
+        if not clean_name:
+            clean_name = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(fallback_name or "").strip())).strip()
+
+        try:
+            if not bool(Item.Usage.IsIdentified(live_item_id)):
+                return clean_name
+        except EXPECTED_RUNTIME_ERRORS:
+            return clean_name
+
+        raw_mods = []
+        item_type_int = 0
+        model_id = 0
+        try:
+            model_id = int(Item.GetModelID(live_item_id))
+        except EXPECTED_RUNTIME_ERRORS:
+            model_id = 0
+        try:
+            item_type_int, _ = Item.GetItemType(live_item_id)
+            item_type_int = int(item_type_int or 0)
+        except EXPECTED_RUNTIME_ERRORS:
+            item_type_int = 0
+        try:
+            for mod in Item.Customization.Modifiers.GetModifiers(live_item_id):
+                raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
+        except EXPECTED_RUNTIME_ERRORS:
+            raw_mods = []
+        if not raw_mods:
+            try:
+                item_instance = Item.item_instance(live_item_id)
+                if item_instance:
+                    if model_id <= 0:
+                        model_id = int(getattr(item_instance, "model_id", 0) or 0)
+                    if item_type_int <= 0 and getattr(item_instance, "item_type", None):
+                        item_type_int = int(item_instance.item_type.ToInt())
+                    for mod in list(getattr(item_instance, "modifiers", []) or []):
+                        raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
+            except EXPECTED_RUNTIME_ERRORS:
+                raw_mods = []
+
+        synthesized_name = self._build_identified_name_from_modifiers(clean_name, raw_mods, item_type_int, model_id)
+        return synthesized_name or clean_name
+
     def _build_item_stats_text(self, item_id: int, item_name: str = "") -> str:
         item_id = int(item_id or 0)
         if item_id <= 0:
             return ""
         try:
+            try:
+                if not bool(Item.Usage.IsIdentified(item_id)):
+                    return "Unidentified"
+            except EXPECTED_RUNTIME_ERRORS:
+                return "Unidentified"
             item_instance = Item.item_instance(item_id)
             if not item_instance:
                 return ""
             model_id = int(getattr(item_instance, "model_id", 0))
             value = int(getattr(item_instance, "value", 0))
             lines: list[str] = []
-            clean_name = str(item_name or "").strip()
+            clean_name = self._resolve_best_live_item_name(item_id, item_name)
             if clean_name:
                 lines.append(clean_name)
             if value > 0:
@@ -468,6 +616,12 @@ class DropTrackerSender:
                     raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
             except EXPECTED_RUNTIME_ERRORS:
                 raw_mods = []
+            if not raw_mods:
+                try:
+                    for mod in list(getattr(item_instance, "modifiers", []) or []):
+                        raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
+                except EXPECTED_RUNTIME_ERRORS:
+                    raw_mods = []
             req_attr = 0
             req_val = 0
             if raw_mods:
@@ -623,6 +777,7 @@ class DropTrackerSender:
     def _reset_tracking_state(self, clear_outbox: bool = True):
         self.last_inventory_snapshot = {}
         self.pending_slot_deltas = {}
+        self.pending_name_refresh_by_event = {}
         if clear_outbox:
             self.outbox_queue = []
         self.last_sent_count = 0
@@ -635,6 +790,85 @@ class DropTrackerSender:
         self.last_ack_count = 0
         self.last_inventory_activity_ts = 0.0
         self.sent_event_stats_cache = {}
+
+    def _arm_reset_trace(self, reason: str, current_map_id: int = 0, current_instance_uptime_ms: int = 0):
+        now_ts = time.time()
+        self.debug_reset_trace_until = now_ts + 20.0
+        self.debug_reset_trace_snapshot_logs_remaining = 8
+        self.debug_reset_trace_event_logs_remaining = 16
+        self._log_reset_trace(
+            (
+                f"RESET TRACE armed reason={str(reason or 'unknown')} "
+                f"actor={self._reset_trace_actor_label()} "
+                f"sender_session={int(getattr(self, 'sender_session_id', 0) or 0)} "
+                f"map={int(current_map_id or 0)} uptime_ms={int(current_instance_uptime_ms or 0)} "
+                f"prev_snapshot={len(self.last_inventory_snapshot)} pending={len(self.pending_slot_deltas)} "
+                f"queued={len(self.outbox_queue)} warmed={bool(self.is_warmed_up)}"
+            ),
+            level=Py4GW.Console.MessageType.Warning,
+        )
+
+    def _reset_trace_active(self) -> bool:
+        return time.time() <= float(getattr(self, "debug_reset_trace_until", 0.0) or 0.0)
+
+    def _reset_trace_actor_label(self) -> str:
+        try:
+            actor_name = str(Player.GetName() or "").strip()
+        except EXPECTED_RUNTIME_ERRORS:
+            actor_name = ""
+        try:
+            actor_email = str(Player.GetAccountEmail() or "").strip()
+        except EXPECTED_RUNTIME_ERRORS:
+            actor_email = ""
+        actor_name = actor_name or "Unknown"
+        actor_email = actor_email or "unknown@email"
+        return f"{actor_name}<{actor_email}>"
+
+    def _advance_sender_session_id(self) -> int:
+        next_value = (int(getattr(self, "sender_session_id", 0) or 0) + 1) & 0xFFFF
+        if next_value <= 0:
+            next_value = 1
+        self.sender_session_id = int(next_value)
+        return int(self.sender_session_id)
+
+    def _begin_new_session(self, reason: str, current_map_id: int = 0, current_instance_uptime_ms: int = 0):
+        self._advance_sender_session_id()
+        self._arm_reset_trace(reason, current_map_id, current_instance_uptime_ms)
+        self._reset_tracking_state()
+        self.last_seen_map_id = int(current_map_id or 0)
+        self.last_seen_instance_uptime_ms = int(current_instance_uptime_ms or 0)
+
+    def _log_reset_trace(
+        self,
+        message: str,
+        consume_snapshot: bool = False,
+        consume_event: bool = False,
+        level=None,
+    ):
+        if not self._reset_trace_active():
+            return
+        if consume_snapshot:
+            remaining = int(getattr(self, "debug_reset_trace_snapshot_logs_remaining", 0) or 0)
+            if remaining <= 0:
+                return
+            self.debug_reset_trace_snapshot_logs_remaining = remaining - 1
+        if consume_event:
+            remaining = int(getattr(self, "debug_reset_trace_event_logs_remaining", 0) or 0)
+            if remaining <= 0:
+                return
+            self.debug_reset_trace_event_logs_remaining = remaining - 1
+        trace_lines = getattr(self, "debug_reset_trace_lines", None)
+        if not isinstance(trace_lines, list):
+            self.debug_reset_trace_lines = []
+            trace_lines = self.debug_reset_trace_lines
+        trace_lines.append(str(message or ""))
+        if len(trace_lines) > 120:
+            del trace_lines[:-120]
+        Py4GW.Console.Log(
+            "DropTrackerSender",
+            str(message or ""),
+            level if level is not None else Py4GW.Console.MessageType.Warning,
+        )
 
     def _strip_tags(self, text: str) -> str:
         return re.sub(r"<[^>]+>", "", text or "")
@@ -661,6 +895,8 @@ class DropTrackerSender:
         model_id: int,
         item_name: str,
         name_signature: str = "",
+        rarity: str = "",
+        last_receiver_email: str = "",
     ):
         event_key = str(event_id or "").strip()
         if not event_key:
@@ -678,6 +914,10 @@ class DropTrackerSender:
         existing["model_id"] = int(model_id)
         existing["item_name"] = str(item_name or "").strip()
         existing["name_signature"] = str(name_signature or "").strip().lower()
+        existing["rarity"] = str(rarity or existing.get("rarity", "") or "").strip()
+        existing["last_receiver_email"] = str(
+            last_receiver_email or existing.get("last_receiver_email", "") or ""
+        ).strip().lower()
         existing["created_at"] = float(now_ts)
         # Preserve any already-built stats text.
         existing["stats_text"] = str(existing.get("stats_text", "") or "").strip()
@@ -703,9 +943,22 @@ class DropTrackerSender:
         has_identity = bool(identity)
         if not has_identity:
             return max(0, preferred)
+        expected_model_id = int(identity.get("model_id", 0))
+        if preferred > 0:
+            # Identification can change the visible item name while keeping the same
+            # live item_id. Prefer that exact item_id when the model still matches,
+            # instead of rejecting it on the stale pre-identify name signature.
+            direct_probe = {
+                "item_id": int(preferred),
+                "model_id": expected_model_id,
+                "name_signature": "",
+            }
+            resolved_direct = self._resolve_event_item_id_for_stats(direct_probe)
+            if resolved_direct > 0:
+                return int(resolved_direct)
         probe_entry = {
             "item_id": max(0, preferred) if preferred > 0 else int(identity.get("item_id", 0)),
-            "model_id": int(identity.get("model_id", 0)),
+            "model_id": expected_model_id,
             "name_signature": str(identity.get("name_signature", "") or "").strip().lower(),
         }
         resolved = self._resolve_event_item_id_for_stats(probe_entry)
@@ -727,7 +980,9 @@ class DropTrackerSender:
         wanted_item_id = int(item_id or 0)
         if wanted_item_id > 0 and int(entry.get("item_id", 0)) > 0 and int(entry.get("item_id", 0)) != wanted_item_id:
             return
-        cache.pop(event_key, None)
+        entry["stats_text"] = ""
+        entry["created_at"] = float(time.time())
+        cache[event_key] = entry
 
     def clear_cached_event_stats_for_item(self, item_id: int = 0, model_id: int = 0):
         wanted_item_id = int(item_id or 0)
@@ -737,19 +992,19 @@ class DropTrackerSender:
         cache = getattr(self, "sent_event_stats_cache", {})
         if not isinstance(cache, dict) or not cache:
             return
-        to_remove: list[str] = []
+        now_ts = float(time.time())
         for event_key, entry in cache.items():
             if not isinstance(entry, dict):
                 continue
             cached_item_id = int(entry.get("item_id", 0))
             cached_model_id = int(entry.get("model_id", 0))
             if wanted_item_id > 0 and cached_item_id > 0 and cached_item_id == wanted_item_id:
-                to_remove.append(str(event_key))
+                entry["stats_text"] = ""
+                entry["created_at"] = now_ts
                 continue
             if wanted_model_id > 0 and cached_model_id > 0 and cached_model_id == wanted_model_id:
-                to_remove.append(str(event_key))
-        for event_key in to_remove:
-            cache.pop(event_key, None)
+                entry["stats_text"] = ""
+                entry["created_at"] = now_ts
 
     def _remember_event_stats_snapshot(
         self,
@@ -759,6 +1014,8 @@ class DropTrackerSender:
         item_name: str,
         stats_text: str,
         name_signature: str = "",
+        rarity: str = "",
+        last_receiver_email: str = "",
     ):
         event_key = str(event_id or "").strip()
         if not event_key:
@@ -781,9 +1038,20 @@ class DropTrackerSender:
             "model_id": int(model_id),
             "item_name": str(item_name or "").strip(),
             "name_signature": resolved_name_sig,
+            "rarity": str(rarity or existing.get("rarity", "") or "").strip(),
+            "last_receiver_email": str(
+                last_receiver_email or existing.get("last_receiver_email", "") or ""
+            ).strip().lower(),
             "stats_text": stats_value,
             "created_at": float(now_ts),
         }
+
+    def _should_track_name_refresh(self, item_name: str = "", rarity: str = "") -> bool:
+        rarity_txt = str(rarity or "").strip().lower()
+        if rarity_txt in {"blue", "purple", "gold"}:
+            return True
+        name_txt = str(item_name or "").strip().lower()
+        return "rune" in name_txt
 
     def get_cached_event_stats_text(self, event_id: str, item_id: int = 0, model_id: int = 0) -> str:
         event_key = str(event_id or "").strip()
@@ -959,6 +1227,204 @@ class DropTrackerSender:
         except EXPECTED_RUNTIME_ERRORS:
             return False
 
+    def _log_name_trace(self, message: str) -> None:
+        if not bool(getattr(self, "debug_pipeline_logs", False)):
+            return
+        Py4GW.Console.Log(
+            "DropTrackerSenderNameTrace",
+            str(message or ""),
+            Py4GW.Console.MessageType.Info,
+        )
+
+    def _schedule_name_refresh_for_entry(self, entry: dict, receiver_email: str = "") -> None:
+        if not isinstance(entry, dict):
+            return
+        event_key = str(entry.get("event_id", "") or "").strip()
+        if not event_key:
+            return
+        item_id = int(entry.get("item_id", 0) or 0)
+        if item_id <= 0:
+            return
+        short_name = str(entry.get("item_name", "") or "").strip()
+        full_name = str(entry.get("full_name", "") or "").strip()
+        if full_name and full_name != short_name:
+            return
+        rarity = str(entry.get("rarity", "") or "").strip()
+        if not self._should_track_name_refresh(short_name, rarity):
+            self._log_name_trace(
+                (
+                    f"NAME TRACE refresh_skip ev={event_key} item='{short_name or '-'}' "
+                    f"rarity='{rarity or '-'}' reason=ineligible"
+                )
+            )
+            return
+        now_ts = time.time()
+        pending = getattr(self, "pending_name_refresh_by_event", None)
+        if not isinstance(pending, dict):
+            self.pending_name_refresh_by_event = {}
+            pending = self.pending_name_refresh_by_event
+        existing_refresh = pending.get(event_key)
+        if not isinstance(existing_refresh, dict):
+            existing_refresh = {}
+        resolved_receiver_email = str(
+            receiver_email
+            or entry.get("last_receiver_email", "")
+            or existing_refresh.get("receiver_email", "")
+            or ""
+        ).strip().lower()
+        pending[event_key] = {
+            "event_id": event_key,
+            "item_id": int(item_id or existing_refresh.get("item_id", 0) or 0),
+            "model_id": int(entry.get("model_id", 0) or existing_refresh.get("model_id", 0) or 0),
+            "item_name": short_name or str(existing_refresh.get("item_name", "") or "").strip(),
+            "rarity": rarity or str(existing_refresh.get("rarity", "") or "").strip(),
+            "name_signature": str(
+                entry.get("name_signature", "")
+                or existing_refresh.get("name_signature", "")
+                or ""
+            ).strip().lower(),
+            "created_at": float(now_ts),
+            "next_poll_at": float(now_ts + max(0.05, float(getattr(self, "name_refresh_poll_interval_seconds", 0.25)))),
+            "is_leader_sender": bool(entry.get("is_leader_sender", existing_refresh.get("is_leader_sender", False))),
+            "receiver_email": resolved_receiver_email,
+        }
+        self._log_name_trace(
+            (
+                f"NAME TRACE refresh_schedule ev={event_key} item='{short_name or '-'}' "
+                f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
+                f"receiver={resolved_receiver_email or '-'}"
+            )
+        )
+
+    def _process_pending_name_refreshes(self) -> int:
+        pending = getattr(self, "pending_name_refresh_by_event", None)
+        if not isinstance(pending, dict) or not pending:
+            return 0
+        now_ts = time.time()
+        ttl_s = max(0.5, float(getattr(self, "name_refresh_ttl_seconds", 4.0)))
+        poll_s = max(0.05, float(getattr(self, "name_refresh_poll_interval_seconds", 0.25)))
+        max_scan = max(1, int(getattr(self, "max_name_refresh_per_tick", 4)))
+        completed = 0
+
+        for event_key in list(pending.keys()):
+            refresh = pending.get(event_key)
+            if not isinstance(refresh, dict):
+                pending.pop(event_key, None)
+                continue
+            if (now_ts - float(refresh.get("created_at", now_ts))) > ttl_s:
+                self._log_name_trace(f"NAME TRACE refresh_expire ev={event_key}")
+                pending.pop(event_key, None)
+                continue
+            if completed >= max_scan:
+                break
+            if now_ts < float(refresh.get("next_poll_at", 0.0) or 0.0):
+                continue
+
+            completed += 1
+            item_id = int(refresh.get("item_id", 0) or 0)
+            model_id = int(refresh.get("model_id", 0) or 0)
+            original_name = str(refresh.get("item_name", "") or "").strip()
+            original_signature = str(refresh.get("name_signature", "") or "").strip().lower()
+            if item_id <= 0 or not original_signature:
+                pending.pop(event_key, None)
+                continue
+
+            try:
+                live_model_id = int(Item.GetModelID(item_id))
+            except EXPECTED_RUNTIME_ERRORS:
+                live_model_id = 0
+            if model_id > 0 and live_model_id > 0 and live_model_id != model_id:
+                self._log_name_trace(
+                    f"NAME TRACE refresh_abort ev={event_key} reason=model_mismatch live={live_model_id} expected={model_id}"
+                )
+                pending.pop(event_key, None)
+                continue
+
+            clean_name = self._resolve_best_live_item_name(item_id, original_name)
+            if not clean_name or clean_name.startswith("Model#") or clean_name == original_name:
+                refresh["next_poll_at"] = now_ts + poll_s
+                continue
+
+            receiver_email = str(refresh.get("receiver_email", "") or "").strip().lower()
+            if not receiver_email:
+                if bool(refresh.get("is_leader_sender", False)):
+                    try:
+                        receiver_email = str(Player.GetAccountEmail() or "").strip().lower()
+                    except EXPECTED_RUNTIME_ERRORS:
+                        receiver_email = ""
+                else:
+                    receiver_email = str(self._resolve_party_leader_email() or "").strip().lower()
+            if not receiver_email:
+                refresh["next_poll_at"] = now_ts + poll_s
+                continue
+
+            try:
+                my_email = str(Player.GetAccountEmail() or "").strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                my_email = ""
+            if not my_email:
+                refresh["next_poll_at"] = now_ts + poll_s
+                continue
+
+            self._log_name_trace(
+                (
+                    f"NAME TRACE refresh_send ev={event_key} old='{original_name or '-'}' new='{clean_name or '-'}' "
+                    f"sig={original_signature or '-'} receiver={receiver_email or '-'}"
+                )
+            )
+            if self._send_name_chunks(receiver_email, my_email, original_signature, clean_name):
+                self._remember_event_identity(
+                    event_id=event_key,
+                    item_id=item_id,
+                    model_id=model_id,
+                    item_name=clean_name,
+                    name_signature=original_signature,
+                    rarity=str(refresh.get("rarity", "") or "").strip(),
+                )
+                pending.pop(event_key, None)
+                continue
+            refresh["next_poll_at"] = now_ts + poll_s
+
+        return completed
+
+    def schedule_name_refresh_for_item(self, item_id: int = 0, model_id: int = 0) -> int:
+        wanted_item_id = int(item_id or 0)
+        wanted_model_id = int(model_id or 0)
+        if wanted_item_id <= 0 and wanted_model_id <= 0:
+            return 0
+        cache = getattr(self, "sent_event_stats_cache", {})
+        if not isinstance(cache, dict) or not cache:
+            return 0
+        scheduled = 0
+        for event_key, entry in list(cache.items()):
+            if not isinstance(entry, dict):
+                continue
+            cached_item_id = int(entry.get("item_id", 0) or 0)
+            cached_model_id = int(entry.get("model_id", 0) or 0)
+            if wanted_item_id > 0 and cached_item_id > 0 and cached_item_id != wanted_item_id:
+                if not (wanted_model_id > 0 and cached_model_id == wanted_model_id):
+                    continue
+            elif wanted_item_id <= 0 and wanted_model_id > 0 and cached_model_id != wanted_model_id:
+                continue
+            refresh_entry = {
+                "event_id": str(event_key or "").strip(),
+                "item_id": cached_item_id if cached_item_id > 0 else wanted_item_id,
+                "model_id": cached_model_id if cached_model_id > 0 else wanted_model_id,
+                "item_name": str(entry.get("item_name", "") or "").strip(),
+                "rarity": str(entry.get("rarity", "") or "").strip(),
+                "name_signature": str(entry.get("name_signature", "") or "").strip().lower(),
+                "is_leader_sender": bool(self._is_party_leader_client()),
+                "last_receiver_email": str(entry.get("last_receiver_email", "") or "").strip().lower(),
+                "receiver_email": str(entry.get("last_receiver_email", "") or "").strip().lower(),
+            }
+            self._schedule_name_refresh_for_entry(refresh_entry)
+            scheduled += 1
+        if scheduled > 0:
+            self._log_name_trace(
+                f"NAME TRACE identify_refresh_rearm item_id={wanted_item_id} model_id={wanted_model_id} scheduled={scheduled}"
+            )
+        return scheduled
+
     def _send_stats_chunks(self, receiver_email: str, my_email: str, event_id: str, stats_text: str) -> bool:
         try:
             if not event_id:
@@ -998,6 +1464,7 @@ class DropTrackerSender:
         is_leader_sender: bool = False,
         event_id: str = "",
         name_signature: str = "",
+        sender_session_id: int = 0,
     ) -> bool:
         try:
             my_email = Player.GetAccountEmail()
@@ -1010,7 +1477,12 @@ class DropTrackerSender:
                 # Followers must never fallback to self; retry once leader email is known.
                 if not receiver_email or receiver_email == my_email:
                     return False
-            meta = build_drop_meta(event_id, name_signature, display_time)
+            meta = build_drop_meta(
+                event_id,
+                name_signature,
+                display_time,
+                sender_session_id=int(sender_session_id or 0),
+            )
             sent_index = GLOBAL_CACHE.ShMem.SendMessage(
                 sender_email=my_email,
                 receiver_email=receiver_email,
@@ -1042,7 +1514,7 @@ class DropTrackerSender:
                         f"SENT idx={sent_index} role={'leader' if is_leader_sender else 'follower'} "
                         f"item='{item_name}' qty={max(1, int(quantity))} rarity={rarity} "
                         f"item_id={int(item_id)} model_id={int(model_id)} slot={int(slot_bag)}:{int(slot_index)} "
-                        f"event_id={event_id}"
+                        f"event_id={event_id} sender_session={int(sender_session_id or 0)}"
                     ),
                     Py4GW.Console.MessageType.Info,
                 )
@@ -1077,6 +1549,7 @@ class DropTrackerSender:
             "reason": reason or "delta",
             "is_leader_sender": bool(is_leader_sender),
             "event_id": self._next_event_id(),
+            "sender_session_id": int(getattr(self, "sender_session_id", 1) or 1),
             "name_signature": make_name_signature(item_name or "Unknown Item"),
             "name_chunks_sent": False,
             "stats_chunks_sent": False,
@@ -1086,6 +1559,7 @@ class DropTrackerSender:
             "next_retry_at": 0.0,
             "acked": False,
             "last_receiver_email": "",
+            "name_refresh_scheduled": False,
         }
         self._remember_event_identity(
             event_id=str(entry.get("event_id", "")),
@@ -1093,6 +1567,17 @@ class DropTrackerSender:
             model_id=int(entry.get("model_id", 0)),
             item_name=str(entry.get("item_name", "") or ""),
             name_signature=str(entry.get("name_signature", "") or ""),
+            rarity=str(entry.get("rarity", "") or ""),
+            last_receiver_email=str(entry.get("last_receiver_email", "") or ""),
+        )
+        self._log_name_trace(
+            (
+                f"NAME TRACE enqueue ev={entry.get('event_id', '') or '-'} "
+                f"item='{str(entry.get('item_name', '') or '').strip() or '-'}' "
+                f"full='{str(entry.get('full_name', '') or '').strip() or '-'}' "
+                f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
+                f"model_id={int(entry.get('model_id', 0))} item_id={int(entry.get('item_id', 0))}"
+            )
         )
         if len(self.outbox_queue) >= int(self.max_outbox_size):
             self.outbox_queue.pop(0)
@@ -1112,7 +1597,7 @@ class DropTrackerSender:
                     f"item='{entry['item_name']}' qty={entry['quantity']} rarity={entry['rarity']} "
                     f"item_id={entry['item_id']} model_id={entry['model_id']} "
                     f"slot={entry['bag_id']}:{entry['slot_id']} queue={len(self.outbox_queue)} "
-                    f"event_id={entry['event_id']}"
+                    f"event_id={entry['event_id']} sender_session={int(entry['sender_session_id'])}"
                 ),
                 Py4GW.Console.MessageType.Info,
             )
@@ -1214,7 +1699,18 @@ class DropTrackerSender:
             if not entry.get("name_chunks_sent", False):
                 full_name = str(entry.get("full_name", "") or "")
                 short_name = str(entry.get("item_name", "") or "")
-                if len(full_name) > 31 or full_name != short_name:
+                if (len(full_name) > 31 or full_name != short_name) and self._should_track_name_refresh(
+                    short_name,
+                    str(entry.get("rarity", "") or ""),
+                ):
+                    self._log_name_trace(
+                        (
+                            f"NAME TRACE name_chunks_send ev={str(entry.get('event_id', '') or '').strip() or '-'} "
+                            f"short='{short_name or '-'}' full='{full_name or '-'}' "
+                            f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
+                            f"receiver={str(receiver_email or '').strip().lower() or '-'}"
+                        )
+                    )
                     ok_chunks = self._send_name_chunks(
                         receiver_email=receiver_email,
                         my_email=my_email,
@@ -1222,7 +1718,23 @@ class DropTrackerSender:
                         full_name=full_name,
                     )
                     if not ok_chunks:
+                        self._log_name_trace(
+                            (
+                                f"NAME TRACE name_chunks_failed ev={str(entry.get('event_id', '') or '').strip() or '-'} "
+                                f"short='{short_name or '-'}' full='{full_name or '-'}'"
+                            )
+                        )
                         send_failed = True
+                else:
+                    reason = "same_or_short"
+                    if len(full_name) > 31 or full_name != short_name:
+                        reason = "ineligible"
+                    self._log_name_trace(
+                        (
+                            f"NAME TRACE name_chunks_skip ev={str(entry.get('event_id', '') or '').strip() or '-'} "
+                            f"short='{short_name or '-'}' full='{full_name or '-'}' reason={reason}"
+                        )
+                    )
                 entry["name_chunks_sent"] = True
 
             if (not send_failed) and (not entry.get("stats_chunks_sent", False)):
@@ -1247,6 +1759,8 @@ class DropTrackerSender:
                             item_name=str(entry.get("item_name", "") or ""),
                             stats_text=stats_text,
                             name_signature=str(entry.get("name_signature", "") or ""),
+                            rarity=str(entry.get("rarity", "") or ""),
+                            last_receiver_email=str(entry.get("last_receiver_email", "") or ""),
                         )
                 ok_stats = self._send_stats_chunks(
                     receiver_email=receiver_email,
@@ -1259,6 +1773,15 @@ class DropTrackerSender:
                     entry["stats_chunks_sent"] = True
 
             if not send_failed:
+                self._log_name_trace(
+                    (
+                        f"NAME TRACE drop_send ev={str(entry.get('event_id', '') or '').strip() or '-'} "
+                        f"item='{str(entry.get('item_name', '') or '').strip() or '-'}' "
+                        f"full='{str(entry.get('full_name', '') or '').strip() or '-'}' "
+                        f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
+                        f"receiver={str(receiver_email or '').strip().lower() or '-'}"
+                    )
+                )
                 if not self._send_drop(
                     entry.get("item_name", "Unknown Item"),
                     int(entry.get("quantity", 1)),
@@ -1271,8 +1794,12 @@ class DropTrackerSender:
                     is_leader_sender,
                     str(entry.get("event_id", "")),
                     str(entry.get("name_signature", "")),
+                    int(entry.get("sender_session_id", 0)),
                 ):
                     send_failed = True
+                elif not bool(entry.get("name_refresh_scheduled", False)):
+                    self._schedule_name_refresh_for_entry(entry, receiver_email)
+                    entry["name_refresh_scheduled"] = True
 
             entry["attempts"] = int(entry.get("attempts", 0)) + 1
             if send_failed:
@@ -1376,14 +1903,35 @@ class DropTrackerSender:
     def _process_inventory_deltas(self):
         start_perf = time.perf_counter()
         current_snapshot = self._take_inventory_snapshot()
+        if self._reset_trace_active():
+            self._log_reset_trace(
+                (
+                    f"RESET TRACE snapshot actor={self._reset_trace_actor_label()} size={len(current_snapshot)} "
+                    f"ready={int(self.last_snapshot_ready)} total={int(self.last_snapshot_total)} "
+                    f"pending={len(self.pending_slot_deltas)} warmed={bool(self.is_warmed_up)}"
+                ),
+                consume_snapshot=True,
+            )
 
         # Guard against transient invalid snapshots (observed: ready=0/not_ready=N spikes).
+        # Resync the baseline immediately so the next stable tick does not replay the
+        # full inventory as newly added items.
         if self.last_snapshot_total > 0 and self.last_snapshot_ready == 0:
+            self.pending_slot_deltas = {}
+            self.last_inventory_snapshot = current_snapshot
+            self._log_reset_trace(
+                "RESET TRACE snapshot resynced: ready=0 transient inventory state",
+                consume_snapshot=True,
+            )
             self.last_sent_count = 0
             self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
             return
 
         if not current_snapshot:
+            self._log_reset_trace(
+                "RESET TRACE snapshot skipped: empty snapshot",
+                consume_snapshot=True,
+            )
             self.last_sent_count = 0
             self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
             return
@@ -1395,6 +1943,13 @@ class DropTrackerSender:
                 self.stable_snapshot_count += 1
             else:
                 self.stable_snapshot_count = 0
+            self._log_reset_trace(
+                (
+                    f"RESET TRACE warmup baseline actor={self._reset_trace_actor_label()} size={len(current_snapshot)} "
+                    f"readiness={readiness:.2f} stable={int(self.stable_snapshot_count)}"
+                ),
+                consume_snapshot=True,
+            )
             self.last_inventory_snapshot = current_snapshot
             self.last_sent_count = 0
             if self.stable_snapshot_count >= 2:
@@ -1405,6 +1960,13 @@ class DropTrackerSender:
 
         # Extra grace after warm-up to ignore late startup snapshot churn.
         if time.time() < self.warmup_grace_until:
+            self._log_reset_trace(
+                (
+                    f"RESET TRACE grace active actor={self._reset_trace_actor_label()} size={len(current_snapshot)} "
+                    f"until_in={max(0.0, self.warmup_grace_until - time.time()):.2f}s"
+                ),
+                consume_snapshot=True,
+            )
             self.last_inventory_snapshot = current_snapshot
             self.last_sent_count = 0
             self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
@@ -1418,6 +1980,13 @@ class DropTrackerSender:
             self.pending_slot_deltas = {}
             self.last_inventory_snapshot = current_snapshot
             self.last_sent_count = 0
+            self._log_reset_trace(
+                (
+                    f"RESET TRACE churn resync actor={self._reset_trace_actor_label()} jump={snapshot_size_jump} "
+                    f"threshold={max_jump} size={len(current_snapshot)}"
+                ),
+                consume_snapshot=True,
+            )
             if self.debug_pipeline_logs:
                 Py4GW.Console.Log(
                     "DropTrackerSender",
@@ -1768,6 +2337,28 @@ class DropTrackerSender:
                     Py4GW.Console.MessageType.Info,
                 )
 
+        if self._reset_trace_active() and (candidate_events or self.pending_slot_deltas):
+            self._log_reset_trace(
+                (
+                    f"RESET TRACE delta actor={self._reset_trace_actor_label()} candidate_count={len(candidate_events)} "
+                    f"pending_names={len(self.pending_slot_deltas)}"
+                ),
+                consume_event=True,
+            )
+            for event in candidate_events[:8]:
+                slot_key = event.get("slot_key")
+                bag_id = int(slot_key[0]) if isinstance(slot_key, tuple) and len(slot_key) > 0 else 0
+                slot_id = int(slot_key[1]) if isinstance(slot_key, tuple) and len(slot_key) > 1 else 0
+                self._log_reset_trace(
+                    (
+                        f"RESET TRACE candidate actor={self._reset_trace_actor_label()} reason={event.get('reason', 'delta')} "
+                        f"item='{event.get('name', 'Unknown Item')}' qty={int(event.get('qty', 1))} "
+                        f"rarity={event.get('rarity', 'Unknown')} item_id={int(event.get('item_id', 0))} "
+                        f"model_id={int(event.get('model_id', 0))} slot={bag_id}:{slot_id}"
+                    ),
+                    consume_event=True,
+                )
+
         is_leader_sender = self._is_party_leader_client()
         enqueued_count = 0
         for event in candidate_events:
@@ -1796,17 +2387,28 @@ class DropTrackerSender:
             return
         try:
             if not Routines.Checks.Map.MapValid():
-                self._reset_tracking_state()
-                self.last_seen_map_id = 0
+                self._begin_new_session("map_invalid", 0, 0)
                 return
             current_map_id = int(Map.GetMapID() or 0)
+            try:
+                current_instance_uptime_ms = max(0, int(Map.GetInstanceUptime() or 0))
+            except EXPECTED_RUNTIME_ERRORS:
+                current_instance_uptime_ms = 0
             if current_map_id > 0:
                 if int(self.last_seen_map_id) <= 0:
                     self.last_seen_map_id = current_map_id
+                    self.last_seen_instance_uptime_ms = current_instance_uptime_ms
                 elif current_map_id != int(self.last_seen_map_id):
-                    self.last_seen_map_id = current_map_id
-                    self._reset_tracking_state()
+                    self._begin_new_session("map_change", current_map_id, current_instance_uptime_ms)
                     return
+                elif (
+                    int(self.last_seen_instance_uptime_ms) > 0
+                    and current_instance_uptime_ms > 0
+                    and current_instance_uptime_ms + 2000 < int(self.last_seen_instance_uptime_ms)
+                ):
+                    self._begin_new_session("instance_change", current_map_id, current_instance_uptime_ms)
+                    return
+                self.last_seen_instance_uptime_ms = current_instance_uptime_ms
             if self.config_poll_timer.IsExpired():
                 self.config_poll_timer.Reset()
                 self._load_runtime_config()
@@ -1826,6 +2428,7 @@ class DropTrackerSender:
                         f"queued={len(self.outbox_queue)} "
                         f"acks={self.last_ack_count} "
                         f"pending_names={len(self.pending_slot_deltas)} "
+                        f"name_refresh={len(self.pending_name_refresh_by_event)} "
                         f"role={'leader' if self._is_party_leader_client() else 'follower'} "
                         f"warmed={self.is_warmed_up} "
                         f"proc_ms={self.last_process_duration_ms:.2f}"
@@ -1837,6 +2440,8 @@ class DropTrackerSender:
                 self._process_inventory_deltas()
             if self.outbox_queue:
                 self._flush_outbox()
+            if self.pending_name_refresh_by_event:
+                self._process_pending_name_refreshes()
         except EXPECTED_RUNTIME_ERRORS:
             return
 

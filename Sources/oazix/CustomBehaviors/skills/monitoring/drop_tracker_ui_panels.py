@@ -214,6 +214,74 @@ def draw_runtime_controls_panel(viewer, PyImGui) -> None:
     for mapped_line in viewer._unknown_mod_name_map_summary_lines(limit=4):
         PyImGui.text_colored(mapped_line, (0.62, 0.90, 0.72, 1.0))
 
+    PyImGui.separator()
+    trace_lines = list(viewer._get_reset_trace_lines() or [])
+    PyImGui.text(f"Reset Trace: {len(trace_lines)} lines")
+    if viewer._styled_button(
+        "Copy Reset Trace",
+        "secondary",
+        tooltip="Copy captured reset trace lines to clipboard.",
+    ):
+        try:
+            PyImGui.set_clipboard_text("\n".join(trace_lines))
+            viewer.set_status("Reset trace copied to clipboard")
+        except Exception as e:  # clipboard API can fail outside normal UI focus
+            viewer.set_status(f"Reset trace copy failed: {e}")
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button(
+        "Clear Reset Trace",
+        "secondary",
+        tooltip="Clear in-memory map/district reset trace lines.",
+    ):
+        viewer._clear_reset_trace_lines()
+        trace_lines = []
+    if trace_lines:
+        if PyImGui.begin_child(
+            "DropTrackerResetTracePanel",
+            size=(0.0, 180.0),
+            border=True,
+            flags=PyImGui.WindowFlags.HorizontalScrollbar,
+        ):
+            for line in trace_lines[-80:]:
+                PyImGui.text(viewer._ensure_text(line))
+        PyImGui.end_child()
+    else:
+        PyImGui.text_colored("No reset trace lines captured yet.", (0.70, 0.74, 0.80, 1.0))
+
+    PyImGui.separator()
+    map_watch_lines = list(viewer._get_map_watch_lines() or [])
+    PyImGui.text(f"Map Watch: {len(map_watch_lines)} lines")
+    if viewer._styled_button(
+        "Copy Map Watch",
+        "secondary",
+        tooltip="Copy raw map/instance watch lines to clipboard.",
+    ):
+        try:
+            PyImGui.set_clipboard_text("\n".join(map_watch_lines))
+            viewer.set_status("Map watch copied to clipboard")
+        except Exception as e:
+            viewer.set_status(f"Map watch copy failed: {e}")
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button(
+        "Clear Map Watch",
+        "secondary",
+        tooltip="Clear in-memory map/instance watch lines.",
+    ):
+        viewer._clear_map_watch_lines()
+        map_watch_lines = []
+    if map_watch_lines:
+        if PyImGui.begin_child(
+            "DropTrackerMapWatchPanel",
+            size=(0.0, 120.0),
+            border=True,
+            flags=PyImGui.WindowFlags.HorizontalScrollbar,
+        ):
+            for line in map_watch_lines[-40:]:
+                PyImGui.text(viewer._ensure_text(line))
+        PyImGui.end_child()
+    else:
+        PyImGui.text_colored("No map watch lines captured yet.", (0.70, 0.74, 0.80, 1.0))
+
     if viewer.runtime_config_dirty:
         viewer._flush_runtime_config_if_dirty()
 

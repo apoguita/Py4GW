@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-02-26 23:36:24",
+  "updated_at": "2026-03-01 13:53:42",
   "known_mod_id_count": 62,
   "unknown_mods": {
     "8728": {
@@ -64,30 +64,95 @@
       "last_seen": "2026-02-24 00:47:26"
     },
     "9304": {
-      "count": 1,
+      "count": 6,
       "arg1_min": 0,
       "arg1_max": 0,
       "arg2_min": 1,
-      "arg2_max": 1,
+      "arg2_max": 28,
       "item_types": [
-        9
+        9,
+        29
       ],
       "model_ids": [
-        21798
+        5900,
+        21790,
+        21798,
+        21801,
+        31156
       ],
       "sources": {
-        "shared_payload": 1
+        "shared_payload": 5,
+        "local_api": 1
       },
       "sample_items": [
-        "Necromancer Tome"
+        "Necromancer Tome",
+        "Warrior Tome",
+        "Defensive Accursed Staff",
+        "Zaishen Summoning Stones",
+        "Titan Armor of Major Beast Mastery"
       ],
       "sample_events": [],
       "co_mod_ids": [
+        9704,
         9784,
         10120,
         49152
       ],
-      "last_seen": "2026-02-24 00:22:12"
+      "last_seen": "2026-02-28 19:27:26"
+    },
+    "9424": {
+      "count": 3,
+      "arg1_min": 4,
+      "arg1_max": 13,
+      "arg2_min": 1,
+      "arg2_max": 1,
+      "item_types": [
+        10
+      ],
+      "model_ids": [
+        146
+      ],
+      "sources": {
+        "shared_payload": 3
+      },
+      "sample_items": [
+        "Vial of Dye [Purple]",
+        "Vial of Dye [Red]",
+        "Vial of Dye [Pink]"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9448,
+        49152
+      ],
+      "last_seen": "2026-02-28 18:32:55"
+    },
+    "9448": {
+      "count": 3,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 4,
+      "arg2_max": 13,
+      "item_types": [
+        10
+      ],
+      "model_ids": [
+        146
+      ],
+      "sources": {
+        "shared_payload": 3
+      },
+      "sample_items": [
+        "Vial of Dye [Purple]",
+        "Vial of Dye [Red]",
+        "Vial of Dye [Pink]"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9424,
+        49152
+      ],
+      "last_seen": "2026-02-28 18:32:55"
     },
     "9480": {
       "count": 4,
@@ -119,8 +184,33 @@
       ],
       "last_seen": "2026-02-26 22:18:07"
     },
+    "9704": {
+      "count": 1,
+      "arg1_min": 2,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        29
+      ],
+      "model_ids": [
+        5900
+      ],
+      "sources": {
+        "shared_payload": 1
+      },
+      "sample_items": [
+        "Defensive Accursed Staff"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        9304,
+        49152
+      ],
+      "last_seen": "2026-02-28 17:59:56"
+    },
     "9752": {
-      "count": 27,
+      "count": 45,
       "arg1_min": 0,
       "arg1_max": 4,
       "arg2_min": 0,
@@ -136,11 +226,13 @@
         138,
         144,
         754,
-        2010
+        2008,
+        2010,
+        2011
       ],
       "sources": {
-        "shared_payload": 1,
-        "local_api": 26
+        "shared_payload": 7,
+        "local_api": 38
       },
       "sample_items": [
         "Black Hawk's Lust",
@@ -164,6 +256,7 @@
         8488,
         8536,
         8760,
+        8808,
         8824,
         8840,
         8856,
@@ -178,6 +271,7 @@
         9400,
         9512,
         9520,
+        9720,
         9736,
         9800,
         9880,
@@ -189,10 +283,10 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-26 22:14:18"
+      "last_seen": "2026-03-01 13:53:15"
     },
     "9784": {
-      "count": 1,
+      "count": 5,
       "arg1_min": 0,
       "arg1_max": 0,
       "arg2_min": 0,
@@ -201,13 +295,20 @@
         9
       ],
       "model_ids": [
-        21798
+        21790,
+        21798,
+        21801,
+        31156
       ],
       "sources": {
-        "shared_payload": 1
+        "shared_payload": 4,
+        "local_api": 1
       },
       "sample_items": [
-        "Necromancer Tome"
+        "Necromancer Tome",
+        "Warrior Tome",
+        "Zaishen Summoning Stones",
+        "Titan Armor of Major Beast Mastery"
       ],
       "sample_events": [],
       "co_mod_ids": [
@@ -215,10 +316,10 @@
         10120,
         49152
       ],
-      "last_seen": "2026-02-24 00:22:12"
+      "last_seen": "2026-02-28 19:27:26"
     },
     "9800": {
-      "count": 13,
+      "count": 23,
       "arg1_min": 0,
       "arg1_max": 2,
       "arg2_min": 0,
@@ -230,18 +331,22 @@
         27
       ],
       "model_ids": [
+        116,
         126,
         132,
+        134,
         136,
         137,
         138,
         221,
         402,
-        792
+        792,
+        2201,
+        2231
       ],
       "sources": {
-        "shared_payload": 3,
-        "local_api": 10
+        "shared_payload": 6,
+        "local_api": 17
       },
       "sample_items": [
         "Fiery Dragon Sword",
@@ -251,15 +356,21 @@
         "Flatbow",
         "Longbow",
         "Ivory Bow",
-        "Wicked Blade"
+        "Wicked Blade",
+        "Half Moon",
+        "Hand Axe",
+        "Runic Hammer",
+        "Lockpicks"
       ],
       "sample_events": [],
       "co_mod_ids": [
         8216,
         8456,
+        8488,
         8536,
         8760,
         8792,
+        8808,
         8824,
         8840,
         8856,
@@ -270,6 +381,7 @@
         9240,
         9400,
         9520,
+        9522,
         9752,
         9880,
         10136,
@@ -280,7 +392,7 @@
         42920,
         49152
       ],
-      "last_seen": "2026-02-26 22:07:26"
+      "last_seen": "2026-03-01 13:53:42"
     },
     "9880": {
       "count": 13,
@@ -335,30 +447,41 @@
       "last_seen": "2026-02-24 08:46:07"
     },
     "10120": {
-      "count": 1,
+      "count": 9,
       "arg1_min": 0,
       "arg1_max": 0,
-      "arg2_min": 28,
-      "arg2_max": 28,
+      "arg2_min": 20,
+      "arg2_max": 177,
       "item_types": [
-        9
+        9,
+        43
       ],
       "model_ids": [
-        21798
+        21790,
+        21798,
+        21801,
+        28478,
+        31156
       ],
       "sources": {
-        "shared_payload": 1
+        "shared_payload": 4,
+        "local_api": 5
       },
       "sample_items": [
-        "Necromancer Tome"
+        "Necromancer Tome",
+        "Warrior Tome",
+        "Shiro's Return [Hard Mode]",
+        "Zaishen Summoning Stones",
+        "Titan Armor of Major Beast Mastery"
       ],
       "sample_events": [],
       "co_mod_ids": [
         9304,
         9784,
+        10360,
         49152
       ],
-      "last_seen": "2026-02-24 00:22:12"
+      "last_seen": "2026-02-28 19:27:26"
     },
     "10136": {
       "count": 31,
@@ -463,6 +586,31 @@
       ],
       "last_seen": "2026-02-24 08:46:07"
     },
+    "10360": {
+      "count": 4,
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 26,
+      "arg2_max": 26,
+      "item_types": [
+        43
+      ],
+      "model_ids": [
+        28478
+      ],
+      "sources": {
+        "local_api": 4
+      },
+      "sample_items": [
+        "Shiro's Return [Hard Mode]"
+      ],
+      "sample_events": [],
+      "co_mod_ids": [
+        10120,
+        49152
+      ],
+      "last_seen": "2026-02-28 18:00:47"
+    },
     "25288": {
       "count": 1,
       "arg1_min": 10,
@@ -533,71 +681,6 @@
         49152
       ],
       "last_seen": "2026-02-24 00:40:39"
-    },
-    "32880": {
-      "count": 1,
-      "arg1_min": 1,
-      "arg1_max": 1,
-      "arg2_min": 169,
-      "arg2_max": 169,
-      "item_types": [
-        2
-      ],
-      "model_ids": [
-        748
-      ],
-      "sources": {
-        "shared_payload": 1
-      },
-      "sample_items": [
-        "Gothic Axe"
-      ],
-      "sample_events": [],
-      "co_mod_ids": [
-        8216,
-        8424,
-        8760,
-        9224,
-        9400,
-        9512,
-        9520,
-        10136,
-        32896,
-        41544,
-        42288,
-        42920,
-        49152
-      ],
-      "last_seen": "2026-02-26 22:07:15"
-    },
-    "33056": {
-      "count": 1,
-      "arg1_min": 0,
-      "arg1_max": 0,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [],
-      "model_ids": [
-        90
-      ],
-      "sources": {
-        "local_api": 1
-      },
-      "sample_items": [
-        "Titan Armor"
-      ],
-      "sample_events": [],
-      "co_mod_ids": [
-        9224,
-        9520,
-        10216,
-        32880,
-        41208,
-        41928,
-        42288,
-        49152
-      ],
-      "last_seen": "2026-02-24 10:00:13"
     },
     "42152": {
       "count": 1,

@@ -52,6 +52,15 @@ def test_parse_drop_meta_legacy_variants():
     assert parsed_legacy_time_only["name_signature"] == ""
 
 
+def test_build_drop_meta_v3_carries_sender_session_id():
+    meta = build_drop_meta("85e699300008", "deadbeef", "03:47 PM", sender_session_id=0x0012)
+    parsed = parse_drop_meta(meta)
+    assert parsed["version"] == "v3"
+    assert parsed["event_id"] == "85e699300008"
+    assert parsed["name_signature"] == "deadbeef"
+    assert parsed["sender_session_id"] == "0012"
+
+
 def test_build_name_chunks_handles_empty_and_nonpositive_chunk_size():
     assert build_name_chunks("", chunk_size=31) == [(1, 1, "")]
     chunks = build_name_chunks("abcdef", chunk_size=0)

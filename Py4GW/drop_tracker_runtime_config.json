@@ -1,9 +1,10 @@
 {
-  "debug_pipeline_logs": false,
+  "debug_pipeline_logs": true,
   "enable_perf_logs": false,
   "enable_delivery_ack": true,
   "max_send_per_tick": 12,
   "max_outbox_size": 2000,
+  "max_snapshot_size_jump": 40,
   "retry_interval_seconds": 1.0,
   "max_retry_attempts": 12,
   "verbose_shmem_item_logs": true,
@@ -14,7 +15,6 @@
   "debug_item_stats_panel_height": 180,
   "strict_event_stats_binding": true,
   "event_identity_resolve_grace_s": 1.2,
-  "event_identity_resolve_poll_s": 0.12,
   "id_sel_white": false,
   "id_sel_blue": true,
   "id_sel_green": true,
@@ -45,19 +45,19 @@
   "auto_conset_grail": false,
   "auto_conset_essence": true,
   "auto_conset_legionnaire": true,
-  "runtime_controls_popout": false,
+  "runtime_controls_popout": true,
   "compact_mode": false,
   "ui_theme_name": "Steel Ember",
   "drop_viewer_window_pos": [
-    85.0,
+    4.0,
     4.0
   ],
   "drop_viewer_window_size": [
-    1794.0,
-    981.0
+    1840.0,
+    970.0
   ],
   "drop_viewer_handle_pos": [
-    595.0,
-    949.0
+    1477.0,
+    708.0
   ]
 }

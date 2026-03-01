@@ -11,6 +11,16 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import 
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import parse_drop_meta
 
 
+def _safe_hex_int(value: Any, default: int = 0) -> int:
+    text = str(value or "").strip()
+    if not text:
+        return int(default)
+    try:
+        return int(text, 16)
+    except (TypeError, ValueError):
+        return int(default)
+
+
 def decode_slot(slot_encoded: int) -> tuple[int, int]:
     value = int(slot_encoded or 0)
     if value <= 0:
@@ -72,6 +82,7 @@ def build_tracker_drop_message(
         sender_email=str(sender_email or "").strip(),
         event_id=str(meta.get("event_id", "") or "").strip(),
         name_signature=str(meta.get("name_signature", "") or "").strip(),
+        sender_session_id=max(0, _safe_hex_int(meta.get("sender_session_id", ""), 0)),
         item_name=str(item_name or "Unknown Item"),
         rarity=str(rarity or "Unknown"),
         quantity=max(1, quantity),

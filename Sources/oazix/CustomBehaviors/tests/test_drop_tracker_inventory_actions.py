@@ -302,6 +302,41 @@ def test_identify_scheduler_waits_for_payload_ready_until_timeout():
     assert scheduler.pending_count() == 0
 
 
+def test_identify_scheduler_keeps_polling_until_payload_ready_after_timeout():
+    scheduler = IdentifyResponseScheduler()
+    scheduler.schedule(item_id=102, reply_email="leader@test", event_id="ev-staff", timeout_s=0.2)
+
+    sent_payload = []
+    payloads = iter(['{"mods":[]}', '{"mods":[[10328,4,0]]}'])
+
+    completed = scheduler.tick(
+        build_payload_fn=lambda _item_id: next(payloads),
+        is_identified_fn=lambda _item_id: True,
+        send_payload_fn=lambda email, event_id, payload: sent_payload.append((email, event_id, payload)) or True,
+        build_stats_fn=lambda _item_id: "",
+        send_stats_fn=lambda _email, _event_id, _stats: True,
+        payload_ready_fn=lambda payload, _item_id, identified, timed_out: ('[[10328,4,0]]' in payload) or ((not identified) or timed_out),
+    )
+    assert completed == 0
+    assert sent_payload == []
+    assert scheduler.pending_count() == 1
+
+    time.sleep(0.25)
+    completed = scheduler.tick(
+        build_payload_fn=lambda _item_id: next(payloads),
+        is_identified_fn=lambda _item_id: True,
+        send_payload_fn=lambda email, event_id, payload: sent_payload.append((email, event_id, payload)) or True,
+        build_stats_fn=lambda _item_id: "",
+        send_stats_fn=lambda _email, _event_id, _stats: True,
+        payload_ready_fn=lambda payload, _item_id, identified, timed_out: ('[[10328,4,0]]' in payload) or ((not identified) or timed_out),
+    )
+    assert completed == 1
+    assert len(sent_payload) == 1
+    assert sent_payload[0][1] == "ev-staff"
+    assert sent_payload[0][2] == '{"mods":[[10328,4,0]]}'
+    assert scheduler.pending_count() == 0
+
+
 def test_identify_scheduler_skips_until_next_poll_and_clear():
     scheduler = IdentifyResponseScheduler()
     scheduler.schedule(item_id=100, reply_email="leader@test", event_id="ev-skip", timeout_s=2.0)
@@ -608,7 +643,7 @@ def test_run_inventory_action_id_item_id_success_schedules_response(monkeypatch)
         reply_email="leader@test",
     )
     assert ok is True
-    assert viewer.identify_response_scheduler.calls == [(42, "leader@test", "ev-9", 2.0)]
+    assert viewer.identify_response_scheduler.calls == [(42, "leader@test", "ev-9", 4.0)]
     assert cleared == [("ev-9", 42)]
     assert "started" in viewer.status_message
 
@@ -674,6 +709,24 @@ def test_run_inventory_action_push_item_stats_prefers_payload_send():
         reply_email="leader@test",
     )
     assert ok is True
+    assert viewer._stats_calls == []
+
+
+def test_run_inventory_action_push_item_stats_strict_mode_requires_event_identity(monkeypatch):
+    _install_fake_drop_tracker_sender(monkeypatch, lambda _ev, _item_id, _model_id: "")
+    viewer = _FakeViewer()
+    viewer.strict_event_stats_binding = True
+    viewer.payload_text = '{"mods":[[1,2,3]]}'
+    viewer.payload_send_ok = True
+    ok = run_inventory_action(
+        viewer,
+        action_code="push_item_stats",
+        action_payload="42",
+        action_meta="ev-no-identity",
+        reply_email="leader@test",
+    )
+    assert ok is False
+    assert viewer._snapshot_calls == []
     assert viewer._stats_calls == []
 
 

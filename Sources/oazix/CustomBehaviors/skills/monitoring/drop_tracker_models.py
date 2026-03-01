@@ -132,6 +132,7 @@ class TrackerDropMessage:
     sender_email: str
     event_id: str
     name_signature: str
+    sender_session_id: int
     item_name: str
     rarity: str
     quantity: int
