@@ -262,8 +262,8 @@ def bot_routine(bot: Botting):
 
     global MAIN_LOOP_HEADER_NAME
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
-    CustomBehaviorParty().set_party_is_blessing_enabled(True)
-    _setup_custom_behavior_integration(bot)
+    bot.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_blessing_enabled(True), "Enable Blessing")
+    bot.States.AddCustomState(lambda: _setup_custom_behavior_integration(bot), "Setup Custom Behavior Integration")
     
     bot.Templates.Aggressive()
     
@@ -297,7 +297,7 @@ def bot_routine(bot: Botting):
 def Enter_UW(bot_instance: Botting):
     bot_instance.States.AddHeader("Enter Underworld")
     _ensure_minimum_gold(bot_instance)
-    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail()), "Set Party Leader Email")
     bot_instance.Move.XY(-4199, 19845, "go to Statue")
     bot_instance.States.AddCustomState(lambda: Player.SendChatCommand("kneel"), "kneel")
     bot_instance.Wait.ForTime(3000)
@@ -322,7 +322,7 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddHeader("Clear the Chamber")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
-    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail()), "Set Party Leader Email")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     
@@ -836,7 +836,8 @@ def _on_party_wipe(bot: "Botting"):
 
 
 def main():
-    _sync_custom_behavior_runtime()
+    if bot.config.fsm_running:
+        _sync_custom_behavior_runtime()
     bot.Update()
     bot.UI.draw_window()
 
