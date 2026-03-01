@@ -3,24 +3,27 @@ from time import time
 import Py4GW
 import PyImGui
 from HeroAI.utils import SameMapAsAccount, SameMapOrPartyAsAccount
-from Py4GWCoreLib import Quest
+from Py4GWCoreLib import ImGui, Quest
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER, HotkeyManager
+from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Party import Party
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.enums_src.IO_enums import Key, ModifierKey
 from Py4GWCoreLib.py4gwcorelib_src import Console
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Sources.ApoSource.account_data_src.quest_data_src import QuestNode
 
-MODULE_NAME = "PartyQuestLog"
+MODULE_NAME = "Party Quest Log"
+MODULE_ICON = "Textures/Module_Icons/Party Quest Log.png"
 Utils.ClearSubModules(MODULE_NAME.replace(" ", ""), log=False)
 from Sources.frenkeyLib.PartyQuestLog.ui import UI
 from Sources.frenkeyLib.PartyQuestLog.settings import Settings
@@ -149,6 +152,45 @@ def main():
         return
     
     UI.draw_log(quest_cache.quest_data, accounts)          
+
+
+def tooltip():
+    PyImGui.set_next_window_size((600, 0))
+    PyImGui.begin_tooltip()
+
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
+    ImGui.push_font("Regular", 20)
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.spacing()
+    PyImGui.separator()
+
+    # Description
+    PyImGui.text_wrapped("This widget displays the active quests of your party members on your mission map and mini map (compass) and a detailed log window.\nIt helps you keep track of everyone's quests, making it easier to coordinate and complete them together.")
+    
+    PyImGui.spacing()
+
+    # Features
+    PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Show active quests of party members on the mission map and mini map.")
+    PyImGui.bullet_text("Detailed quest log window with quest names and completion status.")
+    PyImGui.bullet_text("Configurable hotkey to open/close the quest log window.")
+    PyImGui.bullet_text("Options to show the log only when in a party and/or only for the party leader.")
+
+    PyImGui.spacing()
+    PyImGui.separator()
+    PyImGui.spacing()
+
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by frenkey")
+
+    PyImGui.end_tooltip()
+    
     
 
 __all__ = ['main', 'configure']
