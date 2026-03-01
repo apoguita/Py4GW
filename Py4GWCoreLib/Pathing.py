@@ -301,6 +301,46 @@ class NavMesh:
         """Return trapezoid ID containing point, or None."""
         return self._bsp.find(point[0], point[1], tol)
 
+    def contains(self, x: float, y: float, margin: float = 20.0) -> bool:
+        """Return True if (x, y) lies on the NavMesh with the given inset margin."""
+        return self._bsp.find_with_margin(x, y, margin)
+
+    def find_nearest_trapezoid_id(self, x: float, y: float) -> Optional[int]:
+        """Return the ID of the trapezoid whose centroid is closest to (x, y).
+        """
+        best_id: Optional[int] = None
+        best_dist = float("inf")
+        for t_id, t in self.trapezoids.items():
+            cx = (t.XTL + t.XTR + t.XBL + t.XBR) / 4
+            cy = (t.YT + t.YB) / 2
+            d = math.hypot(cx - x, cy - y)
+            if d < best_dist:
+                best_dist = d
+                best_id = t_id
+        return best_id
+
+    def find_nearest_reachable(
+        self,
+        origin: Tuple[float, float],
+        margin: float = 20.0,
+    ) -> Optional[Tuple[float, float]]:
+        """Return the nearest reachable NavMesh position to origin.
+
+        If origin already lies on the mesh it is returned as-is.  Otherwise
+        the centroid of the closest trapezoid is returned.  Returns None only
+        when the NavMesh is empty.
+
+        Can be used for any position query – player location, click
+        coordinates, waypoints, etc.
+        """
+        if self.contains(origin[0], origin[1], margin):
+            return origin
+
+        t_id = self.find_nearest_trapezoid_id(origin[0], origin[1])
+        if t_id is None:
+            return None
+        return self.get_position(t_id)
+
     def has_line_of_sight(self,
                           p1: Tuple[float, float],
                           p2: Tuple[float, float],
