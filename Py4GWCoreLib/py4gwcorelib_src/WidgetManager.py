@@ -163,6 +163,14 @@ class Py4GWLibrary:
             identifier="Py4GWLibrary_focus_search",
             name="Focus Search",
         )
+        
+        self.reload_keybind : HotKey = HOTKEY_MANAGER.register_hotkey(
+            key=Key.Unmapped,
+            modifiers=ModifierKey.NoneKey,
+            callback=self.reload_widgets,
+            identifier="Py4GWLibrary_reload_widgets",
+            name="Reload Widgets",
+        )
             
         self.load_config()
         self.filter_widgets("")
@@ -211,20 +219,22 @@ class Py4GWLibrary:
                 if widget:
                     self.favorites.append(widget)
                     
-            hotkeykey = IniManager().read_key(self.ini_key, section="Configuration", name="hotkey", default="Unmapped")
-            modifiers = IniManager().read_key(self.ini_key, section="Configuration", name="hotkey_modifiers", default="NoneKey")
-            register_hotkey = False
+            focus_search_key = IniManager().read_key(self.ini_key, section="Configuration", name="hotkey", default="Unmapped")
+            focus_search_modifiers = IniManager().read_key(self.ini_key, section="Configuration", name="hotkey_modifiers", default="NoneKey")
+            
+            reload_widget_key = IniManager().read_key(self.ini_key, section="Configuration", name="reload_hotkey", default="Unmapped")
+            reload_widget_modifiers = IniManager().read_key(self.ini_key, section="Configuration", name="reload_hotkey_modifiers", default="NoneKey")
             
             try:
-                self.focus_keybind.key = Key[hotkeykey]
-                register_hotkey = True
+                self.focus_keybind.key = Key[focus_search_key]
+                self.focus_keybind.modifiers = ModifierKey[focus_search_modifiers]
                 
             except KeyError:
                 pass
                 
             try:
-                self.focus_keybind.modifiers = ModifierKey[modifiers]
-                register_hotkey = register_hotkey and True
+                self.reload_keybind.key = Key[reload_widget_key]
+                self.reload_keybind.modifiers = ModifierKey[reload_widget_modifiers]
                 
             except KeyError:
                 pass
@@ -279,6 +289,11 @@ class Py4GWLibrary:
         self.queue_filter_widgets = True
         pass
 
+    def reload_widgets(self):
+        self.widget_manager.discovered = False
+        self.widget_manager.discover()
+        self.queue_filter_widgets = True
+        
     def set_search_focus(self):
         match self.layout_mode:
             case LayoutMode.SingleButton:
@@ -1066,6 +1081,7 @@ class Py4GWLibrary:
                         ImGui.end_menu()                        
                     
                     if ImGui.begin_menu("Keybinds"):
+                        
                         key, modifiers, changed = ImGui.keybinding("Focus Search##WidgetBrowser", key=self.focus_keybind.key, modifiers=self.focus_keybind.modifiers)                    
                         if changed:
                             self.focus_keybind.key = key
@@ -1077,12 +1093,19 @@ class Py4GWLibrary:
                         
                         ImGui.show_tooltip("Set the hotkey used to focus the search field in the widget browser.\nPressing this hotkey will move the keyboard focus to the search field, allowing you to start typing immediately to filter widgets.\nWorks only ingame due to limitations with our Hotkey system.")
                         
+                        key, modifiers, changed = ImGui.keybinding("Reload Widgets##WidgetBrowser", key=self.reload_keybind.key, modifiers=self.reload_keybind.modifiers)                    
+                        if changed:
+                            self.reload_keybind.key = key
+                            self.reload_keybind.modifiers = modifiers
+                            
+                            IniManager().set(self.ini_key, var_name="reload_hotkey", section="Configuration", value=self.reload_keybind.key.name)
+                            IniManager().set(self.ini_key, var_name="reload_hotkey_modifiers", section="Configuration", value=self.reload_keybind.modifiers.name)
+                            IniManager().save_vars(self.ini_key)
+                        
+                        ImGui.show_tooltip("Set the hotkey used to focus the search field in the widget browser.\nPressing this hotkey will move the keyboard focus to the search field, allowing you to start typing immediately to filter widgets.\nWorks only ingame due to limitations with our Hotkey system.")
+                        
                         PyImGui.same_line(0, 0)
                         ImGui.dummy(200, 0)
-                        
-                        ImGui.separator()
-                                                    
-                        ImGui.show_tooltip("Clear all keybinds, resetting them to their default unbound state.")
                         ImGui.end_menu()
                             
                     if ImGui.begin_menu("Behavior"):

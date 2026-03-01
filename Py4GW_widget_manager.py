@@ -31,6 +31,8 @@ def _add_config_vars():
     IniManager().add_str(key=INI_KEY, var_name="layout", section="Configuration", name="layout", default=LayoutMode.Library.name)  
     IniManager().add_str(key=INI_KEY, var_name="hotkey", section="Configuration", name="hotkey", default=Key.Unmapped.name)
     IniManager().add_str(key=INI_KEY, var_name="hotkey_modifiers", section="Configuration", name="hotkey_modifiers", default="NoneKey")
+    IniManager().add_str(key=INI_KEY, var_name="reload_hotkey", section="Configuration", name="reload_hotkey", default=Key.Unmapped.name)
+    IniManager().add_str(key=INI_KEY, var_name="reload_hotkey_modifiers", section="Configuration", name="reload_hotkey_modifiers", default="NoneKey")
     IniManager().add_bool(key=INI_KEY, var_name="single_filter", section="Configuration", name="single_filter", default=True)
     IniManager().add_bool(key=INI_KEY, var_name="jump_to_minimalistic", section="Configuration", name="jump_to_minimalistic", default=False)
     IniManager().add_float(key=INI_KEY, var_name="library_width", section="Configuration", name="library_width", default=900)
