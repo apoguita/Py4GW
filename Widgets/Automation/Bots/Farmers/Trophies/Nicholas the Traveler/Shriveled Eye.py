@@ -2,6 +2,8 @@ from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
 BOT_NAME = "Shriveled Eyes Farm"
+MODULE_NAME = "Shriveled Eye Farm (Nicholas the Traveler)"
+MODULE_ICON = "Textures\\Module_Icons\\Nicholas the Traveler - Shriveled Eye.png"
 MODEL_ID_TO_FARM = ModelID.Shriveled_Eye #Shriveled Eye
 OUTPOST_TO_TRAVEL = 153 #Seeker passage
 COORD_TO_EXIT_MAP = (-16614.04, 8175.84)

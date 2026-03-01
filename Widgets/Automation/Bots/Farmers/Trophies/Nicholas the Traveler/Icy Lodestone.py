@@ -3,6 +3,8 @@ import PyImGui
 from Py4GW_widget_manager import get_widget_handler
 
 BOT_NAME = "Icy Lodestone Farm"
+MODULE_NAME = "Icy Lodestone Farm (Nicholas the Traveler)"
+MODULE_ICON = "Textures\\Module_Icons\\Nicholas the Traveler - Icy Lodestone.png"
 MODEL_ID_TO_FARM = ModelID.Icy_Lodestone
 OUTPOST_TO_TRAVEL = 134  # Yaks Bend
 COORD_TO_EXIT_MAP = (9282.36, 4048.77)

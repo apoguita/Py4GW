@@ -4,7 +4,11 @@ import Py4GW
 import os
 import time
 
-BOT_NAME = "Asura title farm by Wick Divinus"
+BOT_NAME = "Asura Title Farm"
+
+MODULE_NAME = BOT_NAME
+MODULE_ICON = "Textures/Skill_Icons/[2372] - Edification.jpg"
+
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "VQ_Helmet.png")
 RATASUM = 640
 

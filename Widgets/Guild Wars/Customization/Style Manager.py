@@ -17,11 +17,11 @@ from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 
 
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-  
+
 MODULE_NAME = "Style Manager"
+MODULE_ICON = "Textures\\Module_Icons\\StyleManager.png"
 OPTIONAL = False
 
-MODULE_ICON = "Textures\\Module_Icons\\StyleManagerIcon.png"
 class ThemeTexturesDev(Enum):
  pass
     

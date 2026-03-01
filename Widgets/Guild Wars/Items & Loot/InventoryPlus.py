@@ -13,6 +13,9 @@ from dataclasses import dataclass, field
 INI_PATH = "Inventory/InventoryPlus" #path to save ini key
 INI_FILENAME = "InventoryPlus.ini" #ini file name
 
+MODULE_NAME = "Inventory Plus"
+MODULE_ICON = "Textures\\Module_Icons\\inventory_plus.png"
+
 #region dataclasses
 @dataclass
 class ItemSlotData:

@@ -4,6 +4,9 @@ import PyImGui
 import os
 import time
 
+MODULE_NAME = "Lightbringer Title Farm (Mirror Of Lyss)"
+MODULE_ICON = "Textures/Skill_Icons/[1813] - Lightbringer.jpg"
+
 class BotSettings:
     BOT_NAME = "Lightbringer - MirrorOfLyss"
     OUTPOST_TO_TRAVEL = 433

@@ -2,6 +2,8 @@ from Py4GWCoreLib import Botting, get_texture_for_model, ModelID
 import PyImGui
 
 BOT_NAME = "Gold Doubloons Farm"
+MODULE_NAME = "Gold Doubloon Farm (Nicholas the Traveler)"
+MODULE_ICON = "Textures\\Module_Icons\\Nicholas the Traveler - Gold Doubloon.png"
 MODEL_ID_TO_FARM = ModelID.Gold_Doubloon #Gold Doubloon
 OUTPOST_TO_TRAVEL = 376 #Camp Hojanu
 COORD_TO_EXIT_MAP = (-13986, 18223)

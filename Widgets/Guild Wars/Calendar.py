@@ -25,7 +25,7 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 REFERENCE_WEEK = date(2013, 5, 13)  # First Monday after update
 ROTATION_START = REFERENCE_WEEK  # baseline for modulo rotation
 MODULE_NAME = "Calendar"
-
+MODULE_ICON = "Textures\\Module_Icons\\Calendar.png"
 
 class WidgetLike(Protocol):
     name: str

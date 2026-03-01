@@ -4,6 +4,8 @@ import os
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Map, Player, Py4GW, ConsoleLog, ModelID, Botting,
                           Agent, ImGui, ActionQueueManager, HeroType)
 
+MODULE_NAME = "Nightfall Leveler"
+MODULE_ICON = "Textures\\Module_Icons\\Leveler - Nightfall.png"
 
 bot = Botting("Nightfall Leveler",
               upkeep_birthday_cupcake_restock=10,

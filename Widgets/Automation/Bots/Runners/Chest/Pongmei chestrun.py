@@ -38,6 +38,8 @@ def filter_valuable_loot(item_id: int) -> bool:
 # Globals
 HP_RUNNER = "Pongmei Chestrun"
 MAATU_KEEP_OUTPOST = 283
+MODULE_NAME = "Pongmei Valley (Chestrun)"
+MODULE_ICON = "Textures\\Module_Icons\\Chestrun - Pongmei Valley.png"
 
 
 # Danger Tables

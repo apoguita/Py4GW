@@ -3,6 +3,8 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
 from typing import List, Tuple
 
 bot = Botting("Kieran Rise Farm")
+MODULE_NAME = "Keiran - Rise (War Supplies)"
+MODULE_ICON = "Textures\\Module_Icons\\Keiran Farm.png"
      
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)

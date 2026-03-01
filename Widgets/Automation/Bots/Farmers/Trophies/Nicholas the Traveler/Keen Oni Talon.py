@@ -14,6 +14,8 @@ from Py4GW_widget_manager import get_widget_handler
 
 # QUEST TO INCREASE SPAWNS
 BOT_NAME = "Keen Oni Talon Farm"
+MODULE_NAME = "Keen Oni Talon Farm (Nicholas the Traveler)"
+MODULE_ICON = "Textures\\Module_Icons\\Nicholas the Traveler - Keen Oni Talon.png"
 MODEL_ID_TO_FARM = ModelID.Keen_Oni_Talon
 OUTPOST_TO_TRAVEL = 234  # The Aurios Mines
 COORD_TO_EXIT_MAP = (-6478.70, 6950.40)  # The Aurios Mines to Rhea's Crater
