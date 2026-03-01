@@ -42,6 +42,9 @@ class SharedCommandType(IntEnum):
     SkipCutscene = 37
     SendDialog = 38
     TravelToGuildHall = 39
+    
+    SetActiveQuest = 40
+    AbandonQuest = 41
 
     MultiBoxing = 990 # privately Handled Command, by frenkey
     CustomBehaviors = 997 # privately Handled Command, used in CustomBehaviors widget
