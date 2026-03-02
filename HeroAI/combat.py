@@ -116,6 +116,7 @@ class CombatClass:
         self.comfort_animal = GLOBAL_CACHE.Skill.GetID("Comfort_Animal")
         self.heal_as_one = GLOBAL_CACHE.Skill.GetID("Heal_as_One")
         self.never_rampage_alone = GLOBAL_CACHE.Skill.GetID("Never_Rampage_Alone")
+        self.whirlwind_attack = GLOBAL_CACHE.Skill.GetID("Whirlwind_Attack")
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
@@ -620,7 +621,11 @@ class CombatClass:
             if (self.skills[slot].skill_id == self.never_rampage_alone):
                 pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
                 return pet_id != 0 and Agent.IsAlive(pet_id)
-                
+
+            if (self.skills[slot].skill_id == self.whirlwind_attack):
+                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
+                return weapon_type not in (1, 6)  # Block for Bow (1) and Spear (6)
+
             if (self.skills[slot].skill_id == self.natures_blessing):
                 player_life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
                 nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
