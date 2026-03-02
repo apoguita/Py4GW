@@ -31,6 +31,17 @@ class ItemSlotData:
     Value : int = 0
     
 @dataclass
+class InventoryInteractionContext:
+    # Build this once per frame so colorize and click targeting share the same slot resolution.
+    f9_visible: bool = False
+    i_visible: bool = False
+    item_data_by_bag_slot: dict[tuple[int, int], ItemSlotData] = field(default_factory=dict)
+    bag_sizes: dict[int, int] = field(default_factory=dict)
+    i_inventory_frame_id: int = 0
+    i_bags_bar_bottom: int = 0
+    i_slot_frame_ids: dict[tuple[int, int], int] = field(default_factory=dict)
+    
+@dataclass
 class IdentificationSettings:
     identify_whites: bool = field(default_factory=bool)
     identify_blues: bool = field(default_factory=bool)
@@ -786,49 +797,42 @@ class InventoryPlusWidget:
         self._draw_generic_item_menu_item(selected_item)
         
         
-    def DetectInventoryAction(self):
-        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+    I_INVENTORY_FRAME_HASH = 2874675009
+    I_BAGS_BAR_OFFSETS = (6,)
+
+    def _build_inventory_interaction_context(self) -> InventoryInteractionContext:
         from Py4GWCoreLib.UIManager import UIManager, WindowID, FrameInfo, WindowFrames
         from Py4GWCoreLib.ItemArray import ItemArray
         from Py4GWCoreLib.Item import Item
         from Py4GWCoreLib.enums_src.Item_enums import Bags
-        from Py4GWCoreLib.enums_src.IO_enums import MouseButton
-        from Py4GWCoreLib.enums_src.Model_enums import ModelID
-        from itertools import product
         import PyInventory
 
-        i_inventory_frame_hash = 2874675009
-        i_bags_bar_offsets = [6]
+        context = InventoryInteractionContext(
+            f9_visible=UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags),
+            i_visible=UIManager.IsWindowVisible(WindowID.WindowID_Inventory),
+        )
+        if not context.f9_visible and not context.i_visible:
+            return context
 
-        f9_visible = UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags)
-        i_visible = UIManager.IsWindowVisible(WindowID.WindowID_Inventory)
-        if not f9_visible and not i_visible:
-            self.selected_item = None
-            return
-
-        # refresh slot frames
         self.InventorySlots.clear()
         self.hovered_item = None
-        item_data_by_bag_slot: dict[tuple[int, int], ItemSlotData] = {}
-        bag_sizes: dict[int, int] = {}
 
         for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
             try:
                 bag_instance = PyInventory.Bag(bag_id, str(bag_id))
                 bag_instance.GetContext()
-                bag_sizes[bag_id] = bag_instance.GetSize()
+                context.bag_sizes[bag_id] = bag_instance.GetSize()
             except Exception:
-                bag_sizes[bag_id] = 0
+                context.bag_sizes[bag_id] = 0
 
             bag_to_check = ItemArray.CreateBagList(bag_id)
             item_array = ItemArray.GetItemArray(bag_to_check)
 
             for item_id in item_array:
                 item_instance = Item.item_instance(item_id)
-                slot = item_instance.slot
                 item = ItemSlotData(
                     BagID=bag_id,
-                    Slot=slot,
+                    Slot=item_instance.slot,
                     ItemID=item_id,
                     Rarity=item_instance.rarity.name,
                     IsIdentified=item_instance.is_identified,
@@ -838,200 +842,249 @@ class InventoryPlusWidget:
                     Quantity=item_instance.quantity,
                     Value=item_instance.value,
                 )
-                item_data_by_bag_slot[(bag_id, slot)] = item
+                context.item_data_by_bag_slot[(bag_id, item.Slot)] = item
 
-                if not f9_visible:
+                if not context.f9_visible:
                     continue
 
-                frame = FrameInfo(
-                    WindowName=f"Slot{bag_id}_{slot}",
-                    ParentFrameHash=WindowFrames["Inventory Bags"].FrameHash,
-                    ChildOffsets=[0,0,0,bag_id-1,slot+2],
-                    BlackBoard={"ItemData": item}
+                self.InventorySlots.append(
+                    FrameInfo(
+                        WindowName=f"Slot{bag_id}_{item.Slot}",
+                        ParentFrameHash=WindowFrames["Inventory Bags"].FrameHash,
+                        ChildOffsets=[0, 0, 0, bag_id - 1, item.Slot + 2],
+                        BlackBoard={"ItemData": item},
+                    )
                 )
-                self.InventorySlots.append(frame)
 
-        i_inventory_frame_id = 0
-        i_bags_bar_bottom = 0
-        i_slot_frame_ids: dict[tuple[int, int], int] = {}
-        if i_visible:
-            i_inventory_frame_id = UIManager.GetFrameIDByHash(i_inventory_frame_hash)
-            if i_inventory_frame_id != 0 and UIManager.FrameExists(i_inventory_frame_id):
-                bags_bar_id = UIManager.GetChildFrameID(i_inventory_frame_hash, i_bags_bar_offsets)
-                if bags_bar_id != 0 and UIManager.FrameExists(bags_bar_id):
-                    _, _, _, i_bags_bar_bottom = UIManager.GetFrameCoords(bags_bar_id)
-            else:
-                i_inventory_frame_id = 0
+        self._populate_i_inventory_context(context)
+        return context
 
-        def _get_colorized_slot_colors(item_data: ItemSlotData) -> tuple[Color, Color] | None:
-            if (
-                (item_data.Rarity == "White" and not self.colorize_settings.color_whites) or
-                (item_data.Rarity == "Blue" and not self.colorize_settings.color_blues) or
-                (item_data.Rarity == "Green" and not self.colorize_settings.color_greens) or
-                (item_data.Rarity == "Purple" and not self.colorize_settings.color_purples) or
-                (item_data.Rarity == "Gold" and not self.colorize_settings.color_golds)
-            ):
-                return None
+    def _populate_i_inventory_context(self, context: InventoryInteractionContext) -> None:
+        from Py4GWCoreLib.UIManager import FrameInfo
+        from Py4GWCoreLib.enums_src.Item_enums import Bags
 
-            if item_data.Rarity == "White":
-                base_color = self.colorize_settings.white_color
-            elif item_data.Rarity == "Blue":
-                base_color = self.colorize_settings.blue_color
-            elif item_data.Rarity == "Green":
-                base_color = self.colorize_settings.green_color
-            elif item_data.Rarity == "Purple":
-                base_color = self.colorize_settings.purple_color
-            elif item_data.Rarity == "Gold":
-                base_color = self.colorize_settings.gold_color
-            else:
-                base_color = Color(0, 0, 0, 0)
+        if not context.i_visible:
+            return
 
-            fill_color = base_color.copy()
-            fill_color.set_a(25)
-            outline_color = base_color.copy()
-            outline_color.set_a(125)
-            return fill_color, outline_color
+        # Wrap the fixed I-layout containers in FrameInfo so later logic can query them consistently.
+        i_inventory_frame = FrameInfo(WindowName="InventoryWindowI", FrameHash=self.I_INVENTORY_FRAME_HASH)
+        if not i_inventory_frame.FrameExists():
+            return
 
-        def _remember_i_inventory_slot_prefix(prefix: list[int] | tuple[int, ...]) -> None:
-            prefix_key = tuple(prefix)
-            if prefix_key not in self.i_inventory_slot_prefix_cache:
-                self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
-                del self.i_inventory_slot_prefix_cache[8:]
-            elif self.i_inventory_slot_prefix_cache and self.i_inventory_slot_prefix_cache[0] != prefix_key:
-                self.i_inventory_slot_prefix_cache.remove(prefix_key)
-                self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
+        context.i_inventory_frame_id = i_inventory_frame.GetFrameID()
+        i_bags_bar_frame = FrameInfo(
+            WindowName="InventoryWindowIBagsBar",
+            ParentFrameHash=self.I_INVENTORY_FRAME_HASH,
+            ChildOffsets=list(self.I_BAGS_BAR_OFFSETS),
+        )
+        if i_bags_bar_frame.FrameExists():
+            _, _, _, context.i_bags_bar_bottom = i_bags_bar_frame.GetCoords()
+
+        for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+            for slot in range(context.bag_sizes.get(bag_id, 0)):
+                slot_frame_id = self._resolve_i_slot_frame_id(context, bag_id, slot)
+                if slot_frame_id != 0:
+                    context.i_slot_frame_ids[(bag_id, slot)] = slot_frame_id
+
+    def _get_colorized_slot_colors(self, item_data: ItemSlotData) -> tuple[Color, Color] | None:
+        if (
+            (item_data.Rarity == "White" and not self.colorize_settings.color_whites) or
+            (item_data.Rarity == "Blue" and not self.colorize_settings.color_blues) or
+            (item_data.Rarity == "Green" and not self.colorize_settings.color_greens) or
+            (item_data.Rarity == "Purple" and not self.colorize_settings.color_purples) or
+            (item_data.Rarity == "Gold" and not self.colorize_settings.color_golds)
+        ):
+            return None
+
+        if item_data.Rarity == "White":
+            base_color = self.colorize_settings.white_color
+        elif item_data.Rarity == "Blue":
+            base_color = self.colorize_settings.blue_color
+        elif item_data.Rarity == "Green":
+            base_color = self.colorize_settings.green_color
+        elif item_data.Rarity == "Purple":
+            base_color = self.colorize_settings.purple_color
+        elif item_data.Rarity == "Gold":
+            base_color = self.colorize_settings.gold_color
+        else:
+            base_color = Color(0, 0, 0, 0)
+
+        fill_color = base_color.copy()
+        fill_color.set_a(25)
+        outline_color = base_color.copy()
+        outline_color.set_a(125)
+        return fill_color, outline_color
+
+    def _remember_i_inventory_slot_prefix(self, prefix: list[int] | tuple[int, ...]) -> None:
+        prefix_key = tuple(prefix)
+        if prefix_key not in self.i_inventory_slot_prefix_cache:
+            self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
+            del self.i_inventory_slot_prefix_cache[8:]
+        elif self.i_inventory_slot_prefix_cache and self.i_inventory_slot_prefix_cache[0] != prefix_key:
+            self.i_inventory_slot_prefix_cache.remove(prefix_key)
+            self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
+
+    def _iter_i_slot_offset_prefixes(self):
+        from itertools import product
+
+        seen: set[tuple[int, ...]] = set()
+        preferred_prefixes = [
+            (),
+            (0,),
+            (0, 0),
+            (0, 0, 0),
+            (1,),
+            (1, 0),
+            (1, 0, 0),
+            (2,),
+            (2, 0),
+            (2, 0, 0),
+        ]
+
+        for prefix in self.i_inventory_slot_prefix_cache:
+            if prefix in seen:
+                continue
+            seen.add(prefix)
+            yield list(prefix)
+
+        for prefix in preferred_prefixes:
+            if prefix in seen:
+                continue
+            seen.add(prefix)
+            yield list(prefix)
+
+        for length in range(1, 4):
+            for prefix in product(range(6), repeat=length):
+                if prefix in seen:
+                    continue
+                seen.add(prefix)
+                yield list(prefix)
+
+    def _resolve_i_slot_frame_id(self, context: InventoryInteractionContext, bag_id: int, slot: int) -> int:
+        from Py4GWCoreLib.UIManager import UIManager
+
+        if context.i_inventory_frame_id == 0:
+            return 0
+
+        for prefix in self._iter_i_slot_offset_prefixes():
+            slot_frame_id = UIManager.GetChildFrameID(
+                self.I_INVENTORY_FRAME_HASH,
+                [*prefix, bag_id - 1, slot + 2],
+            )
+            if slot_frame_id == 0 or not UIManager.FrameExists(slot_frame_id):
+                continue
+
+            _, top, _, _ = UIManager.GetFrameCoords(slot_frame_id)
+            if context.i_bags_bar_bottom and top < context.i_bags_bar_bottom - 2:
+                continue
+
+            self._remember_i_inventory_slot_prefix(prefix)
+            return slot_frame_id
+
+        return 0
+
+    def _draw_colorized_inventory_slots(self, context: InventoryInteractionContext) -> None:
+        from Py4GWCoreLib.UIManager import UIManager
+
+        if not self.colorize_settings.enable_colorize:
+            return
+
+        for slot_frame in self.InventorySlots:
+            item_data: ItemSlotData = slot_frame.BlackBoard["ItemData"]
+            slot_colors = self._get_colorized_slot_colors(item_data)
+            if slot_colors is None:
+                continue
+
+            fill_color, outline_color = slot_colors
+            slot_frame.DrawFrame(color=fill_color.to_color())
+            slot_frame.DrawFrameOutline(outline_color.to_color())
+
+        if context.i_inventory_frame_id == 0:
+            return
+
+        ui_manager = UIManager()
+        for bag_slot, slot_frame_id in context.i_slot_frame_ids.items():
+            if bag_slot not in context.item_data_by_bag_slot:
+                continue
+
+            item_data = context.item_data_by_bag_slot[bag_slot]
+            slot_colors = self._get_colorized_slot_colors(item_data)
+            if slot_colors is None:
+                continue
+
+            fill_color, outline_color = slot_colors
+            ui_manager.DrawFrame(slot_frame_id, fill_color.to_color())
+            ui_manager.DrawFrameOutline(slot_frame_id, outline_color.to_color())
+
+    def _resolve_f9_inventory_hit(self, context: InventoryInteractionContext) -> tuple[ItemSlotData | None, bool, str]:
+        from Py4GWCoreLib.UIManager import WindowFrames
+
+        if not context.f9_visible:
+            return None, False, ""
+
+        for slot_frame in self.InventorySlots:
+            if slot_frame.IsMouseOver():
+                return slot_frame.BlackBoard["ItemData"], True, "f9"
+
+        if WindowFrames["Inventory Bags"].IsMouseOver():
+            return None, True, "f9"
+
+        return None, False, ""
+
+    def _resolve_i_inventory_hit(
+        self,
+        context: InventoryInteractionContext,
+        mouse_x: float,
+        mouse_y: float,
+    ) -> tuple[ItemSlotData | None, bool, str]:
+        from Py4GWCoreLib.UIManager import UIManager
+
+        if context.i_inventory_frame_id == 0:
+            return None, False, ""
+
+        if not UIManager.IsMouseOver(context.i_inventory_frame_id):
+            return None, False, ""
+
+        for bag_slot, slot_frame_id in context.i_slot_frame_ids.items():
+            left, top, right, bottom = UIManager.GetFrameCoords(slot_frame_id)
+            if mouse_x < left or mouse_x > right or mouse_y < top or mouse_y > bottom:
+                continue
+
+            return context.item_data_by_bag_slot.get(bag_slot), True, "i"
+
+        return None, False, ""
+
+    def _resolve_inventory_hit(
+        self,
+        context: InventoryInteractionContext,
+        mouse_x: float,
+        mouse_y: float,
+    ) -> tuple[ItemSlotData | None, bool, str]:
+        item, hit, source = self._resolve_f9_inventory_hit(context)
+        if hit:
+            return item, hit, source
+        return self._resolve_i_inventory_hit(context, mouse_x, mouse_y)
+
+    def DetectInventoryAction(self):
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+        from Py4GWCoreLib.enums_src.IO_enums import MouseButton
+        from Py4GWCoreLib.enums_src.Model_enums import ModelID
+
+        # Build shared inventory state first so slot colors and click targeting stay in sync.
+        context = self._build_inventory_interaction_context()
+        if not context.f9_visible and not context.i_visible:
+            self.selected_item = None
+            return
+
+        self._draw_colorized_inventory_slots(context)
 
         io = PyImGui.get_io()
         mouse_x = io.mouse_pos_x
         mouse_y = io.mouse_pos_y
 
-        def _resolve_f9_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
-            if not f9_visible:
-                return None, False, ""
-
-            for slot_frame in self.InventorySlots:
-                if slot_frame.IsMouseOver():
-                    return slot_frame.BlackBoard["ItemData"], True, "f9"
-
-            if WindowFrames["Inventory Bags"].IsMouseOver():
-                return None, True, "f9"
-
-            return None, False, ""
-
-        def _iter_i_slot_offset_prefixes():
-            seen: set[tuple[int, ...]] = set()
-            preferred_prefixes = [
-                (),
-                (0,),
-                (0, 0),
-                (0, 0, 0),
-                (1,),
-                (1, 0),
-                (1, 0, 0),
-                (2,),
-                (2, 0),
-                (2, 0, 0),
-            ]
-
-            for prefix in self.i_inventory_slot_prefix_cache:
-                if prefix in seen:
-                    continue
-                seen.add(prefix)
-                yield list(prefix)
-
-            for prefix in preferred_prefixes:
-                if prefix in seen:
-                    continue
-                seen.add(prefix)
-                yield list(prefix)
-
-            for length in range(1, 4):
-                for prefix in product(range(6), repeat=length):
-                    if prefix in seen:
-                        continue
-                    seen.add(prefix)
-                    yield list(prefix)
-
-        def _resolve_i_slot_frame_id(bag_id: int, slot: int) -> int:
-            if i_inventory_frame_id == 0:
-                return 0
-
-            for prefix in _iter_i_slot_offset_prefixes():
-                slot_frame_id = UIManager.GetChildFrameID(
-                    i_inventory_frame_hash,
-                    [*prefix, bag_id - 1, slot + 2],
-                )
-                if slot_frame_id == 0 or not UIManager.FrameExists(slot_frame_id):
-                    continue
-
-                _, top, _, _ = UIManager.GetFrameCoords(slot_frame_id)
-                if i_bags_bar_bottom and top < i_bags_bar_bottom - 2:
-                    continue
-
-                _remember_i_inventory_slot_prefix(prefix)
-                return slot_frame_id
-
-            return 0
-
-        if i_inventory_frame_id != 0:
-            for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-                for slot in range(bag_sizes.get(bag_id, 0)):
-                    slot_frame_id = _resolve_i_slot_frame_id(bag_id, slot)
-                    if slot_frame_id != 0:
-                        i_slot_frame_ids[(bag_id, slot)] = slot_frame_id
-
-        #Colorize
-        if self.colorize_settings.enable_colorize:
-            for slot_frame in self.InventorySlots:
-                item_data: ItemSlotData = slot_frame.BlackBoard["ItemData"]
-                slot_colors = _get_colorized_slot_colors(item_data)
-                if slot_colors is None:
-                    continue
-
-                fill_color, outline_color = slot_colors
-                slot_frame.DrawFrame(color=fill_color.to_color())
-                slot_frame.DrawFrameOutline(outline_color.to_color())
-
-            if i_inventory_frame_id != 0:
-                ui_manager = UIManager()
-                for bag_slot, slot_frame_id in i_slot_frame_ids.items():
-                    if bag_slot not in item_data_by_bag_slot:
-                        continue
-
-                    item_data = item_data_by_bag_slot[bag_slot]
-                    slot_colors = _get_colorized_slot_colors(item_data)
-                    if slot_colors is None:
-                        continue
-
-                    fill_color, outline_color = slot_colors
-                    ui_manager.DrawFrame(slot_frame_id, fill_color.to_color())
-                    ui_manager.DrawFrameOutline(slot_frame_id, outline_color.to_color())
-
-        def _resolve_i_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
-            if i_inventory_frame_id == 0:
-                return None, False, ""
-
-            if not UIManager.IsMouseOver(i_inventory_frame_id):
-                return None, False, ""
-
-            for bag_slot, slot_frame_id in i_slot_frame_ids.items():
-                left, top, right, bottom = UIManager.GetFrameCoords(slot_frame_id)
-                if mouse_x < left or mouse_x > right or mouse_y < top or mouse_y > bottom:
-                    continue
-
-                return item_data_by_bag_slot.get(bag_slot), True, "i"
-
-            return None, False, ""
-
-        def _resolve_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
-            item, hit, source = _resolve_f9_inventory_hit()
-            if hit:
-                return item, hit, source
-            return _resolve_i_inventory_hit()
-
         # Capture the clicked item before the popup can steal hover.
         if PyImGui.is_mouse_clicked(MouseButton.Right.value):
-            clicked_item, inventory_hit, _source = _resolve_inventory_hit()
+            clicked_item, inventory_hit, _source = self._resolve_inventory_hit(context, mouse_x, mouse_y)
             self.hovered_item = clicked_item
             self.selected_item = clicked_item if inventory_hit else None
 
@@ -1040,7 +1093,7 @@ class InventoryPlusWidget:
 
         # Detect Ctrl + Left Click
         if PyImGui.is_mouse_released(MouseButton.Left.value) and io.key_ctrl:
-            clicked_item, inventory_hit, _source = _resolve_inventory_hit()
+            clicked_item, inventory_hit, _source = self._resolve_inventory_hit(context, mouse_x, mouse_y)
             self.hovered_item = clicked_item
             if inventory_hit and clicked_item:
                 self.selected_item = clicked_item
