@@ -6,7 +6,8 @@ import os
 import time
 import random
 
-MODULE_NAME = "HeroHelper"
+MODULE_NAME = "Hero Helper"
+MODULE_ICON = "Textures/Module_Icons/Hero Helper.png"
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = Py4GW.Console.get_projects_path()

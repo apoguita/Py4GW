@@ -126,6 +126,7 @@ from typing import List, Optional
 import time
 
 MODULE_NAME = "CombatEvents Tester"
+MODULE_ICON = "Textures/Module_Icons/Combat.png"
 
 # ============================================================================
 # State tracking for the UI

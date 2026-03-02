@@ -50,6 +50,9 @@ widget_monitor = WidgetMonitor()
 widget_window_size:tuple[float, float] = (0,0)
 widget_window_pos:tuple[float, float] = (0,0)
 
+MODULE_NAME = "Custom Behaviors: Utility AI"
+MODULE_ICON = "Textures/Module_Icons/Custom Behaviors.png"
+
 def gui():
     # PyImGui.set_next_window_size(260, 650)
     # PyImGui.set_next_window_size(460, 800)

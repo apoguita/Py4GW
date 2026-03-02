@@ -6,6 +6,8 @@ from Py4GWCoreLib.enums import FactionAllegiance
 #current status, not complete
 
 module_name = "Py4GW DEMO"
+MODULE_NAME = "Py4GW DEMO"
+MODULE_ICON = "Textures/Module_Icons/Py4GW.png"
 
 class WindowState:
     def __init__(self):

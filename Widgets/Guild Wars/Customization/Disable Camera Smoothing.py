@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 
 MODULE_NAME = "Disable Camera Smoothing"
+MODULE_ICON = "Textures/Module_Icons/Camera.png"
 
 def main():
     pos = Camera.GetCameraPositionToGo()

@@ -9,6 +9,7 @@ import PyImGui
 from Py4GWCoreLib.py4gwcorelib_src.Console import ConsoleLog
 
 MODULE_NAME = "HeroAI"
+MODULE_ICON = "Textures/Module_Icons/HeroAI.png"
 
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player

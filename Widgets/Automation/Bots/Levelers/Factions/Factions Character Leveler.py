@@ -7,7 +7,9 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
                           AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, HeroType, Skill, AgentArray)
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
+from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 
 MODULE_NAME = "Factions Character Leveler"
 MODULE_ICON = "Textures\\Module_Icons\\Leveler - Factions.png"
@@ -2601,5 +2603,40 @@ def main():
         Py4GW.Console.Log(bot.config.bot_name, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+def tooltip():
+    PyImGui.set_next_window_size((600, 0))
+    PyImGui.begin_tooltip()
+    
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
+    ImGui.push_font("Regular", 20)
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    
+    #ellaborate a better description 
+    PyImGui.text_wrapped("This bot levels a Factions character from 1 to 20, completing key quests and unlocking important content along the way. It manages gold and consumables automatically, allowing you to sit back and watch your character grow.")
+    PyImGui.spacing()
+    
+    # Features
+    PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Crafts Monastery, Seitung, and Max armor sets.")
+    PyImGui.bullet_text("Crafts a starter weapon in Shing Jea Monastery.")
+    PyImGui.bullet_text("Unlocks secondary professions, heroes, and key skills.")
+    PyImGui.bullet_text("Unlocks the Kilroy Stonekin and Vaettir farming runs for fast XP.")
+    PyImGui.bullet_text("...")
+    PyImGui.spacing()
+    
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Apo and Wick aka Divinus")
+    
+    PyImGui.end_tooltip()
+    
 if __name__ == "__main__":
     main()

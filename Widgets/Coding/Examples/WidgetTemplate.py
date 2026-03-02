@@ -3,6 +3,7 @@ from Py4GWCoreLib import Routines, ImGui, Color
 from Py4GWCoreLib.IniManager import IniManager
 
 MODULE_NAME = "Widget Template" # Change this to your widget name
+MODULE_ICON = "Textures/Module_Icons/Template.png" # Change this to your widget icon (optional)
 
 # ---------------------------------------
 # Ini Handling

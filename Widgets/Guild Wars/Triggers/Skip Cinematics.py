@@ -5,6 +5,9 @@ from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib import Map, ImGui, Color
 import PyImGui
 
+MODULE_NAME = "Skip Cinematic"
+MODULE_ICON = "Textures/Module_Icons/Skip Cinematic.png"
+
 module_name = "Skip Cinematic"
 
 class config:

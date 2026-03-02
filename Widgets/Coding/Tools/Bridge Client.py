@@ -37,6 +37,7 @@ from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 
 MODULE_NAME = "Bridge Client"
+MODULE_ICON = "Textures/Module_Icons/Bridge Client.png"
 OPTIONAL = True
 
 __widget__ = {

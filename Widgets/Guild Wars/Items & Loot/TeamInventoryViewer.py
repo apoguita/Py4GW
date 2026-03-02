@@ -49,6 +49,7 @@ name_request_timer = ThrottledTimer(1000)
 
 # String consts
 MODULE_NAME = "TeamInventoryViewer"  # Change this Module name
+MODULE_ICON = "Textures/Module_Icons/TeamInventoryViewer.png"
 COLLAPSED = "collapsed"
 X_POS = "x"
 Y_POS = "y"
