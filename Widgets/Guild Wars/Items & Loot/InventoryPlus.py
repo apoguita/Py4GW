@@ -851,39 +851,55 @@ class InventoryPlusWidget:
                 )
                 self.InventorySlots.append(frame)
 
-        #Colorize
-        if self.colorize_settings.enable_colorize:
-            for slot_frame in self.InventorySlots:
-                item_data: ItemSlotData = slot_frame.BlackBoard["ItemData"]
+        i_inventory_frame_id = 0
+        i_bags_bar_bottom = 0
+        i_slot_frame_ids: dict[tuple[int, int], int] = {}
+        if i_visible:
+            i_inventory_frame_id = UIManager.GetFrameIDByHash(i_inventory_frame_hash)
+            if i_inventory_frame_id != 0 and UIManager.FrameExists(i_inventory_frame_id):
+                bags_bar_id = UIManager.GetChildFrameID(i_inventory_frame_hash, i_bags_bar_offsets)
+                if bags_bar_id != 0 and UIManager.FrameExists(bags_bar_id):
+                    _, _, _, i_bags_bar_bottom = UIManager.GetFrameCoords(bags_bar_id)
+            else:
+                i_inventory_frame_id = 0
 
-                if (
-                    (item_data.Rarity == "White" and not self.colorize_settings.color_whites) or
-                    (item_data.Rarity == "Blue" and not self.colorize_settings.color_blues) or
-                    (item_data.Rarity == "Green" and not self.colorize_settings.color_greens) or
-                    (item_data.Rarity == "Purple" and not self.colorize_settings.color_purples) or
-                    (item_data.Rarity == "Gold" and not self.colorize_settings.color_golds)
-                ):
-                    continue
+        def _get_colorized_slot_colors(item_data: ItemSlotData) -> tuple[Color, Color] | None:
+            if (
+                (item_data.Rarity == "White" and not self.colorize_settings.color_whites) or
+                (item_data.Rarity == "Blue" and not self.colorize_settings.color_blues) or
+                (item_data.Rarity == "Green" and not self.colorize_settings.color_greens) or
+                (item_data.Rarity == "Purple" and not self.colorize_settings.color_purples) or
+                (item_data.Rarity == "Gold" and not self.colorize_settings.color_golds)
+            ):
+                return None
 
-                if item_data.Rarity == "White":
-                    border_color = self.colorize_settings.white_color
-                elif item_data.Rarity == "Blue":
-                    border_color = self.colorize_settings.blue_color
-                elif item_data.Rarity == "Green":
-                    border_color = self.colorize_settings.green_color
-                elif item_data.Rarity == "Purple":
-                    border_color = self.colorize_settings.purple_color
-                elif item_data.Rarity == "Gold":
-                    border_color = self.colorize_settings.gold_color
-                else:
-                    border_color = Color(0, 0, 0, 0)
+            if item_data.Rarity == "White":
+                base_color = self.colorize_settings.white_color
+            elif item_data.Rarity == "Blue":
+                base_color = self.colorize_settings.blue_color
+            elif item_data.Rarity == "Green":
+                base_color = self.colorize_settings.green_color
+            elif item_data.Rarity == "Purple":
+                base_color = self.colorize_settings.purple_color
+            elif item_data.Rarity == "Gold":
+                base_color = self.colorize_settings.gold_color
+            else:
+                base_color = Color(0, 0, 0, 0)
 
-                color:Color = border_color.copy()
-                color.set_a(25)
-                border_color.set_a(125)
+            fill_color = base_color.copy()
+            fill_color.set_a(25)
+            outline_color = base_color.copy()
+            outline_color.set_a(125)
+            return fill_color, outline_color
 
-                slot_frame.DrawFrame(color=color.to_color())
-                slot_frame.DrawFrameOutline(border_color.to_color())
+        def _remember_i_inventory_slot_prefix(prefix: list[int] | tuple[int, ...]) -> None:
+            prefix_key = tuple(prefix)
+            if prefix_key not in self.i_inventory_slot_prefix_cache:
+                self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
+                del self.i_inventory_slot_prefix_cache[8:]
+            elif self.i_inventory_slot_prefix_cache and self.i_inventory_slot_prefix_cache[0] != prefix_key:
+                self.i_inventory_slot_prefix_cache.remove(prefix_key)
+                self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
 
         io = PyImGui.get_io()
         mouse_x = io.mouse_pos_x
@@ -936,51 +952,74 @@ class InventoryPlusWidget:
                     seen.add(prefix)
                     yield list(prefix)
 
-        def _resolve_i_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
-            if not i_visible:
-                return None, False, ""
-
-            inventory_frame_id = UIManager.GetFrameIDByHash(i_inventory_frame_hash)
-            if inventory_frame_id == 0 or not UIManager.FrameExists(inventory_frame_id):
-                return None, False, ""
-
-            if not UIManager.IsMouseOver(inventory_frame_id):
-                return None, False, ""
-
-            bags_bar_bottom = 0
-            bags_bar_id = UIManager.GetChildFrameID(i_inventory_frame_hash, i_bags_bar_offsets)
-            if bags_bar_id != 0 and UIManager.FrameExists(bags_bar_id):
-                _, _, _, bags_bar_bottom = UIManager.GetFrameCoords(bags_bar_id)
+        def _resolve_i_slot_frame_id(bag_id: int, slot: int) -> int:
+            if i_inventory_frame_id == 0:
+                return 0
 
             for prefix in _iter_i_slot_offset_prefixes():
-                for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
-                    bag_size = bag_sizes.get(bag_id, 0)
-                    if bag_size <= 0:
+                slot_frame_id = UIManager.GetChildFrameID(
+                    i_inventory_frame_hash,
+                    [*prefix, bag_id - 1, slot + 2],
+                )
+                if slot_frame_id == 0 or not UIManager.FrameExists(slot_frame_id):
+                    continue
+
+                _, top, _, _ = UIManager.GetFrameCoords(slot_frame_id)
+                if i_bags_bar_bottom and top < i_bags_bar_bottom - 2:
+                    continue
+
+                _remember_i_inventory_slot_prefix(prefix)
+                return slot_frame_id
+
+            return 0
+
+        if i_inventory_frame_id != 0:
+            for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+                for slot in range(bag_sizes.get(bag_id, 0)):
+                    slot_frame_id = _resolve_i_slot_frame_id(bag_id, slot)
+                    if slot_frame_id != 0:
+                        i_slot_frame_ids[(bag_id, slot)] = slot_frame_id
+
+        #Colorize
+        if self.colorize_settings.enable_colorize:
+            for slot_frame in self.InventorySlots:
+                item_data: ItemSlotData = slot_frame.BlackBoard["ItemData"]
+                slot_colors = _get_colorized_slot_colors(item_data)
+                if slot_colors is None:
+                    continue
+
+                fill_color, outline_color = slot_colors
+                slot_frame.DrawFrame(color=fill_color.to_color())
+                slot_frame.DrawFrameOutline(outline_color.to_color())
+
+            if i_inventory_frame_id != 0:
+                ui_manager = UIManager()
+                for bag_slot, slot_frame_id in i_slot_frame_ids.items():
+                    if bag_slot not in item_data_by_bag_slot:
                         continue
 
-                    for slot in range(bag_size):
-                        slot_frame_id = UIManager.GetChildFrameID(
-                            i_inventory_frame_hash,
-                            [*prefix, bag_id - 1, slot + 2],
-                        )
-                        if slot_frame_id == 0 or not UIManager.FrameExists(slot_frame_id):
-                            continue
+                    item_data = item_data_by_bag_slot[bag_slot]
+                    slot_colors = _get_colorized_slot_colors(item_data)
+                    if slot_colors is None:
+                        continue
 
-                        left, top, right, bottom = UIManager.GetFrameCoords(slot_frame_id)
-                        if bags_bar_bottom and top < bags_bar_bottom - 2:
-                            continue
-                        if mouse_x < left or mouse_x > right or mouse_y < top or mouse_y > bottom:
-                            continue
+                    fill_color, outline_color = slot_colors
+                    ui_manager.DrawFrame(slot_frame_id, fill_color.to_color())
+                    ui_manager.DrawFrameOutline(slot_frame_id, outline_color.to_color())
 
-                        prefix_key = tuple(prefix)
-                        if prefix_key not in self.i_inventory_slot_prefix_cache:
-                            self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
-                            del self.i_inventory_slot_prefix_cache[8:]
-                        elif self.i_inventory_slot_prefix_cache and self.i_inventory_slot_prefix_cache[0] != prefix_key:
-                            self.i_inventory_slot_prefix_cache.remove(prefix_key)
-                            self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
+        def _resolve_i_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
+            if i_inventory_frame_id == 0:
+                return None, False, ""
 
-                        return item_data_by_bag_slot.get((bag_id, slot)), True, "i"
+            if not UIManager.IsMouseOver(i_inventory_frame_id):
+                return None, False, ""
+
+            for bag_slot, slot_frame_id in i_slot_frame_ids.items():
+                left, top, right, bottom = UIManager.GetFrameCoords(slot_frame_id)
+                if mouse_x < left or mouse_x > right or mouse_y < top or mouse_y > bottom:
+                    continue
+
+                return item_data_by_bag_slot.get(bag_slot), True, "i"
 
             return None, False, ""
 
