@@ -9,7 +9,7 @@ import shutil
 from Py4GWCoreLib import *
 
 
-MODULE_NAME = "Chest Manager"
+MODULE_NAME = "Xunlai Manager"
 MODULE_ICON = "Textures/Module_Icons/TeamInventoryViewer.png"
 CHEST_FRAME_ID = 752
 XUNLAI_WINDOW_HASH = 2315448754
@@ -25,8 +25,10 @@ SHOW_SETTINGS = False
 SHOW_DEBUG = False
 SLOW_MODE = False
 TRY_EMPTY_FIRST_STORAGE = False
-INI_KEY = "Chest Manager"
-INI_RELATIVE_PATH = "Settings/{account}/Inventory/ChestManager/chest_manager.ini"
+AUTO_DEPOSIT_MATERIALS = False
+WINDOW_OPEN = False
+INI_KEY = "Xunlai Manager"
+INI_RELATIVE_PATH = "Settings/{account}/Inventory/XunlaiManager/xunlai_manager.ini"
 
 
 project_root = Py4GW.Console.get_projects_path()
@@ -48,9 +50,11 @@ _selected_allowed_entry_kind_by_storage = {}
 
 SORT_STEPS_PER_FRAME = 8
 MAX_AUTO_SORT_RETRIES = 3
+MATERIAL_MAX_RESCAN_PASSES = 3
 _sort_task_state = None
 _sort_progress_ratio = 0.0
 _sort_progress_text = ""
+_material_storage_quantities_live = {}
 
 
 def _sanitize_path_component(value: str) -> str:
@@ -137,6 +141,8 @@ def _ensure_account_settings_loaded(force: bool = False):
 	global SHOW_DEBUG
 	global SLOW_MODE
 	global TRY_EMPTY_FIRST_STORAGE
+	global AUTO_DEPOSIT_MATERIALS
+	global WINDOW_OPEN
 	global _sort_task_state
 	global _selected_settings_account
 
@@ -158,6 +164,8 @@ def _ensure_account_settings_loaded(force: bool = False):
 	SHOW_DEBUG = ini_handler.read_bool(INI_KEY, "show_debug", False)
 	SLOW_MODE = ini_handler.read_bool(INI_KEY, "slow_mode", False)
 	TRY_EMPTY_FIRST_STORAGE = ini_handler.read_bool(INI_KEY, "try_empty_first_storage", False)
+	AUTO_DEPOSIT_MATERIALS = ini_handler.read_bool(INI_KEY, "auto_deposit_materials", False)
+	WINDOW_OPEN = ini_handler.read_bool(INI_KEY, "window_open", False)
 	_sort_task_state = None
 	_clear_storage_settings_cache()
 
@@ -189,6 +197,292 @@ def _is_sort_task_waiting_for_delay(task) -> bool:
 
 def _get_sort_task_delay_remaining(task) -> float:
 	return max(float(task.get("next_move_time", 0.0)) - time.monotonic(), 0.0)
+
+
+# -----------------------------------------------------------------------------
+# Material storage helpers
+# -----------------------------------------------------------------------------
+def _get_material_storage_quantities_by_model() -> dict:
+	quantities_by_model = {}
+	try:
+		material_bag = PyInventory.Bag(Bags.MaterialStorage.value, Bags.MaterialStorage.name)
+		for item in material_bag.GetItems():
+			if not item or int(item.item_id) == 0:
+				continue
+			model_id = int(item.model_id) if hasattr(item, "model_id") else int(GLOBAL_CACHE.Item.GetModelID(int(item.item_id)))
+			if model_id <= 0:
+				continue
+			quantity = int(item.quantity) if hasattr(item, "quantity") else int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item.item_id)))
+			if quantity <= 0:
+				continue
+			quantities_by_model[model_id] = min(250, quantities_by_model.get(model_id, 0) + quantity)
+	except Exception:
+		return quantities_by_model
+	return quantities_by_model
+
+
+def _is_material_storage_full_for_model(model_id: int) -> bool:
+	if int(model_id) <= 0:
+		return False
+	quantity = int(_material_storage_quantities_live.get(int(model_id), 0))
+	return quantity >= 250
+
+
+def _get_material_slot_candidates_by_model_id() -> dict:
+	fallback_slot_by_model = {}
+	for model_name, slot_indices in [
+		("Bone", [0]),
+		("Bones", [0]),
+		("Iron_Ingot", [1]),
+		("Tanned_Hide_Square", [2]),
+		("Scale", [3]),
+		("Chitin_Fragment", [4]),
+		("Bolt_Of_Cloth", [5]),
+		("Wood_Plank", [6]),
+		("Granite_Slab", [8]),
+		("Pile_Of_Glittering_Dust", [9]),
+		("Plant_Fiber", [10]),
+		("Feather", [11]),
+		("Fur_Square", [12]),
+		("Bolt_Of_Linen", [13]),
+		("Bolt_Of_Damask", [14]),
+		("Bolt_Of_Silk", [15]),
+		("Glob_Of_Ectoplasm", [16]),
+		("Steel_Ingot", [17]),
+		("Deldrimor_Steel_Ingot", [18]),
+		("Monstrous_Claw", [19]),
+		("Monstrous_Eye", [20]),
+		("Monstrous_Fang", [21]),
+		("Ruby", [22]),
+		("Sapphire", [23]),
+		("Diamond", [24]),
+		("Onyx_Gemstone", [25]),
+		("Lump_Of_Charcoal", [26]),
+		("Obsidian_Shard", [27]),
+		("Tempered_Glass_Vial", [29]),
+		("Leather_Square", [30, 2]),
+		("Elonian_Leather_Square", [31, 2]),
+		("Vial_Of_Ink", [32]),
+		("Roll_Of_Parchment", [33]),
+		("Roll_Of_Vellum", [34]),
+		("Spiritwood_Plank", [35, 6]),
+		("Amber_Chunk", [36]),
+		("Jadeite_Shard", [37]),
+	]:
+		model_member = getattr(ModelID, model_name, None)
+		if model_member is None:
+			continue
+		try:
+			fallback_slot_by_model[int(model_member.value if hasattr(model_member, "value") else model_member)] = [int(slot_index) for slot_index in slot_indices]
+		except Exception:
+			continue
+	return fallback_slot_by_model
+
+
+def _log_material_storage_counts_to_console():
+	try:
+		material_bag = PyInventory.Bag(Bags.MaterialStorage.value, Bags.MaterialStorage.name)
+		material_items = material_bag.GetItems()
+		bag_size = int(material_bag.GetSize())
+	except Exception:
+		ConsoleLog(MODULE_NAME, "Material Storage is unavailable.", Console.MessageType.Warning)
+		return
+
+	slot_entries = {}
+	for item in material_items:
+		if not item or int(item.item_id) == 0:
+			continue
+		try:
+			slot_index = int(item.slot)
+			model_id = int(item.model_id) if hasattr(item, "model_id") else int(GLOBAL_CACHE.Item.GetModelID(int(item.item_id)))
+			quantity = int(item.quantity) if hasattr(item, "quantity") else int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item.item_id)))
+		except Exception:
+			continue
+		slot_entries[slot_index] = {
+			"model_id": model_id,
+			"quantity": max(0, quantity),
+		}
+
+	ConsoleLog(MODULE_NAME, f"Material Storage slot snapshot ({bag_size} slots)", Console.MessageType.Info)
+	for slot_index in range(max(0, bag_size)):
+		entry = slot_entries.get(slot_index)
+		if entry is None:
+			ConsoleLog(MODULE_NAME, f"Slot {slot_index}: 0", Console.MessageType.Info)
+			continue
+
+		model_id = int(entry.get("model_id", 0))
+		quantity = int(entry.get("quantity", 0))
+		try:
+			model_name = ModelID(model_id).name if model_id > 0 else "Empty"
+		except Exception:
+			model_name = "Unknown"
+		ConsoleLog(MODULE_NAME, f"Slot {slot_index}: ModelID {model_id} ({model_name}) = {quantity}", Console.MessageType.Info)
+
+
+def _is_auto_deposit_material_candidate(item_id: int, item_type_name: str, model_id: int) -> bool:
+	"""Return True when an item should be considered for Material Storage auto-deposit."""
+	known_material_slots = _get_material_slot_candidates_by_model_id()
+	excluded_model_ids = {
+		31202,
+		31203,
+		31204,
+	}
+	if int(model_id) in excluded_model_ids:
+		return False
+	if int(model_id) in known_material_slots:
+		return True
+
+	if int(item_id) <= 0:
+		return False
+
+	try:
+		is_zcoin = GLOBAL_CACHE.Item.Type.IsZCoin(int(item_id))
+		if is_zcoin:
+			return False
+
+		is_material = GLOBAL_CACHE.Item.Type.IsMaterial(int(item_id))
+		is_rare_material = GLOBAL_CACHE.Item.Type.IsRareMaterial(int(item_id))
+		if is_material or is_rare_material:
+			return True
+		if str(item_type_name) == "Materials_Zcoins":
+			return True
+	except Exception:
+		pass
+
+	return False
+
+
+def _collect_material_entries_for_deposit(available_storage_bags) -> list:
+	"""Collect unique material candidates from inventory and storage bags (excluding Material Storage itself)."""
+	entries = []
+	bags_to_scan = [Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2]
+	for bag_enum in available_storage_bags:
+		if bag_enum != Bags.MaterialStorage:
+			bags_to_scan.append(bag_enum)
+
+	seen_item_ids = set()
+	for bag_enum in bags_to_scan:
+		try:
+			bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+			items = bag.GetItems()
+		except Exception:
+			continue
+
+		for item in items:
+			if not item or int(item.item_id) == 0:
+				continue
+			item_id = int(item.item_id)
+			if item_id in seen_item_ids:
+				continue
+			seen_item_ids.add(item_id)
+			type_id, type_name = GLOBAL_CACHE.Item.GetItemType(item_id)
+			if not type_name and int(type_id) == int(ItemType.Materials_Zcoins.value):
+				type_name = "Materials_Zcoins"
+			model_id = int(item.model_id) if hasattr(item, "model_id") else int(GLOBAL_CACHE.Item.GetModelID(item_id))
+			if model_id <= 0:
+				continue
+			if not _is_auto_deposit_material_candidate(item_id, str(type_name or ""), model_id):
+				continue
+			entries.append({
+				"item_id": item_id,
+				"model_id": model_id,
+				"bag_enum": bag_enum,
+			})
+
+	return entries
+
+
+def _is_entry_excluded_from_regular_sort(entry) -> bool:
+	"""Return True when an entry must be excluded from regular sorting phases.
+
+	This protects Material Storage items and reserves non-full material candidates
+	for the dedicated material-deposit phase.
+	"""
+	if entry.get("bag_enum") == Bags.MaterialStorage:
+		return True
+	if not AUTO_DEPOSIT_MATERIALS:
+		return False
+	model_id = int(entry.get("model_id", 0))
+	if not _is_auto_deposit_material_candidate(
+		int(entry.get("item_id", 0)),
+		str(entry.get("type_name", "")),
+		model_id,
+	):
+		return False
+	return not _is_material_storage_full_for_model(model_id)
+
+
+def _deposit_material_to_material_storage(item_id: int, model_id: int, material_storage_by_model: dict) -> int:
+	"""Move up to the allowed amount of a material item into Material Storage.
+
+	Returns moved units, 0 when nothing is moved, and -1 when no target slot can be resolved.
+	"""
+	fallback_slot_by_model = _get_material_slot_candidates_by_model_id()
+
+	current_qty = int(material_storage_by_model.get(model_id, 0))
+	if current_qty >= 250:
+		return 0
+
+	try:
+		source_qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+	except Exception:
+		source_qty = 0
+	if source_qty <= 0:
+		return 0
+
+	to_move = min(source_qty, 250 - current_qty)
+	if to_move <= 0:
+		return 0
+
+	try:
+		material_bag = PyInventory.Bag(Bags.MaterialStorage.value, Bags.MaterialStorage.name)
+		material_items = material_bag.GetItems()
+		bag_size = int(material_bag.GetSize())
+	except Exception:
+		return 0
+
+	target_slot = None
+	for material_item in material_items:
+		if not material_item:
+			continue
+		slot = int(material_item.slot)
+		candidate_model = int(material_item.model_id) if hasattr(material_item, "model_id") else 0
+		if candidate_model == model_id:
+			target_slot = slot
+			break
+
+	if target_slot is None:
+		mapped_slots = fallback_slot_by_model.get(model_id, [])
+		for mapped_slot in mapped_slots:
+			if 0 <= int(mapped_slot) < max(bag_size, 0):
+				target_slot = int(mapped_slot)
+				break
+
+	if target_slot is None:
+		return -1
+
+	try:
+		GLOBAL_CACHE.Inventory.MoveItem(item_id, Bags.MaterialStorage.value, int(target_slot), int(to_move))
+	except Exception:
+		return 0
+
+	_debug_log(
+		f"Material move | item={int(item_id)} modelid={int(model_id)} qty={int(to_move)} -> {Bags.MaterialStorage.value}:{int(target_slot) + 1}"
+	)
+
+	return int(to_move)
+
+
+def _start_material_phase(task, available_storage_bags, resume_phase: str):
+	material_candidates = _collect_material_entries_for_deposit(available_storage_bags)
+	task["material_candidates"] = material_candidates
+	task["material_index"] = 0
+	task["material_total"] = len(material_candidates)
+	task["material_pass_index"] = 0
+	task["material_moves_this_pass"] = 0
+	task["material_resume_phase"] = resume_phase
+	task["material_storage_by_model"] = _get_material_storage_quantities_by_model()
+	task["phase"] = "materials" if len(material_candidates) > 0 else resume_phase
 
 WEAPON_TYPE_NAMES = {
 	"Axe",
@@ -482,6 +776,9 @@ def _resolve_item_type_name(item_id: int, raw_type_name: str, model_id: int | No
 	return normalized
 
 
+# -----------------------------------------------------------------------------
+# Item classification and sort rule helpers
+# -----------------------------------------------------------------------------
 def _build_item_type_options():
 	options = []
 	for item_type in ItemType:
@@ -698,6 +995,9 @@ def _is_item_in_correct_storage(
 	return True
 
 
+# -----------------------------------------------------------------------------
+# Sort engine (collect, move, phase processing)
+# -----------------------------------------------------------------------------
 def _collect_storage_item_entries(available_storage_bags):
 	bag_states = {}
 	entries = []
@@ -778,6 +1078,9 @@ def _consolidate_storage_stacks(
 	protected_item_ids = set()
 
 	for entry in entries:
+		if _is_entry_excluded_from_regular_sort(entry):
+			continue
+
 		if entry.get("quantity", 0) < max_stack_size:
 			continue
 		if _is_item_in_correct_storage(
@@ -793,6 +1096,9 @@ def _consolidate_storage_stacks(
 
 	grouped_entries = {}
 	for entry in entries:
+		if _is_entry_excluded_from_regular_sort(entry):
+			continue
+
 		if entry.get("quantity", 0) <= 0:
 			continue
 		merge_key = _get_stack_merge_key(entry)
@@ -840,6 +1146,10 @@ def _consolidate_storage_stacks(
 					target["bag_enum"].value,
 					target["slot"],
 					move_amount,
+				)
+
+				_debug_log(
+					f"Stack merge | donor_item={int(donor_found['item_id'])} ({donor_found['bag_enum'].value}:{int(donor_found['slot']) + 1}) -> target_item={int(target['item_id'])} ({target['bag_enum'].value}:{int(target['slot']) + 1}) qty={int(move_amount)}"
 				)
 
 				donor_found["quantity"] -= move_amount
@@ -910,6 +1220,10 @@ def _move_entry_to_slot(entry, target_bag_enum, target_slot: int, bag_states) ->
 	except Exception:
 		return False
 
+	_debug_log(
+		f"Move | item={int(entry.get('item_id', 0))} modelid={int(entry.get('model_id', 0))} type={str(entry.get('type_name', 'Unknown'))} qty={int(entry.get('quantity', 0))} {source_bag.value}:{int(source_slot) + 1} -> {target_bag_enum.value}:{int(target_slot) + 1}"
+	)
+
 	_reserve_move_in_state(bag_states, source_bag, source_slot, target_bag_enum, target_slot)
 	entry["bag_enum"] = target_bag_enum
 	entry["slot"] = target_slot
@@ -930,7 +1244,16 @@ def _sort_items_within_storage_by_model_id(entries, bag_states, available_storag
 	bags_to_process = target_bags if target_bags is not None else available_storage_bags
 
 	for bag_enum in bags_to_process:
-		bag_entries = [entry for entry in entries if entry.get("bag_enum") == bag_enum and entry.get("quantity", 0) > 0]
+		if bag_enum == Bags.MaterialStorage:
+			continue
+
+		bag_entries = [
+			entry
+			for entry in entries
+			if entry.get("bag_enum") == bag_enum
+			and entry.get("quantity", 0) > 0
+			and not _is_entry_excluded_from_regular_sort(entry)
+		]
 		if len(bag_entries) <= 1:
 			continue
 
@@ -1003,7 +1326,16 @@ def _compact_storage_slots(entries, bag_states, available_storage_bags, target_b
 	bags_to_process = target_bags if target_bags is not None else available_storage_bags
 
 	for bag_enum in bags_to_process:
-		bag_entries = [entry for entry in entries if entry.get("bag_enum") == bag_enum and entry.get("quantity", 0) > 0]
+		if bag_enum == Bags.MaterialStorage:
+			continue
+
+		bag_entries = [
+			entry
+			for entry in entries
+			if entry.get("bag_enum") == bag_enum
+			and entry.get("quantity", 0) > 0
+			and not _is_entry_excluded_from_regular_sort(entry)
+		]
 		if len(bag_entries) <= 1:
 			continue
 
@@ -1046,6 +1378,9 @@ def _build_wrong_entries(
 	wrong_entries = []
 	first_storage_bag = available_storage_bags[0] if available_storage_bags and len(available_storage_bags) > 0 else None
 	for entry in entries:
+		if _is_entry_excluded_from_regular_sort(entry):
+			continue
+
 		is_wrong = not _is_item_in_correct_storage(
 			entry["bag_enum"],
 			entry["type_name"],
@@ -1108,6 +1443,9 @@ def _try_move_wrong_entry(
 	type_name = entry["type_name"]
 	model_id = int(entry.get("model_id", 0))
 	source_bag = entry["bag_enum"]
+	if source_bag == Bags.MaterialStorage:
+		return False
+
 	first_storage_bag = available_storage_bags[0] if len(available_storage_bags) > 0 else None
 	target_model_bags = filtered_bags_by_model_id.get(model_id, [])
 	has_model_priority = len(target_model_bags) > 0
@@ -1140,6 +1478,8 @@ def _try_move_wrong_entry(
 	candidate_targets = []
 	for bag_enum in available_storage_bags:
 		if bag_enum == source_bag:
+			continue
+		if bag_enum == Bags.MaterialStorage:
 			continue
 		if try_empty_first and first_storage_bag is not None and bag_enum == first_storage_bag and source_bag != first_storage_bag:
 			continue
@@ -1182,6 +1522,17 @@ def _update_sort_progress_state(task):
 	if phase == "stack":
 		_sort_progress_ratio = 0.05
 		_sort_progress_text = "Sorting (stack merge): running..."
+		if _is_sort_task_waiting_for_delay(task):
+			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
+		return
+
+	if phase == "materials":
+		total_candidates = max(int(task.get("material_total", 0)), 1)
+		processed_candidates = min(int(task.get("material_index", 0)), total_candidates)
+		material_ratio = float(processed_candidates) / float(total_candidates)
+		material_ratio = max(0.0, min(1.0, material_ratio))
+		_sort_progress_ratio = 0.05 * material_ratio
+		_sort_progress_text = f"Sorting (material deposit): {material_ratio * 100.0:.1f}%"
 		if _is_sort_task_waiting_for_delay(task):
 			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
 		return
@@ -1268,257 +1619,419 @@ def _start_sort_task(available_storage_bags):
 		"next_move_delay": 0.0,
 		"has_model_filters": _has_any_model_id_filters(available_storage_bags),
 		"try_empty_first": TRY_EMPTY_FIRST_STORAGE,
+		"post_material_phase_done": False,
 		"phase": "stack",
 	}
+
+	if AUTO_DEPOSIT_MATERIALS:
+		_sort_task_state["material_actions"] = 0
+		_sort_task_state["material_units_moved"] = 0
+		_sort_task_state["material_skipped_full"] = 0
+		_sort_task_state["material_skipped_no_slot"] = 0
+		_sort_task_state["material_no_slot_models"] = {}
+		_start_material_phase(_sort_task_state, available_storage_bags, "stack")
 
 	_update_sort_progress_state(_sort_task_state)
 
 
-def _process_sort_task():
+def _get_sort_task_context(task):
+	"""Build a compact context dictionary used by phase handlers."""
+	return {
+		"available_storage_bags": task["available_storage_bags"],
+		"allowed_by_bag": task["allowed_by_bag"],
+		"allowed_models_by_bag": task["allowed_models_by_bag"],
+		"filtered_bags_by_type": task["filtered_bags_by_type"],
+		"filtered_bags_by_model_id": task["filtered_bags_by_model_id"],
+		"wildcard_bags": task["wildcard_bags"],
+		"wildcard_model_bags": task["wildcard_model_bags"],
+		"try_empty_first": task.get("try_empty_first", False),
+		"entries": task["entries"],
+		"bag_states": task["bag_states"],
+	}
+
+
+def _process_phase_stack(task, ctx):
+	"""Run the stack-merge phase and initialize placement candidates."""
+	if task["phase"] != "stack":
+		return False
+
+	task["stack_merge_actions"] = _consolidate_storage_stacks(
+		ctx["entries"],
+		ctx["bag_states"],
+		ctx["allowed_by_bag"],
+		ctx["allowed_models_by_bag"],
+		ctx["filtered_bags_by_type"],
+		ctx["filtered_bags_by_model_id"],
+	)
+	task["wrong_entries"] = _build_wrong_entries(
+		ctx["entries"],
+		ctx["allowed_by_bag"],
+		ctx["allowed_models_by_bag"],
+		ctx["filtered_bags_by_type"],
+		ctx["filtered_bags_by_model_id"],
+		ctx["available_storage_bags"],
+		ctx["try_empty_first"],
+	)
+	task["initial_wrong_count"] = max(len(task["wrong_entries"]), 1)
+	task["current_wrong_count"] = len(task["wrong_entries"])
+	task["wrong_index"] = 0
+	task["moved_this_pass"] = 0
+	task["phase"] = "placement" if len(task["wrong_entries"]) > 0 else "model"
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_materials(task, ctx):
+	"""Run one step of the material auto-deposit phase, including rescan passes."""
+	if task["phase"] != "materials":
+		return False
+
+	material_candidates = task.get("material_candidates", [])
+	material_index = int(task.get("material_index", 0))
+	material_storage_by_model = task.get("material_storage_by_model", {})
+
+	if material_index >= len(material_candidates):
+		current_pass_index = int(task.get("material_pass_index", 0))
+		moves_this_pass = int(task.get("material_moves_this_pass", 0))
+		if moves_this_pass > 0 and current_pass_index < MATERIAL_MAX_RESCAN_PASSES:
+			task["material_pass_index"] = current_pass_index + 1
+			task["material_moves_this_pass"] = 0
+			task["material_candidates"] = _collect_material_entries_for_deposit(ctx["available_storage_bags"])
+			task["material_index"] = 0
+			task["material_total"] = len(task["material_candidates"])
+			task["material_storage_by_model"] = _get_material_storage_quantities_by_model()
+		else:
+			task["phase"] = str(task.get("material_resume_phase", "stack"))
+		_update_sort_progress_state(task)
+		return True
+
+	steps_left = 1 if SLOW_MODE else max(SORT_STEPS_PER_FRAME, 1)
+	while steps_left > 0 and task["phase"] == "materials":
+		if task["material_index"] >= len(material_candidates):
+			task["phase"] = "stack"
+			break
+
+		entry = material_candidates[task["material_index"]]
+		task["material_index"] += 1
+		steps_left -= 1
+
+		item_id = int(entry.get("item_id", 0))
+		model_id = int(entry.get("model_id", 0))
+		if item_id <= 0 or model_id <= 0:
+			continue
+
+		current_qty = int(material_storage_by_model.get(model_id, 0))
+		if current_qty >= 250:
+			task["material_skipped_full"] = int(task.get("material_skipped_full", 0)) + 1
+			continue
+
+		moved_units = _deposit_material_to_material_storage(item_id, model_id, material_storage_by_model)
+		if moved_units == -1:
+			task["material_skipped_no_slot"] = int(task.get("material_skipped_no_slot", 0)) + 1
+			no_slot_models = task.get("material_no_slot_models", {})
+			no_slot_models[model_id] = int(no_slot_models.get(model_id, 0)) + 1
+			task["material_no_slot_models"] = no_slot_models
+			continue
+		if moved_units <= 0:
+			continue
+
+		task["material_actions"] = int(task.get("material_actions", 0)) + 1
+		task["material_units_moved"] = int(task.get("material_units_moved", 0)) + int(moved_units)
+		task["material_moves_this_pass"] = int(task.get("material_moves_this_pass", 0)) + 1
+		material_storage_by_model[model_id] = min(250, int(material_storage_by_model.get(model_id, 0)) + int(moved_units))
+		_set_sort_task_move_delay(task)
+		break
+
+	if task["phase"] == "materials":
+		task["material_storage_by_model"] = material_storage_by_model
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_placement(task, ctx):
+	"""Move wrongly placed items into better target panes according to filters."""
+	if task["phase"] != "placement":
+		return False
+
+	steps_left = 1 if SLOW_MODE else max(SORT_STEPS_PER_FRAME, 1)
+	while steps_left > 0 and task["phase"] == "placement":
+		wrong_entries = task["wrong_entries"]
+		if task["wrong_index"] >= len(wrong_entries):
+			if task["moved_this_pass"] == 0:
+				task["remaining_wrong_count"] = len(wrong_entries)
+				task["phase"] = "model"
+				break
+
+			task["wrong_entries"] = _build_wrong_entries(
+				ctx["entries"],
+				ctx["allowed_by_bag"],
+				ctx["allowed_models_by_bag"],
+				ctx["filtered_bags_by_type"],
+				ctx["filtered_bags_by_model_id"],
+				ctx["available_storage_bags"],
+				ctx["try_empty_first"],
+			)
+			task["current_wrong_count"] = len(task["wrong_entries"])
+			task["wrong_index"] = 0
+			task["moved_this_pass"] = 0
+			if len(task["wrong_entries"]) == 0:
+				task["remaining_wrong_count"] = 0
+				task["phase"] = "model"
+				break
+			continue
+
+		entry = wrong_entries[task["wrong_index"]]
+		task["wrong_index"] += 1
+		steps_left -= 1
+
+		is_correct = _is_item_in_correct_storage(
+			entry["bag_enum"],
+			entry["type_name"],
+			entry.get("model_id", 0),
+			ctx["allowed_by_bag"],
+			ctx["allowed_models_by_bag"],
+			ctx["filtered_bags_by_type"],
+			ctx["filtered_bags_by_model_id"],
+		)
+		if is_correct and not (ctx["try_empty_first"] and len(ctx["available_storage_bags"]) > 0 and entry["bag_enum"] == ctx["available_storage_bags"][0]):
+			continue
+
+		if _try_move_wrong_entry(
+			entry,
+			ctx["available_storage_bags"],
+			ctx["allowed_by_bag"],
+			ctx["allowed_models_by_bag"],
+			ctx["filtered_bags_by_type"],
+			ctx["filtered_bags_by_model_id"],
+			ctx["wildcard_bags"],
+			ctx["wildcard_model_bags"],
+			ctx["bag_states"],
+			ctx["try_empty_first"],
+		):
+			task["moved_items"] += 1
+			task["moved_this_pass"] += 1
+			_set_sort_task_move_delay(task)
+			break
+
+	task["current_wrong_count"] = len(
+		_build_wrong_entries(
+			ctx["entries"],
+			ctx["allowed_by_bag"],
+			ctx["allowed_models_by_bag"],
+			ctx["filtered_bags_by_type"],
+			ctx["filtered_bags_by_model_id"],
+			ctx["available_storage_bags"],
+			ctx["try_empty_first"],
+		)
+	)
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_model(task, ctx):
+	"""Sort items by model within each pane and perform optional retry rounds."""
+	if task["phase"] != "model":
+		return False
+
+	if task["model_bag_index"] < len(ctx["available_storage_bags"]):
+		bag_enum = ctx["available_storage_bags"][task["model_bag_index"]]
+		max_model_moves = 1 if SLOW_MODE else None
+		model_sort_actions, unresolved_model_sort_bags, completed_bag = _sort_items_within_storage_by_model_id(
+			ctx["entries"],
+			ctx["bag_states"],
+			ctx["available_storage_bags"],
+			[bag_enum],
+			max_model_moves,
+		)
+		task["model_sort_actions"] += model_sort_actions
+		if model_sort_actions > 0:
+			_set_sort_task_move_delay(task)
+		if completed_bag:
+			task["unresolved_model_sort_bags"] += unresolved_model_sort_bags
+			task["model_bag_index"] += 1
+		_update_sort_progress_state(task)
+		return True
+
+	remaining_wrong_entries = _build_wrong_entries(
+		ctx["entries"],
+		ctx["allowed_by_bag"],
+		ctx["allowed_models_by_bag"],
+		ctx["filtered_bags_by_type"],
+		ctx["filtered_bags_by_model_id"],
+		ctx["available_storage_bags"],
+		False,
+	)
+	task["remaining_wrong_count"] = len(remaining_wrong_entries)
+	moved_in_round = int(task.get("moved_items", 0)) - int(task.get("round_start_moved_items", 0))
+	can_retry = (
+		task["remaining_wrong_count"] > 0
+		and moved_in_round > 0
+		and int(task.get("retry_round", 0)) < int(MAX_AUTO_SORT_RETRIES)
+	)
+
+	if can_retry:
+		task["retry_round"] = int(task.get("retry_round", 0)) + 1
+		task["wrong_entries"] = list(remaining_wrong_entries)
+		task["initial_wrong_count"] = max(len(task["wrong_entries"]), 1)
+		task["current_wrong_count"] = len(task["wrong_entries"])
+		task["wrong_index"] = 0
+		task["moved_this_pass"] = 0
+		task["round_start_moved_items"] = int(task.get("moved_items", 0))
+		task["phase"] = "placement"
+		_debug_log(
+			f"Auto-retry sort round {task['retry_round']}/{MAX_AUTO_SORT_RETRIES} (remaining incorrect: {task['remaining_wrong_count']})."
+		)
+		_update_sort_progress_state(task)
+		return True
+
+	task["phase"] = "compact"
+	task["compact_bag_index"] = 0
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_compact(task, ctx):
+	"""Compact slots per pane and trigger the final material pass when enabled."""
+	if task["phase"] != "compact":
+		return False
+
+	if task["compact_bag_index"] < len(ctx["available_storage_bags"]):
+		bag_enum = ctx["available_storage_bags"][task["compact_bag_index"]]
+		max_compact_moves = 1 if SLOW_MODE else None
+		compact_actions, completed_bag = _compact_storage_slots(
+			ctx["entries"],
+			ctx["bag_states"],
+			ctx["available_storage_bags"],
+			[bag_enum],
+			max_compact_moves,
+		)
+		task["compact_actions"] += compact_actions
+		if compact_actions > 0:
+			_set_sort_task_move_delay(task)
+		if completed_bag:
+			task["compact_bag_index"] += 1
+		_update_sort_progress_state(task)
+		return True
+
+	if AUTO_DEPOSIT_MATERIALS and not bool(task.get("post_material_phase_done", False)):
+		task["post_material_phase_done"] = True
+		_start_material_phase(task, ctx["available_storage_bags"], "finalize")
+		_update_sort_progress_state(task)
+		return True
+
+	task["phase"] = "finalize"
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_finalize(task, ctx):
+	"""Emit final warnings/debug summaries and complete the active sort task."""
 	global _sort_task_state
+
+	if task["phase"] != "finalize":
+		return False
+
+	bag_label_by_enum = {}
+	for index, bag_enum in enumerate(ctx["available_storage_bags"], start=1):
+		bag_label_by_enum[bag_enum] = _to_roman(index)
+
+	remaining_wrong_entries = _build_wrong_entries(
+		ctx["entries"],
+		ctx["allowed_by_bag"],
+		ctx["allowed_models_by_bag"],
+		ctx["filtered_bags_by_type"],
+		ctx["filtered_bags_by_model_id"],
+		ctx["available_storage_bags"],
+		False,
+	)
+	task["remaining_wrong_count"] = len(remaining_wrong_entries)
+
+	if len(remaining_wrong_entries) > 0:
+		for entry in remaining_wrong_entries:
+			pane_label = bag_label_by_enum.get(entry["bag_enum"], str(entry["bag_enum"].value))
+			slot_number = int(entry["slot"]) + 1
+			ConsoleLog(
+				MODULE_NAME,
+				f"Incorrect placement: Pane {pane_label}, Slot {slot_number}, Type {entry['type_name']}, Quantity {entry['quantity']}, ItemID {entry['item_id']}",
+				Console.MessageType.Warning,
+			)
+	else:
+		_debug_log("All items are in the correct pane after sorting.")
+
+	if AUTO_DEPOSIT_MATERIALS:
+		remaining_material_entries = [
+			entry
+			for entry in _collect_material_entries_for_deposit(ctx["available_storage_bags"])
+			if entry.get("bag_enum") != Bags.MaterialStorage
+		]
+		if len(remaining_material_entries) > 0:
+			material_full = int(task.get("material_skipped_full", 0))
+			material_no_slot = int(task.get("material_skipped_no_slot", 0))
+			ConsoleLog(
+				MODULE_NAME,
+				f"Auto-Deposit Materials incomplete: {len(remaining_material_entries)} items still outside Material Storage (full={material_full}, no_slot={material_no_slot}).",
+				Console.MessageType.Warning,
+			)
+			no_slot_models = task.get("material_no_slot_models", {})
+			if len(no_slot_models) > 0:
+				for model_id in sorted(no_slot_models.keys()):
+					count = int(no_slot_models.get(model_id, 0))
+					try:
+						model_name = ModelID(int(model_id)).name
+					except Exception:
+						model_name = "Unknown"
+					ConsoleLog(
+						MODULE_NAME,
+						f"Auto-Deposit no_slot model: {int(model_id)} ({model_name}) hits={count}",
+						Console.MessageType.Warning,
+					)
+
+	if task["unresolved_model_sort_bags"] > 0 and task.get("has_model_filters", False):
+		ConsoleLog(
+			MODULE_NAME,
+			f"Model-ID sorting incomplete in {task['unresolved_model_sort_bags']} storage tabs (no free slot/move failed).",
+			Console.MessageType.Warning,
+		)
+
+	_debug_log(
+		f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Compact moves: {task['compact_actions']} | Incorrect remaining: {task['remaining_wrong_count']}"
+	)
+
+	task["phase"] = "done"
+	_update_sort_progress_state(task)
+	_sort_task_state = None
+	return True
+
+
+def _process_sort_task():
+	"""Main dispatcher that advances the active sort task by one phase step."""
+	global _sort_task_state
+	global _material_storage_quantities_live
 
 	if _sort_task_state is None:
 		return
 
 	task = _sort_task_state
-	available_storage_bags = task["available_storage_bags"]
-	allowed_by_bag = task["allowed_by_bag"]
-	allowed_models_by_bag = task["allowed_models_by_bag"]
-	filtered_bags_by_type = task["filtered_bags_by_type"]
-	filtered_bags_by_model_id = task["filtered_bags_by_model_id"]
-	wildcard_bags = task["wildcard_bags"]
-	wildcard_model_bags = task["wildcard_model_bags"]
-	try_empty_first = task.get("try_empty_first", False)
-	entries = task["entries"]
-	bag_states = task["bag_states"]
+	ctx = _get_sort_task_context(task)
+
+	if AUTO_DEPOSIT_MATERIALS:
+		_material_storage_quantities_live = _get_material_storage_quantities_by_model()
 
 	if _is_sort_task_waiting_for_delay(task):
 		_update_sort_progress_state(task)
 		return
 
-	if task["phase"] == "stack":
-		task["stack_merge_actions"] = _consolidate_storage_stacks(
-			entries,
-			bag_states,
-			allowed_by_bag,
-			allowed_models_by_bag,
-			filtered_bags_by_type,
-			filtered_bags_by_model_id,
-		)
-		task["wrong_entries"] = _build_wrong_entries(
-			entries,
-			allowed_by_bag,
-			allowed_models_by_bag,
-			filtered_bags_by_type,
-			filtered_bags_by_model_id,
-			available_storage_bags,
-			try_empty_first,
-		)
-		task["initial_wrong_count"] = max(len(task["wrong_entries"]), 1)
-		task["current_wrong_count"] = len(task["wrong_entries"])
-		task["wrong_index"] = 0
-		task["moved_this_pass"] = 0
-		task["phase"] = "placement" if len(task["wrong_entries"]) > 0 else "model"
-		_update_sort_progress_state(task)
+	if _process_phase_stack(task, ctx):
 		return
-
-	if task["phase"] == "placement":
-		steps_left = 1 if SLOW_MODE else max(SORT_STEPS_PER_FRAME, 1)
-		while steps_left > 0 and task["phase"] == "placement":
-			wrong_entries = task["wrong_entries"]
-			if task["wrong_index"] >= len(wrong_entries):
-				if task["moved_this_pass"] == 0:
-					task["remaining_wrong_count"] = len(wrong_entries)
-					task["phase"] = "model"
-					break
-
-				task["wrong_entries"] = _build_wrong_entries(
-					entries,
-					allowed_by_bag,
-					allowed_models_by_bag,
-					filtered_bags_by_type,
-					filtered_bags_by_model_id,
-					available_storage_bags,
-					try_empty_first,
-				)
-				task["current_wrong_count"] = len(task["wrong_entries"])
-				task["wrong_index"] = 0
-				task["moved_this_pass"] = 0
-				if len(task["wrong_entries"]) == 0:
-					task["remaining_wrong_count"] = 0
-					task["phase"] = "model"
-					break
-				continue
-
-			entry = wrong_entries[task["wrong_index"]]
-			task["wrong_index"] += 1
-			steps_left -= 1
-
-			is_correct = _is_item_in_correct_storage(
-				entry["bag_enum"],
-				entry["type_name"],
-				entry.get("model_id", 0),
-				allowed_by_bag,
-				allowed_models_by_bag,
-				filtered_bags_by_type,
-				filtered_bags_by_model_id,
-			)
-			if is_correct and not (try_empty_first and len(available_storage_bags) > 0 and entry["bag_enum"] == available_storage_bags[0]):
-				continue
-
-			if _try_move_wrong_entry(
-				entry,
-				available_storage_bags,
-				allowed_by_bag,
-				allowed_models_by_bag,
-				filtered_bags_by_type,
-				filtered_bags_by_model_id,
-				wildcard_bags,
-				wildcard_model_bags,
-				bag_states,
-				try_empty_first,
-			):
-				task["moved_items"] += 1
-				task["moved_this_pass"] += 1
-				_set_sort_task_move_delay(task)
-				break
-
-		task["current_wrong_count"] = len(
-			_build_wrong_entries(
-				entries,
-				allowed_by_bag,
-				allowed_models_by_bag,
-				filtered_bags_by_type,
-				filtered_bags_by_model_id,
-				available_storage_bags,
-				try_empty_first,
-			)
-		)
-		_update_sort_progress_state(task)
+	if _process_phase_materials(task, ctx):
 		return
-
-	if task["phase"] == "model":
-		if task["model_bag_index"] < len(available_storage_bags):
-			bag_enum = available_storage_bags[task["model_bag_index"]]
-			max_model_moves = 1 if SLOW_MODE else None
-			model_sort_actions, unresolved_model_sort_bags, completed_bag = _sort_items_within_storage_by_model_id(
-				entries,
-				bag_states,
-				available_storage_bags,
-				[bag_enum],
-				max_model_moves,
-			)
-			task["model_sort_actions"] += model_sort_actions
-			if model_sort_actions > 0:
-				_set_sort_task_move_delay(task)
-			if completed_bag:
-				task["unresolved_model_sort_bags"] += unresolved_model_sort_bags
-				task["model_bag_index"] += 1
-			_update_sort_progress_state(task)
-			return
-
-		bag_label_by_enum = {}
-		for index, bag_enum in enumerate(available_storage_bags, start=1):
-			bag_label_by_enum[bag_enum] = _to_roman(index)
-
-		remaining_wrong_entries = _build_wrong_entries(
-			entries,
-			allowed_by_bag,
-			allowed_models_by_bag,
-			filtered_bags_by_type,
-			filtered_bags_by_model_id,
-			available_storage_bags,
-			False,
-		)
-		task["remaining_wrong_count"] = len(remaining_wrong_entries)
-		moved_in_round = int(task.get("moved_items", 0)) - int(task.get("round_start_moved_items", 0))
-		can_retry = (
-			task["remaining_wrong_count"] > 0
-			and moved_in_round > 0
-			and int(task.get("retry_round", 0)) < int(MAX_AUTO_SORT_RETRIES)
-		)
-
-		if can_retry:
-			task["retry_round"] = int(task.get("retry_round", 0)) + 1
-			task["wrong_entries"] = list(remaining_wrong_entries)
-			task["initial_wrong_count"] = max(len(task["wrong_entries"]), 1)
-			task["current_wrong_count"] = len(task["wrong_entries"])
-			task["wrong_index"] = 0
-			task["moved_this_pass"] = 0
-			task["round_start_moved_items"] = int(task.get("moved_items", 0))
-			task["phase"] = "placement"
-			_debug_log(
-				f"Auto-retry sort round {task['retry_round']}/{MAX_AUTO_SORT_RETRIES} (remaining incorrect: {task['remaining_wrong_count']})."
-			)
-			_update_sort_progress_state(task)
-			return
-
-		task["phase"] = "compact"
-		task["compact_bag_index"] = 0
-		_update_sort_progress_state(task)
+	if _process_phase_placement(task, ctx):
 		return
-
-	if task["phase"] == "compact":
-		if task["compact_bag_index"] < len(available_storage_bags):
-			bag_enum = available_storage_bags[task["compact_bag_index"]]
-			max_compact_moves = 1 if SLOW_MODE else None
-			compact_actions, completed_bag = _compact_storage_slots(
-				entries,
-				bag_states,
-				available_storage_bags,
-				[bag_enum],
-				max_compact_moves,
-			)
-			task["compact_actions"] += compact_actions
-			if compact_actions > 0:
-				_set_sort_task_move_delay(task)
-			if completed_bag:
-				task["compact_bag_index"] += 1
-			_update_sort_progress_state(task)
-			return
-
-		bag_label_by_enum = {}
-		for index, bag_enum in enumerate(available_storage_bags, start=1):
-			bag_label_by_enum[bag_enum] = _to_roman(index)
-
-		remaining_wrong_entries = _build_wrong_entries(
-			entries,
-			allowed_by_bag,
-			allowed_models_by_bag,
-			filtered_bags_by_type,
-			filtered_bags_by_model_id,
-			available_storage_bags,
-			False,
-		)
-		task["remaining_wrong_count"] = len(remaining_wrong_entries)
-
-		if len(remaining_wrong_entries) > 0:
-			for entry in remaining_wrong_entries:
-				pane_label = bag_label_by_enum.get(entry["bag_enum"], str(entry["bag_enum"].value))
-				slot_number = int(entry["slot"]) + 1
-				ConsoleLog(
-					MODULE_NAME,
-					f"Incorrect placement: Pane {pane_label}, Slot {slot_number}, Type {entry['type_name']}, Quantity {entry['quantity']}, ItemID {entry['item_id']}",
-					Console.MessageType.Warning,
-				)
-		else:
-			_debug_log("All items are in the correct pane after sorting.")
-
-		if task["unresolved_model_sort_bags"] > 0 and task.get("has_model_filters", False):
-			ConsoleLog(
-				MODULE_NAME,
-				f"Model-ID sorting incomplete in {task['unresolved_model_sort_bags']} storage tabs (no free slot/move failed).",
-				Console.MessageType.Warning,
-			)
-
-		_debug_log(
-			f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Compact moves: {task['compact_actions']} | Incorrect remaining: {task['remaining_wrong_count']}"
-		)
-
-		task["phase"] = "done"
-		_update_sort_progress_state(task)
-		_sort_task_state = None
+	if _process_phase_model(task, ctx):
 		return
+	if _process_phase_compact(task, ctx):
+		return
+	_process_phase_finalize(task, ctx)
 
 
 def _calculate_correct_item_progress(available_storage_bags):
@@ -1756,8 +2269,11 @@ def _get_slot_item_type_rows(bag_enum, allowed_types=None):
 	except Exception:
 		return []
 
-def _get_storage_anchor_position():
-	anchor_window_width = max(float(_last_window_width), float(COMPACT_WINDOW_MIN_WIDTH))
+def _get_storage_anchor_position(anchor_window_width=None):
+	if anchor_window_width is None:
+		anchor_window_width = max(float(_last_window_width), float(COMPACT_WINDOW_MIN_WIDTH))
+	else:
+		anchor_window_width = max(float(anchor_window_width), 1.0)
 	frame_id = 0
 
 	try:
@@ -1797,6 +2313,96 @@ def _get_storage_anchor_position():
 	return float(left - ANCHOR_OFFSET_X - anchor_window_width), float(top + ANCHOR_OFFSET_Y)
 
 
+# -----------------------------------------------------------------------------
+# UI rendering and interactions
+# -----------------------------------------------------------------------------
+def _draw_storage_hover_modelid_tooltip(available_storage_bags):
+	try:
+		hovered_item_id = int(GLOBAL_CACHE.Inventory.GetHoveredItemID())
+	except Exception:
+		return
+
+	if hovered_item_id <= 0:
+		return
+
+	for bag_index, bag_enum in enumerate(available_storage_bags, start=1):
+		try:
+			bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+			items = bag.GetItems()
+		except Exception:
+			continue
+
+		for item in items:
+			if not item or int(item.item_id) != hovered_item_id:
+				continue
+
+			try:
+				model_id = int(item.model_id) if hasattr(item, "model_id") else int(GLOBAL_CACHE.Item.GetModelID(hovered_item_id))
+			except Exception:
+				model_id = 0
+
+			try:
+				type_id, type_name = GLOBAL_CACHE.Item.GetItemType(hovered_item_id)
+				if not type_name:
+					type_name = f"Type {type_id}"
+				resolved_type_name = _resolve_item_type_name(hovered_item_id, type_name, model_id)
+			except Exception:
+				resolved_type_name = "Unknown"
+
+			if PyImGui.begin_tooltip():
+				PyImGui.text(f"ModelID: {model_id}")
+				PyImGui.text(f"Type: {resolved_type_name}")
+				PyImGui.end_tooltip()
+			return
+
+
+def _draw_toggle_icon_window():
+	global WINDOW_OPEN
+
+	icon_window_size = 40.0
+	anchor_pos = _get_storage_anchor_position(icon_window_size)
+	if anchor_pos is not None:
+		PyImGui.set_next_window_pos(anchor_pos[0] + 60.0, anchor_pos[1] + 55.0)
+	PyImGui.set_next_window_size(icon_window_size, icon_window_size)
+
+	icon_window_flags = (
+		PyImGui.WindowFlags.NoTitleBar
+		| PyImGui.WindowFlags.NoResize
+		| PyImGui.WindowFlags.NoScrollbar
+		| PyImGui.WindowFlags.NoCollapse
+		| PyImGui.WindowFlags.NoBackground
+	)
+	PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0.0, 0.0)
+	if PyImGui.begin("##XunlaiManagerToggle", icon_window_flags):
+		icon_path = MODULE_ICON
+		absolute_icon_path = os.path.join(project_root, MODULE_ICON)
+		if os.path.exists(absolute_icon_path):
+			icon_path = absolute_icon_path
+
+		icon_size = 36.0
+		icon_offset = (icon_window_size - icon_size) / 2.0
+		cursor_x, cursor_y = PyImGui.get_cursor_screen_pos()
+		draw_pos = (cursor_x + icon_offset, cursor_y + icon_offset)
+		try:
+			ImGui.DrawTextureInDrawList(draw_pos, (icon_size, icon_size), icon_path)
+		except Exception:
+			PyImGui.set_cursor_screen_pos(draw_pos[0] + 6.0, draw_pos[1] + 8.0)
+			PyImGui.text("CM")
+
+		PyImGui.set_cursor_screen_pos(cursor_x, cursor_y)
+		clicked_toggle = PyImGui.invisible_button("##XunlaiManagerToggleButton", icon_window_size, icon_window_size)
+
+		if clicked_toggle:
+			WINDOW_OPEN = not WINDOW_OPEN
+			ini_handler.write_key(INI_KEY, "window_open", WINDOW_OPEN)
+		if PyImGui.is_item_hovered():
+			if PyImGui.begin_tooltip():
+				PyImGui.text("Open Xunlai Manager" if not WINDOW_OPEN else "Hide Xunlai Manager")
+				PyImGui.end_tooltip()
+	PyImGui.end()
+	PyImGui.pop_style_var(1)
+
+
 def _draw_window():
 	global ANNIVERSARY_SLOT_UNLOCKED
 	global _last_saved_anniversary_slot_unlocked
@@ -1804,6 +2410,8 @@ def _draw_window():
 	global SHOW_DEBUG
 	global SLOW_MODE
 	global TRY_EMPTY_FIRST_STORAGE
+	global AUTO_DEPOSIT_MATERIALS
+	global WINDOW_OPEN
 	global _sort_task_state
 	global _sort_progress_ratio
 	global _sort_progress_text
@@ -1813,6 +2421,14 @@ def _draw_window():
 	_ensure_account_settings_loaded()
 
 	if not GLOBAL_CACHE.Inventory.IsStorageOpen():
+		return
+
+	_draw_toggle_icon_window()
+
+	if _sort_task_state is not None and not WINDOW_OPEN:
+		_process_sort_task()
+
+	if not WINDOW_OPEN:
 		return
 
 	window_flags = PyImGui.WindowFlags.AlwaysAutoResize
@@ -1826,6 +2442,7 @@ def _draw_window():
 	if not PyImGui.begin(MODULE_NAME, True, window_flags):
 		PyImGui.end()
 		return
+
 
 
 	#PyImGui.separator()
@@ -1857,13 +2474,26 @@ def _draw_window():
 		if TRY_EMPTY_FIRST_STORAGE != previous_try_empty_first:
 			ini_handler.write_key(INI_KEY, "try_empty_first_storage", TRY_EMPTY_FIRST_STORAGE)
 
+		previous_auto_deposit_materials = AUTO_DEPOSIT_MATERIALS
+		AUTO_DEPOSIT_MATERIALS = PyImGui.checkbox("Auto-Deposit Materials", AUTO_DEPOSIT_MATERIALS)
+		if AUTO_DEPOSIT_MATERIALS != previous_auto_deposit_materials:
+			ini_handler.write_key(INI_KEY, "auto_deposit_materials", AUTO_DEPOSIT_MATERIALS)
+
 	available_storage_bags = _get_available_storage_bags(ANNIVERSARY_SLOT_UNLOCKED)
+	_draw_storage_hover_modelid_tooltip(available_storage_bags)
 	if _sort_task_state is None:
 		if PyImGui.button("Sort"):
 			_start_sort_task(available_storage_bags)
+		if SHOW_DEBUG:
+			PyImGui.same_line(0, 8)
+			if PyImGui.button("Read MaterialStorage"):
+				_log_material_storage_counts_to_console()
 	else:
 		PyImGui.begin_disabled(True)
 		PyImGui.button("Sort")
+		if SHOW_DEBUG:
+			PyImGui.same_line(0, 8)
+			PyImGui.button("Read MaterialStorage")
 		PyImGui.end_disabled()
 
 	if _sort_task_state is not None:
@@ -1893,6 +2523,19 @@ def _draw_window():
 	if _sort_task_state is not None:
 		progress_text = _sort_progress_text if _sort_progress_text else "Sortiere..."
 		PyImGui.progress_bar(_sort_progress_ratio, -1, 0, f"{_sort_progress_ratio * 100.0:.1f}% {progress_text}")
+
+	if SHOW_DEBUG and AUTO_DEPOSIT_MATERIALS:
+		if _sort_task_state is not None:
+			material_done = int(_sort_task_state.get("material_index", 0))
+			material_total = int(_sort_task_state.get("material_total", 0))
+			material_actions = int(_sort_task_state.get("material_actions", 0))
+			material_units = int(_sort_task_state.get("material_units_moved", 0))
+			material_full = int(_sort_task_state.get("material_skipped_full", 0))
+			material_no_slot = int(_sort_task_state.get("material_skipped_no_slot", 0))
+			PyImGui.text(f"Material deposit: {material_done}/{material_total} checked | Moves: {material_actions} | Units: {material_units}")
+			PyImGui.text(f"Material skips: full={material_full} | no_slot={material_no_slot}")
+		else:
+			PyImGui.text("Material deposit: idle")
 	PyImGui.separator()
 
 	if SHOW_SETTINGS:
@@ -1904,17 +2547,17 @@ def _draw_window():
 			if _selected_settings_account not in account_options:
 				_selected_settings_account = loaded_account if loaded_account in account_options else account_options[0]
 			selected_index = account_options.index(_selected_settings_account)
-			selected_index = PyImGui.combo("Settings account", selected_index, account_options)
+			selected_index = PyImGui.combo("Load settings from this account", selected_index, account_options)
 			selected_index = max(0, min(selected_index, len(account_options) - 1))
 			_selected_settings_account = account_options[selected_index]
 
-			if PyImGui.button("Load settings account"):
+			if PyImGui.button("Load"):
 				_copy_account_settings_to_current(_selected_settings_account, runtime_account)
 				_ensure_account_settings_loaded(force=True)
 
 		PyImGui.separator()
 
-		if PyImGui.begin_tab_bar("##ChestStorageTabs"):
+		if PyImGui.begin_tab_bar("##XunlaiStorageTabs"):
 			for index, (bag_enum, info) in enumerate(bag_infos, start=1):
 				tab_label = _to_roman(index)
 				if PyImGui.begin_tab_item(tab_label):
