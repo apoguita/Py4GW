@@ -279,28 +279,397 @@ def _id_all(cfg: IdentificationSettings):
     GLOBAL_CACHE.Coroutines.append(routine)
     
 #region salvage_helpers
-def _salvage_items(rarity: str):
-    from Py4GWCoreLib.Routines import Routines
+def _get_inventory_item_ids() -> list[int]:
+    from Py4GWCoreLib import ItemArray
+    from Py4GWCoreLib.enums_src.Item_enums import Bags
+
+    bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
+    return ItemArray.GetItemArray(bag_list)
+
+
+
+def _get_item_id_at_bag_slot(bag_id: int, slot: int) -> int:
+    from Py4GWCoreLib import Item, ItemArray
+
+    item_array = ItemArray.GetItemArray(ItemArray.CreateBagList(bag_id))
+    for item_id in item_array:
+        if int(Item.GetSlot(item_id)) == slot:
+            return item_id
+    return 0
+
+
+
+def _get_salvageable_items_for_rarities(rarities: list[str]) -> list[int]:
+    from Py4GWCoreLib import Item, ItemArray
+    from Py4GWCoreLib.enums_src.Item_enums import Bags
+
+    salvageable_items: list[int] = []
+    rarity_filter = set(rarities)
+
+    for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+        item_array = ItemArray.GetItemArray(ItemArray.CreateBagList(bag_id))
+        for item_id in item_array:
+            item_instance = Item.item_instance(item_id)
+            rarity = item_instance.rarity.name
+
+            if rarity not in rarity_filter:
+                continue
+            if not (item_instance.is_identified or rarity == "White"):
+                continue
+            if not item_instance.is_salvageable:
+                continue
+
+            salvageable_items.append(item_id)
+
+    return salvageable_items
+
+
+
+def _is_supported_salvage_kit_item(item_id: int, inventory_item_ids: set[int] | None = None) -> bool:
+    from Py4GWCoreLib import Item
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID
+
+    if item_id == 0:
+        return False
+    if inventory_item_ids is not None and item_id not in inventory_item_ids:
+        return False
+
+    return (
+        Item.Usage.IsSalvageKit(item_id)
+        and Item.Usage.GetUses(item_id) > 0
+        and int(Item.GetModelID(item_id)) in {
+            ModelID.Salvage_Kit,
+            ModelID.Expert_Salvage_Kit,
+            ModelID.Superior_Salvage_Kit,
+        }
+    )
+
+
+
+def _get_supported_salvage_kit_id(selected_kit: ItemSlotData | None = None) -> int:
+    from Py4GWCoreLib import Item
     from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-    salvageable_items = Routines.Items.GetSalvageableItems([rarity], [])
-    routine = Routines.Yield.Items.SalvageItems(salvageable_items, log=True)
+
+    inventory_item_ids = _get_inventory_item_ids()
+    inventory_item_id_set = set(inventory_item_ids)
+
+    if selected_kit is not None:
+        selected_kit_item_id = _get_item_id_at_bag_slot(selected_kit.BagID, selected_kit.Slot)
+        if (
+            _is_supported_salvage_kit_item(selected_kit_item_id, inventory_item_id_set)
+            and int(Item.GetModelID(selected_kit_item_id)) == selected_kit.ModelID
+        ):
+            return selected_kit_item_id
+
+    lesser_kit_item_id = GLOBAL_CACHE.Inventory.GetFirstSalvageKit()
+    if _is_supported_salvage_kit_item(lesser_kit_item_id, inventory_item_id_set):
+        return lesser_kit_item_id
+
+    supported_kits = [
+        item_id
+        for item_id in inventory_item_ids
+        if _is_supported_salvage_kit_item(item_id, inventory_item_id_set)
+    ]
+    if not supported_kits:
+        return 0
+
+    return min(supported_kits, key=lambda item_id: Item.Usage.GetUses(item_id))
+
+
+
+def _wait_for_salvage_session_idle(inventory_instance, timeout_ms: int = 1500, poll_ms: int = 50):
+    from Py4GWCoreLib.Routines import Routines
+
+    supports_state_tracking = (
+        inventory_instance is not None
+        and hasattr(inventory_instance, "IsSalvaging")
+        and hasattr(inventory_instance, "IsSalvageTransactionDone")
+    )
+    if not supports_state_tracking:
+        return True
+
+    waited_ms = 0
+    while waited_ms < max(0, timeout_ms):
+        if not inventory_instance.IsSalvaging() and not inventory_instance.IsSalvageTransactionDone():
+            return True
+        yield from Routines.Yield.wait(max(1, poll_ms))
+        waited_ms += max(1, poll_ms)
+    return False
+
+
+
+def _get_post_salvage_status(item_id: int, item_instance, allowed_rarities: set[str] | None = None) -> str:
+    current_inventory_item_ids = set(_get_inventory_item_ids())
+    if item_id not in current_inventory_item_ids:
+        return "salvaged"
+
+    item_instance.GetContext()
+    current_rarity = item_instance.rarity.name
+    if allowed_rarities is not None and current_rarity not in allowed_rarities:
+        return "processed"
+    if not item_instance.is_salvageable:
+        return "processed"
+
+    return "retry"
+
+
+
+def _salvage_single_item_with_supported_kit(item_id: int, label: str, selected_kit: ItemSlotData | None = None, allowed_rarities: set[str] | None = None):
+    import PyInventory
+    import PyItem
+    from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ConsoleLog, Console
+    from Py4GWCoreLib import Item
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID
+    from Py4GWCoreLib.Inventory import Inventory
+    from Py4GWCoreLib.Routines import Routines
+
+    queue_wait_timeout_ms = 5000
+    salvage_wait_timeout_ms = 10000
+    salvage_poll_ms = 50
+
+    if item_id not in set(_get_inventory_item_ids()):
+        return "missing_item"
+
+    salvage_kit_item_id = _get_supported_salvage_kit_id(selected_kit)
+    if salvage_kit_item_id == 0:
+        ConsoleLog("SalvageItems", "No salvage kits found.", Console.MessageType.Warning)
+        return "no_kit"
+
+    item_instance = PyItem.PyItem(item_id)
+    item_instance.GetContext()
+    starting_quantity = item_instance.quantity
+    if starting_quantity == 0:
+        return "missing_item"
+
+    _, rarity = Item.Rarity.GetRarity(item_id)
+    if allowed_rarities is not None and rarity not in allowed_rarities:
+        return "filtered_out"
+    if not item_instance.is_salvageable:
+        return "filtered_out"
+
+    require_materials_confirmation = rarity == "Purple" or rarity == "Gold"
+    advanced_kit_tracking = int(Item.GetModelID(salvage_kit_item_id)) in {
+        ModelID.Expert_Salvage_Kit,
+        ModelID.Superior_Salvage_Kit,
+    }
+    manual_choice_required = require_materials_confirmation and advanced_kit_tracking
+
+    inventory_instance = PyInventory.PyInventory() if advanced_kit_tracking else None
+    supports_state_tracking = (
+        inventory_instance is not None
+        and hasattr(inventory_instance, "IsSalvaging")
+        and hasattr(inventory_instance, "IsSalvageTransactionDone")
+    )
+    supports_finish_salvage = inventory_instance is not None and hasattr(inventory_instance, "FinishSalvage")
+
+    if advanced_kit_tracking and inventory_instance is not None:
+        try:
+            if manual_choice_required:
+                inventory_instance.StartSalvage(salvage_kit_item_id, item_id)
+                yield from Routines.Yield.wait(salvage_poll_ms)
+                inventory_instance.ContinueSalvage()
+                yield from Routines.Yield.wait(salvage_poll_ms)
+            else:
+                inventory_instance.Salvage(salvage_kit_item_id, item_id)
+                yield from Routines.Yield.wait(salvage_poll_ms)
+        except Exception:
+            ConsoleLog("SalvageItems", f"Advanced salvage start failed (item_id={item_id}).", Console.MessageType.Warning)
+            return "failed"
+    else:
+        ActionQueueManager().AddAction("SALVAGE", Inventory.SalvageItem, item_id, salvage_kit_item_id)
+        queue_drained = yield from Routines.Yield.Items._wait_for_empty_queue("SALVAGE", timeout_ms=queue_wait_timeout_ms)
+        if not queue_drained:
+            ConsoleLog("SalvageItems", f"Timed out waiting for salvage queue after starting salvage (item_id={item_id}).", Console.MessageType.Warning)
+            return "failed"
+
+    if require_materials_confirmation and not manual_choice_required:
+        found_confirm_window = yield from Routines.Yield.Items._wait_for_salvage_materials_window(
+            timeout_ms=1500,
+            poll_ms=salvage_poll_ms,
+            initial_wait_ms=150,
+        )
+        if not found_confirm_window:
+            ConsoleLog("SalvageItems", f"Timed out waiting for salvage confirmation window (item_id={item_id}).", Console.MessageType.Warning)
+            return "failed"
+
+        ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
+        queue_drained = yield from Routines.Yield.Items._wait_for_empty_queue("SALVAGE", timeout_ms=queue_wait_timeout_ms)
+        if not queue_drained:
+            ConsoleLog("SalvageItems", f"Timed out waiting for salvage queue after confirmation (item_id={item_id}).", Console.MessageType.Warning)
+            return "failed"
+
+    result_wait_timeout_ms = 30000 if advanced_kit_tracking else salvage_wait_timeout_ms
+    saw_salvage_state = False
+    item_progressed = False
+    waited_ms = 0
+
+    while waited_ms < result_wait_timeout_ms:
+        try:
+            yield from Routines.Yield.wait(salvage_poll_ms)
+            waited_ms += salvage_poll_ms
+
+            is_salvaging = False
+            transaction_done = False
+            if advanced_kit_tracking and supports_state_tracking and inventory_instance is not None:
+                is_salvaging = bool(inventory_instance.IsSalvaging())
+                transaction_done = bool(inventory_instance.IsSalvageTransactionDone())
+                if is_salvaging or transaction_done:
+                    saw_salvage_state = True
+
+            current_inventory_item_ids = set(_get_inventory_item_ids())
+            if item_id not in current_inventory_item_ids:
+                if not advanced_kit_tracking:
+                    return "salvaged"
+                item_progressed = True
+            else:
+                item_instance.GetContext()
+                if item_instance.quantity < starting_quantity:
+                    if not advanced_kit_tracking:
+                        return "salvaged"
+                    item_progressed = True
+
+            if advanced_kit_tracking and inventory_instance is not None:
+                if transaction_done or (item_progressed and not is_salvaging):
+                    if (transaction_done or saw_salvage_state) and supports_finish_salvage:
+                        inventory_instance.FinishSalvage()
+                        yield from _wait_for_salvage_session_idle(
+                            inventory_instance,
+                            timeout_ms=max(1500, salvage_poll_ms * 10),
+                            poll_ms=salvage_poll_ms,
+                        )
+                        yield from Routines.Yield.wait(salvage_poll_ms * 2)
+
+                    if item_progressed:
+                        return "salvaged"
+
+                    return _get_post_salvage_status(item_id, item_instance, allowed_rarities)
+
+                if saw_salvage_state and not is_salvaging:
+                    return _get_post_salvage_status(item_id, item_instance, allowed_rarities)
+        except Exception:
+            ConsoleLog("SalvageItems", f"Salvage loop failed (item_id={item_id}).", Console.MessageType.Warning)
+            return "failed"
+
+    if manual_choice_required:
+        ConsoleLog("SalvageItems", f"Timed out waiting for manual salvage completion (item_id={item_id}).", Console.MessageType.Warning)
+        return "manual_timeout"
+
+    ConsoleLog("SalvageItems", f"Timed out waiting for salvage result (item_id={item_id}).", Console.MessageType.Warning)
+    return "failed"
+
+
+
+def _run_salvage_routine(item_ids: list[int], label: str, rarities: list[str] | None = None, selected_kit: ItemSlotData | None = None):
+    from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Console
+    from Py4GWCoreLib.Routines import Routines
+
+    item_ids = list(dict.fromkeys(item_ids))
+
+    salvaged_count = 0
+    failed_item_ids: set[int] = set()
+    aborted = False
+
+    if rarities is None:
+        for item_id in item_ids:
+            while True:
+                status = yield from _salvage_single_item_with_supported_kit(item_id, label, selected_kit=selected_kit)
+                if status in {"salvaged", "processed"}:
+                    salvaged_count += 1
+                    break
+                if status == "retry":
+                    yield from Routines.Yield.wait(150)
+                    continue
+                if status in {"missing_item", "filtered_out"}:
+                    break
+                if status in {"no_kit", "manual_timeout"}:
+                    aborted = True
+                    break
+                failed_item_ids.add(item_id)
+                break
+            if aborted:
+                break
+    else:
+        allowed_rarities = set(rarities)
+        while True:
+            matching_items = [
+                item_id
+                for item_id in _get_salvageable_items_for_rarities(rarities)
+                if item_id not in failed_item_ids
+            ]
+            if not matching_items:
+                break
+
+            item_id = matching_items[0]
+            while True:
+                status = yield from _salvage_single_item_with_supported_kit(
+                    item_id,
+                    label,
+                    selected_kit=selected_kit,
+                    allowed_rarities=allowed_rarities,
+                )
+                if status in {"salvaged", "processed"}:
+                    salvaged_count += 1
+                    break
+                if status == "retry":
+                    yield from Routines.Yield.wait(150)
+                    continue
+                if status in {"missing_item", "filtered_out"}:
+                    break
+                if status in {"no_kit", "manual_timeout"}:
+                    aborted = True
+                    break
+                failed_item_ids.add(item_id)
+                break
+            if aborted:
+                break
+
+    if salvaged_count > 0:
+        ConsoleLog("SalvageItems", f"Salvaged {salvaged_count} items.", Console.MessageType.Info)
+
+    return salvaged_count
+
+
+
+def _queue_salvage_routine(item_ids: list[int], label: str, rarities: list[str] | None = None, selected_kit: ItemSlotData | None = None):
+    from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+    routine = _run_salvage_routine(item_ids, label, rarities=rarities, selected_kit=selected_kit)
     GLOBAL_CACHE.Coroutines.append(routine)
-    
-def _salvage_whites():
-    _salvage_items("White")
-    
-def _salvage_blues():
-    _salvage_items("Blue")
-    
-def _salvage_purples():
-    _salvage_items("Purple")
-    
-def _salvage_golds():
-    _salvage_items("Gold")
-    
-def _salvage_all(cfg: SalvageSettings):
-    from Py4GWCoreLib.Routines import Routines
-    from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+
+
+def _salvage_items(rarity: str, selected_kit: ItemSlotData | None = None):
+    salvageable_items = _get_salvageable_items_for_rarities([rarity])
+    _queue_salvage_routine(
+        salvageable_items,
+        label=f"Salvage {rarity}",
+        rarities=[rarity],
+        selected_kit=selected_kit,
+    )
+
+
+
+def _salvage_whites(selected_kit: ItemSlotData | None = None):
+    _salvage_items("White", selected_kit=selected_kit)
+
+
+
+def _salvage_blues(selected_kit: ItemSlotData | None = None):
+    _salvage_items("Blue", selected_kit=selected_kit)
+
+
+
+def _salvage_purples(selected_kit: ItemSlotData | None = None):
+    _salvage_items("Purple", selected_kit=selected_kit)
+
+
+
+def _salvage_golds(selected_kit: ItemSlotData | None = None):
+    _salvage_items("Gold", selected_kit=selected_kit)
+
+
+
+def _salvage_all(cfg: SalvageSettings, selected_kit: ItemSlotData | None = None):
     rarities = []
     if cfg.salvage_all_whites:
         rarities.append("White")
@@ -312,12 +681,16 @@ def _salvage_all(cfg: SalvageSettings):
         rarities.append("Purple")
     if cfg.salvage_all_golds:
         rarities.append("Gold")
-    all_items = Routines.Items.GetSalvageableItems(rarities, [])
-    routine = Routines.Yield.Items.SalvageItems(all_items, log=True)
-    GLOBAL_CACHE.Coroutines.append(routine)
-    
 
-    
+    all_items = _get_salvageable_items_for_rarities(rarities)
+    _queue_salvage_routine(
+        all_items,
+        label="Salvage All",
+        rarities=rarities,
+        selected_kit=selected_kit,
+    )
+
+
 class InventoryPlusWidget:
     def __init__(self):
         from Py4GWCoreLib.UIManager import FrameInfo
@@ -669,8 +1042,7 @@ class InventoryPlusWidget:
             (selected_item.IsIdentified or selected_item.Rarity != "White") and 
             Routines.Checks.Items.IsSalvageable(selected_item.ItemID)):
             if PyImGui.menu_item("Salvage"):
-                routine = Routines.Yield.Items.SalvageItems([selected_item.ItemID], log=True)
-                GLOBAL_CACHE.Coroutines.append(routine)
+                _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
                 PyImGui.close_current_popup()
         
         if selected_item:
@@ -757,7 +1129,7 @@ class InventoryPlusWidget:
         if cfg.salvage_whites:
             PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ColorPalette.GetColor("GW_White").to_tuple_normalized())
             if PyImGui.menu_item("Salvage White Items"):
-                _salvage_whites()
+                _salvage_whites(selected_item)
                 PyImGui.close_current_popup()
             PyImGui.pop_style_color(1)
             salv_shown = True
@@ -765,7 +1137,7 @@ class InventoryPlusWidget:
         if cfg.salvage_blues:
             PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ColorPalette.GetColor("GW_Blue").to_tuple_normalized())
             if PyImGui.menu_item("Salvage Blue Items"):
-                _salvage_blues()
+                _salvage_blues(selected_item)
                 PyImGui.close_current_popup()
             PyImGui.pop_style_color(1)
             salv_shown = True
@@ -773,7 +1145,7 @@ class InventoryPlusWidget:
         if cfg.salvage_purples:
             PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ColorPalette.GetColor("GW_Purple").to_tuple_normalized())
             if PyImGui.menu_item("Salvage Purple Items"):
-                _salvage_purples()
+                _salvage_purples(selected_item)
                 PyImGui.close_current_popup()
             PyImGui.pop_style_color(1)
             salv_shown = True
@@ -781,14 +1153,14 @@ class InventoryPlusWidget:
         if cfg.salvage_golds:
             PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ColorPalette.GetColor("GW_Gold").to_tuple_normalized())
             if PyImGui.menu_item("Salvage Gold Items"):
-                _salvage_golds()
+                _salvage_golds(selected_item)
                 PyImGui.close_current_popup()
             PyImGui.pop_style_color(1)
             salv_shown = True
             
         if cfg.show_salvage_all:
             if PyImGui.menu_item("Salvage All Items"):
-                _salvage_all(self.salvage_settings)
+                _salvage_all(self.salvage_settings, selected_item)
                 PyImGui.close_current_popup()
             salv_shown = True
             
