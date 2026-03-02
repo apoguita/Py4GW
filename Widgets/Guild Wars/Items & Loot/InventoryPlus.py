@@ -177,7 +177,7 @@ class ModelPopUp:
 
             PyImGui.table_next_column()
             # LEFT: All Models
-            if PyImGui.begin_child(f"ModelIDList", (295, 375), True, PyImGui.WindowFlags.NoFlag):
+            if PyImGui.begin_child("ModelIDList", (295, 375), True, PyImGui.WindowFlags.NoFlag):
                 sorted_models = sorted(
                     self.model_dictionary.items(),
                     key=lambda x: x[1].lower()  # sort by NAME
@@ -326,6 +326,8 @@ class InventoryPlusWidget:
         self.InventorySlots: list[FrameInfo] = []
         self.hovered_item: ItemSlotData | None = None
         self.selected_item: ItemSlotData | None = None
+        # The I-window wraps bag slots in extra containers, so remember the working prefix after the first hit.
+        self.i_inventory_slot_prefix_cache: list[tuple[int, ...]] = []
         self.pop_up_open: bool = False
         self.show_config_window: bool = False
         
@@ -484,7 +486,7 @@ class InventoryPlusWidget:
 
                 return Color(*parts)
 
-            except:
+            except Exception:
                 return default_color
 
         def _get_bool_with_legacy(section: str, primary_var_name: str, legacy_var_name: str, default: bool) -> bool:
@@ -792,16 +794,32 @@ class InventoryPlusWidget:
         from Py4GWCoreLib.enums_src.Item_enums import Bags
         from Py4GWCoreLib.enums_src.IO_enums import MouseButton
         from Py4GWCoreLib.enums_src.Model_enums import ModelID
-        
-        if not UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags):
+        from itertools import product
+        import PyInventory
+
+        i_inventory_frame_hash = 2874675009
+        i_bags_bar_offsets = [6]
+
+        f9_visible = UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags)
+        i_visible = UIManager.IsWindowVisible(WindowID.WindowID_Inventory)
+        if not f9_visible and not i_visible:
             self.selected_item = None
             return
-        
+
         # refresh slot frames
         self.InventorySlots.clear()
         self.hovered_item = None
-        
-        for bag_id in range(Bags.Backpack, Bags.Bag2+1):
+        item_data_by_bag_slot: dict[tuple[int, int], ItemSlotData] = {}
+        bag_sizes: dict[int, int] = {}
+
+        for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+            try:
+                bag_instance = PyInventory.Bag(bag_id, str(bag_id))
+                bag_instance.GetContext()
+                bag_sizes[bag_id] = bag_instance.GetSize()
+            except Exception:
+                bag_sizes[bag_id] = 0
+
             bag_to_check = ItemArray.CreateBagList(bag_id)
             item_array = ItemArray.GetItemArray(bag_to_check)
 
@@ -820,6 +838,10 @@ class InventoryPlusWidget:
                     Quantity=item_instance.quantity,
                     Value=item_instance.value,
                 )
+                item_data_by_bag_slot[(bag_id, slot)] = item
+
+                if not f9_visible:
+                    continue
 
                 frame = FrameInfo(
                     WindowName=f"Slot{bag_id}_{slot}",
@@ -828,19 +850,21 @@ class InventoryPlusWidget:
                     BlackBoard={"ItemData": item}
                 )
                 self.InventorySlots.append(frame)
-                
+
         #Colorize
         if self.colorize_settings.enable_colorize:
             for slot_frame in self.InventorySlots:
                 item_data: ItemSlotData = slot_frame.BlackBoard["ItemData"]
-                
-                if (item_data.Rarity == "White" and not self.colorize_settings.color_whites) or \
-                (item_data.Rarity == "Blue" and not self.colorize_settings.color_blues) or \
-                    (item_data.Rarity == "Green" and not self.colorize_settings.color_greens) or \
-                    (item_data.Rarity == "Purple" and not self.colorize_settings.color_purples) or \
-                    (item_data.Rarity == "Gold" and not self.colorize_settings.color_golds):
+
+                if (
+                    (item_data.Rarity == "White" and not self.colorize_settings.color_whites) or
+                    (item_data.Rarity == "Blue" and not self.colorize_settings.color_blues) or
+                    (item_data.Rarity == "Green" and not self.colorize_settings.color_greens) or
+                    (item_data.Rarity == "Purple" and not self.colorize_settings.color_purples) or
+                    (item_data.Rarity == "Gold" and not self.colorize_settings.color_golds)
+                ):
                     continue
-                
+
                 if item_data.Rarity == "White":
                     border_color = self.colorize_settings.white_color
                 elif item_data.Rarity == "Blue":
@@ -853,7 +877,7 @@ class InventoryPlusWidget:
                     border_color = self.colorize_settings.gold_color
                 else:
                     border_color = Color(0, 0, 0, 0)
-                    
+
                 color:Color = border_color.copy()
                 color.set_a(25)
                 border_color.set_a(125)
@@ -861,38 +885,136 @@ class InventoryPlusWidget:
                 slot_frame.DrawFrame(color=color.to_color())
                 slot_frame.DrawFrameOutline(border_color.to_color())
 
-
         io = PyImGui.get_io()
+        mouse_x = io.mouse_pos_x
+        mouse_y = io.mouse_pos_y
 
-        # Detect right click
-        if PyImGui.is_mouse_released(MouseButton.Right.value):
-            # Only trigger if user clicked over inventory window
+        def _resolve_f9_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
+            if not f9_visible:
+                return None, False, ""
+
+            for slot_frame in self.InventorySlots:
+                if slot_frame.IsMouseOver():
+                    return slot_frame.BlackBoard["ItemData"], True, "f9"
+
             if WindowFrames["Inventory Bags"].IsMouseOver():
-                self.selected_item = None  # first assume empty click
-                for slot_frame in self.InventorySlots:
-                    if slot_frame.IsMouseOver():
-                        self.selected_item = slot_frame.BlackBoard["ItemData"]
-                        break
+                return None, True, "f9"
 
+            return None, False, ""
+
+        def _iter_i_slot_offset_prefixes():
+            seen: set[tuple[int, ...]] = set()
+            preferred_prefixes = [
+                (),
+                (0,),
+                (0, 0),
+                (0, 0, 0),
+                (1,),
+                (1, 0),
+                (1, 0, 0),
+                (2,),
+                (2, 0),
+                (2, 0, 0),
+            ]
+
+            for prefix in self.i_inventory_slot_prefix_cache:
+                if prefix in seen:
+                    continue
+                seen.add(prefix)
+                yield list(prefix)
+
+            for prefix in preferred_prefixes:
+                if prefix in seen:
+                    continue
+                seen.add(prefix)
+                yield list(prefix)
+
+            for length in range(1, 4):
+                for prefix in product(range(6), repeat=length):
+                    if prefix in seen:
+                        continue
+                    seen.add(prefix)
+                    yield list(prefix)
+
+        def _resolve_i_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
+            if not i_visible:
+                return None, False, ""
+
+            inventory_frame_id = UIManager.GetFrameIDByHash(i_inventory_frame_hash)
+            if inventory_frame_id == 0 or not UIManager.FrameExists(inventory_frame_id):
+                return None, False, ""
+
+            if not UIManager.IsMouseOver(inventory_frame_id):
+                return None, False, ""
+
+            bags_bar_bottom = 0
+            bags_bar_id = UIManager.GetChildFrameID(i_inventory_frame_hash, i_bags_bar_offsets)
+            if bags_bar_id != 0 and UIManager.FrameExists(bags_bar_id):
+                _, _, _, bags_bar_bottom = UIManager.GetFrameCoords(bags_bar_id)
+
+            for prefix in _iter_i_slot_offset_prefixes():
+                for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+                    bag_size = bag_sizes.get(bag_id, 0)
+                    if bag_size <= 0:
+                        continue
+
+                    for slot in range(bag_size):
+                        slot_frame_id = UIManager.GetChildFrameID(
+                            i_inventory_frame_hash,
+                            [*prefix, bag_id - 1, slot + 2],
+                        )
+                        if slot_frame_id == 0 or not UIManager.FrameExists(slot_frame_id):
+                            continue
+
+                        left, top, right, bottom = UIManager.GetFrameCoords(slot_frame_id)
+                        if bags_bar_bottom and top < bags_bar_bottom - 2:
+                            continue
+                        if mouse_x < left or mouse_x > right or mouse_y < top or mouse_y > bottom:
+                            continue
+
+                        prefix_key = tuple(prefix)
+                        if prefix_key not in self.i_inventory_slot_prefix_cache:
+                            self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
+                            del self.i_inventory_slot_prefix_cache[8:]
+                        elif self.i_inventory_slot_prefix_cache and self.i_inventory_slot_prefix_cache[0] != prefix_key:
+                            self.i_inventory_slot_prefix_cache.remove(prefix_key)
+                            self.i_inventory_slot_prefix_cache.insert(0, prefix_key)
+
+                        return item_data_by_bag_slot.get((bag_id, slot)), True, "i"
+
+            return None, False, ""
+
+        def _resolve_inventory_hit() -> tuple[ItemSlotData | None, bool, str]:
+            item, hit, source = _resolve_f9_inventory_hit()
+            if hit:
+                return item, hit, source
+            return _resolve_i_inventory_hit()
+
+        # Capture the clicked item before the popup can steal hover.
+        if PyImGui.is_mouse_clicked(MouseButton.Right.value):
+            clicked_item, inventory_hit, _source = _resolve_inventory_hit()
+            self.hovered_item = clicked_item
+            self.selected_item = clicked_item if inventory_hit else None
+
+            if inventory_hit:
                 PyImGui.open_popup("SlotContextMenu")
-                
+
         # Detect Ctrl + Left Click
         if PyImGui.is_mouse_released(MouseButton.Left.value) and io.key_ctrl:
-            if WindowFrames["Inventory Bags"].IsMouseOver():
-                for slot_frame in self.InventorySlots:
-                    if slot_frame.IsMouseOver():
-                        self.selected_item = slot_frame.BlackBoard["ItemData"]
-                        if self.selected_item and self.deposit_settings.use_ctrl_click:
-                            GLOBAL_CACHE.Inventory.DepositItemToStorage(self.selected_item.ItemID)
-                        return
-
+            clicked_item, inventory_hit, _source = _resolve_inventory_hit()
+            self.hovered_item = clicked_item
+            if inventory_hit and clicked_item:
+                self.selected_item = clicked_item
+                if self.deposit_settings.use_ctrl_click:
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(self.selected_item.ItemID)
+                return
 
         # Render popup
         if PyImGui.begin_popup("SlotContextMenu"):
 
             if self.selected_item:
                 if self.selected_item.IsIDKit:
-                    self._draw_id_kit_menu_item(self.selected_item)        
+                    self._draw_id_kit_menu_item(self.selected_item)
                 elif self.selected_item.IsSalvageKit and self.selected_item.ModelID == ModelID.Salvage_Kit:
                     self._draw_salvage_kit_menu_item(self.selected_item)
                 else:
@@ -903,9 +1025,9 @@ class InventoryPlusWidget:
             PyImGui.end_popup()
 
         else:
-            # popup is not open → clear selection
+            # popup is not open -> clear selection
             self.selected_item = None
-    
+
     #region ShowConfigWindow
     def DrawPopUps(self):
         for popup in self.PopUps.values():
@@ -1129,7 +1251,6 @@ class InventoryPlusWidget:
         combo_items = [self._resolve_merchant_item_name(item_id) for item_id in merchant_item_list]
         selected_count = len(self._legacy_merchant_module.merchant_checkboxes)
         batch_size = self._get_merchant_batch_size()
-        batch_label = "10" if batch_size == 10 else "1"
 
         if self.selected_combo_merchant >= len(combo_items):
             self.selected_combo_merchant = 0
@@ -1581,7 +1702,7 @@ class InventoryPlusWidget:
                                 int(c.strip())
                                 for c in value.strip("()").split(",")
                             )
-                        except:
+                        except Exception:
                             return default
 
                     white_color_str = IniManager().getStr(key=self.ini_key,section="Colorize",var_name="white_color",default="(255, 255, 255, 255)")
@@ -1664,14 +1785,17 @@ class InventoryPlusWidget:
 InventoryPlusWidgetInstance = InventoryPlusWidget()
 
 def configure():
-    if not InventoryPlusWidgetInstance.initialized: return
-    if InventoryPlusWidgetInstance.show_config_window: return
+    if not InventoryPlusWidgetInstance.initialized:
+        return
+    if InventoryPlusWidgetInstance.show_config_window:
+        return
     InventoryPlusWidgetInstance.show_config_window = True
 
 
 def main():
     if not InventoryPlusWidgetInstance.initialized:
-        if not InventoryPlusWidgetInstance._ensure_ini_key(): return
+        if not InventoryPlusWidgetInstance._ensure_ini_key():
+            return
 
         InventoryPlusWidgetInstance._add_config_vars()
         InventoryPlusWidgetInstance._add_auto_handler_config_vars()
