@@ -17,6 +17,8 @@ FRAME_ALIAS_FILE = ".\\Py4GWCoreLib\\frame_aliases.json"
 INVENTORY_FRAME_HASH = 291586130
 ANCHOR_OFFSET_X = 6
 ANCHOR_OFFSET_Y = 0
+COMPACT_WINDOW_MIN_WIDTH = 200
+COMPACT_WINDOW_MIN_HEIGHT = 230
 
 ANNIVERSARY_SLOT_UNLOCKED = False
 SHOW_SETTINGS = False
@@ -985,6 +987,33 @@ def _sort_items_within_storage_by_model_id(entries, bag_states, available_storag
 	return move_actions, unresolved_bags, completed_all_bags
 
 
+def _compact_storage_slots(entries, bag_states, available_storage_bags, target_bags=None, max_move_actions=None):
+	move_actions = 0
+	completed_all_bags = True
+	bags_to_process = target_bags if target_bags is not None else available_storage_bags
+
+	for bag_enum in bags_to_process:
+		bag_entries = [entry for entry in entries if entry.get("bag_enum") == bag_enum and entry.get("quantity", 0) > 0]
+		if len(bag_entries) <= 1:
+			continue
+
+		bag_entries.sort(key=lambda entry: int(entry.get("slot", 0)))
+		for compact_slot, entry in enumerate(bag_entries):
+			current_slot = int(entry.get("slot", 0))
+			if current_slot == compact_slot:
+				continue
+
+			if not _move_entry_to_slot(entry, bag_enum, compact_slot, bag_states):
+				continue
+
+			move_actions += 1
+			if max_move_actions is not None and move_actions >= max_move_actions:
+				completed_all_bags = False
+				return move_actions, completed_all_bags
+
+	return move_actions, completed_all_bags
+
+
 def _get_sort_priority(entry, allowed_by_bag, allowed_models_by_bag, first_storage_bag=None, try_empty_first=False):
 	if try_empty_first and first_storage_bag is not None and entry["bag_enum"] == first_storage_bag:
 		return -1
@@ -1171,6 +1200,17 @@ def _update_sort_progress_state(task):
 			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
 		return
 
+	if phase == "compact":
+		total_bags = max(len(task.get("available_storage_bags", [])), 1)
+		processed_bags = min(int(task.get("compact_bag_index", 0)), total_bags)
+		compact_ratio = float(processed_bags) / float(total_bags)
+		compact_ratio = max(0.0, min(1.0, compact_ratio))
+		_sort_progress_ratio = 0.95 + (compact_ratio * 0.05)
+		_sort_progress_text = f"Sorting (compact slots): {compact_ratio * 100.0:.1f}%"
+		if _is_sort_task_waiting_for_delay(task):
+			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
+		return
+
 	_sort_progress_ratio = 1.0
 	_sort_progress_text = "Done"
 
@@ -1214,6 +1254,8 @@ def _start_sort_task(available_storage_bags):
 		"model_sort_actions": 0,
 		"unresolved_model_sort_bags": 0,
 		"model_bag_index": 0,
+		"compact_actions": 0,
+		"compact_bag_index": 0,
 		"next_move_time": 0.0,
 		"next_move_delay": 0.0,
 		"has_model_filters": _has_any_model_id_filters(available_storage_bags),
@@ -1405,6 +1447,45 @@ def _process_sort_task():
 			_update_sort_progress_state(task)
 			return
 
+		task["phase"] = "compact"
+		task["compact_bag_index"] = 0
+		_update_sort_progress_state(task)
+		return
+
+	if task["phase"] == "compact":
+		if task["compact_bag_index"] < len(available_storage_bags):
+			bag_enum = available_storage_bags[task["compact_bag_index"]]
+			max_compact_moves = 1 if SLOW_MODE else None
+			compact_actions, completed_bag = _compact_storage_slots(
+				entries,
+				bag_states,
+				available_storage_bags,
+				[bag_enum],
+				max_compact_moves,
+			)
+			task["compact_actions"] += compact_actions
+			if compact_actions > 0:
+				_set_sort_task_move_delay(task)
+			if completed_bag:
+				task["compact_bag_index"] += 1
+			_update_sort_progress_state(task)
+			return
+
+		bag_label_by_enum = {}
+		for index, bag_enum in enumerate(available_storage_bags, start=1):
+			bag_label_by_enum[bag_enum] = _to_roman(index)
+
+		remaining_wrong_entries = _build_wrong_entries(
+			entries,
+			allowed_by_bag,
+			allowed_models_by_bag,
+			filtered_bags_by_type,
+			filtered_bags_by_model_id,
+			available_storage_bags,
+			False,
+		)
+		task["remaining_wrong_count"] = len(remaining_wrong_entries)
+
 		if len(remaining_wrong_entries) > 0:
 			for entry in remaining_wrong_entries:
 				pane_label = bag_label_by_enum.get(entry["bag_enum"], str(entry["bag_enum"].value))
@@ -1426,7 +1507,7 @@ def _process_sort_task():
 
 		ConsoleLog(
 			MODULE_NAME,
-			f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Incorrect remaining: {task['remaining_wrong_count']}",
+			f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Compact moves: {task['compact_actions']} | Incorrect remaining: {task['remaining_wrong_count']}",
 			Console.MessageType.Info,
 		)
 
@@ -1576,6 +1657,11 @@ def _sort_storage_items(available_storage_bags):
 		bag_states,
 		available_storage_bags,
 	)
+	compact_actions, _ = _compact_storage_slots(
+		entries,
+		bag_states,
+		available_storage_bags,
+	)
 	if unresolved_model_sort_bags > 0 and _has_any_model_id_filters(available_storage_bags):
 		ConsoleLog(
 			MODULE_NAME,
@@ -1583,7 +1669,7 @@ def _sort_storage_items(available_storage_bags):
 			Console.MessageType.Warning,
 		)
 
-	return moved_items, stack_merge_actions, len(remaining_wrong_entries), model_sort_actions
+	return moved_items, stack_merge_actions, len(remaining_wrong_entries), model_sort_actions + compact_actions
 
 
 def _get_available_storage_bags(anniversary_slot_unlocked: bool):
@@ -1727,6 +1813,8 @@ def _draw_window():
 		return
 
 	window_flags = PyImGui.WindowFlags.AlwaysAutoResize
+	if not SHOW_SETTINGS:
+		PyImGui.set_next_window_size(COMPACT_WINDOW_MIN_WIDTH, COMPACT_WINDOW_MIN_HEIGHT)
 	anchor_pos = _get_storage_anchor_position()
 	if anchor_pos is not None:
 		PyImGui.set_next_window_pos(anchor_pos[0], anchor_pos[1])
@@ -1739,26 +1827,27 @@ def _draw_window():
 
 	#PyImGui.separator()
 
-	ANNIVERSARY_SLOT_UNLOCKED = PyImGui.checkbox("Anniversary slot unlocked", ANNIVERSARY_SLOT_UNLOCKED)
-	if ANNIVERSARY_SLOT_UNLOCKED != _last_saved_anniversary_slot_unlocked and save_timer.IsExpired():
-		ini_handler.write_key(INI_KEY, "anniversary_slot_unlocked", ANNIVERSARY_SLOT_UNLOCKED)
-		_last_saved_anniversary_slot_unlocked = ANNIVERSARY_SLOT_UNLOCKED
-		save_timer.Reset()
-
 	previous_show_settings = SHOW_SETTINGS
 	SHOW_SETTINGS = PyImGui.checkbox("Show Settings", SHOW_SETTINGS)
 	if SHOW_SETTINGS != previous_show_settings:
 		ini_handler.write_key(INI_KEY, "show_settings", SHOW_SETTINGS)
 
-	previous_slow_mode = SLOW_MODE
-	SLOW_MODE = PyImGui.checkbox("Slow Mode", SLOW_MODE)
-	if SLOW_MODE != previous_slow_mode:
-		ini_handler.write_key(INI_KEY, "slow_mode", SLOW_MODE)
+	if SHOW_SETTINGS:
+		ANNIVERSARY_SLOT_UNLOCKED = PyImGui.checkbox("Anniversary slot unlocked", ANNIVERSARY_SLOT_UNLOCKED)
+		if ANNIVERSARY_SLOT_UNLOCKED != _last_saved_anniversary_slot_unlocked and save_timer.IsExpired():
+			ini_handler.write_key(INI_KEY, "anniversary_slot_unlocked", ANNIVERSARY_SLOT_UNLOCKED)
+			_last_saved_anniversary_slot_unlocked = ANNIVERSARY_SLOT_UNLOCKED
+			save_timer.Reset()
 
-	previous_try_empty_first = TRY_EMPTY_FIRST_STORAGE
-	TRY_EMPTY_FIRST_STORAGE = PyImGui.checkbox("Try to empty first storage", TRY_EMPTY_FIRST_STORAGE)
-	if TRY_EMPTY_FIRST_STORAGE != previous_try_empty_first:
-		ini_handler.write_key(INI_KEY, "try_empty_first_storage", TRY_EMPTY_FIRST_STORAGE)
+		previous_slow_mode = SLOW_MODE
+		SLOW_MODE = PyImGui.checkbox("Slow Mode", SLOW_MODE)
+		if SLOW_MODE != previous_slow_mode:
+			ini_handler.write_key(INI_KEY, "slow_mode", SLOW_MODE)
+
+		previous_try_empty_first = TRY_EMPTY_FIRST_STORAGE
+		TRY_EMPTY_FIRST_STORAGE = PyImGui.checkbox("Try to empty first storage", TRY_EMPTY_FIRST_STORAGE)
+		if TRY_EMPTY_FIRST_STORAGE != previous_try_empty_first:
+			ini_handler.write_key(INI_KEY, "try_empty_first_storage", TRY_EMPTY_FIRST_STORAGE)
 
 	available_storage_bags = _get_available_storage_bags(ANNIVERSARY_SLOT_UNLOCKED)
 	if _sort_task_state is None:
@@ -1790,7 +1879,7 @@ def _draw_window():
 
 	tabs_used_ratio = (float(tabs_total_used) / float(tabs_total_size)) if tabs_total_size > 0 else 0.0
 	PyImGui.text("Overall (all tabs):")
-	PyImGui.progress_bar(tabs_used_ratio, -1, 0, f"{tabs_used_ratio * 100.0:.1f}% Occupied ({tabs_total_used}/{tabs_total_size})")
+	PyImGui.progress_bar(tabs_used_ratio, -1, 0, f"{tabs_used_ratio * 100.0:.1f}% Full ({tabs_total_used}/{tabs_total_size})")
 	correct_items, total_items, correct_ratio = _calculate_correct_item_progress(available_storage_bags)
 	PyImGui.progress_bar(correct_ratio, -1, 0, f"{correct_ratio * 100.0:.1f}% Sorted ({correct_items}/{total_items})")
 	if _sort_task_state is not None:
