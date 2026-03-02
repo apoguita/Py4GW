@@ -105,6 +105,7 @@ class Py4GWLibrary:
         
         self.small_logo = os.path.join(base_path, "python_icon_round_20px.png")
         self.big_logo = os.path.join(base_path, "python_icon_round.png")
+        self.missing_texture = os.path.join(base_path, "Textures\\missing_texture.png")
         
         self.view_mode = ViewMode.All
         self.layout_mode = LayoutMode.Library
@@ -360,12 +361,14 @@ class Py4GWLibrary:
         keywords = [kw.strip().lower() for kw in filter_text.lower().strip().split(";")]
         
         preset_words : dict[str, list[str]]= {
+            "no_image": ["#no_image", "#noimg", "#noicon"],
             "enabled": ["#enabled", "#active", "#on"],
             "disabled": ["#disabled", "#inactive", "#off"],
             "favorites": ["#favorites", "#favs", "#fav"],
             "system": ["#system", "#sys"]
         }
         
+        no_image_check = False
         enabled_check = False
         disabled_check = False
         favorites_check = False
@@ -376,11 +379,13 @@ class Py4GWLibrary:
             disabled_check = disabled_check or any(kw == preset_kw for preset_kw in preset_words["disabled"])
             favorites_check = favorites_check or any(kw == preset_kw for preset_kw in preset_words["favorites"])
             system_check = system_check or any(kw == preset_kw for preset_kw in preset_words["system"])
+            no_image_check = no_image_check or any(kw == preset_kw for preset_kw in preset_words["no_image"])
             
             prefiltered = [w for w in prefiltered if 
                             (not enabled_check or w.enabled) and
                             (not disabled_check or not w.enabled) and
                             (not favorites_check or w in self.favorites) and
+                            (not no_image_check or w.image == self.missing_texture) and
                             (not system_check or w.category == "System")]
             
             for preset, preset_keywords in preset_words.items():
@@ -1136,6 +1141,14 @@ class Py4GWLibrary:
                             IniManager().save_vars(self.ini_key)
                         ImGui.show_tooltip("Enable or disable single filter mode.\nWhen enabled, selecting a category, tag, path or editing the search field will clear any existing filters in the other fields.\nThis ensures that only one filter is applied at a time.")                        
                         ImGui.end_menu()
+                        
+                    ImGui.end_menu()
+                
+                
+                if ImGui.begin_menu("Debug"):
+                    if ImGui.menu_item("Show widgets without icon"):
+                        self.widget_filter = "#no_image"
+                        self.queue_filter_widgets = True
                         
                     ImGui.end_menu()
                 ImGui.end_menu_bar()
