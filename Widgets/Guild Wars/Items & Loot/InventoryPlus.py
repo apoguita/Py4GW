@@ -299,7 +299,10 @@ def _get_item_id_at_bag_slot(bag_id: int, slot: int) -> int:
 
 
 
-def _get_salvageable_items_for_rarities(rarities: list[str]) -> list[int]:
+def _get_salvageable_items_for_rarities(
+    rarities: list[str],
+    allow_unidentified_nonwhite: bool = False,
+) -> list[int]:
     from Py4GWCoreLib import Item, ItemArray
     from Py4GWCoreLib.enums_src.Item_enums import Bags
 
@@ -314,14 +317,28 @@ def _get_salvageable_items_for_rarities(rarities: list[str]) -> list[int]:
 
             if rarity not in rarity_filter:
                 continue
-            if not (item_instance.is_identified or rarity == "White"):
-                continue
+            if not item_instance.is_identified:
+                if not (allow_unidentified_nonwhite and rarity != "White"):
+                    continue
             if not item_instance.is_salvageable:
                 continue
 
             salvageable_items.append(item_id)
 
     return salvageable_items
+
+
+
+def _allows_unidentified_nonwhite_salvage(selected_kit: ItemSlotData | None) -> bool:
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID
+
+    if selected_kit is None:
+        return False
+
+    return selected_kit.ModelID in {
+        ModelID.Expert_Salvage_Kit,
+        ModelID.Superior_Salvage_Kit,
+    }
 
 
 
@@ -464,14 +481,8 @@ def _salvage_single_item_with_supported_kit(item_id: int, label: str, selected_k
 
     if advanced_kit_tracking and inventory_instance is not None:
         try:
-            if manual_choice_required:
-                inventory_instance.StartSalvage(salvage_kit_item_id, item_id)
-                yield from Routines.Yield.wait(salvage_poll_ms)
-                inventory_instance.ContinueSalvage()
-                yield from Routines.Yield.wait(salvage_poll_ms)
-            else:
-                inventory_instance.Salvage(salvage_kit_item_id, item_id)
-                yield from Routines.Yield.wait(salvage_poll_ms)
+            inventory_instance.Salvage(salvage_kit_item_id, item_id)
+            yield from Routines.Yield.wait(salvage_poll_ms)
         except Exception:
             ConsoleLog("SalvageItems", f"Advanced salvage start failed (item_id={item_id}).", Console.MessageType.Warning)
             return "failed"
@@ -564,6 +575,7 @@ def _run_salvage_routine(item_ids: list[int], label: str, rarities: list[str] | 
     from Py4GWCoreLib.Routines import Routines
 
     item_ids = list(dict.fromkeys(item_ids))
+    allow_unidentified_nonwhite = _allows_unidentified_nonwhite_salvage(selected_kit)
 
     salvaged_count = 0
     failed_item_ids: set[int] = set()
@@ -593,7 +605,10 @@ def _run_salvage_routine(item_ids: list[int], label: str, rarities: list[str] | 
         while True:
             matching_items = [
                 item_id
-                for item_id in _get_salvageable_items_for_rarities(rarities)
+                for item_id in _get_salvageable_items_for_rarities(
+                    rarities,
+                    allow_unidentified_nonwhite=allow_unidentified_nonwhite,
+                )
                 if item_id not in failed_item_ids
             ]
             if not matching_items:
@@ -639,7 +654,10 @@ def _queue_salvage_routine(item_ids: list[int], label: str, rarities: list[str] 
 
 
 def _salvage_items(rarity: str, selected_kit: ItemSlotData | None = None):
-    salvageable_items = _get_salvageable_items_for_rarities([rarity])
+    salvageable_items = _get_salvageable_items_for_rarities(
+        [rarity],
+        allow_unidentified_nonwhite=_allows_unidentified_nonwhite_salvage(selected_kit),
+    )
     _queue_salvage_routine(
         salvageable_items,
         label=f"Salvage {rarity}",
@@ -682,7 +700,10 @@ def _salvage_all(cfg: SalvageSettings, selected_kit: ItemSlotData | None = None)
     if cfg.salvage_all_golds:
         rarities.append("Gold")
 
-    all_items = _get_salvageable_items_for_rarities(rarities)
+    all_items = _get_salvageable_items_for_rarities(
+        rarities,
+        allow_unidentified_nonwhite=_allows_unidentified_nonwhite_salvage(selected_kit),
+    )
     _queue_salvage_routine(
         all_items,
         label="Salvage All",
