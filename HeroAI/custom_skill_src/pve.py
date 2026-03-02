@@ -305,6 +305,7 @@ class PVESkills:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
