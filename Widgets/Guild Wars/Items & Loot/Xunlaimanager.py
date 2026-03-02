@@ -19,6 +19,9 @@ ANCHOR_OFFSET_X = 6
 ANCHOR_OFFSET_Y = 0
 COMPACT_WINDOW_MIN_WIDTH = 200
 COMPACT_WINDOW_MIN_HEIGHT = 230
+MATERIAL_STACK_MAX = 250
+SLOW_MODE_DELAY_MIN = 0.8
+SLOW_MODE_DELAY_MAX = 1.0
 
 ANNIVERSARY_SLOT_UNLOCKED = False
 SHOW_SETTINGS = False
@@ -184,7 +187,7 @@ def _set_sort_task_move_delay(task):
 		task["next_move_time"] = 0.0
 		task["next_move_delay"] = 0.0
 		return
-	delay_seconds = random.uniform(0.8, 1.0)
+	delay_seconds = random.uniform(SLOW_MODE_DELAY_MIN, SLOW_MODE_DELAY_MAX)
 	task["next_move_time"] = time.monotonic() + delay_seconds
 	task["next_move_delay"] = delay_seconds
 
@@ -199,6 +202,23 @@ def _get_sort_task_delay_remaining(task) -> float:
 	return max(float(task.get("next_move_time", 0.0)) - time.monotonic(), 0.0)
 
 
+def _get_item_model_id(item) -> int:
+	"""Return model_id from an item object, falling back to GLOBAL_CACHE lookup."""
+	if hasattr(item, "model_id"):
+		return int(item.model_id)
+	return int(GLOBAL_CACHE.Item.GetModelID(int(item.item_id)))
+
+
+def _get_item_quantity(item, default: int = 1) -> int:
+	"""Return quantity from an item object, falling back to GLOBAL_CACHE lookup."""
+	if hasattr(item, "quantity"):
+		return int(item.quantity)
+	try:
+		return int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item.item_id)))
+	except Exception:
+		return default
+
+
 # -----------------------------------------------------------------------------
 # Material storage helpers
 # -----------------------------------------------------------------------------
@@ -209,13 +229,13 @@ def _get_material_storage_quantities_by_model() -> dict:
 		for item in material_bag.GetItems():
 			if not item or int(item.item_id) == 0:
 				continue
-			model_id = int(item.model_id) if hasattr(item, "model_id") else int(GLOBAL_CACHE.Item.GetModelID(int(item.item_id)))
+			model_id = _get_item_model_id(item)
 			if model_id <= 0:
 				continue
-			quantity = int(item.quantity) if hasattr(item, "quantity") else int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item.item_id)))
+			quantity = _get_item_quantity(item)
 			if quantity <= 0:
 				continue
-			quantities_by_model[model_id] = min(250, quantities_by_model.get(model_id, 0) + quantity)
+			quantities_by_model[model_id] = min(MATERIAL_STACK_MAX, quantities_by_model.get(model_id, 0) + quantity)
 	except Exception:
 		return quantities_by_model
 	return quantities_by_model
@@ -225,7 +245,7 @@ def _is_material_storage_full_for_model(model_id: int) -> bool:
 	if int(model_id) <= 0:
 		return False
 	quantity = int(_material_storage_quantities_live.get(int(model_id), 0))
-	return quantity >= 250
+	return quantity >= MATERIAL_STACK_MAX
 
 
 def _get_material_slot_candidates_by_model_id() -> dict:
@@ -294,8 +314,8 @@ def _log_material_storage_counts_to_console():
 			continue
 		try:
 			slot_index = int(item.slot)
-			model_id = int(item.model_id) if hasattr(item, "model_id") else int(GLOBAL_CACHE.Item.GetModelID(int(item.item_id)))
-			quantity = int(item.quantity) if hasattr(item, "quantity") else int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item.item_id)))
+			model_id = _get_item_model_id(item)
+			quantity = _get_item_quantity(item)
 		except Exception:
 			continue
 		slot_entries[slot_index] = {
@@ -378,7 +398,7 @@ def _collect_material_entries_for_deposit(available_storage_bags) -> list:
 			type_id, type_name = GLOBAL_CACHE.Item.GetItemType(item_id)
 			if not type_name and int(type_id) == int(ItemType.Materials_Zcoins.value):
 				type_name = "Materials_Zcoins"
-			model_id = int(item.model_id) if hasattr(item, "model_id") else int(GLOBAL_CACHE.Item.GetModelID(item_id))
+			model_id = _get_item_model_id(item)
 			if model_id <= 0:
 				continue
 			if not _is_auto_deposit_material_candidate(item_id, str(type_name or ""), model_id):
@@ -420,7 +440,7 @@ def _deposit_material_to_material_storage(item_id: int, model_id: int, material_
 	fallback_slot_by_model = _get_material_slot_candidates_by_model_id()
 
 	current_qty = int(material_storage_by_model.get(model_id, 0))
-	if current_qty >= 250:
+	if current_qty >= MATERIAL_STACK_MAX:
 		return 0
 
 	try:
@@ -430,7 +450,7 @@ def _deposit_material_to_material_storage(item_id: int, model_id: int, material_
 	if source_qty <= 0:
 		return 0
 
-	to_move = min(source_qty, 250 - current_qty)
+	to_move = min(source_qty, MATERIAL_STACK_MAX - current_qty)
 	if to_move <= 0:
 		return 0
 
@@ -512,48 +532,6 @@ ARMOR_TYPE_NAMES = {
 }
 
 
-def _build_default_pcons_model_ids():
-	model_names = [
-		"Armor_Of_Salvation",
-		"Essence_Of_Celerity",
-		"Grail_Of_Might",
-		"Birthday_Cupcake",
-		"Blue_Rock_Candy",
-		"Green_Rock_Candy",
-		"Red_Rock_Candy",
-		"Bowl_Of_Skalefin_Soup",
-		"Candy_Apple",
-		"Candy_Corn",
-		"Drake_Kabob",
-		"Golden_Egg",
-		"Pahnai_Salad",
-		"War_Supplies",
-		"Slice_Of_Pumpkin_Pie",
-		"Peppermint_Candy_Cane",
-		"Honeycomb",
-		"Powerstone_Of_Courage",
-		"Wintergreen_Candy_Cane",
-		"Rainbow_Candy_Cane",
-	]
-
-	result = set()
-	for model_name in model_names:
-		model_member = getattr(ModelID, model_name, None)
-		if model_member is None:
-			continue
-		try:
-			model_value = int(model_member.value if hasattr(model_member, "value") else model_member)
-		except Exception:
-			continue
-		if model_value > 0:
-			result.add(model_value)
-
-	return result
-
-
-DEFAULT_PCONS_MODEL_IDS = _build_default_pcons_model_ids()
-
-
 def _build_model_id_set_from_names(model_names):
 	result = set()
 	for model_name in model_names:
@@ -568,6 +546,29 @@ def _build_model_id_set_from_names(model_names):
 			result.add(model_value)
 	return result
 
+
+DEFAULT_PCONS_MODEL_IDS = _build_model_id_set_from_names([
+	"Armor_Of_Salvation",
+	"Essence_Of_Celerity",
+	"Grail_Of_Might",
+	"Birthday_Cupcake",
+	"Blue_Rock_Candy",
+	"Green_Rock_Candy",
+	"Red_Rock_Candy",
+	"Bowl_Of_Skalefin_Soup",
+	"Candy_Apple",
+	"Candy_Corn",
+	"Drake_Kabob",
+	"Golden_Egg",
+	"Pahnai_Salad",
+	"War_Supplies",
+	"Slice_Of_Pumpkin_Pie",
+	"Peppermint_Candy_Cane",
+	"Honeycomb",
+	"Powerstone_Of_Courage",
+	"Wintergreen_Candy_Cane",
+	"Rainbow_Candy_Cane",
+])
 
 ALCOHOL_MODEL_IDS = _build_model_id_set_from_names([
 	"Bottle_Of_Rice_Wine",
@@ -614,47 +615,29 @@ PARTY_MODEL_IDS = _build_model_id_set_from_names([
 ])
 
 
-def _build_summoning_stone_model_ids():
-	model_names = [
-		"Legionnaire_Summoning_Crystal",
-		"Igneous_Summoning_Stone",
-		"Amber_Summon",
-		"Arctic_Summon",
-		"Automaton_Summon",
-		"Celestial_Summon",
-		"Chitinous_Summon",
-		"Demonic_Summon",
-		"Fossilized_Summon",
-		"Frosty_Summon",
-		"Gelatinous_Summon",
-		"Ghastly_Summon",
-		"Imperial_Guard_Summon",
-		"Jadeite_Summon",
-		"Merchant_Summon",
-		"Mischievous_Summon",
-		"Mysterious_Summon",
-		"Mystical_Summon",
-		"Shining_Blade_Summon",
-		"Tengu_Summon",
-		"Zaishen_Summon",
-	]
-
-	result = set()
-	for model_name in model_names:
-		model_member = getattr(ModelID, model_name, None)
-		if model_member is None:
-			continue
-		try:
-			model_value = int(model_member.value if hasattr(model_member, "value") else model_member)
-		except Exception:
-			continue
-		if model_value > 0:
-			result.add(model_value)
-
-	return result
-
-
-SUMMONING_STONE_MODEL_IDS = _build_summoning_stone_model_ids()
+SUMMONING_STONE_MODEL_IDS = _build_model_id_set_from_names([
+	"Legionnaire_Summoning_Crystal",
+	"Igneous_Summoning_Stone",
+	"Amber_Summon",
+	"Arctic_Summon",
+	"Automaton_Summon",
+	"Celestial_Summon",
+	"Chitinous_Summon",
+	"Demonic_Summon",
+	"Fossilized_Summon",
+	"Frosty_Summon",
+	"Gelatinous_Summon",
+	"Ghastly_Summon",
+	"Imperial_Guard_Summon",
+	"Jadeite_Summon",
+	"Merchant_Summon",
+	"Mischievous_Summon",
+	"Mysterious_Summon",
+	"Mystical_Summon",
+	"Shining_Blade_Summon",
+	"Tengu_Summon",
+	"Zaishen_Summon",
+])
 
 
 def _to_roman(number: int) -> str:
@@ -677,60 +660,6 @@ def _normalize_item_type_name(type_name: str) -> str:
 	if type_name in ARMOR_TYPE_NAMES:
 		return "Armor"
 	return type_name
-
-
-def _is_default_pcons_item(item_id: int, model_id: int | None = None) -> bool:
-	candidate_ids = set()
-	if model_id is not None:
-		try:
-			parsed_model_id = int(model_id)
-			if parsed_model_id > 0:
-				candidate_ids.add(parsed_model_id)
-		except Exception:
-			pass
-
-	if len(candidate_ids) == 0:
-		try:
-			cached_model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
-			if cached_model_id > 0:
-				candidate_ids.add(cached_model_id)
-		except Exception:
-			pass
-
-	if len(candidate_ids) == 0:
-		return False
-
-	for candidate in candidate_ids:
-		if candidate in DEFAULT_PCONS_MODEL_IDS:
-			return True
-	return False
-
-
-def _is_summoning_stone_item(item_id: int, model_id: int | None = None) -> bool:
-	candidate_ids = set()
-	if model_id is not None:
-		try:
-			parsed_model_id = int(model_id)
-			if parsed_model_id > 0:
-				candidate_ids.add(parsed_model_id)
-		except Exception:
-			pass
-
-	if len(candidate_ids) == 0:
-		try:
-			cached_model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
-			if cached_model_id > 0:
-				candidate_ids.add(cached_model_id)
-		except Exception:
-			pass
-
-	if len(candidate_ids) == 0:
-		return False
-
-	for candidate in candidate_ids:
-		if candidate in SUMMONING_STONE_MODEL_IDS:
-			return True
-	return False
 
 
 def _is_model_in_set(item_id: int, model_id: int | None, model_set) -> bool:
@@ -766,12 +695,12 @@ def _resolve_item_type_name(item_id: int, raw_type_name: str, model_id: int | No
 			return "Sweets"
 		if _is_model_in_set(item_id, model_id, PARTY_MODEL_IDS):
 			return "Party"
-	if _is_default_pcons_item(item_id, model_id):
+	if _is_model_in_set(item_id, model_id, DEFAULT_PCONS_MODEL_IDS):
 		return "Pcons"
 	if normalized == "Usable":
 		if GLOBAL_CACHE.Item.Type.IsTome(item_id):
 			return "Tome"
-		if _is_summoning_stone_item(item_id, model_id):
+		if _is_model_in_set(item_id, model_id, SUMMONING_STONE_MODEL_IDS):
 			return "Summoning Stones"
 	return normalized
 
@@ -803,24 +732,13 @@ def _build_item_type_options():
 ITEM_TYPE_OPTIONS = _build_item_type_options()
 
 
-def _format_item_type_name(type_name: str) -> str:
-	return type_name.replace("_", " ")
-
-
-def _get_storage_allowed_types_key(bag_enum):
-	return f"allowed_item_types_storage_{bag_enum.value}"
-
-
-def _get_storage_allowed_model_ids_key(bag_enum):
-	return f"allowed_model_ids_storage_{bag_enum.value}"
-
 
 def _load_allowed_types_for_storage(bag_enum):
 	bag_key = bag_enum.value
 	if bag_key in _allowed_types_by_storage:
 		return _allowed_types_by_storage[bag_key]
 
-	raw = ini_handler.read_key(INI_KEY, _get_storage_allowed_types_key(bag_enum), "")
+	raw = ini_handler.read_key(INI_KEY, f"allowed_item_types_storage_{bag_enum.value}", "")
 	parsed = []
 	for token in raw.split(","):
 		name = token.strip()
@@ -843,7 +761,7 @@ def _load_allowed_model_ids_for_storage(bag_enum):
 	if bag_key in _allowed_model_ids_by_storage:
 		return _allowed_model_ids_by_storage[bag_key]
 
-	raw = ini_handler.read_key(INI_KEY, _get_storage_allowed_model_ids_key(bag_enum), "")
+	raw = ini_handler.read_key(INI_KEY, f"allowed_model_ids_storage_{bag_enum.value}", "")
 	parsed = []
 	for token in raw.split(","):
 		text = token.strip()
@@ -869,13 +787,13 @@ def _load_allowed_model_ids_for_storage(bag_enum):
 def _save_allowed_types_for_storage(bag_enum):
 	bag_key = bag_enum.value
 	allowed = _allowed_types_by_storage.get(bag_key, [])
-	ini_handler.write_key(INI_KEY, _get_storage_allowed_types_key(bag_enum), ",".join(allowed))
+	ini_handler.write_key(INI_KEY, f"allowed_item_types_storage_{bag_enum.value}", ",".join(allowed))
 
 
 def _save_allowed_model_ids_for_storage(bag_enum):
 	bag_key = bag_enum.value
 	allowed = _allowed_model_ids_by_storage.get(bag_key, [])
-	ini_handler.write_key(INI_KEY, _get_storage_allowed_model_ids_key(bag_enum), ",".join(str(model_id) for model_id in allowed))
+	ini_handler.write_key(INI_KEY, f"allowed_model_ids_storage_{bag_enum.value}", ",".join(str(model_id) for model_id in allowed))
 
 
 def _has_any_model_id_filters(available_storage_bags) -> bool:
@@ -883,12 +801,6 @@ def _has_any_model_id_filters(available_storage_bags) -> bool:
 		if len(_load_allowed_model_ids_for_storage(bag_enum)) > 0:
 			return True
 	return False
-
-
-def _is_item_type_allowed(type_name: str, allowed_types) -> bool:
-	if len(allowed_types) == 0:
-		return True
-	return type_name in allowed_types
 
 
 def _is_item_model_id_allowed(model_id: int, allowed_model_ids) -> bool:
@@ -1016,7 +928,7 @@ def _collect_storage_item_entries(available_storage_bags):
 			if not item or item.item_id == 0:
 				continue
 
-			model_id = int(item.model_id) if hasattr(item, "model_id") else 0
+			model_id = _get_item_model_id(item)
 			type_id, type_name = GLOBAL_CACHE.Item.GetItemType(item.item_id)
 			if not type_name:
 				type_name = f"Type {type_id}"
@@ -1024,7 +936,7 @@ def _collect_storage_item_entries(available_storage_bags):
 
 			slot = int(item.slot)
 			occupied_slots.add(slot)
-			quantity = int(item.quantity) if hasattr(item, "quantity") else 1
+			quantity = _get_item_quantity(item)
 			if quantity <= 0:
 				quantity = 1
 			is_stackable = GLOBAL_CACHE.Item.Customization.IsStackable(item.item_id)
@@ -1059,12 +971,6 @@ def _collect_storage_item_entries(available_storage_bags):
 	return entries, bag_states
 
 
-def _get_stack_merge_key(entry):
-	if not entry.get("is_stackable", False):
-		return None
-	return (entry.get("model_id", 0), entry.get("dye_key", None))
-
-
 def _consolidate_storage_stacks(
 	entries,
 	bag_states,
@@ -1073,7 +979,7 @@ def _consolidate_storage_stacks(
 	filtered_bags_by_type,
 	filtered_bags_by_model_id,
 ):
-	max_stack_size = 250
+	max_stack_size = MATERIAL_STACK_MAX
 	moved_actions = 0
 	protected_item_ids = set()
 
@@ -1101,7 +1007,7 @@ def _consolidate_storage_stacks(
 
 		if entry.get("quantity", 0) <= 0:
 			continue
-		merge_key = _get_stack_merge_key(entry)
+		merge_key = (entry.get("model_id", 0), entry.get("dye_key", None)) if entry.get("is_stackable", False) else None
 		if merge_key is None:
 			continue
 		if merge_key not in grouped_entries:
@@ -1261,10 +1167,8 @@ def _sort_items_within_storage_by_model_id(entries, bag_states, available_storag
 		desired_entries = sorted(
 			bag_entries,
 			key=lambda entry: (
-				_get_model_sort_type_priority(str(entry.get("type_name", "")))[0],
-				_get_model_sort_type_priority(str(entry.get("type_name", "")))[1],
-				int(entry.get("model_id", 0)),
-				int(entry.get("item_id", 0)),
+				_get_model_sort_type_priority(str(entry.get("type_name", "")))
+				+ (int(entry.get("model_id", 0)), int(entry.get("item_id", 0)))
 			),
 		)
 		desired_slot_by_item_id = {
@@ -1721,7 +1625,7 @@ def _process_phase_materials(task, ctx):
 			continue
 
 		current_qty = int(material_storage_by_model.get(model_id, 0))
-		if current_qty >= 250:
+		if current_qty >= MATERIAL_STACK_MAX:
 			task["material_skipped_full"] = int(task.get("material_skipped_full", 0)) + 1
 			continue
 
@@ -1738,7 +1642,7 @@ def _process_phase_materials(task, ctx):
 		task["material_actions"] = int(task.get("material_actions", 0)) + 1
 		task["material_units_moved"] = int(task.get("material_units_moved", 0)) + int(moved_units)
 		task["material_moves_this_pass"] = int(task.get("material_moves_this_pass", 0)) + 1
-		material_storage_by_model[model_id] = min(250, int(material_storage_by_model.get(model_id, 0)) + int(moved_units))
+		material_storage_by_model[model_id] = min(MATERIAL_STACK_MAX, int(material_storage_by_model.get(model_id, 0)) + int(moved_units))
 		_set_sort_task_move_delay(task)
 		break
 
@@ -2253,15 +2157,15 @@ def _get_slot_item_type_rows(bag_enum, allowed_types=None):
 			if not item or item.item_id == 0:
 				continue
 
-			model_id = int(item.model_id) if hasattr(item, "model_id") else 0
+			model_id = _get_item_model_id(item)
 			type_id, type_name = GLOBAL_CACHE.Item.GetItemType(item.item_id)
 			if not type_name:
 				type_name = f"Type {type_id}"
 			type_name = _resolve_item_type_name(item.item_id, type_name, model_id)
-			is_allowed = _is_item_type_allowed(type_name, allowed_types)
+			is_allowed = not allowed_types or type_name in allowed_types
 
 			slot_number = int(item.slot) + 1
-			quantity = int(item.quantity) if hasattr(item, "quantity") else 1
+			quantity = _get_item_quantity(item)
 			rows.append((slot_number, type_name, quantity, is_allowed))
 
 		rows.sort(key=lambda entry: entry[0])
@@ -2577,7 +2481,7 @@ def _draw_window():
 							for list_index, type_name in enumerate(allowed_types):
 								is_selected = selected_entry_kind == "type" and list_index == selected_idx
 								if PyImGui.selectable(
-									f"{_format_item_type_name(type_name)}##allowed_{bag_key}_{list_index}",
+									f"{type_name.replace('_', ' ')}##allowed_{bag_key}_{list_index}",
 									is_selected,
 									PyImGui.SelectableFlags.NoFlag,
 									(0.0, 0.0),
@@ -2602,7 +2506,7 @@ def _draw_window():
 					PyImGui.end_child()
 
 					combo_idx = _selected_add_type_idx_by_storage.get(bag_key, 0)
-					combo_labels = [_format_item_type_name(type_name) for type_name in ITEM_TYPE_OPTIONS]
+					combo_labels = [t.replace("_", " ") for t in ITEM_TYPE_OPTIONS]
 					combo_idx = PyImGui.combo(f"Add item type##combo_{bag_key}", combo_idx, combo_labels)
 					_selected_add_type_idx_by_storage[bag_key] = combo_idx
 
