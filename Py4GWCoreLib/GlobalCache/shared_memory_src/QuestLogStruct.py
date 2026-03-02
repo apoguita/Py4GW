@@ -1,4 +1,4 @@
-from ctypes import Structure, c_uint, c_bool
+from ctypes import Structure, c_float, c_uint, c_bool
 from .Globals import (
     SHMEM_MAX_QUESTS,
 )
@@ -8,16 +8,22 @@ class QuestStruct(Structure):
     _fields_ = [
         ("QuestID", c_uint),
         ("IsCompleted", c_bool),
+        ("MarkerX", c_float),
+        ("MarkerY", c_float),
     ]
     
     # Type hints for IntelliSense
     QuestID: int
     IsCompleted: bool
+    MarkerX: float
+    MarkerY: float
     
     def reset(self) -> None:
         """Reset all fields to zero."""
         self.QuestID = 0
         self.IsCompleted = False
+        self.MarkerX = 0
+        self.MarkerY = 0
     
 class QuestLogStruct(Structure):
     _pack_ = 1
@@ -47,5 +53,6 @@ class QuestLogStruct(Structure):
             quest_data = quest_log[i]
             self.Quests[i].QuestID = quest_data.quest_id if quest_data is not None else 0
             self.Quests[i].IsCompleted = quest_data.is_completed if quest_data is not None else False
-  
+            self.Quests[i].MarkerX = quest_data.marker_x if quest_data is not None else 0
+            self.Quests[i].MarkerY = quest_data.marker_y if quest_data is not None else 0
   

@@ -21,6 +21,7 @@ from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
+from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
@@ -1548,6 +1549,42 @@ def TravelToGuildHall(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "TravelToGuildHall message processed and finished.", Console.MessageType.Info, False)
 # endregion
 
+#region SetActiveQuest
+def SetActiveQuest(index : int, message : SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    id = int(message.Params[0])
+    
+    if id:
+        Quest.SetActiveQuest(id)
+        yield from Routines.Yield.wait(100)
+    
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "SetActiveQuest message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
+#region AbandonQuest
+def AbandonQuest(index : int, message : SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    
+    id = int(message.Params[0])
+    
+    if id:
+        Quest.AbandonQuest(id)
+        yield from Routines.Yield.wait(100)
+    
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "AbandonQuest message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
 # region ProcessMessages
 def ProcessMessages():
     account_email = Player.GetAccountEmail()
@@ -1638,6 +1675,10 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(TravelToGuildHall(index, message))
         case SharedCommandType.UseSkillCombatPrep:
             GLOBAL_CACHE.Coroutines.append(UseSkillCombatPrep(index, message))
+        case SharedCommandType.SetActiveQuest:
+            GLOBAL_CACHE.Coroutines.append(SetActiveQuest(index, message))
+        case SharedCommandType.AbandonQuest:
+            GLOBAL_CACHE.Coroutines.append(AbandonQuest(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass
