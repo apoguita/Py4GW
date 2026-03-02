@@ -22,6 +22,7 @@ COMPACT_WINDOW_MIN_HEIGHT = 230
 
 ANNIVERSARY_SLOT_UNLOCKED = False
 SHOW_SETTINGS = False
+SHOW_DEBUG = False
 SLOW_MODE = False
 TRY_EMPTY_FIRST_STORAGE = False
 INI_KEY = "Chest Manager"
@@ -35,6 +36,7 @@ _active_account_email = ""
 _active_ini_path = ""
 _last_saved_anniversary_slot_unlocked = False
 _selected_settings_account = ""
+_last_window_width = float(COMPACT_WINDOW_MIN_WIDTH)
 
 _allowed_types_by_storage = {}
 _selected_allowed_type_idx_by_storage = {}
@@ -132,6 +134,7 @@ def _ensure_account_settings_loaded(force: bool = False):
 	global ANNIVERSARY_SLOT_UNLOCKED
 	global _last_saved_anniversary_slot_unlocked
 	global SHOW_SETTINGS
+	global SHOW_DEBUG
 	global SLOW_MODE
 	global TRY_EMPTY_FIRST_STORAGE
 	global _sort_task_state
@@ -152,6 +155,7 @@ def _ensure_account_settings_loaded(force: bool = False):
 	ANNIVERSARY_SLOT_UNLOCKED = ini_handler.read_bool(INI_KEY, "anniversary_slot_unlocked", False)
 	_last_saved_anniversary_slot_unlocked = ANNIVERSARY_SLOT_UNLOCKED
 	SHOW_SETTINGS = ini_handler.read_bool(INI_KEY, "show_settings", False)
+	SHOW_DEBUG = ini_handler.read_bool(INI_KEY, "show_debug", False)
 	SLOW_MODE = ini_handler.read_bool(INI_KEY, "slow_mode", False)
 	TRY_EMPTY_FIRST_STORAGE = ini_handler.read_bool(INI_KEY, "try_empty_first_storage", False)
 	_sort_task_state = None
@@ -159,6 +163,12 @@ def _ensure_account_settings_loaded(force: bool = False):
 
 
 _ensure_account_settings_loaded(force=True)
+
+
+def _debug_log(message: str):
+	if not SHOW_DEBUG:
+		return
+	ConsoleLog(MODULE_NAME, message, Console.MessageType.Info)
 
 
 def _set_sort_task_move_delay(task):
@@ -1156,10 +1166,8 @@ def _try_move_wrong_entry(
 			continue
 		source_slot_before = int(entry.get("slot", 0))
 		if _move_entry_to_slot(entry, candidate_bag, next_slot, bag_states):
-			ConsoleLog(
-				MODULE_NAME,
-				f"Move reason={reason_label} | item={entry['item_id']} modelid={model_id} type={type_name} | from {source_bag.value}:{source_slot_before + 1} -> {candidate_bag.value}:{next_slot + 1}",
-				Console.MessageType.Info,
+			_debug_log(
+				f"Move reason={reason_label} | item={entry['item_id']} modelid={model_id} type={type_name} | from {source_bag.value}:{source_slot_before + 1} -> {candidate_bag.value}:{next_slot + 1}"
 			)
 			return True
 
@@ -1439,10 +1447,8 @@ def _process_sort_task():
 			task["moved_this_pass"] = 0
 			task["round_start_moved_items"] = int(task.get("moved_items", 0))
 			task["phase"] = "placement"
-			ConsoleLog(
-				MODULE_NAME,
-				f"Auto-retry sort round {task['retry_round']}/{MAX_AUTO_SORT_RETRIES} (remaining incorrect: {task['remaining_wrong_count']}).",
-				Console.MessageType.Info,
+			_debug_log(
+				f"Auto-retry sort round {task['retry_round']}/{MAX_AUTO_SORT_RETRIES} (remaining incorrect: {task['remaining_wrong_count']})."
 			)
 			_update_sort_progress_state(task)
 			return
@@ -1496,7 +1502,7 @@ def _process_sort_task():
 					Console.MessageType.Warning,
 				)
 		else:
-			ConsoleLog(MODULE_NAME, "All items are in the correct pane after sorting.", Console.MessageType.Info)
+			_debug_log("All items are in the correct pane after sorting.")
 
 		if task["unresolved_model_sort_bags"] > 0 and task.get("has_model_filters", False):
 			ConsoleLog(
@@ -1505,10 +1511,8 @@ def _process_sort_task():
 				Console.MessageType.Warning,
 			)
 
-		ConsoleLog(
-			MODULE_NAME,
-			f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Compact moves: {task['compact_actions']} | Incorrect remaining: {task['remaining_wrong_count']}",
-			Console.MessageType.Info,
+		_debug_log(
+			f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Compact moves: {task['compact_actions']} | Incorrect remaining: {task['remaining_wrong_count']}"
 		)
 
 		task["phase"] = "done"
@@ -1650,7 +1654,7 @@ def _sort_storage_items(available_storage_bags):
 				Console.MessageType.Warning,
 			)
 	else:
-		ConsoleLog(MODULE_NAME, "All items are in the correct pane after sorting.", Console.MessageType.Info)
+		_debug_log("All items are in the correct pane after sorting.")
 
 	model_sort_actions, unresolved_model_sort_bags, _ = _sort_items_within_storage_by_model_id(
 		entries,
@@ -1753,6 +1757,7 @@ def _get_slot_item_type_rows(bag_enum, allowed_types=None):
 		return []
 
 def _get_storage_anchor_position():
+	anchor_window_width = max(float(_last_window_width), float(COMPACT_WINDOW_MIN_WIDTH))
 	frame_id = 0
 
 	try:
@@ -1769,14 +1774,10 @@ def _get_storage_anchor_position():
 	if frame_id > 0 and UIManager.FrameExists(frame_id):
 		left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
 		x1 = min(left, right)
-		x2 = max(left, right)
 		y1 = min(top, bottom)
 		y2 = max(top, bottom)
 
-		if x2 > x1:
-			anchor_x = float(x2 + ANCHOR_OFFSET_X)
-		else:
-			anchor_x = float(x1 + ANCHOR_OFFSET_X)
+		anchor_x = float(x1 - ANCHOR_OFFSET_X - anchor_window_width)
 
 		if y2 > y1:
 			anchor_y = float(y1 + ANCHOR_OFFSET_Y)
@@ -1793,19 +1794,21 @@ def _get_storage_anchor_position():
 	if right <= left:
 		return None
 
-	return float(right + ANCHOR_OFFSET_X), float(top + ANCHOR_OFFSET_Y)
+	return float(left - ANCHOR_OFFSET_X - anchor_window_width), float(top + ANCHOR_OFFSET_Y)
 
 
 def _draw_window():
 	global ANNIVERSARY_SLOT_UNLOCKED
 	global _last_saved_anniversary_slot_unlocked
 	global SHOW_SETTINGS
+	global SHOW_DEBUG
 	global SLOW_MODE
 	global TRY_EMPTY_FIRST_STORAGE
 	global _sort_task_state
 	global _sort_progress_ratio
 	global _sort_progress_text
 	global _selected_settings_account
+	global _last_window_width
 
 	_ensure_account_settings_loaded()
 
@@ -1833,6 +1836,11 @@ def _draw_window():
 		ini_handler.write_key(INI_KEY, "show_settings", SHOW_SETTINGS)
 
 	if SHOW_SETTINGS:
+		previous_show_debug = SHOW_DEBUG
+		SHOW_DEBUG = PyImGui.checkbox("Show Debug", SHOW_DEBUG)
+		if SHOW_DEBUG != previous_show_debug:
+			ini_handler.write_key(INI_KEY, "show_debug", SHOW_DEBUG)
+
 		ANNIVERSARY_SLOT_UNLOCKED = PyImGui.checkbox("Anniversary slot unlocked", ANNIVERSARY_SLOT_UNLOCKED)
 		if ANNIVERSARY_SLOT_UNLOCKED != _last_saved_anniversary_slot_unlocked and save_timer.IsExpired():
 			ini_handler.write_key(INI_KEY, "anniversary_slot_unlocked", ANNIVERSARY_SLOT_UNLOCKED)
@@ -2010,6 +2018,13 @@ def _draw_window():
 							_save_allowed_model_ids_for_storage(bag_enum)
 					PyImGui.end_tab_item()
 			PyImGui.end_tab_bar()
+
+	window_size = PyImGui.get_window_size()
+	if isinstance(window_size, (tuple, list)) and len(window_size) >= 2:
+		try:
+			_last_window_width = max(float(window_size[0]), 1.0)
+		except Exception:
+			pass
 
 	PyImGui.end()
 
