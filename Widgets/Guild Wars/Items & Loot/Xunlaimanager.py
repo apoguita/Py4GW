@@ -9,64 +9,69 @@ import shutil
 from Py4GWCoreLib import *
 
 
-MODULE_NAME = "Xunlai Manager"
-MODULE_ICON = "Textures/Module_Icons/TeamInventoryViewer.png"
-CHEST_FRAME_ID = 752
-XUNLAI_WINDOW_HASH = 2315448754
-FRAME_ALIAS_FILE = ".\\Py4GWCoreLib\\frame_aliases.json"
-INVENTORY_FRAME_HASH = 291586130
-ANCHOR_OFFSET_X = 6
-ANCHOR_OFFSET_Y = 0
-COMPACT_WINDOW_MIN_WIDTH = 200
-COMPACT_WINDOW_MIN_HEIGHT = 230
-MATERIAL_STACK_MAX = 250
-SLOW_MODE_DELAY_MIN = 0.8
-SLOW_MODE_DELAY_MAX = 1.0
+MODULE_NAME = "Xunlai Manager"        # Display name shown in the overlay window
+MODULE_ICON = "Textures/Module_Icons/TeamInventoryViewer.png"  # Relative path to the toggle-button icon
+CHEST_FRAME_ID = 752                  # Fallback frame ID for the Xunlai chest window
+XUNLAI_WINDOW_HASH = 2315448754       # UIManager hash for the Xunlai vault window
+FRAME_ALIAS_FILE = ".\\Py4GWCoreLib\\frame_aliases.json"  # JSON file mapping human-readable frame labels
+INVENTORY_FRAME_HASH = 291586130      # Fallback: player inventory panel frame hash
+ANCHOR_OFFSET_X = 6                   # Horizontal gap (px) between the vault window and our overlay
+ANCHOR_OFFSET_Y = 0                   # Vertical offset from the top of the vault window
+COMPACT_WINDOW_MIN_WIDTH = 200        # Minimum width of the compact settings panel
+COMPACT_WINDOW_MIN_HEIGHT = 230       # Minimum height of the compact settings panel
+MATERIAL_STACK_MAX = 250              # Maximum quantity per material stack slot
+SLOW_MODE_DELAY_MIN = 0.8             # Minimum seconds between moves in Slow Mode
+SLOW_MODE_DELAY_MAX = 1.0             # Maximum seconds between moves in Slow Mode
 
-ANNIVERSARY_SLOT_UNLOCKED = False
-SHOW_SETTINGS = False
-SHOW_DEBUG = False
-SLOW_MODE = False
-TRY_EMPTY_FIRST_STORAGE = False
-AUTO_DEPOSIT_MATERIALS = False
-WINDOW_OPEN = False
+# Runtime toggle states — persisted per-account in the INI file
+ANNIVERSARY_SLOT_UNLOCKED = False  # Whether the 14th storage pane is available
+SHOW_SETTINGS = False              # Whether the settings panel is expanded
+SHOW_DEBUG = False                 # Whether debug log output is enabled
+SLOW_MODE = False                  # Throttle moves to human-like speed (anti-bot measure)
+TRY_EMPTY_FIRST_STORAGE = False    # Move all items out of pane I before placing elsewhere
+AUTO_DEPOSIT_MATERIALS = False     # Automatically move materials into Material Storage
+WINDOW_OPEN = False                # Whether the main GUI panel is visible
 INI_KEY = "Xunlai Manager"
 INI_RELATIVE_PATH = "Settings/{account}/Inventory/XunlaiManager/xunlai_manager.ini"
 
 
-project_root = Py4GW.Console.get_projects_path()
-save_timer = ThrottledTimer(500)
-ini_handler = None
-_active_account_email = ""
-_active_ini_path = ""
-_last_saved_anniversary_slot_unlocked = False
-_selected_settings_account = ""
-_last_window_width = float(COMPACT_WINDOW_MIN_WIDTH)
+project_root = Py4GW.Console.get_projects_path()  # Absolute root path of the Py4GW installation
+save_timer = ThrottledTimer(500)                   # Prevents writing the INI on every frame
+ini_handler = None                                 # IniHandler instance; created on first account load
+_active_account_email = ""                         # Email of the currently loaded account
+_active_ini_path = ""                              # Full path to the active INI file
+_last_saved_anniversary_slot_unlocked = False      # Tracks whether the anniversary flag needs re-saving
+_selected_settings_account = ""                    # Account selected in the settings copy-from dropdown
+_last_window_width = float(COMPACT_WINDOW_MIN_WIDTH)  # Cached window width used for anchor positioning
 
-_allowed_types_by_storage = {}
-_selected_allowed_type_idx_by_storage = {}
-_selected_add_type_idx_by_storage = {}
-_allowed_model_ids_by_storage = {}
-_selected_allowed_model_id_idx_by_storage = {}
-_model_id_input_by_storage = {}
-_selected_allowed_entry_kind_by_storage = {}
+# Per-bag filter state — keyed by bag_enum.value
+_allowed_types_by_storage = {}              # type-name lists allowed per pane
+_selected_allowed_type_idx_by_storage = {}  # selected list index in the type UI list
+_selected_add_type_idx_by_storage = {}      # selected combo-box index for adding a type
+_allowed_model_ids_by_storage = {}          # model-ID lists allowed per pane
+_selected_allowed_model_id_idx_by_storage = {}  # selected list index in the model-ID UI list
+_model_id_input_by_storage = {}             # current integer input value for adding a model ID
+_selected_allowed_entry_kind_by_storage = {}    # "type" or "model" — which filter list is focused
 
-SORT_STEPS_PER_FRAME = 8
-MAX_AUTO_SORT_RETRIES = 3
-MATERIAL_MAX_RESCAN_PASSES = 3
-_sort_task_state = None
-_sort_progress_ratio = 0.0
-_sort_progress_text = ""
-_material_storage_quantities_live = {}
+# Sort engine constants and live state
+SORT_STEPS_PER_FRAME = 8          # Max item moves executed per frame in normal mode
+MAX_AUTO_SORT_RETRIES = 3         # How many placement retry rounds are allowed before giving up
+MATERIAL_MAX_RESCAN_PASSES = 3    # Max deposit rescans when partial moves occurred
+_sort_task_state = None           # Active sort task dict; None when idle
+_sort_progress_ratio = 0.0        # 0.0–1.0 progress shown in the UI progress bar
+_sort_progress_text = ""          # Human-readable status shown next to the progress bar
+_material_storage_quantities_live = {}  # Snapshot of Material Storage quantities, refreshed each tick
 
 
 def _sanitize_path_component(value: str) -> str:
+	"""Strip characters that are invalid in file-system paths and return a safe folder name."""
 	if not value:
 		return "default_settings"
 	return re.sub(r'[\\/:*?"<>|]+', "_", value).strip() or "default_settings"
 
 
 def _get_current_account_email() -> str:
+	"""Return the logged-in account e-mail, falling back to 'default_settings' on failure."""
 	try:
 		account_email = Player.GetAccountEmail()
 		if account_email:
@@ -77,12 +82,14 @@ def _get_current_account_email() -> str:
 
 
 def _build_account_ini_path(account_email: str) -> str:
+	"""Build the absolute INI file path for the given account e-mail."""
 	safe_account = _sanitize_path_component(account_email)
 	relative_path = INI_RELATIVE_PATH.format(account=safe_account)
 	return os.path.join(project_root, relative_path)
 
 
 def _ensure_ini_path_exists(ini_path: str):
+	"""Create the parent directory tree and an empty INI file if they do not yet exist."""
 	parent_dir = os.path.dirname(ini_path)
 	if parent_dir:
 		os.makedirs(parent_dir, exist_ok=True)
@@ -92,6 +99,7 @@ def _ensure_ini_path_exists(ini_path: str):
 
 
 def _clear_storage_settings_cache():
+	"""Discard all cached per-pane filter data so it will be re-read from the INI on next access."""
 	_allowed_types_by_storage.clear()
 	_selected_allowed_type_idx_by_storage.clear()
 	_selected_add_type_idx_by_storage.clear()
@@ -102,6 +110,7 @@ def _clear_storage_settings_cache():
 
 
 def _list_settings_accounts() -> list:
+	"""Return a sorted list of known account folder names that have an existing INI file."""
 	accounts = set()
 	settings_root = os.path.join(project_root, "Settings")
 	if os.path.isdir(settings_root):
@@ -121,6 +130,10 @@ def _list_settings_accounts() -> list:
 
 
 def _copy_account_settings_to_current(source_account: str, target_account: str) -> bool:
+	"""Copy the INI file from source_account into target_account's settings folder.
+
+	Returns True on success, False when the source INI does not exist.
+	"""
 	source_account_safe = _sanitize_path_component(source_account)
 	target_account_safe = _sanitize_path_component(target_account)
 	source_ini_path = _build_account_ini_path(source_account_safe)
@@ -135,6 +148,12 @@ def _copy_account_settings_to_current(source_account: str, target_account: str) 
 
 
 def _ensure_account_settings_loaded(force: bool = False):
+	"""Load (or reload) settings for the currently logged-in account.
+
+	Creates the INI file if missing, initialises all settings globals from disk,
+	and resets the active sort task and filter cache when switching accounts.
+	Pass force=True to reload even if the account has not changed.
+	"""
 	global ini_handler
 	global _active_account_email
 	global _active_ini_path
@@ -177,12 +196,14 @@ _ensure_account_settings_loaded(force=True)
 
 
 def _debug_log(message: str):
+	"""Write message to the Py4GW console only when SHOW_DEBUG is enabled."""
 	if not SHOW_DEBUG:
 		return
 	ConsoleLog(MODULE_NAME, message, Console.MessageType.Info)
 
 
 def _set_sort_task_move_delay(task):
+	"""Apply a random move delay to the task when Slow Mode is active, or clear it otherwise."""
 	if not SLOW_MODE:
 		task["next_move_time"] = 0.0
 		task["next_move_delay"] = 0.0
@@ -193,12 +214,14 @@ def _set_sort_task_move_delay(task):
 
 
 def _is_sort_task_waiting_for_delay(task) -> bool:
+	"""Return True when the task still has a Slow Mode delay pending before the next move."""
 	if not SLOW_MODE:
 		return False
 	return time.monotonic() < float(task.get("next_move_time", 0.0))
 
 
 def _get_sort_task_delay_remaining(task) -> float:
+	"""Return remaining seconds of the current Slow Mode delay, or 0.0 if none is active."""
 	return max(float(task.get("next_move_time", 0.0)) - time.monotonic(), 0.0)
 
 
@@ -223,6 +246,7 @@ def _get_item_quantity(item, default: int = 1) -> int:
 # Material storage helpers
 # -----------------------------------------------------------------------------
 def _get_material_storage_quantities_by_model() -> dict:
+	"""Return a dict mapping model_id → current quantity in Material Storage (capped at MATERIAL_STACK_MAX)."""
 	quantities_by_model = {}
 	try:
 		material_bag = PyInventory.Bag(Bags.MaterialStorage.value, Bags.MaterialStorage.name)
@@ -242,6 +266,7 @@ def _get_material_storage_quantities_by_model() -> dict:
 
 
 def _is_material_storage_full_for_model(model_id: int) -> bool:
+	"""Return True when the live Material Storage snapshot shows a full stack (≥250) for model_id."""
 	if int(model_id) <= 0:
 		return False
 	quantity = int(_material_storage_quantities_live.get(int(model_id), 0))
@@ -249,6 +274,10 @@ def _is_material_storage_full_for_model(model_id: int) -> bool:
 
 
 def _get_material_slot_candidates_by_model_id() -> dict:
+	"""Return a dict mapping known material model_ids to their preferred Material Storage slot indices.
+
+	Used as a fallback when the item does not yet exist in Material Storage.
+	"""
 	fallback_slot_by_model = {}
 	for model_name, slot_indices in [
 		("Bone", [0]),
@@ -300,6 +329,7 @@ def _get_material_slot_candidates_by_model_id() -> dict:
 
 
 def _log_material_storage_counts_to_console():
+	"""Dump a full slot-by-slot snapshot of Material Storage to the Py4GW console (debug helper)."""
 	try:
 		material_bag = PyInventory.Bag(Bags.MaterialStorage.value, Bags.MaterialStorage.name)
 		material_items = material_bag.GetItems()
@@ -494,6 +524,7 @@ def _deposit_material_to_material_storage(item_id: int, model_id: int, material_
 
 
 def _start_material_phase(task, available_storage_bags, resume_phase: str):
+	"""Populate task with material-deposit candidates and set phase to 'materials' (or resume_phase if none found)."""
 	material_candidates = _collect_material_entries_for_deposit(available_storage_bags)
 	task["material_candidates"] = material_candidates
 	task["material_index"] = 0
@@ -533,6 +564,7 @@ ARMOR_TYPE_NAMES = {
 
 
 def _build_model_id_set_from_names(model_names):
+	"""Resolve a list of ModelID attribute names to a set of integer model IDs, skipping unknowns."""
 	result = set()
 	for model_name in model_names:
 		model_member = getattr(ModelID, model_name, None)
@@ -653,6 +685,7 @@ def _to_roman(number: int) -> str:
 
 
 def _normalize_item_type_name(type_name: str) -> str:
+	"""Collapse weapon and armour sub-types and the singular 'Pcon' into canonical category names."""
 	if type_name == "Pcon":
 		return "Pcons"
 	if type_name in WEAPON_TYPE_NAMES:
@@ -663,6 +696,10 @@ def _normalize_item_type_name(type_name: str) -> str:
 
 
 def _is_model_in_set(item_id: int, model_id: int | None, model_set) -> bool:
+	"""Return True when the item's model_id is found in model_set.
+
+	Resolution order: use the provided model_id if positive; otherwise query GLOBAL_CACHE.
+	"""
 	candidate_ids = set()
 	if model_id is not None:
 		try:
@@ -687,6 +724,11 @@ def _is_model_in_set(item_id: int, model_id: int | None, model_set) -> bool:
 
 
 def _resolve_item_type_name(item_id: int, raw_type_name: str, model_id: int | None = None) -> str:
+	"""Resolve a raw game type name to a display category used in filter rules.
+
+	Applies model-ID-based overrides (Alcohol, Sweets, Party, Pcons, Tome, Summoning Stones)
+	before falling back to the normalised type name.
+	"""
 	normalized = _normalize_item_type_name(raw_type_name)
 	if normalized in ("Usable", "Pcons"):
 		if _is_model_in_set(item_id, model_id, ALCOHOL_MODEL_IDS):
@@ -708,7 +750,8 @@ def _resolve_item_type_name(item_id: int, raw_type_name: str, model_id: int | No
 # -----------------------------------------------------------------------------
 # Item classification and sort rule helpers
 # -----------------------------------------------------------------------------
-def _build_item_type_options():
+def _build_item_type_options() -> list:
+	"""Build the sorted list of all selectable item-type filter labels for the settings UI."""
 	options = []
 	for item_type in ItemType:
 		normalized = _normalize_item_type_name(item_type.name)
@@ -734,8 +777,8 @@ ITEM_TYPE_OPTIONS = _build_item_type_options()
 
 
 def _load_allowed_types_for_storage(bag_enum):
+	"""Return the cached (or freshly loaded) list of allowed item-type names for a storage pane."""
 	bag_key = bag_enum.value
-	if bag_key in _allowed_types_by_storage:
 		return _allowed_types_by_storage[bag_key]
 
 	raw = ini_handler.read_key(INI_KEY, f"allowed_item_types_storage_{bag_enum.value}", "")
@@ -757,6 +800,7 @@ def _load_allowed_types_for_storage(bag_enum):
 
 
 def _load_allowed_model_ids_for_storage(bag_enum):
+	"""Return the cached (or freshly loaded) list of allowed model IDs for a storage pane."""
 	bag_key = bag_enum.value
 	if bag_key in _allowed_model_ids_by_storage:
 		return _allowed_model_ids_by_storage[bag_key]
@@ -785,18 +829,21 @@ def _load_allowed_model_ids_for_storage(bag_enum):
 
 
 def _save_allowed_types_for_storage(bag_enum):
+	"""Persist the allowed item-type list for a storage pane to the INI file."""
 	bag_key = bag_enum.value
 	allowed = _allowed_types_by_storage.get(bag_key, [])
 	ini_handler.write_key(INI_KEY, f"allowed_item_types_storage_{bag_enum.value}", ",".join(allowed))
 
 
 def _save_allowed_model_ids_for_storage(bag_enum):
+	"""Persist the allowed model-ID list for a storage pane to the INI file."""
 	bag_key = bag_enum.value
 	allowed = _allowed_model_ids_by_storage.get(bag_key, [])
 	ini_handler.write_key(INI_KEY, f"allowed_model_ids_storage_{bag_enum.value}", ",".join(str(model_id) for model_id in allowed))
 
 
 def _has_any_model_id_filters(available_storage_bags) -> bool:
+	"""Return True when at least one storage pane has a model-ID filter configured."""
 	for bag_enum in available_storage_bags:
 		if len(_load_allowed_model_ids_for_storage(bag_enum)) > 0:
 			return True
@@ -804,12 +851,18 @@ def _has_any_model_id_filters(available_storage_bags) -> bool:
 
 
 def _is_item_model_id_allowed(model_id: int, allowed_model_ids) -> bool:
+	"""Return True when the model-ID list is empty (no filter) or the ID is explicitly listed."""
 	if len(allowed_model_ids) == 0:
 		return True
 	return int(model_id) in allowed_model_ids
 
 
 def _matches_storage_rules(item_type_name: str, model_id: int, allowed_types, allowed_model_ids) -> bool:
+	"""Return True when the item satisfies the type and/or model-ID filters of a pane.
+
+	When both filters are set, either matching is sufficient (OR logic).
+	When neither is set, everything is allowed.
+	"""
 	type_filtered = len(allowed_types) > 0
 	model_filtered = len(allowed_model_ids) > 0
 
@@ -824,20 +877,33 @@ def _matches_storage_rules(item_type_name: str, model_id: int, allowed_types, al
 
 
 def _storage_allows_all_types(allowed_types) -> bool:
+	"""Return True when the type filter is empty or covers every possible item type."""
 	if len(allowed_types) == 0:
 		return True
 	return len(set(allowed_types)) >= len(set(ITEM_TYPE_OPTIONS))
 
 
 def _storage_allows_all_model_ids(allowed_model_ids) -> bool:
+	"""Return True when no model-ID filter is configured (empty list means accept all)."""
 	return len(allowed_model_ids) == 0
 
 
 def _storage_is_all_allowed(allowed_types, allowed_model_ids) -> bool:
+	"""Return True when a pane has no restrictions at all (wildcard pane)."""
 	return _storage_allows_all_types(allowed_types) and _storage_allows_all_model_ids(allowed_model_ids)
 
 
 def _build_allowed_type_map(available_storage_bags):
+	"""Build lookup structures for the sort engine based on the per-pane filter settings.
+
+	Returns:
+		allowed_by_bag         — type lists keyed by bag_enum
+		allowed_models_by_bag  — model-ID lists keyed by bag_enum
+		filtered_bags_by_type  — bags that explicitly accept a given type name
+		filtered_bags_by_model_id — bags that explicitly accept a given model ID
+		wildcard_bags          — bags with no type or model restrictions
+		wildcard_model_bags    — bags with no model-ID restrictions
+	"""
 	allowed_by_bag = {}
 	allowed_models_by_bag = {}
 	filtered_bags_by_type = {}
@@ -885,6 +951,11 @@ def _is_item_in_correct_storage(
 	filtered_bags_by_type,
 	filtered_bags_by_model_id,
 ) -> bool:
+	"""Return True when the item is already sitting in the correct storage pane.
+
+	Model-ID filters take priority over type filters. An item in a wildcard pane is
+	considered wrong if a dedicated (filtered) pane exists for its type or model.
+	"""
 	allowed_types = allowed_by_bag.get(source_bag_enum, [])
 	allowed_model_ids = allowed_models_by_bag.get(source_bag_enum, [])
 	model_id = int(model_id)
@@ -911,6 +982,12 @@ def _is_item_in_correct_storage(
 # Sort engine (collect, move, phase processing)
 # -----------------------------------------------------------------------------
 def _collect_storage_item_entries(available_storage_bags):
+	"""Scan all available storage panes and return a snapshot of every item.
+
+	Returns:
+		entries    — list of item dicts (item_id, type_name, model_id, quantity, bag_enum, slot, …)
+		bag_states — dict mapping bag_enum to {size, occupied_slots, free_slots}
+	"""
 	bag_states = {}
 	entries = []
 
@@ -979,6 +1056,12 @@ def _consolidate_storage_stacks(
 	filtered_bags_by_type,
 	filtered_bags_by_model_id,
 ):
+	"""Merge partial stacks of the same item together before placement sorting begins.
+
+	Full stacks (quantity == MATERIAL_STACK_MAX) that are already in the correct pane
+	are protected from being used as donors. Material Storage entries and auto-deposit
+	candidates are skipped entirely.
+	"""
 	max_stack_size = MATERIAL_STACK_MAX
 	moved_actions = 0
 	protected_item_ids = set()
@@ -1077,6 +1160,7 @@ def _consolidate_storage_stacks(
 
 
 def _get_next_free_slot(bag_states, bag_enum):
+	"""Return the lowest free slot index in bag_enum, or None if no free slot exists."""
 	state = bag_states.get(bag_enum)
 	if not state:
 		return None
@@ -1086,6 +1170,7 @@ def _get_next_free_slot(bag_states, bag_enum):
 
 
 def _reserve_move_in_state(bag_states, source_bag_enum, source_slot: int, target_bag_enum, target_slot: int):
+	"""Update bag_states slot bookkeeping to reflect a pending move (no actual game API call)."""
 	source = bag_states.get(source_bag_enum)
 	target = bag_states.get(target_bag_enum)
 	if source:
@@ -1100,6 +1185,10 @@ def _reserve_move_in_state(bag_states, source_bag_enum, source_slot: int, target
 
 
 def _find_any_free_slot(bag_states, bag_order, blocked_slots=None):
+	"""Return the first (bag_enum, slot) pair that is free and not in blocked_slots.
+
+	Panes are searched in bag_order priority. Returns (None, None) when nothing is available.
+	"""
 	if blocked_slots is None:
 		blocked_slots = set()
 
@@ -1116,6 +1205,10 @@ def _find_any_free_slot(bag_states, bag_order, blocked_slots=None):
 
 
 def _move_entry_to_slot(entry, target_bag_enum, target_slot: int, bag_states) -> bool:
+	"""Move an item entry to the given slot, update bag_states, and mutate entry in-place.
+
+	Returns True on success (or when the item is already at the target), False on API error.
+	"""
 	source_bag = entry["bag_enum"]
 	source_slot = entry["slot"]
 	if source_bag == target_bag_enum and source_slot == target_slot:
@@ -1137,6 +1230,10 @@ def _move_entry_to_slot(entry, target_bag_enum, target_slot: int, bag_states) ->
 
 
 def _get_model_sort_type_priority(type_name: str):
+	"""Return a (index, name) sort key for a type name based on ITEM_TYPE_OPTIONS order.
+
+	Unknown types sort after all known types.
+	"""
 	try:
 		return ITEM_TYPE_OPTIONS.index(type_name), type_name
 	except ValueError:
@@ -1144,6 +1241,11 @@ def _get_model_sort_type_priority(type_name: str):
 
 
 def _sort_items_within_storage_by_model_id(entries, bag_states, available_storage_bags, target_bags=None, max_move_actions=None):
+	"""Sort items within each pane by (type priority, model_id, item_id) using in-place swaps.
+
+	When max_move_actions is set (Slow Mode), stops after that many moves and signals incompletion
+	via completed_all_bags=False. Returns (total_moves, unresolved_bags, completed_all_bags).
+	"""
 	move_actions = 0
 	unresolved_bags = 0
 	completed_all_bags = True
@@ -1225,6 +1327,11 @@ def _sort_items_within_storage_by_model_id(entries, bag_states, available_storag
 
 
 def _compact_storage_slots(entries, bag_states, available_storage_bags, target_bags=None, max_move_actions=None):
+	"""Shift items toward the front of each pane to fill gaps left by completed moves.
+
+	When max_move_actions is set (Slow Mode), stops early and signals incompletion
+	via completed_all_bags=False. Returns (move_actions, completed_all_bags).
+	"""
 	move_actions = 0
 	completed_all_bags = True
 	bags_to_process = target_bags if target_bags is not None else available_storage_bags
@@ -1261,6 +1368,12 @@ def _compact_storage_slots(entries, bag_states, available_storage_bags, target_b
 
 
 def _get_sort_priority(entry, allowed_by_bag, allowed_models_by_bag, first_storage_bag=None, try_empty_first=False):
+	"""Return a sort key for a wrong entry in the placement queue.
+
+	Items from a filtered (non-wildcard) source pane sort first (priority 0) because they
+	need a specific destination. Wildcard-source items sort last (priority 1).
+	When try_empty_first is active, items from the first pane get priority -1.
+	"""
 	if try_empty_first and first_storage_bag is not None and entry["bag_enum"] == first_storage_bag:
 		return -1
 	allowed_types = allowed_by_bag.get(entry["bag_enum"], [])
@@ -1279,6 +1392,11 @@ def _build_wrong_entries(
 	available_storage_bags=None,
 	try_empty_first=False,
 ):
+	"""Collect and sort all entries that are not in the correct storage pane.
+
+	When try_empty_first is active, items in the first pane are also considered wrong
+	(forcing them to be moved out even if their type matches that pane).
+	"""
 	wrong_entries = []
 	first_storage_bag = available_storage_bags[0] if available_storage_bags and len(available_storage_bags) > 0 else None
 	for entry in entries:
@@ -1325,6 +1443,10 @@ def _is_item_allowed_in_storage(
 	allowed_models_by_bag,
 	ignore_type_filter: bool = False,
 ):
+	"""Return True when the item passes the filters of the given pane.
+
+	Set ignore_type_filter=True to check only the model-ID filter (used when model priority applies).
+	"""
 	allowed_types = allowed_by_bag.get(bag_enum, [])
 	allowed_model_ids = allowed_models_by_bag.get(bag_enum, [])
 	if ignore_type_filter:
@@ -1344,6 +1466,12 @@ def _try_move_wrong_entry(
 	bag_states,
 	try_empty_first=False,
 ):
+	"""Try to move a misplaced item into the best available target pane.
+
+	Priority ranking: model-ID match > type match > wildcard.
+	Target panes must rank equal or higher than the source pane.
+	Returns True when the item was successfully moved.
+	"""
 	type_name = entry["type_name"]
 	model_id = int(entry.get("model_id", 0))
 	source_bag = entry["bag_enum"]
@@ -1419,6 +1547,7 @@ def _try_move_wrong_entry(
 
 
 def _update_sort_progress_state(task):
+	"""Recompute _sort_progress_ratio and _sort_progress_text from the current task state."""
 	global _sort_progress_ratio
 	global _sort_progress_text
 
@@ -1479,6 +1608,12 @@ def _update_sort_progress_state(task):
 
 
 def _start_sort_task(available_storage_bags):
+	"""Initialise a new asynchronous sort task that will be processed frame by frame.
+
+	Builds the full sort context (entries, bag states, filter maps) and sets the initial
+	phase to 'stack' (or skips directly into 'materials' if AUTO_DEPOSIT_MATERIALS is on).
+	Does nothing if a sort task is already running.
+	"""
 	global _sort_task_state
 
 	if _sort_task_state is not None:
@@ -1939,6 +2074,7 @@ def _process_sort_task():
 
 
 def _calculate_correct_item_progress(available_storage_bags):
+	"""Return (correct_items, total_items, ratio) for the current placement quality indicator."""
 	(
 		allowed_by_bag,
 		allowed_models_by_bag,
@@ -1971,6 +2107,12 @@ def _calculate_correct_item_progress(available_storage_bags):
 
 
 def _sort_storage_items(available_storage_bags):
+	"""Synchronous (blocking) sort — runs all phases to completion in a single call.
+
+	Used as a fallback / legacy path. The async task system (_start_sort_task) is preferred
+	for the interactive overlay since it spreads work across frames.
+	Returns (moved_items, stack_merge_actions, remaining_wrong, model+compact_actions).
+	"""
 	(
 		allowed_by_bag,
 		allowed_models_by_bag,
@@ -2094,6 +2236,11 @@ def _sort_storage_items(available_storage_bags):
 
 
 def _get_available_storage_bags(anniversary_slot_unlocked: bool):
+	"""Return the list of storage pane enums that are actually available in the current session.
+
+	Panes are probed in order (Storage1–Storage13, optionally Storage14).
+	The last pane is excluded when anniversary_slot_unlocked is False.
+	"""
 	bag_order = [
 		Bags.Storage1,
 		Bags.Storage2,
@@ -2126,6 +2273,7 @@ def _get_available_storage_bags(anniversary_slot_unlocked: bool):
 
 
 def _get_storage_bag_info(bag_enum):
+	"""Return a dict with availability, used slot count, total size, and free slot count for a pane."""
 	try:
 		bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
 		size = bag.GetSize()
@@ -2147,6 +2295,10 @@ def _get_storage_bag_info(bag_enum):
 
 
 def _get_slot_item_type_rows(bag_enum, allowed_types=None):
+	"""Return a list of (slot_number, type_name, quantity, is_allowed) tuples for the pane's items.
+
+	Used to populate the per-pane slot breakdown in the settings panel.
+	"""
 	if allowed_types is None:
 		allowed_types = []
 
@@ -2174,6 +2326,11 @@ def _get_slot_item_type_rows(bag_enum, allowed_types=None):
 		return []
 
 def _get_storage_anchor_position(anchor_window_width=None):
+	"""Calculate the screen position where our overlay window should be anchored.
+
+	Looks up the Xunlai vault frame by alias, then by hash, then falls back to the
+	inventory panel. Returns (x, y) or None when no suitable frame is visible.
+	"""
 	if anchor_window_width is None:
 		anchor_window_width = max(float(_last_window_width), float(COMPACT_WINDOW_MIN_WIDTH))
 	else:
@@ -2221,6 +2378,7 @@ def _get_storage_anchor_position(anchor_window_width=None):
 # UI rendering and interactions
 # -----------------------------------------------------------------------------
 def _draw_storage_hover_modelid_tooltip(available_storage_bags):
+	"""Show an ImGui tooltip with type and model info when hovering over a storage item."""
 	try:
 		hovered_item_id = int(GLOBAL_CACHE.Inventory.GetHoveredItemID())
 	except Exception:
@@ -2261,6 +2419,7 @@ def _draw_storage_hover_modelid_tooltip(available_storage_bags):
 
 
 def _draw_toggle_icon_window():
+	"""Draw the 40×40 frameless icon button that toggles the main Xunlai Manager panel."""
 	global WINDOW_OPEN
 
 	icon_window_size = 40.0
@@ -2308,6 +2467,7 @@ def _draw_toggle_icon_window():
 
 
 def _draw_window():
+	"""Main per-frame render function: draws the toggle icon and the full GUI when WINDOW_OPEN is True."""
 	global ANNIVERSARY_SLOT_UNLOCKED
 	global _last_saved_anniversary_slot_unlocked
 	global SHOW_SETTINGS
