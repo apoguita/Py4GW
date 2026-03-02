@@ -1107,7 +1107,7 @@ class InventoryPlusWidget:
             if self.selected_item:
                 if self.selected_item.IsIDKit:
                     self._draw_id_kit_menu_item(self.selected_item)
-                elif self.selected_item.IsSalvageKit and self.selected_item.ModelID == ModelID.Salvage_Kit:
+                elif self.selected_item.IsSalvageKit and self.selected_item.ModelID in (ModelID.Salvage_Kit, ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit):
                     self._draw_salvage_kit_menu_item(self.selected_item)
                 else:
                     self._draw_generic_item_menu_item(self.selected_item)
