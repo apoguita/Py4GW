@@ -26,6 +26,7 @@ from typing import Callable, Optional
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 
 _profiling_registry = None
+base_path = Py4GW.Console.get_projects_path()
 
 def _get_profiling():
     global _profiling_registry
@@ -101,6 +102,9 @@ class Py4GWLibrary:
         self.module_name = module_name
         self.widget_manager = widget_manager
         self.widget_filter = ""
+        
+        self.small_logo = os.path.join(base_path, "python_icon_round_20px.png")
+        self.big_logo = os.path.join(base_path, "python_icon_round.png")
         
         self.view_mode = ViewMode.All
         self.layout_mode = LayoutMode.Library
@@ -450,7 +454,7 @@ class Py4GWLibrary:
         image_size = item_size[1] - 4
         pos_x = item_min[0] + ((item_size[0] - image_size) / 2)
         pos_y = item_min[1] + ((item_size[1] - image_size) / 2)
-        ImGui.DrawTextureInDrawList((pos_x, pos_y), (image_size, image_size), "python_icon_round_20px.png")
+        ImGui.DrawTextureInDrawList((pos_x, pos_y), (image_size, image_size), self.small_logo)
         ImGui.show_tooltip("Switch to Single Button View")        
         PyImGui.same_line(0, spacing)
         
@@ -840,7 +844,7 @@ class Py4GWLibrary:
             style = ImGui.get_style()
             
             PyImGui.push_clip_rect(*win_pos, self.win_size[0], self.win_size[1], False)
-            ImGui.DrawTextureInDrawList((win_pos[0] + 4, win_pos[1] + 2), (20, 20), "python_icon_round_20px.png")
+            ImGui.DrawTextureInDrawList((win_pos[0] + 4, win_pos[1] + 2), (20, 20), self.small_logo)
             if ImGui.is_mouse_in_rect((win_pos[0] + 4, win_pos[1] + 2, 20, 20)):
                 PyImGui.begin_tooltip()
                 PyImGui.text(f"Collapse to a single button showing only the Python icon.\nOpening the full library view when clicked." )
@@ -1653,7 +1657,7 @@ class Py4GWLibrary:
                 PyImGui.set_cursor_pos((self.win_size[0] - button_size) / 2, (self.win_size[1] - button_size) / 2)
             
             cx, cy = PyImGui.get_cursor_pos()
-            ImGui.image("python_icon_round.png", (button_size, button_size))              
+            ImGui.image(self.big_logo, (button_size, button_size))              
             PyImGui.set_cursor_pos(cx, cy)
             ImGui.dummy(button_size, button_size)
             if in_radius:       
@@ -1780,7 +1784,7 @@ class Widget:
             self.name = getattr(self.module, 'MODULE_NAME', "") if hasattr(self.module, 'MODULE_NAME') else self.cleaned_name()
             self.category = getattr(self.module, 'MODULE_CATEGORY', "") if hasattr(self.module, 'MODULE_CATEGORY') else (self.widget_path.split('/')[0] if self.widget_path else "") #get first folder after Widgets 
             self.tags = getattr(self.module, 'MODULE_TAGS', []) if hasattr(self.module, 'MODULE_TAGS') else [folder for folder in self.widget_path.split('/') if folder]
-            self.image = getattr(self.module, 'MODULE_ICON', "") if hasattr(self.module, 'MODULE_ICON') else "Textures\\missing_texture.png"
+            self.image = os.path.join(base_path, getattr(self.module, 'MODULE_ICON', "") if hasattr(self.module, 'MODULE_ICON') else "Textures\\missing_texture.png")
             
             self.optional = getattr(self.module, 'OPTIONAL', True) if hasattr(self.module, 'OPTIONAL') else self.category not in ["System", "Py4GW"] # System and Py4GW widgets are non-optional by default, all others are optional by default
             self.RegisterCallbacks()
