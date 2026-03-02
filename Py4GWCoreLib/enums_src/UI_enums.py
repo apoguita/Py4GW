@@ -69,6 +69,7 @@ class UIMessage(IntEnum):
     kMouseClick                 = 0x24  # wparam = UIPacket::kMouseClick*
     kMouseCoordsClick           = 0x26
     kMouseUp                    = 0x28  # wparam = UIPacket::kMouseClick*
+    kToggleButtonDown           = 0x2E
     kMouseClick2                = 0x31  # wparam = UIPacket::kMouseAction*
     kMouseAction                = 0x32  # wparam = UIPacket::kMouseAction*
     kSetLayout                  = 0x37
@@ -84,6 +85,7 @@ class UIMessage(IntEnum):
     kSetAgentNameTagAttribs     = 0x1000001B #  0x1000001B, wparam = AgentNameTagInfo*
     kSetAgentProfession         = 0x1000001D #  0x1000001D, wparam = UIPacket::kSetAgentProfession*
     kChangeTarget               = 0x10000020 # 0x10000020, wparam = UIPacket::kChangeTarget*
+    kAgentSkillActivated        = 0x10000024 # kAgentSkillPacket
     kAgentSkillActivatedInstantly = 0x10000025 # kAgentSkillPacket
     kAgentSkillCancelled        = 0x10000026 # kAgentSkillPacket
     kAgentStartCasting          = 0x10000027  # wparam = { uint32_t agent_id, uint32_t skill_id }
@@ -235,6 +237,25 @@ class UIMessage(IntEnum):
     kSendWorldAction            = 0x30000020  # wparam = UIPacket::kSendWorldAction*
     kSetRendererValue           = 0x30000021  # wparam = UIPacket::kSetRendererValue
     kIdentifyItem               = 0x30000022  # wparam = UIPacket::kIdentifyItem
+
+
+class FrameMessage(IntEnum):
+    """
+    Frame-local dispatch IDs observed in individual frame procs.
+
+    These are not the same thing as the global UIMessage values routed through
+    SendUIMessage / SendFrameUIMessage. They are the low-level message IDs a
+    frame proc receives internally during construction, teardown, and content
+    updates.
+    """
+
+    kInstallHandler             = 0x4   # Install/configure the real frame proc (confirmed in install handshake)
+    kBootstrap                  = 0x5   # Early bootstrap before handler install
+    kPreDestroy                 = 0x7   # Pre-destroy / veto point
+    kBuildChildren              = 0x9   # Build/init path where parent procs create child frames
+    kPostCreate                 = 0xA   # Post-create init dispatch after shell construction
+    kDestroy                    = 0xB   # Destroy / teardown dispatch
+    kSetTextContent             = 0x62  # Ui_MultiLineTextControlProc: expects wchar_t* payload
 
 
 

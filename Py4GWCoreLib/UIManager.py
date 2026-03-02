@@ -387,6 +387,96 @@ class UIManager:
     @staticmethod
     def SendUIMessageRaw(msgid: int, wparam: int, lparam: int, skip_hooks: bool = False ) -> bool:
         return PyUIManager.UIManager.SendUIMessageRaw(msgid, wparam, lparam, skip_hooks)
+
+    @staticmethod
+    def SendFrameUIMessage(frame_id: int, message_id: int, wparam: int, lparam: int = 0) -> bool:
+        return PyUIManager.UIManager.SendFrameUIMessage(frame_id, message_id, wparam, lparam)
+
+    @staticmethod
+    def CreateUIComponentByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int,
+        event_callback: int,
+        name_enc: str = "",
+        component_label: str = "",
+    ):
+        PyUIManager.UIManager.create_ui_component_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            event_callback,
+            name_enc,
+            component_label,
+        )
+
+    @staticmethod
+    def DestroyUIComponentByFrameId(frame_id: int):
+        PyUIManager.UIManager.destroy_ui_component_by_frame_id(frame_id)
+
+    @staticmethod
+    def CreateButtonFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        name_enc: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_button_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            name_enc,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateCheckboxFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        name_enc: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_checkbox_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            name_enc,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateScrollableFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        page_context: int = 0,
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_scrollable_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            page_context,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateTextLabelFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        name_enc: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_text_label_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            name_enc,
+            component_label,
+        )
     
     @staticmethod
     def FrameClick(frame_id):

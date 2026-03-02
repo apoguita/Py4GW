@@ -188,6 +188,63 @@ class UIManager:
     ) -> bool: ...
     
     @staticmethod
+    def SendFrameUIMessage(
+        frame_id: int,
+        message_id: int,
+        wparam: int,
+        lparam: int = 0
+    ) -> bool: ...
+
+    @staticmethod
+    def create_ui_component_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int,
+        event_callback: int,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def destroy_ui_component_by_frame_id(frame_id: int) -> bool: ...
+
+    @staticmethod
+    def create_button_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_checkbox_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_scrollable_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        page_context: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_text_label_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+    
+    @staticmethod
     def button_click(frame_id: int) -> None: ...
     @staticmethod
     def test_mouse_action(frame_id: int, current_state: int, wparam_value:int, lparam:int) -> None: ...
