@@ -3,7 +3,9 @@
   "steps": [
     {"type": "auto_path", "name": "Using the back Entrance", "points": [[-6240, 11471], [-6951, 14528], [-9214, 16746], [-11294, 15897]]},
     {"type": "auto_path", "name": "to wolfo", "points": [[-12225, 13500], [-13011, 12108], [-14922, 12513]]},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF", "repeat":5},
+    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
+    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
+    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "auto_path", "name": "To Wailing Lord", "points": [[-17581, 15371], [-19794, 13938]]},
     {"type": "flag_all_accounts", "x": -20181, "y": 13963},
     {"type": "set_auto_combat", "enabled": false},
