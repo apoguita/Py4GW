@@ -209,5 +209,22 @@ class _ITEMS:
         def PahnaiSalad(self):
             self._helpers.Restock.restock_pahnai_salad()
 
+        def AllPcons(self):
+            self._helpers.Restock.restock_birthday_cupcake()
+            self._helpers.Restock.restock_candy_apple()
+            self._helpers.Restock.restock_golden_egg()
+            self._helpers.Restock.restock_candy_corn()
+            self._helpers.Restock.restock_honeycomb()
+            self._helpers.Restock.restock_war_supplies()
+            self._helpers.Restock.restock_slice_of_pumpkin_pie()
+            self._helpers.Restock.restock_drake_kabob()
+            self._helpers.Restock.restock_bowl_of_skalefin_soup()
+            self._helpers.Restock.restock_pahnai_salad()
+
+        def Conset(self):
+            self._helpers.Restock.restock_essence_of_celerity()
+            self._helpers.Restock.restock_grail_of_might()
+            self._helpers.Restock.restock_armor_of_salvation()
+
 
 
