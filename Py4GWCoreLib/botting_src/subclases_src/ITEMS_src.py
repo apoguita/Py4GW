@@ -209,5 +209,26 @@ class _ITEMS:
         def PahnaiSalad(self):
             self._helpers.Restock.restock_pahnai_salad()
 
+        def AllPcons(self, quantity: int = 250):
+            self._helpers.Restock.force_restock_item(ModelID.Birthday_Cupcake.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Candy_Apple.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Golden_Egg.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Candy_Corn.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Honeycomb.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.War_Supplies.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Slice_Of_Pumpkin_Pie.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Drake_Kabob.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Bowl_Of_Skalefin_Soup.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Pahnai_Salad.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Scroll_Of_Resurrection.value, quantity)
+
+        def Conset(self, quantity: int = 250):
+            self._helpers.Restock.force_restock_item(ModelID.Essence_Of_Celerity.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Grail_Of_Might.value, quantity)
+            self._helpers.Restock.force_restock_item(ModelID.Armor_Of_Salvation.value, quantity)
+
+        def ResurrectionScroll(self, quantity: int = 250):
+            self._helpers.Restock.force_restock_item(ModelID.Scroll_Of_Resurrection.value, quantity)
+
 
 

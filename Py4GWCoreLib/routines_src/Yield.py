@@ -1754,6 +1754,16 @@ class Yield:
         @staticmethod
         def Upkeep_Morale(target_morale=100):
             from .Checks import Checks
+
+            # Party-wide morale items: affect all members, so check party morale too
+            PARTY_MORALE_MODELS = frozenset(
+                m.value if hasattr(m, "value") else int(m)
+                for m in (
+                    ModelID.Honeycomb, ModelID.Rainbow_Candy_Cane,
+                    ModelID.Elixir_Of_Valor, ModelID.Powerstone_Of_Courage,
+                )
+            )
+
             morale_models = [
                 (m.value if hasattr(m, "value") else int(m))
                 for m in Yield.Upkeepers.MORALE_ITEMS
@@ -1767,13 +1777,36 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            while Player.GetMorale() < target_morale:
+            def _min_party_morale():
+                try:
+                    entries = GLOBAL_CACHE.Party.GetPartyMorale() or []
+                    if not entries:
+                        return Player.GetMorale()
+                    return min(int(m) for _, m in entries)
+                except Exception:
+                    return Player.GetMorale()
+
+            player_morale = Player.GetMorale()
+            min_party = _min_party_morale()
+
+            while player_morale < target_morale or min_party < target_morale:
                 item_id = 0
-                for model_id in morale_models:
-                    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-                    if item_id:
-                        break
-                    
+
+                # If any party member is below target, prefer party-wide items first
+                if min_party < target_morale:
+                    for model_id in morale_models:
+                        if model_id in PARTY_MORALE_MODELS:
+                            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                            if item_id:
+                                break
+
+                # Fall back to any item (covers player-only case or no party item available)
+                if not item_id:
+                    for model_id in morale_models:
+                        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                        if item_id:
+                            break
+
                 if not item_id:
                     # nothing to use right now
                     yield from Yield.wait(500)
@@ -1781,7 +1814,11 @@ class Yield:
 
                 GLOBAL_CACHE.Inventory.UseItem(item_id)
                 yield from Yield.wait(750)
-                
+
+                # Recalculate after use
+                player_morale = Player.GetMorale()
+                min_party = _min_party_morale()
+
             yield from Yield.wait(500)
 
         @staticmethod

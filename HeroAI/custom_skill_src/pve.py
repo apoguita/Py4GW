@@ -305,6 +305,7 @@ class PVESkills:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -337,6 +338,7 @@ class PVESkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.UniqueProperty = True  # Requires melee weapon (not Bow or Spear)
         skill_data[skill.SkillID] = skill
 
         #region LIGHTBRINGER

@@ -105,3 +105,8 @@ class _Restock:
         if self._config.upkeep.pahnai_salad.is_active():
             qty = self._config.upkeep.pahnai_salad.get("restock_quantity")
             yield from self._restock_item(ModelID.Pahnai_Salad.value, qty)
+
+    @_yield_step(label="ForceRestockItem", counter_key="FORCE_RESTOCK_ITEM")
+    def force_restock_item(self, model_id: int, quantity: int):
+        """Restock unconditionally — bypasses upkeep config is_active check."""
+        yield from self._restock_item(model_id, quantity)
