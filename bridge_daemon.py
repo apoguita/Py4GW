@@ -192,6 +192,34 @@ class BridgeDaemon:
                 last_response=response,
             )
 
+    def _resolve_target_client(
+        self,
+        request_id: str,
+        params: dict[str, Any],
+    ) -> tuple[BridgeClientSession | None, dict[str, Any] | None]:
+        target = params.get("target", {})
+        if not isinstance(target, dict):
+            return None, make_error_response(request_id, "validation_target", "target must be object")
+        client = self.get_client(target.get("hwnd"), target.get("pid"))
+        if client is None:
+            return None, make_error_response(request_id, "client_not_found", "target client not connected")
+        return client, None
+
+    def _call_bridge_command(
+        self,
+        request_id: str,
+        params: dict[str, Any],
+        bridge_command: str,
+        bridge_params: dict[str, Any] | None = None,
+        timeout_s: float = 3.0,
+    ) -> tuple[BridgeClientSession | None, dict[str, Any] | None, dict[str, Any] | None]:
+        client, error = self._resolve_target_client(request_id, params)
+        if error is not None or client is None:
+            return client, error, None
+        resp = client.call_client(bridge_command, bridge_params or {}, timeout_s=timeout_s)
+        self._record_forward(request_id, client, resp)
+        return client, None, resp
+
     def control_dispatch(self, request: dict[str, Any]) -> dict[str, Any]:
         request_id = str(request.get("request_id") or uuid.uuid4().hex)
         command = str(request.get("command") or "")
@@ -203,14 +231,126 @@ class BridgeDaemon:
                 return make_response(request_id, {"pong": True, "time_ms": _now_ms()})
             if command == "system.list_clients":
                 return make_response(request_id, {"clients": self.list_clients()})
+            if command == "client.describe_runtime":
+                client, error, resp = self._call_bridge_command(request_id, params, "client.describe")
+                if error is not None or client is None or resp is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
+                if not resp.get("ok"):
+                    return make_response(request_id, {"target": client.describe(), "bridge_response": resp})
+                return make_response(
+                    request_id,
+                    {
+                        "target": client.describe(),
+                        "client_state": resp.get("result"),
+                        "bridge_response": resp,
+                    },
+                )
+            if command == "client.get_map_state":
+                client, error, resp = self._call_bridge_command(request_id, params, "map.get_state")
+                if error is not None or client is None or resp is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
+                if not resp.get("ok"):
+                    return make_response(request_id, {"target": client.describe(), "bridge_response": resp})
+                return make_response(
+                    request_id,
+                    {
+                        "target": client.describe(),
+                        "map_state": resp.get("result"),
+                        "bridge_response": resp,
+                    },
+                )
+            if command == "client.get_player_state":
+                client, error, resp = self._call_bridge_command(request_id, params, "player.get_state")
+                if error is not None or client is None or resp is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
+                if not resp.get("ok"):
+                    return make_response(request_id, {"target": client.describe(), "bridge_response": resp})
+                return make_response(
+                    request_id,
+                    {
+                        "target": client.describe(),
+                        "player_state": resp.get("result"),
+                        "bridge_response": resp,
+                    },
+                )
+            if command == "client.list_agents":
+                group = str(params.get("group") or "all").lower()
+                if group not in {"all", "ally", "enemy", "item", "gadget", "npc"}:
+                    return make_error_response(request_id, "validation_group", f"unsupported group: {group}")
+                client, error, resp = self._call_bridge_command(request_id, params, "agent.list", {"group": group})
+                if error is not None or client is None or resp is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
+                if not resp.get("ok"):
+                    return make_response(request_id, {"target": client.describe(), "bridge_response": resp})
+                bridge_result = resp.get("result") or {}
+                if not isinstance(bridge_result, dict):
+                    return make_error_response(request_id, "invalid_bridge_response", "agent result must be object")
+                return make_response(
+                    request_id,
+                    {
+                        "target": client.describe(),
+                        "group": str(bridge_result.get("group") or group),
+                        "agents": bridge_result.get("agents", []),
+                        "bridge_response": resp,
+                    },
+                )
+            if command == "client.list_namespaces":
+                client, error, resp = self._call_bridge_command(request_id, params, "system.list_namespaces")
+                if error is not None or client is None or resp is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
+                if not resp.get("ok"):
+                    return make_response(request_id, {"target": client.describe(), "bridge_response": resp})
+                bridge_result = resp.get("result") or {}
+                if not isinstance(bridge_result, dict):
+                    return make_error_response(request_id, "invalid_bridge_response", "namespace result must be object")
+                namespaces = bridge_result.get("namespaces", [])
+                details = bridge_result.get("details", [])
+                if not isinstance(namespaces, list) or not isinstance(details, list):
+                    return make_error_response(
+                        request_id,
+                        "invalid_bridge_response",
+                        "namespace result must include list fields",
+                    )
+                return make_response(
+                    request_id,
+                    {
+                        "target": client.describe(),
+                        "namespaces": namespaces,
+                        "details": details,
+                        "bridge_response": resp,
+                    },
+                )
+            if command == "client.list_commands":
+                client, error, resp = self._call_bridge_command(request_id, params, "system.list_commands")
+                if error is not None or client is None or resp is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
+                if not resp.get("ok"):
+                    return make_response(request_id, {"target": client.describe(), "bridge_response": resp})
+                bridge_result = resp.get("result") or {}
+                if not isinstance(bridge_result, dict):
+                    return make_error_response(request_id, "invalid_bridge_response", "command result must be object")
+                commands = bridge_result.get("commands", [])
+                if not isinstance(commands, list):
+                    return make_error_response(
+                        request_id,
+                        "invalid_bridge_response",
+                        "command result must include commands list",
+                    )
+                return make_response(
+                    request_id,
+                    {
+                        "target": client.describe(),
+                        "commands": commands,
+                        "bridge_response": resp,
+                    },
+                )
             if command == "client.request":
-                target = params.get("target", {})
                 payload = params.get("payload", {})
-                if not isinstance(target, dict) or not isinstance(payload, dict):
-                    return make_error_response(request_id, "validation_target", "target and payload must be objects")
-                client = self.get_client(target.get("hwnd"), target.get("pid"))
-                if client is None:
-                    return make_error_response(request_id, "client_not_found", "target client not connected")
+                if not isinstance(payload, dict):
+                    return make_error_response(request_id, "validation_payload", "payload must be object")
+                client, error = self._resolve_target_client(request_id, params)
+                if error is not None or client is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
                 payload_cmd = str(payload.get("command") or "")
                 payload_params = payload.get("params", {})
                 if not payload_cmd or not isinstance(payload_params, dict):
@@ -219,13 +359,12 @@ class BridgeDaemon:
                 self._record_forward(request_id, client, resp)
                 return make_response(request_id, {"target": client.describe(), "bridge_response": resp})
             if command == "client.get_status":
-                target = params.get("target", {})
                 tracked_request_id = str(params.get("tracked_request_id") or "")
-                if not isinstance(target, dict) or not tracked_request_id:
+                if not tracked_request_id:
                     return make_error_response(request_id, "validation_status", "target and tracked_request_id required")
-                client = self.get_client(target.get("hwnd"), target.get("pid"))
-                if client is None:
-                    return make_error_response(request_id, "client_not_found", "target client not connected")
+                client, error = self._resolve_target_client(request_id, params)
+                if error is not None or client is None:
+                    return error or make_error_response(request_id, "client_not_found", "target client not connected")
                 resp = client.call_client("ops.get_status", {"request_id": tracked_request_id}, timeout_s=2.0)
                 self._record_forward(tracked_request_id, client, resp)
                 return make_response(request_id, {"target": client.describe(), "bridge_response": resp})

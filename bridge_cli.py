@@ -55,6 +55,72 @@ def _print_json(obj: Any) -> None:
     print(json.dumps(obj, indent=2, ensure_ascii=False))
 
 
+def _print_namespace_summary(resp: dict[str, Any]) -> None:
+    if not resp.get("ok"):
+        _print_json(resp)
+        return
+    top_result = resp.get("result") or {}
+    result = top_result
+    if isinstance(top_result, dict) and "bridge_response" in top_result:
+        bridge_resp = top_result.get("bridge_response") or {}
+        if not isinstance(bridge_resp, dict) or not bridge_resp.get("ok"):
+            _print_json(resp)
+            return
+        result = bridge_resp.get("result") or {}
+    details = result.get("details") or []
+    if not isinstance(details, list) or not details:
+        _print_json(resp)
+        return
+    for item in details:
+        if not isinstance(item, dict):
+            continue
+        namespace = str(item.get("namespace") or "")
+        source = str(item.get("source") or "")
+        kind = str(item.get("kind") or "")
+        ambiguous = " ambiguous" if bool(item.get("ambiguous_label")) else ""
+        alias_of = str(item.get("alias_of") or "")
+        preferred_label = str(item.get("preferred_label") or "")
+        note = str(item.get("note") or "")
+        line = f"{namespace}: {source}/{kind}{ambiguous}"
+        if alias_of:
+            line = f"{line} alias_of={alias_of}"
+        if preferred_label:
+            line = f"{line} preferred={preferred_label}"
+        if note:
+            line = f"{line} - {note}"
+        print(line)
+
+
+def _print_command_summary(resp: dict[str, Any]) -> None:
+    if not resp.get("ok"):
+        _print_json(resp)
+        return
+    result = resp.get("result") or {}
+    if not isinstance(result, dict):
+        _print_json(resp)
+        return
+    commands = result.get("commands") or []
+    if not isinstance(commands, list) or not commands:
+        _print_json(resp)
+        return
+    for item in commands:
+        if not isinstance(item, dict):
+            continue
+        command = str(item.get("command") or "")
+        access = str(item.get("access") or "")
+        safety = str(item.get("safety") or "")
+        kind = str(item.get("kind") or "")
+        scope = str(item.get("scope") or "")
+        guards = item.get("guards") or []
+        note = str(item.get("note") or "")
+        line = f"{command}: {access}/{safety} {kind} scope={scope}"
+        if isinstance(guards, list) and guards:
+            line = f"{line} guards={','.join(str(g) for g in guards)}"
+        if note:
+            line = f"{line} - {note}"
+        print(line)
+
+
 def cmd_ping(args: argparse.Namespace) -> int:
     _print_json(_request(args.host, args.port, "system.ping"))
     return 0
@@ -136,18 +202,35 @@ def cmd_namespaces(args: argparse.Namespace) -> int:
     target = _target_args(args)
     if not target:
         raise SystemExit("Provide --hwnd or --pid")
-    _print_json(
-        _request(
-            args.host,
-            args.port,
-            "client.request",
-            {
-                "target": target,
-                "payload": {"command": "system.list_namespaces", "params": {}},
-            },
-            timeout=args.timeout,
-        )
+    resp = _request(
+        args.host,
+        args.port,
+        "client.list_namespaces",
+        {"target": target},
+        timeout=args.timeout,
     )
+    if args.json:
+        _print_json(resp)
+    else:
+        _print_namespace_summary(resp)
+    return 0
+
+
+def cmd_commands(args: argparse.Namespace) -> int:
+    target = _target_args(args)
+    if not target:
+        raise SystemExit("Provide --hwnd or --pid")
+    resp = _request(
+        args.host,
+        args.port,
+        "client.list_commands",
+        {"target": target},
+        timeout=args.timeout,
+    )
+    if args.json:
+        _print_json(resp)
+    else:
+        _print_command_summary(resp)
     return 0
 
 
@@ -168,7 +251,14 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("namespaces", help="List bridge namespaces on target client")
     s.add_argument("--hwnd", type=int)
     s.add_argument("--pid", type=int)
+    s.add_argument("--json", action="store_true", help="Print raw JSON response instead of summary output")
     s.set_defaults(func=cmd_namespaces)
+
+    s = sub.add_parser("commands", help="List bridge command metadata on target client")
+    s.add_argument("--hwnd", type=int)
+    s.add_argument("--pid", type=int)
+    s.add_argument("--json", action="store_true", help="Print raw JSON response instead of summary output")
+    s.set_defaults(func=cmd_commands)
 
     s = sub.add_parser("request", help="Send a namespaced request to a target client")
     s.add_argument("--hwnd", type=int)
