@@ -1,27 +1,41 @@
 from Py4GWCoreLib import GLOBAL_CACHE
-from Py4GWCoreLib import Trading
+from Py4GWCoreLib import GWContext, PyImGui, UIManager
 from Py4GWCoreLib import PyItem
-from typing import List
+import Py4GW
 
 import PyImGui
 
-item_id = 0
-item_name = "Unknown Item"
+from native_ui_canvas_test import TEST_LABEL
+
+def _open_devtext_window() -> None:
+    try:
+        context = GWContext.Char.GetContext()
+        if context is None:
+            return
+        player_flags_before = int(context.player_flags)
+        context.player_flags = player_flags_before | 0x8
+        UIManager.Keypress(0x25, 0)
+        context.player_flags = player_flags_before
+    except Exception as exc:
+        pass
+
+
+def _create_text():
+    parent_id = UIManager.GetFrameIDByLabel("DevText")
+    frame_id = UIManager.CreateTextLabelFrameByFrameId(
+            parent_id, 0, 99, "", "Py4GW DevText Window"
+        )
+    print ("Created text label with frame ID:", frame_id)
 
 def draw_window():
     global item_id, item_name
     if PyImGui.begin("quest data"):
-        #merchant_item_list = Trading.Trader.GetOfferedItems()
-        #combo_items = [GLOBAL_CACHE.Item.GetName(item_id) for item_id in merchant_item_list]
-        
-        item_array:List[PyItem] = GLOBAL_CACHE.ItemArray.GetRawItemArray([1,2,3,4])
-        for item in item_array:
-            item_id = item.item_id
-            item_name = GLOBAL_CACHE.Item.GetName(item_id)
-            PyImGui.text(f"Item: {item} Item ID: {item_id}, Item Name: {item_name}")
+        if PyImGui.button("open devtext window"):
+            Py4GW.Game.enqueue(_open_devtext_window)
+            
+        if PyImGui.button("create text label"):
+            Py4GW.Game.enqueue(_create_text)
 
-            
-            
         PyImGui.end()
 
 def main():
