@@ -243,7 +243,6 @@ def create_modular_fow_bot(
         settings_ui=settings_ui,
         help_ui=help_ui,
         config_draw_path=True,
-        upkeep_morale_active=True,
         upkeep_auto_inventory_management_active=True,
         upkeep_summoning_stone_active=True,
         upkeep_grail_of_might_active=True,
@@ -251,14 +250,12 @@ def create_modular_fow_bot(
         upkeep_armor_of_salvation_active=True,
         upkeep_war_supplies_active=True,
         upkeep_drake_kabob_active=True,
-        upkeep_honeycomb_active=True,
         upkeep_candy_corn_active=True,
         upkeep_grail_of_might_restock=3,
         upkeep_essence_of_celerity_restock=3,
         upkeep_armor_of_salvation_restock=3,
         upkeep_war_supplies_restock=3,
         upkeep_drake_kabob_restock=3,
-        upkeep_honeycomb_restock=10,
         upkeep_candy_corn_restock=10,
     )
 
