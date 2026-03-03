@@ -32,6 +32,7 @@ try:
         Agent,
         ImGui,
         Routines,
+        Range,
     )
     from Py4GWCoreLib import PyImGui, Color
 
@@ -89,22 +90,29 @@ try:
         if player_id == 0:
             return
 
-        if not Agent.IsDead(player_id):
-            _status_text = "Alive"
+        # Can't use items while dead
+        if Agent.IsDead(player_id):
+            _status_text = "Player is dead"
+            return
+
+        # Check if any party member is dead nearby
+        dead_ally_id = Routines.Agents.GetDeadAlly(Range.Earshot.value)
+        if dead_ally_id == 0:
+            _status_text = "All alive"
             _on_cooldown = False
             return
 
-        # Player is dead
+        # A party member is dead — check cooldown
         if _on_cooldown and not _cooldown_timer.HasElapsed(_USE_COOLDOWN_MS):
-            _status_text = "Dead — waiting cooldown"
+            _status_text = "Dead party member — waiting cooldown"
             return
 
         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(_SCROLL_MODEL_ID)
         if item_id == 0:
-            _status_text = "Dead — no scroll in inventory"
+            _status_text = "Dead party member — no scroll in inventory"
             return
 
-        ConsoleLog(MODULE_NAME, "Player is dead, using Scroll of Resurrection", Console.MessageType.Info)
+        ConsoleLog(MODULE_NAME, "Party member dead, using Scroll of Resurrection", Console.MessageType.Info)
         GLOBAL_CACHE.Inventory.UseItem(item_id)
         _on_cooldown = True
         _cooldown_timer.Reset()
