@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import random
 from typing import Callable, Optional
 
+from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Sources.modular_bot import ModularBot
 from Sources.modular_bot.phase import Phase
 from Sources.modular_bot.recipes import Quest
@@ -25,9 +26,12 @@ FOW_QUEST_ORDER: list[tuple[str, str]] = [
     ("reward_time", "Reward Time"),
 ]
 
-ZIN_KU_CORRIDOR_MAP_ID = 284
-FOW_MAP_ID = 34
-FOW_SCROLL_MODEL_ID = 22280
+ZIN_KU_CORRIDOR_MAP_ID = int(name_to_map_id["Zin Ku Corridor"])
+CHANTRY_OF_SECRETS_MAP_ID = int(name_to_map_id["Chantry of Secrets"])
+TEMPLE_OF_THE_AGES_MAP_ID = int(name_to_map_id["Temple of the Ages"])
+EMBARK_BEACH_MAP_ID = int(name_to_map_id["Embark Beach"])
+FOW_MAP_ID = int(name_to_map_id["The Fissure of Woe"])
+FOW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Fow.value)
 
 CONSUMABLE_RESTOCK_DEFAULTS = {
     "grail_of_might": 3,
@@ -40,11 +44,14 @@ CONSUMABLE_RESTOCK_DEFAULTS = {
 }
 
 CONSUMABLE_PROPERTY_NAMES = tuple(CONSUMABLE_RESTOCK_DEFAULTS.keys())
-ZIN_KU_ALLOWED_DISTRICTS = (
-    "International",
-    "American",
-    "EuropeEnglish",
-)
+FOW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
+    "zin_ku_corridor": ("Zin Ku Corridor", ZIN_KU_CORRIDOR_MAP_ID),
+    "chantry_of_secrets": ("Chantry of Secrets", CHANTRY_OF_SECRETS_MAP_ID),
+    "temple_of_the_ages": ("Temple of the Ages", TEMPLE_OF_THE_AGES_MAP_ID),
+    "embark_beach": ("Embark Beach", EMBARK_BEACH_MAP_ID),
+}
+DEFAULT_FOW_ENTRYPOINT_KEY = "zin_ku_corridor"
+GH_MERCHANT_SELECTOR: dict[str, str] = {"npc": "MERCHANT"}
 
 
 @dataclass(slots=True)
@@ -54,6 +61,7 @@ class ModularFowOptions:
     restock_consumables: bool = True
     auto_loot: bool = True
     debug_logging: bool = False
+    entrypoint: str = DEFAULT_FOW_ENTRYPOINT_KEY
 
 
 def _debug(debug_hook: Optional[Callable[[str], None]], message: str) -> None:
@@ -61,26 +69,31 @@ def _debug(debug_hook: Optional[Callable[[str], None]], message: str) -> None:
         debug_hook(message)
 
 
+def _resolve_entrypoint(entrypoint: str) -> tuple[str, int]:
+    key = str(entrypoint or DEFAULT_FOW_ENTRYPOINT_KEY).strip().lower()
+    return FOW_ENTRYPOINTS.get(key, FOW_ENTRYPOINTS[DEFAULT_FOW_ENTRYPOINT_KEY])
+
+
 def build_fow_phases(
     options: ModularFowOptions,
     debug_hook: Optional[Callable[[str], None]] = None,
 ) -> list[Phase]:
     def _fow_setup(bot) -> None:
+        entrypoint_name, entrypoint_map_id = _resolve_entrypoint(options.entrypoint)
         _debug(
             debug_hook,
             "Registering FoW setup steps "
             f"(hard_mode={options.hard_mode}, use_consumables={options.use_consumables}, "
-            f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot})",
+            f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot}, "
+            f"entrypoint={entrypoint_name})",
         )
         setup_steps = [
             {"type": "leave_party", "name": "Leave Party", "multibox": True},
             {"type": "travel_gh", "name": "Travel to Guild Hall", "ms": 7000, "multibox": True},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
             {"type": "set_auto_looting", "enabled": bool(options.auto_loot)},
-            {"type": "invite_all_accounts", "name": "Invite Alts"}
-
         ]
 
         if options.use_consumables and options.restock_consumables:
@@ -88,7 +101,9 @@ def build_fow_phases(
 
         setup_steps.extend(
             [
-                {"type": "travel", "name": "Travel to Zin Ku Corridor", "target_map_id": ZIN_KU_CORRIDOR_MAP_ID},
+                {"type": "random_travel", "name": f"Travel to {entrypoint_name}", "target_map_id": entrypoint_map_id},
+                {"type": "summon_all_accounts", "name": "Summon Alts", "ms": 5000},
+                {"type": "invite_all_accounts", "name": "Invite Alts"},
                 {"type": "set_hard_mode", "enabled": bool(options.hard_mode)},
                 {"type": "use_item", "name": "Use FoW Scroll", "model_id": FOW_SCROLL_MODEL_ID},
                 {"type": "wait_map_change", "name": "Wait For FoW", "target_map_id": FOW_MAP_ID},

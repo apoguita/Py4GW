@@ -5,6 +5,8 @@ import PyImGui
 
 from Py4GWCoreLib import Console, ConsoleLog, IniHandler, Timer
 from Sources.modular_bot.prebuilts.fow import (
+    DEFAULT_FOW_ENTRYPOINT_KEY,
+    FOW_ENTRYPOINTS,
     FOW_QUEST_ORDER,
     ModularFowOptions,
     apply_fow_runtime_properties,
@@ -29,6 +31,9 @@ class Config:
         self.restock_consumables = ini_handler.read_bool(BOT_NAME, "restock_consumables", True)
         self.auto_loot = ini_handler.read_bool(BOT_NAME, "auto_loot", True)
         self.debug_logging = ini_handler.read_bool(BOT_NAME, "debug_logging", False)
+        self.entrypoint = str(
+            ini_handler.read_key(BOT_NAME, "entrypoint", DEFAULT_FOW_ENTRYPOINT_KEY) or DEFAULT_FOW_ENTRYPOINT_KEY
+        )
 
     def to_options(self) -> ModularFowOptions:
         return ModularFowOptions(
@@ -37,6 +42,7 @@ class Config:
             restock_consumables=bool(self.restock_consumables),
             auto_loot=bool(self.auto_loot),
             debug_logging=bool(self.debug_logging),
+            entrypoint=self.entrypoint,
         )
 
     def save_throttled(self):
@@ -49,11 +55,38 @@ class Config:
         ini_handler.write_key(BOT_NAME, "restock_consumables", str(bool(self.restock_consumables)))
         ini_handler.write_key(BOT_NAME, "auto_loot", str(bool(self.auto_loot)))
         ini_handler.write_key(BOT_NAME, "debug_logging", str(bool(self.debug_logging)))
+        ini_handler.write_key(BOT_NAME, "entrypoint", str(self.entrypoint))
 
 
 config = Config()
 bot = None
 _BOT_REBUILD_PENDING = False
+ENTRYPOINT_KEYS = list(FOW_ENTRYPOINTS.keys())
+ENTRYPOINT_LABELS = [label for label, _map_id in FOW_ENTRYPOINTS.values()]
+
+
+def _entrypoint_index() -> int:
+    try:
+        return ENTRYPOINT_KEYS.index(config.entrypoint)
+    except ValueError:
+        return 0
+
+
+def _draw_entrypoint_combo(disabled: bool = False) -> None:
+    if disabled:
+        PyImGui.begin_disabled(True)
+    PyImGui.text("FoW Entrypoint")
+    PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+    selected_index = PyImGui.combo("##FoWEntrypoint", _entrypoint_index(), ENTRYPOINT_LABELS)
+    PyImGui.pop_item_width()
+    if 0 <= selected_index < len(ENTRYPOINT_KEYS):
+        new_entrypoint = ENTRYPOINT_KEYS[selected_index]
+        if new_entrypoint != config.entrypoint:
+            config.entrypoint = new_entrypoint
+            if bot is not None:
+                _queue_rebuild()
+    if disabled:
+        PyImGui.end_disabled()
 
 
 def _fsm_step_name() -> str:
@@ -156,6 +189,7 @@ def _start_bot() -> None:
 
 
 def _draw_prestart_window() -> None:
+    PyImGui.set_next_window_size((440, 360), PyImGui.ImGuiCond.FirstUseEver)
     if not PyImGui.begin(BOT_NAME):
         PyImGui.end()
         return
@@ -174,6 +208,7 @@ def _draw_prestart_window() -> None:
     config.restock_consumables = PyImGui.checkbox("Restock Consumables", config.restock_consumables)
     PyImGui.end_disabled()
     config.auto_loot = PyImGui.checkbox("Auto Loot", config.auto_loot)
+    _draw_entrypoint_combo()
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
 
     PyImGui.separator()
@@ -237,12 +272,14 @@ def _draw_main() -> None:
     if new_auto_loot != config.auto_loot:
         config.auto_loot = new_auto_loot
         _queue_rebuild()
+    _draw_entrypoint_combo(disabled=is_running)
     PyImGui.end_disabled()
 
     config.save_throttled()
 
 
 def _draw_settings() -> None:
+    _draw_entrypoint_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running))
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
     config.save_throttled()
 
@@ -253,6 +290,9 @@ def _draw_help() -> None:
     PyImGui.text_wrapped("Widget wrapper for the FoW prebuilt route using the shared modular FoW builder.")
     PyImGui.bullet_text("Uses the same FoW route builder as the standalone modular bot")
     PyImGui.bullet_text("Loads quest steps from Sources/modular_bot/quests/FoW/*.json")
+    PyImGui.bullet_text("Always uses Guild Hall for storage and restock")
+    PyImGui.bullet_text("Groups on the selected FoW entrypoint map before scrolling in")
+    PyImGui.bullet_text("Supports FoW entry from Zin Ku Corridor, Chantry of Secrets, Temple of the Ages, or Embark Beach")
     PyImGui.bullet_text("Keeps widget options for hard mode, consumables, autoloot, and debug logging")
     PyImGui.bullet_text("Settings are persisted in Widgets/Config/ModularFow.ini")
 

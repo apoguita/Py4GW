@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import random
 from typing import Callable
 
 from .step_context import StepContext
 from .step_selectors import resolve_enemy_agent_id_from_step
-from .step_utils import parse_step_bool, parse_step_float, wait_after_step
+from .step_utils import parse_step_bool, parse_step_float, parse_step_int, wait_after_step, log_recipe
 
 
 def handle_path(ctx: StepContext) -> None:
@@ -105,6 +106,68 @@ def handle_travel(ctx: StepContext) -> None:
     target_map_id = int(ctx.step.get("target_map_id", 0))
     target_map_name = str(ctx.step.get("target_map_name", "") or "")
     ctx.bot.Map.Travel(target_map_id=target_map_id, target_map_name=target_map_name)
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_random_travel(ctx: StepContext) -> None:
+    from Py4GWCoreLib import Map
+    from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
+    from Py4GWCoreLib.enums_src.Region_enums import District
+
+    target_map_id = parse_step_int(ctx.step.get("target_map_id", 0), 0)
+    target_map_name = str(ctx.step.get("target_map_name", "") or "").strip()
+    settle_wait_ms = parse_step_int(ctx.step.get("travel_wait_ms", 500), 500)
+
+    if target_map_id <= 0 and target_map_name:
+        target_map_id = int(name_to_map_id.get(target_map_name, 0))
+
+    if target_map_id <= 0:
+        log_recipe(ctx, f"random_travel skipped: unresolved target map for step {ctx.step_idx + 1}.")
+        wait_after_step(ctx.bot, ctx.step)
+        return
+
+    raw_districts = ctx.step.get("districts", ctx.step.get("allowed_districts"))
+    if raw_districts is None:
+        raw_districts = [
+            District.EuropeItalian.name,
+            District.EuropeSpanish.name,
+            District.EuropePolish.name,
+            District.EuropeRussian.name,
+        ]
+
+    allowed_districts: list[int] = []
+    for raw_district in raw_districts:
+        if isinstance(raw_district, str):
+            district_name = raw_district.strip()
+            district = District.__members__.get(district_name)
+            if district is not None:
+                allowed_districts.append(int(district.value))
+                continue
+
+        district_value = parse_step_int(raw_district, -1)
+        if district_value in District._value2member_map_:
+            allowed_districts.append(district_value)
+
+    allowed_districts = [
+        district for district in allowed_districts if district not in (District.Current.value, District.Unknown.value)
+    ]
+    if not allowed_districts:
+        allowed_districts = [
+            District.EuropeItalian.value,
+            District.EuropeSpanish.value,
+            District.EuropePolish.value,
+            District.EuropeRussian.value,
+        ]
+
+    district = int(random.choice(allowed_districts))
+
+    def _travel() -> None:
+        Map.TravelToDistrict(target_map_id, district=district)
+
+    ctx.bot.States.AddCustomState(_travel, ctx.step.get("name", f"Random Travel {ctx.step_idx + 1}"))
+    if settle_wait_ms > 0:
+        ctx.bot.Wait.ForTime(settle_wait_ms)
+    ctx.bot.Wait.ForMapLoad(target_map_id=target_map_id)
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -227,6 +290,7 @@ HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "move": handle_move,
     "path_to_target": handle_path_to_target,
     "travel": handle_travel,
+    "random_travel": handle_random_travel,
     "travel_gh": handle_travel_gh,
     "leave_party": handle_leave_party,
     "exit_map": handle_exit_map,
