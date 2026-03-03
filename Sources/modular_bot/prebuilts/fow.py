@@ -40,7 +40,6 @@ CONSUMABLE_RESTOCK_DEFAULTS = {
     "armor_of_salvation": 3,
     "war_supplies": 3,
     "drake_kabob": 3,
-    "honeycomb": 10,
     "candy_corn": 10,
 }
 
