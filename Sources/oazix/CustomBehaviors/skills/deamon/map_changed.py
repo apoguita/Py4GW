@@ -10,10 +10,13 @@ from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMess
 from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
+from Sources.oazix.CustomBehaviors.primitives.helpers.map_instance_helper import (
+    classify_map_instance_transition,
+    read_current_map_instance,
+)
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
-from Sources.oazix.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
@@ -31,14 +34,16 @@ class MapChangedUtility(CustomSkillUtilityBase):
             allowed_states=[BehaviorState.IDLE, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
             utility_skill_typology=UtilitySkillTypology.DAEMON)
 
-        self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.DEAMON.value)
+        self.static_score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.DEAMON.value)
         self.throttle_timer = ThrottledTimer(1_000)
         self.__previous_map_id = 0
+        self.__previous_instance_uptime_ms = 0
         # Initialize to current map id to avoid emitting a false-positive event on first evaluation
         try:
-            current_map_id = Map.GetMapID()
+            current_map_id, current_instance_uptime_ms = read_current_map_instance()
             if isinstance(current_map_id, int) and current_map_id != 0:
                 self.__previous_map_id = current_map_id
+                self.__previous_instance_uptime_ms = current_instance_uptime_ms
         except Exception:
             # If cache not ready yet, keep 0; evaluation guard will handle initial set
             pass
@@ -52,17 +57,26 @@ class MapChangedUtility(CustomSkillUtilityBase):
 
         if not self.throttle_timer.IsExpired(): return None
 
-        current_map_id = Map.GetMapID()
+        current_map_id, current_instance_uptime_ms = read_current_map_instance()
 
         # First run: set baseline and do not emit
         if self.__previous_map_id == 0:
             self.__previous_map_id = current_map_id
+            self.__previous_instance_uptime_ms = current_instance_uptime_ms
             return None
 
-        if self.__previous_map_id != current_map_id:
+        transition_reason = classify_map_instance_transition(
+            previous_map_id=self.__previous_map_id,
+            previous_instance_uptime_ms=self.__previous_instance_uptime_ms,
+            current_map_id=current_map_id,
+            current_instance_uptime_ms=current_instance_uptime_ms,
+        )
+        if transition_reason:
             self.__previous_map_id = current_map_id
-            return self.score_definition.get_score()
+            self.__previous_instance_uptime_ms = current_instance_uptime_ms
+            return self.static_score_definition.get_score()
 
+        self.__previous_instance_uptime_ms = current_instance_uptime_ms
         return None
 
     @override

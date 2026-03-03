@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-03-01 13:53:42",
+  "updated_at": "2026-03-03 03:35:50",
   "source_catalog_path": "Py4GW\\drop_tracker_unknown_mod_ids.json",
-  "entry_count": 20,
+  "entry_count": 22,
   "entries": [
     {
       "id": 9752,
-      "hits": 45,
+      "hits": 82,
       "guess": "Armor/rune metadata modifier",
       "confidence": 70,
       "confidence_label": "Medium",
@@ -40,11 +40,13 @@
       ],
       "co_mod_ids": [
         8216,
+        8376,
         8424,
         8456,
         8488,
         8536,
         8760,
+        8792,
         8808,
         8824,
         8840,
@@ -65,6 +67,7 @@
         9800,
         9880,
         10136,
+        10408,
         32880,
         32896,
         41544,
@@ -72,7 +75,80 @@
         42920,
         49152
       ],
-      "last_seen": "2026-03-01 13:53:15"
+      "last_seen": "2026-03-03 03:25:25"
+    },
+    {
+      "id": 9800,
+      "hits": 52,
+      "guess": "Melee/shield companion modifier",
+      "confidence": 67,
+      "confidence_label": "Medium",
+      "is_known_hint": false,
+      "basis": [
+        "melee/shield co-mod IDs",
+        "high observation count"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 2,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        2,
+        5,
+        15,
+        27
+      ],
+      "item_type_labels": [
+        "2(Axe)",
+        "5(Upgrade)",
+        "15(Hammer)",
+        "27(Sword)"
+      ],
+      "sample_items": [
+        "Fiery Dragon Sword",
+        "Magmas Arm",
+        "Feathered Longbow",
+        "Spiked Axe",
+        "Flatbow",
+        "Longbow",
+        "Ivory Bow",
+        "Wicked Blade",
+        "Half Moon",
+        "Hand Axe",
+        "Runic Hammer",
+        "Lockpicks"
+      ],
+      "co_mod_ids": [
+        8216,
+        8376,
+        8456,
+        8488,
+        8536,
+        8760,
+        8792,
+        8808,
+        8824,
+        8840,
+        8856,
+        8872,
+        8888,
+        9032,
+        9224,
+        9240,
+        9400,
+        9520,
+        9522,
+        9752,
+        9880,
+        10136,
+        32880,
+        32896,
+        41544,
+        42288,
+        42920,
+        49152
+      ],
+      "last_seen": "2026-03-03 03:35:50"
     },
     {
       "id": 10136,
@@ -164,77 +240,6 @@
       "last_seen": "2026-02-24 08:46:07"
     },
     {
-      "id": 9800,
-      "hits": 23,
-      "guess": "Melee/shield companion modifier",
-      "confidence": 63,
-      "confidence_label": "Medium",
-      "is_known_hint": false,
-      "basis": [
-        "melee/shield co-mod IDs"
-      ],
-      "arg1_min": 0,
-      "arg1_max": 2,
-      "arg2_min": 0,
-      "arg2_max": 0,
-      "item_types": [
-        2,
-        5,
-        15,
-        27
-      ],
-      "item_type_labels": [
-        "2(Axe)",
-        "5(Upgrade)",
-        "15(Hammer)",
-        "27(Sword)"
-      ],
-      "sample_items": [
-        "Fiery Dragon Sword",
-        "Magmas Arm",
-        "Feathered Longbow",
-        "Spiked Axe",
-        "Flatbow",
-        "Longbow",
-        "Ivory Bow",
-        "Wicked Blade",
-        "Half Moon",
-        "Hand Axe",
-        "Runic Hammer",
-        "Lockpicks"
-      ],
-      "co_mod_ids": [
-        8216,
-        8456,
-        8488,
-        8536,
-        8760,
-        8792,
-        8808,
-        8824,
-        8840,
-        8856,
-        8872,
-        8888,
-        9032,
-        9224,
-        9240,
-        9400,
-        9520,
-        9522,
-        9752,
-        9880,
-        10136,
-        32880,
-        32896,
-        41544,
-        42288,
-        42920,
-        49152
-      ],
-      "last_seen": "2026-03-01 13:53:42"
-    },
-    {
       "id": 42920,
       "hits": 20,
       "guess": "Damage",
@@ -314,6 +319,95 @@
       "last_seen": "2026-02-24 08:46:07"
     },
     {
+      "id": 9304,
+      "hits": 15,
+      "guess": "Unmapped modifier (manual label needed)",
+      "confidence": 36,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "not enough correlated data yet"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 1,
+      "arg2_max": 100,
+      "item_types": [
+        9,
+        29
+      ],
+      "item_type_labels": [
+        "9(Tome)",
+        "29(Kit)"
+      ],
+      "sample_items": [
+        "Necromancer Tome",
+        "Warrior Tome",
+        "Defensive Accursed Staff",
+        "Zaishen Summoning Stones",
+        "Titan Armor of Major Beast Mastery",
+        "Elite Mesmer Tome",
+        "Lockpicks",
+        "Bone Staff",
+        "Elite Warrior Tome",
+        "Water Wand",
+        "Summit Hammer",
+        "Insightful Accursed Staff"
+      ],
+      "co_mod_ids": [
+        9704,
+        9784,
+        10120,
+        49152
+      ],
+      "last_seen": "2026-03-03 03:13:29"
+    },
+    {
+      "id": 10120,
+      "hits": 15,
+      "guess": "Unmapped modifier (manual label needed)",
+      "confidence": 36,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "not enough correlated data yet"
+      ],
+      "arg1_min": 0,
+      "arg1_max": 0,
+      "arg2_min": 17,
+      "arg2_max": 177,
+      "item_types": [
+        9,
+        31,
+        43
+      ],
+      "item_type_labels": [
+        "9(Tome)",
+        "31(Scroll)",
+        "43(Storybook)"
+      ],
+      "sample_items": [
+        "Necromancer Tome",
+        "Warrior Tome",
+        "Shiro's Return [Hard Mode]",
+        "Zaishen Summoning Stones",
+        "Titan Armor of Major Beast Mastery",
+        "Elite Mesmer Tome",
+        "Lockpicks",
+        "Elite Warrior Tome",
+        "Elite Ranger Tome",
+        "Passage Scroll tothe Underworld",
+        "Elementalist Tome"
+      ],
+      "co_mod_ids": [
+        9304,
+        9784,
+        10360,
+        49152
+      ],
+      "last_seen": "2026-03-03 03:13:29"
+    },
+    {
       "id": 9880,
       "hits": 13,
       "guess": "Caster metadata marker",
@@ -361,41 +455,42 @@
       "last_seen": "2026-02-24 08:46:07"
     },
     {
-      "id": 10120,
-      "hits": 9,
-      "guess": "Unmapped modifier (manual label needed)",
-      "confidence": 32,
-      "confidence_label": "Low",
+      "id": 9784,
+      "hits": 10,
+      "guess": "Structural marker (no direct tooltip line)",
+      "confidence": 60,
+      "confidence_label": "Medium",
       "is_known_hint": false,
       "basis": [
-        "not enough correlated data yet"
+        "always zero args + broad co-occurrence"
       ],
       "arg1_min": 0,
       "arg1_max": 0,
-      "arg2_min": 20,
-      "arg2_max": 177,
+      "arg2_min": 0,
+      "arg2_max": 0,
       "item_types": [
-        9,
-        43
+        9
       ],
       "item_type_labels": [
-        "9(Tome)",
-        "43(Storybook)"
+        "9(Tome)"
       ],
       "sample_items": [
         "Necromancer Tome",
         "Warrior Tome",
-        "Shiro's Return [Hard Mode]",
         "Zaishen Summoning Stones",
-        "Titan Armor of Major Beast Mastery"
+        "Titan Armor of Major Beast Mastery",
+        "Elite Mesmer Tome",
+        "Lockpicks",
+        "Elite Warrior Tome",
+        "Elite Ranger Tome",
+        "Elementalist Tome"
       ],
       "co_mod_ids": [
         9304,
-        9784,
-        10360,
+        10120,
         49152
       ],
-      "last_seen": "2026-02-28 19:27:26"
+      "last_seen": "2026-03-03 03:13:29"
     },
     {
       "id": 26568,
@@ -438,8 +533,43 @@
       "last_seen": "2026-02-24 00:40:39"
     },
     {
-      "id": 9304,
-      "hits": 6,
+      "id": 9424,
+      "hits": 8,
+      "guess": "Unmapped modifier (manual label needed)",
+      "confidence": 32,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "not enough correlated data yet"
+      ],
+      "arg1_min": 2,
+      "arg1_max": 13,
+      "arg2_min": 1,
+      "arg2_max": 1,
+      "item_types": [
+        10
+      ],
+      "item_type_labels": [
+        "10(Dye)"
+      ],
+      "sample_items": [
+        "Vial of Dye [Purple]",
+        "Vial of Dye [Red]",
+        "Vial of Dye [Pink]",
+        "Vial of Dye [Green]",
+        "Vial of Dye [Yellow]",
+        "Vial of Dye [Black]",
+        "Vial of Dye [Blue]"
+      ],
+      "co_mod_ids": [
+        9448,
+        49152
+      ],
+      "last_seen": "2026-03-03 03:25:26"
+    },
+    {
+      "id": 9448,
+      "hits": 8,
       "guess": "Unmapped modifier (manual label needed)",
       "confidence": 32,
       "confidence_label": "Low",
@@ -449,63 +579,76 @@
       ],
       "arg1_min": 0,
       "arg1_max": 0,
-      "arg2_min": 1,
-      "arg2_max": 28,
+      "arg2_min": 2,
+      "arg2_max": 13,
       "item_types": [
-        9,
-        29
+        10
       ],
       "item_type_labels": [
-        "9(Tome)",
-        "29(Kit)"
+        "10(Dye)"
       ],
       "sample_items": [
-        "Necromancer Tome",
-        "Warrior Tome",
-        "Defensive Accursed Staff",
-        "Zaishen Summoning Stones",
-        "Titan Armor of Major Beast Mastery"
+        "Vial of Dye [Purple]",
+        "Vial of Dye [Red]",
+        "Vial of Dye [Pink]",
+        "Vial of Dye [Green]",
+        "Vial of Dye [Yellow]",
+        "Vial of Dye [Black]",
+        "Vial of Dye [Blue]"
       ],
       "co_mod_ids": [
-        9704,
-        9784,
-        10120,
+        9424,
         49152
       ],
-      "last_seen": "2026-02-28 19:27:26"
+      "last_seen": "2026-03-03 03:25:26"
     },
     {
-      "id": 9784,
+      "id": 32880,
       "hits": 5,
-      "guess": "Structural marker (no direct tooltip line)",
-      "confidence": 56,
-      "confidence_label": "Low",
+      "guess": "Armor/rune metadata modifier",
+      "confidence": 62,
+      "confidence_label": "Medium",
       "is_known_hint": false,
       "basis": [
-        "always zero args + broad co-occurrence"
+        "co-occurs with armor/rune markers"
       ],
-      "arg1_min": 0,
-      "arg1_max": 0,
-      "arg2_min": 0,
-      "arg2_max": 0,
+      "arg1_min": 1,
+      "arg1_max": 1,
+      "arg2_min": 171,
+      "arg2_max": 173,
       "item_types": [
-        9
+        5,
+        15
       ],
       "item_type_labels": [
-        "9(Tome)"
+        "5(Upgrade)",
+        "15(Hammer)"
       ],
       "sample_items": [
-        "Necromancer Tome",
-        "Warrior Tome",
-        "Zaishen Summoning Stones",
-        "Titan Armor of Major Beast Mastery"
+        "Icy War Hammer of Trollslaying",
+        "Icy Hump of Skeletonslaying",
+        "Longbow of Pruning",
+        "Furious Foehammerof Trollslaying",
+        "Ebon War Hammer of Giantslaying"
       ],
       "co_mod_ids": [
-        9304,
-        10120,
+        8792,
+        8824,
+        9144,
+        9224,
+        9400,
+        9520,
+        9752,
+        9800,
+        9880,
+        10136,
+        32896,
+        41544,
+        42288,
+        42920,
         49152
       ],
-      "last_seen": "2026-02-28 19:27:26"
+      "last_seen": "2026-03-03 03:25:27"
     },
     {
       "id": 9480,
@@ -537,6 +680,38 @@
         49152
       ],
       "last_seen": "2026-02-26 22:18:07"
+    },
+    {
+      "id": 9704,
+      "hits": 4,
+      "guess": "Unmapped modifier (manual label needed)",
+      "confidence": 28,
+      "confidence_label": "Low",
+      "is_known_hint": false,
+      "basis": [
+        "not enough correlated data yet"
+      ],
+      "arg1_min": 1,
+      "arg1_max": 3,
+      "arg2_min": 0,
+      "arg2_max": 0,
+      "item_types": [
+        29
+      ],
+      "item_type_labels": [
+        "29(Kit)"
+      ],
+      "sample_items": [
+        "Defensive Accursed Staff",
+        "Bone Staff",
+        "Water Wand",
+        "Summit Hammer"
+      ],
+      "co_mod_ids": [
+        9304,
+        49152
+      ],
+      "last_seen": "2026-03-02 17:04:40"
     },
     {
       "id": 10360,
@@ -600,68 +775,6 @@
         49152
       ],
       "last_seen": "2026-02-24 01:00:59"
-    },
-    {
-      "id": 9424,
-      "hits": 3,
-      "guess": "Unmapped modifier (manual label needed)",
-      "confidence": 28,
-      "confidence_label": "Low",
-      "is_known_hint": false,
-      "basis": [
-        "not enough correlated data yet"
-      ],
-      "arg1_min": 4,
-      "arg1_max": 13,
-      "arg2_min": 1,
-      "arg2_max": 1,
-      "item_types": [
-        10
-      ],
-      "item_type_labels": [
-        "10(Dye)"
-      ],
-      "sample_items": [
-        "Vial of Dye [Purple]",
-        "Vial of Dye [Red]",
-        "Vial of Dye [Pink]"
-      ],
-      "co_mod_ids": [
-        9448,
-        49152
-      ],
-      "last_seen": "2026-02-28 18:32:55"
-    },
-    {
-      "id": 9448,
-      "hits": 3,
-      "guess": "Unmapped modifier (manual label needed)",
-      "confidence": 28,
-      "confidence_label": "Low",
-      "is_known_hint": false,
-      "basis": [
-        "not enough correlated data yet"
-      ],
-      "arg1_min": 0,
-      "arg1_max": 0,
-      "arg2_min": 4,
-      "arg2_max": 13,
-      "item_types": [
-        10
-      ],
-      "item_type_labels": [
-        "10(Dye)"
-      ],
-      "sample_items": [
-        "Vial of Dye [Purple]",
-        "Vial of Dye [Red]",
-        "Vial of Dye [Pink]"
-      ],
-      "co_mod_ids": [
-        9424,
-        49152
-      ],
-      "last_seen": "2026-02-28 18:32:55"
     },
     {
       "id": 42936,
@@ -728,7 +841,7 @@
       "last_seen": "2026-02-24 00:47:26"
     },
     {
-      "id": 9704,
+      "id": 9864,
       "hits": 1,
       "guess": "Unmapped modifier (manual label needed)",
       "confidence": 20,
@@ -737,24 +850,23 @@
       "basis": [
         "not enough correlated data yet"
       ],
-      "arg1_min": 2,
-      "arg1_max": 2,
+      "arg1_min": 24,
+      "arg1_max": 24,
       "arg2_min": 0,
       "arg2_max": 0,
       "item_types": [
-        29
+        18
       ],
       "item_type_labels": [
-        "29(Kit)"
+        "18(Key)"
       ],
       "sample_items": [
-        "Defensive Accursed Staff"
+        "Lockpicks"
       ],
       "co_mod_ids": [
-        9304,
         49152
       ],
-      "last_seen": "2026-02-28 17:59:56"
+      "last_seen": "2026-03-02 01:12:56"
     },
     {
       "id": 25288,

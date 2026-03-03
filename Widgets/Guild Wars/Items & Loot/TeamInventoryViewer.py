@@ -45,7 +45,6 @@ save_window_timer = Timer()
 save_window_timer.Start()
 inventory_write_timer = ThrottledTimer(3000)
 inventory_read_timer = ThrottledTimer(5000)
-name_request_timer = ThrottledTimer(1000)
 
 # String consts
 MODULE_NAME = "TeamInventoryViewer"  # Change this Module name
@@ -59,7 +58,6 @@ window_y = ini_window.read_int(MODULE_NAME, Y_POS, 0)
 window_collapsed = ini_window.read_bool(MODULE_NAME, COLLAPSED, True)
 
 # View data
-first_run = True
 on_first_load = True
 all_accounts_search_query = ''
 search_query = ''
@@ -621,9 +619,6 @@ class MultiAccountInventoryStore:
         self.inventory_dir = Path(JSON_INVENTORY_PATH)
         self.inventory_dir.mkdir(exist_ok=True)
 
-    def account_store(self, email):
-        return AccountJSONStore(email)
-
     def load_all(self):
         """Load all JSON files into global cache."""
         for file_path in self.inventory_dir.glob("*.json"):
@@ -718,9 +713,6 @@ def get_mods_from_item(item):
 
 
 def _collect_bag_items(bag, bag_id, email, storage_name=None, char_name=None):
-    global current_character_name
-    global multi_store
-
     """Shared coroutine to fetch all items from a bag with modifier and frenkey DB name support."""
 
     def _strip_markup(text):
@@ -818,7 +810,7 @@ def _collect_bag_items(bag, bag_id, email, storage_name=None, char_name=None):
                     inventory_mod_hash_store.save_mod_hash(mod_hash, prefix, suffix)
 
             except Exception as e:
-                print(f"Exception fetching name for {item_id}: {e}")
+                ConsoleLog(MODULE_NAME, f"[WARN] Failed to fetch item name for {item_id}: {e}")
                 final_name = None
 
         # Nothing worked → cannot name item
@@ -934,17 +926,12 @@ def get_party_follower_emails() -> set[str]:
 
 
 def get_armor_name_from_modifiers(item):
-    try:
-        base_name = ModelID(item.model_id).name.replace("_", " ")
-    except ValueError:
-        base_name = None
-
     base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
     if not base_name:
         return None
 
     # Collect mods
-    prefix, suffix, _inherent = get_mods_from_item(item)
+    prefix, suffix, _ = get_mods_from_item(item)
 
     # --- Construct name ---
     name_parts = []
@@ -961,11 +948,6 @@ def get_armor_name_from_modifiers(item):
 
 
 def get_weapon_name_from_modifiers(item):
-    try:
-        base_name = ModelID(item.model_id).name.replace("_", " ")
-    except ValueError:
-        base_name = None
-
     base_name = INVENTORY_MODEL_ID_CACHE.get(str(item.model_id))
     if not base_name:
         return None
@@ -998,7 +980,6 @@ def draw_widget():
     global window_x
     global window_y
     global window_collapsed
-    global first_run
     global all_accounts_search_query
     global search_query
     global on_first_load
@@ -1419,20 +1400,6 @@ def tooltip():
     PyImGui.end_tooltip()
 
 
-def json_tree_view(data):
-    # Convert JSON to pretty string
-    json_str = json.dumps(data, indent=2)
-
-    # --- In your PyImGui render loop ---
-    PyImGui.begin("JSON Viewer", True)
-
-    # Display the JSON string
-    PyImGui.text_unformatted(json_str)
-
-    PyImGui.end_child()
-    PyImGui.end()
-
-
 def main():
     try:
         if not Routines.Checks.Map.MapValid() or Map.Pregame.InCharacterSelectScreen():
@@ -1455,8 +1422,6 @@ def main():
         # Catch-all for any other unexpected exceptions
         Py4GW.Console.Log(MODULE_NAME, f"Unexpected error encountered: {str(e)}", Py4GW.Console.MessageType.Error)
         Py4GW.Console.Log(MODULE_NAME, f"Stack trace: {traceback.format_exc()}", Py4GW.Console.MessageType.Error)
-    finally:
-        pass
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player, Agent, Utils
 from Py4GWCoreLib.enums import Profession
 from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -39,7 +39,7 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
             mana_required_to_cast=mana_required_to_cast, 
             allowed_states=allowed_states)
         
-        self.score_definition: ScoreStaticDefinition = score_definition
+        self.static_score_definition: ScoreStaticDefinition = score_definition
 
         data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
         if data is not None:
@@ -52,6 +52,16 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
         self.required_target_mana_lower_than_percent: float = float(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "required_target_mana_lower_than_percent", str(required_target_mana_lower_than_percent)))
 
     def _get_target(self) -> int | None:
+        leader_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
+        if (
+            leader_id != 0 and
+            leader_id != Player.GetAgentID() and
+            Agent.IsValid(leader_id) and
+            Agent.IsAlive(leader_id) and
+            Utils.Distance(Player.GetXY(), Agent.GetXY(leader_id)) <= Range.Spellcast.value and
+            custom_behavior_helpers.Resources.get_energy_percent_in_party(leader_id) < self.required_target_mana_lower_than_percent
+        ):
+            return leader_id
  
         target: int | None = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
                 within_range=Range.Spellcast.value,
@@ -72,7 +82,7 @@ class BloodIsPowerUtility(CustomSkillUtilityBase):
             return None
 
         if self._get_target() is None: return None
-        return self.score_definition.get_score()
+        return self.static_score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:

@@ -1,23 +1,36 @@
-import datetime
 import json
 import os
 import re
 import time
+from typing import Any
 
-from Py4GWCoreLib import GLOBAL_CACHE, Item, ItemArray, Map, Party, Player, Py4GW, Routines
+from Py4GWCoreLib import GLOBAL_CACHE, Item, Map, Party, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.enums import SharedCommandType
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.helpers.custom_behavior_helpers_party import CustomBehaviorHelperParty
+from Sources.oazix.CustomBehaviors.primitives.helpers.map_instance_helper import (
+    classify_map_instance_transition,
+    read_current_map_instance,
+)
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import (
     build_drop_meta,
     build_name_chunks,
     encode_name_chunk_meta,
     make_event_id,
-    make_name_signature,
 )
-from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_delta_filter import (
-    filter_candidate_events_by_model_delta,
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_runtime import (
+    buffer_pending_slot_delta,
+    make_orphan_pending_slot_key,
+    process_inventory_deltas,
+    take_inventory_snapshot,
+)
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_world_items import (
+    build_world_item_state,
+    consume_recent_world_item_confirmation,
+    poll_world_item_disappearances,
+    prune_recent_world_item_disappearances,
+    world_item_names_compatible,
 )
 from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
     build_known_spellcasting_mod_lines,
@@ -25,18 +38,66 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils impor
     render_mod_description_template,
     sort_stats_lines_like_ingame,
 )
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_item_stats_runtime import (
+    build_identified_name_from_modifiers,
+    build_item_stats_text,
+    build_known_spellcast_mod_lines as build_known_spellcast_mod_lines_runtime,
+    collect_fallback_mod_lines,
+    collect_fallback_rune_lines,
+    entry_item_identity_matches,
+    extract_parsed_mod_name_parts,
+    format_attribute_name,
+    load_mod_database,
+    match_mod_definition_against_raw,
+    normalize_stats_lines,
+    prune_generic_attribute_bonus_lines_local,
+    render_mod_description_template_local,
+    resolve_best_live_item_name,
+    resolve_event_item_id_for_stats,
+    weapon_mod_type_matches,
+)
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_tick_runtime import run_sender_tick
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_sender_state import (
+    advance_sender_session_id,
+    arm_reset_trace,
+    begin_new_session,
+    clear_cached_event_stats,
+    clear_cached_event_stats_for_item,
+    get_cached_event_identity,
+    get_cached_event_stats_text,
+    log_reset_trace,
+    prune_sent_event_stats_cache,
+    remember_event_identity,
+    remember_event_stats_snapshot,
+    reset_trace_active,
+    reset_trace_actor_label,
+    reset_tracking_state,
+    resolve_live_item_id_for_event,
+    should_track_name_refresh,
+)
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_sender_transport import (
+    flush_outbox,
+    is_party_leader_client,
+    load_runtime_config,
+    log_name_trace,
+    next_event_id,
+    poll_ack_messages,
+    process_pending_name_refreshes,
+    queue_drop,
+    resolve_party_leader_email,
+    schedule_name_refresh_for_entry,
+    schedule_name_refresh_for_item,
+    send_drop,
+    send_name_chunks,
+    send_stats_chunks,
+)
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_live_debug import (
+    append_live_debug_log,
+    clear_live_debug_log,
+    get_live_debug_log_path,
+)
 
-IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
-
-try:
-    from Py4GWCoreLib.enums_src.Item_enums import ItemType
-    from Sources.marks_sources.mods_parser import ModDatabase, parse_modifiers, is_matching_item_type
-except IMPORT_OPTIONAL_ERRORS:
-    ItemType = None
-    ModDatabase = None
-    parse_modifiers = None
-    is_matching_item_type = None
 
 
 class DropTrackerSender:
@@ -46,7 +107,7 @@ class DropTrackerSender:
     """
 
     _instance = None
-    _STATE_VERSION = 17
+    _STATE_VERSION = 18
 
     def __new__(cls):
         if cls._instance is None:
@@ -64,8 +125,14 @@ class DropTrackerSender:
                     self.outbox_queue = []
                 if not hasattr(self, "pending_name_refresh_by_event"):
                     self.pending_name_refresh_by_event = {}
+                if not hasattr(self, "carryover_inventory_snapshot"):
+                    self.carryover_inventory_snapshot = {}
+                if not hasattr(self, "carryover_suppression_until"):
+                    self.carryover_suppression_until = 0.0
                 if not hasattr(self, "stable_snapshot_count"):
                     self.stable_snapshot_count = 0
+                if not hasattr(self, "session_startup_pending"):
+                    self.session_startup_pending = False
                 if not hasattr(self, "warmup_grace_seconds"):
                     self.warmup_grace_seconds = 3.0
                 if not hasattr(self, "warmup_grace_until"):
@@ -80,6 +147,18 @@ class DropTrackerSender:
                     self.max_snapshot_size_jump = 40
                 if not hasattr(self, "last_known_is_leader"):
                     self.last_known_is_leader = False
+                if not hasattr(self, "current_world_item_agents"):
+                    self.current_world_item_agents = {}
+                if not hasattr(self, "recent_world_item_disappearances"):
+                    self.recent_world_item_disappearances = []
+                if not hasattr(self, "world_item_seen_since_reset"):
+                    self.world_item_seen_since_reset = False
+                if not hasattr(self, "world_item_disappearance_ttl_seconds"):
+                    self.world_item_disappearance_ttl_seconds = 5.0
+                if not hasattr(self, "require_world_item_confirmation"):
+                    self.require_world_item_confirmation = True
+                if not hasattr(self, "last_world_item_scan_count"):
+                    self.last_world_item_scan_count = 0
                 if not hasattr(self, "enable_delivery_ack"):
                     self.enable_delivery_ack = True
                 if not hasattr(self, "retry_interval_seconds"):
@@ -96,6 +175,8 @@ class DropTrackerSender:
                     self.last_seen_instance_uptime_ms = 0
                 if not hasattr(self, "sender_session_id"):
                     self.sender_session_id = 1
+                if not hasattr(self, "last_session_transition_reason"):
+                    self.last_session_transition_reason = ""
                 if not hasattr(self, "runtime_config_path"):
                     self.runtime_config_path = os.path.join(
                         os.path.dirname(constants.DROP_LOG_PATH),
@@ -115,6 +196,9 @@ class DropTrackerSender:
                     self.name_refresh_poll_interval_seconds = 0.25
                 if not hasattr(self, "max_name_refresh_per_tick"):
                     self.max_name_refresh_per_tick = 4
+                if not hasattr(self, "world_item_poll_timer"):
+                    self.world_item_poll_timer = ThrottledTimer(150)
+                self.debug_enabled = False
                 self.inventory_poll_timer = ThrottledTimer(250)
                 self.state_version = self._STATE_VERSION
                 self._reset_tracking_state()
@@ -122,13 +206,14 @@ class DropTrackerSender:
         self._initialized = True
         self.state_version = self._STATE_VERSION
         self.inventory_poll_timer = ThrottledTimer(250)
+        self.world_item_poll_timer = ThrottledTimer(150)
         self.last_inventory_snapshot: dict[tuple[int, int], tuple[str, str, int, int, int]] = {}
         self.enabled = True
         self.gold_regex = re.compile(r"^(?:\[([\d: ]+[ap]m)\] )?Your party shares ([\d,]+) gold\.$")
         self.warn_timer = ThrottledTimer(3000)
         self.debug_timer = ThrottledTimer(5000)
         self.snapshot_error_timer = ThrottledTimer(5000)
-        self.debug_enabled = True
+        self.debug_enabled = False
         self.last_snapshot_total = 0
         self.last_snapshot_ready = 0
         self.last_snapshot_not_ready = 0
@@ -138,6 +223,14 @@ class DropTrackerSender:
         self.is_warmed_up = False
         self.stable_snapshot_count = 0
         self.pending_slot_deltas: dict[tuple[int, int], dict] = {}
+        self.carryover_inventory_snapshot: dict[tuple[int, int], tuple[str, str, int, int, int]] = {}
+        self.carryover_suppression_until = 0.0
+        self.current_world_item_agents: dict[int, dict[str, Any]] = {}
+        self.recent_world_item_disappearances: list[dict[str, Any]] = []
+        self.world_item_seen_since_reset = False
+        self.world_item_disappearance_ttl_seconds = 5.0
+        self.require_world_item_confirmation = True
+        self.last_world_item_scan_count = 0
         self.outbox_queue: list[dict] = []
         self.pending_name_refresh_by_event: dict[str, dict] = {}
         self.max_send_per_tick = 12
@@ -145,6 +238,7 @@ class DropTrackerSender:
         self.max_snapshot_size_jump = 40
         self.warmup_grace_seconds = 3.0
         self.warmup_grace_until = 0.0
+        self.session_startup_pending = False
         self.pending_ttl_seconds = 6.0
         self.debug_pipeline_logs = False
         self.last_known_is_leader = False
@@ -156,6 +250,7 @@ class DropTrackerSender:
         self.last_seen_map_id = 0
         self.last_seen_instance_uptime_ms = 0
         self.sender_session_id = 1
+        self.last_session_transition_reason = ""
         self.last_process_duration_ms = 0.0
         self.last_ack_count = 0
         self.last_inventory_activity_ts = 0.0
@@ -173,63 +268,17 @@ class DropTrackerSender:
             os.path.dirname(constants.DROP_LOG_PATH),
             "drop_tracker_runtime_config.json",
         )
+        self.live_debug_log_path = get_live_debug_log_path(constants.DROP_LOG_PATH)
         self.ack_poll_timer = ThrottledTimer(250)
         self.config_poll_timer = ThrottledTimer(2000)
         self.mod_db = None
         self._load_mod_database()
 
     def _load_mod_database(self):
-        if ModDatabase is None:
-            self.mod_db = None
-            return
-        candidate_dirs = []
-        try:
-            # .../Sources/oazix/CustomBehaviors/skills/monitoring -> .../Sources
-            sources_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-            candidate_dirs.append(
-                os.path.join(
-                    sources_root,
-                    "marks_sources",
-                    "mods_data",
-                )
-            )
-        except EXPECTED_RUNTIME_ERRORS:
-            pass
-        try:
-            project_root = Py4GW.Console.get_projects_path()
-            if project_root:
-                candidate_dirs.append(
-                    os.path.join(
-                        project_root,
-                        "Sources",
-                        "marks_sources",
-                        "mods_data",
-                    )
-                )
-        except EXPECTED_RUNTIME_ERRORS:
-            pass
-
-        seen = set()
-        for data_dir in candidate_dirs:
-            norm = os.path.normcase(os.path.normpath(str(data_dir or "")))
-            if not norm or norm in seen:
-                continue
-            seen.add(norm)
-            if not os.path.isdir(data_dir):
-                continue
-            try:
-                self.mod_db = ModDatabase.load(data_dir)
-                if self.mod_db is not None:
-                    return
-            except EXPECTED_RUNTIME_ERRORS:
-                continue
-        self.mod_db = None
+        return load_mod_database(self)
 
     def _format_attribute_name(self, attr_name: str) -> str:
-        txt = str(attr_name or "").replace("_", " ").strip()
-        if txt.lower() == "none":
-            return ""
-        return txt
+        return format_attribute_name(self, attr_name)
 
     def _render_mod_description_template(
         self,
@@ -238,234 +287,34 @@ class DropTrackerSender:
         default_value: int = 0,
         attribute_name: str = "",
     ) -> list[str]:
-        def _resolve_attribute_name(attr_id: int) -> str:
-            try:
-                from Py4GWCoreLib.enums import Attribute
-                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
-            except EXPECTED_RUNTIME_ERRORS:
-                return ""
-
-        return render_mod_description_template(
-            description=str(description or ""),
-            matched_modifiers=list(matched_modifiers or []),
-            default_value=int(default_value),
-            attribute_name=str(attribute_name or ""),
-            resolve_attribute_name_fn=_resolve_attribute_name,
-            format_attribute_name_fn=self._format_attribute_name,
-            unknown_attribute_template="Attribute {id}",
+        return render_mod_description_template_local(
+            self,
+            description,
+            matched_modifiers,
+            default_value=default_value,
+            attribute_name=attribute_name,
         )
 
     def _match_mod_definition_against_raw(self, definition_modifiers, raw_mods) -> list[tuple[int, int, int]]:
-        meaningful = []
-        for dm in list(definition_modifiers or []):
-            mode = str(getattr(dm, "modifier_value_arg", "")).lower()
-            if "none" in mode:
-                continue
-            meaningful.append(dm)
-        if not meaningful:
-            return []
-
-        matched = []
-        for dm in meaningful:
-            ident = int(getattr(dm, "identifier", 0))
-            arg1 = int(getattr(dm, "arg1", 0))
-            arg2 = int(getattr(dm, "arg2", 0))
-            min_v = int(getattr(dm, "min", 0))
-            max_v = int(getattr(dm, "max", 0))
-            mode = str(getattr(dm, "modifier_value_arg", "")).lower()
-            found = None
-            for rid, ra1, ra2 in raw_mods:
-                if int(rid) != ident:
-                    continue
-                if "arg1" in mode:
-                    if int(ra2) == arg2 and min_v <= int(ra1) <= max_v:
-                        found = (int(rid), int(ra1), int(ra2))
-                        break
-                elif "arg2" in mode:
-                    if int(ra1) == arg1 and min_v <= int(ra2) <= max_v:
-                        found = (int(rid), int(ra1), int(ra2))
-                        break
-                elif "fixed" in mode:
-                    if int(ra1) == arg1 and int(ra2) == arg2:
-                        found = (int(rid), int(ra1), int(ra2))
-                        break
-            if found is None:
-                return []
-            matched.append(found)
-        return matched
+        return match_mod_definition_against_raw(self, definition_modifiers, raw_mods)
 
     def _weapon_mod_type_matches(self, weapon_mod, item_type) -> bool:
-        if item_type is None or is_matching_item_type is None:
-            return False
-        try:
-            target_types = list(getattr(weapon_mod, "target_types", []) or [])
-            for target in target_types:
-                try:
-                    if is_matching_item_type(item_type, target):
-                        return True
-                except EXPECTED_RUNTIME_ERRORS:
-                    continue
-            item_mods = getattr(weapon_mod, "item_mods", {}) or {}
-            for target in list(item_mods.keys()):
-                try:
-                    if is_matching_item_type(item_type, target):
-                        return True
-                except EXPECTED_RUNTIME_ERRORS:
-                    continue
-        except EXPECTED_RUNTIME_ERRORS:
-            return False
-        return False
+        return weapon_mod_type_matches(self, weapon_mod, item_type)
 
     def _collect_fallback_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
-        lines = []
-        if self.mod_db is None:
-            return lines
-        best_by_ident = {}
-        try:
-            for weapon_mod in list(getattr(self.mod_db, "weapon_mods", {}).values()):
-                matched = self._match_mod_definition_against_raw(getattr(weapon_mod, "modifiers", []), raw_mods)
-                if not matched:
-                    continue
-                ident_set = {int(m[0]) for m in matched}
-                if not ident_set:
-                    continue
-                desc = str(getattr(weapon_mod, "description", "") or "").strip()
-                rendered = self._render_mod_description_template(desc, matched, 0, item_attr_txt)
-                if rendered:
-                    first_line = rendered[0]
-                    lower_desc = desc.lower()
-                    has_old_school = "[old school]" in lower_desc
-                    type_match = self._weapon_mod_type_matches(weapon_mod, item_type)
-                    score = 0
-                    if type_match:
-                        score += 100
-                    if has_old_school:
-                        score += 20
-                    if not type_match and not has_old_school:
-                        score -= 60
-                    score += min(len(matched), 3)
-                    for ident in ident_set:
-                        prev = best_by_ident.get(ident, None)
-                        if prev is None or score > int(prev.get("score", -999)):
-                            best_by_ident[ident] = {"line": first_line, "score": score}
-        except EXPECTED_RUNTIME_ERRORS:
-            return lines
-        for ident in sorted(best_by_ident.keys()):
-            line = str(best_by_ident[ident].get("line", "")).strip()
-            if line:
-                lines.append(line)
-        return lines
+        return collect_fallback_mod_lines(self, raw_mods, item_attr_txt, item_type)
 
     def _collect_fallback_rune_lines(self, raw_mods, item_attr_txt: str) -> list[str]:
-        lines = []
-        if self.mod_db is None:
-            return lines
-        best_by_ident = {}
-        try:
-            for rune in list(getattr(self.mod_db, "runes", {}).values()):
-                matched = self._match_mod_definition_against_raw(getattr(rune, "modifiers", []), raw_mods)
-                if not matched:
-                    continue
-                ident_set = {int(m[0]) for m in matched}
-                if not ident_set:
-                    continue
-                desc = str(getattr(rune, "description", "") or "").strip()
-                rune_name = str(getattr(rune, "name", "") or "").strip()
-                rendered = self._render_mod_description_template(desc, matched, 0, item_attr_txt)
-                candidate_lines = []
-                if rune_name:
-                    candidate_lines.append(rune_name)
-                candidate_lines.extend(rendered)
-                if not candidate_lines and rune_name:
-                    candidate_lines = [rune_name]
-                deduped_candidates = []
-                seen_line_keys = set()
-                for candidate in candidate_lines:
-                    candidate_txt = str(candidate or "").strip()
-                    if not candidate_txt:
-                        continue
-                    line_key = re.sub(r"[^a-z0-9]+", "", candidate_txt.lower())
-                    if line_key in seen_line_keys:
-                        continue
-                    seen_line_keys.add(line_key)
-                    deduped_candidates.append(candidate_txt)
-                candidate_lines = deduped_candidates
-                if not candidate_lines:
-                    continue
-                score = min(len(matched), 4)
-                for ident in ident_set:
-                    prev = best_by_ident.get(ident, None)
-                    if prev is None or score > int(prev.get("score", -999)):
-                        best_by_ident[ident] = {"lines": list(candidate_lines), "score": score}
-        except EXPECTED_RUNTIME_ERRORS:
-            return lines
-        for ident in sorted(best_by_ident.keys()):
-            for line in list(best_by_ident[ident].get("lines", []) or []):
-                txt = str(line or "").strip()
-                if txt:
-                    lines.append(txt)
-        return lines
+        return collect_fallback_rune_lines(self, raw_mods, item_attr_txt)
 
     def _build_known_spellcast_mod_lines(self, raw_mods, item_attr_txt: str, item_type=None) -> list[str]:
-        def _resolve_attribute_name(attr_id: int) -> str:
-            try:
-                from Py4GWCoreLib.enums import Attribute
-                return self._format_attribute_name(getattr(Attribute(int(attr_id)), "name", ""))
-            except EXPECTED_RUNTIME_ERRORS:
-                return ""
-
-        return build_known_spellcasting_mod_lines(
-            raw_mods,
-            item_attr_txt=str(item_attr_txt or ""),
-            item_type=item_type,
-            resolve_attribute_name_fn=_resolve_attribute_name,
-            include_raw_when_no_chance=False,
-            use_range_chance=True,
-        )
+        return build_known_spellcast_mod_lines_runtime(self, raw_mods, item_attr_txt, item_type)
 
     def _prune_generic_attribute_bonus_lines(self, lines: list[str]) -> list[str]:
-        return prune_generic_attribute_bonus_lines(lines)
+        return prune_generic_attribute_bonus_lines_local(self, lines)
 
     def _normalize_stats_lines(self, lines: list[str]) -> list[str]:
-        split_pattern = re.compile(
-            r"(?i)(?<!^)(requires\s+\d+|damage:\s*\d|damage\s*\d|armor:\s*\d|armor\s*\d|energy\s*[+-]\d|halves\s|reduces\s|value:\s*\d|improved sale value)"
-        )
-        normalized = []
-        for raw in list(lines or []):
-            txt = str(raw or "").strip()
-            if not txt:
-                continue
-            while True:
-                match = split_pattern.search(txt)
-                if not match:
-                    break
-                left = txt[:match.start()].strip()
-                right = txt[match.start():].strip()
-                if left:
-                    normalized.append(left)
-                txt = right
-            if txt:
-                normalized.append(txt)
-
-        canonical = []
-        seen = set()
-        for raw in normalized:
-            line = str(raw or "").strip()
-            if not line:
-                continue
-            line = re.sub(r"(?i)^damage\s*(\d+\s*-\s*\d+)$", r"Damage: \1", line)
-            line = re.sub(r"(?i)^armor\s*(\d+)(\b.*)$", r"Armor: \1\2", line)
-            line = re.sub(r"(?i)^requires\s*(\d+)\s*", r"Requires \1 ", line)
-            line = re.sub(r"\s+", " ", line).strip()
-            key = re.sub(r"[^a-z0-9]+", "", line.lower())
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            canonical.append(line)
-
-        canonical = self._prune_generic_attribute_bonus_lines(canonical)
-        canonical = sort_stats_lines_like_ingame(canonical)
-        return canonical
+        return normalize_stats_lines(self, lines)
 
     def _extract_parsed_mod_name_parts(self, parsed_result) -> tuple[str, str, str]:
         prefix = ""
@@ -497,346 +346,66 @@ class DropTrackerSender:
             return "", "", ""
         return prefix, suffix, inherent
 
-    def _build_identified_name_from_modifiers(
-        self,
-        base_name: str,
-        raw_mods: list[tuple[int, int, int]],
-        item_type_int: int,
-        model_id: int,
-    ) -> str:
-        clean_base = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(base_name or "")).strip()).strip()
-        if not clean_base or not raw_mods or self.mod_db is None or parse_modifiers is None or ItemType is None:
-            return ""
-        try:
-            item_type = ItemType(int(item_type_int))
-        except EXPECTED_RUNTIME_ERRORS:
-            return ""
-        try:
-            parsed = parse_modifiers(list(raw_mods), item_type, int(model_id or 0), self.mod_db)
-        except EXPECTED_RUNTIME_ERRORS:
-            return ""
-        prefix, suffix, inherent = self._extract_parsed_mod_name_parts(parsed)
-        lower_base = clean_base.lower()
-        parts = []
-        changed = False
-        if prefix and prefix.lower() not in lower_base:
-            parts.append(prefix)
-            changed = True
-        parts.append(clean_base)
-        if suffix and suffix.lower() not in lower_base:
-            parts.append(suffix)
-            changed = True
-        elif inherent and inherent.lower() not in lower_base and not suffix:
-            parts.append(f"({inherent})")
-            changed = True
-        candidate = " ".join(str(part or "").strip() for part in parts if str(part or "").strip()).strip()
-        if not changed or not candidate or candidate.lower() == lower_base:
-            return ""
-        return candidate
+    def _build_identified_name_from_modifiers(self, *args, **kwargs) -> str:
+        return build_identified_name_from_modifiers(self, *args, **kwargs)
 
     def _resolve_best_live_item_name(self, item_id: int, fallback_name: str = "") -> str:
-        live_item_id = int(item_id or 0)
-        if live_item_id <= 0:
-            return ""
-        clean_name = ""
-        try:
-            if Item.IsNameReady(live_item_id):
-                clean_name = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(Item.GetName(live_item_id) or "").strip())).strip()
-            else:
-                Item.RequestName(live_item_id)
-        except EXPECTED_RUNTIME_ERRORS:
-            clean_name = ""
-        if not clean_name:
-            clean_name = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(fallback_name or "").strip())).strip()
-
-        try:
-            if not bool(Item.Usage.IsIdentified(live_item_id)):
-                return clean_name
-        except EXPECTED_RUNTIME_ERRORS:
-            return clean_name
-
-        raw_mods = []
-        item_type_int = 0
-        model_id = 0
-        try:
-            model_id = int(Item.GetModelID(live_item_id))
-        except EXPECTED_RUNTIME_ERRORS:
-            model_id = 0
-        try:
-            item_type_int, _ = Item.GetItemType(live_item_id)
-            item_type_int = int(item_type_int or 0)
-        except EXPECTED_RUNTIME_ERRORS:
-            item_type_int = 0
-        try:
-            for mod in Item.Customization.Modifiers.GetModifiers(live_item_id):
-                raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
-        except EXPECTED_RUNTIME_ERRORS:
-            raw_mods = []
-        if not raw_mods:
-            try:
-                item_instance = Item.item_instance(live_item_id)
-                if item_instance:
-                    if model_id <= 0:
-                        model_id = int(getattr(item_instance, "model_id", 0) or 0)
-                    if item_type_int <= 0 and getattr(item_instance, "item_type", None):
-                        item_type_int = int(item_instance.item_type.ToInt())
-                    for mod in list(getattr(item_instance, "modifiers", []) or []):
-                        raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
-            except EXPECTED_RUNTIME_ERRORS:
-                raw_mods = []
-
-        synthesized_name = self._build_identified_name_from_modifiers(clean_name, raw_mods, item_type_int, model_id)
-        return synthesized_name or clean_name
+        return resolve_best_live_item_name(self, item_id, fallback_name)
 
     def _build_item_stats_text(self, item_id: int, item_name: str = "") -> str:
-        item_id = int(item_id or 0)
-        if item_id <= 0:
-            return ""
-        try:
-            try:
-                if not bool(Item.Usage.IsIdentified(item_id)):
-                    return "Unidentified"
-            except EXPECTED_RUNTIME_ERRORS:
-                return "Unidentified"
-            item_instance = Item.item_instance(item_id)
-            if not item_instance:
-                return ""
-            model_id = int(getattr(item_instance, "model_id", 0))
-            value = int(getattr(item_instance, "value", 0))
-            lines: list[str] = []
-            clean_name = self._resolve_best_live_item_name(item_id, item_name)
-            if clean_name:
-                lines.append(clean_name)
-            if value > 0:
-                lines.append(f"Value: {value} gold")
-
-            raw_mods = []
-            try:
-                for mod in Item.Customization.Modifiers.GetModifiers(item_id):
-                    raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
-            except EXPECTED_RUNTIME_ERRORS:
-                raw_mods = []
-            if not raw_mods:
-                try:
-                    for mod in list(getattr(item_instance, "modifiers", []) or []):
-                        raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
-                except EXPECTED_RUNTIME_ERRORS:
-                    raw_mods = []
-            req_attr = 0
-            req_val = 0
-            if raw_mods:
-                for ident, arg1, arg2 in raw_mods:
-                    if ident in (42920, 42120):  # Damage, Damage_NoReq
-                        if int(arg2) > 0 and int(arg1) > 0:
-                            lines.append(f"Damage: {int(arg2)}-{int(arg1)}")
-                    elif ident == 42936:  # ShieldArmor
-                        if int(arg1) > 0:
-                            if int(arg2) > 0:
-                                lines.append(f"Armor: {int(arg1)} (vs {int(arg2)})")
-                            else:
-                                lines.append(f"Armor: {int(arg1)}")
-                    elif ident == 10136:  # Requirement
-                        req_attr = int(arg1)
-                        req_val = int(arg2)
-                if req_val > 0:
-                    attr_txt = ""
-                    try:
-                        from Py4GWCoreLib.enums import Attribute
-                        attr_txt = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
-                    except EXPECTED_RUNTIME_ERRORS:
-                        attr_txt = ""
-                    lines.append(f"Requires {req_val} {attr_txt}".rstrip())
-
-            if not raw_mods or self.mod_db is None:
-                return "\n".join(lines)
-
-            try:
-                item_type_int, _ = Item.GetItemType(item_id)
-                item_type = ItemType(item_type_int) if ItemType is not None else None
-            except EXPECTED_RUNTIME_ERRORS:
-                item_type = None
-
-            item_attr_txt_for_known = ""
-            if req_val > 0:
-                try:
-                    from Py4GWCoreLib.enums import Attribute
-                    item_attr_txt_for_known = self._format_attribute_name(getattr(Attribute(req_attr), "name", ""))
-                except EXPECTED_RUNTIME_ERRORS:
-                    item_attr_txt_for_known = ""
-
-            if parse_modifiers is not None and item_type is not None:
-                parsed = parse_modifiers(raw_mods, item_type, model_id, self.mod_db)
-                item_attr_txt = self._format_attribute_name(getattr(parsed.attribute, "name", ""))
-                if item_attr_txt:
-                    item_attr_txt_for_known = item_attr_txt
-                min_dmg, max_dmg = parsed.damage
-                armor_val, armor_vs = parsed.shield_armor
-                if int(min_dmg) > 0 and int(max_dmg) > 0:
-                    lines.append(f"Damage: {int(min_dmg)}-{int(max_dmg)}")
-                if int(armor_val) > 0:
-                    if int(armor_vs) > 0:
-                        lines.append(f"Armor: {int(armor_val)} (vs {int(armor_vs)})")
-                    else:
-                        lines.append(f"Armor: {int(armor_val)}")
-                if int(parsed.requirements) > 0:
-                    attr_txt = self._format_attribute_name(getattr(parsed.attribute, "name", ""))
-                    if attr_txt:
-                        lines.append(f"Requires {int(parsed.requirements)} {attr_txt}")
-                    else:
-                        lines.append(f"Requires {int(parsed.requirements)}")
-
-                if parsed.weapon_mods:
-                    for mod in parsed.weapon_mods:
-                        name = str(getattr(mod.weapon_mod, "name", "") or "").strip()
-                        value = int(getattr(mod, "value", 0))
-                        if not name:
-                            continue
-                        matched_mods = list(getattr(mod, "matched_modifiers", []) or [])
-                        desc = str(getattr(mod.weapon_mod, "description", "") or "").strip()
-                        rendered_lines = self._render_mod_description_template(desc, matched_mods, value, item_attr_txt)
-                        if rendered_lines:
-                            lines.extend(rendered_lines)
-                        else:
-                            lines.append(f"{name} ({value})" if value else name)
-                if parsed.runes:
-                    for rune in parsed.runes:
-                        name = str(getattr(rune.rune, "name", "") or "").strip()
-                        desc = str(getattr(rune.rune, "description", "") or "").strip()
-                        rune_mods = list(getattr(rune, "modifiers", []) or [])
-                        rendered_lines = self._render_mod_description_template(desc, rune_mods, 0, item_attr_txt)
-                        if name:
-                            lines.append(name)
-                        if rendered_lines:
-                            lines.extend(rendered_lines)
-                lines.extend(self._collect_fallback_mod_lines(raw_mods, item_attr_txt, item_type))
-                lines.extend(self._collect_fallback_rune_lines(raw_mods, item_attr_txt))
-            lines.extend(self._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
-
-            lines = self._normalize_stats_lines(lines)
-            return "\n".join(lines)
-        except EXPECTED_RUNTIME_ERRORS:
-            return ""
+        return build_item_stats_text(self, item_id, item_name)
 
     def _entry_item_identity_matches(self, item_id: int, expected_model_id: int, expected_name_signature: str) -> bool:
-        live_item_id = int(item_id or 0)
-        if live_item_id <= 0:
-            return False
-        wanted_model_id = int(expected_model_id or 0)
-        wanted_signature = str(expected_name_signature or "").strip().lower()
-        unknown_item_sig = make_name_signature("Unknown Item")
-        try:
-            live_model_id = int(Item.GetModelID(live_item_id))
-        except EXPECTED_RUNTIME_ERRORS:
-            return False
-        if wanted_model_id > 0 and live_model_id > 0 and live_model_id != wanted_model_id:
-            return False
-        if wanted_signature and wanted_signature != unknown_item_sig:
-            try:
-                if not Item.IsNameReady(live_item_id):
-                    Item.RequestName(live_item_id)
-                    return False
-                live_name = Item.GetName(live_item_id) or ""
-                live_name = re.sub(r"^[\d,]+\s+", "", self._strip_tags(str(live_name)).strip())
-                if not live_name:
-                    return False
-                if make_name_signature(live_name) != wanted_signature:
-                    return False
-            except EXPECTED_RUNTIME_ERRORS:
-                return False
-        return True
+        return entry_item_identity_matches(self, item_id, expected_model_id, expected_name_signature)
 
     def _resolve_event_item_id_for_stats(self, entry: dict) -> int:
-        if not isinstance(entry, dict):
-            return 0
-        expected_item_id = int(entry.get("item_id", 0))
-        expected_model_id = int(entry.get("model_id", 0))
-        expected_name_signature = str(entry.get("name_signature", "") or "").strip().lower()
-
-        if self._entry_item_identity_matches(expected_item_id, expected_model_id, expected_name_signature):
-            return expected_item_id
-
-        try:
-            bags = ItemArray.CreateBagList(1, 2, 3, 4)
-            item_ids = list(ItemArray.GetItemArray(bags) or [])
-        except EXPECTED_RUNTIME_ERRORS:
-            return 0
-
-        candidates: list[int] = []
-        for inv_item_id in item_ids:
-            inv_item_id = int(inv_item_id)
-            if not self._entry_item_identity_matches(inv_item_id, expected_model_id, expected_name_signature):
-                continue
-            candidates.append(inv_item_id)
-            if len(candidates) > 1:
-                # Ambiguous matches are unsafe for stat attribution.
-                return 0
-        if len(candidates) == 1:
-            return int(candidates[0])
-        return 0
+        return resolve_event_item_id_for_stats(self, entry)
 
     def _reset_tracking_state(self, clear_outbox: bool = True):
-        self.last_inventory_snapshot = {}
-        self.pending_slot_deltas = {}
-        self.pending_name_refresh_by_event = {}
-        if clear_outbox:
-            self.outbox_queue = []
-        self.last_sent_count = 0
-        self.last_candidate_count = 0
-        self.last_enqueued_count = 0
-        self.is_warmed_up = False
-        self.stable_snapshot_count = 0
-        self.warmup_grace_until = 0.0
-        self.last_process_duration_ms = 0.0
-        self.last_ack_count = 0
-        self.last_inventory_activity_ts = 0.0
-        self.sent_event_stats_cache = {}
+        return reset_tracking_state(self, clear_outbox=clear_outbox)
 
     def _arm_reset_trace(self, reason: str, current_map_id: int = 0, current_instance_uptime_ms: int = 0):
-        now_ts = time.time()
-        self.debug_reset_trace_until = now_ts + 20.0
-        self.debug_reset_trace_snapshot_logs_remaining = 8
-        self.debug_reset_trace_event_logs_remaining = 16
-        self._log_reset_trace(
-            (
-                f"RESET TRACE armed reason={str(reason or 'unknown')} "
-                f"actor={self._reset_trace_actor_label()} "
-                f"sender_session={int(getattr(self, 'sender_session_id', 0) or 0)} "
-                f"map={int(current_map_id or 0)} uptime_ms={int(current_instance_uptime_ms or 0)} "
-                f"prev_snapshot={len(self.last_inventory_snapshot)} pending={len(self.pending_slot_deltas)} "
-                f"queued={len(self.outbox_queue)} warmed={bool(self.is_warmed_up)}"
-            ),
-            level=Py4GW.Console.MessageType.Warning,
-        )
+        return arm_reset_trace(self, reason, current_map_id=current_map_id, current_instance_uptime_ms=current_instance_uptime_ms)
 
     def _reset_trace_active(self) -> bool:
-        return time.time() <= float(getattr(self, "debug_reset_trace_until", 0.0) or 0.0)
+        return reset_trace_active(self)
 
     def _reset_trace_actor_label(self) -> str:
-        try:
-            actor_name = str(Player.GetName() or "").strip()
-        except EXPECTED_RUNTIME_ERRORS:
-            actor_name = ""
-        try:
-            actor_email = str(Player.GetAccountEmail() or "").strip()
-        except EXPECTED_RUNTIME_ERRORS:
-            actor_email = ""
-        actor_name = actor_name or "Unknown"
-        actor_email = actor_email or "unknown@email"
-        return f"{actor_name}<{actor_email}>"
+        return reset_trace_actor_label(self)
 
     def _advance_sender_session_id(self) -> int:
-        next_value = (int(getattr(self, "sender_session_id", 0) or 0) + 1) & 0xFFFF
-        if next_value <= 0:
-            next_value = 1
-        self.sender_session_id = int(next_value)
-        return int(self.sender_session_id)
+        return advance_sender_session_id(self)
 
     def _begin_new_session(self, reason: str, current_map_id: int = 0, current_instance_uptime_ms: int = 0):
-        self._advance_sender_session_id()
-        self._arm_reset_trace(reason, current_map_id, current_instance_uptime_ms)
-        self._reset_tracking_state()
-        self.last_seen_map_id = int(current_map_id or 0)
-        self.last_seen_instance_uptime_ms = int(current_instance_uptime_ms or 0)
+        carryover_snapshot = dict(self.last_inventory_snapshot) if self.last_inventory_snapshot else {}
+        begin_new_session(self, reason, current_map_id=current_map_id, current_instance_uptime_ms=current_instance_uptime_ms)
+        self.carryover_inventory_snapshot = carryover_snapshot
+        self.session_startup_pending = bool(carryover_snapshot)
+        grace_seconds = max(6.0, float(getattr(self, "warmup_grace_seconds", 3.0) or 3.0) + 9.0)
+        self.carryover_suppression_until = time.time() + grace_seconds if carryover_snapshot else 0.0
+        self._append_live_debug_log(
+            "sender_session_reset",
+            f"transition={str(reason or '').strip() or 'unknown'}",
+            reason=str(reason or "").strip() or "unknown",
+            current_map_id=int(current_map_id or 0),
+            current_instance_uptime_ms=int(current_instance_uptime_ms or 0),
+            sender_session_id=int(getattr(self, "sender_session_id", 0) or 0),
+            carryover_count=len(carryover_snapshot),
+            startup_pending=bool(self.session_startup_pending),
+            carryover_suppression_until=float(getattr(self, "carryover_suppression_until", 0.0) or 0.0),
+        )
+
+    def _append_live_debug_log(self, event: str, message: str, **fields: Any):
+        return append_live_debug_log(
+            actor="sender",
+            event=event,
+            message=message,
+            drop_log_path=constants.DROP_LOG_PATH,
+            **fields,
+        )
+
+    def _clear_live_debug_log(self):
+        return clear_live_debug_log(constants.DROP_LOG_PATH)
 
     def _log_reset_trace(
         self,
@@ -845,18 +414,10 @@ class DropTrackerSender:
         consume_event: bool = False,
         level=None,
     ):
-        if not self._reset_trace_active():
-            return
-        if consume_snapshot:
-            remaining = int(getattr(self, "debug_reset_trace_snapshot_logs_remaining", 0) or 0)
-            if remaining <= 0:
-                return
-            self.debug_reset_trace_snapshot_logs_remaining = remaining - 1
         if consume_event:
             remaining = int(getattr(self, "debug_reset_trace_event_logs_remaining", 0) or 0)
-            if remaining <= 0:
-                return
-            self.debug_reset_trace_event_logs_remaining = remaining - 1
+            if remaining > 0:
+                self.debug_reset_trace_event_logs_remaining = remaining - 1
         trace_lines = getattr(self, "debug_reset_trace_lines", None)
         if not isinstance(trace_lines, list):
             self.debug_reset_trace_lines = []
@@ -864,29 +425,28 @@ class DropTrackerSender:
         trace_lines.append(str(message or ""))
         if len(trace_lines) > 120:
             del trace_lines[:-120]
-        Py4GW.Console.Log(
-            "DropTrackerSender",
-            str(message or ""),
-            level if level is not None else Py4GW.Console.MessageType.Warning,
-        )
+        return log_reset_trace(self, message, consume_snapshot=consume_snapshot)
 
     def _strip_tags(self, text: str) -> str:
         return re.sub(r"<[^>]+>", "", text or "")
 
+    def _prune_recent_world_item_disappearances(self, now_ts: float | None = None):
+        prune_recent_world_item_disappearances(self, now_ts)
+
+    def _build_world_item_state(self, agent_id: int) -> dict[str, Any] | None:
+        return build_world_item_state(self, agent_id)
+
+    def _poll_world_item_disappearances(self):
+        poll_world_item_disappearances(self)
+
+    def _world_item_names_compatible(self, world_name: str, event_name: str) -> bool:
+        return world_item_names_compatible(world_name, event_name)
+
+    def _consume_recent_world_item_confirmation(self, event: dict[str, Any]) -> bool:
+        return consume_recent_world_item_confirmation(self, event)
+
     def _prune_sent_event_stats_cache(self, now_ts: float | None = None):
-        now = float(now_ts if now_ts is not None else time.time())
-        ttl_s = max(30.0, float(getattr(self, "sent_event_stats_ttl_seconds", 600.0)))
-        cache = getattr(self, "sent_event_stats_cache", {})
-        if not isinstance(cache, dict) or not cache:
-            return
-        for event_id in list(cache.keys()):
-            entry = cache.get(event_id)
-            if not isinstance(entry, dict):
-                cache.pop(event_id, None)
-                continue
-            created_at = float(entry.get("created_at", now))
-            if (now - created_at) > ttl_s:
-                cache.pop(event_id, None)
+        return prune_sent_event_stats_cache(self, now_ts)
 
     def _remember_event_identity(
         self,
@@ -898,113 +458,28 @@ class DropTrackerSender:
         rarity: str = "",
         last_receiver_email: str = "",
     ):
-        event_key = str(event_id or "").strip()
-        if not event_key:
-            return
-        now_ts = time.time()
-        self._prune_sent_event_stats_cache(now_ts)
-        cache = getattr(self, "sent_event_stats_cache", None)
-        if not isinstance(cache, dict):
-            self.sent_event_stats_cache = {}
-            cache = self.sent_event_stats_cache
-        existing = cache.get(event_key, {})
-        if not isinstance(existing, dict):
-            existing = {}
-        existing["item_id"] = int(item_id)
-        existing["model_id"] = int(model_id)
-        existing["item_name"] = str(item_name or "").strip()
-        existing["name_signature"] = str(name_signature or "").strip().lower()
-        existing["rarity"] = str(rarity or existing.get("rarity", "") or "").strip()
-        existing["last_receiver_email"] = str(
-            last_receiver_email or existing.get("last_receiver_email", "") or ""
-        ).strip().lower()
-        existing["created_at"] = float(now_ts)
-        # Preserve any already-built stats text.
-        existing["stats_text"] = str(existing.get("stats_text", "") or "").strip()
-        cache[event_key] = existing
+        return remember_event_identity(
+            self,
+            event_id,
+            item_id,
+            model_id,
+            item_name,
+            name_signature=name_signature,
+            rarity=rarity,
+            last_receiver_email=last_receiver_email,
+        )
 
     def get_cached_event_identity(self, event_id: str) -> dict:
-        event_key = str(event_id or "").strip()
-        if not event_key:
-            return {}
-        self._prune_sent_event_stats_cache()
-        cache = getattr(self, "sent_event_stats_cache", {})
-        if not isinstance(cache, dict):
-            return {}
-        entry = cache.get(event_key, None)
-        if not isinstance(entry, dict):
-            return {}
-        return dict(entry)
+        return get_cached_event_identity(self, event_id)
 
     def resolve_live_item_id_for_event(self, event_id: str, preferred_item_id: int = 0) -> int:
-        event_key = str(event_id or "").strip()
-        preferred = int(preferred_item_id or 0)
-        identity = self.get_cached_event_identity(event_key) if event_key else {}
-        has_identity = bool(identity)
-        if not has_identity:
-            return max(0, preferred)
-        expected_model_id = int(identity.get("model_id", 0))
-        if preferred > 0:
-            # Identification can change the visible item name while keeping the same
-            # live item_id. Prefer that exact item_id when the model still matches,
-            # instead of rejecting it on the stale pre-identify name signature.
-            direct_probe = {
-                "item_id": int(preferred),
-                "model_id": expected_model_id,
-                "name_signature": "",
-            }
-            resolved_direct = self._resolve_event_item_id_for_stats(direct_probe)
-            if resolved_direct > 0:
-                return int(resolved_direct)
-        probe_entry = {
-            "item_id": max(0, preferred) if preferred > 0 else int(identity.get("item_id", 0)),
-            "model_id": expected_model_id,
-            "name_signature": str(identity.get("name_signature", "") or "").strip().lower(),
-        }
-        resolved = self._resolve_event_item_id_for_stats(probe_entry)
-        if resolved > 0:
-            return int(resolved)
-        # Identity exists but cannot be matched unambiguously; avoid unsafe fallback.
-        return 0
+        return resolve_live_item_id_for_event(self, event_id, preferred_item_id=preferred_item_id)
 
     def clear_cached_event_stats(self, event_id: str, item_id: int = 0):
-        event_key = str(event_id or "").strip()
-        if not event_key:
-            return
-        cache = getattr(self, "sent_event_stats_cache", {})
-        if not isinstance(cache, dict):
-            return
-        entry = cache.get(event_key)
-        if not isinstance(entry, dict):
-            return
-        wanted_item_id = int(item_id or 0)
-        if wanted_item_id > 0 and int(entry.get("item_id", 0)) > 0 and int(entry.get("item_id", 0)) != wanted_item_id:
-            return
-        entry["stats_text"] = ""
-        entry["created_at"] = float(time.time())
-        cache[event_key] = entry
+        return clear_cached_event_stats(self, event_id, item_id=item_id)
 
     def clear_cached_event_stats_for_item(self, item_id: int = 0, model_id: int = 0):
-        wanted_item_id = int(item_id or 0)
-        wanted_model_id = int(model_id or 0)
-        if wanted_item_id <= 0 and wanted_model_id <= 0:
-            return
-        cache = getattr(self, "sent_event_stats_cache", {})
-        if not isinstance(cache, dict) or not cache:
-            return
-        now_ts = float(time.time())
-        for event_key, entry in cache.items():
-            if not isinstance(entry, dict):
-                continue
-            cached_item_id = int(entry.get("item_id", 0))
-            cached_model_id = int(entry.get("model_id", 0))
-            if wanted_item_id > 0 and cached_item_id > 0 and cached_item_id == wanted_item_id:
-                entry["stats_text"] = ""
-                entry["created_at"] = now_ts
-                continue
-            if wanted_model_id > 0 and cached_model_id > 0 and cached_model_id == wanted_model_id:
-                entry["stats_text"] = ""
-                entry["created_at"] = now_ts
+        return clear_cached_event_stats_for_item(self, item_id=item_id, model_id=model_id)
 
     def _remember_event_stats_snapshot(
         self,
@@ -1017,68 +492,26 @@ class DropTrackerSender:
         rarity: str = "",
         last_receiver_email: str = "",
     ):
-        event_key = str(event_id or "").strip()
-        if not event_key:
-            return
-        stats_value = str(stats_text or "").strip()
-        if not stats_value:
-            return
-        now_ts = time.time()
-        self._prune_sent_event_stats_cache(now_ts)
-        cache = getattr(self, "sent_event_stats_cache", None)
-        if not isinstance(cache, dict):
-            self.sent_event_stats_cache = {}
-            cache = self.sent_event_stats_cache
-        existing = cache.get(event_key, {})
-        if not isinstance(existing, dict):
-            existing = {}
-        resolved_name_sig = str(name_signature or existing.get("name_signature", "") or "").strip().lower()
-        cache[event_key] = {
-            "item_id": int(item_id),
-            "model_id": int(model_id),
-            "item_name": str(item_name or "").strip(),
-            "name_signature": resolved_name_sig,
-            "rarity": str(rarity or existing.get("rarity", "") or "").strip(),
-            "last_receiver_email": str(
-                last_receiver_email or existing.get("last_receiver_email", "") or ""
-            ).strip().lower(),
-            "stats_text": stats_value,
-            "created_at": float(now_ts),
-        }
+        return remember_event_stats_snapshot(
+            self,
+            event_id,
+            item_id,
+            model_id,
+            item_name,
+            stats_text,
+            name_signature=name_signature,
+            rarity=rarity,
+            last_receiver_email=last_receiver_email,
+        )
 
     def _should_track_name_refresh(self, item_name: str = "", rarity: str = "") -> bool:
-        rarity_txt = str(rarity or "").strip().lower()
-        if rarity_txt in {"blue", "purple", "gold"}:
-            return True
-        name_txt = str(item_name or "").strip().lower()
-        return "rune" in name_txt
+        return should_track_name_refresh(self, item_name=item_name, rarity=rarity)
 
     def get_cached_event_stats_text(self, event_id: str, item_id: int = 0, model_id: int = 0) -> str:
-        event_key = str(event_id or "").strip()
-        if not event_key:
-            return ""
-        self._prune_sent_event_stats_cache()
-        cache = getattr(self, "sent_event_stats_cache", {})
-        if not isinstance(cache, dict):
-            return ""
-        entry = cache.get(event_key, None)
-        if not isinstance(entry, dict):
-            return ""
-        cached_item_id = int(entry.get("item_id", 0))
-        cached_model_id = int(entry.get("model_id", 0))
-        wanted_item_id = int(item_id or 0)
-        wanted_model_id = int(model_id or 0)
-        if wanted_item_id > 0 and cached_item_id > 0 and wanted_item_id != cached_item_id:
-            return ""
-        if wanted_model_id > 0 and cached_model_id > 0 and wanted_model_id != cached_model_id:
-            return ""
-        return str(entry.get("stats_text", "") or "").strip()
+        return get_cached_event_stats_text(self, event_id, item_id=item_id, model_id=model_id)
 
     def _make_orphan_pending_slot_key(self, item_id: int, now_ts: float) -> tuple[int, int]:
-        if int(item_id) > 0:
-            return 0, -abs(int(item_id))
-        fallback_seed = int(now_ts * 1000.0) & 0x7FFFFFFF
-        return 0, -max(1, fallback_seed)
+        return make_orphan_pending_slot_key(self, item_id, now_ts)
 
     def _buffer_pending_slot_delta(
         self,
@@ -1089,367 +522,45 @@ class DropTrackerSender:
         rarity: str,
         now_ts: float,
     ):
-        qty_to_add = max(1, int(delta_qty))
-        pending = self.pending_slot_deltas.get(slot_key)
-        if pending is None or not isinstance(pending, dict):
-            self.pending_slot_deltas[slot_key] = {
-                "qty": int(qty_to_add),
-                "model_id": int(model_id),
-                "item_id": int(item_id),
-                "rarity": rarity,
-                "first_seen": now_ts,
-                "last_seen": now_ts,
-            }
-            return
-
-        pending_item_id = int(pending.get("item_id", 0))
-        pending_model_id = int(pending.get("model_id", 0))
-        same_item = pending_item_id > 0 and pending_item_id == int(item_id)
-        same_model = pending_item_id <= 0 and pending_model_id > 0 and pending_model_id == int(model_id)
-        if not (same_item or same_model):
-            # Slot got reused by another unresolved item. Move previous pending to an
-            # orphan key (by item_id) so we can still resolve it without mixing records.
-            orphan_key = self._make_orphan_pending_slot_key(pending_item_id, now_ts)
-            orphan_entry = self.pending_slot_deltas.get(orphan_key)
-            if orphan_entry is None or not isinstance(orphan_entry, dict):
-                preserved = dict(pending)
-                preserved["last_seen"] = now_ts
-                self.pending_slot_deltas[orphan_key] = preserved
-            else:
-                orphan_entry["qty"] = int(orphan_entry.get("qty", 0)) + int(pending.get("qty", 0))
-                orphan_entry["model_id"] = int(pending.get("model_id", orphan_entry.get("model_id", 0)))
-                orphan_entry["item_id"] = int(pending.get("item_id", orphan_entry.get("item_id", 0)))
-                orphan_entry["rarity"] = orphan_entry.get("rarity") or pending.get("rarity") or rarity
-                orphan_entry["first_seen"] = min(
-                    float(orphan_entry.get("first_seen", now_ts)),
-                    float(pending.get("first_seen", now_ts)),
-                )
-                orphan_entry["last_seen"] = now_ts
-            self.pending_slot_deltas[slot_key] = {
-                "qty": int(qty_to_add),
-                "model_id": int(model_id),
-                "item_id": int(item_id),
-                "rarity": rarity,
-                "first_seen": now_ts,
-                "last_seen": now_ts,
-            }
-            return
-
-        pending["qty"] = int(pending.get("qty", 0)) + int(qty_to_add)
-        pending["model_id"] = int(model_id)
-        pending["item_id"] = int(item_id)
-        pending["rarity"] = pending.get("rarity") or rarity
-        pending["last_seen"] = now_ts
+        return buffer_pending_slot_delta(
+            self,
+            slot_key,
+            delta_qty,
+            model_id,
+            item_id,
+            rarity,
+            now_ts,
+        )
 
     def _resolve_party_leader_email(self) -> str | None:
-        try:
-            helper_leader_email = CustomBehaviorHelperParty._get_party_leader_email()
-            if helper_leader_email:
-                return helper_leader_email
-
-            leader_id = Party.GetPartyLeaderID()
-            for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-                if int(account.AgentData.AgentID) == leader_id:
-                    return account.AccountEmail
-
-            # Fallback to leader slot in same party/map shard.
-            my_party_id = GLOBAL_CACHE.Party.GetPartyID()
-            for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-                if not account.IsAccount:
-                    continue
-                if int(account.AgentPartyData.PartyID) != int(my_party_id):
-                    continue
-                if int(account.AgentPartyData.PartyPosition) == 0:
-                    return account.AccountEmail
-        except EXPECTED_RUNTIME_ERRORS:
-            return None
-        return None
+        return resolve_party_leader_email(self)
 
     def _is_party_leader_client(self) -> bool:
-        try:
-            is_leader = int(Player.GetAgentID()) == int(Party.GetPartyLeaderID())
-            self.last_known_is_leader = bool(is_leader)
-            return bool(is_leader)
-        except EXPECTED_RUNTIME_ERRORS:
-            # Preserve last known role to avoid transient misrouting.
-            return bool(getattr(self, "last_known_is_leader", False))
+        return is_party_leader_client(self)
 
     def _next_event_id(self) -> str:
-        self.event_sequence = (int(self.event_sequence) + 1) & 0xFFFF
-        return make_event_id(self.event_sequence)
+        return next_event_id(self)
 
     def _load_runtime_config(self):
-        try:
-            if not os.path.exists(self.runtime_config_path):
-                return
-            with open(self.runtime_config_path, mode="r", encoding="utf-8") as f:
-                data = json.load(f)
-            if not isinstance(data, dict):
-                return
-            self.debug_pipeline_logs = bool(data.get("debug_pipeline_logs", self.debug_pipeline_logs))
-            self.enable_perf_logs = bool(data.get("enable_perf_logs", self.enable_perf_logs))
-            self.enable_delivery_ack = bool(data.get("enable_delivery_ack", self.enable_delivery_ack))
-            self.max_send_per_tick = max(1, int(data.get("max_send_per_tick", self.max_send_per_tick)))
-            self.max_outbox_size = max(20, int(data.get("max_outbox_size", self.max_outbox_size)))
-            self.max_snapshot_size_jump = max(
-                6,
-                int(data.get("max_snapshot_size_jump", self.max_snapshot_size_jump)),
-            )
-            self.retry_interval_seconds = max(0.2, float(data.get("retry_interval_seconds", self.retry_interval_seconds)))
-            self.max_retry_attempts = max(1, int(data.get("max_retry_attempts", self.max_retry_attempts)))
-            self.max_stats_builds_per_tick = max(
-                0, int(data.get("max_stats_builds_per_tick", self.max_stats_builds_per_tick))
-            )
-        except EXPECTED_RUNTIME_ERRORS:
-            return
+        return load_runtime_config(self)
 
     def _send_name_chunks(self, receiver_email: str, my_email: str, name_signature: str, full_name: str) -> bool:
-        try:
-            if not name_signature:
-                return True
-            chunks = build_name_chunks(full_name or "")
-            for idx, total, chunk in chunks:
-                sent_index = GLOBAL_CACHE.ShMem.SendMessage(
-                    sender_email=my_email,
-                    receiver_email=receiver_email,
-                    command=SharedCommandType.CustomBehaviors,
-                    params=(0.0, 0.0, 0.0, 0.0),
-                    ExtraData=(
-                        "TrackerNameV2",
-                        (name_signature or "")[:31],
-                        (chunk or "")[:31],
-                        encode_name_chunk_meta(idx, total)[:31],
-                    ),
-                )
-                if sent_index == -1:
-                    return False
-            return True
-        except EXPECTED_RUNTIME_ERRORS:
-            return False
+        return send_name_chunks(self, receiver_email, my_email, name_signature, full_name)
 
     def _log_name_trace(self, message: str) -> None:
-        if not bool(getattr(self, "debug_pipeline_logs", False)):
-            return
-        Py4GW.Console.Log(
-            "DropTrackerSenderNameTrace",
-            str(message or ""),
-            Py4GW.Console.MessageType.Info,
-        )
+        return log_name_trace(self, message)
 
     def _schedule_name_refresh_for_entry(self, entry: dict, receiver_email: str = "") -> None:
-        if not isinstance(entry, dict):
-            return
-        event_key = str(entry.get("event_id", "") or "").strip()
-        if not event_key:
-            return
-        item_id = int(entry.get("item_id", 0) or 0)
-        if item_id <= 0:
-            return
-        short_name = str(entry.get("item_name", "") or "").strip()
-        full_name = str(entry.get("full_name", "") or "").strip()
-        if full_name and full_name != short_name:
-            return
-        rarity = str(entry.get("rarity", "") or "").strip()
-        if not self._should_track_name_refresh(short_name, rarity):
-            self._log_name_trace(
-                (
-                    f"NAME TRACE refresh_skip ev={event_key} item='{short_name or '-'}' "
-                    f"rarity='{rarity or '-'}' reason=ineligible"
-                )
-            )
-            return
-        now_ts = time.time()
-        pending = getattr(self, "pending_name_refresh_by_event", None)
-        if not isinstance(pending, dict):
-            self.pending_name_refresh_by_event = {}
-            pending = self.pending_name_refresh_by_event
-        existing_refresh = pending.get(event_key)
-        if not isinstance(existing_refresh, dict):
-            existing_refresh = {}
-        resolved_receiver_email = str(
-            receiver_email
-            or entry.get("last_receiver_email", "")
-            or existing_refresh.get("receiver_email", "")
-            or ""
-        ).strip().lower()
-        pending[event_key] = {
-            "event_id": event_key,
-            "item_id": int(item_id or existing_refresh.get("item_id", 0) or 0),
-            "model_id": int(entry.get("model_id", 0) or existing_refresh.get("model_id", 0) or 0),
-            "item_name": short_name or str(existing_refresh.get("item_name", "") or "").strip(),
-            "rarity": rarity or str(existing_refresh.get("rarity", "") or "").strip(),
-            "name_signature": str(
-                entry.get("name_signature", "")
-                or existing_refresh.get("name_signature", "")
-                or ""
-            ).strip().lower(),
-            "created_at": float(now_ts),
-            "next_poll_at": float(now_ts + max(0.05, float(getattr(self, "name_refresh_poll_interval_seconds", 0.25)))),
-            "is_leader_sender": bool(entry.get("is_leader_sender", existing_refresh.get("is_leader_sender", False))),
-            "receiver_email": resolved_receiver_email,
-        }
-        self._log_name_trace(
-            (
-                f"NAME TRACE refresh_schedule ev={event_key} item='{short_name or '-'}' "
-                f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
-                f"receiver={resolved_receiver_email or '-'}"
-            )
-        )
+        return schedule_name_refresh_for_entry(self, entry, receiver_email=receiver_email)
 
     def _process_pending_name_refreshes(self) -> int:
-        pending = getattr(self, "pending_name_refresh_by_event", None)
-        if not isinstance(pending, dict) or not pending:
-            return 0
-        now_ts = time.time()
-        ttl_s = max(0.5, float(getattr(self, "name_refresh_ttl_seconds", 4.0)))
-        poll_s = max(0.05, float(getattr(self, "name_refresh_poll_interval_seconds", 0.25)))
-        max_scan = max(1, int(getattr(self, "max_name_refresh_per_tick", 4)))
-        completed = 0
-
-        for event_key in list(pending.keys()):
-            refresh = pending.get(event_key)
-            if not isinstance(refresh, dict):
-                pending.pop(event_key, None)
-                continue
-            if (now_ts - float(refresh.get("created_at", now_ts))) > ttl_s:
-                self._log_name_trace(f"NAME TRACE refresh_expire ev={event_key}")
-                pending.pop(event_key, None)
-                continue
-            if completed >= max_scan:
-                break
-            if now_ts < float(refresh.get("next_poll_at", 0.0) or 0.0):
-                continue
-
-            completed += 1
-            item_id = int(refresh.get("item_id", 0) or 0)
-            model_id = int(refresh.get("model_id", 0) or 0)
-            original_name = str(refresh.get("item_name", "") or "").strip()
-            original_signature = str(refresh.get("name_signature", "") or "").strip().lower()
-            if item_id <= 0 or not original_signature:
-                pending.pop(event_key, None)
-                continue
-
-            try:
-                live_model_id = int(Item.GetModelID(item_id))
-            except EXPECTED_RUNTIME_ERRORS:
-                live_model_id = 0
-            if model_id > 0 and live_model_id > 0 and live_model_id != model_id:
-                self._log_name_trace(
-                    f"NAME TRACE refresh_abort ev={event_key} reason=model_mismatch live={live_model_id} expected={model_id}"
-                )
-                pending.pop(event_key, None)
-                continue
-
-            clean_name = self._resolve_best_live_item_name(item_id, original_name)
-            if not clean_name or clean_name.startswith("Model#") or clean_name == original_name:
-                refresh["next_poll_at"] = now_ts + poll_s
-                continue
-
-            receiver_email = str(refresh.get("receiver_email", "") or "").strip().lower()
-            if not receiver_email:
-                if bool(refresh.get("is_leader_sender", False)):
-                    try:
-                        receiver_email = str(Player.GetAccountEmail() or "").strip().lower()
-                    except EXPECTED_RUNTIME_ERRORS:
-                        receiver_email = ""
-                else:
-                    receiver_email = str(self._resolve_party_leader_email() or "").strip().lower()
-            if not receiver_email:
-                refresh["next_poll_at"] = now_ts + poll_s
-                continue
-
-            try:
-                my_email = str(Player.GetAccountEmail() or "").strip()
-            except EXPECTED_RUNTIME_ERRORS:
-                my_email = ""
-            if not my_email:
-                refresh["next_poll_at"] = now_ts + poll_s
-                continue
-
-            self._log_name_trace(
-                (
-                    f"NAME TRACE refresh_send ev={event_key} old='{original_name or '-'}' new='{clean_name or '-'}' "
-                    f"sig={original_signature or '-'} receiver={receiver_email or '-'}"
-                )
-            )
-            if self._send_name_chunks(receiver_email, my_email, original_signature, clean_name):
-                self._remember_event_identity(
-                    event_id=event_key,
-                    item_id=item_id,
-                    model_id=model_id,
-                    item_name=clean_name,
-                    name_signature=original_signature,
-                    rarity=str(refresh.get("rarity", "") or "").strip(),
-                )
-                pending.pop(event_key, None)
-                continue
-            refresh["next_poll_at"] = now_ts + poll_s
-
-        return completed
+        return process_pending_name_refreshes(self)
 
     def schedule_name_refresh_for_item(self, item_id: int = 0, model_id: int = 0) -> int:
-        wanted_item_id = int(item_id or 0)
-        wanted_model_id = int(model_id or 0)
-        if wanted_item_id <= 0 and wanted_model_id <= 0:
-            return 0
-        cache = getattr(self, "sent_event_stats_cache", {})
-        if not isinstance(cache, dict) or not cache:
-            return 0
-        scheduled = 0
-        for event_key, entry in list(cache.items()):
-            if not isinstance(entry, dict):
-                continue
-            cached_item_id = int(entry.get("item_id", 0) or 0)
-            cached_model_id = int(entry.get("model_id", 0) or 0)
-            if wanted_item_id > 0 and cached_item_id > 0 and cached_item_id != wanted_item_id:
-                if not (wanted_model_id > 0 and cached_model_id == wanted_model_id):
-                    continue
-            elif wanted_item_id <= 0 and wanted_model_id > 0 and cached_model_id != wanted_model_id:
-                continue
-            refresh_entry = {
-                "event_id": str(event_key or "").strip(),
-                "item_id": cached_item_id if cached_item_id > 0 else wanted_item_id,
-                "model_id": cached_model_id if cached_model_id > 0 else wanted_model_id,
-                "item_name": str(entry.get("item_name", "") or "").strip(),
-                "rarity": str(entry.get("rarity", "") or "").strip(),
-                "name_signature": str(entry.get("name_signature", "") or "").strip().lower(),
-                "is_leader_sender": bool(self._is_party_leader_client()),
-                "last_receiver_email": str(entry.get("last_receiver_email", "") or "").strip().lower(),
-                "receiver_email": str(entry.get("last_receiver_email", "") or "").strip().lower(),
-            }
-            self._schedule_name_refresh_for_entry(refresh_entry)
-            scheduled += 1
-        if scheduled > 0:
-            self._log_name_trace(
-                f"NAME TRACE identify_refresh_rearm item_id={wanted_item_id} model_id={wanted_model_id} scheduled={scheduled}"
-            )
-        return scheduled
+        return schedule_name_refresh_for_item(self, item_id=item_id, model_id=model_id)
 
     def _send_stats_chunks(self, receiver_email: str, my_email: str, event_id: str, stats_text: str) -> bool:
-        try:
-            if not event_id:
-                return True
-            if not stats_text:
-                return True
-            chunks = build_name_chunks(stats_text or "", 31)
-            for idx, total, chunk in chunks:
-                sent_index = GLOBAL_CACHE.ShMem.SendMessage(
-                    sender_email=my_email,
-                    receiver_email=receiver_email,
-                    command=SharedCommandType.CustomBehaviors,
-                    params=(0.0, 0.0, 0.0, 0.0),
-                    ExtraData=(
-                        "TrackerStatsV1",
-                        (event_id or "")[:31],
-                        (chunk or "")[:31],
-                        encode_name_chunk_meta(idx, total)[:31],
-                    ),
-                )
-                if sent_index == -1:
-                    return False
-            return True
-        except EXPECTED_RUNTIME_ERRORS:
-            return False
+        return send_stats_chunks(self, receiver_email, my_email, event_id, stats_text)
 
     def _send_drop(
         self,
@@ -1466,61 +577,21 @@ class DropTrackerSender:
         name_signature: str = "",
         sender_session_id: int = 0,
     ) -> bool:
-        try:
-            my_email = Player.GetAccountEmail()
-            if not my_email:
-                return False
-            if is_leader_sender:
-                receiver_email = my_email
-            else:
-                receiver_email = self._resolve_party_leader_email()
-                # Followers must never fallback to self; retry once leader email is known.
-                if not receiver_email or receiver_email == my_email:
-                    return False
-            meta = build_drop_meta(
-                event_id,
-                name_signature,
-                display_time,
-                sender_session_id=int(sender_session_id or 0),
-            )
-            sent_index = GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email=my_email,
-                receiver_email=receiver_email,
-                command=SharedCommandType.CustomBehaviors,
-                params=(
-                    float(max(1, quantity)),
-                    float(max(0, int(item_id))),
-                    float(max(0, int(model_id))),
-                    float((int(slot_bag) << 16) | int(slot_index)),
-                ),
-                ExtraData=(
-                    "TrackerDrop",
-                    (item_name or "Unknown Item")[:31],
-                    (rarity or "Unknown")[:31],
-                    (meta or "")[:31],
-                ),
-            )
-            if sent_index == -1 and self.warn_timer.IsExpired():
-                self.warn_timer.Reset()
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    f"SendMessage failed (inbox full?): sender={my_email}, receiver={receiver_email}, item={item_name}",
-                    Py4GW.Console.MessageType.Warning,
-                )
-            if sent_index != -1 and self.debug_pipeline_logs:
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    (
-                        f"SENT idx={sent_index} role={'leader' if is_leader_sender else 'follower'} "
-                        f"item='{item_name}' qty={max(1, int(quantity))} rarity={rarity} "
-                        f"item_id={int(item_id)} model_id={int(model_id)} slot={int(slot_bag)}:{int(slot_index)} "
-                        f"event_id={event_id} sender_session={int(sender_session_id or 0)}"
-                    ),
-                    Py4GW.Console.MessageType.Info,
-                )
-            return sent_index != -1
-        except EXPECTED_RUNTIME_ERRORS:
-            return False
+        return send_drop(
+            self,
+            item_name,
+            quantity,
+            rarity,
+            display_time=display_time,
+            item_id=item_id,
+            model_id=model_id,
+            slot_bag=slot_bag,
+            slot_index=slot_index,
+            is_leader_sender=is_leader_sender,
+            event_id=event_id,
+            name_signature=name_signature,
+            sender_session_id=sender_session_id,
+        )
 
     def _queue_drop(
         self,
@@ -1534,914 +605,32 @@ class DropTrackerSender:
         reason: str = "delta",
         is_leader_sender: bool = False,
     ):
-        bag_id = int(slot_key[0]) if slot_key else 0
-        slot_id = int(slot_key[1]) if slot_key else 0
-        entry = {
-            "item_name": item_name or "Unknown Item",
-            "full_name": item_name or "Unknown Item",
-            "quantity": max(1, int(quantity)),
-            "rarity": rarity or "Unknown",
-            "display_time": display_time or "",
-            "item_id": int(item_id),
-            "model_id": int(model_id),
-            "bag_id": bag_id,
-            "slot_id": slot_id,
-            "reason": reason or "delta",
-            "is_leader_sender": bool(is_leader_sender),
-            "event_id": self._next_event_id(),
-            "sender_session_id": int(getattr(self, "sender_session_id", 1) or 1),
-            "name_signature": make_name_signature(item_name or "Unknown Item"),
-            "name_chunks_sent": False,
-            "stats_chunks_sent": False,
-            # Build stats lazily in _flush_outbox; eager builds can stall on burst pickups.
-            "stats_text": "",
-            "attempts": 0,
-            "next_retry_at": 0.0,
-            "acked": False,
-            "last_receiver_email": "",
-            "name_refresh_scheduled": False,
-        }
-        self._remember_event_identity(
-            event_id=str(entry.get("event_id", "")),
-            item_id=int(entry.get("item_id", 0)),
-            model_id=int(entry.get("model_id", 0)),
-            item_name=str(entry.get("item_name", "") or ""),
-            name_signature=str(entry.get("name_signature", "") or ""),
-            rarity=str(entry.get("rarity", "") or ""),
-            last_receiver_email=str(entry.get("last_receiver_email", "") or ""),
+        return queue_drop(
+            self,
+            item_name,
+            quantity,
+            rarity,
+            display_time,
+            item_id=item_id,
+            model_id=model_id,
+            slot_key=slot_key,
+            reason=reason,
+            is_leader_sender=is_leader_sender,
         )
-        self._log_name_trace(
-            (
-                f"NAME TRACE enqueue ev={entry.get('event_id', '') or '-'} "
-                f"item='{str(entry.get('item_name', '') or '').strip() or '-'}' "
-                f"full='{str(entry.get('full_name', '') or '').strip() or '-'}' "
-                f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
-                f"model_id={int(entry.get('model_id', 0))} item_id={int(entry.get('item_id', 0))}"
-            )
-        )
-        if len(self.outbox_queue) >= int(self.max_outbox_size):
-            self.outbox_queue.pop(0)
-            if self.warn_timer.IsExpired():
-                self.warn_timer.Reset()
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    f"Outbox full, dropped oldest entry (limit={self.max_outbox_size}).",
-                    Py4GW.Console.MessageType.Warning,
-                )
-        self.outbox_queue.append(entry)
-        if self.debug_pipeline_logs:
-            Py4GW.Console.Log(
-                "DropTrackerSender",
-                (
-                    f"ENQUEUE reason={entry['reason']} role={'leader' if entry['is_leader_sender'] else 'follower'} "
-                    f"item='{entry['item_name']}' qty={entry['quantity']} rarity={entry['rarity']} "
-                    f"item_id={entry['item_id']} model_id={entry['model_id']} "
-                    f"slot={entry['bag_id']}:{entry['slot_id']} queue={len(self.outbox_queue)} "
-                    f"event_id={entry['event_id']} sender_session={int(entry['sender_session_id'])}"
-                ),
-                Py4GW.Console.MessageType.Info,
-            )
 
     def _poll_ack_messages(self) -> int:
-        if not self.enable_delivery_ack:
-            return 0
-        try:
-            my_email = Player.GetAccountEmail()
-            if not my_email:
-                return 0
-            shmem = getattr(GLOBAL_CACHE, "ShMem", None)
-            if shmem is None:
-                return 0
-            acked_count = 0
-            for msg_idx, shared_msg in shmem.GetAllMessages():
-                receiver_email = str(getattr(shared_msg, "ReceiverEmail", "") or "").strip()
-                if receiver_email != my_email:
-                    continue
-                command_value = int(getattr(shared_msg, "Command", 0))
-                expected_custom_behavior_command = 997
-                try:
-                    expected_custom_behavior_command = int(SharedCommandType.CustomBehaviors.value)
-                except EXPECTED_RUNTIME_ERRORS:
-                    pass
-                if command_value != expected_custom_behavior_command and command_value != 997:
-                    continue
-                extra_data_list = getattr(shared_msg, "ExtraData", None)
-                if not extra_data_list or len(extra_data_list) == 0:
-                    continue
-                extra_0 = "".join(ch for ch in extra_data_list[0] if ch != "\0").rstrip()
-                if extra_0 != "TrackerAckV2":
-                    continue
-                event_id = "".join(ch for ch in extra_data_list[1] if ch != "\0").rstrip() if len(extra_data_list) > 1 else ""
-                ack_sender_email = str(getattr(shared_msg, "SenderEmail", "") or "").strip().lower()
-                for entry in self.outbox_queue:
-                    if str(entry.get("event_id", "")) == str(event_id):
-                        if int(entry.get("attempts", 0)) <= 0:
-                            continue
-                        expected_sender = str(entry.get("last_receiver_email", "") or "").strip().lower()
-                        if expected_sender and ack_sender_email and ack_sender_email != expected_sender:
-                            continue
-                        if not entry.get("acked", False):
-                            entry["acked"] = True
-                            acked_count += 1
-                shmem.MarkMessageAsFinished(my_email, msg_idx)
-            self.last_ack_count = acked_count
-            return acked_count
-        except EXPECTED_RUNTIME_ERRORS:
-            return 0
+        return poll_ack_messages(self)
 
     def _flush_outbox(self) -> int:
-        if self.enable_delivery_ack and self.ack_poll_timer.IsExpired():
-            self.ack_poll_timer.Reset()
-            self._poll_ack_messages()
-
-        now_ts = time.time()
-        stats_build_budget = max(0, int(getattr(self, "max_stats_builds_per_tick", 2)))
-        kept_entries = []
-        for entry in self.outbox_queue:
-            if entry.get("acked", False):
-                continue
-            attempts = int(entry.get("attempts", 0))
-            if attempts >= int(self.max_retry_attempts):
-                if self.warn_timer.IsExpired():
-                    self.warn_timer.Reset()
-                    Py4GW.Console.Log(
-                        "DropTrackerSender",
-                        f"Dropping unacked event after retries: {entry.get('event_id', '')}",
-                        Py4GW.Console.MessageType.Warning,
-                    )
-                continue
-            kept_entries.append(entry)
-        self.outbox_queue = kept_entries
-
-        sent = 0
-        attempted = 0
-        retry_delay_s = max(0.2, float(self.retry_interval_seconds))
-        for entry in self.outbox_queue:
-            if attempted >= int(self.max_send_per_tick):
-                break
-            if float(entry.get("next_retry_at", 0.0)) > now_ts:
-                continue
-
-            my_email = Player.GetAccountEmail()
-            if not my_email:
-                break
-            is_leader_sender = bool(entry.get("is_leader_sender", False))
-            receiver_email = my_email if is_leader_sender else self._resolve_party_leader_email()
-            if not receiver_email:
-                continue
-            if not is_leader_sender and receiver_email == my_email:
-                continue
-
-            attempted += 1
-            entry["last_receiver_email"] = str(receiver_email or "").strip().lower()
-            send_failed = False
-
-            if not entry.get("name_chunks_sent", False):
-                full_name = str(entry.get("full_name", "") or "")
-                short_name = str(entry.get("item_name", "") or "")
-                if (len(full_name) > 31 or full_name != short_name) and self._should_track_name_refresh(
-                    short_name,
-                    str(entry.get("rarity", "") or ""),
-                ):
-                    self._log_name_trace(
-                        (
-                            f"NAME TRACE name_chunks_send ev={str(entry.get('event_id', '') or '').strip() or '-'} "
-                            f"short='{short_name or '-'}' full='{full_name or '-'}' "
-                            f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
-                            f"receiver={str(receiver_email or '').strip().lower() or '-'}"
-                        )
-                    )
-                    ok_chunks = self._send_name_chunks(
-                        receiver_email=receiver_email,
-                        my_email=my_email,
-                        name_signature=str(entry.get("name_signature", "")),
-                        full_name=full_name,
-                    )
-                    if not ok_chunks:
-                        self._log_name_trace(
-                            (
-                                f"NAME TRACE name_chunks_failed ev={str(entry.get('event_id', '') or '').strip() or '-'} "
-                                f"short='{short_name or '-'}' full='{full_name or '-'}'"
-                            )
-                        )
-                        send_failed = True
-                else:
-                    reason = "same_or_short"
-                    if len(full_name) > 31 or full_name != short_name:
-                        reason = "ineligible"
-                    self._log_name_trace(
-                        (
-                            f"NAME TRACE name_chunks_skip ev={str(entry.get('event_id', '') or '').strip() or '-'} "
-                            f"short='{short_name or '-'}' full='{full_name or '-'}' reason={reason}"
-                        )
-                    )
-                entry["name_chunks_sent"] = True
-
-            if (not send_failed) and (not entry.get("stats_chunks_sent", False)):
-                stats_text = str(entry.get("stats_text", "") or "")
-                if not stats_text and stats_build_budget > 0:
-                    stats_item_id = self._resolve_event_item_id_for_stats(entry)
-                    built_text = ""
-                    if stats_item_id > 0:
-                        entry["item_id"] = int(stats_item_id)
-                        built_text = self._build_item_stats_text(
-                            int(stats_item_id),
-                            str(entry.get("item_name", "Unknown Item") or "Unknown Item"),
-                        )
-                    entry["stats_text"] = str(built_text or "")
-                    stats_text = str(entry.get("stats_text", "") or "")
-                    stats_build_budget -= 1
-                    if stats_text:
-                        self._remember_event_stats_snapshot(
-                            event_id=str(entry.get("event_id", "")),
-                            item_id=int(entry.get("item_id", 0)),
-                            model_id=int(entry.get("model_id", 0)),
-                            item_name=str(entry.get("item_name", "") or ""),
-                            stats_text=stats_text,
-                            name_signature=str(entry.get("name_signature", "") or ""),
-                            rarity=str(entry.get("rarity", "") or ""),
-                            last_receiver_email=str(entry.get("last_receiver_email", "") or ""),
-                        )
-                ok_stats = self._send_stats_chunks(
-                    receiver_email=receiver_email,
-                    my_email=my_email,
-                    event_id=str(entry.get("event_id", "")),
-                    stats_text=stats_text,
-                )
-                # Stats are best-effort; never block the drop event itself.
-                if ok_stats:
-                    entry["stats_chunks_sent"] = True
-
-            if not send_failed:
-                self._log_name_trace(
-                    (
-                        f"NAME TRACE drop_send ev={str(entry.get('event_id', '') or '').strip() or '-'} "
-                        f"item='{str(entry.get('item_name', '') or '').strip() or '-'}' "
-                        f"full='{str(entry.get('full_name', '') or '').strip() or '-'}' "
-                        f"sig={str(entry.get('name_signature', '') or '').strip().lower() or '-'} "
-                        f"receiver={str(receiver_email or '').strip().lower() or '-'}"
-                    )
-                )
-                if not self._send_drop(
-                    entry.get("item_name", "Unknown Item"),
-                    int(entry.get("quantity", 1)),
-                    str(entry.get("rarity", "Unknown")),
-                    str(entry.get("display_time", "")),
-                    int(entry.get("item_id", 0)),
-                    int(entry.get("model_id", 0)),
-                    int(entry.get("bag_id", 0)),
-                    int(entry.get("slot_id", 0)),
-                    is_leader_sender,
-                    str(entry.get("event_id", "")),
-                    str(entry.get("name_signature", "")),
-                    int(entry.get("sender_session_id", 0)),
-                ):
-                    send_failed = True
-                elif not bool(entry.get("name_refresh_scheduled", False)):
-                    self._schedule_name_refresh_for_entry(entry, receiver_email)
-                    entry["name_refresh_scheduled"] = True
-
-            entry["attempts"] = int(entry.get("attempts", 0)) + 1
-            if send_failed:
-                # Count failed delivery attempts so stale head-of-queue entries can expire.
-                entry["next_retry_at"] = now_ts + retry_delay_s
-                continue
-            if self.enable_delivery_ack:
-                entry["next_retry_at"] = now_ts + retry_delay_s
-            else:
-                entry["acked"] = True
-            sent += 1
-
-        if not self.enable_delivery_ack:
-            self.outbox_queue = [entry for entry in self.outbox_queue if not entry.get("acked", False)]
-        return sent
+        return flush_outbox(self)
 
     def _take_inventory_snapshot(self) -> dict[tuple[int, int], tuple[str, str, int, int, int]]:
-        # key: (bag_id, slot_id)
-        # value: (name, rarity, qty, model_id, item_id)
-        snapshot: dict[tuple[int, int], tuple[str, str, int, int, int]] = {}
-        try:
-            # Player inventory only (avoid storage/material tabs).
-            bag_ids = (1, 2, 3, 4)
-            bags = ItemArray.CreateBagList(*bag_ids)
-            item_ids = ItemArray.GetItemArray(bags)
-            self.last_snapshot_total = len(item_ids)
-            ready_count = 0
-            not_ready_count = 0
-            for bag_id in bag_ids:
-                bag_items = ItemArray.GetItemArray(ItemArray.CreateBagList(bag_id))
-                for item_id in bag_items:
-                    item_instance = Item.item_instance(item_id)
-                    if item_instance:
-                        slot_id = int(item_instance.slot)
-                        model_id = int(item_instance.model_id)
-                        rarity = item_instance.rarity.name if getattr(item_instance, "rarity", None) else "Unknown"
-                        qty = int(item_instance.quantity) if getattr(item_instance, "quantity", None) is not None else 1
-                    else:
-                        slot_id = int(Item.GetSlot(item_id))
-                        model_id = int(Item.GetModelID(item_id))
-                        rarity = Item.Rarity.GetRarity(item_id)[1]
-                        qty = Item.Properties.GetQuantity(item_id)
-                        qty = max(1, int(qty) if qty is not None else 1)
-
-                    is_name_ready = Item.IsNameReady(item_id)
-                    raw_name = ""
-                    if is_name_ready:
-                        raw_name = Item.GetName(item_id) or ""
-                        ready_count += 1
-                    else:
-                        not_ready_count += 1
-                        try:
-                            Item.RequestName(item_id)
-                        except EXPECTED_RUNTIME_ERRORS:
-                            pass
-
-                    clean_name = self._strip_tags(raw_name).strip() if raw_name else ""
-                    clean_name = re.sub(r"^[\d,]+\s+", "", clean_name) if clean_name else ""
-                    if not clean_name:
-                        # Keep deterministic placeholder; never emit this as a drop.
-                        clean_name = f"Model#{model_id}"
-
-                    if Item.Type.IsTome(item_id):
-                        rarity = "Tomes"
-                    elif "Dye" in clean_name or "Vial of Dye" in clean_name:
-                        rarity = "Dyes"
-                    elif "Key" in clean_name:
-                        rarity = "Keys"
-                    elif Item.Type.IsMaterial(item_id) or Item.Type.IsRareMaterial(item_id):
-                        rarity = "Material"
-                    slot_key = (bag_id, int(slot_id))
-                    existing_entry = snapshot.get(slot_key)
-                    if (
-                        existing_entry is not None
-                        and isinstance(existing_entry, tuple)
-                        and len(existing_entry) > 4
-                        and int(existing_entry[4]) != int(item_id)
-                    ):
-                        # Transient slot collisions can happen while inventory is mutating.
-                        # Keep both items by switching to a deterministic synthetic key.
-                        synthetic_slot_id = -max(1, abs(int(item_id)))
-                        slot_key = (bag_id, synthetic_slot_id)
-                        while slot_key in snapshot:
-                            synthetic_slot_id -= 1
-                            slot_key = (bag_id, synthetic_slot_id)
-                    snapshot[slot_key] = (clean_name, rarity, qty, model_id, int(item_id))
-
-            self.last_snapshot_ready = ready_count
-            self.last_snapshot_not_ready = not_ready_count
-        except EXPECTED_RUNTIME_ERRORS:
-            if self.snapshot_error_timer.IsExpired():
-                self.snapshot_error_timer.Reset()
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    "Inventory snapshot failed.",
-                    Py4GW.Console.MessageType.Warning,
-                )
-            return snapshot
-        return snapshot
+        return take_inventory_snapshot(self)
 
     def _process_inventory_deltas(self):
-        start_perf = time.perf_counter()
-        current_snapshot = self._take_inventory_snapshot()
-        if self._reset_trace_active():
-            self._log_reset_trace(
-                (
-                    f"RESET TRACE snapshot actor={self._reset_trace_actor_label()} size={len(current_snapshot)} "
-                    f"ready={int(self.last_snapshot_ready)} total={int(self.last_snapshot_total)} "
-                    f"pending={len(self.pending_slot_deltas)} warmed={bool(self.is_warmed_up)}"
-                ),
-                consume_snapshot=True,
-            )
-
-        # Guard against transient invalid snapshots (observed: ready=0/not_ready=N spikes).
-        # Resync the baseline immediately so the next stable tick does not replay the
-        # full inventory as newly added items.
-        if self.last_snapshot_total > 0 and self.last_snapshot_ready == 0:
-            self.pending_slot_deltas = {}
-            self.last_inventory_snapshot = current_snapshot
-            self._log_reset_trace(
-                "RESET TRACE snapshot resynced: ready=0 transient inventory state",
-                consume_snapshot=True,
-            )
-            self.last_sent_count = 0
-            self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
-            return
-
-        if not current_snapshot:
-            self._log_reset_trace(
-                "RESET TRACE snapshot skipped: empty snapshot",
-                consume_snapshot=True,
-            )
-            self.last_sent_count = 0
-            self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
-            return
-
-        # Warm-up baseline to avoid counting existing inventory as drops.
-        readiness = (float(self.last_snapshot_ready) / float(self.last_snapshot_total)) if self.last_snapshot_total else 0.0
-        if not self.is_warmed_up:
-            if readiness >= 0.7:
-                self.stable_snapshot_count += 1
-            else:
-                self.stable_snapshot_count = 0
-            self._log_reset_trace(
-                (
-                    f"RESET TRACE warmup baseline actor={self._reset_trace_actor_label()} size={len(current_snapshot)} "
-                    f"readiness={readiness:.2f} stable={int(self.stable_snapshot_count)}"
-                ),
-                consume_snapshot=True,
-            )
-            self.last_inventory_snapshot = current_snapshot
-            self.last_sent_count = 0
-            if self.stable_snapshot_count >= 2:
-                self.is_warmed_up = True
-                self.warmup_grace_until = time.time() + self.warmup_grace_seconds
-            self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
-            return
-
-        # Extra grace after warm-up to ignore late startup snapshot churn.
-        if time.time() < self.warmup_grace_until:
-            self._log_reset_trace(
-                (
-                    f"RESET TRACE grace active actor={self._reset_trace_actor_label()} size={len(current_snapshot)} "
-                    f"until_in={max(0.0, self.warmup_grace_until - time.time()):.2f}s"
-                ),
-                consume_snapshot=True,
-            )
-            self.last_inventory_snapshot = current_snapshot
-            self.last_sent_count = 0
-            self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
-            return
-
-        # Guard against mass-delta churn due slot/index instability or inventory refresh.
-        snapshot_size_jump = abs(len(current_snapshot) - len(self.last_inventory_snapshot))
-        max_jump = max(6, int(getattr(self, "max_snapshot_size_jump", 40)))
-        if snapshot_size_jump > max_jump:
-            # Resync snapshot without clearing outbox/warmup to avoid losing captured events.
-            self.pending_slot_deltas = {}
-            self.last_inventory_snapshot = current_snapshot
-            self.last_sent_count = 0
-            self._log_reset_trace(
-                (
-                    f"RESET TRACE churn resync actor={self._reset_trace_actor_label()} jump={snapshot_size_jump} "
-                    f"threshold={max_jump} size={len(current_snapshot)}"
-                ),
-                consume_snapshot=True,
-            )
-            if self.debug_pipeline_logs:
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    (
-                        f"Snapshot churn guard resync: jump={snapshot_size_jump} "
-                        f"threshold={max_jump}"
-                    ),
-                    Py4GW.Console.MessageType.Info,
-                )
-            self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
-            return
-
-        time_str = datetime.datetime.now().strftime("%I:%M %p")
-        candidate_events: list[dict] = []
-        prev_model_qty: dict[int, int] = {}
-        current_model_qty: dict[int, int] = {}
-        for snapshot_entry in self.last_inventory_snapshot.values():
-            if not isinstance(snapshot_entry, tuple) or len(snapshot_entry) < 4:
-                continue
-            prev_model_id = int(snapshot_entry[3])
-            prev_qty = max(1, int(snapshot_entry[2])) if len(snapshot_entry) > 2 else 1
-            prev_model_qty[prev_model_id] = int(prev_model_qty.get(prev_model_id, 0)) + int(prev_qty)
-        for snapshot_entry in current_snapshot.values():
-            if not isinstance(snapshot_entry, tuple) or len(snapshot_entry) < 4:
-                continue
-            curr_model_id = int(snapshot_entry[3])
-            curr_qty = max(1, int(snapshot_entry[2])) if len(snapshot_entry) > 2 else 1
-            current_model_qty[curr_model_id] = int(current_model_qty.get(curr_model_id, 0)) + int(curr_qty)
-        prev_item_ids = {int(v[4]) for v in self.last_inventory_snapshot.values() if isinstance(v, tuple) and len(v) > 4}
-        prev_item_state_by_id: dict[int, tuple[int, int]] = {
-            int(v[4]): (int(v[3]), int(v[2]))
-            for v in self.last_inventory_snapshot.values()
-            if isinstance(v, tuple) and len(v) > 4
-        }
-        # Only names from slots that changed this tick are safe for pending-name resolution.
-        changed_itemid_to_ready_name: dict[int, tuple[str, str]] = {}
-        changed_model_rarity_to_ready_name: dict[tuple[int, str], str] = {}
-        live_slots = set()
-        live_item_ids = set()
-        live_item_model_by_id: dict[int, int] = {}
-        for slot_key, (name, rarity, qty, _model_id, _item_id) in current_snapshot.items():
-            live_slots.add(slot_key)
-            live_item_ids.add(int(_item_id))
-            live_item_model_by_id[int(_item_id)] = int(_model_id)
-            previous = self.last_inventory_snapshot.get(slot_key)
-            is_unknown_name = name.startswith("Model#")
-            changed_this_tick = False
-            if previous is None:
-                # Item moved between slots: do not treat as pickup.
-                if int(_item_id) in prev_item_ids:
-                    prev_state = prev_item_state_by_id.get(int(_item_id))
-                    if prev_state is not None:
-                        prev_model_for_item, prev_qty_for_item = prev_state
-                        if int(prev_model_for_item) == int(_model_id) and int(prev_qty_for_item) == int(qty):
-                            continue
-                changed_this_tick = True
-                if is_unknown_name:
-                    now_ts = time.time()
-                    self._buffer_pending_slot_delta(
-                        slot_key=slot_key,
-                        delta_qty=int(qty),
-                        model_id=int(_model_id),
-                        item_id=int(_item_id),
-                        rarity=str(rarity or "Unknown"),
-                        now_ts=now_ts,
-                    )
-                else:
-                    candidate_events.append({
-                        "name": name,
-                        "qty": int(qty),
-                        "rarity": rarity,
-                        "item_id": int(_item_id),
-                        "model_id": int(_model_id),
-                        "slot_key": slot_key,
-                        "reason": "new_slot",
-                    })
-                    changed_itemid_to_ready_name[int(_item_id)] = (name, str(rarity or "Unknown"))
-                    changed_model_rarity_to_ready_name[(int(_model_id), str(rarity or "Unknown"))] = name
-                continue
-            prev_qty = int(previous[2])
-            prev_model_id = int(previous[3])
-            prev_item_id = int(previous[4])
-
-            # Slot got replaced (common during fast pickups/sorting): treat as new item in this slot.
-            if int(_item_id) != prev_item_id:
-                # Replacement can be pure slot rearrangement; count only truly new item IDs.
-                if int(_item_id) in prev_item_ids:
-                    prev_state = prev_item_state_by_id.get(int(_item_id))
-                    if prev_state is not None:
-                        prev_model_for_item, prev_qty_for_item = prev_state
-                        if int(prev_model_for_item) == int(_model_id) and int(prev_qty_for_item) == int(qty):
-                            continue
-                changed_this_tick = True
-                if is_unknown_name:
-                    now_ts = time.time()
-                    self._buffer_pending_slot_delta(
-                        slot_key=slot_key,
-                        delta_qty=int(qty),
-                        model_id=int(_model_id),
-                        item_id=int(_item_id),
-                        rarity=str(rarity or "Unknown"),
-                        now_ts=now_ts,
-                    )
-                else:
-                    candidate_events.append({
-                        "name": name,
-                        "qty": int(qty),
-                        "rarity": rarity,
-                        "item_id": int(_item_id),
-                        "model_id": int(_model_id),
-                        "slot_key": slot_key,
-                        "reason": "slot_replaced",
-                    })
-                    changed_itemid_to_ready_name[int(_item_id)] = (name, str(rarity or "Unknown"))
-                    changed_model_rarity_to_ready_name[(int(_model_id), str(rarity or "Unknown"))] = name
-            elif qty > prev_qty:
-                changed_this_tick = True
-                delta = qty - prev_qty
-                if is_unknown_name:
-                    now_ts = time.time()
-                    self._buffer_pending_slot_delta(
-                        slot_key=slot_key,
-                        delta_qty=int(delta),
-                        model_id=int(_model_id),
-                        item_id=int(_item_id),
-                        rarity=str(rarity or "Unknown"),
-                        now_ts=now_ts,
-                    )
-                else:
-                    candidate_events.append({
-                        "name": name,
-                        "qty": int(delta),
-                        "rarity": rarity,
-                        "item_id": int(_item_id),
-                        "model_id": int(_model_id),
-                        "slot_key": slot_key,
-                        "reason": "stack_increase",
-                    })
-                    changed_itemid_to_ready_name[int(_item_id)] = (name, str(rarity or "Unknown"))
-                    changed_model_rarity_to_ready_name[(int(_model_id), str(rarity or "Unknown"))] = name
-
-            # If an item name became ready after we buffered its delta, flush now.
-            if not is_unknown_name and slot_key in self.pending_slot_deltas:
-                pending_entry = self.pending_slot_deltas.get(slot_key)
-                pending_qty = int(pending_entry.get("qty", 0)) if isinstance(pending_entry, dict) else 0
-                pending_item_id = int(pending_entry.get("item_id", 0)) if isinstance(pending_entry, dict) else 0
-                if pending_qty > 0 and pending_item_id == int(_item_id):
-                    # Use current resolved rarity, not stale buffered rarity.
-                    candidate_events.append({
-                        "name": name,
-                        "qty": int(pending_qty),
-                        "rarity": rarity,
-                        "item_id": int(_item_id),
-                        "model_id": int(_model_id),
-                        "slot_key": slot_key,
-                        "reason": "pending_same_slot_name_ready",
-                    })
-                    self.pending_slot_deltas.pop(slot_key, None)
-                    changed_this_tick = True
-                elif pending_item_id != int(_item_id):
-                    # Slot was reused by another item; keep old pending entry for TTL/model resolution.
-                    pass
-
-            if changed_this_tick and not is_unknown_name:
-                changed_itemid_to_ready_name[int(_item_id)] = (name, str(rarity or "Unknown"))
-                changed_model_rarity_to_ready_name[(int(_model_id), str(rarity or "Unknown"))] = name
-
-        # Resolve pending unknowns by changed-slot lookups only (safer than whole-inventory matching).
-        now_ts = time.time()
-        resolved_pending_slots = []
-        for pending_slot, pending_entry in self.pending_slot_deltas.items():
-            if not isinstance(pending_entry, dict):
-                continue
-            pending_qty = int(pending_entry.get("qty", 0))
-            if pending_qty <= 0:
-                resolved_pending_slots.append(pending_slot)
-                continue
-            pending_model_id = int(pending_entry.get("model_id", 0))
-            pending_item_id = int(pending_entry.get("item_id", 0))
-            live_model_for_pending = int(live_item_model_by_id.get(pending_item_id, 0))
-            pending_item_is_live = pending_item_id in live_item_ids and (
-                pending_model_id <= 0 or live_model_for_pending <= 0 or live_model_for_pending == pending_model_id
-            )
-            pending_rarity = str(pending_entry.get("rarity") or "Unknown")
-
-            # Best match: exact item identity.
-            if pending_item_id > 0 and pending_item_is_live:
-                try:
-                    # Direct resolve from live item_id first (most accurate).
-                    if Item.IsNameReady(pending_item_id):
-                        raw_name = Item.GetName(pending_item_id) or ""
-                        resolved_name = re.sub(r"^[\d,]+\s+", "", self._strip_tags(raw_name).strip())
-                        if resolved_name:
-                            resolved_rarity = pending_rarity
-                            if resolved_rarity == "Unknown":
-                                try:
-                                    item_instance = Item.item_instance(pending_item_id)
-                                    if item_instance and getattr(item_instance, "rarity", None):
-                                        resolved_rarity = item_instance.rarity.name
-                                except EXPECTED_RUNTIME_ERRORS:
-                                    pass
-                            if Item.Type.IsTome(pending_item_id):
-                                resolved_rarity = "Tomes"
-                            elif "Dye" in resolved_name or "Vial of Dye" in resolved_name:
-                                resolved_rarity = "Dyes"
-                            elif "Key" in resolved_name:
-                                resolved_rarity = "Keys"
-                            elif Item.Type.IsMaterial(pending_item_id) or Item.Type.IsRareMaterial(pending_item_id):
-                                resolved_rarity = "Material"
-                            candidate_events.append({
-                                "name": resolved_name,
-                                "qty": int(pending_qty),
-                                "rarity": resolved_rarity,
-                                "item_id": int(pending_item_id),
-                                "model_id": int(pending_model_id),
-                                "slot_key": pending_slot,
-                                "reason": "pending_itemid_name_ready",
-                            })
-                            resolved_pending_slots.append(pending_slot)
-                            continue
-                    else:
-                        Item.RequestName(pending_item_id)
-                except EXPECTED_RUNTIME_ERRORS:
-                    pass
-
-                by_item_id = changed_itemid_to_ready_name.get(pending_item_id)
-                if by_item_id:
-                    resolved_name, resolved_rarity = by_item_id
-                    final_rarity = pending_rarity if pending_rarity != "Unknown" else resolved_rarity
-                    candidate_events.append({
-                        "name": resolved_name,
-                        "qty": int(pending_qty),
-                        "rarity": final_rarity,
-                        "item_id": int(pending_item_id),
-                        "model_id": int(pending_model_id),
-                        "slot_key": pending_slot,
-                        "reason": "pending_changed_slot_lookup",
-                    })
-                    resolved_pending_slots.append(pending_slot)
-                    continue
-
-            # Prefer exact (model, rarity) match.
-            exact_name = changed_model_rarity_to_ready_name.get((pending_model_id, pending_rarity))
-            if exact_name:
-                candidate_events.append({
-                    "name": exact_name,
-                    "qty": int(pending_qty),
-                    "rarity": pending_rarity,
-                    "item_id": int(pending_item_id),
-                    "model_id": int(pending_model_id),
-                    "slot_key": pending_slot,
-                    "reason": "pending_model_rarity_lookup",
-                })
-                resolved_pending_slots.append(pending_slot)
-                continue
-
-            first_seen = float(pending_entry.get("first_seen", now_ts))
-            if (now_ts - first_seen) >= self.pending_ttl_seconds:
-                fallback_name = "Unknown Item"
-                fallback_rarity = pending_entry.get("rarity") or "Unknown"
-                candidate_events.append({
-                    "name": fallback_name,
-                    "qty": int(pending_qty),
-                    "rarity": fallback_rarity,
-                    "item_id": int(pending_item_id),
-                    "model_id": int(pending_model_id),
-                    "slot_key": pending_slot,
-                    "reason": "pending_ttl_fallback",
-                })
-                resolved_pending_slots.append(pending_slot)
-
-        for pending_slot in resolved_pending_slots:
-            self.pending_slot_deltas.pop(pending_slot, None)
-
-        # Drop stale pending slots (item moved/consumed before name became ready).
-        stale_slots = [slot_key for slot_key in self.pending_slot_deltas.keys() if slot_key not in live_slots]
-        for slot_key in stale_slots:
-            entry = self.pending_slot_deltas.get(slot_key)
-            if not isinstance(entry, dict):
-                self.pending_slot_deltas.pop(slot_key, None)
-                continue
-            pending_item_id = int(entry.get("item_id", 0))
-            pending_model_id = int(entry.get("model_id", 0))
-            live_model_for_pending = int(live_item_model_by_id.get(pending_item_id, 0))
-            pending_item_still_live = pending_item_id > 0 and pending_item_id in live_item_ids and (
-                pending_model_id <= 0 or live_model_for_pending <= 0 or live_model_for_pending == pending_model_id
-            )
-            if pending_item_still_live:
-                continue
-            last_seen = float(entry.get("last_seen", now_ts))
-            if (now_ts - last_seen) > self.pending_ttl_seconds:
-                qty = int(entry.get("qty", 0))
-                if qty > 0:
-                    model_id = int(entry.get("model_id", 0))
-                    rarity = entry.get("rarity") or "Unknown"
-                    fallback_name = "Unknown Item"
-                    candidate_events.append({
-                        "name": fallback_name,
-                        "qty": int(qty),
-                        "rarity": rarity,
-                        "item_id": int(entry.get("item_id", 0)),
-                        "model_id": int(model_id),
-                        "slot_key": slot_key,
-                        "reason": "stale_slot_ttl_fallback",
-                    })
-                self.pending_slot_deltas.pop(slot_key, None)
-
-        if candidate_events or self.pending_slot_deltas:
-            self.last_inventory_activity_ts = time.time()
-
-        # Suppress false positives caused by transient item-id churn/reordering.
-        # Keep truly new item identities to avoid missing real pickups that are
-        # picked/consumed between snapshots.
-        candidate_events, suppressed_by_model_delta = filter_candidate_events_by_model_delta(
-            candidate_events=candidate_events,
-            prev_model_qty=prev_model_qty,
-            current_model_qty=current_model_qty,
-            prev_item_ids=prev_item_ids,
-        )
-
-        if self.debug_pipeline_logs and suppressed_by_model_delta > 0:
-            Py4GW.Console.Log(
-                "DropTrackerSender",
-                f"SUPPRESSED by model-delta filter: {suppressed_by_model_delta}",
-                Py4GW.Console.MessageType.Info,
-            )
-
-        if self.debug_pipeline_logs and candidate_events:
-            for event in candidate_events[:20]:
-                slot_key = event.get("slot_key")
-                bag_id = int(slot_key[0]) if isinstance(slot_key, tuple) and len(slot_key) > 0 else 0
-                slot_id = int(slot_key[1]) if isinstance(slot_key, tuple) and len(slot_key) > 1 else 0
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    (
-                        f"CANDIDATE reason={event.get('reason', 'delta')} "
-                        f"item='{event.get('name', 'Unknown Item')}' qty={int(event.get('qty', 1))} "
-                        f"rarity={event.get('rarity', 'Unknown')} "
-                        f"item_id={int(event.get('item_id', 0))} model_id={int(event.get('model_id', 0))} "
-                        f"slot={bag_id}:{slot_id}"
-                    ),
-                    Py4GW.Console.MessageType.Info,
-                )
-            if len(candidate_events) > 20:
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    f"CANDIDATE truncated: showing 20/{len(candidate_events)}",
-                    Py4GW.Console.MessageType.Info,
-                )
-
-        if self._reset_trace_active() and (candidate_events or self.pending_slot_deltas):
-            self._log_reset_trace(
-                (
-                    f"RESET TRACE delta actor={self._reset_trace_actor_label()} candidate_count={len(candidate_events)} "
-                    f"pending_names={len(self.pending_slot_deltas)}"
-                ),
-                consume_event=True,
-            )
-            for event in candidate_events[:8]:
-                slot_key = event.get("slot_key")
-                bag_id = int(slot_key[0]) if isinstance(slot_key, tuple) and len(slot_key) > 0 else 0
-                slot_id = int(slot_key[1]) if isinstance(slot_key, tuple) and len(slot_key) > 1 else 0
-                self._log_reset_trace(
-                    (
-                        f"RESET TRACE candidate actor={self._reset_trace_actor_label()} reason={event.get('reason', 'delta')} "
-                        f"item='{event.get('name', 'Unknown Item')}' qty={int(event.get('qty', 1))} "
-                        f"rarity={event.get('rarity', 'Unknown')} item_id={int(event.get('item_id', 0))} "
-                        f"model_id={int(event.get('model_id', 0))} slot={bag_id}:{slot_id}"
-                    ),
-                    consume_event=True,
-                )
-
-        is_leader_sender = self._is_party_leader_client()
-        enqueued_count = 0
-        for event in candidate_events:
-            self._queue_drop(
-                str(event.get("name", "Unknown Item")),
-                int(event.get("qty", 1)),
-                str(event.get("rarity", "Unknown")),
-                time_str,
-                int(event.get("item_id", 0)),
-                int(event.get("model_id", 0)),
-                event.get("slot_key"),
-                str(event.get("reason", "delta")),
-                is_leader_sender=is_leader_sender,
-            )
-            enqueued_count += 1
-
-        sent_count = self._flush_outbox()
-        self.last_candidate_count = len(candidate_events)
-        self.last_enqueued_count = enqueued_count
-        self.last_inventory_snapshot = current_snapshot
-        self.last_sent_count = sent_count if enqueued_count == 0 else min(enqueued_count, sent_count)
-        self.last_process_duration_ms = (time.perf_counter() - start_perf) * 1000.0
+        return process_inventory_deltas(self)
 
     def act(self):
-        if not self.enabled:
-            return
-        try:
-            if not Routines.Checks.Map.MapValid():
-                self._begin_new_session("map_invalid", 0, 0)
-                return
-            current_map_id = int(Map.GetMapID() or 0)
-            try:
-                current_instance_uptime_ms = max(0, int(Map.GetInstanceUptime() or 0))
-            except EXPECTED_RUNTIME_ERRORS:
-                current_instance_uptime_ms = 0
-            if current_map_id > 0:
-                if int(self.last_seen_map_id) <= 0:
-                    self.last_seen_map_id = current_map_id
-                    self.last_seen_instance_uptime_ms = current_instance_uptime_ms
-                elif current_map_id != int(self.last_seen_map_id):
-                    self._begin_new_session("map_change", current_map_id, current_instance_uptime_ms)
-                    return
-                elif (
-                    int(self.last_seen_instance_uptime_ms) > 0
-                    and current_instance_uptime_ms > 0
-                    and current_instance_uptime_ms + 2000 < int(self.last_seen_instance_uptime_ms)
-                ):
-                    self._begin_new_session("instance_change", current_map_id, current_instance_uptime_ms)
-                    return
-                self.last_seen_instance_uptime_ms = current_instance_uptime_ms
-            if self.config_poll_timer.IsExpired():
-                self.config_poll_timer.Reset()
-                self._load_runtime_config()
-            if self.debug_enabled and self.debug_timer.IsExpired():
-                self.debug_timer.Reset()
-                Py4GW.Console.Log(
-                    "DropTrackerSender",
-                    (
-                        "active "
-                        f"snapshot_size={len(self.last_inventory_snapshot)} "
-                        f"items={self.last_snapshot_total} "
-                        f"ready={self.last_snapshot_ready} "
-                        f"not_ready={self.last_snapshot_not_ready} "
-                        f"sent={self.last_sent_count} "
-                        f"candidates={self.last_candidate_count} "
-                        f"enqueued={self.last_enqueued_count} "
-                        f"queued={len(self.outbox_queue)} "
-                        f"acks={self.last_ack_count} "
-                        f"pending_names={len(self.pending_slot_deltas)} "
-                        f"name_refresh={len(self.pending_name_refresh_by_event)} "
-                        f"role={'leader' if self._is_party_leader_client() else 'follower'} "
-                        f"warmed={self.is_warmed_up} "
-                        f"proc_ms={self.last_process_duration_ms:.2f}"
-                    ),
-                    Py4GW.Console.MessageType.Info,
-                )
-            if self.inventory_poll_timer.IsExpired():
-                self.inventory_poll_timer.Reset()
-                self._process_inventory_deltas()
-            if self.outbox_queue:
-                self._flush_outbox()
-            if self.pending_name_refresh_by_event:
-                self._process_pending_name_refreshes()
-        except EXPECTED_RUNTIME_ERRORS:
-            return
+        return run_sender_tick(self)
+
 

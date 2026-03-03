@@ -5,6 +5,7 @@ import threading
 import time
 import traceback
 import inspect
+import importlib
 from dataclasses import is_dataclass, asdict
 from typing import Any
 
@@ -224,7 +225,10 @@ def _add_config_vars():
 
 def _load_settings():
     STATE.daemon_host = str(IniManager().get(INI_KEY, "daemon_host", "127.0.0.1", section="Connection"))
-    STATE.daemon_port = int(IniManager().get(INI_KEY, "daemon_port", port, section="Connection"))
+    try:
+        STATE.daemon_port = int(IniManager().get(INI_KEY, "daemon_port", port, section="Connection") or port)
+    except Exception:
+        STATE.daemon_port = int(port)
     STATE.auth_token = str(IniManager().get(INI_KEY, "auth_token", "", section="Connection"))
     STATE.ui_host = STATE.daemon_host
     STATE.ui_port = STATE.daemon_port
@@ -361,7 +365,7 @@ def _jsonable(value: Any, _depth: int = 0) -> Any:
         return value.decode("utf-8", errors="replace")
     if is_dataclass(value):
         try:
-            return _jsonable(asdict(value), _depth + 1)
+            return _jsonable(asdict(value), _depth + 1)  # pyright: ignore[reportArgumentType]
         except Exception:
             return repr(value)
     if isinstance(value, dict):
@@ -475,6 +479,96 @@ def _generic_targets() -> dict[str, tuple[str, Any]]:
     }
 
 
+def _drop_tracker_bridge_context() -> tuple[Any | None, Any | None, str]:
+    try:
+        tracker_module = importlib.import_module("Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility")
+        sender = getattr(tracker_module, "DropTrackerSender", lambda: None)()
+    except Exception as exc:
+        return None, None, f"sender import failed: {exc}"
+    try:
+        viewer_module = importlib.import_module("Sources.oazix.CustomBehaviors.start_drop_viewer")
+        viewer = getattr(viewer_module, "drop_viewer", None)
+    except Exception as exc:
+        return sender, None, f"viewer import failed: {exc}"
+    return sender, viewer, ""
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return int(default)
+
+
+def _tail_text_file(path: str, max_lines: int = 80) -> list[str]:
+    target_path = str(path or "").strip()
+    if not target_path or not os.path.isfile(target_path):
+        return []
+    try:
+        with open(target_path, mode="r", encoding="utf-8") as handle:
+            lines = [str(line or "").rstrip("\r\n") for line in handle.readlines()]
+        return [line for line in lines if line][-max(1, int(max_lines)):]
+    except Exception:
+        return []
+
+
+def _drop_tracker_state_payload(include_live_log: bool = False, max_live_lines: int = 60) -> dict[str, Any]:
+    sender, viewer, error_text = _drop_tracker_bridge_context()
+    payload: dict[str, Any] = {
+        "available": bool(sender is not None or viewer is not None),
+        "error": str(error_text or ""),
+        "sender": None,
+        "viewer": None,
+    }
+    if sender is not None:
+        payload["sender"] = {
+            "enabled": bool(getattr(sender, "enabled", False)),
+            "sender_session_id": _safe_int(getattr(sender, "sender_session_id", 0), 0),
+            "last_transition_reason": str(getattr(sender, "last_session_transition_reason", "") or ""),
+            "last_seen_map_id": _safe_int(getattr(sender, "last_seen_map_id", 0), 0),
+            "last_seen_instance_uptime_ms": _safe_int(getattr(sender, "last_seen_instance_uptime_ms", 0), 0),
+            "session_startup_pending": bool(getattr(sender, "session_startup_pending", False)),
+            "is_warmed_up": bool(getattr(sender, "is_warmed_up", False)),
+            "stable_snapshot_count": _safe_int(getattr(sender, "stable_snapshot_count", 0), 0),
+            "last_snapshot_total": _safe_int(getattr(sender, "last_snapshot_total", 0), 0),
+            "last_snapshot_ready": _safe_int(getattr(sender, "last_snapshot_ready", 0), 0),
+            "last_snapshot_not_ready": _safe_int(getattr(sender, "last_snapshot_not_ready", 0), 0),
+            "last_candidate_count": _safe_int(getattr(sender, "last_candidate_count", 0), 0),
+            "last_enqueued_count": _safe_int(getattr(sender, "last_enqueued_count", 0), 0),
+            "last_sent_count": _safe_int(getattr(sender, "last_sent_count", 0), 0),
+            "last_ack_count": _safe_int(getattr(sender, "last_ack_count", 0), 0),
+            "last_process_duration_ms": float(getattr(sender, "last_process_duration_ms", 0.0) or 0.0),
+            "pending_slot_deltas": _jsonable(getattr(sender, "pending_slot_deltas", {})),
+            "recent_world_item_disappearances": _jsonable(
+                list(getattr(sender, "recent_world_item_disappearances", []) or [])[-12:]
+            ),
+            "outbox_queue": _jsonable(list(getattr(sender, "outbox_queue", []) or [])[-12:]),
+            "debug_reset_trace_lines": _jsonable(list(getattr(sender, "debug_reset_trace_lines", []) or [])[-80:]),
+            "live_debug_log_path": str(getattr(sender, "live_debug_log_path", "") or ""),
+        }
+    if viewer is not None:
+        payload["viewer"] = {
+            "paused": bool(getattr(viewer, "paused", False)),
+            "total_drops": _safe_int(getattr(viewer, "total_drops", 0), 0),
+            "raw_drop_count": len(list(getattr(viewer, "raw_drops", []) or [])),
+            "last_seen_map_id": _safe_int(getattr(viewer, "last_seen_map_id", 0), 0),
+            "last_seen_instance_uptime_ms": _safe_int(getattr(viewer, "last_seen_instance_uptime_ms", 0), 0),
+            "map_change_ignore_until": float(getattr(viewer, "map_change_ignore_until", 0.0) or 0.0),
+            "sender_session_floor_by_email": _jsonable(getattr(viewer, "sender_session_floor_by_email", {})),
+            "sender_session_last_seen_by_email": _jsonable(getattr(viewer, "sender_session_last_seen_by_email", {})),
+            "status_message": str(getattr(viewer, "status_message", "") or ""),
+            "reset_trace_lines": _jsonable(list(getattr(viewer, "reset_trace_lines", []) or [])[-80:]),
+            "map_watch_lines": _jsonable(list(getattr(viewer, "map_watch_lines", []) or [])[-80:]),
+            "raw_drops_tail": _jsonable(list(getattr(viewer, "raw_drops", []) or [])[-12:]),
+        }
+    if include_live_log:
+        live_path = ""
+        if isinstance(payload.get("sender"), dict):
+            live_path = str(payload["sender"].get("live_debug_log_path", "") or "")
+        payload["live_debug_tail"] = _tail_text_file(live_path, max_lines=max_live_lines)
+    return payload
+
+
 def _handle_command(request: dict[str, Any]) -> dict[str, Any]:
     request_id = str(request.get("request_id") or "")
     command = str(request.get("command") or "")
@@ -516,6 +610,54 @@ def _handle_command(request: dict[str, Any]) -> dict[str, Any]:
 
         if command == "player.get_state":
             return make_response(request_id, _player_state())
+
+        if command == "drop_tracker.get_state":
+            include_live_log = bool(params.get("include_live_log", False))
+            max_live_lines = max(1, min(200, int(params.get("max_live_lines", 60) or 60)))
+            return make_response(
+                request_id,
+                _drop_tracker_state_payload(
+                    include_live_log=include_live_log,
+                    max_live_lines=max_live_lines,
+                ),
+            )
+
+        if command == "drop_tracker.get_live_debug":
+            max_live_lines = max(1, min(200, int(params.get("max_live_lines", 80) or 80)))
+            state_payload = _drop_tracker_state_payload(include_live_log=True, max_live_lines=max_live_lines)
+            return make_response(
+                request_id,
+                {
+                    "available": bool(state_payload.get("available", False)),
+                    "error": str(state_payload.get("error", "") or ""),
+                    "live_debug_tail": state_payload.get("live_debug_tail", []),
+                    "sender": state_payload.get("sender"),
+                    "viewer": state_payload.get("viewer"),
+                },
+            )
+
+        if command == "drop_tracker.clear_live_debug":
+            sender, viewer, error_text = _drop_tracker_bridge_context()
+            cleared_path = ""
+            if sender is not None and hasattr(sender, "_clear_live_debug_log"):
+                try:
+                    cleared_path = str(sender._clear_live_debug_log() or "")
+                except Exception:
+                    cleared_path = ""
+            elif viewer is not None and hasattr(viewer, "_clear_live_debug_log"):
+                try:
+                    cleared_path = str(viewer._clear_live_debug_log() or "")
+                except Exception:
+                    cleared_path = ""
+            return make_response(
+                request_id,
+                {
+                    "available": bool(sender is not None or viewer is not None),
+                    "error": str(error_text or ""),
+                    "cleared": bool(cleared_path),
+                    "path": cleared_path,
+                },
+            )
 
         if command == "agent.list":
             group = str(params.get("group") or "all").lower()
@@ -632,7 +774,7 @@ def _handle_command(request: dict[str, Any]) -> dict[str, Any]:
                     return make_error_response(request_id, "validation_command", f"unknown command: {raw_command}")
             else:
                 try:
-                    command_enum = SharedCommandType(int(raw_command))
+                    command_enum = SharedCommandType(int(raw_command or 0))
                 except Exception:
                     return make_error_response(request_id, "validation_command", "invalid command")
             raw_params = params.get("msg_params", [0, 0, 0, 0])

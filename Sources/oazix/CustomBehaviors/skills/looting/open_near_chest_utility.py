@@ -36,7 +36,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             utility_skill_typology=UtilitySkillTypology.DAEMON,
             execution_strategy=UtilitySkillExecutionStrategy.STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST)
 
-        self.score_definition: ScoreStaticDefinition =ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)
+        self.static_score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.LOOT.value + 0.001)
         self.opened_chest_agent_ids: set[int] = set()
         self.failed_chest_agent_ids: set[int] = set()
         self.my_slot_index: int = -1
@@ -67,6 +67,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         self.my_slot_index = -1
         self.interrupted_chest_agent_id = 0
         self._reset_leader_wait_state()
+        self._reset_shared_chest_config()
         yield
 
     def chest_opened(self, message: EventMessage) -> Generator[Any, Any, Any]:
@@ -87,6 +88,34 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
     def _reset_leader_wait_state(self):
         self.leader_waiting_target_id = 0
         self.leader_waiting_since = 0.0
+
+    def _get_current_shared_map_marker(self) -> int:
+        try:
+            return max(0, int(Map.GetMapID()))
+        except Exception:
+            return 0
+
+    def _reset_shared_chest_config(self) -> None:
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+
+        mem = CustomBehaviorWidgetMemoryManager()._get_struct()
+        config = mem.ChestOpeningConfig
+        for i in range(len(config.ChestStatus)):
+            config.ChestStatus[i] = 0
+            config.SlotEmails[i].value = ""
+        config.ChestAgentID = 0
+        config.ChestReported = False
+        config.MapInstanceID = self._get_current_shared_map_marker()
+
+    def _ensure_current_map_chest_config(self) -> None:
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+
+        mem = CustomBehaviorWidgetMemoryManager()._get_struct()
+        config = mem.ChestOpeningConfig
+        current_map_marker = self._get_current_shared_map_marker()
+        shared_map_marker = max(0, int(config.MapInstanceID))
+        if shared_map_marker != current_map_marker:
+            self._reset_shared_chest_config()
 
     def _get_expected_party_slot_count(self, config) -> int:
         slot_cap = len(config.ChestStatus)
@@ -132,6 +161,8 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
 
         # Only run in explorable areas, never in outposts
         if not Map.IsExplorable(): return False
+
+        self._ensure_current_map_chest_config()
 
         # Check Global and Chesting flags
         from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
@@ -217,6 +248,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                          # FOUND NEW CHEST! Reset everything directly in shared memory.
                          config.ChestAgentID = new_target
                          config.ChestReported = False
+                         config.MapInstanceID = self._get_current_shared_map_marker()
                          for i in range(len(config.ChestStatus)):
                              config.ChestStatus[i] = 0
                          # No SetChestOpeningConfig needed - wrote directly to shared memory
@@ -252,7 +284,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         if chest_agent_id is None or chest_agent_id == 0: 
              return None
         
-        return self.score_definition.get_score()
+        return self.static_score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
@@ -277,6 +309,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                 chest_agent_id = self.interrupted_chest_agent_id
                 config.ChestAgentID = chest_agent_id
                 config.ChestReported = False
+                config.MapInstanceID = self._get_current_shared_map_marker()
                 for i in range(len(config.ChestStatus)):
                     config.ChestStatus[i] = 0
                 self.my_slot_index = -1
@@ -305,6 +338,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         self.is_active = True
         lock_key = f"chest_{chest_agent_id}"
         
+        lock_acquired = False
         try:
             # 1. Register and Start
             self.my_slot_index = self._register_self_for_reporting()
@@ -334,7 +368,6 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                 return BehaviorResult.ACTION_SKIPPED
 
             # 3. ACQUIRE LOCK (while near the chest)
-            lock_acquired = False
             loop_count = 0
             max_lock_wait = 350 # 35 seconds max
             while loop_count < max_lock_wait:
@@ -416,7 +449,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
                 yield from self.event_bus.publish(EventType.CHEST_OPENED, state, data=chest_agent_id)
                 
                 # RELEASE LOCK NOW so others can go
-                if 'lock_acquired' in locals() and lock_acquired:
+                if lock_acquired:
                     CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
                     lock_acquired = False # Prevent double release in finally
 
@@ -439,7 +472,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         finally:
             self.is_active = False
             # Always release the lock, even if an exception occurs
-            if 'lock_acquired' in locals() and lock_acquired:
+            if lock_acquired:
                 CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
 
     def _initialize_reporting(self, chest_agent_id: int):
@@ -451,8 +484,10 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
         # If new chest ID, reset status
         if config.ChestAgentID != chest_agent_id:
             config.ChestAgentID = chest_agent_id
+            config.MapInstanceID = self._get_current_shared_map_marker()
             for i in range(len(config.ChestStatus)):
                 config.ChestStatus[i] = 0
+                config.SlotEmails[i].value = ""
             config.ChestReported = False # Reset reported flag
 
     def _register_self_for_reporting(self) -> int:
