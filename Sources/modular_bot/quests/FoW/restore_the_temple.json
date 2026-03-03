@@ -1,0 +1,12 @@
+{
+  "name": "FoW - Cleanse da forge",
+  "steps": [
+        {"type": "auto_path", "name": "To Nimros", "points": [[1839, -3376], [1685, -4917], [2023, -7978], [2023, -7978], [2224, -10110], [584, -13476], [2766, -14730]]},
+        {"type": "dialog", "name": "Start Hunt", "npc": "NIMROS_THE_HUNTER", "id": "0x80D001"},
+        {"type": "path_to_target", "enemy": "SHARD_WOLF", "repeat":3},
+        {"type": "auto_path", "name": "Through cave", "points": [[-2232, -8396], [-6365, -11442], [-8612, -16504], [-8235, -15227], [-9126, -18554]]},
+        {"type": "auto_path", "name": "to Beach Wolfo", "points": [[-11222, -18382], [-13295, -18025]]},
+        {"type": "path_to_target", "enemy": "SHARD_WOLF", "repeat":3},
+        {"type": "auto_path", "name": "Backtrack cave", "points": [[-11895, -18131], [-8502, -16435], [-7279, -12541], [-1681, -8369], [1502, -11579], [2925, -8911], [1749, -6954], [1749, -6954]]}
+    ]
+}

@@ -1,0 +1,121 @@
+{
+    "name":  "Ring of Fire",
+    "outpost_id":  122,
+    "max_heroes":  8,
+    "hero_team":  "party_8",
+    "entry":  {
+                  "type":  "enter_challenge",
+                  "delay":  6000,
+                  "target_map_id":  122
+              },
+    "steps":  [
+                  {
+                      "type":  "use_all_consumables",
+                      "name":  "Prep consumables",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "Seal route",
+                      "points":  [
+                                     [
+                                         18118,
+                                         -2086
+                                     ],
+                                     [
+                                         17515,
+                                         4197
+                                     ],
+                                     [
+                                         11605,
+                                         11759
+                                     ],
+                                     [
+                                         11498,
+                                         7711
+                                     ],
+                                     [
+                                         1679,
+                                         7158
+                                     ],
+                                     [
+                                         0,
+                                         7766
+                                     ]
+                                 ]
+                  },
+                  {
+                      "type":  "flag_heroes",
+                      "x":  -2382,
+                      "y":  6756
+                  },
+                  {
+                      "type":  "wait",
+                      "ms":  5000
+                  },
+                  {
+                      "type":  "flag_heroes",
+                      "x":  -2335,
+                      "y":  8972
+                  },
+                  {
+                      "type":  "wait",
+                      "ms":  5000
+                  },
+                  {
+                      "type":  "unflag_heroes"
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "Open central path",
+                      "points":  [
+                                     [
+                                         -3441,
+                                         6381
+                                     ],
+                                     [
+                                         -3551,
+                                         7891
+                                     ],
+                                     [
+                                         -6238,
+                                         4257
+                                     ],
+                                     [
+                                         -8638,
+                                         1750
+                                     ]
+                                 ]
+                  },
+                  {
+                      "type":  "interact_gadget_at_xy",
+                      "x":  -3441,
+                      "y":  6381,
+                      "ms":  500
+                  },
+                  {
+                      "type":  "interact_gadget_at_xy",
+                      "x":  -8554,
+                      "y":  2252,
+                      "ms":  500
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "Finish route",
+                      "points":  [
+                                     [
+                                         -10158,
+                                         1905
+                                     ],
+                                     [
+                                         -10834,
+                                         2981
+                                     ]
+                                 ]
+                  },
+                  {
+                      "type":  "wait_map_change",
+                      "target_map_id":  123
+                  }
+              ]
+}

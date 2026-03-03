@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 from ..phase import Phase
 from ..hero_setup import get_team_for_size, load_hero_teams
 from .modular_actions import register_step as _register_shared_step
+from .runner_common import count_expanded_steps, register_recipe_context, register_repeated_steps
 
 
 def _get_quests_dir() -> str:
@@ -147,7 +148,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
         bot: Botting instance to register states on.
         quest_name: Quest data file name (without .json extension).
     """
-    from Py4GWCoreLib import ConsoleLog
+    from Py4GWCoreLib import ConsoleLog, Party
 
     data = _load_quest_data(quest_name)
     display_name = data.get("name", quest_name)
@@ -155,51 +156,38 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     hero_team = str(data.get("hero_team", "") or "")
     take_quest = data.get("take_quest")
     steps = data.get("steps", [])
-    total_registered_steps = 0
+    register_recipe_context(bot, str(display_name), total_steps=count_expanded_steps(steps))
 
     travel_outpost_id = (take_quest or {}).get("outpost_id")
 
     # 1. Travel to outpost
     if travel_outpost_id:
+        bot.Party.LeaveParty()
         bot.Map.Travel(target_map_id=travel_outpost_id)
 
     # 2. Add heroes from config
+    expected_heroes = 0
     if max_heroes > 0:
         hero_ids = get_team_for_size(max_heroes, hero_team)
+        expected_heroes = len(hero_ids)
         if hero_ids:
-            bot.Party.LeaveParty()
             bot.Party.AddHeroList(hero_ids)
+            bot.Wait.UntilCondition(
+                lambda _expected=expected_heroes: Party.IsPartyLoaded() and Party.GetHeroCount() >= _expected,
+                duration=250,
+            )
+            bot.Wait.ForTime(500)
 
     # 3. Take quest in outpost via NPC dialog
     _register_take_quest(bot, take_quest)
 
     # 4. Execute quest steps
-    for source_idx, step in enumerate(steps):
-        repeat_raw = step.get("repeat", 1)
-        try:
-            repeat = int(repeat_raw)
-        except (TypeError, ValueError):
-            ConsoleLog(
-                "Recipe:Quest",
-                f"Invalid repeat at source step {source_idx}: {repeat_raw!r}. Using 1.",
-            )
-            repeat = 1
-
-        if repeat <= 0:
-            ConsoleLog(
-                "Recipe:Quest",
-                f"Skipping source step {source_idx} because repeat={repeat}.",
-            )
-            continue
-
-        for rep_idx in range(repeat):
-            step_to_register = step
-            if repeat > 1 and "name" in step:
-                step_to_register = dict(step)
-                step_to_register["name"] = f"{step['name']} [{rep_idx + 1}/{repeat}]"
-
-            _register_step(bot, step_to_register, total_registered_steps)
-            total_registered_steps += 1
+    total_registered_steps = register_repeated_steps(
+        bot,
+        recipe_name="Quest",
+        steps=steps,
+        register_step=_register_step,
+    )
 
     ConsoleLog(
         "Recipe:Quest",
@@ -210,6 +198,7 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
 def Quest(
     quest_name: str,
     name: Optional[str] = None,
+    anchor: bool = False,
 ) -> Phase:
     """
     Create a Phase that runs a quest from a JSON data file.
@@ -228,5 +217,5 @@ def Quest(
         except FileNotFoundError:
             name = f"Quest: {quest_name}"
 
-    return Phase(name, lambda bot: quest_run(bot, quest_name))
+    return Phase(name, lambda bot: quest_run(bot, quest_name), anchor=anchor)
 

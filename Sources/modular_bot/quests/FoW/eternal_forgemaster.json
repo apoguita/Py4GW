@@ -1,0 +1,11 @@
+{
+  "name": "FoW - ToC to Forge",
+  "steps": [
+    {"type": "auto_path", "name": "To Kromnl", "points": [[-15127, -2036], [-9092, -6192], [-6013, 1705], [-4615, 2965], [-9907, 6948], [-3764, 6366], [-3023, 9966], [-3929, 13027], [-6595, 13499],  [-7143, 10474], [-7280, 11820]]},
+    {"type": "dialog", "name": "Eternal Forgemaster", "npc": "ETERNAL_WEAPONSMITH", "id": "0x80D101"},
+    {"type": "dialog", "name": "Army of Darkness", "npc": "KROMRIL_THE_ETERNAL", "id": "0x80CB01"},
+    {"type": "auto_path", "name": "Open Forge", "points": [[-4613, 10251], [-1146, 8154], [1321, 7306], [648, 8614], [-561, 5585], [1725, 3037]]},
+    {"type": "auto_path", "name": "Complete Eternal Forgemaster", "points": [[2837, 1757], [4273, -19], [2427, -2889],  [-864, -1054], [909, 2064], [3429, 1247], [1542, 51], [1862, -152]]},   
+    {"type": "dialog", "name": "Reward Eternal Forgemaster", "npc": "ETERNAL_FORGEMASTER", "id": "0x80D107"}
+  ]
+}

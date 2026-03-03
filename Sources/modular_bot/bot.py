@@ -86,6 +86,10 @@ def _predict_next_header_name(bot: Botting, phase_name: str) -> str:
     return f"[H]{phase_name}_{current + 1}"
 
 
+def _is_header_name(value: str) -> bool:
+    return value.startswith("[H]")
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # ModularBot
 # ──────────────────────────────────────────────────────────────────────────────
@@ -180,9 +184,12 @@ class ModularBot:
 
         # ── Phase header name tracking ────────────────────────────────
         self._phase_headers: Dict[str, str] = {}
+        self._header_to_phase: Dict[str, str] = {}
+        self._runtime_anchor_header: Optional[str] = None
 
         # ── Create Botting instance ───────────────────────────────────
         self._bot = Botting(_sanitize_bot_name(name), **botting_kwargs)
+        setattr(self._bot, "_modular_owner", self)
         self._bot.SetMainRoutine(lambda bot: self._build_routine(bot))
 
         # ── Apply GUI overrides ───────────────────────────────────────
@@ -220,6 +227,36 @@ class ModularBot:
         """
         return self._phase_headers.get(phase_name)
 
+    def set_anchor(self, phase_or_header: str) -> bool:
+        """
+        Set runtime recovery anchor by phase name or internal header name.
+        """
+        value = str(phase_or_header or "").strip()
+        if not value:
+            return False
+
+        if _is_header_name(value):
+            header = value
+            phase_name = self._header_to_phase.get(header, header)
+        else:
+            header = self._phase_headers.get(value)
+            phase_name = value
+            if header is None:
+                value_l = value.lower()
+                for known_phase, known_header in self._phase_headers.items():
+                    kp = known_phase.lower()
+                    if value_l == kp or value_l in kp or kp in value_l:
+                        header = known_header
+                        phase_name = known_phase
+                        break
+
+        if not header:
+            ConsoleLog("ModularBot", f"Set anchor failed: {value!r} not found.")
+            return False
+
+        self._set_runtime_anchor(header, phase_name)
+        return True
+
     # ──────────────────────────────────────────────────────────────────
     # Routine builder (called once by Botting.Update on first frame)
     # ──────────────────────────────────────────────────────────────────
@@ -239,6 +276,13 @@ class ModularBot:
                 on_player_critical_stuck=self._cb_on_stuck,
                 on_party_death=self._cb_on_party_death,
             )
+            # Keep party cohesion in CB mode: wait/recover if members are behind or dead-behind.
+            bot.Events.OnPartyMemberBehindCallback(
+                lambda: bot.Templates.Routines.OnPartyMemberBehind()
+            )
+            bot.Events.OnPartyMemberDeadBehindCallback(
+                lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
+            )
 
         # ── 3. Event callbacks ────────────────────────────────────────
         if self._on_party_wipe is not None:
@@ -251,8 +295,9 @@ class ModularBot:
             )
 
         # ── 4. Register phases ────────────────────────────────────────
-        for phase in self._phases:
-            self._register_phase(bot, phase)
+        total_phases = len(self._phases)
+        for phase_index, phase in enumerate(self._phases):
+            self._register_phase(bot, phase, phase_index, total_phases)
 
         # ── 5. Loop ───────────────────────────────────────────────────
         if self._loop and self._phases:
@@ -275,7 +320,7 @@ class ModularBot:
     # Phase registration
     # ──────────────────────────────────────────────────────────────────
 
-    def _register_phase(self, bot: Botting, phase: Phase) -> None:
+    def _register_phase(self, bot: Botting, phase: Phase, phase_index: int, total_phases: int) -> None:
         """
         Register a single phase on the bot's FSM.
 
@@ -290,6 +335,7 @@ class ModularBot:
         header_name = _predict_next_header_name(bot, phase.name)
         bot.States.AddHeader(phase.name)
         self._phase_headers[phase.name] = header_name
+        self._header_to_phase[header_name] = phase.name
 
         # Optional template switch at phase start
         if phase.template is not None:
@@ -300,6 +346,14 @@ class ModularBot:
                 _apply_template(bot, _t)
 
             bot.States.AddCustomState(_switch_template, f"Set {tmpl}")
+
+        def _set_phase_anchor(h=header_name, n=phase.name):
+            self._set_runtime_anchor(h, n)
+
+        def _set_phase_progress(i=phase_index + 1, total=total_phases, name=phase.name):
+            setattr(bot.config, "modular_phase_index", i)
+            setattr(bot.config, "modular_phase_total", total)
+            setattr(bot.config, "modular_phase_title", name)
 
         # Register phase states
         if phase.condition is not None:
@@ -314,6 +368,9 @@ class ModularBot:
             def _make_conditional(p: Phase, b: Botting):
                 def _check_and_run():
                     if p.condition():
+                        _set_phase_progress()
+                        if p.anchor:
+                            _set_phase_anchor()
                         p.fn(b)
 
                 return _check_and_run
@@ -323,8 +380,15 @@ class ModularBot:
                 f"[Check] {phase.name}",
             )
         else:
+            bot.States.AddCustomState(_set_phase_progress, f"Set Phase Progress {phase.name}")
+            if phase.anchor:
+                bot.States.AddCustomState(_set_phase_anchor, f"Set Anchor {phase.name}")
             # Unconditional: register states at build time
             phase.fn(bot)
+
+    def _set_runtime_anchor(self, header_name: str, phase_name: str) -> None:
+        self._runtime_anchor_header = header_name
+        ConsoleLog("ModularBot", f"Anchor set: {phase_name} ({header_name})")
 
     # ──────────────────────────────────────────────────────────────────
     # Recovery handling
@@ -352,12 +416,11 @@ class ModularBot:
             return
 
         # String target → auto-recovery to named phase
-        phase_name = str(target)
-        header = self._phase_headers.get(phase_name)
+        header, target_label = self._resolve_recovery_target(target)
         if header is None:
             ConsoleLog(
                 "ModularBot",
-                f"Recovery target phase {phase_name!r} not found! "
+                f"Recovery target not found (anchor={self._runtime_anchor_header!r}, target={target!r}). "
                 f"Available: {list(self._phase_headers.keys())}",
             )
             return
@@ -366,7 +429,7 @@ class ModularBot:
         fsm.pause()
 
         def _recovery_coroutine():
-            ConsoleLog("ModularBot", f"[{reason}] Recovery started — target: {phase_name}")
+            ConsoleLog("ModularBot", f"[{reason}] Recovery started — target: {target_label}")
 
             # Wait for player to be alive (or map to change to outpost)
             while True:
@@ -385,7 +448,7 @@ class ModularBot:
 
                 yield from Routines.Yield.wait(1000)
 
-            ConsoleLog("ModularBot", f"[{reason}] Recovered — jumping to {phase_name}")
+            ConsoleLog("ModularBot", f"[{reason}] Recovered — jumping to {target_label}")
             yield from Routines.Yield.wait(1000)
 
             try:
@@ -401,4 +464,24 @@ class ModularBot:
 
         coroutine_name = f"ModularBot_Recovery_{reason.replace(' ', '_')}"
         fsm.AddManagedCoroutine(coroutine_name, _recovery_coroutine)
+
+    def _resolve_recovery_target(self, target: Union[str, Callable]) -> Tuple[Optional[str], str]:
+        """Resolve recovery destination with anchor-first fallback."""
+        if self._runtime_anchor_header:
+            anchor_header = self._runtime_anchor_header
+            anchor_phase = self._header_to_phase.get(anchor_header, anchor_header)
+            try:
+                if self._bot.config.FSM.has_state(anchor_header):
+                    return anchor_header, f"anchor:{anchor_phase}"
+            except Exception:
+                pass
+
+        phase_name = str(target or "").strip()
+        if not phase_name:
+            return None, "<none>"
+
+        header = self._phase_headers.get(phase_name)
+        if header is None:
+            return None, phase_name
+        return header, phase_name
 

@@ -42,7 +42,7 @@ from .phase import Phase
 from .bot import ModularBot
 
 # Recipes are importable via Sources.modular_bot.recipes
-# e.g.: from Sources.modular_bot.recipes import Run, Mission
+# e.g.: from Sources.modular_bot.recipes import Route, Mission
 
 __all__ = ["ModularBot", "Phase"]
 __version__ = "1.1.0"

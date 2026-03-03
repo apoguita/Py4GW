@@ -178,7 +178,7 @@ class CustomBehaviorWidgetMemoryManager:
 
         # Initialize following config with defaults
         mem.FollowingConfig.FollowDistance = 100.0
-        mem.FollowingConfig.EnableDebugOverlay = True
+        mem.FollowingConfig.EnableDebugOverlay = False
 
         # Initialize spread_during_combat_utility config with defaults
         mem.FollowingConfig.EnemyRepulsionThreshold = 250.0
