@@ -73,6 +73,8 @@ class UniqueSkills:
         self.weakness = GLOBAL_CACHE.Skill.GetID("Weakness")
         self.comfort_animal = GLOBAL_CACHE.Skill.GetID("Comfort_Animal")
         self.heal_as_one = GLOBAL_CACHE.Skill.GetID("Heal_as_One")
+        self.never_rampage_alone = GLOBAL_CACHE.Skill.GetID("Never_Rampage_Alone")
+        self.whirlwind_attack = GLOBAL_CACHE.Skill.GetID("Whirlwind_Attack")
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
@@ -551,6 +553,14 @@ def _AreCastConditionsMet(slot,
                 dead = Agent.IsDead(vTarget)
                 return LessLife or dead
 
+            if (skills[slot].skill_id == unique_skills.never_rampage_alone):
+                pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
+                return pet_id != 0 and Agent.IsAlive(pet_id)
+
+            if (skills[slot].skill_id == unique_skills.whirlwind_attack):
+                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
+                return weapon_type not in (1, 6)  # Block for Bow (1) and Spear (6)
+
             if (skills[slot].skill_id == unique_skills.natures_blessing):
                 player_life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
                 nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
@@ -1026,7 +1036,18 @@ def _IsReadyToCast(slot,
             self.in_casting_routine = False
             return False, 0
         """
-                
+
+        # Cannot cast spells while Vow of Silence is active
+        _skill_type, _ = GLOBAL_CACHE.Skill.GetType(skills[slot].skill_id)
+        _VOW_SPELL_TYPES = (
+            SkillType.Spell.value, SkillType.Hex.value, SkillType.Enchantment.value,
+            SkillType.Well.value, SkillType.Ward.value, SkillType.Glyph.value,
+            SkillType.Ritual.value, SkillType.WeaponSpell.value, SkillType.Form.value,
+        )
+        if _skill_type in _VOW_SPELL_TYPES:
+            if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), 1517):  # Vow of Silence
+                return False, v_target, in_casting_routine
+
         # Check combo conditions
         combo_type = GLOBAL_CACHE.Skill.Data.GetCombo(skills[slot].skill_id)
         dagger_status = Agent.GetDaggerStatus(v_target)
@@ -1562,7 +1583,15 @@ class SkillManager:
                     LessLife = Agent.GetHealth(vTarget) < Conditions.LessLife
                     dead = Agent.IsDead(vTarget)
                     return LessLife or dead
-                    
+
+                if (self.skills[slot].skill_id == self.unique_skills.never_rampage_alone):
+                    pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
+                    return pet_id != 0 and Agent.IsAlive(pet_id)
+
+                if (self.skills[slot].skill_id == self.unique_skills.whirlwind_attack):
+                    weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
+                    return weapon_type not in (1, 6)  # Block for Bow (1) and Spear (6)
+
                 if (self.skills[slot].skill_id == self.unique_skills.natures_blessing):
                     player_life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
                     nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
@@ -1965,6 +1994,18 @@ class SkillManager:
                 self.in_casting_routine = False
                 return False, 0
             """
+
+            # Cannot cast spells while Vow of Silence is active
+            _skill_type, _ = GLOBAL_CACHE.Skill.GetType(self.skills[slot].skill_id)
+            _VOW_SPELL_TYPES = (
+                SkillType.Spell.value, SkillType.Hex.value, SkillType.Enchantment.value,
+                SkillType.Well.value, SkillType.Ward.value, SkillType.Glyph.value,
+                SkillType.Ritual.value, SkillType.WeaponSpell.value, SkillType.Form.value,
+            )
+            if _skill_type in _VOW_SPELL_TYPES:
+                if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), 1517):  # Vow of Silence
+                    self.in_casting_routine = False
+                    return False, 0
 
             # --- Expensive target resolution (only if all cheap checks passed) ---
             old_target = Player.GetTargetID()

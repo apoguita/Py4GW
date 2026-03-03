@@ -6,14 +6,19 @@ from typing import Optional
 
 from Py4GW import Console
 import Py4GW
+import PyImGui
 
 from Py4GWCoreLib import ImGui, Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.py4gwcorelib_src.Console import Console
 
-MODULE_NAME = "MultiBoxing"
+MODULE_NAME = "Multi Boxing Manager"
+MODULE_ICON = "Textures/Module_Icons/layout manager.png"
+
 for module_name in list(sys.modules.keys()):
     if module_name not in ("sys", "importlib", "cache_data"):
         try:            
@@ -184,5 +189,37 @@ def set_client_title():
             last_character_name = current_account.AgentData.CharacterName if current_account else ""
             last_rename_type = settings.rename_to
             last_append_gw = settings.append_gw            
+
+def tooltip():
+    PyImGui.set_next_window_size((600, 0))
+    PyImGui.begin_tooltip()
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
+    ImGui.push_font("Regular", 20)
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    
+    #ellaborate a better description 
+    PyImGui.text_wrapped("This widget manages multiple Guild Wars clients by allowing you to assign each client to a specific region on your screen, automatically move clients to their assigned regions when they gain focus, and rename client windows based on customizable settings.")
+    PyImGui.spacing()
+    
+    # Features
+    PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Assign clients to specific regions on your screen.")
+    PyImGui.bullet_text("Automatically move clients to their assigned regions when they gain focus.")
+    PyImGui.bullet_text("Rename client windows based on customizable settings (character name, account email, or custom names).")
+    PyImGui.spacing()
+    
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by frenkey")
+    
+    PyImGui.end_tooltip()
 
 __all__ = ['main', 'configure']

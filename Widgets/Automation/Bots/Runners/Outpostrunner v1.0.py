@@ -21,6 +21,9 @@ local_freestyle = False
 _cached_regions = None
 _cached_runs_by_region = {} 
 
+MODULE_NAME = "Outpost Runner"
+MODULE_ICON = "Textures\\Skill_Icons\\[1543] - Pious Haste.jpg"
+
 # === STATIC FRIENDLY NAME MAP ===
 RUN_NAME_MAP = {
     "Eye Of The North - Full Tour": {

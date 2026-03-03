@@ -8,6 +8,8 @@ from Py4GWCoreLib.Context import GWContext
 import PyImGui
 
 module_name = "Enter character on load"
+MODULE_NAME = "Enter on loading"
+MODULE_ICON = "Textures/Module_Icons/Enter on Load.png"
 
 play_button_hash = 184818986
 loading_in_character_screen = True

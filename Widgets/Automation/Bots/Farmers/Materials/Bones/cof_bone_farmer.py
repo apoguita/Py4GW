@@ -5,6 +5,8 @@ from datetime import datetime
 
 # endregion
 
+MODULE_NAME = "CoF Bones Farmer"
+MODULE_ICON = "Textures\\Module_Icons\\CoF Bone Farmer.png"
 
 # region classes
 class Path:

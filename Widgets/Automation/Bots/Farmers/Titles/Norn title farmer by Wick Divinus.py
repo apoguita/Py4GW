@@ -4,8 +4,13 @@ from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 import Py4GW
 import os
 import time
+
 BOT_NAME = "Norn title farm by Wick Divinus"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "VQ_Helmet.png")
+
+MODULE_NAME = "Norn Title Farm"
+MODULE_ICON = "Textures/Skill_Icons/[2373] - Heart of the Norn.jpg"
+
 OLAFSTEAD = 645
 VARAJAR_FELLS = 553
 
@@ -185,9 +190,9 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(23504, 1801) # Fifth boss
     bot.Wait.ForTime(10000)
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(23504, 1801) # Sixth boss
-    bot.Wait.ForTime(10000)
-    bot.Wait.UntilOutOfCombat()
+    #bot.Move.XY(23504, 1801) # Sixth boss
+    #bot.Wait.ForTime(10000)
+    #bot.Wait.UntilOutOfCombat()
     
     # Continue route
     # bot.Move.XY(-2290, 14879, "Aggro: Modnir")

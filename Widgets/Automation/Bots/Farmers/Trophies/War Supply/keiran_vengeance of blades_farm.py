@@ -10,6 +10,9 @@ import Py4GW
 bot = Botting("Vengeance of Blades Farm",
               custom_build=KeiranThackerayEOTN())
 
+MODULE_NAME = "Keiran - Vengeance of Blades (War Supplies)"
+MODULE_ICON = "Textures\\Module_Icons\\Keiran Farm.png"
+
 
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)

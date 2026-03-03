@@ -25,9 +25,7 @@ class _UI:
         yield from Routines.Yield.wait(500)
         cancel_button_frame_id = UIManager.GetFrameIDByHash(784833442)  # Cancel button frame ID
         if not cancel_button_frame_id:
-            Py4GW.Console.Log("CancelSkillRewardWindow", "Cancel button frame ID not found.", Py4GW.Console.MessageType.Error)
-            self._Events.on_unmanaged_fail()
-            return
+            return  # No skill reward window open, nothing to cancel
         
         while not UIManager.FrameExists(cancel_button_frame_id):
             yield from Routines.Yield.wait(1000)

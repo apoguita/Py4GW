@@ -33,7 +33,7 @@ SNAP_STEP_WORLD = GRID_STEP_WORLD / 2
 MAX_FOLLOW_SLOTS = 11  # followers only (leader is slot 0 / skipped)
 MODULE_NAME = "Following Module"
 EXPORT_PREFIX = "PY4GWFF1:"
-
+MODULE_ICON = "Textures\\Module_Icons\\FollowModule.png"
 
 class RingConfig:
     def __init__(self, radius: Range | float, color: Color, thickness: int, show=True):

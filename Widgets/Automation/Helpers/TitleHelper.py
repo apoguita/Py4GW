@@ -16,6 +16,7 @@ os.makedirs(BASE_DIR, exist_ok=True)
 
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "titlehelper.ini")
 MODULE_NAME = "TitleHelper - By aC"
+MODULE_ICON = "Textures/Module_Icons/TitleHelper.png"
 COLLAPSED = "collapsed"
 X_POS = "x"
 Y_POS = "y"

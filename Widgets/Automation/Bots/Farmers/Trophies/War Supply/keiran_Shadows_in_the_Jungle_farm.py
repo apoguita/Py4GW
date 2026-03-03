@@ -2,7 +2,9 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
                           AutoPathing, ImGui, ActionQueueManager, Keystroke, Key)
 from typing import List, Tuple
 
-bot = Botting("Kieran Rise Farm")
+bot = Botting("Keiran Shadows in the Jungle Farm")
+MODULE_NAME = "Keiran - Shadows in the Jungle Farm (War Supplies)"
+MODULE_ICON = "Textures\\Module_Icons\\Keiran Farm.png"
      
 def create_bot_routine(bot: Botting) -> None:
     InitializeBot(bot)

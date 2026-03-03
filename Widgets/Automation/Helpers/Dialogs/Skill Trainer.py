@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 
 MODULE_NAME = "Skill Learner"
+MODULE_ICON = "Textures/Module_Icons/Skill Learner.png"
 
 skill_id_input = 0
 status_message = ""

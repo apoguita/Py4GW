@@ -40,6 +40,7 @@ save_window_timer.Start()
 
 # String consts
 MODULE_NAME = "EZ Cast"  # Change this Module name
+MODULE_ICON = "Textures/Module_Icons/EZ Cast.png"  # Change this to your widget icon (optional)
 COLLAPSED = "collapsed"
 X_POS = "x"
 Y_POS = "y"

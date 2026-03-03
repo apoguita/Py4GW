@@ -13,7 +13,7 @@ from Sources.frenkeyLib.SulfurousRunner.globals import Global
 import PyImGui
 
 MODULE_NAME = "Sulfurous Runner"
-
+MODULE_ICON = "Textures\\Module_Icons\\Sulfurous_Haze.jpg"
 g = Global()
 
 settings = Settings()

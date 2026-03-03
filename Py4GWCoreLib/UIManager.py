@@ -341,6 +341,22 @@ class UIManager:
         :return: int: The frame ID, or -1 if not found.
         """
         return PyUIManager.UIManager.get_frame_id_by_hash(hash)
+
+    @staticmethod
+    def GetTextLanguage() -> int:
+        return PyUIManager.UIManager.get_text_language()
+
+    @staticmethod
+    def GetChildFrameByFrameId(parent_frame_id: int, child_offset: int) -> int:
+        return PyUIManager.UIManager.get_child_frame_by_frame_id(parent_frame_id, child_offset)
+
+    @staticmethod
+    def GetChildFramePathByFrameId(parent_frame_id: int, child_offsets: list[int]) -> int:
+        return PyUIManager.UIManager.get_child_frame_path_by_frame_id(parent_frame_id, child_offsets)
+
+    @staticmethod
+    def GetParentFrameID(frame_id: int) -> int:
+        return PyUIManager.UIManager.get_parent_frame_id(frame_id)
     
     @staticmethod
     def GetHashByLabel(label):
@@ -387,6 +403,146 @@ class UIManager:
     @staticmethod
     def SendUIMessageRaw(msgid: int, wparam: int, lparam: int, skip_hooks: bool = False ) -> bool:
         return PyUIManager.UIManager.SendUIMessageRaw(msgid, wparam, lparam, skip_hooks)
+
+    @staticmethod
+    def SendFrameUIMessage(frame_id: int, message_id: int, wparam: int, lparam: int = 0) -> bool:
+        return PyUIManager.UIManager.SendFrameUIMessage(frame_id, message_id, wparam, lparam)
+
+    @staticmethod
+    def CreateUIComponentByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int,
+        event_callback: int,
+        name_enc: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_ui_component_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            event_callback,
+            name_enc,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateLabeledFrameByFrameId(
+        parent_frame_id: int,
+        frame_flags: int,
+        child_index: int,
+        frame_callback: int,
+        create_param: int,
+        frame_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_labeled_frame_by_frame_id(
+            parent_frame_id,
+            frame_flags,
+            child_index,
+            frame_callback,
+            create_param,
+            frame_label,
+        )
+
+    @staticmethod
+    def DestroyUIComponentByFrameId(frame_id: int) -> bool:
+        return PyUIManager.UIManager.destroy_ui_component_by_frame_id(frame_id)
+
+    @staticmethod
+    def AddFrameUIInteractionCallbackByFrameId(
+        frame_id: int,
+        event_callback: int,
+        wparam: int = 0,
+    ) -> bool:
+        return PyUIManager.UIManager.add_frame_ui_interaction_callback_by_frame_id(
+            frame_id,
+            event_callback,
+            wparam,
+        )
+
+    @staticmethod
+    def TriggerFrameRedrawByFrameId(frame_id: int) -> bool:
+        return PyUIManager.UIManager.trigger_frame_redraw_by_frame_id(frame_id)
+
+    @staticmethod
+    def DrawOnCompass(session_id: int, points: list[tuple[int, int]]) -> bool:
+        return PyUIManager.UIManager.draw_on_compass(session_id, points)
+
+    @staticmethod
+    def LoadSettings(data: list[int]) -> None:
+        PyUIManager.UIManager.load_settings(data)
+
+    @staticmethod
+    def GetSettings() -> list[int]:
+        return PyUIManager.UIManager.get_settings()
+
+    @staticmethod
+    def GetCurrentTooltipAddress() -> int:
+        return PyUIManager.UIManager.get_current_tooltip_address()
+
+    @staticmethod
+    def CreateButtonFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        name_enc: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_button_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            name_enc,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateCheckboxFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        name_enc: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_checkbox_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            name_enc,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateScrollableFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        page_context: int = 0,
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_scrollable_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            page_context,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateTextLabelFrameByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        name_enc: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_text_label_frame_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            name_enc,
+            component_label,
+        )
     
     @staticmethod
     def FrameClick(frame_id):
@@ -522,6 +678,30 @@ class UIManager:
         :return: bool: True if the world map is showing, False otherwise.
         """
         return PyUIManager.UIManager.is_world_map_showing()
+
+    @staticmethod
+    def IsUIDrawn() -> bool:
+        return PyUIManager.UIManager.is_ui_drawn()
+
+    @staticmethod
+    def AsyncDecodeStr(enc_str: str) -> str:
+        return PyUIManager.UIManager.async_decode_str(enc_str)
+
+    @staticmethod
+    def IsValidEncStr(enc_str: str) -> bool:
+        return PyUIManager.UIManager.is_valid_enc_str(enc_str)
+
+    @staticmethod
+    def UInt32ToEncStr(value: int) -> str:
+        return PyUIManager.UIManager.uint32_to_enc_str(value)
+
+    @staticmethod
+    def EncStrToUInt32(enc_str: str) -> int:
+        return PyUIManager.UIManager.enc_str_to_uint32(enc_str)
+
+    @staticmethod
+    def SetOpenLinks(toggle: bool) -> None:
+        PyUIManager.UIManager.set_open_links(toggle)
     
     @staticmethod
     def IsShiftScreenshot():

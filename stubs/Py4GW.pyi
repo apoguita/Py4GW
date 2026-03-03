@@ -178,3 +178,31 @@ class Game:
         """
         ...
 
+    @staticmethod
+    def get_shared_memory_name() -> str:
+        """
+        Get the current per-process runtime shared-memory name.
+        """
+        ...
+
+    @staticmethod
+    def get_shared_memory_size() -> int:
+        """
+        Get the runtime shared-memory region size in bytes.
+        """
+        ...
+
+    @staticmethod
+    def is_shared_memory_ready() -> bool:
+        """
+        Check whether the runtime shared-memory region is active.
+        """
+        ...
+
+    @staticmethod
+    def get_shared_memory_sequence() -> int:
+        """
+        Get the current sequence value for the runtime shared-memory region.
+        """
+        ...
+

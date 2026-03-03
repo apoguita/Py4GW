@@ -1,5 +1,4 @@
 import PyAgent
-from .model_data import ModelData
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 from .native_src.context.WorldContext import AttributeStruct
 from .native_src.internals.string_table import decode as decode_raw

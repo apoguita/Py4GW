@@ -3,6 +3,9 @@ import time
 import json
 from Py4GWCoreLib import ImGui
 
+MODULE_NAME = "Profession Unlocker"
+MODULE_ICON = "Textures\\Module_Icons\\Profession Unlocker.png"
+
 # If you have a BasicWindow class, import it. Otherwise, define a minimal one here.
 try:
     from WindowUtilites import BasicWindow

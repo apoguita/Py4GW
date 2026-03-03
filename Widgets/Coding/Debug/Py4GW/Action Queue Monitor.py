@@ -1,6 +1,8 @@
 from Py4GWCoreLib import *
 
 action_queue_manager = ActionQueueManager()
+MODULE_NAME = "Action Queue Monitor"
+MODULE_ICON = "Textures/Module_Icons/Action Queue.png"
 
 def tooltip():
     PyImGui.begin_tooltip()

@@ -46,6 +46,7 @@ class Config:
         self.show_favorites : bool = True
         self.save_requested : bool = False
         self.close_after_travel : bool = True
+        self.button_size : int = 48
     
     def load(self):
         # Load the configuration from json
@@ -61,6 +62,7 @@ class Config:
                 self.show_favorites = data.get("show_favorites", True)
                 self.history_length = data.get("history_length", 5)
                 self.close_after_travel = data.get("close_after_travel", True)
+                self.button_size = data.get("button_size", 48)
                 
     
     def save(self):
@@ -73,6 +75,7 @@ class Config:
             "show_favorites": self.show_favorites,
             "history_length": self.history_length,
             "close_after_travel": self.close_after_travel,
+            "button_size": self.button_size,
         }
         
         
@@ -108,6 +111,7 @@ filtered_outposts = [(id, outpost) for id, outpost in outposts.items()]
 filtered_history = []
 search_outpost = ""
 is_traveling = False
+is_dragging = False
 is_map_ready = False
 is_party_loaded = False
 travel_history = []
@@ -128,12 +132,16 @@ widget_handler : WidgetHandler = get_widget_handler()
 widget_info : Optional[Widget] = None
 
 def tooltip():
+    PyImGui.set_next_window_size((600, 0))
     PyImGui.begin_tooltip()
     # Title
     title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
     ImGui.push_font("Regular", 20)
-    PyImGui.text_colored("Travel", title_color.to_tuple_normalized())
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
     ImGui.pop_font()
+    PyImGui.spacing()
     PyImGui.spacing()
     PyImGui.separator()
     # Description
@@ -261,7 +269,14 @@ def configure():
                 if history_length != widget_config.history_length:
                     widget_config.history_length = max(1, min(20, history_length))
                     widget_config.request_save()
-                    
+                
+                ImGui.text_aligned("Travel Button Size", width=100, height=24, alignment=Alignment.MidLeft)
+                PyImGui.same_line(0, 2)
+                button_size = ImGui.slider_int(f"##Travel Button Size", widget_config.button_size, 32, 256)
+                if button_size != widget_config.button_size:
+                    widget_config.button_size = max(32, min(256, button_size))
+                    widget_config.request_save()
+                
                 PyImGui.end_tab_item()
                 
             if PyImGui.begin_tab_item("Help"):
@@ -354,7 +369,7 @@ def themed_floating_button(button_rect : tuple[float, float, float, float]):
             pass
 
 def DrawWindow():
-    global is_traveling, widget_config, search_outpost, window_module, window_open, filtered_outposts, outpost_index, window_x, window_y, filtered_history
+    global is_traveling, widget_config, search_outpost, window_module, window_open, filtered_outposts, outpost_index, window_x, window_y, filtered_history, is_dragging
     global game_throttle_time, game_throttle_timer, save_throttle_time, save_throttle_timer
     
     try:    
@@ -363,24 +378,29 @@ def DrawWindow():
         if not show_ui:
             return
         
-        button_rect = (widget_config.button_position[0], widget_config.button_position[1], 48, 48)
+        padding = widget_config.button_size * 0.05
+        style = ImGui.get_style()
+        button_rect = (widget_config.button_position[0], widget_config.button_position[1], widget_config.button_size, widget_config.button_size)
         ## Ensure the button is within the screen bounds
         io = PyImGui.get_io()  
         screen_width, screen_height = io.display_size_x, io.display_size_y
         
         button_rect = ensure_on_screen(button_rect, screen_width, screen_height)                
-        PyImGui.set_next_window_size(button_rect[2] + 4, button_rect[3] + 4)
+        PyImGui.set_next_window_size(button_rect[2], button_rect[3])
         
-        PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 0, 0)
-        if PyImGui.begin("##TravelButton", PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoBackground):
-            themed_floating_button(button_rect)
+        style.WindowPadding.push_style_var_direct(padding, padding)
+        win_open  = PyImGui.begin("##TravelButton", PyImGui.WindowFlags.NoTitleBar | PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoScrollbar)
+        style.WindowPadding.pop_style_var_direct()
+        
+        if win_open:
+            is_hovered = ImGui.is_mouse_in_rect(button_rect)
+            button_size = PyImGui.get_content_region_avail()[0] * (1 if is_hovered else 0.8)
             
-            icon_rect = (button_rect[0] + 8, button_rect[1] + 6, 32, 32)
+            icon_rect = (button_rect[0] + (button_rect[2] - button_size) / 2, button_rect[1] + (button_rect[3] - button_size) / 2, button_size, button_size)
 
             ThemeTextures.TravelCursor.value.get_texture().draw_in_drawlist(
                 icon_rect[:2],
                 icon_rect[2:],
-                tint=(255, 255, 255, 255) if ImGui.is_mouse_in_rect(button_rect) else (200, 200, 200, 255),
             )
             
             if PyImGui.invisible_button("##Open Travel Window", button_rect[2], button_rect[3]):
@@ -388,22 +408,21 @@ def DrawWindow():
                 PyImGui.set_next_window_pos(window_module.window_pos[0], window_module.window_pos[1])
             
             elif PyImGui.is_item_active(): 
-                delta = PyImGui.get_mouse_drag_delta(0, 0.0)
+                delta = PyImGui.get_mouse_drag_delta(0, 0.0)                    
                 PyImGui.reset_mouse_drag_delta(0)
                 widget_config.button_position = (widget_config.button_position[0] + delta[0], widget_config.button_position[1] + delta[1])
                 widget_config.request_save()
                 
                 window_module.end_pos = window_module.window_pos = (int(window_module.window_pos[0] + delta[0]), int(window_module.window_pos[1] + delta[1]))
                 # window_module.open = False
+            ImGui.show_tooltip("Click to open travel window\nDrag to reposition button")
             
-                
             PyImGui.end()
-        PyImGui.pop_style_var(1)
         
         if not window_module.open:
             return
         
-        window_x = widget_config.button_position[0] + 54
+        window_x = widget_config.button_position[0] + button_rect[2] + style.WindowBorderSize.value1
         window_y = widget_config.button_position[1]
         
         if window_y + window_module.window_size[1] > screen_height:
