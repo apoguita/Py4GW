@@ -580,6 +580,48 @@ def GetBlessing(index: int, message: SharedMessageStruct):
 
 
 # endregion
+# region MerchantItems
+def MerchantItems(index: int, message: SharedMessageStruct):
+    ConsoleLog(MODULE_NAME, f"Processing MerchantItems message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    try:
+        x = float(message.Params[0])
+        y = float(message.Params[1])
+        id_kits_target = int(message.Params[2])
+        salvage_kits_target = int(message.Params[3])
+    except Exception:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    if id_kits_target < 0:
+        id_kits_target = 0
+    if salvage_kits_target < 0:
+        salvage_kits_target = 0
+
+    SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+        yield from Routines.Yield.wait(1200)
+
+        id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit.value))
+        sup_id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value))
+        salvage_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
+
+        id_kits_to_buy = max(0, id_kits_target - (id_kits_in_inv + sup_id_kits_in_inv))
+        salvage_kits_to_buy = max(0, salvage_kits_target - salvage_kits_in_inv)
+
+        yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
+        yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+    finally:
+        RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
 # region UsePcon
 
 
@@ -1631,7 +1673,7 @@ def ProcessMessages():
         case SharedCommandType.SalvageItems:
             pass
         case SharedCommandType.MerchantItems:
-            pass
+            GLOBAL_CACHE.Coroutines.append(MerchantItems(index, message))
         case SharedCommandType.MerchantMaterials:
             pass
         case SharedCommandType.DisableHeroAI:

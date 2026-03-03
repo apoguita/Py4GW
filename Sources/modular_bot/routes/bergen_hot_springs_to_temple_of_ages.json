@@ -1,0 +1,16 @@
+{
+  "name": "Bergen Hot Springs to Temple of the Ages",
+  "outpost_id": 57,
+  "max_heroes": 8,
+  "hero_team": "party_8",
+  "steps": [
+    {"type": "auto_path", "name": "Leave Bergen", "points": [[15521, -15378], [15450, -15050]]},
+    {"type": "wait_map_load", "map_id": 59},
+    {"type": "auto_path", "name": "Nebo to Cursed Lands", "points": [[13276, -14317], [8660, -12109], [1522, -7990], [-3489, -11607], [-4290, -11599]]},
+    {"type": "wait_map_load", "map_id": 56},
+    {"type": "auto_path", "name": "Cursed Lands to Black Curtain", "points": [[-4523, -9755], [-7331, -6178], [-9610, -2136], [-12517, 5459], [-18010, 7033], [-20100, 9025]]},
+    {"type": "wait_map_load", "map_id": 18},
+    {"type": "auto_path", "name": "Black Curtain to Temple", "points": [[8716, 18587], [3795, 17750], [592, 16243], [-1968, 14407], [-5004, 15424], [-5180, 16000]]},
+    {"type": "wait_map_load", "map_id": 138}
+  ]
+}

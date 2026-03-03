@@ -1,0 +1,7 @@
+{
+    "name": "Tower of Courage",
+    "steps": [
+        {"type": "path_to_target", "enemy": "SHARD_WOLF", "repeat":5}
+    ]
+  }
+  

@@ -1,0 +1,14 @@
+{
+  "name": "Tower of Courage",
+  "steps": [
+    {"type": "auto_path", "name": "clear rangers", "points": [[-21068, 1542], [-19238, 370], [-20026, -2707], [-21051, -3053],  [-18776, -3941], [-18817, -2323], [-17447, -4380], [-14396, -3224], [-14187, -718], [-14596, -2576]]},
+    {"type": "auto_path", "name": "To Rasti ", "points": [[-15479, -1824]]},
+    {"type": "wait", "ms": 5000},
+    {"type": "dialog", "name": "Take Toc", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80D401"},
+    {"type": "dialog", "name": "Reward Toc", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80D407"},
+    {"type": "dialog", "name": "Take Whaling", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80CC01"},
+    {"type": "interact_gadget", "target": "CHEST", "repeat": 2}
+  ]
+}
+
+

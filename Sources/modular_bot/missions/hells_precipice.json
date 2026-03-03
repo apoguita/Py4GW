@@ -1,0 +1,85 @@
+{
+    "name":  "Hell\u0027s Precipice",
+    "outpost_id":  124,
+    "max_heroes":  8,
+    "hero_team":  "party_8",
+    "entry":  {
+                  "type":  "enter_challenge",
+                  "delay":  6000,
+                  "target_map_id":  124
+              },
+    "steps":  [
+                  {
+                      "type":  "use_all_consumables",
+                      "name":  "Prep consumables",
+                      "ms":  1000
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "To teleport",
+                      "points":  [
+                                     [
+                                         5500,
+                                         1067
+                                     ],
+                                     [
+                                         3558,
+                                         -3826
+                                     ],
+                                     [
+                                         8963,
+                                         -9388
+                                     ],
+                                     [
+                                         5413,
+                                         -15683
+                                     ],
+                                     [
+                                         -4059,
+                                         -19718
+                                     ],
+                                     [
+                                         -9061,
+                                         -16683
+                                     ]
+                                 ]
+                  },
+                  {
+                      "type":  "wait_map_change",
+                      "target_map_id":  124
+                  },
+                  {
+                      "type":  "auto_path",
+                      "name":  "Post teleport",
+                      "points":  [
+                                     [
+                                         -2519,
+                                         2104
+                                     ],
+                                     [
+                                         -4608,
+                                         5911
+                                     ],
+                                     [
+                                         966,
+                                         9247
+                                     ],
+                                     [
+                                         4567,
+                                         9409
+                                     ]
+                                 ]
+                  },
+                  {
+                      "type":  "wait_map_change",
+                      "target_map_id":  783
+                  },
+                  {
+                      "type":  "dialog",
+                      "name":  "Claim Deldrimor Talisman",
+                      "x":  -8679,
+                      "y":  5086,
+                      "id":  "0x85"
+                  }
+              ]
+}

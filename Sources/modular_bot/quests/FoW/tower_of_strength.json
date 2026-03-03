@@ -1,0 +1,13 @@
+{
+  "name": "Tower of Strength",
+  "steps": [
+    {"type": "auto_path", "name": "To the Entrance", "points": [[11077, -5531], [12993, -4084], [15425, -1647],  [17165, 930], [13565, -627]]},
+    {"type": "auto_path", "name": "Fetch Da Mage", "points": [[15080, -3139], [9581, -5736], [1874, -7912],  [6788, -11266]]},
+    {"type": "auto_path", "name": "Back to Tos", "points": [[11062, -5421], [14169, -3101], [15635, -1324]]},
+    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
+    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
+    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
+    {"type": "auto_path", "name": "clear the darkest boy", "points": [[13440, -738], [16729, -1837]]},
+    {"type": "auto_path_delayed", "delay_ms": 3000, "name": "path to Miko", "points": [[15252, -966], [17578, 3008], [12243, 7454], [12030, 6319]]}
+    ]
+}
