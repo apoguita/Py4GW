@@ -46,6 +46,12 @@ class SharedCommandType(IntEnum):
     SetActiveQuest = 40
     AbandonQuest = 41
 
+    RestockAllPcons = 42
+    RestockConset = 43
+    RestockResurrectionScroll = 44
+    EnableWidget = 45
+    DisableWidget = 46
+
     MultiBoxing = 990 # privately Handled Command, by frenkey
     CustomBehaviors = 997 # privately Handled Command, used in CustomBehaviors widget
     UseSkillCombatPrep = 998 #handled in CombatPrep only by Mark

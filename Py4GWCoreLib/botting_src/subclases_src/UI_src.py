@@ -586,7 +586,8 @@ class _UI:
         main_child_dimensions: Tuple[int, int] = (350, 275),
         icon_path: str = "",
         iconwidth: int = 96,
-        additional_ui: Optional[Callable[[], None]] = None
+        additional_ui: Optional[Callable[[], None]] = None,
+        extra_tabs: Optional[list[tuple[str, Callable[[], None]]]] = None
     ):
         from ...IniManager import IniManager
         from ...Routines import Routines
@@ -630,6 +631,13 @@ class _UI:
                     
                     self.draw_debug_window()
                     PyImGui.end_tab_item()
+
+                if extra_tabs:
+                    for tab_label, tab_draw_fn in extra_tabs:
+                        if PyImGui.begin_tab_item(tab_label):
+                            if callable(tab_draw_fn):
+                                tab_draw_fn()
+                            PyImGui.end_tab_item()
                     
                 PyImGui.end_tab_bar()
 

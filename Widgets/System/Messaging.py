@@ -1473,6 +1473,46 @@ def ResumeWidgets(index: int, message: SharedMessageStruct):
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "ResumeWidgets message processed and finished.", Console.MessageType.Info, False)
+
+def EnableWidget(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    extra = tuple(_c_wchar_array_to_str(arr) for arr in message.ExtraData)
+    widget_name = extra[0].strip() if extra else ""
+    if not widget_name:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    widget_handler = get_widget_handler()
+    if not widget_handler.is_widget_enabled(widget_name):
+        widget_handler.enable_widget(widget_name)
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, f"EnableWidget('{widget_name}') message processed and finished.", Console.MessageType.Info, False)
+
+def DisableWidget(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    extra = tuple(_c_wchar_array_to_str(arr) for arr in message.ExtraData)
+    widget_name = extra[0].strip() if extra else ""
+    if not widget_name:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    widget_handler = get_widget_handler()
+    if widget_handler.is_widget_enabled(widget_name):
+        widget_handler.disable_widget(widget_name)
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, f"DisableWidget('{widget_name}') message processed and finished.", Console.MessageType.Info, False)
 # endregion
 
 #region SwitchCharacter
@@ -1586,6 +1626,53 @@ def AbandonQuest(index : int, message : SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "AbandonQuest message processed and finished.", Console.MessageType.Info, False)
 # endregion
 
+#region RestockAllPcons
+def RestockAllPcons(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    quantity = int(message.Params[0])
+    pcon_models = [
+        ModelID.Birthday_Cupcake.value,
+        ModelID.Candy_Apple.value,
+        ModelID.Golden_Egg.value,
+        ModelID.Candy_Corn.value,
+        ModelID.Honeycomb.value,
+        ModelID.War_Supplies.value,
+        ModelID.Slice_Of_Pumpkin_Pie.value,
+        ModelID.Drake_Kabob.value,
+        ModelID.Bowl_Of_Skalefin_Soup.value,
+        ModelID.Pahnai_Salad.value,
+        ModelID.Scroll_Of_Resurrection.value,
+    ]
+    for model_id in pcon_models:
+        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "RestockAllPcons message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
+#region RestockConset
+def RestockConset(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    quantity = int(message.Params[0])
+    conset_models = [
+        ModelID.Essence_Of_Celerity.value,
+        ModelID.Grail_Of_Might.value,
+        ModelID.Armor_Of_Salvation.value,
+    ]
+    for model_id in conset_models:
+        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "RestockConset message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
+#region RestockResurrectionScroll
+def RestockResurrectionScroll(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    quantity = int(message.Params[0])
+    yield from Routines.Yield.Items.RestockItems(ModelID.Scroll_Of_Resurrection.value, quantity)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "RestockResurrectionScroll message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
 # region ProcessMessages
 def ProcessMessages():
     account_email = Player.GetAccountEmail()
@@ -1666,6 +1753,10 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(PauseWidgets(index, message))
         case SharedCommandType.ResumeWidgets:
             GLOBAL_CACHE.Coroutines.append(ResumeWidgets(index, message))
+        case SharedCommandType.EnableWidget:
+            GLOBAL_CACHE.Coroutines.append(EnableWidget(index, message))
+        case SharedCommandType.DisableWidget:
+            GLOBAL_CACHE.Coroutines.append(DisableWidget(index, message))
         case SharedCommandType.SwitchCharacter:
             GLOBAL_CACHE.Coroutines.append(SwitchCharacter(index, message))
         case SharedCommandType.LoadSkillTemplate:
@@ -1680,6 +1771,12 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(SetActiveQuest(index, message))
         case SharedCommandType.AbandonQuest:
             GLOBAL_CACHE.Coroutines.append(AbandonQuest(index, message))
+        case SharedCommandType.RestockAllPcons:
+            GLOBAL_CACHE.Coroutines.append(RestockAllPcons(index, message))
+        case SharedCommandType.RestockConset:
+            GLOBAL_CACHE.Coroutines.append(RestockConset(index, message))
+        case SharedCommandType.RestockResurrectionScroll:
+            GLOBAL_CACHE.Coroutines.append(RestockResurrectionScroll(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass

@@ -480,6 +480,23 @@ class CombatClass:
             v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.AllyNPCByModel:
+            model_id_filter = self.skills[slot].custom_skill_data.Conditions.ModelIDFilter
+            if model_id_filter:
+                npc_agent_id = Routines.Agents.GetNearestAliveAgentByModelID(model_id_filter, Range.Spellcast.value)
+                if npc_agent_id and not Agent.IsWeaponSpelled(npc_agent_id):
+                    v_target = npc_agent_id
+            if v_target == 0 and not targeting_strict:
+                # Fallback only when strict targeting is disabled.
+                # Exclude self to avoid invalid self-target attempts (e.g. Great Dwarf Weapon).
+                v_target = TargetLowestAllyMartial(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
+                # Exclude the NPC itself from the fallback — it may appear in GetAllyArray()
+                # as a martial NPC, but CheckForEffect doesn't work for non-party members,
+                # so it won't be filtered out even when it already has the weapon spell.
+                if v_target and model_id_filter and Agent.GetModelID(v_target) == model_id_filter:
+                    v_target = 0
+            if v_target == Player.GetAgentID():
+                v_target = 0
         else:
             v_target = self.GetPartyTarget()
             if v_target == 0:

@@ -409,6 +409,97 @@ class _Items:
         yield from Routines.Yield.wait(350)
         return True
 
+    def _deposit_model_list(self, model_ids: list[int]) -> Generator[Any, Any, bool]:
+        """Deposit all inventory stacks matching any model ID in the list."""
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        deposited_any = False
+        for model_id in model_ids:
+            while True:
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if not item_id:
+                    break
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                deposited_any = True
+                yield from Routines.Yield.wait(350)
+        return deposited_any
+
+    @_yield_step(label="DepositConset", counter_key="DEPOSIT_CONSET")
+    def deposit_conset(self) -> Generator[Any, Any, bool]:
+        conset_models = [
+            ModelID.Essence_Of_Celerity.value,
+            ModelID.Grail_Of_Might.value,
+            ModelID.Armor_Of_Salvation.value,
+        ]
+        return (yield from self._deposit_model_list(conset_models))
+
+    @_yield_step(label="DepositPcons", counter_key="DEPOSIT_PCONS")
+    def deposit_pcons(self) -> Generator[Any, Any, bool]:
+        pcons_models = [
+            ModelID.Birthday_Cupcake.value,
+            ModelID.Candy_Apple.value,
+            ModelID.Golden_Egg.value,
+            ModelID.Candy_Corn.value,
+            ModelID.Honeycomb.value,
+            ModelID.War_Supplies.value,
+            ModelID.Slice_Of_Pumpkin_Pie.value,
+            ModelID.Drake_Kabob.value,
+            ModelID.Bowl_Of_Skalefin_Soup.value,
+            ModelID.Pahnai_Salad.value,
+            ModelID.Scroll_Of_Resurrection.value,
+        ]
+        return (yield from self._deposit_model_list(pcons_models))
+
+    @_yield_step(label="DepositSummoningStones", counter_key="DEPOSIT_SUMMONING_STONES")
+    def deposit_summoning_stones(self) -> Generator[Any, Any, bool]:
+        summoning_models = [
+            ModelID.Legionnaire_Summoning_Crystal.value,
+            ModelID.Igneous_Summoning_Stone.value,
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Tengu_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        return (yield from self._deposit_model_list(summoning_models))
+
+    @_yield_step(label="DepositCitySpeedBoost", counter_key="DEPOSIT_CITY_SPEED_BOOST")
+    def deposit_city_speed_boost(self) -> Generator[Any, Any, bool]:
+        from ...Routines import Routines
+        city_speed_models = [
+            model.value if hasattr(model, "value") else int(model)
+            for model in Routines.Yield.Upkeepers.CITY_SPEED_ITEMS
+        ]
+        return (yield from self._deposit_model_list(city_speed_models))
+
+    @_yield_step(label="DepositConsetPconsSummoningStonesCitySpeed", counter_key="DEPOSIT_CONSET_PCONS_SUMMON_STONES_CITY_SPEED")
+    def deposit_conset_pcons_summoning_stones_city_speed(self) -> Generator[Any, Any, bool]:
+        """Deposit conset, pcons, summoning stones, and city speed boost items."""
+        deposited = False
+        if (yield from self.deposit_conset()):
+            deposited = True
+        if (yield from self.deposit_pcons()):
+            deposited = True
+        if (yield from self.deposit_summoning_stones()):
+            deposited = True
+        if (yield from self.deposit_city_speed_boost()):
+            deposited = True
+        return deposited
+
     @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")
     def use_all_consumables(self) -> Generator[Any, Any, None]:
         """
@@ -519,7 +610,12 @@ class _Items:
         # No summoning stones found
         ConsoleLog("UseSummoningStone", "No summoning stones found in inventory", Py4GW.Console.MessageType.Debug)
 
-
-
-        
-    
+    @_yield_step(label="UseItemByModelID", counter_key="USE_ITEM_BY_MODEL_ID")
+    def use_item_by_model_id(self, model_id: int) -> Generator[Any, Any, None]:
+        """Find the first item with the given model_id in inventory and use it."""
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+        if item_id:
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            yield from Routines.Yield.wait(1000)

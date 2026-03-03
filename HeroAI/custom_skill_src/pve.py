@@ -526,10 +526,11 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Great_Dwarf_Weapon")
         skill.SkillType = SkillType.WeaponSpell.value
-        skill.TargetAllegiance = Skilltarget.AllyMartial.value
+        skill.TargetAllegiance = Skilltarget.AllyNPCByModel.value
         skill.Nature = SkillNature.CustomA.value
         skill.Conditions.TargetingStrict = True
         skill.Conditions.IsOutOfCombat = False
+        skill.Conditions.ModelIDFilter = 5903  # Ebon Vanguard Assassin (EVAS summon); falls back to AllyMartial
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

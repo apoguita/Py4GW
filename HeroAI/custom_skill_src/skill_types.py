@@ -42,6 +42,7 @@ class CastConditions:
         # Targeting Rules
         self.TargetingStrict = True
         self.SelfFirst = False
+        self.ModelIDFilter: int = 0  # for AllyNPCByModel: model ID to scan for
 
         # Resource and Health Constraints
         self.LessLife = 0.0
