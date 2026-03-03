@@ -1030,6 +1030,18 @@ class CombatClass:
             self.in_casting_routine = False
             return False, 0
 
+        # Cannot cast spells while Vow of Silence is active
+        _skill_type, _ = GLOBAL_CACHE.Skill.GetType(self.skills[slot].skill_id)
+        _VOW_SPELL_TYPES = (
+            SkillType.Spell.value, SkillType.Hex.value, SkillType.Enchantment.value,
+            SkillType.Well.value, SkillType.Ward.value, SkillType.Glyph.value,
+            SkillType.Ritual.value, SkillType.WeaponSpell.value, SkillType.Form.value,
+        )
+        if _skill_type in _VOW_SPELL_TYPES:
+            if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), 1517):  # Vow of Silence
+                self.in_casting_routine = False
+                return False, 0
+
         # --- Expensive target resolution (only if all cheap checks passed) ---
         v_target = self.GetAppropiateTarget(slot)
 

@@ -1036,7 +1036,18 @@ def _IsReadyToCast(slot,
             self.in_casting_routine = False
             return False, 0
         """
-                
+
+        # Cannot cast spells while Vow of Silence is active
+        _skill_type, _ = GLOBAL_CACHE.Skill.GetType(skills[slot].skill_id)
+        _VOW_SPELL_TYPES = (
+            SkillType.Spell.value, SkillType.Hex.value, SkillType.Enchantment.value,
+            SkillType.Well.value, SkillType.Ward.value, SkillType.Glyph.value,
+            SkillType.Ritual.value, SkillType.WeaponSpell.value, SkillType.Form.value,
+        )
+        if _skill_type in _VOW_SPELL_TYPES:
+            if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), 1517):  # Vow of Silence
+                return False, v_target, in_casting_routine
+
         # Check combo conditions
         combo_type = GLOBAL_CACHE.Skill.Data.GetCombo(skills[slot].skill_id)
         dagger_status = Agent.GetDaggerStatus(v_target)
@@ -1983,6 +1994,18 @@ class SkillManager:
                 self.in_casting_routine = False
                 return False, 0
             """
+
+            # Cannot cast spells while Vow of Silence is active
+            _skill_type, _ = GLOBAL_CACHE.Skill.GetType(self.skills[slot].skill_id)
+            _VOW_SPELL_TYPES = (
+                SkillType.Spell.value, SkillType.Hex.value, SkillType.Enchantment.value,
+                SkillType.Well.value, SkillType.Ward.value, SkillType.Glyph.value,
+                SkillType.Ritual.value, SkillType.WeaponSpell.value, SkillType.Form.value,
+            )
+            if _skill_type in _VOW_SPELL_TYPES:
+                if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), 1517):  # Vow of Silence
+                    self.in_casting_routine = False
+                    return False, 0
 
             # --- Expensive target resolution (only if all cheap checks passed) ---
             old_target = Player.GetTargetID()
