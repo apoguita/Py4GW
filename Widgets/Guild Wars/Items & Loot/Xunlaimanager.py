@@ -37,6 +37,7 @@ INI_RELATIVE_PATH = "Settings/{account}/Inventory/XunlaiManager/xunlai_manager.i
 
 project_root = Py4GW.Console.get_projects_path()  # Absolute root path of the Py4GW installation
 save_timer = ThrottledTimer(500)                   # Prevents writing the INI on every frame
+_account_check_timer = ThrottledTimer(2000)        # Throttles Player.GetAccountEmail() to once every 2 s
 ini_handler = None                                 # IniHandler instance; created on first account load
 _active_account_email = ""                         # Email of the currently loaded account
 _active_ini_path = ""                              # Full path to the active INI file
@@ -168,7 +169,12 @@ def _ensure_account_settings_loaded(force: bool = False):
 	global _sort_task_state
 	global _selected_settings_account
 
+	# Fast-path: skip the expensive GetAccountEmail() call if already loaded and timer hasn't fired
+	if not force and ini_handler is not None and not _account_check_timer.IsExpired():
+		return
+
 	runtime_account_email = _get_current_account_email()
+	_account_check_timer.Reset()
 	target_account_email = runtime_account_email
 	ini_path = _build_account_ini_path(target_account_email)
 
@@ -779,6 +785,7 @@ ITEM_TYPE_OPTIONS = _build_item_type_options()
 def _load_allowed_types_for_storage(bag_enum):
 	"""Return the cached (or freshly loaded) list of allowed item-type names for a storage pane."""
 	bag_key = bag_enum.value
+	if bag_key in _allowed_types_by_storage:
 		return _allowed_types_by_storage[bag_key]
 
 	raw = ini_handler.read_key(INI_KEY, f"allowed_item_types_storage_{bag_enum.value}", "")
@@ -2482,10 +2489,10 @@ def _draw_window():
 	global _selected_settings_account
 	global _last_window_width
 
-	_ensure_account_settings_loaded()
-
 	if not GLOBAL_CACHE.Inventory.IsStorageOpen():
 		return
+
+	_ensure_account_settings_loaded()
 
 	_draw_toggle_icon_window()
 

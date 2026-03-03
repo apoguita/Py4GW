@@ -4,6 +4,7 @@ from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.enums_src.Texture_enums import get_texture_for_model
 
@@ -682,6 +683,15 @@ class InventoryPlusWidget:
             if PyImGui.menu_item("Open Xunlai Vault"):
                 GLOBAL_CACHE.Inventory.OpenXunlaiWindow()
                 PyImGui.close_current_popup()
+            _xunlai_widget = get_widget_handler().get_widget_info("Xunlaimanager")
+            if _xunlai_widget is not None:
+                _xunlai_label = "Disable Xunlai Manager" if _xunlai_widget.enabled else "Enable Xunlai Manager"
+                if PyImGui.menu_item(_xunlai_label):
+                    if _xunlai_widget.enabled:
+                        get_widget_handler().disable_widget("Xunlaimanager")
+                    else:
+                        get_widget_handler().enable_widget("Xunlaimanager")
+                    PyImGui.close_current_popup()
             PyImGui.separator()
         label = "Disable Colorize" if self.colorize_settings.enable_colorize else "Enable Colorize"
         if PyImGui.menu_item(label):
