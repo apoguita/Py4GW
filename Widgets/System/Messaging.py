@@ -6,7 +6,7 @@ import Py4GW
 import ctypes
 
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects, Party
+from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects, Inventory, Party
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import Console
@@ -617,6 +617,222 @@ def MerchantItems(index: int, message: SharedMessageStruct):
 
         yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
         yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+    finally:
+        RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
+# region MerchantMaterials
+def MerchantMaterials(index: int, message: SharedMessageStruct):
+    ConsoleLog(MODULE_NAME, f"Processing MerchantMaterials message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in message.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return tuple(values[:4])
+
+    def _parse_selected_models(raw: str) -> set[int] | None:
+        if not raw.strip():
+            return None
+        selected: set[int] = set()
+        for part in raw.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                selected.add(int(part))
+            except ValueError:
+                continue
+        return selected or None
+
+    def _wait_for_trader_inventory(timeout_ms: int = 2500, step_ms: int = 5):
+        wait_elapsed_ms = 0
+        trader_items = []
+        while wait_elapsed_ms < timeout_ms:
+            trader_items = list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
+            if trader_items:
+                break
+            wait_elapsed_ms += step_ms
+            yield from Routines.Yield.wait(step_ms)
+        return trader_items
+
+    def _wait_for_quote(request_fn, request_id: int, timeout_ms: int, step_ms: int):
+        quoted_value = -1
+        request_fn(request_id)
+        wait_elapsed_ms = 0
+        while wait_elapsed_ms < timeout_ms:
+            yield from Routines.Yield.wait(step_ms)
+            quoted_value = int(GLOBAL_CACHE.Trading.Trader.GetQuotedValue())
+            if quoted_value >= 0:
+                break
+            wait_elapsed_ms += step_ms
+        return quoted_value
+
+    def _wait_for_transaction(timeout_ms: int, step_ms: int):
+        wait_elapsed_ms = 0
+        while wait_elapsed_ms < timeout_ms:
+            yield from Routines.Yield.wait(step_ms)
+            if GLOBAL_CACHE.Trading.IsTransactionComplete():
+                return True
+            wait_elapsed_ms += step_ms
+        return False
+
+    def _scan_material_item_ids(selected_models: set[int] | None, exact_quantity: int | None = None) -> list[int]:
+        bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+        bag_item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
+        item_ids: list[int] = []
+        for item_id in bag_item_array:
+            if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
+                continue
+            if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
+                continue
+            model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
+            if selected_models is not None and model_id not in selected_models:
+                continue
+            if exact_quantity is not None and int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)) != exact_quantity:
+                continue
+            item_ids.append(int(item_id))
+        return item_ids
+
+    extra0, extra1, _, _ = _extra_data(message)
+    mode = extra0.strip().lower()
+    selected_models = _parse_selected_models(extra1)
+
+    try:
+        x = float(message.Params[0])
+        y = float(message.Params[1])
+        start_threshold = int(message.Params[2])
+        stop_threshold = int(message.Params[3])
+    except Exception:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+
+        if mode == "sell":
+            full_sale_timeout_ms = 250
+            yield from Routines.Yield.Movement.FollowPath([(x, y)])
+            yield from Routines.Yield.wait(100)
+            yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+            yield from Routines.Yield.wait(500)
+
+            trader_items = yield from _wait_for_trader_inventory()
+            if trader_items:
+                trader_models = {int(GLOBAL_CACHE.Item.GetModelID(item_id)) for item_id in trader_items}
+                material_item_ids = _scan_material_item_ids(selected_models)
+                for item_id in material_item_ids:
+                    model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
+                    if model_id not in trader_models:
+                        continue
+                    sales_remaining = int(GLOBAL_CACHE.Inventory.GetModelCount(model_id)) // 10
+                    while sales_remaining > 0:
+                        quoted_value = yield from _wait_for_quote(
+                            GLOBAL_CACHE.Trading.Trader.RequestSellQuote,
+                            item_id,
+                            timeout_ms=full_sale_timeout_ms,
+                            step_ms=5,
+                        )
+                        if quoted_value <= 0:
+                            break
+                        GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted_value)
+                        completed = yield from _wait_for_transaction(timeout_ms=full_sale_timeout_ms, step_ms=5)
+                        if completed:
+                            sales_remaining -= 1
+                            continue
+                        break
+
+            gold_on_character = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+            if gold_on_character > 80_000:
+                Inventory.OpenXunlaiWindow()
+                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.Items.DepositGold(10_000, log=False)
+
+        elif mode == "deposit":
+            if not Inventory.IsStorageOpen():
+                Inventory.OpenXunlaiWindow()
+                yield from Routines.Yield.wait(1000)
+
+            material_item_ids = _scan_material_item_ids(selected_models, exact_quantity=250)
+            for item_id in material_item_ids:
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                yield from Routines.Yield.wait(75)
+
+        elif mode == "buy_ectoplasm":
+            use_storage_gold = extra1.strip() == "1"
+            if stop_threshold < 0:
+                stop_threshold = 0
+            if start_threshold < stop_threshold:
+                start_threshold = stop_threshold
+
+            ecto_model_id = int(ModelID.Glob_Of_Ectoplasm.value)
+            character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+            storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
+
+            if use_storage_gold:
+                if storage_gold <= start_threshold:
+                    return
+            elif character_gold <= 0:
+                return
+
+            while True:
+                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+                storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
+
+                if use_storage_gold:
+                    if storage_gold <= stop_threshold:
+                        break
+                    withdraw_amount = min(100_000 - character_gold, storage_gold - stop_threshold)
+                    if withdraw_amount > 0:
+                        if not Inventory.IsStorageOpen():
+                            Inventory.OpenXunlaiWindow()
+                            yield from Routines.Yield.wait(500)
+                        GLOBAL_CACHE.Inventory.WithdrawGold(int(withdraw_amount))
+                        yield from Routines.Yield.wait(350)
+                elif character_gold <= 0:
+                    break
+
+                yield from Routines.Yield.Movement.FollowPath([(x, y)])
+                yield from Routines.Yield.wait(100)
+                yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+                yield from Routines.Yield.wait(500)
+
+                trader_items = yield from _wait_for_trader_inventory(timeout_ms=2000, step_ms=10)
+                if not trader_items:
+                    break
+
+                trader_item_id = 0
+                for candidate in trader_items:
+                    if int(GLOBAL_CACHE.Item.GetModelID(candidate)) == ecto_model_id:
+                        trader_item_id = int(candidate)
+                        break
+                if trader_item_id <= 0:
+                    break
+
+                while int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()) > 0:
+                    quoted_value = yield from _wait_for_quote(
+                        GLOBAL_CACHE.Trading.Trader.RequestQuote,
+                        trader_item_id,
+                        timeout_ms=750,
+                        step_ms=10,
+                    )
+                    character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+                    if quoted_value <= 0 or character_gold < quoted_value:
+                        break
+                    GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
+                    yield from _wait_for_transaction(timeout_ms=750, step_ms=10)
+
+                if not use_storage_gold:
+                    break
     finally:
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
@@ -1675,7 +1891,7 @@ def ProcessMessages():
         case SharedCommandType.MerchantItems:
             GLOBAL_CACHE.Coroutines.append(MerchantItems(index, message))
         case SharedCommandType.MerchantMaterials:
-            pass
+            GLOBAL_CACHE.Coroutines.append(MerchantMaterials(index, message))
         case SharedCommandType.DisableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:

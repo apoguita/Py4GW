@@ -30,6 +30,9 @@ class Config:
         self.use_consumables = ini_handler.read_bool(BOT_NAME, "use_consumables", True)
         self.restock_consumables = ini_handler.read_bool(BOT_NAME, "restock_consumables", True)
         self.auto_loot = ini_handler.read_bool(BOT_NAME, "auto_loot", True)
+        self.sell_non_cons_materials = ini_handler.read_bool(BOT_NAME, "sell_non_cons_materials", False)
+        self.sell_all_common_materials = ini_handler.read_bool(BOT_NAME, "sell_all_common_materials", False)
+        self.buy_ectoplasm = ini_handler.read_bool(BOT_NAME, "buy_ectoplasm", False)
         self.debug_logging = ini_handler.read_bool(BOT_NAME, "debug_logging", False)
         self.entrypoint = str(
             ini_handler.read_key(BOT_NAME, "entrypoint", DEFAULT_FOW_ENTRYPOINT_KEY) or DEFAULT_FOW_ENTRYPOINT_KEY
@@ -41,6 +44,9 @@ class Config:
             use_consumables=bool(self.use_consumables),
             restock_consumables=bool(self.restock_consumables),
             auto_loot=bool(self.auto_loot),
+            sell_non_cons_materials=bool(self.sell_non_cons_materials),
+            sell_all_common_materials=bool(self.sell_all_common_materials),
+            buy_ectoplasm=bool(self.buy_ectoplasm),
             debug_logging=bool(self.debug_logging),
             entrypoint=self.entrypoint,
         )
@@ -54,6 +60,9 @@ class Config:
         ini_handler.write_key(BOT_NAME, "use_consumables", str(bool(self.use_consumables)))
         ini_handler.write_key(BOT_NAME, "restock_consumables", str(bool(self.restock_consumables)))
         ini_handler.write_key(BOT_NAME, "auto_loot", str(bool(self.auto_loot)))
+        ini_handler.write_key(BOT_NAME, "sell_non_cons_materials", str(bool(self.sell_non_cons_materials)))
+        ini_handler.write_key(BOT_NAME, "sell_all_common_materials", str(bool(self.sell_all_common_materials)))
+        ini_handler.write_key(BOT_NAME, "buy_ectoplasm", str(bool(self.buy_ectoplasm)))
         ini_handler.write_key(BOT_NAME, "debug_logging", str(bool(self.debug_logging)))
         ini_handler.write_key(BOT_NAME, "entrypoint", str(self.entrypoint))
 
@@ -189,7 +198,7 @@ def _start_bot() -> None:
 
 
 def _draw_prestart_window() -> None:
-    PyImGui.set_next_window_size((440, 360), PyImGui.ImGuiCond.FirstUseEver)
+    PyImGui.set_next_window_size((500, 460), PyImGui.ImGuiCond.FirstUseEver)
     if not PyImGui.begin(BOT_NAME):
         PyImGui.end()
         return
@@ -208,6 +217,10 @@ def _draw_prestart_window() -> None:
     config.restock_consumables = PyImGui.checkbox("Restock Consumables", config.restock_consumables)
     PyImGui.end_disabled()
     config.auto_loot = PyImGui.checkbox("Auto Loot", config.auto_loot)
+    PyImGui.text("Material Handling")
+    config.sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
+    config.sell_all_common_materials = PyImGui.checkbox("Sell All Common Materials", config.sell_all_common_materials)
+    config.buy_ectoplasm = PyImGui.checkbox("Buy Ectoplasm", config.buy_ectoplasm)
     _draw_entrypoint_combo()
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
 
@@ -272,6 +285,18 @@ def _draw_main() -> None:
     if new_auto_loot != config.auto_loot:
         config.auto_loot = new_auto_loot
         _queue_rebuild()
+    new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
+    if new_sell_non_cons_materials != config.sell_non_cons_materials:
+        config.sell_non_cons_materials = new_sell_non_cons_materials
+        _queue_rebuild()
+    new_sell_all_common_materials = PyImGui.checkbox("Sell All Common Materials", config.sell_all_common_materials)
+    if new_sell_all_common_materials != config.sell_all_common_materials:
+        config.sell_all_common_materials = new_sell_all_common_materials
+        _queue_rebuild()
+    new_buy_ectoplasm = PyImGui.checkbox("Buy Ectoplasm", config.buy_ectoplasm)
+    if new_buy_ectoplasm != config.buy_ectoplasm:
+        config.buy_ectoplasm = new_buy_ectoplasm
+        _queue_rebuild()
     _draw_entrypoint_combo(disabled=is_running)
     PyImGui.end_disabled()
 
@@ -279,7 +304,22 @@ def _draw_main() -> None:
 
 
 def _draw_settings() -> None:
+    is_running = bool(bot is not None and bot.bot.config.fsm_running)
+    PyImGui.begin_disabled(is_running)
     _draw_entrypoint_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running))
+    new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
+    if new_sell_non_cons_materials != config.sell_non_cons_materials:
+        config.sell_non_cons_materials = new_sell_non_cons_materials
+        _queue_rebuild()
+    new_sell_all_common_materials = PyImGui.checkbox("Sell All Common Materials", config.sell_all_common_materials)
+    if new_sell_all_common_materials != config.sell_all_common_materials:
+        config.sell_all_common_materials = new_sell_all_common_materials
+        _queue_rebuild()
+    new_buy_ectoplasm = PyImGui.checkbox("Buy Ectoplasm", config.buy_ectoplasm)
+    if new_buy_ectoplasm != config.buy_ectoplasm:
+        config.buy_ectoplasm = new_buy_ectoplasm
+        _queue_rebuild()
+    PyImGui.end_disabled()
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
     config.save_throttled()
 
@@ -291,6 +331,8 @@ def _draw_help() -> None:
     PyImGui.bullet_text("Uses the same FoW route builder as the standalone modular bot")
     PyImGui.bullet_text("Loads quest steps from Sources/modular_bot/quests/FoW/*.json")
     PyImGui.bullet_text("Always uses Guild Hall for storage and restock")
+    PyImGui.bullet_text("Optional material selling in Guild Hall before entry")
+    PyImGui.bullet_text("Optional ectoplasm buying from current character gold only")
     PyImGui.bullet_text("Groups on the selected FoW entrypoint map before scrolling in")
     PyImGui.bullet_text("Supports FoW entry from Zin Ku Corridor, Chantry of Secrets, Temple of the Ages, or Embark Beach")
     PyImGui.bullet_text("Keeps widget options for hard mode, consumables, autoloot, and debug logging")
