@@ -216,7 +216,7 @@ class OutpostRunnerDA(Build):
 
             # === 1. SHADOW FORM + PARADOX MAINTENANCE ===
 
-            if shadow_time <= 3000:
+            if shadow_time <= 1750:
                 if CheckSpellcasterDanger(custom_distance=2000):
                     # Force combo in one go
                     aftercast = 200
