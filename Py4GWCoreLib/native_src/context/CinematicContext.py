@@ -22,7 +22,7 @@ class Cinematic:
     def _update_ptr():
         from ..ShMem.SysShaMem import SystemShaMemMgr
         if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
-        ptr = SSM.Cinematic
+        ptr = SSM.CinematicContext
         #ptr = PyPointers.PyPointers.GetCinematicPtr()
         Cinematic._ptr = ptr
         if not ptr:
