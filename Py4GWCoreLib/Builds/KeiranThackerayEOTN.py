@@ -1,8 +1,10 @@
+import ctypes
 import math
 import time
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Player, Routines, BuildMgr, Range, Py4GW, ConsoleLog,
                           Map, ActionQueueManager, AgentArray, AutoPathing)
+from Py4GWCoreLib.CombatEvents import CombatEvents   # import the class directly to avoid module shadowing
 from .AutoCombat import AutoCombat
 
 # ── Combat AI constants ───────────────────────────────────────────────────────
@@ -11,7 +13,7 @@ _MIKU_MODEL_ID          = 8456
 _SHADOWSONG_ID          = 4264
 _SOS_SPIRIT_IDS         = frozenset({4280, 4281, 4282})  # Anger, Hate, Suffering
 _AOE_SKILLS             = {1380: 2000, 1372: 2000, 1083: 2000, 830: 2000, 192: 5000}
-_SPIRIT_FLEE_DIST       = 2000.0
+_SPIRIT_FLEE_DIST       = 1900
 _AOE_SIDESTEP_DIST      = 600.0
 
 # White Mantle Ritualist priority targets (kill priority order, highest first).
@@ -58,29 +60,20 @@ def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, di
     dx = me_x - threat_x
     dy = me_y - threat_y
     escape_radians = math.atan2(dy, dx)
+
+    if rotation != 0:
+        escape_radians = escape_radians + math.radians(rotation)
+
     escape_x   = me_x + dist * math.cos(escape_radians)
     escape_y   = me_y + dist * math.sin(escape_radians)
-
-    # Sanity check: if the computed point is actually closer to the threat, flip 180°
-    if _dist(escape_x, escape_y, threat_x, threat_y) < _dist(me_x, me_y, threat_x, threat_y):
-        escape_radians += math.pi
-        escape_x = me_x + dist * math.cos(escape_radians)
-        escape_y = me_y + dist * math.sin(escape_radians)
-
+    escape_x_far   = me_x + 1000 * math.cos(escape_radians)
+    escape_y_far   = me_y + 1000 * math.sin(escape_radians)
     escape_pos = (escape_x, escape_y)
-
-    # Try to find a walkable long-range point in the escape direction.
-    # Rotate ±15° per step (up to ±180°) until a valid trapezoid is found.
-    escape_x_far = me_x + 1500.0 * math.cos(escape_radians)
-    escape_y_far = me_y + 1500.0 * math.sin(escape_radians)
 
     if navmesh:
         #Py4GW.Console.Log("KeiranThackerayEOTN", f"Navmesh fucking loaded", Py4GW.Console.MessageType.Warning)
-        base_deg = math.degrees(escape_radians)
+        base_deg = math.degrees(escape_radians) % 360 - 180 
         found = False
-
-        if rotation != 0:
-            base_deg = (base_deg - rotation) % 360 - 180
 
         #ConsoleLog("Navmesh", f"Initinal Degree of Escape - {base_deg}", Py4GW.Console.MessageType.Warning)
         # Check the direct escape direction first before rotating
@@ -88,15 +81,15 @@ def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, di
             if navmesh.has_line_of_sight((me_x, me_y), (escape_x_far, escape_y_far)):
                 #ConsoleLog("Navmesh", f"Initial Escape Route is Good!", Py4GW.Console.MessageType.Warning)
                 found = True
-        else:
-            for step in range(1, 13):       # 12 steps × 15° = 180° sweep each direction
+        if found != True:
+            for step in range(1, 19):       # 12 steps × 15° = 180° sweep each direction
                 for sign in (1, -1):
-                    #ConsoleLog("Navmesh", f"Attempting Step: {step}", Py4GW.Console.MessageType.Warning)
-                    candidate_deg  = (base_deg + sign * step * 15) % 360 - 180        
+                    #ConsoleLog("Navmesh", f"Attempting Step: {sign * step}", Py4GW.Console.MessageType.Warning)
+                    candidate_deg  = (base_deg + sign * step * 10) % 360 - 180        
                     candidate_rads = math.radians(candidate_deg)
                     #ConsoleLog("Navmesh", f"Testing Degree - {candidate_deg}", Py4GW.Console.MessageType.Warning)
-                    escape_x_far   = me_x + 1500.0 * math.cos(candidate_rads)
-                    escape_y_far   = me_y + 1500.0 * math.sin(candidate_rads)
+                    escape_x_far   = me_x + 1000.0 * math.cos(candidate_rads)
+                    escape_y_far   = me_y + 1000.0 * math.sin(candidate_rads)
                     goal_trap      = navmesh.find_trapezoid_id_by_coord((escape_x_far, escape_y_far))
                     if goal_trap:
                         if navmesh.has_line_of_sight((me_x, me_y), (escape_x_far, escape_y_far)):
@@ -113,11 +106,46 @@ def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, di
 
     return escape_pos
 
+def _nearest_from(array, origin_x: float, origin_y: float, max_dist: float = 0) -> int:
+    """Return the ID of the closest agent in *array* to (origin_x, origin_y).
+
+    Optionally restricted to agents within max_dist. Returns 0 if the array is
+    empty or no agent falls within the requested range.
+    """
+    best_id   = 0
+    best_dist = float("inf")
+    for eid in array:
+        ex, ey = Agent.GetXY(eid)
+        d = _dist(origin_x, origin_y, ex, ey)
+        if max_dist is not 0 and d > max_dist:
+            continue
+        if d < best_dist:
+            best_dist = d
+            best_id   = eid
+    return best_id
+
+def _farthest_from(array, origin_x: float, origin_y: float, max_dist: float = 0) -> int:
+    """Return the ID of the closest agent in *array* to (origin_x, origin_y).
+
+    Optionally restricted to agents within max_dist. Returns 0 if the array is
+    empty or no agent falls within the requested range.
+    """
+    best_id   = 0
+    best_dist = float("inf")
+    for eid in array:
+        ex, ey = Agent.GetXY(eid)
+        d = _dist(origin_x, origin_y, ex, ey)
+        if max_dist is not 0 and d > max_dist:
+            continue
+        if d > best_dist:
+            best_dist = d
+            best_id   = eid
+    return best_id
 
 # ── Build class ───────────────────────────────────────────────────────────────
 
 class KeiranThackerayEOTN(BuildMgr):
-    def __init__(self, fsm=None):
+    def __init__(self, fsm=None, bot=None):
         super().__init__(name="AutoCombat Build")
         self.auto_combat_handler: BuildMgr = AutoCombat()
 
@@ -134,19 +162,24 @@ class KeiranThackerayEOTN(BuildMgr):
         self.locked_priority   = len(_PRIORITY_TARGET_MODELS)
 
         # Movement / combat-AI state (persists between calls)
-        self.last_movement_run = 0.0
-        self.miku_idle         = False
-        self.me_combat         = False
-        self.me_moving         = False
-        self.miku_lazy         = 0
-        self.miku_lazy_at      = 0.0
-        self.aoe_caster_id     = 0
-        self.aoe_sidestep_at   = 0.0
-        self.last_cast_at      = 0.0   # tracks when the last attack skill was cast
-        self.combat_approach_at = 0.0  # next timestamp to step toward nearest enemy
+        self.last_movement_run  = 0.0
+        self.miku_idle          = False
+        self.me_combat          = False
+        self.me_moving          = False
+        self.miku_lazy          = 0
+        self.miku_lazy_at       = 0.0
+        self.miku_reset_at      = 0.0
+        self.aoe_caster_id      = 0
+        self.aoe_sidestep_at    = 0.0
+        self.last_cast_at         = 0.0   # tracks when the last attack skill was cast
+        self.combat_approach_at   = 0.0   # next timestamp to step toward nearest enemy
+        self.target_acquired_at   = 0.0   # when the current locked_target_id was acquired
+        self.los_fail_since       = 0.0   # when LoS failure against current target was first detected
+        self.lock_suspended_until = 0.0   # suppress priority re-lock until this timestamp
 
         # FSM pause/resume support
         self.fsm           = fsm
+        self.bot           = bot
         self.pause_reasons: set = set()
         self.ai_paused_fsm = False
 
@@ -156,6 +189,10 @@ class KeiranThackerayEOTN(BuildMgr):
     def set_fsm(self, fsm) -> None:
         """Inject the bot's FSM so ProcessSkillCasting can pause/resume it."""
         self.fsm = fsm
+
+    def set_bot(self, bot) -> None:
+        """Inject the bot instance so the build can access bot.Properties etc."""
+        self.bot = bot
 
     def _set_pause(self, reason: str) -> None:
         self.pause_reasons.add(reason)
@@ -177,12 +214,17 @@ class KeiranThackerayEOTN(BuildMgr):
                      AoE sidestep, kiting).
         Bottom section: skill priority ladder.
         """
+        CombatEvents.update()   # pump C++ event queue into _events before any reads
         me_id = Player.GetAgentID()
         if not Agent.IsValid(me_id) or Agent.IsDead(me_id):
             yield
             return
         me_x, me_y  = Agent.GetXY(me_id)
-        enemy_array = AgentArray.GetEnemyArray()
+        _raw        = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByCondition(
+            _raw,
+            lambda eid: Agent.IsValid(eid) and not Agent.IsDead(eid) and Agent.GetHealth(eid) > 0.0
+        )
         now         = time.time()
 
         # ══════════════════════════════════════════════════════════════════════
@@ -192,22 +234,21 @@ class KeiranThackerayEOTN(BuildMgr):
         # ── Miku tracking ─────────────────────────────────────────────────────
         miku_id   = Routines.Agents.GetAgentIDByModelID(_MIKU_MODEL_ID)
         miku_dead = miku_id != 0 and Agent.IsDead(miku_id)
+        miku_reset = miku_id == 0
+
         if miku_id != 0 and not miku_dead:
-            self.miku_idle = Agent.IsIdle(miku_id)
-            
-        if not miku_dead:
+            self.miku_idle = False
             mk_x, mk_y = Agent.GetXY(miku_id)
-            enemies_near_miku = Routines.Agents.GetFilteredEnemyArray(mk_x, mk_y, 1000)
-            #miku_far = _dist(me_x, me_y, mk_x, mk_y) > _MIKU_FAR_DIST
+            enemies_near_miku = AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(mk_x, mk_y, *Agent.GetXY(eid)) <= 1000)
             if (Agent.IsIdle(miku_id) and not Agent.IsInCombatStance(miku_id) and len(enemies_near_miku) == 0):
                 self.miku_idle = True
             else:
                 self.miku_idle = False
 
         # If Miku is dead and player is still in combat, kite to safety
-        if miku_dead and self.me_combat and len(Routines.Agents.GetFilteredEnemyArray(me_x, me_y, 2000)) > 2:
+        if miku_dead and self.me_combat and len(AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(me_x, me_y, *Agent.GetXY(eid)) <= 2000)) > 2:
             self._clear_pause("miku_dead")
-            nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Earshot.value)
+            nearest_enemy = _nearest_from(enemy_array, me_x, me_y, Range.Earshot.value)
             ne_x, ne_y    = Agent.GetXY(nearest_enemy)
             me_x, me_y  = Agent.GetXY(me_id)
             ex_x, ex_y    = _escape_point(me_x, me_y, ne_x, ne_y, 1500)
@@ -220,12 +261,22 @@ class KeiranThackerayEOTN(BuildMgr):
         else:
             self._clear_pause("miku_dead")
 
+        # If Miku fell through the world, back track to start.
+        if miku_reset:
+            if self.miku_reset_at == 0.0:
+                self.miku_reset_at = now                        # start the 5-second window
+            elif now - self.miku_reset_at >= 5.0:
+                self._set_pause("miku_reset")
+                Player.Move(8270, -9010)
+                yield from Routines.Yield.wait(5000)
+                self._clear_pause("miku_reset")
+                self.miku_reset_at = 0.0                        # reset after handling
+        else:
+            self.miku_reset_at = 0.0                            # Miku back — clear timer
         # ── Spirit avoidance ──────────────────────────────────────────────────
         spirit_id = 0
         sp_x = sp_y = 0.0
         for eid in enemy_array:
-            if Agent.IsDead(eid):
-                continue
             model = Agent.GetModelID(eid)
             if model == _SHADOWSONG_ID or model in _SOS_SPIRIT_IDS:
                 ex, ey = Agent.GetXY(eid)
@@ -241,108 +292,137 @@ class KeiranThackerayEOTN(BuildMgr):
 
         # ── Movement (throttled to once per second) ───────────────────────────
         player_health     = Agent.GetHealth(me_id)
-        enemy_array_close = Routines.Agents.GetFilteredEnemyArray(me_x, me_y, 500, True)
-        enemies_in_range  = Routines.Agents.GetFilteredEnemyArray(me_x, me_y, 2000, True)
+        enemies_close = AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(me_x, me_y, *Agent.GetXY(eid)) <= 300)
+        enemies_agro = AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(me_x, me_y, *Agent.GetXY(eid)) <= 1500)
+        enemies_far  = AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(me_x, me_y, *Agent.GetXY(eid)) <= 2000)
         self.me_moving = Agent.IsMoving(me_id)
-        if Agent.IsInCombatStance(me_id) and len(enemies_in_range) > 0:
+
+        if Agent.IsInCombatStance(me_id) and len(enemies_far) > 0:
             self.me_combat = True
         else:
             self.me_combat = False
 
-        # Start/reset the 20-second combat-approach timer
-        if self.me_combat and self.combat_approach_at == 0.0:
-            self.combat_approach_at = now + 20.0
-        elif not self.me_combat:
-            self.combat_approach_at = 0.0
+        if Routines.Checks.Player.CanAct():
+            # Start/reset the LOS-check grace period (3 s after entering combat)
+            if self.me_combat and self.combat_approach_at == 0.0:
+                self.combat_approach_at = now + 10.0
+            elif not self.me_combat:
+                self.combat_approach_at = 0.0
 
-        # Flee spirits while other enemies are alive, or player is low
-        if (spirit_id != 0 and (len(enemies_in_range) > 1 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
-            Py4GW.Console.Log("Avoidance", f"Spirit Trigger - {len(enemies_in_range)} Enemies", Py4GW.Console.MessageType.Warning)
-            ex_x, ex_y = _escape_point(me_x, me_y, sp_x, sp_y, 600)
-            ActionQueueManager().ResetAllQueues()
-            self.last_movement_run = now
-            Player.Move(ex_x, ex_y)
-            yield from Routines.Yield.wait(500)
-            return
-
-        # Kite if overwhelmed or low health (no spirit present)
-        if (spirit_id == 0 and (len(enemies_in_range) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
-            Py4GW.Console.Log("Avoidance", f"Overwhelmed Trigger", Py4GW.Console.MessageType.Warning)
-            nearest_enemy = Routines.Agents.GetNearestEnemy(1500)
-            ne_x, ne_y   = Agent.GetXY(nearest_enemy)
-            ex_x, ex_y   = _escape_point(me_x, me_y, ne_x, ne_y, 600)
-            ActionQueueManager().ResetAllQueues()
-            self.last_movement_run = now
-            Player.Move(ex_x, ex_y)
-            yield from Routines.Yield.wait(500)
-            return
-
-        # Nudge player away from enemies to force Miku into combat
-        if self.me_combat and self.miku_idle:
-            if self.miku_lazy_at == 0.0:
-                self.miku_lazy_at = now                         # start the 3-second delay
-            elif now - self.miku_lazy_at >= 3.0 and now - self.last_movement_run >= 1.0:
-                Py4GW.Console.Log("Avoidance", f"Miku Lazy Trigger", Py4GW.Console.MessageType.Warning)
-                nearest_enemy      = Routines.Agents.GetNearestEnemy(1500)
-                ne_x, ne_y         = Agent.GetXY(nearest_enemy)
-                ex_x, ex_y         = _escape_point(me_x, me_y, ne_x, ne_y, 300)
+            # Flee spirits while other enemies are alive, or player is low
+            if (spirit_id != 0 and (len(enemies_far) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
+                #Py4GW.Console.Log("Avoidance", f"Spirit Trigger - {len(enemies_far)} Enemies", Py4GW.Console.MessageType.Warning)
+                ex_x, ex_y = _escape_point(me_x, me_y, sp_x, sp_y, 500)
                 ActionQueueManager().ResetAllQueues()
                 self.last_movement_run = now
-                self.miku_lazy_at      = now                    # reset for next 3-second window
-                Player.Move(ex_x, ex_y)
-                yield from Routines.Yield.wait(500)
-        else:
-            self.miku_lazy_at = 0.0                             # condition cleared, reset timer
-
-        # Kite if two or more enemies are within melee range
-        if len(enemy_array_close) > 1 and now - self.last_movement_run >= 1.0:
-            Py4GW.Console.Log("Avoidance", f"Melee Swarm Trigger", Py4GW.Console.MessageType.Warning)
-            avg_x = sum(Agent.GetXY(eid)[0] for eid in enemy_array_close) / len(enemy_array_close)
-            avg_y = sum(Agent.GetXY(eid)[1] for eid in enemy_array_close) / len(enemy_array_close)
-            ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 600)
-            ActionQueueManager().ResetAllQueues()
-            self.last_movement_run = now
-            Player.Move(ex_x, ex_y)
-            yield from Routines.Yield.wait(500)
-            return
-
-        # Step toward nearest enemy every 20 s in combat to ensure LOS / range
-        if (self.me_combat and self.combat_approach_at != 0.0 and
-                now >= self.combat_approach_at and now - self.last_movement_run >= 1.0):
-            Py4GW.Console.Log("Avoidance", f"Combat Approach Trigger", Py4GW.Console.MessageType.Warning)
-            nearest_enemy = Routines.Agents.GetNearestEnemy(2000)
-            if nearest_enemy != 0:
-                ne_x, ne_y = Agent.GetXY(nearest_enemy)
-                ex_x, ex_y   = _escape_point(me_x, me_y, ne_x, ne_y, 750, rotation=180)
-                ActionQueueManager().ResetAllQueues()
-                self.last_movement_run  = now
-                self.combat_approach_at = now + 15.0
                 Player.Move(ex_x, ex_y)
                 yield from Routines.Yield.wait(500)
                 return
-            else:
-                self.combat_approach_at = 15 + 20.0
 
-        # ── AoE sidestep ──────────────────────────────────────────────────────
-        if self.aoe_caster_id != 0 and now >= self.aoe_sidestep_at:
-            if Agent.IsValid(self.aoe_caster_id) and not Agent.IsDead(self.aoe_caster_id):
-                tx, ty = Agent.GetXY(self.aoe_caster_id)
-                sx, sy = _escape_point(me_x, me_y, tx, ty, _AOE_SIDESTEP_DIST, rotation=90)
+            # Kite if overwhelmed or low health (no spirit present)
+            if (spirit_id == 0 and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
+                #Py4GW.Console.Log("Avoidance", f"Overwhelmed Trigger", Py4GW.Console.MessageType.Warning)
+                avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)
+                avg_y = sum(Agent.GetXY(eid)[1] for eid in enemies_agro) / len(enemies_agro)
+                ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 300)
                 ActionQueueManager().ResetAllQueues()
-                Player.Move(sx, sy)
-                yield from Routines.Yield.wait(500)
                 self.last_movement_run = now
-            self.aoe_caster_id = 0
-            return  # skip skill casting this frame after a sidestep
-        elif self.aoe_caster_id == 0:
-            for eid in enemy_array:
-                if Agent.IsDead(eid):
-                    continue
-                skill = Agent.GetCastingSkillID(eid)
-                if skill in _AOE_SKILLS:
-                    self.aoe_sidestep_at = now + _AOE_SKILLS[skill] / 1000.0
-                    self.aoe_caster_id   = eid
-                    break
+                Player.Move(ex_x, ex_y)
+                yield from Routines.Yield.wait(500)
+                return
+
+            # Nudge player away from enemies to force Miku into combat
+            if self.me_combat and self.miku_idle:
+                if self.miku_lazy_at == 0.0:
+                    self.miku_lazy_at = now                         # start the 3-second delay
+                elif now - self.miku_lazy_at >= 3.0 and now - self.last_movement_run >= 1.0:
+                    #Py4GW.Console.Log("Avoidance", f"Miku Lazy Trigger", Py4GW.Console.MessageType.Warning)
+                    nearest_enemy      = _nearest_from(enemy_array, me_x, me_y, 1500)
+                    ne_x, ne_y         = Agent.GetXY(nearest_enemy)
+                    if len(enemies_far) > 1 :
+                        ex_x, ex_y         = _escape_point(me_x, me_y, ne_x, ne_y, 300)
+                    else:
+                        ex_x, ex_y         = _escape_point(me_x, me_y, ne_x, ne_y, 300, rotation=180)
+                    ActionQueueManager().ResetAllQueues()
+                    self.last_movement_run = now
+                    self.miku_lazy_at      = 0.0                    # reset for next 3-second window
+                    Player.Move(ex_x, ex_y)
+                    self._set_pause("miku_lazy")
+                    yield from Routines.Yield.wait(500)
+                    self._clear_pause("miku_lazy")
+            else:
+                self.miku_lazy_at = 0.0                             # condition cleared, reset timer
+
+            # Kite if two or more enemies are within melee range
+            if len(enemies_close) > 1 and now - self.last_movement_run >= 1.0:
+                #Py4GW.Console.Log("Avoidance", f"Melee Swarm Trigger", Py4GW.Console.MessageType.Warning)
+                avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)
+                avg_y = sum(Agent.GetXY(eid)[1] for eid in enemies_agro) / len(enemies_agro)
+                ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 300)
+                ActionQueueManager().ResetAllQueues()
+                self.last_movement_run = now
+                Player.Move(ex_x, ex_y)
+                yield from Routines.Yield.wait(500)
+                return
+
+            # LOS recovery — step toward target if no damage has been dealt to it recently.
+            # Guard: target must have been held for >= 5 s to avoid false positives on fresh targets.
+            if (self.me_combat and self.combat_approach_at != 0.0 and
+                    now >= self.combat_approach_at and now - self.last_movement_run >= 1.0 and
+                    now - self.target_acquired_at >= 5.0):
+                target_id = Player.GetTargetID()
+                if target_id != 0 and Agent.IsValid(target_id) and not Agent.IsDead(target_id):
+                    recent  = CombatEvents.get_recent_damage(count=20)
+                    has_los = any(
+                        src == me_id and tgt == target_id
+                        for ts, tgt, src, _dmg, _skill, _crit in recent
+                    )
+                    if has_los:
+                        self.los_fail_since = 0.0   # damage landed — LoS is fine
+                    else:
+                        if self.los_fail_since == 0.0:
+                            self.los_fail_since = now   # start the failure clock
+
+                        # If LoS has been blocked for >= 8 s AND there are other reachable
+                        # enemies in aggro range, drop the priority lock so AutoCombat can
+                        # attack the melee units and thin the group.
+                        other_enemies = [e for e in enemies_agro if e != target_id]
+                        if now - self.los_fail_since >= 8.0 and len(other_enemies) > 0:
+                            #Py4GW.Console.Log("Avoidance", "LOS Suspension — dropping lock to attack reachable enemies", Py4GW.Console.MessageType.Warning)
+                            self.locked_target_id      = 0
+                            self.locked_priority       = len(_PRIORITY_TARGET_MODELS)
+                            self.target_acquired_at    = 0.0
+                            self.los_fail_since        = 0.0
+                            self.lock_suspended_until  = now + 5.0   # hold off re-locking for 5 s
+                            self.combat_approach_at    = 0.0
+                        else:
+                            #Py4GW.Console.Log("Avoidance", "LOS Recovery Trigger", Py4GW.Console.MessageType.Warning)
+                            ne_x, ne_y = Agent.GetXY(target_id)
+                            ep_x, ep_y = _escape_point(me_x, me_y, ne_x, ne_y, 300, rotation=180)
+                            ActionQueueManager().ResetAllQueues()
+                            self.last_movement_run  = now
+                            self.combat_approach_at = 0.0
+                            Player.Move(ep_x, ep_y)
+                            yield from Routines.Yield.wait(500)
+                            return
+            # ── AoE sidestep ──────────────────────────────────────────────────────
+            if self.aoe_caster_id != 0 and now >= self.aoe_sidestep_at:
+                if Agent.IsValid(self.aoe_caster_id) and not Agent.IsDead(self.aoe_caster_id):
+                    tx, ty = Agent.GetXY(self.aoe_caster_id)
+                    sx, sy = _escape_point(me_x, me_y, tx, ty, _AOE_SIDESTEP_DIST, rotation=90)
+                    ActionQueueManager().ResetAllQueues()
+                    Player.Move(sx, sy)
+                    yield from Routines.Yield.wait(500)
+                    self.last_movement_run = now
+                self.aoe_caster_id = 0
+                return  # skip skill casting this frame after a sidestep
+            elif self.aoe_caster_id == 0:
+                for eid in enemy_array:
+                    skill = Agent.GetCastingSkillID(eid)
+                    if skill in _AOE_SKILLS:
+                        self.aoe_sidestep_at = now + _AOE_SKILLS[skill] / 1000.0
+                        self.aoe_caster_id   = eid
+                        break
 
         # ══════════════════════════════════════════════════════════════════════
         # SKILL CASTING
@@ -355,7 +435,8 @@ class KeiranThackerayEOTN(BuildMgr):
             Routines.Checks.Agents.HasEffect(me_id, GLOBAL_CACHE.Skill.GetID("Spirit_Shackles"))
         )
         if has_empathy:
-            Player.ChangeTarget(0)
+            ActionQueueManager().ResetAllQueues()   # flush any queued interact/attack commands
+            Player.ChangeTarget(0)                  # clear target to cancel auto-attack
 
         # ── Priority target selection (interval-gated) ────────────────────────
         if now - self.last_target_check >= _TARGET_SWITCH_INTERVAL:
@@ -367,28 +448,32 @@ class KeiranThackerayEOTN(BuildMgr):
                 if (not Agent.IsValid(self.locked_target_id) or
                         Agent.IsDead(self.locked_target_id) or
                         _dist(me_x, me_y, lx, ly) > _PRIORITY_TARGET_RANGE):
-                    self.locked_target_id = 0
-                    self.locked_priority  = len(_PRIORITY_TARGET_MODELS)
+                    self.locked_target_id   = 0
+                    self.locked_priority    = len(_PRIORITY_TARGET_MODELS)
+                    self.target_acquired_at = 0.0
+                    self.los_fail_since     = 0.0
 
             # Scan for a strictly higher-priority (lower index) target
-            best_id       = 0
-            best_priority = len(_PRIORITY_TARGET_MODELS)
-            for eid in enemy_array:
-                if Agent.IsDead(eid):
-                    continue
-                ex, ey = Agent.GetXY(eid)
-                if _dist(me_x, me_y, ex, ey) > _PRIORITY_TARGET_RANGE:
-                    continue
-                model = Agent.GetModelID(eid)
-                if model in _PRIORITY_TARGET_MODELS:
-                    prio = _PRIORITY_TARGET_MODELS.index(model)
-                    if prio < best_priority:
-                        best_priority = prio
-                        best_id       = eid
+            # (suppressed for a few seconds after a LoS-suspension so Keiran can attack melee)
+            if now >= self.lock_suspended_until:
+                best_id       = 0
+                best_priority = len(_PRIORITY_TARGET_MODELS)
+                for eid in enemy_array:
+                    ex, ey = Agent.GetXY(eid)
+                    if _dist(me_x, me_y, ex, ey) > _PRIORITY_TARGET_RANGE:
+                        continue
+                    model = Agent.GetModelID(eid)
+                    if model in _PRIORITY_TARGET_MODELS:
+                        prio = _PRIORITY_TARGET_MODELS.index(model)
+                        if prio < best_priority:
+                            best_priority = prio
+                            best_id       = eid
 
-            if best_id != 0 and best_priority < self.locked_priority:
-                self.locked_target_id = best_id
-                self.locked_priority  = best_priority
+                if best_id != 0 and best_priority < self.locked_priority:
+                    self.locked_target_id   = best_id
+                    self.locked_priority    = best_priority
+                    self.target_acquired_at = now   # fresh target — restart LoS tracking
+                    self.los_fail_since     = 0.0
 
             if self.locked_target_id != 0:
                 Player.ChangeTarget(self.locked_target_id)
@@ -402,7 +487,7 @@ class KeiranThackerayEOTN(BuildMgr):
             if (nearest_npc != 0 and not Agent.IsDead(nearest_npc) and
                     Agent.GetModelID(nearest_npc) == _MIKU_MODEL_ID):
                 miku_low_on_life = Agent.GetHealth(nearest_npc) < life_threshold
-            if player_life < life_threshold or miku_low_on_life:
+            if player_life < life_threshold or miku_low_on_life or has_empathy:
                 ActionQueueManager().ResetAllQueues()
                 yield from Routines.Yield.Skills.CastSkillID(self.natures_blessing, aftercast_delay=100)
                 return
@@ -428,11 +513,10 @@ class KeiranThackerayEOTN(BuildMgr):
 
         # ── Skill ladder (only when the AI is in weapon range) ──────────────────────
         in_danger = Routines.Checks.Agents.InDanger(aggro_area=_WEAPON_RANGE)
-        if in_danger:
-            self._set_pause("danger")
-        elif Routines.Yield.Skills.IsSkillIDUsable(self.natures_blessing) or player_health > .90:
-            self._clear_pause("danger")
-
+        #if in_danger:
+            #self._set_pause("danger")
+        #elif Routines.Yield.Skills.IsSkillIDUsable(self.natures_blessing) or player_health > .90:
+            #self._clear_pause("danger")
         if in_danger:
 
             # Keiran's Sniper Shot — finish a hexed enemy
@@ -495,4 +579,7 @@ class KeiranThackerayEOTN(BuildMgr):
                         yield from _cast(target, self.rain_of_arrows)
                         return
 
-        yield from self.auto_combat_handler.ProcessSkillCasting()
+        if not has_empathy:
+            yield from self.auto_combat_handler.ProcessSkillCasting()
+        else:
+            yield  # don't let AutoCombat re-target and re-attack while Empathy/Spirit Shackles is active

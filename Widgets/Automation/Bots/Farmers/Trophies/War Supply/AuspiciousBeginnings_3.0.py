@@ -17,7 +17,7 @@ class BotSettings:
     AUSPICIOUS_BEGINNINGS_MAP_ID = 849
 
     # Custom Bow ID - If this is left 0 you will automatically craft a suitable bow.
-    CUSTOM_BOW_ID = 0 # Change this is you already have a custom bow made for AB. Oppressor Flatbow 35405
+    CUSTOM_BOW_ID = 35405 # Change this is you already have a custom bow made for AB. Oppressor Flatbow 35405
     
     # Gold threshold for deposit
     GOLD_THRESHOLD_DEPOSIT: int = 90000
@@ -53,6 +53,7 @@ class BotSettings:
 _keiran_build = KeiranThackerayEOTN()
 bot = Botting("Auspicious Beginnings", custom_build=_keiran_build)
 _keiran_build.set_fsm(bot.config.FSM)
+bot.config.reset_pause_on_danger_fn(aggro_area=Range.Longbow)
 navmesh = None
      
 def create_bot_routine(bot: Botting) -> None:
@@ -397,7 +398,7 @@ def RunQuest(bot: Botting) -> None:
     bot.Move.XY(4245,-7412)
     bot.Move.XY(2025,-10726)
     bot.Move.XY(-1822,-11230)
-    bot.Move.XY(-3006,-8921)
+    bot.Move.XY(-2292, -9034)
     bot.Move.XY(-4190,-10460)
     bot.Move.XY(-5640,-10371)
     bot.Move.XY(-8748,-8329)
