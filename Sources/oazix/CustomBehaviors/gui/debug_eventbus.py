@@ -7,12 +7,12 @@ from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
-
-shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
 @staticmethod
 def render():
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+
+    shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     # Create tabs for different views
     if PyImGui.begin_tab_bar("EventBusDebugTabs"):

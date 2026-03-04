@@ -3,14 +3,14 @@ from collections import deque
 from datetime import datetime
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 
-shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
 @staticmethod
 def render():
-    
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+    shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
+
     PyImGui.text(f"History (newest on top) : ")
     if PyImGui.begin_child("x", size=(400, 600),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
 

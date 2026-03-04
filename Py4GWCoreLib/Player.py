@@ -471,7 +471,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_kurzick = max(world_ctx.current_kurzick, world_ctx.current_kurzick_dupe)
         total_earned_kurzick = max(world_ctx.total_earned_kurzick, world_ctx.total_earned_kurzick_dupe)
         max_kurzick = world_ctx.max_kurzick
@@ -485,7 +485,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_luxon = max(world_ctx.current_luxon, world_ctx.current_luxon_dupe)
         total_earned_luxon = max(world_ctx.total_earned_luxon, world_ctx.total_earned_luxon_dupe)
         max_luxon = world_ctx.max_luxon
@@ -499,7 +499,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_imperial = max(world_ctx.current_imperial, world_ctx.current_imperial_dupe)
         total_earned_imperial = max(world_ctx.total_earned_imperial, world_ctx.total_earned_imperial_dupe)
         max_imperial = world_ctx.max_imperial
@@ -513,7 +513,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_balthazar = max(world_ctx.current_balth, world_ctx.current_balth_dupe)
         total_earned_balthazar = max(world_ctx.total_earned_balth, world_ctx.total_earned_balth_dupe)
         max_balthazar = world_ctx.max_balth
