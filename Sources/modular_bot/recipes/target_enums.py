@@ -31,6 +31,8 @@ ItemTargetValue = ItemTargetDefinition | tuple[int, str]
 
 NPC_TARGETS: dict[str, AgentTargetValue] = {
     "MERCHANT": ((223, 12, 0, 0), "Merchant"),
+    "CRAFTING_MATERIAL_TRADER": (((218, 12, 0, 0),), "Crafting Material Trader"),
+    "RARE_MATERIAL_TRADER": (((219, 12, 0, 0),), "Rare Material Trader"),
     "RASTIGAN_THE_ETERNAL": (((147, 60, 51, 178, 63, 250, 201, 17, 0, 0),), "Rastigan the Eternal"),
     "ETERNAL_FORGEMASTER": (((149, 60, 95, 250, 204, 193, 241, 13, 0, 0),), "Eternal Forgemaster"),
     "ETERNAL_LORD_TAERES": (((145, 60, 28, 148, 190, 146, 92, 75, 0, 0),), "Eternal Lord Taeres"),

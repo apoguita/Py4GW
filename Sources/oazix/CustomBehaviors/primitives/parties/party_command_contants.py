@@ -14,12 +14,14 @@ class PartyCommandConstants:
         account_email = Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
         if self_account is not None:
+            district_number = max(0, int(self_account.AgentData.Map.District) - 1)
+            language = int(self_account.AgentData.Map.Language)
             accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             for account in accounts:
                 if account.AccountEmail == account_email:
                     continue
                 if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail}")
-                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.AgentData.Map.MapID, self_account.AgentData.Map.Region, self_account.AgentData.Map.District, 0))
+                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.TravelToMap, (self_account.AgentData.Map.MapID, self_account.AgentData.Map.Region, district_number, language))
         yield
 
     @staticmethod    
