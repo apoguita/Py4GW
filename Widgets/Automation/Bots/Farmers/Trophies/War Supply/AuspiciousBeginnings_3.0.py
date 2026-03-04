@@ -17,7 +17,7 @@ class BotSettings:
     AUSPICIOUS_BEGINNINGS_MAP_ID = 849
 
     # Custom Bow ID - If this is left 0 you will automatically craft a suitable bow.
-    CUSTOM_BOW_ID = 35405 # Change this is you already have a custom bow made for AB. Oppressor Flatbow 35405
+    CUSTOM_BOW_ID = 0 # Change this is you already have a custom bow made for AB.
     
     # Gold threshold for deposit
     GOLD_THRESHOLD_DEPOSIT: int = 90000
