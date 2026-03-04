@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from time import monotonic
 from typing import Callable
 
 from .step_context import StepContext
@@ -7,15 +8,57 @@ from .step_selectors import resolve_agent_xy_from_step
 from .step_utils import log_recipe, parse_step_bool, parse_step_int, wait_after_step
 
 
-def _command_type_routine_in_message_is_active(account_email: str, shared_command_type: int) -> bool:
-    from Py4GWCoreLib import GLOBAL_CACHE
+def _wait_for_outbound_messages(
+    ctx: StepContext,
+    command_name: str,
+    message_refs: list[tuple[str, int]],
+    shared_command_type: int,
+    *,
+    wait_step_ms: int = 50,
+    timeout_ms: int = 30_000,
+):
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines
 
-    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
-    if index == -1 or message is None:
-        return False
-    if message.Command != shared_command_type:
-        return False
-    return True
+    if not message_refs:
+        return
+
+    pending: dict[tuple[str, int], None] = {}
+    sender_email = Player.GetAccountEmail()
+    for account_email, message_index in message_refs:
+        if message_index < 0:
+            log_recipe(ctx, f"{command_name}: failed to send to {account_email} (no free shared-memory slot).")
+            continue
+        pending[(account_email, message_index)] = None
+
+    if not pending:
+        return
+
+    deadline = monotonic() + (max(0, timeout_ms) / 1000.0)
+    while pending and monotonic() < deadline:
+        completed: list[tuple[str, int]] = []
+        for account_email, message_index in list(pending.keys()):
+            message = GLOBAL_CACHE.ShMem.GetInbox(message_index)
+            is_same_message = (
+                bool(getattr(message, "Active", False))
+                and str(getattr(message, "ReceiverEmail", "") or "") == account_email
+                and str(getattr(message, "SenderEmail", "") or "") == sender_email
+                and int(getattr(message, "Command", -1)) == int(shared_command_type)
+            )
+            if not is_same_message:
+                completed.append((account_email, message_index))
+
+        for key in completed:
+            pending.pop(key, None)
+
+        if pending:
+            yield from Routines.Yield.wait(wait_step_ms)
+
+    if pending:
+        pending_accounts = ", ".join(sorted({account for account, _ in pending}))
+        log_recipe(
+            ctx,
+            f"{command_name}: timeout waiting for multibox completion after {timeout_ms} ms. Pending: {pending_accounts}",
+        )
 
 
 def _iter_other_account_emails() -> list[str]:
@@ -177,7 +220,7 @@ def handle_restock_cons(ctx: StepContext) -> None:
 
 
 def handle_sell_materials(ctx: StepContext) -> None:
-    from Py4GWCoreLib import GLOBAL_CACHE, Inventory, Player, Routines, SharedCommandType
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
     from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
     from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
@@ -196,6 +239,8 @@ def handle_sell_materials(ctx: StepContext) -> None:
 
     name = ctx.step.get("name", "Sell Materials")
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
     selected_models: set[int] | None = None
@@ -223,17 +268,6 @@ def handle_sell_materials(ctx: StepContext) -> None:
                 selected_models.add(model_id)
 
     def _sell_local():
-        post_interact_wait_ms = 500
-        trader_inventory_wait_step_ms = 5
-        trader_inventory_wait_timeout_ms = 2500
-        quote_wait_step_ms = 5
-        quote_wait_timeout_ms = 500
-        transaction_wait_step_ms = 5
-        transaction_wait_timeout_ms = 500
-        full_sale_timeout_ms = 250
-        deposit_threshold = 80_000
-        gold_to_keep = 10_000
-
         log_recipe(ctx, f"sell_materials start: selector={selector_step!r}")
         coords = resolve_agent_xy_from_step(
             selector_step,
@@ -247,136 +281,31 @@ def handle_sell_materials(ctx: StepContext) -> None:
             return
 
         x, y = coords
-        log_recipe(ctx, f"sell_materials: resolved trader at ({x}, {y}), moving to interact.")
-        yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
-        yield from ctx.bot.Wait._coro_for_time(post_interact_wait_ms)
-        log_recipe(ctx, "sell_materials: movement/interact coroutine finished, waiting for trader inventory.")
-
-        trader_items = []
-        wait_elapsed_ms = 0
-        while wait_elapsed_ms < trader_inventory_wait_timeout_ms:
-            trader_items = list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
-            if trader_items:
-                break
-            wait_elapsed_ms += trader_inventory_wait_step_ms
-            yield from Routines.Yield.wait(trader_inventory_wait_step_ms)
-
-        trader_models = [int(GLOBAL_CACHE.Item.GetModelID(item_id)) for item_id in trader_items]
-        log_recipe(
-            ctx,
-            "sell_materials: trader offered item models="
-            + (", ".join(str(model_id) for model_id in trader_models) if trader_models else "<none>"),
-        )
-        if not trader_items:
-            log_recipe(ctx, "sell_materials: trader inventory did not populate; aborting sell step.")
-            yield
-            return
-
-        log_recipe(ctx, "sell_materials: trader inventory ready, scanning inventory.")
-
-        bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
-        bag_item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
-        log_recipe(ctx, f"sell_materials: inventory scan found {len(bag_item_array)} items in bags 1-4.")
-        material_item_ids_to_sell: list[int] = []
-        for item_id in bag_item_array:
-            if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
-                continue
-            if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
-                continue
-
-            model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
-            if selected_models is not None and model_id not in selected_models:
-                continue
-
-            material_item_ids_to_sell.append(int(item_id))
-
-        log_recipe(
-            ctx,
-            "sell_materials: candidate material item ids="
-            + (", ".join(str(item_id) for item_id in material_item_ids_to_sell) if material_item_ids_to_sell else "<none>"),
-        )
-        for item_id in material_item_ids_to_sell:
-            model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
-            total_quantity = int(GLOBAL_CACHE.Inventory.GetModelCount(model_id))
-            sales_remaining = total_quantity // 10
-            log_recipe(
-                ctx,
-                f"sell_materials: item_id={item_id} model_id={model_id} total_quantity={total_quantity} sales_remaining={sales_remaining}.",
-            )
-            if model_id not in trader_models:
-                log_recipe(ctx, f"sell_materials: model_id={model_id} not present in trader inventory; skipping.")
-                continue
-            while sales_remaining > 0:
-                sale_elapsed_ms = 0
-                quoted_value = -1
-                GLOBAL_CACHE.Trading.Trader.RequestSellQuote(item_id)
-                wait_elapsed_ms = 0
-                while wait_elapsed_ms < quote_wait_timeout_ms:
-                    yield from Routines.Yield.wait(quote_wait_step_ms)
-                    quoted_value = int(GLOBAL_CACHE.Trading.Trader.GetQuotedValue())
-                    if quoted_value >= 0:
-                        break
-                    wait_elapsed_ms += quote_wait_step_ms
-                    sale_elapsed_ms += quote_wait_step_ms
-                    if sale_elapsed_ms >= full_sale_timeout_ms:
-                        break
-
-                log_recipe(
-                    ctx,
-                    f"sell_materials: item_id={item_id} model_id={model_id} quote={quoted_value} remaining before sale={sales_remaining}.",
-                )
-                if quoted_value <= 0:
-                    log_recipe(ctx, f"sell_materials: quote failed for item_id={item_id}; stopping this stack.")
-                    break
-
-                GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted_value)
-                sale_completed = False
-                wait_elapsed_ms = 0
-                while wait_elapsed_ms < transaction_wait_timeout_ms:
-                    yield from Routines.Yield.wait(transaction_wait_step_ms)
-                    if GLOBAL_CACHE.Trading.IsTransactionComplete():
-                        sale_completed = True
-                        break
-                    wait_elapsed_ms += transaction_wait_step_ms
-                    sale_elapsed_ms += transaction_wait_step_ms
-                    if sale_elapsed_ms >= full_sale_timeout_ms:
-                        break
-                if not sale_completed:
-                    log_recipe(
-                        ctx,
-                        f"sell_materials: timed out waiting for sale completion for item_id={item_id}; stopping this stack.",
-                    )
-                    break
-                sales_remaining -= 1
-            if total_quantity > 0 and total_quantity < 10:
-                log_recipe(ctx, f"sell_materials: model_id={model_id} skipped, quantity below 10.")
-
-        gold_on_character = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
-        if gold_on_character > deposit_threshold:
-            log_recipe(
-                ctx,
-                f"sell_materials: character gold {gold_on_character} exceeds threshold {deposit_threshold}; attempting deposit to {gold_to_keep}.",
-            )
-            Inventory.OpenXunlaiWindow()
-            yield from Routines.Yield.wait(1000)
-            yield from Routines.Yield.Items.DepositGold(gold_to_keep, log=False)
-            log_recipe(ctx, f"sell_materials: gold after deposit attempt={int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())}.")
+        log_recipe(ctx, f"sell_materials: resolved trader at ({x}, {y}), executing merchant routine.")
+        yield from Routines.Yield.Merchant.SellMaterialsAtTrader(x, y, selected_models=selected_models)
 
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
             extra_data = ("sell", _encode_material_model_filter(selected_models), "", "")
+            sent_messages: list[tuple[str, int]] = []
             for account_email in account_emails:
-                GLOBAL_CACHE.ShMem.SendMessage(
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
                     sender_email,
                     account_email,
                     SharedCommandType.MerchantMaterials,
                     (float(x), float(y), 0.0, 0.0),
                     extra_data,
                 )
-            for account_email in account_emails:
-                while _command_type_routine_in_message_is_active(account_email, SharedCommandType.MerchantMaterials):
-                    yield from Routines.Yield.wait(100)
+                sent_messages.append((account_email, int(message_index)))
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "sell_materials",
+                sent_messages,
+                SharedCommandType.MerchantMaterials,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
 
         log_recipe(ctx, "sell_materials: completed.")
         yield
@@ -392,6 +321,8 @@ def handle_deposit_materials(ctx: StepContext) -> None:
 
     name = ctx.step.get("name", "Deposit Materials")
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
     selected_models: set[int] | None = None
@@ -419,59 +350,32 @@ def handle_deposit_materials(ctx: StepContext) -> None:
                 selected_models.add(model_id)
 
     def _deposit_local():
-        open_wait_ms = 1000
-        deposit_wait_ms = 75
-
         if not Inventory.IsStorageOpen():
             log_recipe(ctx, "deposit_materials: opening Xunlai window.")
-            Inventory.OpenXunlaiWindow()
-            yield from Routines.Yield.wait(open_wait_ms)
-
-        bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
-        bag_item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
-
-        material_item_ids_to_deposit: list[int] = []
-        for item_id in bag_item_array:
-            if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
-                continue
-            if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
-                continue
-
-            model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
-            if selected_models is not None and model_id not in selected_models:
-                continue
-
-            quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
-            if quantity != 250:
-                continue
-
-            material_item_ids_to_deposit.append(int(item_id))
-
-        log_recipe(
-            ctx,
-            "deposit_materials: full-stack item ids="
-            + (", ".join(str(item_id) for item_id in material_item_ids_to_deposit) if material_item_ids_to_deposit else "<none>"),
-        )
-
-        for item_id in material_item_ids_to_deposit:
-            GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
-            yield from Routines.Yield.wait(deposit_wait_ms)
+        yield from Routines.Yield.Merchant.DepositMaterials(selected_models=selected_models)
 
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
             extra_data = ("deposit", _encode_material_model_filter(selected_models), "", "")
+            sent_messages: list[tuple[str, int]] = []
             for account_email in account_emails:
-                GLOBAL_CACHE.ShMem.SendMessage(
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
                     sender_email,
                     account_email,
                     SharedCommandType.MerchantMaterials,
                     (0.0, 0.0, 0.0, 0.0),
                     extra_data,
                 )
-            for account_email in account_emails:
-                while _command_type_routine_in_message_is_active(account_email, SharedCommandType.MerchantMaterials):
-                    yield from Routines.Yield.wait(100)
+                sent_messages.append((account_email, int(message_index)))
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "deposit_materials",
+                sent_messages,
+                SharedCommandType.MerchantMaterials,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
 
         log_recipe(ctx, "deposit_materials: completed.")
         yield
@@ -481,8 +385,7 @@ def handle_deposit_materials(ctx: StepContext) -> None:
 
 
 def handle_buy_ectoplasm(ctx: StepContext) -> None:
-    from Py4GWCoreLib import GLOBAL_CACHE, Inventory, Player, Routines, SharedCommandType
-    from Py4GWCoreLib.enums_src.Model_enums import ModelID
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
 
     selector_step = dict(ctx.step)
     if (
@@ -499,6 +402,8 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
 
     name = ctx.step.get("name", "Buy Ectoplasm")
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
     use_storage_gold = str(ctx.step.get("use_storage_gold", True)).strip().lower() in ("1", "true", "yes", "on")
     start_storage_gold_threshold = parse_step_int(ctx.step.get("start_storage_gold_threshold", 900_000), 900_000)
     stop_storage_gold_threshold = parse_step_int(ctx.step.get("stop_storage_gold_threshold", 500_000), 500_000)
@@ -508,18 +413,6 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
         start_storage_gold_threshold = stop_storage_gold_threshold
 
     def _buy_local():
-        ecto_model_id = int(ModelID.Glob_Of_Ectoplasm.value)
-        open_wait_ms = 500
-        withdraw_wait_ms = 350
-        post_interact_wait_ms = 500
-        trader_inventory_wait_step_ms = 10
-        trader_inventory_wait_timeout_ms = 2000
-        quote_wait_step_ms = 10
-        quote_wait_timeout_ms = 750
-        transaction_wait_step_ms = 10
-        transaction_wait_timeout_ms = 750
-        max_character_gold = 100_000
-
         storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
         character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
         if use_storage_gold:
@@ -551,95 +444,21 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
             ctx,
             f"buy_ectoplasm: use_storage_gold={use_storage_gold}, start storage_gold={storage_gold}, stop_threshold={stop_storage_gold_threshold}, trader=({x}, {y}).",
         )
-
-        while True:
-            character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
-            storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
-            if use_storage_gold:
-                if storage_gold <= stop_storage_gold_threshold:
-                    break
-
-                withdraw_amount = min(max_character_gold - character_gold, storage_gold - stop_storage_gold_threshold)
-                if withdraw_amount > 0:
-                    if not Inventory.IsStorageOpen():
-                        Inventory.OpenXunlaiWindow()
-                        yield from Routines.Yield.wait(open_wait_ms)
-                    GLOBAL_CACHE.Inventory.WithdrawGold(int(withdraw_amount))
-                    yield from Routines.Yield.wait(withdraw_wait_ms)
-                    log_recipe(
-                        ctx,
-                        f"buy_ectoplasm: withdrew {int(withdraw_amount)} gold, char_gold={int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())}, storage_gold={int(GLOBAL_CACHE.Inventory.GetGoldInStorage())}.",
-                    )
-            elif character_gold <= 0:
-                break
-
-            yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
-            yield from ctx.bot.Wait._coro_for_time(post_interact_wait_ms)
-
-            trader_items = []
-            wait_elapsed_ms = 0
-            while wait_elapsed_ms < trader_inventory_wait_timeout_ms:
-                trader_items = list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
-                if trader_items:
-                    break
-                wait_elapsed_ms += trader_inventory_wait_step_ms
-                yield from Routines.Yield.wait(trader_inventory_wait_step_ms)
-
-            if not trader_items:
-                log_recipe(ctx, "buy_ectoplasm: trader inventory did not populate; aborting.")
-                break
-
-            trader_item_id = 0
-            for candidate in trader_items:
-                if int(GLOBAL_CACHE.Item.GetModelID(candidate)) == ecto_model_id:
-                    trader_item_id = int(candidate)
-                    break
-
-            if trader_item_id <= 0:
-                log_recipe(ctx, "buy_ectoplasm: ectoplasm is not present in trader inventory; aborting.")
-                break
-
-            while int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()) > 0:
-                quoted_value = -1
-                GLOBAL_CACHE.Trading.Trader.RequestQuote(trader_item_id)
-                wait_elapsed_ms = 0
-                while wait_elapsed_ms < quote_wait_timeout_ms:
-                    yield from Routines.Yield.wait(quote_wait_step_ms)
-                    quoted_value = int(GLOBAL_CACHE.Trading.Trader.GetQuotedValue())
-                    if quoted_value >= 0:
-                        break
-                    wait_elapsed_ms += quote_wait_step_ms
-
-                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
-                log_recipe(
-                    ctx,
-                    f"buy_ectoplasm: quote={quoted_value}, char_gold={character_gold}, storage_gold={int(GLOBAL_CACHE.Inventory.GetGoldInStorage())}.",
-                )
-                if quoted_value <= 0 or character_gold < quoted_value:
-                    break
-
-                GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
-                wait_elapsed_ms = 0
-                while wait_elapsed_ms < transaction_wait_timeout_ms:
-                    yield from Routines.Yield.wait(transaction_wait_step_ms)
-                    if GLOBAL_CACHE.Trading.IsTransactionComplete():
-                        break
-                    wait_elapsed_ms += transaction_wait_step_ms
-
-            log_recipe(
-                ctx,
-                f"buy_ectoplasm: cycle complete, char_gold={int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())}, storage_gold={int(GLOBAL_CACHE.Inventory.GetGoldInStorage())}.",
-            )
-
-            if not use_storage_gold:
-                break
+        yield from Routines.Yield.Merchant.BuyEctoplasm(
+            x=x,
+            y=y,
+            use_storage_gold=use_storage_gold,
+            start_threshold=start_storage_gold_threshold,
+            stop_threshold=stop_storage_gold_threshold,
+        )
 
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
             extra_data = ("buy_ectoplasm", "1" if use_storage_gold else "0", "", "")
+            sent_messages: list[tuple[str, int]] = []
             for account_email in account_emails:
-                GLOBAL_CACHE.ShMem.SendMessage(
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
                     sender_email,
                     account_email,
                     SharedCommandType.MerchantMaterials,
@@ -651,9 +470,15 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
                     ),
                     extra_data,
                 )
-            for account_email in account_emails:
-                while _command_type_routine_in_message_is_active(account_email, SharedCommandType.MerchantMaterials):
-                    yield from Routines.Yield.wait(100)
+                sent_messages.append((account_email, int(message_index)))
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "buy_ectoplasm",
+                sent_messages,
+                SharedCommandType.MerchantMaterials,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
 
         log_recipe(ctx, f"buy_ectoplasm: completed with storage_gold={int(GLOBAL_CACHE.Inventory.GetGoldInStorage())}.")
         yield

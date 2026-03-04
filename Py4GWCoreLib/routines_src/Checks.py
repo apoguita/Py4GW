@@ -47,6 +47,79 @@ class Checks:
 #region Party
     class Party:
         @staticmethod
+        def GetPartyMemberInDangerID(aggro_area=None, aggressive_only: bool = False):
+            from ..GlobalCache import GLOBAL_CACHE
+            from ..AgentArray import AgentArray
+            from ..Agent import Agent
+            from ..enums_src.GameData_enums import Range
+
+            if not Checks.Map.MapValid():
+                return 0
+
+            if aggro_area is None:
+                aggro_area = Range.Earshot
+
+            enemy_array = AgentArray.GetEnemyArray()
+            if not enemy_array:
+                return 0
+
+            radius = aggro_area.value
+            radius_sq = radius * radius
+            self_agent_id = Player.GetAgentID()
+
+            def _member_in_danger(agent_id: int) -> bool:
+                if not Agent.IsValid(agent_id) or Agent.IsDead(agent_id):
+                    return False
+                if agent_id == self_agent_id:
+                    return False
+
+                member_pos = Agent.GetXY(agent_id)
+                if not member_pos:
+                    return False
+
+                mx, my = member_pos
+                for enemy_id in enemy_array:
+                    if enemy_id == agent_id:
+                        continue
+                    if not Agent.IsAlive(enemy_id):
+                        continue
+                    if aggressive_only and not Agent.IsAggressive(enemy_id):
+                        continue
+
+                    enemy_pos = Agent.GetXY(enemy_id)
+                    if not enemy_pos:
+                        continue
+
+                    dx = mx - enemy_pos[0]
+                    dy = my - enemy_pos[1]
+                    if (dx * dx + dy * dy) <= radius_sq:
+                        return True
+                return False
+
+            players = GLOBAL_CACHE.Party.GetPlayers()
+            henchmen = GLOBAL_CACHE.Party.GetHenchmen()
+            heroes = GLOBAL_CACHE.Party.GetHeroes()
+
+            for player in players:
+                agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
+                if _member_in_danger(agent_id):
+                    return agent_id
+
+            for henchman in henchmen:
+                if _member_in_danger(henchman.agent_id):
+                    return henchman.agent_id
+
+            for hero in heroes:
+                if _member_in_danger(hero.agent_id):
+                    return hero.agent_id
+
+            return 0
+
+        @staticmethod
+        def IsPartyMemberInDanger(aggro_area=None, aggressive_only: bool = False):
+            return Checks.Party.GetPartyMemberInDangerID(aggro_area=aggro_area, aggressive_only=aggressive_only) != 0
+
+        @staticmethod
         def IsPartyMemberDead():
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent

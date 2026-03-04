@@ -105,6 +105,12 @@ class _TEMPLATES:
             fsm = bot.config.FSM
             fsm.pause()
             fsm.AddManagedCoroutine("OnBehind_OPD", self.parent.Events._on_party_member_behind())
+
+        def OnPartyMemberInDanger(self):
+            bot = self.parent
+            fsm = bot.config.FSM
+            fsm.pause()
+            fsm.AddManagedCoroutine("OnPartyMemberInDanger_OPD", self.parent.Events._on_party_member_in_danger())
             
 
         def OnPartyMemberDeathBehind(self):
@@ -120,6 +126,7 @@ class _TEMPLATES:
             bot = self.parent
             bot.States.AddHeader("Prepare For Farm")
             bot.Events.OnPartyMemberBehindCallback(lambda: self.OnPartyMemberBehind())
+            bot.Events.OnPartyMemberInDangerCallback(lambda: self.OnPartyMemberInDanger())
             bot.Events.OnPartyMemberDeadBehindCallback(lambda: self.OnPartyMemberDeathBehind())
             bot.Multibox.KickAllAccounts()
             bot.Map.Travel(target_map_id=map_id_to_travel)
