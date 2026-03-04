@@ -241,6 +241,8 @@ def handle_sell_materials(ctx: StepContext) -> None:
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
     multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
     multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
+    max_sell_quantity_per_item_raw = parse_step_int(ctx.step.get("max_sell_quantity_per_item", 0), 0)
+    max_sell_quantity_per_item = max_sell_quantity_per_item_raw if max_sell_quantity_per_item_raw > 0 else None
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
     selected_models: set[int] | None = None
@@ -282,12 +284,18 @@ def handle_sell_materials(ctx: StepContext) -> None:
 
         x, y = coords
         log_recipe(ctx, f"sell_materials: resolved trader at ({x}, {y}), executing merchant routine.")
-        yield from Routines.Yield.Merchant.SellMaterialsAtTrader(x, y, selected_models=selected_models)
+        sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
+            x,
+            y,
+            selected_models=selected_models,
+            max_sell_quantity_per_item=max_sell_quantity_per_item,
+        )
+        log_recipe(ctx, f"sell_materials metrics: {sell_metrics}")
 
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
-            extra_data = ("sell", _encode_material_model_filter(selected_models), "", "")
+            extra_data = ("sell", _encode_material_model_filter(selected_models), str(max_sell_quantity_per_item or 0), "")
             sent_messages: list[tuple[str, int]] = []
             for account_email in account_emails:
                 message_index = GLOBAL_CACHE.ShMem.SendMessage(
@@ -323,6 +331,8 @@ def handle_deposit_materials(ctx: StepContext) -> None:
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
     multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
     multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
+    max_deposit_items_raw = parse_step_int(ctx.step.get("max_deposit_items", 0), 0)
+    max_deposit_items = max_deposit_items_raw if max_deposit_items_raw > 0 else None
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
     selected_models: set[int] | None = None
@@ -352,12 +362,16 @@ def handle_deposit_materials(ctx: StepContext) -> None:
     def _deposit_local():
         if not Inventory.IsStorageOpen():
             log_recipe(ctx, "deposit_materials: opening Xunlai window.")
-        yield from Routines.Yield.Merchant.DepositMaterials(selected_models=selected_models)
+        deposit_metrics = yield from Routines.Yield.Merchant.DepositMaterials(
+            selected_models=selected_models,
+            max_deposit_items=max_deposit_items,
+        )
+        log_recipe(ctx, f"deposit_materials metrics: {deposit_metrics}")
 
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
-            extra_data = ("deposit", _encode_material_model_filter(selected_models), "", "")
+            extra_data = ("deposit", _encode_material_model_filter(selected_models), str(max_deposit_items or 0), "")
             sent_messages: list[tuple[str, int]] = []
             for account_email in account_emails:
                 message_index = GLOBAL_CACHE.ShMem.SendMessage(
@@ -407,6 +421,8 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
     use_storage_gold = str(ctx.step.get("use_storage_gold", True)).strip().lower() in ("1", "true", "yes", "on")
     start_storage_gold_threshold = parse_step_int(ctx.step.get("start_storage_gold_threshold", 900_000), 900_000)
     stop_storage_gold_threshold = parse_step_int(ctx.step.get("stop_storage_gold_threshold", 500_000), 500_000)
+    max_ecto_to_buy_raw = parse_step_int(ctx.step.get("max_ecto_to_buy", 0), 0)
+    max_ecto_to_buy = max_ecto_to_buy_raw if max_ecto_to_buy_raw > 0 else None
     if stop_storage_gold_threshold < 0:
         stop_storage_gold_threshold = 0
     if start_storage_gold_threshold < stop_storage_gold_threshold:
@@ -444,18 +460,20 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
             ctx,
             f"buy_ectoplasm: use_storage_gold={use_storage_gold}, start storage_gold={storage_gold}, stop_threshold={stop_storage_gold_threshold}, trader=({x}, {y}).",
         )
-        yield from Routines.Yield.Merchant.BuyEctoplasm(
+        ecto_metrics = yield from Routines.Yield.Merchant.BuyEctoplasm(
             x=x,
             y=y,
             use_storage_gold=use_storage_gold,
             start_threshold=start_storage_gold_threshold,
             stop_threshold=stop_storage_gold_threshold,
+            max_ecto_to_buy=max_ecto_to_buy,
         )
+        log_recipe(ctx, f"buy_ectoplasm metrics: {ecto_metrics}")
 
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
-            extra_data = ("buy_ectoplasm", "1" if use_storage_gold else "0", "", "")
+            extra_data = ("buy_ectoplasm", "1" if use_storage_gold else "0", str(max_ecto_to_buy or 0), "")
             sent_messages: list[tuple[str, int]] = []
             for account_email in account_emails:
                 message_index = GLOBAL_CACHE.ShMem.SendMessage(

@@ -133,6 +133,3 @@ class _TEMPLATES:
             bot.Multibox.SummonAllAccounts()
             bot.Wait.ForTime(4000)
             bot.Multibox.InviteAllAccounts()
-
-
-       

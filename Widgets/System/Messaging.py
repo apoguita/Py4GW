@@ -652,7 +652,14 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                 continue
         return selected or None
 
-    extra0, extra1, _, _ = _extra_data(message)
+    def _parse_positive_int(raw: str) -> int | None:
+        try:
+            parsed = int(str(raw).strip())
+        except Exception:
+            return None
+        return parsed if parsed > 0 else None
+
+    extra0, extra1, extra2, _ = _extra_data(message)
     mode = extra0.strip().lower()
     selected_models = _parse_selected_models(extra1)
 
@@ -671,24 +678,32 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         yield from Routines.Yield.wait(100)
 
         if mode == "sell":
-            yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
+            sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
                 x,
                 y,
                 selected_models=selected_models,
+                max_sell_quantity_per_item=_parse_positive_int(extra2),
             )
+            ConsoleLog(MODULE_NAME, f"MerchantMaterials sell metrics: {sell_metrics}", Console.MessageType.Info, False)
 
         elif mode == "deposit":
-            yield from Routines.Yield.Merchant.DepositMaterials(selected_models=selected_models)
+            deposit_metrics = yield from Routines.Yield.Merchant.DepositMaterials(
+                selected_models=selected_models,
+                max_deposit_items=_parse_positive_int(extra2),
+            )
+            ConsoleLog(MODULE_NAME, f"MerchantMaterials deposit metrics: {deposit_metrics}", Console.MessageType.Info, False)
 
         elif mode == "buy_ectoplasm":
             use_storage_gold = extra1.strip() == "1"
-            yield from Routines.Yield.Merchant.BuyEctoplasm(
+            ecto_metrics = yield from Routines.Yield.Merchant.BuyEctoplasm(
                 x,
                 y,
                 use_storage_gold=use_storage_gold,
                 start_threshold=start_threshold,
                 stop_threshold=stop_threshold,
+                max_ecto_to_buy=_parse_positive_int(extra2),
             )
+            ConsoleLog(MODULE_NAME, f"MerchantMaterials buy_ectoplasm metrics: {ecto_metrics}", Console.MessageType.Info, False)
     finally:
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)

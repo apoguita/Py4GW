@@ -989,6 +989,12 @@ class Yield:
 #region Merchant      
     class Merchant:
         @staticmethod
+        def _get_trader_batch_size(trader_items: list[int] | None = None) -> int:
+            offered_items = trader_items if trader_items is not None else list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
+            offered_models = {int(GLOBAL_CACHE.Item.GetModelID(item_id)) for item_id in offered_items}
+            return 10 if int(ModelID.Wood_Plank.value) in offered_models else 1
+
+        @staticmethod
         def _wait_for_trader_inventory(timeout_ms: int = 2500, step_ms: int = 5):
             trader_items = []
             wait_elapsed_ms = 0
@@ -1070,6 +1076,7 @@ class Yield:
             y: float,
             selected_models: set[int] | None = None,
             *,
+            max_sell_quantity_per_item: int | None = None,
             deposit_threshold: int = 80_000,
             gold_to_keep: int = 10_000,
             inventory_timeout_ms: int = 2500,
@@ -1080,6 +1087,17 @@ class Yield:
             transaction_step_ms: int = 5,
         ):
             from ..Inventory import Inventory
+            metrics = {
+                "trader_loaded": 0,
+                "batch_size": 10,
+                "candidate_items": 0,
+                "items_considered": 0,
+                "sales_completed": 0,
+                "quote_failures": 0,
+                "transaction_timeouts": 0,
+                "no_progress_breaks": 0,
+                "gold_deposit_triggered": 0,
+            }
 
             trader_items = yield from Yield.Merchant._interact_with_trader_xy(
                 x,
@@ -1088,17 +1106,28 @@ class Yield:
                 inventory_step_ms=inventory_step_ms,
             )
             if not trader_items:
-                return
+                return metrics
+            metrics["trader_loaded"] = 1
+            batch_size = Yield.Merchant._get_trader_batch_size(trader_items)
+            metrics["batch_size"] = int(batch_size)
 
             trader_models = {int(GLOBAL_CACHE.Item.GetModelID(item_id)) for item_id in trader_items}
             material_item_ids = Yield.Merchant._scan_material_item_ids(selected_models)
+            metrics["candidate_items"] = int(len(material_item_ids))
             for item_id in material_item_ids:
                 model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
                 if model_id not in trader_models:
                     continue
 
+                metrics["items_considered"] = int(metrics["items_considered"]) + 1
                 stack_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
-                while stack_quantity >= 10:
+                quantity_cap = None if max_sell_quantity_per_item is None else max(0, int(max_sell_quantity_per_item))
+                sold_quantity = 0
+                while stack_quantity >= batch_size:
+                    if quantity_cap is not None and sold_quantity >= quantity_cap:
+                        break
+                    if quantity_cap is not None and (sold_quantity + batch_size) > quantity_cap:
+                        break
                     quoted_value = yield from Yield.Merchant._wait_for_quote(
                         GLOBAL_CACHE.Trading.Trader.RequestSellQuote,
                         item_id,
@@ -1106,6 +1135,7 @@ class Yield:
                         step_ms=quote_step_ms,
                     )
                     if quoted_value <= 0:
+                        metrics["quote_failures"] = int(metrics["quote_failures"]) + 1
                         break
 
                     GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted_value)
@@ -1114,44 +1144,67 @@ class Yield:
                         step_ms=transaction_step_ms,
                     )
                     if not completed:
+                        metrics["transaction_timeouts"] = int(metrics["transaction_timeouts"]) + 1
                         break
                     updated_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
                     if updated_quantity >= stack_quantity:
+                        metrics["no_progress_breaks"] = int(metrics["no_progress_breaks"]) + 1
                         break
+                    sold_quantity += (stack_quantity - updated_quantity)
+                    metrics["sales_completed"] = int(metrics["sales_completed"]) + 1
                     stack_quantity = updated_quantity
 
             gold_on_character = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
             if gold_on_character > deposit_threshold:
+                metrics["gold_deposit_triggered"] = 1
                 Inventory.OpenXunlaiWindow()
                 yield from Yield.wait(1000)
                 yield from Yield.Items.DepositGold(gold_to_keep, log=False)
+            return metrics
 
         @staticmethod
         def DepositMaterials(
             selected_models: set[int] | None = None,
             *,
             exact_quantity: int = 250,
+            max_deposit_items: int | None = None,
             open_wait_ms: int = 1000,
             deposit_wait_ms: int = 40,
             max_passes: int = 2,
         ):
             from ..Inventory import Inventory
+            metrics = {
+                "opened_storage": 0,
+                "passes_run": 0,
+                "candidates_seen": 0,
+                "deposited_items": 0,
+            }
 
             if not Inventory.IsStorageOpen():
                 Inventory.OpenXunlaiWindow()
                 yield from Yield.wait(open_wait_ms)
+                metrics["opened_storage"] = 1
 
             pass_count = max(1, int(max_passes))
+            max_items = None if max_deposit_items is None else max(0, int(max_deposit_items))
+            deposited = 0
             for _ in range(pass_count):
+                metrics["passes_run"] = int(metrics["passes_run"]) + 1
                 material_item_ids = Yield.Merchant._scan_material_item_ids(
                     selected_models,
                     exact_quantity=exact_quantity,
                 )
+                metrics["candidates_seen"] = int(metrics["candidates_seen"]) + int(len(material_item_ids))
                 if not material_item_ids:
                     break
                 for item_id in material_item_ids:
+                    if max_items is not None and deposited >= max_items:
+                        return metrics
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Yield.wait(deposit_wait_ms)
+                    deposited += 1
+                    metrics["deposited_items"] = int(metrics["deposited_items"]) + 1
+            return metrics
 
         @staticmethod
         def BuyEctoplasm(
@@ -1171,8 +1224,18 @@ class Yield:
             transaction_step_ms: int = 10,
             max_character_gold: int = 100_000,
             max_no_progress_cycles: int = 3,
+            max_ecto_to_buy: int | None = None,
         ):
             from ..Inventory import Inventory
+            metrics = {
+                "trader_loaded_cycles": 0,
+                "withdrawals": 0,
+                "bought_items": 0,
+                "quote_failures": 0,
+                "transaction_timeouts": 0,
+                "no_progress_breaks": 0,
+                "inventory_load_failures": 0,
+            }
 
             if stop_threshold < 0:
                 stop_threshold = 0
@@ -1185,11 +1248,14 @@ class Yield:
 
             if use_storage_gold:
                 if storage_gold <= start_threshold:
-                    return
+                    return metrics
             elif character_gold <= 0:
-                return
+                return metrics
 
+            max_to_buy = None if max_ecto_to_buy is None else max(0, int(max_ecto_to_buy))
             while True:
+                if max_to_buy is not None and int(metrics["bought_items"]) >= max_to_buy:
+                    break
                 character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
                 storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
                 if use_storage_gold:
@@ -1203,6 +1269,7 @@ class Yield:
                             yield from Yield.wait(open_wait_ms)
                         GLOBAL_CACHE.Inventory.WithdrawGold(int(withdraw_amount))
                         yield from Yield.wait(withdraw_wait_ms)
+                        metrics["withdrawals"] = int(metrics["withdrawals"]) + 1
                 elif character_gold <= 0:
                     break
 
@@ -1213,7 +1280,9 @@ class Yield:
                     inventory_step_ms=inventory_step_ms,
                 )
                 if not trader_items:
+                    metrics["inventory_load_failures"] = int(metrics["inventory_load_failures"]) + 1
                     break
+                metrics["trader_loaded_cycles"] = int(metrics["trader_loaded_cycles"]) + 1
 
                 trader_item_id = 0
                 for candidate in trader_items:
@@ -1223,8 +1292,11 @@ class Yield:
                 if trader_item_id <= 0:
                     break
 
+                batch_size = Yield.Merchant._get_trader_batch_size(trader_items)
                 no_progress_cycles = 0
                 while int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()) > 0:
+                    if max_to_buy is not None and int(metrics["bought_items"]) >= max_to_buy:
+                        return metrics
                     gold_before = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
                     quoted_value = yield from Yield.Merchant._wait_for_quote(
                         GLOBAL_CACHE.Trading.Trader.RequestQuote,
@@ -1233,6 +1305,8 @@ class Yield:
                         step_ms=quote_step_ms,
                     )
                     if quoted_value <= 0 or gold_before < quoted_value:
+                        if quoted_value <= 0:
+                            metrics["quote_failures"] = int(metrics["quote_failures"]) + 1
                         break
 
                     GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
@@ -1241,18 +1315,22 @@ class Yield:
                         step_ms=transaction_step_ms,
                     )
                     if not completed:
+                        metrics["transaction_timeouts"] = int(metrics["transaction_timeouts"]) + 1
                         break
 
                     gold_after = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
                     if gold_after >= gold_before:
                         no_progress_cycles += 1
                         if no_progress_cycles >= max_no_progress_cycles:
+                            metrics["no_progress_breaks"] = int(metrics["no_progress_breaks"]) + 1
                             break
                     else:
                         no_progress_cycles = 0
+                        metrics["bought_items"] = int(metrics["bought_items"]) + int(batch_size)
 
                 if not use_storage_gold:
                     break
+            return metrics
 
         @staticmethod
         def SellItems(item_array:list[int], log=False):

@@ -274,33 +274,43 @@ def handle_interact_item(ctx: StepContext) -> None:
     )
     has_model_filter = model_id is not None
 
-    def _interact() -> None:
+    def _interact():
         from Py4GWCoreLib import Agent, AgentArray, Item, Player
 
         item_array = AgentArray.GetItemArray()
         px, py = Player.GetXY()
         item_array = AgentArray.Filter.ByDistance(item_array, (px, py), max_dist)
         if not item_array:
+            yield
             return
 
         item_array = AgentArray.Sort.ByDistance(item_array, (px, py))
+        target_ground_agent_id = 0
         if not has_model_filter:
-            Player.Interact(item_array[0], call_target=False)
+            target_ground_agent_id = int(item_array[0])
+        else:
+            me = int(Player.GetAgentID())
+            for ground_agent_id in item_array:
+                owner = int(Agent.GetItemAgentOwnerID(ground_agent_id))
+                if owner not in (0, me):
+                    continue
+
+                item_id = int(Agent.GetItemAgentItemID(ground_agent_id))
+                if item_id <= 0:
+                    continue
+
+                if int(Item.GetModelID(item_id)) == model_id:
+                    target_ground_agent_id = int(ground_agent_id)
+                    break
+
+        if target_ground_agent_id <= 0:
+            yield
             return
 
-        me = int(Player.GetAgentID())
-        for ground_agent_id in item_array:
-            owner = int(Agent.GetItemAgentOwnerID(ground_agent_id))
-            if owner not in (0, me):
-                continue
-
-            item_id = int(Agent.GetItemAgentItemID(ground_agent_id))
-            if item_id <= 0:
-                continue
-
-            if int(Item.GetModelID(item_id)) == model_id:
-                Player.Interact(ground_agent_id, call_target=False)
-                return
+        item_x, item_y = Agent.GetXY(target_ground_agent_id)
+        yield from ctx.bot.Move._coro_xy(item_x, item_y, ctx.step.get("name", "Interact Item"))
+        Player.Interact(target_ground_agent_id, call_target=False)
+        yield from ctx.bot.Wait._coro_for_time(1000)
 
     ctx.bot.States.AddCustomState(_interact, "Interact Item")
     wait_after_step(ctx.bot, ctx.step)
