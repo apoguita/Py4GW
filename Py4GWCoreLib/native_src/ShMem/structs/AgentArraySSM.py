@@ -7,26 +7,13 @@ class AgentSHMemStruct(Structure):
     _pack_ = 1
     _fields_ = [
         ("ptr", c_void_p),
-        ("Position", GamePos),
-        ("z", c_float),
-        ("rotation_angle", c_float),
-        ("velocity", Vec2f),
-        ("agent_type", c_uint32),
         ("agent_id", c_uint32),
-        ("item_id", c_uint32),
-        ("owner_id", c_uint32),
-        ("player_number", c_uint32),
-        ("profession", c_uint32 * 2),
-        ("level", c_uint32),
-        ("EnergyValues", c_float * 3),
-        ("HPValues", c_float * 3),
-        ("login_number", c_uint32),
-        ("allegiance", c_uint32),
-        ("effects", c_uint32),
-        ("type_map", c_uint32),
-        ("model_state", c_uint32),
-        ("casting_skill_id", c_uint32),
+
     ]
+    
+    ptr: int | None
+    agent_id: int
+
 
 
 class AgentRefSHMemStruct(Structure):
@@ -36,6 +23,8 @@ class AgentRefSHMemStruct(Structure):
         ("index", c_uint32),
     ]
 
+    agent_id: int
+    index: int
 
 class AgentRefArraySHMemStruct(Structure):
     _pack_ = 1
@@ -44,20 +33,22 @@ class AgentRefArraySHMemStruct(Structure):
         ("entries", AgentRefSHMemStruct * AGENT_ARRAY_MAX_SIZE),
     ]
     
-    def to_list(self, agents_by_id: dict[int, AgentSHMemStruct] | None = None) -> list:
+    count : int
+    entries: list[AgentRefSHMemStruct]
+    
+    def to_list(self) -> list[int]:
         result = []
-        for i in range(min(self.count, AGENT_ARRAY_MAX_SIZE)):
-            ref = self.entries[i]
+        count:int = min(self.count, AGENT_ARRAY_MAX_SIZE)
+        entries: list[AgentRefSHMemStruct] = self.entries
+        
+        for i in range(min(count, AGENT_ARRAY_MAX_SIZE)):
+            ref:AgentRefSHMemStruct = entries[i]
             agent_id = int(ref.agent_id)
             if agent_id == 0:
                 continue
-            if agents_by_id is None:
-                result.append(agent_id)
-                continue
-            agent = agents_by_id.get(agent_id)
-            if agent is not None:
-                result.append(agent)
+            result.append(ref.agent_id)
         return result
+
 
 
 class AgentArraySHMemStruct(Structure):
@@ -80,6 +71,25 @@ class AgentArraySHMemStruct(Structure):
         ("DeadAllyArray", AgentRefArraySHMemStruct),
         ("DeadEnemyArray", AgentRefArraySHMemStruct),
     ]
+    
+    max_size: int
+    AgentArrayCount: int
+    AgentArray: list[AgentSHMemStruct]
+    AllArray: AgentRefArraySHMemStruct
+    AllyArray: AgentRefArraySHMemStruct
+    NeutralArray: AgentRefArraySHMemStruct
+    EnemyArray: AgentRefArraySHMemStruct
+    SpiritPetArray: AgentRefArraySHMemStruct
+    MinionArray: AgentRefArraySHMemStruct
+    NPCMinipetArray: AgentRefArraySHMemStruct
+    LivingArray: AgentRefArraySHMemStruct
+    ItemArray: AgentRefArraySHMemStruct
+    OwnedItemArray: AgentRefArraySHMemStruct
+    GadgetArray: AgentRefArraySHMemStruct
+    DeadAllyArray: AgentRefArraySHMemStruct
+    DeadEnemyArray: AgentRefArraySHMemStruct
+    
+    
 
 
 class AgentArraySHMemWrapper:
@@ -96,7 +106,6 @@ class AgentArraySHMemWrapper:
                 if agent_id == 0:
                     continue
                 self._agents_dict[agent_id] = agent
-    
            
     def get_agent_by_id(self, agent_id: int) -> AgentSHMemStruct | None:
         self._build_agents_dict()
@@ -110,43 +119,46 @@ class AgentArraySHMemWrapper:
     
     def to_list(self) -> list[AgentSHMemStruct]:
         return list(self.to_dict().values())
+    
+    def to_int_list(self) -> list[int]:
+        return list(self.to_dict().keys())
 
-    def get_all_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.AllArray.to_list(self.to_dict())
+    def get_all_array(self) -> list[int]:
+        return self._raw.AllArray.to_list()
     
-    def get_ally_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.AllyArray.to_list(self.to_dict())
+    def get_ally_array(self) -> list[int]:
+        return self._raw.AllyArray.to_list()
     
-    def get_neutral_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.NeutralArray.to_list(self.to_dict())
+    def get_neutral_array(self) -> list[int]:
+        return self._raw.NeutralArray.to_list()
     
-    def get_enemy_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.EnemyArray.to_list(self.to_dict())
+    def get_enemy_array(self) -> list[int]:
+        return self._raw.EnemyArray.to_list()
     
-    def get_spirit_pet_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.SpiritPetArray.to_list(self.to_dict())
+    def get_spirit_pet_array(self) -> list[int]:
+        return self._raw.SpiritPetArray.to_list()
     
-    def get_minion_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.MinionArray.to_list(self.to_dict())
+    def get_minion_array(self) -> list[int]:
+        return self._raw.MinionArray.to_list()
     
-    def get_npc_minipet_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.NPCMinipetArray.to_list(self.to_dict())
+    def get_npc_minipet_array(self) -> list[int]:
+        return self._raw.NPCMinipetArray.to_list()
     
-    def get_living_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.LivingArray.to_list(self.to_dict())
+    def get_living_array(self) -> list[int]:
+        return self._raw.LivingArray.to_list()
     
-    def get_item_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.ItemArray.to_list(self.to_dict())
+    def get_item_array(self) -> list[int]:
+        return self._raw.ItemArray.to_list()
     
-    def get_owned_item_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.OwnedItemArray.to_list(self.to_dict())
+    def get_owned_item_array(self) -> list[int]:
+        return self._raw.OwnedItemArray.to_list()
     
-    def get_gadget_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.GadgetArray.to_list(self.to_dict())
+    def get_gadget_array(self) -> list[int]:
+        return self._raw.GadgetArray.to_list()
     
-    def get_dead_ally_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.DeadAllyArray.to_list(self.to_dict())
+    def get_dead_ally_array(self) -> list[int]:
+        return self._raw.DeadAllyArray.to_list()
     
-    def get_dead_enemy_array(self) -> list[AgentSHMemStruct]:
-        return self._raw.DeadEnemyArray.to_list(self.to_dict())
+    def get_dead_enemy_array(self) -> list[int]:
+        return self._raw.DeadEnemyArray.to_list()
     

@@ -611,6 +611,8 @@ class AgentArray:
     @staticmethod
     def _update_ptr():...
     @staticmethod
+    def reset_cache():...
+    @staticmethod
     def enable():...
 
     @staticmethod
@@ -618,5 +620,7 @@ class AgentArray:
 
     @staticmethod
     def get_context() -> AgentArrayStruct | None:...
+    @staticmethod
+    def GetAgentByID(agent_id: int) -> Optional["AgentStruct"]: ...
         
         
