@@ -38,11 +38,15 @@ class SalvageChoiceOptionSource(TypedDict):
 
 
 class Inventory:
-    SALVAGE_CHOICE_DIALOG_HASH = 684387150
-    SALVAGE_CHOICE_OPTION_CONTAINER_OFFSET = 5
-    SALVAGE_CHOICE_CONFIRM_OFFSET = 2
-    SALVAGE_CHOICE_MATERIAL_CONFIRM_ROOT_OFFSET = 0
-    SALVAGE_CHOICE_MATERIAL_CONFIRM_YES_OFFSET = 6
+    SALVAGE_CHOICE_DIALOG_LABEL = "Salvage Window"
+    SALVAGE_CHOICE_OPTION_CONTAINER_LABEL = "Salvage Window.Options"
+    SALVAGE_CHOICE_CONFIRM_LABEL = "Salvage Window.Salvage Button"
+    SALVAGE_CHOICE_MATERIAL_CONFIRM_YES_LABEL = "Salvage Materials Dialog.Yes Button"
+    SALVAGE_CHOICE_FALLBACK_DIALOG_HASH = 684387150
+    SALVAGE_CHOICE_FALLBACK_OPTION_CONTAINER_OFFSET = 5
+    SALVAGE_CHOICE_FALLBACK_CONFIRM_OFFSET = 2
+    SALVAGE_CHOICE_FALLBACK_MATERIAL_CONFIRM_ROOT_OFFSET = 0
+    SALVAGE_CHOICE_FALLBACK_MATERIAL_CONFIRM_YES_OFFSET = 6
 
     @staticmethod
     def inventory_instance():
@@ -382,19 +386,60 @@ class Inventory:
         #return Inventory.inventory_instance().AcceptSalvageWindow()
 
     @staticmethod
+    def _get_frame_id_by_alias(frame_label: str) -> int:
+        from .UIManager import UIManager
+
+        frame_id = int(UIManager.GetFrameIDByCustomLabel(frame_label=frame_label) or 0)
+        if frame_id == 0 or not UIManager.FrameExists(frame_id):
+            return 0
+        return frame_id
+
+    @staticmethod
+    def _get_all_child_frame_ids_from_frame_id(root_frame_id: int, child_offsets: list[int]) -> list[int]:
+        from .UIManager import UIManager
+        import PyUIManager
+
+        if root_frame_id == 0:
+            return []
+
+        matching_ids: list[int] = []
+        for frame_id in UIManager.GetFrameArray():
+            try:
+                current_frame = PyUIManager.UIFrame(frame_id)
+            except Exception:
+                continue
+
+            offsets: list[int] = []
+            trace = current_frame
+            for _ in range(len(child_offsets)):
+                offsets.insert(0, int(trace.child_offset_id))
+                if trace.parent_id == 0:
+                    break
+                trace = PyUIManager.UIFrame(trace.parent_id)
+
+            if int(trace.frame_id) == root_frame_id and offsets == child_offsets:
+                matching_ids.append(int(current_frame.frame_id))
+
+        return matching_ids
+
+    @staticmethod
     def _get_salvage_choice_material_confirm_yes_frame_id() -> int:
         from .UIManager import UIManager
 
-        yes_frame_id = UIManager.GetChildFrameID(
-            Inventory.SALVAGE_CHOICE_DIALOG_HASH,
+        yes_frame_id = Inventory._get_frame_id_by_alias(Inventory.SALVAGE_CHOICE_MATERIAL_CONFIRM_YES_LABEL)
+        if yes_frame_id != 0:
+            return yes_frame_id
+
+        fallback_frame_id = UIManager.GetChildFrameID(
+            Inventory.SALVAGE_CHOICE_FALLBACK_DIALOG_HASH,
             [
-                Inventory.SALVAGE_CHOICE_MATERIAL_CONFIRM_ROOT_OFFSET,
-                Inventory.SALVAGE_CHOICE_MATERIAL_CONFIRM_YES_OFFSET,
+                Inventory.SALVAGE_CHOICE_FALLBACK_MATERIAL_CONFIRM_ROOT_OFFSET,
+                Inventory.SALVAGE_CHOICE_FALLBACK_MATERIAL_CONFIRM_YES_OFFSET,
             ],
         )
-        if yes_frame_id == 0 or not UIManager.FrameExists(yes_frame_id):
+        if fallback_frame_id == 0 or not UIManager.FrameExists(fallback_frame_id):
             return 0
-        return yes_frame_id
+        return fallback_frame_id
 
     @staticmethod
     def IsSalvageChoiceMaterialConfirmVisible() -> bool:
@@ -404,10 +449,46 @@ class Inventory:
     def _get_salvage_choice_dialog_frame_id() -> int:
         from .UIManager import UIManager
 
-        dialog_frame_id = UIManager.GetFrameIDByHash(Inventory.SALVAGE_CHOICE_DIALOG_HASH)
-        if dialog_frame_id == 0 or not UIManager.FrameExists(dialog_frame_id):
+        dialog_frame_id = Inventory._get_frame_id_by_alias(Inventory.SALVAGE_CHOICE_DIALOG_LABEL)
+        if dialog_frame_id != 0:
+            return dialog_frame_id
+
+        fallback_frame_id = UIManager.GetFrameIDByHash(Inventory.SALVAGE_CHOICE_FALLBACK_DIALOG_HASH)
+        if fallback_frame_id == 0 or not UIManager.FrameExists(fallback_frame_id):
             return 0
-        return dialog_frame_id
+        return fallback_frame_id
+
+    @staticmethod
+    def _get_salvage_choice_option_container_frame_id() -> int:
+        from .UIManager import UIManager
+
+        option_parent_id = Inventory._get_frame_id_by_alias(Inventory.SALVAGE_CHOICE_OPTION_CONTAINER_LABEL)
+        if option_parent_id != 0:
+            return option_parent_id
+
+        fallback_frame_id = UIManager.GetChildFrameID(
+            Inventory.SALVAGE_CHOICE_FALLBACK_DIALOG_HASH,
+            [Inventory.SALVAGE_CHOICE_FALLBACK_OPTION_CONTAINER_OFFSET],
+        )
+        if fallback_frame_id == 0 or not UIManager.FrameExists(fallback_frame_id):
+            return 0
+        return fallback_frame_id
+
+    @staticmethod
+    def _get_salvage_choice_confirm_frame_id() -> int:
+        from .UIManager import UIManager
+
+        confirm_frame_id = Inventory._get_frame_id_by_alias(Inventory.SALVAGE_CHOICE_CONFIRM_LABEL)
+        if confirm_frame_id != 0:
+            return confirm_frame_id
+
+        fallback_frame_id = UIManager.GetChildFrameID(
+            Inventory.SALVAGE_CHOICE_FALLBACK_DIALOG_HASH,
+            [Inventory.SALVAGE_CHOICE_FALLBACK_CONFIRM_OFFSET],
+        )
+        if fallback_frame_id == 0 or not UIManager.FrameExists(fallback_frame_id):
+            return 0
+        return fallback_frame_id
 
     @staticmethod
     def IsSalvageChoiceDialogVisible() -> bool:
@@ -610,13 +691,8 @@ class Inventory:
     def _get_salvage_choice_dialog_options(
         visible_entries_by_parent: dict[int, list[VisibleFrameEntry]] | None = None,
     ) -> tuple[int, list[VisibleFrameEntry], list[SalvageChoiceEntry]]:
-        from .UIManager import UIManager
-
-        option_parent_id = UIManager.GetChildFrameID(
-            Inventory.SALVAGE_CHOICE_DIALOG_HASH,
-            [Inventory.SALVAGE_CHOICE_OPTION_CONTAINER_OFFSET],
-        )
-        if option_parent_id == 0 or not UIManager.FrameExists(option_parent_id):
+        option_parent_id = Inventory._get_salvage_choice_option_container_frame_id()
+        if option_parent_id == 0:
             return 0, [], []
 
         if visible_entries_by_parent is None:
@@ -657,7 +733,7 @@ class Inventory:
                 nested_offset = int(nested_entry.get("offset", -1))
                 nested_option_sources.append({
                     "offset": nested_offset,
-                    "path_offsets": [Inventory.SALVAGE_CHOICE_OPTION_CONTAINER_OFFSET, 0, nested_offset],
+                    "path_offsets": [0, nested_offset],
                     "fallback_frame_id": int(nested_entry["frame_id"]),
                     "source_depth": 2,
                     "container_frame_id": int(container_entry["frame_id"]),
@@ -677,7 +753,7 @@ class Inventory:
 
                 option_sources.append({
                     "offset": direct_offset,
-                    "path_offsets": [Inventory.SALVAGE_CHOICE_OPTION_CONTAINER_OFFSET, direct_offset],
+                    "path_offsets": [direct_offset],
                     "fallback_frame_id": int(direct_entry["frame_id"]),
                     "source_depth": 1,
                     "container_frame_id": None,
@@ -687,7 +763,7 @@ class Inventory:
                 direct_offset = int(direct_entry.get("offset", -1))
                 option_sources.append({
                     "offset": direct_offset,
-                    "path_offsets": [Inventory.SALVAGE_CHOICE_OPTION_CONTAINER_OFFSET, direct_offset],
+                    "path_offsets": [direct_offset],
                     "fallback_frame_id": int(direct_entry["frame_id"]),
                     "source_depth": 1,
                     "container_frame_id": None,
@@ -702,7 +778,7 @@ class Inventory:
             seen_offsets.add(option_offset)
 
             path_offsets = [int(offset) for offset in source["path_offsets"]]
-            path_root_frame_ids = UIManager.GetAllChildFrameIDs(Inventory.SALVAGE_CHOICE_DIALOG_HASH, path_offsets)
+            path_root_frame_ids = Inventory._get_all_child_frame_ids_from_frame_id(option_parent_id, path_offsets)
 
             fallback_frame_id = int(source["fallback_frame_id"])
             if not path_root_frame_ids and fallback_frame_id != 0:
@@ -743,7 +819,7 @@ class Inventory:
             option_entries = template_entries or [cast(SalvageChoiceEntry, dict(entry)) for entry in direct_children]
             for entry in option_entries:
                 if "path" not in entry:
-                    entry["path"] = f"{Inventory.SALVAGE_CHOICE_OPTION_CONTAINER_OFFSET}->{int(entry.get('offset', -1))}"
+                    entry["path"] = f"Options->{int(entry.get('offset', -1))}"
                 if "group_frame_ids" not in entry:
                     entry["group_frame_ids"] = [int(entry["frame_id"])]
                 if "group_size" not in entry:
@@ -1005,7 +1081,7 @@ class Inventory:
         Inventory._salvage_choice_debug_log(
             debug_enabled,
             log_module,
-            f"{item_prefix}dialog detected hash={Inventory.SALVAGE_CHOICE_DIALOG_HASH} frame_id={dialog_frame_id} strategy={strategy_name}.",
+            f"{item_prefix}dialog detected label='{Inventory.SALVAGE_CHOICE_DIALOG_LABEL}' frame_id={dialog_frame_id} strategy={strategy_name}.",
         )
 
         if Inventory.IsSalvageChoiceMaterialConfirmVisible():
@@ -1031,7 +1107,7 @@ class Inventory:
         Inventory._salvage_choice_debug_log(
             debug_enabled,
             log_module,
-            f"{item_prefix}option container child[5] frame_id={option_parent_id} visible children: {raw_child_summary}.",
+            f"{item_prefix}option container label='{Inventory.SALVAGE_CHOICE_OPTION_CONTAINER_LABEL}' frame_id={option_parent_id} visible children: {raw_child_summary}.",
         )
         nested_container_summary = []
         for direct_entry in option_parent_children:
@@ -1056,13 +1132,13 @@ class Inventory:
             Inventory._salvage_choice_debug_log(
                 debug_enabled,
                 log_module,
-                f"{item_prefix}nested option rows under child[5]->0: {'; '.join(nested_container_summary)}.",
+                f"{item_prefix}nested option rows under options container child[0]: {'; '.join(nested_container_summary)}.",
             )
         if not option_entries:
             Inventory._salvage_choice_debug_log(
                 debug_enabled,
                 log_module,
-                f"{item_prefix}safety exit: dialog visible but no selectable options were found under child[5].",
+                f"{item_prefix}safety exit: dialog visible but no selectable options were found under the options container.",
             )
             return "no_option"
 
@@ -1144,15 +1220,12 @@ class Inventory:
             )
             return "handled"
 
-        confirm_frame_id = UIManager.GetChildFrameID(
-            Inventory.SALVAGE_CHOICE_DIALOG_HASH,
-            [Inventory.SALVAGE_CHOICE_CONFIRM_OFFSET],
-        )
-        if confirm_frame_id == 0 or not UIManager.FrameExists(confirm_frame_id):
+        confirm_frame_id = Inventory._get_salvage_choice_confirm_frame_id()
+        if confirm_frame_id == 0:
             Inventory._salvage_choice_debug_log(
                 debug_enabled,
                 log_module,
-                f"{item_prefix}safety exit: confirm button child[2] was not available after selecting the option.",
+                f"{item_prefix}safety exit: confirm button alias='{Inventory.SALVAGE_CHOICE_CONFIRM_LABEL}' was not available after selecting the option.",
             )
             return "confirm_missing"
 
