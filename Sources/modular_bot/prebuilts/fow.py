@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import random
 from typing import Callable, Optional
 
+from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
+from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Sources.modular_bot import ModularBot
 from Sources.modular_bot.phase import Phase
 from Sources.modular_bot.recipes import Quest
@@ -25,9 +27,12 @@ FOW_QUEST_ORDER: list[tuple[str, str]] = [
     ("reward_time", "Reward Time"),
 ]
 
-ZIN_KU_CORRIDOR_MAP_ID = 284
-FOW_MAP_ID = 34
-FOW_SCROLL_MODEL_ID = 22280
+ZIN_KU_CORRIDOR_MAP_ID = int(name_to_map_id["Zin Ku Corridor"])
+CHANTRY_OF_SECRETS_MAP_ID = int(name_to_map_id["Chantry of Secrets"])
+TEMPLE_OF_THE_AGES_MAP_ID = int(name_to_map_id["Temple of the Ages"])
+EMBARK_BEACH_MAP_ID = int(name_to_map_id["Embark Beach"])
+FOW_MAP_ID = int(name_to_map_id["The Fissure of Woe"])
+FOW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Fow.value)
 
 CONSUMABLE_RESTOCK_DEFAULTS = {
     "grail_of_might": 3,
@@ -35,16 +40,55 @@ CONSUMABLE_RESTOCK_DEFAULTS = {
     "armor_of_salvation": 3,
     "war_supplies": 3,
     "drake_kabob": 3,
-    "honeycomb": 10,
     "candy_corn": 10,
 }
 
 CONSUMABLE_PROPERTY_NAMES = tuple(CONSUMABLE_RESTOCK_DEFAULTS.keys())
-ZIN_KU_ALLOWED_DISTRICTS = (
-    "International",
-    "American",
-    "EuropeEnglish",
-)
+FOW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
+    "zin_ku_corridor": ("Zin Ku Corridor", ZIN_KU_CORRIDOR_MAP_ID),
+    "chantry_of_secrets": ("Chantry of Secrets", CHANTRY_OF_SECRETS_MAP_ID),
+    "temple_of_the_ages": ("Temple of the Ages", TEMPLE_OF_THE_AGES_MAP_ID),
+    "embark_beach": ("Embark Beach", EMBARK_BEACH_MAP_ID),
+}
+DEFAULT_FOW_ENTRYPOINT_KEY = "zin_ku_corridor"
+GH_MERCHANT_SELECTOR: dict[str, str] = {"npc": "MERCHANT"}
+COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS = {
+    int(ModelID.Bone.value),
+    int(ModelID.Pile_Of_Glittering_Dust.value),
+    int(ModelID.Feather.value),
+}
+ALL_COMMON_MATERIALS = [
+    material_name
+    for model_id, material_name in MaterialMap.items()
+    if int(model_id.value)
+    not in {
+        int(ModelID.Amber_Chunk.value),
+        int(ModelID.Bolt_Of_Damask.value),
+        int(ModelID.Bolt_Of_Linen.value),
+        int(ModelID.Bolt_Of_Silk.value),
+        int(ModelID.Deldrimor_Steel_Ingot.value),
+        int(ModelID.Diamond.value),
+        int(ModelID.Elonian_Leather_Square.value),
+        int(ModelID.Fur_Square.value),
+        int(ModelID.Glob_Of_Ectoplasm.value),
+        int(ModelID.Jadeite_Shard.value),
+        int(ModelID.Leather_Square.value),
+        int(ModelID.Lump_Of_Charcoal.value),
+        int(ModelID.Monstrous_Claw.value),
+        int(ModelID.Monstrous_Eye.value),
+        int(ModelID.Monstrous_Fang.value),
+        int(ModelID.Obsidian_Shard.value),
+        int(ModelID.Onyx_Gemstone.value),
+        int(ModelID.Roll_Of_Parchment.value),
+        int(ModelID.Roll_Of_Vellum.value),
+        int(ModelID.Ruby.value),
+        int(ModelID.Sapphire.value),
+        int(ModelID.Spiritwood_Plank.value),
+        int(ModelID.Steel_Ingot.value),
+        int(ModelID.Tempered_Glass_Vial.value),
+        int(ModelID.Vial_Of_Ink.value),
+    }
+]
 
 
 @dataclass(slots=True)
@@ -54,6 +98,10 @@ class ModularFowOptions:
     restock_consumables: bool = True
     auto_loot: bool = True
     debug_logging: bool = False
+    entrypoint: str = DEFAULT_FOW_ENTRYPOINT_KEY
+    sell_non_cons_materials: bool = False
+    sell_all_common_materials: bool = False
+    buy_ectoplasm: bool = False
 
 
 def _debug(debug_hook: Optional[Callable[[str], None]], message: str) -> None:
@@ -61,34 +109,67 @@ def _debug(debug_hook: Optional[Callable[[str], None]], message: str) -> None:
         debug_hook(message)
 
 
+def _resolve_entrypoint(entrypoint: str) -> tuple[str, int]:
+    key = str(entrypoint or DEFAULT_FOW_ENTRYPOINT_KEY).strip().lower()
+    return FOW_ENTRYPOINTS.get(key, FOW_ENTRYPOINTS[DEFAULT_FOW_ENTRYPOINT_KEY])
+
+
+def _resolve_materials_to_sell(options: ModularFowOptions) -> list[str]:
+    if options.sell_all_common_materials:
+        return list(ALL_COMMON_MATERIALS)
+    if options.sell_non_cons_materials:
+        return [
+            material_name
+            for model_id, material_name in MaterialMap.items()
+            if int(model_id.value) in {int(m.value) for m in MaterialMap.keys()}
+            and int(model_id.value) not in COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS
+            and material_name in ALL_COMMON_MATERIALS
+        ]
+    return []
+
+
 def build_fow_phases(
     options: ModularFowOptions,
     debug_hook: Optional[Callable[[str], None]] = None,
 ) -> list[Phase]:
     def _fow_setup(bot) -> None:
+        entrypoint_name, entrypoint_map_id = _resolve_entrypoint(options.entrypoint)
+        materials_to_sell = _resolve_materials_to_sell(options)
         _debug(
             debug_hook,
             "Registering FoW setup steps "
             f"(hard_mode={options.hard_mode}, use_consumables={options.use_consumables}, "
-            f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot})",
+            f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot}, "
+            f"entrypoint={entrypoint_name}, sell_non_cons_materials={options.sell_non_cons_materials}, "
+            f"sell_all_common_materials={options.sell_all_common_materials}, buy_ectoplasm={options.buy_ectoplasm})",
         )
         setup_steps = [
             {"type": "leave_party", "name": "Leave Party", "multibox": True},
             {"type": "travel_gh", "name": "Travel to Guild Hall", "ms": 7000, "multibox": True},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
             {"type": "set_auto_looting", "enabled": bool(options.auto_loot)},
-            {"type": "invite_all_accounts", "name": "Invite Alts"}
-
         ]
 
         if options.use_consumables and options.restock_consumables:
             setup_steps.append({"type": "restock_cons"})
 
+        if materials_to_sell:
+            setup_steps.append(
+                {"type": "sell_materials", "name": "Sell Materials", "materials": materials_to_sell, "multibox": True}
+            )
+
+        setup_steps.append({"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True})
+        
+        if options.buy_ectoplasm:
+            setup_steps.append(
+                {"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True}
+            )
+
         setup_steps.extend(
             [
-                {"type": "travel", "name": "Travel to Zin Ku Corridor", "target_map_id": ZIN_KU_CORRIDOR_MAP_ID},
+                {"type": "random_travel", "name": f"Travel to {entrypoint_name}", "target_map_id": entrypoint_map_id},
+                {"type": "summon_all_accounts", "name": "Summon Alts", "ms": 5000},
+                {"type": "invite_all_accounts", "name": "Invite Alts"},
                 {"type": "set_hard_mode", "enabled": bool(options.hard_mode)},
                 {"type": "use_item", "name": "Use FoW Scroll", "model_id": FOW_SCROLL_MODEL_ID},
                 {"type": "wait_map_change", "name": "Wait For FoW", "target_map_id": FOW_MAP_ID},
@@ -161,7 +242,6 @@ def create_modular_fow_bot(
         settings_ui=settings_ui,
         help_ui=help_ui,
         config_draw_path=True,
-        upkeep_morale_active=True,
         upkeep_auto_inventory_management_active=True,
         upkeep_summoning_stone_active=True,
         upkeep_grail_of_might_active=True,
@@ -169,14 +249,12 @@ def create_modular_fow_bot(
         upkeep_armor_of_salvation_active=True,
         upkeep_war_supplies_active=True,
         upkeep_drake_kabob_active=True,
-        upkeep_honeycomb_active=True,
         upkeep_candy_corn_active=True,
         upkeep_grail_of_might_restock=3,
         upkeep_essence_of_celerity_restock=3,
         upkeep_armor_of_salvation_restock=3,
         upkeep_war_supplies_restock=3,
         upkeep_drake_kabob_restock=3,
-        upkeep_honeycomb_restock=10,
         upkeep_candy_corn_restock=10,
     )
 
