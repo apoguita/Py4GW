@@ -1,9 +1,6 @@
 from enum import Enum
 from enum import IntEnum
 
-
-
-
 # region Range
 class Range(Enum):
     Touch = 144.0
@@ -374,6 +371,28 @@ AttributeNames = {
     Attribute.None_: "None",
 }
 
+PROFESSION_ATTRIBUTES : dict[Profession, list[Attribute]] = {
+    Profession._None: [],
+    Profession.Warrior: [Attribute.Strength, Attribute.AxeMastery, Attribute.HammerMastery, Attribute.Swordsmanship, Attribute.Tactics],
+    Profession.Ranger: [Attribute.BeastMastery, Attribute.Expertise, Attribute.WildernessSurvival, Attribute.Marksmanship],
+    Profession.Monk: [Attribute.HealingPrayers, Attribute.SmitingPrayers, Attribute.ProtectionPrayers, Attribute.DivineFavor],
+    Profession.Necromancer: [Attribute.BloodMagic, Attribute.DeathMagic, Attribute.SoulReaping, Attribute.Curses],
+    Profession.Mesmer: [Attribute.FastCasting, Attribute.IllusionMagic, Attribute.DominationMagic, Attribute.InspirationMagic],
+    Profession.Elementalist: [Attribute.AirMagic, Attribute.EarthMagic, Attribute.FireMagic, Attribute.WaterMagic],
+    Profession.Assassin: [Attribute.DaggerMastery, Attribute.DeadlyArts, Attribute.ShadowArts, Attribute.CriticalStrikes],
+    Profession.Ritualist: [Attribute.Communing, Attribute.RestorationMagic, Attribute.ChannelingMagic, Attribute.SpawningPower],
+    Profession.Paragon: [Attribute.Command, Attribute.Motivation, Attribute.Leadership, Attribute.SpearMastery],
+    Profession.Dervish: [Attribute.ScytheMastery, Attribute.WindPrayers, Attribute.EarthPrayers, Attribute.Mysticism],
+}
+
+_ATTRIBUTE_TO_PROFESSION: dict[Attribute, Profession] = {}
+for profession_enum, attributes in PROFESSION_ATTRIBUTES.items():
+    if not attributes:
+        continue
+
+    for attr in attributes:
+        _ATTRIBUTE_TO_PROFESSION[attr] = Profession[profession_enum.name]
+        
 #region Inscription
 class Inscription(IntEnum):
     Fear_Cuts_Deeper = 0

@@ -2,6 +2,7 @@ from enum import Enum
 from enum import IntEnum
 from .Model_enums import ModelID
 
+MAX_STACK_SIZE = 250
 
 # region Rarity
 class Rarity(IntEnum):
