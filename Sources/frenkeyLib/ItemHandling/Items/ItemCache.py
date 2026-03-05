@@ -7,6 +7,7 @@ from PyItem import PyItem
 from Py4GWCoreLib.Item import Bag
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 
+PERSISTENT = True
 
 class ItemCache:
     def __init__(self):
