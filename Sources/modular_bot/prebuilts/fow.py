@@ -115,7 +115,9 @@ def build_fow_phases(
         setup_steps = [
             {"type": "leave_party", "name": "Leave Party", "multibox": True},
             {"type": "travel_gh", "name": "Travel to Guild Hall", "ms": 7000, "multibox": True},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 8000, **GH_MERCHANT_SELECTOR},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
             {"type": "set_auto_looting", "enabled": bool(options.auto_loot)},
         ]
 

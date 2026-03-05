@@ -2,7 +2,6 @@
   "name": "Tower of Strength",
   "steps": [
     {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
-    {"type": "auto_path", "name": "path to Miko", "points": [[12157, 6555]]},
     {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
     {"type": "auto_path", "name": "To the Overlords", "points": [[12000, 6600], [21700, 12600], [22868, 14914], [20960, 15895]]},
     {"type": "auto_path", "name": "Wolf spot", "points": [[19240, 12803]]},

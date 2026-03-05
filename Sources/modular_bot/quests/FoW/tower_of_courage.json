@@ -5,7 +5,10 @@
     {"type": "auto_path", "name": "To Rasti ", "points": [[-15479, -1824]]},
     {"type": "wait", "ms": 5000},
     {"type": "dialog", "name": "Take Toc", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80D401"},
+    {"type": "dialog", "name": "Take Toc", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80D401"},
     {"type": "dialog", "name": "Reward Toc", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80D407"},
+    {"type": "dialog", "name": "Reward Toc", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80D407"},
+    {"type": "dialog", "name": "Take Whaling", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80CC01"},
     {"type": "dialog", "name": "Take Whaling", "npc": "RASTIGAN_THE_ETERNAL", "id": "0x80CC01"},
     {"type": "interact_gadget", "target": "CHEST"}
   ]

@@ -98,6 +98,8 @@ def handle_restock_kits(ctx: StepContext) -> None:
 
     name = ctx.step.get("name", "Restock Kits")
     multibox_raw = ctx.step.get("multibox", False)
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
 
     try:
         id_kits_target = int(ctx.step.get("id_kits", 2))
@@ -146,16 +148,24 @@ def handle_restock_kits(ctx: StepContext) -> None:
 
         if multibox:
             sender_email = Player.GetAccountEmail()
-            for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-                account_email = str(getattr(account, "AccountEmail", "") or "")
-                if not account_email or account_email == sender_email:
-                    continue
-                GLOBAL_CACHE.ShMem.SendMessage(
+            account_emails = _iter_other_account_emails()
+            sent_messages: list[tuple[str, int]] = []
+            for account_email in account_emails:
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
                     sender_email,
                     account_email,
                     SharedCommandType.MerchantItems,
                     (x, y, float(id_kits_target), float(salvage_kits_target)),
                 )
+                sent_messages.append((account_email, int(message_index)))
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "restock_kits",
+                sent_messages,
+                SharedCommandType.MerchantItems,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
 
         yield
 
