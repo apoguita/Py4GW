@@ -220,11 +220,13 @@ class BotConfig:
     def _set_pause_on_danger_fn(self, executable_fn: Callable[[], bool]) -> None:
         self.pause_on_danger_fn = executable_fn
                
-    def _reset_pause_on_danger_fn(self) -> None:
+    def _reset_pause_on_danger_fn(self, aggro_area=None) -> None:
         from ..Routines import Checks  # local import to avoid cycles
         from ..enums_src.GameData_enums import Range
 
-        self._set_pause_on_danger_fn(lambda: Checks.Agents.InDanger(aggro_area=Range.Earshot) or Checks.Party.IsPartyMemberDead() or Checks.Skills.InCastingProcess())
+        if aggro_area is None:
+            aggro_area = Range.Earshot
+        self._set_pause_on_danger_fn(lambda a=aggro_area: Checks.Agents.InDanger(aggro_area=a) or Checks.Party.IsPartyMemberDead() or Checks.Skills.InCastingProcess())
 
     def _set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]) -> None:
         from ..Py4GWcorelib import ConsoleLog
@@ -239,10 +241,10 @@ class BotConfig:
         self.FSM.AddState(name=f"PauseOnDangerFn_{self.get_counter("PAUSE_ON_DANGER")}",
                           execute_fn=lambda:self._set_pause_on_danger_fn(pause_on_combat_fn),)
 
-    def reset_pause_on_danger_fn(self) -> None:
-        self._reset_pause_on_danger_fn()
-        self.FSM.AddState(name=f"ResetPauseOnDangerFn_{self.get_counter("PAUSE_ON_DANGER")}",
-                          execute_fn=lambda:self._reset_pause_on_danger_fn(),)
+    def reset_pause_on_danger_fn(self, aggro_area=None) -> None:
+        self._reset_pause_on_danger_fn(aggro_area)
+        self.FSM.AddState(name=f"ResetPauseOnDangerFn_{self.get_counter('PAUSE_ON_DANGER')}",
+                          execute_fn=lambda a=aggro_area: self._reset_pause_on_danger_fn(a),)
 
     def set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]):
         self.FSM.AddState(name=f"OnFollowPathFailed_{self.get_counter("ON_FOLLOW_PATH_FAILED")}",
