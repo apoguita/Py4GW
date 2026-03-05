@@ -555,8 +555,13 @@ class _Items:
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
         from ...Player import Player
+        from ...Map import Map
         from ...Py4GWcorelib import ConsoleLog
         import Py4GW
+
+        # Never use summoning stones in The Norn Fighting Tournament.
+        if Map.GetMapID() == 700:
+            return
         
         # Priority 1: Legionnaire Summoning Crystal
         legionnaire_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Legionnaire_Summoning_Crystal.value)

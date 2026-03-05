@@ -18,8 +18,17 @@ class _Restock:
 
     def _restock_summoning_stones_impl(self, quantity: int = 250):
         """Internal generator for summoning stone restock (safe to yield from)."""
+        from ...GlobalCache import GLOBAL_CACHE
+        legionnaire_model = ModelID.Legionnaire_Summoning_Crystal.value
+        legionnaire_before = GLOBAL_CACHE.Inventory.GetModelCount(legionnaire_model)
+        legionnaire_full = yield from self._restock_item(legionnaire_model, quantity)
+        legionnaire_after = GLOBAL_CACHE.Inventory.GetModelCount(legionnaire_model)
+
+        # Legionnaire has priority: stop if either fully restocked or partially increased.
+        if legionnaire_full or legionnaire_after > legionnaire_before:
+            return
+
         summon_models = [
-            ModelID.Legionnaire_Summoning_Crystal.value,
             ModelID.Tengu_Summon.value,
             ModelID.Igneous_Summoning_Stone.value,
             ModelID.Amber_Summon.value,

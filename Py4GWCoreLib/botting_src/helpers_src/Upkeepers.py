@@ -301,6 +301,7 @@ class _Upkeepers:
             423,  # The Tribunal
             436,  # Command Post
             503,  # Throne of Secrets
+            700,  # The Norn Fighting Tournament
             710,  # Epilogue
             840,  # Lion's Arch Keep
         ]

@@ -120,6 +120,7 @@ class CombatClass:
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
+        self.great_dwarf_weapon = GLOBAL_CACHE.Skill.GetID("Great_Dwarf_Weapon")
         #junundu
         self.junundu_wail = GLOBAL_CACHE.Skill.GetID("Junundu_Wail")
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
@@ -451,7 +452,8 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyMartial:
-            v_target = TargetLowestAllyMartial(filter_skill_id=self.skills[slot].skill_id)
+            target_other_ally = self.skills[slot].skill_id == self.great_dwarf_weapon
+            v_target = TargetLowestAllyMartial(other_ally=target_other_ally, filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
                 v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyMartialMelee:
@@ -501,6 +503,10 @@ class CombatClass:
             v_target = self.GetPartyTarget()
             if v_target == 0:
                 v_target = get_nearest_enemy()
+
+        # Great Dwarf Weapon cannot self-target; keep an extra guard even if profile data is misconfigured.
+        if self.skills[slot].skill_id == self.great_dwarf_weapon and v_target == Player.GetAgentID():
+            v_target = TargetLowestAllyMartial(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
         return v_target
 
     def IsPartyMember(self, agent_id):
