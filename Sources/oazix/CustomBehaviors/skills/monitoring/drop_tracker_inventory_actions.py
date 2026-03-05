@@ -313,7 +313,26 @@ def run_inventory_action(
         )
         return True
     elif action_code == "sell_gold_no_runes":
-        return bool(viewer._queue_manual_sell_gold_items())
+        queued = int(viewer._queue_manual_sell_gold_items() or 0)
+        if queued > 0:
+            return True
+        try:
+            outpost_lock_active = bool(getattr(viewer, "auto_outpost_store_job_running", False))
+            other_job_active = bool(
+                getattr(viewer, "auto_id_job_running", False)
+                or getattr(viewer, "auto_salvage_job_running", False)
+                or getattr(viewer, "auto_buy_kits_job_running", False)
+                or getattr(viewer, "auto_gold_balance_job_running", False)
+                or getattr(viewer, "auto_inventory_reorder_job_running", False)
+            )
+        except (TypeError, ValueError, RuntimeError, AttributeError):
+            outpost_lock_active = False
+            other_job_active = True
+        if outpost_lock_active and (not other_job_active):
+            # Recover manual sell action from stale outpost-store lock.
+            viewer.auto_outpost_store_job_running = False
+            return bool(int(viewer._queue_manual_sell_gold_items() or 0) > 0)
+        return False
     elif action_code == "buy_kits_if_needed":
         return bool(viewer._queue_buy_kits_if_needed())
     elif action_code == "id_blue":

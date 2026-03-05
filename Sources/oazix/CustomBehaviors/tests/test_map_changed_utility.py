@@ -8,6 +8,12 @@ from enum import Enum
 from types import SimpleNamespace
 
 
+def _set_module_attrs(module: types.ModuleType, **attrs: object) -> types.ModuleType:
+    for name, value in attrs.items():
+        setattr(module, name, value)
+    return module
+
+
 class _FakeTimer:
     def __init__(self, _ms: int = 0) -> None:
         self._expired = True
@@ -76,47 +82,73 @@ def _install_runtime_stubs(monkeypatch):
     pyimgui_mod = types.ModuleType("PyImGui")
 
     map_state = {"map_id": 1, "uptime_ms": 5000}
-    py4gw_mod = types.ModuleType("Py4GWCoreLib")
-    py4gw_mod.Map = SimpleNamespace(
-        GetMapID=lambda: map_state["map_id"],
-        GetInstanceUptime=lambda: map_state["uptime_ms"],
+    py4gw_mod = _set_module_attrs(
+        types.ModuleType("Py4GWCoreLib"),
+        Map=SimpleNamespace(
+            GetMapID=lambda: map_state["map_id"],
+            GetInstanceUptime=lambda: map_state["uptime_ms"],
+        ),
+        Routines=SimpleNamespace(),
+        Range=SimpleNamespace(),
     )
-    py4gw_mod.Routines = SimpleNamespace()
-    py4gw_mod.Range = SimpleNamespace()
 
-    py4gwcorelib_mod = types.ModuleType("Py4GWCoreLib.Py4GWcorelib")
-    py4gwcorelib_mod.ThrottledTimer = _FakeTimer
+    py4gwcorelib_mod = _set_module_attrs(
+        types.ModuleType("Py4GWCoreLib.Py4GWcorelib"),
+        ThrottledTimer=_FakeTimer,
+    )
 
-    event_message_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.bus.event_message")
-    event_message_mod.EventMessage = object
+    event_message_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.bus.event_message"),
+        EventMessage=object,
+    )
 
-    event_type_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.bus.event_type")
-    event_type_mod.EventType = SimpleNamespace(MAP_CHANGED="map_changed")
+    event_type_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.bus.event_type"),
+        EventType=SimpleNamespace(MAP_CHANGED="map_changed"),
+    )
 
-    event_bus_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.bus.event_bus")
-    event_bus_mod.EventBus = _FakeEventBus
+    event_bus_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.bus.event_bus"),
+        EventBus=_FakeEventBus,
+    )
 
     helpers_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.helpers.custom_behavior_helpers")
-    behavior_result_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result")
-    behavior_result_mod.BehaviorResult = SimpleNamespace(ACTION_PERFORMED=1)
-    behavior_state_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.behavior_state")
-    behavior_state_mod.BehaviorState = _BehaviorState
-    common_score_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.scores.comon_score")
-    common_score_mod.CommonScore = SimpleNamespace(DEAMON=SimpleNamespace(value=99.6))
-    score_definition_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.scores.score_definition")
-    score_definition_mod.ScoreDefinition = object
-    custom_skill_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.skills.custom_skill")
-    custom_skill_mod.CustomSkill = _CustomSkill
-    custom_skill_utility_base_mod = types.ModuleType(
-        "Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base"
+    behavior_result_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result"),
+        BehaviorResult=SimpleNamespace(ACTION_PERFORMED=1),
     )
-    custom_skill_utility_base_mod.CustomSkillUtilityBase = _CustomSkillUtilityBase
-    targeting_order_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order")
-    targeting_order_mod.TargetingOrder = object
-    score_static_definition_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition")
-    score_static_definition_mod.ScoreStaticDefinition = _ScoreStaticDefinition
-    utility_typology_mod = types.ModuleType("Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology")
-    utility_typology_mod.UtilitySkillTypology = SimpleNamespace(DAEMON="daemon")
+    behavior_state_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.behavior_state"),
+        BehaviorState=_BehaviorState,
+    )
+    common_score_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.scores.comon_score"),
+        CommonScore=SimpleNamespace(DEAMON=SimpleNamespace(value=99.6)),
+    )
+    score_definition_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.scores.score_definition"),
+        ScoreDefinition=object,
+    )
+    custom_skill_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.skills.custom_skill"),
+        CustomSkill=_CustomSkill,
+    )
+    custom_skill_utility_base_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base"),
+        CustomSkillUtilityBase=_CustomSkillUtilityBase,
+    )
+    targeting_order_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order"),
+        TargetingOrder=object,
+    )
+    score_static_definition_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition"),
+        ScoreStaticDefinition=_ScoreStaticDefinition,
+    )
+    utility_typology_mod = _set_module_attrs(
+        types.ModuleType("Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology"),
+        UtilitySkillTypology=SimpleNamespace(DAEMON="daemon"),
+    )
 
     monkeypatch.setitem(sys.modules, "PyImGui", pyimgui_mod)
     monkeypatch.setitem(sys.modules, "Py4GWCoreLib", py4gw_mod)

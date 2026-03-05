@@ -8,6 +8,7 @@ from typing import Callable
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import TrackerDropMessage
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import TrackerNameChunkMessage
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import TrackerStatsChunkMessage
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import extract_name_chunk_event_id
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import parse_drop_meta
 
 
@@ -139,10 +140,14 @@ def merge_name_chunk(
     chunk_idx: int,
     chunk_total: int,
     now_ts: float,
+    event_id: str = "",
 ) -> str:
+    clean_sig = str(name_signature or "").strip()
+    clean_event_id = str(event_id or "").strip()
+    bucket_key = f"{clean_event_id}:{clean_sig}" if clean_event_id and clean_sig else clean_sig
     merged = _merge_chunk_bucket(
         buffers=name_chunk_buffers,
-        key=str(name_signature or "").strip(),
+        key=bucket_key,
         chunk_text=chunk_text,
         chunk_idx=chunk_idx,
         chunk_total=chunk_total,
@@ -151,7 +156,14 @@ def merge_name_chunk(
         total_mode="max",
     )
     if merged:
-        full_name_by_signature[str(name_signature or "").strip()] = merged
+        if clean_event_id and clean_sig:
+            full_name_by_signature[f"{clean_event_id}:{clean_sig}"] = merged
+            # Keep first-seen signature-level mapping for backward compatibility,
+            # but avoid clobbering with another event that reuses the same signature.
+            if clean_sig not in full_name_by_signature:
+                full_name_by_signature[clean_sig] = merged
+        else:
+            full_name_by_signature[clean_sig] = merged
     return merged
 
 
@@ -224,11 +236,13 @@ def parse_tracker_name_chunk(
     chunk_text = _extra_text(extra_data_list, 2, to_text_fn)
     chunk_meta = _extra_text(extra_data_list, 3, to_text_fn)
     chunk_idx, chunk_total = decode_chunk_meta_fn(chunk_meta)
+    event_id = extract_name_chunk_event_id(chunk_meta)
     return TrackerNameChunkMessage(
         name_signature=name_sig,
         chunk_text=chunk_text,
         chunk_idx=int(chunk_idx),
         chunk_total=int(chunk_total),
+        event_id=str(event_id or "").strip(),
     )
 
 
@@ -259,7 +273,7 @@ def handle_tracker_name_branch(
     extra_data_list: Any,
     to_text_fn: Callable[[Any], str],
     decode_chunk_meta_fn: Callable[[str], tuple[int, int]],
-    merge_name_chunk_fn: Callable[[dict[str, dict[str, Any]], dict[str, str], str, str, int, int, float], str],
+    merge_name_chunk_fn: Callable[[dict[str, dict[str, Any]], dict[str, str], str, str, int, int, float, str], str],
     name_chunk_buffers: dict[str, dict[str, Any]],
     full_name_by_signature: dict[str, str],
     now_ts: float,
@@ -281,6 +295,7 @@ def handle_tracker_name_branch(
         chunk.chunk_idx,
         chunk.chunk_total,
         now_ts,
+        chunk.event_id,
     )
     return True
 
@@ -362,7 +377,7 @@ def handle_tracker_drop_branch(
     to_text_fn: Callable[[Any], str],
     normalize_text_fn: Callable[[Any], str],
     build_tracker_drop_message_fn: Callable[[str, str, str, str, Any], TrackerDropMessage],
-    resolve_full_name_fn: Callable[[str], str],
+    resolve_full_name_fn: Callable[..., str],
     normalize_rarity_label_fn: Callable[[str, str], str],
 ) -> TrackerDropMessage | None:
     if str(extra_0 or "") != str(expected_tag or ""):
@@ -383,7 +398,11 @@ def handle_tracker_drop_branch(
     raw_name_clean = str(item_name_raw or "").strip()
     raw_name_clean_lc = raw_name_clean.lower()
     if name_sig:
-        resolved_name = str(resolve_full_name_fn(name_sig) or "").strip()
+        resolved_name = ""
+        try:
+            resolved_name = str(resolve_full_name_fn(name_sig, str(drop_msg.event_id or "").strip()) or "").strip()
+        except TypeError:
+            resolved_name = str(resolve_full_name_fn(name_sig) or "").strip()
         if resolved_name:
             resolved_name_lc = resolved_name.lower()
             # Guard against stale/signature-collision substitutions:
@@ -394,10 +413,6 @@ def handle_tracker_drop_branch(
                 or raw_name_clean_lc.startswith(resolved_name_lc)
             ):
                 drop_msg.item_name = resolved_name
-            elif len(drop_msg.item_name) >= 31:
-                drop_msg.item_name = f"{drop_msg.item_name}~{name_sig[:4]}"
-        elif len(drop_msg.item_name) >= 31:
-            drop_msg.item_name = f"{drop_msg.item_name}~{name_sig[:4]}"
     drop_msg.rarity = str(normalize_rarity_label_fn(drop_msg.item_name, drop_msg.rarity) or "").strip() or drop_msg.rarity
     return drop_msg
 

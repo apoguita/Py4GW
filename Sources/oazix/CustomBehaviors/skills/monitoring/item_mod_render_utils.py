@@ -3,7 +3,7 @@ import re
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
 
 
-SPELLCASTING_ITEM_TYPE_IDS = {22, 26, 41}
+SPELLCASTING_ITEM_TYPE_IDS = {12, 22, 26, 41}
 FOE_TYPE_32896_NAMES = {
     0: "Undead",
     1: "Charr",
@@ -208,6 +208,12 @@ def _extract_chance(arg1: int, arg2: int, use_range_chance: bool) -> int:
     return 0
 
 
+def _extract_chance_dual(arg1: int, arg2: int, use_range_chance: bool) -> tuple[int, int]:
+    if not use_range_chance:
+        return (arg1 if arg1 > 0 else 0, arg2 if arg2 > 0 else 0)
+    return ((arg1 if 5 <= arg1 <= 25 else 0), (arg2 if 5 <= arg2 <= 25 else 0))
+
+
 def _apply_attribute_format(attribute_name: str, format_attribute_name_fn) -> str:
     txt = str(attribute_name or "").strip()
     if not txt:
@@ -307,6 +313,9 @@ def build_spellcast_hct_hsr_lines(
         arg1_i = _safe_int(arg1)
         arg2_i = _safe_int(arg2)
         chance = _extract_chance(arg1_i, arg2_i, use_range_chance=use_range_chance)
+        chance1, chance2 = _extract_chance_dual(arg1_i, arg2_i, use_range_chance=use_range_chance)
+        attr1 = _resolve_attribute_name(arg1_i, resolve_attribute_name_fn)
+        attr2 = _resolve_attribute_name(arg2_i, resolve_attribute_name_fn)
 
         if ident_i == 8712:
             if chance > 0:
@@ -318,7 +327,26 @@ def build_spellcast_hct_hsr_lines(
         if ident_i == 8728:
             if not is_spellcasting_weapon:
                 continue
-            attr_from_mod = _resolve_attribute_name(arg2_i, resolve_attribute_name_fn)
+            attr_from_mod = ""
+            chance = 0
+            preferred_attr = attr_txt.lower()
+            candidates = []
+            if chance1 > 0 and attr2:
+                candidates.append((attr2, chance1))
+            if chance2 > 0 and attr1:
+                candidates.append((attr1, chance2))
+            if candidates:
+                if preferred_attr:
+                    matched = [pair for pair in candidates if str(pair[0]).strip().lower() == preferred_attr]
+                    if matched:
+                        attr_from_mod, chance = matched[0]
+                    else:
+                        attr_from_mod, chance = candidates[0]
+                else:
+                    attr_from_mod, chance = candidates[0]
+            else:
+                attr_from_mod = attr2 or attr1
+                chance = _extract_chance(arg1_i, arg2_i, use_range_chance=use_range_chance)
             if chance > 0:
                 if attr_from_mod:
                     lines.append(f"Halves casting time of {attr_from_mod} spells (Chance: {chance}%)")
@@ -334,7 +362,26 @@ def build_spellcast_hct_hsr_lines(
         if ident_i in (9128, 9112):
             if ident_i == 9112 and not is_spellcasting_weapon:
                 continue
-            attr_from_mod = _resolve_attribute_name(arg2_i, resolve_attribute_name_fn) if ident_i == 9112 else ""
+            attr_from_mod = ""
+            if ident_i == 9112:
+                preferred_attr = attr_txt.lower()
+                candidates = []
+                if chance1 > 0 and attr2:
+                    candidates.append((attr2, chance1))
+                if chance2 > 0 and attr1:
+                    candidates.append((attr1, chance2))
+                if candidates:
+                    if preferred_attr:
+                        matched = [pair for pair in candidates if str(pair[0]).strip().lower() == preferred_attr]
+                        if matched:
+                            attr_from_mod, chance = matched[0]
+                        else:
+                            attr_from_mod, chance = candidates[0]
+                    else:
+                        attr_from_mod, chance = candidates[0]
+                else:
+                    attr_from_mod = attr2 or attr1
+                    chance = _extract_chance(arg1_i, arg2_i, use_range_chance=use_range_chance)
             if chance > 0:
                 if attr_from_mod:
                     lines.append(f"Halves skill recharge of {attr_from_mod} spells (Chance: {chance}%)")
@@ -381,10 +428,31 @@ def build_known_spellcasting_mod_lines(
         arg1_i = _safe_int(arg1)
         arg2_i = _safe_int(arg2)
 
+        if ident_i == 32784:
+            if arg2_i <= 0:
+                continue
+            attr_name = _resolve_attribute_name(arg1_i, resolve_attribute_name_fn)
+            if attr_name:
+                lines.append(f"Requires {arg2_i} {attr_name}")
+            elif arg1_i > 0:
+                lines.append(f"Requires {arg2_i} Attribute {arg1_i}")
+            else:
+                lines.append(f"Requires {arg2_i}")
+            continue
+
+        if ident_i == 42290:
+            # LootEx exposes this as an inscription text component. We keep the
+            # raw inscription id visible so the line is not dropped from stats.
+            inscription_id = arg2_i if arg2_i > 0 else arg1_i
+            if inscription_id > 0:
+                lines.append(f"Inscription: {inscription_id}")
+            continue
+
         if ident_i == 10328:
             cond_by_arg1 = {
                 0: "Bleeding",
                 1: "Blind",
+                2: "Burning",
                 3: "Crippled",
                 4: "Deep Wound",
                 5: "Disease",
@@ -392,13 +460,37 @@ def build_known_spellcasting_mod_lines(
                 7: "Dazed",
                 8: "Weakness",
             }
-            # Some payloads encode this condition in arg1, others in arg2.
-            # Prefer arg2 when arg1 is the default zero bucket and arg2 carries
-            # a specific non-zero condition code.
-            if arg1_i == 0 and arg2_i in cond_by_arg1 and arg2_i != 0:
-                cond = cond_by_arg1.get(arg2_i, "")
+            # Some payloads encode this condition in arg1/arg2 directly while
+            # others pack it into low bits.
+            cond = ""
+            if arg1_i == 0 and arg2_i != 0:
+                cond_candidates = (
+                    arg2_i,
+                    (arg2_i & 0xFF),
+                    (arg2_i & 0x0F),
+                    (arg1_i & 0xFF),
+                    (arg1_i & 0x0F),
+                    arg1_i,
+                )
             else:
-                cond = cond_by_arg1.get(arg1_i, "") or cond_by_arg1.get(arg2_i, "")
+                cond_candidates = (
+                    arg1_i,
+                    arg2_i,
+                    (arg1_i & 0xFF),
+                    (arg2_i & 0xFF),
+                    (arg1_i & 0x0F),
+                    (arg2_i & 0x0F),
+                )
+            saw_zero_candidate = False
+            for candidate in cond_candidates:
+                if candidate == 0:
+                    saw_zero_candidate = True
+                    continue
+                cond = cond_by_arg1.get(candidate, "")
+                if cond:
+                    break
+            if (not cond) and saw_zero_candidate and (arg1_i != 0 or arg2_i != 0):
+                cond = cond_by_arg1.get(0, "")
             if cond:
                 lines.append(f"Reduces {cond} duration on you by 20%")
             continue

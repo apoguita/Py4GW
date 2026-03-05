@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 
 def default_ui_colors() -> dict[str, tuple[float, float, float, float]]:
     return {
@@ -49,6 +51,14 @@ def draw_runtime_controls_panel(viewer, PyImGui) -> None:
         tooltip="Periodic poll/throughput diagnostics.",
     ):
         viewer.enable_perf_logs = not viewer.enable_perf_logs
+        viewer.runtime_config_dirty = True
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button(
+        f"Pickup Watch: {'ON' if viewer.enable_chat_item_tracking else 'OFF'}",
+        "success" if viewer.enable_chat_item_tracking else "secondary",
+        tooltip="Track pickup chat lines live without restarting the viewer.",
+    ):
+        viewer.enable_chat_item_tracking = not viewer.enable_chat_item_tracking
         viewer.runtime_config_dirty = True
     PyImGui.new_line()
     if viewer._styled_button(
@@ -281,6 +291,107 @@ def draw_runtime_controls_panel(viewer, PyImGui) -> None:
         PyImGui.end_child()
     else:
         PyImGui.text_colored("No map watch lines captured yet.", (0.70, 0.74, 0.80, 1.0))
+
+    PyImGui.separator()
+    viewer._draw_section_header("Live Debugger")
+    runtime_cfg = viewer.runtime_config if isinstance(getattr(viewer, "runtime_config", None), dict) else {}
+    detailed_emit = bool(runtime_cfg.get("live_debug_detailed", True))
+    force_debug_refresh = False
+    if viewer._styled_button(
+        f"Auto Refresh: {'ON' if viewer.live_debug_auto_refresh else 'OFF'}",
+        "success" if viewer.live_debug_auto_refresh else "secondary",
+        tooltip="Refresh live debug tail every few hundred milliseconds.",
+    ):
+        viewer.live_debug_auto_refresh = not viewer.live_debug_auto_refresh
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button("Refresh Now", "primary", tooltip="Force refresh live debug records."):
+        force_debug_refresh = True
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button(
+        f"Detailed Emit: {'ON' if detailed_emit else 'OFF'}",
+        "success" if detailed_emit else "secondary",
+        tooltip="Toggle verbose sender-side live debug events.",
+    ):
+        runtime_cfg["live_debug_detailed"] = not detailed_emit
+        viewer.runtime_config = runtime_cfg
+        viewer.runtime_config_dirty = True
+
+    PyImGui.text(f"Tail Lines: {int(viewer.live_debug_tail_limit)}")
+    if viewer._styled_button("- Lines", "secondary"):
+        viewer.live_debug_tail_limit = max(20, int(viewer.live_debug_tail_limit) - 20)
+        force_debug_refresh = True
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button("+ Lines", "secondary"):
+        viewer.live_debug_tail_limit = min(600, int(viewer.live_debug_tail_limit) + 20)
+        force_debug_refresh = True
+
+    previous_filter = viewer._ensure_text(getattr(viewer, "live_debug_filter_text", ""))
+    viewer.live_debug_filter_text = PyImGui.input_text("Filter##DropTrackerLiveDebug", previous_filter)
+    if viewer.live_debug_filter_text != previous_filter:
+        force_debug_refresh = True
+
+    previous_event_filter = viewer._ensure_text(getattr(viewer, "live_debug_event_filter", ""))
+    viewer.live_debug_event_filter = PyImGui.input_text("Event##DropTrackerLiveDebug", previous_event_filter)
+    if viewer.live_debug_event_filter != previous_event_filter:
+        force_debug_refresh = True
+
+    actor_options = ["All", "viewer", "sender", "raw"]
+    current_actor = viewer._ensure_text(getattr(viewer, "live_debug_actor_filter", "")).strip().lower()
+    actor_idx = 0
+    if current_actor in actor_options[1:]:
+        actor_idx = actor_options.index(current_actor)
+    next_actor_idx = int(PyImGui.combo("Actor##DropTrackerLiveDebug", actor_idx, actor_options))
+    if next_actor_idx != actor_idx:
+        viewer.live_debug_actor_filter = "" if next_actor_idx <= 0 else actor_options[next_actor_idx]
+        force_debug_refresh = True
+
+    should_poll_debug = bool(viewer.live_debug_auto_refresh) or force_debug_refresh
+    if should_poll_debug:
+        debug_rows = viewer._refresh_live_debug_cache(force=force_debug_refresh)
+    else:
+        debug_rows = list(getattr(viewer, "live_debug_cached_records", []) or [])
+
+    debug_lines: list[str] = []
+    for payload in debug_rows:
+        debug_lines.append(viewer._format_live_debug_record(payload, max_extra_fields=8))
+    last_refresh_ts = float(getattr(viewer, "live_debug_last_refresh_at", 0.0) or 0.0)
+    refresh_age = max(0.0, time.time() - last_refresh_ts) if last_refresh_ts > 0.0 else 0.0
+    refresh_age_txt = f"{refresh_age:.1f}s ago" if last_refresh_ts > 0.0 else "never"
+    PyImGui.text(
+        f"Rows: {len(debug_lines)} | Last refresh: {refresh_age_txt} | {viewer._ensure_text(viewer.live_debug_log_path)}"
+    )
+    if viewer._styled_button("Copy Visible", "secondary", tooltip="Copy currently displayed debug lines."):
+        try:
+            PyImGui.set_clipboard_text("\n".join(debug_lines))
+            viewer.set_status("Live debug lines copied to clipboard")
+        except Exception as e:
+            viewer.set_status(f"Live debug copy failed: {e}")
+    PyImGui.same_line(0.0, 10.0)
+    if viewer._styled_button("Clear Debug Log", "warning", tooltip="Truncate live debug JSONL log file."):
+        cleared_path = viewer._clear_live_debug_log()
+        viewer.live_debug_cached_records = []
+        viewer.live_debug_last_refresh_at = 0.0
+        force_debug_refresh = True
+        if cleared_path:
+            viewer.set_status(f"Live debug log cleared: {cleared_path}")
+        else:
+            viewer.set_status("Live debug clear failed")
+
+    if force_debug_refresh:
+        debug_rows = viewer._refresh_live_debug_cache(force=True)
+        debug_lines = [viewer._format_live_debug_record(payload, max_extra_fields=8) for payload in debug_rows]
+    if debug_lines:
+        if PyImGui.begin_child(
+            "DropTrackerLiveDebugPanel",
+            size=(0.0, 220.0),
+            border=True,
+            flags=PyImGui.WindowFlags.HorizontalScrollbar,
+        ):
+            for line in debug_lines:
+                PyImGui.text(viewer._ensure_text(line))
+        PyImGui.end_child()
+    else:
+        PyImGui.text_colored("No live debug lines match current filters.", (0.70, 0.74, 0.80, 1.0))
 
     if viewer.runtime_config_dirty:
         viewer._flush_runtime_config_if_dirty()

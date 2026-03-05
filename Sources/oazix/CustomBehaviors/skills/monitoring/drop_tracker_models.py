@@ -154,6 +154,7 @@ class TrackerNameChunkMessage:
     chunk_text: str
     chunk_idx: int
     chunk_total: int
+    event_id: str = ""
 
 
 @dataclass(slots=True)

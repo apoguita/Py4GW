@@ -19,6 +19,23 @@ def _runtime_attr(viewer, name: str, fallback=None):
     return fallback
 
 
+def _current_drop_tracker_sender(viewer):
+    tracker_module = sys.modules.get("Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility")
+    if tracker_module is not None and hasattr(tracker_module, "DropTrackerSender"):
+        sender_type = getattr(tracker_module, "DropTrackerSender")
+        try:
+            return sender_type()
+        except EXPECTED_RUNTIME_ERRORS:
+            return None
+    sender_type = _runtime_attr(viewer, "DropTrackerSender")
+    if sender_type is None:
+        return None
+    try:
+        return sender_type()
+    except EXPECTED_RUNTIME_ERRORS:
+        return None
+
+
 def draw_selected_item_details(viewer):
     pyimgui = _runtime_attr(viewer, "PyImGui")
     imgui = _runtime_attr(viewer, "ImGui")
@@ -66,7 +83,10 @@ def draw_selected_item_details(viewer):
 
     if active_log_row and viewer._row_matches_selected_item(active_log_row, active_item_key):
         selected_parsed = viewer._parse_drop_row(active_log_row)
-        selected_char = viewer._ensure_text(selected_parsed.player_name if selected_parsed else "").strip() or "Unknown"
+        selected_char = viewer._display_player_name(
+            viewer._ensure_text(selected_parsed.player_name if selected_parsed else "").strip(),
+            viewer._extract_row_sender_email(active_log_row),
+        )
         selected_map = viewer._ensure_text(selected_parsed.map_name if selected_parsed else "").strip() or "Unknown"
         selected_ts = viewer._ensure_text(selected_parsed.timestamp if selected_parsed else "").strip() or "Unknown"
         selected_qty = int(selected_parsed.quantity) if selected_parsed is not None else 1
@@ -120,7 +140,10 @@ def draw_selected_item_details(viewer):
         selected_char_name = ""
         if active_log_row and viewer._row_matches_selected_item(active_log_row, active_item_key):
             selected_parsed = viewer._parse_drop_row(active_log_row)
-            selected_char_name = viewer._ensure_text(selected_parsed.player_name if selected_parsed else "").strip().lower()
+            selected_char_name = viewer._display_player_name(
+                viewer._ensure_text(selected_parsed.player_name if selected_parsed else "").strip(),
+                viewer._extract_row_sender_email(active_log_row),
+            ).strip().lower()
 
         for char_idx, (character, char_stats) in enumerate(stats["characters"]):
             pyimgui.table_next_row()
@@ -199,6 +222,9 @@ def collect_live_status_snapshot(viewer):
 def draw_top_control_strip(viewer):
     pyimgui = _runtime_attr(viewer, "PyImGui")
     c = viewer._ui_colors()
+    join_followers_variant = "success"
+    tracking_button_label = "Resume Tracking" if viewer.paused else "Pause Tracking"
+    tracking_button_variant = "success" if viewer.paused else "warn"
     viewer._draw_section_header("Quick Control")
     pyimgui.push_style_color(pyimgui.ImGuiCol.ChildBg, c["panel_bg"])
     pyimgui.push_style_color(pyimgui.ImGuiCol.Border, (0.28, 0.35, 0.43, 0.72))
@@ -223,7 +249,7 @@ def draw_top_control_strip(viewer):
 
         if viewer._styled_button(
             "Join Followers",
-            "warning",
+            join_followers_variant,
             width=button_w,
             height=action_h,
             tooltip="Invite all eligible followers in the current map.",
@@ -233,8 +259,8 @@ def draw_top_control_strip(viewer):
             pyimgui.same_line(0.0, action_gap)
 
         if viewer._styled_button(
-            "Resume Tracking" if viewer.paused else "Pause Tracking",
-            "success" if viewer.paused else "warning",
+            tracking_button_label,
+            tracking_button_variant,
             width=button_w,
             height=action_h,
             tooltip="Pause or resume local drop tracking updates.",
@@ -248,10 +274,19 @@ def draw_live_status_chips(viewer):
     pyimgui = _runtime_attr(viewer, "PyImGui")
     c = viewer._ui_colors()
     snapshot = collect_live_status_snapshot(viewer)
+    sender = _current_drop_tracker_sender(viewer)
+    sender_warm = bool(getattr(sender, "is_warmed_up", False)) if sender is not None else False
+    sender_ready = int(getattr(sender, "last_snapshot_ready", 0) or 0) if sender is not None else 0
+    sender_total = int(getattr(sender, "last_snapshot_total", 0) or 0) if sender is not None else 0
+    sender_pending = len(getattr(sender, "pending_slot_deltas", {}) or {}) if sender is not None else 0
+    sender_receiver = viewer._ensure_text(getattr(sender, "current_receiver_email", "") if sender is not None else "").strip().lower()
+    gate_reason = viewer._ensure_text(getattr(viewer, "auto_monitoring_last_gate_reason", "")).strip()
     chips = [
         (f"Role: {'Leader' if snapshot['is_leader'] else 'Follower'}", "success" if snapshot["is_leader"] else "secondary", "Leader can broadcast actions to followers."),
         (f"Map: {snapshot['map_id']} {snapshot['display_map_name']}", "primary", f"Current map: {snapshot['map_name']} ({snapshot['map_id']})"),
         (f"Party: {snapshot['party_size']}", "secondary", "Current full party size (players + heroes + henchmen)."),
+        (f"Sender Warm: {'ON' if sender_warm else 'OFF'}", "success" if sender_warm else "warn", f"Sender warmup state. snapshot ready={sender_ready}/{sender_total} pending={sender_pending}"),
+        (f"Receiver: {sender_receiver or '-'}", "secondary", "Current receiver email resolved by sender transport."),
         (f"Auto ID: {'ON' if viewer.auto_id_enabled else 'OFF'}", "success" if viewer.auto_id_enabled else "secondary", "Auto ID loop status."),
         (f"Auto Salv: {'ON' if viewer.auto_salvage_enabled else 'OFF'}", "success" if viewer.auto_salvage_enabled else "secondary", "Auto Salvage loop status."),
         (f"Auto Kits: {'ON' if viewer.auto_buy_kits_enabled else 'OFF'}", "success" if viewer.auto_buy_kits_enabled else "secondary", "Auto buy kits loop status."),
@@ -269,6 +304,24 @@ def draw_live_status_chips(viewer):
                 remaining_w = max(0.0, float(pyimgui.get_content_region_avail()[0]))
                 if remaining_w > 130.0:
                     pyimgui.same_line(0.0, 6.0)
+        last_name = viewer._ensure_text(getattr(viewer, "last_tracked_item_name", "")).strip()
+        if last_name:
+            qty = max(1, int(getattr(viewer, "last_tracked_item_quantity", 1) or 1))
+            rarity = viewer._ensure_text(getattr(viewer, "last_tracked_item_rarity", "")).strip() or "Unknown"
+            player_name = viewer._ensure_text(getattr(viewer, "last_tracked_item_player", "")).strip() or "Unknown"
+            source = viewer._ensure_text(getattr(viewer, "last_tracked_item_source", "")).strip() or "unknown"
+            age = format_elapsed_since(viewer, float(getattr(viewer, "last_tracked_item_at", 0.0) or 0.0))
+            pyimgui.separator()
+            pyimgui.text_colored(
+                f"Last tracked: {last_name} x{qty} ({rarity}) [{player_name}] via {source} {age}",
+                c["muted"],
+            )
+        if gate_reason:
+            pyimgui.same_line(0.0, 14.0)
+            pyimgui.text_colored(
+                f"Gate: {gate_reason} | snapshot {sender_ready}/{sender_total} | pending {sender_pending}",
+                (1.0, 0.80, 0.34, 1.0),
+            )
     pyimgui.end_child()
     pyimgui.pop_style_color(2)
 

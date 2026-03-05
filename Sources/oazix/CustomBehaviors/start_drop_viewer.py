@@ -7,6 +7,9 @@ import shutil
 import json
 import datetime
 import traceback
+import importlib
+import sys
+from copy import deepcopy
 from typing import Any, Generator
 import PyInventory
 import PyAgent
@@ -23,6 +26,8 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_log_store impo
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_runtime_store import build_state_from_parsed_rows
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_runtime_store import merge_parsed_rows_into_state
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_shmem_inventory import process_inventory_message
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_event_id
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_item_id
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import extract_runtime_row_sender_email
@@ -39,8 +44,6 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport impo
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import extract_event_id_hint
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import iter_circular_indices
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import should_skip_inventory_action_message
-from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility import DropTrackerSender
-from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_shmem_inventory import process_inventory_message
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_event_state import (
     extract_payload_item_name,
     get_cached_stats_text,
@@ -283,6 +286,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_status_runtime 
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_base_utils import (
     clean_item_name,
     default_auto_buy_kits_map_model_hints,
+    display_player_name,
     ensure_text,
     get_known_merchant_model_ids,
     is_auto_buy_kits_allowed_outpost,
@@ -371,7 +375,9 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_shmem_tracker i
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_live_debug import (
     append_live_debug_log,
     clear_live_debug_log,
+    format_live_debug_record,
     get_live_debug_log_path,
+    read_live_debug_records,
 )
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_chat import make_chat_dedupe_key
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_chat import pickup_regex
@@ -396,12 +402,225 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
 
+_PENDING_DROP_VIEWER_RELOAD_STATE = globals().get("_PENDING_DROP_VIEWER_RELOAD_STATE")
+_DROP_VIEWER_SKIP_LIVE_SESSION_RESET = bool(globals().get("_DROP_VIEWER_SKIP_LIVE_SESSION_RESET", False))
+_DROP_VIEWER_RELOAD_SCAN_INTERVAL_S = 1.0
+_DROP_VIEWER_LAST_RELOAD_SCAN_TS = float(globals().get("_DROP_VIEWER_LAST_RELOAD_SCAN_TS", 0.0))
+_DROP_VIEWER_RELOAD_MTIMES = dict(globals().get("_DROP_VIEWER_RELOAD_MTIMES", {}) or {})
+_DROP_VIEWER_RELOAD_IN_PROGRESS = bool(globals().get("_DROP_VIEWER_RELOAD_IN_PROGRESS", False))
+
+_DROP_VIEWER_RELOAD_EXCLUDED_FIELDS = {
+    "window_name",
+    "log_path",
+    "saved_logs_dir",
+    "pickup_regex",
+    "drop_regex",
+    "gold_regex",
+    "mod_db",
+    "known_mod_ids",
+    "unknown_mod_exclude_ids",
+    "unknown_mod_catalog_path",
+    "unknown_mod_guess_report_path",
+    "unknown_mod_pending_notes_path",
+    "unknown_mod_name_map_path",
+    "runtime_config_path",
+    "live_debug_log_path",
+    "identify_response_scheduler",
+    "drop_viewer_assets_dir",
+    "conset_armor_icon",
+    "conset_grail_icon",
+    "conset_essence_icon",
+    "conset_legionnaire_icon",
+    "hover_icon_path",
+}
+
+_DROP_VIEWER_RELOAD_UNSAFE_TYPE_NAMES = {
+    "Pattern",
+    "ThrottledTimer",
+    "IdentifyResponseScheduler",
+}
+
+
+def _module_file_mtime(path: str) -> float | None:
+    try:
+        return float(os.path.getmtime(path))
+    except OSError:
+        return None
+
+
+def _iter_drop_viewer_reload_targets() -> list[tuple[str, Any, str]]:
+    targets: list[tuple[str, Any, str]] = []
+    for module_name, module in tuple(sys.modules.items()):
+        if module is None:
+            continue
+        if module_name != __name__ and not module_name.startswith("Sources.oazix.CustomBehaviors.skills.monitoring."):
+            continue
+        module_path = getattr(module, "__file__", "")
+        if not isinstance(module_path, str) or not module_path.endswith(".py"):
+            continue
+        targets.append((module_name, module, module_path))
+    targets.sort(key=lambda item: (item[0] == __name__, item[0]))
+    return targets
+
+
+def _capture_drop_viewer_reload_state(viewer) -> dict[str, Any]:
+    if bool(getattr(viewer, "runtime_config_dirty", False)):
+        try:
+            viewer._sync_runtime_config_from_state()
+            viewer._save_runtime_config()
+            viewer.runtime_config_dirty = False
+        except Exception:
+            pass
+
+    state: dict[str, Any] = {}
+    for key, value in vars(viewer).items():
+        if key in _DROP_VIEWER_RELOAD_EXCLUDED_FIELDS or key.endswith("_timer"):
+            continue
+        if callable(value):
+            continue
+        if type(value).__name__ in _DROP_VIEWER_RELOAD_UNSAFE_TYPE_NAMES:
+            continue
+        try:
+            state[key] = deepcopy(value)
+        except Exception:
+            continue
+    return state
+
+
+def _apply_drop_viewer_reload_state(viewer, state: dict[str, Any] | None) -> None:
+    if not isinstance(state, dict):
+        return
+
+    for key, value in state.items():
+        if key in _DROP_VIEWER_RELOAD_EXCLUDED_FIELDS or not hasattr(viewer, key):
+            continue
+        try:
+            setattr(viewer, key, deepcopy(value))
+        except Exception:
+            continue
+
+    try:
+        viewer._apply_runtime_config()
+    except Exception:
+        pass
+
+    try:
+        viewer.set_status("Drop Viewer code auto-refreshed")
+    except Exception:
+        pass
+
+
+def _restore_pending_drop_viewer_reload_state() -> None:
+    global _PENDING_DROP_VIEWER_RELOAD_STATE
+    global _DROP_VIEWER_SKIP_LIVE_SESSION_RESET
+    global _DROP_VIEWER_RELOAD_IN_PROGRESS
+
+    pending_state = _PENDING_DROP_VIEWER_RELOAD_STATE
+    _PENDING_DROP_VIEWER_RELOAD_STATE = None
+    _DROP_VIEWER_SKIP_LIVE_SESSION_RESET = False
+    _DROP_VIEWER_RELOAD_IN_PROGRESS = False
+    if pending_state is None:
+        return
+    _apply_drop_viewer_reload_state(drop_viewer, pending_state)
+
+
+def _reload_drop_viewer_runtime(module_targets: list[tuple[str, Any, str]]):
+    global _PENDING_DROP_VIEWER_RELOAD_STATE
+    global _DROP_VIEWER_SKIP_LIVE_SESSION_RESET
+    global _DROP_VIEWER_RELOAD_IN_PROGRESS
+    global _DROP_VIEWER_RELOAD_MTIMES
+    global _DROP_VIEWER_LAST_RELOAD_SCAN_TS
+
+    current_viewer = globals().get("drop_viewer", None)
+    if current_viewer is None:
+        return globals().get("drop_viewer", None)
+
+    _PENDING_DROP_VIEWER_RELOAD_STATE = _capture_drop_viewer_reload_state(current_viewer)
+    _DROP_VIEWER_SKIP_LIVE_SESSION_RESET = True
+    _DROP_VIEWER_RELOAD_IN_PROGRESS = True
+    importlib.invalidate_caches()
+
+    try:
+        for module_name, module, _module_path in module_targets:
+            if module_name == __name__:
+                continue
+            importlib.reload(module)
+        reloaded_module = importlib.reload(sys.modules[__name__])
+    except Exception:
+        _PENDING_DROP_VIEWER_RELOAD_STATE = None
+        _DROP_VIEWER_SKIP_LIVE_SESSION_RESET = False
+        _DROP_VIEWER_RELOAD_IN_PROGRESS = False
+        raise
+
+    refreshed_targets = getattr(reloaded_module, "_iter_drop_viewer_reload_targets")()
+    _DROP_VIEWER_RELOAD_MTIMES = {
+        module_path: mtime
+        for _module_name, _module, module_path in refreshed_targets
+        for mtime in [_module_file_mtime(module_path)]
+        if mtime is not None
+    }
+    _DROP_VIEWER_LAST_RELOAD_SCAN_TS = time.time()
+    return getattr(reloaded_module, "drop_viewer", None)
+
+
+def _maybe_refresh_drop_viewer():
+    global _DROP_VIEWER_LAST_RELOAD_SCAN_TS
+    global _DROP_VIEWER_RELOAD_MTIMES
+
+    current_viewer = globals().get("drop_viewer", None)
+    if current_viewer is None or _DROP_VIEWER_RELOAD_IN_PROGRESS:
+        return current_viewer
+
+    now = time.time()
+    if (now - _DROP_VIEWER_LAST_RELOAD_SCAN_TS) < _DROP_VIEWER_RELOAD_SCAN_INTERVAL_S:
+        return current_viewer
+
+    _DROP_VIEWER_LAST_RELOAD_SCAN_TS = now
+    module_targets = _iter_drop_viewer_reload_targets()
+    latest_mtimes: dict[str, float] = {}
+    changed_targets: list[tuple[str, Any, str]] = []
+
+    for module_name, module, module_path in module_targets:
+        mtime = _module_file_mtime(module_path)
+        if mtime is None:
+            continue
+        latest_mtimes[module_path] = mtime
+        previous_mtime = _DROP_VIEWER_RELOAD_MTIMES.get(module_path)
+        if previous_mtime is None:
+            continue
+        if mtime > previous_mtime:
+            changed_targets.append((module_name, module, module_path))
+
+    if not _DROP_VIEWER_RELOAD_MTIMES:
+        _DROP_VIEWER_RELOAD_MTIMES = latest_mtimes
+        return current_viewer
+
+    if not changed_targets:
+        _DROP_VIEWER_RELOAD_MTIMES.update(latest_mtimes)
+        return current_viewer
+
+    try:
+        return _reload_drop_viewer_runtime(module_targets) or globals().get("drop_viewer", None)
+    except Exception as exc:
+        try:
+            Py4GW.Console.Log("DropViewer", f"Auto-refresh failed: {exc}", Py4GW.Console.MessageType.Error)
+            tb_text = traceback.format_exc(limit=4)
+            for line in str(tb_text or "").splitlines():
+                line = str(line or "").strip()
+                if line:
+                    Py4GW.Console.Log("DropViewer", line, Py4GW.Console.MessageType.Error)
+        except Exception:
+            pass
+        _DROP_VIEWER_RELOAD_MTIMES.update(latest_mtimes)
+        return globals().get("drop_viewer", None)
+
 # IDs in this set are known or structural helper modifiers and should not be
 # counted as "unknown" even if they are not present in local mods_data files.
 UNKNOWN_MOD_EXCLUDE_IDS = frozenset(
     {
         8408,
         8680,
+        8712,
         8728,
         8920,
         8952,
@@ -417,10 +636,16 @@ UNKNOWN_MOD_EXCLUDE_IDS = frozenset(
         9736,
         9880,
         10136,
+        10248,
+        10280,
         10296,
+        10328,
         25288,
         26568,
+        32784,
+        32880,
         42120,
+        42290,
         42920,
         42936,
         49152,
@@ -431,6 +656,7 @@ UNKNOWN_MOD_EXCLUDE_IDS = frozenset(
 UNKNOWN_MOD_KNOWN_NAME_HINTS = {
     8408: "Health loss component",
     8680: "Rune attribute component",
+    8712: "Halves casting time of spells",
     8728: "Halves casting time of [Attribute] spells",
     8920: "Energy +X",
     8952: "Energy +X (while Enchanted)",
@@ -446,10 +672,16 @@ UNKNOWN_MOD_KNOWN_NAME_HINTS = {
     9736: "Highly salvageable",
     9880: "Caster metadata marker",
     10136: "Requirement",
+    10248: "Halves casting time of item's attribute spells",
+    10280: "Halves skill recharge of item's attribute spells",
     10296: "[Attribute] +1 (Chance: X%)",
+    10328: "Reduces [Condition] duration on you by 20%",
     25288: "Energy +X",
     26568: "Energy +X",
+    32784: "Requirement (legacy encoding)",
+    32880: "Halves skill recharge of Death Magic spells",
     42120: "Damage (no requirement)",
+    42290: "Inscription text component",
     42920: "Damage",
     42936: "Shield armor",
     49152: "Structural marker",
@@ -508,6 +740,12 @@ class DropViewerWindow:
         self.last_update_time = 0
         self.chat_requested = False
         self.last_chat_index = -1
+        self.last_tracked_item_name = ""
+        self.last_tracked_item_quantity = 0
+        self.last_tracked_item_rarity = ""
+        self.last_tracked_item_player = ""
+        self.last_tracked_item_source = ""
+        self.last_tracked_item_at = 0.0
         
         # Regex matches: "[Timestamp] Player picks up [Quantity] <Color>ItemName</Color>."
         self.pickup_regex = pickup_regex()
@@ -573,6 +811,7 @@ class DropViewerWindow:
         self._load_unknown_mod_catalog()
         self._load_unknown_mod_pending_notes()
         self._load_unknown_mod_name_map()
+        self._prune_resolved_unknown_mod_entries()
         self.enable_chat_item_tracking = False
         self.max_shmem_messages_per_tick = 80
         self.max_shmem_scan_per_tick = 600
@@ -607,6 +846,14 @@ class DropViewerWindow:
         self.runtime_config = self._default_runtime_config()
         self.runtime_config_dirty = False
         self.live_debug_log_path = get_live_debug_log_path(constants.DROP_LOG_PATH)
+        self.live_debug_auto_refresh = True
+        self.live_debug_refresh_interval_s = 0.45
+        self.live_debug_tail_limit = 120
+        self.live_debug_filter_text = ""
+        self.live_debug_actor_filter = ""
+        self.live_debug_event_filter = ""
+        self.live_debug_cached_records: list[dict[str, Any]] = []
+        self.live_debug_last_refresh_at = 0.0
         self.inventory_action_tag = "TrackerInvActionV1"
         self.inventory_stats_request_tag = "TrackerInvStatReq"
         self.inventory_stats_response_tag = "TrackerInvStatRes"
@@ -746,8 +993,9 @@ class DropViewerWindow:
 
         self._load_runtime_config()
         self._load_ui_layout_from_config()
-        # Always start each run with a fresh live log file + empty runtime data.
-        self._reset_live_session()
+        # Auto-refresh preserves the active session instead of wiping the live log.
+        if not _DROP_VIEWER_SKIP_LIVE_SESSION_RESET:
+            self._reset_live_session()
 
     def _default_runtime_config(self):
         return default_runtime_config(self)
@@ -796,6 +1044,42 @@ class DropViewerWindow:
     def _clear_live_debug_log(self):
         return clear_live_debug_log(constants.DROP_LOG_PATH)
 
+    def _read_live_debug_records(
+        self,
+        max_lines: int = 120,
+        contains_text: str = "",
+        actor: str = "",
+        event: str = "",
+    ) -> list[dict[str, Any]]:
+        return read_live_debug_records(
+            drop_log_path=constants.DROP_LOG_PATH,
+            max_lines=max_lines,
+            contains_text=contains_text,
+            actor=actor,
+            event=event,
+        )
+
+    def _format_live_debug_record(self, payload: Any, max_extra_fields: int = 6) -> str:
+        return format_live_debug_record(payload, max_extra_fields=max_extra_fields)
+
+    def _refresh_live_debug_cache(self, force: bool = False) -> list[dict[str, Any]]:
+        now_ts = float(time.time())
+        if not force:
+            if not bool(getattr(self, "live_debug_auto_refresh", True)):
+                return list(getattr(self, "live_debug_cached_records", []) or [])
+            refresh_interval_s = max(0.2, float(getattr(self, "live_debug_refresh_interval_s", 0.45) or 0.45))
+            if (now_ts - float(getattr(self, "live_debug_last_refresh_at", 0.0) or 0.0)) < refresh_interval_s:
+                return list(getattr(self, "live_debug_cached_records", []) or [])
+        records = self._read_live_debug_records(
+            max_lines=max(20, int(getattr(self, "live_debug_tail_limit", 120) or 120)),
+            contains_text=self._ensure_text(getattr(self, "live_debug_filter_text", "")).strip(),
+            actor=self._ensure_text(getattr(self, "live_debug_actor_filter", "")).strip(),
+            event=self._ensure_text(getattr(self, "live_debug_event_filter", "")).strip(),
+        )
+        self.live_debug_cached_records = list(records)
+        self.live_debug_last_refresh_at = now_ts
+        return list(records)
+
     def _ensure_text(self, value: Any) -> str:
         return ensure_text(self, value)
 
@@ -830,6 +1114,9 @@ class DropViewerWindow:
     def _clean_item_name(self, name: Any) -> str:
         return clean_item_name(self, name)
 
+    def _display_player_name(self, player_name: Any, sender_email: Any = "") -> str:
+        return display_player_name(self, player_name, sender_email)
+
     def _is_unknown_item_label(self, name: Any) -> bool:
         return is_unknown_item_label(self, name)
 
@@ -861,6 +1148,36 @@ class DropViewerWindow:
 
     def _load_unknown_mod_pending_notes(self):
         return load_unknown_mod_pending_notes(self)
+
+    def _prune_resolved_unknown_mod_entries(self) -> int:
+        removed = 0
+        if not isinstance(self.unknown_mod_catalog, dict):
+            self.unknown_mod_catalog = {}
+            return removed
+        remove_ids: list[int] = []
+        for key in list(self.unknown_mod_catalog.keys()):
+            ident = max(0, self._safe_int(key, 0))
+            if ident <= 0:
+                continue
+            if self._is_known_or_excluded_mod_id(ident):
+                remove_ids.append(ident)
+                continue
+            if self._ensure_text(UNKNOWN_MOD_KNOWN_NAME_HINTS.get(ident, "")).strip():
+                remove_ids.append(ident)
+                continue
+            if self._get_unknown_mod_custom_name(ident):
+                remove_ids.append(ident)
+                continue
+
+        for ident in remove_ids:
+            self.unknown_mod_catalog.pop(str(ident), None)
+            self._remove_unknown_mod_pending_note(ident)
+            removed += 1
+
+        if removed > 0:
+            self.unknown_mod_catalog_dirty = True
+            self._auto_export_unknown_mod_artifacts_if_due(force=True)
+        return removed
 
 
     def _save_unknown_mod_pending_notes(self) -> bool:
@@ -1902,14 +2219,16 @@ class DropViewerWindow:
         return get_rarity_color(self, rarity)
 
 drop_viewer = DropViewerWindow()
+_restore_pending_drop_viewer_reload_state()
 
 def main():
     pass
 
 def draw_window():
+    viewer = _maybe_refresh_drop_viewer() or drop_viewer
     try:
-        drop_viewer.update()
-        drop_viewer.draw()
+        viewer.update()
+        viewer.draw()
     except Exception as e:
         try:
             Py4GW.Console.Log("DropViewer", f"draw_window failed: {e}", Py4GW.Console.MessageType.Error)
@@ -1922,8 +2241,9 @@ def draw_window():
             pass
 
 def update():
+    viewer = _maybe_refresh_drop_viewer() or drop_viewer
     try:
-        drop_viewer.update()
+        viewer.update()
     except Exception as e:
         try:
             Py4GW.Console.Log("DropViewer", f"update failed: {e}", Py4GW.Console.MessageType.Error)

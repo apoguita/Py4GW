@@ -1,0 +1,13 @@
+{
+  "include": [
+    "../Sources/oazix/CustomBehaviors/skills/monitoring",
+    "../Sources/oazix/CustomBehaviors/start_drop_viewer.py"
+  ],
+  "extraPaths": ["..", "../stubs"],
+  "stubPath": "../stubs",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportUnusedImport": "error",
+  "reportUnusedVariable": "error"
+}

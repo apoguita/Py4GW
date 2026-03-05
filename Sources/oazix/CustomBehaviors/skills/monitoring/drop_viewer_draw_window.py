@@ -22,6 +22,8 @@ def _runtime_attr(viewer, name: str, fallback=None):
 
 def _mouse_in_rect(viewer, rect) -> bool:
     pyimgui = _runtime_attr(viewer, "PyImGui")
+    if pyimgui is None:
+        return False
     try:
         io = pyimgui.get_io()
         mx = float(getattr(io, "mouse_pos_x", -1.0))

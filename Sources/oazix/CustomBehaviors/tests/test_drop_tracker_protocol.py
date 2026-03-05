@@ -3,6 +3,8 @@ from __future__ import annotations
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import build_drop_meta
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import build_name_chunks
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import decode_name_chunk_meta
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import extract_name_chunk_event_id
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import encode_name_chunk_meta
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import make_event_id
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import make_name_signature
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import parse_drop_meta
@@ -70,3 +72,9 @@ def test_build_name_chunks_handles_empty_and_nonpositive_chunk_size():
 def test_decode_name_chunk_meta_defaults_and_clamps():
     assert decode_name_chunk_meta("bad") == (1, 1)
     assert decode_name_chunk_meta("9/2") == (2, 2)
+
+
+def test_name_chunk_meta_carries_optional_event_id():
+    meta = encode_name_chunk_meta(2, 4, event_id="85e699300008")
+    assert decode_name_chunk_meta(meta) == (2, 4)
+    assert extract_name_chunk_event_id(meta) == "85e699300008"

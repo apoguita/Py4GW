@@ -49,6 +49,11 @@ def filter_candidate_events_by_model_delta(
                 - int(model_claimed_qty.get(model_id, 0))
             )
             if model_delta_remaining <= 0:
+                if reason == "stack_increase":
+                    # Keep stack increases even when net model delta is 0.
+                    # Later world-confirmation logic can still reject false positives.
+                    filtered_events.append(event)
+                    continue
                 suppressed_by_model_delta += 1
                 continue
 
@@ -62,4 +67,3 @@ def filter_candidate_events_by_model_delta(
         filtered_events.append(event)
 
     return filtered_events, suppressed_by_model_delta
-

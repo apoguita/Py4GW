@@ -63,10 +63,19 @@ def should_abort_auto_buy_kits(viewer) -> bool:
 def is_auto_buy_kits_allowed_outpost(viewer) -> bool:
     map_api = _runtime_attr(viewer, "Map")
     try:
+        if not bool(map_api.IsOutpost()):
+            return False
         map_id = max(0, safe_int(viewer, map_api.GetMapID(), 0))
     except EXPECTED_RUNTIME_ERRORS:
-        map_id = 0
-    return map_id in {55, 156}
+        return False
+    if map_id <= 0:
+        return False
+    hints = getattr(viewer, "auto_buy_kits_map_model_hints", None)
+    if not isinstance(hints, dict):
+        return False
+    map_key = str(int(map_id))
+    map_models = [safe_int(viewer, value, 0) for value in list(hints.get(map_key, []) or [])]
+    return any(model_id > 0 for model_id in map_models)
 
 
 def default_auto_buy_kits_map_model_hints(_viewer) -> dict[str, list[int]]:
@@ -194,6 +203,26 @@ def clean_item_name(viewer, name: Any) -> str:
     if re.match(r"(?i)^item#\d+$", cleaned):
         return "Unknown Item"
     return cleaned
+
+
+def display_player_name(viewer, player_name: Any, sender_email: Any = "") -> str:
+    player_txt = ensure_text(viewer, player_name).strip()
+    sender_key = ensure_text(viewer, sender_email).strip().lower()
+    if sender_key:
+        resolve_fn = getattr(viewer, "_resolve_sender_name_from_email", None)
+        if callable(resolve_fn):
+            try:
+                resolved = ensure_text(viewer, resolve_fn(sender_key)).strip()
+            except EXPECTED_RUNTIME_ERRORS:
+                resolved = ""
+            if resolved:
+                return resolved
+    if player_txt and player_txt.lower() not in {"follower", "unknown"}:
+        return player_txt
+    if sender_key:
+        sender_label = sender_key.split("@", 1)[0].strip() or sender_key
+        return f"{player_txt or 'Follower'} [{sender_label}]"
+    return player_txt or "Unknown"
 
 
 def is_unknown_item_label(viewer, name: Any) -> bool:

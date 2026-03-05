@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+from typing import Any, cast
 
 from Py4GWCoreLib import Item, Py4GW
 
@@ -12,7 +13,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils impor
 )
 
 IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
-EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
+EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError, NameError)
 
 try:
     from Py4GWCoreLib.enums_src.Item_enums import ItemType
@@ -359,21 +360,32 @@ def _extract_raw_mods(modifiers) -> list[tuple[int, int, int]]:
     return raw_mods
 
 
+def _merge_raw_mod_lists(*mod_lists) -> list[tuple[int, int, int]]:
+    merged: list[tuple[int, int, int]] = []
+    seen: set[tuple[int, int, int]] = set()
+    for mod_list in mod_lists:
+        for mod in list(mod_list or []):
+            if mod in seen:
+                continue
+            seen.add(mod)
+            merged.append(mod)
+    return merged
+
+
 def _collect_live_item_modifiers(item_api, item_id: int, item_instance=None) -> list[tuple[int, int, int]]:
     try:
-        raw_mods = _extract_raw_mods(item_api.Customization.Modifiers.GetModifiers(item_id))
+        api_raw_mods = _extract_raw_mods(item_api.Customization.Modifiers.GetModifiers(item_id))
     except EXPECTED_RUNTIME_ERRORS:
-        raw_mods = []
-    if raw_mods:
-        return raw_mods
+        api_raw_mods = []
     if item_instance is None:
         item_instance = _load_live_item_instance(item_api, item_id)
     if item_instance is None:
-        return []
+        return list(api_raw_mods)
     try:
-        return _extract_raw_mods(getattr(item_instance, "modifiers", []) or [])
+        instance_raw_mods = _extract_raw_mods(getattr(item_instance, "modifiers", []) or [])
     except EXPECTED_RUNTIME_ERRORS:
-        return []
+        instance_raw_mods = []
+    return _merge_raw_mod_lists(api_raw_mods, instance_raw_mods)
 
 
 def _resolve_live_item_type_int(item_api, item_id: int, item_instance=None) -> int:
@@ -405,12 +417,173 @@ def _resolve_live_model_id(item_api, item_id: int, item_instance=None) -> int:
             return 0
 
 
+def _resolve_live_is_inscribable(item_api, item_id: int, item_instance=None):
+    try:
+        return bool(item_api.Customization.IsInscribable(item_id))
+    except EXPECTED_RUNTIME_ERRORS:
+        if item_instance is None:
+            item_instance = _load_live_item_instance(item_api, item_id)
+        try:
+            return bool(getattr(item_instance, "is_inscribable", False))
+        except EXPECTED_RUNTIME_ERRORS:
+            return None
+
+
+def _decode_signed_16(value: int) -> int:
+    raw = int(value or 0) & 0xFFFF
+    if raw >= 0x8000:
+        return raw - 0x10000
+    return raw
+
+
+def _is_likely_shield_item(item_name: str, item_type_int: int = 0) -> bool:
+    name_txt = str(item_name or "").strip().lower()
+    if "shield" in name_txt:
+        return True
+    # Runtime bindings consistently report classic shields as type 24 in this codebase.
+    return int(item_type_int or 0) == 24
+
+
+def collect_manual_shield_defense_mod_lines(raw_mods, item_name: str = "", item_type_int: int = 0) -> list[str]:
+    if not _is_likely_shield_item(item_name, item_type_int):
+        return []
+    lines: list[str] = []
+    seen: set[str] = set()
+    for mod in list(raw_mods or []):
+        if not isinstance(mod, (list, tuple)) or len(mod) < 3:
+            continue
+        arg1 = _decode_signed_16(int(mod[1] or 0))
+        arg2 = _decode_signed_16(int(mod[2] or 0))
+        chance = 0
+        reduction = 0
+        if 1 <= abs(int(arg1)) <= 25 and int(arg2) < 0:
+            chance = abs(int(arg1))
+            reduction = int(arg2)
+        elif 1 <= abs(int(arg2)) <= 25 and int(arg1) < 0:
+            chance = abs(int(arg2))
+            reduction = int(arg1)
+        if chance <= 0 or reduction >= 0:
+            continue
+        line = f"Received physical damage {int(reduction)} (Chance: {int(chance)}%)"
+        key = re.sub(r"[^a-z0-9]+", "", line.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(line)
+    return lines
+
+
+def _infer_name_variant(prefix: str, suffix: str, inherent: str, is_inscribable_hint=None) -> str:
+    if is_inscribable_hint is True:
+        return "inscribable"
+    if is_inscribable_hint is False:
+        return "old_school"
+    has_suffix = bool(str(suffix or "").strip())
+    has_inherent = bool(str(inherent or "").strip())
+    if has_suffix and has_inherent:
+        return "mixed"
+    if has_suffix:
+        return "old_school"
+    if has_inherent:
+        return "inscribable"
+    return "unknown"
+
+
+def _compose_old_school_name(clean_base: str, prefix: str, suffix: str) -> str:
+    lower_base = str(clean_base or "").lower()
+    parts = []
+    changed = False
+    prefix_txt = str(prefix or "").strip()
+    suffix_txt = str(suffix or "").strip()
+    if prefix_txt and prefix_txt.lower() not in lower_base:
+        parts.append(prefix_txt)
+        changed = True
+    parts.append(clean_base)
+    if suffix_txt and suffix_txt.lower() not in lower_base:
+        parts.append(suffix_txt)
+        changed = True
+    candidate = " ".join(str(part or "").strip() for part in parts if str(part or "").strip()).strip()
+    return candidate if changed and candidate and candidate.lower() != lower_base else ""
+
+
+def _compose_inscribable_name(clean_base: str, prefix: str, inherent: str) -> str:
+    lower_base = str(clean_base or "").lower()
+    parts = []
+    changed = False
+    prefix_txt = str(prefix or "").strip()
+    inherent_txt = str(inherent or "").strip()
+    if prefix_txt and prefix_txt.lower() not in lower_base:
+        parts.append(prefix_txt)
+        changed = True
+    parts.append(clean_base)
+    if inherent_txt and inherent_txt.lower() not in lower_base:
+        parts.append(f"({inherent_txt})")
+        changed = True
+    candidate = " ".join(str(part or "").strip() for part in parts if str(part or "").strip()).strip()
+    return candidate if changed and candidate and candidate.lower() != lower_base else ""
+
+
+def _emit_name_variant_debug(
+    sender,
+    branch: str,
+    item_id: int,
+    model_id: int,
+    item_type_int: int,
+    base_name: str,
+    prefix: str,
+    suffix: str,
+    inherent: str,
+    candidate: str,
+    is_inscribable_hint=None,
+    parsed_variant: str = "",
+) -> None:
+    message = (
+        f"NAME BUILD branch={branch} item_id={int(item_id or 0)} model={int(model_id or 0)} "
+        f"type={int(item_type_int or 0)} base='{str(base_name or '').strip() or '-'}' "
+        f"prefix='{str(prefix or '').strip() or '-'}' suffix='{str(suffix or '').strip() or '-'}' "
+        f"inherent='{str(inherent or '').strip() or '-'}' out='{str(candidate or '').strip() or '-'}' "
+        f"hint={str(is_inscribable_hint)} parsed_variant={str(parsed_variant or '').strip() or '-'}"
+    )
+    try:
+        if hasattr(sender, "_log_name_trace"):
+            sender._log_name_trace(message)
+    except EXPECTED_RUNTIME_ERRORS:
+        pass
+    try:
+        if hasattr(sender, "_append_live_debug_log"):
+            cast(Any, sender._append_live_debug_log)(
+                "name_build_variant",
+                message,
+                dedupe_key=(
+                    f"name_build:{int(item_id or 0)}:"
+                    f"{int(model_id or 0)}:{str(branch or '').strip().lower()}:"
+                    f"{str(base_name or '').strip().lower()}:{str(candidate or '').strip().lower()}"
+                ),
+                dedupe_interval_s=0.9,
+                branch=str(branch or "").strip() or "unknown",
+                item_id=int(item_id or 0),
+                model_id=int(model_id or 0),
+                item_type=int(item_type_int or 0),
+                base_name=str(base_name or "").strip(),
+                prefix=str(prefix or "").strip(),
+                suffix=str(suffix or "").strip(),
+                inherent=str(inherent or "").strip(),
+                output_name=str(candidate or "").strip(),
+                is_inscribable_hint=is_inscribable_hint,
+                parsed_variant=str(parsed_variant or "").strip() or "unknown",
+            )
+    except EXPECTED_RUNTIME_ERRORS:
+        pass
+
+
 def _synthesize_identified_name_from_parts(
     sender,
     base_name: str,
     raw_mods: list[tuple[int, int, int]],
     item_type_int: int,
     model_id: int,
+    item_id: int = 0,
+    is_inscribable_hint=None,
 ) -> str:
     parse_modifiers_fn = _runtime_attr(sender, "parse_modifiers", parse_modifiers)
     item_type_enum = _runtime_attr(sender, "ItemType", ItemType)
@@ -426,22 +599,34 @@ def _synthesize_identified_name_from_parts(
     except EXPECTED_RUNTIME_ERRORS:
         return ""
     prefix, suffix, inherent = sender._extract_parsed_mod_name_parts(parsed)
-    lower_base = clean_base.lower()
-    parts = []
-    changed = False
-    if prefix and prefix.lower() not in lower_base:
-        parts.append(prefix)
-        changed = True
-    parts.append(clean_base)
-    if suffix and suffix.lower() not in lower_base:
-        parts.append(suffix)
-        changed = True
-    elif inherent and inherent.lower() not in lower_base and not suffix:
-        parts.append(f"({inherent})")
-        changed = True
-    candidate = " ".join(str(part or "").strip() for part in parts if str(part or "").strip()).strip()
-    if not changed or not candidate or candidate.lower() == lower_base:
-        return ""
+    parsed_variant = _infer_name_variant(prefix, suffix, inherent, None)
+    branch = _infer_name_variant(prefix, suffix, inherent, is_inscribable_hint)
+    if branch == "inscribable":
+        candidate = _compose_inscribable_name(clean_base, prefix, inherent)
+    elif branch == "old_school":
+        candidate = _compose_old_school_name(clean_base, prefix, suffix)
+    elif branch == "mixed":
+        # Mixed marker set is treated as old-school naming to keep "of ..." suffix stable.
+        candidate = _compose_old_school_name(clean_base, prefix, suffix)
+    else:
+        candidate = (
+            _compose_old_school_name(clean_base, prefix, suffix)
+            or _compose_inscribable_name(clean_base, prefix, inherent)
+        )
+    _emit_name_variant_debug(
+        sender,
+        branch,
+        item_id=int(item_id or 0),
+        model_id=int(model_id or 0),
+        item_type_int=int(item_type_int or 0),
+        base_name=clean_base,
+        prefix=prefix,
+        suffix=suffix,
+        inherent=inherent,
+        candidate=candidate,
+        is_inscribable_hint=is_inscribable_hint,
+        parsed_variant=parsed_variant,
+    )
     return candidate
 
 
@@ -472,7 +657,16 @@ def build_identified_name_from_modifiers(sender, *args, **_kwargs) -> str:
             base_name = ""
     item_type_int = _resolve_live_item_type_int(item_api, item_id, item_instance)
     model_id = _resolve_live_model_id(item_api, item_id, item_instance)
-    synthesized = _synthesize_identified_name_from_parts(sender, base_name, raw_mods, item_type_int, model_id)
+    is_inscribable_hint = _resolve_live_is_inscribable(item_api, item_id, item_instance)
+    synthesized = _synthesize_identified_name_from_parts(
+        sender,
+        base_name,
+        raw_mods,
+        item_type_int,
+        model_id,
+        item_id=item_id,
+        is_inscribable_hint=is_inscribable_hint,
+    )
     return synthesized or base_name
 
 
@@ -512,10 +706,12 @@ def build_item_stats_text(sender, item_id: int, item_name: str = "") -> str:
     if item_id <= 0:
         return ""
     try:
+        is_identified = None
         try:
-            if not bool(item_api.Usage.IsIdentified(item_id)):
-                return "Unidentified"
+            is_identified = bool(item_api.Usage.IsIdentified(item_id))
         except EXPECTED_RUNTIME_ERRORS:
+            is_identified = None
+        if is_identified is False:
             return "Unidentified"
         item_instance = _load_live_item_instance(item_api, item_id)
         if not item_instance:
@@ -530,6 +726,8 @@ def build_item_stats_text(sender, item_id: int, item_name: str = "") -> str:
             lines.append(f"Value: {value} gold")
 
         raw_mods = _collect_live_item_modifiers(item_api, item_id, item_instance)
+        if is_identified is None and not raw_mods:
+            return "\n".join(lines)
         req_attr = 0
         req_val = 0
         if raw_mods:
@@ -555,6 +753,13 @@ def build_item_stats_text(sender, item_id: int, item_name: str = "") -> str:
                 except EXPECTED_RUNTIME_ERRORS:
                     attr_txt = ""
                 lines.append(f"Requires {req_val} {attr_txt}".rstrip())
+            lines.extend(
+                collect_manual_shield_defense_mod_lines(
+                    raw_mods,
+                    clean_name,
+                    _resolve_live_item_type_int(item_api, item_id, item_instance),
+                )
+            )
 
         if not raw_mods or sender.mod_db is None:
             return "\n".join(lines)
@@ -619,7 +824,10 @@ def build_item_stats_text(sender, item_id: int, item_name: str = "") -> str:
                         lines.extend(rendered_lines)
             lines.extend(sender._collect_fallback_mod_lines(raw_mods, item_attr_txt, item_type))
             lines.extend(sender._collect_fallback_rune_lines(raw_mods, item_attr_txt))
-        lines.extend(sender._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
+        try:
+            lines.extend(sender._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
 
         lines = sender._normalize_stats_lines(lines)
     except EXPECTED_RUNTIME_ERRORS:
@@ -627,7 +835,67 @@ def build_item_stats_text(sender, item_id: int, item_name: str = "") -> str:
     return "\n".join(lines)
 
 
-def entry_item_identity_matches(sender, item_id: int, expected_model_id: int, expected_name_signature: str) -> bool:
+def _normalize_name_for_identity(name: str) -> str:
+    text = re.sub(r"[^a-z0-9]+", " ", str(name or "").strip().lower())
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return ""
+    parts = []
+    for token in text.split():
+        if token.endswith("ies") and len(token) > 3:
+            token = token[:-3] + "y"
+        elif token.endswith("s") and len(token) > 2 and not token.endswith("ss"):
+            token = token[:-1]
+        parts.append(token)
+    return " ".join(parts).strip()
+
+
+def _item_names_compatible_for_identity(live_name: str, expected_name: str) -> bool:
+    left = _normalize_name_for_identity(live_name)
+    right = _normalize_name_for_identity(expected_name)
+    if not left or not right:
+        return True
+    if left == right:
+        return True
+    return left.startswith(right) or right.startswith(left)
+
+
+def _resolve_item_id_by_slot(sender, bag_id: int, slot_id: int) -> int:
+    item_array_api = _runtime_attr(sender, "ItemArray")
+    item_api = _runtime_attr(sender, "Item", Item)
+    target_bag = int(bag_id or 0)
+    target_slot = int(slot_id or 0)
+    if item_array_api is None or target_bag <= 0 or target_slot <= 0:
+        return 0
+    try:
+        bag_items = item_array_api.GetItemArray(item_array_api.CreateBagList(target_bag))
+    except EXPECTED_RUNTIME_ERRORS:
+        return 0
+    for candidate_item_id_raw in list(bag_items or []):
+        candidate_item_id = int(candidate_item_id_raw or 0)
+        if candidate_item_id <= 0:
+            continue
+        try:
+            item_instance = item_api.item_instance(candidate_item_id)
+        except EXPECTED_RUNTIME_ERRORS:
+            item_instance = None
+        try:
+            candidate_slot = int(getattr(item_instance, "slot", 0) or 0) if item_instance else int(item_api.GetSlot(candidate_item_id))
+        except EXPECTED_RUNTIME_ERRORS:
+            candidate_slot = 0
+        if candidate_slot == target_slot:
+            return int(candidate_item_id)
+    return 0
+
+
+def entry_item_identity_matches(
+    sender,
+    item_id: int,
+    expected_model_id: int,
+    expected_name_signature: str,
+    expected_item_name: str = "",
+    allow_unready_name: bool = False,
+) -> bool:
     item_api = _runtime_attr(sender, "Item", Item)
     make_name_signature_fn = _runtime_attr(sender, "make_name_signature", lambda _s: "")
     live_item_id = int(item_id or 0)
@@ -646,14 +914,17 @@ def entry_item_identity_matches(sender, item_id: int, expected_model_id: int, ex
         try:
             if not item_api.IsNameReady(live_item_id):
                 item_api.RequestName(live_item_id)
-                return False
+                return bool(allow_unready_name)
             live_name = item_api.GetName(live_item_id) or ""
             live_name = _clean_item_name(sender, live_name)
         except EXPECTED_RUNTIME_ERRORS:
             return False
         if not live_name:
             return False
-        if str(make_name_signature_fn(live_name) or "").strip().lower() != wanted_signature:
+        live_signature = str(make_name_signature_fn(live_name) or "").strip().lower()
+        if live_signature != wanted_signature and (
+            not _item_names_compatible_for_identity(live_name, str(expected_item_name or "").strip())
+        ):
             return False
     return True
 
@@ -665,8 +936,28 @@ def resolve_event_item_id_for_stats(sender, entry: dict) -> int:
     expected_item_id = int(entry.get("item_id", 0) or 0)
     expected_model_id = int(entry.get("model_id", 0) or 0)
     expected_name_signature = str(entry.get("name_signature", "") or "").strip().lower()
-    if expected_item_id > 0 and sender._entry_item_identity_matches(expected_item_id, expected_model_id, expected_name_signature):
+    expected_item_name = str(entry.get("item_name", "") or "").strip()
+    if expected_item_id > 0 and sender._entry_item_identity_matches(
+        expected_item_id,
+        expected_model_id,
+        expected_name_signature,
+        expected_item_name,
+        allow_unready_name=True,
+    ):
         return int(expected_item_id)
+    slot_item_id = _resolve_item_id_by_slot(
+        sender,
+        int(entry.get("bag_id", 0) or 0),
+        int(entry.get("slot_id", 0) or 0),
+    )
+    if slot_item_id > 0 and sender._entry_item_identity_matches(
+        slot_item_id,
+        expected_model_id,
+        expected_name_signature,
+        expected_item_name,
+        allow_unready_name=True,
+    ):
+        return int(slot_item_id)
     if item_array_api is None:
         return 0
     try:
@@ -677,11 +968,19 @@ def resolve_event_item_id_for_stats(sender, entry: dict) -> int:
     candidates = []
     for candidate_item_id in list(item_ids or []):
         candidate_item_id = int(candidate_item_id or 0)
-        if not sender._entry_item_identity_matches(candidate_item_id, expected_model_id, expected_name_signature):
+        if not sender._entry_item_identity_matches(
+            candidate_item_id,
+            expected_model_id,
+            expected_name_signature,
+            expected_item_name,
+            allow_unready_name=False,
+        ):
             continue
         candidates.append(candidate_item_id)
         if len(candidates) > 1:
-            return 0
+            break
     if len(candidates) == 1:
         return int(candidates[0])
+    if len(candidates) > 1 and slot_item_id > 0 and slot_item_id in candidates:
+        return int(slot_item_id)
     return 0

@@ -21,35 +21,72 @@ def _runtime_attr(viewer, name: str, fallback=None):
     return fallback
 
 
-def is_monitoring_settled_for_auto_inventory(viewer, set_status: bool = False) -> bool:
-    drop_tracker_sender = _runtime_attr(viewer, "DropTrackerSender")
-    reason = ""
-    now_ts = time.time()
+def _current_drop_tracker_sender(viewer):
+    tracker_module = sys.modules.get("Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_utility")
+    if tracker_module is not None and hasattr(tracker_module, "DropTrackerSender"):
+        sender_type = getattr(tracker_module, "DropTrackerSender")
+        try:
+            return sender_type()
+        except EXPECTED_RUNTIME_ERRORS:
+            return None
+    sender_type = _runtime_attr(viewer, "DropTrackerSender")
+    if sender_type is None:
+        return None
     try:
-        sender = drop_tracker_sender()
-        if not bool(getattr(sender, "is_warmed_up", True)):
-            reason = "drop monitor warming up"
-        elif int(getattr(sender, "last_snapshot_total", 0)) > 0 and int(getattr(sender, "last_snapshot_ready", 0)) == 0:
-            reason = "inventory snapshot unstable"
-        else:
-            pending_names = len(getattr(sender, "pending_slot_deltas", {}) or {})
-            if pending_names > 0:
-                reason = f"pending name resolution ({pending_names})"
-            else:
-                settle_seconds = max(0.2, float(getattr(viewer, "auto_monitoring_settle_seconds", 1.2)))
-                activity_ts = float(getattr(sender, "last_inventory_activity_ts", 0.0) or 0.0)
-                if activity_ts > 0.0:
-                    elapsed = max(0.0, now_ts - activity_ts)
-                    if elapsed < settle_seconds:
-                        reason = f"inventory changed {elapsed:.1f}s ago"
+        return sender_type()
     except EXPECTED_RUNTIME_ERRORS:
-        reason = ""
+        return None
+
+
+def _monitoring_gate_reason(viewer) -> str:
+    now_ts = time.time()
+    sender = _current_drop_tracker_sender(viewer)
+    if sender is None:
+        return ""
+    try:
+        sender_is_warmed = bool(getattr(sender, "is_warmed_up", True))
+        sender_total = int(getattr(sender, "last_snapshot_total", 0) or 0)
+        sender_ready = int(getattr(sender, "last_snapshot_ready", 0) or 0)
+        pending_names = len(getattr(sender, "pending_slot_deltas", {}) or {})
+        startup_pending = bool(getattr(sender, "session_startup_pending", False))
+        warmup_grace_until = float(getattr(sender, "warmup_grace_until", 0.0) or 0.0)
+        if not sender_is_warmed:
+            # Live-reload can leave the viewer observing a sender singleton that has
+            # no active snapshot state yet while the real tracker pipeline is already
+            # running. Do not block auto-inventory forever on an empty 0/0 sender.
+            if sender_total <= 0 and sender_ready <= 0 and pending_names <= 0 and not startup_pending and now_ts >= warmup_grace_until:
+                return ""
+            return "drop monitor warming up"
+        if sender_total > 0 and sender_ready == 0:
+            return "inventory snapshot unstable"
+        if pending_names > 0:
+            return f"pending name resolution ({pending_names})"
+        settle_seconds = max(0.2, float(getattr(viewer, "auto_monitoring_settle_seconds", 1.2)))
+        activity_ts = float(getattr(sender, "last_inventory_activity_ts", 0.0) or 0.0)
+        if activity_ts > 0.0:
+            elapsed = max(0.0, now_ts - activity_ts)
+            if elapsed < settle_seconds:
+                return f"inventory changed {elapsed:.1f}s ago"
+    except EXPECTED_RUNTIME_ERRORS:
+        return ""
+    return ""
+
+
+def is_monitoring_settled_for_auto_inventory(viewer, set_status: bool = False) -> bool:
+    reason = _monitoring_gate_reason(viewer)
+    now_ts = time.time()
+    viewer.auto_monitoring_last_gate_reason = str(reason or "")
 
     if reason and set_status:
         last_gate_ts = float(getattr(viewer, "auto_monitoring_last_gate_status_ts", 0.0) or 0.0)
         if (now_ts - last_gate_ts) >= 1.5:
             viewer.auto_monitoring_last_gate_status_ts = now_ts
             viewer.set_status(f"Auto inventory paused: {reason}")
+    elif not reason:
+        current_status = viewer._ensure_text(getattr(viewer, "status_message", "")).strip()
+        if current_status.startswith("Auto inventory paused:"):
+            viewer.status_message = ""
+            viewer.status_time = 0.0
     return reason == ""
 
 
@@ -217,7 +254,6 @@ def queue_salvage_for_rarities(viewer, rarities):
 
 def process_pending_identify_mod_capture(viewer):
     item_api = _runtime_attr(viewer, "Item")
-    drop_tracker_sender = _runtime_attr(viewer, "DropTrackerSender")
     pending = getattr(viewer, "pending_identify_mod_capture", None)
     if not isinstance(pending, dict) or not pending:
         return
@@ -239,7 +275,9 @@ def process_pending_identify_mod_capture(viewer):
             continue
 
         try:
-            sender = drop_tracker_sender()
+            sender = _current_drop_tracker_sender(viewer)
+            if sender is None:
+                continue
             model_id = max(0, viewer._safe_int(item_api.GetModelID(int(item_id)), 0))
             sender.clear_cached_event_stats_for_item(int(item_id), model_id)
             sender.schedule_name_refresh_for_item(int(item_id), model_id)

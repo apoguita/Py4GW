@@ -11,6 +11,7 @@
   "max_shmem_messages_per_tick": 80,
   "max_shmem_scan_per_tick": 600,
   "send_tracker_ack_enabled": true,
+  "enable_chat_item_tracking": false,
   "debug_item_stats_panel": false,
   "debug_item_stats_panel_height": 180,
   "strict_event_stats_binding": true,
@@ -22,9 +23,9 @@
   "id_sel_gold": true,
   "auto_id_enabled": true,
   "salvage_sel_white": true,
-  "salvage_sel_blue": false,
+  "salvage_sel_blue": true,
   "salvage_sel_green": false,
-  "salvage_sel_purple": false,
+  "salvage_sel_purple": true,
   "salvage_sel_gold": false,
   "auto_salvage_enabled": false,
   "auto_buy_kits_enabled": true,
@@ -51,15 +52,15 @@
   "hover_pin_open": false,
   "ui_theme_name": "Midnight",
   "drop_viewer_window_pos": [
-    416.0,
-    30.0
+    213.0,
+    9.0
   ],
   "drop_viewer_window_size": [
-    1500.0,
-    887.0
+    1553.0,
+    907.0
   ],
   "drop_viewer_handle_pos": [
-    1428.0,
-    928.0
+    1424.0,
+    908.0
   ]
 }

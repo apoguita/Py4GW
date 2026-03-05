@@ -124,7 +124,7 @@ def clear_cached_event_stats_for_item(sender, item_id: int = 0, model_id: int = 
     if not isinstance(cache, dict) or not cache:
         return
     now_ts = float(time.time())
-    for event_key, entry in cache.items():
+    for entry in cache.values():
         if not isinstance(entry, dict):
             continue
         cached_item_id = int(entry.get("item_id", 0))
@@ -281,7 +281,7 @@ def begin_new_session(sender, reason: str, current_map_id: int = 0, current_inst
     sender.last_session_transition_reason = normalized_reason
     sender._arm_reset_trace(normalized_reason, current_map_id, current_instance_uptime_ms)
     sender._advance_sender_session_id()
-    sender._reset_tracking_state(clear_outbox=False)
+    sender._reset_tracking_state(clear_outbox=True)
     sender.last_seen_map_id = int(current_map_id or 0)
     sender.last_seen_instance_uptime_ms = int(current_instance_uptime_ms or 0)
     sender.session_startup_pending = bool(sender.carryover_inventory_snapshot) and normalized_reason == "map_change"

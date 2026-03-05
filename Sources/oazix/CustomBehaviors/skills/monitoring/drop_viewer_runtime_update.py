@@ -6,6 +6,34 @@ from typing import Any
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
 
 
+def _should_coalesce_viewer_reset(viewer, reason: str, current_map_id: int, current_instance_uptime_ms: int) -> bool:
+    reset_reason = viewer._ensure_text(reason).strip() or "unknown"
+    current_map = max(0, int(current_map_id or 0))
+    current_uptime = max(0, int(current_instance_uptime_ms or 0))
+    now_ts = time.time()
+    last_reason = viewer._ensure_text(getattr(viewer, "last_reset_reason", "")).strip()
+    last_map = max(0, int(getattr(viewer, "last_reset_map_id", 0) or 0))
+    last_uptime = max(0, int(getattr(viewer, "last_reset_instance_uptime_ms", 0) or 0))
+    last_started_at = float(getattr(viewer, "last_reset_started_at", 0.0) or 0.0)
+    if (
+        reset_reason == last_reason
+        and current_map > 0
+        and current_map == last_map
+        and (now_ts - last_started_at) <= 3.5
+        and current_uptime > 0
+        and last_uptime > 0
+        and abs(current_uptime - last_uptime) <= 2500
+    ):
+        viewer.last_seen_map_id = current_map
+        viewer.last_seen_instance_uptime_ms = max(last_uptime, current_uptime)
+        return True
+    viewer.last_reset_reason = reset_reason
+    viewer.last_reset_map_id = current_map
+    viewer.last_reset_instance_uptime_ms = current_uptime
+    viewer.last_reset_started_at = now_ts
+    return False
+
+
 def _viewer_runtime_module(viewer):
     try:
         return sys.modules.get(viewer.__class__.__module__)
@@ -72,6 +100,12 @@ def process_chat_message(viewer, msg: Any) -> None:
     rarity = viewer._get_rarity_from_color_hex(color_hex) if color_hex else "Unknown"
     if not viewer._is_recent_duplicate(player_name, item_name, quantity, text):
         viewer._log_drop_to_file(player_name, item_name, quantity, rarity)
+        viewer.last_tracked_item_name = item_name
+        viewer.last_tracked_item_quantity = int(quantity)
+        viewer.last_tracked_item_rarity = rarity
+        viewer.last_tracked_item_player = player_name
+        viewer.last_tracked_item_source = "chat"
+        viewer.last_tracked_item_at = time.time()
         if py4gw_api is not None:
             py4gw_api.Console.Log(
                 "DropViewer",
@@ -146,6 +180,13 @@ def run_update_tick(viewer) -> None:
                         current_instance_uptime_ms=current_instance_uptime_ms,
                     )
                 if transition_reason:
+                    if _should_coalesce_viewer_reset(
+                        viewer,
+                        "viewer_instance_reset",
+                        current_map_id,
+                        current_instance_uptime_ms,
+                    ):
+                        return
                     viewer._begin_new_explorable_session("viewer_instance_reset", current_map_id, current_instance_uptime_ms)
                     return
                 viewer.last_seen_instance_uptime_ms = current_instance_uptime_ms

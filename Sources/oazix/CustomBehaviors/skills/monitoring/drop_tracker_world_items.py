@@ -3,6 +3,9 @@ import time
 from typing import Any
 
 from Py4GWCoreLib import Agent, AgentArray, Item, Player, Py4GW
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_runtime import (
+    coerce_consistent_item_identity,
+)
 
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
 
@@ -62,6 +65,14 @@ def build_world_item_state(sender, agent_id: int) -> dict[str, Any] | None:
                 Item.RequestName(item_id)
         except EXPECTED_RUNTIME_ERRORS:
             name = ""
+        if not name:
+            name = f"Model#{model_id}" if model_id > 0 else "Unknown Item"
+        name, rarity, requested_refresh = coerce_consistent_item_identity(item_id, model_id, name, rarity)
+        if requested_refresh:
+            try:
+                Item.RequestName(item_id)
+            except EXPECTED_RUNTIME_ERRORS:
+                pass
         if not name:
             name = f"Model#{model_id}" if model_id > 0 else "Unknown Item"
         rarity = _normalize_world_item_rarity(item_id, name, rarity)

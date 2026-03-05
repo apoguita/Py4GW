@@ -128,13 +128,46 @@ def draw_inline_rarity_filter_buttons(viewer) -> None:
     labels = ["All", "White", "Blue", "Purple", "Gold", "Green"]
     selected_idx = int(getattr(viewer, "filter_rarity_idx", 0) or 0)
     options = list(getattr(viewer, "filter_rarity_options", []) or [])
+    rarity_palettes = {
+        "All": {
+            "normal": ((0.22, 0.40, 0.65, 0.98), (0.27, 0.47, 0.73, 1.0), (0.18, 0.33, 0.55, 1.0), (1.0, 1.0, 1.0, 1.0)),
+            "selected": ((0.28, 0.49, 0.77, 1.0), (0.34, 0.56, 0.84, 1.0), (0.23, 0.42, 0.67, 1.0), (1.0, 1.0, 1.0, 1.0)),
+        },
+        "White": {
+            "normal": ((0.72, 0.74, 0.77, 0.97), (0.78, 0.80, 0.84, 1.0), (0.62, 0.65, 0.70, 1.0), (0.10, 0.12, 0.15, 1.0)),
+            "selected": ((0.84, 0.86, 0.89, 1.0), (0.90, 0.92, 0.95, 1.0), (0.74, 0.76, 0.80, 1.0), (0.08, 0.10, 0.12, 1.0)),
+        },
+        "Blue": {
+            "normal": ((0.21, 0.38, 0.73, 0.97), (0.25, 0.45, 0.82, 1.0), (0.16, 0.31, 0.62, 1.0), (0.95, 0.97, 1.0, 1.0)),
+            "selected": ((0.26, 0.47, 0.84, 1.0), (0.31, 0.53, 0.91, 1.0), (0.20, 0.39, 0.72, 1.0), (0.97, 0.98, 1.0, 1.0)),
+        },
+        "Purple": {
+            "normal": ((0.43, 0.27, 0.64, 0.97), (0.50, 0.33, 0.72, 1.0), (0.36, 0.22, 0.54, 1.0), (0.98, 0.95, 1.0, 1.0)),
+            "selected": ((0.52, 0.34, 0.76, 1.0), (0.59, 0.41, 0.84, 1.0), (0.44, 0.28, 0.65, 1.0), (1.0, 0.97, 1.0, 1.0)),
+        },
+        "Gold": {
+            "normal": ((0.73, 0.56, 0.16, 0.97), (0.82, 0.64, 0.20, 1.0), (0.62, 0.46, 0.11, 1.0), (0.13, 0.10, 0.04, 1.0)),
+            "selected": ((0.84, 0.66, 0.23, 1.0), (0.91, 0.73, 0.30, 1.0), (0.71, 0.55, 0.16, 1.0), (0.10, 0.08, 0.03, 1.0)),
+        },
+        "Green": {
+            "normal": ((0.17, 0.50, 0.32, 0.97), (0.22, 0.58, 0.38, 1.0), (0.13, 0.42, 0.26, 1.0), (0.93, 1.0, 0.95, 1.0)),
+            "selected": ((0.22, 0.61, 0.40, 1.0), (0.27, 0.69, 0.46, 1.0), (0.17, 0.51, 0.33, 1.0), (0.95, 1.0, 0.96, 1.0)),
+        },
+    }
     for idx, label in enumerate(labels):
         if idx > 0:
             pyimgui.same_line(0.0, 6.0)
         option_idx = options.index(label) if label in options else 0
         is_selected = selected_idx == option_idx
-        variant = "primary" if is_selected else "secondary"
-        if viewer._styled_button(f"{label}##rarity_filter", variant, 58.0, 24.0):
+        palette = rarity_palettes.get(label, rarity_palettes["All"])
+        btn, hover, active, text = palette["selected" if is_selected else "normal"]
+        pyimgui.push_style_color(pyimgui.ImGuiCol.Button, btn)
+        pyimgui.push_style_color(pyimgui.ImGuiCol.ButtonHovered, hover)
+        pyimgui.push_style_color(pyimgui.ImGuiCol.ButtonActive, active)
+        pyimgui.push_style_color(pyimgui.ImGuiCol.Text, text)
+        pressed = pyimgui.button(f"{label}##rarity_filter", 58.0, 24.0)
+        pyimgui.pop_style_color(4)
+        if pressed:
             viewer._set_filter_rarity_label(label)
         if pyimgui.is_item_hovered():
             imgui.show_tooltip(f"Filter table to {label.lower()} items." if label != "All" else "Show all item rarities.")

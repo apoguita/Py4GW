@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import time
@@ -76,6 +75,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_sender_state i
     should_track_name_refresh,
 )
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_sender_transport import (
+    build_stats_fallback_text_for_entry,
     flush_outbox,
     is_party_leader_client,
     load_runtime_config,
@@ -84,6 +84,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_sender_transpo
     poll_ack_messages,
     process_pending_name_refreshes,
     queue_drop,
+    resolve_current_party_member_emails,
     resolve_party_leader_email,
     schedule_name_refresh_for_entry,
     schedule_name_refresh_for_item,
@@ -141,12 +142,24 @@ class DropTrackerSender:
                     self.pending_ttl_seconds = 6.0
                 if not hasattr(self, "debug_pipeline_logs"):
                     self.debug_pipeline_logs = False
+                if not hasattr(self, "live_debug_detailed"):
+                    self.live_debug_detailed = True
                 if not hasattr(self, "max_outbox_size"):
                     self.max_outbox_size = 2000
                 if not hasattr(self, "max_snapshot_size_jump"):
                     self.max_snapshot_size_jump = 40
                 if not hasattr(self, "last_known_is_leader"):
                     self.last_known_is_leader = False
+                if not hasattr(self, "current_receiver_email"):
+                    self.current_receiver_email = ""
+                if not hasattr(self, "last_reset_reason"):
+                    self.last_reset_reason = ""
+                if not hasattr(self, "last_reset_map_id"):
+                    self.last_reset_map_id = 0
+                if not hasattr(self, "last_reset_instance_uptime_ms"):
+                    self.last_reset_instance_uptime_ms = 0
+                if not hasattr(self, "last_reset_started_at"):
+                    self.last_reset_started_at = 0.0
                 if not hasattr(self, "current_world_item_agents"):
                     self.current_world_item_agents = {}
                 if not hasattr(self, "recent_world_item_disappearances"):
@@ -196,6 +209,8 @@ class DropTrackerSender:
                     self.name_refresh_poll_interval_seconds = 0.25
                 if not hasattr(self, "max_name_refresh_per_tick"):
                     self.max_name_refresh_per_tick = 4
+                if not hasattr(self, "refresh_stats_after_name_refresh"):
+                    self.refresh_stats_after_name_refresh = True
                 if not hasattr(self, "world_item_poll_timer"):
                     self.world_item_poll_timer = ThrottledTimer(150)
                 self.debug_enabled = False
@@ -241,7 +256,13 @@ class DropTrackerSender:
         self.session_startup_pending = False
         self.pending_ttl_seconds = 6.0
         self.debug_pipeline_logs = False
+        self.live_debug_detailed = True
         self.last_known_is_leader = False
+        self.current_receiver_email = ""
+        self.last_reset_reason = ""
+        self.last_reset_map_id = 0
+        self.last_reset_instance_uptime_ms = 0
+        self.last_reset_started_at = 0.0
         self.enable_delivery_ack = True
         self.retry_interval_seconds = 1.0
         self.max_retry_attempts = 12
@@ -260,6 +281,7 @@ class DropTrackerSender:
         self.name_refresh_ttl_seconds = 4.0
         self.name_refresh_poll_interval_seconds = 0.25
         self.max_name_refresh_per_tick = 4
+        self.refresh_stats_after_name_refresh = True
         self.debug_reset_trace_until = 0.0
         self.debug_reset_trace_snapshot_logs_remaining = 0
         self.debug_reset_trace_event_logs_remaining = 0
@@ -355,8 +377,22 @@ class DropTrackerSender:
     def _build_item_stats_text(self, item_id: int, item_name: str = "") -> str:
         return build_item_stats_text(self, item_id, item_name)
 
-    def _entry_item_identity_matches(self, item_id: int, expected_model_id: int, expected_name_signature: str) -> bool:
-        return entry_item_identity_matches(self, item_id, expected_model_id, expected_name_signature)
+    def _entry_item_identity_matches(
+        self,
+        item_id: int,
+        expected_model_id: int,
+        expected_name_signature: str,
+        expected_item_name: str = "",
+        allow_unready_name: bool = False,
+    ) -> bool:
+        return entry_item_identity_matches(
+            self,
+            item_id,
+            expected_model_id,
+            expected_name_signature,
+            expected_item_name=expected_item_name,
+            allow_unready_name=allow_unready_name,
+        )
 
     def _resolve_event_item_id_for_stats(self, entry: dict) -> int:
         return resolve_event_item_id_for_stats(self, entry)
@@ -377,12 +413,52 @@ class DropTrackerSender:
         return advance_sender_session_id(self)
 
     def _begin_new_session(self, reason: str, current_map_id: int = 0, current_instance_uptime_ms: int = 0):
-        carryover_snapshot = dict(self.last_inventory_snapshot) if self.last_inventory_snapshot else {}
-        begin_new_session(self, reason, current_map_id=current_map_id, current_instance_uptime_ms=current_instance_uptime_ms)
+        normalized_reason = str(reason or "").strip() or "unknown"
+        normalized_map_id = int(current_map_id or 0)
+        normalized_uptime_ms = int(current_instance_uptime_ms or 0)
+        now_ts = time.time()
+        last_reset_reason = str(getattr(self, "last_reset_reason", "") or "").strip()
+        last_reset_map_id = int(getattr(self, "last_reset_map_id", 0) or 0)
+        last_reset_uptime_ms = int(getattr(self, "last_reset_instance_uptime_ms", 0) or 0)
+        last_reset_started_at = float(getattr(self, "last_reset_started_at", 0.0) or 0.0)
+        duplicate_reset = (
+            normalized_reason == last_reset_reason
+            and normalized_map_id > 0
+            and normalized_map_id == last_reset_map_id
+            and (now_ts - last_reset_started_at) <= 3.5
+            and normalized_uptime_ms > 0
+            and last_reset_uptime_ms > 0
+            and abs(normalized_uptime_ms - last_reset_uptime_ms) <= 2500
+        )
+        if duplicate_reset:
+            self.last_seen_map_id = normalized_map_id
+            self.last_seen_instance_uptime_ms = max(last_reset_uptime_ms, normalized_uptime_ms)
+            return
+        existing_carryover_snapshot = (
+            dict(self.carryover_inventory_snapshot)
+            if getattr(self, "carryover_inventory_snapshot", None)
+            else {}
+        )
+        previous_carryover_suppression_until = float(getattr(self, "carryover_suppression_until", 0.0) or 0.0)
+        current_snapshot = dict(self.last_inventory_snapshot) if self.last_inventory_snapshot else {}
+        if existing_carryover_snapshot and current_snapshot:
+            carryover_snapshot = (
+                current_snapshot
+                if len(current_snapshot) >= len(existing_carryover_snapshot)
+                else existing_carryover_snapshot
+            )
+        else:
+            carryover_snapshot = current_snapshot or existing_carryover_snapshot
+        begin_new_session(self, normalized_reason, current_map_id=normalized_map_id, current_instance_uptime_ms=normalized_uptime_ms)
+        self.last_reset_reason = normalized_reason
+        self.last_reset_map_id = normalized_map_id
+        self.last_reset_instance_uptime_ms = normalized_uptime_ms
+        self.last_reset_started_at = now_ts
         self.carryover_inventory_snapshot = carryover_snapshot
         self.session_startup_pending = bool(carryover_snapshot)
         grace_seconds = max(6.0, float(getattr(self, "warmup_grace_seconds", 3.0) or 3.0) + 9.0)
-        self.carryover_suppression_until = time.time() + grace_seconds if carryover_snapshot else 0.0
+        next_carryover_suppression_until = time.time() + grace_seconds if carryover_snapshot else 0.0
+        self.carryover_suppression_until = max(previous_carryover_suppression_until, next_carryover_suppression_until)
         self._append_live_debug_log(
             "sender_session_reset",
             f"transition={str(reason or '').strip() or 'unknown'}",
@@ -535,6 +611,9 @@ class DropTrackerSender:
     def _resolve_party_leader_email(self) -> str | None:
         return resolve_party_leader_email(self)
 
+    def _resolve_current_party_member_emails(self) -> list[str]:
+        return resolve_current_party_member_emails(self)
+
     def _is_party_leader_client(self) -> bool:
         return is_party_leader_client(self)
 
@@ -544,8 +623,15 @@ class DropTrackerSender:
     def _load_runtime_config(self):
         return load_runtime_config(self)
 
-    def _send_name_chunks(self, receiver_email: str, my_email: str, name_signature: str, full_name: str) -> bool:
-        return send_name_chunks(self, receiver_email, my_email, name_signature, full_name)
+    def _send_name_chunks(
+        self,
+        receiver_email: str,
+        my_email: str,
+        name_signature: str,
+        full_name: str,
+        event_id: str = "",
+    ) -> bool:
+        return send_name_chunks(self, receiver_email, my_email, name_signature, full_name, event_id=event_id)
 
     def _log_name_trace(self, message: str) -> None:
         return log_name_trace(self, message)
@@ -561,6 +647,9 @@ class DropTrackerSender:
 
     def _send_stats_chunks(self, receiver_email: str, my_email: str, event_id: str, stats_text: str) -> bool:
         return send_stats_chunks(self, receiver_email, my_email, event_id, stats_text)
+
+    def _build_stats_fallback_text_for_entry(self, entry: dict[str, Any]) -> str:
+        return build_stats_fallback_text_for_entry(self, entry)
 
     def _send_drop(
         self,

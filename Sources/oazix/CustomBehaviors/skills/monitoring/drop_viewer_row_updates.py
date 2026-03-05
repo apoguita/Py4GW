@@ -2,12 +2,15 @@ import datetime
 from typing import Any
 
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import make_name_signature
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_batch_store import persist_runtime_row_to_file
 
 
 def set_row_item_stats(viewer, row: Any, item_stats: str) -> None:
     from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import set_runtime_row_item_stats
 
     set_runtime_row_item_stats(row, viewer._ensure_text(item_stats).strip())
+    persist_runtime_row_to_file(viewer, row)
 
 
 def set_row_item_name(viewer, row: Any, item_name: Any) -> None:
@@ -16,15 +19,56 @@ def set_row_item_name(viewer, row: Any, item_name: Any) -> None:
     while len(row) <= 5:
         row.append("")
     row[5] = viewer._clean_item_name(item_name) or "Unknown Item"
+    persist_runtime_row_to_file(viewer, row)
+
+
+def _append_name_update_debug_log(
+    viewer,
+    *,
+    event_id: str,
+    sender_email: str,
+    player_name: str,
+    rarity: Any,
+    previous_name: Any,
+    new_name: Any,
+    update_source: str,
+) -> None:
+    append_fn = getattr(viewer, "_append_live_debug_log", None)
+    if not callable(append_fn):
+        return
+    previous_txt = viewer._clean_item_name(previous_name).strip()
+    new_txt = viewer._clean_item_name(new_name).strip()
+    append_fn(
+        "viewer_row_name_updated",
+        f"event_id={viewer._ensure_text(event_id).strip()}",
+        event_id=viewer._ensure_text(event_id).strip(),
+        sender_email=viewer._ensure_text(sender_email).strip().lower(),
+        player_name=viewer._ensure_text(player_name).strip(),
+        rarity=viewer._ensure_text(rarity).strip() or "Unknown",
+        previous_name=previous_txt,
+        new_name=new_txt,
+        previous_was_unknown=bool(viewer._is_unknown_item_label(previous_txt)),
+        update_source=viewer._ensure_text(update_source).strip() or "unknown",
+    )
 
 
 def should_allow_late_name_update(viewer, rarity: Any, current_name: Any, proposed_name: Any = "") -> bool:
     rarity_txt = viewer._ensure_text(rarity).strip().lower()
-    if rarity_txt in {"blue", "purple", "gold"}:
-        return True
     current_txt = viewer._clean_item_name(current_name).strip().lower()
     proposed_txt = viewer._clean_item_name(proposed_name).strip().lower()
-    return "rune" in current_txt or "rune" in proposed_txt
+    if not current_txt:
+        return True
+    if bool(viewer._is_unknown_item_label(current_txt)):
+        return True
+    if not proposed_txt or proposed_txt == current_txt:
+        return False
+    # Preserve original pickup label for white non-rune items.
+    if rarity_txt == "white":
+        if "rune" not in current_txt and "rune" not in proposed_txt:
+            return False
+    if current_txt in proposed_txt and len(proposed_txt) > len(current_txt):
+        return True
+    return False
 
 
 def update_rows_item_name_by_event_and_sender(
@@ -71,6 +115,16 @@ def update_rows_item_name_by_event_and_sender(
         if current_name == clean_name:
             continue
         set_row_item_name(viewer, row, clean_name)
+        _append_name_update_debug_log(
+            viewer,
+            event_id=event_key,
+            sender_email=row_sender or sender_key,
+            player_name=parsed.player_name,
+            rarity=parsed.rarity,
+            previous_name=current_name,
+            new_name=clean_name,
+            update_source="event_and_sender",
+        )
         updated += 1
     return updated
 
@@ -91,7 +145,7 @@ def update_rows_item_name_by_signature_and_sender(
     if not sender_key and not player_key:
         return 0
 
-    updated = 0
+    matching_rows: list[tuple[Any, Any, str, str]] = []
     for row in viewer.raw_drops:
         parsed = viewer._parse_drop_row(row)
         if parsed is None:
@@ -111,16 +165,46 @@ def update_rows_item_name_by_signature_and_sender(
             continue
         cache_key = viewer._make_stats_cache_key(event_id, row_sender, parsed.player_name)
         cached_sig = viewer._ensure_text(viewer.stats_name_signature_by_event.get(cache_key, "")).strip().lower()
-        if cached_sig != target_sig:
-            continue
         current_name = viewer._clean_item_name(parsed.item_name).strip()
-        if not should_allow_late_name_update(viewer, parsed.rarity, current_name, clean_name):
+        derived_sig = viewer._ensure_text(make_name_signature(current_name) if current_name else "").strip().lower()
+        if cached_sig != target_sig and derived_sig != target_sig:
             continue
-        if current_name == clean_name:
-            continue
-        set_row_item_name(viewer, row, clean_name)
-        updated += 1
-    return updated
+        matching_rows.append((row, parsed, row_sender, event_id))
+
+    if len(matching_rows) != 1:
+        if len(matching_rows) > 1:
+            append_fn = getattr(viewer, "_append_live_debug_log", None)
+            if callable(append_fn):
+                append_fn(
+                    "viewer_signature_name_update_skipped_ambiguous",
+                    f"sender={sender_key or player_key}",
+                    sender_email=sender_key,
+                    player_name=player_key,
+                    name_signature=target_sig,
+                    candidate_count=len(matching_rows),
+                    candidate_event_ids=[event_id for _row, _parsed, _sender, event_id in matching_rows[:8]],
+                    proposed_name=clean_name,
+                )
+        return 0
+
+    row, parsed, row_sender, event_id = matching_rows[0]
+    current_name = viewer._clean_item_name(parsed.item_name).strip()
+    if not should_allow_late_name_update(viewer, parsed.rarity, current_name, clean_name):
+        return 0
+    if current_name == clean_name:
+        return 0
+    set_row_item_name(viewer, row, clean_name)
+    _append_name_update_debug_log(
+        viewer,
+        event_id=event_id,
+        sender_email=row_sender or sender_key,
+        player_name=parsed.player_name,
+        rarity=parsed.rarity,
+        previous_name=current_name,
+        new_name=clean_name,
+        update_source="signature_and_sender",
+    )
+    return 1
 
 
 def item_names_match(viewer, selected_name: Any, row_name: Any) -> bool:

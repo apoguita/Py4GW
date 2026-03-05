@@ -382,18 +382,26 @@ def main() -> int:
                     else:
                         print(json.dumps(clear_response, ensure_ascii=False, indent=2), flush=True)
 
-            log_client = active_clients[0]
-            bridge_response = _client_request(
-                args.host,
-                args.port,
-                args.timeout,
-                log_client,
-                "drop_tracker.get_live_debug",
-                {"max_live_lines": max_live_lines},
-            )
-            if not bridge_response.get("ok"):
-                print(json.dumps(bridge_response, ensure_ascii=False, indent=2), flush=True)
-            else:
+            for log_client in active_clients:
+                bridge_response = _client_request(
+                    args.host,
+                    args.port,
+                    args.timeout,
+                    log_client,
+                    "drop_tracker.get_live_debug",
+                    {"max_live_lines": max_live_lines},
+                )
+                if not bridge_response.get("ok"):
+                    client_name = str(log_client.get("character_name") or "<unknown>")
+                    client_hwnd = int(log_client.get("hwnd") or 0)
+                    client_pid = int(log_client.get("pid") or 0)
+                    print(
+                        f"client {client_name} hwnd={client_hwnd} pid={client_pid} request failed:",
+                        flush=True,
+                    )
+                    print(json.dumps(bridge_response, ensure_ascii=False, indent=2), flush=True)
+                    continue
+
                 result = bridge_response.get("result", {})
                 if not isinstance(result, dict):
                     result = {}

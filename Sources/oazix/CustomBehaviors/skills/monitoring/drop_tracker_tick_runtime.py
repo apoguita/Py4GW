@@ -57,7 +57,7 @@ def run_sender_tick(sender) -> None:
             Py4GW.Console.Log(
                 "DropTrackerSender",
                 (
-                    "active "
+                    "active LIVE "
                     f"snapshot_size={len(sender.last_inventory_snapshot)} "
                     f"items={sender.last_snapshot_total} "
                     f"ready={sender.last_snapshot_ready} "

@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import os
-from typing import Callable
+from typing import Any, Callable
 
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
 
@@ -94,7 +94,7 @@ def _effective_optional_indices(
 
 
 def parse_drop_log_reader(
-    reader: csv.reader,
+    reader: Any,
     map_name_resolver: Callable[[int], str] | None = None,
 ) -> list[DropLogRow]:
     parsed_rows: list[DropLogRow] = []
@@ -211,3 +211,30 @@ def append_drop_log_rows(filepath: str, rows: list[DropLogRow]) -> None:
             writer.writerow(DROP_LOG_HEADER)
         for row in rows:
             writer.writerow(row.to_csv_row())
+
+
+def replace_drop_log_row(filepath: str, row: DropLogRow) -> int:
+    event_key = str(getattr(row, "event_id", "") or "").strip()
+    if not filepath or not event_key or not os.path.exists(filepath):
+        return 0
+
+    sender_key = str(getattr(row, "sender_email", "") or "").strip().lower()
+    parsed_rows = parse_drop_log_file(filepath)
+    updated = 0
+
+    for idx, existing in enumerate(parsed_rows):
+        if str(existing.event_id or "").strip() != event_key:
+            continue
+        existing_sender = str(existing.sender_email or "").strip().lower()
+        if sender_key and existing_sender and existing_sender != sender_key:
+            continue
+        parsed_rows[idx] = row
+        updated += 1
+
+    if updated <= 0:
+        return 0
+
+    csv_text = render_drop_log_csv(parsed_rows)
+    with open(filepath, mode="w", newline="", encoding="utf-8") as f:
+        f.write(csv_text)
+    return updated

@@ -1,4 +1,5 @@
-from typing import Any
+import time
+from typing import Any, cast
 
 from Py4GWCoreLib import Py4GW
 
@@ -31,6 +32,35 @@ def classify_drop_name_source(raw_drop_name: str, payload_name: str, final_name:
     if final and raw_name and final == raw_name:
         return "raw"
     return "unknown"
+
+
+def _has_prior_sender_signature_match(
+    viewer,
+    *,
+    sender_email: str,
+    event_id: str,
+    name_signature: str,
+) -> bool:
+    sender_key = viewer._ensure_text(sender_email).strip().lower()
+    event_key = viewer._ensure_text(event_id).strip().lower()
+    target_sig = viewer._ensure_text(name_signature).strip().lower()
+    if not sender_key or not target_sig:
+        return False
+    stats_sig_map = getattr(viewer, "stats_name_signature_by_event", {})
+    if not isinstance(stats_sig_map, dict):
+        return False
+    sender_prefix = f"email:{sender_key}:"
+    event_suffix = f":{event_key}" if event_key else ""
+    for cache_key, cached_sig in list(stats_sig_map.items()):
+        if viewer._ensure_text(cached_sig).strip().lower() != target_sig:
+            continue
+        cache_key_txt = viewer._ensure_text(cache_key).strip().lower()
+        if not cache_key_txt.startswith(sender_prefix):
+            continue
+        if event_suffix and cache_key_txt.endswith(event_suffix):
+            continue
+        return True
+    return False
 
 
 def process_tracker_drop_message(
@@ -88,7 +118,14 @@ def process_tracker_drop_message(
         to_text_fn=to_text_fn,
         normalize_text_fn=normalize_text_fn,
         build_tracker_drop_message_fn=build_tracker_drop_message,
-        resolve_full_name_fn=lambda sig: viewer.full_name_by_signature.get(sig, ""),
+        resolve_full_name_fn=lambda sig, event_id="": (
+            viewer.full_name_by_signature.get(
+                f"{viewer._ensure_text(event_id).strip()}:{viewer._ensure_text(sig).strip()}",
+                "",
+            )
+            if viewer._ensure_text(event_id).strip()
+            else viewer.full_name_by_signature.get(viewer._ensure_text(sig).strip(), "")
+        ),
         normalize_rarity_label_fn=viewer._normalize_rarity_label,
     )
     if drop_msg is None:
@@ -97,6 +134,32 @@ def process_tracker_drop_message(
     raw_drop_name = viewer._clean_item_name(to_text_fn(extra_data_list[1]) if len(extra_data_list) > 1 else "")
     event_id = drop_msg.event_id
     payload_name = str(getattr(drop_msg, "item_name", "") or "")
+    signature_collision = _has_prior_sender_signature_match(
+        viewer,
+        sender_email=str(getattr(drop_msg, "sender_email", "") or ""),
+        event_id=event_id,
+        name_signature=str(getattr(drop_msg, "name_signature", "") or ""),
+    )
+    if (
+        signature_collision
+        and raw_drop_name
+        and payload_name
+        and viewer._clean_item_name(payload_name).strip().lower() != raw_drop_name.strip().lower()
+    ):
+        if bool(getattr(viewer, "live_debug_detailed", True)):
+            append_fn = getattr(viewer, "_append_live_debug_log", None)
+            if callable(append_fn):
+                cast(Any, append_fn)(
+                    "viewer_drop_name_collision_guard",
+                    f"event_id={str(event_id or '').strip()}",
+                    event_id=str(event_id or "").strip(),
+                    sender_email=str(getattr(drop_msg, "sender_email", "") or "").strip().lower(),
+                    name_signature=viewer._ensure_text(getattr(drop_msg, "name_signature", "")).strip().lower(),
+                    payload_name=viewer._clean_item_name(payload_name).strip(),
+                    raw_drop_name=raw_drop_name,
+                )
+        payload_name = raw_drop_name
+        drop_msg.item_name = payload_name
     item_name = viewer._resolve_unknown_name_from_model(payload_name, drop_msg.model_id)
     exact_rarity = drop_msg.rarity
     quantity = drop_msg.quantity
@@ -109,6 +172,28 @@ def process_tracker_drop_message(
     sender_key = viewer._ensure_text(sender_email).strip().lower()
     source_label = classify_tracker_sender_source(my_email, sender_email)
     name_source = classify_drop_name_source(raw_drop_name, payload_name, item_name)
+    if bool(getattr(viewer, "live_debug_detailed", True)):
+        append_fn = getattr(viewer, "_append_live_debug_log", None)
+        if callable(append_fn):
+            cast(Any, append_fn)(
+                "viewer_drop_parsed",
+                f"event_id={str(event_id or '').strip()}",
+                dedupe_key=f"viewer_drop_parsed:{int(msg_idx)}:{str(event_id or '').strip()}",
+                dedupe_interval_s=0.5,
+                msg_idx=int(msg_idx),
+                event_id=str(event_id or "").strip(),
+                sender_email=sender_email,
+                sender_source=source_label,
+                raw_drop_name=raw_drop_name,
+                payload_name=payload_name,
+                final_name=item_name,
+                name_source=name_source,
+                name_signature=viewer._ensure_text(drop_msg.name_signature).strip().lower(),
+                item_id=int(row_item_id),
+                model_id=int(model_id_param),
+                rarity=str(exact_rarity or "").strip(),
+                quantity=int(quantity),
+            )
 
     if sender_session_id > 0 and sender_key:
         session_floor = max(0, viewer._safe_int(viewer.sender_session_floor_by_email.get(sender_key, 0), 0))
@@ -151,9 +236,12 @@ def process_tracker_drop_message(
     stats_text = viewer._get_cached_stats_text(viewer.stats_by_event, stats_cache_key)
     if stats_cache_key and drop_msg.name_signature:
         viewer.stats_name_signature_by_event[stats_cache_key] = viewer._ensure_text(drop_msg.name_signature).strip().lower()
-    had_full_name_cache = bool(
-        viewer._ensure_text(viewer.full_name_by_signature.get(viewer._ensure_text(drop_msg.name_signature).strip(), "")).strip()
-    )
+    signature_key = viewer._ensure_text(drop_msg.name_signature).strip()
+    event_signature_key = f"{viewer._ensure_text(event_id).strip()}:{signature_key}" if event_id else ""
+    if event_signature_key:
+        had_full_name_cache = bool(viewer._ensure_text(viewer.full_name_by_signature.get(event_signature_key, "")).strip())
+    else:
+        had_full_name_cache = bool(viewer._ensure_text(viewer.full_name_by_signature.get(signature_key, "")).strip())
     viewer._log_name_trace(
         (
             f"NAME TRACE drop ev={event_id or '-'} sender={sender_email or '-'} player={sender_name or '-'} "
@@ -240,6 +328,13 @@ def process_tracker_drop_message(
             f"model_id={model_id_param} slot={slot_bag}:{slot_index} ev={event_id} dup={is_duplicate})"
         )
         Py4GW.Console.Log("DropViewer", log_msg, Py4GW.Console.MessageType.Info)
+
+    viewer.last_tracked_item_name = item_name
+    viewer.last_tracked_item_quantity = int(quantity)
+    viewer.last_tracked_item_rarity = exact_rarity
+    viewer.last_tracked_item_player = sender_name
+    viewer.last_tracked_item_source = f"shmem:{source_label}"
+    viewer.last_tracked_item_at = time.time()
 
     shmem.MarkMessageAsFinished(my_email, msg_idx)
     if is_duplicate and hasattr(viewer, "_append_live_debug_log"):

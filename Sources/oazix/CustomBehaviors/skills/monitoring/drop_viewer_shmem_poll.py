@@ -37,7 +37,7 @@ def poll_shared_memory(viewer) -> None:
     extract_event_id_hint_fn = _runtime_attr(viewer, "extract_event_id_hint", None)
 
     def _c_wchar_array_to_str(arr) -> str:
-        return "".join(ch for ch in arr if ch != "\0").rstrip()
+        return "".join(ch for ch in arr if ch != "\0")
 
     def _normalize_shmem_text(value: Any) -> str:
         if value is None:
@@ -128,7 +128,14 @@ def poll_shared_memory(viewer) -> None:
         if message_count <= 0:
             viewer._shmem_scan_start_index = 0
         start_index = max(0, int(viewer._safe_int(getattr(viewer, "_shmem_scan_start_index", 0), 0)))
-        scan_order = iter_circular_indices_fn(message_count, start_index, max_raw_messages_examined_per_tick)
+        if iter_circular_indices_fn is None:
+            scan_order = range(0)
+        else:
+            scan_order = iter_circular_indices_fn(
+                message_count,
+                start_index,
+                max_raw_messages_examined_per_tick,
+            )
         next_scan_index = start_index
         for message_list_index in scan_order:
             msg_idx, shared_msg = messages[message_list_index]

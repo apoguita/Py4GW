@@ -6,6 +6,15 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_inventory_delt
     filter_candidate_events_by_model_delta,
 )
 
+WORLD_CONFIRMATION_FALLBACK_REASONS = frozenset(
+    {
+        "new_slot",
+        "pending_same_slot_name_ready",
+        "pending_itemid_name_ready",
+        "stack_increase",
+    }
+)
+
 
 def _slot_tuple(event: dict[str, Any]) -> tuple[int, int]:
     slot_key = event.get("slot_key")
@@ -23,6 +32,34 @@ def _format_candidate_event(event: dict[str, Any]) -> str:
         f"item_id={int(event.get('item_id', 0))} model_id={int(event.get('model_id', 0))} "
         f"slot={bag_id}:{slot_id}"
     )
+
+
+def _allow_world_confirmation_fallback(
+    sender,
+    event: dict[str, Any],
+    prev_item_ids: set[int],
+) -> bool:
+    reason = str(event.get("reason", "") or "").strip()
+    if reason not in WORLD_CONFIRMATION_FALLBACK_REASONS:
+        return False
+    event_item_id = int(event.get("item_id", 0))
+    if event_item_id <= 0 or event_item_id in prev_item_ids:
+        return False
+    if not bool(getattr(sender, "world_item_seen_since_reset", False)):
+        return False
+    if bool(getattr(sender, "session_startup_pending", False)):
+        return False
+    if bool(getattr(sender, "carryover_inventory_snapshot", {})):
+        return False
+    recent_world_count = len(getattr(sender, "recent_world_item_disappearances", []) or [])
+    live_world_count = len(getattr(sender, "current_world_item_agents", {}) or {})
+    if reason == "stack_increase":
+        # Stack deltas can legitimately miss strict world-item matching due batching/races
+        # with repeated stack updates. Allow fallback once world scanning is active.
+        return bool(recent_world_count > 0 or live_world_count > 0)
+    if recent_world_count > 0 or live_world_count > 0:
+        return False
+    return True
 
 
 def confirm_candidate_events(
@@ -46,6 +83,16 @@ def confirm_candidate_events(
     for event in list(confirmed_events):
         if sender._consume_recent_world_item_confirmation(event):
             world_confirmed_events.append(event)
+        elif _allow_world_confirmation_fallback(sender, event, prev_item_ids):
+            world_confirmed_events.append(event)
+            append_live_debug_log = getattr(sender, "_append_live_debug_log", None)
+            if callable(append_live_debug_log):
+                append_live_debug_log(
+                    "candidate_world_confirmation_fallback",
+                    _format_candidate_event(event),
+                    fallback_reason=str(event.get("reason", "") or "").strip(),
+                    event_item_id=int(event.get("item_id", 0)),
+                )
         else:
             suppressed_world_events.append(dict(event))
     return world_confirmed_events, suppressed_by_model_delta, suppressed_world_events
@@ -58,6 +105,20 @@ def log_candidate_pipeline(
     suppressed_world_events: list[dict[str, Any]],
 ) -> None:
     append_live_debug_log = getattr(sender, "_append_live_debug_log", None)
+    if callable(append_live_debug_log) and bool(getattr(sender, "live_debug_detailed", True)):
+        append_live_debug_log(
+            "candidate_pipeline_summary",
+            (
+                f"confirmed={len(candidate_events)} "
+                f"suppressed_model_delta={int(suppressed_by_model_delta)} "
+                f"suppressed_world={len(suppressed_world_events)}"
+            ),
+            dedupe_key="candidate_pipeline_summary",
+            dedupe_interval_s=2.0,
+            confirmed_count=len(candidate_events),
+            suppressed_model_delta=int(suppressed_by_model_delta),
+            suppressed_world_count=len(suppressed_world_events),
+        )
     if sender.debug_pipeline_logs and suppressed_by_model_delta > 0:
         Py4GW.Console.Log(
             "DropTrackerSender",

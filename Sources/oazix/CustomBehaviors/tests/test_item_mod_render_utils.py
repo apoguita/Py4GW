@@ -171,6 +171,50 @@ def test_build_known_spellcasting_mod_lines_renders_10328_duration_line_when_con
     assert "Reduces Dazed duration on you by 20%" in lines
 
 
+def test_build_known_spellcasting_mod_lines_renders_10328_duration_line_when_condition_is_bitpacked():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(10328, 0x107, 0)],
+        item_attr_txt="",
+        item_type=24,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Reduces Dazed duration on you by 20%" in lines
+
+
+def test_build_known_spellcasting_mod_lines_renders_10328_burning_condition():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(10328, 2, 0)],
+        item_attr_txt="",
+        item_type=24,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Reduces Burning duration on you by 20%" in lines
+
+
+def test_build_known_spellcasting_mod_lines_renders_32784_requirement_line():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(32784, 14, 9)],
+        item_attr_txt="",
+        item_type=27,
+        resolve_attribute_name_fn=lambda attr_id: {14: "Divine Favor"}.get(attr_id, ""),
+    )
+
+    assert "Requires 9 Divine Favor" in lines
+
+
+def test_build_known_spellcasting_mod_lines_renders_42290_inscription_marker():
+    lines = build_known_spellcasting_mod_lines(
+        raw_mods=[(42290, 0, 177)],
+        item_attr_txt="",
+        item_type=27,
+        resolve_attribute_name_fn=lambda _attr_id: "",
+    )
+
+    assert "Inscription: 177" in lines
+
+
 def test_build_spellcast_hct_hsr_lines_does_not_use_attribute_id_as_chance():
     lines = build_spellcast_hct_hsr_lines(
         raw_mods=[(9112, 30, 14)],
@@ -180,6 +224,39 @@ def test_build_spellcast_hct_hsr_lines_does_not_use_attribute_id_as_chance():
     )
 
     assert lines == []
+
+
+def test_build_spellcast_hct_hsr_lines_uses_swapped_attr_chance_layout_for_9112():
+    lines = build_spellcast_hct_hsr_lines(
+        raw_mods=[(9112, 4, 19)],
+        item_attr_txt="Death Magic",
+        item_type=26,
+        resolve_attribute_name_fn=lambda attr_id: {4: "Death Magic", 19: "Hammer Mastery"}.get(attr_id, ""),
+    )
+
+    assert "Halves skill recharge of Death Magic spells (Chance: 19%)" in lines
+
+
+def test_build_spellcast_hct_hsr_lines_uses_swapped_attr_chance_layout_for_9112_offhand_focus():
+    lines = build_spellcast_hct_hsr_lines(
+        raw_mods=[(9112, 11, 19)],
+        item_attr_txt="Inspiration Magic",
+        item_type=12,
+        resolve_attribute_name_fn=lambda attr_id: {11: "Inspiration Magic", 19: "Hammer Mastery"}.get(attr_id, ""),
+    )
+
+    assert "Halves skill recharge of Inspiration Magic spells (Chance: 19%)" in lines
+
+
+def test_build_spellcast_hct_hsr_lines_uses_swapped_attr_chance_layout_for_8728():
+    lines = build_spellcast_hct_hsr_lines(
+        raw_mods=[(8728, 4, 19)],
+        item_attr_txt="Blood Magic",
+        item_type=22,
+        resolve_attribute_name_fn=lambda attr_id: {4: "Blood Magic", 19: "Hammer Mastery"}.get(attr_id, ""),
+    )
+
+    assert "Halves casting time of Blood Magic spells (Chance: 19%)" in lines
 
 
 def test_build_known_spellcasting_mod_lines_uses_arg2_for_energy_value():

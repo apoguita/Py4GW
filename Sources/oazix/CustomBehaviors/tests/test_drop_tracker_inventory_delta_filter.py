@@ -27,7 +27,7 @@ def test_keeps_new_item_id_when_model_net_delta_is_zero():
     assert int(filtered[0]["item_id"]) == 777
 
 
-def test_suppresses_existing_item_id_when_model_net_delta_is_zero():
+def test_keeps_stack_increase_when_model_net_delta_is_zero():
     events = [
         {
             "reason": "stack_increase",
@@ -44,8 +44,9 @@ def test_suppresses_existing_item_id_when_model_net_delta_is_zero():
         prev_item_ids={42},
     )
 
-    assert suppressed == 1
-    assert filtered == []
+    assert suppressed == 0
+    assert len(filtered) == 1
+    assert int(filtered[0]["item_id"]) == 42
 
 
 def test_clamps_existing_item_qty_to_remaining_model_delta():
@@ -68,4 +69,3 @@ def test_clamps_existing_item_qty_to_remaining_model_delta():
     assert suppressed == 0
     assert len(filtered) == 1
     assert int(filtered[0]["qty"]) == 2
-

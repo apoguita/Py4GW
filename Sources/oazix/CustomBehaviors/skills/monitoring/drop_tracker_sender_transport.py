@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from typing import Any, cast
 
 from Py4GWCoreLib import GLOBAL_CACHE, Item, Party, Player, Py4GW
 from Py4GWCoreLib.enums import SharedCommandType
@@ -18,25 +19,136 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol impor
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
 
 
+def _emit_live_debug(sender, event: str, message: str, **fields: Any) -> None:
+    append_fn = getattr(sender, "_append_live_debug_log", None)
+    if not callable(append_fn):
+        return
+    try:
+        append_any = cast(Any, append_fn)
+        append_any(str(event or "").strip(), str(message or "").strip(), **fields)
+    except EXPECTED_RUNTIME_ERRORS:
+        return
+
+
+def _is_unidentified_stats_text(stats_text: str) -> bool:
+    text = str(stats_text or "").strip()
+    if not text:
+        return False
+    first_line = str(text.splitlines()[0] if text.splitlines() else "").strip().lower()
+    return first_line == "unidentified"
+
+
+def resolve_current_party_member_emails(sender) -> list[str]:
+    try:
+        shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+        if shmem is None:
+            return []
+        my_party_id = int(getattr(getattr(GLOBAL_CACHE, "Party", None), "GetPartyID", lambda: 0)() or 0)
+        if my_party_id <= 0:
+            return []
+        result: list[str] = []
+        for account in list(shmem.GetAllAccountData() or []):
+            if not bool(getattr(account, "IsAccount", False)):
+                continue
+            account_email = str(getattr(account, "AccountEmail", "") or "").strip().lower()
+            if not account_email:
+                continue
+            account_party_id = int(getattr(getattr(account, "AgentPartyData", None), "PartyID", 0) or 0)
+            if account_party_id != my_party_id:
+                continue
+            if not bool(CustomBehaviorHelperParty.is_account_in_same_map_as_current_account(account)):
+                continue
+            if account_email not in result:
+                result.append(account_email)
+        return result
+    except EXPECTED_RUNTIME_ERRORS:
+        return []
+
+
 def resolve_party_leader_email(sender) -> str | None:
     try:
+        shmem = getattr(GLOBAL_CACHE, "ShMem", None)
+        if shmem is None:
+            return None
+
+        try:
+            my_email = str(Player.GetAccountEmail() or "").strip().lower()
+        except EXPECTED_RUNTIME_ERRORS:
+            my_email = ""
+        get_account_by_email = getattr(shmem, "GetAccountDataFromEmail", None)
+        self_account = None
+        if my_email and callable(get_account_by_email):
+            self_account = get_account_by_email(my_email)
+
+        expected_party_id = 0
+        try:
+            expected_party_id = int(getattr(getattr(self_account, "AgentPartyData", None), "PartyID", 0) or 0)
+        except EXPECTED_RUNTIME_ERRORS:
+            expected_party_id = 0
+        if expected_party_id <= 0:
+            expected_party_id = int(getattr(getattr(GLOBAL_CACHE, "Party", None), "GetPartyID", lambda: 0)() or 0)
+
+        expected_map = getattr(getattr(self_account, "AgentData", None), "Map", None)
+        expected_map_id = int(getattr(expected_map, "MapID", 0) or 0)
+        expected_region = int(getattr(expected_map, "Region", 0) or 0)
+        expected_district = int(getattr(expected_map, "District", 0) or 0)
+        expected_language = int(getattr(expected_map, "Language", 0) or 0)
+
+        def _is_current_party_instance_account(account) -> bool:
+            if not bool(getattr(account, "IsAccount", False)):
+                return False
+            account_email = str(getattr(account, "AccountEmail", "") or "").strip()
+            if not account_email:
+                return False
+            account_party_id = int(getattr(getattr(account, "AgentPartyData", None), "PartyID", 0) or 0)
+            if expected_party_id > 0 and account_party_id != expected_party_id:
+                return False
+            account_map = getattr(getattr(account, "AgentData", None), "Map", None)
+            if expected_map_id > 0 and int(getattr(account_map, "MapID", 0) or 0) != expected_map_id:
+                return False
+            if expected_region > 0 and int(getattr(account_map, "Region", 0) or 0) != expected_region:
+                return False
+            if expected_district > 0 and int(getattr(account_map, "District", 0) or 0) != expected_district:
+                return False
+            if expected_language > 0 and int(getattr(account_map, "Language", 0) or 0) != expected_language:
+                return False
+            return True
+
+        all_accounts = list(shmem.GetAllAccountData() or [])
+        if expected_party_id <= 0:
+            return None
+
+        party_instance_accounts = [acc for acc in all_accounts if _is_current_party_instance_account(acc)]
+        if not party_instance_accounts:
+            return None
+
+        # Leader is defined as first in party list (PartyPosition == 0).
+        leader_candidates = []
+        for account in party_instance_accounts:
+            party_position_raw = getattr(getattr(account, "AgentPartyData", None), "PartyPosition", -1)
+            party_position = int(party_position_raw) if party_position_raw is not None else -1
+            if party_position == 0:
+                leader_candidates.append(account)
+        if leader_candidates:
+            leader_id = int(Party.GetPartyLeaderID() or 0)
+            if leader_id > 0:
+                for account in leader_candidates:
+                    account_agent_id = int(getattr(getattr(account, "AgentData", None), "AgentID", 0) or 0)
+                    if account_agent_id == leader_id:
+                        leader_email = str(getattr(account, "AccountEmail", "") or "").strip()
+                        if leader_email:
+                            return leader_email
+            leader_email = str(getattr(leader_candidates[0], "AccountEmail", "") or "").strip()
+            if leader_email:
+                return leader_email
+
+        # Fallback for malformed party position: only if helper resolves inside current party instance.
         helper_leader_email = CustomBehaviorHelperParty._get_party_leader_email()
         if helper_leader_email:
-            return helper_leader_email
-
-        leader_id = Party.GetPartyLeaderID()
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if int(account.AgentData.AgentID) == leader_id:
-                return account.AccountEmail
-
-        my_party_id = GLOBAL_CACHE.Party.GetPartyID()
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if not account.IsAccount:
-                continue
-            if int(account.AgentPartyData.PartyID) != int(my_party_id):
-                continue
-            if int(account.AgentPartyData.PartyPosition) == 0:
-                return account.AccountEmail
+            helper_leader_email = str(helper_leader_email).strip()
+            helper_account = get_account_by_email(helper_leader_email) if callable(get_account_by_email) else None
+            if helper_account is not None and _is_current_party_instance_account(helper_account):
+                return helper_leader_email
     except EXPECTED_RUNTIME_ERRORS:
         return None
     return None
@@ -65,6 +177,7 @@ def load_runtime_config(sender):
         if not isinstance(data, dict):
             return
         sender.debug_pipeline_logs = bool(data.get("debug_pipeline_logs", sender.debug_pipeline_logs))
+        sender.live_debug_detailed = bool(data.get("live_debug_detailed", getattr(sender, "live_debug_detailed", True)))
         sender.enable_perf_logs = bool(data.get("enable_perf_logs", sender.enable_perf_logs))
         sender.enable_delivery_ack = bool(data.get("enable_delivery_ack", sender.enable_delivery_ack))
         sender.max_send_per_tick = max(1, int(data.get("max_send_per_tick", sender.max_send_per_tick)))
@@ -82,7 +195,14 @@ def load_runtime_config(sender):
         return
 
 
-def send_name_chunks(sender, receiver_email: str, my_email: str, name_signature: str, full_name: str) -> bool:
+def send_name_chunks(
+    sender,
+    receiver_email: str,
+    my_email: str,
+    name_signature: str,
+    full_name: str,
+    event_id: str = "",
+) -> bool:
     try:
         if not name_signature:
             return True
@@ -97,7 +217,7 @@ def send_name_chunks(sender, receiver_email: str, my_email: str, name_signature:
                     "TrackerNameV2",
                     (name_signature or "")[:31],
                     (chunk or "")[:31],
-                    encode_name_chunk_meta(idx, total)[:31],
+                    encode_name_chunk_meta(idx, total, event_id=str(event_id or "").strip())[:31],
                 ),
             )
             if sent_index == -1:
@@ -187,6 +307,16 @@ def process_pending_name_refreshes(sender) -> int:
             continue
         if (now_ts - float(refresh.get("created_at", now_ts))) > ttl_s:
             sender._log_name_trace(f"NAME TRACE refresh_expire ev={event_key}")
+            if bool(getattr(sender, "live_debug_detailed", True)):
+                _emit_live_debug(
+                    sender,
+                    "name_refresh_expired",
+                    f"event_id={event_key}",
+                    event_id=str(event_key or "").strip(),
+                    item_id=int(refresh.get("item_id", 0) or 0),
+                    item_name=str(refresh.get("item_name", "") or "").strip(),
+                    ttl_s=float(ttl_s),
+                )
             pending.pop(event_key, None)
             continue
         if completed >= max_scan:
@@ -211,12 +341,35 @@ def process_pending_name_refreshes(sender) -> int:
             sender._log_name_trace(
                 f"NAME TRACE refresh_abort ev={event_key} reason=model_mismatch live={live_model_id} expected={model_id}"
             )
+            if bool(getattr(sender, "live_debug_detailed", True)):
+                _emit_live_debug(
+                    sender,
+                    "name_refresh_abort_model_mismatch",
+                    f"event_id={event_key}",
+                    event_id=str(event_key or "").strip(),
+                    item_id=int(item_id),
+                    expected_model_id=int(model_id),
+                    live_model_id=int(live_model_id),
+                    item_name=str(original_name or "").strip(),
+                )
             pending.pop(event_key, None)
             continue
 
         clean_name = sender._resolve_best_live_item_name(item_id, original_name)
         if not clean_name or clean_name.startswith("Model#") or clean_name == original_name:
             refresh["next_poll_at"] = now_ts + poll_s
+            if bool(getattr(sender, "live_debug_detailed", True)):
+                _emit_live_debug(
+                    sender,
+                    "name_refresh_wait",
+                    f"event_id={event_key}",
+                    dedupe_key=f"name_refresh_wait:{str(event_key or '').strip()}:{int(item_id)}:{str(original_name or '').strip().lower()}",
+                    dedupe_interval_s=1.0,
+                    event_id=str(event_key or "").strip(),
+                    item_id=int(item_id),
+                    item_name=str(original_name or "").strip(),
+                    resolved_name=str(clean_name or "").strip(),
+                )
             continue
 
         receiver_email = str(refresh.get("receiver_email", "") or "").strip().lower()
@@ -230,6 +383,17 @@ def process_pending_name_refreshes(sender) -> int:
                 receiver_email = str(sender._resolve_party_leader_email() or "").strip().lower()
         if not receiver_email:
             refresh["next_poll_at"] = now_ts + poll_s
+            if bool(getattr(sender, "live_debug_detailed", True)):
+                _emit_live_debug(
+                    sender,
+                    "name_refresh_wait_receiver",
+                    f"event_id={event_key}",
+                    dedupe_key=f"name_refresh_wait_receiver:{str(event_key or '').strip()}",
+                    dedupe_interval_s=1.0,
+                    event_id=str(event_key or "").strip(),
+                    item_id=int(item_id),
+                    item_name=str(original_name or "").strip(),
+                )
             continue
 
         try:
@@ -238,6 +402,16 @@ def process_pending_name_refreshes(sender) -> int:
             my_email = ""
         if not my_email:
             refresh["next_poll_at"] = now_ts + poll_s
+            if bool(getattr(sender, "live_debug_detailed", True)):
+                _emit_live_debug(
+                    sender,
+                    "name_refresh_wait_sender_email",
+                    f"event_id={event_key}",
+                    dedupe_key=f"name_refresh_wait_sender_email:{str(event_key or '').strip()}",
+                    dedupe_interval_s=1.0,
+                    event_id=str(event_key or "").strip(),
+                    item_id=int(item_id),
+                )
             continue
 
         sender._log_name_trace(
@@ -246,7 +420,19 @@ def process_pending_name_refreshes(sender) -> int:
                 f"sig={original_signature or '-'} receiver={receiver_email or '-'}"
             )
         )
-        if sender._send_name_chunks(receiver_email, my_email, original_signature, clean_name):
+        try:
+            sent_name_chunks = bool(
+                sender._send_name_chunks(
+                    receiver_email,
+                    my_email,
+                    original_signature,
+                    clean_name,
+                    event_id=event_key,
+                )
+            )
+        except TypeError:
+            sent_name_chunks = bool(sender._send_name_chunks(receiver_email, my_email, original_signature, clean_name))
+        if sent_name_chunks:
             sender._remember_event_identity(
                 event_id=event_key,
                 item_id=item_id,
@@ -255,9 +441,71 @@ def process_pending_name_refreshes(sender) -> int:
                 name_signature=original_signature,
                 rarity=str(refresh.get("rarity", "") or "").strip(),
             )
+            if bool(getattr(sender, "refresh_stats_after_name_refresh", True)):
+                previous_stats = ""
+                try:
+                    get_cached_stats_fn = getattr(sender, "get_cached_event_stats_text", None)
+                    if callable(get_cached_stats_fn):
+                        previous_stats = str(get_cached_stats_fn(event_key, int(item_id), int(model_id)) or "").strip()
+                except EXPECTED_RUNTIME_ERRORS:
+                    previous_stats = ""
+                if not previous_stats:
+                    try:
+                        cache_entry = dict(getattr(sender, "sent_event_stats_cache", {}).get(event_key, {}) or {})
+                        previous_stats = str(cache_entry.get("stats_text", "") or "").strip()
+                    except EXPECTED_RUNTIME_ERRORS:
+                        previous_stats = ""
+                if _is_unidentified_stats_text(previous_stats):
+                    refreshed_stats = str(sender._build_item_stats_text(int(item_id), clean_name) or "").strip()
+                    if refreshed_stats and (not _is_unidentified_stats_text(refreshed_stats)):
+                        try:
+                            sent_stats = bool(
+                                sender._send_stats_chunks(
+                                    receiver_email=receiver_email,
+                                    my_email=my_email,
+                                    event_id=str(event_key or "").strip(),
+                                    stats_text=refreshed_stats,
+                                )
+                            )
+                        except EXPECTED_RUNTIME_ERRORS:
+                            sent_stats = False
+                        if sent_stats:
+                            sender._remember_event_stats_snapshot(
+                                event_id=event_key,
+                                item_id=int(item_id),
+                                model_id=int(model_id),
+                                item_name=clean_name,
+                                stats_text=refreshed_stats,
+                                name_signature=original_signature,
+                                rarity=str(refresh.get("rarity", "") or "").strip(),
+                                last_receiver_email=str(receiver_email or "").strip().lower(),
+                            )
+                            if bool(getattr(sender, "live_debug_detailed", True)):
+                                _emit_live_debug(
+                                    sender,
+                                    "name_refresh_stats_sent",
+                                    f"event_id={event_key}",
+                                    event_id=str(event_key or "").strip(),
+                                    item_id=int(item_id),
+                                    model_id=int(model_id),
+                                    item_name=str(clean_name or "").strip(),
+                                )
             pending.pop(event_key, None)
             continue
         refresh["next_poll_at"] = now_ts + poll_s
+        if bool(getattr(sender, "live_debug_detailed", True)):
+            _emit_live_debug(
+                sender,
+                "name_refresh_send_failed",
+                f"event_id={event_key}",
+                dedupe_key=f"name_refresh_send_failed:{str(event_key or '').strip()}",
+                dedupe_interval_s=0.75,
+                event_id=str(event_key or "").strip(),
+                item_id=int(item_id),
+                item_name=str(original_name or "").strip(),
+                attempted_name=str(clean_name or "").strip(),
+                receiver_email=str(receiver_email or "").strip().lower(),
+            )
 
     return completed
 
@@ -299,6 +547,18 @@ def schedule_name_refresh_for_item(sender, item_id: int = 0, model_id: int = 0) 
             f"NAME TRACE identify_refresh_rearm item_id={wanted_item_id} model_id={wanted_model_id} scheduled={scheduled}"
         )
     return scheduled
+
+
+def build_stats_fallback_text_for_entry(sender, entry: dict[str, Any]) -> str:
+    if not isinstance(entry, dict):
+        return ""
+    rarity = str(entry.get("rarity", "") or "").strip().lower()
+    if rarity in {"currency", "material", "dyes", "keys"}:
+        return ""
+    item_name = str(entry.get("full_name", "") or entry.get("item_name", "") or "").strip()
+    if not item_name:
+        return ""
+    return item_name
 
 
 def send_stats_chunks(sender, receiver_email: str, my_email: str, event_id: str, stats_text: str) -> bool:
@@ -455,6 +715,9 @@ def queue_drop(
         "acked": False,
         "last_receiver_email": "",
         "name_refresh_scheduled": False,
+        "created_at": float(time.time()),
+        "stats_deferred_count": 0,
+        "stats_fallback_used": False,
     }
     sender._remember_event_identity(
         event_id=str(entry.get("event_id", "")),
@@ -568,12 +831,18 @@ def flush_outbox(sender) -> int:
 
     now_ts = time.time()
     stats_build_budget = max(0, int(getattr(sender, "max_stats_builds_per_tick", 2)))
+    max_stats_defer_attempts = max(
+        int(getattr(sender, "max_retry_attempts", 12)),
+        int(getattr(sender, "max_stats_defer_attempts", 120)),
+    )
+    max_stats_defer_seconds = max(5.0, float(getattr(sender, "max_stats_defer_seconds", 90.0)))
+    stats_fallback_after_attempts = max(1, int(getattr(sender, "stats_fallback_after_attempts", 6)))
     kept_entries = []
     for entry in sender.outbox_queue:
-        if entry.get("acked", False):
+        if entry.get("acked", False) and entry.get("stats_chunks_sent", False):
             continue
         attempts = int(entry.get("attempts", 0))
-        if attempts >= int(sender.max_retry_attempts):
+        if attempts >= int(sender.max_retry_attempts) and not bool(entry.get("acked", False)):
             if sender.warn_timer.IsExpired():
                 sender.warn_timer.Reset()
                 Py4GW.Console.Log(
@@ -582,12 +851,36 @@ def flush_outbox(sender) -> int:
                     Py4GW.Console.MessageType.Warning,
                 )
             continue
+        if bool(entry.get("acked", False)) and (not bool(entry.get("stats_chunks_sent", False))):
+            created_at = float(entry.get("created_at", now_ts) or now_ts)
+            if attempts >= int(max_stats_defer_attempts) or (now_ts - created_at) > float(max_stats_defer_seconds):
+                if sender.warn_timer.IsExpired():
+                    sender.warn_timer.Reset()
+                    Py4GW.Console.Log(
+                        "DropTrackerSender",
+                        (
+                            "Dropping acked event with unresolved stats after defer timeout: "
+                            f"{entry.get('event_id', '')}"
+                        ),
+                        Py4GW.Console.MessageType.Warning,
+                    )
+                if hasattr(sender, "_append_live_debug_log"):
+                    sender._append_live_debug_log(
+                        "tracker_stats_dropped_after_timeout",
+                        f"event_id={str(entry.get('event_id', '') or '').strip()}",
+                        event_id=str(entry.get("event_id", "") or "").strip(),
+                        attempts=int(attempts),
+                        age_s=float(max(0.0, now_ts - created_at)),
+                    )
+                continue
         kept_entries.append(entry)
     sender.outbox_queue = kept_entries
 
     sent = 0
     attempted = 0
     retry_delay_s = max(0.2, float(sender.retry_interval_seconds))
+    party_member_emails = list(sender._resolve_current_party_member_emails() or [])
+    party_member_email_set = {str(email or "").strip().lower() for email in party_member_emails if str(email or "").strip()}
     for entry in sender.outbox_queue:
         if attempted >= int(sender.max_send_per_tick):
             break
@@ -599,10 +892,23 @@ def flush_outbox(sender) -> int:
             break
         is_leader_sender = bool(entry.get("is_leader_sender", False))
         receiver_email = my_email if is_leader_sender else sender._resolve_party_leader_email()
+        sender.current_receiver_email = str(receiver_email or "").strip().lower()
         if not receiver_email:
             continue
         if not is_leader_sender and receiver_email == my_email:
             continue
+        receiver_in_party = str(receiver_email or "").strip().lower() in party_member_email_set
+        if hasattr(sender, "_append_live_debug_log"):
+            sender._append_live_debug_log(
+                "tracker_transport_target_resolved",
+                f"receiver={str(receiver_email or '').strip().lower() or '-'}",
+                sender_email=str(my_email or "").strip().lower(),
+                receiver_email=str(receiver_email or "").strip().lower(),
+                role="leader" if is_leader_sender else "follower",
+                receiver_in_party=bool(receiver_in_party),
+                party_member_emails=party_member_emails[:24],
+                event_id=str(entry.get("event_id", "") or "").strip(),
+            )
 
         attempted += 1
         entry["last_receiver_email"] = str(receiver_email or "").strip().lower()
@@ -623,12 +929,21 @@ def flush_outbox(sender) -> int:
                         f"receiver={str(receiver_email or '').strip().lower() or '-'}"
                     )
                 )
-                ok_chunks = sender._send_name_chunks(
-                    receiver_email=receiver_email,
-                    my_email=my_email,
-                    name_signature=str(entry.get("name_signature", "")),
-                    full_name=full_name,
-                )
+                try:
+                    ok_chunks = sender._send_name_chunks(
+                        receiver_email=receiver_email,
+                        my_email=my_email,
+                        name_signature=str(entry.get("name_signature", "")),
+                        full_name=full_name,
+                        event_id=str(entry.get("event_id", "")),
+                    )
+                except TypeError:
+                    ok_chunks = sender._send_name_chunks(
+                        receiver_email=receiver_email,
+                        my_email=my_email,
+                        name_signature=str(entry.get("name_signature", "")),
+                        full_name=full_name,
+                    )
                 if not ok_chunks:
                     sender._log_name_trace(
                         (
@@ -674,16 +989,48 @@ def flush_outbox(sender) -> int:
                         rarity=str(entry.get("rarity", "") or ""),
                         last_receiver_email=str(entry.get("last_receiver_email", "") or ""),
                     )
-            ok_stats = sender._send_stats_chunks(
-                receiver_email=receiver_email,
-                my_email=my_email,
-                event_id=str(entry.get("event_id", "")),
-                stats_text=stats_text,
-            )
-            if ok_stats:
-                entry["stats_chunks_sent"] = True
+            if not stats_text:
+                deferred_count = int(entry.get("stats_deferred_count", 0) or 0) + 1
+                entry["stats_deferred_count"] = int(deferred_count)
+                if deferred_count >= int(stats_fallback_after_attempts):
+                    fallback_stats = sender._build_stats_fallback_text_for_entry(entry)
+                    if fallback_stats:
+                        entry["stats_text"] = str(fallback_stats)
+                        stats_text = str(fallback_stats)
+                        entry["stats_fallback_used"] = True
+                        if hasattr(sender, "_append_live_debug_log"):
+                            sender._append_live_debug_log(
+                                "tracker_stats_fallback_bound",
+                                f"event_id={str(entry.get('event_id', '') or '').strip()}",
+                                event_id=str(entry.get("event_id", "") or "").strip(),
+                                item_id=int(entry.get("item_id", 0) or 0),
+                                model_id=int(entry.get("model_id", 0) or 0),
+                                deferred_count=int(deferred_count),
+                                fallback_head=str(fallback_stats or "").splitlines()[0][:120],
+                            )
+            if stats_text:
+                ok_stats = sender._send_stats_chunks(
+                    receiver_email=receiver_email,
+                    my_email=my_email,
+                    event_id=str(entry.get("event_id", "")),
+                    stats_text=stats_text,
+                )
+                if ok_stats:
+                    entry["stats_chunks_sent"] = True
+                    entry["stats_deferred_count"] = 0
+            elif hasattr(sender, "_append_live_debug_log"):
+                sender._append_live_debug_log(
+                    "tracker_stats_deferred",
+                    f"event_id={str(entry.get('event_id', '') or '').strip()}",
+                    event_id=str(entry.get("event_id", "") or "").strip(),
+                    item_id=int(entry.get("item_id", 0) or 0),
+                    model_id=int(entry.get("model_id", 0) or 0),
+                    stats_build_budget_remaining=int(stats_build_budget),
+                    attempts=int(entry.get("attempts", 0) or 0),
+                    deferred_count=int(entry.get("stats_deferred_count", 0) or 0),
+                )
 
-        if not send_failed:
+        if (not send_failed) and (not bool(entry.get("acked", False))):
             sender._log_name_trace(
                 (
                     f"NAME TRACE drop_send ev={str(entry.get('event_id', '') or '').strip() or '-'} "
@@ -717,9 +1064,17 @@ def flush_outbox(sender) -> int:
             entry["next_retry_at"] = now_ts + retry_delay_s
             continue
         if sender.enable_delivery_ack:
-            entry["next_retry_at"] = now_ts + retry_delay_s
+            if bool(entry.get("acked", False)) and bool(entry.get("stats_chunks_sent", False)):
+                entry["next_retry_at"] = 0.0
+            else:
+                entry["next_retry_at"] = now_ts + retry_delay_s
         else:
-            entry["acked"] = True
+            if bool(entry.get("stats_chunks_sent", False)):
+                entry["acked"] = True
+                entry["next_retry_at"] = 0.0
+            else:
+                entry["acked"] = False
+                entry["next_retry_at"] = now_ts + retry_delay_s
         sent += 1
 
     if not sender.enable_delivery_ack:

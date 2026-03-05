@@ -103,12 +103,18 @@ def build_name_chunks(full_name: str, chunk_size: int = 31) -> list[tuple[int, i
     return [(idx + 1, total, chunks[idx]) for idx in range(total)]
 
 
-def encode_name_chunk_meta(index: int, total: int) -> str:
-    return f"{max(1, int(index))}/{max(1, int(total))}"[:31]
+def encode_name_chunk_meta(index: int, total: int, event_id: str = "") -> str:
+    base = f"{max(1, int(index))}/{max(1, int(total))}"
+    event_key = str(event_id or "").strip()[:16]
+    if event_key:
+        return f"{base}|{event_key}"[:31]
+    return base[:31]
 
 
 def decode_name_chunk_meta(meta_text: str) -> tuple[int, int]:
     text = (meta_text or "").strip()
+    if "|" in text:
+        text = text.split("|", 1)[0].strip()
     match = re.match(r"^\s*(\d{1,4})\s*/\s*(\d{1,4})\s*$", text)
     if not match:
         return 1, 1
@@ -117,4 +123,14 @@ def decode_name_chunk_meta(meta_text: str) -> tuple[int, int]:
     if idx > total:
         idx = total
     return idx, total
+
+
+def extract_name_chunk_event_id(meta_text: str) -> str:
+    text = (meta_text or "").strip()
+    if "|" not in text:
+        return ""
+    event_key = text.split("|", 1)[1].strip()
+    if not event_key:
+        return ""
+    return event_key[:16]
 

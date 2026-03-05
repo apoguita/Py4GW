@@ -12,6 +12,18 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_candidate_pipe
 )
 
 EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
+UTILITY_KIT_MODEL_IDS = frozenset({239, 2611, 2989, 2992, 5899})
+UTILITY_KIT_SUPPRESSION_REASONS = frozenset(
+    {
+        "new_slot",
+        "slot_replaced",
+        "pending_same_slot_name_ready",
+        "pending_itemid_name_ready",
+        "pending_changed_slot_lookup",
+        "pending_model_rarity_lookup",
+    }
+)
+UTILITY_KIT_NAME_RE = re.compile(r"(?i)\b(?:expert|superior)?\s*(?:salvage|identification)\s+kit\b|\bid\s+kit\b")
 
 
 def _normalize_item_name(sender, raw_name: str, model_id: int) -> str:
@@ -33,6 +45,19 @@ def _normalize_rarity(item_id: int, clean_name: str, rarity: str) -> str:
     if Item.Type.IsMaterial(item_id) or Item.Type.IsRareMaterial(item_id):
         return "Material"
     return resolved
+
+
+def coerce_consistent_item_identity(item_id: int, model_id: int, clean_name: str, rarity: str) -> tuple[str, str, bool]:
+    normalized_name = str(clean_name or "").strip()
+    normalized_rarity = _normalize_rarity(item_id, normalized_name, rarity)
+    if (
+        normalized_name
+        and not normalized_name.startswith("Model#")
+        and normalized_rarity == "Tomes"
+        and "tome" not in normalized_name.lower()
+    ):
+        return f"Model#{int(model_id)}", normalized_rarity, True
+    return normalized_name or f"Model#{int(model_id)}", normalized_rarity, False
 
 
 def take_inventory_snapshot(sender) -> dict[tuple[int, int], tuple[str, str, int, int, int]]:
@@ -72,7 +97,17 @@ def take_inventory_snapshot(sender) -> dict[tuple[int, int], tuple[str, str, int
                         pass
 
                 clean_name = _normalize_item_name(sender, raw_name, model_id)
-                rarity = _normalize_rarity(item_id, clean_name, rarity)
+                clean_name, rarity, requested_refresh = coerce_consistent_item_identity(
+                    item_id,
+                    model_id,
+                    clean_name,
+                    rarity,
+                )
+                if requested_refresh:
+                    try:
+                        Item.RequestName(item_id)
+                    except EXPECTED_RUNTIME_ERRORS:
+                        pass
                 slot_key = (bag_id, int(slot_id))
                 existing_entry = snapshot.get(slot_key)
                 if (
@@ -251,6 +286,7 @@ def _consume_carryover_identity(
     model_value: int,
 ) -> bool:
     preferred_key = _pool_key_for_item(name_value, rarity_value, qty_value, model_value)
+    current_name_key = preferred_key[3]
     for entry in carryover_match_entries:
         if bool(entry.get("consumed", False)):
             continue
@@ -273,7 +309,7 @@ def _consume_carryover_identity(
             str(entry.get("rarity", "Unknown") or "Unknown"),
         )
         entry_name_key = str(entry.get("name_key", "") or "")
-        if entry_key == fallback_key and not entry_name_key:
+        if entry_key == fallback_key and (not current_name_key or not entry_name_key):
             entry["consumed"] = True
             return True
     return False
@@ -321,6 +357,29 @@ def _append_candidate_event(
     changed_model_rarity_to_ready_name[(int(model_id), str(rarity or "Unknown"))] = name
 
 
+def _is_utility_kit_name(name_value: str) -> bool:
+    return bool(UTILITY_KIT_NAME_RE.search(str(name_value or "").strip()))
+
+
+def _partition_utility_kit_candidates(candidate_events: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    kept_events: list[dict[str, Any]] = []
+    suppressed_events: list[dict[str, Any]] = []
+    for event in list(candidate_events or []):
+        if not isinstance(event, dict):
+            continue
+        reason = str(event.get("reason", "") or "").strip()
+        if reason not in UTILITY_KIT_SUPPRESSION_REASONS:
+            kept_events.append(event)
+            continue
+        model_id = int(event.get("model_id", 0))
+        item_name = str(event.get("name", "") or "").strip()
+        if model_id in UTILITY_KIT_MODEL_IDS or _is_utility_kit_name(item_name):
+            suppressed_events.append(dict(event))
+            continue
+        kept_events.append(event)
+    return kept_events, suppressed_events
+
+
 def _flush_pending_same_slot_if_ready(
     sender,
     candidate_events: list[dict[str, Any]],
@@ -363,7 +422,18 @@ def _resolve_ready_pending_name(sender, pending_item_id: int, pending_rarity: st
                 resolved_rarity = item_instance.rarity.name
         except EXPECTED_RUNTIME_ERRORS:
             pass
-    resolved_rarity = _normalize_rarity(pending_item_id, resolved_name, resolved_rarity)
+    resolved_name, resolved_rarity, requested_refresh = coerce_consistent_item_identity(
+        pending_item_id,
+        int(Item.GetModelID(pending_item_id) or 0),
+        resolved_name,
+        resolved_rarity,
+    )
+    if requested_refresh:
+        try:
+            Item.RequestName(pending_item_id)
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
+        return "", resolved_rarity
     return resolved_name, resolved_rarity
 
 
@@ -702,7 +772,7 @@ def process_inventory_deltas(sender) -> None:
         if int(item_id) != prev_item_id:
             if _carryover_same_item(previous, name, rarity, qty, model_id):
                 continue
-            if carryover_identity_matched and _carryover_same_item(previous, name, rarity, qty, model_id):
+            if carryover_identity_matched:
                 continue
             if (
                 use_carryover_baseline
@@ -772,6 +842,19 @@ def process_inventory_deltas(sender) -> None:
         elif qty > prev_qty:
             changed_this_tick = True
             delta = qty - prev_qty
+            resolved_name = str(name or "").strip()
+            resolved_rarity = str(rarity or "Unknown")
+            previous_name = str(previous[0] or "").strip()
+            previous_rarity = str(previous[1] or "Unknown")
+            previous_name_ready = bool(previous_name and not previous_name.startswith("Model#"))
+            current_name_ready = bool(resolved_name and not resolved_name.startswith("Model#"))
+            if previous_name_ready and (
+                (not current_name_ready)
+                or (current_name_ready and previous_name != resolved_name)
+            ):
+                resolved_name = previous_name
+                if previous_rarity != "Unknown":
+                    resolved_rarity = previous_rarity
             if is_unknown_name:
                 sender._buffer_pending_slot_delta(
                     slot_key=slot_key,
@@ -786,9 +869,9 @@ def process_inventory_deltas(sender) -> None:
                     candidate_events,
                     changed_itemid_to_ready_name,
                     changed_model_rarity_to_ready_name,
-                    name=name,
+                    name=resolved_name,
                     qty=int(delta),
-                    rarity=rarity,
+                    rarity=resolved_rarity,
                     item_id=int(item_id),
                     model_id=int(model_id),
                     slot_key=slot_key,
@@ -820,21 +903,75 @@ def process_inventory_deltas(sender) -> None:
         live_item_model_by_id,
         now_ts,
     )
+    candidate_events, suppressed_utility_kit_events = _partition_utility_kit_candidates(candidate_events)
+    if suppressed_utility_kit_events:
+        if sender.debug_pipeline_logs:
+            Py4GW.Console.Log(
+                "DropTrackerSender",
+                f"SUPPRESSED utility-kit candidates: {len(suppressed_utility_kit_events)}",
+                Py4GW.Console.MessageType.Info,
+            )
+        append_live_debug_log = getattr(sender, "_append_live_debug_log", None)
+        if callable(append_live_debug_log):
+            append_live_debug_log(
+                "candidate_suppressed_utility_kit",
+                f"suppressed={len(suppressed_utility_kit_events)}",
+                dedupe_key="candidate_suppressed_utility_kit",
+                dedupe_interval_s=2.0,
+                suppressed_count=len(suppressed_utility_kit_events),
+                suppressed_events=suppressed_utility_kit_events[:8],
+            )
 
     if candidate_events or sender.pending_slot_deltas:
         sender.last_inventory_activity_ts = time.time()
 
-    candidate_events, suppressed_by_model_delta, suppressed_world_events = confirm_candidate_events(
-        sender=sender,
-        candidate_events=candidate_events,
-        prev_model_qty=prev_model_qty,
-        current_model_qty=current_model_qty,
-        prev_item_ids=prev_item_ids,
-        require_world_confirmation=not (
-            use_carryover_baseline
-            and str(getattr(sender, "last_session_transition_reason", "") or "").strip() == "map_change"
-        ),
+    startup_guard_active = bool(carryover_suppression_active) and (
+        str(getattr(sender, "last_session_transition_reason", "") or "").strip() == "map_change"
     )
+    if startup_guard_active:
+        immediate_reasons = {
+            "stack_increase",
+            "pending_same_slot_name_ready",
+        }
+        immediate_events = [
+            event for event in candidate_events
+            if str(event.get("reason", "") or "").strip() in immediate_reasons
+        ]
+        startup_guarded_events = [
+            event for event in candidate_events
+            if str(event.get("reason", "") or "").strip() not in immediate_reasons
+        ]
+        confirmed_immediate, suppressed_by_model_delta_immediate, suppressed_world_events_immediate = confirm_candidate_events(
+            sender=sender,
+            candidate_events=immediate_events,
+            prev_model_qty=prev_model_qty,
+            current_model_qty=current_model_qty,
+            prev_item_ids=prev_item_ids,
+            require_world_confirmation=False,
+        )
+        confirmed_guarded, suppressed_by_model_delta_guarded, suppressed_world_events_guarded = confirm_candidate_events(
+            sender=sender,
+            candidate_events=startup_guarded_events,
+            prev_model_qty=prev_model_qty,
+            current_model_qty=current_model_qty,
+            prev_item_ids=prev_item_ids,
+            require_world_confirmation=True,
+        )
+        candidate_events = confirmed_immediate + confirmed_guarded
+        suppressed_by_model_delta = suppressed_by_model_delta_immediate + suppressed_by_model_delta_guarded
+        suppressed_world_events = suppressed_world_events_immediate + suppressed_world_events_guarded
+    else:
+        candidate_events, suppressed_by_model_delta, suppressed_world_events = confirm_candidate_events(
+            sender=sender,
+            candidate_events=candidate_events,
+            prev_model_qty=prev_model_qty,
+            current_model_qty=current_model_qty,
+            prev_item_ids=prev_item_ids,
+            require_world_confirmation=not (
+                use_carryover_baseline
+                and str(getattr(sender, "last_session_transition_reason", "") or "").strip() == "map_change"
+            ),
+        )
     log_candidate_pipeline(
         sender=sender,
         candidate_events=candidate_events,

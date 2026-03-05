@@ -1,11 +1,13 @@
 import os
 import queue
 import socket
+import subprocess
 import threading
 import time
 import traceback
 import inspect
 import importlib
+import sys
 from dataclasses import is_dataclass, asdict
 from typing import Any
 
@@ -59,6 +61,7 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 port = 47811
+CONTROL_PORT = 47812
 class BridgeClientState:
     def __init__(self):
         self.daemon_host = "127.0.0.1"
@@ -82,6 +85,7 @@ class BridgeClientState:
         self.ui_host = "127.0.0.1"
         self.ui_port = port
         self.ui_token = ""
+        self.last_autostart_attempt_ms = 0
 
     def get_hwnd(self) -> int:
         try:
@@ -159,6 +163,7 @@ class BridgeClientState:
         if now - self.last_connect_attempt_ms < 1000:
             return
         self.last_connect_attempt_ms = now
+        _ensure_local_bridge_daemon()
         sock = None
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -215,6 +220,80 @@ class BridgeClientState:
 
 
 STATE = BridgeClientState()
+
+
+def _bridge_repo_root() -> str:
+    return str(Py4GW.Console.get_projects_path())
+
+
+def _bridge_daemon_script_path() -> str:
+    return os.path.join(_bridge_repo_root(), "bridge_daemon.py")
+
+
+def _is_port_listening(host: str, port_value: int, timeout_s: float = 0.2) -> bool:
+    sock = None
+    try:
+        sock = socket.create_connection((host, int(port_value)), timeout=timeout_s)
+        return True
+    except OSError:
+        return False
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+
+def _python_launch_command() -> list[str]:
+    executable = str(getattr(sys, "executable", "") or "").strip()
+    if executable:
+        return [executable]
+    return ["py", "-3"]
+
+
+def _ensure_local_bridge_daemon() -> None:
+    if str(STATE.daemon_host).strip() != "127.0.0.1":
+        return
+    if _is_port_listening(STATE.daemon_host, STATE.daemon_port):
+        return
+
+    now = _now_ms()
+    if now - STATE.last_autostart_attempt_ms < 5000:
+        return
+    STATE.last_autostart_attempt_ms = now
+
+    daemon_script = _bridge_daemon_script_path()
+    if not os.path.exists(daemon_script):
+        STATE.last_error = f"autostart: bridge_daemon.py not found at {daemon_script}"
+        return
+
+    cmd = _python_launch_command()
+    cmd.extend(
+        [
+            daemon_script,
+            "--widget-host",
+            str(STATE.daemon_host),
+            "--widget-port",
+            str(int(STATE.daemon_port)),
+            "--control-host",
+            str(STATE.daemon_host),
+            "--control-port",
+            str(CONTROL_PORT),
+            "--token",
+            str(STATE.auth_token or ""),
+        ]
+    )
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        subprocess.Popen(
+            cmd,
+            cwd=_bridge_repo_root(),
+            creationflags=creationflags,
+        )
+    except Exception as exc:
+        STATE.last_error = f"autostart: {exc}"
+        return
 
 
 def _add_config_vars():

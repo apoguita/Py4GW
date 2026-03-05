@@ -15,6 +15,22 @@ def _runtime_attr(viewer, name: str, fallback=None):
     return fallback
 
 
+def _build_item_hover_tooltip_text(viewer, row, fallback_item_name: str = "") -> str:
+    fallback_name = viewer._clean_item_name(fallback_item_name)
+    if row is not None:
+        stats_text = viewer._ensure_text(viewer._get_row_stats_text(row)).strip()
+        if stats_text:
+            return stats_text
+        parsed = viewer._parse_drop_row(row)
+        if parsed is not None:
+            parsed_name = viewer._clean_item_name(getattr(parsed, "item_name", ""))
+            if parsed_name:
+                fallback_name = parsed_name
+    if fallback_name:
+        return f"{fallback_name}\nNo stats available yet."
+    return "No stats available yet."
+
+
 def draw_aggregated(viewer, filtered_rows, materials_only: bool = False) -> None:
     pyimgui = _runtime_attr(viewer, "PyImGui")
     imgui = _runtime_attr(viewer, "ImGui")
@@ -33,14 +49,24 @@ def draw_aggregated(viewer, filtered_rows, materials_only: bool = False) -> None
             if viewer._ensure_text(rarity).strip() != "Material"
         }
     total_filtered_qty = sum(data["Quantity"] for data in filtered_agg.values())
+    total_filtered_events = sum(data["Count"] for data in filtered_agg.values())
     total_items_without_gold = total_filtered_qty - sum(
         data["Quantity"] for (name, _), data in filtered_agg.items() if name == "Gold"
     )
+    total_events_without_gold = total_filtered_events - sum(
+        data["Count"] for (name, _), data in filtered_agg.items() if name == "Gold"
+    )
 
     if materials_only:
-        pyimgui.text_colored(f"Total Materials (filtered): {max(0, total_items_without_gold)}", c["muted"])
+        pyimgui.text_colored(
+            f"Total Materials (filtered): {max(0, total_items_without_gold)} | Events: {max(0, total_events_without_gold)}",
+            c["muted"],
+        )
     else:
-        pyimgui.text_colored(f"Total Items (filtered): {max(0, total_items_without_gold)}", c["muted"])
+        pyimgui.text_colored(
+            f"Total Items (filtered): {max(0, total_items_without_gold)} | Events: {max(0, total_events_without_gold)}",
+            c["muted"],
+        )
         pyimgui.same_line(0.0, 12.0)
         viewer._draw_inline_rarity_filter_buttons()
     if not filtered_agg:
@@ -106,11 +132,12 @@ def draw_aggregated(viewer, filtered_rows, materials_only: bool = False) -> None
                         viewer._identify_item_for_all_characters(item_name, rarity)
                 pyimgui.end_popup()
             if pyimgui.is_item_hovered():
+                hover_row = viewer._find_best_row_for_item(item_name, rarity, filtered_rows)
                 viewer._set_hover_item_preview(
                     row_key,
-                    viewer._find_best_row_for_item(item_name, rarity, filtered_rows),
+                    hover_row,
                 )
-                imgui.show_tooltip("Left click: view stats. Right click: item actions.")
+                imgui.show_tooltip(_build_item_hover_tooltip_text(viewer, hover_row, item_name))
             pyimgui.pop_style_color(1)
 
             pyimgui.table_set_column_index(1)
@@ -198,10 +225,17 @@ def draw_log(viewer, filtered_rows) -> None:
                         pyimgui.end_popup()
                     if pyimgui.is_item_hovered():
                         viewer._set_hover_item_preview(selected_key, row)
-                        imgui.show_tooltip("Left click: view stats. Right click: item actions.")
+                        imgui.show_tooltip(_build_item_hover_tooltip_text(viewer, row, parsed.item_name))
                     pyimgui.pop_style_color(1)
                 elif i == 7:
                     pyimgui.text_colored(str(col), (r, g, b, a))
+                elif i == 4:
+                    pyimgui.text(
+                        viewer._display_player_name(
+                            viewer._ensure_text(parsed.player_name).strip(),
+                            viewer._extract_row_sender_email(row),
+                        )
+                    )
                 else:
                     pyimgui.text(str(col))
 

@@ -4,6 +4,7 @@ from Py4GWCoreLib import Py4GW
 
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import update_rows_item_stats_by_event_and_sender
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import decode_name_chunk_meta
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import make_name_signature
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import (
     handle_tracker_name_branch,
     handle_tracker_stats_payload_branch,
@@ -13,6 +14,206 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport impo
     merge_stats_text_chunk,
     payload_has_valid_mods_json,
 )
+
+
+def _append_stats_binding_debug_log(
+    viewer,
+    event_name: str,
+    *,
+    event_id: str,
+    sender_email: str,
+    player_name: str,
+    row_names_before: list[str],
+    row_names_after: list[str],
+    payload_name: str = "",
+    first_line_name: str = "",
+    rendered_head: str = "",
+    update_source: str,
+) -> None:
+    append_fn = getattr(viewer, "_append_live_debug_log", None)
+    if not callable(append_fn):
+        return
+    append_fn(
+        event_name,
+        f"event_id={viewer._ensure_text(event_id).strip()}",
+        event_id=viewer._ensure_text(event_id).strip(),
+        sender_email=viewer._ensure_text(sender_email).strip().lower(),
+        player_name=viewer._ensure_text(player_name).strip(),
+        row_names_before=list(row_names_before or [])[:5],
+        row_names_after=list(row_names_after or [])[:5],
+        payload_name=viewer._clean_item_name(payload_name).strip(),
+        first_line_name=viewer._clean_item_name(first_line_name).strip(),
+        rendered_head=viewer._ensure_text(rendered_head).strip()[:220],
+        update_source=viewer._ensure_text(update_source).strip() or "unknown",
+    )
+
+
+def _compact_item_name_key(viewer, value: str) -> str:
+    clean_value = viewer._clean_item_name(value).strip().lower()
+    if not clean_value:
+        return ""
+    return re.sub(r"[^a-z0-9]+", "", clean_value)
+
+
+def _compact_name_keys_overlap(compact_rows: set[str], compact_candidates: set[str]) -> bool:
+    if not compact_rows or not compact_candidates:
+        return False
+    for candidate_name in compact_candidates:
+        for row_name in compact_rows:
+            if candidate_name == row_name:
+                return True
+            if candidate_name in row_name:
+                return True
+            if row_name in candidate_name:
+                return True
+    return False
+
+
+def _append_stats_name_mismatch_debug_log(
+    viewer,
+    *,
+    event_id: str,
+    sender_email: str,
+    player_name: str,
+    row_names: list[str],
+    payload_name: str = "",
+    first_line_name: str = "",
+    rendered_head: str = "",
+    update_source: str,
+) -> None:
+    clean_payload_name = viewer._clean_item_name(payload_name).strip()
+    clean_first_line = viewer._clean_item_name(first_line_name).strip()
+    normalized_candidates = [
+        viewer._normalize_item_name(value)
+        for value in [clean_payload_name, clean_first_line]
+        if viewer._clean_item_name(value).strip()
+    ]
+    if not normalized_candidates:
+        return
+    normalized_rows = [
+        viewer._normalize_item_name(value)
+        for value in list(row_names or [])
+        if viewer._clean_item_name(value).strip()
+    ]
+    if not normalized_rows:
+        return
+    for candidate_name in normalized_candidates:
+        if any(candidate_name == row_name for row_name in normalized_rows):
+            return
+    compact_candidates = [
+        _compact_item_name_key(viewer, value)
+        for value in [clean_payload_name, clean_first_line]
+        if viewer._clean_item_name(value).strip()
+    ]
+    compact_candidates = [value for value in compact_candidates if value]
+    if compact_candidates:
+        compact_rows = {
+            _compact_item_name_key(viewer, value)
+            for value in list(row_names or [])
+            if viewer._clean_item_name(value).strip()
+        }
+        compact_rows = {value for value in compact_rows if value}
+        if _compact_name_keys_overlap(set(compact_rows), set(compact_candidates)):
+            return
+    _append_stats_binding_debug_log(
+        viewer,
+        "viewer_stats_name_mismatch",
+        event_id=event_id,
+        sender_email=sender_email,
+        player_name=player_name,
+        row_names_before=row_names,
+        row_names_after=row_names,
+        payload_name=clean_payload_name,
+        first_line_name=clean_first_line,
+        rendered_head=rendered_head,
+        update_source=update_source,
+    )
+
+
+def _should_bind_stats_to_rows(
+    viewer,
+    *,
+    row_names: list[str],
+    payload_name: str = "",
+    first_line_name: str = "",
+) -> bool:
+    normalized_rows = {
+        viewer._normalize_item_name(value)
+        for value in list(row_names or [])
+        if viewer._clean_item_name(value).strip()
+    }
+    if not normalized_rows:
+        return True
+
+    normalized_candidates = [
+        viewer._normalize_item_name(value)
+        for value in [payload_name, first_line_name]
+        if viewer._clean_item_name(value).strip()
+    ]
+    if not normalized_candidates:
+        return True
+
+    if any(candidate in normalized_rows for candidate in normalized_candidates):
+        return True
+
+    compact_rows = {
+        _compact_item_name_key(viewer, value)
+        for value in list(row_names or [])
+        if viewer._clean_item_name(value).strip()
+    }
+    compact_rows = {value for value in compact_rows if value}
+    if not compact_rows:
+        return False
+    compact_candidates = {
+        _compact_item_name_key(viewer, value)
+        for value in [payload_name, first_line_name]
+        if viewer._clean_item_name(value).strip()
+    }
+    compact_candidates = {value for value in compact_candidates if value}
+    if not compact_candidates:
+        return False
+    return _compact_name_keys_overlap(compact_rows, compact_candidates)
+
+
+def _pending_row_matches_name_signature(
+    viewer,
+    pending_row,
+    *,
+    target_sig: str,
+    sender_email: str,
+    player_name: str,
+) -> bool:
+    target_sig_key = viewer._ensure_text(target_sig).strip().lower()
+    if not target_sig_key or not isinstance(pending_row, dict):
+        return False
+    sender_key = viewer._ensure_text(sender_email).strip().lower()
+    player_key = viewer._ensure_text(player_name).strip().lower()
+    pending_sender = viewer._ensure_text(pending_row.get("sender_email", "")).strip().lower()
+    pending_player = viewer._ensure_text(pending_row.get("player_name", "")).strip().lower()
+    if sender_key:
+        if pending_sender:
+            if pending_sender != sender_key:
+                return False
+        elif not player_key or pending_player != player_key:
+            return False
+    elif player_key and pending_player != player_key:
+        return False
+    pending_event_id = viewer._ensure_text(pending_row.get("event_id", "")).strip()
+    if not pending_event_id:
+        return False
+    pending_cache_key = viewer._make_stats_cache_key(
+        pending_event_id,
+        pending_sender,
+        pending_player,
+    )
+    pending_sig = viewer._ensure_text(
+        viewer.stats_name_signature_by_event.get(pending_cache_key, "")
+    ).strip().lower()
+    if pending_sig == target_sig_key:
+        return True
+    pending_name = viewer._clean_item_name(pending_row.get("item_name", "")).strip()
+    derived_sig = viewer._ensure_text(make_name_signature(pending_name) if pending_name else "").strip().lower()
+    return derived_sig == target_sig_key
 
 
 def process_tracker_name_message(
@@ -57,6 +258,7 @@ def process_tracker_name_message(
         chunk_idx,
         chunk_total,
         now_ts_arg,
+        name_event_id="",
     ):
         merged = merge_name_chunk(
             name_chunk_buffers,
@@ -66,38 +268,79 @@ def process_tracker_name_message(
             chunk_idx,
             chunk_total,
             now_ts_arg,
+            name_event_id,
         )
         nonlocal renamed_rows
         if merged:
-            renamed_rows += viewer._update_rows_item_name_by_signature_and_sender(
-                name_signature,
-                name_sender_email,
-                merged,
-                player_name=name_sender_name,
-            )
+            merged_event_id = viewer._ensure_text(name_event_id).strip()
+            renamed_for_event = 0
+            exact_pending_match = None
+            fallback_pending_matches: list[dict] = []
+            target_sig = viewer._ensure_text(name_signature).strip().lower()
             for pending_row in batch_rows:
                 if not isinstance(pending_row, dict):
-                    continue
-                pending_sender = viewer._ensure_text(pending_row.get("sender_email", "")).strip().lower()
-                pending_player = viewer._ensure_text(pending_row.get("player_name", "")).strip()
-                if name_sender_email:
-                    if pending_sender and pending_sender != name_sender_email.lower():
-                        continue
-                elif name_sender_name and viewer._ensure_text(pending_player).strip().lower() != name_sender_name.lower():
                     continue
                 pending_event_id = viewer._ensure_text(pending_row.get("event_id", "")).strip()
                 if not pending_event_id:
                     continue
-                pending_cache_key = viewer._make_stats_cache_key(
-                    pending_event_id,
-                    pending_sender,
-                    pending_player,
-                )
-                pending_sig = viewer._ensure_text(
-                    viewer.stats_name_signature_by_event.get(pending_cache_key, "")
-                ).strip().lower()
-                if pending_sig != viewer._ensure_text(name_signature).strip().lower():
+                if merged_event_id and pending_event_id == merged_event_id:
+                    exact_pending_match = pending_row
                     continue
+                if _pending_row_matches_name_signature(
+                    viewer,
+                    pending_row,
+                    target_sig=target_sig,
+                    sender_email=name_sender_email,
+                    player_name=name_sender_name,
+                ):
+                    fallback_pending_matches.append(pending_row)
+            if merged_event_id:
+                renamed_for_event = viewer._update_rows_item_name_by_event_and_sender(
+                    merged_event_id,
+                    name_sender_email,
+                    merged,
+                    player_name=name_sender_name,
+                    only_if_unknown=False,
+                )
+                renamed_rows += int(renamed_for_event)
+            should_try_committed_signature_fallback = (
+                int(renamed_for_event) <= 0
+                and exact_pending_match is None
+                and len(fallback_pending_matches) <= 0
+            )
+            should_try_pending_signature_fallback = (
+                int(renamed_for_event) <= 0
+                and exact_pending_match is None
+            )
+            if should_try_committed_signature_fallback:
+                renamed_rows += viewer._update_rows_item_name_by_signature_and_sender(
+                    name_signature,
+                    name_sender_email,
+                    merged,
+                    player_name=name_sender_name,
+                )
+            pending_rows_to_update: list[dict] = []
+            if isinstance(exact_pending_match, dict):
+                pending_rows_to_update.append(exact_pending_match)
+            elif should_try_pending_signature_fallback and len(fallback_pending_matches) == 1:
+                pending_rows_to_update.extend(fallback_pending_matches)
+            elif should_try_pending_signature_fallback and len(fallback_pending_matches) > 1:
+                append_fn = getattr(viewer, "_append_live_debug_log", None)
+                if callable(append_fn):
+                    append_fn(
+                        "viewer_signature_name_update_skipped_ambiguous_pending",
+                        f"sender={name_sender_email or name_sender_name}",
+                        sender_email=viewer._ensure_text(name_sender_email).strip().lower(),
+                        player_name=viewer._ensure_text(name_sender_name).strip().lower(),
+                        name_signature=target_sig,
+                        candidate_count=len(fallback_pending_matches),
+                        candidate_event_ids=[
+                            viewer._ensure_text(row.get("event_id", "")).strip()
+                            for row in fallback_pending_matches[:8]
+                        ],
+                        proposed_name=viewer._clean_item_name(merged).strip(),
+                    )
+            for pending_row in pending_rows_to_update:
                 if not viewer._should_allow_late_name_update(
                     pending_row.get("extra_info", ""),
                     pending_row.get("item_name", ""),
@@ -109,6 +352,7 @@ def process_tracker_name_message(
                 (
                     f"NAME TRACE chunk sender={name_sender_email or '-'} "
                     f"player={name_sender_name or '-'} sig={viewer._ensure_text(name_signature).strip().lower() or '-'} "
+                    f"event_id={viewer._ensure_text(merged_event_id).strip() or '-'} "
                     f"merged='{viewer._clean_item_name(merged) or '-'}' renamed_rows={int(renamed_rows)}"
                 )
             )
@@ -219,16 +463,44 @@ def process_tracker_stats_payload_message(
             only_if_unknown=False,
         )
         after_names = viewer._get_row_names_by_event_and_sender(event_id, stats_sender_email, stats_sender_name)
+        _append_stats_binding_debug_log(
+            viewer,
+            "viewer_stats_payload_bound",
+            event_id=event_id,
+            sender_email=stats_sender_email,
+            player_name=stats_sender_name,
+            row_names_before=before_names,
+            row_names_after=after_names,
+            payload_name=resolved_payload_name,
+            rendered_head=rendered,
+            update_source="payload",
+        )
+        _append_stats_name_mismatch_debug_log(
+            viewer,
+            event_id=event_id,
+            sender_email=stats_sender_email,
+            player_name=stats_sender_name,
+            row_names=after_names or before_names,
+            payload_name=resolved_payload_name,
+            rendered_head=rendered,
+            update_source="payload",
+        )
+        should_bind = _should_bind_stats_to_rows(
+            viewer,
+            row_names=after_names or before_names,
+            payload_name=resolved_payload_name,
+        )
         viewer._log_name_trace(
             (
                 f"NAME TRACE payload ev={event_id or '-'} sender={stats_sender_email or '-'} "
                 f"player={stats_sender_name or '-'} payload_name='{resolved_payload_name or '-'}' "
-                f"renamed_rows={int(renamed_rows)} before={before_names[:3]} after={after_names[:3]}"
+                f"renamed_rows={int(renamed_rows)} bind_stats={int(bool(should_bind))} "
+                f"before={before_names[:3]} after={after_names[:3]}"
             )
         )
         if renamed_rows > 0:
             viewer._rebuild_aggregates_from_raw_drops()
-        if rendered:
+        if rendered and should_bind:
             update_rows_item_stats_by_event_and_sender(
                 viewer.raw_drops,
                 event_id,
@@ -237,7 +509,7 @@ def process_tracker_stats_payload_message(
                 player_name=stats_sender_name,
                 allow_player_fallback=False,
             )
-        if viewer.selected_log_row and viewer._extract_row_event_id(viewer.selected_log_row) == event_id:
+        if should_bind and viewer.selected_log_row and viewer._extract_row_event_id(viewer.selected_log_row) == event_id:
             selected_row = viewer._parse_drop_row(viewer.selected_log_row)
             selected_player = viewer._ensure_text(selected_row.player_name).strip() if selected_row else ""
             can_update_selected = False
@@ -342,24 +614,53 @@ def process_tracker_stats_text_message(
             only_if_unknown=False,
         )
         after_names = viewer._get_row_names_by_event_and_sender(event_id, stats_sender_email, stats_sender_name)
+        _append_stats_binding_debug_log(
+            viewer,
+            "viewer_stats_text_bound",
+            event_id=event_id,
+            sender_email=stats_sender_email,
+            player_name=stats_sender_name,
+            row_names_before=before_names,
+            row_names_after=after_names,
+            first_line_name=first_line,
+            rendered_head=normalized_merged,
+            update_source="text",
+        )
+        _append_stats_name_mismatch_debug_log(
+            viewer,
+            event_id=event_id,
+            sender_email=stats_sender_email,
+            player_name=stats_sender_name,
+            row_names=after_names or before_names,
+            first_line_name=first_line,
+            rendered_head=normalized_merged,
+            update_source="text",
+        )
+        should_bind = _should_bind_stats_to_rows(
+            viewer,
+            row_names=after_names or before_names,
+            first_line_name=first_line,
+        )
         viewer._log_name_trace(
             (
                 f"NAME TRACE text ev={event_id or '-'} sender={stats_sender_email or '-'} "
                 f"player={stats_sender_name or '-'} first_line='{first_line or '-'}' "
-                f"renamed_rows={int(renamed_rows)} before={before_names[:3]} after={after_names[:3]}"
+                f"renamed_rows={int(renamed_rows)} bind_stats={int(bool(should_bind))} "
+                f"before={before_names[:3]} after={after_names[:3]}"
             )
         )
         if renamed_rows > 0:
             viewer._rebuild_aggregates_from_raw_drops()
-        update_rows_item_stats_by_event_and_sender(
-            viewer.raw_drops,
-            event_id,
-            stats_sender_email,
-            normalized_merged,
-            player_name=stats_sender_name,
-            allow_player_fallback=False,
-        )
-        if viewer.selected_log_row and viewer._extract_row_event_id(viewer.selected_log_row) == event_id:
+        if should_bind:
+            update_rows_item_stats_by_event_and_sender(
+                viewer.raw_drops,
+                event_id,
+                stats_sender_email,
+                normalized_merged,
+                player_name=stats_sender_name,
+                allow_player_fallback=False,
+            )
+        if should_bind and viewer.selected_log_row and viewer._extract_row_event_id(viewer.selected_log_row) == event_id:
             selected_row = viewer._parse_drop_row(viewer.selected_log_row)
             selected_player = viewer._ensure_text(selected_row.player_name).strip() if selected_row else ""
             can_update_selected = False

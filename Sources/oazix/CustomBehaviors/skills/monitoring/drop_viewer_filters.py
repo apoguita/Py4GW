@@ -24,7 +24,7 @@ def passes_filters(viewer, row):
     if parsed is None:
         return False
 
-    player_name = viewer._ensure_text(parsed.player_name)
+    player_name = viewer._display_player_name(parsed.player_name, getattr(parsed, "sender_email", ""))
     item_name = viewer._ensure_text(parsed.item_name)
     qty = int(parsed.quantity)
     rarity = viewer._ensure_text(parsed.rarity).strip() or "Unknown"

@@ -1,0 +1,17 @@
+{
+  "include": [
+    "../Sources/oazix/CustomBehaviors/start_drop_viewer.py",
+    "../Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_utility.py",
+    "../Sources/oazix/CustomBehaviors/skills/monitoring/drop_tracker_sender_state.py"
+  ],
+  "extraPaths": ["..", "../stubs"],
+  "stubPath": "../stubs",
+  "typeCheckingMode": "off",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportCallIssue": "none",
+  "reportUnusedImport": "error",
+  "reportUnusedVariable": "error"
+}

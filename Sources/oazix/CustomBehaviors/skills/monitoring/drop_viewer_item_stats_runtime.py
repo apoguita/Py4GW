@@ -12,7 +12,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_stats_render i
 )
 
 IMPORT_OPTIONAL_ERRORS = (ImportError, ModuleNotFoundError, AttributeError)
-EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError)
+EXPECTED_RUNTIME_ERRORS = (TypeError, ValueError, RuntimeError, AttributeError, IndexError, KeyError, OSError, NameError)
 
 try:
     from Py4GWCoreLib import Attribute
@@ -27,6 +27,56 @@ except IMPORT_OPTIONAL_ERRORS:
     parse_modifiers = None
 
 
+def _decode_signed_16(value: int) -> int:
+    raw = int(value or 0) & 0xFFFF
+    if raw >= 0x8000:
+        return raw - 0x10000
+    return raw
+
+
+def _is_likely_shield_item(snapshot: dict[str, Any]) -> bool:
+    try:
+        item_name = str(snapshot.get("name", "") or "").strip().lower()
+    except EXPECTED_RUNTIME_ERRORS:
+        item_name = ""
+    if "shield" in item_name:
+        return True
+    try:
+        item_type = int(snapshot.get("item_type", 0) or 0)
+    except EXPECTED_RUNTIME_ERRORS:
+        item_type = 0
+    return item_type in {24, 30, 31, 32, 33}
+
+
+def _collect_manual_shield_defense_mod_lines(raw_mods, snapshot: dict[str, Any]) -> list[str]:
+    if not _is_likely_shield_item(snapshot):
+        return []
+    lines: list[str] = []
+    seen: set[str] = set()
+    for mod in list(raw_mods or []):
+        if not isinstance(mod, (list, tuple)) or len(mod) < 3:
+            continue
+        arg1 = _decode_signed_16(int(mod[1] or 0))
+        arg2 = _decode_signed_16(int(mod[2] or 0))
+        chance = 0
+        reduction = 0
+        if 1 <= abs(int(arg1)) <= 25 and int(arg2) < 0:
+            chance = abs(int(arg1))
+            reduction = int(arg2)
+        elif 1 <= abs(int(arg2)) <= 25 and int(arg1) < 0:
+            chance = abs(int(arg2))
+            reduction = int(arg1)
+        if chance <= 0 or reduction >= 0:
+            continue
+        line = f"Received physical damage {int(reduction)} (Chance: {int(chance)}%)"
+        key = re.sub(r"[^a-z0-9]+", "", line.lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        lines.append(line)
+    return lines
+
+
 def _viewer_runtime_module(viewer):
     try:
         return sys.modules.get(viewer.__class__.__module__)
@@ -39,6 +89,18 @@ def _runtime_attr(viewer, name: str, fallback):
     if module is not None and hasattr(module, name):
         return getattr(module, name)
     return fallback
+
+
+def _merge_raw_mod_lists(*mod_lists) -> list[tuple[int, int, int]]:
+    merged: list[tuple[int, int, int]] = []
+    seen: set[tuple[int, int, int]] = set()
+    for mod_list in mod_lists:
+        for mod in list(mod_list or []):
+            if mod in seen:
+                continue
+            seen.add(mod)
+            merged.append(mod)
+    return merged
 
 
 def get_live_item_snapshot(viewer, item_id: int, item_name: str = "") -> dict[str, Any]:
@@ -105,17 +167,21 @@ def get_live_item_snapshot(viewer, item_id: int, item_name: str = "") -> dict[st
         raw_mods = []
         if identified:
             try:
-                for mod in item_api.Customization.Modifiers.GetModifiers(item_id):
-                    raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
+                api_raw_mods = [
+                    (int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2()))
+                    for mod in item_api.Customization.Modifiers.GetModifiers(item_id)
+                ]
             except EXPECTED_RUNTIME_ERRORS:
-                raw_mods = []
-            if not raw_mods:
-                try:
-                    item_instance = item_api.item_instance(item_id)
-                    for mod in list(getattr(item_instance, "modifiers", []) or []):
-                        raw_mods.append((int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2())))
-                except EXPECTED_RUNTIME_ERRORS:
-                    raw_mods = []
+                api_raw_mods = []
+            try:
+                item_instance = item_api.item_instance(item_id)
+                instance_raw_mods = [
+                    (int(mod.GetIdentifier()), int(mod.GetArg1()), int(mod.GetArg2()))
+                    for mod in list(getattr(item_instance, "modifiers", []) or [])
+                ]
+            except EXPECTED_RUNTIME_ERRORS:
+                instance_raw_mods = []
+            raw_mods = _merge_raw_mod_lists(api_raw_mods, instance_raw_mods)
         snapshot["raw_mods"] = raw_mods
         if identified and raw_mods:
             synthesized_name = viewer._build_identified_name_from_modifiers(
@@ -279,7 +345,11 @@ def build_item_stats_from_snapshot(viewer, snapshot: dict[str, Any]) -> str:
                 parsed_any_mod_line = True
 
         lines.extend(viewer._collect_manual_named_mod_lines(raw_mods))
-        lines.extend(viewer._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
+        lines.extend(_collect_manual_shield_defense_mod_lines(raw_mods, snapshot))
+        try:
+            lines.extend(viewer._build_known_spellcast_mod_lines(raw_mods, item_attr_txt_for_known, item_type))
+        except EXPECTED_RUNTIME_ERRORS:
+            pass
         viewer._record_unknown_mod_identifiers(
             raw_mods,
             snapshot=snapshot,
