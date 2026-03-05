@@ -10,10 +10,11 @@ class Range(Enum):
     Adjacent = 166.0
     Nearby = 252.0
     Area = 322.0
-    Earshot = 1012.0
-    Spellcast = 1248.0
-    Spirit = 2500.0
-    SafeCompass = 4800.0  # made up distance to make easy checks
+    Earshot = Shortbow = Spear = 1012.0        # Shortbows and spears are actually 1004
+    Spellcast = Hornbow = Recurve = 1248.0     # Hornbows and recurve bows are actually 1273
+    Longbow = Flatbow = 1498.0                 # This distance is also shared with all offensive spirit attacks
+    Spirit = 2500.0         
+    SafeCompass = 4800.0    # made up distance to make easy checks
     Compass = 5000.0
 
 # endregion

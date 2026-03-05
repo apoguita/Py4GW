@@ -7,13 +7,11 @@ from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
 
-shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
 
 WITH_DETAIL = False
@@ -30,6 +28,8 @@ def get_skill_texture_with_fallback(texture_path: str) -> str:
 @staticmethod
 def render():
     global WITH_DETAIL
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+    shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     current_build:CustomBehaviorBaseUtility | None = CustomBehaviorLoader().custom_combat_behavior
     if current_build is None:

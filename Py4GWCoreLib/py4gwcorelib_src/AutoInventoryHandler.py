@@ -1,7 +1,6 @@
 #region AutoInventory
 from typing import Optional, Callable
 from .Console import ConsoleLog, Console
-from ..IniManager import IniManager
 from .Timer import ThrottledTimer
 from .ActionQueue import ActionQueueManager
 from .Lootconfig_src import LootConfig
@@ -39,6 +38,11 @@ class AutoInventoryHandler():
         self.salvage_blues:bool = False
         self.salvage_purples:bool = False
         self.salvage_golds:bool = False
+        self.salvage_dialog_auto_handle:bool = False
+        self.salvage_dialog_auto_confirm_materials:bool = False
+        self.salvage_dialog_debug:bool = False
+        self.salvage_dialog_strategy:int = 0
+        self.salvage_dialog_fallback_index:int = 1
         self.item_type_blacklist:list[int] = [] # Item types that should not be salvaged, even if they match the salvage criteria
         self.salvage_blacklist:list[int] = []  # Items that should not be salvaged, even if they match the salvage criteria
         self.blacklisted_model_id:int = 0
@@ -147,6 +151,14 @@ class AutoInventoryHandler():
         salvage_wait_timeout_ms = 10000
         salvage_item_attempt_limit = 50
         salvage_confirm_timeout_ms = 1500
+        salvage_dialog_auto_handle = bool(self.salvage_dialog_auto_handle)
+        salvage_dialog_auto_confirm_materials = bool(self.salvage_dialog_auto_confirm_materials)
+        salvage_dialog_debug = bool(self.salvage_dialog_debug)
+        salvage_dialog_strategy = int(self.salvage_dialog_strategy)
+        if salvage_dialog_strategy == 2:
+            salvage_dialog_strategy = 1
+        elif salvage_dialog_strategy not in (0, 1):
+            salvage_dialog_strategy = 0
 
         for item_id in item_array:
             item_instance = PyItem.PyItem(item_id)
@@ -213,12 +225,25 @@ class AutoInventoryHandler():
                 quantity = item_instance.quantity
                 if quantity == 0:
                     break
+                if not item_instance.is_salvageable:
+                    salvaged_items += 1
+                    Inventory._salvage_choice_debug_log(
+                        salvage_dialog_debug,
+                        "AutoSalvage",
+                        f"complete item item_id={item_id} reason=no_longer_salvageable.",
+                    )
+                    break
 
                 salvage_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
                 if salvage_kit == 0:
                     Console.Log("AutoSalvage", "No Salvage Kit found in inventory.", Console.MessageType.Warning)
                     return
 
+                Inventory._salvage_choice_debug_log(
+                    salvage_dialog_debug,
+                    "AutoSalvage",
+                    f"begin item item_id={item_id} attempt={salvage_attempts} rarity={rarity} qty={quantity} kit={salvage_kit} auto_handle={salvage_dialog_auto_handle} auto_confirm_warning={salvage_dialog_auto_confirm_materials}.",
+                )
                 ActionQueueManager().AddAction("ACTION", Inventory.SalvageItem, item_id, salvage_kit)
                 if require_materials_confirmation:
                     yield from Routines.Yield.wait(150)
@@ -240,9 +265,43 @@ class AutoInventoryHandler():
 
                 waited_ms = 0
                 salvage_timed_out = False
+                salvage_dialog_failed = False
+                dialog_status = "not_visible"
+                handled_salvage_dialog = False
+                handled_dialog_settle_ms = 0
+                handled_dialog_post_check_ms = max(250, salvage_wait_step_ms * 6)
                 while True:
+                    if salvage_dialog_auto_handle:
+                        dialog_status = yield from Inventory.HandleSalvageChoiceDialog(
+                            auto_handle=True,
+                            strategy=salvage_dialog_strategy,
+                            auto_confirm_materials_warning=salvage_dialog_auto_confirm_materials,
+                            queue_name="ACTION",
+                            log_module="AutoSalvage",
+                            queue_wait_timeout_ms=max(1000, salvage_wait_timeout_ms // 2),
+                            poll_ms=salvage_wait_step_ms,
+                            close_timeout_ms=salvage_confirm_timeout_ms,
+                            debug_enabled=salvage_dialog_debug,
+                            item_id=item_id,
+                        )
+                        if dialog_status == "handled":
+                            handled_salvage_dialog = True
+                            handled_dialog_settle_ms = 0
+                            waited_ms = 0
+                            continue
+                        if dialog_status not in {"not_visible", "disabled", "confirm_pending"}:
+                            Inventory._salvage_choice_debug_log(
+                                salvage_dialog_debug,
+                                "AutoSalvage",
+                                f"stop item item_id={item_id} status=popup_failed reason={dialog_status}.",
+                            )
+                            salvage_dialog_failed = True
+                            break
+
                     yield from Routines.Yield.wait(salvage_wait_step_ms)
                     waited_ms += salvage_wait_step_ms
+                    if handled_salvage_dialog:
+                        handled_dialog_settle_ms += salvage_wait_step_ms
 
                     bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
                     item_array = ItemArray.GetItemArray(bag_list)
@@ -255,10 +314,28 @@ class AutoInventoryHandler():
                     if item_instance.quantity < quantity:
                         salvaged_items += 1
                         break  # Successfully salvaged one item
+                    if handled_salvage_dialog and handled_dialog_settle_ms >= handled_dialog_post_check_ms:
+                        retry_required = item_instance.is_salvageable
+                        Inventory._salvage_choice_debug_log(
+                            salvage_dialog_debug,
+                            "AutoSalvage",
+                            f"re-evaluate item item_id={item_id} after handled dialog settle={handled_dialog_settle_ms}ms status={'retry' if retry_required else 'processed'}.",
+                        )
+                        if not retry_required:
+                            salvaged_items += 1
+                        break
                     if waited_ms >= salvage_wait_timeout_ms:
                         Console.Log("AutoSalvage", f"Timed out waiting for salvage result (item_id={item_id}).", Console.MessageType.Warning)
                         salvage_timed_out = True
                         break
+
+                if salvage_dialog_failed:
+                    Console.Log(
+                        "AutoSalvage",
+                        f"Stopping auto-salvage because the salvage choice dialog could not be handled safely (item_id={item_id}, status={dialog_status}).",
+                        Console.MessageType.Warning,
+                    )
+                    return
 
                 if salvage_timed_out:
                     break

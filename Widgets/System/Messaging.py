@@ -6,7 +6,7 @@ import Py4GW
 import ctypes
 
 from HeroAI.cache_data import CacheData
-from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects, Party
+from Py4GWCoreLib import GLOBAL_CACHE, Player, Map, Agent, Effects, Inventory, Party
 from Py4GWCoreLib import ActionQueueManager
 from Py4GWCoreLib import CombatPrepSkillsType
 from Py4GWCoreLib import Console
@@ -580,6 +580,135 @@ def GetBlessing(index: int, message: SharedMessageStruct):
 
 
 # endregion
+# region MerchantItems
+def MerchantItems(index: int, message: SharedMessageStruct):
+    ConsoleLog(MODULE_NAME, f"Processing MerchantItems message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    try:
+        x = float(message.Params[0])
+        y = float(message.Params[1])
+        id_kits_target = int(message.Params[2])
+        salvage_kits_target = int(message.Params[3])
+    except Exception:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    if id_kits_target < 0:
+        id_kits_target = 0
+    if salvage_kits_target < 0:
+        salvage_kits_target = 0
+
+    SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+        yield from Routines.Yield.wait(1200)
+
+        id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit.value))
+        sup_id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value))
+        salvage_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
+
+        id_kits_to_buy = max(0, id_kits_target - (id_kits_in_inv + sup_id_kits_in_inv))
+        salvage_kits_to_buy = max(0, salvage_kits_target - salvage_kits_in_inv)
+
+        yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
+        yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+    finally:
+        RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
+# region MerchantMaterials
+def MerchantMaterials(index: int, message: SharedMessageStruct):
+    ConsoleLog(MODULE_NAME, f"Processing MerchantMaterials message: {message}", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in message.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return tuple(values[:4])
+
+    def _parse_selected_models(raw: str) -> set[int] | None:
+        if not raw.strip():
+            return None
+        selected: set[int] = set()
+        for part in raw.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                selected.add(int(part))
+            except ValueError:
+                continue
+        return selected or None
+
+    def _parse_positive_int(raw: str) -> int | None:
+        try:
+            parsed = int(str(raw).strip())
+        except Exception:
+            return None
+        return parsed if parsed > 0 else None
+
+    extra0, extra1, extra2, _ = _extra_data(message)
+    mode = extra0.strip().lower()
+    selected_models = _parse_selected_models(extra1)
+
+    try:
+        x = float(message.Params[0])
+        y = float(message.Params[1])
+        start_threshold = int(message.Params[2])
+        stop_threshold = int(message.Params[3])
+    except Exception:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+
+        if mode == "sell":
+            sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
+                x,
+                y,
+                selected_models=selected_models,
+                max_sell_quantity_per_item=_parse_positive_int(extra2),
+            )
+            ConsoleLog(MODULE_NAME, f"MerchantMaterials sell metrics: {sell_metrics}", Console.MessageType.Info, False)
+
+        elif mode == "deposit":
+            deposit_metrics = yield from Routines.Yield.Merchant.DepositMaterials(
+                selected_models=selected_models,
+                max_deposit_items=_parse_positive_int(extra2),
+            )
+            ConsoleLog(MODULE_NAME, f"MerchantMaterials deposit metrics: {deposit_metrics}", Console.MessageType.Info, False)
+
+        elif mode == "buy_ectoplasm":
+            use_storage_gold = extra1.strip() == "1"
+            ecto_metrics = yield from Routines.Yield.Merchant.BuyEctoplasm(
+                x,
+                y,
+                use_storage_gold=use_storage_gold,
+                start_threshold=start_threshold,
+                stop_threshold=stop_threshold,
+                max_ecto_to_buy=_parse_positive_int(extra2),
+            )
+            ConsoleLog(MODULE_NAME, f"MerchantMaterials buy_ectoplasm metrics: {ecto_metrics}", Console.MessageType.Info, False)
+    finally:
+        RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
 # region UsePcon
 
 
@@ -1718,9 +1847,9 @@ def ProcessMessages():
         case SharedCommandType.SalvageItems:
             pass
         case SharedCommandType.MerchantItems:
-            pass
+            GLOBAL_CACHE.Coroutines.append(MerchantItems(index, message))
         case SharedCommandType.MerchantMaterials:
-            pass
+            GLOBAL_CACHE.Coroutines.append(MerchantMaterials(index, message))
         case SharedCommandType.DisableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:

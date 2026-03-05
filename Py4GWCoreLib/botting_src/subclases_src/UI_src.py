@@ -338,6 +338,23 @@ class _UI:
         from ...GlobalCache import GLOBAL_CACHE
         
         current_header_step, header_for_current , current_step, total_steps, step_name, finished = self._find_current_header_step()
+        modular_recipe_title = str(getattr(self._config, "modular_recipe_title", "") or "")
+        modular_step_title = str(getattr(self._config, "modular_step_title", "") or "")
+        modular_step_index = int(getattr(self._config, "modular_step_index", 0) or 0)
+        modular_step_total = int(getattr(self._config, "modular_step_total", 0) or 0)
+        modular_phase_index = int(getattr(self._config, "modular_phase_index", 0) or 0)
+        modular_phase_total = int(getattr(self._config, "modular_phase_total", 0) or 0)
+        use_modular_step_display = modular_step_total > 0 and (bool(modular_recipe_title) or bool(modular_step_title))
+        if use_modular_step_display:
+            if modular_recipe_title:
+                header_for_current = modular_recipe_title
+            if modular_step_title:
+                step_name = modular_step_title
+            else:
+                step_name = "(Waiting)"
+            current_step = min(max(modular_step_index, 0), modular_step_total)
+            total_steps = max(modular_step_total + 1, 1)
+            finished = bool(modular_step_total > 0 and modular_step_index >= modular_step_total)
         if PyImGui.begin_table("bot_header_table", 2, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH):
             PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
             PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
@@ -401,16 +418,28 @@ class _UI:
             fraction = 1.0
         fraction = max(0.0, min(1.0, fraction))
 
+        overall_fraction = fraction
+        if modular_phase_total > 0:
+            overall_fraction = min(max(modular_phase_index / float(modular_phase_total), 0.0), 1.0)
+
+        detail_label = "Step Progress"
+        detail_fraction = self._config.state_percentage
+        if modular_step_total > 0:
+            detail_fraction = min(max(modular_step_index / float(modular_step_total), 0.0), 1.0)
+        elif modular_phase_total > 0:
+            detail_label = "FSM Progress"
+            detail_fraction = fraction
+
             
         PyImGui.text("Overall Progress")
         PyImGui.push_item_width(main_child_dimensions[0] - 10)
-        PyImGui.progress_bar(fraction, (main_child_dimensions[0] - 10), 0, f"{fraction * 100:.2f}%")
+        PyImGui.progress_bar(overall_fraction, (main_child_dimensions[0] - 10), 0, f"{overall_fraction * 100:.2f}%")
         PyImGui.pop_item_width()
         
         PyImGui.separator()
-        PyImGui.text("Step Progress")
+        PyImGui.text(detail_label)
         PyImGui.push_item_width(main_child_dimensions[0] - 10)
-        PyImGui.progress_bar(self._config.state_percentage, (main_child_dimensions[0] - 10), 0, f"{self._config.state_percentage * 100:.2f}%")
+        PyImGui.progress_bar(detail_fraction, (main_child_dimensions[0] - 10), 0, f"{detail_fraction * 100:.2f}%")
         PyImGui.pop_item_width()
 
     def _draw_settings_child(self):

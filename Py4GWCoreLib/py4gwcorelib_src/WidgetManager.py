@@ -26,6 +26,7 @@ from typing import Callable, Optional
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 
 _profiling_registry = None
+base_path = Py4GW.Console.get_projects_path()
 
 def _get_profiling():
     global _profiling_registry
@@ -101,6 +102,10 @@ class Py4GWLibrary:
         self.module_name = module_name
         self.widget_manager = widget_manager
         self.widget_filter = ""
+        
+        self.small_logo = os.path.join(base_path, "python_icon_round_20px.png")
+        self.big_logo = os.path.join(base_path, "python_icon_round.png")
+        self.missing_texture = os.path.join(base_path, "Textures\\missing_texture.png")
         
         self.view_mode = ViewMode.All
         self.layout_mode = LayoutMode.Library
@@ -356,12 +361,14 @@ class Py4GWLibrary:
         keywords = [kw.strip().lower() for kw in filter_text.lower().strip().split(";")]
         
         preset_words : dict[str, list[str]]= {
+            "no_image": ["#no_image", "#noimg", "#noicon"],
             "enabled": ["#enabled", "#active", "#on"],
             "disabled": ["#disabled", "#inactive", "#off"],
             "favorites": ["#favorites", "#favs", "#fav"],
             "system": ["#system", "#sys"]
         }
         
+        no_image_check = False
         enabled_check = False
         disabled_check = False
         favorites_check = False
@@ -372,11 +379,13 @@ class Py4GWLibrary:
             disabled_check = disabled_check or any(kw == preset_kw for preset_kw in preset_words["disabled"])
             favorites_check = favorites_check or any(kw == preset_kw for preset_kw in preset_words["favorites"])
             system_check = system_check or any(kw == preset_kw for preset_kw in preset_words["system"])
+            no_image_check = no_image_check or any(kw == preset_kw for preset_kw in preset_words["no_image"])
             
             prefiltered = [w for w in prefiltered if 
                             (not enabled_check or w.enabled) and
                             (not disabled_check or not w.enabled) and
                             (not favorites_check or w in self.favorites) and
+                            (not no_image_check or w.image == self.missing_texture) and
                             (not system_check or w.category == "System")]
             
             for preset, preset_keywords in preset_words.items():
@@ -450,7 +459,7 @@ class Py4GWLibrary:
         image_size = item_size[1] - 4
         pos_x = item_min[0] + ((item_size[0] - image_size) / 2)
         pos_y = item_min[1] + ((item_size[1] - image_size) / 2)
-        ImGui.DrawTextureInDrawList((pos_x, pos_y), (image_size, image_size), "python_icon_round_20px.png")
+        ImGui.DrawTextureInDrawList((pos_x, pos_y), (image_size, image_size), self.small_logo)
         ImGui.show_tooltip("Switch to Single Button View")        
         PyImGui.same_line(0, spacing)
         
@@ -840,7 +849,7 @@ class Py4GWLibrary:
             style = ImGui.get_style()
             
             PyImGui.push_clip_rect(*win_pos, self.win_size[0], self.win_size[1], False)
-            ImGui.DrawTextureInDrawList((win_pos[0] + 4, win_pos[1] + 2), (20, 20), "python_icon_round_20px.png")
+            ImGui.DrawTextureInDrawList((win_pos[0] + 4, win_pos[1] + 2), (20, 20), self.small_logo)
             if ImGui.is_mouse_in_rect((win_pos[0] + 4, win_pos[1] + 2, 20, 20)):
                 PyImGui.begin_tooltip()
                 PyImGui.text(f"Collapse to a single button showing only the Python icon.\nOpening the full library view when clicked." )
@@ -1132,6 +1141,14 @@ class Py4GWLibrary:
                             IniManager().save_vars(self.ini_key)
                         ImGui.show_tooltip("Enable or disable single filter mode.\nWhen enabled, selecting a category, tag, path or editing the search field will clear any existing filters in the other fields.\nThis ensures that only one filter is applied at a time.")                        
                         ImGui.end_menu()
+                        
+                    ImGui.end_menu()
+                
+                
+                if ImGui.begin_menu("Debug"):
+                    if ImGui.menu_item("Show widgets without icon"):
+                        self.widget_filter = "#no_image"
+                        self.queue_filter_widgets = True
                         
                     ImGui.end_menu()
                 ImGui.end_menu_bar()
@@ -1653,7 +1670,7 @@ class Py4GWLibrary:
                 PyImGui.set_cursor_pos((self.win_size[0] - button_size) / 2, (self.win_size[1] - button_size) / 2)
             
             cx, cy = PyImGui.get_cursor_pos()
-            ImGui.image("python_icon_round.png", (button_size, button_size))              
+            ImGui.image(self.big_logo, (button_size, button_size))              
             PyImGui.set_cursor_pos(cx, cy)
             ImGui.dummy(button_size, button_size)
             if in_radius:       
@@ -1780,7 +1797,7 @@ class Widget:
             self.name = getattr(self.module, 'MODULE_NAME', "") if hasattr(self.module, 'MODULE_NAME') else self.cleaned_name()
             self.category = getattr(self.module, 'MODULE_CATEGORY', "") if hasattr(self.module, 'MODULE_CATEGORY') else (self.widget_path.split('/')[0] if self.widget_path else "") #get first folder after Widgets 
             self.tags = getattr(self.module, 'MODULE_TAGS', []) if hasattr(self.module, 'MODULE_TAGS') else [folder for folder in self.widget_path.split('/') if folder]
-            self.image = getattr(self.module, 'MODULE_ICON', "") if hasattr(self.module, 'MODULE_ICON') else "Textures\\missing_texture.png"
+            self.image = os.path.join(base_path, getattr(self.module, 'MODULE_ICON', "") if hasattr(self.module, 'MODULE_ICON') else "Textures\\missing_texture.png")
             
             self.optional = getattr(self.module, 'OPTIONAL', True) if hasattr(self.module, 'OPTIONAL') else self.category not in ["System", "Py4GW"] # System and Py4GW widgets are non-optional by default, all others are optional by default
             self.RegisterCallbacks()

@@ -69,7 +69,11 @@ class PreGameContext:
 
     @staticmethod
     def _update_ptr():
-        ptr = PyPointers.PyPointers.GetPreGameContextPtr()
+        from ...native_src.ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None:
+            return
+        ptr = SSM.PreGameContext
+        #ptr = PyPointers.PyPointers.GetPreGameContextPtr()
         PreGameContext._ptr = ptr
         if not ptr:
             PreGameContext._cached_ctx = None

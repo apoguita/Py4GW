@@ -6,6 +6,7 @@ from Py4GWCoreLib import IconsFontAwesome5
 from Sources.aC_Scripts.OutpostRunner.Build_Manager_Addon import BodyBlockDetection
 from Sources.aC_Scripts.OutpostRunner import Build_Manager
 from Sources.aC_Scripts.Consumable import ConsumablesSelector
+from Py4GW_widget_manager import get_widget_handler
 import os
 import math
 import time
@@ -785,6 +786,11 @@ consumables_runner = consumables_helper.run()
 
 def main():
     global show_intro
+
+    # Widget configuration
+    widget_handler = get_widget_handler()
+    widget_handler.disable_widget('HeroAI')
+
     if show_intro:
         draw_build_window()
     else:

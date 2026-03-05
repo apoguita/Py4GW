@@ -3,8 +3,6 @@ Singleton manager for party following configuration.
 Stores all parameters in shared RAM memory for cross-process access.
 """
 
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
-
 class PartyFollowingManager:
     """
     Singleton class to manage party following configuration.
@@ -22,6 +20,8 @@ class PartyFollowingManager:
 
     def __init__(self):
         # Only initialize once
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+
         if self._initialized:
             return
 

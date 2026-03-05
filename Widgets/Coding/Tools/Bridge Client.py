@@ -449,31 +449,250 @@ def _invoke_class_method(target: Any, class_name: str, params: dict[str, Any], r
         return make_error_response(request_id, "execution_error", f"{class_name}.{method_name}: {exc}")
 
 
+def _namespace_registry() -> dict[str, dict[str, Any]]:
+    return {
+        # Bridge namespace projections over Py4GWCoreLib source-of-truth libraries.
+        "map": {"class": "Map", "target": Map, "source": "Py4GWCoreLib", "kind": "corelib"},
+        "player": {"class": "Player", "target": Player, "source": "Py4GWCoreLib", "kind": "corelib"},
+        "agent": {"class": "Agent", "target": Agent, "source": "Py4GWCoreLib", "kind": "corelib"},
+        "agent_array": {"class": "AgentArray", "target": AgentArray, "source": "Py4GWCoreLib", "kind": "corelib"},
+        "party_raw": {
+            "class": "Party",
+            "target": Party,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "ambiguous_label": True,
+            "preferred_label": "party_corelib",
+            "note": "Historical bridge label; routes through Py4GWCoreLib.Party.",
+        },
+        "party_corelib": {
+            "class": "Party",
+            "target": Party,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "party_raw",
+            "note": "Preferred clear alias for the Py4GWCoreLib Party source-of-truth library.",
+        },
+        "party_wrapper": {
+            "class": "Party",
+            "target": Party,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "party_raw",
+            "note": "Legacy compatibility alias; prefer party_corelib.",
+        },
+        "skill": {"class": "Skill", "target": Skill, "source": "Py4GWCoreLib", "kind": "corelib"},
+        "skillbar_raw": {
+            "class": "SkillBar",
+            "target": SkillBar,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "ambiguous_label": True,
+            "preferred_label": "skillbar_corelib",
+            "note": "Historical bridge label; routes through Py4GWCoreLib.SkillBar.",
+        },
+        "skillbar_corelib": {
+            "class": "SkillBar",
+            "target": SkillBar,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "skillbar_raw",
+            "note": "Preferred clear alias for the Py4GWCoreLib SkillBar source-of-truth library.",
+        },
+        "skillbar_wrapper": {
+            "class": "SkillBar",
+            "target": SkillBar,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "skillbar_raw",
+            "note": "Legacy compatibility alias; prefer skillbar_corelib.",
+        },
+        "inventory_raw": {
+            "class": "Inventory",
+            "target": Inventory,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "ambiguous_label": True,
+            "preferred_label": "inventory_corelib",
+            "note": "Historical bridge label; routes through Py4GWCoreLib.Inventory.",
+        },
+        "inventory_corelib": {
+            "class": "Inventory",
+            "target": Inventory,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "inventory_raw",
+            "note": "Preferred clear alias for the Py4GWCoreLib Inventory source-of-truth library.",
+        },
+        "inventory_wrapper": {
+            "class": "Inventory",
+            "target": Inventory,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "inventory_raw",
+            "note": "Legacy compatibility alias; prefer inventory_corelib.",
+        },
+        "quest_raw": {
+            "class": "Quest",
+            "target": Quest,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "ambiguous_label": True,
+            "preferred_label": "quest_corelib",
+            "note": "Historical bridge label; routes through Py4GWCoreLib.Quest.",
+        },
+        "quest_corelib": {
+            "class": "Quest",
+            "target": Quest,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "quest_raw",
+            "note": "Preferred clear alias for the Py4GWCoreLib Quest source-of-truth library.",
+        },
+        "quest_wrapper": {
+            "class": "Quest",
+            "target": Quest,
+            "source": "Py4GWCoreLib",
+            "kind": "corelib",
+            "alias_of": "quest_raw",
+            "note": "Legacy compatibility alias; prefer quest_corelib.",
+        },
+        "effects_raw": {
+            "class": "Effects",
+            "target": Effects,
+            "source": "Py4GWCoreLib",
+            "kind": "wrapper",
+            "ambiguous_label": True,
+            "preferred_label": "effects_corelib",
+            "note": "Historical bridge label; routes through Py4GWCoreLib.Effects.",
+        },
+        "effects_corelib": {
+            "class": "Effects",
+            "target": Effects,
+            "source": "Py4GWCoreLib",
+            "kind": "wrapper",
+            "alias_of": "effects_raw",
+            "note": "Preferred clear alias for the Py4GWCoreLib Effects source-of-truth library.",
+        },
+        "effects_wrapper": {
+            "class": "Effects",
+            "target": Effects,
+            "source": "Py4GWCoreLib",
+            "kind": "wrapper",
+            "alias_of": "effects_raw",
+            "note": "Legacy compatibility alias; prefer effects_corelib.",
+        },
+        # Bridge namespace projections over GLOBAL_CACHE.
+        "party": {"class": "GLOBAL_CACHE.Party", "target": GLOBAL_CACHE.Party, "source": "GLOBAL_CACHE", "kind": "cache"},
+        "party.players": {
+            "class": "GLOBAL_CACHE.Party.Players",
+            "target": GLOBAL_CACHE.Party.Players,
+            "source": "GLOBAL_CACHE",
+            "kind": "cache",
+        },
+        "party.heroes": {
+            "class": "GLOBAL_CACHE.Party.Heroes",
+            "target": GLOBAL_CACHE.Party.Heroes,
+            "source": "GLOBAL_CACHE",
+            "kind": "cache",
+        },
+        "party.henchmen": {
+            "class": "GLOBAL_CACHE.Party.Henchmen",
+            "target": GLOBAL_CACHE.Party.Henchmen,
+            "source": "GLOBAL_CACHE",
+            "kind": "cache",
+        },
+        "party.pets": {
+            "class": "GLOBAL_CACHE.Party.Pets",
+            "target": GLOBAL_CACHE.Party.Pets,
+            "source": "GLOBAL_CACHE",
+            "kind": "cache",
+        },
+        "skillbar": {"class": "GLOBAL_CACHE.SkillBar", "target": GLOBAL_CACHE.SkillBar, "source": "GLOBAL_CACHE", "kind": "cache"},
+        "inventory": {"class": "GLOBAL_CACHE.Inventory", "target": GLOBAL_CACHE.Inventory, "source": "GLOBAL_CACHE", "kind": "cache"},
+        "quest": {"class": "GLOBAL_CACHE.Quest", "target": GLOBAL_CACHE.Quest, "source": "GLOBAL_CACHE", "kind": "cache"},
+        "effects": {"class": "GLOBAL_CACHE.Effects", "target": GLOBAL_CACHE.Effects, "source": "GLOBAL_CACHE", "kind": "cache"},
+        "shmem": {"class": "GLOBAL_CACHE.ShMem", "target": GLOBAL_CACHE.ShMem, "source": "GLOBAL_CACHE", "kind": "cache"},
+    }
+
+
 def _generic_targets() -> dict[str, tuple[str, Any]]:
     return {
-        # Native / wrapper layers
-        "map": ("Map", Map),
-        "player": ("Player", Player),
-        "agent": ("Agent", Agent),
-        "agent_array": ("AgentArray", AgentArray),
-        "party_raw": ("Party", Party),
-        "skill": ("Skill", Skill),
-        "skillbar_raw": ("SkillBar", SkillBar),
-        "inventory_raw": ("Inventory", Inventory),
-        "quest_raw": ("Quest", Quest),
-        "effects_raw": ("Effects", Effects),
-        # Cache / service layers
-        "party": ("GLOBAL_CACHE.Party", GLOBAL_CACHE.Party),
-        "party.players": ("GLOBAL_CACHE.Party.Players", GLOBAL_CACHE.Party.Players),
-        "party.heroes": ("GLOBAL_CACHE.Party.Heroes", GLOBAL_CACHE.Party.Heroes),
-        "party.henchmen": ("GLOBAL_CACHE.Party.Henchmen", GLOBAL_CACHE.Party.Henchmen),
-        "party.pets": ("GLOBAL_CACHE.Party.Pets", GLOBAL_CACHE.Party.Pets),
-        "skillbar": ("GLOBAL_CACHE.SkillBar", GLOBAL_CACHE.SkillBar),
-        "inventory": ("GLOBAL_CACHE.Inventory", GLOBAL_CACHE.Inventory),
-        "quest": ("GLOBAL_CACHE.Quest", GLOBAL_CACHE.Quest),
-        "effects": ("GLOBAL_CACHE.Effects", GLOBAL_CACHE.Effects),
-        "shmem": ("GLOBAL_CACHE.ShMem", GLOBAL_CACHE.ShMem),
+        namespace: (str(info["class"]), info["target"])
+        for namespace, info in _namespace_registry().items()
     }
+
+
+def _namespace_descriptions() -> list[dict[str, Any]]:
+    descriptions: list[dict[str, Any]] = []
+    for namespace, info in sorted(_namespace_registry().items()):
+        descriptions.append(
+            {
+                "namespace": namespace,
+                "class": str(info["class"]),
+                "source": str(info["source"]),
+                "kind": str(info["kind"]),
+                "ambiguous_label": bool(info.get("ambiguous_label", False)),
+                "alias_of": str(info.get("alias_of") or ""),
+                "preferred_label": str(info.get("preferred_label") or ""),
+                "note": str(info.get("note") or ""),
+            }
+        )
+    return descriptions
+
+
+def _command_registry() -> list[dict[str, Any]]:
+    return [
+        {"command": "system.ping", "access": "read", "safety": "safe", "kind": "curated", "scope": "system"},
+        {"command": "system.list_namespaces", "access": "read", "safety": "safe", "kind": "curated", "scope": "system"},
+        {"command": "system.list_commands", "access": "read", "safety": "safe", "kind": "curated", "scope": "system"},
+        {"command": "client.describe", "access": "read", "safety": "safe", "kind": "curated", "scope": "client"},
+        {"command": "map.get_state", "access": "read", "safety": "safe", "kind": "curated", "scope": "map"},
+        {"command": "player.get_state", "access": "read", "safety": "safe", "kind": "curated", "scope": "player"},
+        {"command": "agent.list", "access": "read", "safety": "safe", "kind": "curated", "scope": "agent"},
+        {"command": "agent.get_info", "access": "read", "safety": "safe", "kind": "curated", "scope": "agent"},
+        {
+            "command": "map.travel",
+            "access": "write",
+            "safety": "guarded",
+            "kind": "curated",
+            "scope": "map",
+            "guards": ["reject_if_loading", "reject_if_cinematic"],
+        },
+        {
+            "command": "map.skip_cinematic",
+            "access": "write",
+            "safety": "guarded",
+            "kind": "curated",
+            "scope": "map",
+            "guards": ["reject_if_not_cinematic"],
+        },
+        {"command": "ops.get_status", "access": "read", "safety": "safe", "kind": "curated", "scope": "ops"},
+        {
+            "command": "shmem.send_command",
+            "access": "write",
+            "safety": "guarded",
+            "kind": "curated",
+            "scope": "shmem",
+            "guards": ["receiver_email_required", "shared_memory_send_must_succeed"],
+        },
+        {
+            "command": "<namespace>.list_methods",
+            "access": "read",
+            "safety": "safe",
+            "kind": "reflection",
+            "scope": "dynamic",
+            "note": "Dynamic reflection over registered bridge namespaces.",
+        },
+        {
+            "command": "<namespace>.call",
+            "access": "dynamic",
+            "safety": "restricted",
+            "kind": "reflection",
+            "scope": "dynamic",
+            "note": "Dynamic invocation over registered bridge namespaces; caller should apply allowlists.",
+        },
+    ]
 
 
 def _handle_command(request: dict[str, Any]) -> dict[str, Any]:
@@ -488,12 +707,21 @@ def _handle_command(request: dict[str, Any]) -> dict[str, Any]:
             return make_response(request_id, {"pong": True, "time_ms": _now_ms()})
 
         if command == "system.list_namespaces":
-            targets = _generic_targets()
             return make_response(
                 request_id,
                 {
-                    "namespaces": sorted(targets.keys()),
+                    "namespaces": [item["namespace"] for item in _namespace_descriptions()],
+                    "details": _namespace_descriptions(),
                     "note": "Use <namespace>.list_methods and <namespace>.call",
+                },
+            )
+
+        if command == "system.list_commands":
+            return make_response(
+                request_id,
+                {
+                    "commands": _command_registry(),
+                    "note": "Use this metadata to distinguish read-only, guarded, and reflection-driven commands.",
                 },
             )
 

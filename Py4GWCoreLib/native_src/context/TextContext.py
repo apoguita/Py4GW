@@ -76,7 +76,6 @@ class LanguageSlotStruct(Structure):
         ("slot_count", c_uint32),        # +0x08
     ]
 
-
 _MAX_LANGUAGES = 11
 
 
@@ -107,7 +106,7 @@ class TextParserStruct(Structure):
         ("_h0184", c_uint32 * 19),                               # +0x184  (76 bytes)
         ("language_id", c_uint32),                               # +0x1D0
     ]
-
+    
     def get_file_slot(self, slot_idx: int, language: int = 0) -> TextFileSlotStruct | None:
         """Read a file slot struct for the given language and slot index."""
         if language >= _MAX_LANGUAGES:
@@ -135,7 +134,10 @@ class TextParser:
 
     @staticmethod
     def _update_ptr():
-        gc = PyPointers.PyPointers.GetGameContextPtr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        gc = SSM.GameContext
+        #gc = PyPointers.PyPointers.GetGameContextPtr()
         if not gc:
             TextParser._ptr = 0
             TextParser._cached_ctx = None

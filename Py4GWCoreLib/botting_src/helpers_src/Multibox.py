@@ -150,6 +150,8 @@ class _Multibox:
         
         if not player_data:
             return
+
+        district_number = max(0, int(player_data.MapDistrict) - 1)
         
         for account in all_accounts:
             if (player_data.MapID == account.MapID and
@@ -158,7 +160,7 @@ class _Multibox:
                 player_data.MapLanguage == account.MapLanguage):
                 continue
 
-            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, player_data.MapLanguage))
+            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, district_number, player_data.MapLanguage))
             yield from Routines.Yield.wait(500)
         yield
 
@@ -170,6 +172,8 @@ class _Multibox:
         
         if not player_data or not account:
             return
+
+        district_number = max(0, int(player_data.MapDistrict) - 1)
         
         if (player_data.MapID == account.MapID and
             player_data.MapRegion == account.MapRegion and
@@ -177,7 +181,7 @@ class _Multibox:
             player_data.MapLanguage == account.MapLanguage):
             return
 
-        GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, player_data.MapLanguage))
+        GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, district_number, player_data.MapLanguage))
         yield from  Routines.Yield.wait(500)
         
     def _invite_all_accounts(self):
