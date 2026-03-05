@@ -3,11 +3,11 @@ from __future__ import annotations
 import Py4GW
 import PyImGui
 from Py4GWCoreLib import Player
-from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr
+from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
 
 
-def _draw_counts(payload, wrapper) -> None:
-    all_agents = wrapper.get_all_array()
+def _draw_counts(payload:AgentArraySHMemStruct, wrapper:AgentArraySHMemWrapper) -> None:
+    all_agents = wrapper.to_int_list()
     living_agents = wrapper.get_living_array()
     ally_agents = wrapper.get_ally_array()
     neutral_agents = wrapper.get_neutral_array()
@@ -37,7 +37,7 @@ def _draw_counts(payload, wrapper) -> None:
     PyImGui.text(f"Dead Enemy: {len(dead_enemy_agents)}")
 
 
-def _draw_agent_preview(wrapper) -> None:
+def _draw_agent_preview(wrapper:AgentArraySHMemWrapper) -> None:
     agent_id = Player.GetAgentID()
     agent = wrapper.get_agent_by_id(agent_id) if wrapper is not None else None
 
@@ -68,7 +68,11 @@ def _draw_agent_preview(wrapper) -> None:
     if not enemy_agents:
         return
 
-    enemy_agent = enemy_agents[0]
+
+    enemy_agent_id = enemy_agents[0]
+    enemy_agent = wrapper.get_agent_by_id(enemy_agent_id) if wrapper is not None else None
+    if enemy_agent is None:
+        return
     PyImGui.separator()
     PyImGui.text("First Enemy")
     PyImGui.text(
@@ -77,9 +81,9 @@ def _draw_agent_preview(wrapper) -> None:
 
 
 def draw_window() -> None:
-    header = SystemShaMemMgr.header_struct
-    payload = SystemShaMemMgr.agent_array_struct
-    wrapper = SystemShaMemMgr.get_agent_array_wrapper()
+    header:SharedMemoryHeader| None = SystemShaMemMgr.header_struct
+    payload:AgentArraySHMemStruct | None = SystemShaMemMgr.agent_array_struct
+    wrapper:AgentArraySHMemWrapper | None = SystemShaMemMgr.get_agent_array_wrapper()
 
     if PyImGui.begin("Shared Memory Agent Array Test"):
         PyImGui.text(f"Ready: {Py4GW.Game.is_shared_memory_ready()}")
@@ -102,8 +106,11 @@ def draw_window() -> None:
             PyImGui.text(f"Sequence (read): {header.sequence}")
 
             PyImGui.separator()
-            _draw_counts(payload, wrapper)
-            _draw_agent_preview(wrapper)
+            if wrapper is None:
+                PyImGui.text("Agent Array Wrapper: <not initialized>")
+            else:
+                _draw_counts(payload, wrapper)
+                _draw_agent_preview(wrapper)
 
         PyImGui.end()
 

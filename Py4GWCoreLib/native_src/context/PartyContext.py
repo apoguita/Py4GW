@@ -219,7 +219,10 @@ class PartyContext:
 
     @staticmethod
     def _update_ptr():
-        ptr = PyParty.PyParty().GetPartyContextPtr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        ptr = SSM.PartyContext
+        #ptr = PyParty.PyParty().GetPartyContextPtr()
         PartyContext._ptr = ptr
         if not ptr:
             PartyContext._cached_ctx = None

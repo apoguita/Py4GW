@@ -23,13 +23,13 @@ class ServerRegionStruct(Structure):
         ("region_id", c_int32),      # +0x0000
     ]
     
-ServerRegion_GetPtr = NativeSymbol(
-    name="ServerRegion_GetPtr",
-    pattern=b"\x6a\x54\x8d\x46\x24\x89\x08",
-    mask="xxxxxxx",
-    offset=-0x4,  
-    section=ScannerSection.TEXT
-)
+#ServerRegion_GetPtr = NativeSymbol(
+#    name="ServerRegion_GetPtr",
+#    pattern=b"\x6a\x54\x8d\x46\x24\x89\x08",
+#    mask="xxxxxxx",
+#    offset=-0x4,  
+#    section=ScannerSection.TEXT
+#)
 
 #region facade
 class ServerRegion:
@@ -42,7 +42,10 @@ class ServerRegion:
         return ServerRegion._ptr    
     @staticmethod
     def _update_ptr():
-        ptr = ServerRegion_GetPtr.read_ptr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        ptr = SSM.ServerRegionContext
+        #ptr = ServerRegion_GetPtr.read_ptr()
         ServerRegion._ptr = ptr
         if not ptr:
             ServerRegion._cached_ctx = None

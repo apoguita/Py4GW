@@ -142,6 +142,7 @@ class CustomBehaviorWidgetMemoryManager:
         return cls._instance
 
     def __init__(self, name=SHMEM_SHARED_MEMORY_FILE_NAME):
+        
         if not self._initialized:
             self.shm_name = name
             self.size = sizeof(CustomBehaviorWidgetStruct)

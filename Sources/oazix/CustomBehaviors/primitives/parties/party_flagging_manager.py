@@ -8,7 +8,6 @@ import math
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib import Map, Agent, Player
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 class PartyFlaggingManager:
     """
@@ -31,6 +30,8 @@ class PartyFlaggingManager:
 
     def __init__(self):
         # Only initialize once
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+
         if self._initialized:
             return
 

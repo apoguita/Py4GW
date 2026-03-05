@@ -60,13 +60,15 @@ class AvailableCharacterArrayStruct(Structure):
     def available_characters_list(self) -> list[AvailableCharacterStruct]:
         return GW_Array_Value_View(self.available_characters_array, AvailableCharacterStruct).to_list()
 
-available_chars_ptr = NativeSymbol(
-    name="available_chars_ptr",
-    pattern=b"\x8b\x35\x00\x00\x00\x00\x57\x69\xF8\x84\x00\x00\x00",
-    mask="xx????xxxxxxx",
-    offset=0x2,  
-    section=ScannerSection.TEXT
-)
+
+#available_chars_ptr = NativeSymbol(
+#    name="available_chars_ptr",
+#    pattern=b"\x8b\x35\x00\x00\x00\x00\x57\x69\xF8\x84\x00\x00\x00",
+#    mask="xx????xxxxxxx",
+#    offset=0x2,  
+#    section=ScannerSection.TEXT
+#)
+
 
 class AvailableCharacterArray:
     _ptr: int = 0
@@ -79,7 +81,10 @@ class AvailableCharacterArray:
 
     @staticmethod
     def _update_ptr():
-        ptr = available_chars_ptr.read_ptr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        ptr = SSM.AvailableCharacters
+        #ptr = available_chars_ptr.read_ptr()
         AvailableCharacterArray._ptr = ptr
         if not ptr:
             AvailableCharacterArray._cached_ctx = None

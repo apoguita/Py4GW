@@ -10,14 +10,14 @@ from Sources.oazix.CustomBehaviors.primitives.auto_mover.auto_follow_path import
 from Sources.oazix.CustomBehaviors.primitives.auto_mover.waypoint_builder import WaypointBuilder
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 
-shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 edit_flags: Dict[int, bool] = {}
 
 @staticmethod
 def render():
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+    shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     PyImGui.text(f"auto-moving from map coords [U] require [MissionMap+ - Widget]")
     PyImGui.text(f"such feature will inject additionnal utility skills,")

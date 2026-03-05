@@ -45,14 +45,19 @@ class Agent:
             agent_id (int): The ID of the agent to retrieve.
         Returns: PyAgent
         """
+        from .AgentArray import AgentArray
+        return AgentArray.GetAgentByID(agent_id)
+        
+        
         cached = Agent._agent_cache.get(agent_id)
         if cached is not None:
             return cached
-        from .AgentArray import AgentArray
+        
         agent = AgentArray.GetAgentByID(agent_id)
         if agent is not None:
             Agent._agent_cache[agent_id] = agent
         return agent
+    
 
     @staticmethod
     def GetLivingAgentByID(agent_id: int):
