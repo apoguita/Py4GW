@@ -2200,7 +2200,7 @@ class Yield:
             yield from Yield.Upkeepers._upkeep_consumable(ModelID.War_Supplies, "Well_Supplied")
 
         @staticmethod
-        def Upkeep_Morale(target_morale=100):
+        def Upkeep_Morale(target_morale=110):
             from .Checks import Checks
 
             # Party-wide morale items: affect all members, so check party morale too

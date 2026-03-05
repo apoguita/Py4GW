@@ -118,6 +118,8 @@ lightbringer_map_names = {
 quest_title_overrides = {
     # EotN — Dwarven intro quest chain (Deldrimor title)
     897: TitleID.Deldrimor,   # O Brave New World
+    # EotN — Norn quest (Norn title)
+    873: TitleID.Norn,        # Service: In Defense of the Eye
 }
 
 game_throttle_timer = ThrottledTimer(100)

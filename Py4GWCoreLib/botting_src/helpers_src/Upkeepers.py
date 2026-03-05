@@ -266,7 +266,9 @@ class _Upkeepers:
             elif (self._config.upkeep.four_leaf_clover.is_active()):
                 yield from Routines.Yield.Upkeepers.Upkeep_Morale(100)
             elif self._config.upkeep.morale.is_active():
-                yield from Routines.Yield.Upkeepers.Upkeep_Morale(100)
+                target_morale = int(self._config.upkeep.morale.get("target_morale"))
+                target_morale = max(0, min(110, target_morale))
+                yield from Routines.Yield.Upkeepers.Upkeep_Morale(target_morale)
             else:
                 yield from Routines.Yield.wait(500)
 
@@ -299,6 +301,7 @@ class _Upkeepers:
             423,  # The Tribunal
             436,  # Command Post
             503,  # Throne of Secrets
+            700,  # The Norn Fighting Tournament
             710,  # Epilogue
             840,  # Lion's Arch Keep
         ]

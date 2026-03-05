@@ -15,6 +15,46 @@ class _Restock:
         self.parent = parent.parent
         self._config = parent._config
         self._Events = parent.Events
+
+    def _restock_summoning_stones_impl(self, quantity: int = 250):
+        """Internal generator for summoning stone restock (safe to yield from)."""
+        from ...GlobalCache import GLOBAL_CACHE
+        legionnaire_model = ModelID.Legionnaire_Summoning_Crystal.value
+        legionnaire_before = GLOBAL_CACHE.Inventory.GetModelCount(legionnaire_model)
+        legionnaire_full = yield from self._restock_item(legionnaire_model, quantity)
+        legionnaire_after = GLOBAL_CACHE.Inventory.GetModelCount(legionnaire_model)
+
+        # Legionnaire has priority: stop if either fully restocked or partially increased.
+        if legionnaire_full or legionnaire_after > legionnaire_before:
+            return
+
+        summon_models = [
+            ModelID.Tengu_Summon.value,
+            ModelID.Igneous_Summoning_Stone.value,
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        for model_id in summon_models:
+            result = yield from self._restock_item(model_id, quantity)
+            if result:
+                break
+            yield
     
     def _restock_item(self, model_id: int, desired_quantity: int) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
@@ -105,6 +145,53 @@ class _Restock:
         if self._config.upkeep.pahnai_salad.is_active():
             qty = self._config.upkeep.pahnai_salad.get("restock_quantity")
             yield from self._restock_item(ModelID.Pahnai_Salad.value, qty)
+
+    @_yield_step(label="RestockCitySpeed", counter_key="RESTOCK_CITY_SPEED")
+    def restock_city_speed(self, quantity: int = 250):
+        """Restock city speed items — tries each item in CITY_SPEED_ITEMS order, stops at first successful restock."""
+        if not self._config.upkeep.city_speed.is_active():
+            return
+        from ...Routines import Routines
+        for model in Routines.Yield.Upkeepers.CITY_SPEED_ITEMS:
+            model_id = model.value if hasattr(model, "value") else int(model)
+            result = yield from self._restock_item(model_id, quantity)
+            if result:
+                break
+            yield
+
+    @_yield_step(label="RestockSummoningStones", counter_key="RESTOCK_SUMMONING_STONES")
+    def restock_summoning_stones(self, quantity: int = 250):
+        """Restock summoning stones in priority order, stops at first successful restock."""
+        yield from self._restock_summoning_stones_impl(quantity)
+
+    @_yield_step(label="RestockConsetPconsSummoningStonesCitySpeed", counter_key="RESTOCK_CONSET_PCONS_SUMMON_STONES_CITY_SPEED")
+    def restock_conset_pcons_summoning_stones_city_speed(self, quantity: int = 250):
+        """Restock conset, pcons, summoning stones, and city speed boost items."""
+        yield from self._restock_item(ModelID.Essence_Of_Celerity.value, quantity)
+        yield from self._restock_item(ModelID.Grail_Of_Might.value, quantity)
+        yield from self._restock_item(ModelID.Armor_Of_Salvation.value, quantity)
+
+        yield from self._restock_item(ModelID.Birthday_Cupcake.value, quantity)
+        yield from self._restock_item(ModelID.Candy_Apple.value, quantity)
+        yield from self._restock_item(ModelID.Golden_Egg.value, quantity)
+        yield from self._restock_item(ModelID.Candy_Corn.value, quantity)
+        yield from self._restock_item(ModelID.Honeycomb.value, quantity)
+        yield from self._restock_item(ModelID.War_Supplies.value, quantity)
+        yield from self._restock_item(ModelID.Slice_Of_Pumpkin_Pie.value, quantity)
+        yield from self._restock_item(ModelID.Drake_Kabob.value, quantity)
+        yield from self._restock_item(ModelID.Bowl_Of_Skalefin_Soup.value, quantity)
+        yield from self._restock_item(ModelID.Pahnai_Salad.value, quantity)
+        yield from self._restock_item(ModelID.Scroll_Of_Resurrection.value, quantity)
+
+        yield from self._restock_summoning_stones_impl(quantity)
+
+        from ...Routines import Routines
+        for model in Routines.Yield.Upkeepers.CITY_SPEED_ITEMS:
+            model_id = model.value if hasattr(model, "value") else int(model)
+            result = yield from self._restock_item(model_id, quantity)
+            if result:
+                break
+            yield
 
     @_yield_step(label="ForceRestockItem", counter_key="FORCE_RESTOCK_ITEM")
     def force_restock_item(self, model_id: int, quantity: int):
