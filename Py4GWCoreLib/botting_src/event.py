@@ -157,6 +157,30 @@ class OnPartyMemberBehind(Event):
         if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
             return True
         return not Checks.Party.IsPartyMemberBehind()
+
+class OnPartyMemberInDanger(Event):
+    def should_trigger(self):
+        from Py4GWCoreLib import Routines, GLOBAL_CACHE
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            return False
+
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+            return False
+
+        if Routines.Checks.Agents.InDanger():
+            return False
+
+        return Routines.Checks.Party.IsPartyMemberInDanger()
+
+    def should_reset(self):
+        from ..Routines import Checks, Routines, GLOBAL_CACHE
+        if not Routines.Checks.Map.MapValid():
+            return True
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+            return True
+        if Checks.Agents.InDanger():
+            return True
+        return not Checks.Party.IsPartyMemberInDanger()
     
 class OnPartyMemberDeadBehind(Event):
     def should_trigger(self):
@@ -281,6 +305,7 @@ class Events:
         self.on_party_defeated = OnPartyDefeated(parent, "OnPartyDefeatedEvent", interval_ms=250)
         self.on_party_wipe = OnPartyWipe(parent, "OnPartyWipeEvent", interval_ms=250)
         self.on_party_member_behind = OnPartyMemberBehind(parent, "OnPartyMemberBehindEvent", interval_ms=1000)
+        self.on_party_member_in_danger = OnPartyMemberInDanger(parent, "OnPartyMemberInDangerEvent", interval_ms=750)
         self.on_party_member_dead_behind = OnPartyMemberDeadBehind(parent, "OnPartyMemberDeadBehindEvent", interval_ms=1000)
         self.on_party_member_dead = OnPartyMemberDead(parent, "OnPartyMemberDeadEvent", interval_ms=1000)
         
@@ -308,6 +333,9 @@ class Events:
     def set_on_party_member_behind_callback(self, fn: Callable[[], None]) -> None:
         self.on_party_member_behind.set_callback(fn)
 
+    def set_on_party_member_in_danger_callback(self, fn: Callable[[], None]) -> None:
+        self.on_party_member_in_danger.set_callback(fn)
+
     def set_on_party_member_dead_behind_callback(self, fn: Callable[[], None]) -> None:
         self.on_party_member_dead_behind.set_callback(fn)
         
@@ -322,6 +350,7 @@ class Events:
         fsm.AddManagedCoroutine("OnPartyWipeEvent", self.on_party_wipe.run())
         #fsm.AddManagedCoroutine("OnStuckEvent", self.on_stuck.run())
         fsm.AddManagedCoroutine("OnPartyMemberBehindEvent", self.on_party_member_behind.run())
+        fsm.AddManagedCoroutine("OnPartyMemberInDangerEvent", self.on_party_member_in_danger.run())
         fsm.AddManagedCoroutine("OnPartyMemberDeadBehindEvent", self.on_party_member_dead_behind.run())
         fsm.AddManagedCoroutine("OnPartyMemberDeadEvent", self.on_party_member_dead.run())
 
@@ -332,6 +361,7 @@ class Events:
         fsm.RemoveManagedCoroutine("OnPartyWipeEvent")
         #fsm.RemoveManagedCoroutine("OnStuckEvent")
         fsm.RemoveManagedCoroutine("OnPartyMemberBehindEvent")
+        fsm.RemoveManagedCoroutine("OnPartyMemberInDangerEvent")
         fsm.RemoveManagedCoroutine("OnPartyMemberDeadBehindEvent")
         fsm.RemoveManagedCoroutine("OnPartyMemberDeadEvent")
 

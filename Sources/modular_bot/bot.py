@@ -280,6 +280,9 @@ class ModularBot:
             bot.Events.OnPartyMemberBehindCallback(
                 lambda: bot.Templates.Routines.OnPartyMemberBehind()
             )
+            bot.Events.OnPartyMemberInDangerCallback(
+                lambda: bot.Templates.Routines.OnPartyMemberInDanger()
+            )
             bot.Events.OnPartyMemberDeadBehindCallback(
                 lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
             )

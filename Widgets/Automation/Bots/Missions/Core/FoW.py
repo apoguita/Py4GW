@@ -3,7 +3,7 @@ import os
 import Py4GW
 import PyImGui
 
-from Py4GWCoreLib import Console, ConsoleLog, IniHandler, Timer
+from Py4GWCoreLib import Console, ConsoleLog, IniHandler, Party, Timer
 from Sources.modular_bot.prebuilts.fow import (
     DEFAULT_FOW_ENTRYPOINT_KEY,
     FOW_ENTRYPOINTS,
@@ -146,6 +146,17 @@ def _step_progress() -> tuple[int, int, str, str]:
 def _debug(message: str) -> None:
     if config.debug_logging:
         ConsoleLog(BOT_NAME, message, Console.MessageType.Info)
+
+
+def _should_show_widget() -> bool:
+    try:
+        if not Party.IsPartyLoaded():
+            return True
+        if Party.GetPlayerCount() <= 1:
+            return True
+        return bool(Party.IsPartyLeader())
+    except Exception:
+        return True
 
 
 def _queue_rebuild() -> None:
@@ -341,6 +352,9 @@ def _draw_help() -> None:
 
 def main():
     global bot, _BOT_REBUILD_PENDING
+
+    if not _should_show_widget():
+        return
 
     if bot is None:
         _draw_prestart_window()

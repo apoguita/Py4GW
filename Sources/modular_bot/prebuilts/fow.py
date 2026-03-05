@@ -56,39 +56,8 @@ COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS = {
     int(ModelID.Bone.value),
     int(ModelID.Pile_Of_Glittering_Dust.value),
     int(ModelID.Feather.value),
+    int(ModelID.Iron_Ingot.value),
 }
-ALL_COMMON_MATERIALS = [
-    material_name
-    for model_id, material_name in MaterialMap.items()
-    if int(model_id.value)
-    not in {
-        int(ModelID.Amber_Chunk.value),
-        int(ModelID.Bolt_Of_Damask.value),
-        int(ModelID.Bolt_Of_Linen.value),
-        int(ModelID.Bolt_Of_Silk.value),
-        int(ModelID.Deldrimor_Steel_Ingot.value),
-        int(ModelID.Diamond.value),
-        int(ModelID.Elonian_Leather_Square.value),
-        int(ModelID.Fur_Square.value),
-        int(ModelID.Glob_Of_Ectoplasm.value),
-        int(ModelID.Jadeite_Shard.value),
-        int(ModelID.Leather_Square.value),
-        int(ModelID.Lump_Of_Charcoal.value),
-        int(ModelID.Monstrous_Claw.value),
-        int(ModelID.Monstrous_Eye.value),
-        int(ModelID.Monstrous_Fang.value),
-        int(ModelID.Obsidian_Shard.value),
-        int(ModelID.Onyx_Gemstone.value),
-        int(ModelID.Roll_Of_Parchment.value),
-        int(ModelID.Roll_Of_Vellum.value),
-        int(ModelID.Ruby.value),
-        int(ModelID.Sapphire.value),
-        int(ModelID.Spiritwood_Plank.value),
-        int(ModelID.Steel_Ingot.value),
-        int(ModelID.Tempered_Glass_Vial.value),
-        int(ModelID.Vial_Of_Ink.value),
-    }
-]
 
 
 @dataclass(slots=True)
@@ -114,16 +83,16 @@ def _resolve_entrypoint(entrypoint: str) -> tuple[str, int]:
     return FOW_ENTRYPOINTS.get(key, FOW_ENTRYPOINTS[DEFAULT_FOW_ENTRYPOINT_KEY])
 
 
-def _resolve_materials_to_sell(options: ModularFowOptions) -> list[str]:
+def _resolve_materials_to_sell(options: ModularFowOptions) -> list[str] | None:
     if options.sell_all_common_materials:
-        return list(ALL_COMMON_MATERIALS)
+        # None => let sell_materials use runtime material checks:
+        # IsMaterial && !IsRareMaterial.
+        return None
     if options.sell_non_cons_materials:
         return [
             material_name
             for model_id, material_name in MaterialMap.items()
-            if int(model_id.value) in {int(m.value) for m in MaterialMap.keys()}
-            and int(model_id.value) not in COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS
-            and material_name in ALL_COMMON_MATERIALS
+            if int(model_id.value) not in COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS
         ]
     return []
 
@@ -147,22 +116,25 @@ def build_fow_phases(
             {"type": "leave_party", "name": "Leave Party", "multibox": True},
             {"type": "travel_gh", "name": "Travel to Guild Hall", "ms": 7000, "multibox": True},
             {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
+            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
             {"type": "set_auto_looting", "enabled": bool(options.auto_loot)},
         ]
 
         if options.use_consumables and options.restock_consumables:
             setup_steps.append({"type": "restock_cons"})
 
-        if materials_to_sell:
-            setup_steps.append(
-                {"type": "sell_materials", "name": "Sell Materials", "materials": materials_to_sell, "multibox": True}
-            )
+        if options.sell_all_common_materials or materials_to_sell:
+            sell_step = {"type": "sell_materials", "name": "Sell Materials", "multibox": True, "ms": 5000}
+            if materials_to_sell is not None:
+                sell_step["materials"] = materials_to_sell
+            setup_steps.append(sell_step)
 
-        setup_steps.append({"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True})
+        setup_steps.append({"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True, "ms": 5000})
         
         if options.buy_ectoplasm:
             setup_steps.append(
-                {"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True}
+                {"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}
             )
 
         setup_steps.extend(
