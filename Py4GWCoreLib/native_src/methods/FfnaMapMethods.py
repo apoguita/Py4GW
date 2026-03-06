@@ -16,8 +16,22 @@ from typing import Optional, List
 
 from ..context.MapContext import (
     PathingMap, PathingTrapezoid, Portal, Node, SpawnPoint,
-    TravelPortal, _PORTAL_MODEL_FILE_IDS,
+    TravelPortal,
 )
+
+# Keep local copy of known travel-portal model IDs (same values as runtime detector)
+_KNOWN_PORTAL_MODEL_FILE_IDS: dict[int, str] = {
+    0x4E6B2: "EotN Asura Gate",
+    0x3C5AC: "EotN/Nightfall",
+    0x0A825: "Prophecies/Factions",
+    0x0E723: "Prophecies Shiverpeak",
+    0x4E6F2: "portal",
+    0x4714E: "portal",
+    0x4610A: "portal",
+    0x4F2A4: "portal",
+    0x4F35A: "portal",
+    0x858B:  "portal",
+}
 
 
 # ── FFNA constants ────────────────────────────────────────────────────────
@@ -140,6 +154,55 @@ class FfnaMapMethods:
         return result
 
     @staticmethod
+    def GetPropModelStatsForMap(map_id: int) -> dict:
+        """Return FFNA prop model stats for a map (offline dat).
+
+        Returns keys:
+          - total_props: int
+          - unique_models: int
+          - model_counts: dict[int, int] (sorted by count desc)
+          - known_portal_model_counts: dict[int, int]
+        """
+        data = FfnaMapMethods._read_ffna(map_id)
+        if data is None:
+            return {
+                "total_props": 0,
+                "unique_models": 0,
+                "model_counts": {},
+                "known_portal_model_counts": {},
+            }
+
+        filenames = parse_ffna_prop_filenames(data)
+        positions = parse_ffna_prop_positions(data)
+        if not filenames or not positions:
+            return {
+                "total_props": 0,
+                "unique_models": 0,
+                "model_counts": {},
+                "known_portal_model_counts": {},
+            }
+
+        model_counts: dict[int, int] = {}
+        for filename_index, _x, _y, _z in positions:
+            if filename_index >= len(filenames):
+                continue
+            fid = int(filenames[filename_index])
+            model_counts[fid] = model_counts.get(fid, 0) + 1
+
+        sorted_items = sorted(model_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        sorted_counts = {k: v for k, v in sorted_items}
+        known_portal_model_counts = {
+            fid: cnt for fid, cnt in sorted_items if fid in _KNOWN_PORTAL_MODEL_FILE_IDS
+        }
+
+        return {
+            "total_props": len(positions),
+            "unique_models": len(sorted_counts),
+            "model_counts": sorted_counts,
+            "known_portal_model_counts": known_portal_model_counts,
+        }
+
+    @staticmethod
     def ClearCache(map_id: Optional[int] = None) -> None:
         if map_id is None:
             FfnaMapMethods._pathing_cache.clear()
@@ -256,7 +319,7 @@ def _parse_travel_portals(data: bytes) -> list[TravelPortal]:
         if filename_index >= len(filenames):
             continue
         fid = filenames[filename_index]
-        if fid in _PORTAL_MODEL_FILE_IDS:
+        if fid in _KNOWN_PORTAL_MODEL_FILE_IDS:
             portals.append(TravelPortal(x=x, y=y, z=z, model_file_id=fid))
     return portals
 

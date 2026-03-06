@@ -829,6 +829,13 @@ _PORTAL_MODEL_FILE_IDS: dict[int, str] = {
     0x4E6B2: "EotN Asura Gate",
     0x3C5AC: "EotN/Nightfall",
     0x0A825: "Prophecies/Factions",
+    0x0E723: "Prophecies Shiverpeak",
+    0x4E6F2: "portal",
+    0x4714E: "portal",
+    0x4610A: "portal",
+    0x4F2A4: "portal",
+    0x4F35A: "portal",
+    0x858B:  "portal",
 }
 
 
