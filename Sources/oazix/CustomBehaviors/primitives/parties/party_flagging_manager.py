@@ -336,8 +336,8 @@ class PartyFlaggingManager:
             leader_x: Leader's X position
             leader_y: Leader's Y position
             leader_angle: Leader's facing angle in radians
-            flag_assignments: Dict mapping flag number (1-12) to account email
-                             Example: {1: "player1@email.com", 2: "player2@email.com", ...}
+            flag_assignments: Dict mapping flag number (1-12) to account identifier
+                             Example: {1: "player-1", 2: "player-2", ...}
         """
         # Get spacing from configuration
         spacing = self.spacing_radius

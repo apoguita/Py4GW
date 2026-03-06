@@ -159,6 +159,8 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv311/
+.tmp_pyright/
 env/
 venv/
 ENV/
@@ -217,9 +219,11 @@ Py4GW/.codex/
 Py4GW/SavedLogs/
 Py4GW/drop_log*.csv
 Py4GW/drop_tracker_unknown_mod_pending.json
+Py4GW/drop_tracker_test_session_baseline.json
 Py4GW/merchant_debug/
 bridge_live_watch.out
 Py4GW_injection_log.txt
+fix_viewer.py
 Legacy code and tests/Misc/structure.txt
 Legacy code and tests/Misc/project_tree.txt
 Legacy code and tests/Misc/file_structure.txt
