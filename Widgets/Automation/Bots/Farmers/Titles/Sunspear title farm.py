@@ -51,8 +51,15 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader(f"{BotSettings.BOT_NAME}_loop") # 3
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
-    bot.Move.XYAndInteractNPC(*BotSettings.BOUNTY_COORDS) # Bounty coords
-    bot.Multibox.SendDialogToTarget(BotSettings.BOUNTY_DIALOG) # Get Bounty
+
+    # Bounty interaction
+    bot.Move.XY(*BotSettings.BOUNTY_COORDS)
+    bot.Wait.ForTime(1500)
+    bot.Move.XYAndInteractNPC(*BotSettings.BOUNTY_COORDS)
+    bot.Multibox.SendDialogToTarget(BotSettings.BOUNTY_DIALOG)
+    bot.Wait.ForTime(1500)
+
+    # Killing path
     bot.Move.FollowAutoPath(BotSettings.KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
     bot.States.AddHeader("Resign") # 4
