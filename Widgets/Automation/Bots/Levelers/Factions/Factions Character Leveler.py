@@ -11,6 +11,9 @@ from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 
+MODULE_NAME = "Factions Character Leveler"
+MODULE_ICON = "Textures\\Module_Icons\\Leveler - Factions.png"
+
 bot = Botting("Factions Leveler",
               upkeep_candy_apple_restock=10,
               upkeep_honeycomb_restock=20,

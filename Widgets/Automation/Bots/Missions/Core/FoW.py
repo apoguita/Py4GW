@@ -4,6 +4,9 @@ import Py4GW
 import PyImGui
 
 from Py4GWCoreLib import Console, ConsoleLog, IniHandler, Party, Timer
+from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
+from Py4GWCoreLib.ImGui_src.types import Alignment
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Sources.modular_bot.prebuilts.fow import (
     DEFAULT_FOW_ENTRYPOINT_KEY,
     FOW_ENTRYPOINTS,
@@ -13,7 +16,8 @@ from Sources.modular_bot.prebuilts.fow import (
     create_modular_fow_bot,
 )
 
-
+MODULE_NAME = "Modular FoW"
+MODULE_ICON = "Textures/Module_Icons/Fissure of Woe.png"
 BOT_NAME = "ModularFow"
 SYNC_INTERVAL_MS = 1000
 
@@ -246,7 +250,7 @@ def _draw_prestart_window() -> None:
 
 
 def _draw_main() -> None:
-    is_running = bool(bot.bot.config.fsm_running)
+    is_running = bool(bot.bot.config.fsm_running) if bot is not None else False
     current_step = _fsm_step_name() or "Idle"
     phase_index, phase_total, phase_name = _phase_progress()
     step_index, step_total, recipe_title, step_title = _step_progress()
@@ -376,6 +380,34 @@ def main():
     )
     bot.update()
 
+
+def tooltip():
+    PyImGui.set_next_window_size((400, 0))
+    PyImGui.begin_tooltip()
+
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
+    ImGui.push_font("Regular", 20)
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.spacing()
+    PyImGui.separator()
+
+    # Description
+    PyImGui.text_wrapped("Modular FoW is a widget that integrates the modular FoW bot routine into a Py4GW widget, allowing you to run the FoW route with customizable options and real-time status display directly from the widget interface.")
+    
+    PyImGui.spacing()
+    PyImGui.separator()
+    PyImGui.spacing()
+
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Yods")
+
+    PyImGui.end_tooltip()
 
 if __name__ == "__main__":
     main()
