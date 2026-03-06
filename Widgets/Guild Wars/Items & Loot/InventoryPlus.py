@@ -741,6 +741,65 @@ def _queue_salvage_routine(item_ids: list[int], label: str, rarities: list[str] 
     GLOBAL_CACHE.Coroutines.append(routine)
 
 
+# ---------------------------------------------------------------------------
+# NEW: Stack salvage — repeatedly salvage the same bag+slot until depleted
+# ---------------------------------------------------------------------------
+
+def _run_salvage_stack_routine(bag_id: int, slot: int, label: str, selected_kit: ItemSlotData | None = None):
+    """Coroutine: salvage every item in a stacked slot (same bag+slot) until gone."""
+    from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Console
+    from Py4GWCoreLib.Routines import Routines
+
+    salvaged_count = 0
+    aborted = False
+    max_iterations = 250  # safety cap — no real stack exceeds this
+
+    for _ in range(max_iterations):
+        # Re-resolve the item at this slot each iteration (quantity decreases or item vanishes)
+        item_id = _get_item_id_at_bag_slot(bag_id, slot)
+        if item_id == 0:
+            break  # stack fully consumed
+
+        while True:
+            status = yield from _salvage_single_item_with_supported_kit(item_id, label, selected_kit=selected_kit)
+            if status in {"salvaged", "processed"}:
+                salvaged_count += 1
+                break
+            if status == "retry":
+                yield from Routines.Yield.wait(150)
+                continue
+            if status in {"missing_item", "filtered_out"}:
+                # Item gone or became unsalvageable — stop
+                aborted = True
+                break
+            if status in {"no_kit", "manual_timeout", "popup_failed"}:
+                aborted = True
+                break
+            # Any other failure: stop to avoid infinite loop
+            aborted = True
+            break
+
+        if aborted:
+            break
+
+    if salvaged_count > 0:
+        ConsoleLog("SalvageItems", f"Salvaged stack: {salvaged_count} items from bag {bag_id} slot {slot}.", Console.MessageType.Info)
+
+    return salvaged_count
+
+
+def _queue_salvage_stack(item: ItemSlotData, selected_kit: ItemSlotData | None = None):
+    """Queue a full-stack salvage coroutine for a single inventory slot."""
+    from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+    routine = cast(
+        Generator[Any, None, None],
+        _run_salvage_stack_routine(item.BagID, item.Slot, f"Salvage Stack [{item.Rarity}]", selected_kit=selected_kit),
+    )
+    GLOBAL_CACHE.Coroutines.append(routine)
+
+
+# ---------------------------------------------------------------------------
 
 def _salvage_items(rarity: str, selected_kit: ItemSlotData | None = None):
     salvageable_items = _get_salvageable_items_for_rarities(
@@ -1158,13 +1217,28 @@ class InventoryPlusWidget:
                 routine = Routines.Yield.Items.IdentifyItems([selected_item.ItemID], log=True)
                 GLOBAL_CACHE.Coroutines.append(routine)
                 PyImGui.close_current_popup()
-                
-        if  (selected_item and 
-            (selected_item.IsIdentified or selected_item.Rarity != "White") and 
+
+        if (selected_item and
+            (selected_item.IsIdentified or selected_item.Rarity != "White") and
             Routines.Checks.Items.IsSalvageable(selected_item.ItemID)):
-            if PyImGui.menu_item("Salvage"):
-                _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
-                PyImGui.close_current_popup()
+            # ---------------------------------------------------------------
+            # Stack-aware salvage menu entries
+            # ---------------------------------------------------------------
+            if selected_item.Quantity > 1:
+                # Single salvage (consume one item from the stack)
+                if PyImGui.menu_item("Salvage (\u00d71)"):
+                    _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
+                    PyImGui.close_current_popup()
+                # Full-stack salvage (loop until slot is empty)
+                if PyImGui.menu_item(f"Salvage All (stack off {selected_item.Quantity})"):
+                    _queue_salvage_stack(selected_item)
+                    PyImGui.close_current_popup()
+            else:
+                # Original behaviour for non-stacked items
+                if PyImGui.menu_item("Salvage"):
+                    _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
+                    PyImGui.close_current_popup()
+            # ---------------------------------------------------------------
         
         if selected_item:
             if PyImGui.menu_item("Deposit"):
@@ -2430,5 +2504,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
