@@ -583,6 +583,7 @@ class ItemUpgradeId(IntEnum):
 
 class ItemUpgrade(Enum):
     Unknown = ItemUpgradeId.Unknown
+    
     Adept = {
         ItemType.Staff: ItemUpgradeId.Adept_Staff,
     }
@@ -712,6 +713,7 @@ class ItemUpgrade(Enum):
     Hale = {
         ItemType.Staff: ItemUpgradeId.Hale_Staff,
     }
+    
     OfDefense = {
         ItemType.Axe: ItemUpgradeId.OfDefense_Axe,
         ItemType.Bow: ItemUpgradeId.OfDefense_Bow,
@@ -836,6 +838,7 @@ class ItemUpgrade(Enum):
     OfSwiftness = {
         ItemType.Offhand: ItemUpgradeId.OfSwiftness_Focus,
     }
+    
     BeJustAndFearNot = ItemUpgradeId.BeJustAndFearNot
     DownButNotOut = ItemUpgradeId.DownButNotOut
     FaithIsMyShield = ItemUpgradeId.FaithIsMyShield
@@ -933,6 +936,7 @@ class ItemUpgrade(Enum):
     WindwalkerInsignia = ItemUpgradeId.Windwalker
     ForsakenInsignia = ItemUpgradeId.Forsaken
     CenturionsInsignia = ItemUpgradeId.Centurions
+    
     RuneOfMinorVigor = ItemUpgradeId.OfMinorVigor
     RuneOfMinorVigor2 = ItemUpgradeId.OfMinorVigor2
     RuneOfVitae = ItemUpgradeId.OfVitae
@@ -943,6 +947,7 @@ class ItemUpgrade(Enum):
     RuneOfClarity = ItemUpgradeId.OfClarity
     RuneOfPurity = ItemUpgradeId.OfPurity
     RuneOfSuperiorVigor = ItemUpgradeId.OfSuperiorVigor
+    
     WarriorRuneOfMinorAbsorption = ItemUpgradeId.OfMinorAbsorption
     WarriorRuneOfMinorTactics = ItemUpgradeId.OfMinorTactics
     WarriorRuneOfMinorStrength = ItemUpgradeId.OfMinorStrength
@@ -967,6 +972,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneWarrior = ItemUpgradeId.AppliesToMinorRune_Warrior
     AppliesToMajorRuneWarrior = ItemUpgradeId.AppliesToMajorRune_Warrior
     AppliesToSuperiorRuneWarrior = ItemUpgradeId.AppliesToSuperiorRune_Warrior
+    
     RangerRuneOfMinorWildernessSurvival = ItemUpgradeId.OfMinorWildernessSurvival
     RangerRuneOfMinorExpertise = ItemUpgradeId.OfMinorExpertise
     RangerRuneOfMinorBeastMastery = ItemUpgradeId.OfMinorBeastMastery
@@ -985,6 +991,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneRanger = ItemUpgradeId.AppliesToMinorRune_Ranger
     AppliesToMajorRuneRanger = ItemUpgradeId.AppliesToMajorRune_Ranger
     AppliesToSuperiorRuneRanger = ItemUpgradeId.AppliesToSuperiorRune_Ranger
+    
     MonkRuneOfMinorHealingPrayers = ItemUpgradeId.OfMinorHealingPrayers
     MonkRuneOfMinorSmitingPrayers = ItemUpgradeId.OfMinorSmitingPrayers
     MonkRuneOfMinorProtectionPrayers = ItemUpgradeId.OfMinorProtectionPrayers
@@ -1003,6 +1010,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneMonk = ItemUpgradeId.AppliesToMinorRune_Monk
     AppliesToMajorRuneMonk = ItemUpgradeId.AppliesToMajorRune_Monk
     AppliesToSuperiorRuneMonk = ItemUpgradeId.AppliesToSuperiorRune_Monk
+    
     NecromancerRuneOfMinorBloodMagic = ItemUpgradeId.OfMinorBloodMagic
     NecromancerRuneOfMinorDeathMagic = ItemUpgradeId.OfMinorDeathMagic
     NecromancerRuneOfMinorCurses = ItemUpgradeId.OfMinorCurses
@@ -1021,6 +1029,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneNecromancer = ItemUpgradeId.AppliesToMinorRune_Necromancer
     AppliesToMajorRuneNecromancer = ItemUpgradeId.AppliesToMajorRune_Necromancer
     AppliesToSuperiorRuneNecromancer = ItemUpgradeId.AppliesToSuperiorRune_Necromancer
+    
     MesmerRuneOfMinorFastCasting = ItemUpgradeId.OfMinorFastCasting
     MesmerRuneOfMinorDominationMagic = ItemUpgradeId.OfMinorDominationMagic
     MesmerRuneOfMinorIllusionMagic = ItemUpgradeId.OfMinorIllusionMagic
@@ -1039,6 +1048,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneMesmer = ItemUpgradeId.AppliesToMinorRune_Mesmer
     AppliesToMajorRuneMesmer = ItemUpgradeId.AppliesToMajorRune_Mesmer
     AppliesToSuperiorRuneMesmer = ItemUpgradeId.AppliesToSuperiorRune_Mesmer
+    
     ElementalistRuneOfMinorEnergyStorage = ItemUpgradeId.OfMinorEnergyStorage
     ElementalistRuneOfMinorFireMagic = ItemUpgradeId.OfMinorFireMagic
     ElementalistRuneOfMinorAirMagic = ItemUpgradeId.OfMinorAirMagic
@@ -1060,6 +1070,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneElementalist = ItemUpgradeId.AppliesToMinorRune_Elementalist
     AppliesToMajorRuneElementalist = ItemUpgradeId.AppliesToMajorRune_Elementalist
     AppliesToSuperiorRuneElementalist = ItemUpgradeId.AppliesToSuperiorRune_Elementalist
+    
     AssassinRuneOfMinorCriticalStrikes = ItemUpgradeId.OfMinorCriticalStrikes
     AssassinRuneOfMinorDaggerMastery = ItemUpgradeId.OfMinorDaggerMastery
     AssassinRuneOfMinorDeadlyArts = ItemUpgradeId.OfMinorDeadlyArts
@@ -1078,6 +1089,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneAssassin = ItemUpgradeId.AppliesToMinorRune_Assassin
     AppliesToMajorRuneAssassin = ItemUpgradeId.AppliesToMajorRune_Assassin
     AppliesToSuperiorRuneAssassin = ItemUpgradeId.AppliesToSuperiorRune_Assassin
+    
     RitualistRuneOfMinorChannelingMagic = ItemUpgradeId.OfMinorChannelingMagic
     RitualistRuneOfMinorRestorationMagic = ItemUpgradeId.OfMinorRestorationMagic
     RitualistRuneOfMinorCommuning = ItemUpgradeId.OfMinorCommuning
@@ -1096,6 +1108,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneRitualist = ItemUpgradeId.AppliesToMinorRune_Ritualist
     AppliesToMajorRuneRitualist = ItemUpgradeId.AppliesToMajorRune_Ritualist
     AppliesToSuperiorRuneRitualist = ItemUpgradeId.AppliesToSuperiorRune_Ritualist
+    
     DervishRuneOfMinorMysticism = ItemUpgradeId.OfMinorMysticism
     DervishRuneOfMinorEarthPrayers = ItemUpgradeId.OfMinorEarthPrayers
     DervishRuneOfMinorScytheMastery = ItemUpgradeId.OfMinorScytheMastery
@@ -1114,6 +1127,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneDervish = ItemUpgradeId.AppliesToMinorRune_Dervish
     AppliesToMajorRuneDervish = ItemUpgradeId.AppliesToMajorRune_Dervish
     AppliesToSuperiorRuneDervish = ItemUpgradeId.AppliesToSuperiorRune_Dervish
+    
     ParagonRuneOfMinorLeadership = ItemUpgradeId.OfMinorLeadership
     ParagonRuneOfMinorMotivation = ItemUpgradeId.OfMinorMotivation
     ParagonRuneOfMinorCommand = ItemUpgradeId.OfMinorCommand
@@ -1132,7 +1146,7 @@ class ItemUpgrade(Enum):
     AppliesToMinorRuneParagon = ItemUpgradeId.AppliesToMinorRune_Paragon
     AppliesToMajorRuneParagon = ItemUpgradeId.AppliesToMajorRune_Paragon
     AppliesToSuperiorRuneParagon = ItemUpgradeId.AppliesToSuperiorRune_Paragon
-
+        
     @property
     def item_type_id_map(self) -> dict[ItemType, "ItemUpgradeId"]:
         return self.value if isinstance(self.value, dict) else {}

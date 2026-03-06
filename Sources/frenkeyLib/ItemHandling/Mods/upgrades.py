@@ -28,6 +28,9 @@ class Upgrade:
     
     names: dict[ServerLanguage, str] = {}
     descriptions: dict[ServerLanguage, str] = {}
+    
+    def __init__(self):
+        self.is_inherent = False
 
     @classmethod
     def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, modifiers: list[DecodedModifier],) -> None:
