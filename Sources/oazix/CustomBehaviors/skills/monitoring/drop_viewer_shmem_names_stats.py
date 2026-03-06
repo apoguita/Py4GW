@@ -2,7 +2,6 @@ import re
 
 from Py4GWCoreLib import Py4GW
 
-from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import update_rows_item_stats_by_event_and_sender
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import decode_name_chunk_meta
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import make_name_signature
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport import (
@@ -14,6 +13,7 @@ from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_transport impo
     merge_stats_text_chunk,
     payload_has_valid_mods_json,
 )
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_row_updates import update_rows_item_stats_by_event_and_sender
 
 
 def _append_stats_binding_debug_log(
@@ -173,6 +173,32 @@ def _should_bind_stats_to_rows(
     if not compact_candidates:
         return False
     return _compact_name_keys_overlap(compact_rows, compact_candidates)
+
+
+def _should_preserve_existing_stats_text(viewer, existing_text: str, incoming_text: str) -> bool:
+    normalized_existing = viewer._normalize_stats_text(existing_text)
+    normalized_incoming = viewer._normalize_stats_text(incoming_text)
+    if not normalized_existing or not normalized_incoming:
+        return False
+    if normalized_existing == normalized_incoming:
+        return False
+    try:
+        existing_unidentified = bool(viewer._is_unidentified_stats_text(normalized_existing))
+    except AttributeError:
+        existing_unidentified = str(normalized_existing.splitlines()[0]).strip().lower() == "unidentified"
+    try:
+        incoming_unidentified = bool(viewer._is_unidentified_stats_text(normalized_incoming))
+    except AttributeError:
+        incoming_unidentified = str(normalized_incoming.splitlines()[0]).strip().lower() == "unidentified"
+    if existing_unidentified:
+        return False
+    existing_basic = bool(viewer._stats_text_is_basic(normalized_existing))
+    incoming_basic = bool(viewer._stats_text_is_basic(normalized_incoming))
+    if incoming_unidentified:
+        return True
+    if (not existing_basic) and incoming_basic:
+        return True
+    return False
 
 
 def _pending_row_matches_name_signature(
@@ -502,7 +528,7 @@ def process_tracker_stats_payload_message(
             viewer._rebuild_aggregates_from_raw_drops()
         if rendered and should_bind:
             update_rows_item_stats_by_event_and_sender(
-                viewer.raw_drops,
+                viewer,
                 event_id,
                 stats_sender_email,
                 rendered,
@@ -587,17 +613,24 @@ def process_tracker_stats_text_message(
     def _on_text_merged(event_id, merged):
         stats_cache_key = viewer._make_stats_cache_key(event_id, stats_sender_email, stats_sender_name)
         normalized_merged = viewer._normalize_stats_text(merged)
+        existing_state_text = viewer._get_event_state_stats_text(stats_cache_key)
+        preserve_existing = _should_preserve_existing_stats_text(
+            viewer,
+            existing_state_text,
+            normalized_merged,
+        )
+        effective_text = existing_state_text if preserve_existing else normalized_merged
         viewer._update_event_state(
             stats_cache_key,
-            identified=viewer._infer_identified_from_stats_text(normalized_merged),
-            stats_text=normalized_merged,
+            identified=viewer._infer_identified_from_stats_text(effective_text),
+            stats_text=effective_text,
             set_stats_text=True,
         )
-        viewer.stats_by_event[stats_cache_key] = normalized_merged
+        viewer.stats_by_event[stats_cache_key] = effective_text
         viewer.remote_stats_pending_by_event.pop(stats_cache_key, None)
         first_line = ""
-        if normalized_merged:
-            first_line = viewer._ensure_text(normalized_merged.splitlines()[0]).strip()
+        if effective_text:
+            first_line = viewer._ensure_text(effective_text.splitlines()[0]).strip()
             if re.match(
                 r"(?i)^(value:|damage:|armor:|requires\b|halves\b|reduces\b|improved sale value\b)",
                 first_line,
@@ -623,9 +656,22 @@ def process_tracker_stats_text_message(
             row_names_before=before_names,
             row_names_after=after_names,
             first_line_name=first_line,
-            rendered_head=normalized_merged,
+            rendered_head=effective_text,
             update_source="text",
         )
+        if preserve_existing:
+            _append_stats_binding_debug_log(
+                viewer,
+                "viewer_stats_text_downgrade_ignored",
+                event_id=event_id,
+                sender_email=stats_sender_email,
+                player_name=stats_sender_name,
+                row_names_before=before_names,
+                row_names_after=after_names,
+                first_line_name=first_line,
+                rendered_head=normalized_merged,
+                update_source="text",
+            )
         _append_stats_name_mismatch_debug_log(
             viewer,
             event_id=event_id,
@@ -633,7 +679,7 @@ def process_tracker_stats_text_message(
             player_name=stats_sender_name,
             row_names=after_names or before_names,
             first_line_name=first_line,
-            rendered_head=normalized_merged,
+            rendered_head=effective_text,
             update_source="text",
         )
         should_bind = _should_bind_stats_to_rows(
@@ -653,10 +699,10 @@ def process_tracker_stats_text_message(
             viewer._rebuild_aggregates_from_raw_drops()
         if should_bind:
             update_rows_item_stats_by_event_and_sender(
-                viewer.raw_drops,
+                viewer,
                 event_id,
                 stats_sender_email,
-                normalized_merged,
+                effective_text,
                 player_name=stats_sender_name,
                 allow_player_fallback=False,
             )
@@ -675,7 +721,7 @@ def process_tracker_stats_text_message(
                             break
                 can_update_selected = event_matches <= 1
             if can_update_selected:
-                viewer._set_row_item_stats(viewer.selected_log_row, normalized_merged)
+                viewer._set_row_item_stats(viewer.selected_log_row, effective_text)
 
     if handle_tracker_stats_text_branch(
         extra_0=extra_0,

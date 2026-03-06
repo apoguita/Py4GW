@@ -7,6 +7,7 @@ from Py4GWCoreLib import Item, Py4GW
 
 from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
     build_known_spellcasting_mod_lines,
+    normalize_identified_armor_name,
     prune_generic_attribute_bonus_lines,
     render_mod_description_template,
     sort_stats_lines_like_ingame,
@@ -282,22 +283,11 @@ def prune_generic_attribute_bonus_lines_local(_sender, lines: list[str]) -> list
 
 
 def normalize_stats_lines(_sender, lines: list[str]) -> list[str]:
-    split_pattern = re.compile(
-        r"(?i)(?<!^)(requires\s+\d+|damage:\s*\d|damage\s*\d|armor:\s*\d|armor\s*\d|energy\s*[+-]\d|halves\s|reduces\s|value:\s*\d|improved sale value)"
-    )
     normalized = []
     for raw in list(lines or []):
         txt = str(raw or "").strip()
         if not txt:
             continue
-        while True:
-            match = split_pattern.search(txt)
-            if not match:
-                break
-            head = txt[: match.start()].strip()
-            if head:
-                normalized.append(head)
-            txt = txt[match.start() :].strip()
         if txt:
             normalized.append(txt)
     return sort_stats_lines_like_ingame(normalized)
@@ -613,6 +603,9 @@ def _synthesize_identified_name_from_parts(
             _compose_old_school_name(clean_base, prefix, suffix)
             or _compose_inscribable_name(clean_base, prefix, inherent)
         )
+    normalized_armor_name = normalize_identified_armor_name(clean_base, prefix, suffix, inherent)
+    if normalized_armor_name:
+        candidate = normalized_armor_name
     _emit_name_variant_debug(
         sender,
         branch,

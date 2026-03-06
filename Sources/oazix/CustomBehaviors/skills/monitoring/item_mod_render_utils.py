@@ -42,6 +42,16 @@ _MOD_HINT_RE = re.compile(
     r"(?i)^(halves|reduces|lengthens|increases|while\b|chance\b|damage\s*\+\d+|armor\s*\+\d+|energy\s*[+-]\d+|health\s*[+-]\d+)"
 )
 _ATTRIBUTE_BONUS_RE = re.compile(r"(?i)^([a-z][a-z ']+|attribute\s+\d+|\d+)\s*\+\s*\d+")
+_ARMOR_BASE_NAME_RE = re.compile(
+    r"(?i)\b("
+    r"armor|harness|outfit|cladding|robes|vestments|raiment|attire|garb|guise|"
+    r"regalia|shroud|tunic|coat|jerkin|vest|helm|cap|mask|headpiece|leggings|"
+    r"boots|sandals|gloves|gauntlets|wraps"
+    r")\b"
+)
+_BRACKETED_TAG_RE = re.compile(r"\s*\[[^\]]+\]")
+_INSIGNIA_SUFFIX_RE = re.compile(r"(?i)\s+insignia(?:\s*\[[^\]]+\])?\s*$")
+_RUNE_OF_RE = re.compile(r"(?i)^(?:[a-z]+(?:\s+[a-z]+)?\s+)?rune of\s+(.+)$")
 
 
 def _safe_int(value, default=0):
@@ -178,6 +188,42 @@ def sort_stats_lines_like_ingame(lines) -> list[str]:
 
     ranked.sort(key=lambda item: (item[0], item[1], item[2]))
     return [txt for _, _, _, txt in ranked]
+
+
+def normalize_identified_armor_name(base_name: str, prefix: str = "", suffix: str = "", inherent: str = "") -> str:
+    clean_base = str(base_name or "").strip()
+    if not clean_base or not _ARMOR_BASE_NAME_RE.search(clean_base):
+        return ""
+
+    clean_prefix = str(prefix or "").strip()
+    clean_suffix = str(suffix or "").strip()
+    clean_inherent = str(inherent or "").strip()
+
+    if clean_prefix:
+        clean_prefix = _BRACKETED_TAG_RE.sub("", clean_prefix).strip()
+        clean_prefix = _INSIGNIA_SUFFIX_RE.sub("", clean_prefix).strip()
+
+    suffix_source = clean_suffix or clean_inherent
+    normalized_suffix = ""
+    if suffix_source:
+        rune_match = _RUNE_OF_RE.match(str(suffix_source).strip())
+        if rune_match:
+            rune_tail = str(rune_match.group(1) or "").strip()
+            if rune_tail:
+                normalized_suffix = f"of {rune_tail}"
+        elif str(suffix_source).strip().lower().startswith("of "):
+            normalized_suffix = str(suffix_source).strip()
+
+    parts = []
+    if clean_prefix:
+        parts.append(clean_prefix)
+    parts.append(clean_base)
+    if normalized_suffix:
+        parts.append(normalized_suffix)
+    candidate = " ".join(part for part in parts if part).strip()
+    if not candidate or candidate.lower() == clean_base.lower():
+        return ""
+    return candidate
 
 
 def is_wand_or_staff_type(item_type) -> bool:

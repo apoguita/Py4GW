@@ -356,7 +356,11 @@ def process_pending_name_refreshes(sender) -> int:
             continue
 
         clean_name = sender._resolve_best_live_item_name(item_id, original_name)
-        if not clean_name or clean_name.startswith("Model#") or clean_name == original_name:
+        if (
+            not clean_name
+            or clean_name.startswith("Model#")
+            or (clean_name == original_name and not bool(refresh.get("name_sent", False)))
+        ):
             refresh["next_poll_at"] = now_ts + poll_s
             if bool(getattr(sender, "live_debug_detailed", True)):
                 _emit_live_debug(
@@ -414,24 +418,29 @@ def process_pending_name_refreshes(sender) -> int:
                 )
             continue
 
-        sender._log_name_trace(
-            (
-                f"NAME TRACE refresh_send ev={event_key} old='{original_name or '-'}' new='{clean_name or '-'}' "
-                f"sig={original_signature or '-'} receiver={receiver_email or '-'}"
-            )
-        )
-        try:
-            sent_name_chunks = bool(
-                sender._send_name_chunks(
-                    receiver_email,
-                    my_email,
-                    original_signature,
-                    clean_name,
-                    event_id=event_key,
+        already_sent_name = bool(refresh.get("name_sent", False))
+        sent_name_chunks = False
+        if already_sent_name and str(refresh.get("item_name", "") or "").strip() == clean_name:
+            sent_name_chunks = True
+        else:
+            sender._log_name_trace(
+                (
+                    f"NAME TRACE refresh_send ev={event_key} old='{original_name or '-'}' new='{clean_name or '-'}' "
+                    f"sig={original_signature or '-'} receiver={receiver_email or '-'}"
                 )
             )
-        except TypeError:
-            sent_name_chunks = bool(sender._send_name_chunks(receiver_email, my_email, original_signature, clean_name))
+            try:
+                sent_name_chunks = bool(
+                    sender._send_name_chunks(
+                        receiver_email,
+                        my_email,
+                        original_signature,
+                        clean_name,
+                        event_id=event_key,
+                    )
+                )
+            except TypeError:
+                sent_name_chunks = bool(sender._send_name_chunks(receiver_email, my_email, original_signature, clean_name))
         if sent_name_chunks:
             sender._remember_event_identity(
                 event_id=event_key,
@@ -441,6 +450,9 @@ def process_pending_name_refreshes(sender) -> int:
                 name_signature=original_signature,
                 rarity=str(refresh.get("rarity", "") or "").strip(),
             )
+            refresh["item_name"] = clean_name
+            refresh["name_sent"] = True
+            stats_retry_needed = False
             if bool(getattr(sender, "refresh_stats_after_name_refresh", True)):
                 previous_stats = ""
                 try:
@@ -456,6 +468,7 @@ def process_pending_name_refreshes(sender) -> int:
                     except EXPECTED_RUNTIME_ERRORS:
                         previous_stats = ""
                 if _is_unidentified_stats_text(previous_stats):
+                    stats_retry_needed = True
                     refreshed_stats = str(sender._build_item_stats_text(int(item_id), clean_name) or "").strip()
                     if refreshed_stats and (not _is_unidentified_stats_text(refreshed_stats)):
                         try:
@@ -470,6 +483,7 @@ def process_pending_name_refreshes(sender) -> int:
                         except EXPECTED_RUNTIME_ERRORS:
                             sent_stats = False
                         if sent_stats:
+                            stats_retry_needed = False
                             sender._remember_event_stats_snapshot(
                                 event_id=event_key,
                                 item_id=int(item_id),
@@ -490,6 +504,10 @@ def process_pending_name_refreshes(sender) -> int:
                                     model_id=int(model_id),
                                     item_name=str(clean_name or "").strip(),
                                 )
+                if stats_retry_needed:
+                    refresh["next_poll_at"] = now_ts + poll_s
+                    pending[event_key] = refresh
+                    continue
             pending.pop(event_key, None)
             continue
         refresh["next_poll_at"] = now_ts + poll_s

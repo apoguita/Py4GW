@@ -2,6 +2,7 @@ import datetime
 from typing import Any
 
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_models import DropLogRow
+from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_row_ops import parse_runtime_row
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_tracker_protocol import make_name_signature
 from Sources.oazix.CustomBehaviors.skills.monitoring.drop_viewer_batch_store import persist_runtime_row_to_file
 
@@ -20,6 +21,58 @@ def set_row_item_name(viewer, row: Any, item_name: Any) -> None:
         row.append("")
     row[5] = viewer._clean_item_name(item_name) or "Unknown Item"
     persist_runtime_row_to_file(viewer, row)
+
+
+def update_rows_item_stats_by_event_and_sender(
+    viewer,
+    event_id: str,
+    sender_email: str,
+    item_stats: str,
+    player_name: str = "",
+    allow_player_fallback: bool = True,
+) -> int:
+    event_key = viewer._ensure_text(event_id).strip()
+    sender_key = viewer._ensure_text(sender_email).strip().lower()
+    player_key = viewer._ensure_text(player_name).strip().lower()
+    if not event_key:
+        return 0
+
+    matched_rows: list[Any] = []
+    for row in viewer.raw_drops:
+        parsed = parse_runtime_row(row)
+        if parsed is None:
+            continue
+        row_event = viewer._ensure_text(parsed.event_id).strip()
+        if row_event != event_key:
+            continue
+        row_sender = viewer._ensure_text(parsed.sender_email).strip().lower()
+        row_player = viewer._ensure_text(parsed.player_name).strip().lower()
+        if sender_key:
+            if row_sender != sender_key:
+                continue
+        elif allow_player_fallback:
+            if not player_key or row_player != player_key:
+                continue
+        else:
+            continue
+        matched_rows.append(row)
+
+    if not matched_rows and allow_player_fallback and player_key:
+        for row in viewer.raw_drops:
+            parsed = parse_runtime_row(row)
+            if parsed is None:
+                continue
+            row_event = viewer._ensure_text(parsed.event_id).strip()
+            row_player = viewer._ensure_text(parsed.player_name).strip().lower()
+            if row_event == event_key and row_player == player_key:
+                matched_rows.append(row)
+
+    if not matched_rows:
+        return 0
+
+    for row in matched_rows:
+        set_row_item_stats(viewer, row, item_stats)
+    return len(matched_rows)
 
 
 def _append_name_update_debug_log(

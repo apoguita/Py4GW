@@ -1,6 +1,7 @@
 from Sources.oazix.CustomBehaviors.skills.monitoring.item_mod_render_utils import (
     build_known_spellcasting_mod_lines,
     build_spellcast_hct_hsr_lines,
+    normalize_identified_armor_name,
     sort_stats_lines_like_ingame,
 )
 
@@ -213,6 +214,33 @@ def test_build_known_spellcasting_mod_lines_renders_42290_inscription_marker():
     )
 
     assert "Inscription: 177" in lines
+
+
+def test_normalize_identified_armor_name_strips_insignia_wrapper_but_keeps_prefix():
+    assert normalize_identified_armor_name(
+        "Titan Armor",
+        "Hydromancer Insignia [Elementalist]",
+        "Elementalist Rune of Superior Energy Storage",
+        "",
+    ) == "Hydromancer Titan Armor of Superior Energy Storage"
+
+
+def test_normalize_identified_armor_name_keeps_existing_thematic_prefix():
+    assert normalize_identified_armor_name(
+        "Titan Armor",
+        "Prodigy's",
+        "Monk Rune of Superior Healing Prayers",
+        "",
+    ) == "Prodigy's Titan Armor of Superior Healing Prayers"
+
+
+def test_normalize_identified_armor_name_returns_empty_for_non_armor_items():
+    assert normalize_identified_armor_name(
+        "Raven Staff",
+        "Hale",
+        "Channeling Magic",
+        "",
+    ) == ""
 
 
 def test_build_spellcast_hct_hsr_lines_does_not_use_attribute_id_as_chance():
