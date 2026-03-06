@@ -4,31 +4,24 @@ import PyImGui
 import os
 import time
 
-MODULE_NAME = "Lightbringer Title Farm (Mirror Of Lyss)"
-MODULE_ICON = "Textures/Skill_Icons/[1813] - Lightbringer.jpg"
+MODULE_NAME = "Sunspear Title Farm"
+MODULE_ICON = "Textures/Skill_Icons/[1816] - Sunspear Rebirth Signet.jpg"
 
 class BotSettings:
-    BOT_NAME = "Lightbringer - MirrorOfLyss"
-    OUTPOST_TO_TRAVEL = 433
-    EXPLORABLE_TO_TRAVEL = 419
-    COORD_TO_EXIT_MAP = (-4779, -1726)
-    COORD_TO_ENTER_MAP = (23342, 10578)
+    BOT_NAME = "Sunspear Title Farm"
+    OUTPOST_TO_TRAVEL = 381
+    EXPLORABLE_TO_TRAVEL = 380
+    COORD_TO_EXIT_MAP = (4603,904)
+    COORD_TO_ENTER_MAP = (-20222,-14488)
     KILLING_PATH:list[tuple[float, float]] = [
-    (15914,10322),
-    (12202,8074),
-    (13750,5535),
-    (13277,3332),
-    (11737,1475),
-    (10912,3648),
-    (20100,7990),
-    (19201,733),
-    (20273,-5210),
-    (16293,-5574),
-    (19066,-12837),
-    ]
-    BOUNTY_COORDS = (19505.00, 11209.00)
+    (-18697,-12296),
+    (-18374,-9273),
+    (-17825,-15320),
+    (-17082,-17377),
+]
+    BOUNTY_COORDS = (-17223.00, -12543.00)
     BOUNTY_DIALOG = 0x85
-    TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[1813] - Lightbringer.jpg")
+    TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[1816] - Sunspear Rebirth Signet.jpg")
 
 bot = Botting(BotSettings.BOT_NAME,
               upkeep_armor_of_salvation_restock=2,
@@ -144,14 +137,12 @@ def _draw_help(bot:Botting):
     PyImGui.text("Multi-account bot to " + BotSettings.BOT_NAME)
     PyImGui.spacing()
     PyImGui.text_colored("Requirements:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Dzagonur Bastion outpost")
-    PyImGui.bullet_text("Quest -The Search for Survivors- should not be active")     
+    PyImGui.bullet_text("Yohlon Haven outpost")     
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Aura")
     PyImGui.bullet_text("Contributors:")
     PyImGui.bullet_text("- Wick-Divinus for script template")
-    PyImGui.bullet_text("- Kronos for script idea and coords")
 
 def tooltip():
     PyImGui.begin_tooltip()
@@ -166,14 +157,12 @@ def tooltip():
     PyImGui.text("Multi-account bot to " + BotSettings.BOT_NAME)
     PyImGui.spacing()
     PyImGui.text_colored("Requirements:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Dzagonur Bastion outpost")
-    PyImGui.bullet_text("Quest -The Search for Survivors- should not be active")     
+    PyImGui.bullet_text("Yohlon Haven outpost")  
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Aura")
     PyImGui.bullet_text("Contributors:")
     PyImGui.bullet_text("- Wick-Divinus for script template")
-    PyImGui.bullet_text("- Kronos for script idea and coords")
     PyImGui.end_tooltip()
 
 _session_baselines: dict[str, int] = {}
@@ -182,8 +171,8 @@ _session_start_times: dict[str, float] = {}
 def _draw_title_track():
     global _session_baselines, _session_start_times
 
-    title_idx = int(TitleID.Lightbringer)
-    tiers = TITLE_TIERS.get(TitleID.Lightbringer, [])
+    title_idx = int(TitleID.Sunspear)
+    tiers = TITLE_TIERS.get(TitleID.Sunspear, [])
     now = time.time()
     for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
         name = account.AgentData.CharacterName
