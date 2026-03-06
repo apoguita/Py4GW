@@ -250,7 +250,7 @@ def _draw_prestart_window() -> None:
 
 
 def _draw_main() -> None:
-    is_running = bool(bot.bot.config.fsm_running)
+    is_running = bool(bot.bot.config.fsm_running) if bot is not None else False
     current_step = _fsm_step_name() or "Idle"
     phase_index, phase_total, phase_name = _phase_progress()
     step_index, step_total, recipe_title, step_title = _step_progress()
