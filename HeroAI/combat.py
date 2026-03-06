@@ -15,8 +15,18 @@ from typing import Optional
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
 
-# Alcohol items for Drunken Master optimization (+1 drunk level items)
-ALCOHOL_MODEL_IDS = [
+# Level 3 alcohol: each drink gives +3 or more — one drink reaches target level
+ALCOHOL_L3_MODEL_IDS = [
+    ModelID.Aged_Dwarven_Ale.value,
+    ModelID.Aged_Hunters_Ale.value,
+    ModelID.Keg_Of_Aged_Hunters_Ale.value,
+    ModelID.Bottle_Of_Grog.value,
+    ModelID.Spiked_Eggnog.value,
+    ModelID.Vial_Of_Absinthe.value,
+    ModelID.Witchs_Brew.value,
+]
+# Level 1 alcohol: each drink gives +1 — needs multiple uses to reach target level
+ALCOHOL_L1_MODEL_IDS = [
     ModelID.Dwarven_Ale.value,
     ModelID.Hunters_Ale.value,
     ModelID.Bottle_Of_Rice_Wine.value,
@@ -25,9 +35,9 @@ ALCOHOL_MODEL_IDS = [
     ModelID.Shamrock_Ale.value,
     ModelID.Hard_Apple_Cider.value,
     ModelID.Eggnog.value,
-    ModelID.Vial_Of_Absinthe.value,
-    ModelID.Witchs_Brew.value,
 ]
+# Combined list: L3 items preferred first for efficiency
+ALCOHOL_MODEL_IDS = ALCOHOL_L3_MODEL_IDS + ALCOHOL_L1_MODEL_IDS
 
 #region CombatClass
 class CombatClass:
@@ -1196,15 +1206,15 @@ class CombatClass:
     def UseAlcoholIfAvailable(self):
         """
         Checks inventory for alcohol and uses the first available one.
-        Only uses alcohol if drunk level is 0 (not drunk).
+        Only uses alcohol if drunk level is below 3.
         Returns True if alcohol was used, False otherwise.
         """
         try:
-            # Check if already drunk
+            # Check if already at target drunk level
             drunk_level = self.GetDrunkLevel()
             Py4GW.Console.Log("HeroAI", f"Drunken Master: drunk level = {drunk_level}", Py4GW.Console.MessageType.Debug)
-            
-            if drunk_level > 0:
+
+            if drunk_level >= 3:
                 Py4GW.Console.Log("HeroAI", f"Already drunk (level {drunk_level}), skipping alcohol", Py4GW.Console.MessageType.Debug)
                 return False
             

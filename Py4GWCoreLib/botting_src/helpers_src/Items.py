@@ -489,15 +489,66 @@ class _Items:
     @_yield_step(label="DepositConsetPconsSummoningStonesCitySpeed", counter_key="DEPOSIT_CONSET_PCONS_SUMMON_STONES_CITY_SPEED")
     def deposit_conset_pcons_summoning_stones_city_speed(self) -> Generator[Any, Any, bool]:
         """Deposit conset, pcons, summoning stones, and city speed boost items."""
+        from ...Routines import Routines
         deposited = False
-        if (yield from self.deposit_conset()):
+
+        conset_models = [
+            ModelID.Essence_Of_Celerity.value,
+            ModelID.Grail_Of_Might.value,
+            ModelID.Armor_Of_Salvation.value,
+        ]
+        if (yield from self._deposit_model_list(conset_models)):
             deposited = True
-        if (yield from self.deposit_pcons()):
+
+        pcons_models = [
+            ModelID.Birthday_Cupcake.value,
+            ModelID.Candy_Apple.value,
+            ModelID.Golden_Egg.value,
+            ModelID.Candy_Corn.value,
+            ModelID.Honeycomb.value,
+            ModelID.War_Supplies.value,
+            ModelID.Slice_Of_Pumpkin_Pie.value,
+            ModelID.Drake_Kabob.value,
+            ModelID.Bowl_Of_Skalefin_Soup.value,
+            ModelID.Pahnai_Salad.value,
+            ModelID.Scroll_Of_Resurrection.value,
+        ]
+        if (yield from self._deposit_model_list(pcons_models)):
             deposited = True
-        if (yield from self.deposit_summoning_stones()):
+
+        summoning_models = [
+            ModelID.Legionnaire_Summoning_Crystal.value,
+            ModelID.Igneous_Summoning_Stone.value,
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Tengu_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        if (yield from self._deposit_model_list(summoning_models)):
             deposited = True
-        if (yield from self.deposit_city_speed_boost()):
+
+        city_speed_models = [
+            model.value if hasattr(model, "value") else int(model)
+            for model in Routines.Yield.Upkeepers.CITY_SPEED_ITEMS
+        ]
+        if (yield from self._deposit_model_list(city_speed_models)):
             deposited = True
+
         return deposited
 
     @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")
