@@ -109,6 +109,14 @@ class DepositSettings:
     def add_config_vars(self, ini_key: str):
         IniManager().add_bool(key=ini_key, section="Deposit", var_name="use_ctrl_click", name="use_ctrl_click", default=self.use_ctrl_click)
 
+
+@dataclass
+class InventoryWindowSettings:
+    enable_i_window: bool = True
+
+    def add_config_vars(self, ini_key: str):
+        IniManager().add_bool(key=ini_key, section="InventoryWindow", var_name="enable_i_window", name="enable_i_window", default=self.enable_i_window)
+
         
 @dataclass
 class ColorizeSettings:
@@ -816,10 +824,12 @@ class InventoryPlusWidget:
         self.salvage_settings = SalvageSettings()
         self.colorize_settings = ColorizeSettings()
         self.deposit_settings = DepositSettings()
+        self.inventory_window_settings = InventoryWindowSettings()
         
         self.InventorySlots: list[FrameInfo] = []
         self.hovered_item: ItemSlotData | None = None
         self.selected_item: ItemSlotData | None = None
+        self._i_window_was_forced_closed: bool = False
         # The I-window wraps bag slots in extra containers, so remember the working prefix after the first hit.
         self.i_inventory_slot_prefix_cache: list[tuple[int, ...]] = []
         self.pop_up_open: bool = False
@@ -928,6 +938,7 @@ class InventoryPlusWidget:
         self.salvage_settings.add_config_vars(self.ini_key)
         self.colorize_settings.add_config_vars(self.ini_key)
         self.deposit_settings.add_config_vars(self.ini_key)
+        self.inventory_window_settings.add_config_vars(self.ini_key)
         
     def _add_auto_handler_config_vars(self):
         _section = "AutoManager"
@@ -985,6 +996,36 @@ class InventoryPlusWidget:
 
     def _toggle_auto_inventory_enabled(self) -> None:
         self._set_auto_inventory_enabled(not self.auto_inventory_handler.module_active)
+
+    def _set_i_window_enabled(self, enabled: bool) -> None:
+        from Py4GWCoreLib.UIManager import UIManager, WindowID
+
+        self.inventory_window_settings.enable_i_window = enabled
+        if enabled:
+            if self._i_window_was_forced_closed:
+                UIManager.SetWindowVisible(WindowID.WindowID_Inventory, True)
+            self._i_window_was_forced_closed = False
+        else:
+            self.selected_item = None
+            if UIManager.IsWindowVisible(WindowID.WindowID_Inventory):
+                UIManager.SetWindowVisible(WindowID.WindowID_Inventory, False)
+                self._i_window_was_forced_closed = True
+            else:
+                self._i_window_was_forced_closed = False
+        IniManager().set(key=self.ini_key, section="InventoryWindow", var_name="enable_i_window", value=enabled)
+
+    def _toggle_i_window_enabled(self) -> None:
+        self._set_i_window_enabled(not self.inventory_window_settings.enable_i_window)
+
+    def _enforce_i_window_setting(self) -> None:
+        from Py4GWCoreLib.UIManager import UIManager, WindowID
+
+        if self.inventory_window_settings.enable_i_window:
+            return
+
+        if UIManager.IsWindowVisible(WindowID.WindowID_Inventory):
+            UIManager.SetWindowVisible(WindowID.WindowID_Inventory, False)
+            self._i_window_was_forced_closed = True
      
     def load_settings(self):
         def _parse_color(value: str, default_color: Color) -> Color:
@@ -1072,6 +1113,9 @@ class InventoryPlusWidget:
         
         cfg = self.deposit_settings
         cfg.use_ctrl_click = IniManager().getBool(key=self.ini_key, section="Deposit", var_name="use_ctrl_click", default=cfg.use_ctrl_click)
+
+        cfg = self.inventory_window_settings
+        cfg.enable_i_window = IniManager().getBool(key=self.ini_key, section="InventoryWindow", var_name="enable_i_window", default=cfg.enable_i_window)
     
     def load_auto_handler_settings(self):
         self.auto_inventory_handler.module_active = IniManager().getBool(key=self.ini_key, section="AutoManager", var_name="module_active", default=False)
@@ -1193,6 +1237,10 @@ class InventoryPlusWidget:
         label = "Disable Colorize" if self.colorize_settings.enable_colorize else "Enable Colorize"
         if PyImGui.menu_item(label):
             self._toggle_colorize_enabled()
+            PyImGui.close_current_popup()
+        label = "Disable 'I' Window" if self.inventory_window_settings.enable_i_window else "Enable 'I' Window"
+        if PyImGui.menu_item(label):
+            self._toggle_i_window_enabled()
             PyImGui.close_current_popup()
         PyImGui.separator()
         label = "Disable Auto Inventory" if self.auto_inventory_handler.module_active else "Enable Auto Inventory"
@@ -1316,7 +1364,7 @@ class InventoryPlusWidget:
 
         context = InventoryInteractionContext(
             f9_visible=UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags),
-            i_visible=UIManager.IsWindowVisible(WindowID.WindowID_Inventory),
+            i_visible=self.inventory_window_settings.enable_i_window and UIManager.IsWindowVisible(WindowID.WindowID_Inventory),
         )
         if not context.f9_visible and not context.i_visible:
             return context
@@ -1624,6 +1672,8 @@ class InventoryPlusWidget:
         from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
         from Py4GWCoreLib.enums_src.IO_enums import MouseButton
         from Py4GWCoreLib.enums_src.Model_enums import ModelID
+
+        self._enforce_i_window_setting()
 
         # Build shared inventory state first so slot colors and click targeting stay in sync.
         context = self._build_inventory_interaction_context()
@@ -2162,6 +2212,22 @@ class InventoryPlusWidget:
             PyImGui.end_child()
             PyImGui.separator()
             if PyImGui.begin_tab_bar("InventoryPlusConfigTabs"):
+                window_cfg = self.inventory_window_settings
+                if PyImGui.begin_tab_item("Windows"):
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, GW_WHITE.to_tuple_normalized())
+                    new_enable_i_window = PyImGui.checkbox("Enable 'I' Inventory Window", window_cfg.enable_i_window)
+                    PyImGui.pop_style_color(1)
+                    if new_enable_i_window != window_cfg.enable_i_window:
+                        self._set_i_window_enabled(new_enable_i_window)
+
+                    if window_cfg.enable_i_window:
+                        PyImGui.text_wrapped("When enabled, InventoryPlus handles slot highlighting and context actions for the game's 'I' inventory window.")
+                    else:
+                        color = ColorPalette.GetColor("dark_red")
+                        PyImGui.text_colored("Disabled: InventoryPlus forces the game's 'I' inventory window closed.", color.to_tuple_normalized())
+                        PyImGui.text_colored("I-window slot mapping, coloring, and click handling are skipped.", color.to_tuple_normalized())
+                    PyImGui.end_tab_item()
+
                 cfg = self.identification_settings
                 if PyImGui.begin_tab_item("Identification"):
                     if PyImGui.collapsing_header("Identification Menu Options:"):
