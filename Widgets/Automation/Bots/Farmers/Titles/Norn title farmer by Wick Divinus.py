@@ -90,6 +90,8 @@ def bot_routine(bot: Botting) -> None:
     
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
+    bot.Properties.Disable("hero_ai")
+    bot.Multibox.ApplyWidgetPolicy(enable_widgets=('CustomBehaviors',))
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OLAFSTEAD)
     
     bot.Party.SetHardMode(True)
