@@ -145,7 +145,7 @@ def GoToEOTN(bot: Botting) -> None:
 def GetBonusBow(bot: Botting):
     bot.States.AddHeader("Check for Bonus Bow")
 
-    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelEquipped(11723) or Routines.Checks.Inventory.IsItemInInventory(11723):
+    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventoryOrEquipped(11723):
         return
     bot.Map.Travel(194)
     bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
