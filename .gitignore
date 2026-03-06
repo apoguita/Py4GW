@@ -210,3 +210,6 @@ cython_debug/
 
 # macOS system files
 .DS_Store
+
+# Drop tracker runtime artifacts
+Py4GW/drop_tracker_live_debug*.jsonl
