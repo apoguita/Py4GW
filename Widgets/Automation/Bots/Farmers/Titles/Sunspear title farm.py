@@ -164,8 +164,8 @@ _session_start_times: dict[str, float] = {}
 def _draw_title_track():
     global _session_baselines, _session_start_times
 
-    title_idx = int(TitleID.Lightbringer)
-    tiers = TITLE_TIERS.get(TitleID.Lightbringer, [])
+    title_idx = int(TitleID.Sunspear)
+    tiers = TITLE_TIERS.get(TitleID.Sunspear, [])
     now = time.time()
     for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
         name = account.AgentData.CharacterName
