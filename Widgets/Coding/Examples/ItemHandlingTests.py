@@ -13,10 +13,10 @@ from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
-from Sources.frenkeyLib.ItemHandling.Mods.ItemMod import ItemMod
 
 Utils.ClearSubModules("ItemHandling")
+from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
+from Sources.frenkeyLib.ItemHandling.Mods.ItemMod import ItemMod
 from Sources.frenkeyLib.ItemHandling.BTNodes import STORAGE_BAGS, BTNodes
 from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
 
@@ -121,9 +121,8 @@ def main():
     
         if ImGui.begin_tab_bar("##tab_bar"):
             if ImGui.begin_tab_item("Item Upgrades"):
-                ImGui.text("Item Upgrades", 16)
-                
-                if PyImGui.begin_table("Item Upgrades", 2, PyImGui.TableFlags.Borders):                    
+                ImGui.text("Item Upgrades", 16)                
+                if PyImGui.begin_table("Item Upgrades", 2, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable):                    
                     PyImGui.table_setup_column("Upgrade Slot", PyImGui.TableColumnFlags.WidthFixed, 150)
                     PyImGui.table_setup_column("Upgrade Type", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_headers_row()
@@ -136,27 +135,34 @@ def main():
                         PyImGui.text("Prefix")
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(prefix.name if prefix else "None")
+                        if prefix and prefix.is_inherent:
+                            PyImGui.same_line(0, 5)
+                            PyImGui.text_colored(" (Inherent)", RED.color_tuple)
                         
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text("Inscription")
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(inscription.name if inscription else "None")
+                        if inscription and inscription.is_inherent:
+                            PyImGui.same_line(0, 5)
+                            PyImGui.text_colored(" (Inherent)", RED.color_tuple)
+                        
                         
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text("Suffix")
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(suffix.name if suffix else "None")
+                        if suffix and suffix.is_inherent:
+                            PyImGui.same_line(0, 5)
+                            PyImGui.text_colored(" (Inherent)", RED.color_tuple)
                         
                     PyImGui.end_table()
-                
-                ImGui.end_tab_item()
-                ImGui.new_line()
-                
+                                    
                 ImGui.text("Item Properties", 16)
-                if PyImGui.begin_table("Item Properties", 2, PyImGui.TableFlags.Borders):                    
-                    PyImGui.table_setup_column("Property Type", PyImGui.TableColumnFlags.WidthFixed, 150)
+                if PyImGui.begin_table("Item Properties", 2, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable):                    
+                    PyImGui.table_setup_column("Property Type", PyImGui.TableColumnFlags.WidthFixed, 250)
                     PyImGui.table_setup_column("Description", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_headers_row()
                     
@@ -169,6 +175,7 @@ def main():
                             PyImGui.text(prop.describe() if hasattr(prop, "describe") else "None")
                     
                     PyImGui.end_table()
+                ImGui.end_tab_item()
                 
             if ImGui.begin_tab_item("Items"):   
                 if item and item.is_valid:
