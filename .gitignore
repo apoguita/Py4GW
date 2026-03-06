@@ -213,3 +213,13 @@ cython_debug/
 
 # Drop tracker runtime artifacts
 Py4GW/drop_tracker_live_debug*.jsonl
+Py4GW/.codex/
+Py4GW/SavedLogs/
+Py4GW/drop_log*.csv
+Py4GW/drop_tracker_unknown_mod_pending.json
+Py4GW/merchant_debug/
+bridge_live_watch.out
+Py4GW_injection_log.txt
+Legacy code and tests/Misc/structure.txt
+Legacy code and tests/Misc/project_tree.txt
+Legacy code and tests/Misc/file_structure.txt
