@@ -320,10 +320,8 @@ class KeiranThackerayEOTN(BuildMgr):
                 return
 
             # Kite if overwhelmed or low health (no spirit present)
-            if (spirit_id == 0 and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
+            if (spirit_id == 0 and enemies_agro and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
                 #Py4GW.Console.Log("Avoidance", f"Overwhelmed Trigger", Py4GW.Console.MessageType.Warning)
-                if not enemies_agro:
-                    return
                 avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)
                 avg_y = sum(Agent.GetXY(eid)[1] for eid in enemies_agro) / len(enemies_agro)
                 ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 300)
