@@ -56,7 +56,6 @@ class UIManagerExtensions:
         if not visible:
             return False
 
-        Py4GW.Console.Log("UIManagerExtensions", f"Confirm salvage.")   
         UIManager.FrameClick(salvage_window_salvage_button_id)
         return True
     
@@ -69,7 +68,6 @@ class UIManagerExtensions:
         if not visible:
             return False
 
-        Py4GW.Console.Log("UIManagerExtensions", f"Cancel salvage.")   
         UIManager.FrameClick(salvage_window_cancel_button_id)
         return True
     
@@ -87,15 +85,12 @@ class UIManagerExtensions:
         options = UIManagerExtensions.GetSalvageOptions()
 
         if option in options:
-            Py4GW.Console.Log("UIManagerExtensions", f"Selecting salvage option: {option.name}")           
-                                
             # UIManager.FrameClick(options[option])
             PyUIManager.UIManager.test_mouse_action(options[option], 8, 0, 0)              
             UIManagerExtensions.ConfirmSalvageOption()
             
             return True
         else:
-            Py4GW.Console.Log("UIManagerExtensions", f"Salvage option {option.name} not available.")
             UIManagerExtensions.CancelSalvageOption()
 
         return False
@@ -113,9 +108,7 @@ class UIManagerExtensions:
         """
         options = UIManagerExtensions.GetSalvageOptions()
 
-        if option in options:
-            Py4GW.Console.Log("UIManagerExtensions", f"Selecting salvage option: {option.name}")           
-                                
+        if option in options:       
             # UIManager.FrameClick(options[option])
             PyUIManager.UIManager.test_mouse_action(options[option], 8, 0, 0)
             
@@ -163,19 +156,19 @@ class UIManagerExtensions:
 
     @staticmethod
     def IsConfirmLesserMaterialsWindowOpen() -> bool:
-        salvage_lower_kit_id = UIManager.GetChildFrameID(140452905, [6,110])
-        # salvage_lower_kit_yes_button_id = UIManager.GetChildFrameID(140452905, [
-        #                                                             6, 110, 6])
+        # salvage_lower_kit_id = UIManager.GetChildFrameID(140452905, [6,110])
+        salvage_lower_kit_yes_button_id = UIManager.GetChildFrameID(140452905, [6, 110, 6])
         # salvage_lower_kit_no_button_id = UIManager.GetChildFrameID(140452905, [
         #                                                            6, 110, 4])
 
-        return UIManagerExtensions.IsElementVisible(salvage_lower_kit_id)
+        return UIManagerExtensions.IsElementVisible(salvage_lower_kit_yes_button_id)
 
     @staticmethod
     def ConfirmLesserSalvage():
-        salvage_lower_kit_yes_button_id = UIManager.GetChildFrameID(140452905, [
-                                                                    6, 110, 6])
+        salvage_lower_kit_yes_button_id = UIManager.GetChildFrameID(140452905, [6, 110, 6])
+        
         UIManager.FrameClick(salvage_lower_kit_yes_button_id)
+        PyUIManager.UIManager.test_mouse_action(salvage_lower_kit_yes_button_id, 8, 0, 0) 
 
     @staticmethod
     def ConfirmModMaterialSalvage():
@@ -198,11 +191,25 @@ class UIManagerExtensions:
     
     @staticmethod
     def IsSalvageWindowOpen() -> bool:
-        salvage_window_frame_id = UIManager.GetFrameIDByHash(684387150)
-        # salvage_window_salvage_button_id = UIManager.GetChildFrameID(684387150, [2])
+        # salvage_window_frame_id = UIManager.GetFrameIDByHash(684387150)
+        salvage_window_salvage_button_id = UIManager.GetChildFrameID(684387150, [2])
         # salvage_window_cancel_button_id = UIManager.GetChildFrameID(684387150, [1])
 
-        return UIManagerExtensions.IsElementVisible(salvage_window_frame_id)
+        return UIManagerExtensions.IsElementVisible(salvage_window_salvage_button_id)
+    
+    @staticmethod
+    def IsSalvageWindowNoIdentifiedOpen() -> bool:
+        # salvage_window_frame_id = UIManager.GetFrameIDByHash(140452905)
+        salvage_window_salvage_button_id = UIManager.GetChildFrameID(140452905, [6, 111, 6])
+        # salvage_window_cancel_button_id = UIManager.GetChildFrameID(140452905, [6,111,4])
+
+        return UIManagerExtensions.IsElementVisible(salvage_window_salvage_button_id)
+    
+    @staticmethod
+    def ConfirmSalvageWindowNoIdentified():
+        salvage_window_salvage_button_id = UIManager.GetChildFrameID(140452905, [6, 111, 6])
+        UIManager.FrameClick(salvage_window_salvage_button_id)
+            
     
     @staticmethod
     def AnySalvageRelatedWindowOpen() -> bool:

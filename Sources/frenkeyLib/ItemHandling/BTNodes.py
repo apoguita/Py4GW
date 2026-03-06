@@ -12,7 +12,7 @@ from Py4GWCoreLib.Inventory import Inventory
 from Py4GWCoreLib.Item import Bag, Item
 from Py4GWCoreLib.Merchant import Trading
 from Py4GWCoreLib.UIManager import UIManager
-from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE, ItemType
+from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE, ItemType, Rarity
 from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
@@ -439,7 +439,7 @@ class BTNodes:
             salvage_amount: Optional[int] = None,
             allow_expert_for_common_materials: bool = False,
             state_key: str = "_salvage_state",
-            timeout_ms_per_item: int = 500,
+            timeout_ms_per_item: int = 1500,
             aftercast_ms: int = 0,
         ):
             def _reset_state(node: BehaviorTree.Node):
@@ -514,7 +514,8 @@ class BTNodes:
                         if allow_expert_for_common_materials and kit_id == 0:
                             kit_id = _get_expert_salvage_kit()
 
-                    if kit_id <= 0:
+                    kit = ITEM_CACHE.get_item_snapshot(kit_id)
+                    if kit_id <= 0 or (kit is None or kit.model_id == ModelID.Salvage_Kit and (item.rarity > Rarity.White and not item.is_identified)):
                         return BehaviorTree.NodeState.FAILURE
 
                     Inventory.SalvageItem(item_id, kit_id)
@@ -526,7 +527,17 @@ class BTNodes:
                     if UIManagerExtensions.ConfirmLesserSalvage():
                         state.confirm_clicked_at = now
                         return BehaviorTree.NodeState.RUNNING
-
+                    
+                if UIManagerExtensions.ConfirmModMaterialSalvageVisible():
+                    if UIManagerExtensions.ConfirmModMaterialSalvage():
+                        state.confirm_clicked_at = now
+                        return BehaviorTree.NodeState.RUNNING
+                    
+                if UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen():
+                    if UIManagerExtensions.ConfirmSalvageWindowNoIdentified():
+                        state.confirm_clicked_at = now
+                        return BehaviorTree.NodeState.RUNNING
+                    
                 if UIManagerExtensions.IsSalvageWindowOpen():
                     if UIManagerExtensions.SelectSalvageOptionAndSalvage(mode):
                         state.confirm_clicked_at = now
