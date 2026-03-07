@@ -9,8 +9,6 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
                           TitleID, TITLE_TIERS)
 from Py4GWCoreLib import *
 
-MODULE_NAME = "Auspicious Beginnings 3.0 (War Supplies)" 
-MODULE_ICON = "Textures\\Module_Icons\\Keiran Farm.png"
 
 class BotSettings:
     # Map/Outpost IDs
@@ -141,13 +139,14 @@ def GoToEOTN(bot: Botting) -> None:
 
         Map.Travel(BotSettings.EOTN_OUTPOST_ID)
         yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.EOTN_OUTPOST_ID, timeout=15000)
-
+        bot.Party.SetHardMode(False)
+        
     bot.States.AddCustomState(lambda: _go_to_eotn(bot), "GoToEOTN")
       
 def GetBonusBow(bot: Botting):
     bot.States.AddHeader("Check for Bonus Bow")
 
-    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelEquipped(11723) or Routines.Checks.Inventory.IsItemInInventory(11723):
+    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventoryOrEquipped(11723):
         return
     bot.Map.Travel(194)
     bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
