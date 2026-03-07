@@ -841,7 +841,7 @@ def _save_portal_links() -> None:
             ),
             "links": entries,
         }
-        with open(_WP._PORTAL_LINKS_FILE, "w", encoding="utf-8") as fh:
+        with open(_WP._wp.portal_links_file, "w", encoding="utf-8") as fh:
             json.dump(out, fh, indent=2, ensure_ascii=False)
         Py4GW.Console.Log(MODULE_NAME,
             f"Saved {len(entries)} portal links to portal_links.json.",
