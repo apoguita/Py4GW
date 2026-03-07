@@ -7,6 +7,52 @@ from .step_context import StepContext
 from .step_selectors import resolve_agent_xy_from_step
 from .step_utils import log_recipe, parse_step_bool, parse_step_int, wait_after_step
 
+_SELECTOR_OVERRIDE_KEYS = (
+    "x",
+    "y",
+    "npc",
+    "target",
+    "name_contains",
+    "agent_name",
+    "model_id",
+    "nearest",
+)
+
+DEFAULT_NPC_SELECTORS: dict[str, str] = {
+    "merchant": "MERCHANT",
+    "materials": "CRAFTING_MATERIAL_TRADER",
+    "rare_materials": "RARE_MATERIAL_TRADER",
+}
+
+# Supported outposts with specific, known NPC encrypted-name selectors.
+SUPPORTED_MAP_NPC_SELECTORS: dict[int, dict[str, str]] = {
+    642: {  # Eye of the North
+        "merchant": "MARYANN_MERCHANT",
+        "materials": "IDA_MATERIAL_TRADER",
+        "rare_materials": "ROLAND_RARE_MATERIAL_TRADER",
+    },
+    821: {  # Eye of the North (Wintersday)
+        "merchant": "MARYANN_MERCHANT",
+        "materials": "IDA_MATERIAL_TRADER",
+        "rare_materials": "ROLAND_RARE_MATERIAL_TRADER",
+    },
+    641: {  # Tarnished Haven
+        "merchant": "ADRIANA_MERCHANT",
+        "materials": "ANDERS_MATERIAL_TRADER",
+        "rare_materials": "HELENA_RARE_MATERIAL_TRADER",
+    },
+    643: {  # Sifhalla
+        "merchant": "ABJORN_MERCHANT",
+        "materials": "VATHI_MATERIAL_TRADER",
+        "rare_materials": "BIRNA_RARE_MATERIAL_TRADER",
+    },
+    491: {  # Jokanur Diggings outpost
+        "merchant": "LOKAI_MERCHANT",
+        "materials": "GUUL_MATERIAL_TRADER",
+        "rare_materials": "NEHGOYO_RARE_MATERIAL_TRADER",
+    },
+}
+
 
 def _wait_for_outbound_messages(
     ctx: StepContext,
@@ -80,21 +126,33 @@ def _encode_material_model_filter(selected_models: set[int] | None) -> str:
     return ",".join(str(model_id) for model_id in sorted(selected_models))
 
 
+def _step_has_explicit_agent_selector(step: dict) -> bool:
+    return any(key in step for key in _SELECTOR_OVERRIDE_KEYS)
+
+
+def _resolve_default_npc_selector(selector_kind: str) -> str:
+    from Py4GWCoreLib import Map
+
+    map_id = int(Map.GetMapID() or 0)
+    map_selectors = SUPPORTED_MAP_NPC_SELECTORS.get(map_id)
+    if map_selectors is not None:
+        selected = map_selectors.get(selector_kind)
+        if selected:
+            return selected
+
+    return DEFAULT_NPC_SELECTORS[selector_kind]
+
+
+def _apply_default_npc_selector(step: dict, selector_kind: str) -> None:
+    if _step_has_explicit_agent_selector(step):
+        return
+    step["npc"] = _resolve_default_npc_selector(selector_kind)
+
+
 def handle_restock_kits(ctx: StepContext) -> None:
     from Py4GWCoreLib import GLOBAL_CACHE, ModelID, Player, Routines, SharedCommandType
 
     selector_step = dict(ctx.step)
-    if (
-        "x" not in selector_step
-        and "y" not in selector_step
-        and "npc" not in selector_step
-        and "target" not in selector_step
-        and "name_contains" not in selector_step
-        and "agent_name" not in selector_step
-        and "model_id" not in selector_step
-        and "nearest" not in selector_step
-    ):
-        selector_step["npc"] = "MERCHANT"
 
     name = ctx.step.get("name", "Restock Kits")
     multibox_raw = ctx.step.get("multibox", False)
@@ -123,8 +181,10 @@ def handle_restock_kits(ctx: StepContext) -> None:
         salvage_kits_target = 0
 
     def _restock_local():
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "merchant")
         coords = resolve_agent_xy_from_step(
-            selector_step,
+            step_selector,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             agent_kind="npc",
@@ -235,17 +295,6 @@ def handle_sell_materials(ctx: StepContext) -> None:
     from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
     selector_step = dict(ctx.step)
-    if (
-        "x" not in selector_step
-        and "y" not in selector_step
-        and "npc" not in selector_step
-        and "target" not in selector_step
-        and "name_contains" not in selector_step
-        and "agent_name" not in selector_step
-        and "model_id" not in selector_step
-        and "nearest" not in selector_step
-    ):
-        selector_step["npc"] = "CRAFTING_MATERIAL_TRADER"
 
     name = ctx.step.get("name", "Sell Materials")
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
@@ -280,9 +329,11 @@ def handle_sell_materials(ctx: StepContext) -> None:
                 selected_models.add(model_id)
 
     def _sell_local():
-        log_recipe(ctx, f"sell_materials start: selector={selector_step!r}")
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "materials")
+        log_recipe(ctx, f"sell_materials start: selector={step_selector!r}")
         coords = resolve_agent_xy_from_step(
-            selector_step,
+            step_selector,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             agent_kind="npc",
@@ -412,17 +463,6 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
     from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
 
     selector_step = dict(ctx.step)
-    if (
-        "x" not in selector_step
-        and "y" not in selector_step
-        and "npc" not in selector_step
-        and "target" not in selector_step
-        and "name_contains" not in selector_step
-        and "agent_name" not in selector_step
-        and "model_id" not in selector_step
-        and "nearest" not in selector_step
-    ):
-        selector_step["npc"] = "RARE_MATERIAL_TRADER"
 
     name = ctx.step.get("name", "Buy Ectoplasm")
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
@@ -454,8 +494,10 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
             yield
             return
 
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "rare_materials")
         coords = resolve_agent_xy_from_step(
-            selector_step,
+            step_selector,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             agent_kind="npc",

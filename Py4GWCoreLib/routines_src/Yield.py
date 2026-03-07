@@ -1038,6 +1038,28 @@ class Yield:
             return False
 
         @staticmethod
+        def _wait_for_stack_quantity_drop(
+            item_id: int,
+            previous_quantity: int,
+            timeout_ms: int,
+            step_ms: int,
+        ):
+            """
+            Wait for a sold stack to decrease (or disappear from inventory).
+            Material-trader transactions can report completion before inventory state refreshes.
+            """
+            wait_elapsed_ms = 0
+            while wait_elapsed_ms < timeout_ms:
+                yield from Yield.wait(step_ms)
+                current_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+                if current_quantity < previous_quantity:
+                    return current_quantity
+                wait_elapsed_ms += step_ms
+
+            # Final read so callers can compare against the latest observed state.
+            return int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+
+        @staticmethod
         def _scan_material_item_ids(selected_models: set[int] | None = None, exact_quantity: int | None = None) -> list[int]:
             bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
             bag_item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
@@ -1139,15 +1161,14 @@ class Yield:
                         break
 
                     GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted_value)
-                    completed = yield from Yield.Merchant._wait_for_transaction(
+                    updated_quantity = yield from Yield.Merchant._wait_for_stack_quantity_drop(
+                        item_id,
+                        stack_quantity,
                         timeout_ms=transaction_timeout_ms,
                         step_ms=transaction_step_ms,
                     )
-                    if not completed:
-                        metrics["transaction_timeouts"] = int(metrics["transaction_timeouts"]) + 1
-                        break
-                    updated_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
                     if updated_quantity >= stack_quantity:
+                        metrics["transaction_timeouts"] = int(metrics["transaction_timeouts"]) + 1
                         metrics["no_progress_breaks"] = int(metrics["no_progress_breaks"]) + 1
                         break
                     sold_quantity += (stack_quantity - updated_quantity)

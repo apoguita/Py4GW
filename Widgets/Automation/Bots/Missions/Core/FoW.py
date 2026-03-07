@@ -8,9 +8,11 @@ from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Sources.modular_bot.prebuilts.fow import (
+    DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY,
     DEFAULT_FOW_ENTRYPOINT_KEY,
     FOW_ENTRYPOINTS,
     FOW_QUEST_ORDER,
+    INVENTORY_MANAGEMENT_LOCATIONS,
     ModularFowOptions,
     apply_fow_runtime_properties,
     create_modular_fow_bot,
@@ -41,6 +43,14 @@ class Config:
         self.entrypoint = str(
             ini_handler.read_key(BOT_NAME, "entrypoint", DEFAULT_FOW_ENTRYPOINT_KEY) or DEFAULT_FOW_ENTRYPOINT_KEY
         )
+        self.inventory_management_location = str(
+            ini_handler.read_key(
+                BOT_NAME,
+                "inventory_management_location",
+                DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY,
+            )
+            or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
+        )
 
     def to_options(self) -> ModularFowOptions:
         return ModularFowOptions(
@@ -53,6 +63,7 @@ class Config:
             buy_ectoplasm=bool(self.buy_ectoplasm),
             debug_logging=bool(self.debug_logging),
             entrypoint=self.entrypoint,
+            inventory_management_location=self.inventory_management_location,
         )
 
     def save_throttled(self):
@@ -69,6 +80,7 @@ class Config:
         ini_handler.write_key(BOT_NAME, "buy_ectoplasm", str(bool(self.buy_ectoplasm)))
         ini_handler.write_key(BOT_NAME, "debug_logging", str(bool(self.debug_logging)))
         ini_handler.write_key(BOT_NAME, "entrypoint", str(self.entrypoint))
+        ini_handler.write_key(BOT_NAME, "inventory_management_location", str(self.inventory_management_location))
 
 
 config = Config()
@@ -76,6 +88,8 @@ bot = None
 _BOT_REBUILD_PENDING = False
 ENTRYPOINT_KEYS = list(FOW_ENTRYPOINTS.keys())
 ENTRYPOINT_LABELS = [label for label, _map_id in FOW_ENTRYPOINTS.values()]
+INVENTORY_LOCATION_KEYS = list(INVENTORY_MANAGEMENT_LOCATIONS.keys())
+INVENTORY_LOCATION_LABELS = [INVENTORY_MANAGEMENT_LOCATIONS[key] for key in INVENTORY_LOCATION_KEYS]
 
 
 def _entrypoint_index() -> int:
@@ -96,6 +110,34 @@ def _draw_entrypoint_combo(disabled: bool = False) -> None:
         new_entrypoint = ENTRYPOINT_KEYS[selected_index]
         if new_entrypoint != config.entrypoint:
             config.entrypoint = new_entrypoint
+            if bot is not None:
+                _queue_rebuild()
+    if disabled:
+        PyImGui.end_disabled()
+
+
+def _inventory_location_index() -> int:
+    try:
+        return INVENTORY_LOCATION_KEYS.index(config.inventory_management_location)
+    except ValueError:
+        return 0
+
+
+def _draw_inventory_location_combo(disabled: bool = False) -> None:
+    if disabled:
+        PyImGui.begin_disabled(True)
+    PyImGui.text("Inventory Management Location")
+    PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+    selected_index = PyImGui.combo(
+        "##FoWInventoryManagementLocation",
+        _inventory_location_index(),
+        INVENTORY_LOCATION_LABELS,
+    )
+    PyImGui.pop_item_width()
+    if 0 <= selected_index < len(INVENTORY_LOCATION_KEYS):
+        new_location = INVENTORY_LOCATION_KEYS[selected_index]
+        if new_location != config.inventory_management_location:
+            config.inventory_management_location = new_location
             if bot is not None:
                 _queue_rebuild()
     if disabled:
@@ -236,6 +278,7 @@ def _draw_prestart_window() -> None:
     config.sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
     config.sell_all_common_materials = PyImGui.checkbox("Sell All Common Materials", config.sell_all_common_materials)
     config.buy_ectoplasm = PyImGui.checkbox("Buy Ectoplasm", config.buy_ectoplasm)
+    _draw_inventory_location_combo()
     _draw_entrypoint_combo()
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
 
@@ -312,6 +355,7 @@ def _draw_main() -> None:
     if new_buy_ectoplasm != config.buy_ectoplasm:
         config.buy_ectoplasm = new_buy_ectoplasm
         _queue_rebuild()
+    _draw_inventory_location_combo(disabled=is_running)
     _draw_entrypoint_combo(disabled=is_running)
     PyImGui.end_disabled()
 
@@ -321,6 +365,7 @@ def _draw_main() -> None:
 def _draw_settings() -> None:
     is_running = bool(bot is not None and bot.bot.config.fsm_running)
     PyImGui.begin_disabled(is_running)
+    _draw_inventory_location_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running))
     _draw_entrypoint_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running))
     new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
     if new_sell_non_cons_materials != config.sell_non_cons_materials:
@@ -345,8 +390,8 @@ def _draw_help() -> None:
     PyImGui.text_wrapped("Widget wrapper for the FoW prebuilt route using the shared modular FoW builder.")
     PyImGui.bullet_text("Uses the same FoW route builder as the standalone modular bot")
     PyImGui.bullet_text("Loads quest steps from Sources/modular_bot/quests/FoW/*.json")
-    PyImGui.bullet_text("Always uses Guild Hall for storage and restock")
-    PyImGui.bullet_text("Optional material selling in Guild Hall before entry")
+    PyImGui.bullet_text("Supports inventory management in Guild Hall or Eye of the North")
+    PyImGui.bullet_text("Optional material selling before entry at the selected inventory location")
     PyImGui.bullet_text("Optional ectoplasm buying from current character gold only")
     PyImGui.bullet_text("Groups on the selected FoW entrypoint map before scrolling in")
     PyImGui.bullet_text("Supports FoW entry from Zin Ku Corridor, Chantry of Secrets, Temple of the Ages, or Embark Beach")
