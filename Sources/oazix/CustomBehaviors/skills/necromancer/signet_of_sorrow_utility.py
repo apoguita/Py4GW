@@ -39,7 +39,7 @@ class SignetOfSorrowUtility(CustomSkillUtilityBase):
         return len(corpse_filter) != 0
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
-        """Get attacking enemies ordered by cluster size."""
+        """Get attacking enemies ordered by cluster size. Not because the skill is aoe but to keep the sorrow chain going on kills"""
         corpses_list = Routines.Agents.GetCorpses(Range.Spirit.value)
 
         def condition(agent_id: int) -> bool:
@@ -55,8 +55,6 @@ class SignetOfSorrowUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         targets = self._get_targets()
-
-        # todo actually see if nearby dead
 
         if len(targets) == 0: return 9
 
