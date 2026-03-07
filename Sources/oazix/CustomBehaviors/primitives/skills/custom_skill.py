@@ -15,6 +15,15 @@ class CustomSkill:
         self.skill_nature:CustomSkillNature = CustomSkillNature(nature_value)
         self.skill_slot:int = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.skill_id) if self.skill_id != 0 else 0
 
+        if self.skill_id == 0:
+            print(f"Warning loading {skill_name} gave no skill id")
+
+        if self.skill_slot == 0:
+            print(f"Warning loading {self.skill_id} {skill_name} gave no skill slot")
+
+        if skill_name == "Icy_Veins":
+            print(f"Icy_Veins loaded  {self.skill_id} {skill_name} gave skill slot = {self.skill_slot}")
+
     def get_texture(self) -> str:
 
         texture_file = ''
