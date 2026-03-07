@@ -348,6 +348,25 @@
     {
       "link_id": 19,
       "portal_a": {
+        "global_id": 20001,
+        "map_id": 20,
+        "map_name": "Droknar's Forge",
+        "portal_index": 1,
+        "game_x": -131.0,
+        "game_y": 10702.0
+      },
+      "portal_b": {
+        "global_id": 26002,
+        "map_id": 26,
+        "map_name": "Talus Chute",
+        "portal_index": 2,
+        "game_x": 9085.0,
+        "game_y": -16946.0
+      }
+    },
+    {
+      "link_id": 20,
+      "portal_a": {
         "global_id": 20002,
         "map_id": 20,
         "map_name": "Droknar's Forge",
@@ -365,7 +384,7 @@
       }
     },
     {
-      "link_id": 20,
+      "link_id": 21,
       "portal_a": {
         "global_id": 21000,
         "map_id": 21,
@@ -384,7 +403,64 @@
       }
     },
     {
-      "link_id": 21,
+      "link_id": 22,
+      "portal_a": {
+        "global_id": 22000,
+        "map_id": 22,
+        "map_name": "Ice Caves of Sorrow outpost",
+        "portal_index": 0,
+        "game_x": -23042.0,
+        "game_y": -5478.0
+      },
+      "portal_b": {
+        "global_id": 26003,
+        "map_id": 26,
+        "map_name": "Talus Chute",
+        "portal_index": 3,
+        "game_x": 23038.0,
+        "game_y": -11622.0
+      }
+    },
+    {
+      "link_id": 23,
+      "portal_a": {
+        "global_id": 23000,
+        "map_id": 23,
+        "map_name": "Thunderhead Keep outpost",
+        "portal_index": 0,
+        "game_x": -12065.0,
+        "game_y": -23170.0
+      },
+      "portal_b": {
+        "global_id": 94002,
+        "map_id": 94,
+        "map_name": "Ice Floe",
+        "portal_index": 2,
+        "game_x": 21727.0,
+        "game_y": 13694.0
+      }
+    },
+    {
+      "link_id": 24,
+      "portal_a": {
+        "global_id": 24000,
+        "map_id": 24,
+        "map_name": "Iron Mines of Moladune outpost",
+        "portal_index": 0,
+        "game_x": -7354.0,
+        "game_y": -31832.0
+      },
+      "portal_b": {
+        "global_id": 98003,
+        "map_id": 98,
+        "map_name": "Frozen Forest",
+        "portal_index": 3,
+        "game_x": 20294.0,
+        "game_y": 11176.0
+      }
+    },
+    {
+      "link_id": 25,
       "portal_a": {
         "global_id": 25000,
         "map_id": 25,
@@ -403,7 +479,45 @@
       }
     },
     {
-      "link_id": 22,
+      "link_id": 26,
+      "portal_a": {
+        "global_id": 26001,
+        "map_id": 26,
+        "map_name": "Talus Chute",
+        "portal_index": 1,
+        "game_x": -22987.0,
+        "game_y": 16432.0
+      },
+      "portal_b": {
+        "global_id": 155002,
+        "map_id": 155,
+        "map_name": "Camp Rankor",
+        "portal_index": 2,
+        "game_x": 7733.0,
+        "game_y": -45008.0
+      }
+    },
+    {
+      "link_id": 27,
+      "portal_a": {
+        "global_id": 26004,
+        "map_id": 26,
+        "map_name": "Talus Chute",
+        "portal_index": 4,
+        "game_x": 23843.0,
+        "game_y": 16751.0
+      },
+      "portal_b": {
+        "global_id": 87000,
+        "map_id": 87,
+        "map_name": "Icedome",
+        "portal_index": 0,
+        "game_x": -6877.0,
+        "game_y": -7825.0
+      }
+    },
+    {
+      "link_id": 28,
       "portal_a": {
         "global_id": 27000,
         "map_id": 27,
@@ -422,7 +536,7 @@
       }
     },
     {
-      "link_id": 23,
+      "link_id": 29,
       "portal_a": {
         "global_id": 27001,
         "map_id": 27,
@@ -441,7 +555,7 @@
       }
     },
     {
-      "link_id": 24,
+      "link_id": 30,
       "portal_a": {
         "global_id": 28001,
         "map_id": 28,
@@ -460,7 +574,7 @@
       }
     },
     {
-      "link_id": 25,
+      "link_id": 31,
       "portal_a": {
         "global_id": 29004,
         "map_id": 29,
@@ -479,7 +593,7 @@
       }
     },
     {
-      "link_id": 26,
+      "link_id": 32,
       "portal_a": {
         "global_id": 30001,
         "map_id": 30,
@@ -498,7 +612,7 @@
       }
     },
     {
-      "link_id": 27,
+      "link_id": 33,
       "portal_a": {
         "global_id": 33001,
         "map_id": 33,
@@ -517,7 +631,7 @@
       }
     },
     {
-      "link_id": 28,
+      "link_id": 34,
       "portal_a": {
         "global_id": 33003,
         "map_id": 33,
@@ -536,7 +650,7 @@
       }
     },
     {
-      "link_id": 29,
+      "link_id": 35,
       "portal_a": {
         "global_id": 33004,
         "map_id": 33,
@@ -555,7 +669,7 @@
       }
     },
     {
-      "link_id": 30,
+      "link_id": 36,
       "portal_a": {
         "global_id": 33005,
         "map_id": 33,
@@ -574,7 +688,7 @@
       }
     },
     {
-      "link_id": 31,
+      "link_id": 37,
       "portal_a": {
         "global_id": 40002,
         "map_id": 40,
@@ -593,7 +707,7 @@
       }
     },
     {
-      "link_id": 32,
+      "link_id": 38,
       "portal_a": {
         "global_id": 41000,
         "map_id": 41,
@@ -612,7 +726,7 @@
       }
     },
     {
-      "link_id": 33,
+      "link_id": 39,
       "portal_a": {
         "global_id": 41002,
         "map_id": 41,
@@ -631,7 +745,7 @@
       }
     },
     {
-      "link_id": 34,
+      "link_id": 40,
       "portal_a": {
         "global_id": 41003,
         "map_id": 41,
@@ -650,7 +764,7 @@
       }
     },
     {
-      "link_id": 35,
+      "link_id": 41,
       "portal_a": {
         "global_id": 42000,
         "map_id": 42,
@@ -669,7 +783,7 @@
       }
     },
     {
-      "link_id": 36,
+      "link_id": 42,
       "portal_a": {
         "global_id": 43001,
         "map_id": 43,
@@ -688,7 +802,7 @@
       }
     },
     {
-      "link_id": 37,
+      "link_id": 43,
       "portal_a": {
         "global_id": 43002,
         "map_id": 43,
@@ -707,7 +821,7 @@
       }
     },
     {
-      "link_id": 38,
+      "link_id": 44,
       "portal_a": {
         "global_id": 44000,
         "map_id": 44,
@@ -726,7 +840,7 @@
       }
     },
     {
-      "link_id": 39,
+      "link_id": 45,
       "portal_a": {
         "global_id": 44002,
         "map_id": 44,
@@ -745,7 +859,7 @@
       }
     },
     {
-      "link_id": 40,
+      "link_id": 46,
       "portal_a": {
         "global_id": 44003,
         "map_id": 44,
@@ -764,7 +878,7 @@
       }
     },
     {
-      "link_id": 41,
+      "link_id": 47,
       "portal_a": {
         "global_id": 45000,
         "map_id": 45,
@@ -783,7 +897,7 @@
       }
     },
     {
-      "link_id": 42,
+      "link_id": 48,
       "portal_a": {
         "global_id": 47001,
         "map_id": 47,
@@ -802,7 +916,7 @@
       }
     },
     {
-      "link_id": 43,
+      "link_id": 49,
       "portal_a": {
         "global_id": 48001,
         "map_id": 48,
@@ -821,7 +935,7 @@
       }
     },
     {
-      "link_id": 44,
+      "link_id": 50,
       "portal_a": {
         "global_id": 48002,
         "map_id": 48,
@@ -840,7 +954,7 @@
       }
     },
     {
-      "link_id": 45,
+      "link_id": 51,
       "portal_a": {
         "global_id": 53000,
         "map_id": 53,
@@ -859,7 +973,7 @@
       }
     },
     {
-      "link_id": 46,
+      "link_id": 52,
       "portal_a": {
         "global_id": 53001,
         "map_id": 53,
@@ -878,7 +992,7 @@
       }
     },
     {
-      "link_id": 47,
+      "link_id": 53,
       "portal_a": {
         "global_id": 54000,
         "map_id": 54,
@@ -897,7 +1011,7 @@
       }
     },
     {
-      "link_id": 48,
+      "link_id": 54,
       "portal_a": {
         "global_id": 55001,
         "map_id": 55,
@@ -916,7 +1030,7 @@
       }
     },
     {
-      "link_id": 49,
+      "link_id": 55,
       "portal_a": {
         "global_id": 56004,
         "map_id": 56,
@@ -935,7 +1049,7 @@
       }
     },
     {
-      "link_id": 50,
+      "link_id": 56,
       "portal_a": {
         "global_id": 57005,
         "map_id": 57,
@@ -954,7 +1068,7 @@
       }
     },
     {
-      "link_id": 51,
+      "link_id": 57,
       "portal_a": {
         "global_id": 58002,
         "map_id": 58,
@@ -973,7 +1087,7 @@
       }
     },
     {
-      "link_id": 52,
+      "link_id": 58,
       "portal_a": {
         "global_id": 59003,
         "map_id": 59,
@@ -992,7 +1106,7 @@
       }
     },
     {
-      "link_id": 53,
+      "link_id": 59,
       "portal_a": {
         "global_id": 61000,
         "map_id": 61,
@@ -1011,7 +1125,7 @@
       }
     },
     {
-      "link_id": 54,
+      "link_id": 60,
       "portal_a": {
         "global_id": 62001,
         "map_id": 62,
@@ -1030,7 +1144,7 @@
       }
     },
     {
-      "link_id": 55,
+      "link_id": 61,
       "portal_a": {
         "global_id": 63001,
         "map_id": 63,
@@ -1049,7 +1163,26 @@
       }
     },
     {
-      "link_id": 56,
+      "link_id": 62,
+      "portal_a": {
+        "global_id": 87001,
+        "map_id": 87,
+        "map_name": "Icedome",
+        "portal_index": 1,
+        "game_x": 8837.0,
+        "game_y": -4753.0
+      },
+      "portal_b": {
+        "global_id": 98000,
+        "map_id": 98,
+        "map_name": "Frozen Forest",
+        "portal_index": 0,
+        "game_x": -24955.0,
+        "game_y": -10897.0
+      }
+    },
+    {
+      "link_id": 63,
       "portal_a": {
         "global_id": 88000,
         "map_id": 88,
@@ -1068,7 +1201,7 @@
       }
     },
     {
-      "link_id": 57,
+      "link_id": 64,
       "portal_a": {
         "global_id": 88001,
         "map_id": 88,
@@ -1087,7 +1220,7 @@
       }
     },
     {
-      "link_id": 58,
+      "link_id": 65,
       "portal_a": {
         "global_id": 89000,
         "map_id": 89,
@@ -1106,7 +1239,7 @@
       }
     },
     {
-      "link_id": 59,
+      "link_id": 66,
       "portal_a": {
         "global_id": 89001,
         "map_id": 89,
@@ -1125,7 +1258,7 @@
       }
     },
     {
-      "link_id": 60,
+      "link_id": 67,
       "portal_a": {
         "global_id": 90001,
         "map_id": 90,
@@ -1144,7 +1277,7 @@
       }
     },
     {
-      "link_id": 61,
+      "link_id": 68,
       "portal_a": {
         "global_id": 90002,
         "map_id": 90,
@@ -1163,7 +1296,7 @@
       }
     },
     {
-      "link_id": 62,
+      "link_id": 69,
       "portal_a": {
         "global_id": 91000,
         "map_id": 91,
@@ -1182,7 +1315,26 @@
       }
     },
     {
-      "link_id": 63,
+      "link_id": 70,
+      "portal_a": {
+        "global_id": 91001,
+        "map_id": 91,
+        "map_name": "Snake Dance",
+        "portal_index": 1,
+        "game_x": 6060.0,
+        "game_y": -41310.0
+      },
+      "portal_b": {
+        "global_id": 155001,
+        "map_id": 155,
+        "map_name": "Camp Rankor",
+        "portal_index": 1,
+        "game_x": 6060.0,
+        "game_y": -41310.0
+      }
+    },
+    {
+      "link_id": 71,
       "portal_a": {
         "global_id": 91003,
         "map_id": 91,
@@ -1201,7 +1353,140 @@
       }
     },
     {
-      "link_id": 64,
+      "link_id": 72,
+      "portal_a": {
+        "global_id": 92002,
+        "map_id": 92,
+        "map_name": "Tasca's Demise",
+        "portal_index": 2,
+        "game_x": -9867.0,
+        "game_y": 18978.0
+      },
+      "portal_b": {
+        "global_id": 156002,
+        "map_id": 156,
+        "map_name": "The Granite Citadel",
+        "portal_index": 2,
+        "game_x": -9867.0,
+        "game_y": 18978.0
+      }
+    },
+    {
+      "link_id": 73,
+      "portal_a": {
+        "global_id": 92004,
+        "map_id": 92,
+        "map_name": "Tasca's Demise",
+        "portal_index": 4,
+        "game_x": 7912.0,
+        "game_y": 29613.0
+      },
+      "portal_b": {
+        "global_id": 96000,
+        "map_id": 96,
+        "map_name": "Mineral Springs",
+        "portal_index": 0,
+        "game_x": -22808.0,
+        "game_y": -10323.0
+      }
+    },
+    {
+      "link_id": 74,
+      "portal_a": {
+        "global_id": 93000,
+        "map_id": 93,
+        "map_name": "Spearhead Peak",
+        "portal_index": 0,
+        "game_x": -14635.0,
+        "game_y": 248.0
+      },
+      "portal_b": {
+        "global_id": 191003,
+        "map_id": 191,
+        "map_name": "Grenth's Footprint",
+        "portal_index": 3,
+        "game_x": 22229.0,
+        "game_y": 3320.0
+      }
+    },
+    {
+      "link_id": 75,
+      "portal_a": {
+        "global_id": 93001,
+        "map_id": 93,
+        "map_name": "Spearhead Peak",
+        "portal_index": 1,
+        "game_x": -11561.0,
+        "game_y": 15418.0
+      },
+      "portal_b": {
+        "global_id": 156001,
+        "map_id": 156,
+        "map_name": "The Granite Citadel",
+        "portal_index": 1,
+        "game_x": -11561.0,
+        "game_y": 15418.0
+      }
+    },
+    {
+      "link_id": 76,
+      "portal_a": {
+        "global_id": 93003,
+        "map_id": 93,
+        "map_name": "Spearhead Peak",
+        "portal_index": 3,
+        "game_x": 7806.0,
+        "game_y": -26581.0
+      },
+      "portal_b": {
+        "global_id": 159001,
+        "map_id": 159,
+        "map_name": "Copperhammer Mines",
+        "portal_index": 1,
+        "game_x": -22914.0,
+        "game_y": 13355.0
+      }
+    },
+    {
+      "link_id": 77,
+      "portal_a": {
+        "global_id": 94000,
+        "map_id": 94,
+        "map_name": "Ice Floe",
+        "portal_index": 0,
+        "game_x": -10772.0,
+        "game_y": 16791.0
+      },
+      "portal_b": {
+        "global_id": 98004,
+        "map_id": 98,
+        "map_name": "Frozen Forest",
+        "portal_index": 4,
+        "game_x": 23020.0,
+        "game_y": -13929.0
+      }
+    },
+    {
+      "link_id": 78,
+      "portal_a": {
+        "global_id": 94001,
+        "map_id": 94,
+        "map_name": "Ice Floe",
+        "portal_index": 1,
+        "game_x": 5504.0,
+        "game_y": -11722.0
+      },
+      "portal_b": {
+        "global_id": 157001,
+        "map_id": 157,
+        "map_name": "Marhans Grotto",
+        "portal_index": 1,
+        "game_x": 5504.0,
+        "game_y": -11722.0
+      }
+    },
+    {
+      "link_id": 79,
       "portal_a": {
         "global_id": 95001,
         "map_id": 95,
@@ -1220,7 +1505,26 @@
       }
     },
     {
-      "link_id": 65,
+      "link_id": 80,
+      "portal_a": {
+        "global_id": 98002,
+        "map_id": 98,
+        "map_name": "Frozen Forest",
+        "portal_index": 2,
+        "game_x": -17907.0,
+        "game_y": 9551.0
+      },
+      "portal_b": {
+        "global_id": 159002,
+        "map_id": 159,
+        "map_name": "Copperhammer Mines",
+        "portal_index": 2,
+        "game_x": -17907.0,
+        "game_y": 9551.0
+      }
+    },
+    {
+      "link_id": 81,
       "portal_a": {
         "global_id": 99003,
         "map_id": 99,
@@ -1239,7 +1543,7 @@
       }
     },
     {
-      "link_id": 66,
+      "link_id": 82,
       "portal_a": {
         "global_id": 99004,
         "map_id": 99,
@@ -1258,7 +1562,7 @@
       }
     },
     {
-      "link_id": 67,
+      "link_id": 83,
       "portal_a": {
         "global_id": 100002,
         "map_id": 100,
@@ -1277,7 +1581,7 @@
       }
     },
     {
-      "link_id": 68,
+      "link_id": 84,
       "portal_a": {
         "global_id": 101002,
         "map_id": 101,
@@ -1296,7 +1600,7 @@
       }
     },
     {
-      "link_id": 69,
+      "link_id": 85,
       "portal_a": {
         "global_id": 104002,
         "map_id": 104,
@@ -1315,7 +1619,7 @@
       }
     },
     {
-      "link_id": 70,
+      "link_id": 86,
       "portal_a": {
         "global_id": 104003,
         "map_id": 104,
@@ -1334,7 +1638,7 @@
       }
     },
     {
-      "link_id": 71,
+      "link_id": 87,
       "portal_a": {
         "global_id": 105022,
         "map_id": 105,
@@ -1353,7 +1657,7 @@
       }
     },
     {
-      "link_id": 72,
+      "link_id": 88,
       "portal_a": {
         "global_id": 107001,
         "map_id": 107,
@@ -1372,7 +1676,7 @@
       }
     },
     {
-      "link_id": 73,
+      "link_id": 89,
       "portal_a": {
         "global_id": 191002,
         "map_id": 191,
