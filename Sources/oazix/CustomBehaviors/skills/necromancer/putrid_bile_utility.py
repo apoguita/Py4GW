@@ -13,7 +13,9 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base i
 
 class PutridBile_NearDeathUtility(CustomSkillUtilityBase):
     """
-    Utility for the 'Putrid Bile' and 'Icy Veins'.
+    Utility for the 'Putrid Bile' (can be used for icy veins as well if using excusively for eoe like effect)
+
+    Based on Finish Him Utility
 
     Behavior:
     - Try and target near death targets first.
