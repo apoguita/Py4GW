@@ -5,6 +5,7 @@ from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER
 
 #do not ever disable this module, it is the main module for everything
 MODULE_NAME = "Environment Upkeeper"
+MODULE_ICON = "Textures/Module_Icons/Environment Upkeeper.png"
 OPTIONAL = False
 
 __widget__ = {
@@ -88,8 +89,9 @@ def tooltip():
 def main():
     global widget_config
 
+    HOTKEY_MANAGER.update()
+    
     if Routines.Checks.Map.MapValid():
-        HOTKEY_MANAGER.update()
         GLOBAL_CACHE._update_cache()
     else:
         LootConfig().ClearItemIDBlacklist()

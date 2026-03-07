@@ -15,6 +15,9 @@ from ctypes import sizeof
 import PyPointers
 from Py4GW import Game
 
+MODULE_NAME = "Scanner Test"
+MODULE_ICON = "Textures/Module_Icons/Research Code.png"
+
 SetDifficulty_Func = NativeFunction(
     name="SetDifficulty_Func", #GWCA name
     pattern=b"\x83\x3B\x00\x0F\x85\x00\x00\x00\x00\xFF\x70\x20",

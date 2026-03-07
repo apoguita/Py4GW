@@ -1,7 +1,9 @@
 import os
 from Py4GWCoreLib import Botting
 
-BOT_NAME = "Darkroot´s Dagger Farm"
+BOT_NAME = "Darkroot's Daggers Farm"
+MODULE_NAME = "Darkroot's Daggers"
+MODULE_ICON = "Textures\\Module_Icons\\Darkroot's Daggers.png"
 OUTPOST_TO_TRAVEL = 230
 COORD_TO_EXIT_MAP = (-4494.75, 4760.00)
 EXPLORABLE_TO_TRAVEL = 209

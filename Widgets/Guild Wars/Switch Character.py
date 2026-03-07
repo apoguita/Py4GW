@@ -16,7 +16,9 @@ from Py4GWCoreLib import Map
 from Py4GWCoreLib import ProfessionTextureMap
 from Py4GWCoreLib import GWContext
 import traceback
+
 MODULE_NAME = "Switch Character"
+MODULE_ICON = "Textures/Module_Icons/Switch Character.png"
 
 class RerollCharacter:
     def __init__(self):

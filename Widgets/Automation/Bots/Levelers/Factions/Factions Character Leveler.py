@@ -7,19 +7,24 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
                           AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, HeroType, Skill, AgentArray)
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
+from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color
+
+MODULE_NAME = "Factions Character Leveler"
+MODULE_ICON = "Textures\\Module_Icons\\Leveler - Factions.png"
 
 bot = Botting("Factions Leveler",
-              upkeep_birthday_cupcake_restock=10,
               upkeep_candy_apple_restock=10,
               upkeep_honeycomb_restock=20,
-              upkeep_war_supplies_restock=2,
+              upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
               upkeep_auto_loot_active=True)
 
 class BotSettings:
     CUSTOM_BOW_ID = 0 #Change this if you have already have a bow crafted for War supply farm runs.
+    CRAFTED_BOW_ID = 11723
 
 #region MainRoutine
 def create_bot_routine(bot: Botting) -> None:
@@ -31,7 +36,7 @@ def create_bot_routine(bot: Botting) -> None:
     Craft_Weapon(bot)
     Craft_Monastery_Armor(bot)
     Destroy_Starter_Armor_And_Useless_Items(bot)
-    Extend_Inventory_Space(bot)
+    #Extend_Inventory_Space(bot) # Deactivated until function is fixed. Not bot related.
     To_Minister_Chos_Estate(bot)
     Unlock_Skills_Trainer(bot)
     Minister_Chos_Estate_Mission(bot)
@@ -53,10 +58,10 @@ def create_bot_routine(bot: Botting) -> None:
     To_Boreal_Station(bot)
     To_Eye_of_the_North(bot)
     Unlock_Eye_Of_The_North_Pool(bot)
-    To_Gunnars_Hold(bot)
-    Unlock_Kilroy_Stonekin(bot)
     Farm_Until_Level_20(bot)
     Attribute_Points_Quest_2(bot)
+    To_Gunnars_Hold(bot)
+    Unlock_Kilroy_Stonekin(bot)
     To_Longeyes_Edge(bot)
     Unlock_NPC_For_Vaettir_Farm(bot)
     To_Lions_Arch(bot)
@@ -67,26 +72,90 @@ def create_bot_routine(bot: Botting) -> None:
     Unlock_Remaining_Secondary_Professions(bot)
     Unlock_Mercenary_Heroes(bot)
 
+
 #region Helpers
+def _load_navmesh_object(bot) -> None:
+    """Try to get the NavMesh for validation. If not cached yet, schedule async load."""
+    try:
+        nav = AutoPathing().get_navmesh()
+        if nav is not None:
+            navmesh = nav
+            return
+    except Exception as e:
+        Py4GW.Console.Log("Navmesh", f"Navmesh load failed: {e}", Py4GW.Console.MessageType.Warning)
+    def _load_coro():
+        yield from AutoPathing().load_pathing_maps()
+        nav = AutoPathing().get_navmesh()
+        if nav is not None:
+            navmesh = nav
+    GLOBAL_CACHE.Coroutines.append(_load_coro())
+
+def QuestLoop(quest_id, quest_x, quest_y, quest_dialog, mode="accept", quest_npc=0, multi=0):
+    attempts = 0
+    label = f"Quest {mode.capitalize()} Loop"
+    action_inf  = "complete" if mode == "complete" else "accept"
+    action_past = "completed" if mode == "complete" else "accepted"
+    npc_id = 0
+    current_map = Map.GetMapID()
+
+    if quest_npc == 0:
+        yield from bot.Move._coro_xy(quest_x, quest_y)
+        npc_id = Routines.Agents.GetNearestNPC(200)
+    elif quest_npc != 0:
+        npc_id = Routines.Agents.GetAgentIDByModelID(quest_npc)
+
+    if quest_x == 0 and quest_y == 0:
+        ConsoleLog(label, f"NPC{quest_npc}", Py4GW.Console.MessageType.Info)
+        npc_id = Routines.Agents.GetAgentIDByModelID(quest_npc)
+        quest_x, quest_y = Agent.GetXY(npc_id)
+        ConsoleLog(label, f"X{quest_x} Y{quest_y}", Py4GW.Console.MessageType.Info)
+    
+    def loop_condition():
+        if mode == "complete":
+            return bot.Quest.GetActiveQuest() == quest_id
+        elif mode == "step":
+            return Agent.HasQuest(npc_id)
+        elif mode =="skip":
+            return current_map == Map.GetMapID()
+        else:
+            return bot.Quest.GetActiveQuest() != quest_id
+
+    def success_condition():
+        if mode == "complete":
+            return bot.Quest.GetActiveQuest() != quest_id
+        elif mode == "step":
+            return not Agent.HasQuest(npc_id) or current_map != Map.GetMapID()
+        elif mode == "skip":
+            return not Agent.HasQuest(npc_id) or current_map != Map.GetMapID()
+        else:
+            return bot.Quest.GetActiveQuest() == quest_id
+
+    while loop_condition() and attempts < 5:
+        ConsoleLog(label, f"Attempting to {action_inf} quest #{quest_id}", Py4GW.Console.MessageType.Info)
+        yield from bot.Move._coro_xy_and_dialog(quest_x, quest_y, quest_dialog)
+        if multi != 0:
+            yield from bot.Move._coro_xy_and_dialog(quest_x, quest_y, multi)
+        yield from Routines.Yield.wait(500)
+        attempts += 1
+
+    if success_condition():
+        ConsoleLog(label, f"Successfully {action_past} quest #{quest_id}", Py4GW.Console.MessageType.Info)
+        return
+    else:
+        fsm = bot.config.FSM
+        fsm.pause()
+        ConsoleLog(label, f"The bot attempted and failed to {action_inf} quest #{quest_id}. The bot has stopped.", Py4GW.Console.MessageType.Info)
 
 #region Battle configuration
 def ConfigurePacifistEnv(bot: Botting) -> None:
     bot.Templates.Pacifist()
-    #bot.Properties.Enable("birthday_cupcake")
-    bot.Properties.Enable("candy_apple")
-    bot.Properties.Disable("honeycomb")
-    bot.Properties.Disable("war_supplies")
-    bot.Items.Restock.BirthdayCupcake()
-    bot.Items.Restock.CandyApple()
-    bot.Items.Restock.WarSupplies()
     
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
-    #bot.Properties.Enable("birthday_cupcake")
     bot.Properties.Enable("candy_apple")
-    bot.Properties.Enable("honeycomb")
     bot.Properties.Enable("war_supplies")
+    bot.Properties.Enable("honeycomb")
 #endregion
 
 #region Henchmen / Hero team
@@ -128,7 +197,7 @@ def StandardHeroTeam():
             "OQhkAsC8gFKgGckjHFRUGCA",  # Gwen
             "OgVDI8gsCawROeUEtZIA",     # Vekk
             "OwUUMsG/E4GgMnZskzkIZQAA", # Ogden
-            "OgCikys8wchuD4xb5VAAAAAA"       # MOX
+            "OgCikys8wchuD4xb5VAAAAAA"  # MOX
         ]
     
     # Add all heroes quickly
@@ -158,37 +227,59 @@ def EquipSkillBar(skillbar = ""):
     profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
     level = Agent.GetLevel(Player.GetAgentID())
 
-    if profession == "Warrior":
-        skillbar = "OQUBIskDcdG0DaAHUECA"
-    elif profession == "Ranger":
-        skillbar = "OgUBIskDcdG0DaAHUECA"
-    elif profession == "Monk":
-        skillbar = "OwUBIskDcdG0DaAHUECA"
-    elif profession == "Necromancer":
-        skillbar = "OAVBIskDcdG0DaAHUECA"
-    elif profession == "Mesmer":
-        skillbar = "OQBBIskDcdG0DaAHUECA"
-    elif profession == "Elementalist":
-        skillbar = "OgVBIskDcdG0DaAHUECA"
-    elif profession == "Ritualist":
-        skillbar = "OAWBIskDcdG0DaAHUECA"
-    elif profession == "Assassin":
-        skillbar = "OwVBIskDcdG0DaAHUECA"
-
+    if level < 3: #10 attribute points available
+        if profession == "Warrior":
+            skillbar = "OQAAAAAAAAAAAAAA"
+        elif profession == "Ranger":
+            skillbar = "OgAAAAAAAAAAAAAA"
+        elif profession == "Monk":
+            skillbar = "OwAAAAAAAAAAAAAA"
+        elif profession == "Necromancer":
+            skillbar = "OABAAAAAAAAAAAAA"
+        elif profession == "Mesmer":
+            skillbar = "OQBAAAAAAAAAAAAA"
+        elif profession == "Elementalist":
+            skillbar = "OgBAAAAAAAAAAAAA"
+        elif profession == "Ritualist":
+            skillbar = "OACAAAAAAAAAAAAA"
+        elif profession == "Assassin":
+            skillbar = "OwBAAAAAAAAAAAAA"
+    elif level < 20: #Domination at 12 for most damage
+        if profession == "Warrior":
+            skillbar = "OQUBIskDcdG0DaAKUECA"
+        elif profession == "Ranger":
+            skillbar = "OgUBIskDcdG0DaAKUECA"
+        elif profession == "Monk":
+            skillbar = "OwUBIskDcdG0DaAKUECA"
+        elif profession == "Necromancer":
+            skillbar = "OAVBIskDcdG0DaAKUECA"
+        elif profession == "Mesmer":
+            skillbar = "OQBBIskDcdG0DaAKUECA"
+        elif profession == "Elementalist":
+            skillbar = "OgVBIskDcdG0DaAKUECA"
+        elif profession == "Ritualist":
+            skillbar = "OAWBIskDcdG0DaAKUECA"
+        elif profession == "Assassin":
+            skillbar = "OAWBIskDcdG0DaAKUECA"
+    else:   #Added Inspiration for addtional mana gains
+        if profession == "Warrior":
+            skillbar = "OQUCErwSOw1ZQPoBoQRIA"
+        elif profession == "Ranger":
+            skillbar = "OgUCErwSOw1ZQPoBoQRIA"
+        elif profession == "Monk":
+            skillbar = "OwUCErwSOw1ZQPoBoQRIA"
+        elif profession == "Necromancer":
+            skillbar = "OAVCErwSOw1ZQPoBoQRIA"
+        elif profession == "Mesmer":
+            skillbar = "OQBBIskDcdG0DaAHUECA"
+        elif profession == "Elementalist":
+            skillbar = "OgVCErwSOw1ZQPoBoQRIA"
+        elif profession == "Ritualist":
+            skillbar = "OAWCErwSOw1ZQPoBoQRIA"
+        elif profession == "Assassin":
+            skillbar = "OwVCErwSOw1ZQPoBoQRIA"
     yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 
-def EquipCaptureSkillBar(skillbar = ""):
-    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
-    if profession == "Warrior": skillbar = "OQIAEbGAAAAAAAAAAA"
-    elif profession == "Ranger": skillbar = "OgAAEbGAAAAAAAAAAA"
-    elif profession == "Monk": skillbar = "OwIAEbGAAAAAAAAAAA"
-    elif profession == "Necromancer": skillbar = "OAJAEbGAAAAAAAAAAA"
-    elif profession == "Mesmer": skillbar = "OQJAEbGAAAAAAAAAAA"
-    elif profession == "Elementalist": skillbar = "OgJAEbGAAAAAAAAAAA"
-    elif profession == "Ritualist": skillbar = "OAKkYRYRWCGxmBAAAAAAAAAA"
-    elif profession == "Assassin": skillbar = "OwJkYRZ5XMGxmBAAAAAAAAAA"
-
-    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
 #endregion
 
 def PrepareForBattle(bot: Botting):
@@ -196,10 +287,9 @@ def PrepareForBattle(bot: Botting):
     bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     bot.Party.LeaveParty()
     bot.States.AddCustomState(AddHenchmen, "Add Henchmen")
-    #bot.Items.Restock.BirthdayCupcake()
     bot.Items.Restock.CandyApple()
-    bot.Items.Restock.Honeycomb()
     bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.Honeycomb()
 
 #endregion
 
@@ -359,6 +449,7 @@ def BuyMaterials():
 def _craft_armor_set(bot: Botting, armor_key: str, gold_cost: int):
     for item_id, mats, qtys in _get_early_armor_data()[armor_key]:
         result = yield from Routines.Yield.Items.CraftItem(item_id, gold_cost, mats, qtys)
+        yield from Routines.Yield.wait(500)
         if not result:
             ConsoleLog("CraftArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
@@ -405,16 +496,16 @@ _MAX_ARMOR_DATA = {
             (23794, [ModelID.Bolt_Of_Cloth.value, ModelID.Fur_Square.value], [25,  4]),         # Head
         ],
     },
-    "Monk": {  # Ascalon armor — crafter: Ryoko
+    "Monk": {  # Shinjea armor — crafter: Ryoko
         "crafter":     (-1682.00, -3970.00),
-        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 18), (ModelID.Feather.value, 1)],
+        "buy_common":  [(ModelID.Bolt_Of_Cloth.value, 18)],
         "buy_rare":    [(ModelID.Roll_Of_Parchment.value, 5), (ModelID.Vial_Of_Ink.value, 4), (ModelID.Bolt_Of_Linen.value, 28)],
         "pieces": [
-            (23378, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [25,  4]),  # Gloves
-            (23376, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [25,  4]),  # Boots
-            (23379, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [50,  8]),  # Pants
-            (23377, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [75, 12]),  # Chest
-            (23200, [ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value],     [ 5,  4]),  # Head
+            (23727, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [25,  4]),  # Gloves
+            (23725, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [25,  4]),  # Boots
+            (23728, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [50,  8]),  # Pants
+            (23726, [ModelID.Bolt_Of_Cloth.value,     ModelID.Bolt_Of_Linen.value],   [75, 12]),  # Chest
+            (23721, [ModelID.Roll_Of_Parchment.value, ModelID.Vial_Of_Ink.value],     [ 5,  4]),  # Head
         ],
     },
     "Assassin": {  # Canthan armor — crafter: Kakumei
@@ -489,12 +580,15 @@ def GetArmorCrafterCoords() -> tuple[float, float]:
 def BuyMaxArmorMaterials(material_type: str = "common"):
     for mat, count in _get_max_armor_data()[f"buy_{material_type}"]:
         for _ in range(count):
-            yield from Routines.Yield.Merchant.BuyMaterial(mat)
+            if not (yield from Routines.Yield.Merchant.BuyMaterial(mat)):
+                yield from Routines.Yield.wait(500)
+                yield from Routines.Yield.Merchant.BuyMaterial(mat)
         yield from Routines.Yield.wait(500)
 
 def DoCraftMaxArmor(bot: Botting):
     for item_id, mats, qtys in _get_max_armor_data()["pieces"]:
         result = yield from Routines.Yield.Items.CraftItem(item_id, 1000, mats, qtys)
+        yield from Routines.Yield.wait(500)
         if not result:
             ConsoleLog("CraftMaxArmor", f"Failed to craft item ({item_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
@@ -556,6 +650,30 @@ def DoCraftShortbow(bot: Botting):
         result = yield from Routines.Yield.Items.EquipItem(weapon_id)
         if not result:
             ConsoleLog("DoCraftShortbow", f"Failed to equip shortbow ({weapon_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+    return True
+
+def BuyLongbowMaterials():
+    for mat, count in _LONGBOW_DATA["buy"]:
+        for _ in range(count):
+            yield from Routines.Yield.Merchant.BuyMaterial(mat)
+_LONGBOW_DATA = {
+    "buy":    [(ModelID.Wood_Plank.value, 10), (ModelID.Feather.value, 5)],
+    "pieces": [(11723, [ModelID.Wood_Plank.value, ModelID.Feather.value], [100, 50])],  # Longbow, 10 wood planks
+}
+def DoCraftLongbow(bot: Botting):
+    for weapon_id, mats, qtys in _LONGBOW_DATA["pieces"]:
+        result = yield from Routines.Yield.Items.CraftItem(weapon_id, 5000, mats, qtys)
+        if not result:
+            ConsoleLog("DoCraftWeapon", f"Failed to craft weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
+            bot.helpers.Events.on_unmanaged_fail()
+            return False
+        yield
+        result = yield from Routines.Yield.Items.EquipItem(weapon_id)
+        if not result:
+            ConsoleLog("DoCraftWeapon", f"Failed to equip weapon ({weapon_id}).", Py4GW.Console.MessageType.Error)
             bot.helpers.Events.on_unmanaged_fail()
             return False
         yield
@@ -654,20 +772,40 @@ def destroy_seitung_armor() -> Generator[Any, Any, None]:
 
 #endregion
 #region Routines
-def _on_death(bot: "Botting"):
+def _on_death(bot: "Botting", step_name: str = ""):
     """Player died (in-map): halt movement, wait for outpost, then resume."""
     died_in_ab = (Map.GetMapID() == _AB_MAP_ID)  # capture before the wait
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
     bot.Properties.ApplyNow("auto_combat", "active", False)
-    yield from Routines.Yield.wait(8000)
-    fsm = bot.config.FSM
     if died_in_ab:
+        yield from Routines.Yield.wait(8000)
+        fsm = bot.config.FSM
         target_step = _resolve_waypoint_state_name(fsm, _FARM_RESTART_STEP)
         if target_step:
             fsm.jump_to_state_by_name(target_step)
-    fsm.resume()
+        fsm.resume()
+    else:
+        Player.SendChatCommand("resign")
+        yield from Routines.Yield.wait(1000)
+        while True:
+            yield from Routines.Yield.wait(500)
+            if not Routines.Checks.Map.MapValid():
+                continue
+            if Routines.Checks.Map.IsOutpost() and Map.IsMapReady():
+                break
+            if GLOBAL_CACHE.Party.IsPartyDefeated():
+                GLOBAL_CACHE.Party.ReturnToOutpost()
+        fsm = bot.config.FSM
+        if not step_name or not fsm.has_state(step_name):
+            state_names = fsm.get_state_names()
+            step_name = state_names[0] if state_names else ""
+        if not step_name:
+            fsm.resume()
+            yield
+            return
+        fsm.ResetAndStartAtStep(step_name)
     bot.Properties.ApplyNow("auto_combat", "active", True)
     bot.Templates.Aggressive()
     yield
@@ -702,11 +840,15 @@ def _on_party_defeated(bot: "Botting", step_name: str):
     yield
 
 def on_death(bot: "Botting"):
-    print("Player is dead. Run Failed, Restarting...")
-    ActionQueueManager().ResetAllQueues()
-    fsm = bot.config.FSM
-    fsm.pause()
-    fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
+    player_morale  = Player.GetMorale()
+    morale_trigger = (player_morale == 0)
+    if (Map.GetMapID() == _AB_MAP_ID) or morale_trigger:
+        print(f"Morale trigger fired (player={player_morale}. Run Failed, Restarting...")
+        ActionQueueManager().ResetAllQueues()
+        fsm = bot.config.FSM
+        current_step = _get_mission_header_step(fsm) or (fsm.current_state.name if fsm.current_state else "")
+        fsm.pause()
+        fsm.AddManagedCoroutine("OnDeath", _on_death(bot, current_step))
 
 def _get_mission_header_step(fsm) -> str | None:
     """Return the [H] header state name for the current state (so we restart the mission, not a sub-step)."""
@@ -747,32 +889,56 @@ def Forming_A_Party(bot: Botting) -> None:
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     PrepareForBattle(bot)
     bot.Items.SpawnAndDestroyBonusItems()
-    bot.Move.XYAndDialog(-14063.00, 10044.00, 0x81B801)
+    exec_fn = lambda: QuestLoop(440, -14063.00, 10044.00, 0x81B801)
+    bot.States.AddCustomState(exec_fn, "Accept - Forming A Party")
+    #bot.Move.XYAndDialog(-14063.00, 10044.00, 0x81B801)
     bot.Move.XYAndExitMap(-14961, 11453, target_map_name="Sunqua Vale")
-    bot.Move.XYAndDialog(19673.00, -6982.00, 0x81B807)
+    #bot.Move.XYAndDialog(19673.00, -6982.00, 0x81B807)
+    exec_fn = lambda: QuestLoop(440, 19673.00, -6982.00, 0x81B807, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - Forming A Party")
     
 def Unlock_Secondary_Profession(bot: Botting) -> None:
     def assign_profession_unlocker_dialog():
         global bot
         primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
         if primary == "Mesmer":
-            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D08)
+            #yield from bot.Interact._coro_with_agent((-92, 9217),0x813D08)
+            exec_fn = lambda: QuestLoop(317, -92, 9217,  0x813D08)
+            bot.States.AddCustomState(exec_fn, "Accept - Choose Your Secondary Profession (Factions quest)")
         else:
-            yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0E)
+            #yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0E)
+            exec_fn = lambda: QuestLoop(317, -92, 9217,  0x813D0E)
+            bot.States.AddCustomState(exec_fn, "Accept - Choose Your Secondary Profession (Factions quest)")
 
     bot.States.AddHeader("Unlock Secondary Profession")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
     ConfigurePacifistEnv(bot)
     bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
     bot.Move.XY(-159, 9174)
-    bot.States.AddCustomState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
+    #bot.States.AddCustomState(assign_profession_unlocker_dialog, "Update Secondary Profession Dialog")
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary == "Mesmer":
+        #yield from bot.Interact._coro_with_agent((-92, 9217),0x813D08)
+        exec_fn = lambda: QuestLoop(317, -92, 9217,  0x813D08)
+        bot.States.AddCustomState(exec_fn, "Accept - Choose Your Secondary Profession (Factions quest)")
+    elif primary != "Mesmer":
+        #yield from bot.Interact._coro_with_agent((-92, 9217),0x813D0E)
+        exec_fn = lambda: QuestLoop(317, -92, 9217,  0x813D0E)
+        bot.States.AddCustomState(exec_fn, "Accept - Choose Your Secondary Profession (Factions quest)")
+    #bot.Wait.ForTime(3000)
+    #bot.UI.CancelSkillRewardWindow()
+    #bot.Wait.ForTime(3000)
+    #primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    #if primary != "Mesmer":
+    #    bot.UI.CancelSkillRewardWindow()
+    #bot.Dialogs.AtXY(-92, 9217,  0x813D07) 
+    exec_fn = lambda: QuestLoop(317, -92, 9217,  0x813D07, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - Choose Your Secondary Profession (Factions quest)")
     bot.Wait.ForTime(3000)
-    bot.UI.CancelSkillRewardWindow()
-    bot.Wait.ForTime(3000)
-    bot.UI.CancelSkillRewardWindow()
-    bot.Dialogs.AtXY(-92, 9217,  0x813D07) #Reward
-    bot.Wait.ForTime(3000)
-    bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
+    #bot.Dialogs.AtXY(-92, 9217,  0x813E01) #Minister Cho's Estate quest
+    exec_fn = lambda: QuestLoop(318, -92, 9217, 0x813E01) # Accept - A Formal Introduction
+    bot.States.AddCustomState(exec_fn, "Accept - A Formal Introduction")
+    
     bot.Move.XYAndExitMap(-3762, 9471, target_map_name="Shing Jea Monastery")
 
 def Unlock_Xunlai_Storage(bot: Botting) -> None:
@@ -791,13 +957,14 @@ def Craft_Weapon(bot: Botting):
     bot.Move.XYAndInteractNPC(-10614.00, 10996.00)  # Common material merchant
     exec_fn_wood = lambda: BuyWeaponMaterials()
     bot.States.AddCustomState(exec_fn_wood, "Buy Wood Planks")
-    bot.States.AddCustomState(BuyMaterials, "Buy Materials")
+    bot.States.AddCustomState(BuyMaterials, "Buy Early Armor Materials")
     bot.Move.XY(-10896.94, 10807.54)
     bot.Move.XY(-6519.00, 12335.00)
     bot.Move.XYAndInteractNPC(-6519.00, 12335.00)  # Weapon crafter in Shing Jea Monastery
     bot.Wait.ForTime(1000)
     exec_fn = lambda: DoCraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapons")
+    bot.States.AddCustomState(_handle_bonus_bow, "Equip Custom/Crafted Bow from previous run")
 
 def Craft_Monastery_Armor(bot: Botting):
     bot.States.AddHeader("Craft monastery armor")
@@ -813,21 +980,21 @@ def Extend_Inventory_Space(bot: Botting):
     bot.Move.XY(-11866, 11444)
     bot.Move.XYAndInteractNPC(-11866, 11444) # Merchant NPC in Shingjea Monastery
     bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
+    yield from Routines.Yield.wait(250)
     bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
+    yield from Routines.Yield.wait(250)
     bot.helpers.Merchant.buy_item(2988, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
+    yield from Routines.Yield.wait(250)
     bot.helpers.Merchant.buy_item(2988, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
+    yield from Routines.Yield.wait(250)
     bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
-    bot.Wait.ForTime(250)
+    yield from Routines.Yield.wait(250)
     bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
     bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
-    bot.Wait.ForTime(500) # Wait for equip to complete
+    yield from Routines.Yield.wait(500) # Wait for equip to complete
     bot.Items.MoveModelToBagSlot(35, 1, 0)
     bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-    bot.Wait.ForTime(500)
+    yield from Routines.Yield.wait(500)
     bot.Items.MoveModelToBagSlot(35, 1, 0)
     bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
 
@@ -849,9 +1016,13 @@ def To_Minister_Chos_Estate(bot: Botting):
     ConfigurePacifistEnv(bot)
     bot.Move.XY(16182.62, -7841.86)
     bot.Move.XY(6611.58, 15847.51)
-    bot.Move.XYAndDialog(6637, 16147, 0x80000B)
+    #bot.Move.XYAndDialog(6637, 16147, 0x80000B)
+    exec_fn = lambda: QuestLoop(318, 6637, 16147, 0x80000B, mode="skip")
+    bot.States.AddCustomState(exec_fn, "Step 1 - A Formal Introduction")
     bot.Wait.ForMapToChange(target_map_id=214)
-    bot.Move.XYAndDialog(7884, -10029, 0x813E07)
+    #bot.Move.XYAndDialog(7884, -10029, 0x813E07)
+    exec_fn = lambda: QuestLoop(318, 7884, -10029, 0x813E07, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - A Formal Introduction")
     
 def Minister_Chos_Estate_Mission(bot: Botting) -> None:
     bot.States.AddHeader("Minister Cho's Estate mission")
@@ -883,42 +1054,58 @@ def Minister_Chos_Estate_Mission(bot: Botting) -> None:
     bot.Wait.ForTime(5000)
     bot.Move.XY(-16924, 2445)  # Move to Final Destination
     bot.Interact.WithNpcAtXY(-17031, 2448) #"Interact with Minister Cho"
-    bot.Wait.ForMapToChange(target_map_id=251) #Ran Musu Gardens
+    bot.Wait.ForMapToChange(target_map_id=251) #Ran Musu Gard 
     
 def Attribute_Points_Quest_1(bot: Botting):
     bot.States.AddHeader("Attribute points quest n. 1")
     bot.Map.Travel(target_map_id=251) #Ran Musu Gardens
     bot.Move.XY(16184.75, 19001.78)
-    bot.Move.XYAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
+    #bot.Move.XYAndDialog(14363.00, 19499.00, 0x815A01)  # I Like treasure
+    exec_fn = lambda: QuestLoop(346, 14363.00, 19499.00, 0x815A01)
+    bot.States.AddCustomState(exec_fn, "Accept - Lost Treasure")
     PrepareForBattle(bot)
     path = [(13713.27, 18504.61),(14576.15, 17817.62),(15824.60, 18817.90),(17005, 19787)]
     bot.Move.FollowPathAndExitMap(path, target_map_id=245)
     bot.Properties.Disable("auto_loot")
     bot.Move.XY(-17979.38, -493.08)
-    bot.Dialogs.WithModel(3093, 0x815A04) #Guard model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(3093, 0x815A04) #Guard model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(346, 0, 0, 0x815A04, mode="step", quest_npc=3093)
+    bot.States.AddCustomState(exec_fn, "Step 1 - Lost Treasure")
+    bot.Wait.ForTime(5000)
     exit_function = lambda: (
         not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
         Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(3093))
     )
     bot.Move.FollowModel(3093, follow_range=(Range.Area.value), exit_condition=exit_function) #Guard model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(3093, 0x815A07) #Guard model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(3093, 0x815A07) #Guard model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(346, 0, 0, 0x815A07, mode="complete", quest_npc=3093)
+    bot.States.AddCustomState(exec_fn, "Step 2 - Lost Treasure")
     bot.Map.Travel(target_map_id=251) #Ran Musu Gardens
     
 def Warning_The_Tengu(bot: Botting):
     bot.States.AddHeader("Quest: Warning the Tengu")
     bot.Map.Travel(target_map_id=251) #Ran Musu Gardens
-    bot.Move.XYAndDialog(15846, 19013, 0x815301)
+    bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
+    #bot.Move.XYAndDialog(15846, 19013, 0x815301)
+    exec_fn = lambda: QuestLoop(339, 15846, 19013, 0x815301)
+    bot.States.AddCustomState(exec_fn, "Accept - Warning the Tengu")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(14730, 15176, target_map_name="Kinya Province")
     bot.Move.XY(1429, 12768)
-    bot.Move.XYAndDialog(-1023, 4844, 0x815304)
+    #bot.Move.XYAndDialog(-1023, 4844, 0x815304)
+    exec_fn = lambda: QuestLoop(339, -1023, 4844, 0x815304, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 1 - Warning the Tengu")
     bot.Move.XY(-5011, 732, "Move to Tengu Killspot")
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XYAndDialog(-1023, 4844, 0x815307)
+    #bot.Move.XYAndDialog(-1023, 4844, 0x815307)
+    exec_fn = lambda: QuestLoop(339, -1023, 4844, 0x815307, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - Warning the Tengu")
 
 def The_Threat_Grows(bot: Botting):
     bot.States.AddHeader("Quest: The Threat Grows")
-    bot.Dialogs.AtXY(-1023, 4844, 0x815401)
+    #bot.Dialogs.AtXY(-1023, 4844, 0x815401)
+    exec_fn = lambda: QuestLoop(340, -1023, 4844, 0x815401)
+    bot.States.AddCustomState(exec_fn, "Accept - The Threat Grows")
     bot.Map.Travel(target_map_id=242) #Shin Jea Monastery
     PrepareForBattle(bot)
     bot.Move.XY(-14961, 11453)
@@ -933,23 +1120,37 @@ def The_Threat_Grows(bot: Botting):
     bot.Move.XY(10077.84, 8047.69) #Kill spot
     bot.Wait.UntilModelHasQuest(3367) #Sister Tai model id updated 20.12.2025 GW Reforged
     ConfigurePacifistEnv(bot)
-    bot.Dialogs.WithModel(3367, 0x815407) #Sister Tai model id updated 20.12.2025 GW Reforged
-    bot.Wait.ForTime(5000)
-    bot.Dialogs.WithModel(3367, 0x815501) #Sister Tai model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(3367, 0x815407) #Sister Tai model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(340, 0, 0, 0x815407, mode="complete", quest_npc=3367)
+    bot.States.AddCustomState(exec_fn, "Complete - The Threat Grows")
+
+    #bot.Dialogs.WithModel(3367, 0x815501) #Sister Tai model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(341, 0, 0, 0x815501, quest_npc=3367)
+    bot.States.AddCustomState(exec_fn, "Accept - Journey of the Master")
      
 def The_Road_Less_Traveled(bot: Botting):
     bot.States.AddHeader("Quest: The Road Less Traveled")
     bot.Map.Travel(target_map_id=242) #Shin Jea Monastery
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(-3480, 9460, target_map_name="Linnok Courtyard")
-    bot.Move.XYAndDialog(-92, 9217, 0x815507)
-    bot.Dialogs.AtXY(-92, 9217, 0x815601)
-    bot.Move.XYAndDialog(538, 10125, 0x80000B)
+    #bot.Move.XYAndDialog(-92, 9217, 0x815507)
+    exec_fn = lambda: QuestLoop(341, -92, 9217, 0x815507, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - Journey of the Master")
+    #bot.Dialogs.AtXY(-92, 9217, 0x815601)
+    exec_fn = lambda: QuestLoop(342, -92, 9217, 0x815601)
+    bot.States.AddCustomState(exec_fn, "Accept - The Road Less Traveled")
+    #bot.Move.XYAndDialog(538, 10125, 0x80000B)
+    exec_fn = lambda: QuestLoop(342, 538, 10125, 0x80000B, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 1 - The Road Less Traveled")
     bot.Wait.ForMapToChange(target_map_id=313)
-    bot.Move.XYAndDialog(1254, 10875, 0x815604)
+    #bot.Move.XYAndDialog(1254, 10875, 0x815604)
+    exec_fn = lambda: QuestLoop(342, 1254, 10875, 0x815604, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 2 - The Road Less Traveled")
     bot.Move.XYAndExitMap(16600, 13150, target_map_name="Seitung Harbor")
     bot.Move.XY(16852, 12812)
-    bot.Move.XYAndDialog(16435, 12047, 0x815607)
+    #bot.Move.XYAndDialog(16435, 12047, 0x815607)
+    exec_fn = lambda: QuestLoop(342, 16435, 12047, 0x815607, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - The Road Less Traveled")
     
 def Craft_Seitung_Armor(bot: Botting):
     bot.States.AddHeader("Craft Seitung armor")
@@ -962,6 +1163,8 @@ def Craft_Seitung_Armor(bot: Botting):
 def To_Zen_Daijun(bot: Botting):
     bot.States.AddHeader("To Zen Daijun")
     PrepareForBattle(bot)
+    bot.Move.XY(18000, 11650)
+    bot.Move.XY(19000, 13000)
     bot.Move.XYAndExitMap(16777, 17540, target_map_name="Jaya Bluffs")
     bot.Move.XYAndExitMap(23616, 1587, target_map_name="Haiju Lagoon")
     bot.Move.XYAndDialog(16489, -22213, 0x80000B)
@@ -1052,10 +1255,16 @@ def Destroy_Starter_Armor_And_Useless_Items(bot: Botting):
 def To_Marketplace(bot: Botting):
     bot.States.AddHeader("To Marketplace")
     bot.Map.Travel(target_map_id=250) #Seitung Harbor
-    bot.Move.XYAndDialog(16927, 9004, 0x815D01) #A Master's Burden pt. 1
-    bot.Dialogs.AtXY(16927, 9004, 0x84)
+    #bot.Move.XYAndDialog(16927, 9004, 0x815D01) #A Master's Burden pt. 1
+    exec_fn = lambda: QuestLoop(349, 16927, 9004, 0x815D01)
+    bot.States.AddCustomState(exec_fn, "Accept - A Master's Burden")
+    #bot.Dialogs.AtXY(16927, 9004, 0x84)
+    exec_fn = lambda: QuestLoop(349, 16927, 9004, 0x84, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 1 - A Master's Burden")
     bot.Wait.ForMapLoad(target_map_name="Kaineng Docks")
-    bot.Move.XYAndDialog(9955, 20033, 0x815D04) #A Master's Burden pt. 2
+    #bot.Move.XYAndDialog(9955, 20033, 0x815D04) #A Master's Burden pt. 2
+    exec_fn = lambda: QuestLoop(349, 9955, 20033, 0x815D04, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 2 - A Master's Burden")
     bot.Move.XYAndExitMap(12003, 18529, target_map_name="The Marketplace")
 
 def To_Kaineng_Center(bot: Botting):
@@ -1093,7 +1302,7 @@ def Craft_Max_Armor(bot: Botting):
 
 def _ensure_bonus_bow(bot: Botting):
     """Runtime check: craft the AB shortbow only if not already owned."""
-    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventoryOrEquipped(11730):
+    if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventory(BotSettings.CRAFTED_BOW_ID)or Routines.Checks.Inventory.IsModelEquipped(BotSettings.CRAFTED_BOW_ID):
         yield
         return
     if Map.GetMapID() != 194:
@@ -1103,10 +1312,10 @@ def _ensure_bonus_bow(bot: Botting):
     yield from Routines.Yield.Items.WithdrawGold(20000)
     yield from bot.Move._coro_xy_and_interact_npc(1592.00, -796.00)  # Common material merchant
     yield from Routines.Yield.wait(1000)
-    yield from BuyShortbowMaterials()
+    yield from BuyLongbowMaterials()
     yield from bot.Move._coro_xy_and_interact_npc(-1387.00, -3910.00)  # Weapon crafter
     yield from Routines.Yield.wait(1000)
-    yield from DoCraftShortbow(bot)
+    yield from DoCraftLongbow(bot)
     yield
 
 def Destroy_Monastery_Armor(bot: Botting):
@@ -1120,8 +1329,12 @@ def Destroy_Seitung_Armor(bot: Botting):
 def The_Search_For_A_Cure(bot: Botting) -> None:
     bot.States.AddHeader("Quest: The Search For A Cure")
     bot.Map.Travel(194)
-    bot.Move.XYAndDialog(3772.00, -961.00, 0x815001)
-    bot.Move.XYAndDialog(1784.00, 991.00, 0x815004)
+    #bot.Move.XYAndDialog(3772.00, -961.00, 0x815001)
+    exec_fn = lambda: QuestLoop(336, 3772.00, -961.00, 0x815001)
+    bot.States.AddCustomState(exec_fn, "Accept - The Search for a Cure")
+    #bot.Move.XYAndDialog(1784.00, 991.00, 0x815004)
+    exec_fn = lambda: QuestLoop(336, 1784.00, 991.00, 0x815004, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 1 - The Search for a Cure")
     bot.Map.Travel(target_map_name="The Marketplace")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(11430.00, 15200.00, target_map_name="Wajjun Bazaar")
@@ -1131,12 +1344,18 @@ def The_Search_For_A_Cure(bot: Botting) -> None:
     bot.Items.LootItems()
     bot.Wait.ForTime(5000)
     bot.Map.Travel(194)
-    bot.Move.XYAndDialog(1784.00, 991.00, 0x815007)
+    #bot.Move.XYAndDialog(1784.00, 991.00, 0x815007)
+    exec_fn = lambda: QuestLoop(336, 1784.00, 991.00, 0x815007, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - The Search for a Cure")
 
 def A_Masters_Burden(bot: Botting) -> None:
     bot.States.AddHeader("Quest: A Master's Burden")
     bot.Map.Travel(194)
-    bot.Move.XYAndDialog(1784.00, 991.00, 0x815101)
+    #bot.Move.XYAndDialog(1784.00, 991.00, 0x815101)
+    exec_fn = lambda: QuestLoop(337, 1784.00, 991.00, 0x815101)
+    bot.States.AddCustomState(exec_fn, "Accept - Seek out Brother Tosai")
+    exec_fn = lambda: bot.Quest.SetActiveQuest(349)
+    bot.States.AddCustomState(exec_fn, "Set Active - A Master's Burden")
     bot.Map.Travel(target_map_name="The Marketplace")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(11430.00, 15200.00, target_map_name="Wajjun Bazaar")
@@ -1148,27 +1367,37 @@ def A_Masters_Burden(bot: Botting) -> None:
     bot.Move.XY(5329.09, 7626.73)
     bot.Move.XY(4145.20, 6584.09)
     bot.Move.XY(-1663.82, 7113.72)
-    bot.Move.XYAndDialog(-1893.00, 6922.00, 0x815D04)
+    #bot.Move.XYAndDialog(-1893.00, 6922.00, 0x815D04)
+    exec_fn = lambda: QuestLoop(349, -1893.00, 6922.00, 0x815D04, mode="step", quest_npc=3171)
+    bot.States.AddCustomState(exec_fn, "Step 3 - A Master's Burden")
     bot.Move.XY(4207.15, 6226.59)
     bot.Move.XY(4944.20, 3398.03)
     bot.Move.XY(4401.08, 618.24)
     bot.Move.XY(5802.95, -2295.56)
     bot.Move.XY(4671.93, -5007.46)
-    bot.Move.XY(10977.27, -5479.92)
-    bot.Move.XYAndDialog(10774.00, -6636.00, 0x815D04)
-    bot.Wait.ForTime(1000)
+    bot.Move.XY(10774.00, -6636.00)
+    #bot.Move.XYAndDialog(10774.00, -6636.00, 0x815D04)
+    exec_fn = lambda: QuestLoop(349, 10774.00, -6636.00, 0x815D04, mode="step", quest_npc=3307)
+    bot.States.AddCustomState(exec_fn, "Step 4 - A Master's Burden")
     bot.Map.Travel(target_map_name="The Marketplace")
     bot.Move.XY(12250, 18236)
     bot.Move.XY(10343, 20329)
     bot.Wait.ForMapLoad(target_map_id=302)
-    bot.Move.XYAndDialog(9950.00, 20033.00, 0x815D07)
-    #bot.Quest.AbandonQuest(337) #Abandon Seek out Brother Tosai quest
-
+    #bot.Move.XYAndDialog(9950.00, 20033.00, 0x815D07)
+    exec_fn = lambda: QuestLoop(349, 9950.00, 20033.00, 0x815D07, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - A Master's Burden")
+    exec_fn = lambda: bot.Quest.SetActiveQuest(337)
+    bot.States.AddCustomState(exec_fn, "Set Active - Seek Out Brother Tosai")
+    exec_fn = lambda: bot.Quest.AbandonQuest(337)
+    bot.States.AddCustomState(exec_fn, "Abandon - Seek Out Brother Tosai")
+    
 def To_Boreal_Station(bot: Botting):
     bot.States.AddHeader("To Boreal Station")
     bot.Map.Travel(target_map_id=194)
     bot.Move.XY(3444.90, -1728.31)
-    bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)
+    #bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)    
+    exec_fn = lambda: QuestLoop(821, 3747.00, -2174.00, 0x833501)
+    bot.States.AddCustomState(exec_fn, "Accept - I Feel the Earth Move Under Cantha's Feet")
     bot.Move.XY(3444.90, -1728.31)
     PrepareForBattle(bot)
     def _disable_dead_behind():
@@ -1176,16 +1405,20 @@ def To_Boreal_Station(bot: Botting):
         yield
     bot.States.AddCustomState(_disable_dead_behind, "Disable DeadBehind Callback")
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
-    bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
+    mox_id   = Routines.Agents.GetAgentIDByModelID(7590)
+    if mox_id != 0:
+        bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
     bot.Wait.ForTime(1000)
-    bot.States.AddCustomState(destroy_starter_armor_and_useless_items, "Destroy starter armor and useless items")
-    bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
+    #bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
+    exec_fn = lambda: QuestLoop(821, -10103.00, 16493.00, 0x84, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step - I Feel the Earth Move Under Cantha's Feet")
     bot.Wait.ForMapLoad(target_map_id=692)
     auto_path_list = [(16738.77, 3046.05), (13028.36, 6146.36), (10968.19, 9623.72),
                       (3918.55, 10383.79), (8435, 14378), (10134,16742)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForTime(3000)
     ConfigurePacifistEnv(bot)
+    bot.Items.UseAllConsumables()
     auto_path_list = [(4523.25, 15448.03), (-43.80, 18365.45), (-10234.92, 16691.96),
                       (-17917.68, 18480.57), (-18775, 19097)]
     bot.Move.FollowAutoPath(auto_path_list)
@@ -1203,7 +1436,9 @@ def To_Eye_of_the_North(bot: Botting):
     bot.Move.XYAndExitMap(4684, -27869, target_map_name="Ice Cliff Chasms")
     bot.Move.XY(3579.07, -22007.27)
     bot.Wait.ForTime(15000)
-    bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
+    #bot.Dialogs.AtXY(3537.00, -21937.00, 0x839104)
+    exec_fn = lambda: QuestLoop(913, 0, 0, 0x839104, mode="step", quest_npc=6034)
+    bot.States.AddCustomState(exec_fn, "Step 1 - Against the Destroyers")
     auto_path_list = [(3743.31, -15862.36), (3607.21, -6937.32),(2557.23, -275.97)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XY(-641.25, 2069.27)
@@ -1216,20 +1451,160 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapToChange(target_map_id=646)
     bot.Move.XY(-6572.70, 6588.83)
-    bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(913, 0, 0, 0x800001, mode="step", quest_npc=6021)
+    bot.States.AddCustomState(exec_fn, "Step 2 - Against the Destroyers")
     bot.Wait.ForTime(1000)
-    #bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
-    #bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x633) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(5959, 0x633) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(913, 0, 0, 0x633, mode="step", quest_npc=5959)
+    bot.States.AddCustomState(exec_fn, "Step 3 - Against the Destroyers")
     bot.Wait.ForTime(1000)
     bot.Wait.ForMapToChange(target_map_id=646)
-    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Tapestry
+    bot.Wait.ForTime(1000)
+    #bot.Dialogs.WithModel(6021, 0x831904) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(793, 0, 0, 0x831904, mode="step", quest_npc=6021)
+    bot.States.AddCustomState(exec_fn, "Step 1 - The Missing Vanguard")
     bot.Dialogs.WithModel(6021, 0x0000008A) # Gwen dialog to obtain Keiran's bow. Model id updated 20.12.2025 GW Reforged
-    bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
-    bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
+    #bot.Move.XYAndDialog(-6133.41, 5717.30, 0x838904) # Ogden dialog. Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(905, 0, 0, 0x838904, mode="step", quest_npc=5983)
+    bot.States.AddCustomState(exec_fn, "Step 1 - Northern Allies")
+    #bot.Move.XYAndDialog(-5626.80, 6259.57, 0x839304) # Vekk dialog. Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(915, 0, 0, 0x839304, mode="step", quest_npc=5964)
+    bot.States.AddCustomState(exec_fn, "Step 1 - The Knowledgeable Asura")
     bot.Items.Equip(35829) #Keiran's bow
     bot.Map.Travel(target_map_id=642)
+
+# Re-entry step when the AB farm run fails (re-equips bow, enters quest from HOM, waits for map)
+_FARM_RESTART_STEP = "[H]Prepare for Quest (Farm)_34"
+_AB_MAP_ID = 849
+
+def _handle_bonus_bow(bot: Botting):
+    bonus_bow_id = BotSettings.CRAFTED_BOW_ID
+
+    if BotSettings.CUSTOM_BOW_ID != 0:
+        bonus_bow_id = BotSettings.CUSTOM_BOW_ID
+    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventoryOrBank(bonus_bow_id)
+    if has_bonus_bow:
+        if not Routines.Checks.Inventory.IsModelInInventory(bonus_bow_id):
+            yield from Routines.Yield.Items.WithdrawItems(bonus_bow_id, 1)
+        yield from bot.helpers.Items._equip(bonus_bow_id)
+
+def Farm_Until_Level_20(bot: Botting):
+    """Farm Auspicious Beginnings until level 20 using KeiranThackerayEOTN build (solo, no heroes)."""
+    FARM_PREPARE_STEP = "[H]Prepare for Quest (Farm)_33"
+    NEXT_STEP_AFTER_FARM = "[H]Attribute points quest n. 2_35"
+    EOTN_MAP_ID      = 642
+    HOM_MAP_ID       = 646
+    AB_MAP_ID        = 849
+
+    # ── Header _32: loop entry / early exit check ──────────────────────────
+    bot.States.AddHeader("Farm Until Level 20")
+
+    def _level_check_entry():
+        level = Player.GetLevel()
+        ConsoleLog("FarmUntil20", f"[Farm] Entry level check: level={level}", Py4GW.Console.MessageType.Info)
+        if level >= 20:
+            fsm = bot.config.FSM
+            target_step = _resolve_waypoint_state_name(fsm, NEXT_STEP_AFTER_FARM)
+            if not target_step:
+                ConsoleLog("FarmUntil20", f"[Farm] Target state not found: {NEXT_STEP_AFTER_FARM}", Py4GW.Console.MessageType.Error)
+                yield
+                return
+            fsm.pause()
+            yield
+            fsm.jump_to_state_by_name(target_step)
+            yield
+            fsm.resume()
+            yield
+        # Keep coroutine semantics even when level < 20.
+        yield
+
+    bot.States.AddCustomState(_level_check_entry, "Level Check (Farm Entry)")
+    bot.States.AddCustomState(lambda: _ensure_bonus_bow(bot), "Ensure Bonus Bow (Farm)")
+
+    # Travel EotN → HOM (solo, no heroes)
+    bot.Map.Travel(target_map_id=EOTN_MAP_ID)
+    bot.Party.LeaveParty()
+    bot.Move.XYAndExitMap(-4873.00, 5284.00, target_map_id=HOM_MAP_ID)
+
+    # ── Header _33: prepare for quest ─────────────────────────────────────
+    bot.States.AddHeader("Prepare for Quest (Farm)")
+    bot.Wait.ForMapLoad(target_map_id=HOM_MAP_ID)
+
+    def _equip_keirans_bow():
+        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Keirans_Bow.value):
+            yield from bot.Move._coro_xy_and_dialog(-6583.00, 6672.00, dialog_id=0x0000008A)
+        if not Routines.Checks.Inventory.IsModelEquipped(ModelID.Keirans_Bow.value):
+            yield from bot.helpers.Items._equip(ModelID.Keirans_Bow.value)
+
+    bot.States.AddCustomState(_equip_keirans_bow, "Equip Keiran's Bow (Farm)")
+    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63F)   # enter quest via HOM pool
+    bot.Wait.ForMapLoad(target_map_id=AB_MAP_ID)
+
+    # ── Header _34: run the quest ─────────────────────────────────────────
+    bot.States.AddHeader("Run Quest (Farm)")
+
+    def _setup_keiran_combat():
+        bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM))
+        bot.config.reset_pause_on_danger_fn(aggro_area=Range.Longbow)
+        bot.Properties.ApplyNow("pause_on_danger", "active", True)
+        bot.Properties.ApplyNow("halt_on_death",   "active", False)
+        bot.Properties.ApplyNow("auto_combat",     "active", True)
+        bot.Properties.ApplyNow("auto_loot",       "active", True)
+        bot.Properties.ApplyNow("imp",             "active", False)
+        yield
+
+    exec_fn = lambda: _load_navmesh_object(bot)
+    bot.States.AddCustomState(exec_fn, "Navmesh Init")
+    bot.States.AddCustomState(_setup_keiran_combat, "Setup Keiran Combat (Farm)")
+
+    # Quest path (from AuspiciousBeginnings.py)
+    bot.Move.XY(11864.74, -4899.19)
+    bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
+    bot.Wait.UntilOnCombat(Range.Spirit)
+
+    bot.Move.XY(10165.07, -6181.43, step_name="First Spawn")
+
+    bot.Move.XY(8270,-9010)
+    bot.Move.XY(4245,-7412)
+    bot.Move.XY(2025,-10726)
+    bot.Move.XY(-1822,-11230)
+    bot.Move.XY(-3006,-8921)
+    bot.Move.XY(-4190,-10460)
+    bot.Move.XY(-5640,-10371)
+    bot.Move.XY(-8748,-8329)
+    bot.Move.XY(-12122,-7530)
+    bot.Move.XY(-15170,-8951)
+    bot.Wait.ForMapLoad(target_map_id=HOM_MAP_ID)
+
+    def _disable_farm_combat():
+        bot.Properties.ApplyNow("pause_on_danger", "active", False)
+        bot.Properties.ApplyNow("auto_combat",     "active", False)
+        yield
+
+    bot.States.AddCustomState(_disable_farm_combat, "Disable Farm Combat")
+
+    def _level_check_and_loop():
+        level = Player.GetLevel()
+        ConsoleLog("FarmUntil20", f"[Farm] End-of-run level check: level={level}", Py4GW.Console.MessageType.Info)
+        if level < 20:
+            fsm = bot.config.FSM
+            target_step = _resolve_waypoint_state_name(fsm, FARM_PREPARE_STEP)
+            if not target_step:
+                ConsoleLog("FarmUntil20", f"[Farm] Target state not found: {FARM_PREPARE_STEP}", Py4GW.Console.MessageType.Error)
+                yield
+                return
+            fsm.pause()
+            yield
+            fsm.jump_to_state_by_name(target_step)
+            yield
+            fsm.resume()
+            yield
+        # Keep coroutine semantics even when level >= 20.
+        yield
+
+    bot.States.AddCustomState(_level_check_and_loop, "Level Check and Loop (Farm)")
 
 def Attribute_Points_Quest_2(bot: Botting):
     def enable_combat_and_wait(ms:int):
@@ -1243,6 +1618,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     def _cleanup_farm_settings():
         """Clear Keiran's build override and reset farm-specific properties."""
         bot.OverrideBuild(AutoCombat())
+        bot.config.reset_pause_on_danger_fn(aggro_area=Range.Earshot)
         bot.Properties.ApplyNow("halt_on_death",   "active", False)
         bot.Properties.ApplyNow("pause_on_danger", "active", False)
         bot.Properties.ApplyNow("auto_loot",       "active", False)
@@ -1257,13 +1633,16 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
-    bot.Dialogs.WithModel(4009,0x815C01) #Zunraa model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(4009,0x815C01) #Zunraa model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(348, 0, 0, 0x815C01, quest_npc=4009)
+    bot.States.AddCustomState(exec_fn, "Accept - An Unwelcome Guest")
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     #bot.Party.AddHenchmanList([1, 5])
     bot.Party.AddHenchmanList([5])
     bot.Move.XYAndDialog(20350.00, 9087.00, 0x80000B)
     bot.Wait.ForMapLoad(target_map_id=246)  #Zen Daijun
+    bot.States.AddCustomState(EquipSkillBar, "Equip Skill Bar")
     ConfigureAggressiveEnv(bot)
     auto_path_list:List[Tuple[float, float]] = [
     (-13959.50, 6375.26), #Half the temple
@@ -1370,433 +1749,8 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Interact.WithGadgetAtXY(19642.00, 7386.00)
     bot.Wait.ForTime(5000)
     bot.Dialogs.WithModel(4009,0x815C07) #Zunraa model id updated 20.12.2025 GW Reforged
-
-# Re-entry step when the AB farm run fails (re-equips bow, enters quest from HOM, waits for map)
-_FARM_RESTART_STEP = "[H]Prepare for Quest (Farm)_34"
-_AB_MAP_ID = 849
-
-# ── Farm AB — Combat AI constants ────────────────────────────────────────────
-_FARM_DEBUG         = False   # set True to see combat AI logs in console
-_MIKU_MODEL_ID      = 8443
-_SHADOWSONG_ID      = 4264
-_SOS_SPIRIT_IDS     = frozenset({4280, 4281, 4282})  # Anger, Hate, Suffering
-_AOE_SKILLS         = {1380: 2000, 1372: 2000, 1083: 2000, 830: 2000, 192: 5000}
-_MIKU_FAR_DIST      = 1400.0
-_SPIRIT_FLEE_DIST   = 1600.0
-_AOE_SIDESTEP_DIST  = 350.0
-_EMPATHY_SKILL_IDS  = frozenset({26, 3151})  # Empathy, Empathy (PvP)
-_SPIRIT_SHACKLES_SKILL_IDS = frozenset({66})  # Spirit Shackles
-
-# White Mantle Ritualist priority targets (in kill priority order, highest first).
-# IDs are base values + 10 adjustment for post-update model IDs.
-_PRIORITY_TARGET_MODELS = [
-    8301,  # PRIMARY  – Shadowsong / Bloodsong / Pain / Anguish rit
-    8299,  # PRIMARY  – Rit/Monk: Preservation, strong heal, hex-remove, spirits
-    8303,  # PRIORITY – Weapon of Remedy rit (hard-rez)
-    8298,  #            Rit/Paragon spear caster
-    8300,  #            SoS rit
-    8302,  # 2nd prio – Minion-summoning rit
-    8254,  #            Ritualist (additional)
-]
-_TARGET_SWITCH_INTERVAL = 1.0   # seconds between priority-target checks
-_PRIORITY_TARGET_RANGE  = Range.Earshot.value  # only target priority enemies within this distance
-
-def _handle_bonus_bow(bot: Botting):
-    bonus_bow_id = 11730
-
-    if BotSettings.CUSTOM_BOW_ID != 0:
-        bonus_bow_id = BotSettings.CUSTOM_BOW_ID
-    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventory(bonus_bow_id)
-    if has_bonus_bow:
-        yield from bot.helpers.Items._equip(bonus_bow_id)
-
-def _farm_escape_point(me_x: float, me_y: float, tx: float, ty: float, dist: float):
-    import math
-    dx = me_x - tx; dy = me_y - ty
-    length = math.sqrt(dx * dx + dy * dy)
-    if length < 1:
-        return me_x + dist, me_y
-    return me_x + (dx / length) * dist, me_y + (dy / length) * dist
-
-
-def _farm_perp_point(me_x: float, me_y: float, tx: float, ty: float, dist: float):
-    import math
-    dx = tx - me_x; dy = ty - me_y
-    length = math.sqrt(dx * dx + dy * dy)
-    if length < 1:
-        return me_x + dist, me_y
-    return me_x + (dy / length) * dist, me_y + (-dx / length) * dist
-
-
-def _farm_dist(x1: float, y1: float, x2: float, y2: float) -> float:
-    import math
-    return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-
-def _farm_combat_ai_loop(bot: Botting):
-    """
-    Managed coroutine for Farm_Until_Level_20 — runs every frame even when FSM is paused.
-    Handles: Miku dead/far, spirit avoidance, AoE dodge.
-    """
-    import time
-    BOT_NAME = "FarmCombatAI"
-    AB_MAP = 849
-    fsm = bot.config.FSM
-    pause_reasons: set = set()
-    ai_paused_fsm = False   # True only when THIS coroutine issued the pause
-    aoe_sidestep_at = 0.0
-    aoe_caster_id = 0
-    last_target_check = 0.0
-    locked_target_id = 0                          # priority target we're locked onto
-    locked_priority = len(_PRIORITY_TARGET_MODELS)  # priority index of locked target
-    _prev_reasons: set = set()
-    last_reposition_at = 0.0
-    last_reposition_pos = (0.0, 0.0)
-    last_reposition_target = (0.0, 0.0)
-    path_recover_cooldown_until = 0.0
-    empathy_skill_ids: tuple[int, ...] = tuple()
-    empathy_resolved = False
-    auto_combat_suppressed_by_empathy = False
-    natures_blessing_id = 0
-
-    ConsoleLog(BOT_NAME, "Farm combat AI loop started", Py4GW.Console.MessageType.Info)
-
-    def _set_pause(reason: str):
-        nonlocal ai_paused_fsm
-        pause_reasons.add(reason)
-        if not fsm.is_paused():
-            fsm.pause()
-            ai_paused_fsm = True
-
-    def _clear_pause(reason: str):
-        nonlocal ai_paused_fsm
-        pause_reasons.discard(reason)
-        if not pause_reasons and ai_paused_fsm and fsm.is_paused():
-            fsm.resume()
-            ai_paused_fsm = False
-
-    def _issue_reposition(target_x: float, target_y: float, me_x: float, me_y: float, now: float):
-        nonlocal last_reposition_at, last_reposition_pos, last_reposition_target, path_recover_cooldown_until
-        same_target = _farm_dist(target_x, target_y, last_reposition_target[0], last_reposition_target[1]) < 120
-        low_progress = _farm_dist(me_x, me_y, last_reposition_pos[0], last_reposition_pos[1]) < 80
-        if same_target and low_progress and (now - last_reposition_at) >= 1.2 and now >= path_recover_cooldown_until:
-            # Stuck recovery: use pathing-aware movement occasionally instead of raw straight-line move.
-            bot.Move.XY(target_x, target_y)
-            path_recover_cooldown_until = now + 2.0
-            if _FARM_DEBUG:
-                ConsoleLog(BOT_NAME, f"Stuck recovery path move -> ({target_x:.0f}, {target_y:.0f})", Py4GW.Console.MessageType.Warning)
-        else:
-            Player.Move(target_x, target_y)
-
-        last_reposition_at = now
-        last_reposition_pos = (me_x, me_y)
-        last_reposition_target = (target_x, target_y)
-
-    while Map.GetMapID() == AB_MAP:
-        me_id = Player.GetAgentID()
-        if not Agent.IsValid(me_id) or Agent.IsDead(me_id):
-            yield
-            continue
-
-        me_x, me_y = Agent.GetXY(me_id)
-        enemy_array = AgentArray.GetEnemyArray()
-        if not empathy_resolved:
-            ids = set(_EMPATHY_SKILL_IDS)
-            ids.update(_SPIRIT_SHACKLES_SKILL_IDS)
-            empathy_id = GLOBAL_CACHE.Skill.GetID("Empathy")
-            if empathy_id > 0:
-                ids.add(empathy_id)
-            empathy_pvp_id = GLOBAL_CACHE.Skill.GetID("Empathy_(PvP)")
-            if empathy_pvp_id > 0:
-                ids.add(empathy_pvp_id)
-            spirit_shackles_id = GLOBAL_CACHE.Skill.GetID("Spirit_Shackles")
-            if spirit_shackles_id > 0:
-                ids.add(spirit_shackles_id)
-            empathy_skill_ids = tuple(ids)
-            natures_blessing_id = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
-            empathy_resolved = True
-
-        # ── 1. Miku tracking ─────────────────────────────────────────────────
-        miku_id = Routines.Agents.GetAgentIDByModelID(_MIKU_MODEL_ID)
-        miku_dead = miku_id != 0 and Agent.IsDead(miku_id)
-        miku_far = False
-        mk_x = mk_y = 0.0
-        if miku_id != 0 and not miku_dead:
-            mk_x, mk_y = Agent.GetXY(miku_id)
-            miku_far = _farm_dist(me_x, me_y, mk_x, mk_y) > _MIKU_FAR_DIST
-
-        if miku_dead:
-            _set_pause("miku_dead")
-        else:
-            _clear_pause("miku_dead")
-
-        if miku_far:
-            _set_pause("miku_far")
-        else:
-            _clear_pause("miku_far")
-
-        # ── 2. Spirit avoidance ───────────────────────────────────────────────
-        spirit_id = 0
-        sp_x = sp_y = 0.0
-        for eid in enemy_array:
-            if Agent.IsDead(eid):
-                continue
-            model = Agent.GetModelID(eid)
-            if model == _SHADOWSONG_ID or model in _SOS_SPIRIT_IDS:
-                ex, ey = Agent.GetXY(eid)
-                if _farm_dist(me_x, me_y, ex, ey) < _SPIRIT_FLEE_DIST:
-                    spirit_id = eid
-                    sp_x, sp_y = ex, ey
-                    break
-
-        if spirit_id != 0:
-            _set_pause("spirit")
-        else:
-            _clear_pause("spirit")
-
-        has_empathy = any(Routines.Checks.Agents.HasEffect(me_id, sid) for sid in empathy_skill_ids)
-        if has_empathy:
-            if not auto_combat_suppressed_by_empathy:
-                yield from Routines.Yield.Keybinds.CancelAction()
-                bot.Properties.ApplyNow("auto_combat", "active", False)
-                auto_combat_suppressed_by_empathy = True
-                if _FARM_DEBUG:
-                    ConsoleLog(BOT_NAME, "Empathy/Spirit Shackles detected: auto_combat paused", Py4GW.Console.MessageType.Warning)
-            Player.ChangeTarget(0)  # clear target every frame to stop auto-attack
-            if natures_blessing_id > 0 and Agent.GetHealth(me_id) < 0.80:
-                if (yield from Routines.Yield.Skills.IsSkillIDUsable(natures_blessing_id)):
-                    yield from Routines.Yield.Skills.CastSkillID(natures_blessing_id, aftercast_delay=100)
-        elif auto_combat_suppressed_by_empathy:
-            bot.Properties.ApplyNow("auto_combat", "active", True)
-            auto_combat_suppressed_by_empathy = False
-            if _FARM_DEBUG:
-                ConsoleLog(BOT_NAME, "Empathy/Spirit Shackles cleared: auto_combat resumed", Py4GW.Console.MessageType.Info)
-
-        # ── Debug: log reason changes once per transition ─────────────────────
-        if _FARM_DEBUG and pause_reasons != _prev_reasons:
-            added   = pause_reasons - _prev_reasons
-            removed = _prev_reasons - pause_reasons
-            for r in added:
-                ConsoleLog(BOT_NAME, f"PAUSE added: {r}", Py4GW.Console.MessageType.Warning)
-            for r in removed:
-                ConsoleLog(BOT_NAME, f"PAUSE cleared: {r}", Py4GW.Console.MessageType.Info)
-            _prev_reasons = set(pause_reasons)
-
-        now = time.time()
-
-        # ── 3. Priority target selection (runs every frame, before movement) ──
-        if now - last_target_check >= _TARGET_SWITCH_INTERVAL:
-            last_target_check = now
-            # Validate locked target: drop it if dead or out of range
-            if locked_target_id != 0:
-                if not Agent.IsValid(locked_target_id) or Agent.IsDead(locked_target_id):
-                    locked_target_id = 0
-                    locked_priority = len(_PRIORITY_TARGET_MODELS)
-                else:
-                    lx, ly = Agent.GetXY(locked_target_id)
-                    if _farm_dist(me_x, me_y, lx, ly) > _PRIORITY_TARGET_RANGE:
-                        locked_target_id = 0
-                        locked_priority = len(_PRIORITY_TARGET_MODELS)
-            # Scan for a strictly higher-priority target (or any if none locked)
-            best_id = 0
-            best_priority = len(_PRIORITY_TARGET_MODELS)
-            for eid in enemy_array:
-                if Agent.IsDead(eid):
-                    continue
-                ex, ey = Agent.GetXY(eid)
-                if _farm_dist(me_x, me_y, ex, ey) > _PRIORITY_TARGET_RANGE:
-                    continue
-                model = Agent.GetModelID(eid)
-                if model in _PRIORITY_TARGET_MODELS:
-                    prio = _PRIORITY_TARGET_MODELS.index(model)
-                    if prio < best_priority:
-                        best_priority = prio
-                        best_id = eid
-            # Lock onto new target only if strictly higher priority than current lock
-            if best_id != 0 and best_priority < locked_priority:
-                locked_target_id = best_id
-                locked_priority = best_priority
-                if _FARM_DEBUG:
-                    ConsoleLog(BOT_NAME,
-                               f"Locked priority target: model {_PRIORITY_TARGET_MODELS[locked_priority]} "
-                               f"(prio {locked_priority}) agent {locked_target_id}",
-                               Py4GW.Console.MessageType.Info)
-            # Call the locked target every interval until dead
-            if locked_target_id != 0:
-                Player.ChangeTarget(locked_target_id)
-                bot.Player.CallTarget()
-
-        # ── 4. Act on movement conditions (priority order) ────────────────────
-        if miku_dead:
-            yield
-            continue
-
-        if spirit_id != 0:
-            ex_x, ex_y = _farm_escape_point(me_x, me_y, sp_x, sp_y, 600)
-            _issue_reposition(ex_x, ex_y, me_x, me_y, now)
-            yield from Routines.Yield.wait(200)
-            continue
-
-        if miku_far:
-            _issue_reposition(mk_x, mk_y, me_x, me_y, now)
-            yield from Routines.Yield.wait(200)
-            continue
-
-        # ── 5. AoE dodge ─────────────────────────────────────────────────────
-        if aoe_caster_id != 0 and now >= aoe_sidestep_at:
-            if Agent.IsValid(aoe_caster_id) and not Agent.IsDead(aoe_caster_id):
-                tx, ty = Agent.GetXY(aoe_caster_id)
-                sx, sy = _farm_perp_point(me_x, me_y, tx, ty, _AOE_SIDESTEP_DIST)
-                _issue_reposition(sx, sy, me_x, me_y, now)
-                if _FARM_DEBUG:
-                    ConsoleLog(BOT_NAME, f"AoE dodge: stepping to ({sx:.0f}, {sy:.0f})", Py4GW.Console.MessageType.Info)
-            aoe_caster_id = 0
-        elif aoe_caster_id == 0:
-            for eid in enemy_array:
-                if Agent.IsDead(eid):
-                    continue
-                skill = Agent.GetCastingSkillID(eid)
-                if skill in _AOE_SKILLS:
-                    aoe_sidestep_at = now + _AOE_SKILLS[skill] / 1000.0
-                    aoe_caster_id = eid
-                    if _FARM_DEBUG:
-                        ConsoleLog(BOT_NAME, f"AoE detected: skill {skill}, dodging in {_AOE_SKILLS[skill]}ms", Py4GW.Console.MessageType.Warning)
-                    break
-
-        yield
-
-    # Cleanup: clear AI state on map exit.
-    # If party was defeated, _on_party_defeated is handling the FSM — don't resume it.
-    ConsoleLog(BOT_NAME, "Farm combat AI loop exiting — cleaning up", Py4GW.Console.MessageType.Info)
-    if auto_combat_suppressed_by_empathy:
-        bot.Properties.ApplyNow("auto_combat", "active", True)
-    if GLOBAL_CACHE.Party.IsPartyDefeated():
-        ai_paused_fsm = False   # prevent _clear_pause from calling fsm.resume()
-        pause_reasons.clear()
-    else:
-        for reason in list(pause_reasons):
-            _clear_pause(reason)
-
-
-def Farm_Until_Level_20(bot: Botting):
-    """Farm Auspicious Beginnings until level 20 using KeiranThackerayEOTN build (solo, no heroes)."""
-    FARM_PREPARE_STEP = "[H]Prepare for Quest (Farm)_33"
-    NEXT_STEP_AFTER_FARM = "[H]Attribute points quest n. 2_35"
-    EOTN_MAP_ID      = 642
-    HOM_MAP_ID       = 646
-    AB_MAP_ID        = 849
-
-    # ── Header _32: loop entry / early exit check ──────────────────────────
-    bot.States.AddHeader("Farm Until Level 20")
-
-    def _level_check_entry():
-        level = Player.GetLevel()
-        ConsoleLog("FarmUntil20", f"[Farm] Entry level check: level={level}", Py4GW.Console.MessageType.Info)
-        if level >= 20:
-            fsm = bot.config.FSM
-            target_step = _resolve_waypoint_state_name(fsm, NEXT_STEP_AFTER_FARM)
-            if not target_step:
-                ConsoleLog("FarmUntil20", f"[Farm] Target state not found: {NEXT_STEP_AFTER_FARM}", Py4GW.Console.MessageType.Error)
-                yield
-                return
-            fsm.pause()
-            yield
-            fsm.jump_to_state_by_name(target_step)
-            yield
-            fsm.resume()
-            yield
-        # Keep coroutine semantics even when level < 20.
-        yield
-
-    bot.States.AddCustomState(_level_check_entry, "Level Check (Farm Entry)")
-    bot.States.AddCustomState(lambda: _ensure_bonus_bow(bot), "Ensure Bonus Bow (Farm)")
-
-    # Travel EotN → HOM (solo, no heroes)
-    bot.Map.Travel(target_map_id=EOTN_MAP_ID)
-    bot.Party.LeaveParty()
-    bot.Move.XYAndExitMap(-4873.00, 5284.00, target_map_id=HOM_MAP_ID)
-
-    # ── Header _33: prepare for quest ─────────────────────────────────────
-    bot.States.AddHeader("Prepare for Quest (Farm)")
-    bot.Wait.ForMapLoad(target_map_id=HOM_MAP_ID)
-
-    def _equip_keirans_bow():
-        if not Routines.Checks.Inventory.IsModelInInventoryOrEquipped(ModelID.Keirans_Bow.value):
-            yield from bot.Move._coro_xy_and_dialog(-6583.00, 6672.00, dialog_id=0x0000008A)
-        if not Routines.Checks.Inventory.IsModelEquipped(ModelID.Keirans_Bow.value):
-            yield from bot.helpers.Items._equip(ModelID.Keirans_Bow.value)
-
-    bot.States.AddCustomState(_equip_keirans_bow, "Equip Keiran's Bow (Farm)")
-    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63F)   # enter quest via HOM pool
-    bot.Wait.ForMapLoad(target_map_id=AB_MAP_ID)
-
-    # ── Header _34: run the quest ─────────────────────────────────────────
-    bot.States.AddHeader("Run Quest (Farm)")
-
-    def _setup_keiran_combat():
-        bot.OverrideBuild(KeiranThackerayEOTN())
-        bot.Properties.ApplyNow("pause_on_danger", "active", True)
-        bot.Properties.ApplyNow("halt_on_death",   "active", False)
-        bot.Properties.ApplyNow("auto_combat",     "active", True)
-        bot.Properties.ApplyNow("auto_loot",       "active", True)
-        bot.Properties.ApplyNow("imp",             "active", False)
-        yield
-
-    bot.States.AddCustomState(_setup_keiran_combat, "Setup Keiran Combat (Farm)")
-    bot.States.AddManagedCoroutine("FarmCombatAI_AB", lambda: _farm_combat_ai_loop(bot))
-
-    # Quest path (from AuspiciousBeginnings.py)
-    bot.Move.XY(11864.74, -4899.19)
-    bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
-    bot.Wait.UntilOnCombat(Range.Spirit)
-
-    bot.Move.XY(10165.07, -6181.43)
-    bot.Properties.Disable("pause_on_danger")
-    bot.Move.FollowAutoPath([(8859.57, -7388.68), (9012.46, -9027.44)])
-    bot.Properties.Enable("pause_on_danger")
-
-    bot.Move.XY(4518.81, -9504.34)
-    bot.Wait.ForTime(4000)
-    bot.Properties.Disable("pause_on_danger")
-    bot.Move.XY(2622.71, -9575.04)
-    bot.Properties.Enable("pause_on_danger")
-
-    bot.Move.XY(325.22, -11728.24)
-    bot.Properties.Disable("pause_on_danger")
-    bot.Move.XY(-2860.21, -12198.37)
-    bot.Move.XY(-5109.05, -12717.40)
-    bot.Move.XY(-6868.76, -12248.82)
-    bot.Properties.Enable("pause_on_danger")
-
-    bot.Move.XY(-15858.25, -8840.35)
-    bot.Wait.ForMapLoad(target_map_id=HOM_MAP_ID)
-
-    def _disable_farm_combat():
-        bot.Properties.ApplyNow("pause_on_danger", "active", False)
-        bot.Properties.ApplyNow("auto_combat",     "active", False)
-        yield
-
-    bot.States.AddCustomState(_disable_farm_combat, "Disable Farm Combat")
-
-    def _level_check_and_loop():
-        level = Player.GetLevel()
-        ConsoleLog("FarmUntil20", f"[Farm] End-of-run level check: level={level}", Py4GW.Console.MessageType.Info)
-        if level < 20:
-            fsm = bot.config.FSM
-            target_step = _resolve_waypoint_state_name(fsm, FARM_PREPARE_STEP)
-            if not target_step:
-                ConsoleLog("FarmUntil20", f"[Farm] Target state not found: {FARM_PREPARE_STEP}", Py4GW.Console.MessageType.Error)
-                yield
-                return
-            fsm.pause()
-            yield
-            fsm.jump_to_state_by_name(target_step)
-            yield
-            fsm.resume()
-            yield
-        # Keep coroutine semantics even when level >= 20.
-        yield
-
-    bot.States.AddCustomState(_level_check_and_loop, "Level Check and Loop (Farm)")
+    exec_fn = lambda: QuestLoop(348, 0, 0, 0x815C01, mode="complete", quest_npc=4009)
+    bot.States.AddCustomState(exec_fn, "Accept - An Unwelcome Guest")
 
 def To_Gunnars_Hold(bot: Botting):
     bot.States.AddHeader("To Gunnar's Hold")
@@ -1809,7 +1763,11 @@ def To_Gunnars_Hold(bot: Botting):
     bot.Move.FollowPath(path)
     bot.Wait.ForMapLoad(target_map_id=499)
     ConfigureAggressiveEnv(bot)
-    bot.Move.XYAndDialog(2825, -481, 0x832801)
+    jora_id   = Routines.Agents.GetAgentIDByModelID(6034)
+    if jora_id != 0:
+        #bot.Move.XYAndDialog(2825, -481, 0x832801)
+        exec_fn = lambda: QuestLoop(808, 2825, -481, 0x832801)
+        bot.States.AddCustomState(exec_fn, "Accept - Northern Allies -  Tracking the Nornbear")
     path = [(2548.84, 7266.08),
             (1233.76, 13803.42),
             (978.88, 21837.26),
@@ -1826,14 +1784,22 @@ def Unlock_Kilroy_Stonekin(bot: Botting):
     bot.States.AddManagedCoroutine("OnDeath_OPD", lambda: OnDeathKillroy(bot))
     bot.Templates.Aggressive(enable_imp=False)
     bot.Map.Travel(target_map_id=644)
-    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
-    bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
+    #bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A01)
+    exec_fn = lambda: QuestLoop(858, 17341.00, -4796.00, 0x835A01)
+    bot.States.AddCustomState(exec_fn, "Accept - Punch the Clown")
+    #bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
+    exec_fn = lambda: QuestLoop(858, 17341.00, -4796.00, 0x84, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 1 - Punch the Clown")
     bot.Wait.ForMapLoad(target_map_id=703)
     bot.Items.Equip(24897) #Brass knuckles
     bot.Wait.ForTime(3000)
     bot.Move.XY(19290.50, -11552.23)
     bot.Wait.UntilOnOutpost()
-    bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)
+    #bot.Move.XYAndDialog(17341.00, -4796.00, 0x835A07)
+    exec_fn = lambda: QuestLoop(858, 17341.00, -4796.00, 0x835A07, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - Punch the Clown")
+    bot.UI.CancelSkillRewardWindow()
+    #bot.Dialogs.AtXY(17341.00, -4796.00, 0x84)
     bot.States.RemoveManagedCoroutine("OnDeath_OPD")
     bot.Items.Equip(35829) #Keiran's bow
 
@@ -1865,10 +1831,6 @@ def OnDeathKillroy(bot: "Botting"):
                 ActionQueueManager().ResetAllQueues()
 
         yield from Routines.Yield.wait(500)
-            
-    
-def OnDeath(bot: "Botting"):
-    bot.States.AddManagedCoroutine("OnDeath_OPD", lambda: OnDeathKillroy(bot))
 
 def To_Longeyes_Edge(bot: Botting):
     bot.States.AddHeader("To Longeye's Edge")
@@ -1951,18 +1913,30 @@ def To_Lions_Arch(bot: Botting):
     auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)
+    #bot.Move.XYAndDialog(-1006.97, -817.63, 0x81DF01)
+    exec_fn = lambda: QuestLoop(479, -1006.97, -817.63, 0x81DF01)
+    bot.States.AddCustomState(exec_fn, "Accept - Chaos in Kryta")
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
     auto_path_list =[(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
                      (-2396.20, 5260.67), (-5031.77, 6001.52)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)
-    bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)
+    #bot.Move.XYAndDialog(-5626.17, 7017.33, 0x81DF04)
+    bot.Move.XY(-5626.17, 7017.33)
+    exec_fn = lambda: QuestLoop(479, 0, 0, 0x81DF04, mode="step", quest_npc=3267)
+    bot.States.AddCustomState(exec_fn, "Step 1 - Chaos in Kryta")
+    #bot.Move.XYAndDialog(-4661.13, 7479.86, 0x84)
+    bot.Move.XY(-4661.13, 7479.86)
+    exec_fn = lambda: QuestLoop(479, 0, 0, 0x84, mode="step", quest_npc=2020)
+    bot.States.AddCustomState(exec_fn, "Step 2 - Chaos in Kryta")
     bot.Wait.ForMapToChange(target_map_name="Lion's Gate")
     bot.Move.XY(-1181, 1038)
-    bot.Dialogs.WithModel(2011, 0x85) #Model id updated 20.12.2025 GW Reforged
+    #bot.Dialogs.WithModel(2011, 0x85) #Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(479, 0, 0, 0x85, mode="step", quest_npc=2011)
+    bot.States.AddCustomState(exec_fn, "Step 3 - Chaos in Kryta")
     bot.Map.Travel(target_map_id=55)
-    bot.Move.XYAndDialog(328.00, 9594.00, 0x81DF07)
+    #bot.Move.XYAndDialog(328.00, 9594.00, 0x81DF07)
+    exec_fn = lambda: QuestLoop(479, 328.00, 9594.00, 0x81DF07, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - Chaos in Kryta")
 
 def To_Temple_of_The_Ages(bot: Botting):
     bot.States.AddHeader("To Temple of the Ages")
@@ -2092,12 +2066,17 @@ def To_Kamadan(bot: Botting):
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Move.XYAndDialog(-1131.99, 818.35, 0x82D401)
+    exec_fn = lambda: QuestLoop(724, -1131.99, 818.35, 0x82D401)
+    bot.States.AddCustomState(exec_fn, "Accept - Sunspears in Cantha")
     bot.Move.XYAndExitMap(-2439, 1732, target_map_id=290)
     auto_path_list = [(-2995.68, 2077.20), (-6938.10, 4286.61), (-6064.40, 5300.26),
                      (-2396.20, 5260.67), (-5031.77, 6001.52)]
     bot.Move.FollowAutoPath(auto_path_list)
-    bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)
-    bot.Dialogs.WithModel(4914, 0x87)  # Model id updated 20.12.2025 GW Reforged
+    #bot.Move.XYAndDialog(-5899.57, 7240.19, 0x82D404)
+    bot.Move.XY(-5899.57, 7240.19)
+    exec_fn = lambda: QuestLoop(724, 0, 0, 0x82D404, mode="step", quest_npc=4914, multi=0x87)
+    bot.States.AddCustomState(exec_fn, "Step 1 - Sunspears in Cantha")
+    #bot.Dialogs.WithModel(4914, 0x87)  # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForMapToChange(target_map_id=400)
     ConfigureAggressiveEnv(bot)
     auto_path_list = [(-1712.16, -700.23), (-907.97, -2862.29), (742.42, -4167.73)] 
@@ -2120,11 +2099,14 @@ def To_Kamadan(bot: Botting):
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Wait.ForMapToChange(target_map_id=290)
     bot.Wait.ForTime(2000)
-    bot.Dialogs.WithModel(4914, 0x84)  # Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(724, 0, 0, 0x84, mode="step", quest_npc=4914)
+    bot.States.AddCustomState(exec_fn, "Step 2 - Sunspears in Cantha")
+    #bot.Dialogs.WithModel(4914, 0x84)  # Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForMapToChange(target_map_id=543)
     bot.Wait.ForTime(2000)
-    bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
-    bot.Dialogs.WithModel(4829, 0x82E101)  # Model id updated 20.12.2025 GW Reforged
+    exec_fn = lambda: QuestLoop(724, 0, 0, 0x82D407, mode="complete", quest_npc=4829)
+    bot.States.AddCustomState(exec_fn, "Complete - Sunspears in Cantha")
+    #bot.Dialogs.WithModel(4829, 0x82D407)  # Model id updated 20.12.2025 GW Reforged
 
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
@@ -2135,13 +2117,17 @@ def To_Consulate_Docks(bot: Botting):
     bot.Move.XY(-6743.29, 16663.21)
     bot.Move.XY(-5271.00, 16740.00)
     bot.Wait.ForMapLoad(target_map_id=429)
-    bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
+    #bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
+    exec_fn = lambda: QuestLoop(724, -4631.86, 16711.79, 0x85, mode="part")
+    bot.States.AddCustomState(exec_fn, "Unlock Docks")
     bot.Wait.ForMapToChange(target_map_id=493)
 
 def Unlock_Olias(bot:Botting):
     bot.States.AddHeader("Unlock Olias")
     bot.Map.Travel(target_map_id=493)  # Consulate Docks
-    bot.Move.XYAndDialog(-2367.00, 16796.00, 0x830E01)
+    #bot.Move.XYAndDialog(-2367.00, 16796.00, 0x830E01)
+    exec_fn = lambda: QuestLoop(782, -2367.00, 16796.00, 0x830E01)
+    bot.States.AddCustomState(exec_fn, "Accept - All for One and One for Justice")
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=55)
     bot.Party.LeaveParty()
@@ -2150,22 +2136,28 @@ def Unlock_Olias(bot:Botting):
     bot.Party.AddHenchmanList([1])
     bot.Move.XY(1413.11, 9255.51)
     bot.Move.XY(242.96, 6130.82)
-    bot.Move.XYAndDialog(-1137.00, 2501.00, 0x84)
+    #bot.Move.XYAndDialog(-1137.00, 2501.00, 0x84)
+    exec_fn = lambda: QuestLoop(782, -1137.00, 2501.00, 0x84, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 1 - All for One and One for Justice")
     bot.Wait.ForMapToChange(target_map_id=471)
     bot.Wait.ForTime(3000)
-    bot.Move.XYAndDialog(5117.00, 10515.00, 0x830E04)
+    #bot.Move.XYAndDialog(5117.00, 10515.00, 0x830E04)
+    exec_fn = lambda: QuestLoop(782, 5117.00, 10515.00, 0x830E04, mode="step")
+    bot.States.AddCustomState(exec_fn, "Step 2 - All for One and One for Justice")
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(8518.10, 9309.66)
     bot.Move.XY(8067.40, 5703.23)
     bot.Move.XY(5657.20, 4485.55)
     bot.Move.XY(4461.65, -710.88)
-    bot.Move.XY(9973.11, 1581.00)
+    bot.Move.XY(10750, 2100)
     bot.Wait.ForTime(20000)
     bot.Wait.ForMapToChange(target_map_id=55)
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8149.02, 14900.65)
-    bot.Move.XYAndDialog(-6480.00, 16331.00, 0x830E07)
+    #bot.Move.XYAndDialog(-6480.00, 16331.00, 0x830E07)
+    exec_fn = lambda: QuestLoop(782, -6480.00, 16331.00, 0x830E07, mode="complete")
+    bot.States.AddCustomState(exec_fn, "Complete - All for One and One for Justice")
 
 def Unlock_Remaining_Secondary_Professions(bot: Botting):
     bot.States.AddHeader("Unlock remaining secondary professions")
@@ -2430,6 +2422,19 @@ def Charm_Pet(bot: Botting) -> None:
     bot.Wait.ForTime(14000)
     bot.States.AddCustomState(lambda: RangerGetSkills(bot), "Get Ranger Skills")
 
+def EquipCaptureSkillBar(skillbar = ""):
+    profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if profession == "Warrior": skillbar = "OQIAEbGAAAAAAAAAAA"
+    elif profession == "Ranger": skillbar = "OgAAEbGAAAAAAAAAAA"
+    elif profession == "Monk": skillbar = "OwIAEbGAAAAAAAAAAA"
+    elif profession == "Necromancer": skillbar = "OAJAEbGAAAAAAAAAAA"
+    elif profession == "Mesmer": skillbar = "OQJAEbGAAAAAAAAAAA"
+    elif profession == "Elementalist": skillbar = "OgJAEbGAAAAAAAAAAA"
+    elif profession == "Ritualist": skillbar = "OAKkYRYRWCGxmBAAAAAAAAAA"
+    elif profession == "Assassin": skillbar = "OwJkYRZ5XMGxmBAAAAAAAAAA"
+
+    yield from Routines.Yield.Skills.LoadSkillbar(skillbar)
+
 def Locate_Sujun(bot: Botting) -> Generator[Any, Any, None]:
     primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
     if primary != "Ranger": return
@@ -2446,9 +2451,6 @@ def RangerGetSkills(bot: Botting) -> Generator[Any, Any, None]:
     yield from bot.Move._coro_follow_path_to()
     yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x810407) #npc to get skills from
     yield from bot.Interact._coro_with_agent((5103.00, -4769.00), 0x811401) #of course i will help
-
-def OnCompletion(bot: "Botting"):
-    bot.States.RemoveManagedCoroutine("OnDeath_OPD")
 
 #endregion
 
@@ -2487,19 +2489,13 @@ def _draw_texture():
 def _draw_settings(bot: Botting):
     import PyImGui
     PyImGui.text("Bot Settings")
-    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
-    bc_restock_qty = bot.Properties.Get("birthday_cupcake", "restock_quantity")
-
     use_candy_apple = bot.Properties.Get("candy_apple", "active")
     bc_restock_qty = bot.Properties.Get("candy_apple", "restock_quantity")
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
 
-    use_birthday_cupcake = PyImGui.checkbox("Use Birthday Cupcake", use_birthday_cupcake)
-    bc_restock_qty = PyImGui.input_int("Birthday Cupcake Restock Quantity", bc_restock_qty)
-
-    use_candy_apple = PyImGui.checkbox("Use Candy Apple", use_birthday_cupcake)
+    use_candy_apple = PyImGui.checkbox("Use Candy Apple", use_candy_apple)
     bc_restock_qty = PyImGui.input_int("Candy Apple Restock Quantity", bc_restock_qty)
 
     use_honeycomb = PyImGui.checkbox("Use Honeycomb", use_honeycomb)
@@ -2514,8 +2510,6 @@ def _draw_settings(bot: Botting):
 
     bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
     bot.Properties.ApplyNow("war_supplies", "restock_quantity", ws_restock_qty)
-    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
-    bot.Properties.ApplyNow("birthday_cupcake", "restock_quantity", bc_restock_qty)
     bot.Properties.ApplyNow("candy_apple", "active", use_candy_apple)
     bot.Properties.ApplyNow("candy_apple", "restock_quantity", bc_restock_qty)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
@@ -2614,5 +2608,40 @@ def main():
         Py4GW.Console.Log(bot.config.bot_name, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
+def tooltip():
+    PyImGui.set_next_window_size((600, 0))
+    PyImGui.begin_tooltip()
+    
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.image(MODULE_ICON, (32, 32))
+    PyImGui.same_line(0, 10)
+    ImGui.push_font("Regular", 20)
+    ImGui.text_aligned(MODULE_NAME, alignment=Alignment.MidLeft, color=title_color.color_tuple, height=32)
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    
+    #ellaborate a better description 
+    PyImGui.text_wrapped("This bot levels a Factions character from 1 to 20, completing key quests and unlocking important content along the way. It manages gold and consumables automatically, allowing you to sit back and watch your character grow.")
+    PyImGui.spacing()
+    
+    # Features
+    PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Crafts Monastery, Seitung, and Max armor sets.")
+    PyImGui.bullet_text("Crafts a starter weapon in Shing Jea Monastery.")
+    PyImGui.bullet_text("Unlocks secondary professions, heroes, and key skills.")
+    PyImGui.bullet_text("Unlocks the Kilroy Stonekin and Vaettir farming runs for fast XP.")
+    PyImGui.bullet_text("...")
+    PyImGui.spacing()
+    
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Apo and Wick aka Divinus")
+    
+    PyImGui.end_tooltip()
+    
 if __name__ == "__main__":
     main()

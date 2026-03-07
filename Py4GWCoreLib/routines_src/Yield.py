@@ -417,20 +417,81 @@ class Yield:
         ):
             import random
             from .Checks import Checks
+            from ..Pathing import AutoPathing
         
             #log = True #force logging
             detailed_log = False #always detailed log for now
-            
+
+            path_points = list(path_points or [])
             total_points = len(path_points)
             retries = 0
             max_retries = 30  # after this, send stuck command
             stuck_count = 0
             max_stuck_commands = 2  # after this, do PixelStack recovery
 
-            ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
-            
+            if total_points == 0:
+                ConsoleLog("FollowPath", "Empty path provided, treating as success.", Console.MessageType.Warning, log=log)
+                return True
 
-            for idx, (target_x, target_y) in enumerate(path_points):
+            def _pick_resume_index(current_index: int) -> int:
+                remaining = path_points[current_index:]
+                if not remaining:
+                    return current_index
+
+                current_pos = Player.GetXY()
+                nearby_threshold = max(tolerance, 200.0)
+                nearby_indices: list[int] = []
+                best_relative_index = 0
+                best_distance = float("inf")
+
+                for relative_index, point in enumerate(remaining):
+                    distance = Utils.Distance(current_pos, point)
+                    if distance <= nearby_threshold:
+                        nearby_indices.append(relative_index)
+                    if distance < best_distance:
+                        best_distance = distance
+                        best_relative_index = relative_index
+
+                if nearby_indices:
+                    return current_index + max(nearby_indices)
+
+                return current_index + best_relative_index
+
+            def _rebuild_remaining_path(resume_index: int) -> tuple[int, bool]:
+                if resume_index >= len(path_points):
+                    return resume_index, False
+
+                resume_target = path_points[resume_index]
+                current_pos = Player.GetXY()
+                distance_to_resume = Utils.Distance(current_pos, resume_target)
+                bridge_threshold = max(tolerance * 3.0, 600.0)
+
+                if distance_to_resume <= bridge_threshold:
+                    return resume_index, False
+
+                bridge_path = yield from AutoPathing().get_path_to(resume_target[0], resume_target[1])
+                if not bridge_path:
+                    return resume_index, False
+
+                trimmed_bridge: List[Tuple[float, float]] = []
+                for point in bridge_path:
+                    if not trimmed_bridge and Utils.Distance(current_pos, point) <= tolerance:
+                        continue
+                    trimmed_bridge.append(point)
+
+                if not trimmed_bridge:
+                    return resume_index, False
+
+                remaining_tail = path_points[resume_index + 1:]
+                path_points[:] = trimmed_bridge + remaining_tail
+                return 0, True
+
+            ConsoleLog("FollowPath", f"Starting path with {total_points} points.", Console.MessageType.Info, log=log)
+
+            idx = 0
+            while idx < len(path_points):
+                total_points = len(path_points)
+                target_x, target_y = path_points[idx]
                 start_time = Utils.GetBaseTimestamp()
                 
                 ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y}) distance {Utils.Distance(Player.GetXY(), (target_x, target_y))}", Console.MessageType.Info, log=detailed_log)
@@ -486,7 +547,9 @@ class Yield:
                         continue
                     
                     if custom_pause_fn:
+                        was_paused = False
                         while custom_pause_fn():
+                            was_paused = True
                             if stop_on_party_wipe and (Checks.Map.MapValid() and
                                     (Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())
                                 ):
@@ -496,6 +559,45 @@ class Yield:
                             ConsoleLog("FollowPath", "Custom pause condition active, pausing movement...", Console.MessageType.Debug, log=log)
                             start_time = Utils.GetBaseTimestamp()  # Reset timeout timer
                             yield from Yield.wait(750)
+
+                        if was_paused:
+                            resume_idx = _pick_resume_index(idx)
+                            if resume_idx != idx:
+                                ConsoleLog(
+                                    "FollowPath",
+                                    f"Pause ended, resuming from point {resume_idx + 1}/{len(path_points)} instead of {idx + 1}/{len(path_points)}.",
+                                    Console.MessageType.Info,
+                                    log=log,
+                                )
+                                idx = resume_idx
+
+                            rebuilt_idx, rebuilt = yield from _rebuild_remaining_path(idx)
+                            if rebuilt:
+                                idx = rebuilt_idx
+                                total_points = len(path_points)
+                                ConsoleLog(
+                                    "FollowPath",
+                                    f"Pause ended far from route, rebuilt remaining path with {total_points} points.",
+                                    Console.MessageType.Info,
+                                    log=log,
+                                )
+                            elif rebuilt_idx != idx:
+                                idx = rebuilt_idx
+
+                            if idx >= len(path_points):
+                                return True
+
+                            target_x, target_y = path_points[idx]
+                            Player.Move(target_x, target_y)
+                            yield from Yield.wait(250)
+                            if not Checks.Map.MapValid():
+                                ActionQueueManager().ResetAllQueues()
+                                return False
+                            current_x, current_y = Player.GetXY()
+                            previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
+                            retries = 0
+                            stuck_count = 0
+                            continue
                     
                     if not Checks.Map.MapValid(): ActionQueueManager().ResetAllQueues(); return False
                     
@@ -566,6 +668,8 @@ class Yield:
                 if progress_callback:
                     progress_callback((idx + 1) / total_points)
                     ConsoleLog("FollowPath", f"Progress callback: {((idx + 1) / total_points) * 100:.1f}% done.", Console.MessageType.Debug, log=detailed_log)
+
+                idx += 1
 
 
             ConsoleLog("FollowPath", "Path traversal completed successfully.", Console.MessageType.Success, log=log)
@@ -885,6 +989,350 @@ class Yield:
 #region Merchant      
     class Merchant:
         @staticmethod
+        def _get_trader_batch_size(trader_items: list[int] | None = None) -> int:
+            offered_items = trader_items if trader_items is not None else list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
+            offered_models = {int(GLOBAL_CACHE.Item.GetModelID(item_id)) for item_id in offered_items}
+            return 10 if int(ModelID.Wood_Plank.value) in offered_models else 1
+
+        @staticmethod
+        def _wait_for_trader_inventory(timeout_ms: int = 2500, step_ms: int = 5):
+            trader_items = []
+            wait_elapsed_ms = 0
+            while wait_elapsed_ms < timeout_ms:
+                trader_items = list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
+                if trader_items:
+                    break
+                wait_elapsed_ms += step_ms
+                yield from Yield.wait(step_ms)
+            return trader_items
+
+        @staticmethod
+        def _wait_for_quote(request_fn, request_id: int, timeout_ms: int, step_ms: int):
+            matched_quote = -1
+            request_fn(request_id)
+            wait_elapsed_ms = 0
+            request_retry_elapsed_ms = 0
+            while wait_elapsed_ms < timeout_ms:
+                yield from Yield.wait(step_ms)
+                wait_elapsed_ms += step_ms
+                request_retry_elapsed_ms += step_ms
+
+                quoted_item_id = int(GLOBAL_CACHE.Trading.Trader.GetQuotedItemID())
+                quoted_value = int(GLOBAL_CACHE.Trading.Trader.GetQuotedValue())
+                if quoted_value >= 0 and quoted_item_id == request_id:
+                    matched_quote = quoted_value
+                    break
+                if request_retry_elapsed_ms >= 150:
+                    request_fn(request_id)
+                    request_retry_elapsed_ms = 0
+            return matched_quote
+
+        @staticmethod
+        def _wait_for_transaction(timeout_ms: int, step_ms: int):
+            wait_elapsed_ms = 0
+            while wait_elapsed_ms < timeout_ms:
+                yield from Yield.wait(step_ms)
+                if GLOBAL_CACHE.Trading.IsTransactionComplete():
+                    return True
+                wait_elapsed_ms += step_ms
+            return False
+
+        @staticmethod
+        def _scan_material_item_ids(selected_models: set[int] | None = None, exact_quantity: int | None = None) -> list[int]:
+            bags_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+            bag_item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bags_to_check)
+            item_ids: list[int] = []
+            for item_id in bag_item_array:
+                if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
+                    continue
+                if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
+                    continue
+
+                model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
+                if selected_models is not None and model_id not in selected_models:
+                    continue
+                if exact_quantity is not None and int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)) != exact_quantity:
+                    continue
+
+                item_ids.append(int(item_id))
+            return item_ids
+
+        @staticmethod
+        def _interact_with_trader_xy(x: float, y: float, inventory_timeout_ms: int = 2500, inventory_step_ms: int = 5):
+            yield from Yield.Movement.FollowPath([(x, y)])
+            yield from Yield.wait(100)
+            yield from Yield.Agents.InteractWithAgentXY(x, y)
+            yield from Yield.wait(500)
+            return (
+                yield from Yield.Merchant._wait_for_trader_inventory(
+                    timeout_ms=inventory_timeout_ms,
+                    step_ms=inventory_step_ms,
+                )
+            )
+
+        @staticmethod
+        def SellMaterialsAtTrader(
+            x: float,
+            y: float,
+            selected_models: set[int] | None = None,
+            *,
+            max_sell_quantity_per_item: int | None = None,
+            deposit_threshold: int = 80_000,
+            gold_to_keep: int = 10_000,
+            inventory_timeout_ms: int = 2500,
+            inventory_step_ms: int = 5,
+            quote_timeout_ms: int = 250,
+            quote_step_ms: int = 5,
+            transaction_timeout_ms: int = 250,
+            transaction_step_ms: int = 5,
+        ):
+            from ..Inventory import Inventory
+            metrics = {
+                "trader_loaded": 0,
+                "batch_size": 10,
+                "candidate_items": 0,
+                "items_considered": 0,
+                "sales_completed": 0,
+                "quote_failures": 0,
+                "transaction_timeouts": 0,
+                "no_progress_breaks": 0,
+                "gold_deposit_triggered": 0,
+            }
+
+            trader_items = yield from Yield.Merchant._interact_with_trader_xy(
+                x,
+                y,
+                inventory_timeout_ms=inventory_timeout_ms,
+                inventory_step_ms=inventory_step_ms,
+            )
+            if not trader_items:
+                return metrics
+            metrics["trader_loaded"] = 1
+            batch_size = Yield.Merchant._get_trader_batch_size(trader_items)
+            metrics["batch_size"] = int(batch_size)
+
+            trader_models = {int(GLOBAL_CACHE.Item.GetModelID(item_id)) for item_id in trader_items}
+            material_item_ids = Yield.Merchant._scan_material_item_ids(selected_models)
+            metrics["candidate_items"] = int(len(material_item_ids))
+            for item_id in material_item_ids:
+                model_id = int(GLOBAL_CACHE.Item.GetModelID(item_id))
+                if model_id not in trader_models:
+                    continue
+
+                metrics["items_considered"] = int(metrics["items_considered"]) + 1
+                stack_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+                quantity_cap = None if max_sell_quantity_per_item is None else max(0, int(max_sell_quantity_per_item))
+                sold_quantity = 0
+                while stack_quantity >= batch_size:
+                    if quantity_cap is not None and sold_quantity >= quantity_cap:
+                        break
+                    if quantity_cap is not None and (sold_quantity + batch_size) > quantity_cap:
+                        break
+                    quoted_value = yield from Yield.Merchant._wait_for_quote(
+                        GLOBAL_CACHE.Trading.Trader.RequestSellQuote,
+                        item_id,
+                        timeout_ms=quote_timeout_ms,
+                        step_ms=quote_step_ms,
+                    )
+                    if quoted_value <= 0:
+                        metrics["quote_failures"] = int(metrics["quote_failures"]) + 1
+                        break
+
+                    GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted_value)
+                    completed = yield from Yield.Merchant._wait_for_transaction(
+                        timeout_ms=transaction_timeout_ms,
+                        step_ms=transaction_step_ms,
+                    )
+                    if not completed:
+                        metrics["transaction_timeouts"] = int(metrics["transaction_timeouts"]) + 1
+                        break
+                    updated_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+                    if updated_quantity >= stack_quantity:
+                        metrics["no_progress_breaks"] = int(metrics["no_progress_breaks"]) + 1
+                        break
+                    sold_quantity += (stack_quantity - updated_quantity)
+                    metrics["sales_completed"] = int(metrics["sales_completed"]) + 1
+                    stack_quantity = updated_quantity
+
+            gold_on_character = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+            if gold_on_character > deposit_threshold:
+                metrics["gold_deposit_triggered"] = 1
+                Inventory.OpenXunlaiWindow()
+                yield from Yield.wait(1000)
+                yield from Yield.Items.DepositGold(gold_to_keep, log=False)
+            return metrics
+
+        @staticmethod
+        def DepositMaterials(
+            selected_models: set[int] | None = None,
+            *,
+            exact_quantity: int = 250,
+            max_deposit_items: int | None = None,
+            open_wait_ms: int = 1000,
+            deposit_wait_ms: int = 40,
+            max_passes: int = 2,
+        ):
+            from ..Inventory import Inventory
+            metrics = {
+                "opened_storage": 0,
+                "passes_run": 0,
+                "candidates_seen": 0,
+                "deposited_items": 0,
+            }
+
+            if not Inventory.IsStorageOpen():
+                Inventory.OpenXunlaiWindow()
+                yield from Yield.wait(open_wait_ms)
+                metrics["opened_storage"] = 1
+
+            pass_count = max(1, int(max_passes))
+            max_items = None if max_deposit_items is None else max(0, int(max_deposit_items))
+            deposited = 0
+            for _ in range(pass_count):
+                metrics["passes_run"] = int(metrics["passes_run"]) + 1
+                material_item_ids = Yield.Merchant._scan_material_item_ids(
+                    selected_models,
+                    exact_quantity=exact_quantity,
+                )
+                metrics["candidates_seen"] = int(metrics["candidates_seen"]) + int(len(material_item_ids))
+                if not material_item_ids:
+                    break
+                for item_id in material_item_ids:
+                    if max_items is not None and deposited >= max_items:
+                        return metrics
+                    GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                    yield from Yield.wait(deposit_wait_ms)
+                    deposited += 1
+                    metrics["deposited_items"] = int(metrics["deposited_items"]) + 1
+            return metrics
+
+        @staticmethod
+        def BuyEctoplasm(
+            x: float,
+            y: float,
+            *,
+            use_storage_gold: bool = True,
+            start_threshold: int = 900_000,
+            stop_threshold: int = 500_000,
+            open_wait_ms: int = 500,
+            withdraw_wait_ms: int = 350,
+            inventory_timeout_ms: int = 2000,
+            inventory_step_ms: int = 10,
+            quote_timeout_ms: int = 750,
+            quote_step_ms: int = 10,
+            transaction_timeout_ms: int = 750,
+            transaction_step_ms: int = 10,
+            max_character_gold: int = 100_000,
+            max_no_progress_cycles: int = 3,
+            max_ecto_to_buy: int | None = None,
+        ):
+            from ..Inventory import Inventory
+            metrics = {
+                "trader_loaded_cycles": 0,
+                "withdrawals": 0,
+                "bought_items": 0,
+                "quote_failures": 0,
+                "transaction_timeouts": 0,
+                "no_progress_breaks": 0,
+                "inventory_load_failures": 0,
+            }
+
+            if stop_threshold < 0:
+                stop_threshold = 0
+            if start_threshold < stop_threshold:
+                start_threshold = stop_threshold
+
+            ecto_model_id = int(ModelID.Glob_Of_Ectoplasm.value)
+            character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+            storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
+
+            if use_storage_gold:
+                if storage_gold <= start_threshold:
+                    return metrics
+            elif character_gold <= 0:
+                return metrics
+
+            max_to_buy = None if max_ecto_to_buy is None else max(0, int(max_ecto_to_buy))
+            while True:
+                if max_to_buy is not None and int(metrics["bought_items"]) >= max_to_buy:
+                    break
+                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+                storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
+                if use_storage_gold:
+                    if storage_gold <= stop_threshold:
+                        break
+
+                    withdraw_amount = min(max_character_gold - character_gold, storage_gold - stop_threshold)
+                    if withdraw_amount > 0:
+                        if not Inventory.IsStorageOpen():
+                            Inventory.OpenXunlaiWindow()
+                            yield from Yield.wait(open_wait_ms)
+                        GLOBAL_CACHE.Inventory.WithdrawGold(int(withdraw_amount))
+                        yield from Yield.wait(withdraw_wait_ms)
+                        metrics["withdrawals"] = int(metrics["withdrawals"]) + 1
+                elif character_gold <= 0:
+                    break
+
+                trader_items = yield from Yield.Merchant._interact_with_trader_xy(
+                    x,
+                    y,
+                    inventory_timeout_ms=inventory_timeout_ms,
+                    inventory_step_ms=inventory_step_ms,
+                )
+                if not trader_items:
+                    metrics["inventory_load_failures"] = int(metrics["inventory_load_failures"]) + 1
+                    break
+                metrics["trader_loaded_cycles"] = int(metrics["trader_loaded_cycles"]) + 1
+
+                trader_item_id = 0
+                for candidate in trader_items:
+                    if int(GLOBAL_CACHE.Item.GetModelID(candidate)) == ecto_model_id:
+                        trader_item_id = int(candidate)
+                        break
+                if trader_item_id <= 0:
+                    break
+
+                batch_size = Yield.Merchant._get_trader_batch_size(trader_items)
+                no_progress_cycles = 0
+                while int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()) > 0:
+                    if max_to_buy is not None and int(metrics["bought_items"]) >= max_to_buy:
+                        return metrics
+                    gold_before = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+                    quoted_value = yield from Yield.Merchant._wait_for_quote(
+                        GLOBAL_CACHE.Trading.Trader.RequestQuote,
+                        trader_item_id,
+                        timeout_ms=quote_timeout_ms,
+                        step_ms=quote_step_ms,
+                    )
+                    if quoted_value <= 0 or gold_before < quoted_value:
+                        if quoted_value <= 0:
+                            metrics["quote_failures"] = int(metrics["quote_failures"]) + 1
+                        break
+
+                    GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
+                    completed = yield from Yield.Merchant._wait_for_transaction(
+                        timeout_ms=transaction_timeout_ms,
+                        step_ms=transaction_step_ms,
+                    )
+                    if not completed:
+                        metrics["transaction_timeouts"] = int(metrics["transaction_timeouts"]) + 1
+                        break
+
+                    gold_after = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+                    if gold_after >= gold_before:
+                        no_progress_cycles += 1
+                        if no_progress_cycles >= max_no_progress_cycles:
+                            metrics["no_progress_breaks"] = int(metrics["no_progress_breaks"]) + 1
+                            break
+                    else:
+                        no_progress_cycles = 0
+                        metrics["bought_items"] = int(metrics["bought_items"]) + int(batch_size)
+
+                if not use_storage_gold:
+                    break
+            return metrics
+
+        @staticmethod
         def SellItems(item_array:list[int], log=False):
             
             if len(item_array) == 0:
@@ -1086,22 +1534,42 @@ class Yield:
             return item_name
 
         @staticmethod
-        def _wait_for_salvage_materials_window():
+        def _wait_for_salvage_materials_window(timeout_ms: int = 1200, poll_ms: int = 50, initial_wait_ms: int = 150):
             from ..UIManager import UIManager
-            yield from Yield.wait(150)
-            salvage_materials_frame = UIManager.GetChildFrameID(140452905, [6, 110, 6])
+            yield from Yield.wait(max(0, initial_wait_ms))
 
-            retries = 0
-            while ((not UIManager.FrameExists(salvage_materials_frame)) and (retries < 20)):
-                yield from Yield.wait(50)
-                retries += 1
-            yield from Yield.wait(50)
+            parent_hash = 140452905
+            yes_button_offsets = [6, 110, 6]
+            waited_ms = 0
+
+            while waited_ms < max(0, timeout_ms):
+                salvage_materials_frame = UIManager.GetChildFrameID(parent_hash, yes_button_offsets)
+                if salvage_materials_frame and UIManager.FrameExists(salvage_materials_frame):
+                    yield from Yield.wait(max(0, poll_ms))
+                    return True
+
+                yield from Yield.wait(max(1, poll_ms))
+                waited_ms += max(1, poll_ms)
+
+            yield from Yield.wait(max(0, poll_ms))
+            return False
             
         @staticmethod
-        def _wait_for_empty_queue(queue_name:str):
+        def _wait_for_empty_queue(queue_name:str, timeout_ms: Optional[int] = None, poll_ms: int = 50):
             from ..Py4GWcorelib import ActionQueueManager
+            poll_ms = max(1, poll_ms)
+            waited_ms = 0
             while not ActionQueueManager().IsEmpty(queue_name):
-                yield from Yield.wait(50)
+                if timeout_ms is not None and waited_ms >= max(0, timeout_ms):
+                    ConsoleLog(
+                        "Yield.Items",
+                        f"Timed out waiting for queue '{queue_name}' to empty.",
+                        Console.MessageType.Warning
+                    )
+                    return False
+                yield from Yield.wait(poll_ms)
+                waited_ms += poll_ms
+            return True
         
         @staticmethod
         def _salvage_item(item_id):
@@ -1118,6 +1586,7 @@ class Yield:
         def SalvageItems(item_array:list[int], log=False):
             from ..Py4GWcorelib import ActionQueueManager, ConsoleLog, Console
             from ..Inventory import Inventory
+            queue_wait_timeout_ms = 5000
             
             if len(item_array) == 0:
                 ActionQueueManager().ResetQueue("SALVAGE")
@@ -1128,12 +1597,21 @@ class Yield:
                 is_purple = rarity == "Purple"
                 is_gold = rarity == "Gold"
                 ActionQueueManager().AddAction("SALVAGE", Yield.Items._salvage_item, item_id)
-                yield from Yield.Items._wait_for_empty_queue("SALVAGE")
+                queue_drained = yield from Yield.Items._wait_for_empty_queue("SALVAGE", timeout_ms=queue_wait_timeout_ms)
+                if not queue_drained:
+                    ConsoleLog("SalvageItems", f"Timed out waiting for salvage queue after starting salvage (item_id={item_id}).", Console.MessageType.Warning)
+                    continue
                 
                 if (is_purple or is_gold):
-                    yield from Yield.Items._wait_for_salvage_materials_window()
+                    found_confirm_window = yield from Yield.Items._wait_for_salvage_materials_window()
+                    if not found_confirm_window:
+                        ConsoleLog("SalvageItems", f"Timed out waiting for salvage confirmation window (item_id={item_id}).", Console.MessageType.Warning)
+                        continue
                     ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
-                    yield from Yield.Items._wait_for_empty_queue("SALVAGE")
+                    queue_drained = yield from Yield.Items._wait_for_empty_queue("SALVAGE", timeout_ms=queue_wait_timeout_ms)
+                    if not queue_drained:
+                        ConsoleLog("SalvageItems", f"Timed out waiting for salvage queue after confirmation (item_id={item_id}).", Console.MessageType.Warning)
+                        continue
                     
                 yield from Yield.wait(100)
                 
@@ -1722,8 +2200,18 @@ class Yield:
             yield from Yield.Upkeepers._upkeep_consumable(ModelID.War_Supplies, "Well_Supplied")
 
         @staticmethod
-        def Upkeep_Morale(target_morale=100):
+        def Upkeep_Morale(target_morale=110):
             from .Checks import Checks
+
+            # Party-wide morale items: affect all members, so check party morale too
+            PARTY_MORALE_MODELS = frozenset(
+                m.value if hasattr(m, "value") else int(m)
+                for m in (
+                    ModelID.Honeycomb, ModelID.Rainbow_Candy_Cane,
+                    ModelID.Elixir_Of_Valor, ModelID.Powerstone_Of_Courage,
+                )
+            )
+
             morale_models = [
                 (m.value if hasattr(m, "value") else int(m))
                 for m in Yield.Upkeepers.MORALE_ITEMS
@@ -1737,13 +2225,36 @@ class Yield:
                 yield from Yield.wait(500)
                 return
 
-            while Player.GetMorale() < target_morale:
+            def _min_party_morale():
+                try:
+                    entries = GLOBAL_CACHE.Party.GetPartyMorale() or []
+                    if not entries:
+                        return Player.GetMorale()
+                    return min(int(m) for _, m in entries)
+                except Exception:
+                    return Player.GetMorale()
+
+            player_morale = Player.GetMorale()
+            min_party = _min_party_morale()
+
+            while player_morale < target_morale or min_party < target_morale:
                 item_id = 0
-                for model_id in morale_models:
-                    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-                    if item_id:
-                        break
-                    
+
+                # If any party member is below target, prefer party-wide items first
+                if min_party < target_morale:
+                    for model_id in morale_models:
+                        if model_id in PARTY_MORALE_MODELS:
+                            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                            if item_id:
+                                break
+
+                # Fall back to any item (covers player-only case or no party item available)
+                if not item_id:
+                    for model_id in morale_models:
+                        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                        if item_id:
+                            break
+
                 if not item_id:
                     # nothing to use right now
                     yield from Yield.wait(500)
@@ -1751,7 +2262,11 @@ class Yield:
 
                 GLOBAL_CACHE.Inventory.UseItem(item_id)
                 yield from Yield.wait(750)
-                
+
+                # Recalculate after use
+                player_morale = Player.GetMorale()
+                min_party = _min_party_morale()
+
             yield from Yield.wait(500)
 
         @staticmethod

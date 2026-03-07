@@ -33,6 +33,7 @@ project_root = Py4GW.Console.get_projects_path()
 first_run = True
 
 MODULE_NAME = "CombatPrep"
+MODULE_ICON = os.path.join(project_root, "Widgets", "Config", "textures", "combat_prep", "single_backline.png")
 BASE_DIR = os.path.join(project_root, "Widgets", "Config")
 FORMATIONS_JSON_PATH = os.path.join(BASE_DIR, "formation_hotkey.json")
 INI_WIDGET_WINDOW_PATH = os.path.join(BASE_DIR, "combat_prep_window.ini")

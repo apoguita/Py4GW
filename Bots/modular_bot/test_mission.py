@@ -62,7 +62,7 @@ bot = ModularBot(
     use_custom_behaviors=True,
     main_ui=_draw_main,
     main_child_dimensions=_main_dimensions(),
-    settings_ui=_draw_settings,
+    settings_ui=_draw_settings
 )
 
 

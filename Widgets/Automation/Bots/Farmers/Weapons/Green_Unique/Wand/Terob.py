@@ -1,7 +1,9 @@
 import os
 from Py4GWCoreLib import Botting
 
-BOT_NAME = "Terob´s Wand Farm"
+BOT_NAME = "Terob's Wand Farm"
+MODULE_NAME = "Terob's Wand Farm"
+MODULE_ICON = "Textures\\Module_Icons\\Terob's Wand.png"
 OUTPOST_TO_TRAVEL = 425
 COORD_TO_EXIT_MAP = (-15417.69, 8852.38)
 EXPLORABLE_TO_TRAVEL = 384

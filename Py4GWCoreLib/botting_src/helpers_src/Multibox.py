@@ -40,6 +40,7 @@ class _Multibox:
             self.MapID = account_data.AgentData.Map.MapID
             self.MapRegion = account_data.AgentData.Map.Region
             self.MapDistrict = account_data.AgentData.Map.District
+            self.MapLanguage = account_data.AgentData.Map.Language
             self.PlayerID = account_data.AgentData.AgentID
             self.PlayerHP = account_data.AgentData.Health.Current
             self.PlayerMaxHP = account_data.AgentData.Health.Max
@@ -149,14 +150,17 @@ class _Multibox:
         
         if not player_data:
             return
+
+        district_number = max(0, int(player_data.MapDistrict) - 1)
         
         for account in all_accounts:
             if (player_data.MapID == account.MapID and
                 player_data.MapRegion == account.MapRegion and
-                player_data.MapDistrict == account.MapDistrict):
+                player_data.MapDistrict == account.MapDistrict and
+                player_data.MapLanguage == account.MapLanguage):
                 continue
 
-            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, 0))
+            GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, district_number, player_data.MapLanguage))
             yield from Routines.Yield.wait(500)
         yield
 
@@ -168,13 +172,16 @@ class _Multibox:
         
         if not player_data or not account:
             return
+
+        district_number = max(0, int(player_data.MapDistrict) - 1)
         
         if (player_data.MapID == account.MapID and
             player_data.MapRegion == account.MapRegion and
-            player_data.MapDistrict == account.MapDistrict):
+            player_data.MapDistrict == account.MapDistrict and
+            player_data.MapLanguage == account.MapLanguage):
             return
 
-        GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, player_data.MapDistrict, 0))
+        GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.TravelToMap, (player_data.MapID, player_data.MapRegion, district_number, player_data.MapLanguage))
         yield from  Routines.Yield.wait(500)
         
     def _invite_all_accounts(self):
@@ -190,6 +197,7 @@ class _Multibox:
             if (player_data.MapID == account.MapID and
                 player_data.MapRegion == account.MapRegion and
                 player_data.MapDistrict == account.MapDistrict and
+                player_data.MapLanguage == account.MapLanguage and
                 player_data.PartyID != account.PartyID):
                 GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
                 GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
@@ -208,6 +216,7 @@ class _Multibox:
         if (player_data.MapID == account.MapID and
             player_data.MapRegion == account.MapRegion and
             player_data.MapDistrict == account.MapDistrict and
+            player_data.MapLanguage == account.MapLanguage and
             player_data.PartyID != account.PartyID):
             GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
             GLOBAL_CACHE.ShMem.SendMessage(player_data.AccountEmail, account.AccountEmail, SharedCommandType.InviteToParty, (0,0,0,0))
@@ -457,7 +466,84 @@ class _Multibox:
     @_yield_step(label="KickAccountByEmail", counter_key="KICK_ACCOUNT_BY_EMAIL")
     def kick_account_by_email(self, email: str):
         yield from self._kick_account_by_email(email)
-        
+
+    def _restock_all_pcons_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockAllPcons, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    def _restock_conset_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockConset, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    def _restock_resurrection_scroll_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockResurrectionScroll, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    def _enable_widget_message(self, widget_name: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.EnableWidget,
+                (0, 0, 0, 0),
+                (widget_name, "", "", ""),
+            )
+        yield from Routines.Yield.wait(500)
+
+    def _disable_widget_message(self, widget_name: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.DisableWidget,
+                (0, 0, 0, 0),
+                (widget_name, "", "", ""),
+            )
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="RestockAllPcons", counter_key="RESTOCK_ALL_PCONS")
+    def restock_all_pcons(self, quantity: int = 250):
+        yield from self._restock_all_pcons_message(quantity)
+
+    @_yield_step(label="RestockConset", counter_key="RESTOCK_CONSET")
+    def restock_conset(self, quantity: int = 250):
+        yield from self._restock_conset_message(quantity)
+
+    @_yield_step(label="RestockResurrectionScroll", counter_key="RESTOCK_RESURRECTION_SCROLL")
+    def restock_resurrection_scroll(self, quantity: int = 250):
+        yield from self._restock_resurrection_scroll_message(quantity)
+
+    @_yield_step(label="EnableWidget", counter_key="ENABLE_WIDGET")
+    def enable_widget(self, widget_name: str):
+        yield from self._enable_widget_message(widget_name)
+
+    @_yield_step(label="DisableWidget", counter_key="DISABLE_WIDGET")
+    def disable_widget(self, widget_name: str):
+        yield from self._disable_widget_message(widget_name)
+
     def get_all_account_data(self) -> List[_AccountData]:
         return self._get_all_account_data()
 

@@ -162,7 +162,7 @@ class CacheData:
             self.draw_floating_loot_buttons = False
             self.reset()
             self.ui_state_data = UIStateData()
-            self.follow_throttle_timer = ThrottledTimer(1000)
+            self.follow_throttle_timer = ThrottledTimer(300)
             self.follow_throttle_timer.Start()
             self.option_show_floating_targets = True
             self.global_options = HeroAIOptionStruct()

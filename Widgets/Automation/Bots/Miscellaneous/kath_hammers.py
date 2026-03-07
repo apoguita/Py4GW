@@ -3,6 +3,8 @@ import os
 from Py4GWCoreLib import *
 
 BOT_NAME = "Survivor Title - Kath Hammers"
+MODULE_NAME = "Survivor Title - Kath Hammers"
+MODULE_ICON = "Textures\\Module_Icons\\Survivor Title - Kath Hammers.png"
 bot = Botting(BOT_NAME)
 loop = 179
 

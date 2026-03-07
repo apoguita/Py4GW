@@ -1,7 +1,6 @@
 #region AutoInventory
 from typing import Optional, Callable
 from .Console import ConsoleLog, Console
-from ..IniManager import IniManager
 from .Timer import ThrottledTimer
 from .ActionQueue import ActionQueueManager
 from .Lootconfig_src import LootConfig
@@ -21,7 +20,7 @@ class AutoInventoryHandler():
         self._LOOKUP_TIME:int = 15000
         self.lookup_throttle = ThrottledTimer(self._LOOKUP_TIME)
 
-        self.initialized = False
+        self.runtime_initialized = False
         self.status = "Idle"
         self.outpost_handled = False
         self.module_active:bool = False
@@ -39,6 +38,11 @@ class AutoInventoryHandler():
         self.salvage_blues:bool = False
         self.salvage_purples:bool = False
         self.salvage_golds:bool = False
+        self.salvage_dialog_auto_handle:bool = False
+        self.salvage_dialog_auto_confirm_materials:bool = False
+        self.salvage_dialog_debug:bool = False
+        self.salvage_dialog_strategy:int = 0
+        self.salvage_dialog_fallback_index:int = 1
         self.item_type_blacklist:list[int] = [] # Item types that should not be salvaged, even if they match the salvage criteria
         self.salvage_blacklist:list[int] = []  # Items that should not be salvaged, even if they match the salvage criteria
         self.blacklisted_model_id:int = 0
@@ -66,7 +70,17 @@ class AutoInventoryHandler():
 
         self._initialized = True
 
-                
+    @property
+    def initialized(self):
+        # Backward-compatible alias for older callers.
+        return self.runtime_initialized
+
+    @initialized.setter
+    def initialized(self, value):
+        # Backward-compatible alias for older callers.
+        self.runtime_initialized = value
+
+                 
     def IdentifyItems(self,progress_callback: Optional[Callable[[float], None]] = None, log: bool = False):
         from ..ItemArray import ItemArray
         from ..enums import Bags
@@ -79,20 +93,26 @@ class AutoInventoryHandler():
         item_array = ItemArray.GetItemArray(bag_list)
         
         identified_items = 0
-            
+        identify_wait_step_ms = 50
+        identify_wait_timeout_ms = 5000
+             
         for item_id in item_array:
             first_id_kit = Inventory.GetFirstIDKit()
              
             if first_id_kit == 0:
                 Console.Log("AutoIdentify", "No ID Kit found in inventory.", Console.MessageType.Warning)
                 return   
-                
+                 
             item_instance = PyItem.PyItem(item_id)
+            item_instance.GetContext()
             is_identified = item_instance.is_identified
-                
+            model_id = item_instance.model_id
+                 
             if is_identified:
                 continue
-                
+            if model_id in self.id_model_blacklist:
+                continue
+                 
             _,rarity = Item.Rarity.GetRarity(item_id)
             if ((rarity == "White" and self.id_whites) or
                 (rarity == "Blue" and self.id_blues) or
@@ -101,10 +121,15 @@ class AutoInventoryHandler():
                 (rarity == "Gold" and self.id_golds)):
                 ActionQueueManager().AddAction("ACTION", Inventory.IdentifyItem,item_id, first_id_kit)
                 identified_items += 1
+                waited_ms = 0
                 while True:
-                    yield from Routines.Yield.wait(50)
+                    yield from Routines.Yield.wait(identify_wait_step_ms)
+                    waited_ms += identify_wait_step_ms
                     item_instance.GetContext()
                     if item_instance.is_identified:
+                        break
+                    if waited_ms >= identify_wait_timeout_ms:
+                        Console.Log("AutoIdentify", f"Timed out waiting for identification (item_id={item_id}).", Console.MessageType.Warning)
                         break
                     
         if identified_items > 0 and log:
@@ -122,6 +147,18 @@ class AutoInventoryHandler():
         item_array = ItemArray.GetItemArray(bag_list)
 
         salvaged_items = 0
+        salvage_wait_step_ms = 50
+        salvage_wait_timeout_ms = 10000
+        salvage_item_attempt_limit = 50
+        salvage_confirm_timeout_ms = 1500
+        salvage_dialog_auto_handle = bool(self.salvage_dialog_auto_handle)
+        salvage_dialog_auto_confirm_materials = bool(self.salvage_dialog_auto_confirm_materials)
+        salvage_dialog_debug = bool(self.salvage_dialog_debug)
+        salvage_dialog_strategy = int(self.salvage_dialog_strategy)
+        if salvage_dialog_strategy == 2:
+            salvage_dialog_strategy = 1
+        elif salvage_dialog_strategy not in (0, 1):
+            salvage_dialog_strategy = 0
 
         for item_id in item_array:
             item_instance = PyItem.PyItem(item_id)
@@ -161,16 +198,24 @@ class AutoInventoryHandler():
                 continue
             if is_blue and not self.salvage_blues:
                 continue
+            # Greens are not salvageable in Guild Wars; skip explicitly.
+            if is_green:
+                continue
             if is_purple and not self.salvage_purples:
                 continue
             if is_gold and not self.salvage_golds:
                 continue
 
             require_materials_confirmation = is_purple or is_gold
+            salvage_attempts = 0
 
             # Repeat until item no longer exists
             while True:
-                
+                salvage_attempts += 1
+                if salvage_attempts > salvage_item_attempt_limit:
+                    Console.Log("AutoSalvage", f"Giving up on item after too many salvage attempts (item_id={item_id}).", Console.MessageType.Warning)
+                    break
+                 
                 bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
                 item_array = ItemArray.GetItemArray(bag_list)
                 if item_id not in item_array:
@@ -180,22 +225,83 @@ class AutoInventoryHandler():
                 quantity = item_instance.quantity
                 if quantity == 0:
                     break
+                if not item_instance.is_salvageable:
+                    salvaged_items += 1
+                    Inventory._salvage_choice_debug_log(
+                        salvage_dialog_debug,
+                        "AutoSalvage",
+                        f"complete item item_id={item_id} reason=no_longer_salvageable.",
+                    )
+                    break
 
                 salvage_kit = Inventory.GetFirstSalvageKit(use_lesser=True)
                 if salvage_kit == 0:
                     Console.Log("AutoSalvage", "No Salvage Kit found in inventory.", Console.MessageType.Warning)
                     return
 
+                Inventory._salvage_choice_debug_log(
+                    salvage_dialog_debug,
+                    "AutoSalvage",
+                    f"begin item item_id={item_id} attempt={salvage_attempts} rarity={rarity} qty={quantity} kit={salvage_kit} auto_handle={salvage_dialog_auto_handle} auto_confirm_warning={salvage_dialog_auto_confirm_materials}.",
+                )
                 ActionQueueManager().AddAction("ACTION", Inventory.SalvageItem, item_id, salvage_kit)
                 if require_materials_confirmation:
                     yield from Routines.Yield.wait(150)
-                    yield from Routines.Yield.Items._wait_for_salvage_materials_window()
+                    found_confirm_window = yield from Routines.Yield.Items._wait_for_salvage_materials_window(
+                        timeout_ms=salvage_confirm_timeout_ms,
+                        poll_ms=salvage_wait_step_ms,
+                        initial_wait_ms=0
+                    )
+                    if not found_confirm_window:
+                        Console.Log(
+                            "AutoSalvage",
+                            f"Timed out waiting for salvage confirmation window (item_id={item_id}).",
+                            Console.MessageType.Warning
+                        )
+                        break
                     for i in range(3):
                         ActionQueueManager().AddAction("ACTION", Inventory.AcceptSalvageMaterialsWindow)
-                        yield from Routines.Yield.wait(50)
+                        yield from Routines.Yield.wait(salvage_wait_step_ms)
 
+                waited_ms = 0
+                salvage_timed_out = False
+                salvage_dialog_failed = False
+                dialog_status = "not_visible"
+                handled_salvage_dialog = False
+                handled_dialog_settle_ms = 0
+                handled_dialog_post_check_ms = max(250, salvage_wait_step_ms * 6)
                 while True:
-                    yield from Routines.Yield.wait(50)
+                    if salvage_dialog_auto_handle:
+                        dialog_status = yield from Inventory.HandleSalvageChoiceDialog(
+                            auto_handle=True,
+                            strategy=salvage_dialog_strategy,
+                            auto_confirm_materials_warning=salvage_dialog_auto_confirm_materials,
+                            queue_name="ACTION",
+                            log_module="AutoSalvage",
+                            queue_wait_timeout_ms=max(1000, salvage_wait_timeout_ms // 2),
+                            poll_ms=salvage_wait_step_ms,
+                            close_timeout_ms=salvage_confirm_timeout_ms,
+                            debug_enabled=salvage_dialog_debug,
+                            item_id=item_id,
+                        )
+                        if dialog_status == "handled":
+                            handled_salvage_dialog = True
+                            handled_dialog_settle_ms = 0
+                            waited_ms = 0
+                            continue
+                        if dialog_status not in {"not_visible", "disabled", "confirm_pending"}:
+                            Inventory._salvage_choice_debug_log(
+                                salvage_dialog_debug,
+                                "AutoSalvage",
+                                f"stop item item_id={item_id} status=popup_failed reason={dialog_status}.",
+                            )
+                            salvage_dialog_failed = True
+                            break
+
+                    yield from Routines.Yield.wait(salvage_wait_step_ms)
+                    waited_ms += salvage_wait_step_ms
+                    if handled_salvage_dialog:
+                        handled_dialog_settle_ms += salvage_wait_step_ms
 
                     bag_list = ItemArray.CreateBagList(Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2)
                     item_array = ItemArray.GetItemArray(bag_list)
@@ -208,8 +314,33 @@ class AutoInventoryHandler():
                     if item_instance.quantity < quantity:
                         salvaged_items += 1
                         break  # Successfully salvaged one item
+                    if handled_salvage_dialog and handled_dialog_settle_ms >= handled_dialog_post_check_ms:
+                        retry_required = item_instance.is_salvageable
+                        Inventory._salvage_choice_debug_log(
+                            salvage_dialog_debug,
+                            "AutoSalvage",
+                            f"re-evaluate item item_id={item_id} after handled dialog settle={handled_dialog_settle_ms}ms status={'retry' if retry_required else 'processed'}.",
+                        )
+                        if not retry_required:
+                            salvaged_items += 1
+                        break
+                    if waited_ms >= salvage_wait_timeout_ms:
+                        Console.Log("AutoSalvage", f"Timed out waiting for salvage result (item_id={item_id}).", Console.MessageType.Warning)
+                        salvage_timed_out = True
+                        break
 
-                yield from Routines.Yield.wait(50)
+                if salvage_dialog_failed:
+                    Console.Log(
+                        "AutoSalvage",
+                        f"Stopping auto-salvage because the salvage choice dialog could not be handled safely (item_id={item_id}, status={dialog_status}).",
+                        Console.MessageType.Warning,
+                    )
+                    return
+
+                if salvage_timed_out:
+                    break
+
+                yield from Routines.Yield.wait(salvage_wait_step_ms)
 
         if salvaged_items > 0 and log:
             ConsoleLog(self.module_name, f"Salvaged {salvaged_items} items", Console.MessageType.Success)
@@ -220,6 +351,27 @@ class AutoInventoryHandler():
         from ..enums import Bags, ModelID
         from ..GlobalCache import GLOBAL_CACHE
         from ..Routines import Routines
+
+        event_items = set()
+        selected_filters = {
+            "Alcohol": None,          # include ALL subcategories
+            "Sweets": None,           # include ALL subcategories
+            "Party": None,            # include ALL subcategories
+            "Death Penalty Removal": None,  # include ALL subcategories
+            "Reward Trophies": {"Special Events"},
+        }
+
+        # Build once per deposit run instead of once per item.
+        for category, subcats in LootConfig().LootGroups.items():
+            if category not in selected_filters:
+                continue
+
+            allowed_subcats = selected_filters[category]
+            for subcat, items in subcats.items():
+                if allowed_subcats is not None and subcat not in allowed_subcats:
+                    continue
+                event_items.update(m.value for m in items)
+
         for bag_id in range(Bags.Backpack, Bags.Bag2+1):
             bag_to_check = GLOBAL_CACHE.ItemArray.CreateBagList(bag_id)
             item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_to_check)
@@ -260,63 +412,50 @@ class AutoInventoryHandler():
                     
                 if is_dye and dye1_to_match in self.deposit_dyes_blacklist:
                     continue
-                
-                
+
+                deposited = False
                 if is_tome:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
-                if is_trophy and self.deposit_trophies and is_white:
+                    deposited = True
+                 
+                if not deposited and is_trophy and self.deposit_trophies and is_white:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
-                if is_material and self.deposit_materials:
+                    deposited = True
+                 
+                if not deposited and is_material and self.deposit_materials:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
-                if is_blue and self.deposit_blues:
+                    deposited = True
+                 
+                if not deposited and is_blue and self.deposit_blues:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
-                if is_purple and self.deposit_purples:
+                    deposited = True
+                 
+                if not deposited and is_purple and self.deposit_purples:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
-                if is_gold and self.deposit_golds and not is_usable and not is_trophy:
+                    deposited = True
+                 
+                if not deposited and is_gold and self.deposit_golds and not is_usable and not is_trophy:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                
-                if is_green and self.deposit_greens:
+                    deposited = True
+                 
+                if not deposited and is_green and self.deposit_greens:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                    
-                if model_id == ModelID.Vial_Of_Dye.value and self.deposit_dyes:
+                    deposited = True
+                     
+                if not deposited and model_id == ModelID.Vial_Of_Dye.value and self.deposit_dyes:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
                     yield from Routines.Yield.wait(350)
-                    
-                event_items = set()
-    
-                selected_filters = {
-                    "Alcohol": None,          # include ALL subcategories
-                    "Sweets": None,           # include ALL subcategories
-                    "Party": None,             # include ALL subcategories
-                    "Death Penalty Removal": None,  # include ALL subcategories
-                    "Reward Trophies" : {"Special Events"},
-                }
-
-                # apply filters flexibly
-                for category, subcats in LootConfig().LootGroups.items():
-                    if category not in selected_filters:
-                        continue  # skip whole category
-
-                    allowed_subcats = selected_filters[category]
-                    for subcat, items in subcats.items():
-                        if allowed_subcats is not None and subcat not in allowed_subcats:
-                            continue  # skip this subcategory
-
-                        event_items.update(m.value for m in items)
-                        
-                if ((model_id in event_items) and 
+                    deposited = True
+                         
+                if ((not deposited) and
+                    (model_id in event_items) and 
                     self.deposit_event_items and
                     model_id not in self.deposit_event_items_blacklist):
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)

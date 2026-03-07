@@ -1,7 +1,8 @@
 from typing import Any, Generator, override
+import PyImGui
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums import Profession, Range
-from Py4GWCoreLib import Agent, Player
+from Py4GWCoreLib import Agent, Player, Routines
 from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -40,13 +41,26 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
         else:
             self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
 
+        self.prefer_model_target: bool = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "prefer_model_target", "1") == "1")
+        self.model_id_filter: int = int(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "model_id_filter", "5903"))
+        self.strict_model_targeting: bool = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "strict_model_targeting", "0") == "1")
+
     def _get_target(self) -> int | None:
+
+        if self.prefer_model_target and self.model_id_filter > 0:
+            npc_agent_id = Routines.Agents.GetNearestAliveAgentByModelID(self.model_id_filter, Range.Spellcast.value)
+            if npc_agent_id and npc_agent_id != Player.GetAgentID() and not Agent.IsWeaponSpelled(npc_agent_id):
+                return npc_agent_id
+
+        if self.strict_model_targeting:
+            return None
         
         # Check if we have a valid target
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
                 within_range=Range.Spellcast.value * 1.2,
                 condition=lambda agent_id: 
                     agent_id != Player.GetAgentID() and 
+                    not Agent.IsWeaponSpelled(agent_id) and
                     self.buff_configuration.get_agent_id_predicate()(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
@@ -72,6 +86,17 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
     @override
     def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
         return self.buff_configuration
+    
+    @override
+    def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        PyImGui.bullet_text("prefer_model_target :")
+        self.prefer_model_target = PyImGui.checkbox("##gdw_prefer_model_target", self.prefer_model_target)
+        PyImGui.bullet_text("model_id_filter :")
+        self.model_id_filter = PyImGui.input_int("##gdw_model_id_filter", self.model_id_filter)
+        if self.model_id_filter < 0:
+            self.model_id_filter = 0
+        PyImGui.bullet_text("strict_model_targeting :")
+        self.strict_model_targeting = PyImGui.checkbox("##gdw_strict_model_targeting", self.strict_model_targeting)
 
     @override
     def has_persistence(self) -> bool:
@@ -80,9 +105,23 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
     @override
     def persist_configuration_for_account(self):
         PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "prefer_model_target", "1" if self.prefer_model_target else "0")
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "model_id_filter", str(self.model_id_filter))
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "strict_model_targeting", "1" if self.strict_model_targeting else "0")
         print("configuration saved for account")
 
     @override
     def persist_configuration_as_global(self):
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "prefer_model_target", "1" if self.prefer_model_target else "0")
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "model_id_filter", str(self.model_id_filter))
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "strict_model_targeting", "1" if self.strict_model_targeting else "0")
         print("configuration saved as global")
+
+    @override
+    def delete_persisted_configuration(self):
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "prefer_model_target")
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "model_id_filter")
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "strict_model_targeting")
+        print("configuration deleted")

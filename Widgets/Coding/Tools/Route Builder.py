@@ -11,6 +11,7 @@ import re
 
 
 MODULE_NAME = "Route Builder"
+MODULE_ICON = "Textures/Module_Icons/Route Planner.png"
 
 __widget__ = {
     "name": "Route Builder",

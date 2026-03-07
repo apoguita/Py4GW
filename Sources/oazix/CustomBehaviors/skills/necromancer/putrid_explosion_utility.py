@@ -5,6 +5,7 @@ from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorStat
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
+from Sources.oazix.CustomBehaviors.primitives.helpers.trackers import corpse_exploited_tracker
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -41,7 +42,8 @@ class PutridExplosionUtility(CustomSkillUtilityBase):
             and not Agent.HasBossGlow(agent_id)
             and not Agent.IsSpirit(agent_id)
             and not Agent.IsSpawned(agent_id)
-            and not Agent.IsMinion(agent_id),
+            and not Agent.IsMinion(agent_id)
+            and not corpse_exploited_tracker.was_corpse_exploited_recently(agent_id),
         )
 
         enemies = AgentArray.GetEnemyArray()
@@ -92,5 +94,10 @@ class PutridExplosionUtility(CustomSkillUtilityBase):
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(
             self.custom_skill, corpse_id
         )
+
+        # Record that this corpse was exploited
+        if result == BehaviorResult.ACTION_PERFORMED:
+            corpse_exploited_tracker.record_corpse_exploited(corpse_id)
+
         return result
 

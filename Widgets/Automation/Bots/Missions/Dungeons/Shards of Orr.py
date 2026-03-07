@@ -19,6 +19,8 @@ from Py4GW_widget_manager import get_widget_handler
 
 # ==================== CONFIGURATION ====================
 BOT_NAME = "BDS Farm rezone"
+MODULE_NAME = "Shards of Orr (BDS Farm) [Rezone]" 
+MODULE_ICON = "Textures\\Module_Icons\\Shards of Orr.png"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots","Froggy","bds.png")
 
 # Map IDs

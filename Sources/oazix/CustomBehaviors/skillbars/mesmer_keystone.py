@@ -57,7 +57,7 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
         
         self.unnatural_signet_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
             event_bus=self.event_bus, skill=CustomSkill("Unnatural_Signet"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 75 if enemy_qte >= 2 else 40 if enemy_qte <= 2 else 0),
-            condition = lambda agent_id: Agent.IsHexed(agent_id))
+            condition = lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id))
         
         self.signet_of_clumsiness_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
             event_bus=self.event_bus, skill=CustomSkill("Signet_of_Clumsiness"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 76 if enemy_qte >= 2 else 41 if enemy_qte <= 2 else 0),

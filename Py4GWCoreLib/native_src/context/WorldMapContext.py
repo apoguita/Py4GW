@@ -49,7 +49,10 @@ class WorldMapContext:
     
     @staticmethod
     def _update_ptr():
-        ptr = PyPointers.PyPointers.GetWorldMapContextPtr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        ptr = SSM.WorldMapContext
+        #ptr = PyPointers.PyPointers.GetWorldMapContextPtr()
         WorldMapContext._ptr = ptr
         if not ptr:
             WorldMapContext._cached_ctx = None

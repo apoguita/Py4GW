@@ -88,6 +88,59 @@ class _EVENTS:
                 bot.config.FSM.resume()
                 yield
 
+    def _on_party_member_in_danger(self):
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Agent import Agent
+        from ...Player import Player
+        from ...Pathing import AutoPathing
+        from ...Py4GWcorelib import Utils
+        from ...enums import Range
+        bot = self.parent
+
+        try:
+            while True:
+                if not Routines.Checks.Map.MapValid():
+                    return
+
+                if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+                    return
+
+                if Routines.Checks.Agents.InDanger():
+                    return
+
+                party_member_id = Routines.Checks.Party.GetPartyMemberInDangerID()
+                if party_member_id == 0 or not Agent.IsValid(party_member_id) or Agent.IsDead(party_member_id):
+                    return
+
+                member_pos = Agent.GetXY(party_member_id)
+                if Utils.Distance(member_pos, Player.GetXY()) <= Range.Spellcast.value:
+                    return
+
+                path = yield from AutoPathing().get_path_to(member_pos[0], member_pos[1])
+                if not path:
+                    return
+
+                exit_condition = lambda: (
+                    not Routines.Checks.Map.MapValid()
+                    or Routines.Checks.Agents.InDanger()
+                    or Routines.Checks.Party.IsPartyWiped()
+                    or GLOBAL_CACHE.Party.IsPartyDefeated()
+                    or Routines.Checks.Party.GetPartyMemberInDangerID() == 0
+                )
+
+                yield from Routines.Yield.Movement.FollowPath(
+                    path_points=path,
+                    custom_exit_condition=exit_condition,
+                    tolerance=Range.Spellcast.value,
+                    timeout=10000,
+                )
+                yield from Routines.Yield.wait(100)
+                return
+        finally:
+            bot.config.FSM.resume()
+            yield
+
     def _on_party_member_death_behind(self):
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
@@ -163,6 +216,9 @@ class _EVENTS:
         
     def OnPartyMemberBehindCallback(self, callback: Callable[[], None]) -> None:
         self._config.events.set_on_party_member_behind_callback(callback)
+
+    def OnPartyMemberInDangerCallback(self, callback: Callable[[], None]) -> None:
+        self._config.events.set_on_party_member_in_danger_callback(callback)
 
     def OnPartyMemberDeadCallback(self, callback: Callable[[], None]) -> None:
         self._config.events.set_on_party_member_dead_callback(callback)

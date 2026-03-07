@@ -24,3 +24,11 @@ class _QUEST:
     def GetActiveQuest(self) -> int:
         """Get the currently active quest ID."""
         return Quest.GetActiveQuest()
+
+    def IsQuestCompleted(self, quest_id: int) -> bool:
+        """Check if a quest is completed and reward can be taken."""
+        return Quest.IsQuestCompleted(quest_id)
+
+    def GetQuestLogIds(self) -> list:
+        """Get list of all quest IDs currently in the quest log."""
+        return Quest.GetQuestLogIds()

@@ -24,7 +24,10 @@ class GameplayContext:
 
     @staticmethod
     def _update_ptr():
-        ptr = PyPointers.PyPointers.GetGameplayContextPtr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        ptr = SSM.GameplayContext
+        #ptr = PyPointers.PyPointers.GetGameplayContextPtr()
         GameplayContext._ptr = ptr
         if not ptr:
             GameplayContext._cached_ctx = None

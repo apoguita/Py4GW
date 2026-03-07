@@ -12,6 +12,8 @@ LAST_CHARACTER_NAME: str = ""
 LAST_PRIMARY_PROF: str = ""
 LAST_CAMPAIGN: str = "Nightfall"
 
+MODULE_NAME = "Chahbek Village (Zaishen Quest)"
+MODULE_ICON = "Textures\\Module_Icons\\Zaishen Quest - Chabek Village.png"
 bot = Botting("Chahbek Village ZM")
  
 def create_bot_routine(bot: Botting) -> None:

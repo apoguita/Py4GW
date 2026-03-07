@@ -4,6 +4,9 @@ import PyImGui
 update_timer = ThrottledTimer(1000)  # 1 second timer
 OPTIONAL = False
 
+MODULE_NAME = "Frame Limiter"
+MODULE_ICON = "Textures/Module_Icons/Frame Limiter.png"
+
 def tooltip():
     PyImGui.begin_tooltip()
 

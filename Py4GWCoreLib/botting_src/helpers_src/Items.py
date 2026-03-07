@@ -192,8 +192,44 @@ class _Items:
     @_yield_step(label="EquipItem", counter_key="EQUIP_ITEM")
     def equip(self, model_id: int):
         return (yield from self._equip(model_id))
-    
-        
+
+    def _equip_on_hero(self, hero_type, model_id: int):
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        import Py4GW
+        from ...Py4GWcorelib import ConsoleLog
+        from ...enums_src.Hero_enums import HeroType
+
+        hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+        for position in range(1, hero_count + 1):
+            hero_agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(position)
+            if hero_agent_id <= 0:
+                continue
+            hero_id = GLOBAL_CACHE.Party.Heroes.GetHeroIDByAgentID(hero_agent_id)
+            if hero_id <= 0:
+                continue
+            try:
+                found_hero_type = HeroType(hero_id)
+            except ValueError:
+                continue
+            if found_hero_type == hero_type:
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if not item_id:
+                    ConsoleLog("EquipOnHero", f"Item model {model_id} not found in inventory.", Py4GW.Console.MessageType.Error)
+                    self._Events.on_unmanaged_fail()
+                    return False
+                GLOBAL_CACHE.Inventory.EquipItem(item_id, hero_agent_id)
+                yield from Routines.Yield.wait(750)
+                return True
+
+        ConsoleLog("EquipOnHero", f"Hero {hero_type} not found in party.", Py4GW.Console.MessageType.Warning)
+        return False
+
+    @_yield_step(label="EquipOnHero", counter_key="EQUIP_ON_HERO")
+    def equip_on_hero(self, hero_type, model_id: int):
+        return (yield from self._equip_on_hero(hero_type, model_id))
+
+
     @_yield_step(label="DestroyItem", counter_key="DESTROY_ITEM")
     def destroy(self, model_id: int) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
@@ -373,6 +409,148 @@ class _Items:
         yield from Routines.Yield.wait(350)
         return True
 
+    def _deposit_model_list(self, model_ids: list[int]) -> Generator[Any, Any, bool]:
+        """Deposit all inventory stacks matching any model ID in the list."""
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        deposited_any = False
+        for model_id in model_ids:
+            while True:
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if not item_id:
+                    break
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+                deposited_any = True
+                yield from Routines.Yield.wait(350)
+        return deposited_any
+
+    @_yield_step(label="DepositConset", counter_key="DEPOSIT_CONSET")
+    def deposit_conset(self) -> Generator[Any, Any, bool]:
+        conset_models = [
+            ModelID.Essence_Of_Celerity.value,
+            ModelID.Grail_Of_Might.value,
+            ModelID.Armor_Of_Salvation.value,
+        ]
+        return (yield from self._deposit_model_list(conset_models))
+
+    @_yield_step(label="DepositPcons", counter_key="DEPOSIT_PCONS")
+    def deposit_pcons(self) -> Generator[Any, Any, bool]:
+        pcons_models = [
+            ModelID.Birthday_Cupcake.value,
+            ModelID.Candy_Apple.value,
+            ModelID.Golden_Egg.value,
+            ModelID.Candy_Corn.value,
+            ModelID.Honeycomb.value,
+            ModelID.War_Supplies.value,
+            ModelID.Slice_Of_Pumpkin_Pie.value,
+            ModelID.Drake_Kabob.value,
+            ModelID.Bowl_Of_Skalefin_Soup.value,
+            ModelID.Pahnai_Salad.value,
+            ModelID.Scroll_Of_Resurrection.value,
+        ]
+        return (yield from self._deposit_model_list(pcons_models))
+
+    @_yield_step(label="DepositSummoningStones", counter_key="DEPOSIT_SUMMONING_STONES")
+    def deposit_summoning_stones(self) -> Generator[Any, Any, bool]:
+        summoning_models = [
+            ModelID.Legionnaire_Summoning_Crystal.value,
+            ModelID.Igneous_Summoning_Stone.value,
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Tengu_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        return (yield from self._deposit_model_list(summoning_models))
+
+    @_yield_step(label="DepositCitySpeedBoost", counter_key="DEPOSIT_CITY_SPEED_BOOST")
+    def deposit_city_speed_boost(self) -> Generator[Any, Any, bool]:
+        from ...Routines import Routines
+        city_speed_models = [
+            model.value if hasattr(model, "value") else int(model)
+            for model in Routines.Yield.Upkeepers.CITY_SPEED_ITEMS
+        ]
+        return (yield from self._deposit_model_list(city_speed_models))
+
+    @_yield_step(label="DepositConsetPconsSummoningStonesCitySpeed", counter_key="DEPOSIT_CONSET_PCONS_SUMMON_STONES_CITY_SPEED")
+    def deposit_conset_pcons_summoning_stones_city_speed(self) -> Generator[Any, Any, bool]:
+        """Deposit conset, pcons, summoning stones, and city speed boost items."""
+        from ...Routines import Routines
+        deposited = False
+
+        conset_models = [
+            ModelID.Essence_Of_Celerity.value,
+            ModelID.Grail_Of_Might.value,
+            ModelID.Armor_Of_Salvation.value,
+        ]
+        if (yield from self._deposit_model_list(conset_models)):
+            deposited = True
+
+        pcons_models = [
+            ModelID.Birthday_Cupcake.value,
+            ModelID.Candy_Apple.value,
+            ModelID.Golden_Egg.value,
+            ModelID.Candy_Corn.value,
+            ModelID.Honeycomb.value,
+            ModelID.War_Supplies.value,
+            ModelID.Slice_Of_Pumpkin_Pie.value,
+            ModelID.Drake_Kabob.value,
+            ModelID.Bowl_Of_Skalefin_Soup.value,
+            ModelID.Pahnai_Salad.value,
+            ModelID.Scroll_Of_Resurrection.value,
+        ]
+        if (yield from self._deposit_model_list(pcons_models)):
+            deposited = True
+
+        summoning_models = [
+            ModelID.Legionnaire_Summoning_Crystal.value,
+            ModelID.Igneous_Summoning_Stone.value,
+            ModelID.Amber_Summon.value,
+            ModelID.Arctic_Summon.value,
+            ModelID.Automaton_Summon.value,
+            ModelID.Celestial_Summon.value,
+            ModelID.Chitinous_Summon.value,
+            ModelID.Demonic_Summon.value,
+            ModelID.Fossilized_Summon.value,
+            ModelID.Frosty_Summon.value,
+            ModelID.Gelatinous_Summon.value,
+            ModelID.Ghastly_Summon.value,
+            ModelID.Imperial_Guard_Summon.value,
+            ModelID.Jadeite_Summon.value,
+            ModelID.Merchant_Summon.value,
+            ModelID.Mischievous_Summon.value,
+            ModelID.Mysterious_Summon.value,
+            ModelID.Mystical_Summon.value,
+            ModelID.Shining_Blade_Summon.value,
+            ModelID.Tengu_Summon.value,
+            ModelID.Zaishen_Summon.value,
+        ]
+        if (yield from self._deposit_model_list(summoning_models)):
+            deposited = True
+
+        city_speed_models = [
+            model.value if hasattr(model, "value") else int(model)
+            for model in Routines.Yield.Upkeepers.CITY_SPEED_ITEMS
+        ]
+        if (yield from self._deposit_model_list(city_speed_models)):
+            deposited = True
+
+        return deposited
+
     @_yield_step(label="UseAllConsumables", counter_key="USE_ALL_CONSUMABLES")
     def use_all_consumables(self) -> Generator[Any, Any, None]:
         """
@@ -428,8 +606,13 @@ class _Items:
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
         from ...Player import Player
+        from ...Map import Map
         from ...Py4GWcorelib import ConsoleLog
         import Py4GW
+
+        # Never use summoning stones in The Norn Fighting Tournament.
+        if Map.GetMapID() == 700:
+            return
         
         # Priority 1: Legionnaire Summoning Crystal
         legionnaire_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Legionnaire_Summoning_Crystal.value)
@@ -483,7 +666,12 @@ class _Items:
         # No summoning stones found
         ConsoleLog("UseSummoningStone", "No summoning stones found in inventory", Py4GW.Console.MessageType.Debug)
 
-
-
-        
-    
+    @_yield_step(label="UseItemByModelID", counter_key="USE_ITEM_BY_MODEL_ID")
+    def use_item_by_model_id(self, model_id: int) -> Generator[Any, Any, None]:
+        """Find the first item with the given model_id in inventory and use it."""
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+        if item_id:
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            yield from Routines.Yield.wait(1000)

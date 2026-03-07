@@ -20,7 +20,10 @@ class Cinematic:
         return Cinematic._ptr    
     @staticmethod
     def _update_ptr():
-        ptr = PyPointers.PyPointers.GetCinematicPtr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        ptr = SSM.CinematicContext
+        #ptr = PyPointers.PyPointers.GetCinematicPtr()
         Cinematic._ptr = ptr
         if not ptr:
             Cinematic._cached_ctx = None

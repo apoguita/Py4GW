@@ -7,6 +7,9 @@ from Py4GWCoreLib import ImGui, Color
 
 from datetime import datetime, timedelta
 
+MODULE_NAME = "UI Listener"
+MODULE_ICON = "Textures/Module_Icons/Frame Tester.png"
+
 def draw_multi_table(
     table_id: str,
     headers: list[str],

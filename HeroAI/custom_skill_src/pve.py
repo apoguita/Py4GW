@@ -305,6 +305,7 @@ class PVESkills:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -337,6 +338,7 @@ class PVESkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.UniqueProperty = True  # Requires melee weapon (not Bow or Spear)
         skill_data[skill.SkillID] = skill
 
         #region LIGHTBRINGER
@@ -525,9 +527,12 @@ class PVESkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Great_Dwarf_Weapon")
         skill.SkillType = SkillType.WeaponSpell.value
         skill.TargetAllegiance = Skilltarget.AllyMartial.value
-        skill.Nature = SkillNature.CustomA.value
+        skill.Nature = SkillNature.Buff.value
+        #skill.TargetAllegiance = Skilltarget.AllyNPCByModel.value
+        #skill.Nature = SkillNature.CustomA.value
         skill.Conditions.TargetingStrict = True
         skill.Conditions.IsOutOfCombat = False
+        #skill.Conditions.ModelIDFilter = 5903  # Ebon Vanguard Assassin (EVAS summon); falls back to AllyMartial
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

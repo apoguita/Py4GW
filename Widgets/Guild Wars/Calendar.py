@@ -1,17 +1,47 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional
+from typing import Optional, Protocol, Tuple, cast
 from datetime import date, timedelta
 import ast
 import os
 
 
 import PyImGui
-from Py4GWCoreLib import *
-from Py4GWCoreLib.enums import YEARS, MONTHS, EVENTS, PVE_WEEKLY_BONUSES, PVP_WEEKLY_BONUSES, NICHOLAS_CYCLE
+from Py4GWCoreLib import Color
+from Py4GWCoreLib import ColorPalette
+from Py4GWCoreLib import IconsFontAwesome5
+from Py4GWCoreLib import ImGui
+from Py4GWCoreLib import IniManager
+from Py4GWCoreLib import ModelID
+from Py4GWCoreLib import Py4GW
+from Py4GWCoreLib import get_texture_for_model
+from Py4GWCoreLib.enums import EVENTS
+from Py4GWCoreLib.enums import MONTHS
+from Py4GWCoreLib.enums import NICHOLAS_CYCLE
+from Py4GWCoreLib.enums import PVE_WEEKLY_BONUSES
+from Py4GWCoreLib.enums import PVP_WEEKLY_BONUSES
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 
 REFERENCE_WEEK = date(2013, 5, 13)  # First Monday after update
 ROTATION_START = REFERENCE_WEEK  # baseline for modulo rotation
+MODULE_NAME = "Calendar"
+MODULE_ICON = "Textures\\Module_Icons\\Calendar.png"
+
+class WidgetLike(Protocol):
+    name: str
+    plain_name: str
+    script_path: str
+    enabled: bool
+
+    def enable(self) -> None: ...
+    def disable(self) -> None: ...
+
+
+class WidgetHandlerLike(Protocol):
+    MANAGER_INI_KEY: str
+    widgets: dict[str, WidgetLike]
+
+    def get_widget_info(self, name: str) -> WidgetLike | None: ...
 
 def get_weekly_bonuses(day: date) -> tuple[dict, dict]:
     """Return (PvE_bonus, PvP_bonus) active for the given date."""
@@ -26,9 +56,6 @@ def get_weekly_bonuses(day: date) -> tuple[dict, dict]:
     pvp_index = weeks % len(PVP_WEEKLY_BONUSES)
 
     return PVE_WEEKLY_BONUSES[pve_index], PVP_WEEKLY_BONUSES[pvp_index]
-
-
-from datetime import date, timedelta
 
 def expand_cycle_if_needed(day: date) -> None:
     """Expand NICHOLAS_CYCLE in place if 'day' is outside its current range."""
@@ -421,6 +448,9 @@ class ButtonLayout:
 
 button_layout = ButtonLayout()
 calendar = Calendar()
+widget_handler: WidgetHandlerLike = cast(WidgetHandlerLike, get_widget_handler())
+calendar_window_open = True
+owned_nicholas_farm_widget_id: Optional[str] = None
 
 
 
@@ -590,6 +620,189 @@ def get_script_path_for_model(model: int) -> Optional[str]:
 
     return None
 
+
+def _normalize_script_path(path: str) -> str:
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _get_widget_enabled_var_name(widget: WidgetLike) -> str:
+    return f"{widget.name}__enabled"
+
+
+def _save_widget_enabled_state(widget: WidgetLike) -> bool:
+    manager_ini_key = widget_handler.MANAGER_INI_KEY
+    if not manager_ini_key:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Widget Manager INI key is unavailable while updating '{widget.plain_name}'.",
+            Py4GW.Console.MessageType.Warning,
+        )
+        return False
+
+    IniManager().set(
+        key=manager_ini_key,
+        section=f"Widget:{widget.name}",
+        var_name=_get_widget_enabled_var_name(widget),
+        value=widget.enabled,
+    )
+    IniManager().save_vars(manager_ini_key)
+    return True
+
+
+def _set_widget_enabled(widget: WidgetLike, enabled: bool) -> bool:
+    try:
+        if enabled:
+            widget.enable()
+        else:
+            widget.disable()
+    except Exception as e:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Failed to {'enable' if enabled else 'disable'} '{widget.plain_name}': {e}",
+            Py4GW.Console.MessageType.Error,
+        )
+        return False
+
+    state_saved = _save_widget_enabled_state(widget)
+    return bool(widget.enabled) == bool(enabled) and state_saved
+
+
+def _resolve_widget_for_script(script_path: str) -> WidgetLike | None:
+    normalized_script_path = _normalize_script_path(script_path)
+
+    for widget in widget_handler.widgets.values():
+        if _normalize_script_path(widget.script_path) == normalized_script_path:
+            return widget
+
+    return None
+
+
+def _disable_owned_farm(reason: str) -> bool:
+    global owned_nicholas_farm_widget_id
+
+    if not owned_nicholas_farm_widget_id:
+        return False
+
+    widget = widget_handler.get_widget_info(owned_nicholas_farm_widget_id)
+    if widget is None:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Owned farm '{owned_nicholas_farm_widget_id}' is no longer registered; clearing ownership.",
+            Py4GW.Console.MessageType.Warning,
+        )
+        owned_nicholas_farm_widget_id = None
+        return False
+
+    if widget.enabled:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Disabling owned farm '{widget.plain_name}' ({reason}).",
+            Py4GW.Console.MessageType.Info,
+        )
+        if not _set_widget_enabled(widget, False):
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Widget Manager state did not fully update while disabling owned farm '{widget.plain_name}'.",
+                Py4GW.Console.MessageType.Warning,
+            )
+    else:
+        _save_widget_enabled_state(widget)
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Owned farm '{widget.plain_name}' was already disabled ({reason}); clearing ownership.",
+            Py4GW.Console.MessageType.Info,
+        )
+
+    owned_nicholas_farm_widget_id = None
+    return True
+
+
+def _request_farm_enable(script_path: str, item_name: str) -> None:
+    global owned_nicholas_farm_widget_id
+
+    widget = _resolve_widget_for_script(script_path)
+    if widget is None:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Unable to map farm script to a Widget Manager entry: {script_path}",
+            Py4GW.Console.MessageType.Warning,
+        )
+        return
+
+    Py4GW.Console.Log(
+        MODULE_NAME,
+        f"Requesting Widget Manager enable for Nicholas farm '{widget.plain_name}' ({item_name}).",
+        Py4GW.Console.MessageType.Info,
+    )
+
+    if owned_nicholas_farm_widget_id and owned_nicholas_farm_widget_id != widget.name:
+        _disable_owned_farm(f"switching to '{widget.plain_name}'")
+
+    if widget.enabled:
+        if not _save_widget_enabled_state(widget):
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Widget Manager state did not fully update while syncing enabled farm '{widget.plain_name}'.",
+                Py4GW.Console.MessageType.Warning,
+            )
+        if owned_nicholas_farm_widget_id == widget.name:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Nicholas farm '{widget.plain_name}' is already enabled and still owned by Calendar.",
+                Py4GW.Console.MessageType.Info,
+            )
+        else:
+            owned_nicholas_farm_widget_id = None
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Nicholas farm '{widget.plain_name}' was already enabled; Calendar will not claim ownership.",
+                Py4GW.Console.MessageType.Info,
+            )
+        return
+
+    if _set_widget_enabled(widget, True):
+        owned_nicholas_farm_widget_id = widget.name
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Enabled Nicholas farm '{widget.plain_name}' via Widget Manager; Calendar now owns this enablement.",
+            Py4GW.Console.MessageType.Info,
+        )
+    else:
+        owned_nicholas_farm_widget_id = None
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Widget Manager failed to enable Nicholas farm '{widget.plain_name}'.",
+            Py4GW.Console.MessageType.Warning,
+        )
+
+
+def _disable_calendar_widget(reason: str) -> None:
+    calendar_widget = widget_handler.get_widget_info(MODULE_NAME)
+    if calendar_widget is None:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Calendar widget entry was not found while handling '{reason}'.",
+            Py4GW.Console.MessageType.Warning,
+        )
+        _disable_owned_farm(reason)
+        return
+
+    Py4GW.Console.Log(
+        MODULE_NAME,
+        f"Disabling Calendar widget ({reason}).",
+        Py4GW.Console.MessageType.Info,
+    )
+    _set_widget_enabled(calendar_widget, False)
+
+
+def on_enable():
+    global calendar_window_open
+    calendar_window_open = True
+
+
+def on_disable():
+    _disable_owned_farm("Calendar disabled or unloaded")
+
 def DrawDayCard():
     selected_day = calendar.current   # 👈 use current calendar date, not today
     current_event = get_event_for_day(selected_day)
@@ -597,11 +810,11 @@ def DrawDayCard():
     nicholas = get_nicholas_for_day(selected_day)
 
     # Show the selected date (defaults to today)
-    PyImGui.text_colored(f"{calendar.get_day_of_week()}, {selected_day.strftime('%B %d, %Y')}",  ColorPalette.GetColor("yellow").to_tuple_normalized())
-    PyImGui.text_colored(f"PvE Bonus:",  ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.text_colored(f"{calendar.get_day_of_week()}, {selected_day.strftime('%B %d, %Y')}", ColorPalette.GetColor("yellow").to_tuple_normalized())
+    PyImGui.text_colored("PvE Bonus:", ColorPalette.GetColor("gw_gold").to_tuple_normalized())
     PyImGui.same_line(0, -1)
     PyImGui.text(f"{pve_bonus['name']}")
-    PyImGui.text_colored(f"PvP Bonus:",  ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.text_colored("PvP Bonus:", ColorPalette.GetColor("gw_gold").to_tuple_normalized())
     PyImGui.same_line(0, -1)
     PyImGui.text(f"{pvp_bonus['name']}")
     
@@ -610,7 +823,6 @@ def DrawDayCard():
         if PyImGui.begin_table("Nictable", 2, table_flags):
             iconwidth = 96
             child_width = 300
-            child_height = 275
             PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
             PyImGui.table_setup_column("titles", PyImGui.TableColumnFlags.WidthFixed, child_width - iconwidth)
             PyImGui.table_next_row()
@@ -622,7 +834,7 @@ def DrawDayCard():
                 PyImGui.table_set_column_index(0)
                 ImGui.push_font("Regular", 20)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ColorPalette.GetColor("yellow").to_tuple_normalized())
-                PyImGui.text(f"Nicholas the Traveler")
+                PyImGui.text("Nicholas the Traveler")
                 PyImGui.pop_style_color(1)
                 ImGui.pop_font()
                 PyImGui.table_next_row()
@@ -640,8 +852,7 @@ def DrawDayCard():
                     if farm_script:
                         PyImGui.same_line(0, -1)
                         if PyImGui.button("Load Farm"):
-                            Py4GW.Console.Log("Calendar", f"Loading farm script: {farm_script}", Py4GW.Console.MessageType.Info)
-                            Py4GW.Console.defer_stop_load_and_run(farm_script, 500)
+                            _request_farm_enable(farm_script, nicholas["item"])
                         ImGui.show_tooltip(f"Load farm script for {nicholas['item']}")
 
                     
@@ -653,8 +864,6 @@ def DrawDayCard():
         PyImGui.text(f"No Nicholas data to show for {selected_day}")
 
     if current_event:
-        colors = current_event["colors"]
-
         # Draw the button with event name
         PyImGui.text(f"Current Event: {current_event['name']}")
         if "dropped_items" in current_event and current_event["dropped_items"]:
@@ -685,11 +894,13 @@ def DrawDayCard():
 
 
 
-def DrawWindow() -> None:
-    global button_layout, calendar
+def DrawWindow() -> bool:
+    global button_layout, calendar, calendar_window_open
     window_flags = PyImGui.WindowFlags.AlwaysAutoResize
 
-    if PyImGui.begin("Calendar", window_flags):
+    is_window_opened, calendar_window_open = PyImGui.begin_with_close("Calendar", calendar_window_open, window_flags)
+
+    if calendar_window_open and is_window_opened:
         button_layout.draw()
         PyImGui.separator()
 
@@ -715,6 +926,7 @@ def DrawWindow() -> None:
                     PyImGui.same_line(0,-1)
 
     PyImGui.end()
+    return calendar_window_open
 
 def DrawDayWindow():
     if PyImGui.begin("Event Details", PyImGui.WindowFlags.AlwaysAutoResize):
@@ -754,16 +966,13 @@ def tooltip():
     ImGui.end_tooltip()
 
 def main():
-    global bot
-
     try:
-        DrawWindow()
+        if not DrawWindow():
+            _disable_calendar_widget("main window closed")
+            return
         DrawDayWindow()
-        #bot.Update()
-        #bot.UI.draw_window()
-        
     except Exception as e:
-        Py4GW.Console.Log("Calendar", f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
+        Py4GW.Console.Log(MODULE_NAME, f"Error: {str(e)}", Py4GW.Console.MessageType.Error)
         raise
 
 if __name__ == "__main__":

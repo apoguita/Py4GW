@@ -2,6 +2,7 @@
 from typing import TYPE_CHECKING, Callable, Optional, Tuple
 from Py4GWCoreLib import Color
 import PyImGui
+from Py4GW_widget_manager import get_widget_handler
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingClass
@@ -111,7 +112,43 @@ class _MULTIBOX:
         self.UseBowlOfSkalefinSoup()
         self.UsePahnaiSalad()
         self.UseWarSupplies()
-        
+
+    def RestockAllPcons(self, quantity: int = 250):
+        self._helpers.Multibox.restock_all_pcons(quantity)
+
+    def RestockConset(self, quantity: int = 250):
+        self._helpers.Multibox.restock_conset(quantity)
+
+    def RestockResurrectionScroll(self, quantity: int = 250):
+        self._helpers.Multibox.restock_resurrection_scroll(quantity)
+
+    def EnableWidget(self, widget_name: str):
+        self._helpers.Multibox.enable_widget(widget_name)
+
+    def DisableWidget(self, widget_name: str):
+        self._helpers.Multibox.disable_widget(widget_name)
+
+    def ApplyWidgetPolicy(
+        self,
+        enable_widgets: tuple[str, ...] = (),
+        disable_widgets: tuple[str, ...] = (),
+        apply_local: bool = True,
+    ):
+        """Apply widget enable/disable policy locally and via multibox messaging."""
+        if apply_local:
+            widget_handler = get_widget_handler()
+            for widget_name in enable_widgets:
+                if not widget_handler.is_widget_enabled(widget_name):
+                    widget_handler.enable_widget(widget_name)
+            for widget_name in disable_widgets:
+                if widget_handler.is_widget_enabled(widget_name):
+                    widget_handler.disable_widget(widget_name)
+
+        for widget_name in enable_widgets:
+            self.EnableWidget(widget_name)
+        for widget_name in disable_widgets:
+            self.DisableWidget(widget_name)
+
     def SummonAllAccounts(self):
         self._helpers.Multibox.summon_all_accounts()
         

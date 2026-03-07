@@ -4,6 +4,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers.sortable_agent_data import
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
 
+
 class CustomTargeting:
 
     _instance = None  # Singleton instance

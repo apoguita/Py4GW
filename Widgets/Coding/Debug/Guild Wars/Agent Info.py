@@ -9,6 +9,7 @@ from Py4GWCoreLib import AgentArray, Agent, Player
 from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 
 MODULE_NAME = "Agent Info Viewer"
+MODULE_ICON = "Textures/Module_Icons/Agent Info.png"
 LOG_ACTIONS = True
 
 

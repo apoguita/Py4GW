@@ -3,6 +3,7 @@ from Py4GWCoreLib import Botting
 
 # QUEST TO INCREASE SPAWNS
 BOT_NAME = "Wingstorm Farm"
+MODULE_ICON = "Textures\\Module_Icons\\Wingstorm.png"
 OUTPOST_TO_TRAVEL = 222  # The Eternal Grove
 COORD_TO_EXIT_MAP = (-6268.25, 14450.51)  # The Eternal Grove exit to Drazach Thicket
 EXPLORABLE_TO_TRAVEL = 195  # Drazach Thicket

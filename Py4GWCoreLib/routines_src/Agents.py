@@ -82,7 +82,26 @@ class Agents:
                     best_id = agent_id
 
         return best_id
-    
+
+    @staticmethod
+    def GetNearestAliveAgentByModelID(model_id: int, max_distance: float = 4500.0) -> int:
+        """
+        Purpose: Get the closest alive agent with the given model ID within max_distance of the player.
+        Scans all agent arrays (ally, NPC, enemy, etc.).
+        Returns 0 if none found.
+        """
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        player_pos = Player.GetXY()
+        agent_array = AgentArray.GetAgentArray()
+        agent_array = AgentArray.Filter.ByDistance(agent_array, player_pos, max_distance)
+        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.IsAlive(agent_id))
+        agent_array = AgentArray.Filter.ByCondition(agent_array, lambda agent_id: Agent.GetModelID(agent_id) == model_id)
+        agent_array = AgentArray.Sort.ByDistance(agent_array, player_pos)
+        if len(agent_array) > 0:
+            return agent_array[0]
+        return 0
+
     @staticmethod
     def GetClosestKeyByBitMask() -> int:
         """

@@ -12,6 +12,9 @@ BARBAROUS_SHORE = 375
 CAMP_HOJANU = 376
 BARB_SHORE_RUNNER = "Barbarous Shore Chestrun"
 
+MODULE_NAME = "Barbarous Shore (Chestrun)"
+MODULE_ICON = "Textures\\Module_Icons\\Chestrun - Barbarous Shore.png"
+
 # Danger Tables
 barbarous_cripple_kd_table: DangerTable = (
     ([5048 + 51, 5059 + 51, 5043 + 51, 5051 + 51, 5050 + 51, 5029 + 51, 5032 + 51, 5030 + 51], "Corsair"),

@@ -16,6 +16,9 @@ BASE_DIR  = os.path.join(project_root, "Widgets", "Config")
 INI_PATH  = os.path.join(BASE_DIR, "Blessed_Config.ini")
 os.makedirs(BASE_DIR, exist_ok=True)
 
+MODULE_NAME = "Blessed"
+MODULE_ICON = "Textures\\Module_Icons\\Blessed.png"
+
 WINDOW_SECTION = "Get Blessed"
 win_ini_path   = os.path.join(script_directory, "Widgets", "Config", "GetBlessed_window.ini")
 

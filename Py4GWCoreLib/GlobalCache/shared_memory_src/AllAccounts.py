@@ -61,6 +61,65 @@ class AllAccounts(Structure):
         if slot_active and (base_timestamp - last_updated) < SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS:
             return True
         return False
+
+    def _is_visible_account(self, index: int) -> bool:
+        if not self._is_slot_active(index):
+            return False
+        account = self.AccountData[index]
+        return account.IsAccount and not self._is_slot_isolated(index)
+
+    def _is_visible_slot(self, index: int) -> bool:
+        if not self._is_slot_active(index):
+            return False
+        return not self._is_slot_isolated(index)
+
+    def _is_slot_isolated(self, index: int) -> bool:
+        account = self.AccountData[index]
+        if account.IsAccount:
+            return bool(account.IsIsolated)
+        owner_email = account.AccountEmail
+        if not owner_email:
+            return False
+        owner_index = self._find_account_slot_by_email(owner_email)
+        if owner_index == -1:
+            return False
+        owner_account = self.AccountData[owner_index]
+        return bool(owner_account.IsAccount and owner_account.IsIsolated)
+
+    def _find_account_slot_by_email(self, account_email: str) -> int:
+        if not account_email:
+            return -1
+        all_accounts = self.AccountData
+        for i in range(SHMEM_MAX_PLAYERS):
+            account = all_accounts[i]
+            if account.AccountEmail == account_email and account.IsAccount:
+                return i
+        return -1
+
+    def IsAccountIsolated(self, account_email: str) -> bool:
+        index = self._find_account_slot_by_email(account_email)
+        if index == -1:
+            return False
+        return bool(self.AccountData[index].IsIsolated)
+
+    def SetAccountIsolationByEmail(self, account_email: str, isolated: bool) -> bool:
+        if not account_email:
+            return False
+        index = self.GetSlotByEmail(account_email)
+        if index == -1:
+            return False
+        account = self.AccountData[index]
+        if not account.IsAccount:
+            return False
+        account.IsIsolated = isolated
+        return True
+
+    def SetAccountIsolatedByEmail(self, account_email: str) -> bool:
+        return self.SetAccountIsolationByEmail(account_email, True)
+
+    def RemoveAccountIsolationByEmail(self, account_email: str) -> bool:
+        return self.SetAccountIsolationByEmail(account_email, False)
+
     
     def GetEmptySlot(self) -> int:
         """Find the first empty slot in shared memory."""    
@@ -240,11 +299,19 @@ class AllAccounts(Structure):
             
         #submit if not found
         return self.SubmitAccountData(account_email)
+
+    def GetVisibleSlotByEmail(self, account_email: str) -> int:
+        index = self._find_account_slot_by_email(account_email)
+        if index == -1:
+            return -1
+        if self.AccountData[index].IsIsolated:
+            return -1
+        return index
     
     def GetAccountDataFromEmail(self, account_email: str) -> AccountStruct | None:
         """Get the account data for the given email, or None if not found."""
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
+        index = self._find_account_slot_by_email(account_email)
+        if index != -1 and not self.AccountData[index].IsIsolated:
             return self.AccountData[index]
         return None
     
@@ -253,7 +320,7 @@ class AllAccounts(Structure):
         all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
             player = all_accounts[i]
-            if self._is_slot_active(i) and player.AgentPartyData.PartyPosition == party_number:
+            if self._is_visible_account(i) and player.AgentPartyData.PartyPosition == party_number:
                 return player
             
         return None
@@ -288,13 +355,16 @@ class AllAccounts(Structure):
                 return i
         return self.SubmitPetData(pet_data)
     
-    def GetAllActivePlayers(self, sort_results: bool = True) -> list[AccountStruct]:
+    def GetAllActivePlayers(self, sort_results: bool = True, include_isolated: bool = False) -> list[AccountStruct]:
         """Get all active account players in shared memory."""
         players : list[AccountStruct] = []
         all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
             account = all_accounts[i]
-            if account.IsSlotActive and account.IsAccount:
+            if include_isolated:
+                if self._is_slot_active(i) and account.IsAccount:
+                    players.append(account)
+            elif self._is_visible_account(i):
                 players.append(account)
 
         if sort_results and len(players) > 1:
@@ -319,7 +389,7 @@ class AllAccounts(Structure):
         """Get the number of active slots in shared memory."""
         count = 0
         for i in range(SHMEM_MAX_PLAYERS):
-            if self._is_slot_active(i):
+            if self._is_visible_slot(i):
                 count += 1
         return count
     
@@ -330,7 +400,7 @@ class AllAccounts(Structure):
         for i in range(SHMEM_MAX_PLAYERS):   
             account_data = all_accounts[i]
 
-            if (self._is_slot_active(i) and account_data.IsHero and
+            if (self._is_visible_slot(i) and account_data.IsHero and
                 account_data.AgentData.OwnerAgentID == owner_agent_id):
                 heroes.append(account_data)
         return heroes
@@ -348,7 +418,7 @@ class AllAccounts(Structure):
         for i in range(SHMEM_MAX_PLAYERS):   
             account_data = all_accounts[i]
 
-            if (self._is_slot_active(i) and account_data.IsPet and
+            if (self._is_visible_slot(i) and account_data.IsPet and
                 account_data.AgentData.OwnerAgentID == owner_agent_id):
                 pets.append(account_data)
         return pets
@@ -362,7 +432,7 @@ class AllAccounts(Structure):
         accs : list[AccountStruct] = []
         for i in range(SHMEM_MAX_PLAYERS):
             acc = self.AccountData[i]
-            if self._is_slot_active(i):
+            if self._is_visible_slot(i):
                 accs.append(acc)
 
         # Sort by PartyID, then PartyPosition, then PlayerLoginNumber, then CharacterName
@@ -396,7 +466,7 @@ class AllAccounts(Structure):
         options = []
         for i in range(SHMEM_MAX_PLAYERS):
             player = self.AccountData[i]
-            if self._is_slot_active(i) and player.IsAccount:
+            if self._is_visible_account(i):
                 options.append(self.HeroAIOptions[i])
         return options
 
@@ -408,7 +478,7 @@ class AllAccounts(Structure):
 
         for i in range(SHMEM_MAX_PLAYERS):
             account = all_accounts[i]
-            if account.IsSlotActive and account.IsAccount:
+            if self._is_visible_account(i):
                 pairs.append((account, all_options[i]))
 
         if sort_results and len(pairs) > 1:
@@ -429,8 +499,8 @@ class AllAccounts(Structure):
         """Get HeroAI options for the account with the given email."""
         if not account_email:
             return None
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
+        index = self._find_account_slot_by_email(account_email)
+        if index != -1 and not self.AccountData[index].IsIsolated:
             return self.HeroAIOptions[index]
         else:
             ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
@@ -440,7 +510,7 @@ class AllAccounts(Structure):
         """Get HeroAI options for the account with the given party number."""
         for i in range(SHMEM_MAX_PLAYERS):
             player = self.AccountData[i]
-            if self._is_slot_active(i) and player.AgentPartyData.PartyPosition == party_number:
+            if self._is_visible_account(i) and player.AgentPartyData.PartyPosition == party_number:
                 return self.HeroAIOptions[i]
         return None 
     
@@ -448,8 +518,8 @@ class AllAccounts(Structure):
         """Set HeroAI options for the account with the given email."""
         if not account_email:
             return
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
+        index = self._find_account_slot_by_email(account_email)
+        if index != -1 and not self.AccountData[index].IsIsolated:
             self.HeroAIOptions[index] = options
         else:
             ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
@@ -458,8 +528,8 @@ class AllAccounts(Structure):
         """Set a specific HeroAI property for the account with the given email."""
         if not account_email:
             return
-        index = self.GetSlotByEmail(account_email)
-        if index != -1:
+        index = self._find_account_slot_by_email(account_email)
+        if index != -1 and not self.AccountData[index].IsIsolated:
             options = self.HeroAIOptions[index]
             
             if property_name.startswith("Skill_"):
@@ -482,7 +552,7 @@ class AllAccounts(Structure):
         maps = set()
         for i in range(SHMEM_MAX_PLAYERS):
             player = self.AccountData[i]
-            if self._is_slot_active(i) and player.IsAccount:
+            if self._is_visible_account(i):
                 maps.add((player.AgentData.Map.MapID, player.AgentData.Map.Region, player.AgentData.Map.District, player.AgentData.Map.Language))
         return list(maps)
     
@@ -493,7 +563,7 @@ class AllAccounts(Structure):
         parties = set()
         for i in range(SHMEM_MAX_PLAYERS):
             player = self.AccountData[i]
-            if (self._is_slot_active(i) and player.IsAccount and
+            if (self._is_visible_account(i) and
                 player.AgentData.Map.MapID == map_id and
                 player.AgentData.Map.Region == map_region and
                 player.AgentData.Map.District == map_district and
@@ -507,7 +577,7 @@ class AllAccounts(Structure):
         all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
             account_data = all_accounts[i]
-            if (self._is_slot_active(i) and account_data.IsAccount and
+            if (self._is_visible_account(i) and
                 account_data.AgentData.Map.MapID == map_id and
                 account_data.AgentData.Map.Region == map_region and
                 account_data.AgentData.Map.District == map_district and
@@ -545,7 +615,7 @@ class AllAccounts(Structure):
         messages = []
         for index in range(SHMEM_MAX_PLAYERS):
             message = self.Inbox[index]
-            if message.Active:
+            if message.Active and not self.IsAccountIsolated(message.ReceiverEmail) and not self.IsAccountIsolated(message.SenderEmail):
                 messages.append((index, message))  # Add index and message
         return messages
     
@@ -567,9 +637,17 @@ class AllAccounts(Structure):
         if not receiver_email:
             ConsoleLog(SHMEM_MODULE_NAME, "Receiver email is empty.", Py4GW.Console.MessageType.Error)
             return -1
+
+        if self.IsAccountIsolated(receiver_email):
+            ConsoleLog(SHMEM_MODULE_NAME, f"Receiver account {receiver_email} is isolated.", Py4GW.Console.MessageType.Warning)
+            return -1
         
         if not sender_email:
             ConsoleLog(SHMEM_MODULE_NAME, "Sender email is empty.", Py4GW.Console.MessageType.Error)
+            return -1
+
+        if self.IsAccountIsolated(sender_email):
+            ConsoleLog(SHMEM_MODULE_NAME, f"Sender account {sender_email} is isolated.", Py4GW.Console.MessageType.Warning)
             return -1
         
         for i in range(SHMEM_MAX_PLAYERS):
@@ -599,9 +677,12 @@ class AllAccounts(Structure):
         """Read the next message for the given account.
         Returns the raw SharedMessage. Use self._c_wchar_array_to_str() to read ExtraData safely.
         """
+        if self.IsAccountIsolated(account_email):
+            return -1, None
         for index in range(SHMEM_MAX_PLAYERS):
             message = self.Inbox[index]
-            if message.ReceiverEmail == account_email and message.Active and not message.Running:
+            if (message.ReceiverEmail == account_email and message.Active and not message.Running
+                and not self.IsAccountIsolated(message.SenderEmail)):
                 return index, message
         return -1, None
     
@@ -610,9 +691,13 @@ class AllAccounts(Structure):
         If include_running is True, will also return a running message.
         Ensures ExtraData is returned as tuple[str] using existing helpers.
         """
+        if self.IsAccountIsolated(account_email):
+            return -1, None
         for index in range(SHMEM_MAX_PLAYERS):
             message = self.Inbox[index]
             if message.ReceiverEmail != account_email or not message.Active:
+                continue
+            if self.IsAccountIsolated(message.SenderEmail):
                 continue
             if not message.Running or include_running:
                 return index, message

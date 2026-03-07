@@ -78,7 +78,7 @@ class CustomBehaviorBaseUtility():
             # FollowPartyLeaderNewUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             # FollowFlagUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             FollowFlagUtilityNew(event_bus=self.event_bus, current_build=self.in_game_build),
-            # SpreadDuringCombatUtility(event_bus=self.event_bus, current_build=self.in_game_build),
+            SpreadDuringCombatUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             # FollowPartyLeaderOnlyUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             # FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
 

@@ -14,6 +14,12 @@ class AgentArray:
     @staticmethod
     def GetAgentArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.to_int_list()
+        
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -26,6 +32,12 @@ class AgentArray:
     @staticmethod
     def GetAllyArray() -> list[int]:
         """Purpose: Get the unfiltered full agent array."""
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_ally_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -37,6 +49,12 @@ class AgentArray:
     @staticmethod
     def GetNeutralArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by neutrals."""
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_neutral_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -47,6 +65,12 @@ class AgentArray:
     @staticmethod
     def GetEnemyArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by enemies."""
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_enemy_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -57,6 +81,12 @@ class AgentArray:
     @staticmethod
     def GetSpiritPetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by spirit & pets."""
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_spirit_pet_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -68,6 +98,13 @@ class AgentArray:
     @staticmethod
     def GetMinionArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by minions."""
+        
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_minion_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -78,6 +115,13 @@ class AgentArray:
     @staticmethod
     def GetNPCMinipetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by NPC & minipets."""
+        
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_npc_minipet_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -88,6 +132,13 @@ class AgentArray:
     @staticmethod
     def GetItemArray() -> list[int]:
         """Purpose: Retrieve the agent array pre-filtered by items."""
+        
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_item_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -98,6 +149,13 @@ class AgentArray:
     @staticmethod
     def GetOwnedItemArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by owned items."""
+        
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_owned_item_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -109,6 +167,13 @@ class AgentArray:
     @staticmethod
     def GetGadgetArray() -> list[int]:
         """Purpose: Retrieve the agent array pre filtered by gadgets."""
+        
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_gadget_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -120,6 +185,14 @@ class AgentArray:
     @staticmethod
     def GetDeadAllyArray() -> list[int]:
         """Purpose: Retrieve the dead ally agent array."""
+        
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_dead_ally_array()
+    
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -131,6 +204,13 @@ class AgentArray:
     @staticmethod
     def GetDeadEnemyArray() -> list[int]:
         """Purpose: Retrieve the dead enemy agent array."""
+        
+        from Py4GWCoreLib.native_src.ShMem.SysShaMem import SystemShaMemMgr, SharedMemoryHeader, AgentArraySHMemStruct, AgentArraySHMemWrapper
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None:
+            return []
+        return AAW.get_dead_enemy_array()
+    
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return []
@@ -140,6 +220,10 @@ class AgentArray:
     @staticmethod
     def GetAgentByID(agent_id: int) -> AgentStruct | None:
         """Purpose: Get an agent by its AgentID."""
+        from .native_src.context.AgentContext import AgentArray as AgentArrayContext
+        return AgentArrayContext.GetAgentByID(agent_id)
+        
+        
         agent_array_ctx = GWContext.AgentArray.GetContext()
         if not agent_array_ctx:
             return None

@@ -85,3 +85,7 @@ class _MAP:
 
     def EnterChallenge(self, delay:int= 4500, target_map_id: int = 0, target_map_name: str = "") -> None:
         self.ys_enter_challenge(wait_for=delay, target_map_id=target_map_id, target_map_name=target_map_name)
+
+    def IsMapUnlocked(self, map_id: int) -> bool:
+        """Returns True if the given map ID is unlocked for the current character."""
+        return Map.IsMapUnlocked(map_id)

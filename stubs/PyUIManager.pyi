@@ -163,9 +163,17 @@ class UIManager:
     @staticmethod
     def clear_ui_message_logs() -> None: ...
     @staticmethod
+    def get_text_language() -> int: ...
+    @staticmethod
     def get_frame_id_by_label(label: str) -> int: ...
     @staticmethod
     def get_frame_id_by_hash(hash: int) -> int: ...
+    @staticmethod
+    def get_child_frame_by_frame_id(parent_frame_id: int, child_offset: int) -> int: ...
+    @staticmethod
+    def get_child_frame_path_by_frame_id(parent_frame_id: int, child_offsets: List[int]) -> int: ...
+    @staticmethod
+    def get_parent_frame_id(frame_id: int) -> int: ...
     @staticmethod
     def get_hash_by_label(label: str) -> int: ...
     @staticmethod
@@ -188,6 +196,203 @@ class UIManager:
     ) -> bool: ...
     
     @staticmethod
+    def SendFrameUIMessage(
+        frame_id: int,
+        message_id: int,
+        wparam: int,
+        lparam: int = 0
+    ) -> bool: ...
+
+    @staticmethod
+    def create_ui_component_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int,
+        event_callback: int,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_labeled_frame_by_frame_id(
+        parent_frame_id: int,
+        frame_flags: int,
+        child_index: int,
+        frame_callback: int,
+        create_param: int,
+        frame_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_window_by_frame_id(
+        parent_frame_id: int,
+        child_index: int,
+        frame_callback: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_flags: int = ...,
+        create_param: int = ...,
+        frame_label: str = ...,
+        anchor_flags: int = ...
+    ) -> int: ...
+
+    @staticmethod
+    def find_available_child_slot(
+        parent_frame_id: int,
+        start_index: int = ...,
+        end_index: int = ...
+    ) -> int: ...
+
+    @staticmethod
+    def resolve_devtext_dialog_proc() -> int: ...
+
+    @staticmethod
+    def ensure_devtext_source() -> Tuple[int, bool]: ...
+
+    @staticmethod
+    def restore_devtext_source(opened_temporarily: bool) -> None: ...
+
+    @staticmethod
+    def resolve_observed_content_host_by_frame_id(root_frame_id: int) -> int: ...
+
+    @staticmethod
+    def clear_frame_children_recursive_by_frame_id(frame_id: int) -> bool: ...
+
+    @staticmethod
+    def clear_window_contents_by_frame_id(root_frame_id: int) -> bool: ...
+
+    @staticmethod
+    def create_window(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_label: str = ...,
+        parent_frame_id: int = ...,
+        child_index: int = ...,
+        frame_flags: int = ...,
+        create_param: int = ...,
+        frame_callback: int = ...,
+        anchor_flags: int = ...,
+        ensure_devtext_source: bool = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_empty_window(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_label: str = ...,
+        parent_frame_id: int = ...,
+        child_index: int = ...,
+        frame_flags: int = ...,
+        create_param: int = ...,
+        frame_callback: int = ...,
+        anchor_flags: int = ...,
+        ensure_devtext_source: bool = ...
+    ) -> int: ...
+
+    @staticmethod
+    def set_frame_controller_anchor_margins_by_frame_id_ex(
+        frame_id: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        flags: int = ...
+    ) -> bool: ...
+
+    @staticmethod
+    def choose_anchor_flags_for_desired_rect(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        parent_width: float,
+        parent_height: float,
+        disable_center: bool = ...
+    ) -> int: ...
+
+    @staticmethod
+    def collapse_window_by_frame_id(frame_id: int) -> bool: ...
+
+    @staticmethod
+    def restore_window_rect_by_frame_id(
+        frame_id: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        flags: int = ...,
+        use_auto_flags: bool = ...,
+        disable_center: bool = ...
+    ) -> bool: ...
+
+    @staticmethod
+    def destroy_ui_component_by_frame_id(frame_id: int) -> bool: ...
+
+    @staticmethod
+    def add_frame_ui_interaction_callback_by_frame_id(
+        frame_id: int,
+        event_callback: int,
+        wparam: int = ...
+    ) -> bool: ...
+
+    @staticmethod
+    def trigger_frame_redraw_by_frame_id(frame_id: int) -> bool: ...
+
+    @staticmethod
+    def draw_on_compass(session_id: int, points: List[Tuple[int, int]]) -> bool: ...
+
+    @staticmethod
+    def load_settings(data: List[int]) -> None: ...
+
+    @staticmethod
+    def get_settings() -> List[int]: ...
+
+    @staticmethod
+    def get_current_tooltip_address() -> int: ...
+
+    @staticmethod
+    def create_button_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_checkbox_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_scrollable_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        page_context: int = ...,
+        component_label: str = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_text_label_frame_by_frame_id(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = ...,
+        name_enc: str = ...,
+        component_label: str = ...
+    ) -> int: ...
+    
+    @staticmethod
     def button_click(frame_id: int) -> None: ...
     @staticmethod
     def test_mouse_action(frame_id: int, current_state: int, wparam_value:int, lparam:int) -> None: ...
@@ -197,6 +402,18 @@ class UIManager:
     def get_root_frame_id() -> int: ...
     @staticmethod
     def is_world_map_showing() -> bool: ...
+    @staticmethod
+    def is_ui_drawn() -> bool: ...
+    @staticmethod
+    def async_decode_str(enc_str: str) -> str: ...
+    @staticmethod
+    def is_valid_enc_str(enc_str: str) -> bool: ...
+    @staticmethod
+    def uint32_to_enc_str(value: int) -> str: ...
+    @staticmethod
+    def enc_str_to_uint32(enc_str: str) -> int: ...
+    @staticmethod
+    def set_open_links(toggle: bool) -> None: ...
     @staticmethod
     def get_frame_limit() -> int: ...
     @staticmethod

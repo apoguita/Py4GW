@@ -895,7 +895,10 @@ class MapContext:
 
     @staticmethod
     def _update_ptr():
-        ptr = PyPointers.PyPointers.GetMapContextPtr()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        if (SSM := SystemShaMemMgr.get_pointers_struct()) is None: return
+        ptr = SSM.MapContext
+        #ptr = PyPointers.PyPointers.GetMapContextPtr()
         MapContext._ptr = ptr
 
         if not ptr:

@@ -1,5 +1,8 @@
 from Py4GWCoreLib import *
 
+MODULE_NAME = "Compass+"
+MODULE_ICON = "Textures\\Module_Icons\\Compass+.png"
+
 def Debug(message, title = 'DEBUG', msg_type = 'Debug'):
     py4gw_msg_type = Py4GW.Console.MessageType.Debug
     if   msg_type == 'Debug':       py4gw_msg_type = Py4GW.Console.MessageType.Debug

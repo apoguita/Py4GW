@@ -4,6 +4,9 @@ from tkinter import filedialog
 
 from Py4GWCoreLib import *
 
+MODULE_NAME = "Loot Manager"
+MODULE_ICON = "Textures/Module_Icons/LootManager.png"
+
 # Use hidden root for file dialogs
 tk_root = tk.Tk()
 tk_root.withdraw()

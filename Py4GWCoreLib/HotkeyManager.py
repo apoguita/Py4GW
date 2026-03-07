@@ -74,6 +74,9 @@ class HotkeyManager():
                                          
         assigned_keys = [hotkey.key for hotkey in self.hotkeys.values()]    
         for key in assigned_keys:
+            if key is Key.Unmapped or key is Key.Unused or key is Key.Unmappable or key is Key.VK_0x00:
+                continue
+            
             hot_keys = {identifier: hotkey for identifier, hotkey in self.hotkeys.items() if hotkey.key == key}
             
             if PyImGui.is_key_pressed(key.value):

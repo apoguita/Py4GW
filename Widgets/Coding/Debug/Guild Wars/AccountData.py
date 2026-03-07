@@ -19,6 +19,7 @@ from Sources.ApoSource.account_data_src.title_data_src import TitleData
 from Sources.ApoSource.account_data_src.quest_data_src import QuestData
 
 MODULE_NAME = "Account Info"
+MODULE_ICON = "Textures\\Module_Icons\\Account Info.png"
 
 class AgentData:
     class GeneralData:

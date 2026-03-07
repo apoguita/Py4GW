@@ -40,6 +40,8 @@ import math
 import random
 
 module_name = "Proof of Triumph Farmer"
+MODULE_NAME = "Proof of Triumph Farmer"
+MODULE_ICON = "Textures\\Module_Icons\\Proof of Triumph.png"
 
 #region coordinate lists
 start_area_coordinate_list      = [

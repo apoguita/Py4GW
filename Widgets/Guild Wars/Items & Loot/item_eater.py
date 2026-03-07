@@ -7,6 +7,9 @@ hunters_ale = ModelID.Hunters_Ale.value  # Change to desired item model ID
 sugary_blue_drink = ModelID.Sugary_Blue_Drink.value  # Change to desired item model ID
 champagne_popper = ModelID.Champagne_Popper.value  # Change to desired item model ID
 
+MODULE_NAME = "Item Eater"
+MODULE_ICON = "Textures\\Module_Icons\\Item Eater.png"
+
 def eat_items(model_id: int, quantity: int):
     for _ in range(quantity):
         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)

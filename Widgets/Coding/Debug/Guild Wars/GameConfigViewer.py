@@ -3,6 +3,7 @@ import PyImGui
 from typing import Any
 
 MODULE_NAME = "Gw config Manager"
+MODULE_ICON = "Textures/Module_Icons/GW.png"
 
 # 1) index (scan code) -> VK code map (start identity, override mismatches)
 INDEX_TO_VK = {i: 0 for i in range(256)}

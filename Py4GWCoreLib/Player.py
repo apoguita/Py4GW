@@ -1,4 +1,5 @@
 import PyPlayer
+import Py4GW
 
 from .enums import *
 from .native_src.internals.helpers import encoded_wstr_to_str
@@ -10,6 +11,41 @@ from .py4gwcorelib_src.ActionQueue import ActionQueueManager
 
 # Player
 class Player:
+    _ACCOUNT_EMAIL_MAX_LEN = 64
+
+    @staticmethod
+    def _hwnd_account_fallback() -> str:
+        """Deterministic ASCII-safe account identifier for unsupported/missing email cases."""
+        try:
+            hwnd = int(Py4GW.Console.get_gw_window_handle() or 0)
+        except Exception:
+            hwnd = 0
+        value = f"{hwnd}@Py4GW"
+        return value[:Player._ACCOUNT_EMAIL_MAX_LEN]
+
+    @staticmethod
+    def _sanitize_account_email_or_fallback(account_email: str | None) -> str:
+        """
+        Normalize account email for shared-memory usage.
+        Falls back to HWND identity for unsupported encodings/non-ASCII accounts.
+        """
+        if not account_email:
+            return Player._hwnd_account_fallback()
+        try:
+            account_email = str(account_email).strip()
+            if not account_email:
+                return Player._hwnd_account_fallback()
+
+            # Some account strings (e.g. unsupported locale/corrupt decode cases) are not safe
+            # for downstream paths; collapse them to HWND identity.
+            account_email.encode("ascii")
+
+            if len(account_email) > Player._ACCOUNT_EMAIL_MAX_LEN:
+                account_email = account_email[:Player._ACCOUNT_EMAIL_MAX_LEN]
+            return account_email
+        except Exception:
+            return Player._hwnd_account_fallback()
+
     @staticmethod
     def _format_uuid_as_email(player_uuid) -> str:
         if not player_uuid:
@@ -223,16 +259,16 @@ class Player:
             
             if (char_ctx := GWContext.Char.GetContext()) is None:
                 return ""
-            account_email = char_ctx.player_email_str
+            try:
+                account_email = char_ctx.player_email_str
+            except Exception:
+                return Player._hwnd_account_fallback()
+            account_email = Player._sanitize_account_email_or_fallback(account_email)
             if account_email:
                 return account_email
-            player_uuid = Player.GetPlayerUUID()
-            if all(part == 0 for part in player_uuid):
-                return ""
-            #return Player._format_uuid_as_email(player_uuid)
-            return "steam_account"  # Placeholder for Steam accounts
+            return Player._hwnd_account_fallback()
         except Exception:
-            return ""
+            return Player._hwnd_account_fallback()
     
     @staticmethod
     def GetPlayerUUID() -> tuple[int, int, int, int]:
@@ -435,7 +471,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_kurzick = max(world_ctx.current_kurzick, world_ctx.current_kurzick_dupe)
         total_earned_kurzick = max(world_ctx.total_earned_kurzick, world_ctx.total_earned_kurzick_dupe)
         max_kurzick = world_ctx.max_kurzick
@@ -449,7 +485,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_luxon = max(world_ctx.current_luxon, world_ctx.current_luxon_dupe)
         total_earned_luxon = max(world_ctx.total_earned_luxon, world_ctx.total_earned_luxon_dupe)
         max_luxon = world_ctx.max_luxon
@@ -463,7 +499,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_imperial = max(world_ctx.current_imperial, world_ctx.current_imperial_dupe)
         total_earned_imperial = max(world_ctx.total_earned_imperial, world_ctx.total_earned_imperial_dupe)
         max_imperial = world_ctx.max_imperial
@@ -477,7 +513,7 @@ class Player:
         Returns: int
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
+            return [0,0,0]
         current_balthazar = max(world_ctx.current_balth, world_ctx.current_balth_dupe)
         total_earned_balthazar = max(world_ctx.total_earned_balth, world_ctx.total_earned_balth_dupe)
         max_balthazar = world_ctx.max_balth
@@ -513,10 +549,6 @@ class Player:
         Returns: list
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
-            return []
-        if (player_number := Player.GetPlayerNumber()) is None:
-            return []
-        if (player := world_ctx.GetPlayerById(player_number)) is None:
             return []
         if (titles := world_ctx.titles) is None:
             return []

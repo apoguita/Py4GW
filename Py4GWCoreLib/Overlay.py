@@ -1,3 +1,4 @@
+import math
 import PyOverlay
 from typing import Tuple
 from .Py4GWcorelib import Utils
@@ -157,6 +158,55 @@ class Overlay:
     def DrawCubeFilled(self, x, y, z, size, color=0xFFFFFFFF):
         center = PyOverlay.Point3D(x, y, z)
         self.overlay_instance.DrawCubeFilled(center, size, color)
+
+    def DrawStarFilled(self, center_x: float, center_y: float, outer_radius: float, inner_radius: float, color=0xFFFFFFFF, points: int = 5, rotation: float = 0.0):
+        if points < 2:
+            return
+
+        cx = Utils.SafeInt(center_x)
+        cy = Utils.SafeInt(center_y)
+
+        center = PyOverlay.Point2D(cx, cy)
+
+        vertices = []
+        angle_step = math.pi / points
+        angle = -math.pi / 2 + rotation
+
+        for i in range(points * 2):
+            radius = outer_radius if i % 2 == 0 else inner_radius
+            x = cx + math.cos(angle) * radius
+            y = cy + math.sin(angle) * radius
+            vertices.append(PyOverlay.Point2D(Utils.SafeInt(x), Utils.SafeInt(y)))
+            angle += angle_step
+
+        for i in range(len(vertices)):
+            p1 = vertices[i]
+            p2 = vertices[(i + 1) % len(vertices)]
+            self.overlay_instance.DrawTriangleFilled(center, p1, p2, color)
+            
+    def DrawStar(self, center_x: float, center_y: float, outer_radius: float, inner_radius: float, color=0xFFFFFFFF, points: int = 5, thickness: float = 1.0, rotation: float = 0.0):
+        if points < 2:
+            return
+
+        cx = Utils.SafeInt(center_x)
+        cy = Utils.SafeInt(center_y)
+
+        vertices = []
+        angle_step = math.pi / points
+        angle = -math.pi / 2 + rotation
+
+        for i in range(points * 2):
+            radius = outer_radius if i % 2 == 0 else inner_radius
+            x = cx + math.cos(angle) * radius
+            y = cy + math.sin(angle) * radius
+            vertices.append(PyOverlay.Point2D(Utils.SafeInt(x), Utils.SafeInt(y)))
+            angle += angle_step
+
+        for i in range(len(vertices)):
+            p1 = vertices[i]
+            p2 = vertices[(i + 1) % len(vertices)]
+            self.overlay_instance.DrawLine(p1, p2, color, thickness)
+
 
     def DrawText(self, x, y, text, color=0xFFFFFFFF, centered = True, scale=1.0):
         pos = PyOverlay.Point2D(Utils.SafeInt(x), Utils.SafeInt(y))

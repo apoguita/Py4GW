@@ -15,8 +15,18 @@ from typing import Optional
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
 
-# Alcohol items for Drunken Master optimization (+1 drunk level items)
-ALCOHOL_MODEL_IDS = [
+# Level 3 alcohol: each drink gives +3 or more — one drink reaches target level
+ALCOHOL_L3_MODEL_IDS = [
+    ModelID.Aged_Dwarven_Ale.value,
+    ModelID.Aged_Hunters_Ale.value,
+    ModelID.Keg_Of_Aged_Hunters_Ale.value,
+    ModelID.Bottle_Of_Grog.value,
+    ModelID.Spiked_Eggnog.value,
+    ModelID.Vial_Of_Absinthe.value,
+    ModelID.Witchs_Brew.value,
+]
+# Level 1 alcohol: each drink gives +1 — needs multiple uses to reach target level
+ALCOHOL_L1_MODEL_IDS = [
     ModelID.Dwarven_Ale.value,
     ModelID.Hunters_Ale.value,
     ModelID.Bottle_Of_Rice_Wine.value,
@@ -25,9 +35,9 @@ ALCOHOL_MODEL_IDS = [
     ModelID.Shamrock_Ale.value,
     ModelID.Hard_Apple_Cider.value,
     ModelID.Eggnog.value,
-    ModelID.Vial_Of_Absinthe.value,
-    ModelID.Witchs_Brew.value,
 ]
+# Combined list: L3 items preferred first for efficiency
+ALCOHOL_MODEL_IDS = ALCOHOL_L3_MODEL_IDS + ALCOHOL_L1_MODEL_IDS
 
 #region CombatClass
 class CombatClass:
@@ -115,9 +125,12 @@ class CombatClass:
         self.weakness = GLOBAL_CACHE.Skill.GetID("Weakness")
         self.comfort_animal = GLOBAL_CACHE.Skill.GetID("Comfort_Animal")
         self.heal_as_one = GLOBAL_CACHE.Skill.GetID("Heal_as_One")
+        self.never_rampage_alone = GLOBAL_CACHE.Skill.GetID("Never_Rampage_Alone")
+        self.whirlwind_attack = GLOBAL_CACHE.Skill.GetID("Whirlwind_Attack")
         self.heroic_refrain = GLOBAL_CACHE.Skill.GetID("Heroic_Refrain")
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
+        self.great_dwarf_weapon = GLOBAL_CACHE.Skill.GetID("Great_Dwarf_Weapon")
         #junundu
         self.junundu_wail = GLOBAL_CACHE.Skill.GetID("Junundu_Wail")
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
@@ -449,7 +462,8 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyMartial:
-            v_target = TargetLowestAllyMartial(filter_skill_id=self.skills[slot].skill_id)
+            target_other_ally = self.skills[slot].skill_id == self.great_dwarf_weapon
+            v_target = TargetLowestAllyMartial(other_ally=target_other_ally, filter_skill_id=self.skills[slot].skill_id)
             if v_target == 0 and not targeting_strict:
                 v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.AllyMartialMelee:
@@ -478,10 +492,31 @@ class CombatClass:
             v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.AllyNPCByModel:
+            model_id_filter = self.skills[slot].custom_skill_data.Conditions.ModelIDFilter
+            if model_id_filter:
+                npc_agent_id = Routines.Agents.GetNearestAliveAgentByModelID(model_id_filter, Range.Spellcast.value)
+                if npc_agent_id and not Agent.IsWeaponSpelled(npc_agent_id):
+                    v_target = npc_agent_id
+            if v_target == 0 and not targeting_strict:
+                # Fallback only when strict targeting is disabled.
+                # Exclude self to avoid invalid self-target attempts (e.g. Great Dwarf Weapon).
+                v_target = TargetLowestAllyMartial(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
+                # Exclude the NPC itself from the fallback — it may appear in GetAllyArray()
+                # as a martial NPC, but CheckForEffect doesn't work for non-party members,
+                # so it won't be filtered out even when it already has the weapon spell.
+                if v_target and model_id_filter and Agent.GetModelID(v_target) == model_id_filter:
+                    v_target = 0
+            if v_target == Player.GetAgentID():
+                v_target = 0
         else:
             v_target = self.GetPartyTarget()
             if v_target == 0:
                 v_target = get_nearest_enemy()
+
+        # Great Dwarf Weapon cannot self-target; keep an extra guard even if profile data is misconfigured.
+        if self.skills[slot].skill_id == self.great_dwarf_weapon and v_target == Player.GetAgentID():
+            v_target = TargetLowestAllyMartial(other_ally=True, filter_skill_id=self.skills[slot].skill_id)
         return v_target
 
     def IsPartyMember(self, agent_id):
@@ -615,7 +650,15 @@ class CombatClass:
                 LessLife = Agent.GetHealth(vTarget) < Conditions.LessLife
                 dead = Agent.IsDead(vTarget)
                 return LessLife or dead
-                
+
+            if (self.skills[slot].skill_id == self.never_rampage_alone):
+                pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
+                return pet_id != 0 and Agent.IsAlive(pet_id)
+
+            if (self.skills[slot].skill_id == self.whirlwind_attack):
+                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
+                return weapon_type not in (1, 6)  # Block for Bow (1) and Spear (6)
+
             if (self.skills[slot].skill_id == self.natures_blessing):
                 player_life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
                 nearest_npc = Routines.Agents.GetNearestNPC(Range.Spirit.value)
@@ -1020,6 +1063,18 @@ class CombatClass:
             self.in_casting_routine = False
             return False, 0
 
+        # Cannot cast spells while Vow of Silence is active
+        _skill_type, _ = GLOBAL_CACHE.Skill.GetType(self.skills[slot].skill_id)
+        _VOW_SPELL_TYPES = (
+            SkillType.Spell.value, SkillType.Hex.value, SkillType.Enchantment.value,
+            SkillType.Well.value, SkillType.Ward.value, SkillType.Glyph.value,
+            SkillType.Ritual.value, SkillType.WeaponSpell.value, SkillType.Form.value,
+        )
+        if _skill_type in _VOW_SPELL_TYPES:
+            if Routines.Checks.Effects.HasBuff(Player.GetAgentID(), 1517):  # Vow of Silence
+                self.in_casting_routine = False
+                return False, 0
+
         # --- Expensive target resolution (only if all cheap checks passed) ---
         v_target = self.GetAppropiateTarget(slot)
 
@@ -1151,15 +1206,15 @@ class CombatClass:
     def UseAlcoholIfAvailable(self):
         """
         Checks inventory for alcohol and uses the first available one.
-        Only uses alcohol if drunk level is 0 (not drunk).
+        Only uses alcohol if drunk level is below 3.
         Returns True if alcohol was used, False otherwise.
         """
         try:
-            # Check if already drunk
+            # Check if already at target drunk level
             drunk_level = self.GetDrunkLevel()
             Py4GW.Console.Log("HeroAI", f"Drunken Master: drunk level = {drunk_level}", Py4GW.Console.MessageType.Debug)
-            
-            if drunk_level > 0:
+
+            if drunk_level >= 3:
                 Py4GW.Console.Log("HeroAI", f"Already drunk (level {drunk_level}), skipping alcohol", Py4GW.Console.MessageType.Debug)
                 return False
             

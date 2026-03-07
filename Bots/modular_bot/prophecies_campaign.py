@@ -8,7 +8,7 @@ import PyImGui
 from Sources.modular_bot import ModularBot
 from Sources.modular_bot.hero_setup import draw_setup_tab
 from Sources.modular_bot.phase import Phase
-from Sources.modular_bot.recipes import Mission, Quest
+from Sources.modular_bot.recipes import Mission, Quest, Route
 
 
 def _project_root() -> str:
@@ -24,7 +24,7 @@ def _project_root() -> str:
 # PHASE_SPECS tuple format:
 # (region, kind, key, title)
 # - region: UI grouping bucket (collapsible section / "Start here" range).
-# - kind: "mission" or "quest" (selects Mission(...) vs Quest(...) recipe loader).
+# - kind: "mission", "quest", or "route" (selects Mission(...), Quest(...), Route(...)).
 # - key: JSON file key under Sources/modular_bot/{missions|quests}/<key>.json.
 # - title: Human-readable phase label shown in the campaign UI and phase names.
 PHASE_SPECS: list[tuple[str, str, str, str]] = [
@@ -52,6 +52,20 @@ PHASE_SPECS: list[tuple[str, str, str, str]] = [
     ("Kryta Extended", "quest", "passage_through_the_dark_river", "Passage Through The Dark River"),
     ("Kryta Extended", "mission", "riverside_province", "Riverside Province"),
     ("Kryta Extended", "mission", "sanctum_cay", "Sanctum Cay"),
+    ("Temple Transit", "route", "lions_arch_to_d_alessio_seaboard", "Lion's Arch to D'Alessio"),
+    ("Temple Transit", "route", "d_alessio_seaboard_to_bergen_hot_springs", "D'Alessio to Bergen"),
+    ("Temple Transit", "route", "bergen_hot_springs_to_temple_of_ages", "Bergen to Temple of the Ages"),
+    ("Southern Shiverpeaks Transit", "route", "la_to_beacons", "LA to Beacons"),
+    ("Southern Shiverpeaks Transit", "route", "beacons_to_rankor", "Beacons to Camp Rankor"),
+    ("Southern Shiverpeaks Transit", "route", "camp_rankor_to_droks", "Camp Rankor to Droknar's"),
+    ("Southern Shiverpeaks Transit", "route", "droks_to_ice_caves", "Droknar's to Ice Caves"),
+    ("Southern Shiverpeaks Missions", "mission", "ice_caves_of_sorrow", "Ice Caves of Sorrow"),
+    ("Southern Shiverpeaks Missions", "mission", "iron_mines_of_moladune", "Iron Mines of Moladune"),
+    ("Southern Shiverpeaks Missions", "mission", "thunderhead_keep", "Thunderhead Keep"),
+    ("Ring of Fire", "quest", "final_blow", "Final Blow"),
+    ("Ring of Fire", "mission", "ring_of_fire", "Ring of Fire"),
+    ("Ring of Fire", "mission", "abaddons_mouth", "Abaddon's Mouth"),
+    ("Ring of Fire", "mission", "hells_precipice", "Hell's Precipice"),
 ]
 REGION_IDX = 0
 KIND_IDX = 1
@@ -71,7 +85,12 @@ def _build_phases_from_specs(specs: list[tuple[str, str, str, str]]) -> list[Pha
         key = spec[KEY_IDX]
         title = spec[TITLE_IDX]
         pretty_name = f"{idx + 1:02d}. {kind.title()}: {title}"
-        phase = Mission(key, pretty_name) if kind == "mission" else Quest(key, pretty_name)
+        if kind == "mission":
+            phase = Mission(key, pretty_name, anchor=True)
+        elif kind == "quest":
+            phase = Quest(key, pretty_name, anchor=True)
+        else:
+            phase = Route(key, pretty_name, anchor=True)
         phases.append(phase)
     return phases
 
@@ -105,7 +124,7 @@ def _validate_configuration() -> list[str]:
         return errors
 
     for idx, spec in enumerate(PHASE_SPECS):
-        if spec[KIND_IDX] not in ("mission", "quest"):
+        if spec[KIND_IDX] not in ("mission", "quest", "route"):
             errors.append(f"Invalid phase kind at index {idx}: {spec[KIND_IDX]!r}")
         if not spec[KEY_IDX].strip():
             errors.append(f"Empty phase key at index {idx}")
@@ -286,6 +305,8 @@ bot = ModularBot(
     loop=False,
     template="aggressive",
     use_custom_behaviors=True,
+    on_party_wipe=PHASE_DEFS[0].name if PHASE_DEFS else None,
+    on_death=PHASE_DEFS[0].name if PHASE_DEFS else None,
     main_ui=_draw_main,
     icon_path=os.path.join(_project_root(), "Bots", "modular_bot", "assets", "prophecies.jpg"),
     main_child_dimensions=_main_dimensions(),

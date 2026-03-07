@@ -1211,31 +1211,27 @@ class AgentArrayStruct(Structure):
 
 
     
-    # ------------------------------------------------------------
-    # O(1) lookup (uses the snapshot dictionary built per frame)
-    # ------------------------------------------------------------
     def GetAgentByID(self, agent_id: int) -> Optional["AgentStruct"]:
-        self._ensure_fields()
+        agent = self._agent_by_id.get(agent_id, None)
+        if agent:
+            return agent
         
-        map_ctx = MapContext.get_context()
-        char_ctx = CharContext.get_context()
-        instance_info_ctx = InstanceInfo.get_context()
-        world_ctx = WorldContext.get_context()
-        acc_agent_ctx = AccAgentContext.get_context()
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None: return None
+        SMagent =  AAW.get_agent_by_id(agent_id)
+        if SMagent is None: return None
+        
+        agent_ptr = SMagent.get_ptr()
+        if not agent_ptr: return None
 
-        if not (map_ctx and char_ctx and instance_info_ctx and world_ctx and acc_agent_ctx):
-            self._drop_cache()
-            return None
-        
-        instance_type = instance_info_ctx.instance_type
-        if instance_type not in (0, 1):  # explorable, story, pvp
-            self._drop_cache()
-            return None
-        
-        agent =  self._agent_by_id.get(agent_id)
+        agent = cast(
+                agent_ptr,
+                POINTER(AgentStruct)
+            ).contents
+
+        self._agent_by_id[agent_id] = agent
         return agent
-
-
     
     #AgentArray
     def GetAgentArray(self) -> list[int]:
@@ -1355,6 +1351,7 @@ class AgentArray:
     _cached_ctx: AgentArrayStruct | None = None
     _callback_name_ptr = "AgentArray.UpdatePtr"
     _callback_name_cache = "AgentArray.UpdateCache"
+    _agent_by_id: dict[int, AgentStruct] = {}
 
     @staticmethod
     def get_ptr() -> int:
@@ -1370,6 +1367,25 @@ class AgentArray:
             ptr,
             POINTER(AgentArrayStruct)
         ).contents
+        
+    @staticmethod
+    def reset_cache():
+        AgentArray._cached_ctx = None
+        AgentArray._agent_by_id.clear()
+        """
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None: return None
+        agent_array = AAW.to_int_list()
+        if not agent_array:
+            return
+        for agent_id in agent_array:
+            if agent_id not in AgentArray._agent_by_id:
+                agent = AgentArray.GetAgentByID(agent_id)
+                if agent:
+                    AgentArray._agent_by_id[agent_id] = agent
+        """
+        
 
     @staticmethod
     def _update_cache():
@@ -1384,31 +1400,55 @@ class AgentArray:
         PyCallback.PyCallback.Register(
             AgentArray._callback_name_ptr,
             PyCallback.Phase.PreUpdate,
-            AgentArray._update_ptr,
+            AgentArray.reset_cache,
             priority=6,
             context=PyCallback.Context.Draw
         )
 
+        """
         PyCallback.PyCallback.Register(
             AgentArray._callback_name_cache,
             PyCallback.Phase.Data,
             AgentArray._update_cache,
             priority=0,
             context=PyCallback.Context.Draw
-        )  
+        )  """
 
 
     @staticmethod
     def disable():
         import PyCallback
         PyCallback.PyCallback.RemoveByName(AgentArray._callback_name_ptr)
-        PyCallback.PyCallback.RemoveByName(AgentArray._callback_name_cache)
+        #PyCallback.PyCallback.RemoveByName(AgentArray._callback_name_cache)
         AgentArray._ptr = 0
         AgentArray._cached_ctx = None
 
     @staticmethod
     def get_context() -> AgentArrayStruct | None:
         return AgentArray._cached_ctx
+    
+    @staticmethod
+    def GetAgentByID(agent_id: int) -> Optional["AgentStruct"]:
+        agent = AgentArray._agent_by_id.get(agent_id, None)
+        if agent:
+            return agent
+        
+        from ..ShMem.SysShaMem import SystemShaMemMgr
+        AAW = SystemShaMemMgr.get_agent_array_wrapper()
+        if AAW is None: return None
+        SMagent =  AAW.get_agent_by_id(agent_id)
+        if SMagent is None: return None
+        
+        agent_ptr = SMagent.ptr
+        if not agent_ptr: return None
+
+        agent = cast(
+                agent_ptr,
+                POINTER(AgentStruct)
+            ).contents
+
+        AgentArray._agent_by_id[agent_id] = agent
+        return agent
     
           
 AgentArray.enable()

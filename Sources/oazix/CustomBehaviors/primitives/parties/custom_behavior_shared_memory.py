@@ -142,6 +142,7 @@ class CustomBehaviorWidgetMemoryManager:
         return cls._instance
 
     def __init__(self, name=SHMEM_SHARED_MEMORY_FILE_NAME):
+        
         if not self._initialized:
             self.shm_name = name
             self.size = sizeof(CustomBehaviorWidgetStruct)
@@ -178,7 +179,7 @@ class CustomBehaviorWidgetMemoryManager:
 
         # Initialize following config with defaults
         mem.FollowingConfig.FollowDistance = 100.0
-        mem.FollowingConfig.EnableDebugOverlay = True
+        mem.FollowingConfig.EnableDebugOverlay = False
 
         # Initialize spread_during_combat_utility config with defaults
         mem.FollowingConfig.EnemyRepulsionThreshold = 250.0

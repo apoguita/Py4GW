@@ -15,6 +15,9 @@ import os
 
 module_name = "Survival Title Helper"
 
+MODULE_NAME = module_name
+MODULE_ICON = "Textures/Module_Icons/Survival Title Helper.png"
+
 script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = Py4GW.Console.get_projects_path()
 ini_file_location = os.path.join(root_directory, "Widgets/Config/Survival Title Helper.ini")

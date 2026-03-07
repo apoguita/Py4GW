@@ -1,0 +1,287 @@
+Py4GW Conceptual Model - Detailed Feature Summary
+===============================================
+
+Canonical architecture source:
+- docs/Py4GW_Conceptual_Model.md
+
+Summary purpose:
+- This file is a plain-text export of the currently modeled architecture and feature coverage.
+- It is intended as a lightweight reference for sharing, planning, or external discussion.
+
+1. Foundational Data Base
+-------------------------
+
+Origin:
+- Data originates in `Gw.exe`.
+
+Primitive access:
+- C++ binding-backed primitive surface represented through `stubs`.
+- Native Python primitive surface in `Py4GWCoreLib/native_src`.
+- Native-first precedence when both exist, but both are the same abstraction level.
+
+Primitive subsystems currently modeled:
+- `PyScanner`: memory positioning, function resolution, direct low-level executable access.
+- `PyPointers`: pointer-sharing surface from C++ into native Python.
+- `PyCallback`: callback execution backbone for scheduled library-side code.
+- `Py4GW`: low-level system bridge for console, window, process, and miscellaneous runtime functions.
+- `PyPathing`: primitive access to in-game pathing.
+- `PyKeystroke`: primitive keypress/key-combo injection.
+- `PyTrading`: primitive player-to-player trading support.
+- `Py2DRenderer`: primitive rendering base for `DXOverlay`.
+- `PyOverlay`: primitive overlay base for `Overlay`.
+- `PyImGui`: primitive immediate-mode UI source of truth.
+
+2. Python Source-of-Truth Layer
+-------------------------------
+
+Primary rule:
+- `Py4GWCoreLib` is the single primary Python-facing source-of-truth layer.
+- Other systems may exist in embedded Python, but they are not peer architectural authorities for the project.
+
+Major source-of-truth systems covered:
+
+World and entity systems:
+- `Map`: instance state, travel, mission/minimap/world-map surfaces, projections, pathing-related map helpers.
+- `Agent`: primary per-entity typed state/introspection layer.
+- `AgentArray`: authoritative entity collection plus filtering/sorting/manipulation/query helpers.
+- `Player`: local-player identity, progression, chat, action, and target/movement surface.
+- `Party`: party state plus group-management and subgroup control.
+
+Inventory and trade systems:
+- `Inventory`: bag/storage state, slot counts, identify/salvage/use/equip/drop workflow layer.
+- `Item`: per-item introspection, rarity/properties/type/usage/customization/trade metadata.
+- `ItemArray`: cross-bag item collection plus filtering/manipulation/sorting.
+- `Merchant`: broader NPC economy transaction surface (merchant, trader, crafter, collector).
+
+Combat systems:
+- `Skill`: per-skill definition, metadata, flags, costs, timing, scaling, and descriptive knowledge.
+- `Skillbar`: active skillbar state plus execution/load/template operations.
+- `Effects`: buff/effect manager per agent, with layered status-state queries and limited control.
+- `CombatEvents`: combat telemetry and derived combat-state layer, including callback-style reactive events.
+
+UI and runtime-facing systems:
+- `UIManager`: foundational UI frame/message orchestration and frame hierarchy system.
+- `Overlay`: singleton overlay/drawlist composition layer.
+- `DXOverlay`: structured DirectX geometry/texture rendering façade over `Py2DRenderer`.
+- `ImGui`: higher-level themed UI toolkit over `PyImGui` and `ImGui_src`.
+
+Contextual systems:
+- `Context`: typed native context gateway over `native_src`.
+- `Camera`: camera-state and camera-control layer.
+- `Quest`: quest log plus staged quest metadata retrieval.
+- `Pathing`: higher-level route planning, native/fallback planning, navmesh/A*, and route shaping.
+- `Scanner`: project-facing binary scan and address-resolution layer over `PyScanner`.
+- `enums.py`: shared semantic vocabulary for the project.
+
+3. Support Infrastructure Layer (`py4gwcorelib_src`)
+----------------------------------------------------
+
+Major orchestration systems:
+- `BehaviorTree`: major decision/execution orchestration framework with composite, decorator, repeater, wait, and subtree node families.
+- `FSM`: major staged execution framework with:
+  - normal states
+  - event-driven transitions
+  - sub-FSM support
+  - wait states
+  - self-managed yield steps
+  - globally managed coroutine steps
+  - jump/reset/restart semantics
+- `VectorFields`: probe-centered local steering/avoidance vector synthesis from agent arrays and custom positions.
+- `WidgetManager`: callback-driven widget/script orchestration layer.
+
+Execution and support:
+- `ActionQueue`: serialized in-game action dispatch.
+- `Timer` / `ThrottledTimer`: shared timing infrastructure.
+- `MultiThreading`: thread lifecycle and watchdog support.
+- `IniHandler`: INI persistence infrastructure.
+- `Keystroke`: higher-level input dispatch above the primitive key layer.
+
+Utility and support automation:
+- `AutoInventoryHandler`: timer-driven identify/salvage automation.
+- `Lootconfig_src`: synchronized loot configuration infrastructure.
+- `Color`: color conversion/transformation utility.
+- `Utils`: broad shared helper layer.
+- `Profiling`: diagnostics/observability support.
+- `Console`: thin bridge into lower-level console/system functions.
+
+4. `GLOBAL_CACHE` Consumer Layer
+--------------------------------
+
+Rules:
+- `GLOBAL_CACHE` is derivative of `Py4GWCoreLib`.
+- It is preferred when a corresponding cache-backed surface exists.
+- It is optional; direct `Py4GWCoreLib` usage remains valid.
+
+Important modeled characteristics:
+- It is a managed cache-runtime, not only a set of mirrors.
+- It owns:
+  - shared timers
+  - a shared action queue manager
+  - a coroutine list
+  - staged refresh behavior
+  - partial refresh behavior during loading/cinematics
+
+Modeled cache domains:
+- `Party`
+- `Party.Players`
+- `Party.Heroes`
+- `Party.Henchmen`
+- `Party.Pets`
+- `SkillBar`
+- `Inventory`
+- `Quest`
+- `Effects`
+- `Camera`
+- `Item`
+- `ItemArray`
+- `Trading`
+- `Skill`
+
+5. Shared Memory / Multiboxing Coordination
+-------------------------------------------
+
+Shared memory is modeled as its own coordination layer above the data-access stack.
+
+Core role:
+- Cross-account state publication.
+- Cross-account messaging and command transport.
+- Multibox coordination backbone.
+
+Important properties:
+- Lives inside `GLOBAL_CACHE`.
+- Uses a large typed shared-memory schema.
+- Supports account, agent, party, map, quest, skillbar, title, and message data exchange.
+
+6. Middle-Tier Routines Layer
+-----------------------------
+
+`Routines` is the project-facing routine namespace.
+
+It is split by both task family and execution style.
+
+Task families:
+- `Agents`
+- `Items`
+- `Party`
+- `Checks`
+- `Movement`
+- `Targeting`
+- `Transition`
+
+Execution styles:
+- `Sequential`
+- `Yield`
+- `BehaviourTrees`
+
+Important distinctions:
+- `Checks` is the shared precondition/guard layer.
+- `Sequential` is the blocking/imperative routine model.
+- `Yield` is the cooperative coroutine routine model.
+- `BehaviourTrees` contains task-specific trees built on the generic `BehaviorTree` framework.
+
+7. Combat Automation Layer
+--------------------------
+
+This layer is built around two closely related systems:
+- `Py4GWCoreLib.SkillManager.Autocombat`
+- `HeroAI.CombatClass`
+
+Shared core:
+- Skillbar ingestion into local 8-slot skill data.
+- Custom skill metadata through `CustomSkillClass`.
+- Priority sorting by `SkillNature`, `SkillType`, and combos.
+- Cheap readiness checks before target resolution.
+- Tactical target selection by target category.
+- Detailed cast-condition rules engine.
+- Aftercast scheduling using activation, aftercast, weapon speed, and ping.
+- Final dispatch via `GLOBAL_CACHE.SkillBar.UseSkill`.
+
+Difference:
+- `SkillManager.Autocombat` is the local single-account path.
+- `HeroAI.CombatClass` is the multibox analog embedded in a larger shared-memory-aware package with:
+  - account caches
+  - party caches
+  - per-account options
+  - command fanout
+  - multibox UI
+
+8. Bot Orchestration Layer
+--------------------------
+
+Main system:
+- `Py4GWCoreLib.Botting.BottingClass`
+
+Role:
+- High-level automation composition layer.
+- Builds full bot lifecycles over FSM scheduling, coroutine steps, and background upkeep loops.
+
+Layered structure:
+- `BottingClass`
+- `BotConfig`
+- `BottingHelpers`
+- grouped `subclases_src` scripting wrappers
+
+Scheduling model:
+- normal FSM states (`AddState`)
+- self-managed yield steps (`AddSelfManagedYieldStep`)
+- managed background coroutines (`AddManagedCoroutine`)
+
+Key behavior:
+- `Routine()` constructs the FSM graph.
+- `Update()` ticks the bot runtime.
+- Upkeep coroutines run in parallel for combat, HeroAI, inventory, loot, consumables, morale, and more.
+- Grouped namespaces (`States`, `Move`, `Wait`, `Events`, `Items`, `Party`, `Target`, `Multibox`, etc.) act as a scripting DSL over the scheduler.
+
+9. Bridge Exposure Layer
+------------------------
+
+The bridge is modeled as an exposure/remoting layer, not as the architecture of the library itself.
+
+Current components:
+- injected bridge client
+- external daemon
+- CLI
+
+It exposes selected surfaces from:
+- `Py4GWCoreLib`
+- `GLOBAL_CACHE`
+
+10. MCP Adapter Layer
+---------------------
+
+The MCP layer sits above the daemon control API.
+
+Current baseline:
+- `py4gw_mcp_server.py`
+
+Current safe exposed tool subset:
+- `list_clients`
+- `list_namespaces`
+- `list_commands`
+- `describe_runtime`
+- `get_map_state`
+- `get_player_state`
+- `list_agents`
+
+11. Current Model Boundaries
+----------------------------
+
+Covered well enough:
+- foundational data model
+- source-of-truth vs cache distinction
+- multibox/shared-memory distinction
+- orchestration primitives
+- routines
+- combat automation
+- bot orchestration
+- bridge and MCP placement
+
+Still intentionally not fully expanded:
+- some higher application-specific abstractions
+- some static/support data files
+- some outer UI-heavy systems beyond the current stopping point
+
+Current intended use:
+- architecture baseline
+- naming source of truth
+- planning reference for bridge/MCP and higher automation work

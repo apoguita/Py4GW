@@ -145,6 +145,10 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
             print(f"SpreadDuringCombatUtility._get_party_leader_position error: {e}")
             return None
 
+    def _debug_log(self, message: str) -> None:
+        if self.manager.enable_debug_overlay:
+            print(message)
+
     def _calculate_finale_position(self, my_pos: tuple[float, float]) -> tuple[float, float] | None:
         """
         Calculate target position using single VectorFields instance combining:
@@ -195,17 +199,17 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
         # 3. Add leader attraction position (with distance check)
         if self.enable_leader_attraction and leader_pos is not None:
             distance_to_leader = Utils.Distance(my_pos, leader_pos)
-            print(f"Leader attraction: distance={distance_to_leader:.1f}, threshold={self.manager.leader_attraction_threshold:.1f}")
+            self._debug_log(f"Leader attraction: distance={distance_to_leader:.1f}, threshold={self.manager.leader_attraction_threshold:.1f}")
             # Only attract if beyond threshold to avoid clustering on leader
             if distance_to_leader > self.manager.leader_attraction_threshold:
                 vf.add_custom_attraction_position(leader_pos)
-                print(f"Added leader attraction position: {leader_pos}")
+                self._debug_log(f"Added leader attraction position: {leader_pos}")
             else:
-                print(f"Leader attraction: distance {distance_to_leader:.1f} <= threshold {self.manager.leader_attraction_threshold:.1f}, no attraction")
+                self._debug_log(f"Leader attraction: distance {distance_to_leader:.1f} <= threshold {self.manager.leader_attraction_threshold:.1f}, no attraction")
 
         # Compute combined vector from all forces
         combined_vector = vf.compute_combined_vector()
-        print(f"Combined vector from VectorFields: ({combined_vector[0]:.2f}, {combined_vector[1]:.2f})")
+        self._debug_log(f"Combined vector from VectorFields: ({combined_vector[0]:.2f}, {combined_vector[1]:.2f})")
 
         # Apply weights by scaling the vector components
         result_vector_x = combined_vector[0]
@@ -224,18 +228,18 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
             # Recalculate magnitude after scaling
             vector_magnitude = math.sqrt(result_vector_x * result_vector_x + result_vector_y * result_vector_y)
 
-            print(f"Applied movement scale: {movement_scale:.2f}")
-            print(f"Scaled vector: ({result_vector_x:.2f}, {result_vector_y:.2f}), magnitude={vector_magnitude:.2f}")
+            self._debug_log(f"Applied movement scale: {movement_scale:.2f}")
+            self._debug_log(f"Scaled vector: ({result_vector_x:.2f}, {result_vector_y:.2f}), magnitude={vector_magnitude:.2f}")
 
         # Store for debug
         self.last_result_vector = (result_vector_x, result_vector_y, vector_magnitude)
 
-        print(f"Final vector: ({result_vector_x:.2f}, {result_vector_y:.2f}), magnitude={vector_magnitude:.2f}")
-        print(f"Min threshold: {self.manager.min_move_threshold:.2f}")
+        self._debug_log(f"Final vector: ({result_vector_x:.2f}, {result_vector_y:.2f}), magnitude={vector_magnitude:.2f}")
+        self._debug_log(f"Min threshold: {self.manager.min_move_threshold:.2f}")
 
         # Only move if vector is significant
         if vector_magnitude < self.manager.min_move_threshold:
-            print(f"Vector magnitude {vector_magnitude:.2f} < threshold {self.manager.min_move_threshold:.2f}, not moving")
+            self._debug_log(f"Vector magnitude {vector_magnitude:.2f} < threshold {self.manager.min_move_threshold:.2f}, not moving")
             return None
 
         # Limit movement distance to prevent overshooting
@@ -271,7 +275,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
                 leader_distance_factor = min(distance_to_leader / 200.0, 5.0)
                 leader_weight_factor = self.manager.leader_attraction_weight / 100.0
                 total_scale *= leader_distance_factor * leader_weight_factor
-                print(f"Leader scaling: distance={distance_to_leader:.1f}, distance_factor={leader_distance_factor:.2f}, weight_factor={leader_weight_factor:.2f}")
+                self._debug_log(f"Leader scaling: distance={distance_to_leader:.1f}, distance_factor={leader_distance_factor:.2f}, weight_factor={leader_weight_factor:.2f}")
 
         # Scale based on ally repulsion if active
         if self.enable_allies_repulsion and party_positions:
@@ -280,7 +284,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
             if close_allies > 0:
                 ally_weight_factor = self.manager.allies_repulsion_weight / 100.0
                 total_scale *= ally_weight_factor
-                print(f"Ally scaling: close_allies={close_allies}, weight_factor={ally_weight_factor:.2f}")
+                self._debug_log(f"Ally scaling: close_allies={close_allies}, weight_factor={ally_weight_factor:.2f}")
 
         # Scale based on enemy repulsion if active
         if self.enable_enemy_repulsion and enemy_positions:
@@ -289,7 +293,7 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
             if close_enemies > 0:
                 enemy_weight_factor = self.manager.enemy_repulsion_weight / 100.0
                 total_scale *= enemy_weight_factor
-                print(f"Enemy scaling: close_enemies={close_enemies}, weight_factor={enemy_weight_factor:.2f}")
+                self._debug_log(f"Enemy scaling: close_enemies={close_enemies}, weight_factor={enemy_weight_factor:.2f}")
 
         # Ensure minimum scale
         total_scale = max(total_scale, 1.0)

@@ -10,7 +10,8 @@ from typing import Callable
 from multiprocessing import shared_memory
 from ctypes import sizeof
 
-MODULE_NAME = "Py4GW Shared Memory Manager Monitor"
+MODULE_NAME = "Shared Memory Monitor"
+MODULE_ICON = "Textures/Module_Icons/Shared Memory.png"
   
 SMM = GLOBAL_CACHE.ShMem    
 BASE_PATH = Py4GW.Console.get_projects_path()

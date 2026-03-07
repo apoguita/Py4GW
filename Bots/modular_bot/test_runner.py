@@ -1,18 +1,12 @@
-"""
-Test bot: Run recipe — Eye of the North to Gunnar's Hold.
+"""Test bot: Route recipe."""
 
-Usage: Load this script in Py4GW. Must be a Dervish/Assassin with
-       the correct skills available. The bot will travel to EotN,
-       equip the D/A runner build, and run to Gunnar's Hold.
-"""
-
-from Sources.modular_bot import ModularBot, Phase
-from Sources.modular_bot.recipes import Run
+from Sources.modular_bot import ModularBot
+from Sources.modular_bot.recipes import Route
 
 bot = ModularBot(
-    name="Test: Runner",
+    name="Test: Route",
     phases=[
-        Run("Eye Of The North - Full Tour", "_1_Eotn_To_Gunnars"),
+        Route("la_to_beacons"),
     ],
     loop=False,
 )
@@ -20,4 +14,3 @@ bot = ModularBot(
 
 def main():
     bot.update()
-

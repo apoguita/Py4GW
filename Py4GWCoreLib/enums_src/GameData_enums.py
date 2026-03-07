@@ -1,19 +1,17 @@
 from enum import Enum
 from enum import IntEnum
 
-
-
-
 # region Range
 class Range(Enum):
     Touch = 144.0
     Adjacent = 166.0
     Nearby = 252.0
     Area = 322.0
-    Earshot = 1012.0
-    Spellcast = 1248.0
-    Spirit = 2500.0
-    SafeCompass = 4800.0  # made up distance to make easy checks
+    Earshot = Shortbow = Spear = 1012.0        # Shortbows and spears are actually 1004
+    Spellcast = Hornbow = Recurve = 1248.0     # Hornbows and recurve bows are actually 1273
+    Longbow = Flatbow = 1498.0                 # This distance is also shared with all offensive spirit attacks
+    Spirit = 2500.0         
+    SafeCompass = 4800.0    # made up distance to make easy checks
     Compass = 5000.0
 
 # endregion
@@ -373,6 +371,28 @@ AttributeNames = {
     Attribute.None_: "None",
 }
 
+PROFESSION_ATTRIBUTES : dict[Profession, list[Attribute]] = {
+    Profession._None: [],
+    Profession.Warrior: [Attribute.Strength, Attribute.AxeMastery, Attribute.HammerMastery, Attribute.Swordsmanship, Attribute.Tactics],
+    Profession.Ranger: [Attribute.BeastMastery, Attribute.Expertise, Attribute.WildernessSurvival, Attribute.Marksmanship],
+    Profession.Monk: [Attribute.HealingPrayers, Attribute.SmitingPrayers, Attribute.ProtectionPrayers, Attribute.DivineFavor],
+    Profession.Necromancer: [Attribute.BloodMagic, Attribute.DeathMagic, Attribute.SoulReaping, Attribute.Curses],
+    Profession.Mesmer: [Attribute.FastCasting, Attribute.IllusionMagic, Attribute.DominationMagic, Attribute.InspirationMagic],
+    Profession.Elementalist: [Attribute.AirMagic, Attribute.EarthMagic, Attribute.FireMagic, Attribute.WaterMagic],
+    Profession.Assassin: [Attribute.DaggerMastery, Attribute.DeadlyArts, Attribute.ShadowArts, Attribute.CriticalStrikes],
+    Profession.Ritualist: [Attribute.Communing, Attribute.RestorationMagic, Attribute.ChannelingMagic, Attribute.SpawningPower],
+    Profession.Paragon: [Attribute.Command, Attribute.Motivation, Attribute.Leadership, Attribute.SpearMastery],
+    Profession.Dervish: [Attribute.ScytheMastery, Attribute.WindPrayers, Attribute.EarthPrayers, Attribute.Mysticism],
+}
+
+_ATTRIBUTE_TO_PROFESSION: dict[Attribute, Profession] = {}
+for profession_enum, attributes in PROFESSION_ATTRIBUTES.items():
+    if not attributes:
+        continue
+
+    for attr in attributes:
+        _ATTRIBUTE_TO_PROFESSION[attr] = Profession[profession_enum.name]
+        
 #region Inscription
 class Inscription(IntEnum):
     Fear_Cuts_Deeper = 0

@@ -3,6 +3,8 @@ import time
 
 #VARIABLES
 module_name = "TH3KUM1KO'S LEGENDARY GUARDIAN BOT"
+MODULE_NAME = "Legendary Guardian"
+MODULE_ICON = "Textures\\Module_Icons\\Legendary Guardian.png"
 
 class AppState :
     def __init__(self) :

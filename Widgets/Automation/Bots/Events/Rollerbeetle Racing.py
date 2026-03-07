@@ -17,6 +17,8 @@ Improvements to make:
 """
 
 module_name = "Rollerbeetle Racing Bot"
+MODULE_NAME = "Rollerbeetle Racing"
+MODULE_ICON = "Textures\\Module_Icons\\Rollerbeetle Racing.jpg"
 
 race_coords_list = [
     (-5670, -2755),

@@ -5,6 +5,7 @@ import PyImGui
 from Py4GWCoreLib import ProfilingRegistry, SimpleProfiler, WidgetHandler, IconsFontAwesome5, ThrottledTimer
 
 MODULE_NAME = "Widget Profiler"
+MODULE_ICON = "Textures/Module_Icons/Widget Profiler.png"
 OPTIONAL = True
 
 PHASES = ("minimal", "update", "draw", "main")

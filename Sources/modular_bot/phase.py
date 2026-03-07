@@ -37,9 +37,10 @@ class Phase:
                    is skipped entirely.
         template:  Optional template name to apply at the start of this phase.
                    One of ``"aggressive"``, ``"pacifist"``, ``"multibox_aggressive"``.
+        anchor:    If ``True``, sets runtime recovery anchor to this phase when entered.
     """
 
-    __slots__ = ("name", "fn", "condition", "template")
+    __slots__ = ("name", "fn", "condition", "template", "anchor")
 
     def __init__(
         self,
@@ -48,11 +49,13 @@ class Phase:
         *,
         condition: Optional[Callable[[], bool]] = None,
         template: Optional[str] = None,
+        anchor: bool = False,
     ) -> None:
         self.name = name
         self.fn = fn
         self.condition = condition
         self.template = template
+        self.anchor = anchor
 
     def __repr__(self) -> str:
         parts = [f"Phase({self.name!r}"]
@@ -60,5 +63,7 @@ class Phase:
             parts.append("conditional")
         if self.template is not None:
             parts.append(f"template={self.template!r}")
+        if self.anchor:
+            parts.append("anchor=True")
         return ", ".join(parts) + ")"
 

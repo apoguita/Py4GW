@@ -1,0 +1,11 @@
+{
+  "name": "Camp Rankor to Droknar's Forge",
+  "outpost_id": 155,
+  "max_heroes": 8,
+  "hero_team": "party_8",
+  "steps": [
+    {"type": "exit_map", "name": "Leave Camp Rankor", "x": 7669, "y": -45072, "target_map_id": 26},
+    {"type": "auto_path", "name": "Talus Chute to Droknar's", "points": [[-22278, 16193], [-17952, 14216], [-14931, 4803], [-12319, -850], [-4801, -6345], [2555, -11337], [6038, -14065], [8624, -16461], [8900, -16750]]},
+    {"type": "wait_map_load", "map_id": 20}
+  ]
+}

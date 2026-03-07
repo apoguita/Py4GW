@@ -5,6 +5,8 @@ from Py4GWCoreLib import ImGui, Color
 from Py4GWCoreLib.IniManager import IniManager
 
 show_disabled = False
+MODULE_NAME = "Callback Monitor"
+MODULE_ICON = "Textures/Module_Icons/Callback Monitor.png"
     
 def draw_window():
     global show_disabled

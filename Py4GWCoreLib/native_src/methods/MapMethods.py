@@ -125,6 +125,7 @@ class MapMethods:
             False
         )
         
+        
     @staticmethod
     def LogouttoCharacterSelect() -> None:
         def _action():

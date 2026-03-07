@@ -58,6 +58,10 @@ class Utils:
         return inside
 
     @staticmethod
+    def IsPointInRect(px: float, py: float, rx: float, ry: float, rw: float, rh: float) -> bool:
+        return rx <= px <= rx + rw and ry <= py <= ry + rh
+
+    @staticmethod
     def format_bytes(num_bytes: int) -> str:
             """
             Convert a byte count to a human-readable string using

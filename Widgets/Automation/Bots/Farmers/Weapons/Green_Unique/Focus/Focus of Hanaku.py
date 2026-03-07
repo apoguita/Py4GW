@@ -2,7 +2,9 @@ import os
 from Py4GWCoreLib import Botting
 
 # QUEST TO INCREASE SPAWNS 
-BOT_NAME = "Focus of Hanaku Farm"
+BOT_NAME = "Hanaku's Focus Farm"
+MODULE_NAME = "Hanaku's Focus"
+MODULE_ICON = "Textures\\Module_Icons\\Hanaku's Focus.png"
 OUTPOST_TO_TRAVEL = 289
 COORD_TO_EXIT_MAP = (-11133.13, -18248.88)
 EXPLORABLE_TO_TRAVEL = 202

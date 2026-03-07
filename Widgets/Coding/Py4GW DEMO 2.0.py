@@ -9,6 +9,7 @@ from Sources.ApoSource.py4gw_demo_src.pathing_map_demo import renderer
 from Py4GWCoreLib import Color, ImGui
 
 MODULE_NAME = "Py4GW DEMO 2.0"
+MODULE_ICON = "Textures/Module_Icons/Py4GW.png"
 
 def draw_agent_array_data():
     info = """

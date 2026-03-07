@@ -1,6 +1,7 @@
 from Py4GWCoreLib import *
 
 MODULE_NAME = "Color Picker"
+MODULE_ICON = "Textures/Module_Icons/Color Picker.png"
 
 def tooltip():
     PyImGui.begin_tooltip()

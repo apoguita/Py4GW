@@ -10,7 +10,6 @@ from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.fps_monitor import FPSMonitor
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
 
@@ -49,6 +48,9 @@ widget_monitor = WidgetMonitor()
 # print(f"current_path is : {current_path}")
 widget_window_size:tuple[float, float] = (0,0)
 widget_window_pos:tuple[float, float] = (0,0)
+
+MODULE_NAME = "Custom Behaviors: Utility AI"
+MODULE_ICON = "Textures/Module_Icons/Custom Behaviors.png"
 
 def gui():
     # PyImGui.set_next_window_size(260, 650)

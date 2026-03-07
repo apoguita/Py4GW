@@ -10,7 +10,10 @@ from Py4GWCoreLib import Color
 from Py4GWCoreLib import Map
 import Py4GW
 import os
+
 module_name = "Instance Timer"
+MODULE_NAME = "Instance Timer"
+MODULE_ICON = "Textures/Module_Icons/Instance Timer.png"
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 root_directory = Py4GW.Console.get_projects_path()
