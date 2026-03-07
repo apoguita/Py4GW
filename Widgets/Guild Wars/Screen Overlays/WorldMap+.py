@@ -22,6 +22,7 @@ from collections import defaultdict
 
 from Py4GWCoreLib import Map, Utils, Player, AutoPathing, GLOBAL_CACHE, Routines, Range
 from Py4GWCoreLib.native_src.methods.MapMethods import MapMethods
+from Py4GWCoreLib.native_src.methods.FfnaMapMethods import FfnaMapMethods
 from Py4GWCoreLib.Overlay import Overlay as _Overlay
 import PyOverlay
 
@@ -42,19 +43,52 @@ import Py4GWCoreLib.WorldPathing as _WP
 _WP.configure(_SCRIPT_DIR)
 from Py4GWCoreLib.WorldPathing import (
     _MAP_ADJACENCY, _ALL_EDGES,
-    _ICON_BOUNDS, _MAP_META, _MAP_CENTROIDS, _MAP_NEIGHBORS,
-    _PMAP_CACHE, _PMAP_BUILT,
-    _PORTAL_ICON_POS, _PORTAL_BUILT, _PORTAL_DEST_DATA,
+    _MAP_META,
     _GLOBAL_ID_TO_PORTAL, _PORTAL_TO_GLOBAL_ID, _PORTAL_LINKS, _PORTAL_GAME_POS,
-    _map_name_cached, _portal_dest_name,
-    _traps_to_icon, _traps_to_icon_with_gxy,
-    _ensure_pmap, _ensure_portal_dots,
-    _load_portal_destinations,
-    _portal_link_entry, _load_portal_links, _save_portal_links,
+    _map_name_cached,
+    _load_portal_links,
     _find_map_path,
     invalidate_portal_adj,
     _get_portal_adj,
+    get_world_adj        as _wp_get_world_adj,
+    invalidate_world_adj as _wp_invalidate_world_adj,
+    path_distance        as _wp_path_distance,
+    GetNearestUnlockedOutpost  as _WP_GetNearestUnlockedOutpost,
+    IsPath               as _WP_IsPath,
+    GetPath              as _WP_GetPath,
+    MoveToNextWaypoint   as _WP_MoveToNextWaypoint,
+    MoveToMapid          as _WP_MoveToMapid,
+    MoveToMapID          as _WP_MoveToMapID,
+    # movement state (shared so WorldMap+ can read runner flags for its UI)
+    _mtnw_runner_active, _mtnw_goal_xy, _mtnw_target_map, _mtnw_path, _mtnw_job_id,
+    _mtnw_path_index, _mtnw_path_following, _mtnw_path_computing, _mtnw_paused_danger,
+    _mtm_runner_active, _mtm_target_map, _mtm_route, _mtm_job_id,
+    _mtnw_clear, _mtm_clear,
+    _abort_wp_movement,
+    _set_runtime_heartbeat,
 )
+
+# ── Overlay-only state dicts (not needed by bots; NOT shared with WorldPathing) ──
+# map_id -> (left, top, right, bottom) in icon space, or None
+_ICON_BOUNDS:   dict[int, tuple[float, float, float, float] | None] = {}
+# map_id -> icon-space center (derived from _ICON_BOUNDS)
+_MAP_CENTROIDS: dict[int, tuple[float, float]] = {}
+# map_id -> set of adjacent map_ids (derived from _ALL_EDGES in _build_cache)
+_MAP_NEIGHBORS: dict[int, set[int]] = {}
+# Loaded from JSON at startup: map_id -> [dx_icon, dy_icon]
+_PMAP_OFFSETS:  dict[int, tuple[float, float]] = {}
+# Portal dot positions in icon space (built lazily per map)
+_PORTAL_ICON_POS:  dict[int, list[tuple]] = {}  # map_id -> list of (pix, piy, dest_name, local_idx, gid, gx, gy)
+_PORTAL_BUILT:     set[int] = set()
+# Loaded from portal_destinations.json: map_id -> [{index, game_x, game_y, dest_map_id, dest_name}]
+_PORTAL_DEST_DATA: dict[int, list[dict]] = {}
+# Full portal catalog (linked + unlinked), loaded from portal_all.json
+_PORTAL_ALL_DATA: dict[int, list[dict]] = {}
+# Persistent cache of live portal game-coords for maps without a DAT entry.
+_live_portal_cache: dict[int, list[dict]] = {}
+_LIVE_PORTAL_CACHE_FILE = os.path.join(_SCRIPT_DIR, "portal_live_cache.json")
+_PORTAL_ALL_FILE = os.path.join(_SCRIPT_DIR, "portal_all.json")
+
 
 # ── Region type constants ──────────────────────────────────────────────────────
 _RT_EXPLORABLE   = 2
@@ -88,6 +122,735 @@ _CAMPAIGN_GROUP_NAMES: dict[int, str] = {
     3: "Nightfall",
     5: "Bonus Mission Pack",
 }
+
+
+# ── Overlay rendering helpers (WorldMap+-only; not needed by bots) ─────────────
+
+def _traps_to_icon(trapezoids: list, ix1: float, iy1: float, ix2: float, iy2: float,
+                   offset: tuple[float, float] = (0.0, 0.0)
+                   ) -> list[tuple]:
+    """Convert trapezoid list to icon-space quads.  Returns [] if bounds are degenerate."""
+    if not trapezoids:
+        return []
+    gx_min = float('inf');  gx_max = float('-inf')
+    gy_min = float('inf');  gy_max = float('-inf')
+    for trap in trapezoids:
+        for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
+            if x < gx_min: gx_min = x
+            if x > gx_max: gx_max = x
+        for y in (trap.YT, trap.YB):
+            if y < gy_min: gy_min = y
+            if y > gy_max: gy_max = y
+    if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
+        return []
+    gw = gx_max - gx_min
+    gh = gy_max - gy_min
+    iw_map = ix2 - ix1
+    ih_map = iy2 - iy1
+    odx, ody = offset
+
+    def _g2i(gx: float, gy: float) -> tuple[float, float]:
+        return (ix1 + (gx - gx_min) / gw * iw_map + odx,
+                iy1 + (gy_max - gy) / gh * ih_map + ody)  # Y flipped
+
+    result = []
+    for trap in trapezoids:
+        xtl, ytl = _g2i(trap.XTL, trap.YT)
+        xtr, ytr = _g2i(trap.XTR, trap.YT)
+        xbr, ybr = _g2i(trap.XBR, trap.YB)
+        xbl, ybl = _g2i(trap.XBL, trap.YB)
+        result.append((xtl, ytl, xtr, ytr, xbr, ybr, xbl, ybl))
+    return result
+
+
+def _traps_to_icon_with_gxy(trapezoids: list, ix1: float, iy1: float, ix2: float, iy2: float,
+                             gx_min: float, gx_max: float, gy_min: float, gy_max: float
+                             ) -> list[tuple]:
+    """Same as _traps_to_icon but uses pre-computed game bounds."""
+    gw = gx_max - gx_min
+    gh = gy_max - gy_min
+    iw_map = ix2 - ix1
+    ih_map = iy2 - iy1
+
+    def _g2i(gx: float, gy: float) -> tuple[float, float]:
+        return (ix1 + (gx - gx_min) / gw * iw_map,
+                iy1 + (gy_max - gy) / gh * ih_map)
+
+    result = []
+    for trap in trapezoids:
+        xtl, ytl = _g2i(trap.XTL, trap.YT)
+        xtr, ytr = _g2i(trap.XTR, trap.YT)
+        xbr, ybr = _g2i(trap.XBR, trap.YB)
+        xbl, ybl = _g2i(trap.XBL, trap.YB)
+        result.append((xtl, ytl, xtr, ytr, xbr, ybr, xbl, ybl))
+    return result
+
+
+# ── Overlay portal helpers (WorldMap+-only) ───────────────────────────────────
+
+def _portal_dest_name(src_map_id: int, pix: float, piy: float) -> str:
+    """Infer portal destination: nearest neighbor centroid in icon space."""
+    neighbors  = _MAP_NEIGHBORS.get(src_map_id, set())
+    best_name  = ""
+    best_dist2 = float('inf')
+    for nb in neighbors:
+        cx, cy = _MAP_CENTROIDS.get(nb, (0.0, 0.0))
+        d2 = (cx - pix) ** 2 + (cy - piy) ** 2
+        if d2 < best_dist2:
+            best_dist2 = d2
+            meta = _MAP_META.get(nb)
+            best_name = meta[1] if meta else f"Map {nb}"
+    return best_name
+
+
+def _load_live_portal_cache() -> None:
+    """Load portal_live_cache.json into _live_portal_cache."""
+    global _live_portal_cache
+    if not _LIVE_PORTAL_CACHE_FILE or not os.path.isfile(_LIVE_PORTAL_CACHE_FILE):
+        return
+    try:
+        with open(_LIVE_PORTAL_CACHE_FILE, "r", encoding="utf-8-sig") as fh:
+            raw = json.load(fh)
+        _live_portal_cache = {int(k): v for k, v in raw.items()}
+        Py4GW.Console.Log(MODULE_NAME,
+            f"Live portal cache loaded: {len(_live_portal_cache)} maps cached.",
+            Py4GW.Console.MessageType.Info)
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Live portal cache load error: {e}",
+                          Py4GW.Console.MessageType.Warning)
+
+
+def _save_live_portal_cache() -> None:
+    """Persist _live_portal_cache to portal_live_cache.json."""
+    if not _LIVE_PORTAL_CACHE_FILE:
+        return
+    try:
+        with open(_LIVE_PORTAL_CACHE_FILE, "w", encoding="utf-8") as fh:
+            json.dump({str(k): v for k, v in _live_portal_cache.items()}, fh, indent=2)
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Live portal cache save error: {e}",
+                          Py4GW.Console.MessageType.Warning)
+
+
+def _load_portal_all_data() -> None:
+    """Load portal_all.json into _PORTAL_ALL_DATA (all known portals)."""
+    global _PORTAL_ALL_DATA
+    _PORTAL_ALL_DATA.clear()
+    if not _PORTAL_ALL_FILE or not os.path.isfile(_PORTAL_ALL_FILE):
+        return
+    try:
+        with open(_PORTAL_ALL_FILE, "r", encoding="utf-8-sig") as fh:
+            raw = json.load(fh)
+        maps_raw = raw.get("maps", raw)
+        for mk, entries in maps_raw.items():
+            try:
+                mid = int(mk)
+            except Exception:
+                continue
+            if not isinstance(entries, list):
+                continue
+            norm_entries: list[dict] = []
+            for e in entries:
+                if not isinstance(e, dict):
+                    continue
+                try:
+                    idx = int(e.get("portal_index", e.get("index", -1)))
+                except Exception:
+                    idx = -1
+                if idx < 0:
+                    continue
+                gid = int(e.get("global_id", mid * 1000 + idx))
+                obj: dict = {
+                    "portal_index": idx,
+                    "global_id": gid,
+                }
+                if "game_x" in e:
+                    try: obj["game_x"] = float(e["game_x"])
+                    except Exception: pass
+                if "game_y" in e:
+                    try: obj["game_y"] = float(e["game_y"])
+                    except Exception: pass
+                if "linked_to" in e:
+                    try: obj["linked_to"] = int(e["linked_to"])
+                    except Exception: pass
+                norm_entries.append(obj)
+            if norm_entries:
+                norm_entries.sort(key=lambda x: int(x.get("portal_index", 0)))
+                _PORTAL_ALL_DATA[mid] = norm_entries
+        total = sum(len(v) for v in _PORTAL_ALL_DATA.values())
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Portal-all loaded: {len(_PORTAL_ALL_DATA)} maps, {total} portals.",
+            Py4GW.Console.MessageType.Info,
+        )
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Portal-all load error: {e}",
+                          Py4GW.Console.MessageType.Warning)
+
+
+def _save_portal_all_data() -> None:
+    """Persist _PORTAL_ALL_DATA to portal_all.json."""
+    if not _PORTAL_ALL_FILE:
+        return
+    try:
+        out = {
+            "_schema": "gw_portal_all",
+            "_version": 1,
+            "_comment": (
+                "Complete portal catalog used by WorldMap+ for drawing dots.\n"
+                "Contains linked and unlinked portals per map.\n"
+                "global_id uses map_id * 1000 + portal_index."
+            ),
+            "maps": {str(k): v for k, v in sorted(_PORTAL_ALL_DATA.items())},
+        }
+        with open(_PORTAL_ALL_FILE, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Portal-all save error: {e}",
+                          Py4GW.Console.MessageType.Warning)
+
+
+def _rebuild_portal_all_data() -> None:
+    """Rebuild _PORTAL_ALL_DATA from DAT portals, live cache and portal_links metadata."""
+    global _PORTAL_ALL_DATA
+    rebuilt: dict[int, list[dict]] = {}
+
+    for mid, bnd in _ICON_BOUNDS.items():
+        if bnd is None:
+            continue
+        by_index: dict[int, dict] = {}
+
+        # 1) Offline DAT portals (or live-cached fallback)
+        portals = []
+        try:
+            portals = FfnaMapMethods.GetTravelPortalsForMap(mid)
+        except Exception:
+            portals = []
+        if not portals and mid in _live_portal_cache:
+            from types import SimpleNamespace
+            cached = _live_portal_cache[mid]
+            portals = [
+                SimpleNamespace(x=e.get("x", 0.0), y=e.get("y", 0.0))
+                for e in cached.get("portals", cached)
+                if isinstance(e, dict)
+            ]
+
+        if portals:
+            portals_sorted = sorted(portals, key=lambda p: (round(float(p.x), 1), round(float(p.y), 1)))
+            for idx, tp in enumerate(portals_sorted):
+                gid = mid * 1000 + idx
+                entry = {
+                    "portal_index": idx,
+                    "global_id": gid,
+                    "game_x": float(tp.x),
+                    "game_y": float(tp.y),
+                }
+                linked = _PORTAL_LINKS.get(gid)
+                if linked:
+                    entry["linked_to"] = int(linked)
+                by_index[idx] = entry
+
+        # 2) Linked portal metadata from portal_links.json (authoritative IDs/coords)
+        for gid, (gx, gy) in _PORTAL_GAME_POS.items():
+            if gid // 1000 != mid:
+                continue
+            idx = int(gid % 1000)
+            entry = by_index.get(idx, {"portal_index": idx, "global_id": int(gid)})
+            entry["global_id"] = int(gid)
+            entry["game_x"] = float(gx)
+            entry["game_y"] = float(gy)
+            linked = _PORTAL_LINKS.get(int(gid))
+            if linked:
+                entry["linked_to"] = int(linked)
+            by_index[idx] = entry
+
+        # 3) Ensure every linked gid exists even if coords are missing
+        for gid, linked in _PORTAL_LINKS.items():
+            if gid // 1000 != mid:
+                continue
+            idx = int(gid % 1000)
+            entry = by_index.get(idx, {"portal_index": idx, "global_id": int(gid)})
+            entry["global_id"] = int(gid)
+            entry["linked_to"] = int(linked)
+            by_index[idx] = entry
+
+        if by_index:
+            rebuilt[mid] = [by_index[i] for i in sorted(by_index.keys())]
+
+    _PORTAL_ALL_DATA = rebuilt
+    _save_portal_all_data()
+    total = sum(len(v) for v in rebuilt.values())
+    Py4GW.Console.Log(
+        MODULE_NAME,
+        f"Portal-all rebuilt: {len(rebuilt)} maps, {total} portals.",
+        Py4GW.Console.MessageType.Info,
+    )
+
+
+def _load_portal_destinations() -> None:
+    """Load portal_destinations.json into _PORTAL_DEST_DATA."""
+    global _PORTAL_DEST_DATA
+    _PORTAL_DEST_DATA.clear()
+    _dest_file = os.path.join(_SCRIPT_DIR, "portal_destinations.json")
+    if os.path.isfile(_dest_file):
+        try:
+            with open(_dest_file, "r", encoding="utf-8-sig") as fh:
+                raw = json.load(fh)
+            for k, entries in raw.get("portals", {}).items():
+                _PORTAL_DEST_DATA[int(k)] = entries
+            defined = sum(1 for entries in _PORTAL_DEST_DATA.values()
+                          for e in entries if e.get("dest_map_id", 0) != 0)
+            Py4GW.Console.Log(MODULE_NAME,
+                f"Portal destinations loaded: {len(_PORTAL_DEST_DATA)} maps, {defined} resolved.",
+                Py4GW.Console.MessageType.Info)
+        except Exception as e:
+            Py4GW.Console.Log(MODULE_NAME, f"Portal destinations load error: {e}",
+                              Py4GW.Console.MessageType.Warning)
+    _load_portal_links()  # always reload links too
+
+
+def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
+    """Lazily build portal dot positions for map_id (live or offline .dat)."""
+    debug_map = False
+
+    def _debug_log(stage: str, portals_count: int, dots: list[tuple]) -> None:
+        if not debug_map:
+            return
+        gids = [int(d[4]) for d in dots if len(d) >= 5]
+        sample = gids[:12]
+        suffix = "" if len(gids) <= 12 else f" ...(+{len(gids) - 12})"
+        coord_preview: list[str] = []
+        for d in dots[:8]:
+            if len(d) < 5:
+                continue
+            gid = int(d[4])
+            ix = float(d[0]) if len(d) >= 1 else 0.0
+            iy = float(d[1]) if len(d) >= 2 else 0.0
+            if len(d) >= 7:
+                gx = float(d[5])
+                gy = float(d[6])
+                coord_preview.append(
+                    f"portal_id={gid} icon({ix:.1f},{iy:.1f}) game({gx:.1f},{gy:.1f})"
+                )
+            else:
+                coord_preview.append(f"portal_id={gid} icon({ix:.1f},{iy:.1f})")
+        coord_suffix = "" if len(dots) <= 8 else f" ...(+{len(dots) - 8})"
+        Py4GW.Console.Log(MODULE_NAME,
+            (f"Map {map_id} portal debug [{stage}] src={'live' if is_live else 'dat'} "
+             f"raw_portals={portals_count} dots={len(dots)} gids={sample}{suffix} "
+             f"coords={coord_preview}{coord_suffix}"),
+            Py4GW.Console.MessageType.Info)
+
+    if map_id in _PORTAL_BUILT:
+        existing = _PORTAL_ICON_POS.get(map_id, [])
+        if existing:
+            if is_live and not any(len(d) >= 7 for d in existing):
+                _PORTAL_BUILT.discard(map_id)
+            else:
+                return
+        else:
+            _PORTAL_BUILT.discard(map_id)
+    _PORTAL_BUILT.add(map_id)
+    icon_bnd = _ICON_BOUNDS.get(map_id)
+    if not icon_bnd:
+        _PORTAL_ICON_POS[map_id] = []
+        _debug_log("no-icon-bounds", 0, [])
+        return
+    ix1, iy1, ix2, iy2 = icon_bnd
+    try:
+        if is_live:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+            portals      = Map.Pathing.GetTravelPortals()
+        else:
+            pathing_maps = FfnaMapMethods.GetPathingMapsForMap(map_id)
+            portals      = FfnaMapMethods.GetTravelPortalsForMap(map_id)
+            if not portals and map_id in _live_portal_cache:
+                from types import SimpleNamespace
+                cached = _live_portal_cache[map_id]
+                portals = [
+                    SimpleNamespace(x=e["x"], y=e["y"], z=e.get("z", 0.0),
+                                    model_file_id=e["model_file_id"])
+                    for e in cached.get("portals", cached) if isinstance(e, dict)
+                ]
+                Py4GW.Console.Log(MODULE_NAME,
+                    f"Map {map_id}: using {len(portals)} live-cached portal(s) (no DAT entry).",
+                    Py4GW.Console.MessageType.Info)
+    except Exception:
+        _PORTAL_ICON_POS[map_id] = []
+        _debug_log("read-exception", 0, [])
+        return
+
+    def _build_neighbor_fallback_dots() -> list[tuple]:
+        neighbors = sorted(_MAP_NEIGHBORS.get(map_id, set()))
+        cx = (ix1 + ix2) * 0.5
+        cy = (iy1 + iy2) * 0.5
+        inset = 1.0
+        out: list[tuple] = []
+        if not neighbors:
+            idx = 0
+            gid = map_id * 1000 + idx
+            key = (map_id, idx)
+            _PORTAL_TO_GLOBAL_ID[key] = gid
+            _GLOBAL_ID_TO_PORTAL[gid] = key
+            return [(cx, cy, "", idx, gid)]
+        for i, nb in enumerate(neighbors):
+            nb_center = _MAP_CENTROIDS.get(nb)
+            if not nb_center:
+                continue
+            nx, ny = nb_center
+            dx = nx - cx
+            dy = ny - cy
+            if dx == 0.0 and dy == 0.0:
+                continue
+            t_candidates: list[float] = []
+            if dx > 0.0:
+                t_candidates.append((ix2 - cx) / dx)
+            elif dx < 0.0:
+                t_candidates.append((ix1 - cx) / dx)
+            if dy > 0.0:
+                t_candidates.append((iy2 - cy) / dy)
+            elif dy < 0.0:
+                t_candidates.append((iy1 - cy) / dy)
+            t_hit = min((t for t in t_candidates if t > 0.0), default=None)
+            if t_hit is None:
+                continue
+            pix = cx + dx * t_hit
+            piy = cy + dy * t_hit
+            pix = max(ix1 + inset, min(ix2 - inset, pix))
+            piy = max(iy1 + inset, min(iy2 - inset, piy))
+            idx = i
+            gid = map_id * 1000 + idx
+            key = (map_id, idx)
+            _PORTAL_TO_GLOBAL_ID[key] = gid
+            _GLOBAL_ID_TO_PORTAL[gid] = key
+            out.append((pix, piy, _map_name_cached(nb), idx, gid))
+        if not out:
+            idx = 0
+            gid = map_id * 1000 + idx
+            key = (map_id, idx)
+            _PORTAL_TO_GLOBAL_ID[key] = gid
+            _GLOBAL_ID_TO_PORTAL[gid] = key
+            out.append((cx, cy, "", idx, gid))
+        return out
+
+    _cached_extents = None
+    if not pathing_maps and map_id in _live_portal_cache:
+        ce = _live_portal_cache[map_id]
+        if isinstance(ce, dict) and "extents" in ce:
+            _cached_extents = ce["extents"]
+
+    # Use portal_all.json (complete linked+unlinked list)
+    # - always for non-live maps
+    # - for live maps only as fallback when no online portals were found
+    if (not is_live) or (not portals):
+        entries = _PORTAL_ALL_DATA.get(map_id, [])
+        if entries:
+            # Build pathing extents when available (accurate projection)
+            ext_ok = False
+            gx_min2 = gy_min2 = float('inf')
+            gx_max2 = gy_max2 = float('-inf')
+            if _cached_extents is not None:
+                gx_min2 = _cached_extents["gx_min"]; gx_max2 = _cached_extents["gx_max"]
+                gy_min2 = _cached_extents["gy_min"]; gy_max2 = _cached_extents["gy_max"]
+                ext_ok = gx_max2 > gx_min2 and gy_max2 > gy_min2
+            elif pathing_maps:
+                for pm in pathing_maps:
+                    for trap in pm.trapezoids:
+                        for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
+                            if x < gx_min2: gx_min2 = x
+                            if x > gx_max2: gx_max2 = x
+                        for y in (trap.YT, trap.YB):
+                            if y < gy_min2: gy_min2 = y
+                            if y > gy_max2: gy_max2 = y
+                ext_ok = gx_max2 > gx_min2 and gy_max2 > gy_min2
+
+            iw_map = ix2 - ix1
+            ih_map = iy2 - iy1
+            cx2    = (ix1 + ix2) * 0.5
+            cy2    = (iy1 + iy2) * 0.5
+            inset2 = 1.0
+            radius2 = max(2.0, min(abs(ix2 - ix1), abs(iy2 - iy1)) * 0.22)
+
+            specs: list[tuple[int, int, float | None, float | None, int]] = []
+            for e in entries:
+                try:
+                    pidx = int(e.get("portal_index", e.get("index", -1)))
+                except Exception:
+                    continue
+                if pidx < 0:
+                    continue
+                gid = int(e.get("global_id", map_id * 1000 + pidx))
+                try:
+                    gx = float(e["game_x"]) if "game_x" in e else None
+                except Exception:
+                    gx = None
+                try:
+                    gy = float(e["game_y"]) if "game_y" in e else None
+                except Exception:
+                    gy = None
+                linked_gid = int(e.get("linked_to", _PORTAL_LINKS.get(gid, 0)) or 0)
+                specs.append((pidx, gid, gx, gy, linked_gid))
+            specs.sort(key=lambda x: x[0])
+
+            dots_all: list[tuple] = []
+            n_specs = max(1, len(specs))
+            for order, (pidx, gid, gx, gy, linked_gid) in enumerate(specs):
+                has_game = gx is not None and gy is not None
+                if has_game and ext_ok:
+                    pdx = ix1 + (gx - gx_min2) / (gx_max2 - gx_min2) * iw_map
+                    pdy = iy1 + (gy_max2 - gy) / (gy_max2 - gy_min2) * ih_map
+                    pdx = max(ix1, min(ix2, pdx))
+                    pdy = max(iy1, min(iy2, pdy))
+                else:
+                    nb = (linked_gid // 1000) if linked_gid else None
+                    nb_center = _MAP_CENTROIDS.get(nb) if nb else None
+                    if nb_center:
+                        nx, ny = nb_center
+                        dx = nx - cx2
+                        dy = ny - cy2
+                        if dx != 0.0 or dy != 0.0:
+                            t_cands: list[float] = []
+                            if dx > 0.0: t_cands.append((ix2 - cx2) / dx)
+                            elif dx < 0.0: t_cands.append((ix1 - cx2) / dx)
+                            if dy > 0.0: t_cands.append((iy2 - cy2) / dy)
+                            elif dy < 0.0: t_cands.append((iy1 - cy2) / dy)
+                            t_hit = min((t for t in t_cands if t > 0.0), default=None)
+                            if t_hit is not None:
+                                pdx = max(ix1 + inset2, min(ix2 - inset2, cx2 + dx * t_hit))
+                                pdy = max(iy1 + inset2, min(iy2 - inset2, cy2 + dy * t_hit))
+                            else:
+                                pdx, pdy = cx2, cy2
+                        else:
+                            pdx, pdy = cx2, cy2
+                    else:
+                        if n_specs == 1:
+                            pdx, pdy = cx2, cy2
+                        else:
+                            ang = (2.0 * 3.141592653589793 * order) / n_specs
+                            pdx = cx2 + radius2 * math.cos(ang)
+                            pdy = cy2 + radius2 * math.sin(ang)
+                            pdx = max(ix1, min(ix2, pdx))
+                            pdy = max(iy1, min(iy2, pdy))
+
+                key = (map_id, pidx)
+                _PORTAL_TO_GLOBAL_ID[key] = gid
+                _GLOBAL_ID_TO_PORTAL[gid] = key
+                if has_game:
+                    dots_all.append((pdx, pdy, "", pidx, gid, gx, gy))
+                else:
+                    dots_all.append((pdx, pdy, "", pidx, gid))
+
+            if dots_all:
+                _PORTAL_ICON_POS[map_id] = dots_all
+                _debug_log("portal-all-data", len(specs), dots_all)
+                return
+
+    if (not pathing_maps and _cached_extents is None) or not portals:
+        fallback = _build_neighbor_fallback_dots()
+        _PORTAL_ICON_POS[map_id] = fallback
+        _debug_log("fallback-missing-pathing-or-portals", len(portals) if portals else 0, fallback)
+        return
+    if _cached_extents is not None:
+        gx_min = _cached_extents["gx_min"]
+        gx_max = _cached_extents["gx_max"]
+        gy_min = _cached_extents["gy_min"]
+        gy_max = _cached_extents["gy_max"]
+    else:
+        gx_min = float('inf');  gx_max = float('-inf')
+        gy_min = float('inf');  gy_max = float('-inf')
+        for pm in pathing_maps:
+            for trap in pm.trapezoids:
+                for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
+                    if x < gx_min: gx_min = x
+                    if x > gx_max: gx_max = x
+                for y in (trap.YT, trap.YB):
+                    if y < gy_min: gy_min = y
+                    if y > gy_max: gy_max = y
+    if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
+        cx = (ix1 + ix2) * 0.5
+        cy = (iy1 + iy2) * 0.5
+        n = max(1, len(portals))
+        radius = max(2.0, min(abs(ix2 - ix1), abs(iy2 - iy1)) * 0.22)
+        dots: list[tuple] = []
+        portals_sorted = sorted(portals, key=lambda p: (round(p.x, 1), round(p.y, 1)))
+        json_entries = _PORTAL_DEST_DATA.get(map_id, [])
+        n = max(1, len(portals_sorted))
+        for idx, tp in enumerate(portals_sorted):
+            if n == 1:
+                pix, piy = cx, cy
+            else:
+                ang = (2.0 * 3.141592653589793 * idx) / n
+                pix = cx + radius * math.cos(ang)
+                piy = cy + radius * math.sin(ang)
+            pix = max(ix1, min(ix2, pix))
+            piy = max(iy1, min(iy2, piy))
+            json_e = next((e for e in json_entries if e.get("index") == idx), None)
+            if json_e and json_e.get("dest_map_id", 0) != 0:
+                dest = json_e.get("dest_name") or _map_name_cached(json_e["dest_map_id"])
+            else:
+                dest = _portal_dest_name(map_id, pix, piy)
+            gid = map_id * 1000 + idx
+            key = (map_id, idx)
+            _PORTAL_TO_GLOBAL_ID[key] = gid
+            _GLOBAL_ID_TO_PORTAL[gid] = key
+            dots.append((pix, piy, dest, idx, gid, tp.x, tp.y))
+        if not dots:
+            dots = _build_neighbor_fallback_dots()
+        _PORTAL_ICON_POS[map_id] = dots
+        _debug_log("fallback-invalid-pathing-extents", len(portals), dots)
+        return
+    gw = gx_max - gx_min
+    gh = gy_max - gy_min
+    iw_map = ix2 - ix1
+    ih_map = iy2 - iy1
+    json_entries = _PORTAL_DEST_DATA.get(map_id, [])
+    portals_sorted = sorted(portals, key=lambda p: (round(p.x, 1), round(p.y, 1)))
+    dots: list[tuple] = []
+    for idx, tp in enumerate(portals_sorted):
+        pix = ix1 + (tp.x - gx_min) / gw * iw_map
+        piy = iy1 + (gy_max - tp.y) / gh * ih_map
+        pix = max(ix1, min(ix2, pix))
+        piy = max(iy1, min(iy2, piy))
+        json_e = next((e for e in json_entries if e.get("index") == idx), None)
+        if json_e and json_e.get("dest_map_id", 0) != 0:
+            dest = json_e.get("dest_name") or _map_name_cached(json_e["dest_map_id"])
+        else:
+            dest = _portal_dest_name(map_id, pix, piy)
+        key = (map_id, idx)
+        gid = map_id * 1000 + idx
+        _PORTAL_TO_GLOBAL_ID[key] = gid
+        _GLOBAL_ID_TO_PORTAL[gid] = key
+        dots.append((pix, piy, dest, idx, gid, tp.x, tp.y))
+    _PORTAL_ICON_POS[map_id] = dots
+    _debug_log("normal", len(portals), dots)
+    if is_live and portals:
+        _live_portal_cache[map_id] = {
+            "portals": [
+                {"x": tp.x, "y": tp.y, "z": getattr(tp, 'z', 0.0),
+                 "model_file_id": getattr(tp, 'model_file_id', 0)}
+                for tp in portals
+            ],
+            "extents": {
+                "gx_min": gx_min, "gx_max": gx_max,
+                "gy_min": gy_min, "gy_max": gy_max,
+            },
+        }
+        _save_live_portal_cache()
+
+
+
+# rep_map_id → list of icon-space quad tuples (xtl,ytl,xtr,ytr,xbr,ybr,xbl,ybl)
+_PMAP_CACHE: dict[int, list[tuple]] = {}
+_PMAP_BUILT: set[int] = set()   # rep_ids already attempted
+
+
+def _ensure_pmap(rep_id: int, icon_bnd: tuple, is_live: bool) -> None:
+    """Lazily build icon-space pmap quads for rep_id if not yet cached."""
+    if rep_id in _PMAP_BUILT:
+        return
+    _PMAP_BUILT.add(rep_id)
+    ix1, iy1, ix2, iy2 = icon_bnd
+    offset = _PMAP_OFFSETS.get(rep_id, (0.0, 0.0))
+    try:
+        if is_live:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+        else:
+            pathing_maps = Map.Pathing.GetPathingMaps(rep_id)  # offline .dat
+    except Exception:
+        _PMAP_CACHE[rep_id] = []
+        return
+    if not pathing_maps:
+        _PMAP_CACHE[rep_id] = []
+        return
+    all_traps = [t for pm in pathing_maps for t in pm.trapezoids]
+    _PMAP_CACHE[rep_id] = _traps_to_icon(all_traps, ix1, iy1, ix2, iy2, offset)
+
+
+def _portal_link_entry(gid: int) -> dict:
+    """Build the portal sub-object for a link entry (used by _save_portal_links)."""
+    key = _GLOBAL_ID_TO_PORTAL.get(gid)
+    if key is None:
+        map_id  = gid // 1000
+        loc_idx = gid %  1000
+        key = (map_id, loc_idx)
+    map_id, loc_idx = key
+    meta     = _MAP_META.get(map_id)
+    map_name = meta[1] if meta else f"Map {map_id}"
+
+    game_x = game_y = None
+    for entry in _PORTAL_ICON_POS.get(map_id, []):
+        if entry[3] == loc_idx:
+            if len(entry) >= 7:
+                game_x = round(float(entry[5]), 2)
+                game_y = round(float(entry[6]), 2)
+            break
+
+    dest_map_id = 0
+    dest_name   = ""
+    for e in _PORTAL_DEST_DATA.get(map_id, []):
+        if e.get("index") == loc_idx:
+            if game_x is None: game_x = e.get("game_x")
+            if game_y is None: game_y = e.get("game_y")
+            dest_map_id = e.get("dest_map_id", 0)
+            dm = _MAP_META.get(dest_map_id)
+            dest_name = dm[1] if dm else e.get("dest_name", "")
+            break
+
+    obj: dict = {
+        "global_id":    gid,
+        "map_id":       map_id,
+        "map_name":     map_name,
+        "portal_index": loc_idx,
+    }
+    if game_x is not None: obj["game_x"] = game_x
+    if game_y is not None: obj["game_y"] = game_y
+    if dest_map_id:        obj["leads_to_map_id"] = dest_map_id
+    if dest_name:          obj["leads_to_map_name"] = dest_name
+    return obj
+
+
+def _save_portal_links() -> None:
+    """Write _PORTAL_LINKS to portal_links.json with full context per entry."""
+    try:
+        seen:    set[tuple[int, int]] = set()
+        entries: list[dict] = []
+        link_id = 1
+        for a_id, b_id in sorted(_PORTAL_LINKS.items()):
+            pair = (min(a_id, b_id), max(a_id, b_id))
+            if pair in seen:
+                continue
+            seen.add(pair)
+            entries.append({
+                "link_id":  link_id,
+                "portal_a": _portal_link_entry(a_id),
+                "portal_b": _portal_link_entry(b_id),
+            })
+            link_id += 1
+
+        out = {
+            "_schema":  "gw_portal_links",
+            "_version": 1,
+            "_comment": (
+                "Portal connections for Guild Wars maps.\n"
+                "Each link pairs two zone-transition portals.\n"
+                "Managed by WorldMap+ widget – portal IDs are stable "
+                "(map_id * 1000 + portal_index when no JSON exists, "
+                "or sequential IDs from portal_destinations.json).\n"
+                "Usable by bots and routing tools: portal_a/b contain "
+                "map_id, map_name, game_x/y, and destination info."
+            ),
+            "links": entries,
+        }
+        with open(_WP._PORTAL_LINKS_FILE, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+        Py4GW.Console.Log(MODULE_NAME,
+            f"Saved {len(entries)} portal links to portal_links.json.",
+            Py4GW.Console.MessageType.Info)
+        # Keep full portal catalog in sync (linked/unlinked color state depends on this).
+        _rebuild_portal_all_data()
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Portal link save error: {e}",
+                          Py4GW.Console.MessageType.Warning)
 
 
 def _build_cache() -> None:
@@ -179,6 +942,11 @@ def _build_cache() -> None:
         f"Cache built: {n} maps, {g} draw groups.",
         Py4GW.Console.MessageType.Info)
     _load_portal_destinations()   # also calls _load_portal_links() at the end
+    _load_portal_all_data()
+    linked_maps = {int(gid // 1000) for gid in _PORTAL_LINKS.keys()}
+    missing_linked = [mid for mid in linked_maps if mid not in _PORTAL_ALL_DATA]
+    if (not _PORTAL_ALL_DATA) or missing_linked:
+        _rebuild_portal_all_data()
 
 
 # ── Region type → packed color ──────────────────────────────────────────────
@@ -207,6 +975,7 @@ _show_pmap_all       = [False]
 _pmap_opacity        = [0.2]
 _show_portals        = [True]
 _show_portals_3d     = [True]
+_show_portal_ids     = [True]
 _show_labels         = [True]
 _opacity             = [0.75]
 _show_debug          = [False]
@@ -282,72 +1051,18 @@ _wp_route_overlay:     list[dict] = []   # per-hop icon-space coords built by _b
 _travel_route_overlay: list[dict] = []   # same format, built when a travel button is clicked
 _pathfinder_win_h      = [0.0]    # measured height of pathfinder panel for stacking
 
-# MoveToNextWaypoint local path-follow state (like Mission Map+ right-click move)
-_MTNW_ARRIVAL_RADIUS        = 200.0
-_MTNW_WAYPOINT_RADIUS       = 140.0
-_MTNW_PUSHTHROUGH_TIMEOUT_MS = 6000   # ms to keep walking after reaching portal coords
-_mtnw_goal_xy:         list[tuple[float, float] | None] = [None]
-_mtnw_target_map:      list[int] = [0]
-_mtnw_path:            list[tuple[float, float]] = []
-_mtnw_path_index:      list[int] = [0]
-_mtnw_path_following:  list[bool] = [False]
-_mtnw_path_computing:  list[bool] = [False]
-_mtnw_runner_active:   list[bool] = [False]
-_mtnw_job_id:          list[int] = [0]
-_mtnw_paused_danger:   list[bool] = [False]
-_mtm_runner_active:    list[bool] = [False]
-_mtm_target_map:       list[int] = [0]
-_mtm_route:            list[dict | None] = [None]
-_mtm_job_id:           list[int] = [0]
-_MTM_HOP_MAX_ATTEMPTS = 6
-_MTM_HOP_TIMEOUT_MS   = 120000
-_MTM_LOAD_TIMEOUT_MS  = 60000
-_WMPLUS_HEARTBEAT_TIMEOUT_MS = 2500
-_WMPLUS_INSTANCE_TOKEN = f"wmplus-{Utils.GetBaseTimestamp()}-{id(object())}"
-
-
-def _set_runtime_heartbeat() -> None:
-    setattr(GLOBAL_CACHE, "_wmplus_runtime_token", _WMPLUS_INSTANCE_TOKEN)
-    setattr(GLOBAL_CACHE, "_wmplus_runtime_hb_ms", int(Utils.GetBaseTimestamp()))
-
-
-def _runtime_is_active(runtime_token: str) -> bool:
-    active_token = getattr(GLOBAL_CACHE, "_wmplus_runtime_token", None)
-    hb = int(getattr(GLOBAL_CACHE, "_wmplus_runtime_hb_ms", 0) or 0)
-    return active_token == runtime_token and (int(Utils.GetBaseTimestamp()) - hb) <= _WMPLUS_HEARTBEAT_TIMEOUT_MS
+# MoveToNextWaypoint / MoveToMapid timing constants (used by WorldPathing-owned coroutines)
+_MTNW_ARRIVAL_RADIUS         = 200.0
+_MTNW_WAYPOINT_RADIUS        = 140.0
+_MTNW_PUSHTHROUGH_TIMEOUT_MS = 6000
+_MTM_HOP_MAX_ATTEMPTS        = 6
+_MTM_HOP_TIMEOUT_MS          = 120000
+_MTM_LOAD_TIMEOUT_MS         = 60000
 
 
 def _abort_worldmap_movement() -> None:
-    _mtnw_job_id[0] += 1
-    _mtm_job_id[0] += 1
-    _mtnw_clear()
-    _mtm_clear()
-    try:
-        px, py = Player.GetXY()
-        Player.Move(px, py)
-    except Exception:
-        pass
-
-
-# Set token immediately on module load to invalidate stale instances after reload.
-_set_runtime_heartbeat()
-
-
-def _mtnw_clear() -> None:
-    _mtnw_goal_xy[0] = None
-    _mtnw_target_map[0] = 0
-    _mtnw_path.clear()
-    _mtnw_path_index[0] = 0
-    _mtnw_path_following[0] = False
-    _mtnw_path_computing[0] = False
-    _mtnw_runner_active[0] = False
-    _mtnw_paused_danger[0] = False
-
-
-def _mtm_clear() -> None:
-    _mtm_runner_active[0] = False
-    _mtm_target_map[0] = 0
-    _mtm_route[0] = None
+    """Cancel any active movement (delegates to WorldPathing._abort_wp_movement)."""
+    _abort_wp_movement()
 
 
 def _mtm_log_debug(message: str) -> None:
@@ -360,264 +1075,6 @@ def _mtm_log_debug(message: str) -> None:
     )
 
 
-def _mtm_autorun_coroutine(target_map_id: int, route: dict, job_id: int, runtime_token: str):
-    """Traverse a full inter-map route by chaining MoveToNextWaypoint hop-by-hop."""
-    _mtm_runner_active[0] = True
-
-    try:
-        while True:
-            if not _runtime_is_active(runtime_token):
-                _abort_worldmap_movement()
-                return
-            if job_id != _mtm_job_id[0]:
-                return
-
-            current_map = Map.GetMapID()
-            if current_map == target_map_id:
-                return
-
-            hop = None
-            for wp in route.get("waypoints", []):
-                if int(wp.get("from_map", 0)) == current_map:
-                    hop = wp
-                    break
-
-            if hop is None:
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    f"MoveToMapid: no hop from current map {current_map} toward {target_map_id}.",
-                    Py4GW.Console.MessageType.Warning,
-                )
-                return
-
-            next_map = int(hop.get("to_map", 0))
-            if next_map <= 0:
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    "MoveToMapid: invalid next map in route hop.",
-                    Py4GW.Console.MessageType.Warning,
-                )
-                return
-
-            _mtm_log_debug(f"hop selected: {current_map} -> {next_map}")
-
-            hop_path = {
-                "found": True,
-                "maps": [current_map, next_map],
-                "map_names": [],
-                "waypoints": [hop],
-            }
-
-            hop_completed = False
-            for _attempt in range(_MTM_HOP_MAX_ATTEMPTS):
-                if not _runtime_is_active(runtime_token):
-                    _abort_worldmap_movement()
-                    return
-                if job_id != _mtm_job_id[0]:
-                    return
-
-                _started = MoveToNextWaypoint(next_map, hop_path)
-                if not _started:
-                    _mtm_log_debug(f"attempt {_attempt + 1}/{_MTM_HOP_MAX_ATTEMPTS}: MoveToNextWaypoint not started")
-                    yield from Routines.Yield.wait(250)
-                    continue
-
-                _mtm_log_debug(f"attempt {_attempt + 1}/{_MTM_HOP_MAX_ATTEMPTS}: MoveToNextWaypoint started")
-
-                start_ts = Utils.GetBaseTimestamp()
-                transition_detected = False
-
-                while True:
-                    if not _runtime_is_active(runtime_token):
-                        _abort_worldmap_movement()
-                        return
-                    if job_id != _mtm_job_id[0]:
-                        return
-
-                    cmap = Map.GetMapID()
-                    if cmap == next_map or cmap == target_map_id:
-                        hop_completed = True
-                        break
-
-                    if cmap != current_map:
-                        transition_detected = True
-                        _mtm_log_debug(f"transition detected: map changed {current_map} -> {cmap}")
-                        break
-
-                    if Utils.GetBaseTimestamp() - start_ts > _MTM_HOP_TIMEOUT_MS:
-                        break
-
-                    yield from Routines.Yield.wait(250)
-
-                if not hop_completed and transition_detected:
-                    _mtm_log_debug(f"waiting for map load: target map {next_map}")
-                    _loaded = yield from Routines.Yield.Map.WaitforMapLoad(
-                        next_map,
-                        log=False,
-                        timeout=_MTM_LOAD_TIMEOUT_MS,
-                    )
-
-                    if job_id != _mtm_job_id[0]:
-                        return
-
-                    cmap_after_load = Map.GetMapID()
-                    _mtm_log_debug(
-                        f"wait result: loaded={_loaded}, current_map={cmap_after_load}, expected={next_map}"
-                    )
-                    if cmap_after_load == next_map or cmap_after_load == target_map_id:
-                        hop_completed = True
-                        _mtm_log_debug(f"hop completed via map load: now on map {cmap_after_load}")
-                        break
-
-                    if _loaded and cmap_after_load != current_map:
-                        break
-
-                if hop_completed:
-                    _mtm_log_debug(f"hop completed: now on map {Map.GetMapID()}")
-                    break
-
-                if Map.GetMapID() != current_map:
-                    break
-
-                _mtnw_job_id[0] += 1
-                _mtnw_clear()
-                yield from Routines.Yield.wait(200)
-
-            if Map.GetMapID() == target_map_id:
-                _mtm_log_debug(f"target reached: map {target_map_id}")
-                return
-
-            if not hop_completed and Map.GetMapID() == current_map:
-                _mtm_log_debug(
-                    f"hop failed after retries ({_MTM_HOP_MAX_ATTEMPTS}x{_MTM_HOP_TIMEOUT_MS}ms): still on map {current_map}, expected next map {next_map}"
-                )
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    f"MoveToMapid: failed to transition from map {current_map} to {next_map}.",
-                    Py4GW.Console.MessageType.Warning,
-                )
-                return
-
-            yield from Routines.Yield.wait(150)
-    finally:
-        _mtm_clear()
-
-
-def _mtnw_autorun_coroutine(target_map_id: int, goal_x: float, goal_y: float, job_id: int, runtime_token: str):
-    """Compute and robustly follow local path to portal waypoint until arrival/cancel."""
-    _mtnw_runner_active[0] = True
-    _mtnw_path.clear()
-
-    while True:
-        if not _runtime_is_active(runtime_token):
-            _abort_worldmap_movement()
-            return
-        if job_id != _mtnw_job_id[0]:
-            return
-
-        if Map.GetMapID() == target_map_id:
-            _mtnw_clear()
-            return
-
-        px, py = Player.GetXY()
-        dx = px - goal_x
-        dy = py - goal_y
-        if (dx * dx + dy * dy) <= (_MTNW_ARRIVAL_RADIUS * _MTNW_ARRIVAL_RADIUS):
-            # Push through: keep walking toward portal until loading screen triggers
-            _pt_start = Utils.GetBaseTimestamp()
-            _pt_map   = Map.GetMapID()
-            while True:
-                if job_id != _mtnw_job_id[0]:
-                    return
-                if Map.IsMapLoading() or Map.GetMapID() != _pt_map:
-                    _mtnw_clear()
-                    return
-                if Utils.GetBaseTimestamp() - _pt_start > _MTNW_PUSHTHROUGH_TIMEOUT_MS:
-                    break
-                Player.Move(goal_x, goal_y)
-                yield from Routines.Yield.wait(100)
-            _mtnw_clear()
-            return
-
-        _mtnw_path_computing[0] = True
-        path = yield from AutoPathing().get_path_to(goal_x, goal_y)
-        _mtnw_path[:] = list(path) if path else []
-        _mtnw_path_index[0] = 0
-        _mtnw_path_following[0] = False
-        _mtnw_path_computing[0] = False
-
-        if not _mtnw_path:
-            yield from Routines.Yield.wait(250)
-            continue
-
-        def _pause_on_danger() -> bool:
-            in_danger = Routines.Checks.Agents.InDanger(Range.Earshot)
-            if in_danger and not _mtnw_paused_danger[0]:
-                _mtnw_paused_danger[0] = True
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    "MoveToNextWaypoint: paused (danger detected)",
-                    Py4GW.Console.MessageType.Info,
-                )
-            elif not in_danger and _mtnw_paused_danger[0]:
-                _mtnw_paused_danger[0] = False
-                Py4GW.Console.Log(
-                    MODULE_NAME,
-                    "MoveToNextWaypoint: resumed (danger cleared)",
-                    Py4GW.Console.MessageType.Info,
-                )
-            return in_danger
-
-        def _stop_condition() -> bool:
-            if job_id != _mtnw_job_id[0]:
-                return True
-            if Map.GetMapID() == target_map_id:
-                return True
-            cx, cy = Player.GetXY()
-            ddx = cx - goal_x
-            ddy = cy - goal_y
-            return (ddx * ddx + ddy * ddy) <= (_MTNW_ARRIVAL_RADIUS * _MTNW_ARRIVAL_RADIUS)
-
-        _ = yield from Routines.Yield.Movement.FollowPath(
-            path_points=_mtnw_path,
-            custom_exit_condition=_stop_condition,
-            tolerance=_MTNW_WAYPOINT_RADIUS,
-            timeout=20000,
-            custom_pause_fn=_pause_on_danger,
-            stop_on_party_wipe=False,
-        )
-
-        if job_id != _mtnw_job_id[0]:
-            return
-
-        if Map.GetMapID() == target_map_id:
-            _mtnw_clear()
-            return
-
-        cx, cy = Player.GetXY()
-        ddx = cx - goal_x
-        ddy = cy - goal_y
-        if (ddx * ddx + ddy * ddy) <= (_MTNW_ARRIVAL_RADIUS * _MTNW_ARRIVAL_RADIUS):
-            # Push through: keep walking toward portal until loading screen triggers
-            _pt_start = Utils.GetBaseTimestamp()
-            _pt_map   = Map.GetMapID()
-            while True:
-                if job_id != _mtnw_job_id[0]:
-                    return
-                if Map.IsMapLoading() or Map.GetMapID() != _pt_map:
-                    _mtnw_clear()
-                    return
-                if Utils.GetBaseTimestamp() - _pt_start > _MTNW_PUSHTHROUGH_TIMEOUT_MS:
-                    break
-                Player.Move(goal_x, goal_y)
-                yield from Routines.Yield.wait(100)
-            _mtnw_clear()
-            return
-
-        yield from Routines.Yield.wait(150)
-
-
-# Cache: map_id → (gx_min, gx_max, gy_min, gy_max) from live pmap, cleared on map change
 _PMAP_GAME_BOUNDS: dict[int, tuple[float, float, float, float]] = {}
 
 
@@ -756,11 +1213,8 @@ def _get_portal_game_xy(gid: int) -> tuple[float, float] | None:
 
 
 def IsPath(start_map_id: int, target_map_id: int) -> bool:
-    """Return True if a portal-linked route exists from start_map_id to target_map_id."""
-    if start_map_id == target_map_id:
-        return True
-    gids, _ = _find_map_path(start_map_id, target_map_id)
-    return len(gids) > 0
+    """Return True if a portal-linked route exists. Delegates to WorldPathing.IsPath."""
+    return _WP_IsPath(start_map_id, target_map_id)
 
 
 _reachable_adj_cache: dict[int, set[int]] | None = None
@@ -768,83 +1222,25 @@ _reachable_list_cache: list[dict] = []
 _reachable_list_last_map: list[int] = [-1]
 
 def _path_distance(start_map: int, end_map: int) -> float | None:
-    """BFS from start_map to end_map tracking portal GIDs, returns summed game-unit
-    distance between consecutive portal pairs in each intermediate map.
-    Returns None if the path cannot be determined or no game coords are available."""
-    from collections import deque as _dq
-    import math as _math
-    combined = _get_reachable_adj()
-    if start_map not in combined or end_map not in combined:
-        return None
-    # BFS tracking (map, [(exit_gid, enter_gid)])
-    portal_adj = _get_portal_adj()
-    # map_id → dict[neighbor_map_id → (exit_gid, enter_gid)]
-    gid_map: dict[int, dict[int, tuple[int, int]]] = {}
-    for m, edges in portal_adj.items():
-        for eg, ig, nb in edges:
-            gid_map.setdefault(m, {})[nb] = (eg, ig)
-
-    queue: _dq = _dq([(start_map, [])])
-    visited: set[int] = {start_map}
-    while queue:
-        cur, path = queue.popleft()
-        for nb in combined.get(cur, set()):
-            if nb in visited:
-                continue
-            edge = gid_map.get(cur, {}).get(nb)
-            new_path = path + [(cur, nb, edge)]
-            if nb == end_map:
-                # Compute total distance: for each intermediate map,
-                # dist(enter_portal, exit_portal)
-                total = 0.0
-                has_coords = False
-                prev_enter_gid: int | None = None
-                for src_map, dst_map, e in new_path:
-                    exit_gid  = e[0] if e else None
-                    enter_gid = e[1] if e else None
-                    # intra-map: from enter portal of this map to its exit portal
-                    if prev_enter_gid is not None and exit_gid is not None:
-                        pa = _PORTAL_GAME_POS.get(prev_enter_gid)
-                        pb = _PORTAL_GAME_POS.get(exit_gid)
-                        if pa and pb:
-                            total += _math.hypot(pb[0] - pa[0], pb[1] - pa[1])
-                            has_coords = True
-                    prev_enter_gid = enter_gid
-                return round(total) if has_coords else None
-            visited.add(nb)
-            queue.append((nb, new_path))
-    return None
+    """Game-unit path distance between two maps. Delegates to WorldPathing."""
+    return _wp_path_distance(start_map, end_map)
 
 
 def _build_reachable_adj() -> dict[int, set[int]]:
-    """Merge _MAP_ADJACENCY (static) + _get_portal_adj() (portal_links.json) into one
-    map_id → set[map_id] lookup.  Rebuilt whenever portal adj is invalidated."""
-    combined: dict[int, set[int]] = {}
-    # Source 1: static hand-curated adjacency
-    for m, neighbors in _MAP_ADJACENCY.items():
-        combined.setdefault(m, set()).update(neighbors)
-        for nb in neighbors:
-            combined.setdefault(nb, set()).add(m)
-    # Source 2: dynamic portal links (auto-invalidated when portal_links.json changes)
-    for m, edges in _get_portal_adj().items():
-        for _eg, _en, nb in edges:
-            combined.setdefault(m, set()).add(nb)
-            combined.setdefault(nb, set()).add(m)
-    return combined
+    """Delegates to WorldPathing._build_world_adj()."""
+    return _wp_get_world_adj()
 
 
 def _get_reachable_adj() -> dict[int, set[int]]:
-    """Return cached merged adjacency; rebuilt when invalidate_reachable_adj() is called."""
-    global _reachable_adj_cache
-    if _reachable_adj_cache is None:
-        _reachable_adj_cache = _build_reachable_adj()
-    return _reachable_adj_cache
+    """Return cached combined adjacency. Delegates to WorldPathing.get_world_adj()."""
+    return _wp_get_world_adj()
 
 
 def invalidate_reachable_adj() -> None:
     """Call this whenever portal links change so the combined adj is rebuilt."""
     global _reachable_adj_cache
     _reachable_adj_cache = None
+    _wp_invalidate_world_adj()        # also invalidate the shared WorldPathing cache
     _reachable_list_last_map[0] = -1  # force list rebuild on next frame
     _reachable_list_cache.clear()
 
@@ -917,49 +1313,38 @@ def GetFastTravelMaps() -> list[dict]:
     return result
 
 
+def GetNearestUnlockedOutpost(target_map_id: int) -> dict | None:
+    """Return the nearest unlocked non-explorable map to target_map_id.
+
+    Delegates to WorldPathing.GetNearestUnlockedOutpost — see that function for
+    full documentation.  Available here so widget-local code can call it without
+    importing WorldPathing directly.
+
+    Return value:
+      { "map_id": int, "name": str, "hops": int, "distance": float | None }
+    or None if no unlocked outpost is reachable.
+    """
+    return _WP_GetNearestUnlockedOutpost(target_map_id)
+
+
+def GetNearestFastTravelTo(target_map_id: int) -> dict | None:
+    """Convenience alias for GetNearestUnlockedOutpost(target_map_id).
+
+    Kept for backwards-compatibility and readability in travel-UI code.
+    """
+    return GetNearestUnlockedOutpost(target_map_id)
+
+
 def GetPath(start_map_id: int, target_map_id: int) -> dict:
-    """Return full inter-map route with map ids, names and portal waypoints."""
-    if start_map_id == target_map_id:
-        return {
-            "found":     True,
-            "maps":      [start_map_id],
-            "map_names": [_map_name_cached(start_map_id)],
-            "waypoints": [],
-        }
+    """Return full inter-map route with map ids, names and portal waypoints.
 
-    gids, map_names = _find_map_path(start_map_id, target_map_id)
-    if not gids:
-        return {"found": False, "maps": [], "map_names": [], "waypoints": []}
-
-    map_ids:   list[int]  = [start_map_id]
-    waypoints: list[dict] = []
-    hop_count = len(gids) // 2
-
-    for i in range(hop_count):
-        exit_gid  = gids[i * 2]
-        enter_gid = gids[i * 2 + 1]
-        from_map  = map_ids[-1]
-
-        km     = _GLOBAL_ID_TO_PORTAL.get(enter_gid)
-        to_map = km[0] if km else enter_gid // 1000
-        map_ids.append(to_map)
-
-        xy = _get_portal_game_xy(exit_gid)
-        waypoints.append({
-            "from_map":  from_map,
-            "exit_gid":  exit_gid,
-            "enter_gid": enter_gid,
-            "to_map":    to_map,
-            "game_x":    xy[0] if xy else None,
-            "game_y":    xy[1] if xy else None,
-        })
-
-    return {
-        "found":     True,
-        "maps":      map_ids,
-        "map_names": map_names,
-        "waypoints": waypoints,
-    }
+    Delegates to WorldPathing.GetPath.  Before calling, inject _PORTAL_ICON_POS
+    (overlay-only live game coords) so WorldPathing's _get_portal_game_xy can
+    use them when portal_links.json does not yet have explicit game coords.
+    """
+    # Inject live portal icon positions so WorldPathing can resolve game coords
+    _WP._PORTAL_ICON_POS_EXT = _PORTAL_ICON_POS
+    return _WP_GetPath(start_map_id, target_map_id)
 
 
 def GetNextWaypointXY(path: dict) -> tuple[float, float] | None:
@@ -974,93 +1359,19 @@ def GetNextWaypointXY(path: dict) -> tuple[float, float] | None:
 
 
 def MoveToNextWaypoint(target_map_id: int, path: dict | None = None) -> bool:
-    """Start autonomous movement to first portal waypoint from a pre-built route.
-
-    One call is enough: starts an internal coroutine that computes a local
-    AutoPathing path and follows it waypoint-by-waypoint (Mission Map+ style).
-    """
-    current_map = Map.GetMapID()
-    if current_map == target_map_id:
-        _mtnw_clear()
-        return False
-
-    if path is None or not path.get("found") or not path.get("waypoints"):
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            "MoveToNextWaypoint: no path provided. Call GetPath() first and pass the result.",
-            Py4GW.Console.MessageType.Warning,
-        )
-        return False
-
-    wp = path["waypoints"][0]
-    gx, gy = wp["game_x"], wp["game_y"]
-    if gx is None or gy is None:
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"MoveToNextWaypoint: no game coordinates for exit portal GID {wp['exit_gid']}",
-            Py4GW.Console.MessageType.Warning,
-        )
-        return False
-
-    goal_xy = (float(gx), float(gy))
-
-    if _mtnw_runner_active[0] and _mtnw_goal_xy[0] == goal_xy and _mtnw_target_map[0] == target_map_id:
-        return True
-
-    _mtnw_clear()
-    _mtnw_goal_xy[0] = goal_xy
-    _mtnw_target_map[0] = target_map_id
-    _mtnw_runner_active[0] = True
-    _mtnw_job_id[0] += 1
-    runtime_token = getattr(GLOBAL_CACHE, "_wmplus_runtime_token", _WMPLUS_INSTANCE_TOKEN)
-
-    GLOBAL_CACHE.Coroutines.append(
-        _mtnw_autorun_coroutine(target_map_id, goal_xy[0], goal_xy[1], _mtnw_job_id[0], runtime_token)
-    )
-    return True
+    """Start autonomous movement to first portal waypoint. Delegates to WorldPathing."""
+    return _WP_MoveToNextWaypoint(target_map_id, path)
 
 
 def MoveToMapid(target_map_id: int) -> bool:
-    """Build and execute a full inter-map route to target_map_id."""
-    current_map = Map.GetMapID()
-    if current_map == target_map_id:
-        return False
-
-    if _mtm_runner_active[0] and _mtm_target_map[0] == target_map_id:
-        return True
-
-    if not IsPath(current_map, target_map_id):
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"MoveToMapid: no path from map {current_map} to map {target_map_id}.",
-            Py4GW.Console.MessageType.Warning,
-        )
-        return False
-
-    route = GetPath(current_map, target_map_id)
-    if not route.get("found"):
-        Py4GW.Console.Log(
-            MODULE_NAME,
-            f"MoveToMapid: GetPath failed from map {current_map} to map {target_map_id}.",
-            Py4GW.Console.MessageType.Warning,
-        )
-        return False
-
-    _mtm_target_map[0] = target_map_id
-    _mtm_route[0] = route
-    _mtm_runner_active[0] = True
-    _mtm_job_id[0] += 1
-    runtime_token = getattr(GLOBAL_CACHE, "_wmplus_runtime_token", _WMPLUS_INSTANCE_TOKEN)
-
-    GLOBAL_CACHE.Coroutines.append(
-        _mtm_autorun_coroutine(target_map_id, route, _mtm_job_id[0], runtime_token)
-    )
-    return True
+    """Build and execute a full inter-map route to target_map_id. Delegates to WorldPathing."""
+    _WP._PORTAL_ICON_POS_EXT = _PORTAL_ICON_POS  # inject live coords
+    return _WP_MoveToMapid(target_map_id)
 
 
 def MoveToMapID(target_map_id: int) -> bool:
     """Alias for MoveToMapid."""
-    return MoveToMapid(target_map_id)
+    return _WP_MoveToMapID(target_map_id)
 
 
 def _should_show(rtype: int) -> bool:
@@ -1402,28 +1713,25 @@ def _draw_overlay() -> None:
         # key = (round(sx), round(sy))  ->  list of (gid, linked, pending)
         pos_clusters: dict[tuple[int,int], list[tuple[int,bool,bool]]] = {}
 
-        current_map_seen = False
-        for rep_id, icon_bnd, is_current, group_ids in visible_groups:
-            for mid in sorted(group_ids):
-                is_mid_live = (mid == current_map)
-                if is_mid_live:
-                    current_map_seen = True
-                _ensure_portal_dots(mid, is_live=is_mid_live)
-                for pix, piy, dest, local_idx, gid, *_gc in _PORTAL_ICON_POS.get(mid, []):
-                    sx, sy = _i2s(pix, piy)
-                    if sx < sl or sx > sr or sy < st or sy > sb:
-                        continue
-                    if gid:
-                        visible_portal_sx[gid] = (sx, sy)
-                    linked  = gid in _PORTAL_LINKS
-                    pending = gid == _link_pending_gid[0]
-                    key = (int(round(sx)), int(round(sy)))
-                    pos_clusters.setdefault(key, []).append((gid, linked, pending))
+        processed_dot_maps: set[int] = set()
 
-        # Ensure current map portals are considered even if map is not in visible_groups
-        if not current_map_seen:
-            _ensure_portal_dots(current_map, is_live=True)
-            for pix, piy, _dest, _local_idx, gid, *_gc in _PORTAL_ICON_POS.get(current_map, []):
+        def _add_map_portal_dots(mid: int, is_live_mid: bool) -> None:
+            if mid in processed_dot_maps:
+                return
+            processed_dot_maps.add(mid)
+            if not is_live_mid:
+                linked_gids_mid = {gid for gid in _PORTAL_LINKS.keys() if (gid // 1000) == mid}
+                if linked_gids_mid:
+                    cached = _PORTAL_ICON_POS.get(mid, [])
+                    cached_gids = {
+                        int(pt[4]) for pt in cached
+                        if isinstance(pt, (list, tuple)) and len(pt) >= 5 and pt[4]
+                    }
+                    if cached_gids and cached_gids.isdisjoint(linked_gids_mid):
+                        _PORTAL_BUILT.discard(mid)
+                        _PORTAL_ICON_POS.pop(mid, None)
+            _ensure_portal_dots(mid, is_live=is_live_mid)
+            for pix, piy, _dest, _local_idx, gid, *_gc in _PORTAL_ICON_POS.get(mid, []):
                 sx, sy = _i2s(pix, piy)
                 if sx < sl or sx > sr or sy < st or sy > sb:
                     continue
@@ -1434,7 +1742,46 @@ def _draw_overlay() -> None:
                 key = (int(round(sx)), int(round(sy)))
                 pos_clusters.setdefault(key, []).append((gid, linked, pending))
 
-        # Draw one dot per cluster, show all GIDs in diagnostics mode
+        # 1) Existing behaviour: all maps currently visible in the world-map window
+        current_map_seen = False
+        for rep_id, icon_bnd, is_current, group_ids in visible_groups:
+            for mid in sorted(group_ids):
+                is_mid_live = (mid == current_map)
+                if is_mid_live:
+                    current_map_seen = True
+                _add_map_portal_dots(mid, is_mid_live)
+
+        # 2) Also include all maps known to the portal datasets in the active campaign
+        #    (portal_all.json + linked maps), even if not in visible_groups.
+        linked_maps: set[int] = set()
+        for gid in _PORTAL_LINKS.keys():
+            km = _GLOBAL_ID_TO_PORTAL.get(gid)
+            mid = km[0] if km else (gid // 1000)
+            if mid > 0:
+                linked_maps.add(mid)
+
+        all_portal_maps: set[int] = set(linked_maps)
+        all_portal_maps.update(int(mid) for mid in _PORTAL_ALL_DATA.keys())
+
+        for mid in sorted(all_portal_maps):
+            if current_camp_group != -1:
+                meta = _MAP_META.get(mid)
+                camp = int(meta[2]) if meta else None
+                if camp is None:
+                    try:
+                        mi = MapMethods.GetMapInfo(mid)
+                        camp = int(mi.campaign) if mi else None
+                    except Exception:
+                        camp = None
+                if camp is not None and _campaign_group(camp) != current_camp_group:
+                    continue
+            _add_map_portal_dots(mid, is_live_mid=(mid == current_map))
+
+        # 3) Keep safety fallback for current map
+        if not current_map_seen:
+            _add_map_portal_dots(current_map, True)
+
+        # Draw one dot per cluster; always show GIDs when _show_portal_ids is on
         for (psx, psy), cluster in pos_clusters.items():
             fsx, fsy = float(psx), float(psy)
             any_linked  = any(c[1] for c in cluster)
@@ -1452,8 +1799,16 @@ def _draw_overlay() -> None:
             PyImGui.draw_list_add_circle(fsx, fsy, 5.0, border, 10, 1.0)
             if any_pending:
                 PyImGui.draw_list_add_circle(fsx, fsy, 9.0, portal_border_pending, 12, 1.5)
-            if _show_debug[0]:
-                gid_strs = [str(c[0]) for c in cluster if c[0]]
+            if _show_portal_ids[0] or _show_debug[0]:
+                gid_ids: set[int] = set()
+                for c in cluster:
+                    gid0 = int(c[0]) if c and c[0] else 0
+                    if gid0:
+                        gid_ids.add(gid0)
+                        linked0 = _PORTAL_LINKS.get(gid0)
+                        if linked0:
+                            gid_ids.add(int(linked0))
+                gid_strs = [str(g) for g in sorted(gid_ids)]
                 if gid_strs:
                     lbl = ",".join(gid_strs)
                     PyImGui.draw_list_add_text(fsx + 6.0, fsy - 6.0, id_color, lbl)
@@ -1468,9 +1823,17 @@ def _draw_overlay() -> None:
             d2 = (mx - float(psx)) ** 2 + (my - float(psy)) ** 2
             if d2 <= best_d2:
                 best_d2 = d2
-                hovered_cluster_ids = sorted({c[0] for c in cluster if c[0]})
+                gid_ids2: set[int] = set()
+                for c in cluster:
+                    gid1 = int(c[0]) if c and c[0] else 0
+                    if gid1:
+                        gid_ids2.add(gid1)
+                        linked1 = _PORTAL_LINKS.get(gid1)
+                        if linked1:
+                            gid_ids2.add(int(linked1))
+                hovered_cluster_ids = sorted(gid_ids2)
 
-        if hovered_cluster_ids and PyImGui.begin_tooltip():
+        if hovered_cluster_ids and (_show_portal_ids[0] or _show_debug[0]) and PyImGui.begin_tooltip():
             PyImGui.text("Portal IDs")
             row_h = 18
             list_h = min(200, row_h * len(hovered_cluster_ids) + 8)
@@ -2174,6 +2537,7 @@ def _draw_legend() -> None:
     _show_portals[0]     = PyImGui.checkbox("Draw Portals##wmp",    _show_portals[0])
     if _show_portals[0]:
         _show_portals_3d[0] = PyImGui.checkbox("  Draw 3D Portals##wmp", _show_portals_3d[0])
+        _show_portal_ids[0] = PyImGui.checkbox("  Show Portal IDs##wmp",  _show_portal_ids[0])
     #_show_other[0]       = PyImGui.checkbox("Other / PvP##wmp",   _show_other[0])
     _show_pmap_current[0] = PyImGui.checkbox("Navmap Current Map##wmp", _show_pmap_current[0])
     _show_pmap_all[0]     = PyImGui.checkbox("Navmap All##wmp",         _show_pmap_all[0])
@@ -2206,7 +2570,7 @@ def _draw_reachable_list_panel() -> None:
 
     legend_w = 190.0
     margin   = 8.0
-    win_w    = 260.0
+    win_w    = 360.0
 
     cmap = Map.GetMapID()
     if cmap != _reachable_list_last_map[0]:
@@ -2215,15 +2579,14 @@ def _draw_reachable_list_panel() -> None:
         for m in GetReachableMaps(cmap):
             if Map.IsMapUnlocked(m["map_id"]):
                 continue
-            if not any(
-                m["map_id"] in group_ids
-                for group_ids, _b, _gl, rtype, _c in _DRAW_GROUPS
-                if rtype != _RT_EXPLORABLE
-            ):
+            meta = _MAP_META.get(m["map_id"])
+            if meta is None or meta[0] == _RT_EXPLORABLE:
                 continue
-            dist = _path_distance(cmap, m["map_id"])
+            dist  = _path_distance(cmap, m["map_id"])
+            ft    = GetNearestFastTravelTo(m["map_id"])
             entry = dict(m)
             entry["distance"] = dist
+            entry["nearest_ft"] = ft
             _reachable_list_cache.append(entry)
         _reachable_list_cache.sort(key=lambda e: (
             e["distance"] if e["distance"] is not None else float("inf"),
@@ -2259,21 +2622,33 @@ def _draw_reachable_list_panel() -> None:
     else:
         text_col  = Utils.RGBToColor(230, 230, 230, 255)
         hop_col   = Utils.RGBToColor(180, 210, 255, 255)
-        list_h    = min(len(rv_list) * 18.0 + 4.0, 300.0)
+        list_h    = min(len(rv_list) * 32.0 + 4.0, 400.0)
         PyImGui.begin_child("##rv_scroll", (win_w - 8.0, list_h), False, 0)
+        ft_col    = Utils.RGBToColor(160, 255, 160, 255)
         for m in rv_list:
             hops = m["hops"]
             dist = m.get("distance")
+            ft   = m.get("nearest_ft")
             if dist is not None:
                 dist_k = dist / 1000.0
-                meta_str = f"({hops}h  {dist_k:.1f}k)"
+                meta_str = f"({dist_k:.1f}k  {hops}h)"
             else:
                 meta_str = f"({hops}h)"
             sx, sy = PyImGui.get_cursor_screen_pos()
             PyImGui.draw_list_add_text(sx, sy, hop_col, meta_str)
-            PyImGui.dummy(72, 14)
+            PyImGui.dummy(100, 14)
             PyImGui.same_line(0.0, 0.0)
             PyImGui.text(f" [{m['map_id']}] {m['name']}")
+            if ft:
+                ft_hops = ft['hops']
+                ft_dist = ft.get('distance')
+                if ft_dist is not None:
+                    ft_str = f"    → FT: {ft['name']}  ({ft_dist/1000.0:.1f}k  {ft_hops}h)"
+                else:
+                    ft_str = f"    → FT: {ft['name']}  ({ft_hops}h)"
+                fsx, fsy = PyImGui.get_cursor_screen_pos()
+                PyImGui.draw_list_add_text(fsx, fsy, ft_col, ft_str)
+                PyImGui.dummy(10, 13)
         PyImGui.end_child()
 
     PyImGui.end()

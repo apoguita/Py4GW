@@ -78,6 +78,12 @@ from .Scanner import *
 
 from .Py4GWcorelib import *
 from .Overlay import *
+from .WorldPathing import (
+    GetNearestUnlockedOutpost,
+    get_world_adj,
+    path_distance,
+    invalidate_world_adj,
+)
 from .DXOverlay import *
 from .UIManager import *
 from .Routines import *

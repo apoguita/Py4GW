@@ -43,11 +43,113 @@ except NameError:
 import Py4GWCoreLib.WorldPathing as _WP
 _WP.configure(_SCRIPT_DIR)
 from Py4GWCoreLib.WorldPathing import (
-    _ICON_BOUNDS, _MAP_META,
-    _PORTAL_ICON_POS,
-    _ensure_portal_dots,
-    _load_portal_destinations,
+    _MAP_META,
+    _GLOBAL_ID_TO_PORTAL, _PORTAL_TO_GLOBAL_ID, _PORTAL_LINKS, _PORTAL_GAME_POS,
+    _map_name_cached,
+    _load_portal_links,
 )
+
+# ── Overlay-only state (local to this debug widget) ───────────────────────────
+_ICON_BOUNDS:      dict[int, tuple[float, float, float, float] | None] = {}
+_MAP_CENTROIDS:    dict[int, tuple[float, float]] = {}
+_MAP_NEIGHBORS:    dict[int, set[int]] = {}
+_PORTAL_ICON_POS:  dict[int, list[tuple]] = {}
+_PORTAL_BUILT:     set[int] = set()
+_PORTAL_DEST_DATA: dict[int, list[dict]] = {}
+_live_portal_cache: dict[int, list[dict]] = {}
+_LIVE_PORTAL_CACHE_FILE = os.path.join(_SCRIPT_DIR, "portal_live_cache.json")
+
+def _portal_dest_name(src_map_id: int, pix: float, piy: float) -> str:
+    neighbors  = _MAP_NEIGHBORS.get(src_map_id, set())
+    best_name  = ""
+    best_dist2 = float('inf')
+    for nb in neighbors:
+        cx, cy = _MAP_CENTROIDS.get(nb, (0.0, 0.0))
+        d2 = (cx - pix) ** 2 + (cy - piy) ** 2
+        if d2 < best_dist2:
+            best_dist2 = d2
+            meta = _MAP_META.get(nb)
+            best_name = meta[1] if meta else f"Map {nb}"
+    return best_name
+
+def _load_portal_destinations() -> None:
+    global _PORTAL_DEST_DATA
+    _PORTAL_DEST_DATA.clear()
+    _dest_file = os.path.join(_SCRIPT_DIR, "portal_destinations.json")
+    if os.path.isfile(_dest_file):
+        try:
+            import json
+            with open(_dest_file, "r", encoding="utf-8-sig") as fh:
+                raw = json.load(fh)
+            for k, entries in raw.get("portals", {}).items():
+                _PORTAL_DEST_DATA[int(k)] = entries
+        except Exception as e:
+            Py4GW.Console.Log(MODULE_NAME, f"Portal destinations load error: {e}",
+                              Py4GW.Console.MessageType.Warning)
+    _load_portal_links()
+
+def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
+    """Lazily build portal dot positions for map_id (live or offline .dat)."""
+    if map_id in _PORTAL_BUILT:
+        if _PORTAL_ICON_POS.get(map_id):
+            return
+        _PORTAL_BUILT.discard(map_id)
+    _PORTAL_BUILT.add(map_id)
+    icon_bnd = _ICON_BOUNDS.get(map_id)
+    if not icon_bnd:
+        _PORTAL_ICON_POS[map_id] = []
+        return
+    ix1, iy1, ix2, iy2 = icon_bnd
+    try:
+        if is_live:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+            portals      = Map.Pathing.GetTravelPortals()
+        else:
+            pathing_maps = FfnaMapMethods.GetPathingMapsForMap(map_id)
+            portals      = FfnaMapMethods.GetTravelPortalsForMap(map_id)
+    except Exception:
+        _PORTAL_ICON_POS[map_id] = []
+        return
+    if not pathing_maps or not portals:
+        _PORTAL_ICON_POS[map_id] = []
+        return
+    gx_min = float('inf');  gx_max = float('-inf')
+    gy_min = float('inf');  gy_max = float('-inf')
+    for pm in pathing_maps:
+        for trap in pm.trapezoids:
+            for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
+                if x < gx_min: gx_min = x
+                if x > gx_max: gx_max = x
+            for y in (trap.YT, trap.YB):
+                if y < gy_min: gy_min = y
+                if y > gy_max: gy_max = y
+    if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
+        _PORTAL_ICON_POS[map_id] = []
+        return
+    gw = gx_max - gx_min;  gh = gy_max - gy_min
+    iw_map = ix2 - ix1;    ih_map = iy2 - iy1
+    json_entries = _PORTAL_DEST_DATA.get(map_id, [])
+    portals_sorted = sorted(portals, key=lambda p: (round(p.x, 1), round(p.y, 1)))
+    import math
+    dots: list[tuple] = []
+    for idx, tp in enumerate(portals_sorted):
+        pix = ix1 + (tp.x - gx_min) / gw * iw_map
+        piy = iy1 + (gy_max - tp.y) / gh * ih_map
+        pix = max(ix1, min(ix2, pix))
+        piy = max(iy1, min(iy2, piy))
+        json_e = next((e for e in json_entries if e.get("index") == idx), None)
+        if json_e and json_e.get("dest_map_id", 0) != 0:
+            dest = json_e.get("dest_name") or _map_name_cached(json_e["dest_map_id"])
+        else:
+            dest = _portal_dest_name(map_id, pix, piy)
+        key = (map_id, idx)
+        gid = map_id * 1000 + idx
+        _PORTAL_TO_GLOBAL_ID[key] = gid
+        _GLOBAL_ID_TO_PORTAL[gid] = key
+        dots.append((pix, piy, dest, idx, gid, tp.x, tp.y))
+    _PORTAL_ICON_POS[map_id] = dots
+
+
 
 _MAX_MAP_ID    = 900
 _RT_EXPLORABLE = 2

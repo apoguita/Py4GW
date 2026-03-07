@@ -1,0 +1,977 @@
+{
+  "_schema": "gw_portal_all",
+  "_version": 1,
+  "_comment": "Complete portal catalog used by WorldMap+ for drawing dots.\nContains linked and unlinked portals per map.\nglobal_id uses map_id * 1000 + portal_index.",
+  "maps": {
+    "10": [
+      {
+        "portal_index": 0,
+        "global_id": 10000,
+        "linked_to": 43000
+      }
+    ],
+    "11": [
+      {
+        "portal_index": 0,
+        "global_id": 11000,
+        "game_x": 26219.0,
+        "game_y": -11526.0,
+        "linked_to": 41001
+      }
+    ],
+    "13": [
+      {
+        "portal_index": 0,
+        "global_id": 13000,
+        "linked_to": 103001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 13001,
+        "linked_to": 32000
+      },
+      {
+        "portal_index": 2,
+        "global_id": 13002,
+        "linked_to": 36002
+      },
+      {
+        "portal_index": 3,
+        "global_id": 13003,
+        "linked_to": 106003
+      },
+      {
+        "portal_index": 4,
+        "global_id": 13004,
+        "linked_to": 102000
+      }
+    ],
+    "14": [
+      {
+        "portal_index": 1,
+        "global_id": 14001,
+        "game_x": -4371.0,
+        "game_y": 26808.0,
+        "linked_to": 54001
+      }
+    ],
+    "15": [
+      {
+        "portal_index": 0,
+        "global_id": 15000,
+        "game_x": 16064.0,
+        "game_y": 17339.0,
+        "linked_to": 58003
+      }
+    ],
+    "16": [
+      {
+        "portal_index": 0,
+        "global_id": 16000,
+        "game_x": 14970.0,
+        "game_y": -10589.0,
+        "linked_to": 62000
+      }
+    ],
+    "17": [
+      {
+        "portal_index": 0,
+        "global_id": 17000,
+        "game_x": -19861.0,
+        "game_y": 3667.0,
+        "linked_to": 60001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 17001,
+        "game_x": -1677.0,
+        "game_y": -19714.0,
+        "linked_to": 53002
+      },
+      {
+        "portal_index": 2,
+        "global_id": 17002,
+        "game_x": 19753.0,
+        "game_y": 2092.0,
+        "linked_to": 18000
+      }
+    ],
+    "18": [
+      {
+        "portal_index": 0,
+        "global_id": 18000,
+        "game_x": -20183.0,
+        "game_y": 2092.0,
+        "linked_to": 17002
+      },
+      {
+        "portal_index": 1,
+        "global_id": 18001,
+        "game_x": -5236.0,
+        "game_y": 16104.0,
+        "linked_to": 138001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 18002,
+        "game_x": 6372.0,
+        "game_y": -18078.0,
+        "linked_to": 64000
+      },
+      {
+        "portal_index": 3,
+        "global_id": 18003,
+        "game_x": 19778.0,
+        "game_y": 18288.0,
+        "linked_to": 56000
+      },
+      {
+        "portal_index": 4,
+        "global_id": 18004,
+        "game_x": 20001.0,
+        "game_y": 4979.0,
+        "linked_to": 56001
+      }
+    ],
+    "19": [
+      {
+        "portal_index": 0,
+        "global_id": 19000,
+        "linked_to": 63002
+      }
+    ],
+    "21": [
+      {
+        "portal_index": 0,
+        "global_id": 21000,
+        "linked_to": 89002
+      }
+    ],
+    "25": [
+      {
+        "portal_index": 0,
+        "global_id": 25000,
+        "linked_to": 99000
+      }
+    ],
+    "27": [
+      {
+        "portal_index": 0,
+        "global_id": 27000,
+        "game_x": -7674.0,
+        "game_y": -7566.0,
+        "linked_to": 54002
+      },
+      {
+        "portal_index": 1,
+        "global_id": 27001,
+        "game_x": 7692.0,
+        "game_y": 7837.0,
+        "linked_to": 100000
+      }
+    ],
+    "28": [
+      {
+        "portal_index": 1,
+        "global_id": 28001,
+        "linked_to": 81002
+      }
+    ],
+    "29": [
+      {
+        "portal_index": 4,
+        "global_id": 29004,
+        "linked_to": 101001
+      }
+    ],
+    "30": [
+      {
+        "portal_index": 1,
+        "global_id": 30001,
+        "linked_to": 107000
+      }
+    ],
+    "32": [
+      {
+        "portal_index": 0,
+        "global_id": 32000,
+        "linked_to": 13001
+      }
+    ],
+    "33": [
+      {
+        "portal_index": 1,
+        "global_id": 33001,
+        "linked_to": 102001
+      },
+      {
+        "portal_index": 3,
+        "global_id": 33003,
+        "linked_to": 39003
+      },
+      {
+        "portal_index": 4,
+        "global_id": 33004,
+        "linked_to": 101000
+      },
+      {
+        "portal_index": 5,
+        "global_id": 33005,
+        "linked_to": 81000
+      }
+    ],
+    "36": [
+      {
+        "portal_index": 2,
+        "global_id": 36002,
+        "linked_to": 13002
+      }
+    ],
+    "39": [
+      {
+        "portal_index": 3,
+        "global_id": 39003,
+        "linked_to": 33003
+      }
+    ],
+    "40": [
+      {
+        "portal_index": 2,
+        "global_id": 40002,
+        "linked_to": 102002
+      }
+    ],
+    "41": [
+      {
+        "portal_index": 0,
+        "global_id": 41000,
+        "game_x": -26179.0,
+        "game_y": -4495.0,
+        "linked_to": 42001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 41001,
+        "game_x": -16789.0,
+        "game_y": 9978.0,
+        "linked_to": 11000
+      },
+      {
+        "portal_index": 2,
+        "global_id": 41002,
+        "game_x": 3169.0,
+        "game_y": -9461.0,
+        "linked_to": 140002
+      },
+      {
+        "portal_index": 3,
+        "global_id": 41003,
+        "game_x": 28773.0,
+        "game_y": 11699.0,
+        "linked_to": 60000
+      }
+    ],
+    "42": [
+      {
+        "portal_index": 0,
+        "global_id": 42000,
+        "game_x": -6962.0,
+        "game_y": -5227.0,
+        "linked_to": 43003
+      },
+      {
+        "portal_index": 1,
+        "global_id": 42001,
+        "game_x": 7613.0,
+        "game_y": 4721.0,
+        "linked_to": 41000
+      }
+    ],
+    "43": [
+      {
+        "portal_index": 0,
+        "global_id": 43000,
+        "linked_to": 10000
+      },
+      {
+        "portal_index": 1,
+        "global_id": 43001,
+        "linked_to": 44001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 43002,
+        "linked_to": 142002
+      },
+      {
+        "portal_index": 3,
+        "global_id": 43003,
+        "linked_to": 42000
+      }
+    ],
+    "44": [
+      {
+        "portal_index": 0,
+        "global_id": 44000,
+        "game_x": -22839.0,
+        "game_y": -11521.0,
+        "linked_to": 45001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 44001,
+        "game_x": -18900.0,
+        "game_y": 13821.0,
+        "linked_to": 43001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 44002,
+        "game_x": -15018.0,
+        "game_y": 446.0,
+        "linked_to": 139002
+      },
+      {
+        "portal_index": 3,
+        "global_id": 44003,
+        "game_x": 16896.0,
+        "game_y": -7527.0,
+        "linked_to": 47000
+      }
+    ],
+    "45": [
+      {
+        "portal_index": 0,
+        "global_id": 45000,
+        "linked_to": 46000
+      },
+      {
+        "portal_index": 1,
+        "global_id": 45001,
+        "linked_to": 44000
+      }
+    ],
+    "46": [
+      {
+        "portal_index": 0,
+        "global_id": 46000,
+        "linked_to": 45000
+      }
+    ],
+    "47": [
+      {
+        "portal_index": 0,
+        "global_id": 47000,
+        "linked_to": 44003
+      },
+      {
+        "portal_index": 1,
+        "global_id": 47001,
+        "linked_to": 48000
+      }
+    ],
+    "48": [
+      {
+        "portal_index": 0,
+        "global_id": 48000,
+        "linked_to": 47001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 48001,
+        "linked_to": 141001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 48002,
+        "linked_to": 49001
+      }
+    ],
+    "49": [
+      {
+        "portal_index": 1,
+        "global_id": 49001,
+        "linked_to": 48002
+      }
+    ],
+    "53": [
+      {
+        "portal_index": 0,
+        "global_id": 53000,
+        "game_x": -2816.0,
+        "game_y": -7920.0,
+        "linked_to": 61001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 53001,
+        "game_x": 5327.0,
+        "game_y": -6671.0,
+        "linked_to": 63000
+      },
+      {
+        "portal_index": 2,
+        "global_id": 53002,
+        "game_x": 7539.0,
+        "game_y": 7934.0,
+        "linked_to": 17001
+      }
+    ],
+    "54": [
+      {
+        "portal_index": 0,
+        "global_id": 54000,
+        "game_x": -7515.0,
+        "game_y": 8204.0,
+        "linked_to": 58005
+      },
+      {
+        "portal_index": 1,
+        "global_id": 54001,
+        "game_x": -1299.0,
+        "game_y": -6984.0,
+        "linked_to": 14001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 54002,
+        "game_x": 7686.0,
+        "game_y": 7794.0,
+        "linked_to": 27000
+      }
+    ],
+    "55": [
+      {
+        "portal_index": 1,
+        "global_id": 55001,
+        "game_x": 253.0,
+        "game_y": 12387.0,
+        "linked_to": 58004
+      }
+    ],
+    "56": [
+      {
+        "portal_index": 0,
+        "global_id": 56000,
+        "game_x": -20158.0,
+        "game_y": 9072.0,
+        "linked_to": 18003
+      },
+      {
+        "portal_index": 1,
+        "global_id": 56001,
+        "game_x": -19935.0,
+        "game_y": -4237.0,
+        "linked_to": 18004
+      },
+      {
+        "portal_index": 4,
+        "global_id": 56004,
+        "game_x": -4181.0,
+        "game_y": -11659.0,
+        "linked_to": 59004
+      }
+    ],
+    "57": [
+      {
+        "portal_index": 5,
+        "global_id": 57005,
+        "game_x": 15421.0,
+        "game_y": -15051.0,
+        "linked_to": 59005
+      }
+    ],
+    "58": [
+      {
+        "portal_index": 2,
+        "global_id": 58002,
+        "game_x": -19588.0,
+        "game_y": 15819.0,
+        "linked_to": 59007
+      },
+      {
+        "portal_index": 3,
+        "global_id": 58003,
+        "game_x": -11584.0,
+        "game_y": -19525.0,
+        "linked_to": 15000
+      },
+      {
+        "portal_index": 4,
+        "global_id": 58004,
+        "game_x": 6397.0,
+        "game_y": -18333.0,
+        "linked_to": 55001
+      },
+      {
+        "portal_index": 5,
+        "global_id": 58005,
+        "game_x": 20133.0,
+        "game_y": 11276.0,
+        "linked_to": 54000
+      }
+    ],
+    "59": [
+      {
+        "portal_index": 3,
+        "global_id": 59003,
+        "game_x": -14607.0,
+        "game_y": 19043.0,
+        "linked_to": 136002
+      },
+      {
+        "portal_index": 4,
+        "global_id": 59004,
+        "game_x": -4181.0,
+        "game_y": -11659.0,
+        "linked_to": 56004
+      },
+      {
+        "portal_index": 5,
+        "global_id": 59005,
+        "game_x": 15421.0,
+        "game_y": -15051.0,
+        "linked_to": 57005
+      },
+      {
+        "portal_index": 7,
+        "global_id": 59007,
+        "game_x": 20348.0,
+        "game_y": 3531.0,
+        "linked_to": 58002
+      }
+    ],
+    "60": [
+      {
+        "portal_index": 0,
+        "global_id": 60000,
+        "game_x": -23451.0,
+        "game_y": -589.0,
+        "linked_to": 41003
+      },
+      {
+        "portal_index": 1,
+        "global_id": 60001,
+        "game_x": 23147.0,
+        "game_y": -5549.0,
+        "linked_to": 17000
+      }
+    ],
+    "61": [
+      {
+        "portal_index": 0,
+        "global_id": 61000,
+        "game_x": -7233.0,
+        "game_y": -19882.0,
+        "linked_to": 73000
+      },
+      {
+        "portal_index": 1,
+        "global_id": 61001,
+        "game_x": 6400.0,
+        "game_y": 22800.0,
+        "linked_to": 53000
+      }
+    ],
+    "62": [
+      {
+        "portal_index": 0,
+        "global_id": 62000,
+        "game_x": -21894.0,
+        "game_y": -10589.0,
+        "linked_to": 16000
+      },
+      {
+        "portal_index": 1,
+        "global_id": 62001,
+        "game_x": 17347.0,
+        "game_y": -9763.0,
+        "linked_to": 136001
+      }
+    ],
+    "63": [
+      {
+        "portal_index": 0,
+        "global_id": 63000,
+        "game_x": -13105.0,
+        "game_y": 20977.0,
+        "linked_to": 53001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 63001,
+        "game_x": 1938.0,
+        "game_y": 11295.0,
+        "linked_to": 137001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 63002,
+        "game_x": 7720.0,
+        "game_y": -14424.0,
+        "linked_to": 19000
+      }
+    ],
+    "64": [
+      {
+        "portal_index": 0,
+        "global_id": 64000,
+        "game_x": 9444.0,
+        "game_y": 21858.0,
+        "linked_to": 18002
+      }
+    ],
+    "73": [
+      {
+        "portal_index": 0,
+        "global_id": 73000,
+        "linked_to": 61000
+      }
+    ],
+    "81": [
+      {
+        "portal_index": 0,
+        "global_id": 81000,
+        "linked_to": 33005
+      },
+      {
+        "portal_index": 2,
+        "global_id": 81002,
+        "linked_to": 28001
+      }
+    ],
+    "88": [
+      {
+        "portal_index": 0,
+        "global_id": 88000,
+        "linked_to": 89003
+      },
+      {
+        "portal_index": 1,
+        "global_id": 88001,
+        "linked_to": 99001
+      }
+    ],
+    "89": [
+      {
+        "portal_index": 0,
+        "global_id": 89000,
+        "linked_to": 100001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 89001,
+        "linked_to": 132001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 89002,
+        "linked_to": 21000
+      },
+      {
+        "portal_index": 3,
+        "global_id": 89003,
+        "linked_to": 88000
+      }
+    ],
+    "90": [
+      {
+        "portal_index": 1,
+        "global_id": 90001,
+        "linked_to": 97001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 90002,
+        "linked_to": 133002
+      }
+    ],
+    "91": [
+      {
+        "portal_index": 0,
+        "global_id": 91000,
+        "linked_to": 97000
+      },
+      {
+        "portal_index": 3,
+        "global_id": 91003,
+        "linked_to": 191000
+      }
+    ],
+    "97": [
+      {
+        "portal_index": 0,
+        "global_id": 97000,
+        "linked_to": 91000
+      },
+      {
+        "portal_index": 1,
+        "global_id": 97001,
+        "linked_to": 90001
+      }
+    ],
+    "99": [
+      {
+        "portal_index": 0,
+        "global_id": 99000,
+        "linked_to": 25000
+      },
+      {
+        "portal_index": 1,
+        "global_id": 99001,
+        "linked_to": 88001
+      },
+      {
+        "portal_index": 3,
+        "global_id": 99003,
+        "linked_to": 134003
+      },
+      {
+        "portal_index": 4,
+        "global_id": 99004,
+        "linked_to": 103000
+      }
+    ],
+    "100": [
+      {
+        "portal_index": 0,
+        "global_id": 100000,
+        "linked_to": 27001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 100001,
+        "linked_to": 89000
+      },
+      {
+        "portal_index": 2,
+        "global_id": 100002,
+        "linked_to": 133000
+      }
+    ],
+    "101": [
+      {
+        "portal_index": 0,
+        "global_id": 101000,
+        "linked_to": 33004
+      },
+      {
+        "portal_index": 1,
+        "global_id": 101001,
+        "linked_to": 29004
+      },
+      {
+        "portal_index": 2,
+        "global_id": 101002,
+        "linked_to": 104001
+      }
+    ],
+    "102": [
+      {
+        "portal_index": 0,
+        "global_id": 102000,
+        "linked_to": 13004
+      },
+      {
+        "portal_index": 1,
+        "global_id": 102001,
+        "linked_to": 33001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 102002,
+        "linked_to": 40002
+      }
+    ],
+    "103": [
+      {
+        "portal_index": 0,
+        "global_id": 103000,
+        "linked_to": 99004
+      },
+      {
+        "portal_index": 1,
+        "global_id": 103001,
+        "linked_to": 13000
+      }
+    ],
+    "104": [
+      {
+        "portal_index": 1,
+        "global_id": 104001,
+        "linked_to": 101002
+      },
+      {
+        "portal_index": 2,
+        "global_id": 104002,
+        "linked_to": 131002
+      },
+      {
+        "portal_index": 3,
+        "global_id": 104003,
+        "linked_to": 107003
+      }
+    ],
+    "105": [
+      {
+        "portal_index": 22,
+        "global_id": 105022,
+        "linked_to": 106022
+      }
+    ],
+    "106": [
+      {
+        "portal_index": 3,
+        "global_id": 106003,
+        "linked_to": 13003
+      },
+      {
+        "portal_index": 22,
+        "global_id": 106022,
+        "linked_to": 105022
+      }
+    ],
+    "107": [
+      {
+        "portal_index": 0,
+        "global_id": 107000,
+        "linked_to": 30001
+      },
+      {
+        "portal_index": 1,
+        "global_id": 107001,
+        "linked_to": 135001
+      },
+      {
+        "portal_index": 3,
+        "global_id": 107003,
+        "linked_to": 104003
+      }
+    ],
+    "131": [
+      {
+        "portal_index": 2,
+        "global_id": 131002,
+        "linked_to": 104002
+      }
+    ],
+    "132": [
+      {
+        "portal_index": 1,
+        "global_id": 132001,
+        "linked_to": 89001
+      }
+    ],
+    "133": [
+      {
+        "portal_index": 0,
+        "global_id": 133000,
+        "linked_to": 100002
+      },
+      {
+        "portal_index": 2,
+        "global_id": 133002,
+        "linked_to": 90002
+      }
+    ],
+    "134": [
+      {
+        "portal_index": 3,
+        "global_id": 134003,
+        "linked_to": 99003
+      }
+    ],
+    "135": [
+      {
+        "portal_index": 1,
+        "global_id": 135001,
+        "linked_to": 107001
+      }
+    ],
+    "136": [
+      {
+        "portal_index": 1,
+        "global_id": 136001,
+        "game_x": 17347.0,
+        "game_y": -9763.0,
+        "linked_to": 62001
+      },
+      {
+        "portal_index": 2,
+        "global_id": 136002,
+        "game_x": 22257.0,
+        "game_y": -11677.0,
+        "linked_to": 59003
+      }
+    ],
+    "137": [
+      {
+        "portal_index": 1,
+        "global_id": 137001,
+        "game_x": 1938.0,
+        "game_y": 11295.0,
+        "linked_to": 63001
+      }
+    ],
+    "138": [
+      {
+        "portal_index": 1,
+        "global_id": 138001,
+        "game_x": -5236.0,
+        "game_y": 16104.0,
+        "linked_to": 18001
+      }
+    ],
+    "139": [
+      {
+        "portal_index": 2,
+        "global_id": 139002,
+        "game_x": -15018.0,
+        "game_y": 446.0,
+        "linked_to": 44002
+      }
+    ],
+    "140": [
+      {
+        "portal_index": 2,
+        "global_id": 140002,
+        "game_x": 3169.0,
+        "game_y": -9461.0,
+        "linked_to": 41002
+      }
+    ],
+    "141": [
+      {
+        "portal_index": 1,
+        "global_id": 141001,
+        "linked_to": 48001
+      }
+    ],
+    "142": [
+      {
+        "portal_index": 2,
+        "global_id": 142002,
+        "linked_to": 43002
+      }
+    ],
+    "191": [
+      {
+        "portal_index": 0,
+        "global_id": 191000,
+        "linked_to": 91003
+      },
+      {
+        "portal_index": 2,
+        "global_id": 191002,
+        "linked_to": 206002
+      }
+    ],
+    "206": [
+      {
+        "portal_index": 2,
+        "global_id": 206002,
+        "linked_to": 191002
+      }
+    ]
+  }
+}

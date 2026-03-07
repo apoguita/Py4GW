@@ -9,17 +9,13 @@
         "global_id": 10000,
         "map_id": 10,
         "map_name": "Bloodstone Fen outpost",
-        "portal_index": 0,
-        "game_x": 26257.0,
-        "game_y": -7240.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 43000,
         "map_id": 43,
         "map_name": "Silverwood",
-        "portal_index": 0,
-        "game_x": -13679.0,
-        "game_y": 17336.0
+        "portal_index": 0
       }
     },
     {
@@ -47,17 +43,13 @@
         "global_id": 13000,
         "map_id": 13,
         "map_name": "Diessa Lowlands",
-        "portal_index": 0,
-        "game_x": -23318.0,
-        "game_y": 17600.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 103001,
         "map_id": 103,
         "map_name": "Ascalon Foothills",
-        "portal_index": 1,
-        "game_x": 7402.0,
-        "game_y": -6976.0
+        "portal_index": 1
       }
     },
     {
@@ -66,17 +58,13 @@
         "global_id": 13001,
         "map_id": 13,
         "map_name": "Diessa Lowlands",
-        "portal_index": 1,
-        "game_x": -22748.0,
-        "game_y": -16740.0
+        "portal_index": 1
       },
       "portal_b": {
         "global_id": 32000,
         "map_id": 32,
         "map_name": "Nolani Academy outpost",
-        "portal_index": 0,
-        "game_x": -1244.0,
-        "game_y": 20124.0
+        "portal_index": 0
       }
     },
     {
@@ -85,17 +73,13 @@
         "global_id": 13002,
         "map_id": 13,
         "map_name": "Diessa Lowlands",
-        "portal_index": 2,
-        "game_x": 1974.0,
-        "game_y": 13627.0
+        "portal_index": 2
       },
       "portal_b": {
         "global_id": 36002,
         "map_id": 36,
         "map_name": "Grendich Courthouse",
-        "portal_index": 2,
-        "game_x": 1974.0,
-        "game_y": 13627.0
+        "portal_index": 2
       }
     },
     {
@@ -104,9 +88,7 @@
         "global_id": 13003,
         "map_id": 13,
         "map_name": "Diessa Lowlands",
-        "portal_index": 3,
-        "game_x": 21444.0,
-        "game_y": 17329.0
+        "portal_index": 3
       },
       "portal_b": {
         "global_id": 106003,
@@ -121,9 +103,7 @@
         "global_id": 13004,
         "map_id": 13,
         "map_name": "Diessa Lowlands",
-        "portal_index": 4,
-        "game_x": 23573.0,
-        "game_y": -15239.0
+        "portal_index": 4
       },
       "portal_b": {
         "global_id": 102000,
@@ -287,6 +267,25 @@
     {
       "link_id": 16,
       "portal_a": {
+        "global_id": 18003,
+        "map_id": 18,
+        "map_name": "The Black Curtain",
+        "portal_index": 3,
+        "game_x": 19778.0,
+        "game_y": 18288.0
+      },
+      "portal_b": {
+        "global_id": 56000,
+        "map_id": 56,
+        "map_name": "Cursed Lands",
+        "portal_index": 0,
+        "game_x": -20158.0,
+        "game_y": 9072.0
+      }
+    },
+    {
+      "link_id": 17,
+      "portal_a": {
         "global_id": 18004,
         "map_id": 18,
         "map_name": "The Black Curtain",
@@ -304,14 +303,12 @@
       }
     },
     {
-      "link_id": 17,
+      "link_id": 18,
       "portal_a": {
         "global_id": 19000,
         "map_id": 19,
         "map_name": "Sanctum Cay outpost",
-        "portal_index": 0,
-        "game_x": -23000.0,
-        "game_y": 7080.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 63002,
@@ -323,45 +320,37 @@
       }
     },
     {
-      "link_id": 18,
+      "link_id": 19,
       "portal_a": {
         "global_id": 21000,
         "map_id": 21,
         "map_name": "The Frost Gate outpost",
-        "portal_index": 0,
-        "game_x": 6585.0,
-        "game_y": 31227.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 89002,
         "map_id": 89,
         "map_name": "Anvil Rock",
-        "portal_index": 2,
-        "game_x": 18873.0,
-        "game_y": -17925.0
+        "portal_index": 2
       }
     },
     {
-      "link_id": 19,
+      "link_id": 20,
       "portal_a": {
         "global_id": 25000,
         "map_id": 25,
         "map_name": "Borlis Pass outpost",
-        "portal_index": 0,
-        "game_x": 25890.0,
-        "game_y": -2346.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 99000,
         "map_id": 99,
         "map_name": "Traveler's Vale",
-        "portal_index": 0,
-        "game_x": -10974.0,
-        "game_y": -8490.0
+        "portal_index": 0
       }
     },
     {
-      "link_id": 20,
+      "link_id": 21,
       "portal_a": {
         "global_id": 27000,
         "map_id": 27,
@@ -380,7 +369,7 @@
       }
     },
     {
-      "link_id": 21,
+      "link_id": 22,
       "portal_a": {
         "global_id": 27001,
         "map_id": 27,
@@ -393,13 +382,11 @@
         "global_id": 100000,
         "map_id": 100,
         "map_name": "Deldrimor Bowl",
-        "portal_index": 0,
-        "game_x": -13812.0,
-        "game_y": -22883.0
+        "portal_index": 0
       }
     },
     {
-      "link_id": 22,
+      "link_id": 23,
       "portal_a": {
         "global_id": 28001,
         "map_id": 28,
@@ -414,7 +401,7 @@
       }
     },
     {
-      "link_id": 23,
+      "link_id": 24,
       "portal_a": {
         "global_id": 29004,
         "map_id": 29,
@@ -429,7 +416,7 @@
       }
     },
     {
-      "link_id": 24,
+      "link_id": 25,
       "portal_a": {
         "global_id": 30001,
         "map_id": 30,
@@ -444,7 +431,7 @@
       }
     },
     {
-      "link_id": 25,
+      "link_id": 26,
       "portal_a": {
         "global_id": 33001,
         "map_id": 33,
@@ -459,7 +446,7 @@
       }
     },
     {
-      "link_id": 26,
+      "link_id": 27,
       "portal_a": {
         "global_id": 33003,
         "map_id": 33,
@@ -474,7 +461,7 @@
       }
     },
     {
-      "link_id": 27,
+      "link_id": 28,
       "portal_a": {
         "global_id": 33004,
         "map_id": 33,
@@ -489,7 +476,7 @@
       }
     },
     {
-      "link_id": 28,
+      "link_id": 29,
       "portal_a": {
         "global_id": 33005,
         "map_id": 33,
@@ -504,7 +491,7 @@
       }
     },
     {
-      "link_id": 29,
+      "link_id": 30,
       "portal_a": {
         "global_id": 40002,
         "map_id": 40,
@@ -519,7 +506,7 @@
       }
     },
     {
-      "link_id": 30,
+      "link_id": 31,
       "portal_a": {
         "global_id": 41000,
         "map_id": 41,
@@ -538,7 +525,7 @@
       }
     },
     {
-      "link_id": 31,
+      "link_id": 32,
       "portal_a": {
         "global_id": 41002,
         "map_id": 41,
@@ -557,7 +544,7 @@
       }
     },
     {
-      "link_id": 32,
+      "link_id": 33,
       "portal_a": {
         "global_id": 41003,
         "map_id": 41,
@@ -576,7 +563,7 @@
       }
     },
     {
-      "link_id": 33,
+      "link_id": 34,
       "portal_a": {
         "global_id": 42000,
         "map_id": 42,
@@ -589,20 +576,16 @@
         "global_id": 43003,
         "map_id": 43,
         "map_name": "Silverwood",
-        "portal_index": 3,
-        "game_x": 17614.0,
-        "game_y": 13205.0
+        "portal_index": 3
       }
     },
     {
-      "link_id": 34,
+      "link_id": 35,
       "portal_a": {
         "global_id": 43001,
         "map_id": 43,
         "map_name": "Silverwood",
-        "portal_index": 1,
-        "game_x": -9684.0,
-        "game_y": -19971.0
+        "portal_index": 1
       },
       "portal_b": {
         "global_id": 44001,
@@ -614,26 +597,22 @@
       }
     },
     {
-      "link_id": 35,
+      "link_id": 36,
       "portal_a": {
         "global_id": 43002,
         "map_id": 43,
         "map_name": "Silverwood",
-        "portal_index": 2,
-        "game_x": 1866.0,
-        "game_y": -2489.0
+        "portal_index": 2
       },
       "portal_b": {
         "global_id": 142002,
         "map_id": 142,
         "map_name": "Quarrel Falls",
-        "portal_index": 2,
-        "game_x": 1866.0,
-        "game_y": -2489.0
+        "portal_index": 2
       }
     },
     {
-      "link_id": 36,
+      "link_id": 37,
       "portal_a": {
         "global_id": 44000,
         "map_id": 44,
@@ -646,13 +625,11 @@
         "global_id": 45001,
         "map_id": 45,
         "map_name": "Reed Bog",
-        "portal_index": 1,
-        "game_x": 7881.0,
-        "game_y": 6911.0
+        "portal_index": 1
       }
     },
     {
-      "link_id": 37,
+      "link_id": 38,
       "portal_a": {
         "global_id": 44002,
         "map_id": 44,
@@ -671,7 +648,7 @@
       }
     },
     {
-      "link_id": 38,
+      "link_id": 39,
       "portal_a": {
         "global_id": 44003,
         "map_id": 44,
@@ -684,89 +661,71 @@
         "global_id": 47000,
         "map_id": 47,
         "map_name": "Dry Top",
-        "portal_index": 0,
-        "game_x": -7680.0,
-        "game_y": 7833.0
-      }
-    },
-    {
-      "link_id": 39,
-      "portal_a": {
-        "global_id": 45000,
-        "map_id": 45,
-        "map_name": "Reed Bog",
-        "portal_index": 0,
-        "game_x": -6444.0,
-        "game_y": -7932.0
-      },
-      "portal_b": {
-        "global_id": 46000,
-        "map_id": 46,
-        "map_name": "The Falls",
-        "portal_index": 0,
-        "game_x": 18132.0,
-        "game_y": 4356.0
+        "portal_index": 0
       }
     },
     {
       "link_id": 40,
       "portal_a": {
-        "global_id": 47001,
-        "map_id": 47,
-        "map_name": "Dry Top",
-        "portal_index": 1,
-        "game_x": 5182.0,
-        "game_y": -7674.0
+        "global_id": 45000,
+        "map_id": 45,
+        "map_name": "Reed Bog",
+        "portal_index": 0
       },
       "portal_b": {
-        "global_id": 48000,
-        "map_id": 48,
-        "map_name": "Tangle Root",
-        "portal_index": 0,
-        "game_x": -19394.0,
-        "game_y": 4614.0
+        "global_id": 46000,
+        "map_id": 46,
+        "map_name": "The Falls",
+        "portal_index": 0
       }
     },
     {
       "link_id": 41,
       "portal_a": {
-        "global_id": 48001,
-        "map_id": 48,
-        "map_name": "Tangle Root",
-        "portal_index": 1,
-        "game_x": 679.0,
-        "game_y": -10069.0
+        "global_id": 47001,
+        "map_id": 47,
+        "map_name": "Dry Top",
+        "portal_index": 1
       },
       "portal_b": {
-        "global_id": 141001,
-        "map_id": 141,
-        "map_name": "Maguuma Stade",
-        "portal_index": 1,
-        "game_x": 679.0,
-        "game_y": -10069.0
+        "global_id": 48000,
+        "map_id": 48,
+        "map_name": "Tangle Root",
+        "portal_index": 0
       }
     },
     {
       "link_id": 42,
       "portal_a": {
+        "global_id": 48001,
+        "map_id": 48,
+        "map_name": "Tangle Root",
+        "portal_index": 1
+      },
+      "portal_b": {
+        "global_id": 141001,
+        "map_id": 141,
+        "map_name": "Maguuma Stade",
+        "portal_index": 1
+      }
+    },
+    {
+      "link_id": 43,
+      "portal_a": {
         "global_id": 48002,
         "map_id": 48,
         "map_name": "Tangle Root",
-        "portal_index": 2,
-        "game_x": 12479.0,
-        "game_y": 13942.0
+        "portal_index": 2
       },
       "portal_b": {
         "global_id": 49001,
         "map_id": 49,
         "map_name": "Henge of Denravi",
-        "portal_index": 1,
-        "game_x": 6335.0,
-        "game_y": -10634.0
+        "portal_index": 1
       }
     },
     {
-      "link_id": 43,
+      "link_id": 44,
       "portal_a": {
         "global_id": 53000,
         "map_id": 53,
@@ -785,7 +744,7 @@
       }
     },
     {
-      "link_id": 44,
+      "link_id": 45,
       "portal_a": {
         "global_id": 53001,
         "map_id": 53,
@@ -804,7 +763,7 @@
       }
     },
     {
-      "link_id": 45,
+      "link_id": 46,
       "portal_a": {
         "global_id": 54000,
         "map_id": 54,
@@ -823,7 +782,7 @@
       }
     },
     {
-      "link_id": 46,
+      "link_id": 47,
       "portal_a": {
         "global_id": 55001,
         "map_id": 55,
@@ -839,25 +798,6 @@
         "portal_index": 4,
         "game_x": 6397.0,
         "game_y": -18333.0
-      }
-    },
-    {
-      "link_id": 47,
-      "portal_a": {
-        "global_id": 56000,
-        "map_id": 56,
-        "map_name": "Cursed Lands",
-        "portal_index": 0,
-        "game_x": -20158.0,
-        "game_y": 9072.0
-      },
-      "portal_b": {
-        "global_id": 59000,
-        "map_id": 59,
-        "map_name": "Nebo Terrace",
-        "portal_index": 0,
-        "game_x": -20158.0,
-        "game_y": 9072.0
       }
     },
     {
@@ -950,9 +890,7 @@
         "global_id": 73000,
         "map_id": 73,
         "map_name": "Riverside Province outpost",
-        "portal_index": 0,
-        "game_x": -16449.0,
-        "game_y": 13910.0
+        "portal_index": 0
       }
     },
     {
@@ -999,17 +937,13 @@
         "global_id": 88000,
         "map_id": 88,
         "map_name": "Iron Horse Mine",
-        "portal_index": 0,
-        "game_x": -25828.0,
-        "game_y": 1892.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 89003,
         "map_id": 89,
         "map_name": "Anvil Rock",
-        "portal_index": 3,
-        "game_x": 20252.0,
-        "game_y": 20324.0
+        "portal_index": 3
       }
     },
     {
@@ -1018,17 +952,13 @@
         "global_id": 88001,
         "map_id": 88,
         "map_name": "Iron Horse Mine",
-        "portal_index": 1,
-        "game_x": 25935.0,
-        "game_y": -7485.0
+        "portal_index": 1
       },
       "portal_b": {
         "global_id": 99001,
         "map_id": 99,
         "map_name": "Traveler's Vale",
-        "portal_index": 1,
-        "game_x": -10929.0,
-        "game_y": 14019.0
+        "portal_index": 1
       }
     },
     {
@@ -1037,17 +967,13 @@
         "global_id": 89000,
         "map_id": 89,
         "map_name": "Anvil Rock",
-        "portal_index": 0,
-        "game_x": -17556.0,
-        "game_y": -16979.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 100001,
         "map_id": 100,
         "map_name": "Deldrimor Bowl",
-        "portal_index": 1,
-        "game_x": 13164.0,
-        "game_y": 26029.0
+        "portal_index": 1
       }
     },
     {
@@ -1056,17 +982,13 @@
         "global_id": 89001,
         "map_id": 89,
         "map_name": "Anvil Rock",
-        "portal_index": 1,
-        "game_x": -12097.0,
-        "game_y": 11518.0
+        "portal_index": 1
       },
       "portal_b": {
         "global_id": 132001,
         "map_id": 132,
         "map_name": "Ice Tooth Cave",
-        "portal_index": 1,
-        "game_x": -12097.0,
-        "game_y": 11518.0
+        "portal_index": 1
       }
     },
     {
@@ -1075,17 +997,13 @@
         "global_id": 90001,
         "map_id": 90,
         "map_name": "Lornar's Pass",
-        "portal_index": 1,
-        "game_x": -8469.0,
-        "game_y": -34963.0
+        "portal_index": 1
       },
       "portal_b": {
         "global_id": 97001,
         "map_id": 97,
         "map_name": "Dreadnought's Drift",
-        "portal_index": 1,
-        "game_x": -5397.0,
-        "game_y": 8045.0
+        "portal_index": 1
       }
     },
     {
@@ -1094,17 +1012,13 @@
         "global_id": 90002,
         "map_id": 90,
         "map_name": "Lornar's Pass",
-        "portal_index": 2,
-        "game_x": -8460.0,
-        "game_y": 33258.0
+        "portal_index": 2
       },
       "portal_b": {
         "global_id": 133002,
         "map_id": 133,
         "map_name": "Beacons Perch",
-        "portal_index": 2,
-        "game_x": -8460.0,
-        "game_y": 33258.0
+        "portal_index": 2
       }
     },
     {
@@ -1113,17 +1027,13 @@
         "global_id": 91000,
         "map_id": 91,
         "map_name": "Snake Dance",
-        "portal_index": 0,
-        "game_x": -7231.0,
-        "game_y": 44812.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 97000,
         "map_id": 97,
         "map_name": "Dreadnought's Drift",
-        "portal_index": 0,
-        "game_x": -7231.0,
-        "game_y": -7412.0
+        "portal_index": 0
       }
     },
     {
@@ -1132,9 +1042,7 @@
         "global_id": 91003,
         "map_id": 91,
         "map_name": "Snake Dance",
-        "portal_index": 3,
-        "game_x": 8252.0,
-        "game_y": -3431.0
+        "portal_index": 3
       },
       "portal_b": {
         "global_id": 191000,
@@ -1149,17 +1057,13 @@
         "global_id": 99003,
         "map_id": 99,
         "map_name": "Traveler's Vale",
-        "portal_index": 3,
-        "game_x": 9246.0,
-        "game_y": 4034.0
+        "portal_index": 3
       },
       "portal_b": {
         "global_id": 134003,
         "map_id": 134,
         "map_name": "Yaks Bend",
-        "portal_index": 3,
-        "game_x": 9246.0,
-        "game_y": 4034.0
+        "portal_index": 3
       }
     },
     {
@@ -1168,17 +1072,13 @@
         "global_id": 99004,
         "map_id": 99,
         "map_name": "Traveler's Vale",
-        "portal_index": 4,
-        "game_x": 10971.0,
-        "game_y": -17122.0
+        "portal_index": 4
       },
       "portal_b": {
         "global_id": 103000,
         "map_id": 103,
         "map_name": "Ascalon Foothills",
-        "portal_index": 0,
-        "game_x": -7461.0,
-        "game_y": 7454.0
+        "portal_index": 0
       }
     },
     {
@@ -1187,17 +1087,13 @@
         "global_id": 100002,
         "map_id": 100,
         "map_name": "Deldrimor Bowl",
-        "portal_index": 2,
-        "game_x": 13839.0,
-        "game_y": -23024.0
+        "portal_index": 2
       },
       "portal_b": {
         "global_id": 133000,
         "map_id": 133,
         "map_name": "Beacons Perch",
-        "portal_index": 0,
-        "game_x": -10737.0,
-        "game_y": 35344.0
+        "portal_index": 0
       }
     },
     {
