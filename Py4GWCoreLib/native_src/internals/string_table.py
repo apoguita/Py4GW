@@ -270,6 +270,8 @@ def _postprocess_basic(text: str) -> str:
     for old, new in _BRACKET_SUBS.items():
         if old in text:
             text = text.replace(old, new)
+    if "%%" in text:
+        text = text.replace("%%", "%")
     return text
 
 
@@ -359,14 +361,16 @@ def _parse_number_codepoints(codepoints: tuple[int, ...], start: int) -> tuple[i
     n = len(codepoints)
     i = start
     value = 0
+    parsed_any = False
 
     while i < n:
         cp = codepoints[i]
-        if cp == 0 or cp == 1 or _is_arg_tag(cp):
+        if cp == 0 or cp == 1 or cp == 2:
             break
         digit = (cp & 0x7FFF) - _BASE
         if digit < 0:
             break
+        parsed_any = True
         if cp & _MORE:
             value = (value + digit) * _RANGE
         else:
@@ -374,6 +378,10 @@ def _parse_number_codepoints(codepoints: tuple[int, ...], start: int) -> tuple[i
             i += 1
             break
         i += 1
+
+    # If no numeric digit was parsed, treat as 0 and let caller continue at same index.
+    if not parsed_any:
+        return 0, i
 
     if i < n and codepoints[i] == 1:
         i += 1
@@ -409,7 +417,7 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
     head_start = i
     while i < n:
         cp = codepoints[i]
-        if cp == 0 or cp == 1 or _is_arg_tag(cp):
+        if cp == 0 or cp == 1 or cp == 2 or _is_arg_tag(cp):
             break
         i += 1
 
@@ -433,8 +441,9 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
 
         for slot, arg_node in args.items():
             arg_text = arg_node.get("rendered", "")
-            if arg_text and rendered:
-                rendered = rendered.replace(f"%str{slot}%", arg_text)
+            marker = f"%str{slot}%"
+            if arg_text and rendered and marker in rendered:
+                rendered = rendered.replace(marker, arg_text)
         has_plural_markers = _has_plural_markers(rendered)
         for slot, value in num_args.items():
             if slot == 1 and value == 1 and has_plural_markers:
@@ -445,16 +454,25 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
         rendered = re.sub(r'\s{2,}', ' ', rendered).strip()
 
         # Some payloads are wrapper nodes with only control tags and nested args.
-        # Forward first non-empty child so outer %strN% can still resolve.
+        # Forward first non-empty descendant so outer %strN% can still resolve.
         if not rendered and args:
+            def _first_nonempty_desc(node: dict) -> str:
+                txt = node.get("rendered", "")
+                if txt:
+                    return txt
+                for k in sorted((node.get("args") or {}).keys()):
+                    out = _first_nonempty_desc(node["args"][k])
+                    if out:
+                        return out
+                return ""
+
             child = args.get(1)
-            if child is None or not child.get("rendered", ""):
+            if child is None:
                 for k in sorted(args.keys()):
-                    if args[k].get("rendered", ""):
-                        child = args[k]
-                        break
+                    child = args[k]
+                    break
             if child is not None:
-                rendered = child.get("rendered", "")
+                rendered = _first_nonempty_desc(child)
 
     # Consume expression terminator (0x0001) if present.
     if i < n and codepoints[i] == 1:
@@ -468,6 +486,56 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
         "expr_cp": codepoints[start:i],
         "head_cp": codepoints[head_start:i] if i > head_start else (),
     }, i
+
+
+def _decode_formatted_stream(codepoints: tuple[int, ...]) -> tuple[str, Optional[dict]]:
+    """Decode a full formatted stream with multiple expressions/separators."""
+    n = len(codepoints)
+    i = 0
+    out: list[str] = []
+    first_tree: Optional[dict] = None
+
+    while i < n:
+        cp = codepoints[i]
+        if cp == 0:
+            break
+        if cp == 1:
+            i += 1
+            continue
+        if cp == 2:
+            # Stream separator between formatted segments.
+            i += 1
+            continue
+
+        tree, ni = _decode_formatted_tree(codepoints, i)
+        if ni <= i:
+            i += 1
+            continue
+        txt = tree.get("rendered", "")
+        if txt:
+            out.append(txt)
+            if first_tree is None:
+                first_tree = tree
+        i = ni
+
+    # Fill unresolved %strN% placeholders from immediate following plain line.
+    compact: list[str] = []
+    i = 0
+    while i < len(out):
+        cur = out[i].strip()
+        if not cur:
+            i += 1
+            continue
+        if re.search(r'%str\d+%', cur) and (i + 1) < len(out):
+            nxt = out[i + 1].strip()
+            if nxt and not re.search(r'%str\d+%|%num\d+%', nxt) and not nxt.startswith("<c=@"):
+                cur = re.sub(r'%str\d+%', nxt, cur)
+                i += 1  # consume next line
+        compact.append(cur)
+        i += 1
+
+    text = '\n'.join(compact).strip()
+    return text, first_tree
 
 
 def _decode_formatted_codepoints(codepoints: tuple[int, ...], start: int = 0) -> tuple[str, int]:
@@ -926,13 +994,14 @@ def _decode_and_cache(raw: bytes) -> None:
         unresolved = bool(re.search(r'%str\d+%|%num\d+%|\[pl:"', legacy_text))
 
         if looks_formatted or unresolved:
-            tree, _ = _decode_formatted_tree(cp, 0)
-            text = tree.get("rendered", "")
+            text, first_tree = _decode_formatted_stream(cp)
             if text:
                 text = _postprocess(text)
                 _decode_cache[raw] = text
-                ItemName._parts_cache[raw] = _extract_parts_from_tree(tree)
-                ItemName._parts_encoded_cache[raw] = _extract_parts_encoded_from_tree(tree)
+                if first_tree is None:
+                    first_tree, _ = _decode_formatted_tree(cp, 0)
+                ItemName._parts_cache[raw] = _extract_parts_from_tree(first_tree)
+                ItemName._parts_encoded_cache[raw] = _extract_parts_encoded_from_tree(first_tree)
                 return
 
         if legacy_text:
