@@ -77,6 +77,15 @@ COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS = {
     int(ModelID.Feather.value),
     int(ModelID.Iron_Ingot.value),
 }
+FOW_NON_CONS_COMMON_MATERIAL_MODELS = (
+    ModelID.Bolt_Of_Cloth,
+    ModelID.Chitin_Fragment,
+    ModelID.Granite_Slab,
+    ModelID.Plant_Fiber,
+    ModelID.Scale,
+    ModelID.Tanned_Hide_Square,
+    ModelID.Wood_Plank,
+)
 
 
 @dataclass(slots=True)
@@ -141,7 +150,7 @@ def _resolve_materials_to_sell(options: ModularFowOptions) -> list[str] | None:
         return [
             material_name
             for model_id, material_name in MaterialMap.items()
-            if int(model_id.value) not in COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS
+            if model_id in FOW_NON_CONS_COMMON_MATERIAL_MODELS
         ]
     return []
 

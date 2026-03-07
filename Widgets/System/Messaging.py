@@ -676,13 +676,22 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
+        ConsoleLog(
+            MODULE_NAME,
+            (
+                f"MerchantMaterials dispatch: mode={mode!r}, map_id={Map.GetMapID()}, "
+                f"xy=({x:.2f}, {y:.2f}), selected_models_count={0 if selected_models is None else len(selected_models)}, "
+                "max_per_item=disabled"
+            ),
+            Console.MessageType.Info,
+            False,
+        )
 
         if mode == "sell":
             sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
                 x,
                 y,
                 selected_models=selected_models,
-                max_sell_quantity_per_item=_parse_positive_int(extra2),
             )
             ConsoleLog(MODULE_NAME, f"MerchantMaterials sell metrics: {sell_metrics}", Console.MessageType.Info, False)
 
@@ -704,6 +713,13 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                 max_ecto_to_buy=_parse_positive_int(extra2),
             )
             ConsoleLog(MODULE_NAME, f"MerchantMaterials buy_ectoplasm metrics: {ecto_metrics}", Console.MessageType.Info, False)
+        else:
+            ConsoleLog(
+                MODULE_NAME,
+                f"MerchantMaterials ignored unknown mode={mode!r}. Raw extra_data={_extra_data(message)!r}",
+                Console.MessageType.Warning,
+                False,
+            )
     finally:
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)

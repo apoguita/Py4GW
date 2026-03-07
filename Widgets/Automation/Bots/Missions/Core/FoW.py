@@ -416,13 +416,6 @@ def main():
         _draw_prestart_window()
         return
 
-    _debug(
-        "Tick: "
-        f"fsm_running={bot.bot.config.fsm_running} "
-        f"initialized={bot.bot.config.initialized} "
-        f"fsm_states={len(bot.bot.config.FSM.states)} "
-        f"current_state={getattr(bot.bot.config.FSM.current_state, 'name', None)}"
-    )
     bot.update()
 
 

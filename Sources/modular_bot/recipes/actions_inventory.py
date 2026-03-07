@@ -300,8 +300,6 @@ def handle_sell_materials(ctx: StepContext) -> None:
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
     multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
     multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
-    max_sell_quantity_per_item_raw = parse_step_int(ctx.step.get("max_sell_quantity_per_item", 0), 0)
-    max_sell_quantity_per_item = max_sell_quantity_per_item_raw if max_sell_quantity_per_item_raw > 0 else None
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
     selected_models: set[int] | None = None
@@ -344,20 +342,11 @@ def handle_sell_materials(ctx: StepContext) -> None:
             return
 
         x, y = coords
-        log_recipe(ctx, f"sell_materials: resolved trader at ({x}, {y}), executing merchant routine.")
-        sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
-            x,
-            y,
-            selected_models=selected_models,
-            max_sell_quantity_per_item=max_sell_quantity_per_item,
-        )
-        log_recipe(ctx, f"sell_materials metrics: {sell_metrics}")
-
+        sent_messages: list[tuple[str, int]] = []
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
-            extra_data = ("sell", _encode_material_model_filter(selected_models), str(max_sell_quantity_per_item or 0), "")
-            sent_messages: list[tuple[str, int]] = []
+            extra_data = ("sell", _encode_material_model_filter(selected_models), "", "")
             for account_email in account_emails:
                 message_index = GLOBAL_CACHE.ShMem.SendMessage(
                     sender_email,
@@ -367,6 +356,20 @@ def handle_sell_materials(ctx: StepContext) -> None:
                     extra_data,
                 )
                 sent_messages.append((account_email, int(message_index)))
+            log_recipe(
+                ctx,
+                f"sell_materials: dispatched multibox sell command to {len(sent_messages)} account(s) before local execution.",
+            )
+
+        log_recipe(ctx, f"sell_materials: resolved trader at ({x}, {y}), executing local merchant routine.")
+        sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
+            x,
+            y,
+            selected_models=selected_models,
+        )
+        log_recipe(ctx, f"sell_materials metrics: {sell_metrics}")
+
+        if multibox:
             yield from _wait_for_outbound_messages(
                 ctx,
                 "sell_materials",
