@@ -42,7 +42,8 @@ class NecromancerIcyVeinsNecrosis_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.spiritual_pain_utility: CustomSkillUtilityBase = SpiritualPainUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=10)
         self.Icy_Veins_utility: CustomSkillUtilityBase = IcyVeins_NearDeathUtility(
             event_bus=self.event_bus,
-            current_build=in_game_build
+            current_build=in_game_build,
+            skill=CustomSkill("Icy_Veins"),
         )
 
         self.arcane_echo_utility: CustomSkillUtilityBase = ArcaneEchoUtility(
