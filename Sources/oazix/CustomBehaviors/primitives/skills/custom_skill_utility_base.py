@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import traceback
 from collections.abc import Callable, Generator
 from typing import Any
 import time
@@ -81,18 +82,35 @@ class CustomSkillUtilityBase:
                 and self.utility_skill_typology != UtilitySkillTypology.INVENTORY):
                 raise Exception("only botting & daemon utility_skill_typology can perform stuff in IDLE")
 
-        score:float | None = self._evaluate(current_state, previously_attempted_skills)
+        try:
+            score:float | None = self._evaluate(current_state, previously_attempted_skills)
 
-        if score is None: return None
-        if 0 > score > 100: raise Exception(f"{self.custom_skill.skill_name} : score must be between 0 and 100, calculated {score}.")
+            if score is None:
+                if constants.DEBUG:
+                    if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO and current_state in self.allowed_states: print(f'Evaluate Reject {self.custom_skill.skill_name}')
+                return None
+            if 0 > score > 100: raise Exception(f"{self.custom_skill.skill_name} : score must be between 0 and 100, calculated {score}.")
 
-        return score
+            if constants.DEBUG:
+                if self.utility_skill_typology == UtilitySkillTypology.COMBAT: print(f'Score {score} for {self.custom_skill.skill_name}')
+
+            return score
+        except Exception as e:
+            # actually log the errors in evaluate, as mind wracks errors in base were just getting ignored
+            print(f'Evaluate Exception {self.custom_skill.skill_name}: {e}')
+            print(traceback.format_exc())
+            return None
 
     def execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
         if constants.DEBUG: print(f"Executing {self.custom_skill.skill_name}")
 
-        gen:Generator[Any | None, Any | None, BehaviorResult] = self._execute(state)
-        result:BehaviorResult = yield from gen
+        try:
+            gen:Generator[Any | None, Any | None, BehaviorResult] = self._execute(state)
+            result:BehaviorResult = yield from gen
+        except Exception as e:
+            print(f'execute Exception {self.custom_skill.skill_name}: {e}')
+            print(traceback.format_exc())
+            return BehaviorResult.ACTION_SKIPPED
 
         return result
 

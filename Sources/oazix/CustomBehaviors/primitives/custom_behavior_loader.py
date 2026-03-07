@@ -127,22 +127,28 @@ class CustomBehaviorLoader:
         matches: List[MatchResult] = []
 
         for subclass in subclasses:
-            if constants.DEBUG: print(f"Checking subclass: {subclass.__name__} (defined in {subclass.__module__})")
-            instance: CustomBehaviorBaseUtility = subclass()
+            try:
+                if constants.DEBUG: print(f"Checking subclass: {subclass.__name__} (defined in {subclass.__module__})")
+                instance: CustomBehaviorBaseUtility = subclass()
 
-            build_size = len(instance.skills_required_in_behavior)
-            if constants.DEBUG: print(f"build_size: {build_size}")
-            matching_count = instance.count_matches_between_custom_behavior_and_in_game_build()
-            if constants.DEBUG: print(f"matching_count: {matching_count}")
-            
-            if matching_count == build_size:
-                if constants.DEBUG: print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
-                # matches.append((matching_count,instance, True))
-                is_matched_with_current_build = True if matching_count > 0 else False
-                matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=is_matched_with_current_build))
-            else:
-                if constants.DEBUG: print(f"{subclass.__name__} (defined in {subclass.__module__} - Custom behavior does not match in-game build.")
-                matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=False))
+                build_size = len(instance.skills_required_in_behavior)
+                if constants.DEBUG: print(f"build_size: {build_size}")
+                matching_count = instance.count_matches_between_custom_behavior_and_in_game_build()
+                if constants.DEBUG: print(f"matching_count: {matching_count}")
+
+                if matching_count == build_size:
+                    if constants.DEBUG: print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
+                    # matches.append((matching_count,instance, True))
+                    is_matched_with_current_build = True if matching_count > 0 else False
+                    matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=is_matched_with_current_build))
+                else:
+                    if constants.DEBUG: print(f"{subclass.__name__} (defined in {subclass.__module__} - Custom behavior does not match in-game build.")
+                    matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=False))
+
+            except Exception as e:
+                # if there are errors on buildign out a skill bar class load the other classes but log the errors that prevented this one from loading
+                print(f"Exception loading subclass: {e}")
+
 
 
         matches = sorted(matches, key=lambda x: (x.matching_result, -x.matching_count))

@@ -38,7 +38,7 @@ class MindWrackUtility(CustomSkillUtilityBase):
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         return custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
                     within_range=Range.Spellcast,
-                    condition=lambda agent_id: not Agent.IsHexed(agent_id),
+                    condition=lambda agent_id: not Agent.IsHexed(agent_id) and not Agent.IsSpirit(agent_id),
                     sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.DISTANCE_ASC),
                     range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
 
@@ -50,7 +50,7 @@ class MindWrackUtility(CustomSkillUtilityBase):
         lock_key = self._get_lock_key(targets[0].agent_id)
         if CustomBehaviorParty().get_shared_lock_manager().is_lock_taken(lock_key): return None
 
-        return self.score_definition.get_score(targets[0].enemy_quantity_within_range)
+        return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
