@@ -224,6 +224,114 @@ class UIManager:
     ) -> int: ...
 
     @staticmethod
+    def create_window_by_frame_id(
+        parent_frame_id: int,
+        child_index: int,
+        frame_callback: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_flags: int = ...,
+        create_param: int = ...,
+        frame_label: str = ...,
+        anchor_flags: int = ...
+    ) -> int: ...
+
+    @staticmethod
+    def find_available_child_slot(
+        parent_frame_id: int,
+        start_index: int = ...,
+        end_index: int = ...
+    ) -> int: ...
+
+    @staticmethod
+    def resolve_devtext_dialog_proc() -> int: ...
+
+    @staticmethod
+    def ensure_devtext_source() -> Tuple[int, bool]: ...
+
+    @staticmethod
+    def restore_devtext_source(opened_temporarily: bool) -> None: ...
+
+    @staticmethod
+    def resolve_observed_content_host_by_frame_id(root_frame_id: int) -> int: ...
+
+    @staticmethod
+    def clear_frame_children_recursive_by_frame_id(frame_id: int) -> bool: ...
+
+    @staticmethod
+    def clear_window_contents_by_frame_id(root_frame_id: int) -> bool: ...
+
+    @staticmethod
+    def create_window(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_label: str = ...,
+        parent_frame_id: int = ...,
+        child_index: int = ...,
+        frame_flags: int = ...,
+        create_param: int = ...,
+        frame_callback: int = ...,
+        anchor_flags: int = ...,
+        ensure_devtext_source: bool = ...
+    ) -> int: ...
+
+    @staticmethod
+    def create_empty_window(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        frame_label: str = ...,
+        parent_frame_id: int = ...,
+        child_index: int = ...,
+        frame_flags: int = ...,
+        create_param: int = ...,
+        frame_callback: int = ...,
+        anchor_flags: int = ...,
+        ensure_devtext_source: bool = ...
+    ) -> int: ...
+
+    @staticmethod
+    def set_frame_controller_anchor_margins_by_frame_id_ex(
+        frame_id: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        flags: int = ...
+    ) -> bool: ...
+
+    @staticmethod
+    def choose_anchor_flags_for_desired_rect(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        parent_width: float,
+        parent_height: float,
+        disable_center: bool = ...
+    ) -> int: ...
+
+    @staticmethod
+    def collapse_window_by_frame_id(frame_id: int) -> bool: ...
+
+    @staticmethod
+    def restore_window_rect_by_frame_id(
+        frame_id: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        flags: int = ...,
+        use_auto_flags: bool = ...,
+        disable_center: bool = ...
+    ) -> bool: ...
+
+    @staticmethod
     def destroy_ui_component_by_frame_id(frame_id: int) -> bool: ...
 
     @staticmethod

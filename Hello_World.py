@@ -235,12 +235,12 @@ def _ensure_ui() -> None:
     if ui_window is None:
         ui_window = UI.UI()
         _seed_ui_vars(ui_window)
+        _record_ui(ui_window)
+        ui_window.finalize()
 
 
 def update():
     _ensure_ui()
-    if ui_window is not None:
-        _record_ui(ui_window)
 
 
 def draw():

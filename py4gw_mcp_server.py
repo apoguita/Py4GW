@@ -3,6 +3,7 @@ import json
 import socket
 import sys
 import uuid
+from pathlib import Path
 from typing import Any
 
 from BridgeRuntime.protocol import recv_json_message
@@ -11,7 +12,27 @@ from BridgeRuntime.protocol import send_json_message
 
 SERVER_NAME = "py4gw-bridge-mcp"
 SERVER_VERSION = "0.1.0"
-MCP_PROTOCOL_VERSION = "2024-11-05"
+SUPPORTED_MCP_PROTOCOL_VERSIONS = (
+    "2025-11-25",
+    "2025-06-18",
+    "2025-03-26",
+    "2024-11-05",
+)
+LOG_PATH = Path(__file__).with_name("py4gw_mcp_server.log")
+STDIO_MODE = "auto"
+
+
+def _log_stderr(message: str) -> None:
+    print(f"[py4gw-mcp] {message}", file=sys.stderr, flush=True)
+
+
+def _log_debug(message: str) -> None:
+    _log_stderr(message)
+    try:
+        with LOG_PATH.open("a", encoding="utf-8") as handle:
+            handle.write(f"{message}\n")
+    except Exception:
+        pass
 
 
 def _daemon_request(
@@ -41,11 +62,21 @@ def _daemon_request(
 
 
 def _read_stdio_message() -> dict[str, Any] | None:
+    global STDIO_MODE
     headers: dict[str, str] = {}
     while True:
         line = sys.stdin.buffer.readline()
         if not line:
+            _log_debug("stdin eof")
             return None
+        _log_debug(f"stdin line={line!r}")
+        stripped = line.strip()
+        if stripped.startswith(b"{"):
+            STDIO_MODE = "jsonl"
+            payload = json.loads(stripped.decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("MCP payload must be an object")
+            return payload
         if line in {b"\r\n", b"\n"}:
             break
         raw = line.decode("utf-8").strip()
@@ -54,9 +85,12 @@ def _read_stdio_message() -> dict[str, Any] | None:
         key, value = raw.split(":", 1)
         headers[key.strip().lower()] = value.strip()
     content_length = int(headers.get("content-length") or 0)
+    _log_debug(f"stdin headers={headers!r}")
     if content_length <= 0:
+        _log_debug("stdin invalid content-length")
         return None
     body = sys.stdin.buffer.read(content_length)
+    _log_debug(f"stdin body-bytes={len(body)}")
     payload = json.loads(body.decode("utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("MCP payload must be an object")
@@ -64,10 +98,17 @@ def _read_stdio_message() -> dict[str, Any] | None:
 
 
 def _write_stdio_message(payload: dict[str, Any]) -> None:
+    global STDIO_MODE
     raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
-    header = f"Content-Length: {len(raw)}\r\n\r\n".encode("ascii")
-    sys.stdout.buffer.write(header)
-    sys.stdout.buffer.write(raw)
+    _log_debug(
+        f"send mode={STDIO_MODE!r} id={payload.get('id')!r} keys={sorted(payload.keys())!r} bytes={len(raw)}"
+    )
+    if STDIO_MODE == "jsonl":
+        sys.stdout.buffer.write(raw + b"\n")
+    else:
+        header = f"Content-Length: {len(raw)}\r\n\r\n".encode("ascii")
+        sys.stdout.buffer.write(header)
+        sys.stdout.buffer.write(raw)
     sys.stdout.buffer.flush()
 
 
@@ -239,12 +280,25 @@ class Py4GWMcpServer:
             )
         raise ValueError(f"Unknown tool: {name}")
 
-    def _handle_initialize(self, msg_id: Any) -> dict[str, Any]:
+    def _negotiate_protocol_version(self, requested_version: Any) -> str:
+        requested = str(requested_version or "").strip()
+        if requested in SUPPORTED_MCP_PROTOCOL_VERSIONS:
+            return requested
+        return SUPPORTED_MCP_PROTOCOL_VERSIONS[0]
+
+    def _handle_initialize(self, msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
+        protocol_version = self._negotiate_protocol_version(params.get("protocolVersion"))
+        _log_debug(
+            f"initialize requested={params.get('protocolVersion')!r} negotiated={protocol_version!r}"
+        )
         return _make_jsonrpc_result(
             msg_id,
             {
-                "protocolVersion": MCP_PROTOCOL_VERSION,
-                "capabilities": {"tools": {}},
+                "protocolVersion": protocol_version,
+                "capabilities": {
+                    "logging": {},
+                    "tools": {"listChanged": False},
+                },
                 "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
             },
         )
@@ -283,10 +337,11 @@ class Py4GWMcpServer:
         method = str(message.get("method") or "")
         msg_id = message.get("id")
         params = message.get("params", {})
+        _log_debug(f"recv method={method!r} id={msg_id!r}")
         if not isinstance(params, dict):
             params = {}
         if method == "initialize":
-            return self._handle_initialize(msg_id)
+            return self._handle_initialize(msg_id, params)
         if method == "notifications/initialized":
             return None
         if method == "ping":
@@ -319,6 +374,9 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=47812, help="Bridge daemon control port")
     parser.add_argument("--timeout", type=float, default=5.0, help="Bridge daemon request timeout seconds")
     args = parser.parse_args()
+    _log_debug(
+        f"start argv={sys.argv!r} daemon={args.host}:{args.port} timeout={args.timeout}"
+    )
     server = Py4GWMcpServer(args.host, args.port, args.timeout)
     try:
         return server.run()

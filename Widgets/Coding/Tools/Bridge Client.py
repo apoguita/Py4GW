@@ -449,9 +449,63 @@ def _invoke_class_method(target: Any, class_name: str, params: dict[str, Any], r
         return make_error_response(request_id, "execution_error", f"{class_name}.{method_name}: {exc}")
 
 
+class _ConsoleBridge:
+    @staticmethod
+    def load(path: str) -> None:
+        Py4GW.Console.load(str(path))
+
+    @staticmethod
+    def run() -> None:
+        Py4GW.Console.run()
+
+    @staticmethod
+    def stop() -> None:
+        Py4GW.Console.stop()
+
+    @staticmethod
+    def pause() -> None:
+        Py4GW.Console.pause()
+
+    @staticmethod
+    def resume() -> None:
+        Py4GW.Console.resume()
+
+    @staticmethod
+    def status() -> str:
+        return str(Py4GW.Console.status())
+
+    @staticmethod
+    def defer_load(path: str, delay_ms: int = 1000) -> None:
+        Py4GW.Console.defer_load(str(path), int(delay_ms))
+
+    @staticmethod
+    def defer_run(delay_ms: int = 1000) -> None:
+        Py4GW.Console.defer_run(int(delay_ms))
+
+    @staticmethod
+    def defer_stop(delay_ms: int = 1000) -> None:
+        Py4GW.Console.defer_stop(int(delay_ms))
+
+    @staticmethod
+    def defer_load_and_run(path: str, delay_ms: int = 1000) -> None:
+        Py4GW.Console.defer_load_and_run(str(path), int(delay_ms))
+
+    @staticmethod
+    def defer_stop_load_and_run(path: str, delay_ms: int = 1000) -> None:
+        Py4GW.Console.defer_stop_load_and_run(str(path), int(delay_ms))
+
+    @staticmethod
+    def get_projects_path() -> str:
+        try:
+            return str(Py4GW.Game.GetProjectsPath())
+        except Exception:
+            return str(Py4GW.Console.get_projects_path())
+
+
 def _namespace_registry() -> dict[str, dict[str, Any]]:
     return {
         # Bridge namespace projections over Py4GWCoreLib source-of-truth libraries.
+        "console": {"class": "Console", "target": _ConsoleBridge, "source": "Py4GW", "kind": "runtime"},
         "map": {"class": "Map", "target": Map, "source": "Py4GWCoreLib", "kind": "corelib"},
         "player": {"class": "Player", "target": Player, "source": "Py4GWCoreLib", "kind": "corelib"},
         "agent": {"class": "Agent", "target": Agent, "source": "Py4GWCoreLib", "kind": "corelib"},
