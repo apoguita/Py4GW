@@ -109,6 +109,14 @@ class DepositSettings:
     def add_config_vars(self, ini_key: str):
         IniManager().add_bool(key=ini_key, section="Deposit", var_name="use_ctrl_click", name="use_ctrl_click", default=self.use_ctrl_click)
 
+
+@dataclass
+class InventoryWindowSettings:
+    enable_i_window: bool = True
+
+    def add_config_vars(self, ini_key: str):
+        IniManager().add_bool(key=ini_key, section="InventoryWindow", var_name="enable_i_window", name="enable_i_window", default=self.enable_i_window)
+
         
 @dataclass
 class ColorizeSettings:
@@ -741,6 +749,65 @@ def _queue_salvage_routine(item_ids: list[int], label: str, rarities: list[str] 
     GLOBAL_CACHE.Coroutines.append(routine)
 
 
+# ---------------------------------------------------------------------------
+# NEW: Stack salvage — repeatedly salvage the same bag+slot until depleted
+# ---------------------------------------------------------------------------
+
+def _run_salvage_stack_routine(bag_id: int, slot: int, label: str, selected_kit: ItemSlotData | None = None):
+    """Coroutine: salvage every item in a stacked slot (same bag+slot) until gone."""
+    from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Console
+    from Py4GWCoreLib.Routines import Routines
+
+    salvaged_count = 0
+    aborted = False
+    max_iterations = 250  # safety cap — no real stack exceeds this
+
+    for _ in range(max_iterations):
+        # Re-resolve the item at this slot each iteration (quantity decreases or item vanishes)
+        item_id = _get_item_id_at_bag_slot(bag_id, slot)
+        if item_id == 0:
+            break  # stack fully consumed
+
+        while True:
+            status = yield from _salvage_single_item_with_supported_kit(item_id, label, selected_kit=selected_kit)
+            if status in {"salvaged", "processed"}:
+                salvaged_count += 1
+                break
+            if status == "retry":
+                yield from Routines.Yield.wait(150)
+                continue
+            if status in {"missing_item", "filtered_out"}:
+                # Item gone or became unsalvageable — stop
+                aborted = True
+                break
+            if status in {"no_kit", "manual_timeout", "popup_failed"}:
+                aborted = True
+                break
+            # Any other failure: stop to avoid infinite loop
+            aborted = True
+            break
+
+        if aborted:
+            break
+
+    if salvaged_count > 0:
+        ConsoleLog("SalvageItems", f"Salvaged stack: {salvaged_count} items from bag {bag_id} slot {slot}.", Console.MessageType.Info)
+
+    return salvaged_count
+
+
+def _queue_salvage_stack(item: ItemSlotData, selected_kit: ItemSlotData | None = None):
+    """Queue a full-stack salvage coroutine for a single inventory slot."""
+    from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+    routine = cast(
+        Generator[Any, None, None],
+        _run_salvage_stack_routine(item.BagID, item.Slot, f"Salvage Stack [{item.Rarity}]", selected_kit=selected_kit),
+    )
+    GLOBAL_CACHE.Coroutines.append(routine)
+
+
+# ---------------------------------------------------------------------------
 
 def _salvage_items(rarity: str, selected_kit: ItemSlotData | None = None):
     salvageable_items = _get_salvageable_items_for_rarities(
@@ -816,10 +883,12 @@ class InventoryPlusWidget:
         self.salvage_settings = SalvageSettings()
         self.colorize_settings = ColorizeSettings()
         self.deposit_settings = DepositSettings()
+        self.inventory_window_settings = InventoryWindowSettings()
         
         self.InventorySlots: list[FrameInfo] = []
         self.hovered_item: ItemSlotData | None = None
         self.selected_item: ItemSlotData | None = None
+        self._i_window_was_forced_closed: bool = False
         # The I-window wraps bag slots in extra containers, so remember the working prefix after the first hit.
         self.i_inventory_slot_prefix_cache: list[tuple[int, ...]] = []
         self.pop_up_open: bool = False
@@ -928,6 +997,7 @@ class InventoryPlusWidget:
         self.salvage_settings.add_config_vars(self.ini_key)
         self.colorize_settings.add_config_vars(self.ini_key)
         self.deposit_settings.add_config_vars(self.ini_key)
+        self.inventory_window_settings.add_config_vars(self.ini_key)
         
     def _add_auto_handler_config_vars(self):
         _section = "AutoManager"
@@ -971,6 +1041,50 @@ class InventoryPlusWidget:
         IniManager().add_str(key=self.ini_key, section=_section, var_name="deposit_event_items_blacklist", name="deposit_event_items_blacklist", default="")
         IniManager().add_str(key=self.ini_key, section=_section, var_name="deposit_dyes_blacklist", name="deposit_dyes_blacklist", default="")
         IniManager().add_str(key=self.ini_key, section=_section, var_name="deposit_model_blacklist", name="deposit_model_blacklist", default="")
+
+    def _set_colorize_enabled(self, enabled: bool) -> None:
+        self.colorize_settings.enable_colorize = enabled
+        IniManager().set(key=self.ini_key, section="Colorize", var_name="enable_colorize", value=enabled)
+
+    def _toggle_colorize_enabled(self) -> None:
+        self._set_colorize_enabled(not self.colorize_settings.enable_colorize)
+
+    def _set_auto_inventory_enabled(self, enabled: bool) -> None:
+        self.auto_inventory_handler.module_active = enabled
+        IniManager().set(key=self.ini_key, section="AutoManager", var_name="module_active", value=enabled)
+
+    def _toggle_auto_inventory_enabled(self) -> None:
+        self._set_auto_inventory_enabled(not self.auto_inventory_handler.module_active)
+
+    def _set_i_window_enabled(self, enabled: bool) -> None:
+        from Py4GWCoreLib.UIManager import UIManager, WindowID
+
+        self.inventory_window_settings.enable_i_window = enabled
+        if enabled:
+            if self._i_window_was_forced_closed:
+                UIManager.SetWindowVisible(WindowID.WindowID_Inventory, True)
+            self._i_window_was_forced_closed = False
+        else:
+            self.selected_item = None
+            if UIManager.IsWindowVisible(WindowID.WindowID_Inventory):
+                UIManager.SetWindowVisible(WindowID.WindowID_Inventory, False)
+                self._i_window_was_forced_closed = True
+            else:
+                self._i_window_was_forced_closed = False
+        IniManager().set(key=self.ini_key, section="InventoryWindow", var_name="enable_i_window", value=enabled)
+
+    def _toggle_i_window_enabled(self) -> None:
+        self._set_i_window_enabled(not self.inventory_window_settings.enable_i_window)
+
+    def _enforce_i_window_setting(self) -> None:
+        from Py4GWCoreLib.UIManager import UIManager, WindowID
+
+        if self.inventory_window_settings.enable_i_window:
+            return
+
+        if UIManager.IsWindowVisible(WindowID.WindowID_Inventory):
+            UIManager.SetWindowVisible(WindowID.WindowID_Inventory, False)
+            self._i_window_was_forced_closed = True
      
     def load_settings(self):
         def _parse_color(value: str, default_color: Color) -> Color:
@@ -1058,6 +1172,9 @@ class InventoryPlusWidget:
         
         cfg = self.deposit_settings
         cfg.use_ctrl_click = IniManager().getBool(key=self.ini_key, section="Deposit", var_name="use_ctrl_click", default=cfg.use_ctrl_click)
+
+        cfg = self.inventory_window_settings
+        cfg.enable_i_window = IniManager().getBool(key=self.ini_key, section="InventoryWindow", var_name="enable_i_window", default=cfg.enable_i_window)
     
     def load_auto_handler_settings(self):
         self.auto_inventory_handler.module_active = IniManager().getBool(key=self.ini_key, section="AutoManager", var_name="module_active", default=False)
@@ -1158,13 +1275,28 @@ class InventoryPlusWidget:
                 routine = Routines.Yield.Items.IdentifyItems([selected_item.ItemID], log=True)
                 GLOBAL_CACHE.Coroutines.append(routine)
                 PyImGui.close_current_popup()
-                
-        if  (selected_item and 
-            (selected_item.IsIdentified or selected_item.Rarity != "White") and 
+
+        if (selected_item and
+            (selected_item.IsIdentified or selected_item.Rarity != "White") and
             Routines.Checks.Items.IsSalvageable(selected_item.ItemID)):
-            if PyImGui.menu_item("Salvage"):
-                _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
-                PyImGui.close_current_popup()
+            # ---------------------------------------------------------------
+            # Stack-aware salvage menu entries
+            # ---------------------------------------------------------------
+            if selected_item.Quantity > 1:
+                # Single salvage (consume one item from the stack)
+                if PyImGui.menu_item("Salvage (\u00d71)"):
+                    _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
+                    PyImGui.close_current_popup()
+                # Full-stack salvage (loop until slot is empty)
+                if PyImGui.menu_item(f"Salvage All (stack off {selected_item.Quantity})"):
+                    _queue_salvage_stack(selected_item)
+                    PyImGui.close_current_popup()
+            else:
+                # Original behaviour for non-stacked items
+                if PyImGui.menu_item("Salvage"):
+                    _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
+                    PyImGui.close_current_popup()
+            # ---------------------------------------------------------------
         
         if selected_item:
             if PyImGui.menu_item("Deposit"):
@@ -1178,12 +1310,16 @@ class InventoryPlusWidget:
             PyImGui.separator()
         label = "Disable Colorize" if self.colorize_settings.enable_colorize else "Enable Colorize"
         if PyImGui.menu_item(label):
-            self.colorize_settings.enable_colorize = not self.colorize_settings.enable_colorize   
+            self._toggle_colorize_enabled()
+            PyImGui.close_current_popup()
+        label = "Disable 'I' Window" if self.inventory_window_settings.enable_i_window else "Enable 'I' Window"
+        if PyImGui.menu_item(label):
+            self._toggle_i_window_enabled()
             PyImGui.close_current_popup()
         PyImGui.separator()
         label = "Disable Auto Inventory" if self.auto_inventory_handler.module_active else "Enable Auto Inventory"
         if PyImGui.menu_item(label):
-            self.auto_inventory_handler.module_active = not self.auto_inventory_handler.module_active
+            self._toggle_auto_inventory_enabled()
             PyImGui.close_current_popup()
         if PyImGui.menu_item("Config Window"):
             self.show_config_window = True
@@ -1302,7 +1438,7 @@ class InventoryPlusWidget:
 
         context = InventoryInteractionContext(
             f9_visible=UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags),
-            i_visible=UIManager.IsWindowVisible(WindowID.WindowID_Inventory),
+            i_visible=self.inventory_window_settings.enable_i_window and UIManager.IsWindowVisible(WindowID.WindowID_Inventory),
         )
         if not context.f9_visible and not context.i_visible:
             return context
@@ -1373,9 +1509,20 @@ class InventoryPlusWidget:
         if i_bags_bar_frame.FrameExists():
             _, _, _, context.i_bags_bar_bottom = i_bags_bar_frame.GetCoords()
 
+        # Resolve a single working slot prefix for the current I-layout frame.
+        # If no regular inventory prefix is valid (e.g., unsupported tabs), skip I-slot mapping this frame.
+        resolved_prefix = self._resolve_i_regular_bag_prefix(context)
+        if resolved_prefix is None:
+            return
+
         for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
             for slot in range(context.bag_sizes.get(bag_id, 0)):
-                slot_frame_id = self._resolve_i_slot_frame_id(context, bag_id, slot)
+                slot_frame_id = self._resolve_i_slot_frame_id(
+                    context,
+                    bag_id,
+                    slot,
+                    prefix=resolved_prefix,
+                )
                 if slot_frame_id != 0:
                     context.i_slot_frame_ids[(bag_id, slot)] = slot_frame_id
 
@@ -1453,16 +1600,52 @@ class InventoryPlusWidget:
                 seen.add(prefix)
                 yield list(prefix)
 
-    def _resolve_i_slot_frame_id(self, context: InventoryInteractionContext, bag_id: int, slot: int) -> int:
+    def _resolve_i_regular_bag_prefix(self, context: InventoryInteractionContext) -> tuple[int, ...] | None:
+        from Py4GWCoreLib.enums_src.Item_enums import Bags
+
+        if context.i_inventory_frame_id == 0:
+            return None
+
+        probe_slots: list[tuple[int, int]] = []
+        for bag_id in range(Bags.Backpack, Bags.Bag2 + 1):
+            if context.bag_sizes.get(bag_id, 0) <= 0:
+                continue
+            probe_slots.append((bag_id, 0))
+
+        if not probe_slots:
+            return None
+
+        for prefix in self._iter_i_slot_offset_prefixes():
+            prefix_key = tuple(prefix)
+            for bag_id, slot in probe_slots:
+                if self._resolve_i_slot_frame_id(context, bag_id, slot, prefix=prefix_key) == 0:
+                    continue
+                self._remember_i_inventory_slot_prefix(prefix_key)
+                return prefix_key
+
+        return None
+
+    def _resolve_i_slot_frame_id(
+        self,
+        context: InventoryInteractionContext,
+        bag_id: int,
+        slot: int,
+        prefix: tuple[int, ...] | None = None,
+    ) -> int:
         from Py4GWCoreLib.UIManager import UIManager
 
         if context.i_inventory_frame_id == 0:
             return 0
 
-        for prefix in self._iter_i_slot_offset_prefixes():
+        if prefix is None:
+            prefixes = self._iter_i_slot_offset_prefixes()
+        else:
+            prefixes = [list(prefix)]
+
+        for candidate_prefix in prefixes:
             slot_frame_id = UIManager.GetChildFrameID(
                 self.I_INVENTORY_FRAME_HASH,
-                [*prefix, bag_id - 1, slot + 2],
+                [*candidate_prefix, bag_id - 1, slot + 2],
             )
             if slot_frame_id == 0 or not UIManager.FrameExists(slot_frame_id):
                 continue
@@ -1471,7 +1654,8 @@ class InventoryPlusWidget:
             if context.i_bags_bar_bottom and top < context.i_bags_bar_bottom - 2:
                 continue
 
-            self._remember_i_inventory_slot_prefix(prefix)
+            if prefix is None:
+                self._remember_i_inventory_slot_prefix(candidate_prefix)
             return slot_frame_id
 
         return 0
@@ -1562,6 +1746,8 @@ class InventoryPlusWidget:
         from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
         from Py4GWCoreLib.enums_src.IO_enums import MouseButton
         from Py4GWCoreLib.enums_src.Model_enums import ModelID
+
+        self._enforce_i_window_setting()
 
         # Build shared inventory state first so slot colors and click targeting stay in sync.
         context = self._build_inventory_interaction_context()
@@ -2057,9 +2243,8 @@ class InventoryPlusWidget:
         GW_GREEN = ColorPalette.GetColor("GW_Green")
         
         def ini_colored_checkbox(label: str,section: str, var_name: str,cfg_obj,color: Color,default: bool) -> bool:
-            # --- load from ini ---
             cfg_attr = var_name
-            val = IniManager().getBool(key=self.ini_key,section=section,var_name=var_name,default=default)
+            val = bool(getattr(cfg_obj, cfg_attr, default))
             PyImGui.push_style_color(PyImGui.ImGuiCol.Text,color.to_tuple_normalized())
             new_val = PyImGui.checkbox(label, val)
             PyImGui.pop_style_color(1)
@@ -2101,6 +2286,22 @@ class InventoryPlusWidget:
             PyImGui.end_child()
             PyImGui.separator()
             if PyImGui.begin_tab_bar("InventoryPlusConfigTabs"):
+                window_cfg = self.inventory_window_settings
+                if PyImGui.begin_tab_item("Windows"):
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, GW_WHITE.to_tuple_normalized())
+                    new_enable_i_window = PyImGui.checkbox("Enable 'I' Inventory Window", window_cfg.enable_i_window)
+                    PyImGui.pop_style_color(1)
+                    if new_enable_i_window != window_cfg.enable_i_window:
+                        self._set_i_window_enabled(new_enable_i_window)
+
+                    if window_cfg.enable_i_window:
+                        PyImGui.text_wrapped("When enabled, InventoryPlus handles slot highlighting and context actions for the game's 'I' inventory window.")
+                    else:
+                        color = ColorPalette.GetColor("dark_red")
+                        PyImGui.text_colored("Disabled: InventoryPlus forces the game's 'I' inventory window closed.", color.to_tuple_normalized())
+                        PyImGui.text_colored("I-window slot mapping, coloring, and click handling are skipped.", color.to_tuple_normalized())
+                    PyImGui.end_tab_item()
+
                 cfg = self.identification_settings
                 if PyImGui.begin_tab_item("Identification"):
                     if PyImGui.collapsing_header("Identification Menu Options:"):
@@ -2297,7 +2498,11 @@ class InventoryPlusWidget:
                     PyImGui.end_tab_item()
                 if PyImGui.begin_tab_item("Colorize"):
                     cfg = self.colorize_settings
-                    cfg.enable_colorize = ini_colored_checkbox(label="Enable Item Colorize",section="Colorize",var_name="enable_colorize",cfg_obj=cfg,color=GW_WHITE,default=cfg.enable_colorize)
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Text, GW_WHITE.to_tuple_normalized())
+                    new_enable_colorize = PyImGui.checkbox("Enable Item Colorize", cfg.enable_colorize)
+                    PyImGui.pop_style_color(1)
+                    if new_enable_colorize != cfg.enable_colorize:
+                        self._set_colorize_enabled(new_enable_colorize)
                     PyImGui.separator()
                     cfg.color_whites = ini_colored_checkbox(label="Color White Items",section="Colorize",var_name="color_whites",cfg_obj=cfg,color=GW_WHITE,default=cfg.color_whites)
                     cfg.color_blues = ini_colored_checkbox(label="Color Blue Items",section="Colorize",var_name="color_blues",cfg_obj=cfg,color=GW_BLUE,default=cfg.color_blues)
@@ -2364,11 +2569,10 @@ class InventoryPlusWidget:
                     PyImGui.text_wrapped("Automatic Identification, Salvaging and Deposit is handled here.")
                     PyImGui.text_wrapped("This feature is used by Bots and other scripts to automatically manage your inventory.")
                     PyImGui.text_wrapped("Enable the options in the Identification and Salvage tabs to activate automatic handling for those item rarities.")
-                    old_val = IniManager().getBool(key=self.ini_key, section="AutoManager", var_name="module_active", default=self.auto_inventory_handler.module_active)
+                    old_val = self.auto_inventory_handler.module_active
                     new_val = PyImGui.checkbox("Enable Auto Inventory Handler", old_val)
                     if new_val != old_val:
-                        self.auto_inventory_handler.module_active = new_val
-                        IniManager().set(key=self.ini_key, section="AutoManager", var_name="module_active", value=new_val) 
+                        self._set_auto_inventory_enabled(new_val)
               
                     old_val = IniManager().getInt(key=self.ini_key, section="AutoManager", var_name="lookup_time", default=self.auto_inventory_handler._LOOKUP_TIME)
                     new_val = PyImGui.input_int("Inventory Check Interval (ms)", old_val)
@@ -2430,5 +2634,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
