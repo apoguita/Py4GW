@@ -1,6 +1,7 @@
 from typing import Any, Generator, override
 
 from Py4GWCoreLib import Agent, Range
+from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -52,26 +53,35 @@ class IcyVeins_NearDeathUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        """
-        Return the configured score if there is a valid target under 50% health in range, otherwise None.
-        """
         target = self._get_best_target()
         if target is None:
+            if constants.DEBUG: print("No candidates")
             return None
 
-        mult = 1.0
+        mult = 0.5
         if self.nature_has_been_attempted_last(previously_attempted_skills):
-            mult = 0.5
+            mult = 0.25
 
+        # if the target is not hexed
         if not Agent.IsHexed(target):
             mult += 0.51
 
-        return self.score_definition.get_score() * mult
+        # if the lowest hp target is below 50% health lets try and get that eoe like effect
+        if Agent.GetHealth(target) < 0.5:
+            mult += 0.51
+
+        scored = self.score_definition.get_score() * mult
+
+        # default max is 61.28 but in case of overrides
+        if scored > 99:
+            scored = 99
+
+        return scored
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         """
-        Cast the shout at the chosen target.
+        Cast the spell at the chosen target.
         """
         target = self._get_best_target()
         if target is None:
