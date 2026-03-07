@@ -17,7 +17,7 @@ class SufferingUtility(CustomSkillUtilityBase):
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
-        score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 40 if enemy_qte <= 2 else 0),
+        score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 40 if enemy_qte >= 2 else 10),
         mana_required_to_cast: int = 18,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
         ) -> None:
