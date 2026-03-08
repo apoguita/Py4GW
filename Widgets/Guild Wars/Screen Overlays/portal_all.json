@@ -1526,29 +1526,11 @@
         "linked_to": 156001
       },
       {
-        "portal_index": 2,
-        "global_id": 93002,
-        "game_x": -9867.0,
-        "game_y": 18978.0
-      },
-      {
         "portal_index": 3,
         "global_id": 93003,
         "game_x": 7806.0,
         "game_y": -26581.0,
         "linked_to": 159001
-      },
-      {
-        "portal_index": 4,
-        "global_id": 93004,
-        "game_x": 7912.0,
-        "game_y": 29613.0
-      },
-      {
-        "portal_index": 5,
-        "global_id": 93005,
-        "game_x": 12813.0,
-        "game_y": -30385.0
       }
     ],
     "94": [
@@ -8244,13 +8226,15 @@
         "portal_index": 0,
         "global_id": 482000,
         "game_x": -20328.0,
-        "game_y": 5602.0
+        "game_y": 5602.0,
+        "linked_to": 546002
       },
       {
         "portal_index": 1,
         "global_id": 482001,
         "game_x": -13817.0,
-        "game_y": -20103.0
+        "game_y": -20103.0,
+        "linked_to": 548004
       },
       {
         "portal_index": 2,
@@ -8262,7 +8246,8 @@
         "portal_index": 3,
         "global_id": 482003,
         "game_x": 19577.0,
-        "game_y": -19082.0
+        "game_y": -19082.0,
+        "linked_to": 650000
       }
     ],
     "483": [
@@ -8730,19 +8715,22 @@
         "portal_index": 2,
         "global_id": 499002,
         "game_x": -3762.0,
-        "game_y": 27665.0
+        "game_y": 27665.0,
+        "linked_to": 548002
       },
       {
         "portal_index": 3,
         "global_id": 499003,
         "game_x": 787.0,
-        "game_y": 1053.0
+        "game_y": 1053.0,
+        "linked_to": 642003
       },
       {
         "portal_index": 4,
         "global_id": 499004,
         "game_x": 4775.0,
-        "game_y": -27881.0
+        "game_y": -27881.0,
+        "linked_to": 675004
       },
       {
         "portal_index": 5,
@@ -8796,25 +8784,29 @@
         "portal_index": 1,
         "global_id": 513001,
         "game_x": -10979.0,
-        "game_y": -25989.0
+        "game_y": -25989.0,
+        "linked_to": 553002
       },
       {
         "portal_index": 2,
         "global_id": 513002,
         "game_x": 6275.0,
-        "game_y": -25725.0
+        "game_y": -25725.0,
+        "linked_to": 553004
       },
       {
         "portal_index": 3,
         "global_id": 513003,
         "game_x": 9666.0,
-        "game_y": 23823.0
+        "game_y": 23823.0,
+        "linked_to": 643003
       },
       {
         "portal_index": 4,
         "global_id": 513004,
         "game_x": 13571.0,
-        "game_y": 19411.0
+        "game_y": 19411.0,
+        "linked_to": 643004
       },
       {
         "portal_index": 5,
@@ -8826,7 +8818,8 @@
         "portal_index": 6,
         "global_id": 513006,
         "game_x": 16816.0,
-        "game_y": -16995.0
+        "game_y": -16995.0,
+        "linked_to": 548000
       }
     ],
     "543": [
@@ -8930,7 +8923,8 @@
         "portal_index": 0,
         "global_id": 546000,
         "game_x": -13381.0,
-        "game_y": -24222.0
+        "game_y": -24222.0,
+        "linked_to": 643005
       },
       {
         "portal_index": 1,
@@ -8942,7 +8936,8 @@
         "portal_index": 2,
         "global_id": 546002,
         "game_x": 15945.0,
-        "game_y": -20623.0
+        "game_y": -20623.0,
+        "linked_to": 482000
       }
     ],
     "548": [
@@ -8950,31 +8945,36 @@
         "portal_index": 0,
         "global_id": 548000,
         "game_x": -26141.0,
-        "game_y": 11147.0
+        "game_y": 11147.0,
+        "linked_to": 513006
       },
       {
         "portal_index": 1,
         "global_id": 548001,
         "game_x": -26079.0,
-        "game_y": -13751.0
+        "game_y": -13751.0,
+        "linked_to": 553006
       },
       {
         "portal_index": 2,
         "global_id": 548002,
         "game_x": 11085.0,
-        "game_y": -13834.0
+        "game_y": -13834.0,
+        "linked_to": 499002
       },
       {
         "portal_index": 3,
         "global_id": 548003,
         "game_x": 15204.0,
-        "game_y": -6425.0
+        "game_y": -6425.0,
+        "linked_to": 644003
       },
       {
         "portal_index": 4,
         "global_id": 548004,
         "game_x": 16305.0,
-        "game_y": 16764.0
+        "game_y": 16764.0,
+        "linked_to": 482001
       }
     ],
     "553": [
@@ -8988,25 +8988,29 @@
         "portal_index": 1,
         "global_id": 553001,
         "game_x": -25795.0,
-        "game_y": -13032.0
+        "game_y": -13032.0,
+        "linked_to": 566003
       },
       {
         "portal_index": 2,
         "global_id": 553002,
         "game_x": -1746.0,
-        "game_y": 16554.0
+        "game_y": 16554.0,
+        "linked_to": 513001
       },
       {
         "portal_index": 3,
         "global_id": 553003,
         "game_x": -1249.0,
-        "game_y": 1245.0
+        "game_y": 1245.0,
+        "linked_to": 645003
       },
       {
         "portal_index": 4,
         "global_id": 553004,
         "game_x": 14673.0,
-        "game_y": 16766.0
+        "game_y": 16766.0,
+        "linked_to": 513002
       },
       {
         "portal_index": 5,
@@ -9018,7 +9022,8 @@
         "portal_index": 6,
         "global_id": 553006,
         "game_x": 25982.0,
-        "game_y": 16360.0
+        "game_y": 16360.0,
+        "linked_to": 548001
       }
     ],
     "554": [
@@ -9176,7 +9181,8 @@
         "portal_index": 1,
         "global_id": 566001,
         "game_x": -22953.0,
-        "game_y": 6727.0
+        "game_y": 6727.0,
+        "linked_to": 639001
       },
       {
         "portal_index": 2,
@@ -9188,7 +9194,8 @@
         "portal_index": 3,
         "global_id": 566003,
         "game_x": 26077.0,
-        "game_y": 12686.0
+        "game_y": 12686.0,
+        "linked_to": 553001
       }
     ],
     "569": [
@@ -9253,6 +9260,20 @@
         "global_id": 572004,
         "game_x": 25566.0,
         "game_y": 14409.0
+      }
+    ],
+    "604": [
+      {
+        "portal_index": 0,
+        "global_id": 604000,
+        "game_x": -14257.0,
+        "game_y": 19851.0
+      },
+      {
+        "portal_index": 1,
+        "global_id": 604001,
+        "game_x": -19682.0,
+        "game_y": -11869.0
       }
     ],
     "607": [
@@ -9466,7 +9487,8 @@
         "portal_index": 4,
         "global_id": 624004,
         "game_x": 19725.0,
-        "game_y": 19495.0
+        "game_y": 19495.0,
+        "linked_to": 604001
       },
       {
         "portal_index": 5,
@@ -9526,13 +9548,15 @@
         "portal_index": 0,
         "global_id": 639000,
         "game_x": -25937.0,
-        "game_y": 10690.0
+        "game_y": 10690.0,
+        "linked_to": 604000
       },
       {
         "portal_index": 1,
         "global_id": 639001,
         "game_x": -22953.0,
-        "game_y": 6727.0
+        "game_y": 6727.0,
+        "linked_to": 566001
       },
       {
         "portal_index": 2,
@@ -9622,7 +9646,8 @@
         "portal_index": 1,
         "global_id": 642001,
         "game_x": -4579.0,
-        "game_y": 5060.0
+        "game_y": 5060.0,
+        "linked_to": 646001
       },
       {
         "portal_index": 2,
@@ -9634,7 +9659,8 @@
         "portal_index": 3,
         "global_id": 642003,
         "game_x": 787.0,
-        "game_y": 1053.0
+        "game_y": 1053.0,
+        "linked_to": 499003
       },
       {
         "portal_index": 4,
@@ -9672,19 +9698,22 @@
         "portal_index": 3,
         "global_id": 643003,
         "game_x": 9666.0,
-        "game_y": 23823.0
+        "game_y": 23823.0,
+        "linked_to": 513003
       },
       {
         "portal_index": 4,
         "global_id": 643004,
         "game_x": 13571.0,
-        "game_y": 19411.0
+        "game_y": 19411.0,
+        "linked_to": 513004
       },
       {
         "portal_index": 5,
         "global_id": 643005,
         "game_x": 16677.0,
-        "game_y": 22870.0
+        "game_y": 22870.0,
+        "linked_to": 546000
       },
       {
         "portal_index": 6,
@@ -9716,7 +9745,8 @@
         "portal_index": 3,
         "global_id": 644003,
         "game_x": 15204.0,
-        "game_y": -6425.0
+        "game_y": -6425.0,
+        "linked_to": 548003
       },
       {
         "portal_index": 4,
@@ -9748,7 +9778,8 @@
         "portal_index": 3,
         "global_id": 645003,
         "game_x": -1249.0,
-        "game_y": 1245.0
+        "game_y": 1245.0,
+        "linked_to": 553003
       },
       {
         "portal_index": 4,
@@ -9780,7 +9811,8 @@
         "portal_index": 1,
         "global_id": 646001,
         "game_x": -4579.0,
-        "game_y": 5060.0
+        "game_y": 5060.0,
+        "linked_to": 642001
       },
       {
         "portal_index": 2,
@@ -9812,7 +9844,8 @@
         "portal_index": 0,
         "global_id": 647000,
         "game_x": -20252.0,
-        "game_y": 227.0
+        "game_y": 227.0,
+        "linked_to": 649004
       },
       {
         "portal_index": 1,
@@ -9824,13 +9857,15 @@
         "portal_index": 2,
         "global_id": 647002,
         "game_x": -15535.0,
-        "game_y": 13802.0
+        "game_y": 13802.0,
+        "linked_to": 648002
       },
       {
         "portal_index": 3,
         "global_id": 647003,
         "game_x": 14372.0,
-        "game_y": -20142.0
+        "game_y": -20142.0,
+        "linked_to": 651002
       }
     ],
     "648": [
@@ -9850,7 +9885,8 @@
         "portal_index": 2,
         "global_id": 648002,
         "game_x": -15535.0,
-        "game_y": 13802.0
+        "game_y": 13802.0,
+        "linked_to": 647002
       },
       {
         "portal_index": 3,
@@ -9870,7 +9906,8 @@
         "portal_index": 1,
         "global_id": 649001,
         "game_x": -21809.0,
-        "game_y": 12704.0
+        "game_y": 12704.0,
+        "linked_to": 650001
       },
       {
         "portal_index": 2,
@@ -9882,13 +9919,15 @@
         "portal_index": 3,
         "global_id": 649003,
         "game_x": 22784.0,
-        "game_y": -13374.0
+        "game_y": -13374.0,
+        "linked_to": 651000
       },
       {
         "portal_index": 4,
         "global_id": 649004,
         "game_x": 25128.0,
-        "game_y": 15281.0
+        "game_y": 15281.0,
+        "linked_to": 647000
       }
     ],
     "650": [
@@ -9896,13 +9935,15 @@
         "portal_index": 0,
         "global_id": 650000,
         "game_x": -26299.0,
-        "game_y": 16141.0
+        "game_y": 16141.0,
+        "linked_to": 482003
       },
       {
         "portal_index": 1,
         "global_id": 650001,
         "game_x": -21809.0,
-        "game_y": 12704.0
+        "game_y": 12704.0,
+        "linked_to": 649001
       },
       {
         "portal_index": 2,
@@ -9928,7 +9969,8 @@
         "portal_index": 0,
         "global_id": 651000,
         "game_x": -19376.0,
-        "game_y": 16242.0
+        "game_y": 16242.0,
+        "linked_to": 649003
       },
       {
         "portal_index": 1,
@@ -9940,7 +9982,8 @@
         "portal_index": 2,
         "global_id": 651002,
         "game_x": 12777.0,
-        "game_y": 18707.0
+        "game_y": 18707.0,
+        "linked_to": 647003
       },
       {
         "portal_index": 3,
@@ -10036,7 +10079,8 @@
         "portal_index": 4,
         "global_id": 675004,
         "game_x": 4775.0,
-        "game_y": -27881.0
+        "game_y": -27881.0,
+        "linked_to": 499004
       },
       {
         "portal_index": 5,

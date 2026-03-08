@@ -78,6 +78,14 @@ _MAP_CENTROIDS: dict[int, tuple[float, float]] = {}
 _MAP_NEIGHBORS: dict[int, set[int]] = {}
 # Loaded from JSON at startup: map_id -> [dx_icon, dy_icon]
 _PMAP_OFFSETS:  dict[int, tuple[float, float]] = {}
+# Off-map dungeons: map_id -> (anchor_map_id, side)
+# side = "left" | "right" | "above" | "below"
+_OFFMAP_PLACEMENTS: dict[int, tuple[int, str]] = {
+    604: (639, "left"),   # EotN dungeon – display left of Umbral Grotto
+}
+# Map IDs whose portal_all.json entries are manually curated and must never be
+# overwritten by _rebuild_portal_all_data() or the live-portal cache machinery.
+_MANUAL_PORTAL_MAPS: set[int] = {604}
 # Portal dot positions in icon space (built lazily per map)
 _PORTAL_ICON_POS:  dict[int, list[tuple]] = {}  # map_id -> list of (pix, piy, dest_name, local_idx, gid, gx, gy)
 _PORTAL_BUILT:     set[int] = set()
@@ -312,8 +320,22 @@ def _save_portal_all_data() -> None:
 
 
 def _rebuild_portal_all_data() -> None:
-    """Rebuild _PORTAL_ALL_DATA from DAT portals, live cache and portal_links metadata."""
+    """Rebuild _PORTAL_ALL_DATA from DAT portals, live cache and portal_links metadata.
+    Entries that were manually added to portal_all.json (maps with no DAT portals
+    and no live-cache data) are preserved so they are not erased on rebuild."""
     global _PORTAL_ALL_DATA
+
+    # Load what is currently on disk so we can preserve manual entries.
+    existing_on_disk: dict[int, list[dict]] = {}
+    if _PORTAL_ALL_FILE and os.path.isfile(_PORTAL_ALL_FILE):
+        try:
+            with open(_PORTAL_ALL_FILE, "r", encoding="utf-8-sig") as fh:
+                raw = json.load(fh)
+            for k, v in raw.get("maps", {}).items():
+                existing_on_disk[int(k)] = v
+        except Exception:
+            pass
+
     rebuilt: dict[int, list[dict]] = {}
 
     for mid, bnd in _ICON_BOUNDS.items():
@@ -323,11 +345,20 @@ def _rebuild_portal_all_data() -> None:
 
         # 1) Offline DAT portals (or live-cached fallback)
         portals = []
+        # Never overwrite manually-curated maps
+        if mid in _MANUAL_PORTAL_MAPS:
+            if existing_on_disk.get(mid):
+                rebuilt[mid] = existing_on_disk[mid]
+            continue
         try:
             portals = FfnaMapMethods.GetTravelPortalsForMap(mid)
         except Exception:
             portals = []
-        if not portals and mid in _live_portal_cache:
+        # For maps without a DAT entry: prefer any manually-curated on-disk entry
+        # over the live cache, since live TravelPortals may belong to the previous map.
+        if not portals and not FfnaMapMethods.HasDatEntry(mid) and existing_on_disk.get(mid):
+            pass   # leave portals empty → fall through to step 2/3 which will use on-disk data
+        elif not portals and mid in _live_portal_cache:
             from types import SimpleNamespace
             cached = _live_portal_cache[mid]
             portals = [
@@ -377,6 +408,11 @@ def _rebuild_portal_all_data() -> None:
 
         if by_index:
             rebuilt[mid] = [by_index[i] for i in sorted(by_index.keys())]
+
+    # Preserve manually-added entries for maps that produced no data from DAT/live sources.
+    for mid, entries in existing_on_disk.items():
+        if mid not in rebuilt and entries:
+            rebuilt[mid] = entries
 
     _PORTAL_ALL_DATA = rebuilt
     _save_portal_all_data()
@@ -543,7 +579,10 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
     # Use portal_all.json (complete linked+unlinked list)
     # - always for non-live maps
     # - for live maps only as fallback when no online portals were found
-    if (not is_live) or (not portals):
+    # - also for live maps that have no DAT entry (e.g. EotN dungeons), where
+    #   GetTravelPortals() may return portals belonging to the previous map
+    has_dat = FfnaMapMethods.HasDatEntry(map_id)
+    if (not is_live) or (not portals) or (is_live and not has_dat):
         entries = _PORTAL_ALL_DATA.get(map_id, [])
         if entries:
             # Build pathing extents when available (accurate projection)
@@ -644,6 +683,18 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
             if dots_all:
                 _PORTAL_ICON_POS[map_id] = dots_all
                 _debug_log("portal-all-data", len(specs), dots_all)
+                # If live and we have extents, cache them for offline viewing later.
+                # Never cache for manually-curated maps.
+                if is_live and ext_ok and map_id not in _MANUAL_PORTAL_MAPS:
+                    cache_entry = _live_portal_cache.get(map_id, {})
+                    if not isinstance(cache_entry, dict):
+                        cache_entry = {}
+                    cache_entry["extents"] = {
+                        "gx_min": gx_min2, "gx_max": gx_max2,
+                        "gy_min": gy_min2, "gy_max": gy_max2,
+                    }
+                    _live_portal_cache[map_id] = cache_entry
+                    _save_live_portal_cache()
                 return
 
     if (not pathing_maps and _cached_extents is None) or not portals:
@@ -724,7 +775,8 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
         dots.append((pix, piy, dest, idx, gid, tp.x, tp.y))
     _PORTAL_ICON_POS[map_id] = dots
     _debug_log("normal", len(portals), dots)
-    if is_live and portals:
+    # Don't overwrite live cache for maps without a DAT entry or manually-curated maps.
+    if is_live and portals and FfnaMapMethods.HasDatEntry(map_id) and map_id not in _MANUAL_PORTAL_MAPS:
         _live_portal_cache[map_id] = {
             "portals": [
                 {"x": tp.x, "y": tp.y, "z": getattr(tp, 'z', 0.0),
@@ -854,6 +906,38 @@ def _save_portal_links() -> None:
                           Py4GW.Console.MessageType.Warning)
 
 
+def _inject_offmap_positions() -> None:
+    """Force synthetic icon-space bounds for all maps listed in _OFFMAP_PLACEMENTS."""
+    gap = 10   # icon-space pixel gap between the injected box and its anchor
+    for mid, (anchor_id, side) in _OFFMAP_PLACEMENTS.items():
+        anchor_bnd = _ICON_BOUNDS.get(anchor_id)
+        if anchor_bnd is None:
+            continue
+        al, at, ar, ab = anchor_bnd
+        w, h = ar - al, ab - at
+        if side == "left":
+            bnd = (al - gap - w, at, al - gap, ab)
+        elif side == "right":
+            bnd = (ar + gap, at, ar + gap + w, ab)
+        elif side == "above":
+            bnd = (al, at - gap - h, ar, at - gap)
+        else:  # below
+            bnd = (al, ab + gap, ar, ab + gap + h)
+        _ICON_BOUNDS[mid] = bnd
+        if mid not in _MAP_META:
+            try:
+                info = MapMethods.GetMapInfo(mid)
+                name = Map.GetMapName(mid) or f"Map {mid}"
+                rtype = int(info.type) if info else 2
+                camp  = int(info.campaign) if info else 4
+            except Exception:
+                name, rtype, camp = f"Map {mid}", 2, 4
+            _MAP_META[mid] = (rtype, name, camp)
+        Py4GW.Console.Log(MODULE_NAME,
+            f"OffMap: {mid} ({_MAP_META[mid][1]}) placed {side} of {anchor_id} → {bnd}",
+            Py4GW.Console.MessageType.Info)
+
+
 def _build_cache() -> None:
     """Scan all map IDs and populate _ICON_BOUNDS / _MAP_META.  Called once."""
     global _cache_built
@@ -897,6 +981,9 @@ def _build_cache() -> None:
         except Exception:
             name = f"Map {mid}"
         _MAP_META[mid] = (int(info.type), name, int(info.campaign))
+
+    # ── Inject synthetic positions for off-map dungeons ────────────────────
+    _inject_offmap_positions()
 
     # ── Post-process: centroids, neighbor map, draw groups ─────────────────
     _DRAW_GROUPS.clear()
@@ -1544,8 +1631,9 @@ def _draw_overlay() -> None:
         x1, y1 = _i2s(l, t)
         x2, y2 = _i2s(r, b)
 
-        # Cull: skip if completely outside the visible screen rect
-        if x2 < sl or x1 > sr or y2 < st or y1 > sb:
+        # Cull: skip if completely outside the visible screen rect.
+        # Exception: never cull the group that contains the current map.
+        if not contains_current and (x2 < sl or x1 > sr or y2 < st or y1 > sb):
             continue
 
         cx = (x1 + x2) * 0.5
@@ -1732,7 +1820,13 @@ def _draw_overlay() -> None:
                         _PORTAL_BUILT.discard(mid)
                         _PORTAL_ICON_POS.pop(mid, None)
             _ensure_portal_dots(mid, is_live=is_live_mid)
-            for pix, piy, _dest, _local_idx, gid, *_gc in _PORTAL_ICON_POS.get(mid, []):
+            dots_for_mid = _PORTAL_ICON_POS.get(mid, [])
+            for pix, piy, _dest, _local_idx, gid, *_gc in dots_for_mid:
+                sx, sy = _i2s(pix, piy)
+                if sx < sl or sx > sr or sy < st or sy > sb:
+                    continue
+                if gid:
+                    visible_portal_sx[gid] = (sx, sy)
                 sx, sy = _i2s(pix, piy)
                 if sx < sl or sx > sr or sy < st or sy > sb:
                     continue

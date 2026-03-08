@@ -19,7 +19,7 @@ import PyImGui
 import Py4GW
 import os
 
-from Py4GWCoreLib import Map, Player
+from Py4GWCoreLib import Map, Player, Agent, AgentArray
 from Py4GWCoreLib.native_src.methods.MapMethods import MapMethods
 from Py4GWCoreLib.native_src.methods.FfnaMapMethods import (
     FfnaMapMethods,
@@ -186,7 +186,9 @@ _near_results: list[tuple[float, str, float, float, str]] = []
 
 
 def _init() -> None:
-    if _MAP_META:
+    # _MAP_META is shared with WorldPathing – it may already be populated.
+    # But _ICON_BOUNDS is local to this widget and must always be built here.
+    if _ICON_BOUNDS:
         return
     for mid in range(1, _MAX_MAP_ID + 1):
         info = MapMethods.GetMapInfo(mid)
@@ -330,7 +332,10 @@ def _do_find_candidates() -> None:
 
 
 def _do_near_player_scan() -> None:
-    """Read all props from current map DAT (or live TravelPortals if no DAT) within _near_radius."""
+    """Read all props/gadgets within _near_radius of the player.
+    Maps with a DAT entry: reads static props from the FFNA file.
+    Maps without a DAT entry (e.g. EotN dungeons): reads live Gadget agents
+    and also tries live TravelPortals as fallback."""
     global _near_results
     _near_results = []
     _near_status[0] = ""
@@ -347,23 +352,49 @@ def _do_near_player_scan() -> None:
     results: list[tuple[float, str, float, float, str]] = []
 
     if not FfnaMapMethods.HasDatEntry(cmap):
-        # No DAT entry – fall back to live TravelPortal data from game memory
+        # No DAT entry (e.g. EotN dungeons) – scan live Gadget agents in game memory.
+        # TravelPortals are NOT used by EotN dungeon gates; those are Gadget agents.
+        source = "live-gadgets"
         try:
-            live_portals = Map.Pathing.GetTravelPortals()
+            gadget_ids = AgentArray.GetGadgetArray()
         except Exception as e:
-            _near_status[0] = f"Map {cmap} has no DAT entry and live read failed: {e}"
-            return
-        for tp in live_portals:
-            dx   = tp.x - px
-            dy   = tp.y - py
+            gadget_ids = []
+            Py4GW.Console.Log(MODULE_NAME, f"GetGadgetArray failed: {e}",
+                              Py4GW.Console.MessageType.Warning)
+        for aid in gadget_ids:
+            try:
+                ax, ay = Agent.GetXY(aid)
+            except Exception:
+                continue
+            dx   = ax - px
+            dy   = ay - py
             dist = (dx * dx + dy * dy) ** 0.5
             if dist > radius:
                 continue
-            fid         = tp.model_file_id
-            fid_hex     = f"0x{fid:X}"
-            known_label = _KNOWN_PORTAL_MODEL_FILE_IDS.get(fid, "")
-            results.append((dist, fid_hex, tp.x, tp.y, known_label))
-        source = "live"
+            try:
+                gadget_id  = Agent.GetGadgetID(aid)
+                extra_type = Agent.GetGadgetAgentExtraType(aid)
+            except Exception:
+                gadget_id  = 0
+                extra_type = 0
+            fid_hex     = f"gadget_id=0x{gadget_id:X}  extra=0x{extra_type:X}  agent={aid}"
+            known_label = _KNOWN_PORTAL_MODEL_FILE_IDS.get(gadget_id, "")
+            results.append((dist, fid_hex, ax, ay, known_label))
+        # Also check TravelPortals in case some exist
+        try:
+            live_portals = Map.Pathing.GetTravelPortals()
+            for tp in live_portals:
+                dx   = tp.x - px
+                dy   = tp.y - py
+                dist = (dx * dx + dy * dy) ** 0.5
+                if dist > radius:
+                    continue
+                fid         = getattr(tp, 'model_file_id', 0)
+                fid_hex     = f"TravelPortal  model=0x{fid:X}"
+                known_label = _KNOWN_PORTAL_MODEL_FILE_IDS.get(fid, "")
+                results.append((dist, fid_hex, tp.x, tp.y, known_label))
+        except Exception:
+            pass
     else:
         data = FfnaMapMethods._read_ffna(cmap)
         if data is None:
@@ -397,6 +428,11 @@ def _do_near_player_scan() -> None:
         f"radius {radius:.0f}   found {len(results)} props"
     )
     Py4GW.Console.Log(MODULE_NAME, _near_status[0], Py4GW.Console.MessageType.Info)
+    for dist, fid_hex, nx, ny, known in results:
+        Py4GW.Console.Log(MODULE_NAME,
+            f"  dist={dist:.0f}   {fid_hex}   pos=({nx:.0f}, {ny:.0f})"
+            + (f"   [{known}]" if known else ""),
+            Py4GW.Console.MessageType.Info)
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
@@ -591,9 +627,9 @@ def main() -> None:
             # ── TAB 3: Near Player ─────────────────────────────────────────
             if PyImGui.begin_tab_item("Near Player##wmpd_t3"):
                 PyImGui.text_wrapped(
-                    "Reads ALL props from the current map's DAT file and lists those "
-                    "within the given radius of your character. Stand next to a portal "
-                    "and scan to identify its model ID."
+                    "Maps WITH DAT entry: reads static props from the FFNA file. "
+                    "Maps WITHOUT DAT entry (e.g. EotN dungeons): reads live Gadget "
+                    "agents from game memory. Stand next to a portal/gate and scan."
                 )
                 PyImGui.spacing()
 

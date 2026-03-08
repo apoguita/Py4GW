@@ -1693,6 +1693,481 @@
         "game_x": -2871.0,
         "game_y": -4479.0
       }
+    },
+    {
+      "link_id": 90,
+      "portal_a": {
+        "global_id": 482000,
+        "map_id": 482,
+        "map_name": "Bjora Marches",
+        "portal_index": 0,
+        "game_x": -20328.0,
+        "game_y": 5602.0
+      },
+      "portal_b": {
+        "global_id": 546002,
+        "map_id": 546,
+        "map_name": "Jaga Moraine",
+        "portal_index": 2,
+        "game_x": 15945.0,
+        "game_y": -20623.0
+      }
+    },
+    {
+      "link_id": 91,
+      "portal_a": {
+        "global_id": 482001,
+        "map_id": 482,
+        "map_name": "Bjora Marches",
+        "portal_index": 1,
+        "game_x": -13817.0,
+        "game_y": -20103.0
+      },
+      "portal_b": {
+        "global_id": 548004,
+        "map_id": 548,
+        "map_name": "Norrhart Domains",
+        "portal_index": 4,
+        "game_x": 16305.0,
+        "game_y": 16764.0
+      }
+    },
+    {
+      "link_id": 92,
+      "portal_a": {
+        "global_id": 482003,
+        "map_id": 482,
+        "map_name": "Bjora Marches",
+        "portal_index": 3,
+        "game_x": 19577.0,
+        "game_y": -19082.0
+      },
+      "portal_b": {
+        "global_id": 650000,
+        "map_id": 650,
+        "map_name": "Longeyes Ledge",
+        "portal_index": 0,
+        "game_x": -26299.0,
+        "game_y": 16141.0
+      }
+    },
+    {
+      "link_id": 93,
+      "portal_a": {
+        "global_id": 499002,
+        "map_id": 499,
+        "map_name": "Ice Cliff Chasms",
+        "portal_index": 2,
+        "game_x": -3762.0,
+        "game_y": 27665.0
+      },
+      "portal_b": {
+        "global_id": 548002,
+        "map_id": 548,
+        "map_name": "Norrhart Domains",
+        "portal_index": 2,
+        "game_x": 11085.0,
+        "game_y": -13834.0
+      }
+    },
+    {
+      "link_id": 94,
+      "portal_a": {
+        "global_id": 499003,
+        "map_id": 499,
+        "map_name": "Ice Cliff Chasms",
+        "portal_index": 3,
+        "game_x": 787.0,
+        "game_y": 1053.0
+      },
+      "portal_b": {
+        "global_id": 642003,
+        "map_id": 642,
+        "map_name": "Eye of the North outpost",
+        "portal_index": 3,
+        "game_x": 787.0,
+        "game_y": 1053.0
+      }
+    },
+    {
+      "link_id": 95,
+      "portal_a": {
+        "global_id": 499004,
+        "map_id": 499,
+        "map_name": "Ice Cliff Chasms",
+        "portal_index": 4,
+        "game_x": 4775.0,
+        "game_y": -27881.0
+      },
+      "portal_b": {
+        "global_id": 675004,
+        "map_id": 675,
+        "map_name": "Boreal Station",
+        "portal_index": 4,
+        "game_x": 4775.0,
+        "game_y": -27881.0
+      }
+    },
+    {
+      "link_id": 96,
+      "portal_a": {
+        "global_id": 513001,
+        "map_id": 513,
+        "map_name": "Drakkar Lake",
+        "portal_index": 1,
+        "game_x": -10979.0,
+        "game_y": -25989.0
+      },
+      "portal_b": {
+        "global_id": 553002,
+        "map_id": 553,
+        "map_name": "Varajar Fells",
+        "portal_index": 2,
+        "game_x": -1746.0,
+        "game_y": 16554.0
+      }
+    },
+    {
+      "link_id": 97,
+      "portal_a": {
+        "global_id": 513002,
+        "map_id": 513,
+        "map_name": "Drakkar Lake",
+        "portal_index": 2,
+        "game_x": 6275.0,
+        "game_y": -25725.0
+      },
+      "portal_b": {
+        "global_id": 553004,
+        "map_id": 553,
+        "map_name": "Varajar Fells",
+        "portal_index": 4,
+        "game_x": 14673.0,
+        "game_y": 16766.0
+      }
+    },
+    {
+      "link_id": 98,
+      "portal_a": {
+        "global_id": 513003,
+        "map_id": 513,
+        "map_name": "Drakkar Lake",
+        "portal_index": 3,
+        "game_x": 9666.0,
+        "game_y": 23823.0
+      },
+      "portal_b": {
+        "global_id": 643003,
+        "map_id": 643,
+        "map_name": "Sifhalla",
+        "portal_index": 3,
+        "game_x": 9666.0,
+        "game_y": 23823.0
+      }
+    },
+    {
+      "link_id": 99,
+      "portal_a": {
+        "global_id": 513004,
+        "map_id": 513,
+        "map_name": "Drakkar Lake",
+        "portal_index": 4,
+        "game_x": 13571.0,
+        "game_y": 19411.0
+      },
+      "portal_b": {
+        "global_id": 643004,
+        "map_id": 643,
+        "map_name": "Sifhalla",
+        "portal_index": 4,
+        "game_x": 13571.0,
+        "game_y": 19411.0
+      }
+    },
+    {
+      "link_id": 100,
+      "portal_a": {
+        "global_id": 513006,
+        "map_id": 513,
+        "map_name": "Drakkar Lake",
+        "portal_index": 6,
+        "game_x": 16816.0,
+        "game_y": -16995.0
+      },
+      "portal_b": {
+        "global_id": 548000,
+        "map_id": 548,
+        "map_name": "Norrhart Domains",
+        "portal_index": 0,
+        "game_x": -26141.0,
+        "game_y": 11147.0
+      }
+    },
+    {
+      "link_id": 101,
+      "portal_a": {
+        "global_id": 546000,
+        "map_id": 546,
+        "map_name": "Jaga Moraine",
+        "portal_index": 0,
+        "game_x": -13381.0,
+        "game_y": -24222.0
+      },
+      "portal_b": {
+        "global_id": 643005,
+        "map_id": 643,
+        "map_name": "Sifhalla",
+        "portal_index": 5,
+        "game_x": 16677.0,
+        "game_y": 22870.0
+      }
+    },
+    {
+      "link_id": 102,
+      "portal_a": {
+        "global_id": 548001,
+        "map_id": 548,
+        "map_name": "Norrhart Domains",
+        "portal_index": 1,
+        "game_x": -26079.0,
+        "game_y": -13751.0
+      },
+      "portal_b": {
+        "global_id": 553006,
+        "map_id": 553,
+        "map_name": "Varajar Fells",
+        "portal_index": 6,
+        "game_x": 25982.0,
+        "game_y": 16360.0
+      }
+    },
+    {
+      "link_id": 103,
+      "portal_a": {
+        "global_id": 548003,
+        "map_id": 548,
+        "map_name": "Norrhart Domains",
+        "portal_index": 3,
+        "game_x": 15204.0,
+        "game_y": -6425.0
+      },
+      "portal_b": {
+        "global_id": 644003,
+        "map_id": 644,
+        "map_name": "Gunnar's Hold",
+        "portal_index": 3,
+        "game_x": 15204.0,
+        "game_y": -6425.0
+      }
+    },
+    {
+      "link_id": 104,
+      "portal_a": {
+        "global_id": 553001,
+        "map_id": 553,
+        "map_name": "Varajar Fells",
+        "portal_index": 1,
+        "game_x": -25795.0,
+        "game_y": -13032.0
+      },
+      "portal_b": {
+        "global_id": 566003,
+        "map_id": 566,
+        "map_name": "Verdant Cascades",
+        "portal_index": 3,
+        "game_x": 26077.0,
+        "game_y": 12686.0
+      }
+    },
+    {
+      "link_id": 105,
+      "portal_a": {
+        "global_id": 553003,
+        "map_id": 553,
+        "map_name": "Varajar Fells",
+        "portal_index": 3,
+        "game_x": -1249.0,
+        "game_y": 1245.0
+      },
+      "portal_b": {
+        "global_id": 645003,
+        "map_id": 645,
+        "map_name": "Olafstead",
+        "portal_index": 3,
+        "game_x": -1249.0,
+        "game_y": 1245.0
+      }
+    },
+    {
+      "link_id": 106,
+      "portal_a": {
+        "global_id": 566001,
+        "map_id": 566,
+        "map_name": "Verdant Cascades",
+        "portal_index": 1,
+        "game_x": -22953.0,
+        "game_y": 6727.0
+      },
+      "portal_b": {
+        "global_id": 639001,
+        "map_id": 639,
+        "map_name": "Umbral Grotto",
+        "portal_index": 1,
+        "game_x": -22953.0,
+        "game_y": 6727.0
+      }
+    },
+    {
+      "link_id": 107,
+      "portal_a": {
+        "global_id": 604000,
+        "map_id": 604,
+        "map_name": "Vloxen Excavations (level 1)",
+        "portal_index": 0,
+        "game_x": -14257.0,
+        "game_y": 19851.0
+      },
+      "portal_b": {
+        "global_id": 639000,
+        "map_id": 639,
+        "map_name": "Umbral Grotto",
+        "portal_index": 0,
+        "game_x": -25937.0,
+        "game_y": 10690.0
+      }
+    },
+    {
+      "link_id": 108,
+      "portal_a": {
+        "global_id": 604001,
+        "map_id": 604,
+        "map_name": "Vloxen Excavations (level 1)",
+        "portal_index": 1,
+        "game_x": -19682.0,
+        "game_y": -11869.0
+      },
+      "portal_b": {
+        "global_id": 624004,
+        "map_id": 624,
+        "map_name": "Vlox's Falls",
+        "portal_index": 4,
+        "game_x": 19725.0,
+        "game_y": 19495.0
+      }
+    },
+    {
+      "link_id": 109,
+      "portal_a": {
+        "global_id": 642001,
+        "map_id": 642,
+        "map_name": "Eye of the North outpost",
+        "portal_index": 1,
+        "game_x": -4579.0,
+        "game_y": 5060.0
+      },
+      "portal_b": {
+        "global_id": 646001,
+        "map_id": 646,
+        "map_name": "Hall of Monuments",
+        "portal_index": 1,
+        "game_x": -4579.0,
+        "game_y": 5060.0
+      }
+    },
+    {
+      "link_id": 110,
+      "portal_a": {
+        "global_id": 647000,
+        "map_id": 647,
+        "map_name": "Dalada Uplands",
+        "portal_index": 0,
+        "game_x": -20252.0,
+        "game_y": 227.0
+      },
+      "portal_b": {
+        "global_id": 649004,
+        "map_id": 649,
+        "map_name": "Grothmar Wardowns",
+        "portal_index": 4,
+        "game_x": 25128.0,
+        "game_y": 15281.0
+      }
+    },
+    {
+      "link_id": 111,
+      "portal_a": {
+        "global_id": 647002,
+        "map_id": 647,
+        "map_name": "Dalada Uplands",
+        "portal_index": 2,
+        "game_x": -15535.0,
+        "game_y": 13802.0
+      },
+      "portal_b": {
+        "global_id": 648002,
+        "map_id": 648,
+        "map_name": "Doomlore Shrine",
+        "portal_index": 2,
+        "game_x": -15535.0,
+        "game_y": 13802.0
+      }
+    },
+    {
+      "link_id": 112,
+      "portal_a": {
+        "global_id": 647003,
+        "map_id": 647,
+        "map_name": "Dalada Uplands",
+        "portal_index": 3,
+        "game_x": 14372.0,
+        "game_y": -20142.0
+      },
+      "portal_b": {
+        "global_id": 651002,
+        "map_id": 651,
+        "map_name": "Sacnoth Valley",
+        "portal_index": 2,
+        "game_x": 12777.0,
+        "game_y": 18707.0
+      }
+    },
+    {
+      "link_id": 113,
+      "portal_a": {
+        "global_id": 649001,
+        "map_id": 649,
+        "map_name": "Grothmar Wardowns",
+        "portal_index": 1,
+        "game_x": -21809.0,
+        "game_y": 12704.0
+      },
+      "portal_b": {
+        "global_id": 650001,
+        "map_id": 650,
+        "map_name": "Longeyes Ledge",
+        "portal_index": 1,
+        "game_x": -21809.0,
+        "game_y": 12704.0
+      }
+    },
+    {
+      "link_id": 114,
+      "portal_a": {
+        "global_id": 649003,
+        "map_id": 649,
+        "map_name": "Grothmar Wardowns",
+        "portal_index": 3,
+        "game_x": 22784.0,
+        "game_y": -13374.0
+      },
+      "portal_b": {
+        "global_id": 651000,
+        "map_id": 651,
+        "map_name": "Sacnoth Valley",
+        "portal_index": 0,
+        "game_x": -19376.0,
+        "game_y": 16242.0
+      }
     }
   ]
 }
