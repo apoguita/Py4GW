@@ -21,7 +21,6 @@ from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import 
 from Sources.oazix.CustomBehaviors.skills.monk.reversal_of_fortune_utility import Reversal_of_Fortune_SpiritBondUtility
 from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.spirit_bond_utility import SpiritBondUtility
-from Sources.oazix.CustomBehaviors.skills.monk.vital_blessing_utility import VitalBlessingUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
 
@@ -50,7 +49,13 @@ class ElementalistEmo_UtilitySkillBar(CustomBehaviorBaseUtility):
         #optional
         self.elemental_lord_kurzick_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Elemental_Lord_kurzick"), current_build=in_game_build, score_definition=ScoreStaticDefinition(70), mana_required_to_cast=10,allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
         self.elemental_lord_luxon_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Elemental_Lord_luxon"), current_build=in_game_build, score_definition=ScoreStaticDefinition(70), mana_required_to_cast=10,allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
-        self.vital_blessing_utility: CustomSkillUtilityBase = VitalBlessingUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(72))
+        self.vital_blessing_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(
+            event_bus=self.event_bus,
+            skill=CustomSkill("Vital_Blessing"),
+            current_build=in_game_build,
+            score_definition=ScoreStaticDefinition(72),
+            allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
+        )
 
         #common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)

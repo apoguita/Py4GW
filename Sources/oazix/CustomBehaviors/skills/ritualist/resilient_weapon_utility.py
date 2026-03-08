@@ -51,6 +51,7 @@ class ResilientWeaponUtility(CustomSkillUtilityBase):
             within_range=Range.Spellcast.value * 1.2,
             condition=lambda agent_id: (
                 self.buff_configuration.get_agent_id_predicate()(agent_id)
+                and not Agent.IsMelee(agent_id)
                 and (Agent.IsConditioned(agent_id) or Agent.IsHexed(agent_id))
             ),
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
