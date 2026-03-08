@@ -64,7 +64,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
         self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
-
+        self.call_of_protection_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility( event_bus=self.event_bus, skill=CustomSkill("Call_of_Protection"), current_build=in_game_build, score_definition=ScoreStaticDefinition(65), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
     
     @property
     @override
@@ -88,6 +88,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.fox_fangs_utility,
             self.death_blossom_utility,
             self.comfort_animal_utility,
+            self.call_of_protection_utility,
             self.by_urals_hammer_utility,
         ]
 

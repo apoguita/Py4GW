@@ -6,20 +6,24 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.common.breath_of_the_great_dwarf_utility import BreathOfTheGreatDwarfUtility
 from Sources.oazix.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Sources.oazix.CustomBehaviors.skills.common.finish_him_utility import FinishHimUtility
 from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Sources.oazix.CustomBehaviors.skills.dervich.scythe_requiring_enchantment_utility import ScytheRequiringEnchantmentUtility
+from Sources.oazix.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Sources.oazix.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility
 from Sources.oazix.CustomBehaviors.skills.generic.raw_simple_heal_utility import RawSimpleHealUtility
 from Sources.oazix.CustomBehaviors.skills.monk.cure_hex_utility import CureHexUtility
 from Sources.oazix.CustomBehaviors.skills.monk.dismiss_condition_utility import DismissConditionUtility
+from Sources.oazix.CustomBehaviors.skills.monk.draw_conditions_utility import DrawConditionsUtility
 from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import ProtectiveSpiritUtility
 from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility import ShieldOfAbsorptionUtility
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_drop_utility import UnyieldingAuraDropUtility
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import UnyieldingAuraUtility
+from Sources.oazix.CustomBehaviors.skills.monk.vigorous_spirit_utility import VigorousSpiritUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_mimicry_utility import ArcaneMimicryUtility
@@ -43,13 +47,17 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         self.cure_hex_utility: CustomSkillUtilityBase = CureHexUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
         self.dismiss_condition_utility: CustomSkillUtilityBase = DismissConditionUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
+        self.draw_conditions_utility: CustomSkillUtilityBase = DrawConditionsUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(51))
 
         self.selfless_spirit_luxon_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_luxon"), score_definition=ScoreStaticDefinition(88))
         self.selfless_spirit_kurzick_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_kurzick"), score_definition=ScoreStaticDefinition(88))
+        self.vigorous_spirit_utility: CustomSkillUtilityBase = VigorousSpiritUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(72))
         self.serpents_quickness_prep_utility: CustomSkillUtilityBase = PreparationUtility(event_bus=self.event_bus, 
                                                              prep_skill=CustomSkill("Serpents_Quickness"), 
                                                              target_utilities=[self.seed_of_life_utility, self.selfless_spirit_luxon_utility, self.selfless_spirit_kurzick_utility], current_build=in_game_build, score_definition=ScoreStaticDefinition(94))
         self.dwarven_stability_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Dwarven_Stability"), score_definition=ScoreStaticDefinition(95))
+        self.rebirth_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Rebirth"), current_build=in_game_build, score_definition=ScoreStaticDefinition(94))
+        self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
 
         # common
         self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
@@ -83,6 +91,7 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.fall_back_utility,
             self.signet_of_lost_souls_utility,
             self.by_urals_hammer_utility,
+            self.breath_of_the_great_dwarf_utility,
             self.finish_him_utility,
 
             self.patient_spirit_utility,
@@ -92,11 +101,14 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.shield_of_absorption_utility,
             self.cure_hex_utility,
             self.dismiss_condition_utility,
+            self.draw_conditions_utility,
             self.serpents_quickness_prep_utility,
             self.selfless_spirit_luxon_utility,
             self.selfless_spirit_kurzick_utility,
+            self.vigorous_spirit_utility,
             self.arcane_mimicry_utility,
             self.dwarven_stability_utility,
+            self.rebirth_utility,
         ]
 
     @property
