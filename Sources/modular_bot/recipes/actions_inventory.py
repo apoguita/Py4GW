@@ -7,6 +7,52 @@ from .step_context import StepContext
 from .step_selectors import resolve_agent_xy_from_step
 from .step_utils import log_recipe, parse_step_bool, parse_step_int, wait_after_step
 
+_SELECTOR_OVERRIDE_KEYS = (
+    "x",
+    "y",
+    "npc",
+    "target",
+    "name_contains",
+    "agent_name",
+    "model_id",
+    "nearest",
+)
+
+DEFAULT_NPC_SELECTORS: dict[str, str] = {
+    "merchant": "MERCHANT",
+    "materials": "CRAFTING_MATERIAL_TRADER",
+    "rare_materials": "RARE_MATERIAL_TRADER",
+}
+
+# Supported outposts with specific, known NPC encrypted-name selectors.
+SUPPORTED_MAP_NPC_SELECTORS: dict[int, dict[str, str]] = {
+    642: {  # Eye of the North
+        "merchant": "MARYANN_MERCHANT",
+        "materials": "IDA_MATERIAL_TRADER",
+        "rare_materials": "ROLAND_RARE_MATERIAL_TRADER",
+    },
+    821: {  # Eye of the North (Wintersday)
+        "merchant": "MARYANN_MERCHANT",
+        "materials": "IDA_MATERIAL_TRADER",
+        "rare_materials": "ROLAND_RARE_MATERIAL_TRADER",
+    },
+    641: {  # Tarnished Haven
+        "merchant": "ADRIANA_MERCHANT",
+        "materials": "ANDERS_MATERIAL_TRADER",
+        "rare_materials": "HELENA_RARE_MATERIAL_TRADER",
+    },
+    643: {  # Sifhalla
+        "merchant": "ABJORN_MERCHANT",
+        "materials": "VATHI_MATERIAL_TRADER",
+        "rare_materials": "BIRNA_RARE_MATERIAL_TRADER",
+    },
+    491: {  # Jokanur Diggings outpost
+        "merchant": "LOKAI_MERCHANT",
+        "materials": "GUUL_MATERIAL_TRADER",
+        "rare_materials": "NEHGOYO_RARE_MATERIAL_TRADER",
+    },
+}
+
 
 def _wait_for_outbound_messages(
     ctx: StepContext,
@@ -80,21 +126,33 @@ def _encode_material_model_filter(selected_models: set[int] | None) -> str:
     return ",".join(str(model_id) for model_id in sorted(selected_models))
 
 
+def _step_has_explicit_agent_selector(step: dict) -> bool:
+    return any(key in step for key in _SELECTOR_OVERRIDE_KEYS)
+
+
+def _resolve_default_npc_selector(selector_kind: str) -> str:
+    from Py4GWCoreLib import Map
+
+    map_id = int(Map.GetMapID() or 0)
+    map_selectors = SUPPORTED_MAP_NPC_SELECTORS.get(map_id)
+    if map_selectors is not None:
+        selected = map_selectors.get(selector_kind)
+        if selected:
+            return selected
+
+    return DEFAULT_NPC_SELECTORS[selector_kind]
+
+
+def _apply_default_npc_selector(step: dict, selector_kind: str) -> None:
+    if _step_has_explicit_agent_selector(step):
+        return
+    step["npc"] = _resolve_default_npc_selector(selector_kind)
+
+
 def handle_restock_kits(ctx: StepContext) -> None:
     from Py4GWCoreLib import GLOBAL_CACHE, ModelID, Player, Routines, SharedCommandType
 
     selector_step = dict(ctx.step)
-    if (
-        "x" not in selector_step
-        and "y" not in selector_step
-        and "npc" not in selector_step
-        and "target" not in selector_step
-        and "name_contains" not in selector_step
-        and "agent_name" not in selector_step
-        and "model_id" not in selector_step
-        and "nearest" not in selector_step
-    ):
-        selector_step["npc"] = "MERCHANT"
 
     name = ctx.step.get("name", "Restock Kits")
     multibox_raw = ctx.step.get("multibox", False)
@@ -123,8 +181,19 @@ def handle_restock_kits(ctx: StepContext) -> None:
         salvage_kits_target = 0
 
     def _restock_local():
+        def _count_model_in_inventory(model_id: int) -> int:
+            bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+            item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+            count = 0
+            for item_id in item_array:
+                if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == int(model_id):
+                    count += max(1, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+            return int(count)
+
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "merchant")
         coords = resolve_agent_xy_from_step(
-            selector_step,
+            step_selector,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             agent_kind="npc",
@@ -136,15 +205,21 @@ def handle_restock_kits(ctx: StepContext) -> None:
         yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
         yield from ctx.bot.Wait._coro_for_time(1200)
 
-        id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit.value))
-        sup_id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value))
-        salvage_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
+        # Recompute kit counts each purchase pass to avoid stale cache snapshots.
+        for _ in range(2):
+            id_kits_in_inv = _count_model_in_inventory(ModelID.Identification_Kit.value)
+            sup_id_kits_in_inv = _count_model_in_inventory(ModelID.Superior_Identification_Kit.value)
+            salvage_kits_in_inv = _count_model_in_inventory(ModelID.Salvage_Kit.value)
 
-        id_kits_to_buy = max(0, id_kits_target - (id_kits_in_inv + sup_id_kits_in_inv))
-        salvage_kits_to_buy = max(0, salvage_kits_target - salvage_kits_in_inv)
+            id_kits_to_buy = max(0, id_kits_target - (id_kits_in_inv + sup_id_kits_in_inv))
+            salvage_kits_to_buy = max(0, salvage_kits_target - salvage_kits_in_inv)
 
-        yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
-        yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+            if id_kits_to_buy <= 0 and salvage_kits_to_buy <= 0:
+                break
+
+            yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
+            yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+            yield from Routines.Yield.wait(150)
 
         if multibox:
             sender_email = Player.GetAccountEmail()
@@ -235,29 +310,19 @@ def handle_sell_materials(ctx: StepContext) -> None:
     from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
     selector_step = dict(ctx.step)
-    if (
-        "x" not in selector_step
-        and "y" not in selector_step
-        and "npc" not in selector_step
-        and "target" not in selector_step
-        and "name_contains" not in selector_step
-        and "agent_name" not in selector_step
-        and "model_id" not in selector_step
-        and "nearest" not in selector_step
-    ):
-        selector_step["npc"] = "CRAFTING_MATERIAL_TRADER"
 
     name = ctx.step.get("name", "Sell Materials")
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
     multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
     multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
-    max_sell_quantity_per_item_raw = parse_step_int(ctx.step.get("max_sell_quantity_per_item", 0), 0)
-    max_sell_quantity_per_item = max_sell_quantity_per_item_raw if max_sell_quantity_per_item_raw > 0 else None
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
-    selected_models: set[int] | None = None
-    raw_materials = ctx.step.get("materials")
-    if raw_materials is not None:
+    def _resolve_selected_models_runtime() -> set[int] | None:
+        selected_models: set[int] | None = None
+        raw_materials = ctx.step.get("materials")
+        if raw_materials is None:
+            return None
+
         if not isinstance(raw_materials, (list, tuple, set)):
             raw_materials = [raw_materials]
 
@@ -279,10 +344,15 @@ def handle_sell_materials(ctx: StepContext) -> None:
             if model_id >= 0:
                 selected_models.add(model_id)
 
+        return selected_models
+
     def _sell_local():
-        log_recipe(ctx, f"sell_materials start: selector={selector_step!r}")
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "materials")
+        selected_models = _resolve_selected_models_runtime()
+        log_recipe(ctx, f"sell_materials start: selector={step_selector!r}")
         coords = resolve_agent_xy_from_step(
-            selector_step,
+            step_selector,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             agent_kind="npc",
@@ -293,20 +363,11 @@ def handle_sell_materials(ctx: StepContext) -> None:
             return
 
         x, y = coords
-        log_recipe(ctx, f"sell_materials: resolved trader at ({x}, {y}), executing merchant routine.")
-        sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
-            x,
-            y,
-            selected_models=selected_models,
-            max_sell_quantity_per_item=max_sell_quantity_per_item,
-        )
-        log_recipe(ctx, f"sell_materials metrics: {sell_metrics}")
-
+        sent_messages: list[tuple[str, int]] = []
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
-            extra_data = ("sell", _encode_material_model_filter(selected_models), str(max_sell_quantity_per_item or 0), "")
-            sent_messages: list[tuple[str, int]] = []
+            extra_data = ("sell", _encode_material_model_filter(selected_models), "", "")
             for account_email in account_emails:
                 message_index = GLOBAL_CACHE.ShMem.SendMessage(
                     sender_email,
@@ -316,6 +377,20 @@ def handle_sell_materials(ctx: StepContext) -> None:
                     extra_data,
                 )
                 sent_messages.append((account_email, int(message_index)))
+            log_recipe(
+                ctx,
+                f"sell_materials: dispatched multibox sell command to {len(sent_messages)} account(s) before local execution.",
+            )
+
+        log_recipe(ctx, f"sell_materials: resolved trader at ({x}, {y}), executing local merchant routine.")
+        sell_metrics = yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
+            x,
+            y,
+            selected_models=selected_models,
+        )
+        log_recipe(ctx, f"sell_materials metrics: {sell_metrics}")
+
+        if multibox:
             yield from _wait_for_outbound_messages(
                 ctx,
                 "sell_materials",
@@ -412,17 +487,6 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
     from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
 
     selector_step = dict(ctx.step)
-    if (
-        "x" not in selector_step
-        and "y" not in selector_step
-        and "npc" not in selector_step
-        and "target" not in selector_step
-        and "name_contains" not in selector_step
-        and "agent_name" not in selector_step
-        and "model_id" not in selector_step
-        and "nearest" not in selector_step
-    ):
-        selector_step["npc"] = "RARE_MATERIAL_TRADER"
 
     name = ctx.step.get("name", "Buy Ectoplasm")
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
@@ -454,8 +518,10 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
             yield
             return
 
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "rare_materials")
         coords = resolve_agent_xy_from_step(
-            selector_step,
+            step_selector,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             agent_kind="npc",

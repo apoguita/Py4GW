@@ -50,6 +50,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.sundering_attack_utility: CustomSkillUtilityBase = RawSimpleAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Sundering_Attack"), current_build=in_game_build, mana_required_to_cast=10, score_definition=ScoreStaticDefinition(60))
         self.lightning_reflexes_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Lightning_Reflexes"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
         self.whirling_defense_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Whirling_Defense"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
+        self.otyughs_cry_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Otyughs_Cry"), current_build=in_game_build, score_definition=ScoreStaticDefinition(85), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
 
         self.jagged_strike_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40))
         self.fox_fangs_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40))
@@ -89,6 +90,7 @@ class RangerTaoVolley_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.death_blossom_utility,
             self.comfort_animal_utility,
             self.by_urals_hammer_utility,
+            self.otyughs_cry_utility
         ]
 
     @property

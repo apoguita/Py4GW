@@ -2,7 +2,7 @@
   "name": "Tower of Strength",
   "steps": [
     {"type": "auto_path", "name": "To the Entrance", "points": [[11077, -5531], [12993, -4084], [15425, -1647],  [17165, 930], [14415, -893] ]},
-    {"type": "auto_path", "name": "Fetch Da Mage", "points": [[15080, -3139], [9581, -5736], [1770, -4690]]},
+    {"type": "auto_path", "name": "Fetch Da Mage", "points": [[13241, -4485], [1770, -4690]]},
     {"type": "auto_path", "name": "Back to Tos", "points": [[11062, -5421], [14169, -3101], [15635, -1324]]},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},

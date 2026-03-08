@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
+from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id, outposts
 from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Sources.modular_bot import ModularBot
 from Sources.modular_bot.phase import Phase
+from Sources.modular_bot.recipes.actions_inventory import SUPPORTED_MAP_NPC_SELECTORS
 from Sources.modular_bot.recipes import Quest
 from Sources.modular_bot.recipes.modular_actions import register_step as _register_shared_step
 from Sources.modular_bot.recipes.runner_common import count_expanded_steps, register_recipe_context, register_repeated_steps
@@ -31,6 +32,7 @@ ZIN_KU_CORRIDOR_MAP_ID = int(name_to_map_id["Zin Ku Corridor"])
 CHANTRY_OF_SECRETS_MAP_ID = int(name_to_map_id["Chantry of Secrets"])
 TEMPLE_OF_THE_AGES_MAP_ID = int(name_to_map_id["Temple of the Ages"])
 EMBARK_BEACH_MAP_ID = int(name_to_map_id["Embark Beach"])
+EYE_OF_THE_NORTH_MAP_ID = 642
 FOW_MAP_ID = int(name_to_map_id["The Fissure of Woe"])
 FOW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Fow.value)
 
@@ -51,13 +53,39 @@ FOW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
     "embark_beach": ("Embark Beach", EMBARK_BEACH_MAP_ID),
 }
 DEFAULT_FOW_ENTRYPOINT_KEY = "zin_ku_corridor"
-GH_MERCHANT_SELECTOR: dict[str, str] = {"npc": "MERCHANT"}
+
+
+def _format_inventory_location_label(map_id: int) -> str:
+    label = str(outposts.get(int(map_id), f"Map {int(map_id)}"))
+    if label.endswith(" outpost"):
+        label = label[: -len(" outpost")]
+    return label
+
+
+def _build_inventory_management_locations() -> dict[str, str]:
+    locations: dict[str, str] = {"guild_hall": "Guild Hall"}
+    for map_id in sorted(int(mid) for mid in SUPPORTED_MAP_NPC_SELECTORS.keys()):
+        locations[f"map_{map_id}"] = _format_inventory_location_label(map_id)
+    return locations
+
+
+INVENTORY_MANAGEMENT_LOCATIONS: dict[str, str] = _build_inventory_management_locations()
+DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY = "guild_hall"
 COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS = {
     int(ModelID.Bone.value),
     int(ModelID.Pile_Of_Glittering_Dust.value),
     int(ModelID.Feather.value),
     int(ModelID.Iron_Ingot.value),
 }
+FOW_NON_CONS_COMMON_MATERIAL_MODELS = (
+    ModelID.Bolt_Of_Cloth,
+    ModelID.Chitin_Fragment,
+    ModelID.Granite_Slab,
+    ModelID.Plant_Fiber,
+    ModelID.Scale,
+    ModelID.Tanned_Hide_Square,
+    ModelID.Wood_Plank,
+)
 
 
 @dataclass(slots=True)
@@ -71,6 +99,7 @@ class ModularFowOptions:
     sell_non_cons_materials: bool = False
     sell_all_common_materials: bool = False
     buy_ectoplasm: bool = False
+    inventory_management_location: str = DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
 
 
 def _debug(debug_hook: Optional[Callable[[str], None]], message: str) -> None:
@@ -83,6 +112,35 @@ def _resolve_entrypoint(entrypoint: str) -> tuple[str, int]:
     return FOW_ENTRYPOINTS.get(key, FOW_ENTRYPOINTS[DEFAULT_FOW_ENTRYPOINT_KEY])
 
 
+def _resolve_inventory_management_location(location: str) -> tuple[str, str]:
+    key = str(location or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY).strip().lower()
+    # Backward compatibility with previous FoW-specific key.
+    if key == "eye_of_the_north":
+        key = f"map_{EYE_OF_THE_NORTH_MAP_ID}"
+    resolved_key = key if key in INVENTORY_MANAGEMENT_LOCATIONS else DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
+    return resolved_key, INVENTORY_MANAGEMENT_LOCATIONS[resolved_key]
+
+
+def _build_inventory_setup_steps(location_key: str) -> list[dict]:
+    if location_key != "guild_hall":
+        try:
+            target_map_id = int(str(location_key).split("_", 1)[1])
+        except (IndexError, ValueError):
+            target_map_id = EYE_OF_THE_NORTH_MAP_ID
+        return [
+            {
+                "type": "random_travel",
+                "name": f"Travel to {_format_inventory_location_label(target_map_id)}",
+                "target_map_id": target_map_id,
+            },
+            {"type": "summon_all_accounts", "name": "Summon Alts to Inventory Outpost", "ms": 7000},
+        ]
+
+    return [
+        {"type": "travel_gh", "name": "Travel to Guild Hall", "ms": 7000, "multibox": True}
+    ]
+
+
 def _resolve_materials_to_sell(options: ModularFowOptions) -> list[str] | None:
     if options.sell_all_common_materials:
         # None => let sell_materials use runtime material checks:
@@ -92,7 +150,7 @@ def _resolve_materials_to_sell(options: ModularFowOptions) -> list[str] | None:
         return [
             material_name
             for model_id, material_name in MaterialMap.items()
-            if int(model_id.value) not in COMMON_MATERIAL_EXCLUDE_FOR_NON_CONS
+            if model_id in FOW_NON_CONS_COMMON_MATERIAL_MODELS
         ]
     return []
 
@@ -103,6 +161,9 @@ def build_fow_phases(
 ) -> list[Phase]:
     def _fow_setup(bot) -> None:
         entrypoint_name, entrypoint_map_id = _resolve_entrypoint(options.entrypoint)
+        inventory_location_key, inventory_location_name = _resolve_inventory_management_location(
+            options.inventory_management_location
+        )
         materials_to_sell = _resolve_materials_to_sell(options)
         _debug(
             debug_hook,
@@ -110,17 +171,18 @@ def build_fow_phases(
             f"(hard_mode={options.hard_mode}, use_consumables={options.use_consumables}, "
             f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot}, "
             f"entrypoint={entrypoint_name}, sell_non_cons_materials={options.sell_non_cons_materials}, "
-            f"sell_all_common_materials={options.sell_all_common_materials}, buy_ectoplasm={options.buy_ectoplasm})",
+            f"sell_all_common_materials={options.sell_all_common_materials}, buy_ectoplasm={options.buy_ectoplasm}, "
+            f"inventory_management_location={inventory_location_name})",
         )
         setup_steps = [
             {"type": "leave_party", "name": "Leave Party", "multibox": True},
-            {"type": "travel_gh", "name": "Travel to Guild Hall", "ms": 7000, "multibox": True},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
-            {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True, "ms": 3000, **GH_MERCHANT_SELECTOR},
             {"type": "set_auto_looting", "enabled": bool(options.auto_loot)},
         ]
-
+        setup_steps[1:1] = _build_inventory_setup_steps(inventory_location_key)
+        
+        for _ in range(3):
+            setup_steps.append({"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True})
+            
         if options.use_consumables and options.restock_consumables:
             setup_steps.append({"type": "restock_cons"})
 

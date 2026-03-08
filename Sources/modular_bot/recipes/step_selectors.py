@@ -221,6 +221,7 @@ def resolve_item_model_id_from_step(
     step_idx: int,
 ) -> int | None:
     from Py4GWCoreLib import ConsoleLog
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
     named_item_key = str(step.get("item", "") or "").strip()
     named_item = get_named_item_target(named_item_key) if named_item_key else None
@@ -238,6 +239,19 @@ def resolve_item_model_id_from_step(
                 f"Unknown item selector at index {step_idx}: {named_item_key!r}",
             )
         return None
+
+    # Backward-compatible symbolic selectors in model_id:
+    # {"model_id": "UNHOLY_TEXT"} or {"model_id": "Passage_Scroll_Fow"}
+    if isinstance(model_id_raw, str):
+        symbolic_key = model_id_raw.strip()
+        if symbolic_key:
+            symbolic_item = get_named_item_target(symbolic_key)
+            if symbolic_item is not None and symbolic_item.model_id is not None:
+                return int(symbolic_item.model_id)
+
+            model_enum = ModelID.__members__.get(symbolic_key)
+            if model_enum is not None:
+                return int(model_enum.value)
 
     try:
         return int(str(model_id_raw), 0)
