@@ -16,6 +16,9 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
+
+    Name = "move_to_party_member_if_in_aggro"
+
     def __init__(
             self,
             event_bus: EventBus,
@@ -25,7 +28,7 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("move_to_party_member_if_in_aggro"),
+            skill=CustomSkill(MoveToPartyMemberIfInAggroUtility.Name),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value),
             allowed_states=allowed_states,

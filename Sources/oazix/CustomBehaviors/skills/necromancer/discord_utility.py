@@ -1,7 +1,6 @@
 from typing import Any, Generator, Callable, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Player, Routines
-from Sources.Nikon_Scripts.BotUtilities import GameAreas
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -18,7 +17,7 @@ class DiscordUtility(CustomSkillUtilityBase):
     def __init__(self,
                 event_bus: EventBus,
                 current_build: list[CustomSkill],
-                score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 20 if enemy_qte >= 3 else 45 if enemy_qte >= 2 else 70),
+                score_definition: ScoreStaticDefinition = ScoreStaticDefinition(70),
         ) -> None:
 
         super().__init__(
@@ -29,28 +28,11 @@ class DiscordUtility(CustomSkillUtilityBase):
         
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
 
-    @override
-    def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        if self.nature_has_been_attempted_last(previously_attempted_skills): return None
-        player_pos = Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], GameAreas.Earshot)
+    def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
+         
+        targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
+                    within_range=Range.Spellcast,
+                    condition=lambda agent_id: Agent.IsHexed(agent_id) and Agent.IsConditioned(agent_id),
+                    sort_key=(TargetingOrder.HP_ASC, TargetingOrder.CASTER_THEN_MELEE))
 
-        return self.score_definition.get_score(len(enemy_array))
-        
-    @override
-    def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
-
-        # todo make sure condi and hex will last long enough
-        condition = lambda agent_id: Agent.IsHexed(agent_id) and Agent.IsConditioned(agent_id)
-
-        action: Callable[[], Generator[Any, Any, BehaviorResult]] = lambda: (yield from custom_behavior_helpers.Actions.cast_skill_to_lambda(
-            skill=self.custom_skill,
-            select_target=lambda: custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
-                within_range=Range.Spellcast,
-                condition=lambda agent_id: condition(agent_id),
-                sort_key=(TargetingOrder.HP_ASC, TargetingOrder.CASTER_THEN_MELEE)
-            )
-        ))
-
-        result: BehaviorResult = yield from custom_behavior_helpers.Helpers.wait_for_or_until_completion(2500, action)
-        return result
+        return targets

@@ -15,11 +15,10 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
 
-class SaveYourselfsUtility(ProtectiveShoutUtility):
+class TheresNothingToFearUtility(ProtectiveShoutUtility):
     def __init__(
             self,
             event_bus: EventBus,
-            skill: CustomSkill, # pass the luxon or kurzick skill here
             current_build: list[CustomSkill],
             allies_health_less_than_percent: float = 0.8,
             allies_quantity_required: int = 2,
@@ -30,7 +29,7 @@ class SaveYourselfsUtility(ProtectiveShoutUtility):
 
         super().__init__(
             event_bus=event_bus,
-            skill= skill,
+            skill=CustomSkill("Theres_Nothing_to_Fear"),
             current_build=current_build,
             allies_health_less_than_percent=allies_health_less_than_percent,
             allies_quantity_required=allies_quantity_required,
@@ -50,7 +49,7 @@ class SaveYourselfsUtility(ProtectiveShoutUtility):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
-        lock_key = f"Save_Yourselves_utility"
+        lock_key = f"Theres_Nothing_to_Fear_utility"
 
         if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key, timeout_seconds=6) == False:
             yield

@@ -23,13 +23,13 @@ from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_str
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Sources.oazix.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
-from Sources.oazix.CustomBehaviors.skills.blessing.take_near_blessing_v2 import TakeNearBlessingV2Utility
+from Sources.oazix.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
 from Sources.oazix.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
 from Sources.oazix.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Sources.oazix.CustomBehaviors.skills.deamon.death_detection import DeathDetectionUtility
 from Sources.oazix.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Sources.oazix.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
-from Sources.oazix.CustomBehaviors.skills.following.follow_flag_utility_new import FollowFlagUtilityNew
+from Sources.oazix.CustomBehaviors.skills.following.follow_flag_utility import FollowFlagUtility
 from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_only_utility import FollowPartyLeaderOnlyUtility
 from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_new_utility import FollowPartyLeaderNewUtility
 from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
@@ -75,16 +75,12 @@ class CustomBehaviorBaseUtility():
 
             # FOLLOWING
             FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
-            # FollowPartyLeaderNewUtility(event_bus=self.event_bus, current_build=self.in_game_build),
-            # FollowFlagUtility(event_bus=self.event_bus, current_build=self.in_game_build),
-            FollowFlagUtilityNew(event_bus=self.event_bus, current_build=self.in_game_build),
+            FollowFlagUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             SpreadDuringCombatUtility(event_bus=self.event_bus, current_build=self.in_game_build),
-            # FollowPartyLeaderOnlyUtility(event_bus=self.event_bus, current_build=self.in_game_build),
-            # FollowPartyLeaderUtility(event_bus=self.event_bus, current_build=self.in_game_build),
 
             # BLESSING
             # TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
-            TakeNearBlessingV2Utility(event_bus=self.event_bus, current_build=self.in_game_build),
+            TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             
             # LOOT
             LootUtility(current_build=self.in_game_build, event_bus=self.event_bus),
@@ -326,7 +322,7 @@ class CustomBehaviorBaseUtility():
         # or cached_data.data.player_is_casting
 
         if not self.is_custom_behavior_match_in_game_build():
-            print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
+            if constants.DEBUG: print("Custom behavior doesn't match in game build, you are not allowed to perform behavior.act().")
             return
 
         # if self.get_final_is_enabled():

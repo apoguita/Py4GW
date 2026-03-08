@@ -23,9 +23,6 @@ class CustomSkill:
             if self.skill_slot == 0:
                 print(f"Warning loading {self.skill_id} {skill_name} gave no skill slot")
 
-            if skill_name == "Icy_Veins":
-                print(f"Icy_Veins loaded  {self.skill_id} {skill_name} gave skill slot = {self.skill_slot}")
-
     def get_texture(self) -> str:
 
         texture_file = ''

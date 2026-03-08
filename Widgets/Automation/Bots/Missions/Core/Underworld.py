@@ -1,4 +1,5 @@
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference
+from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_backward_grid_placement import FlagBackwardGridPlacement
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
@@ -262,8 +263,8 @@ def bot_routine(bot: Botting):
 
     global MAIN_LOOP_HEADER_NAME
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
-    bot.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_blessing_enabled(True), "Enable Blessing")
-    bot.States.AddCustomState(lambda: _setup_custom_behavior_integration(bot), "Setup Custom Behavior Integration")
+    CustomBehaviorParty().set_party_is_blessing_enabled(True)
+    _setup_custom_behavior_integration(bot)
     
     bot.Templates.Aggressive()
     
@@ -297,7 +298,7 @@ def bot_routine(bot: Botting):
 def Enter_UW(bot_instance: Botting):
     bot_instance.States.AddHeader("Enter Underworld")
     _ensure_minimum_gold(bot_instance)
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail()), "Set Party Leader Email")
+    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
     bot_instance.Move.XY(-4199, 19845, "go to Statue")
     bot_instance.States.AddCustomState(lambda: Player.SendChatCommand("kneel"), "kneel")
     bot_instance.Wait.ForTime(3000)
@@ -322,7 +323,7 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddHeader("Clear the Chamber")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail()), "Set Party Leader Email")
+    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Disable Lock Wait")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Disable Lock Wait")
     
@@ -689,7 +690,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     if BotSettings.ImprisonedSpirits:
         bot_instance.States.AddHeader("Imprisoned Spirits")
         bot_instance.Move.XY(12329, 4632, "Imprisoned Spirits 1")
-        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().party_flagging_manager.assign_formation_for_current_party("preset_1"), "Set Flag")
+        bot_instance.States.AddCustomState(lambda: FlagBackwardGridPlacement.apply_backward_grid_to_flag_manager(), "Set Flag")
         bot_instance.Party.FlagAllHeroes(12329, 4632)
         bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
         #bot_instance.Dialogs.AtXY(8666, 6308, 0x806903, "Back to Chamber")

@@ -17,74 +17,48 @@ class Technobabble_Utility(CustomSkillUtilityBase):
         self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
-        skill: CustomSkill = CustomSkill("Technobabble"),
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(39),
         mana_required_to_cast: int = 11,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
     ) -> None:
         super().__init__(
             event_bus=event_bus,
-            skill=skill,
+            skill=CustomSkill("Technobabble"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states,
         )
 
-        self.score_definition = score_definition
+        self.score_definition: ScoreStaticDefinition = score_definition
 
-    def _get_candidates(self) -> tuple[int, ...]:
-        """
-        Return enemy agent IDs ordered by priority (lowest HP, then distance) within shout/spellcast range.
-        """
+    def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
 
-        priority = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority(
+        priorities = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
             within_range=Range.Spellcast,
             condition=lambda agent_id: not Agent.HasBossGlow(agent_id),
             sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.CASTER_THEN_MELEE),
             range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
 
-        if priority is None:
-            return custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority(
-                within_range=Range.Spellcast,
-                # condition=lambda agent_id: Agent.IsCasting(agent_id),
-                sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.CASTER_THEN_MELEE),
-                range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
-
-        return priority
-
-
-    def _get_best_target(self) -> int | None:
-        candidates = self._get_candidates()
-        if not candidates:
-            return None
-        return candidates[0]
-
+        if priorities is not None and len(priorities) > 0:
+            return priorities
+         
+        targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
+                    within_range=Range.Spellcast,
+                    condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsConditioned(agent_id),
+                    sort_key=(TargetingOrder.HP_ASC, TargetingOrder.CASTER_THEN_MELEE))
+        return targets
+    
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        """
-        Return the configured score if there is a valid target under 50% health in range, otherwise None.
-        """
-        target = self._get_best_target()
-        if target is None:
-            return None
-
-        mult = 1.0
-        if Agent.HasBossGlow(target):
-            mult = 0.50
-        if Agent.IsCasting(target):
-            mult += 0.50
-
-        return self.score_definition.get_score() * mult
+        targets = self._get_targets()
+        if len(targets) == 0: return None
+        return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        """
-        Cast the shout at the chosen target.
-        """
-        target = self._get_best_target()
-        if target is None:
-            return BehaviorResult.ACTION_SKIPPED
-
-        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target)
+        enemies = self._get_targets()
+        if len(enemies) == 0: return BehaviorResult.ACTION_SKIPPED
+        target = enemies[0]
+        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
         return result

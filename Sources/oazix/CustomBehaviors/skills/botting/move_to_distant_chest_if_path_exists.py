@@ -23,6 +23,8 @@ from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_str
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
+    Name = "move_to_distant_chest_if_path_exists"
+
     def __init__(
             self,
             event_bus: EventBus,
@@ -32,7 +34,7 @@ class MoveToDistantChestIfPathExistsUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("move_to_distant_chest_if_path_exists"),
+            skill=CustomSkill(MoveToDistantChestIfPathExistsUtility.Name),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(CommonScore.LOOT.value - 0.0002), # this cannont pass before my own loot
             allowed_states=allowed_states,

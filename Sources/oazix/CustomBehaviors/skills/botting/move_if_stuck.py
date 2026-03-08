@@ -23,10 +23,12 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class MoveIfStuckUtility(CustomSkillUtilityBase):
+    Name = "move_if_stuck"
+
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]) -> None:
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("move_if_stuck"), 
+            skill=CustomSkill(MoveIfStuckUtility.Name), 
             in_game_build=current_build, 
             score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value), 
             allowed_states=[BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],

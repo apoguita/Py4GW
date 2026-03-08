@@ -18,6 +18,8 @@ from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_str
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class WaitIfPartyMemberNeedsToLootUtility(CustomSkillUtilityBase):
+    Name = "wait_if_party_member_needs_to_loot"
+
     def __init__(
             self,
             event_bus: EventBus,
@@ -26,7 +28,7 @@ class WaitIfPartyMemberNeedsToLootUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("wait_if_party_member_needs_to_loot"),
+            skill=CustomSkill(WaitIfPartyMemberNeedsToLootUtility.Name),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(CommonScore.LOOT.value - 0.0001), # this cannot pass before my own loot
             allowed_states= [BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],

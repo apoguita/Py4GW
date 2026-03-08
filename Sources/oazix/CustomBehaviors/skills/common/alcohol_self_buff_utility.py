@@ -7,6 +7,7 @@ from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
+from Sources.oazix.CustomBehaviors.primitives.scores.score_with_alcohol_level_definition import ScoreWithAlcoholLevelDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -37,15 +38,39 @@ _ALCOHOL_L1_MODEL_IDS = [
 # Combined list: L3 items preferred first for efficiency
 _ALCOHOL_MODEL_IDS = _ALCOHOL_L3_MODEL_IDS + _ALCOHOL_L1_MODEL_IDS
 
-
 class _AlcoholSelfBuffBase(CustomSkillUtilityBase):
     """Base for self-buff skills that require alcohol level 3 to be effective."""
+
+    def __init__(
+        self,
+        event_bus: EventBus,
+        skill: CustomSkill,
+        current_build: list[CustomSkill],
+        score_definition: ScoreWithAlcoholLevelDefinition = ScoreWithAlcoholLevelDefinition(30, 30),
+        mana_required_to_cast: int = 5,
+        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO]
+        ):
+        super().__init__(
+            event_bus=event_bus,
+            skill=skill,
+            in_game_build=current_build,
+            score_definition=score_definition,
+            mana_required_to_cast=mana_required_to_cast,
+            allowed_states=allowed_states)
+        
+        self.score_definition: ScoreWithAlcoholLevelDefinition = score_definition
 
     def _get_alcohol_level(self) -> int:
         try:
             return max(0, min(5, int(Effects.GetAlcoholLevel())))
         except Exception:
             return 0
+        
+    def _has_alcohol_in_inventory(self) -> bool:
+        for model_id in _ALCOHOL_MODEL_IDS:
+            if GLOBAL_CACHE.Inventory.GetModelCount(model_id) > 0:
+                return True
+        return False
 
     def _drink_alcohol(self) -> bool:
         for model_id in _ALCOHOL_MODEL_IDS:
@@ -53,78 +78,23 @@ class _AlcoholSelfBuffBase(CustomSkillUtilityBase):
                 item_id = GLOBAL_CACHE.Item.GetItemIdFromModelID(model_id)
                 if item_id:
                     GLOBAL_CACHE.Inventory.UseItem(item_id)
-                    return True
+                return True
+            
         return False
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         has_buff = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.custom_skill.skill_id)
         if not has_buff:
-            return self.score_definition.get_score()
+            return self.score_definition.get_score(has_buff)
         return None
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
         if self._get_alcohol_level() < _ALCOHOL_TARGET_LEVEL:
-            self._drink_alcohol()
-            yield
-            return BehaviorResult.ACTION_SKIPPED
+            if self._has_alcohol_in_inventory():
+                self._drink_alcohol() # TODO this must be moved in dedicate utility skill [deamon/botting]. not part of a combat_skill. combat must react only on the scoring: with/without alcohol.
+                yield
+                return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result
-
-
-class DrunkenMasterUtility(_AlcoholSelfBuffBase):
-    def __init__(
-        self,
-        event_bus: EventBus,
-        current_build: list[CustomSkill],
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(30),
-        mana_required_to_cast: int = 5,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
-    ) -> None:
-        super().__init__(
-            event_bus=event_bus,
-            skill=CustomSkill("Drunken_Master"),
-            in_game_build=current_build,
-            score_definition=score_definition,
-            mana_required_to_cast=mana_required_to_cast,
-            allowed_states=allowed_states,
-        )
-
-
-class DwarvenStabilityUtility(_AlcoholSelfBuffBase):
-    def __init__(
-        self,
-        event_bus: EventBus,
-        current_build: list[CustomSkill],
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(30),
-        mana_required_to_cast: int = 5,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
-    ) -> None:
-        super().__init__(
-            event_bus=event_bus,
-            skill=CustomSkill("Dwarven_Stability"),
-            in_game_build=current_build,
-            score_definition=score_definition,
-            mana_required_to_cast=mana_required_to_cast,
-            allowed_states=allowed_states,
-        )
-
-
-class FeelNoPainUtility(_AlcoholSelfBuffBase):
-    def __init__(
-        self,
-        event_bus: EventBus,
-        current_build: list[CustomSkill],
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(30),
-        mana_required_to_cast: int = 5,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO],
-    ) -> None:
-        super().__init__(
-            event_bus=event_bus,
-            skill=CustomSkill("Feel_No_Pain"),
-            in_game_build=current_build,
-            score_definition=score_definition,
-            mana_required_to_cast=mana_required_to_cast,
-            allowed_states=allowed_states,
-        )

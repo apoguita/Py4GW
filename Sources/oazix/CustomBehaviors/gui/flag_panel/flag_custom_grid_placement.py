@@ -5,12 +5,14 @@ This module provides a grid UI for assigning characters to flag positions
 for party formation management.
 """
 import random
-from Py4GWCoreLib import PyImGui, IconsFontAwesome5, ImGui, Player
+import math
+from Py4GWCoreLib import PyImGui, IconsFontAwesome5, ImGui, Player, Agent
 from Py4GWCoreLib.GlobalCache.shared_memory_src.AccountStruct import AccountStruct
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ColorPalette
 from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
+from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_mouse_placement import FlagMousePlacement
 
 
 # Profession ID to short name mapping (e.g., W, Mo, N/Me)
@@ -47,7 +49,7 @@ class CharacterData:
         self.short_label = name[:3] if len(name) >= 3 else name
 
 
-class FlagGridUI:
+class FlagCustomGridPlacement:
     """Flag Grid UI for character positioning with 5x5 grid layout."""
 
     GRID_SIZE = 5
@@ -59,14 +61,26 @@ class FlagGridUI:
     _persistence = PersistenceLocator().flagging
 
     @classmethod
+    def ensure_initialized(cls) -> None:
+        """Ensure the flag grid is initialized (load from persistence if needed)."""
+        if not cls._initialized:
+            characters = cls._get_party_characters()
+            cls._load_from_persistence(characters)
+            cls._initialized = True
+
+    @classmethod
     def render_configuration(cls) -> None:
         """Render the flag grid configuration UI."""
         characters = cls._get_party_characters()
 
-        # Load persisted assignments on first render
-        if not cls._initialized:
-            cls._load_from_persistence(characters)
-            cls._initialized = True
+        # Ensure initialization (in case render is called directly)
+        cls.ensure_initialized()
+
+        # Check for mouse click when in flag placement mode
+        FlagMousePlacement.check_and_handle_input()
+
+        # Draw overlay at mouse position when in placement mode
+        FlagMousePlacement.draw_overlay()
 
         PyImGui.separator()
         PyImGui.text("[FLAG GRID] Configure positions:")
@@ -94,7 +108,17 @@ class FlagGridUI:
         PyImGui.columns(1, "", False)
 
         PyImGui.spacing()
-        if cls._selected_character is not None:
+        # Find character data for placement mode display
+        placement_char = None
+        if FlagMousePlacement.is_active():
+            active_email = FlagMousePlacement.get_active_character_email()
+            placement_char = next((c for c in characters if c.email == active_email), None)
+
+        if placement_char is not None:
+            PyImGui.text_colored(f"FLAG PLACEMENT MODE: {placement_char.name}", (0.0, 1.0, 0.0, 1.0))
+            PyImGui.text_colored("Right-click anywhere on the screen to place the flag.", (0.0, 1.0, 0.0, 1.0))
+            PyImGui.text_colored("(Press ESC or click the flag button again to cancel)", (0.7, 0.7, 0.7, 1.0))
+        elif cls._selected_character is not None:
             PyImGui.text_colored(f"Selected: {cls._selected_character.name}", cls._selected_character.color.to_tuple_normalized())
             PyImGui.text("Click on a grid square to assign.")
         else:
@@ -158,6 +182,48 @@ class FlagGridUI:
         for char in characters:
             color = char.color.to_tuple_normalized()
             is_selected = cls._selected_character is not None and cls._selected_character.email == char.email
+            is_in_placement_mode = FlagMousePlacement.is_active() and FlagMousePlacement.get_active_character_email() == char.email
+
+            # Add flag at mouse position button (FIRST)
+            # Use green when in placement mode, otherwise use character color
+            flag_btn_color = (0.0, 1.0, 0.0, 1.0) if is_in_placement_mode else color
+
+            if is_in_placement_mode:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Border, (0.0, 1.0, 0.0, 1.0))
+                PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3.0)
+
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, flag_btn_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (min(1.0, flag_btn_color[0] + 0.15), min(1.0, flag_btn_color[1] + 0.15), min(1.0, flag_btn_color[2] + 0.15), flag_btn_color[3]))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (max(0.0, flag_btn_color[0] - 0.1), max(0.0, flag_btn_color[1] - 0.1), max(0.0, flag_btn_color[2] - 0.1), flag_btn_color[3]))
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_FLAG}##flag_mouse_{char.email}", 25, 25):
+                FlagMousePlacement.toggle(char.email)
+            PyImGui.pop_style_color(3)
+
+            if is_in_placement_mode:
+                PyImGui.pop_style_color(1)
+                PyImGui.pop_style_var(1)
+
+            if PyImGui.is_item_hovered():
+                if is_in_placement_mode:
+                    PyImGui.set_tooltip(f"Cancel flag placement for {char.name}")
+                else:
+                    PyImGui.set_tooltip(f"Flag {char.name} at mouse position")
+
+            # Add drop/clear flag button (SECOND)
+            PyImGui.same_line(0, 5)
+            drop_btn_color = (0.8, 0.0, 0.0, 1.0)  # Red color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, drop_btn_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (min(1.0, drop_btn_color[0] + 0.15), min(1.0, drop_btn_color[1] + 0.15), min(1.0, drop_btn_color[2] + 0.15), drop_btn_color[3]))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (max(0.0, drop_btn_color[0] - 0.1), max(0.0, drop_btn_color[1] - 0.1), max(0.0, drop_btn_color[2] - 0.1), drop_btn_color[3]))
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##drop_flag_{char.email}", 25, 25):
+                FlagMousePlacement.clear_character_flag(char.email)
+            PyImGui.pop_style_color(3)
+
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip(f"Drop/clear flag for {char.name}")
+
+            # Character name button (THIRD)
+            PyImGui.same_line(0, 5)
 
             if is_selected:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Border, green_border)
@@ -274,4 +340,76 @@ class FlagGridUI:
         """Reset all state."""
         cls._grid_assignments = [None] * cls.TOTAL_SLOTS
         cls._selected_character = None
+        FlagMousePlacement.reset()
         cls._initialized = False
+
+    @classmethod
+    def apply_grid_to_flag_manager(cls) -> None:
+        """Apply the current grid assignments to PartyFlaggingManager with calculated positions."""
+        from Sources.oazix.CustomBehaviors.primitives.parties.party_flagging_manager import PartyFlaggingManager
+
+        flag_manager = PartyFlaggingManager()
+
+        # Get grid assignments from FlagGridUI (grid_index -> email)
+        assignments = cls.get_assignments_dict()
+
+        # Clear all flags first
+        flag_manager.clear_all_flags()
+
+        if not assignments:
+            return
+
+        # Get leader position and angle for calculating world positions
+        leader_x, leader_y = Player.GetXY()
+        leader_agent_id = Player.GetAgentID()
+        leader_angle = Agent.GetRotationAngle(leader_agent_id)
+        leader_email = Player.GetAccountEmail()
+
+        spacing = flag_manager.spacing_radius
+        if spacing == 0.0:
+            spacing = 100.0
+
+        # Calculate rotation
+        cos_angle = math.cos(leader_angle)
+        sin_angle = math.sin(leader_angle)
+
+        # Find leader's grid position
+        grid_size = 5
+        leader_grid_index: int | None = None
+        for grid_index, email in assignments.items():
+            if email == leader_email:
+                leader_grid_index = grid_index
+                break
+
+        # If leader not in grid, use center of grid as reference
+        if leader_grid_index is None:
+            leader_row, leader_col = grid_size // 2, grid_size // 2
+        else:
+            leader_row = leader_grid_index // grid_size
+            leader_col = leader_grid_index % grid_size
+
+        # Assign to flag manager (max 12 flags)
+        flag_index = 0
+        for grid_index, email in sorted(assignments.items(), key=lambda x: x[0]):
+            if flag_index >= 12:  # Max 12 flags in PartyFlaggingManager
+                break
+
+            # Calculate row and column from grid_index
+            row = grid_index // grid_size
+            col = grid_index % grid_size
+
+            # Calculate offset RELATIVE to leader's grid position
+            row_delta = row - leader_row  # Positive = further back from leader
+            col_delta = col - leader_col  # Positive = right of leader
+
+            # Forward/backward: negative row_delta means in front, positive means behind
+            forward_offset = -spacing * row_delta  # Negative = behind leader
+            right_offset = spacing * col_delta
+
+            # Transform from local (forward/right) to world coordinates
+            world_x = leader_x + (forward_offset * cos_angle + right_offset * sin_angle)
+            world_y = leader_y + (forward_offset * sin_angle - right_offset * cos_angle)
+
+            # Set flag data
+            flag_manager.set_flag_data(flag_index, email, world_x, world_y)
+            flag_index += 1

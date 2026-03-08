@@ -1,7 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent, Player
-from Sources.Nikon_Scripts.BotUtilities import GameAreas
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -17,7 +16,6 @@ class PlagueSendingUtility(CustomSkillUtilityBase):
     def __init__(self,
     event_bus: EventBus,
     current_build: list[CustomSkill],
-    skill: CustomSkill = CustomSkill("Plague_Sending"),
     score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 48 if enemy_qte >= 3 else 32 if enemy_qte <= 2 else 24),
     mana_required_to_cast: int = 12,
     allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
@@ -25,7 +23,7 @@ class PlagueSendingUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=skill,
+            skill=CustomSkill("Plague_Sending"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
@@ -38,14 +36,14 @@ class PlagueSendingUtility(CustomSkillUtilityBase):
             within_range=Range.Spellcast,
             condition=lambda agent_id: not Agent.IsBleeding(agent_id) and not Agent.IsSpirit(agent_id),
             sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_ASC),
-            range_to_count_enemies=GameAreas.Adjacent)
+            range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         return custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
             within_range=Range.Spellcast,
             condition=lambda agent_id: not Agent.IsSpirit(agent_id),
             sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_ASC),
-            range_to_count_enemies=GameAreas.Adjacent)
+            range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:

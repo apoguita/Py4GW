@@ -20,7 +20,6 @@ class SpiritBondUtility(CustomSkillUtilityBase):
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
-        skill: CustomSkill = CustomSkill("Spirit_Bond"),
         score_definition: ScorePerHealthGravityDefinition = ScorePerHealthGravityDefinition(5),
         mana_required_to_cast: int = 0,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO]
@@ -28,7 +27,7 @@ class SpiritBondUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=skill,
+            skill=CustomSkill("Spirit_Bond"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,

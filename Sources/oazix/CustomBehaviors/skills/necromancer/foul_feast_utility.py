@@ -22,15 +22,14 @@ class FoulFeastUtility(CustomSkillUtilityBase):
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
-        skill: CustomSkill = CustomSkill("Foul_Feast"),
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(70),
-        mana_required_to_cast: int = 10,
+        mana_required_to_cast: int = 0,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
 
         super().__init__(
             event_bus=event_bus,
-            skill=skill,
+            skill=CustomSkill("Foul_Feast"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,

@@ -6,14 +6,12 @@ from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockHistory, SharedLockManager
-
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 @staticmethod
 def render():
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
-    
     PyImGui.text(f"Current user : {Player.GetAccountEmail()} | {Player.GetName()}")
     PyImGui.text(f"History (newest on top) : ")
     if PyImGui.begin_child("x", size=(400, 600),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):

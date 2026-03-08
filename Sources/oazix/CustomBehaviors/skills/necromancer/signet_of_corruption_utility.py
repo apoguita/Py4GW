@@ -47,7 +47,6 @@ class SignetOfCorruptionUtility(CustomSkillUtilityBase):
         mult = 1.0
         if player_energy_percent > 0.6:
             mult = 0.5
-        if self.nature_has_been_attempted_last(previously_attempted_skills): mult *= 0.5
 
         targets = self._get_targets()
         if len(targets) == 0: return None
@@ -56,11 +55,9 @@ class SignetOfCorruptionUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
-
         enemies = self._get_targets()
         if len(enemies) == 0: return BehaviorResult.ACTION_SKIPPED
         target = enemies[0]
-
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
         return result
 

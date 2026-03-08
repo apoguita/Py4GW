@@ -11,8 +11,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
-
-
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 WITH_DETAIL = False
 EXPANDED_SKILL_IDS: set[str] = set()
@@ -28,7 +27,6 @@ def get_skill_texture_with_fallback(texture_path: str) -> str:
 @staticmethod
 def render():
     global WITH_DETAIL
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     current_build:CustomBehaviorBaseUtility | None = CustomBehaviorLoader().custom_combat_behavior

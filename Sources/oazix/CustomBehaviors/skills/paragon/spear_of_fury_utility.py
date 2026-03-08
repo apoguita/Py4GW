@@ -1,7 +1,6 @@
 from typing import Any, Generator, Callable, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Routines, Player
-from Sources.Nikon_Scripts.BotUtilities import GameAreas
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -18,8 +17,8 @@ class AttackNearestEnemyHasConditionUtility(CustomSkillUtilityBase):
     def __init__(self,
                  event_bus: EventBus,
                  current_build: list[CustomSkill],
-                 skill: CustomSkill = CustomSkill("Spear_of_Fury_luxon"),
-                 score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 45 if enemy_qte >= 3 else 30 if enemy_qte >= 2 else 11),
+                 skill: CustomSkill, # pass the luxon or kurzick skill here
+                 score_definition: ScoreStaticDefinition = ScoreStaticDefinition(70),
                  ) -> None:
 
         super().__init__(
@@ -30,45 +29,27 @@ class AttackNearestEnemyHasConditionUtility(CustomSkillUtilityBase):
 
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
 
+    def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
+         
+        targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
+                    within_range=Range.Spellcast,
+                    condition=lambda agent_id: Agent.IsConditioned(agent_id),
+                    sort_key=(TargetingOrder.HP_ASC, TargetingOrder.CASTER_THEN_MELEE))
+
+        return targets
+    
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        if self.nature_has_been_attempted_last(previously_attempted_skills): return None
 
         # Todo do i need adrenaline?
-
-        player_pos = Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], GameAreas.Earshot)
-
-        return self.score_definition.get_score(len(enemy_array))
+        targets = self._get_targets()
+        if len(targets) == 0: return None
+        return self.score_definition.get_score(len(targets))
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
-
-        # todo make sure condi will last long enough
-        condition = lambda agent_id: Agent.IsConditioned(agent_id)
-
-        action: Callable[[], Generator[Any, Any, BehaviorResult]] = lambda: (yield from custom_behavior_helpers.Actions.cast_skill_to_lambda(
-            skill=self.custom_skill,
-            select_target=lambda: custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
-                within_range=Range.Spellcast,
-                condition=lambda agent_id: condition(agent_id),
-                sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.CASTER_THEN_MELEE)
-            )
-        ))
-
-        result: BehaviorResult = yield from custom_behavior_helpers.Helpers.wait_for_or_until_completion(1500, action)
+        enemies = self._get_targets()
+        if len(enemies) == 0: return BehaviorResult.ACTION_SKIPPED
+        target = enemies[0]
+        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
         return result
-
-class KurzAttackNearestEnemyHasConditionUtility(CustomSkillUtilityBase):
-
-    def __init__(self,
-                 event_bus: EventBus,
-                 current_build: list[CustomSkill],
-                 skill: CustomSkill = CustomSkill("Spear_of_Fury_kurzick"),
-                 ) -> None:
-
-        super().__init__(
-            event_bus=event_bus,
-            skill=skill,
-            in_game_build=current_build
-        )

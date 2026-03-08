@@ -18,6 +18,8 @@ from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_str
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
+    Name = "move_to_enemy_if_close_enough"
+
     def __init__(
             self,
             event_bus: EventBus,
@@ -27,7 +29,7 @@ class MoveToEnemyIfCloseEnoughUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("move_to_enemy_if_close_enough"),
+            skill=CustomSkill(MoveToEnemyIfCloseEnoughUtility.Name),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(CommonScore.BOTTING.value),
             allowed_states=allowed_states,
