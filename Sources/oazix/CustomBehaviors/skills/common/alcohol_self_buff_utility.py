@@ -10,9 +10,10 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
-_ALCOHOL_TARGET_LEVEL = 3
+_ALCOHOL_TARGET_LEVEL = 1  # Level 1 is sufficient; L3 items used first for a bigger bonus when available
 
-# Level 3 alcohol: each drink gives +3 or more — one drink reaches target level
+# Level 3 alcohol: each drink gives +3 or more — preferred when available
+
 _ALCOHOL_L3_MODEL_IDS = [
     ModelID.Aged_Dwarven_Ale.value,
     ModelID.Aged_Hunters_Ale.value,

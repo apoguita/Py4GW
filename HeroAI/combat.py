@@ -1206,15 +1206,15 @@ class CombatClass:
     def UseAlcoholIfAvailable(self):
         """
         Checks inventory for alcohol and uses the first available one.
-        Only uses alcohol if drunk level is below 3.
+        Level 1 is sufficient; L3 items are used first for a bigger bonus when available.
         Returns True if alcohol was used, False otherwise.
         """
         try:
-            # Check if already at target drunk level
+            # Check if already at target drunk level (>= 1 is enough)
             drunk_level = self.GetDrunkLevel()
             Py4GW.Console.Log("HeroAI", f"Drunken Master: drunk level = {drunk_level}", Py4GW.Console.MessageType.Debug)
 
-            if drunk_level >= 3:
+            if drunk_level >= 1:
                 Py4GW.Console.Log("HeroAI", f"Already drunk (level {drunk_level}), skipping alcohol", Py4GW.Console.MessageType.Debug)
                 return False
             
