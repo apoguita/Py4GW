@@ -19,6 +19,7 @@ try:
     import re
     import unicodedata
     import PyImGui
+    import PyInventory
     from Py4GWCoreLib import (
         ConsoleLog,
         Console,
@@ -31,7 +32,7 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
     import threading
 
@@ -39,9 +40,15 @@ try:
     INI_SECTION = "Pycons"
 
     MIN_INTERVAL_MS = 250
+    MIN_RESTOCK_INTERVAL_MS = 800
+    DEFAULT_RESTOCK_INTERVAL_MS = 1500
     DEFAULT_INTERNAL_COOLDOWN_MS = 5000
     AFTERCAST_MS = 350
     ALCOHOL_EFFECT_TICK_MS = 1000
+    VAULT_RESTOCK_ACTION_MS = 800
+    VAULT_RESTOCK_TARGET_QTY = 1
+    BLOCKED_ACTION_RETENTION_MS = 45000
+    BLOCKED_ACTION_MAX_UI_ROWS = 4
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
@@ -368,6 +375,26 @@ try:
             "long": "Displays advanced per-item interval options so you can tune how frequently each selected item is checked. This is mostly for performance tuning or specialized pacing strategies.",
             "why": "Wrong interval tuning can increase item burn or delay important triggers.",
         },
+        "auto_vault_restock": {
+            "short": "Auto-restock missing selected consumables from Xunlai Vault.",
+            "long": "When enabled, Pycons automatically opens the Xunlai Vault (in outposts) and withdraws missing selected consumables from storage so active upkeep items stay available.",
+            "why": "Keeps automation running when inventory stacks run out, without manual chest management.",
+        },
+        "restock_interval_ms": {
+            "short": "How often vault balancing checks run.",
+            "long": "Controls how frequently Pycons runs the outpost vault-balancing pass for selected restock targets. Use a slower interval than consume checks to reduce chest churn and blocked actions.",
+            "why": "Decoupling restock cadence from consume cadence keeps upkeep responsive without over-polling Xunlai actions.",
+        },
+        "restock_keep_target_on_deselect": {
+            "short": "Keep per-item restock target when item is deselected.",
+            "long": "When ON, deselecting an item keeps its configured restock target for later reuse. When OFF, deselecting an item immediately sets that item's restock target to 0.",
+            "why": "Choose ON for temporary toggling, OFF for strict cleanup behavior.",
+        },
+        "restock_set_all_selected_target": {
+            "short": "Set one target value for all selected items at once.",
+            "long": "Applies the bulk target value to every currently selected item shown in Restock Settings.",
+            "why": "Fastest way to align many items to the same inventory target.",
+        },
         "alcohol_enabled": {
             "short": "Master toggle for alcohol automation.",
             "long": "Enables or disables all alcohol upkeep logic. If OFF, alcohol settings below are ignored regardless of target or preference.",
@@ -528,6 +555,11 @@ try:
             "long": "When ON, settings lists hide items not present in inventory. This is useful for cleanup but can hide items you still plan to configure for later.",
             "why": "Great for active runs; not ideal when planning future loadouts.",
         },
+        "only_show_selected_items": {
+            "short": "Show only items currently selected for the main window.",
+            "long": "When ON, settings lists hide items that are not selected to appear in the main window. Selected items are shown even when inventory count is 0.",
+            "why": "Useful for quickly auditing and editing your active loadout.",
+        },
         "presets_section": {
             "short": "Apply built-in presets or save/load your own settings profiles.",
             "long": "Preset controls let you apply predefined behavior quickly, or store your own configuration in custom slots and reload it later.",
@@ -644,7 +676,10 @@ try:
     PRESET_BOOL_KEYS = {
         "debug_logging",
         "only_show_available_inventory",
+        "only_show_selected_items",
         "show_advanced_intervals",
+        "auto_vault_restock",
+        "restock_keep_target_on_deselect",
         "alcohol_enabled",
         "alcohol_disable_effect",
         "alcohol_use_explorable",
@@ -660,7 +695,11 @@ try:
     PRESET_SCALAR_KEYS = [
         "debug_logging",
         "only_show_available_inventory",
+        "only_show_selected_items",
         "show_advanced_intervals",
+        "auto_vault_restock",
+        "restock_interval_ms",
+        "restock_keep_target_on_deselect",
         "alcohol_enabled",
         "alcohol_disable_effect",
         "alcohol_target_level",
@@ -697,6 +736,10 @@ try:
         cfg.enabled[key] = bool(enabled)
         _rt.runtime_selected[key] = bool(selected)
         _rt.runtime_enabled[key] = bool(enabled)
+        if bool(selected):
+            _apply_restock_target_on_select(key)
+        else:
+            _apply_restock_target_on_deselect(key)
 
     BUILTIN_PRESET_NAMES = {
         "Solo Safe",
@@ -798,12 +841,14 @@ try:
                 continue
             ini_handler.write_key(INI_SECTION, f"{prefix}selected_{k}", str(bool(cfg.selected.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}enabled_{k}", str(bool(cfg.enabled.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
         for item in ALCOHOL_ITEMS:
             k = str(item.get("key", "") or "")
             if not k:
                 continue
             ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_selected_{k}", str(bool(cfg.alcohol_selected.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_enabled_{k}", str(bool(cfg.alcohol_enabled_items.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
         _log(f"Saved custom preset slot {slot}.", Console.MessageType.Info)
 
     def _load_custom_preset_slot(slot_idx: int) -> bool:
@@ -823,6 +868,7 @@ try:
                     setattr(cfg, key, int(ini_handler.read_int(INI_SECTION, f"{prefix}{key}", int(getattr(cfg, key)))))
             except Exception:
                 pass
+        cfg.restock_interval_ms = max(MIN_RESTOCK_INTERVAL_MS, int(getattr(cfg, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))
 
         for item in ALL_CONSUMABLES:
             k = str(item.get("key", "") or "")
@@ -830,12 +876,14 @@ try:
                 continue
             cfg.selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}selected_{k}", bool(cfg.selected.get(k, False))))
             cfg.enabled[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}enabled_{k}", bool(cfg.enabled.get(k, False))))
+            cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
         for item in ALCOHOL_ITEMS:
             k = str(item.get("key", "") or "")
             if not k:
                 continue
             cfg.alcohol_selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_selected_{k}", bool(cfg.alcohol_selected.get(k, False))))
             cfg.alcohol_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_enabled_{k}", bool(cfg.alcohol_enabled_items.get(k, False))))
+            cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
 
         _runtime_sync_from_cfg_full()
 
@@ -1307,7 +1355,14 @@ try:
         _icon_path_by_key_cache[k] = best_path
         return best_path
 
-    def _draw_icon_toggle_or_checkbox(state_now: bool, key: str, label: str, id_prefix: str, icon_size: float = 20.0):
+    def _draw_icon_toggle_or_checkbox(
+        state_now: bool,
+        key: str,
+        label: str,
+        id_prefix: str,
+        icon_size: float = 20.0,
+        highlight_selected_box: bool = False,
+    ):
         tooltip_text = _consumable_tooltip_with_label(key, label)
         icon_path = _resolve_consumable_icon_path(key, label)
         current = bool(state_now)
@@ -1316,10 +1371,16 @@ try:
             pushed_colors = 0
             try:
                 try:
-                    # Keep a dark backing panel behind icon textures for readability.
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.02, 0.02, 0.02, 1.00))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.08, 0.08, 0.08, 1.00))
-                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.00, 0.00, 0.00, 1.00))
+                    # Keep icon backing dark by default; use a green slot tint when selected
+                    # in settings (InventoryPlus-style fill + stronger edge/active tones).
+                    if bool(highlight_selected_box) and bool(current):
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.10, 0.28, 0.12, 1.00))
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.14, 0.38, 0.16, 1.00))
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.18, 0.46, 0.20, 1.00))
+                    else:
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.02, 0.02, 0.02, 1.00))
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.08, 0.08, 0.08, 1.00))
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.00, 0.00, 0.00, 1.00))
                     pushed_colors = 3
                 except Exception:
                     pushed_colors = 0
@@ -1347,7 +1408,20 @@ try:
             return bool(current), bool(changed), True
 
         # Fallback path when no icon can be resolved for this consumable.
-        _, current = ui_checkbox(f"##{id_prefix}_cb_{key}", bool(state_now))
+        pushed_colors = 0
+        try:
+            if bool(highlight_selected_box) and bool(current):
+                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, (0.10, 0.28, 0.12, 1.00))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, (0.14, 0.38, 0.16, 1.00))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, (0.18, 0.46, 0.20, 1.00))
+                pushed_colors = 3
+            _, current = ui_checkbox(f"##{id_prefix}_cb_{key}", bool(state_now))
+        finally:
+            if pushed_colors > 0:
+                try:
+                    PyImGui.pop_style_color(pushed_colors)
+                except Exception:
+                    pass
         _tooltip_if_hovered(tooltip_text)
         changed = bool(current) != bool(state_now)
         return bool(current), bool(changed), False
@@ -1395,8 +1469,12 @@ try:
             ini_handler = _get_ini_handler()
             self.debug_logging = ini_handler.read_bool(INI_SECTION, "debug_logging", False)
             self.interval_ms = ini_handler.read_int(INI_SECTION, "interval_ms", 1500)
+            self.restock_interval_ms = max(MIN_RESTOCK_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))
             self.show_selected_list = ini_handler.read_bool(INI_SECTION, "show_selected_list", True)
             self.only_show_available_inventory = ini_handler.read_bool(INI_SECTION, "only_show_available_inventory", False)
+            self.only_show_selected_items = ini_handler.read_bool(INI_SECTION, "only_show_selected_items", False)
+            self.auto_vault_restock = ini_handler.read_bool(INI_SECTION, "auto_vault_restock", False)
+            self.restock_keep_target_on_deselect = ini_handler.read_bool(INI_SECTION, "restock_keep_target_on_deselect", True)
             self.tooltip_visibility = max(0, min(2, int(ini_handler.read_int(INI_SECTION, "tooltip_visibility", 1))))
             self.tooltip_length = max(0, min(1, int(ini_handler.read_int(INI_SECTION, "tooltip_length", 1))))
             self.tooltip_show_why = ini_handler.read_bool(INI_SECTION, "tooltip_show_why", True)
@@ -1434,6 +1512,12 @@ try:
                 k = c["key"]
                 self.selected[k] = ini_handler.read_bool(INI_SECTION, f"selected_{k}", False)
                 self.enabled[k] = ini_handler.read_bool(INI_SECTION, f"enabled_{k}", False)
+            self.restock_targets = {}
+            for c in ALL_CONSUMABLES:
+                k = c["key"]
+                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.selected.get(k, False)) and bool(self.enabled.get(k, False)) else 0
+                raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
+                self.restock_targets[k] = max(0, min(2500, raw_target))
 
             # Settings-window consumables group open/closed state
             self.settings_explorable_open = ini_handler.read_bool(INI_SECTION, "settings_explorable_open", False)
@@ -1494,6 +1578,9 @@ try:
                 k = a["key"]
                 self.alcohol_selected[k] = ini_handler.read_bool(INI_SECTION, f"alcohol_selected_{k}", False)
                 self.alcohol_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"alcohol_enabled_{k}", False)
+                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.alcohol_selected.get(k, False)) and bool(self.alcohol_enabled_items.get(k, False)) else 0
+                raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
+                self.restock_targets[k] = max(0, min(2500, raw_target))
 
             # Team / multibox settings
             self.team_broadcast = ini_handler.read_bool(INI_SECTION, "team_broadcast", False)
@@ -1517,8 +1604,12 @@ try:
             ini_handler = _get_ini_handler()
             ini_handler.write_key(INI_SECTION, "debug_logging", str(bool(self.debug_logging)))
             ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
+            ini_handler.write_key(INI_SECTION, "restock_interval_ms", str(int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms)))))
             ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
             ini_handler.write_key(INI_SECTION, "only_show_available_inventory", str(bool(self.only_show_available_inventory)))
+            ini_handler.write_key(INI_SECTION, "only_show_selected_items", str(bool(self.only_show_selected_items)))
+            ini_handler.write_key(INI_SECTION, "auto_vault_restock", str(bool(self.auto_vault_restock)))
+            ini_handler.write_key(INI_SECTION, "restock_keep_target_on_deselect", str(bool(self.restock_keep_target_on_deselect)))
             ini_handler.write_key(INI_SECTION, "tooltip_visibility", str(int(self.tooltip_visibility)))
             ini_handler.write_key(INI_SECTION, "tooltip_length", str(int(self.tooltip_length)))
             ini_handler.write_key(INI_SECTION, "tooltip_show_why", str(bool(self.tooltip_show_why)))
@@ -1564,6 +1655,14 @@ try:
                 ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
             for k, v in self.alcohol_enabled_items.items():
                 ini_handler.write_key(INI_SECTION, f"alcohol_enabled_{k}", str(bool(v)))
+            for c in ALL_CONSUMABLES:
+                k = str(c.get("key", "") or "")
+                if k:
+                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
+            for a in ALCOHOL_ITEMS:
+                k = str(a.get("key", "") or "")
+                if k:
+                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
 
             # Team / multibox settings
             # team_broadcast: When enabled, broadcasts item usage to other accounts
@@ -1616,6 +1715,7 @@ try:
             self.last_visible_count = [0]
             self.request_expand_selected = [False]
             self.request_collapse_selected = [False]
+            self.restock_bulk_target = [int(VAULT_RESTOCK_TARGET_QTY)]
             self.runtime_selected = {}
             self.runtime_enabled = {}
             self.runtime_alcohol_selected = {}
@@ -1629,9 +1729,12 @@ try:
     last_visible_count = _rt.last_visible_count
     request_expand_selected = _rt.request_expand_selected
     request_collapse_selected = _rt.request_collapse_selected
+    restock_bulk_target = _rt.restock_bulk_target
 
     tick_timer = Timer()
     tick_timer.Start()
+    restock_tick_timer = Timer()
+    restock_tick_timer.Start()
 
     aftercast_timer = Timer()
     aftercast_timer.Start()
@@ -1642,6 +1745,7 @@ try:
     _skill_name_cache = {}
     _skill_retry_timer = {}
     _warn_timer = {}
+    _blocked_actions = {}
     _last_used_ms = {}
     _last_broadcast_ms = {}
     _team_flags_cache = {}
@@ -1661,6 +1765,10 @@ try:
     _inv_ready_cached = True
     _inv_ready_ts = 0
     _first_main_call = True
+    _vault_deposit_dest_cooldown_until = {}
+    _vault_last_confirmed_storage_bag_id = 0
+    _vault_pending_state = {}
+    _vault_action_cooldown_until = {}
 
     def _now_ms() -> int:
         import time
@@ -1684,6 +1792,112 @@ try:
 
     def _warn_timer_for(key: str) -> Timer:
         return _get_or_create_stopped_timer(_warn_timer, key)
+
+    def _record_blocked_action(code: str, message: str):
+        c = str(code or "").strip()
+        msg = str(message or "").strip()
+        if not c or not msg:
+            return
+        now = int(_now_ms())
+        state = _blocked_actions.get(c)
+        prev_count = 0
+        if isinstance(state, dict):
+            prev_count = int(state.get("count", 0) or 0)
+        _blocked_actions[c] = {
+            "message": msg,
+            "count": int(prev_count + 1),
+            "last_ms": int(now),
+        }
+
+        # Keep tracker bounded to recent signals only.
+        cutoff = int(now - int(BLOCKED_ACTION_RETENTION_MS))
+        for k, v in list(_blocked_actions.items()):
+            try:
+                last_ms = int(v.get("last_ms", 0) or 0)
+            except Exception:
+                last_ms = 0
+            if last_ms < cutoff:
+                del _blocked_actions[k]
+
+    def _active_blocked_actions(limit: int = BLOCKED_ACTION_MAX_UI_ROWS) -> list[tuple[str, int, int]]:
+        now = int(_now_ms())
+        cutoff = int(now - int(BLOCKED_ACTION_RETENTION_MS))
+        rows: list[tuple[int, str, int]] = []
+        for k, v in list(_blocked_actions.items()):
+            try:
+                last_ms = int(v.get("last_ms", 0) or 0)
+            except Exception:
+                last_ms = 0
+            if last_ms < cutoff:
+                del _blocked_actions[k]
+                continue
+            msg = str(v.get("message", "") or "").strip()
+            if not msg:
+                continue
+            try:
+                count = int(v.get("count", 0) or 0)
+            except Exception:
+                count = 0
+            rows.append((int(last_ms), msg, max(1, int(count))))
+        rows.sort(key=lambda r: int(r[0]), reverse=True)
+        top = rows[:max(1, int(limit))]
+        return [(str(msg), int(count), max(0, int((now - int(last_ms)) / 1000))) for last_ms, msg, count in top]
+
+    def _deposit_dest_key(model_id: int, bag_id: int, slot: int) -> tuple[int, int, int]:
+        return int(model_id), int(bag_id), int(slot)
+
+    def _is_deposit_dest_on_cooldown(model_id: int, bag_id: int, slot: int, now_ms: int | None = None) -> bool:
+        now = int(_now_ms() if now_ms is None else now_ms)
+        k = _deposit_dest_key(model_id, bag_id, slot)
+        until = int(_vault_deposit_dest_cooldown_until.get(k, 0) or 0)
+        if until <= now:
+            if k in _vault_deposit_dest_cooldown_until:
+                del _vault_deposit_dest_cooldown_until[k]
+            return False
+        return True
+
+    def _mark_deposit_dest_cooldown(model_id: int, bag_id: int, slot: int, cooldown_ms: int = 6000):
+        now = int(_now_ms())
+        k = _deposit_dest_key(model_id, bag_id, slot)
+        _vault_deposit_dest_cooldown_until[k] = int(now + max(250, int(cooldown_ms)))
+
+    def _vault_action_key(action: str, model_id: int) -> tuple[str, int]:
+        return str(action or ""), int(model_id or 0)
+
+    def _is_vault_action_on_cooldown(action: str, model_id: int, now_ms: int | None = None) -> bool:
+        now = int(_now_ms() if now_ms is None else now_ms)
+        k = _vault_action_key(action, model_id)
+        until = int(_vault_action_cooldown_until.get(k, 0) or 0)
+        if until <= now:
+            if k in _vault_action_cooldown_until:
+                del _vault_action_cooldown_until[k]
+            return False
+        return True
+
+    def _mark_vault_action_cooldown(action: str, model_id: int, cooldown_ms: int = 15000):
+        now = int(_now_ms())
+        k = _vault_action_key(action, model_id)
+        _vault_action_cooldown_until[k] = int(now + max(500, int(cooldown_ms)))
+
+    def _clear_vault_pending(action: str, model_id: int):
+        k = _vault_action_key(action, model_id)
+        if k in _vault_pending_state:
+            del _vault_pending_state[k]
+
+    def _record_vault_pending(action: str, model_id: int, inventory_count: int) -> int:
+        now = int(_now_ms())
+        k = _vault_action_key(action, model_id)
+        inv_count = int(inventory_count or 0)
+        state = _vault_pending_state.get(k)
+        repeats = 1
+        if isinstance(state, dict):
+            prev_count = int(state.get("inventory_count", -999999))
+            prev_ms = int(state.get("last_ms", 0))
+            prev_repeats = int(state.get("repeats", 0))
+            if prev_count == inv_count and (now - prev_ms) <= 15000:
+                repeats = int(prev_repeats + 1)
+        _vault_pending_state[k] = {"inventory_count": inv_count, "last_ms": int(now), "repeats": int(repeats)}
+        return int(repeats)
 
     def _runtime_sync_from_cfg_full():
         if cfg is None:
@@ -1849,10 +2063,12 @@ try:
         if not bool(selected):
             cfg.enabled[key] = False
             _rt.runtime_enabled[key] = False
+            _apply_restock_target_on_deselect(key)
             if not _any_selected_anywhere():
                 cfg.show_selected_list = False
                 request_collapse_selected[0] = True
         else:
+            _apply_restock_target_on_select(key)
             if not bool(cfg.show_selected_list):
                 cfg.show_selected_list = True
             request_expand_selected[0] = True
@@ -1864,10 +2080,12 @@ try:
         if not bool(selected):
             cfg.alcohol_enabled_items[key] = False
             _rt.runtime_alcohol_enabled[key] = False
+            _apply_restock_target_on_deselect(key)
             if not _any_selected_anywhere():
                 cfg.show_selected_list = False
                 request_collapse_selected[0] = True
         else:
+            _apply_restock_target_on_select(key)
             if not bool(cfg.show_selected_list):
                 cfg.show_selected_list = True
             request_expand_selected[0] = True
@@ -1987,27 +2205,55 @@ try:
             return True
 
         try:
-            items = ItemArray.GetItemArray(SCAN_BAGS)
-            _inv_cache_items = list(items) if items else []
-            _inv_cache_ts = int(now)
-
+            item_ids = []
             counts = {}
-            for item_id in _inv_cache_items:
-                try:
-                    mid = int(Item.GetModelID(int(item_id)))
-                    # Get the stack quantity by accessing the item instance
-                    qty = 1
+            bag_handles = _get_inventory_bag_handles()
+            for _bag_enum, _bag, _size, items in bag_handles:
+                for it in items:
                     try:
-                        item_obj = Item.item_instance(int(item_id))
-                        qty = int(getattr(item_obj, 'quantity', 1))
+                        item_id = int(getattr(it, "item_id", 0) or 0)
+                        mid = int(getattr(it, "model_id", 0) or 0)
+                        qty = int(getattr(it, "quantity", 0) or 0)
+                    except Exception:
+                        continue
+                    if item_id <= 0 or mid <= 0:
+                        continue
+                    if qty <= 0:
+                        try:
+                            qty = int(Item.Properties.GetQuantity(int(item_id)) or 0)
+                        except Exception:
+                            qty = 0
+                    if qty <= 0:
+                        qty = 1
+                    item_ids.append(int(item_id))
+                    counts[int(mid)] = int(counts.get(int(mid), 0)) + int(qty)
+
+            # Fallback path for edge cases where bag snapshots are temporarily unavailable.
+            if not item_ids:
+                items = ItemArray.GetItemArray(SCAN_BAGS)
+                for item_id in list(items or []):
+                    try:
+                        iid = int(item_id or 0)
+                        if iid <= 0:
+                            continue
+                        mid = int(Item.GetModelID(iid))
+                        if mid <= 0:
+                            continue
+                        qty = 1
+                        try:
+                            qty = int(Item.Properties.GetQuantity(iid) or 0)
+                        except Exception:
+                            qty = 1
                         if qty <= 0:
                             qty = 1
-                    except Exception as qty_error:
-                        _debug(f"Failed to get quantity for item_id {item_id}: {qty_error}", Console.MessageType.Debug)
-                except Exception:
-                    continue
-                counts[mid] = int(counts.get(mid, 0)) + int(qty)
+                        item_ids.append(int(iid))
+                        counts[int(mid)] = int(counts.get(int(mid), 0)) + int(qty)
+                    except Exception:
+                        continue
+
+            _inv_cache_items = list(item_ids)
             _inv_counts_by_model = counts
+            _inv_cache_ts = int(now)
             return True
         except Exception as e:
             _inv_cache_items = None
@@ -2026,6 +2272,34 @@ try:
     def _find_item_id_by_model_id(model_id: int) -> int:
         if model_id <= 0:
             return 0
+
+        best_item_id = 0
+        best_qty = -1
+        for _bag_enum, _bag, _size, items in _get_inventory_bag_handles():
+            for it in items:
+                try:
+                    mid = int(getattr(it, "model_id", 0) or 0)
+                    if int(mid) != int(model_id):
+                        continue
+                    item_id = int(getattr(it, "item_id", 0) or 0)
+                    if item_id <= 0:
+                        continue
+                    qty = int(getattr(it, "quantity", 0) or 0)
+                    if qty <= 0:
+                        try:
+                            qty = int(Item.Properties.GetQuantity(int(item_id)) or 0)
+                        except Exception:
+                            qty = 0
+                    qty = max(1, int(qty))
+                except Exception:
+                    continue
+                if qty > best_qty:
+                    best_qty = int(qty)
+                    best_item_id = int(item_id)
+
+        if best_item_id > 0:
+            return int(best_item_id)
+
         if not _refresh_inventory_cache(False):
             return 0
         if not _inv_cache_items:
@@ -2037,6 +2311,861 @@ try:
             except Exception:
                 continue
         return 0
+
+    def _inventory_contains_item_id(item_id: int) -> bool:
+        item_id = int(item_id or 0)
+        if item_id <= 0:
+            return False
+
+        for _bag_enum, _bag, _size, items in _get_inventory_bag_handles():
+            for it in items:
+                try:
+                    if int(getattr(it, "item_id", 0) or 0) == int(item_id):
+                        return True
+                except Exception:
+                    continue
+        return False
+
+    def _storage_contains_item_id(item_id: int) -> bool:
+        item_id = int(item_id or 0)
+        if item_id <= 0:
+            return False
+
+        for _bag_enum, _bag, _size, items in _get_storage_bag_handles():
+            for it in items:
+                try:
+                    if int(getattr(it, "item_id", 0) or 0) == int(item_id):
+                        return True
+                except Exception:
+                    continue
+        return False
+
+    def _confirm_deposit_move(
+        model_id: int,
+        source_item_id: int,
+        source_qty_before: int,
+        before_count: int,
+        expected_move: int,
+    ) -> tuple[int, int]:
+        moved_qty_actual = 0
+        after_count = int(before_count)
+        after_known = False
+        expected_move = int(max(1, int(expected_move or 1)))
+        source_qty_before = int(max(1, int(source_qty_before or 1)))
+
+        # Probe a few times because inventory snapshots can lag after MoveItem is accepted.
+        for probe in range(5):
+            _refresh_inventory_cache(force=True)
+            known, count = _stock_status_for_model_id(model_id)
+            if known:
+                after_known = True
+                after_count = int(count)
+                moved_qty_actual = max(
+                    int(moved_qty_actual),
+                    int(max(0, int(before_count) - int(after_count))),
+                )
+
+            source_qty_after = -1
+            try:
+                source_qty_after = int(Item.Properties.GetQuantity(int(source_item_id)) or 0)
+            except Exception:
+                source_qty_after = -1
+
+            if source_qty_after > 0:
+                moved_qty_actual = max(
+                    int(moved_qty_actual),
+                    int(max(0, int(source_qty_before) - int(source_qty_after))),
+                )
+            elif source_qty_after == 0 and not _inventory_contains_item_id(int(source_item_id)):
+                # Source stack vanished from inventory; treat as moved from that stack.
+                moved_qty_actual = max(
+                    int(moved_qty_actual),
+                    int(min(int(source_qty_before), int(expected_move))),
+                )
+
+            moved_qty_actual = int(max(0, min(int(expected_move), int(moved_qty_actual))))
+            if moved_qty_actual > 0:
+                break
+
+            if probe < 4:
+                try:
+                    threading.Event().wait(0.06)
+                except Exception:
+                    pass
+
+        effective_after_count = int(after_count)
+        if moved_qty_actual > 0 and (not after_known or int(effective_after_count) >= int(before_count)):
+            effective_after_count = int(max(0, int(before_count) - int(moved_qty_actual)))
+
+        return int(moved_qty_actual), int(effective_after_count)
+
+    def _confirm_withdraw_move(
+        model_id: int,
+        source_item_id: int,
+        source_qty_before: int,
+        before_count: int,
+        expected_move: int,
+    ) -> tuple[int, int]:
+        moved_qty_actual = 0
+        after_count = int(before_count)
+        after_known = False
+        expected_move = int(max(1, int(expected_move or 1)))
+        source_qty_before = int(max(1, int(source_qty_before or 1)))
+
+        # Probe a few times because inventory snapshots can lag after MoveItem is accepted.
+        for probe in range(5):
+            _refresh_inventory_cache(force=True)
+            known, count = _stock_status_for_model_id(model_id)
+            if known:
+                after_known = True
+                after_count = int(count)
+                moved_qty_actual = max(
+                    int(moved_qty_actual),
+                    int(max(0, int(after_count) - int(before_count))),
+                )
+
+            source_qty_after = -1
+            try:
+                source_qty_after = int(Item.Properties.GetQuantity(int(source_item_id)) or 0)
+            except Exception:
+                source_qty_after = -1
+
+            if source_qty_after > 0:
+                moved_qty_actual = max(
+                    int(moved_qty_actual),
+                    int(max(0, int(source_qty_before) - int(source_qty_after))),
+                )
+            elif source_qty_after == 0 and not _storage_contains_item_id(int(source_item_id)):
+                # Source stack vanished from storage; treat as moved from that stack.
+                moved_qty_actual = max(
+                    int(moved_qty_actual),
+                    int(min(int(source_qty_before), int(expected_move))),
+                )
+
+            moved_qty_actual = int(max(0, min(int(expected_move), int(moved_qty_actual))))
+            if moved_qty_actual > 0:
+                break
+
+            if probe < 4:
+                try:
+                    threading.Event().wait(0.06)
+                except Exception:
+                    pass
+
+        effective_after_count = int(after_count)
+        if moved_qty_actual > 0 and (not after_known or int(effective_after_count) <= int(before_count)):
+            effective_after_count = int(before_count) + int(moved_qty_actual)
+
+        return int(moved_qty_actual), int(effective_after_count)
+
+    def _restock_should_keep_target_on_deselect() -> bool:
+        try:
+            return bool(getattr(cfg, "restock_keep_target_on_deselect", True))
+        except Exception:
+            return True
+
+    def _apply_restock_target_on_select(key: str):
+        key = str(key or "")
+        if not key:
+            return
+        if _restock_target_for_key(key) <= 0:
+            cfg.restock_targets[key] = int(VAULT_RESTOCK_TARGET_QTY)
+
+    def _apply_restock_target_on_deselect(key: str):
+        key = str(key or "")
+        if not key:
+            return
+        if not _restock_should_keep_target_on_deselect():
+            cfg.restock_targets[key] = 0
+
+    def _restock_target_for_key(key: str) -> int:
+        try:
+            raw_val = int(cfg.restock_targets.get(key, VAULT_RESTOCK_TARGET_QTY))
+        except Exception:
+            raw_val = int(VAULT_RESTOCK_TARGET_QTY)
+        return max(0, min(2500, int(raw_val)))
+
+    def _selected_restock_specs() -> list[tuple[str, dict]]:
+        out = []
+        for spec in ALL_CONSUMABLES:
+            key = str(spec.get("key", "") or "")
+            if key and bool(cfg.selected.get(key, False)):
+                out.append((key, spec))
+        for spec in ALCOHOL_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if key and bool(cfg.alcohol_selected.get(key, False)):
+                out.append((key, spec))
+        return out
+
+    def _restock_regular_enabled(key: str) -> bool:
+        return bool(cfg.selected.get(key, False)) and bool(_runtime_regular_enabled(key))
+
+    def _restock_alcohol_enabled(key: str) -> bool:
+        return bool(cfg.alcohol_selected.get(key, False)) and bool(_runtime_alcohol_enabled(key))
+
+    def _build_vault_restock_candidates():
+        out = []
+        seen_models = set()
+
+        for spec in ALL_CONSUMABLES:
+            key = str(spec.get("key", "") or "")
+            if not key or not _restock_regular_enabled(key):
+                continue
+            model_id = int(spec.get("model_id", 0) or 0)
+            if model_id <= 0:
+                if int(_restock_target_for_key(key)) > 0:
+                    wt = _warn_timer_for(f"restock_modelid_missing_{key}")
+                    if wt.IsStopped() or wt.HasElapsed(15000):
+                        wt.Start()
+                        _record_blocked_action(
+                            f"restock_modelid_missing_{key}",
+                            f"{str(spec.get('label', key) or key)}: model_id=0",
+                        )
+                        _debug(f"Vault restock: skipping {spec.get('label', key)} because model_id is 0.", Console.MessageType.Warning)
+                continue
+            if model_id in seen_models:
+                continue
+            known, cnt = _stock_status_for_model_id(model_id)
+            if not known:
+                continue
+            target = _restock_target_for_key(key)
+            delta = int(target) - int(cnt)
+            if delta != 0:
+                out.append((key, spec, model_id, int(cnt), int(target), int(delta)))
+            seen_models.add(model_id)
+
+        for spec in ALCOHOL_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if not key or not _restock_alcohol_enabled(key):
+                continue
+            model_id = int(spec.get("model_id", 0) or 0)
+            if model_id <= 0:
+                if int(_restock_target_for_key(key)) > 0:
+                    wt = _warn_timer_for(f"restock_modelid_missing_{key}")
+                    if wt.IsStopped() or wt.HasElapsed(15000):
+                        wt.Start()
+                        _record_blocked_action(
+                            f"restock_modelid_missing_{key}",
+                            f"{str(spec.get('label', key) or key)}: model_id=0",
+                        )
+                        _debug(f"Vault restock: skipping {spec.get('label', key)} because model_id is 0.", Console.MessageType.Warning)
+                continue
+            if model_id in seen_models:
+                continue
+            known, cnt = _stock_status_for_model_id(model_id)
+            if not known:
+                continue
+            target = _restock_target_for_key(key)
+            delta = int(target) - int(cnt)
+            if delta != 0:
+                out.append((key, spec, model_id, int(cnt), int(target), int(delta)))
+            seen_models.add(model_id)
+
+        return out
+
+    def _get_storage_bag_handles():
+        candidates = [
+            Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4,
+            Bags.Storage5, Bags.Storage6, Bags.Storage7, Bags.Storage8,
+            Bags.Storage9, Bags.Storage10, Bags.Storage11, Bags.Storage12,
+            Bags.Storage13, Bags.Storage14,
+        ]
+        out = []
+        for bag_enum in candidates:
+            try:
+                bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+                size = int(bag.GetSize() or 0)
+                if size <= 0:
+                    continue
+                items = list(bag.GetItems() or [])
+                out.append((bag_enum, bag, size, items))
+            except Exception:
+                continue
+        out.sort(key=lambda entry: int(entry[0].value))
+        return out
+
+    def _get_inventory_bag_handles():
+        candidates = [Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2]
+        out = []
+        for bag_enum in candidates:
+            try:
+                bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+                size = int(bag.GetSize() or 0)
+                if size <= 0:
+                    continue
+                items = list(bag.GetItems() or [])
+                out.append((bag_enum, bag, size, items))
+            except Exception:
+                continue
+        out.sort(key=lambda entry: int(entry[0].value))
+        return out
+
+    def _storage_stack_entries(model_id: int) -> list[tuple[int, int, int, int]]:
+        model_id = int(model_id or 0)
+        if model_id <= 0:
+            return []
+        out = []
+        for bag_enum, _bag, _size, items in _get_storage_bag_handles():
+            for it in items:
+                try:
+                    if int(getattr(it, "model_id", 0) or 0) != model_id:
+                        continue
+                    item_id = int(getattr(it, "item_id", 0) or 0)
+                    if item_id <= 0:
+                        continue
+                    qty = int(getattr(it, "quantity", 0) or 0)
+                    if qty <= 0:
+                        try:
+                            qty = int(Item.Properties.GetQuantity(item_id) or 0)
+                        except Exception:
+                            qty = 0
+                    if qty <= 0:
+                        continue
+                    slot = int(getattr(it, "slot", 0) or 0)
+                    out.append((item_id, qty, int(bag_enum.value), slot))
+                except Exception:
+                    continue
+        return out
+
+    def _empty_slot_candidates(size: int, occupied_slots: set[int]) -> list[int]:
+        size = int(size or 0)
+        if size <= 0:
+            return []
+
+        occupied = set()
+        for raw_slot in list(occupied_slots or []):
+            try:
+                occupied.add(int(raw_slot))
+            except Exception:
+                continue
+
+        # Some runtime builds expose bag slots as 0-based and others as 1-based.
+        # Prefer free slots that are valid in both schemes first to avoid invalid
+        # "slot 0" / "slot size" destinations when moving to empty slots.
+        zero_based = [slot for slot in range(0, int(size)) if slot not in occupied]
+        one_based = [slot for slot in range(1, int(size) + 1) if slot not in occupied]
+        one_based_set = set(one_based)
+        shared = [slot for slot in zero_based if slot in one_based_set]
+
+        if shared:
+            primary = list(shared)
+        elif 0 in occupied and int(size) not in occupied:
+            primary = list(zero_based)
+        elif int(size) in occupied and 0 not in occupied:
+            primary = list(one_based)
+        else:
+            primary = list(one_based if one_based else zero_based)
+
+        out = []
+        for slot in list(primary) + list(one_based) + list(zero_based):
+            slot = int(slot)
+            if slot in occupied:
+                continue
+            if slot not in out:
+                out.append(int(slot))
+        return out
+
+    def _find_inventory_withdraw_destination(model_id: int, max_quantity: int, is_stackable: bool):
+        if int(max_quantity) <= 0:
+            return None
+        bag_handles = _get_inventory_bag_handles()
+        if not bag_handles:
+            return None
+
+        if bool(is_stackable):
+            for bag_enum, _bag, _size, items in bag_handles:
+                for it in items:
+                    try:
+                        if int(getattr(it, "model_id", 0) or 0) != int(model_id):
+                            continue
+                        cur_qty = int(getattr(it, "quantity", 0) or 0)
+                        if cur_qty >= 250:
+                            continue
+                        room = max(0, 250 - cur_qty)
+                        if room <= 0:
+                            continue
+                        move_qty = min(int(max_quantity), int(room))
+                        if move_qty > 0:
+                            return int(bag_enum.value), int(getattr(it, "slot", 0) or 0), int(move_qty)
+                    except Exception:
+                        continue
+
+        for bag_enum, _bag, size, items in bag_handles:
+            if int(len(items)) >= int(max(0, int(size))):
+                continue
+            occupied = set()
+            for it in items:
+                try:
+                    occupied.add(int(getattr(it, "slot", -1) or -1))
+                except Exception:
+                    continue
+            slot_candidates = _empty_slot_candidates(int(size), occupied)
+            for slot in slot_candidates:
+                if slot in occupied:
+                    continue
+                if bool(is_stackable):
+                    move_qty = min(int(max_quantity), 250)
+                else:
+                    move_qty = 1
+                if move_qty > 0:
+                    return int(bag_enum.value), int(slot), int(move_qty)
+        return None
+
+    def _storage_deposit_destinations(model_id: int, max_quantity: int, is_stackable: bool):
+        if int(max_quantity) <= 0:
+            return []
+        bag_handles = _get_storage_bag_handles()
+        if not bag_handles:
+            return []
+
+        partials = []
+        empties = []
+
+        if bool(is_stackable):
+            for bag_enum, _bag, _size, items in bag_handles:
+                for it in items:
+                    try:
+                        if int(getattr(it, "model_id", 0) or 0) != int(model_id):
+                            continue
+                        cur_qty = int(getattr(it, "quantity", 0) or 0)
+                        if cur_qty >= 250:
+                            continue
+                        room = max(0, 250 - cur_qty)
+                        if room <= 0:
+                            continue
+                        move_qty = min(int(max_quantity), int(room))
+                        if move_qty > 0:
+                            partials.append(
+                                (
+                                    int(bag_enum.value),
+                                    int(getattr(it, "slot", 0) or 0),
+                                    int(move_qty),
+                                    True,
+                                    int(cur_qty),
+                                )
+                            )
+                    except Exception:
+                        continue
+
+        for bag_enum, _bag, size, items in bag_handles:
+            if int(len(items)) >= int(max(0, int(size))):
+                continue
+            occupied = set()
+            for it in items:
+                try:
+                    occupied.add(int(getattr(it, "slot", -1) or -1))
+                except Exception:
+                    continue
+            slot_candidates = _empty_slot_candidates(int(size), occupied)
+            for slot in slot_candidates:
+                if slot in occupied:
+                    continue
+                if bool(is_stackable):
+                    move_qty = min(int(max_quantity), 250)
+                else:
+                    move_qty = 1
+                if move_qty > 0:
+                    empties.append((int(bag_enum.value), int(slot), int(move_qty), False))
+
+        # Deposit preference: highest existing partial stack first.
+        partials.sort(key=lambda d: (-int(d[4]), int(d[0]), int(d[1])))
+        empties.sort(key=lambda d: (int(d[0]), int(d[1])))
+        merged = [(d[0], d[1], d[2], d[3]) for d in partials] + empties
+
+        # When a previous deposit succeeded, prefer staying on that storage bag/tab.
+        # This avoids repeatedly targeting stale/inaccessible destinations across bags.
+        preferred_bag = int(_vault_last_confirmed_storage_bag_id or 0)
+        if preferred_bag > 0:
+            preferred = [d for d in merged if int(d[0]) == int(preferred_bag)]
+            if preferred:
+                others = [d for d in merged if int(d[0]) != int(preferred_bag)]
+                merged = preferred + others
+        return merged
+
+    def _withdraw_model_amount(model_id: int, amount: int) -> tuple[bool, int]:
+        amount = int(amount or 0)
+        if amount <= 0:
+            return False, 0
+        model_id = int(model_id or 0)
+        if model_id <= 0:
+            return False, 0
+
+        before_known, before_count = _stock_status_for_model_id(model_id)
+        if not before_known:
+            _refresh_inventory_cache(force=True)
+            before_known, before_count = _stock_status_for_model_id(model_id)
+        if not before_known:
+            return False, 0
+
+        remaining = int(amount)
+        moved_total = 0
+        attempts = 0
+
+        while remaining > 0 and attempts < 64:
+            attempts += 1
+            # Withdrawal preference: consume lowest vault stack first.
+            sources = _storage_stack_entries(model_id)
+            if not sources:
+                break
+            sources.sort(key=lambda entry: (int(entry[1]), int(entry[2]), int(entry[3]), int(entry[0])))
+
+            moved_this_pass = 0
+            pending_move = False
+            for source_item_id, source_qty, _src_bag_id, _src_slot in sources:
+                source_item_id = int(source_item_id or 0)
+                source_qty = int(source_qty or 0)
+                if source_item_id <= 0 or source_qty <= 0:
+                    continue
+
+                try:
+                    is_stackable = bool(Item.Customization.IsStackable(int(source_item_id)))
+                except Exception:
+                    is_stackable = True
+
+                max_move = min(int(remaining), int(source_qty))
+                if not is_stackable:
+                    max_move = 1
+                if max_move <= 0:
+                    continue
+
+                dest = _find_inventory_withdraw_destination(model_id, int(max_move), bool(is_stackable))
+                if not dest:
+                    continue
+
+                bag_id, slot, move_qty = dest
+                move_qty = int(max(1, min(int(move_qty), int(max_move))))
+
+                moved_ok = False
+                try:
+                    _debug(
+                        f"Vault restock: withdraw attempt "
+                        f"(model_id={int(model_id)}, item_id={int(source_item_id)}, "
+                        f"src={int(_src_bag_id)}:{int(_src_slot)}, dest={int(bag_id)}:{int(slot)}, "
+                        f"requested={int(move_qty)}, inventory_count={int(before_count)}).",
+                        Console.MessageType.Debug,
+                    )
+                    moved_ok = bool(PyInventory.PyInventory().MoveItem(int(source_item_id), int(bag_id), int(slot), int(move_qty)))
+                except Exception:
+                    moved_ok = False
+                if not moved_ok:
+                    continue
+
+                moved_qty_actual, after_count = _confirm_withdraw_move(
+                    int(model_id),
+                    int(source_item_id),
+                    int(source_qty),
+                    int(before_count),
+                    int(move_qty),
+                )
+                if moved_qty_actual <= 0:
+                    # MoveItem may report success before movement is visible.
+                    # Treat this as pending and retry on next tick instead of issuing
+                    # a burst of additional move commands.
+                    pending_move = True
+                    break
+
+                moved_this_pass = int(moved_qty_actual)
+                moved_total += int(moved_this_pass)
+                remaining -= int(moved_this_pass)
+                before_count = int(after_count)
+                break
+
+            if pending_move:
+                return False, -1
+            if moved_this_pass <= 0:
+                break
+
+        return bool(moved_total > 0), int(moved_total)
+
+    def _deposit_model_amount(inv, model_id: int, amount: int) -> tuple[bool, int]:
+        global _vault_last_confirmed_storage_bag_id
+        amount = int(amount or 0)
+        if amount <= 0:
+            return False, 0
+        model_id = int(model_id or 0)
+        if model_id <= 0:
+            return False, 0
+
+        before_known, before_count = _stock_status_for_model_id(model_id)
+        if not before_known:
+            _refresh_inventory_cache(force=True)
+            before_known, before_count = _stock_status_for_model_id(model_id)
+        if not before_known:
+            return False, 0
+
+        remaining = int(amount)
+        moved_total = 0
+        attempts = 0
+
+        while remaining > 0 and attempts < 64:
+            attempts += 1
+            source_item_id = _find_item_id_by_model_id(model_id)
+            if source_item_id <= 0:
+                break
+
+            try:
+                source_qty = int(Item.Properties.GetQuantity(int(source_item_id)) or 0)
+            except Exception:
+                source_qty = 0
+            if source_qty <= 0:
+                source_qty = 1
+
+            try:
+                is_stackable = bool(Item.Customization.IsStackable(int(source_item_id)))
+            except Exception:
+                is_stackable = True
+
+            max_move = min(int(remaining), int(source_qty))
+            if not is_stackable:
+                max_move = 1
+            if max_move <= 0:
+                break
+
+            # Deposit exact excess amount only (withdraw-like behavior). Avoid helper
+            # paths that may move full stacks when depositing into empty slots.
+            destinations = _storage_deposit_destinations(model_id, int(max_move), bool(is_stackable))
+            if not destinations:
+                break
+
+            now_ms = _now_ms()
+            destinations = [
+                d for d in destinations
+                if not _is_deposit_dest_on_cooldown(int(model_id), int(d[0]), int(d[1]), int(now_ms))
+            ]
+            if not destinations:
+                break
+
+            moved_this_pass = 0
+            blocked_dest_this_pass = False
+            for bag_id, slot, move_qty, _into_existing_stack in destinations:
+                move_qty = int(max(1, min(int(move_qty), int(max_move))))
+                try:
+                    # Prefer direct MoveItem result for storage actions; queued wrappers can
+                    # report optimistic success without confirming an actual move.
+                    moved_ok = False
+                    try:
+                        _debug(
+                            f"Vault restock: deposit attempt "
+                            f"(model_id={int(model_id)}, item_id={int(source_item_id)}, "
+                            f"dest={int(bag_id)}:{int(slot)}, requested={int(move_qty)}, "
+                            f"into_existing={bool(_into_existing_stack)}, inventory_count={int(before_count)}).",
+                            Console.MessageType.Debug,
+                        )
+                        moved_ok = bool(PyInventory.PyInventory().MoveItem(int(source_item_id), int(bag_id), int(slot), int(move_qty)))
+                    except Exception:
+                        moved_ok = False
+
+                    if moved_ok:
+                        moved_qty_actual, after_count = _confirm_deposit_move(
+                            int(model_id),
+                            int(source_item_id),
+                            int(source_qty),
+                            int(before_count),
+                            int(move_qty),
+                        )
+                        if moved_qty_actual <= 0:
+                            # If a destination repeatedly reports MoveItem success but never
+                            # changes inventory counts, treat that destination as blocked for
+                            # a short window and retry restock on a different destination.
+                            _mark_deposit_dest_cooldown(int(model_id), int(bag_id), int(slot))
+                            _debug(
+                                f"Vault restock: deposit unconfirmed; cooling destination "
+                                f"(model_id={int(model_id)}, item_id={int(source_item_id)}, "
+                                f"dest={int(bag_id)}:{int(slot)}, requested={int(move_qty)}, "
+                                f"inventory_count={int(before_count)}).",
+                                Console.MessageType.Debug,
+                            )
+                            blocked_dest_this_pass = True
+                            break
+
+                        moved_this_pass = int(min(int(max_move), int(moved_qty_actual)))
+                        moved_total += int(moved_this_pass)
+                        remaining -= int(moved_this_pass)
+                        before_count = int(after_count)
+                        _vault_last_confirmed_storage_bag_id = int(bag_id)
+                        break
+                except Exception:
+                    continue
+
+            if blocked_dest_this_pass:
+                return False, -1
+            if moved_this_pass <= 0:
+                break
+
+        return bool(moved_total > 0), int(moved_total)
+
+    def _tick_vault_restock() -> bool:
+        if cfg is None or not bool(getattr(cfg, "auto_vault_restock", False)):
+            return False
+        if not Routines.Checks.Map.MapValid():
+            return False
+        if _player_is_dead() or _map_is_loading():
+            return False
+        if bool(_in_explorable()):
+            return False
+        if not _inventory_ready():
+            return False
+        if not _refresh_inventory_cache(force=True):
+            return False
+
+        candidates = _build_vault_restock_candidates()
+        if not candidates:
+            return False
+
+        inv = getattr(GLOBAL_CACHE, "Inventory", None)
+        if inv is None:
+            return False
+
+        restock_timer = _timer_for("vault_restock_action")
+        if not (restock_timer.IsStopped() or restock_timer.HasElapsed(int(VAULT_RESTOCK_ACTION_MS))):
+            return False
+
+        try:
+            storage_open = bool(inv.IsStorageOpen())
+        except Exception:
+            storage_open = False
+
+        if not storage_open:
+            try:
+                inv.OpenXunlaiWindow()
+                _debug("Vault restock: opening Xunlai Vault.")
+            except Exception as e:
+                _debug(f"Vault restock: failed opening Xunlai Vault: {e}", Console.MessageType.Warning)
+            restock_timer.Start()
+            return True
+
+        shortage_first = [c for c in candidates if int(c[5]) > 0]
+        excess_second = [c for c in candidates if int(c[5]) < 0]
+        ordered_candidates = shortage_first + excess_second
+
+        for key, spec, model_id, _cur_count, _target_count, _delta in ordered_candidates:
+            # Guard against runtime/UI changes while iterating candidates.
+            if key in cfg.alcohol_selected:
+                if not _restock_alcohol_enabled(key):
+                    continue
+            else:
+                if not _restock_regular_enabled(key):
+                    continue
+
+            # Always re-evaluate current inventory state before attempting any action.
+            if not _refresh_inventory_cache(force=True):
+                continue
+            live_known, live_count = _stock_status_for_model_id(int(model_id))
+            if not live_known:
+                continue
+            live_target = int(_restock_target_for_key(key))
+            live_delta = int(live_target) - int(live_count)
+            if live_delta == 0:
+                _clear_vault_pending("deposit", int(model_id))
+                _clear_vault_pending("withdraw", int(model_id))
+                continue
+
+            label = str(spec.get("label", key) or key)
+            if int(live_delta) > 0:
+                if _is_vault_action_on_cooldown("withdraw", int(model_id)):
+                    continue
+                try:
+                    in_storage = int(inv.GetModelCountInStorage(int(model_id)))
+                except Exception:
+                    in_storage = 0
+                if in_storage <= 0:
+                    wt = _warn_timer_for(f"vault_restock_nostock_{key}")
+                    if wt.IsStopped() or wt.HasElapsed(15000):
+                        wt.Start()
+                        _record_blocked_action(f"vault_restock_nostock_{key}", f"{label}: no stock in vault")
+                        _debug(f"Vault restock: no storage stock for {label}.")
+                    continue
+
+                to_withdraw = max(1, min(int(live_delta), int(in_storage)))
+                try:
+                    ok, moved_qty = _withdraw_model_amount(int(model_id), int(to_withdraw))
+                except Exception as e:
+                    ok, moved_qty = False, 0
+                    _debug(f"Vault restock: withdraw failed for {label}: {e}", Console.MessageType.Warning)
+
+                restock_timer.Start()
+                if int(moved_qty) < 0:
+                    repeats = int(_record_vault_pending("withdraw", int(model_id), int(live_count)))
+                    if repeats >= 4:
+                        _mark_vault_action_cooldown("withdraw", int(model_id), 15000)
+                        _clear_vault_pending("withdraw", int(model_id))
+                        _debug(f"Vault restock: withdraw pending repeated for {label}; cooling withdraw attempts.", Console.MessageType.Warning)
+                    _refresh_inventory_cache(force=True)
+                    _schedule_refresh(250)
+                    return True
+
+                if ok and int(moved_qty) > 0:
+                    _clear_vault_pending("withdraw", int(model_id))
+                    _debug(f"Vault restock: withdrew {moved_qty}x {label} ({live_count}->{min(int(live_count) + int(moved_qty), int(live_target))}/{live_target}).")
+                    _refresh_inventory_cache(force=True)
+                    _schedule_refresh(250)
+                    _schedule_refresh(700)
+                    return True
+
+                _clear_vault_pending("withdraw", int(model_id))
+                _mark_vault_action_cooldown("withdraw", int(model_id), 5000)
+                wt = _warn_timer_for(f"vault_restock_withdraw_failed_{key}")
+                if wt.IsStopped() or wt.HasElapsed(10000):
+                    wt.Start()
+                    _debug(f"Vault restock: withdraw returned False for {label}.", Console.MessageType.Warning)
+                _refresh_inventory_cache(force=True)
+                _schedule_refresh(250)
+                return True
+
+            if _is_vault_action_on_cooldown("deposit", int(model_id)):
+                continue
+
+            excess = int(max(0, -int(live_delta)))
+            if excess <= 0:
+                continue
+
+            source_item_id = _find_item_id_by_model_id(int(model_id))
+            source_is_stackable = True
+            if source_item_id > 0:
+                try:
+                    source_is_stackable = bool(Item.Customization.IsStackable(int(source_item_id)))
+                except Exception:
+                    source_is_stackable = True
+            probe_destinations = _storage_deposit_destinations(int(model_id), 1, bool(source_is_stackable))
+            if not probe_destinations:
+                wt = _warn_timer_for(f"vault_restock_storage_full_{key}")
+                if wt.IsStopped() or wt.HasElapsed(15000):
+                    wt.Start()
+                    _record_blocked_action(f"vault_restock_storage_full_{key}", f"{label}: storage full")
+                    _debug(f"Vault restock: storage appears full for {label}; no deposit destination.", Console.MessageType.Warning)
+                continue
+
+            ok, moved_qty = _deposit_model_amount(inv, int(model_id), int(excess))
+            restock_timer.Start()
+            if int(moved_qty) < 0:
+                repeats = int(_record_vault_pending("deposit", int(model_id), int(live_count)))
+                if repeats >= 4:
+                    _mark_vault_action_cooldown("deposit", int(model_id), 15000)
+                    _clear_vault_pending("deposit", int(model_id))
+                    _debug(f"Vault restock: deposit pending repeated for {label}; cooling deposit attempts.", Console.MessageType.Warning)
+                _refresh_inventory_cache(force=True)
+                _schedule_refresh(250)
+                return True
+            if ok and int(moved_qty) > 0:
+                _clear_vault_pending("deposit", int(model_id))
+                _debug(f"Vault restock: deposited {moved_qty}x {label} ({live_count}->{max(0, int(live_count) - int(moved_qty))}/{live_target}).")
+                _refresh_inventory_cache(force=True)
+                _schedule_refresh(250)
+                _schedule_refresh(700)
+                return True
+
+            _clear_vault_pending("deposit", int(model_id))
+            _mark_vault_action_cooldown("deposit", int(model_id), 5000)
+            wt = _warn_timer_for(f"vault_restock_deposit_failed_{key}")
+            if wt.IsStopped() or wt.HasElapsed(10000):
+                wt.Start()
+                _debug(f"Vault restock: deposit failed for {label}.", Console.MessageType.Warning)
+            _refresh_inventory_cache(force=True)
+            _schedule_refresh(250)
+            return True
+
+        restock_timer.Start()
+        return False
 
     def _use_item_id(item_id: int, key: str) -> bool:
         try:
@@ -2836,7 +3965,14 @@ try:
 
             model_id = int(spec.get("model_id", 0))
             if model_id <= 0:
-                _debug(f"Skipping {spec.get('label','(unknown)')}: model_id is 0 (missing ModelID entry?).", Console.MessageType.Warning)
+                wt = _warn_timer_for(f"consume_modelid_missing_{key}")
+                if wt.IsStopped() or wt.HasElapsed(15000):
+                    wt.Start()
+                    _record_blocked_action(
+                        f"consume_modelid_missing_{key}",
+                        f"{str(spec.get('label', key) or key)}: model_id=0",
+                    )
+                    _debug(f"Skipping {spec.get('label','(unknown)')}: model_id is 0 (missing ModelID entry?).", Console.MessageType.Warning)
                 continue
 
             item_id = _find_item_id_by_model_id(model_id)
@@ -2879,6 +4015,10 @@ try:
             wt = _warn_timer_for("alcohol_modelid_missing_" + pick.get("key", "unknown"))
             if wt.IsStopped() or wt.HasElapsed(15000):
                 wt.Start()
+                _record_blocked_action(
+                    "alcohol_modelid_missing_" + str(pick.get("key", "unknown")),
+                    f"{str(pick.get('label','(unknown)') or '(unknown)')}: model_id=0",
+                )
                 _debug(f"Alcohol '{pick.get('label','(unknown)')}' has model_id=0 in your build, skipping.", Console.MessageType.Warning)
             return False
 
@@ -2931,6 +4071,79 @@ try:
             known, cnt = _stock_status_for_model_id(mid)
         return bool(known and int(cnt) > 0)
 
+    def _draw_blocked_actions_section():
+        rows = _active_blocked_actions()
+        if not rows:
+            return
+        PyImGui.separator()
+        try:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.00, 0.86, 0.36, 1.00))
+            PyImGui.text("Blocked actions:")
+            PyImGui.pop_style_color(1)
+        except Exception:
+            PyImGui.text("Blocked actions:")
+        _same_line(10)
+        if PyImGui.small_button("Clear##pycons_blocked_actions_clear"):
+            _blocked_actions.clear()
+            return
+        for msg, count, age_s in rows:
+            suffix = f" x{int(count)}" if int(count) > 1 else ""
+            line = f"- {msg}{suffix} ({int(age_s)}s ago)"
+            try:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (1.00, 0.94, 0.78, 1.00))
+                PyImGui.text(line)
+                PyImGui.pop_style_color(1)
+            except Exception:
+                PyImGui.text(line)
+
+    def _restock_status_snapshot() -> tuple[int, int, str]:
+        shortages = 0
+        excess = 0
+        seen_models = set()
+
+        try:
+            _refresh_inventory_cache(False)
+        except Exception:
+            pass
+
+        for key, spec in _selected_restock_specs():
+            if key in cfg.alcohol_selected:
+                if not _restock_alcohol_enabled(key):
+                    continue
+            else:
+                if not _restock_regular_enabled(key):
+                    continue
+
+            model_id = int(spec.get("model_id", 0) or 0)
+            if model_id <= 0 or model_id in seen_models:
+                continue
+
+            known, cnt = _stock_status_for_model_id(int(model_id))
+            if not known:
+                continue
+
+            target = int(_restock_target_for_key(key))
+            delta = int(target) - int(cnt)
+            if delta > 0:
+                shortages += int(delta)
+            elif delta < 0:
+                excess += int(-delta)
+            seen_models.add(int(model_id))
+
+        vault_state = "Closed"
+        try:
+            inv = getattr(GLOBAL_CACHE, "Inventory", None)
+            if inv is not None:
+                vault_state = "Open" if bool(inv.IsStorageOpen()) else "Closed"
+        except Exception:
+            vault_state = "Closed"
+
+        return int(shortages), int(excess), str(vault_state)
+
+    def _draw_restock_status_line():
+        shortages, excess, vault_state = _restock_status_snapshot()
+        PyImGui.text(f"Restock: Shortages {int(shortages)} | Excess {int(excess)} | Vault {vault_state}")
+
     # -------------------------
     # Main Window
     # -------------------------
@@ -2946,12 +4159,15 @@ try:
 
         PyImGui.separator()
 
-        PyImGui.text("Interval (ms):")
+        PyImGui.text("Consume interval (ms):")
         _same_line(10)
         changed, val = ui_input_int("##pycons_interval", int(cfg.interval_ms))
         if changed:
             cfg.interval_ms = int(max(MIN_INTERVAL_MS, val))
             cfg.mark_dirty()
+
+        _draw_restock_status_line()
+        _draw_blocked_actions_section()
 
         PyImGui.separator()
 
@@ -3068,12 +4284,8 @@ try:
             selected_outpost = [c for c in CONSUMABLES if c.get("use_where") == "outpost" and bool(cfg.selected.get(c["key"], False))]
             selected_mbdp = [c for c in MB_DP_ITEMS if bool(cfg.selected.get(c["key"], False))]
             selected_alcohol = [a for a in ALCOHOL_ITEMS if bool(cfg.alcohol_selected.get(a["key"], False))]
-            if bool(cfg.only_show_available_inventory):
-                selected_explorable_conset = [c for c in selected_explorable_conset if _has_inventory_for_model_id(int(c.get("model_id", 0)))]
-                selected_explorable_other = [c for c in selected_explorable_other if _has_inventory_for_model_id(int(c.get("model_id", 0)))]
-                selected_outpost = [c for c in selected_outpost if _has_inventory_for_model_id(int(c.get("model_id", 0)))]
-                selected_mbdp = [c for c in selected_mbdp if _has_inventory_for_model_id(int(c.get("model_id", 0)))]
-                selected_alcohol = [a for a in selected_alcohol if _has_inventory_for_model_id(int(a.get("model_id", 0)))]
+            # Keep the main selected-items panel stable even when inventory hits 0.
+            # Availability filtering remains in the Settings browser.
 
             any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_outpost or selected_mbdp or selected_alcohol)
             if not any_selected:
@@ -3214,23 +4426,36 @@ try:
             cfg.min_interval_ms[key] = int(max(0, val))
             cfg.mark_dirty()
 
-    def _draw_settings_row(spec: dict, flt: str, visible_keys_out=None, only_available: bool = False):
-        k = spec["key"]
-        label = spec["label"]
+    def _passes_settings_item_filters(
+        spec: dict,
+        label: str,
+        flt: str,
+        selected_now: bool,
+        only_available: bool = False,
+        only_selected: bool = False,
+    ) -> bool:
         if not _matches_filter(label, flt):
-            return
+            return False
+        if bool(only_selected) and not bool(selected_now):
+            return False
         model_id = int(spec.get("model_id", 0))
         if bool(only_available) and model_id > 0 and not _has_inventory_for_model_id(model_id):
+            return False
+        return True
+
+    def _draw_settings_row(spec: dict, flt: str, visible_keys_out=None, only_available: bool = False, only_selected: bool = False):
+        k = spec["key"]
+        label = spec["label"]
+        prev = bool(cfg.selected.get(k, False))
+        if not _passes_settings_item_filters(spec, label, flt, prev, only_available=only_available, only_selected=only_selected):
             return
         if visible_keys_out is not None:
             visible_keys_out.append(k)
-
-        prev = bool(cfg.selected.get(k, False))
         model_id = int(spec.get("model_id", 0))
         stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
         display_label = label + stock_suffix
         selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
-            prev, k, display_label, "pycons_selected", icon_size=18.0
+            prev, k, display_label, "pycons_selected", icon_size=18.0, highlight_selected_box=True
         )
         _same_line(10)
         PyImGui.text(display_label)
@@ -3242,23 +4467,19 @@ try:
         if prev != selected:
             _apply_regular_selection_change(k, selected)
 
-    def _draw_alcohol_settings_row(spec: dict, flt: str, visible_keys_out=None, only_available: bool = False):
+    def _draw_alcohol_settings_row(spec: dict, flt: str, visible_keys_out=None, only_available: bool = False, only_selected: bool = False):
         k = spec["key"]
         label = _alcohol_display_label(spec)
-        if not _matches_filter(label, flt):
-            return
-        model_id = int(spec.get("model_id", 0))
-        if bool(only_available) and model_id > 0 and not _has_inventory_for_model_id(model_id):
+        prev = bool(cfg.alcohol_selected.get(k, False))
+        if not _passes_settings_item_filters(spec, label, flt, prev, only_available=only_available, only_selected=only_selected):
             return
         if visible_keys_out is not None:
             visible_keys_out.append(k)
-
-        prev = bool(cfg.alcohol_selected.get(k, False))
         model_id = int(spec.get("model_id", 0))
         stock_suffix = _stock_suffix_for_model_id(model_id) if model_id > 0 else " —"
         display_label = label + stock_suffix
         selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
-            prev, k, display_label, "pycons_alcohol_selected", icon_size=18.0
+            prev, k, display_label, "pycons_alcohol_selected", icon_size=18.0, highlight_selected_box=True
         )
         _same_line(10)
         PyImGui.text(display_label)
@@ -3637,6 +4858,82 @@ try:
                 _show_setting_tooltip("preset_load_slot")
             PyImGui.separator()
 
+        if ui_collapsing_header("Restock Settings##pycons_settings_restock_dropdown", False):
+            changed, v = ui_checkbox("Auto-restock from Xunlai Vault##pycons_auto_vault_restock", bool(cfg.auto_vault_restock))
+            if changed:
+                cfg.auto_vault_restock = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("auto_vault_restock")
+
+            changed, v = ui_checkbox("Keep target when deselected##pycons_restock_keep_target", bool(cfg.restock_keep_target_on_deselect))
+            if changed:
+                cfg.restock_keep_target_on_deselect = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_keep_target_on_deselect")
+
+            PyImGui.text("Restock interval (ms):")
+            _same_line(10)
+            changed, v = ui_input_int_fixed("##pycons_restock_interval_ms", int(cfg.restock_interval_ms), width=120.0)
+            if changed:
+                cfg.restock_interval_ms = int(max(MIN_RESTOCK_INTERVAL_MS, int(v)))
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_interval_ms")
+
+            PyImGui.text_wrapped("Choose target inventory amounts for selected items. Pycons will withdraw shortages and deposit excess while Xunlai Vault restock is enabled.")
+            PyImGui.text_wrapped("Restock balancing follows the active item toggles in the main window.")
+            selected_specs = _selected_restock_specs()
+
+            PyImGui.text("Set all selected targets to:")
+            _same_line(10)
+            changed_bulk, bulk_val = ui_input_int_fixed("##pycons_restock_bulk_target", int(restock_bulk_target[0]), width=90.0)
+            if changed_bulk:
+                restock_bulk_target[0] = max(0, min(2500, int(bulk_val)))
+            _same_line(10)
+            if PyImGui.button("Apply to all selected##pycons_restock_apply_all"):
+                target = int(max(0, min(2500, int(restock_bulk_target[0]))))
+                changed_any = False
+                for key, _spec in selected_specs:
+                    prev = _restock_target_for_key(key)
+                    if int(prev) != int(target):
+                        cfg.restock_targets[key] = int(target)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_set_all_selected_target")
+
+            if not selected_specs:
+                PyImGui.text_disabled("No selected items. Select consumables first.")
+            else:
+                selected_specs = sorted(selected_specs, key=lambda pair: str(pair[1].get("label", "")).lower())
+                _refresh_inventory_cache(False)
+
+                if PyImGui.begin_table("pycons_restock_targets_table", 3):
+                    PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("In Inventory", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                    PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+
+                    for key, spec in selected_specs:
+                        model_id = int(spec.get("model_id", 0) or 0)
+                        known, cnt = _stock_status_for_model_id(model_id)
+                        label = str(spec.get("label", key) or key)
+                        current_target = _restock_target_for_key(key)
+
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        PyImGui.text(label)
+                        _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
+
+                        PyImGui.table_next_column()
+                        PyImGui.text(str(int(cnt)) if known else "-")
+
+                        PyImGui.table_next_column()
+                        changed_target, new_target = ui_input_int_fixed(f"##pycons_restock_target_{key}", int(current_target), width=90.0)
+                        if changed_target:
+                            cfg.restock_targets[key] = max(0, min(2500, int(new_target)))
+                            cfg.mark_dirty()
+
+                    PyImGui.end_table()
+
         if ui_collapsing_header("Select consumables to show in the main window##pycons_settings_consumables_dropdown", False):
             PyImGui.text("Search:")
             _same_line(10)
@@ -3705,10 +5002,17 @@ try:
                 cfg.only_show_available_inventory = bool(v)
                 cfg.mark_dirty()
             _show_setting_tooltip("only_show_available_inventory")
+            _same_line(18)
+            changed, v = ui_checkbox("Only show selected items##pycons_only_selected_items", bool(cfg.only_show_selected_items))
+            if changed:
+                cfg.only_show_selected_items = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("only_show_selected_items")
             PyImGui.separator()
 
             conset_has_match = search_active and _list_has_match(explorable_consets, flt)
             only_available_settings = bool(cfg.only_show_available_inventory)
+            only_selected_settings = bool(cfg.only_show_selected_items)
             if only_available_settings:
                 _refresh_inventory_cache(False)
 
@@ -3745,13 +5049,13 @@ try:
                     if (not search_active) or conset_has_match:
                         PyImGui.text("Conset:")
                     for spec in explorable_consets:
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
 
                     if (not search_active) or _list_has_match(explorable_other, flt):
                         PyImGui.separator()
 
                     for spec in explorable_other:
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
 
                     if only_available_settings and len(visible_regular_keys) == before_explorable:
                         PyImGui.text_disabled("No available items.")
@@ -3795,7 +5099,7 @@ try:
 
                     PyImGui.text("Party:")
                     for spec in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
 
                     if missing_party_keys:
                         PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
@@ -3803,7 +5107,7 @@ try:
                     PyImGui.separator()
                     PyImGui.text("Self:")
                     for spec in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
 
                     if missing_self_keys:
                         PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
@@ -3812,7 +5116,7 @@ try:
                         PyImGui.separator()
                         PyImGui.text("Unmapped:")
                         for spec in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
-                            _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                            _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
                     if only_available_settings and len(visible_regular_keys) == before_mbdp:
                         PyImGui.text_disabled("No available items.")
 
@@ -3828,7 +5132,7 @@ try:
                 if outpost_open:
                     before_outpost = len(visible_regular_keys)
                     for spec in outpost_items:
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings)
+                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
                     if only_available_settings and len(visible_regular_keys) == before_outpost:
                         PyImGui.text_disabled("No available items.")
 
@@ -3844,7 +5148,7 @@ try:
                 if alcohol_open:
                     before_alcohol = len(visible_alcohol_keys)
                     for spec in sorted(alcohol_items, key=lambda x: x.get("label", "")):
-                        _draw_alcohol_settings_row(spec, flt, visible_alcohol_keys, only_available=only_available_settings)
+                        _draw_alcohol_settings_row(spec, flt, visible_alcohol_keys, only_available=only_available_settings, only_selected=only_selected_settings)
                     if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
                         PyImGui.text_disabled("No available items.")
 
@@ -3870,11 +5174,13 @@ try:
                         if not bool(cfg.selected.get(k, False)):
                             cfg.selected[k] = True
                             _rt.runtime_selected[k] = True
+                            _apply_restock_target_on_select(k)
                             any_new = True
                     for k in visible_alcohol_keys:
                         if not bool(cfg.alcohol_selected.get(k, False)):
                             cfg.alcohol_selected[k] = True
                             _rt.runtime_alcohol_selected[k] = True
+                            _apply_restock_target_on_select(k)
                             any_new = True
 
                     if any_new:
@@ -3890,11 +5196,13 @@ try:
                         cfg.enabled[k] = False
                         _rt.runtime_selected[k] = False
                         _rt.runtime_enabled[k] = False
+                        _apply_restock_target_on_deselect(k)
                     for k in visible_alcohol_keys:
                         cfg.alcohol_selected[k] = False
                         cfg.alcohol_enabled_items[k] = False
                         _rt.runtime_alcohol_selected[k] = False
                         _rt.runtime_alcohol_enabled[k] = False
+                        _apply_restock_target_on_deselect(k)
 
                     if not _any_selected_anywhere():
                         cfg.show_selected_list = False
@@ -3936,6 +5244,10 @@ try:
         _tick_disable_alcohol_effect()
 
         cfg.save_if_dirty_throttled(750)
+
+        if bool(getattr(cfg, "auto_vault_restock", False)) and restock_tick_timer.HasElapsed(int(max(MIN_RESTOCK_INTERVAL_MS, int(getattr(cfg, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS))))):
+            restock_tick_timer.Start()
+            _tick_vault_restock()
 
         if tick_timer.HasElapsed(int(max(MIN_INTERVAL_MS, cfg.interval_ms))):
             tick_timer.Start()
