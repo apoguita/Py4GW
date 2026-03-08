@@ -1,10 +1,11 @@
-import PyInventory
+﻿import PyInventory
 import PyImGui
 import random
 import time
 import os
 import re
 import shutil
+import copy
 
 from Py4GWCoreLib import *
 
@@ -28,7 +29,7 @@ ANNIVERSARY_SLOT_UNLOCKED = False  # Whether the 14th storage pane is available
 SHOW_SETTINGS = False              # Whether the settings panel is expanded
 SHOW_DEBUG = False                 # Whether debug log output is enabled
 SLOW_MODE = False                  # Throttle moves to human-like speed (anti-bot measure)
-TRY_EMPTY_FIRST_STORAGE = False    # Move all items out of pane I before placing elsewhere
+CONSOLIDATE_TO_BACK = False        # Sort non-filter-assigned items to the back of wildcard panes so free slots appear at the front
 AUTO_DEPOSIT_MATERIALS = False     # Automatically move materials into Material Storage
 WINDOW_OPEN = False                # Whether the main GUI panel is visible
 INI_KEY = "Xunlai Manager"
@@ -61,6 +62,7 @@ MATERIAL_MAX_RESCAN_PASSES = 3    # Max deposit rescans when partial moves occur
 _sort_task_state = None           # Active sort task dict; None when idle
 _sort_progress_ratio = 0.0        # 0.0–1.0 progress shown in the UI progress bar
 _sort_progress_text = ""          # Human-readable status shown next to the progress bar
+_sort_done_until = 0.0            # Keep progress bar visible until this monotonic timestamp
 _material_storage_quantities_live = {}  # Snapshot of Material Storage quantities, refreshed each tick
 
 
@@ -163,7 +165,7 @@ def _ensure_account_settings_loaded(force: bool = False):
 	global SHOW_SETTINGS
 	global SHOW_DEBUG
 	global SLOW_MODE
-	global TRY_EMPTY_FIRST_STORAGE
+	global CONSOLIDATE_TO_BACK
 	global AUTO_DEPOSIT_MATERIALS
 	global WINDOW_OPEN
 	global _sort_task_state
@@ -191,7 +193,7 @@ def _ensure_account_settings_loaded(force: bool = False):
 	SHOW_SETTINGS = ini_handler.read_bool(INI_KEY, "show_settings", False)
 	SHOW_DEBUG = ini_handler.read_bool(INI_KEY, "show_debug", False)
 	SLOW_MODE = ini_handler.read_bool(INI_KEY, "slow_mode", False)
-	TRY_EMPTY_FIRST_STORAGE = ini_handler.read_bool(INI_KEY, "try_empty_first_storage", False)
+	CONSOLIDATE_TO_BACK = ini_handler.read_bool(INI_KEY, "consolidate_to_back", False)
 	AUTO_DEPOSIT_MATERIALS = ini_handler.read_bool(INI_KEY, "auto_deposit_materials", False)
 	WINDOW_OPEN = ini_handler.read_bool(INI_KEY, "window_open", False)
 	_sort_task_state = None
@@ -1211,9 +1213,10 @@ def _find_any_free_slot(bag_states, bag_order, blocked_slots=None):
 	return None, None
 
 
-def _move_entry_to_slot(entry, target_bag_enum, target_slot: int, bag_states) -> bool:
+def _move_entry_to_slot(entry, target_bag_enum, target_slot: int, bag_states, dry_run: bool = False) -> bool:
 	"""Move an item entry to the given slot, update bag_states, and mutate entry in-place.
 
+	When dry_run=True the game API is not called; only the in-memory state is updated.
 	Returns True on success (or when the item is already at the target), False on API error.
 	"""
 	source_bag = entry["bag_enum"]
@@ -1221,14 +1224,15 @@ def _move_entry_to_slot(entry, target_bag_enum, target_slot: int, bag_states) ->
 	if source_bag == target_bag_enum and source_slot == target_slot:
 		return True
 
-	try:
-		GLOBAL_CACHE.Inventory.MoveItem(entry["item_id"], target_bag_enum.value, target_slot, entry["quantity"])
-	except Exception:
-		return False
+	if not dry_run:
+		try:
+			GLOBAL_CACHE.Inventory.MoveItem(entry["item_id"], target_bag_enum.value, target_slot, entry["quantity"])
+		except Exception:
+			return False
 
-	_debug_log(
-		f"Move | item={int(entry.get('item_id', 0))} modelid={int(entry.get('model_id', 0))} type={str(entry.get('type_name', 'Unknown'))} qty={int(entry.get('quantity', 0))} {source_bag.value}:{int(source_slot) + 1} -> {target_bag_enum.value}:{int(target_slot) + 1}"
-	)
+		_debug_log(
+			f"Move | item={int(entry.get('item_id', 0))} modelid={int(entry.get('model_id', 0))} type={str(entry.get('type_name', 'Unknown'))} qty={int(entry.get('quantity', 0))} {source_bag.value}:{int(source_slot) + 1} -> {target_bag_enum.value}:{int(target_slot) + 1}"
+		)
 
 	_reserve_move_in_state(bag_states, source_bag, source_slot, target_bag_enum, target_slot)
 	entry["bag_enum"] = target_bag_enum
@@ -1247,7 +1251,7 @@ def _get_model_sort_type_priority(type_name: str):
 		return len(ITEM_TYPE_OPTIONS), type_name
 
 
-def _sort_items_within_storage_by_model_id(entries, bag_states, available_storage_bags, target_bags=None, max_move_actions=None):
+def _sort_items_within_storage_by_model_id(entries, bag_states, available_storage_bags, target_bags=None, max_move_actions=None, dry_run: bool = False):
 	"""Sort items within each pane by (type priority, model_id, item_id) using in-place swaps.
 
 	When max_move_actions is set (Slow Mode), stops after that many moves and signals incompletion
@@ -1300,7 +1304,7 @@ def _sort_items_within_storage_by_model_id(entries, bag_states, available_storag
 				if free_slot is None:
 					continue
 
-				if not _move_entry_to_slot(occupant, bag_enum, free_slot, bag_states):
+				if not _move_entry_to_slot(occupant, bag_enum, free_slot, bag_states, dry_run=dry_run):
 					continue
 
 				moved_occupant = True
@@ -1310,9 +1314,9 @@ def _sort_items_within_storage_by_model_id(entries, bag_states, available_storag
 
 			source_bag_before = desired_entry["bag_enum"]
 			source_slot_before = desired_entry["slot"]
-			if not _move_entry_to_slot(desired_entry, bag_enum, target_slot, bag_states):
+			if not _move_entry_to_slot(desired_entry, bag_enum, target_slot, bag_states, dry_run=dry_run):
 				if moved_occupant:
-					if _move_entry_to_slot(occupant, bag_enum, occupant_original_slot, bag_states):
+					if _move_entry_to_slot(occupant, bag_enum, occupant_original_slot, bag_states, dry_run=dry_run):
 						slot_to_entry[occupant_original_slot] = occupant
 				continue
 
@@ -1333,7 +1337,7 @@ def _sort_items_within_storage_by_model_id(entries, bag_states, available_storag
 	return move_actions, unresolved_bags, completed_all_bags
 
 
-def _compact_storage_slots(entries, bag_states, available_storage_bags, target_bags=None, max_move_actions=None):
+def _compact_storage_slots(entries, bag_states, available_storage_bags, target_bags=None, max_move_actions=None, dry_run: bool = False):
 	"""Shift items toward the front of each pane to fill gaps left by completed moves.
 
 	When max_move_actions is set (Slow Mode), stops early and signals incompletion
@@ -1363,7 +1367,7 @@ def _compact_storage_slots(entries, bag_states, available_storage_bags, target_b
 			if current_slot == compact_slot:
 				continue
 
-			if not _move_entry_to_slot(entry, bag_enum, compact_slot, bag_states):
+			if not _move_entry_to_slot(entry, bag_enum, compact_slot, bag_states, dry_run=dry_run):
 				continue
 
 			move_actions += 1
@@ -1374,15 +1378,444 @@ def _compact_storage_slots(entries, bag_states, available_storage_bags, target_b
 	return move_actions, completed_all_bags
 
 
-def _get_sort_priority(entry, allowed_by_bag, allowed_models_by_bag, first_storage_bag=None, try_empty_first=False):
+def _count_consolidate_back_items(
+	entries,
+	bag_states,
+	available_storage_bags,
+	allowed_by_bag,
+	allowed_models_by_bag,
+	filtered_bags_by_type,
+	filtered_bags_by_model_id,
+) -> int:
+	"""Return the number of consolidatable items not already at their target back-positions.
+
+	Uses the same slot-assignment logic as _consolidate_items_to_back but only counts
+	rather than moving anything.
+	"""
+	eligible_bags_set = set()
+	nc_slots_by_bag = {}
+	eligible_bags_ordered = []
+
+	for bag_enum in available_storage_bags:
+		if bag_enum == Bags.MaterialStorage:
+			continue
+		if not _storage_is_all_allowed(allowed_by_bag.get(bag_enum, []), allowed_models_by_bag.get(bag_enum, [])):
+			continue
+		state = bag_states.get(bag_enum)
+		if state is None or int(state.get("size", 0)) == 0:
+			continue
+		nc_slots = set()
+		for entry in entries:
+			if entry.get("bag_enum") != bag_enum or entry.get("quantity", 0) <= 0:
+				continue
+			if _is_entry_excluded_from_regular_sort(entry):
+				nc_slots.add(entry["slot"])
+				continue
+			type_name = entry.get("type_name", "")
+			model_id = int(entry.get("model_id", 0))
+			if type_name in filtered_bags_by_type or model_id in filtered_bags_by_model_id:
+				nc_slots.add(entry["slot"])
+		nc_slots_by_bag[bag_enum] = nc_slots
+		eligible_bags_ordered.append(bag_enum)
+		eligible_bags_set.add(bag_enum)
+
+	if not eligible_bags_ordered:
+		return 0
+
+	combined_movable = []
+	for bag_enum in eligible_bags_ordered:
+		state = bag_states.get(bag_enum)
+		bag_size = int(state.get("size", 0))
+		nc_slots = nc_slots_by_bag[bag_enum]
+		for slot in range(bag_size):
+			if slot not in nc_slots:
+				combined_movable.append((bag_enum, slot))
+
+	consolidatable = []
+	for entry in entries:
+		be = entry.get("bag_enum")
+		if be not in eligible_bags_set or entry.get("quantity", 0) <= 0:
+			continue
+		if _is_entry_excluded_from_regular_sort(entry):
+			continue
+		type_name = entry.get("type_name", "")
+		model_id = int(entry.get("model_id", 0))
+		if type_name in filtered_bags_by_type or model_id in filtered_bags_by_model_id:
+			continue
+		consolidatable.append(entry)
+
+	n_items = len(consolidatable)
+	if n_items == 0 or len(combined_movable) < n_items:
+		return 0
+
+	consolidatable_sorted = sorted(
+		consolidatable,
+		key=lambda e: (
+			_get_model_sort_type_priority(str(e.get("type_name", "")))
+			+ (int(e.get("model_id", 0)), int(e.get("item_id", 0)))
+		),
+	)
+	target_positions = combined_movable[len(combined_movable) - n_items:]
+	count = 0
+	for i, entry in enumerate(consolidatable_sorted):
+		t_bag, t_slot = target_positions[i]
+		if entry.get("bag_enum") != t_bag or entry.get("slot") != t_slot:
+			count += 1
+	return count
+
+
+def _consolidate_items_to_back(
+	entries,
+	bag_states,
+	available_storage_bags,
+	allowed_by_bag,
+	allowed_models_by_bag,
+	filtered_bags_by_type,
+	filtered_bags_by_model_id,
+	max_move_actions=None,
+	dry_run: bool = False,
+):
+	"""Push items in wildcard panes toward the end so that free slots accumulate at the front.
+
+	All eligible wildcard panes (no type filter AND no model-ID filter) are treated as a
+	single combined slot space. Items are sorted by (type_priority, model_id, item_id) and
+	assigned to the last N combined movable slots so they pack contiguously to the rear
+	across tab boundaries. Non-consolidatable items (excluded from regular sort, or belonging
+	to a dedicated filtered pane) are never displaced and their slots are not used as targets.
+
+	Returns (move_actions, completed). completed=False means stopped early due to max_move_actions.
+	"""
+	move_actions = 0
+
+	# ── Step 1: identify eligible wildcard bags and per-bag non-consolidatable slot sets ──
+	eligible_bags_ordered = []
+	nc_slots_by_bag = {}  # bag_enum -> set of slots occupied by non-consolidatable items
+
+	for bag_enum in available_storage_bags:
+		if bag_enum == Bags.MaterialStorage:
+			continue
+		allowed_types = allowed_by_bag.get(bag_enum, [])
+		allowed_model_ids = allowed_models_by_bag.get(bag_enum, [])
+		if not _storage_is_all_allowed(allowed_types, allowed_model_ids):
+			continue
+		state = bag_states.get(bag_enum)
+		if state is None or int(state.get("size", 0)) == 0:
+			continue
+
+		nc_slots = set()
+		for entry in entries:
+			if entry.get("bag_enum") != bag_enum or entry.get("quantity", 0) <= 0:
+				continue
+			if _is_entry_excluded_from_regular_sort(entry):
+				nc_slots.add(entry["slot"])
+				continue
+			type_name = entry.get("type_name", "")
+			model_id = int(entry.get("model_id", 0))
+			if type_name in filtered_bags_by_type or model_id in filtered_bags_by_model_id:
+				nc_slots.add(entry["slot"])
+
+		nc_slots_by_bag[bag_enum] = nc_slots
+		eligible_bags_ordered.append(bag_enum)
+
+	if not eligible_bags_ordered:
+		return 0, True
+
+	eligible_bags_set = set(eligible_bags_ordered)
+
+	# ── Step 2: build combined ordered list of movable (bag, slot) positions ──
+	# Iterate panes in order; within each pane iterate slots in order.
+	# Slots occupied by non-consolidatable items are excluded.
+	combined_movable = []  # [(bag_enum, slot), ...]
+	for bag_enum in eligible_bags_ordered:
+		state = bag_states.get(bag_enum)
+		bag_size = int(state.get("size", 0))
+		nc_slots = nc_slots_by_bag[bag_enum]
+		for slot in range(bag_size):
+			if slot not in nc_slots:
+				combined_movable.append((bag_enum, slot))
+
+	# ── Step 3: collect all consolidatable items from all eligible bags ──
+	all_consolidatable = []
+	for entry in entries:
+		be = entry.get("bag_enum")
+		if be not in eligible_bags_set or entry.get("quantity", 0) <= 0:
+			continue
+		if _is_entry_excluded_from_regular_sort(entry):
+			continue
+		type_name = entry.get("type_name", "")
+		model_id = int(entry.get("model_id", 0))
+		if type_name in filtered_bags_by_type or model_id in filtered_bags_by_model_id:
+			continue
+		all_consolidatable.append(entry)
+
+	n_items = len(all_consolidatable)
+	if n_items <= 1 or len(combined_movable) < n_items:
+		return 0, True
+
+	# ── Step 4: sort items and assign the LAST N combined movable positions as targets ──
+	all_consolidatable_sorted = sorted(
+		all_consolidatable,
+		key=lambda e: (
+			_get_model_sort_type_priority(str(e.get("type_name", "")))
+			+ (int(e.get("model_id", 0)), int(e.get("item_id", 0)))
+		),
+	)
+	target_positions = combined_movable[len(combined_movable) - n_items:]  # last N, in pane order
+	desired_target_by_item_id = {
+		all_consolidatable_sorted[i]["item_id"]: target_positions[i]
+		for i in range(n_items)
+	}
+
+	# ── Step 5: build (bag_enum, slot) -> entry for all items in eligible bags ──
+	slot_to_entry = {}  # (bag_enum, slot) -> entry
+	for entry in entries:
+		be = entry.get("bag_enum")
+		if be in eligible_bags_set and entry.get("quantity", 0) > 0:
+			slot_to_entry[(be, entry["slot"])] = entry
+
+	# ── Step 6: execute moves in sorted order ──
+	# move_actions counts only successful PLACEMENTS (not evictions).
+	# max_move_actions limits placements per call so the progress bar advances smoothly.
+	for desired_entry in all_consolidatable_sorted:
+		target_bag, target_slot = desired_target_by_item_id[desired_entry["item_id"]]
+		current_bag = desired_entry.get("bag_enum")
+		current_slot = desired_entry.get("slot")
+
+		if current_bag == target_bag and current_slot == target_slot:
+			continue
+
+		occupant = slot_to_entry.get((target_bag, target_slot))
+		if occupant is not None and occupant.get("item_id") != desired_entry.get("item_id"):
+			# Find any free movable slot across all eligible bags to evict the occupant
+			free_bag, free_slot = None, None
+			for fb in eligible_bags_ordered:
+				fb_state = bag_states.get(fb)
+				if fb_state is None:
+					continue
+				nc = nc_slots_by_bag.get(fb, set())
+				for fs in fb_state.get("free_slots", []):
+					if fs not in nc:
+						free_bag, free_slot = fb, fs
+						break
+				if free_bag is not None:
+					break
+			if free_bag is None:
+				continue
+			if not _move_entry_to_slot(occupant, free_bag, free_slot, bag_states, dry_run=dry_run):
+				continue
+			slot_to_entry.pop((target_bag, target_slot), None)
+			slot_to_entry[(free_bag, free_slot)] = occupant
+			# Eviction is not counted in move_actions — only placements are
+
+		src_bag = desired_entry.get("bag_enum")
+		src_slot = desired_entry.get("slot")
+		if not _move_entry_to_slot(desired_entry, target_bag, target_slot, bag_states, dry_run=dry_run):
+			continue
+		slot_to_entry.pop((src_bag, src_slot), None)
+		slot_to_entry[(target_bag, target_slot)] = desired_entry
+		move_actions += 1  # count only successful placements
+		if max_move_actions is not None and move_actions >= max_move_actions:
+			return move_actions, False
+
+	return move_actions, True
+
+
+def _plan_sort_moves(
+	entries_orig,
+	bag_states_orig,
+	available_storage_bags,
+	allowed_by_bag,
+	allowed_models_by_bag,
+	filtered_bags_by_type,
+	filtered_bags_by_model_id,
+	wildcard_bags,
+	wildcard_model_bags,
+	consolidate_to_back,
+):
+	"""Simulate all sort phases (no API calls) and compute the final position of every item.
+
+	Returns {item_id: (target_bag, target_slot)} for items whose final position differs
+	from their current position. Used to build the execute-phase move plan.
+	"""
+	entries = copy.deepcopy(entries_orig)
+	bag_states = copy.deepcopy(bag_states_orig)
+	initial_pos = {
+		e["item_id"]: (e["bag_enum"], e["slot"])
+		for e in entries
+		if e.get("quantity", 0) > 0
+	}
+
+	# Simulate placement rounds to completion (no frame throttle needed)
+	for _ in range(MAX_AUTO_SORT_RETRIES + 1):
+		wrong = _build_wrong_entries(
+			entries, allowed_by_bag, allowed_models_by_bag,
+			filtered_bags_by_type, filtered_bags_by_model_id, available_storage_bags,
+		)
+		if not wrong:
+			break
+		moved_any = False
+		for entry in wrong:
+			if _try_move_wrong_entry(
+				entry, available_storage_bags, allowed_by_bag, allowed_models_by_bag,
+				filtered_bags_by_type, filtered_bags_by_model_id,
+				wildcard_bags, wildcard_model_bags, bag_states, dry_run=True,
+			):
+				moved_any = True
+		if not moved_any:
+			break
+
+	# Simulate model sort
+	_sort_items_within_storage_by_model_id(entries, bag_states, available_storage_bags, dry_run=True)
+
+	# Simulate compaction
+	_compact_storage_slots(entries, bag_states, available_storage_bags, dry_run=True)
+
+	# Simulate consolidate-to-back (if enabled)
+	if consolidate_to_back:
+		_consolidate_items_to_back(
+			entries, bag_states, available_storage_bags,
+			allowed_by_bag, allowed_models_by_bag,
+			filtered_bags_by_type, filtered_bags_by_model_id,
+			dry_run=True,
+		)
+
+	# Build plan from simulated vs. initial positions
+	plan = {}
+	for entry in entries:
+		item_id = entry.get("item_id")
+		if item_id is None or entry.get("quantity", 0) <= 0:
+			continue
+		initial = initial_pos.get(item_id)
+		if initial is None:
+			continue
+		final = (entry["bag_enum"], entry["slot"])
+		if final != initial:
+			plan[item_id] = final
+
+	return plan
+
+
+def _execute_move_plan(entries, bag_states, move_plan, available_storage_bags, max_moves=None):
+	"""Execute moves from the pre-computed plan. Returns (plan_moves_done, completed).
+
+	Items are moved to their planned final positions. If a target slot is occupied by an
+	item that has no planned move, that occupant is evicted to a free slot first. Cycles
+	(two or more pending items mutually blocking each other) are broken by moving one item
+	to a free buffer slot.
+
+	max_moves limits total API calls per frame (evictions and placements combined).
+	plan_moves_done counts only items that reached their planned final target.
+	"""
+	if not move_plan:
+		return 0, True
+
+	entry_by_id = {e["item_id"]: e for e in entries}
+	slot_to_id = {}
+	for e in entries:
+		if e.get("quantity", 0) > 0:
+			slot_to_id[(e["bag_enum"], e["slot"])] = e["item_id"]
+
+	pending = set()
+	for iid, (tb, ts) in move_plan.items():
+		en = entry_by_id.get(iid)
+		if en is not None and (en["bag_enum"] != tb or en["slot"] != ts):
+			pending.add(iid)
+
+	plan_moves_done = 0
+	total_api_calls = 0
+
+	while pending:
+		if max_moves is not None and total_api_calls >= max_moves:
+			break
+		made_progress = False
+
+		for item_id in list(pending):
+			if max_moves is not None and total_api_calls >= max_moves:
+				break
+			entry = entry_by_id.get(item_id)
+			if entry is None or entry.get("quantity", 0) <= 0:
+				pending.discard(item_id)
+				made_progress = True
+				continue
+			target_bag, target_slot = move_plan[item_id]
+			if entry["bag_enum"] == target_bag and entry["slot"] == target_slot:
+				pending.discard(item_id)
+				made_progress = True
+				continue
+			occupant_id = slot_to_id.get((target_bag, target_slot))
+
+			if occupant_id is None:
+				# Target slot is free — move directly
+				src_bag, src_slot = entry["bag_enum"], entry["slot"]
+				if _move_entry_to_slot(entry, target_bag, target_slot, bag_states):
+					slot_to_id.pop((src_bag, src_slot), None)
+					slot_to_id[(target_bag, target_slot)] = item_id
+					total_api_calls += 1
+					plan_moves_done += 1
+				pending.discard(item_id)
+				made_progress = True
+
+			elif occupant_id in pending:
+				# Occupant also needs to move — wait for it to free the slot
+				pass
+
+			else:
+				# Occupant has no planned move — evict it, then place our item
+				free_bag, free_slot = _find_any_free_slot(bag_states, available_storage_bags)
+				if free_bag is None:
+					continue
+				occ = entry_by_id.get(occupant_id)
+				if occ is None:
+					continue
+				occ_bag, occ_slot = occ["bag_enum"], occ["slot"]
+				if _move_entry_to_slot(occ, free_bag, free_slot, bag_states):
+					slot_to_id.pop((occ_bag, occ_slot), None)
+					slot_to_id[(free_bag, free_slot)] = occupant_id
+					total_api_calls += 1
+				if max_moves is not None and total_api_calls >= max_moves:
+					break
+				src_bag, src_slot = entry["bag_enum"], entry["slot"]
+				if _move_entry_to_slot(entry, target_bag, target_slot, bag_states):
+					slot_to_id.pop((src_bag, src_slot), None)
+					slot_to_id[(target_bag, target_slot)] = item_id
+					total_api_calls += 1
+					plan_moves_done += 1
+				pending.discard(item_id)
+				made_progress = True
+
+		if not made_progress:
+			# Deadlock: all remaining items are in a mutual-wait cycle.
+			# Break it by moving one item to a free buffer slot.
+			broke = False
+			for item_id in list(pending):
+				if max_moves is not None and total_api_calls >= max_moves:
+					break
+				entry = entry_by_id.get(item_id)
+				if entry is None:
+					pending.discard(item_id)
+					continue
+				free_bag, free_slot = _find_any_free_slot(bag_states, available_storage_bags)
+				if free_bag is None:
+					break
+				src_bag, src_slot = entry["bag_enum"], entry["slot"]
+				if _move_entry_to_slot(entry, free_bag, free_slot, bag_states):
+					slot_to_id.pop((src_bag, src_slot), None)
+					slot_to_id[(free_bag, free_slot)] = item_id
+					total_api_calls += 1
+					broke = True
+				break
+			if not broke:
+				break  # Truly stuck — no free slots
+
+	return plan_moves_done, len(pending) == 0
+
+
+def _get_sort_priority(entry, allowed_by_bag, allowed_models_by_bag):
 	"""Return a sort key for a wrong entry in the placement queue.
 
 	Items from a filtered (non-wildcard) source pane sort first (priority 0) because they
 	need a specific destination. Wildcard-source items sort last (priority 1).
-	When try_empty_first is active, items from the first pane get priority -1.
 	"""
-	if try_empty_first and first_storage_bag is not None and entry["bag_enum"] == first_storage_bag:
-		return -1
 	allowed_types = allowed_by_bag.get(entry["bag_enum"], [])
 	allowed_model_ids = allowed_models_by_bag.get(entry["bag_enum"], [])
 	is_filtered_source = not _storage_allows_all_types(allowed_types)
@@ -1397,15 +1830,9 @@ def _build_wrong_entries(
 	filtered_bags_by_type,
 	filtered_bags_by_model_id,
 	available_storage_bags=None,
-	try_empty_first=False,
 ):
-	"""Collect and sort all entries that are not in the correct storage pane.
-
-	When try_empty_first is active, items in the first pane are also considered wrong
-	(forcing them to be moved out even if their type matches that pane).
-	"""
+	"""Collect and sort all entries that are not in the correct storage pane."""
 	wrong_entries = []
-	first_storage_bag = available_storage_bags[0] if available_storage_bags and len(available_storage_bags) > 0 else None
 	for entry in entries:
 		if _is_entry_excluded_from_regular_sort(entry):
 			continue
@@ -1420,14 +1847,6 @@ def _build_wrong_entries(
 			filtered_bags_by_model_id,
 		)
 
-		if (
-			not is_wrong
-			and try_empty_first
-			and first_storage_bag is not None
-			and entry["bag_enum"] == first_storage_bag
-		):
-			is_wrong = True
-
 		if is_wrong:
 			wrong_entries.append(entry)
 	wrong_entries.sort(
@@ -1435,8 +1854,6 @@ def _build_wrong_entries(
 			entry,
 			allowed_by_bag,
 			allowed_models_by_bag,
-			first_storage_bag,
-			try_empty_first,
 		)
 	)
 	return wrong_entries
@@ -1471,7 +1888,7 @@ def _try_move_wrong_entry(
 	wildcard_bags,
 	wildcard_model_bags,
 	bag_states,
-	try_empty_first=False,
+	dry_run: bool = False,
 ):
 	"""Try to move a misplaced item into the best available target pane.
 
@@ -1485,7 +1902,6 @@ def _try_move_wrong_entry(
 	if source_bag == Bags.MaterialStorage:
 		return False
 
-	first_storage_bag = available_storage_bags[0] if len(available_storage_bags) > 0 else None
 	target_model_bags = filtered_bags_by_model_id.get(model_id, [])
 	has_model_priority = len(target_model_bags) > 0
 
@@ -1520,19 +1936,11 @@ def _try_move_wrong_entry(
 			continue
 		if bag_enum == Bags.MaterialStorage:
 			continue
-		if try_empty_first and first_storage_bag is not None and bag_enum == first_storage_bag and source_bag != first_storage_bag:
-			continue
 
 		rank, bonus, reason_label = _classify_bag_priority(bag_enum)
-		allow_equal_rank = (
-			try_empty_first
-			and first_storage_bag is not None
-			and source_bag == first_storage_bag
-			and rank > 0
-		)
 		if rank < source_rank:
 			continue
-		if rank == source_rank and not allow_equal_rank:
+		if rank == source_rank:
 			continue
 
 		candidate_targets.append((rank, bonus, bag_enum, reason_label))
@@ -1544,7 +1952,7 @@ def _try_move_wrong_entry(
 		if next_slot is None:
 			continue
 		source_slot_before = int(entry.get("slot", 0))
-		if _move_entry_to_slot(entry, candidate_bag, next_slot, bag_states):
+		if _move_entry_to_slot(entry, candidate_bag, next_slot, bag_states, dry_run=dry_run):
 			_debug_log(
 				f"Move reason={reason_label} | item={entry['item_id']} modelid={model_id} type={type_name} | from {source_bag.value}:{source_slot_before + 1} -> {candidate_bag.value}:{next_slot + 1}"
 			)
@@ -1577,35 +1985,17 @@ def _update_sort_progress_state(task):
 			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
 		return
 
-	if phase == "placement":
-		initial_wrong_count = max(int(task.get("initial_wrong_count", 1)), 1)
-		current_wrong_count = max(int(task.get("current_wrong_count", 0)), 0)
-		placement_ratio = 1.0 - (float(current_wrong_count) / float(initial_wrong_count))
-		placement_ratio = max(0.0, min(1.0, placement_ratio))
-		_sort_progress_ratio = 0.2 + (placement_ratio * 0.6)
-		_sort_progress_text = f"Sorting (types): {placement_ratio * 100.0:.1f}%"
-		if _is_sort_task_waiting_for_delay(task):
-			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
+	if phase == "plan":
+		_sort_progress_ratio = 0.2
+		_sort_progress_text = "Planning moves..."
 		return
 
-	if phase == "model":
-		total_bags = max(len(task.get("available_storage_bags", [])), 1)
-		processed_bags = min(int(task.get("model_bag_index", 0)), total_bags)
-		model_ratio = float(processed_bags) / float(total_bags)
-		model_ratio = max(0.0, min(1.0, model_ratio))
-		_sort_progress_ratio = 0.8 + (model_ratio * 0.2)
-		_sort_progress_text = f"Sorting (model ID): {model_ratio * 100.0:.1f}%"
-		if _is_sort_task_waiting_for_delay(task):
-			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
-		return
-
-	if phase == "compact":
-		total_bags = max(len(task.get("available_storage_bags", [])), 1)
-		processed_bags = min(int(task.get("compact_bag_index", 0)), total_bags)
-		compact_ratio = float(processed_bags) / float(total_bags)
-		compact_ratio = max(0.0, min(1.0, compact_ratio))
-		_sort_progress_ratio = 0.95 + (compact_ratio * 0.05)
-		_sort_progress_text = f"Sorting (compact slots): {compact_ratio * 100.0:.1f}%"
+	if phase == "execute":
+		ex_total = max(int(task.get("execute_total", 1)), 1)
+		ex_done = min(int(task.get("execute_done", 0)), ex_total)
+		ex_ratio = max(0.0, min(1.0, float(ex_done) / float(ex_total)))
+		_sort_progress_ratio = 0.2 + ex_ratio * 0.8
+		_sort_progress_text = f"Executing moves: {ex_done}/{ex_total}"
 		if _is_sort_task_waiting_for_delay(task):
 			_sort_progress_text = f"{_sort_progress_text} | Pause: {_get_sort_task_delay_remaining(task):.1f}s"
 		return
@@ -1622,9 +2012,11 @@ def _start_sort_task(available_storage_bags):
 	Does nothing if a sort task is already running.
 	"""
 	global _sort_task_state
+	global _sort_done_until
 
 	if _sort_task_state is not None:
 		return
+	_sort_done_until = 0.0  # clear any lingering post-sort display
 
 	(
 		allowed_by_bag,
@@ -1664,7 +2056,13 @@ def _start_sort_task(available_storage_bags):
 		"next_move_time": 0.0,
 		"next_move_delay": 0.0,
 		"has_model_filters": _has_any_model_id_filters(available_storage_bags),
-		"try_empty_first": TRY_EMPTY_FIRST_STORAGE,
+		"consolidate_to_back": CONSOLIDATE_TO_BACK,
+		"consolidate_back_bag_index": 0,
+		"consolidate_back_total": 1,
+		"consolidate_back_actions": 0,
+		"move_plan": {},
+		"execute_done": 0,
+		"execute_total": 1,
 		"post_material_phase_done": False,
 		"phase": "stack",
 	}
@@ -1675,7 +2073,7 @@ def _start_sort_task(available_storage_bags):
 		_sort_task_state["material_skipped_full"] = 0
 		_sort_task_state["material_skipped_no_slot"] = 0
 		_sort_task_state["material_no_slot_models"] = {}
-		_start_material_phase(_sort_task_state, available_storage_bags, "stack")
+		_start_material_phase(_sort_task_state, available_storage_bags, "plan")
 
 	_update_sort_progress_state(_sort_task_state)
 
@@ -1690,7 +2088,7 @@ def _get_sort_task_context(task):
 		"filtered_bags_by_model_id": task["filtered_bags_by_model_id"],
 		"wildcard_bags": task["wildcard_bags"],
 		"wildcard_model_bags": task["wildcard_model_bags"],
-		"try_empty_first": task.get("try_empty_first", False),
+		"consolidate_to_back": task.get("consolidate_to_back", False),
 		"entries": task["entries"],
 		"bag_states": task["bag_states"],
 	}
@@ -1716,13 +2114,12 @@ def _process_phase_stack(task, ctx):
 		ctx["filtered_bags_by_type"],
 		ctx["filtered_bags_by_model_id"],
 		ctx["available_storage_bags"],
-		ctx["try_empty_first"],
 	)
 	task["initial_wrong_count"] = max(len(task["wrong_entries"]), 1)
 	task["current_wrong_count"] = len(task["wrong_entries"])
 	task["wrong_index"] = 0
 	task["moved_this_pass"] = 0
-	task["phase"] = "placement" if len(task["wrong_entries"]) > 0 else "model"
+	task["phase"] = "plan"
 	_update_sort_progress_state(task)
 	return True
 
@@ -1815,7 +2212,6 @@ def _process_phase_placement(task, ctx):
 				ctx["filtered_bags_by_type"],
 				ctx["filtered_bags_by_model_id"],
 				ctx["available_storage_bags"],
-				ctx["try_empty_first"],
 			)
 			task["current_wrong_count"] = len(task["wrong_entries"])
 			task["wrong_index"] = 0
@@ -1839,7 +2235,7 @@ def _process_phase_placement(task, ctx):
 			ctx["filtered_bags_by_type"],
 			ctx["filtered_bags_by_model_id"],
 		)
-		if is_correct and not (ctx["try_empty_first"] and len(ctx["available_storage_bags"]) > 0 and entry["bag_enum"] == ctx["available_storage_bags"][0]):
+		if is_correct:
 			continue
 
 		if _try_move_wrong_entry(
@@ -1852,7 +2248,6 @@ def _process_phase_placement(task, ctx):
 			ctx["wildcard_bags"],
 			ctx["wildcard_model_bags"],
 			ctx["bag_states"],
-			ctx["try_empty_first"],
 		):
 			task["moved_items"] += 1
 			task["moved_this_pass"] += 1
@@ -1867,7 +2262,6 @@ def _process_phase_placement(task, ctx):
 			ctx["filtered_bags_by_type"],
 			ctx["filtered_bags_by_model_id"],
 			ctx["available_storage_bags"],
-			ctx["try_empty_first"],
 		)
 	)
 	_update_sort_progress_state(task)
@@ -1905,7 +2299,6 @@ def _process_phase_model(task, ctx):
 		ctx["filtered_bags_by_type"],
 		ctx["filtered_bags_by_model_id"],
 		ctx["available_storage_bags"],
-		False,
 	)
 	task["remaining_wrong_count"] = len(remaining_wrong_entries)
 	moved_in_round = int(task.get("moved_items", 0)) - int(task.get("round_start_moved_items", 0))
@@ -1937,7 +2330,7 @@ def _process_phase_model(task, ctx):
 
 
 def _process_phase_compact(task, ctx):
-	"""Compact slots per pane and trigger the final material pass when enabled."""
+	"""Compact slots per pane, then hand off to consolidate_back (if enabled) or finalize."""
 	if task["phase"] != "compact":
 		return False
 
@@ -1959,13 +2352,120 @@ def _process_phase_compact(task, ctx):
 		_update_sort_progress_state(task)
 		return True
 
-	if AUTO_DEPOSIT_MATERIALS and not bool(task.get("post_material_phase_done", False)):
+	# All bags compacted — decide next phase
+	if ctx.get("consolidate_to_back", False):
+		task["phase"] = "consolidate_back"
+		# Pre-count how many consolidatable items are not already at their target positions
+		task["consolidate_back_total"] = max(
+			_count_consolidate_back_items(
+				ctx["entries"],
+				ctx["bag_states"],
+				ctx["available_storage_bags"],
+				ctx["allowed_by_bag"],
+				ctx["allowed_models_by_bag"],
+				ctx["filtered_bags_by_type"],
+				ctx["filtered_bags_by_model_id"],
+			),
+			1,
+		)
+	elif AUTO_DEPOSIT_MATERIALS and not bool(task.get("post_material_phase_done", False)):
 		task["post_material_phase_done"] = True
 		_start_material_phase(task, ctx["available_storage_bags"], "finalize")
-		_update_sort_progress_state(task)
-		return True
+	else:
+		task["phase"] = "finalize"
+	_update_sort_progress_state(task)
+	return True
 
-	task["phase"] = "finalize"
+
+def _process_phase_consolidate_back(task, ctx):
+	"""Push items in all wildcard panes to the rear (treated as one combined space)."""
+	if task["phase"] != "consolidate_back":
+		return False
+
+	# Always process 1 placement per frame so the progress bar visibly advances
+	# even when only a few items need to be consolidated.
+	max_cb_moves = 1
+	cb_actions, completed = _consolidate_items_to_back(
+		ctx["entries"],
+		ctx["bag_states"],
+		ctx["available_storage_bags"],
+		ctx["allowed_by_bag"],
+		ctx["allowed_models_by_bag"],
+		ctx["filtered_bags_by_type"],
+		ctx["filtered_bags_by_model_id"],
+		max_cb_moves,
+	)
+	task["consolidate_back_actions"] += cb_actions
+	if cb_actions > 0:
+		_set_sort_task_move_delay(task)
+
+	if completed:
+		# Phase done — all items are in place (or couldn't be moved)
+		if AUTO_DEPOSIT_MATERIALS and not bool(task.get("post_material_phase_done", False)):
+			task["post_material_phase_done"] = True
+			_start_material_phase(task, ctx["available_storage_bags"], "finalize")
+		else:
+			task["phase"] = "finalize"
+
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_plan(task, ctx):
+	"""Simulate all sort phases (dry run) to compute the final position of every item.
+
+	Runs entirely in one frame (no API calls). Stores the move plan in the task and
+	transitions to the 'execute' phase.
+	"""
+	if task["phase"] != "plan":
+		return False
+
+	plan = _plan_sort_moves(
+		ctx["entries"],
+		ctx["bag_states"],
+		ctx["available_storage_bags"],
+		ctx["allowed_by_bag"],
+		ctx["allowed_models_by_bag"],
+		ctx["filtered_bags_by_type"],
+		ctx["filtered_bags_by_model_id"],
+		ctx["wildcard_bags"],
+		ctx["wildcard_model_bags"],
+		bool(task.get("consolidate_to_back", False)),
+	)
+	task["move_plan"] = plan
+	task["execute_total"] = max(len(plan), 1)
+	task["execute_done"] = 0
+	task["phase"] = "execute"
+	_debug_log(f"Move plan computed: {len(plan)} item(s) need to move.")
+	_update_sort_progress_state(task)
+	return True
+
+
+def _process_phase_execute(task, ctx):
+	"""Execute pre-planned moves frame by frame until all items reach their final positions."""
+	if task["phase"] != "execute":
+		return False
+
+	max_exec_moves = 1 if SLOW_MODE else max(SORT_STEPS_PER_FRAME, 1)
+	plan_done, completed = _execute_move_plan(
+		ctx["entries"],
+		ctx["bag_states"],
+		task.get("move_plan", {}),
+		ctx["available_storage_bags"],
+		max_exec_moves,
+	)
+	task["execute_done"] = int(task.get("execute_done", 0)) + plan_done
+	task["moved_items"] = int(task.get("moved_items", 0)) + plan_done
+	if plan_done > 0:
+		_set_sort_task_move_delay(task)
+
+	if completed:
+		if AUTO_DEPOSIT_MATERIALS and not bool(task.get("post_material_phase_done", False)):
+			task["post_material_phase_done"] = True
+			_start_material_phase(task, ctx["available_storage_bags"], "finalize")
+		else:
+			task["phase"] = "finalize"
+
 	_update_sort_progress_state(task)
 	return True
 
@@ -1988,7 +2488,6 @@ def _process_phase_finalize(task, ctx):
 		ctx["filtered_bags_by_type"],
 		ctx["filtered_bags_by_model_id"],
 		ctx["available_storage_bags"],
-		False,
 	)
 	task["remaining_wrong_count"] = len(remaining_wrong_entries)
 
@@ -2040,12 +2539,15 @@ def _process_phase_finalize(task, ctx):
 		)
 
 	_debug_log(
-		f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Compact moves: {task['compact_actions']} | Incorrect remaining: {task['remaining_wrong_count']}"
+		f"Sort queued moves: {task['moved_items']} | Stack merges: {task['stack_merge_actions']} | Model-ID sort moves: {task['model_sort_actions']} | Compact moves: {task['compact_actions']} | Consolidate-back moves: {task.get('consolidate_back_actions', 0)} | Incorrect remaining: {task['remaining_wrong_count']}"
 	)
 
 	task["phase"] = "done"
 	_update_sort_progress_state(task)
 	_sort_task_state = None
+	# Keep the progress bar visible for 2 s after completion so the game
+	# item animations are still visible while the bar shows "Done".
+	_sort_done_until = time.monotonic() + 2.0
 	return True
 
 
@@ -2071,11 +2573,9 @@ def _process_sort_task():
 		return
 	if _process_phase_materials(task, ctx):
 		return
-	if _process_phase_placement(task, ctx):
+	if _process_phase_plan(task, ctx):
 		return
-	if _process_phase_model(task, ctx):
-		return
-	if _process_phase_compact(task, ctx):
+	if _process_phase_execute(task, ctx):
 		return
 	_process_phase_finalize(task, ctx)
 
@@ -2480,12 +2980,13 @@ def _draw_window():
 	global SHOW_SETTINGS
 	global SHOW_DEBUG
 	global SLOW_MODE
-	global TRY_EMPTY_FIRST_STORAGE
+	global CONSOLIDATE_TO_BACK
 	global AUTO_DEPOSIT_MATERIALS
 	global WINDOW_OPEN
 	global _sort_task_state
 	global _sort_progress_ratio
 	global _sort_progress_text
+	global _sort_done_until
 	global _selected_settings_account
 	global _last_window_width
 
@@ -2540,10 +3041,10 @@ def _draw_window():
 		if SLOW_MODE != previous_slow_mode:
 			ini_handler.write_key(INI_KEY, "slow_mode", SLOW_MODE)
 
-		previous_try_empty_first = TRY_EMPTY_FIRST_STORAGE
-		TRY_EMPTY_FIRST_STORAGE = PyImGui.checkbox("Try to empty first storage", TRY_EMPTY_FIRST_STORAGE)
-		if TRY_EMPTY_FIRST_STORAGE != previous_try_empty_first:
-			ini_handler.write_key(INI_KEY, "try_empty_first_storage", TRY_EMPTY_FIRST_STORAGE)
+		previous_consolidate_to_back = CONSOLIDATE_TO_BACK
+		CONSOLIDATE_TO_BACK = PyImGui.checkbox("Autosort unfiltered items", CONSOLIDATE_TO_BACK)
+		if CONSOLIDATE_TO_BACK != previous_consolidate_to_back:
+			ini_handler.write_key(INI_KEY, "consolidate_to_back", CONSOLIDATE_TO_BACK)
 
 		previous_auto_deposit_materials = AUTO_DEPOSIT_MATERIALS
 		AUTO_DEPOSIT_MATERIALS = PyImGui.checkbox("Auto-Deposit Materials", AUTO_DEPOSIT_MATERIALS)
@@ -2591,7 +3092,7 @@ def _draw_window():
 	PyImGui.progress_bar(tabs_used_ratio, -1, 0, f"{tabs_used_ratio * 100.0:.1f}% Full ({tabs_total_used}/{tabs_total_size})")
 	correct_items, total_items, correct_ratio = _calculate_correct_item_progress(available_storage_bags)
 	PyImGui.progress_bar(correct_ratio, -1, 0, f"{correct_ratio * 100.0:.1f}% Sorted ({correct_items}/{total_items})")
-	if _sort_task_state is not None:
+	if _sort_task_state is not None or time.monotonic() < _sort_done_until:
 		progress_text = _sort_progress_text if _sort_progress_text else "Sortiere..."
 		PyImGui.progress_bar(_sort_progress_ratio, -1, 0, f"{_sort_progress_ratio * 100.0:.1f}% {progress_text}")
 
