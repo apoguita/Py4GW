@@ -287,7 +287,32 @@ class Agents:
         ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsDead(agent_id))
         ally_array = AgentArray.Sort.ByDistance(ally_array, Player.GetXY())
         return Utils.GetFirstFromArray(ally_array)
-    
+
+    @staticmethod
+    def GetCorpses(max_distance=4500.0):
+        from ..AgentArray import AgentArray
+        from ..Py4GWcorelib import Utils
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Agent import Agent
+
+        def _AllowedAlliegance(agent_id):
+            _, alliegance = Agent.GetAllegiance(agent_id)
+
+            if (alliegance == "Ally" or
+                    alliegance == "Neutral" or
+                    alliegance == "Enemy" or
+                    alliegance == "NPC/Minipet"
+            ):
+                return True
+            return False
+
+        distance = max_distance
+        corpse_array = AgentArray.GetAgentArray()
+        corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), distance)
+        corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsDead(agent_id))
+        corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
+        return corpse_array
+
     @staticmethod
     def GetNearestCorpse(max_distance=4500.0):
         from ..AgentArray import AgentArray

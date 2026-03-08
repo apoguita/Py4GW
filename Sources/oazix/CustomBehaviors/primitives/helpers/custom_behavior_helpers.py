@@ -223,7 +223,7 @@ class Resources:
             energy_cost = round((1 - (mysticism_level * 0.04)) * energy_cost)
             return energy_cost
 
-        if profession == "Ranger":
+        if profession == "Ranger" or skill_type == "Ritual":
             energy_cost = Routines.Checks.Skills.apply_expertise_reduction(energy_cost, get_attribute_level("Expertise"), skill.skill_id)
 
         return energy_cost
@@ -342,7 +342,7 @@ class Actions:
         return BehaviorResult.ACTION_SKIPPED
 
     @staticmethod
-    def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int | None]]) -> Generator[Any, Any, BehaviorResult]:
+    def cast_skill_to_lambda(skill: CustomSkill, select_target: Optional[Callable[[], int | None]], call_target: bool = False) -> Generator[Any, Any, BehaviorResult]:
 
         if not Routines.Checks.Skills.IsSkillSlotReady(skill.skill_slot):
             yield
@@ -366,13 +366,15 @@ class Actions:
             yield from Helpers.wait_for(50)
             
         Routines.Sequential.Skills.CastSkillSlot(skill.skill_slot)
+        if call_target:
+            yield from Routines.Yield.Keybinds.CallTarget(False)
         if constants.DEBUG: print(f"cast_skill_to_target {skill.skill_name} to {target_agent_id}")
         yield from Helpers.delay_aftercast(skill)
         return BehaviorResult.ACTION_PERFORMED
 
     @staticmethod
-    def cast_skill_to_target(skill: CustomSkill, target_agent_id: int) -> Generator[Any, Any, BehaviorResult]:
-        return (yield from Actions.cast_skill_to_lambda(skill, select_target=lambda: target_agent_id))
+    def cast_skill_to_target(skill: CustomSkill, target_agent_id: int, call_target: bool = False) -> Generator[Any, Any, BehaviorResult]:
+        return (yield from Actions.cast_skill_to_lambda(skill, select_target=lambda: target_agent_id, call_target=call_target))
 
     @staticmethod
     def cast_skill(skill: CustomSkill) -> Generator[Any, Any, BehaviorResult]:
