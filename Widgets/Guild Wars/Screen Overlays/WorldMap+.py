@@ -15,6 +15,7 @@ Color coding
 
 import PyImGui
 import traceback
+import math
 import Py4GW
 import json
 import os
