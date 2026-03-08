@@ -16,6 +16,21 @@ _AOE_SKILLS             = {1380: 2000, 1372: 2000, 1083: 2000, 830: 2000, 192: 5
 _SPIRIT_FLEE_DIST       = 1900
 _AOE_SIDESTEP_DIST      = 600.0
 
+_MIKU_PATH = [
+    # initial stretch after entering map
+    (10165.07, -6181.43),
+    (8270.00, -9010.00),
+    (4245.00, -7412.00),
+    (2025.00, -10726.00),
+    (-1822.00, -11230.00),
+    (-2292.00, -9034.00),
+    (-4190.00, -10460.00),
+    (-5640.00, -10371.00),
+    (-8748.00, -8329.00),
+    (-12122.00, -7530.00),
+    (-15170.00, -8951.00),
+]
+
 # White Mantle Ritualist priority targets (kill priority order, highest first).
 _PRIORITY_TARGET_MODELS = [
     #8314,  # PRIMARY  – Shadowsong / Bloodsong / Pain / Anguish rit
@@ -267,7 +282,17 @@ class KeiranThackerayEOTN(BuildMgr):
                 self.miku_reset_at = now                        # start the 5-second window
             elif now - self.miku_reset_at >= 5.0:
                 self._set_pause("miku_reset")
-                Player.Move(8270, -9010)
+
+                # find the path index closest to current location
+                nearest_idx = min(range(len(_MIKU_PATH)), key=lambda i: _dist(me_x, me_y, *_MIKU_PATH[i]))
+                # step one point back if possible so we start "behind" the player
+                start_idx = nearest_idx - 1 if nearest_idx > 0 else 0
+
+                # walk the selected portion in reverse, giving the client a moment to
+                # actually move between each location so we don't instantly teleport.
+                for (x, y) in reversed(_MIKU_PATH[: start_idx + 1]):
+                    Player.Move(x, y)
+                # Wait until Miku catches up with player.
                 yield from Routines.Yield.wait(5000)
                 self._clear_pause("miku_reset")
                 self.miku_reset_at = 0.0                        # reset after handling
@@ -320,7 +345,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 return
 
             # Kite if overwhelmed or low health (no spirit present)
-            if (spirit_id == 0 and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
+            if (spirit_id == 0 and enemies_agro and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
                 #Py4GW.Console.Log("Avoidance", f"Overwhelmed Trigger", Py4GW.Console.MessageType.Warning)
                 avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)
                 avg_y = sum(Agent.GetXY(eid)[1] for eid in enemies_agro) / len(enemies_agro)

@@ -3,56 +3,47 @@ import time
 from Py4GWCoreLib import GWContext, PyImGui, UIManager
 
 
-MODULE_NAME = "DevText Binding Showcase"
-SCRIPT_REVISION = "2026-03-06-binding-showcase-1"
+MODULE_NAME = "DevText Trim Test"
+SCRIPT_REVISION = "2026-03-07-devtext-trim-boundary-test-1"
 WINDOW_OPEN = True
 REVISION_LOGGED = False
 
-SOURCE_LABEL = "PyDevTextBindingSource"
-CLONE_PREFIX = "PyDevTextBindingClone"
-
+FRAME_LABEL = "PyDevTextTrimTest"
 TARGET_X = 0.0
 TARGET_Y = 0.0
-TARGET_WIDTH = 100.0
-TARGET_HEIGHT = 300.0
+TARGET_WIDTH = 180.0
+TARGET_HEIGHT = 220.0
 TARGET_FLAGS = 0x6
-
-MOVE_X = 180.0
-MOVE_Y = 40.0
-RESIZE_WIDTH = 180.0
-RESIZE_HEIGHT = 220.0
 READ_DELAY_SECONDS = 0.50
 
+PENDING_REPORTS: list[tuple[float, str]] = []
 LAST_STATUS = "idle"
-MULTI_CLONE_LABELS: list[str] = []
-PENDING_REPORTS: list[tuple[float, str, str]] = []
-TEMP_DEVTEXT_OPENED = False
 
 
 def _log(message: str) -> None:
     print(f"[{MODULE_NAME}] {message}")
 
 
-def _schedule_report(label: str, prefix: str, delay_seconds: float | None = None) -> None:
+def _schedule_report(prefix: str, delay_seconds: float | None = None) -> None:
     delay = READ_DELAY_SECONDS if delay_seconds is None else max(0.0, float(delay_seconds))
-    PENDING_REPORTS.append((time.time() + delay, label, prefix))
-    _log(f"scheduled report label={label} prefix='{prefix}' delay={delay:.2f}s")
+    PENDING_REPORTS.append((time.time() + delay, prefix))
+    _log(f"scheduled report prefix='{prefix}' delay={delay:.2f}s")
 
 
 def _process_pending_reports() -> None:
     if not PENDING_REPORTS:
         return
     now = time.time()
-    ready: list[tuple[float, str, str]] = []
-    pending: list[tuple[float, str, str]] = []
-    for scheduled_at, label, prefix in PENDING_REPORTS:
+    ready: list[tuple[float, str]] = []
+    pending: list[tuple[float, str]] = []
+    for scheduled_at, prefix in PENDING_REPORTS:
         if scheduled_at <= now:
-            ready.append((scheduled_at, label, prefix))
+            ready.append((scheduled_at, prefix))
         else:
-            pending.append((scheduled_at, label, prefix))
+            pending.append((scheduled_at, prefix))
     PENDING_REPORTS[:] = pending
-    for _, label, prefix in ready:
-        _report_state_for_label(prefix, label)
+    for _, prefix in ready:
+        _dump_trim_state(prefix)
 
 
 def _get_viewport_height() -> float:
@@ -74,8 +65,8 @@ def _frame_exists(frame_id: int) -> bool:
         return False
 
 
-def _find_window_by_label(frame_label: str) -> int:
-    frame_id = int(UIManager.GetFrameIDByLabel(frame_label) or 0)
+def _find_window() -> int:
+    frame_id = int(UIManager.GetFrameIDByLabel(FRAME_LABEL) or 0)
     if frame_id > 0 and _frame_exists(frame_id):
         return frame_id
     return 0
@@ -93,78 +84,125 @@ def _frame_summary(frame_id: int) -> str:
             f"child_offset_id={int(frame.child_offset_id)} "
             f"is_created={bool(frame.is_created)} "
             f"is_visible={bool(frame.is_visible)} "
+            f"frame_state=0x{int(frame.frame_state):X} "
             f"rect=({left},{top})-({right},{bottom})"
         )
     except Exception as exc:
         return f"frame_id={frame_id} summary_error={exc}"
 
 
-def _direct_child_count(frame_id: int) -> int:
+def _child_count(frame_id: int) -> int:
     if frame_id <= 0:
         return 0
-    count = 0
     try:
-        for fid in UIManager.GetFrameArray():
-            child_id = int(fid)
-            try:
-                frame = UIManager.GetFrameByID(child_id)
-            except Exception:
-                continue
-            if int(frame.parent_id) == int(frame_id):
-                count += 1
+        return len(UIManager.GetChildFrameIDs(frame_id))
     except Exception:
         return 0
-    return count
 
 
-def _report_state_for_label(prefix: str, frame_label: str) -> None:
-    root_id = _find_window_by_label(frame_label)
-    host_id = UIManager.ResolveObservedContentHostByFrameId(root_id)
-    _log(
-        f"{prefix} "
-        f"label={frame_label} "
-        f"root=({_frame_summary(root_id)}) "
-        f"host=({_frame_summary(host_id)}) "
-        f"host_child_count={_direct_child_count(host_id)}"
-    )
+def _safe_child(frame_id: int, child_offset: int) -> int:
+    if frame_id <= 0:
+        return 0
+    return int(UIManager.GetChildFrameByFrameId(frame_id, child_offset) or 0)
 
 
-def _report_source_state(prefix: str) -> None:
-    _report_state_for_label(prefix, SOURCE_LABEL)
+def _dump_frame_fields(frame_id: int, name: str) -> None:
+    if frame_id <= 0:
+        _log(f"{name} frame_id=0")
+        return
+    try:
+        frame = UIManager.GetFrameByID(frame_id)
+        left, top, right, bottom = UIManager.GetFrameCoords(frame_id)
+        context_ptr = int(UIManager.GetFrameContext(frame_id) or 0)
+        _log(
+            f"{name} "
+            f"frame_id={frame_id} "
+            f"parent_id={int(frame.parent_id)} "
+            f"child_offset_id={int(frame.child_offset_id)} "
+            f"type=0x{int(frame.type):X} "
+            f"template_type={int(frame.template_type)} "
+            f"layout=0x{int(frame.frame_layout):X} "
+            f"visibility_flags=0x{int(frame.visibility_flags):X} "
+            f"frame_state=0x{int(frame.frame_state):X} "
+            f"rect=({left},{top})-({right},{bottom}) "
+            f"context=0x{context_ptr:X} "
+            f"children={_child_count(frame_id)} "
+            f"callbacks={len(frame.frame_callbacks)}"
+        )
+        for index, callback in enumerate(frame.frame_callbacks):
+            callback_addr = int(getattr(callback, "callback_address", 0) or 0)
+            callback_ctx = int(getattr(callback, "uictl_context", 0) or 0)
+            callback_h0008 = int(getattr(callback, "h0008", 0) or 0)
+            _log(
+                f"{name} callback[{index}] "
+                f"addr=0x{callback_addr:X} "
+                f"uictl_context=0x{callback_ctx:X} "
+                f"h0008=0x{callback_h0008:X}"
+            )
+    except Exception as exc:
+        _log(f"{name} frame_id={frame_id} dump_error={exc}")
 
 
-def _show_binding_status() -> None:
-    proc_addr = int(UIManager.ResolveDevTextDialogProc() or 0)
-    source_frame_id, opened_temporarily = UIManager.EnsureDevTextSource()
-    _log(
-        f"binding status devtext_proc=0x{proc_addr:X} "
-        f"source_frame_id={source_frame_id} opened_temporarily={opened_temporarily}"
-    )
-    if opened_temporarily:
-        UIManager.RestoreDevTextSource(True)
-        _log("binding status restored DevText source after status check")
+def _dump_trim_state(prefix: str) -> None:
+    root_id = _find_window()
+    child0 = _safe_child(root_id, 0)
+    child0_0 = _safe_child(child0, 0)
+    child0_0_0 = _safe_child(child0_0, 0)
+    child0_3 = _safe_child(child0, 3)
+    host_id = int(UIManager.ResolveObservedContentHostByFrameId(root_id) or 0)
+    host_0 = _safe_child(host_id, 0)
+    host_1 = _safe_child(host_id, 1)
+    host_2 = _safe_child(host_id, 2)
+    host_3 = _safe_child(host_id, 3)
+
+    _log(f"{prefix} begin")
+    _log(f"{prefix} root=({_frame_summary(root_id)})")
+    _log(f"{prefix} root[0]=({_frame_summary(child0)})")
+    _log(f"{prefix} root[0][0]=({_frame_summary(child0_0)})")
+    _log(f"{prefix} root[0][0][0]=({_frame_summary(child0_0_0)})")
+    _log(f"{prefix} root[0][3]=({_frame_summary(child0_3)})")
+    _log(f"{prefix} resolved_host=({_frame_summary(host_id)})")
+    _log(f"{prefix} host[0]=({_frame_summary(host_0)})")
+    _log(f"{prefix} host[1]=({_frame_summary(host_1)})")
+    _log(f"{prefix} host[2]=({_frame_summary(host_2)})")
+    _log(f"{prefix} host[3]=({_frame_summary(host_3)})")
+
+    _dump_frame_fields(root_id, f"{prefix}:root")
+    _dump_frame_fields(child0, f"{prefix}:root[0]")
+    _dump_frame_fields(child0_0, f"{prefix}:root[0][0]")
+    _dump_frame_fields(child0_0_0, f"{prefix}:root[0][0][0]")
+    _dump_frame_fields(child0_3, f"{prefix}:root[0][3]")
+    if host_id not in {0, child0_0_0}:
+        _dump_frame_fields(host_id, f"{prefix}:host")
+    _dump_frame_fields(host_0, f"{prefix}:host[0]")
+    _dump_frame_fields(host_1, f"{prefix}:host[1]")
+    _dump_frame_fields(host_2, f"{prefix}:host[2]")
+    _dump_frame_fields(host_3, f"{prefix}:host[3]")
+    _log(f"{prefix} end")
 
 
-def _create_source(raw: bool) -> None:
+def _create_raw_window() -> None:
     global LAST_STATUS
-    existing = _find_window_by_label(SOURCE_LABEL)
+    existing = _find_window()
     if existing > 0:
-        LAST_STATUS = f"source exists frame_id={existing}"
+        LAST_STATUS = f"window exists frame_id={existing}"
         _log(LAST_STATUS)
         return
-    if GWContext.Char.GetContext() is None:
+
+    char_ctx = GWContext.Char.GetContext()
+    if char_ctx is None:
         LAST_STATUS = "char_context_unavailable"
         _log(LAST_STATUS)
         return
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
-    if raw:
-        frame_id = UIManager.CreateWindow(
+    frame_id = int(
+        UIManager.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
             TARGET_HEIGHT,
-            frame_label=SOURCE_LABEL,
+            frame_label=FRAME_LABEL,
             parent_frame_id=9,
             child_index=0,
             frame_flags=0,
@@ -173,322 +211,121 @@ def _create_source(raw: bool) -> None:
             anchor_flags=TARGET_FLAGS,
             ensure_devtext_source=True,
         )
-        mode = "raw"
-    else:
-        frame_id = UIManager.CreateEmptyWindow(
-            TARGET_X,
-            engine_y,
-            TARGET_WIDTH,
-            TARGET_HEIGHT,
-            frame_label=SOURCE_LABEL,
-            parent_frame_id=9,
-            child_index=0,
-            frame_flags=0,
-            create_param=0,
-            frame_callback=0,
-            anchor_flags=TARGET_FLAGS,
-            ensure_devtext_source=True,
-        )
-        mode = "empty"
-
-    LAST_STATUS = f"create {mode} source frame_id={int(frame_id or 0)}"
+        or 0
+    )
+    LAST_STATUS = f"created raw frame_id={frame_id}"
     _log(
-        f"create {mode} source frame_id={int(frame_id or 0)} "
+        f"created raw window frame_id={frame_id} "
         f"pos=({TARGET_X},{TARGET_Y}) size=({TARGET_WIDTH},{TARGET_HEIGHT})"
     )
-    _report_source_state(f"state immediately after create {mode}")
-    _schedule_report(SOURCE_LABEL, f"state after create {mode} delay")
+    _schedule_report("state after raw create")
 
 
-def _clear_source_by_root() -> None:
+def _clear_by_root() -> None:
     global LAST_STATUS
-    root_id = _find_window_by_label(SOURCE_LABEL)
+    root_id = _find_window()
     if root_id <= 0:
-        LAST_STATUS = "source missing"
+        LAST_STATUS = "window missing"
         _log(LAST_STATUS)
         return
-    _report_source_state("state before clear by root")
     result = bool(UIManager.ClearWindowContentsByFrameId(root_id))
     LAST_STATUS = f"clear by root result={result}"
     _log(f"clear by root root={root_id} result={result}")
-    _schedule_report(SOURCE_LABEL, "state after clear by root delay")
+    _schedule_report("state after clear by root")
 
 
-def _clear_source_by_host() -> None:
+def _clear_target(frame_id: int, target_name: str) -> None:
     global LAST_STATUS
-    root_id = _find_window_by_label(SOURCE_LABEL)
-    if root_id <= 0:
-        LAST_STATUS = "source missing"
+    if frame_id <= 0:
+        LAST_STATUS = f"{target_name} missing"
         _log(LAST_STATUS)
         return
+    result = bool(UIManager.ClearFrameChildrenRecursiveByFrameId(frame_id))
+    LAST_STATUS = f"clear {target_name} result={result}"
+    _log(f"clear {target_name} frame={frame_id} result={result}")
+    _schedule_report(f"state after clear {target_name}")
+
+
+def _clear_by_parent_of_host() -> None:
+    root_id = _find_window()
+    child0 = _safe_child(root_id, 0)
+    child0_0 = _safe_child(child0, 0)
+    _clear_target(child0_0, "root[0][0]")
+
+
+def _clear_by_host() -> None:
+    root_id = _find_window()
     host_id = int(UIManager.ResolveObservedContentHostByFrameId(root_id) or 0)
-    if host_id <= 0:
-        LAST_STATUS = "observed host unresolved"
-        _log(LAST_STATUS)
+    _clear_target(host_id, "host")
+
+
+def _clear_by_host_child0() -> None:
+    root_id = _find_window()
+    host_id = int(UIManager.ResolveObservedContentHostByFrameId(root_id) or 0)
+    _clear_target(_safe_child(host_id, 0), "host[0]")
+
+
+def _log_startup() -> None:
+    global REVISION_LOGGED
+    if REVISION_LOGGED:
         return
-    _report_source_state("state before clear by host")
-    result = bool(UIManager.ClearFrameChildrenRecursiveByFrameId(host_id))
-    LAST_STATUS = f"clear by host result={result}"
-    _log(f"clear by host root={root_id} host={host_id} result={result}")
-    _schedule_report(SOURCE_LABEL, "state after clear by host delay")
-
-
-def _collapse_source() -> None:
-    global LAST_STATUS
-    root_id = _find_window_by_label(SOURCE_LABEL)
-    if root_id <= 0:
-        LAST_STATUS = "source missing"
-        _log(LAST_STATUS)
-        return
-    _report_source_state("state before collapse")
-    result = bool(UIManager.CollapseWindowByFrameId(root_id))
-    LAST_STATUS = f"collapse result={result}"
-    _log(f"collapse source root={root_id} result={result}")
-    _schedule_report(SOURCE_LABEL, "state after collapse delay")
-
-
-def _restore_source() -> None:
-    global LAST_STATUS
-    root_id = _find_window_by_label(SOURCE_LABEL)
-    if root_id <= 0:
-        LAST_STATUS = "source missing"
-        _log(LAST_STATUS)
-        return
-    engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
-    _report_source_state("state before restore")
-    result = bool(
-        UIManager.RestoreWindowRectByFrameId(
-            root_id,
-            TARGET_X,
-            engine_y,
-            TARGET_WIDTH,
-            TARGET_HEIGHT,
-            0,
-            True,
-            True,
-        )
-    )
-    LAST_STATUS = f"restore result={result}"
-    _log(
-        f"restore source root={root_id} "
-        f"engine_rect=({TARGET_X},{engine_y},{TARGET_WIDTH},{TARGET_HEIGHT}) result={result}"
-    )
-    _schedule_report(SOURCE_LABEL, "state after restore delay")
-
-
-def _move_source() -> None:
-    global LAST_STATUS
-    root_id = _find_window_by_label(SOURCE_LABEL)
-    if root_id <= 0:
-        LAST_STATUS = "source missing"
-        _log(LAST_STATUS)
-        return
-    engine_y = _to_engine_y_from_top(MOVE_Y, TARGET_HEIGHT)
-    _report_source_state("state before move")
-    result = bool(UIManager.SetFramePosition(root_id, MOVE_X, engine_y, None, True))
-    LAST_STATUS = f"move result={result}"
-    _log(f"move source root={root_id} engine_pos=({MOVE_X},{engine_y}) result={result}")
-    _schedule_report(SOURCE_LABEL, "state after move delay")
-
-
-def _resize_source() -> None:
-    global LAST_STATUS
-    root_id = _find_window_by_label(SOURCE_LABEL)
-    if root_id <= 0:
-        LAST_STATUS = "source missing"
-        _log(LAST_STATUS)
-        return
-    _report_source_state("state before resize")
-    result = bool(UIManager.SetFrameSize(root_id, RESIZE_WIDTH, RESIZE_HEIGHT, None, True))
-    LAST_STATUS = f"resize result={result}"
-    _log(f"resize source root={root_id} size=({RESIZE_WIDTH},{RESIZE_HEIGHT}) result={result}")
-    _schedule_report(SOURCE_LABEL, "state after resize delay")
-
-
-def _set_source_rect() -> None:
-    global LAST_STATUS
-    root_id = _find_window_by_label(SOURCE_LABEL)
-    if root_id <= 0:
-        LAST_STATUS = "source missing"
-        _log(LAST_STATUS)
-        return
-    engine_y = _to_engine_y_from_top(MOVE_Y, RESIZE_HEIGHT)
-    _report_source_state("state before set rect")
-    result = bool(UIManager.SetFrameRect(root_id, MOVE_X, engine_y, RESIZE_WIDTH, RESIZE_HEIGHT, None, True))
-    LAST_STATUS = f"set rect result={result}"
-    _log(
-        f"set rect source root={root_id} "
-        f"engine_rect=({MOVE_X},{engine_y},{RESIZE_WIDTH},{RESIZE_HEIGHT}) result={result}"
-    )
-    _schedule_report(SOURCE_LABEL, "state after set rect delay")
-
-
-def _create_additional_empty_clones() -> None:
-    global LAST_STATUS
-    global MULTI_CLONE_LABELS
-    clone_specs = [
-        ("A", 220.0, 20.0, 140.0, 180.0),
-        ("B", 400.0, 80.0, 180.0, 200.0),
-        ("C", 620.0, 160.0, 220.0, 240.0),
-    ]
-    MULTI_CLONE_LABELS = []
-    results: list[str] = []
-
-    for suffix, x, y_from_top, width, height in clone_specs:
-        label = f"{CLONE_PREFIX}_{suffix}"
-        frame_id = _find_window_by_label(label)
-        if frame_id <= 0:
-            frame_id = UIManager.CreateEmptyWindow(
-                x,
-                _to_engine_y_from_top(y_from_top, height),
-                width,
-                height,
-                frame_label=label,
-                parent_frame_id=9,
-                child_index=0,
-                frame_flags=0,
-                create_param=0,
-                frame_callback=0,
-                anchor_flags=TARGET_FLAGS,
-                ensure_devtext_source=True,
-            )
-        frame_id = int(frame_id or 0)
-        results.append(f"{label}:frame={frame_id}")
-        if frame_id > 0:
-            MULTI_CLONE_LABELS.append(label)
-            _schedule_report(label, "additional clone state after create delay")
-
-    LAST_STATUS = f"additional empty clones count={len(MULTI_CLONE_LABELS)}"
-    _log(f"create additional empty clones results={results}")
-
-
-def _report_all_additional() -> None:
-    if not MULTI_CLONE_LABELS:
-        _log("additional clone state labels=<none>")
-        return
-    for label in MULTI_CLONE_LABELS:
-        _report_state_for_label("additional clone state", label)
-
-
-def _toggle_devtext_source() -> None:
-    global LAST_STATUS
-    global TEMP_DEVTEXT_OPENED
-    if not TEMP_DEVTEXT_OPENED:
-        frame_id, opened_temporarily = UIManager.EnsureDevTextSource()
-        TEMP_DEVTEXT_OPENED = bool(opened_temporarily)
-        LAST_STATUS = f"ensure devtext source frame_id={frame_id} opened_temporarily={opened_temporarily}"
-        _log(LAST_STATUS)
-        return
-    UIManager.RestoreDevTextSource(True)
-    TEMP_DEVTEXT_OPENED = False
-    LAST_STATUS = "restored devtext source after explicit ensure"
-    _log(LAST_STATUS)
+    REVISION_LOGGED = True
+    _log(f"script revision={SCRIPT_REVISION}")
+    _log("test flow:")
+    _log("1) click 'Create Raw Window'")
+    _log("2) wait for 'state after raw create'")
+    _log("3) click 'Dump Current Structure'")
+    _log("4) try one clear target: 'Clear By Root', 'Clear root[0][0]', 'Clear Host', or 'Clear Host[0]'")
+    _log("5) wait for the delayed state report")
+    _log("6) click 'Dump Current Structure' again")
+    _log("this tests which clear boundary is low enough to preserve window chrome")
 
 
 def main() -> None:
     global WINDOW_OPEN
-    global REVISION_LOGGED
     global TARGET_X
     global TARGET_Y
     global TARGET_WIDTH
     global TARGET_HEIGHT
-    global MOVE_X
-    global MOVE_Y
-    global RESIZE_WIDTH
-    global RESIZE_HEIGHT
     global READ_DELAY_SECONDS
+
+    _log_startup()
+    _process_pending_reports()
 
     if not WINDOW_OPEN:
         return
 
-    if not REVISION_LOGGED:
-        REVISION_LOGGED = True
-        _log(f"script revision={SCRIPT_REVISION}")
-        _log("showcase buttons map directly to the new C++ bindings and high-level Python wrappers")
-        _log("raw create = populated DevText clone")
-        _log("empty create = clone + clear contents in one call")
-        _log("clear by root uses ClearWindowContentsByFrameId")
-        _log("clear by host uses ResolveObservedContentHostByFrameId + ClearFrameChildrenRecursiveByFrameId")
-        _log("collapse/restore/move/resize/set rect use the new bound helpers")
-        _show_binding_status()
+    if PyImGui.begin(MODULE_NAME):
+        TARGET_X = PyImGui.input_float("X", TARGET_X)
+        TARGET_Y = PyImGui.input_float("Y From Top", TARGET_Y)
+        TARGET_WIDTH = PyImGui.input_float("Width", TARGET_WIDTH)
+        TARGET_HEIGHT = PyImGui.input_float("Height", TARGET_HEIGHT)
+        READ_DELAY_SECONDS = PyImGui.input_float("Read Delay Seconds", READ_DELAY_SECONDS)
 
-    _process_pending_reports()
+        PyImGui.text("Create raw clone -> dump -> try one clear target -> dump again")
 
-    if PyImGui.begin(f"{MODULE_NAME}##{MODULE_NAME}", WINDOW_OPEN):
-        PyImGui.text("Showcase the new empty-window binding helpers")
-        TARGET_X = float(PyImGui.input_float("Source X", TARGET_X))
-        TARGET_Y = float(PyImGui.input_float("Source Y From Top", TARGET_Y))
-        TARGET_WIDTH = float(PyImGui.input_float("Source Width", TARGET_WIDTH))
-        TARGET_HEIGHT = float(PyImGui.input_float("Source Height", TARGET_HEIGHT))
-        MOVE_X = float(PyImGui.input_float("Move X", MOVE_X))
-        MOVE_Y = float(PyImGui.input_float("Move Y From Top", MOVE_Y))
-        RESIZE_WIDTH = float(PyImGui.input_float("Resize Width", RESIZE_WIDTH))
-        RESIZE_HEIGHT = float(PyImGui.input_float("Resize Height", RESIZE_HEIGHT))
-        READ_DELAY_SECONDS = float(PyImGui.input_float("Read Delay Seconds", READ_DELAY_SECONDS))
-
-        PyImGui.separator()
-        PyImGui.text("Binding status and DevText source")
-        if PyImGui.button("Show Binding Status"):
-            _show_binding_status()
+        if PyImGui.button("Create Raw Window"):
+            _create_raw_window()
         PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Ensure/Restore DevText Source"):
-            _toggle_devtext_source()
+        if PyImGui.button("Clear By Root"):
+            _clear_by_root()
+        PyImGui.same_line(0.0, -1.0)
+        if PyImGui.button("Clear root[0][0]"):
+            _clear_by_parent_of_host()
+        PyImGui.same_line(0.0, -1.0)
+        if PyImGui.button("Clear Host"):
+            _clear_by_host()
+        PyImGui.same_line(0.0, -1.0)
+        if PyImGui.button("Clear Host[0]"):
+            _clear_by_host_child0()
+        PyImGui.same_line(0.0, -1.0)
+        if PyImGui.button("Dump Current Structure"):
+            _dump_trim_state("manual dump")
 
         PyImGui.separator()
-        PyImGui.text("Create helpers")
-        if PyImGui.button("Create Raw Source Clone"):
-            _create_source(True)
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Create Empty Source Clone"):
-            _create_source(False)
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Report Source State"):
-            _report_source_state("source state report")
-
-        PyImGui.separator()
-        PyImGui.text("Clear helpers")
-        if PyImGui.button("Clear Source By Root"):
-            _clear_source_by_root()
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Clear Source By Host"):
-            _clear_source_by_host()
-
-        PyImGui.separator()
-        PyImGui.text("Rect and lifecycle helpers")
-        if PyImGui.button("Collapse Source"):
-            _collapse_source()
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Restore Source"):
-            _restore_source()
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Move Source"):
-            _move_source()
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Resize Source"):
-            _resize_source()
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Set Source Rect"):
-            _set_source_rect()
-
-        PyImGui.separator()
-        PyImGui.text("Multiple empty clone helper")
-        if PyImGui.button("Create Additional Empty Clones"):
-            _create_additional_empty_clones()
-        PyImGui.same_line(0.0, -1.0)
-        if PyImGui.button("Report Additional Clone States"):
-            _report_all_additional()
-
-        PyImGui.separator()
-        PyImGui.text("Suggested test flow:")
-        PyImGui.text("1. Show Binding Status")
-        PyImGui.text("2. Create Raw Source Clone, then Report Source State")
-        PyImGui.text("3. Clear Source By Root or Clear Source By Host")
-        PyImGui.text("4. Create Empty Source Clone in a fresh run to test one-shot empty creation")
-        PyImGui.text("5. Collapse Source, Restore Source, Move Source, Resize Source, Set Source Rect")
-        PyImGui.text("6. Create Additional Empty Clones and report them")
-        PyImGui.text(f"Current Source: {_frame_summary(_find_window_by_label(SOURCE_LABEL))}")
-        PyImGui.text(f"Additional Labels: {', '.join(MULTI_CLONE_LABELS) if MULTI_CLONE_LABELS else '<none>'}")
+        PyImGui.text(f"Label: {FRAME_LABEL}")
         PyImGui.text(f"Status: {LAST_STATUS}")
+
     PyImGui.end()
 
 

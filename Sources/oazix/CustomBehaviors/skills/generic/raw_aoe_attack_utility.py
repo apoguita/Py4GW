@@ -1,6 +1,6 @@
 from typing import List, Any, Generator, Callable, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Agent
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -18,7 +18,9 @@ class RawAoeAttackUtility(CustomSkillUtilityBase):
     current_build: list[CustomSkill],
     score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 66 if enemy_qte >= 3 else 51 if enemy_qte <= 2 else 26),
     mana_required_to_cast: int = 12,
-    allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
+    allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO],
+    within_range: Range = Range.Spellcast,
+    ignore_spirits: bool = False
     ) -> None:
 
         super().__init__(
@@ -30,10 +32,19 @@ class RawAoeAttackUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
         
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
+        self.within_range = within_range
+        self.ignore_spirits = ignore_spirits
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
+
+        def condition(agent_id: int) -> bool:
+            if self.ignore_spirits:
+                return not Agent.IsSpirit(agent_id)
+            return True
+
         return custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
-            within_range=Range.Spellcast,
+            condition=condition,
+            within_range=self.within_range,
             sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_DESC),
             range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
 
