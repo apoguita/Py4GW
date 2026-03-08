@@ -1,6 +1,7 @@
 
 import PyImGui
 import PyUIManager
+import time
 from typing import Dict, List, Optional
 import json
 import PyOverlay
@@ -359,6 +360,34 @@ class UIManager:
     @staticmethod
     def GetParentFrameID(frame_id: int) -> int:
         return PyUIManager.UIManager.get_parent_frame_id(frame_id)
+
+    @staticmethod
+    def GetFrameContext(frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_frame_context(frame_id) or 0)
+
+    @staticmethod
+    def GetFirstChildFrameID(parent_frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_first_child_frame_id(parent_frame_id) or 0)
+
+    @staticmethod
+    def GetLastChildFrameID(parent_frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_last_child_frame_id(parent_frame_id) or 0)
+
+    @staticmethod
+    def GetNextChildFrameID(frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_next_child_frame_id(frame_id) or 0)
+
+    @staticmethod
+    def GetPrevChildFrameID(frame_id: int) -> int:
+        return int(PyUIManager.UIManager.get_prev_child_frame_id(frame_id) or 0)
+
+    @staticmethod
+    def GetItemFrameID(parent_frame_id: int, index: int) -> int:
+        return int(PyUIManager.UIManager.get_item_frame_id(parent_frame_id, index) or 0)
+
+    @staticmethod
+    def GetTabFrameID(parent_frame_id: int, index: int) -> int:
+        return int(PyUIManager.UIManager.get_tab_frame_id(parent_frame_id, index) or 0)
     
     @staticmethod
     def GetHashByLabel(label):
@@ -411,6 +440,10 @@ class UIManager:
         return PyUIManager.UIManager.SendFrameUIMessage(frame_id, message_id, wparam, lparam)
 
     @staticmethod
+    def SendFrameUIMessageWString(frame_id: int, message_id: int, text: str) -> bool:
+        return PyUIManager.UIManager.SendFrameUIMessageWString(frame_id, message_id, text)
+
+    @staticmethod
     def CreateUIComponentByFrameId(
         parent_frame_id: int,
         component_flags: int,
@@ -427,6 +460,103 @@ class UIManager:
             name_enc,
             component_label,
         )
+
+    @staticmethod
+    def CreateUIComponentRawByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int,
+        event_callback: int,
+        wparam: int = 0,
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_ui_component_raw_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            event_callback,
+            wparam,
+            component_label,
+        )
+
+    @staticmethod
+    def GetFrameInteractionCallbacksByFrameId(frame_id: int) -> list[tuple[int, int]]:
+        callbacks: list[tuple[int, int]] = []
+        if frame_id <= 0:
+            return callbacks
+        try:
+            frame = UIManager.GetFrameByID(frame_id)
+        except Exception:
+            return callbacks
+
+        for callback in getattr(frame, "frame_callbacks", []):
+            callback_address = int(getattr(callback, "callback_address", 0) or 0)
+            callback_h0008 = int(getattr(callback, "h0008", 0) or 0)
+            if callback_address > 0:
+                callbacks.append((callback_address, callback_h0008))
+        return callbacks
+
+    @staticmethod
+    def AddFrameUIInteractionCallbacksByFrameId(
+        frame_id: int,
+        callbacks: list[tuple[int, int]],
+        start_index: int = 0,
+    ) -> int:
+        if frame_id <= 0:
+            return 0
+
+        added = 0
+        for callback_address, callback_h0008 in callbacks[max(0, int(start_index)):]:
+            if callback_address <= 0:
+                continue
+            if UIManager.AddFrameUIInteractionCallbackByFrameId(
+                frame_id,
+                callback_address,
+                callback_h0008,
+            ):
+                added += 1
+        return added
+
+    @staticmethod
+    def CreateUIComponentFromSourceFrameByFrameId(
+        parent_frame_id: int,
+        source_frame_id: int,
+        component_flags: int,
+        child_index: int,
+        component_label: str = "",
+        reattach_remaining_callbacks: bool = True,
+        trigger_redraw: bool = True,
+    ) -> int:
+        callbacks = UIManager.GetFrameInteractionCallbacksByFrameId(source_frame_id)
+        if parent_frame_id <= 0 or not callbacks:
+            return 0
+
+        primary_callback, primary_h0008 = callbacks[0]
+        created_frame_id = int(
+            UIManager.CreateUIComponentRawByFrameId(
+                parent_frame_id,
+                component_flags,
+                child_index,
+                primary_callback,
+                primary_h0008,
+                component_label,
+            )
+            or 0
+        )
+        if created_frame_id <= 0:
+            return 0
+
+        if reattach_remaining_callbacks and len(callbacks) > 1:
+            UIManager.AddFrameUIInteractionCallbacksByFrameId(
+                created_frame_id,
+                callbacks,
+                start_index=1,
+            )
+
+        if trigger_redraw:
+            UIManager.TriggerFrameRedrawByFrameId(created_frame_id)
+
+        return created_frame_id
 
     @staticmethod
     def CreateLabeledFrameByFrameId(
@@ -529,16 +659,88 @@ class UIManager:
 
     @staticmethod
     def EnsureDevTextSource() -> tuple[int, bool]:
-        frame_id, opened_temporarily = PyUIManager.UIManager.ensure_devtext_source()
-        return int(frame_id or 0), bool(opened_temporarily)
+        frame_id = UIManager.GetDevTextFrameID()
+        if frame_id > 0:
+            return frame_id, False
+        frame_id = UIManager.OpenDevTextWindow()
+        return frame_id, frame_id > 0
+
+    @staticmethod
+    def OpenDevTextWindow(timeout_ms: int = 750, poll_interval_ms: int = 25) -> int:
+        from Py4GW import Game
+        from Py4GWCoreLib import GWContext
+
+        frame_id = UIManager.GetDevTextFrameID()
+        if frame_id > 0:
+            return frame_id
+
+        def _dispatch_open_devtext() -> None:
+            char_ctx = GWContext.Char.GetContext()
+            if char_ctx is None:
+                return
+            original_flags = int(char_ctx.player_flags)
+            try:
+                char_ctx.player_flags = original_flags | 0x8
+                PyUIManager.UIManager.key_press(0x25, 0)
+            finally:
+                char_ctx.player_flags = original_flags
+
+        Game.enqueue(_dispatch_open_devtext)
+
+        deadline = time.monotonic() + max(0.0, float(timeout_ms) / 1000.0)
+        poll_seconds = max(0.005, float(poll_interval_ms) / 1000.0)
+        while time.monotonic() <= deadline:
+            frame_id = UIManager.GetDevTextFrameID()
+            if frame_id > 0:
+                return frame_id
+            time.sleep(poll_seconds)
+        return 0
+
+    @staticmethod
+    def GetDevTextFrameID() -> int:
+        frame_id = int(PyUIManager.UIManager.get_devtext_frame_id() or 0)
+        if frame_id > 0:
+            return frame_id
+        frame_id = int(UIManager.GetFrameIDByLabel("DevText") or 0)
+        if frame_id <= 0:
+            return 0
+        try:
+            frame = UIManager.GetFrameByID(frame_id)
+            if bool(frame.is_created):
+                return frame_id
+        except Exception:
+            pass
+        return 0
 
     @staticmethod
     def RestoreDevTextSource(opened_temporarily: bool) -> None:
-        PyUIManager.UIManager.restore_devtext_source(opened_temporarily)
+        if not opened_temporarily:
+            return
+        if UIManager.GetDevTextFrameID() > 0:
+            UIManager.Keypress(0x25, 0)
 
     @staticmethod
     def ResolveObservedContentHostByFrameId(root_frame_id: int) -> int:
         return int(PyUIManager.UIManager.resolve_observed_content_host_by_frame_id(root_frame_id) or 0)
+
+    @staticmethod
+    def ResolveEmptyWindowClearBoundaryByFrameId(
+        root_frame_id: int,
+        timeout_ms: int = 250,
+        poll_interval_ms: int = 10,
+    ) -> int:
+        if root_frame_id <= 0:
+            return 0
+        deadline = time.monotonic() + max(0.0, float(timeout_ms) / 1000.0)
+        poll_seconds = max(0.005, float(poll_interval_ms) / 1000.0)
+        while time.monotonic() <= deadline:
+            level0 = int(UIManager.GetChildFrameByFrameId(root_frame_id, 0) or 0)
+            if level0 > 0:
+                level1 = int(UIManager.GetChildFrameByFrameId(level0, 0) or 0)
+                if level1 > 0:
+                    return level1
+            time.sleep(poll_seconds)
+        return 0
 
     @staticmethod
     def ClearFrameChildrenRecursiveByFrameId(frame_id: int) -> bool:
@@ -546,7 +748,13 @@ class UIManager:
 
     @staticmethod
     def ClearWindowContentsByFrameId(root_frame_id: int) -> bool:
-        return PyUIManager.UIManager.clear_window_contents_by_frame_id(root_frame_id)
+        clear_boundary = UIManager.ResolveEmptyWindowClearBoundaryByFrameId(root_frame_id)
+        if clear_boundary <= 0:
+            return False
+        result = bool(UIManager.ClearFrameChildrenRecursiveByFrameId(clear_boundary))
+        if result:
+            UIManager.TriggerFrameRedrawByFrameId(root_frame_id)
+        return result
 
     @staticmethod
     def CloneWindow(
@@ -617,23 +825,24 @@ class UIManager:
         anchor_flags: int = 0x6,
         ensure_devtext_source: bool = True,
     ) -> int:
-        return int(
-            PyUIManager.UIManager.create_empty_window(
-                x,
-                y,
-                width,
-                height,
-                frame_label,
-                parent_frame_id,
-                child_index,
-                frame_flags,
-                create_param,
-                frame_callback,
-                anchor_flags,
-                ensure_devtext_source,
-            )
-            or 0
+        root_frame_id = UIManager.CreateWindow(
+            x,
+            y,
+            width,
+            height,
+            frame_label,
+            parent_frame_id,
+            child_index,
+            frame_flags,
+            create_param,
+            frame_callback,
+            anchor_flags,
+            ensure_devtext_source,
         )
+        if root_frame_id <= 0:
+            return 0
+        UIManager.ClearWindowContentsByFrameId(root_frame_id)
+        return root_frame_id
 
     @staticmethod
     def SetFrameRect(
@@ -790,6 +999,80 @@ class UIManager:
         return PyUIManager.UIManager.collapse_window_by_frame_id(frame_id)
 
     @staticmethod
+    def SetFrameVisibleByFrameId(frame_id: int, is_visible: bool) -> bool:
+        return bool(PyUIManager.UIManager.set_frame_visible_by_frame_id(frame_id, is_visible))
+
+    @staticmethod
+    def SetFrameDisabledByFrameId(frame_id: int, is_disabled: bool) -> bool:
+        return bool(PyUIManager.UIManager.set_frame_disabled_by_frame_id(frame_id, is_disabled))
+
+    @staticmethod
+    def SetFrameTitleByFrameId(frame_id: int, title: str) -> bool:
+        return bool(PyUIManager.UIManager.set_frame_title_by_frame_id(frame_id, str(title or "")))
+
+    @staticmethod
+    def GetFrameLabelByFrameId(frame_id: int) -> str:
+        return str(PyUIManager.UIManager.get_frame_label_by_frame_id(frame_id) or "")
+
+    @staticmethod
+    def GetTextLabelEncodedByFrameId(frame_id: int) -> str:
+        return str(PyUIManager.UIManager.get_text_label_encoded_by_frame_id(frame_id) or "")
+
+    @staticmethod
+    def GetTextLabelEncodedBytesByFrameId(frame_id: int) -> bytes:
+        return bytes(PyUIManager.UIManager.get_text_label_encoded_bytes_by_frame_id(frame_id) or b"")
+
+    @staticmethod
+    def GetTextLabelDecodedByFrameId(frame_id: int) -> str:
+        return str(PyUIManager.UIManager.get_text_label_decoded_by_frame_id(frame_id) or "")
+
+    @staticmethod
+    def SetLabelByFrameId(frame_id: int, label: str) -> bool:
+        return bool(PyUIManager.UIManager.set_label_by_frame_id(frame_id, str(label or "")))
+
+    @staticmethod
+    def SetTextLabelByFrameId(frame_id: int, label: str) -> bool:
+        return bool(PyUIManager.UIManager.set_text_label_by_frame_id(frame_id, str(label or "")))
+
+    @staticmethod
+    def SetTextLabelBytesByFrameId(frame_id: int, label_bytes: bytes) -> bool:
+        return bool(PyUIManager.UIManager.set_text_label_bytes_by_frame_id(frame_id, bytes(label_bytes or b"")))
+
+    @staticmethod
+    def AppendTextLabelEncodedSuffixByFrameId(frame_id: int, encoded_suffix: str) -> bool:
+        return bool(
+            PyUIManager.UIManager.append_text_label_encoded_suffix_by_frame_id(
+                frame_id,
+                str(encoded_suffix or ""),
+            )
+        )
+
+    @staticmethod
+    def AppendTextLabelPlainSuffixByFrameId(frame_id: int, plain_text: str) -> bool:
+        return bool(
+            PyUIManager.UIManager.append_text_label_plain_suffix_by_frame_id(
+                frame_id,
+                str(plain_text or ""),
+            )
+        )
+
+    @staticmethod
+    def SetMultilineLabelByFrameId(frame_id: int, label: str) -> bool:
+        return bool(PyUIManager.UIManager.set_multiline_label_by_frame_id(frame_id, str(label or "")))
+
+    @staticmethod
+    def SetTextLabelFontByFrameId(frame_id: int, font_id: int) -> bool:
+        return bool(PyUIManager.UIManager.set_text_label_font_by_frame_id(frame_id, int(font_id)))
+
+    @staticmethod
+    def SetReadOnlyByFrameId(frame_id: int, is_read_only: bool) -> bool:
+        return bool(PyUIManager.UIManager.set_read_only_by_frame_id(frame_id, is_read_only))
+
+    @staticmethod
+    def IsReadOnlyByFrameId(frame_id: int) -> bool:
+        return bool(PyUIManager.UIManager.is_read_only_by_frame_id(frame_id))
+
+    @staticmethod
     def RestoreWindowRectByFrameId(
         frame_id: int,
         x: float,
@@ -810,6 +1093,50 @@ class UIManager:
             use_auto_flags,
             disable_center,
         )
+
+    @staticmethod
+    def SetFrameMarginsByFrameId(
+        frame_id: int,
+        flags: int,
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+    ) -> bool:
+        return bool(
+            PyUIManager.UIManager.set_frame_margins_by_frame_id(
+                frame_id,
+                flags,
+                x,
+                y,
+                width,
+                height,
+            )
+        )
+
+    @staticmethod
+    def SetNextCreatedWindowTitle(title: str) -> bool:
+        return bool(PyUIManager.UIManager.set_next_created_window_title(str(title or "")))
+
+    @staticmethod
+    def ClearNextCreatedWindowTitle() -> None:
+        PyUIManager.UIManager.clear_next_created_window_title()
+
+    @staticmethod
+    def HasNextCreatedWindowTitle() -> bool:
+        return bool(PyUIManager.UIManager.has_next_created_window_title())
+
+    @staticmethod
+    def IsWindowTitleHookInstalled() -> bool:
+        return bool(PyUIManager.UIManager.is_window_title_hook_installed())
+
+    @staticmethod
+    def GetLastAppliedWindowTitleFrameId() -> int:
+        return int(PyUIManager.UIManager.get_last_applied_window_title_frame_id() or 0)
+
+    @staticmethod
+    def GetLastAppliedWindowTitle() -> str:
+        return str(PyUIManager.UIManager.get_last_applied_window_title() or "")
 
     @staticmethod
     def ToggleWindowByLabel(
@@ -944,6 +1271,76 @@ class UIManager:
             name_enc,
             component_label,
         )
+
+    @staticmethod
+    def CreateTextLabelFrameWithPlainTextByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int = 0,
+        plain_text: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_text_label_frame_with_plain_text_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            plain_text,
+            component_label,
+        )
+
+    @staticmethod
+    def CreateTextLabelFrameFromTemplateByFrameId(
+        parent_frame_id: int,
+        component_flags: int,
+        child_index: int,
+        template_frame_id: int,
+        plain_text: str = "",
+        component_label: str = "",
+    ) -> int:
+        return PyUIManager.UIManager.create_text_label_frame_from_template_by_frame_id(
+            parent_frame_id,
+            component_flags,
+            child_index,
+            template_frame_id,
+            plain_text,
+            component_label,
+        )
+
+    @staticmethod
+    def GetTextLabelCreatePayloadDiagnosticsByTemplateFrameId(
+        template_frame_id: int,
+        plain_text: str = "",
+    ) -> dict:
+        return dict(
+            PyUIManager.UIManager.get_text_label_create_payload_diagnostics_by_template_frame_id(
+                template_frame_id,
+                plain_text,
+            )
+            or {}
+        )
+
+    @staticmethod
+    def GetTextLabelLiteralCreatePayloadDiagnostics(
+        plain_text: str = "",
+    ) -> dict:
+        return dict(
+            PyUIManager.UIManager.get_text_label_literal_create_payload_diagnostics(
+                plain_text,
+            )
+            or {}
+        )
+
+    # CreateUIComponent callback binding is intentionally disabled for now.
+    # The runtime path was destabilizing validation runs and should only be
+    # restored when callback-specific work is resumed.
+    #
+    # @staticmethod
+    # def RegisterCreateUIComponentCallback(callback, altitude: int = -0x8000) -> int:
+    #     return int(PyUIManager.UIManager.register_create_ui_component_callback(callback, altitude) or 0)
+    #
+    # @staticmethod
+    # def RemoveCreateUIComponentCallback(handle: int) -> bool:
+    #     return bool(PyUIManager.UIManager.remove_create_ui_component_callback(handle))
     
     @staticmethod
     def FrameClick(frame_id):
@@ -1091,6 +1488,10 @@ class UIManager:
     @staticmethod
     def IsValidEncStr(enc_str: str) -> bool:
         return PyUIManager.UIManager.is_valid_enc_str(enc_str)
+
+    @staticmethod
+    def IsValidEncBytes(enc_bytes: bytes) -> bool:
+        return bool(PyUIManager.UIManager.is_valid_enc_bytes(bytes(enc_bytes or b"")))
 
     @staticmethod
     def UInt32ToEncStr(value: int) -> str:
