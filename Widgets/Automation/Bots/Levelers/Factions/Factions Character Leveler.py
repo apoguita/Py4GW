@@ -55,6 +55,7 @@ def create_bot_routine(bot: Botting) -> None:
     Destroy_Seitung_Armor(bot)
     The_Search_For_A_Cure(bot)
     A_Masters_Burden(bot)
+    Unlock_Mox(bot)
     To_Boreal_Station(bot)
     To_Eye_of_the_North(bot)
     Unlock_Eye_Of_The_North_Pool(bot)
@@ -1390,7 +1391,14 @@ def A_Masters_Burden(bot: Botting) -> None:
     bot.States.AddCustomState(exec_fn, "Set Active - Seek Out Brother Tosai")
     exec_fn = lambda: bot.Quest.AbandonQuest(337)
     bot.States.AddCustomState(exec_fn, "Abandon - Seek Out Brother Tosai")
-    
+
+def Unlock_Mox(bot: Botting):
+    bot.States.AddHeader("Unlock Mox")
+    bot.Map.Travel(target_map_id=194)
+    bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
+    bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
+    bot.Wait.ForTime(1000)
+
 def To_Boreal_Station(bot: Botting):
     bot.States.AddHeader("To Boreal Station")
     bot.Map.Travel(target_map_id=194)
@@ -1405,10 +1413,6 @@ def To_Boreal_Station(bot: Botting):
         yield
     bot.States.AddCustomState(_disable_dead_behind, "Disable DeadBehind Callback")
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
-    mox_id   = Routines.Agents.GetAgentIDByModelID(7590)
-    if mox_id != 0:
-        bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
-    bot.Wait.ForTime(1000)
     #bot.Move.XYAndDialog(-10103.00, 16493.00, 0x84)
     exec_fn = lambda: QuestLoop(821, -10103.00, 16493.00, 0x84, mode="step")
     bot.States.AddCustomState(exec_fn, "Step - I Feel the Earth Move Under Cantha's Feet")
@@ -2118,7 +2122,7 @@ def To_Consulate_Docks(bot: Botting):
     bot.Move.XY(-5271.00, 16740.00)
     bot.Wait.ForMapLoad(target_map_id=429)
     #bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
-    exec_fn = lambda: QuestLoop(724, -4631.86, 16711.79, 0x85, mode="part")
+    exec_fn = lambda: QuestLoop(724, -4631.86, 16711.79, 0x85, mode="step")
     bot.States.AddCustomState(exec_fn, "Unlock Docks")
     bot.Wait.ForMapToChange(target_map_id=493)
 
