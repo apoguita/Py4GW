@@ -1070,6 +1070,10 @@ _show_debug          = [False]
 _show_player_cross        = [False]
 _show_reachable_unvisited = [False]
 
+# Auto-explore: iterate through all reachable-but-unvisited outposts
+_auto_explore_active: list[bool] = [False]
+_auto_explore_target: list[int]  = [0]     # map_id of the outpost currently being visited
+
 # Travel button data: built each frame by _draw_overlay, consumed by _draw_travel_buttons
 # Each entry: (rep_map_id, btn_x, btn_y)  – screen pixel coords
 _travel_btn_data: list[tuple[int, float, float]] = []
@@ -1421,6 +1425,163 @@ def GetNearestFastTravelTo(target_map_id: int) -> dict | None:
     Kept for backwards-compatibility and readability in travel-UI code.
     """
     return GetNearestUnlockedOutpost(target_map_id)
+
+
+def _unlock_all_coroutine():
+    """Coroutine: iterate through all reachable-unvisited outposts one by one."""
+    try:
+        while True:
+            if not _auto_explore_active[0]:
+                return
+
+            # Rebuild candidate list from current map each iteration
+            cmap = Map.GetMapID()
+            candidates: list[dict] = []
+            for m in GetReachableMaps(cmap):
+                if Map.IsMapUnlocked(m["map_id"]):
+                    continue
+                meta = _MAP_META.get(m["map_id"])
+                if meta is None or meta[0] == _RT_EXPLORABLE:
+                    continue
+                dist = _path_distance(cmap, m["map_id"])
+                ft   = GetNearestFastTravelTo(m["map_id"])
+                entry = dict(m)
+                entry["distance"]   = dist
+                entry["nearest_ft"] = ft
+                candidates.append(entry)
+            candidates.sort(key=lambda e: (
+                e["nearest_ft"]["hops"] if e.get("nearest_ft") else 999,
+                e["hops"],
+                e["distance"] if e["distance"] is not None else float("inf"),
+                e["name"],
+            ))
+
+            if not candidates:
+                Py4GW.Console.Log(MODULE_NAME,
+                    "Unlock All: list complete – all reachable outposts visited.",
+                    Py4GW.Console.MessageType.Info)
+                break
+
+            target = candidates[0]
+            ft     = target.get("nearest_ft")
+            ft_id  = ft["map_id"] if ft else None
+            _auto_explore_target[0] = target["map_id"]
+
+            # ── Step 1: fast-travel to the nearest unlocked outpost ──────────
+            if ft_id and ft_id != Map.GetMapID():
+                Map.TravelToDistrict(ft_id, 0, 0)
+                _t0 = int(Utils.GetBaseTimestamp())
+                while not Map.IsMapLoading():
+                    if not _auto_explore_active[0]:
+                        return
+                    if int(Utils.GetBaseTimestamp()) - _t0 > 10_000:
+                        break
+                    yield from Routines.Yield.wait(150)
+                loaded = yield from Routines.Yield.Map.WaitforMapLoad(
+                    ft_id, log=False, timeout=60_000
+                )
+                if not _auto_explore_active[0]:
+                    return
+                if not loaded:
+                    Py4GW.Console.Log(MODULE_NAME,
+                        f"Unlock All: could not load FT map {ft_id}, stopping.",
+                        Py4GW.Console.MessageType.Warning)
+                    break
+                yield from Routines.Yield.wait(500)
+                if not _auto_explore_active[0]:
+                    return
+
+            # ── Step 2: start walking navigation ────────────────────────────
+            if not _auto_explore_active[0]:
+                return
+            current_map = Map.GetMapID()
+            route = GetPath(current_map, target["map_id"])
+            if route.get("found"):
+                _travel_route_overlay[:] = _build_route_overlay(route)
+                _path_map_names[:] = route.get("map_names", [])
+                gids: list[int] = []
+                for wp in route.get("waypoints", []):
+                    gids.extend([wp["exit_gid"], wp["enter_gid"]])
+                _path_gids[:] = gids
+                _now = int(Utils.GetBaseTimestamp())
+                _num_hops = max(0, len(_path_map_names) - 1)
+                _travel_route_start_ms[0] = _now
+                _travel_hop_times[:] = [(_now, 0)] + [(0, 0)] * (_num_hops - 1)
+                _travel_prev_done_count[0] = 0
+            MoveToMapid(target["map_id"])
+
+            # ── Step 3: wait until arrived or movement ends ──────────────────
+            # Brief startup delay – let MoveToMapid's coroutine actually run
+            # its first frame before we start polling the runner flag.
+            yield from Routines.Yield.wait(400)
+            if not _auto_explore_active[0]:
+                return
+
+            _wait_start      = int(Utils.GetBaseTimestamp())
+            _arrived         = False
+            _last_seen_map   = Map.GetMapID()   # track map changes as "progress"
+            _last_progress_t = int(Utils.GetBaseTimestamp())
+            _NO_PROGRESS_TIMEOUT_MS = 15_000    # abort only if stuck on same map for 15 s
+
+            while True:
+                if not _auto_explore_active[0]:
+                    _abort_wp_movement()
+                    return
+
+                _cur_map = Map.GetMapID()
+
+                # Success: we arrived
+                if _cur_map == target["map_id"]:
+                    _arrived = True
+                    break
+
+                # Any map change (including intermediate hops) counts as progress
+                if _cur_map != _last_seen_map:
+                    _last_seen_map   = _cur_map
+                    _last_progress_t = int(Utils.GetBaseTimestamp())
+
+                # Hard overall timeout
+                if int(Utils.GetBaseTimestamp()) - _wait_start > 300_000:
+                    Py4GW.Console.Log(MODULE_NAME,
+                        f"Unlock All: overall timeout waiting for map {target['map_id']}, skipping.",
+                        Py4GW.Console.MessageType.Warning)
+                    break
+
+                # Only abort after no map change AND runner inactive for _NO_PROGRESS_TIMEOUT_MS
+                _stuck = (
+                    not _mtm_runner_active[0]
+                    and not Map.IsMapLoading()
+                    and (int(Utils.GetBaseTimestamp()) - _last_progress_t) > _NO_PROGRESS_TIMEOUT_MS
+                )
+                if _stuck:
+                    Py4GW.Console.Log(MODULE_NAME,
+                        f"Unlock All: movement stuck on map {_cur_map} "
+                        f"(target {target['map_id']}), skipping.",
+                        Py4GW.Console.MessageType.Warning)
+                    break
+
+                yield from Routines.Yield.wait(200)
+
+            # If we didn't actually arrive, skip to next iteration without
+            # treating this outpost as visited.
+            if not _arrived and Map.GetMapID() != target["map_id"]:
+                _reachable_list_last_map[0] = -1
+                _reachable_list_cache.clear()
+                yield from Routines.Yield.wait(500)
+                if not _auto_explore_active[0]:
+                    return
+                continue
+
+            # ── Step 4: pause, then invalidate cache for next iteration ──────
+            yield from Routines.Yield.wait(1_000)
+            if not _auto_explore_active[0]:
+                return
+            _reachable_list_last_map[0] = -1
+            _reachable_list_cache.clear()
+
+    finally:
+        _auto_explore_active[0] = False
+        _auto_explore_target[0] = 0
 
 
 def GetPath(start_map_id: int, target_map_id: int) -> dict:
@@ -2329,6 +2490,8 @@ def _draw_travel_roadmap() -> None:
     PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (min(stop_col[0]+0.25,1.0), stop_col[1], stop_col[2], 1.0))
     if PyImGui.button("Stop Travel##rm", btn_w_full, 0):
         _abort_worldmap_movement()
+        _auto_explore_active[0] = False
+        _auto_explore_target[0] = 0
         _travel_route_overlay.clear()
         _path_gids.clear()
         _path_map_names.clear()
@@ -2712,9 +2875,40 @@ def _draw_reachable_list_panel() -> None:
     PyImGui.draw_list_add_text(tx, ty, title_col, "Reachable Outposts (not visited)")
     PyImGui.separator()
 
-    if not rv_list:
+    if not rv_list and not _auto_explore_active[0]:
         PyImGui.text_disabled("None found from current map.")
     else:
+        # ── Unlock All buttons ─────────────────────────────────────────────
+        if _auto_explore_active[0]:
+            target_name = _map_name_cached(_auto_explore_target[0]) if _auto_explore_target[0] else "..."
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (0.60, 0.15, 0.10, 0.90))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.80, 0.20, 0.15, 0.95))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (0.90, 0.25, 0.20, 1.00))
+            if PyImGui.button(f"Stop Unlock All  ({target_name})##ae_stop", win_w - 16.0, 0):
+                _abort_wp_movement()
+                _auto_explore_active[0] = False
+                _auto_explore_target[0] = 0
+            PyImGui.pop_style_color(3)
+        elif rv_list:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (0.10, 0.45, 0.15, 0.90))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.15, 0.60, 0.20, 0.95))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (0.20, 0.75, 0.28, 1.00))
+            if PyImGui.button(f"Start Unlock All  ({len(rv_list)} remaining)##ae_start",
+                              win_w - 16.0, 0):
+                _auto_explore_active[0] = True
+                _auto_explore_target[0] = 0
+                GLOBAL_CACHE.Coroutines.append(_unlock_all_coroutine())
+            PyImGui.pop_style_color(3)
+            if PyImGui.is_item_hovered():
+                first = rv_list[0]
+                ft    = first.get("nearest_ft")
+                ft_name = ft["name"] if ft else "(current map)"
+                PyImGui.begin_tooltip()
+                PyImGui.text(f"Visits all {len(rv_list)} reachable unvisited outpost(s).")
+                PyImGui.text(f"Next: {first['name']}  via FT: {ft_name}")
+                PyImGui.end_tooltip()
+        PyImGui.separator()
+
         text_col  = Utils.RGBToColor(230, 230, 230, 255)
         hop_col   = Utils.RGBToColor(180, 210, 255, 255)
         list_h    = min(len(rv_list) * 32.0 + 4.0, 400.0)
@@ -2994,13 +3188,25 @@ def main() -> None:
             _debug_last_map[0] = cmap
             # Only wipe route data when no runner is active.
             # While the bot is travelling, the route must stay visible.
-            if not _mtm_runner_active[0] and not _mtnw_runner_active[0]:
+            # Also keep when Unlock All is running (it rebuilds the overlay itself).
+            if not _mtm_runner_active[0] and not _mtnw_runner_active[0] and not _auto_explore_active[0]:
                 _travel_route_overlay.clear()
                 _path_gids.clear()
                 _path_map_names.clear()
                 _travel_route_start_ms[0] = 0
                 _travel_hop_times.clear()
                 _travel_prev_done_count[0] = -1
+            elif _auto_explore_active[0] and _mtm_target_map[0]:
+                # Unlock All active: rebuild overlay from the current map toward the target
+                # so the remaining route lines stay accurate on every hop.
+                _new_route = GetPath(cmap, _mtm_target_map[0])
+                if _new_route.get("found"):
+                    _travel_route_overlay[:] = _build_route_overlay(_new_route)
+                    _path_map_names[:] = _new_route.get("map_names", [])
+                    gids: list[int] = []
+                    for _wp in _new_route.get("waypoints", []):
+                        gids.extend([_wp["exit_gid"], _wp["enter_gid"]])
+                    _path_gids[:] = gids
 
             # Reset demo results when map changes
             _wp_is_path_result[0]  = None

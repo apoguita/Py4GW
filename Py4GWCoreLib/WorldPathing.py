@@ -26,6 +26,7 @@ from collections import deque
 
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Pathing import AutoPathing
@@ -364,7 +365,9 @@ class WorldPathing:
 
             if candidates:
                 candidates.sort(key=lambda c: (
-                    c["distance"] if c["distance"] is not None else float("inf")
+                    c["hops"],
+                    c["distance"] if c["distance"] is not None else float("inf"),
+                    c["map_id"],
                 ))
                 return candidates[0]
 
@@ -652,6 +655,14 @@ class WorldPathing:
                         break
                     Player.Move(goal_x, goal_y)
                     yield from Routines.Yield.wait(100)
+                # Timeout without map change: nudge 100 units in the player's facing direction
+                try:
+                    _fcos = Agent.GetRotationCos(Player.GetAgentID())
+                    _fsin = Agent.GetRotationSin(Player.GetAgentID())
+                    _nx, _ny = Player.GetXY()
+                    Player.Move(_nx + _fcos * 100.0, _ny + _fsin * 100.0)
+                except Exception:
+                    pass
                 self._mtnw_clear()
                 return
 
@@ -715,6 +726,14 @@ class WorldPathing:
                         break
                     Player.Move(goal_x, goal_y)
                     yield from Routines.Yield.wait(100)
+                # Timeout without map change: nudge 100 units in the player's facing direction
+                try:
+                    _fcos = Agent.GetRotationCos(Player.GetAgentID())
+                    _fsin = Agent.GetRotationSin(Player.GetAgentID())
+                    _nx, _ny = Player.GetXY()
+                    Player.Move(_nx + _fcos * 100.0, _ny + _fsin * 100.0)
+                except Exception:
+                    pass
                 self._mtnw_clear()
                 return
 
