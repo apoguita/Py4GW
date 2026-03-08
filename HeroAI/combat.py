@@ -351,6 +351,24 @@ class CombatClass:
     def get_combat_distance(self):
         return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
 
+    def _get_nearest_enemy(self, distance: float) -> int:
+        """Like Routines.Agents.GetNearestEnemy but skips blacklisted model IDs."""
+        from HeroAI.enemy_blacklist import EnemyBlacklist
+        bl = EnemyBlacklist()
+        if not bl.get_all():
+            return Routines.Agents.GetNearestEnemy(distance)
+        player_pos = Player.GetXY()
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, distance)
+        enemy_array = AgentArray.Filter.ByCondition(
+            enemy_array,
+            lambda a: Agent.IsAlive(a) and not bl.contains(Agent.GetModelID(a))
+        )
+        if not enemy_array:
+            return 0
+        enemy_array.sort(key=lambda a: (Agent.GetXY(a)[0] - player_pos[0]) ** 2 + (Agent.GetXY(a)[1] - player_pos[1]) ** 2)
+        return enemy_array[0]
+
     def GetAppropiateTarget(self, slot):
         v_target = 0
 
@@ -365,7 +383,7 @@ class CombatClass:
         def get_nearest_enemy():
             nonlocal _nearest_enemy
             if _nearest_enemy is None:
-                _nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+                _nearest_enemy = self._get_nearest_enemy(self.get_combat_distance())
             return _nearest_enemy
 
         _lowest_ally = None
@@ -1138,7 +1156,7 @@ class CombatClass:
             self.SafeInteract(called_target)
             return True
             
-        nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
+        nearest = self._get_nearest_enemy(self.get_combat_distance())
         if nearest != 0:
             self.SafeInteract(nearest)
             return True

@@ -73,6 +73,7 @@ class CachedSkillInfo:
 skill_cache: dict[int, CachedSkillInfo] = {}
 message_cache : dict[str, dict[SharedCommandType, dict[int, tuple]]] = {}
 template_popup_open: bool = False
+_blacklist_input: str = ""
 template_account: str = ""
 template_code = ""
 configure_consumables_window_open: bool = False
@@ -2644,6 +2645,71 @@ def draw_party_search_overlay(cached_data: CacheData):
     
     pass
 
+
+def draw_blacklist_ui():
+    """Render the enemy model ID blacklist UI. Usable from any widget."""
+    global _blacklist_input
+    from HeroAI.enemy_blacklist import EnemyBlacklist
+
+    blacklist = EnemyBlacklist()
+
+    PyImGui.text("Blacklisted enemies are completely ignored by the combat")
+    PyImGui.text("system: no targeting, no aggro detection.")
+    PyImGui.spacing()
+
+    # --- Add by model ID ---
+    PyImGui.set_next_item_width(120)
+    _blacklist_input = PyImGui.input_text("##bl_input", _blacklist_input, 16)
+    ImGui.show_tooltip("Enter a numeric model ID and press Add.")
+    PyImGui.same_line(0.0, 5.0)
+    if PyImGui.button("Add##bl_add"):
+        val = _blacklist_input.strip()
+        if val.isdigit() and int(val) > 0:
+            blacklist.add(int(val))
+            _blacklist_input = ""
+    PyImGui.same_line(0.0, 5.0)
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_CROSSHAIRS} Add Target##bl_target"):
+        target_id = Player.GetTargetID()
+        if target_id and target_id > 0:
+            model_id = Agent.GetModelID(target_id)
+            if model_id > 0:
+                blacklist.add(model_id)
+    ImGui.show_tooltip("Add the Model ID of the currently selected target to the blacklist.")
+
+    PyImGui.spacing()
+
+    # --- Table of blacklisted IDs ---
+    entries = blacklist.get_all()
+    if len(entries) == 0:
+        PyImGui.text("(empty - all enemies are considered)")
+    else:
+        table_flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.ScrollY
+        if PyImGui.begin_table("##bl_table", 3, table_flags, 0, 200):
+            PyImGui.table_setup_column("Model ID", PyImGui.TableColumnFlags.WidthFixed, 80)
+            PyImGui.table_setup_column("Name", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("##bl_remove_col", PyImGui.TableColumnFlags.WidthFixed, 65)
+            PyImGui.table_headers_row()
+
+            to_remove = None
+            for model_id in entries:
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text(str(model_id))
+                PyImGui.table_set_column_index(1)
+                try:
+                    name = ModelID(model_id).name.replace("_", " ")
+                except ValueError:
+                    name = "Unknown"
+                PyImGui.text(name)
+                PyImGui.table_set_column_index(2)
+                if PyImGui.button(f"Remove##{model_id}"):
+                    to_remove = model_id
+            PyImGui.end_table()
+
+            if to_remove is not None:
+                blacklist.remove(to_remove)
+
+
 def draw_configure_window(module_name : str, configure_window : WindowModule):
     
     global module_info
@@ -2881,6 +2947,12 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                 ImGui.end_child()
                 ImGui.end_tab_item()
             
+            if ImGui.begin_tab_item("Blacklist"):
+                if ImGui.begin_child("##BlacklistSettingsChild", (0, 0)):
+                    draw_blacklist_ui()
+                ImGui.end_child()
+                ImGui.end_tab_item()
+
             if ImGui.begin_tab_item("Debug"):
                 if ImGui.begin_child("##DebugSettingsChild", (0, 0)):
                     show_debug = ImGui.checkbox("Show Debug Window", settings.ShowDebugWindow)
