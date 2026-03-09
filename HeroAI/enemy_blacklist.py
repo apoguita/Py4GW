@@ -1,6 +1,4 @@
-import os
-from Py4GWCoreLib.py4gwcorelib_src.Console import Console
-from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
+from Py4GWCoreLib.IniManager import IniManager
 
 _INI_SECTION = "EnemyBlacklist"
 _INI_KEY = "model_ids"
@@ -8,13 +6,18 @@ _INI_KEY = "model_ids"
 
 class EnemyBlacklist:
     """
-    Singleton that holds a set of enemy model IDs which should be
+    Singleton that manages a set of enemy model IDs which should be
     completely ignored by the combat system (no targeting, no aggro detection).
-    Persisted to Widgets/Config/HeroAI.ini under [EnemyBlacklist].
+
+    Persisted to Settings/Global/HeroAI/EnemyBlacklist.ini.
+    The IniHandler reloads the file whenever its mtime changes, so changes
+    made by any other game instance are picked up automatically on the next
+    call to contains() / get_all().
     """
 
     _instance = None
     _class_initialized = False
+    _ini_key: str = ""
 
     def __new__(cls):
         if cls._instance is None:
@@ -25,29 +28,41 @@ class EnemyBlacklist:
         if self._class_initialized:
             return
         self.__class__._class_initialized = True
-
-        base_path = Console.get_projects_path()
-        ini_path = os.path.join(base_path, "Widgets", "Config", "HeroAI.ini")
-        self._ini = IniHandler(ini_path)
-        self._model_ids: set[int] = set()
-        self._load()
+        self._ensure_ini_key()
 
     # ------------------------------------------------------------------
-    # Persistence
+    # Internal helpers
     # ------------------------------------------------------------------
 
-    def _load(self):
-        raw = self._ini.read_key(_INI_SECTION, _INI_KEY, "")
-        self._model_ids.clear()
+    def _ensure_ini_key(self):
+        if not self.__class__._ini_key:
+            self.__class__._ini_key = IniManager().ensure_global_key("HeroAI", "EnemyBlacklist.ini")
+
+    def _handler(self):
+        self._ensure_ini_key()
+        node = IniManager()._get_node(self.__class__._ini_key)
+        return node.ini_handler if node else None
+
+    def _read(self) -> set[int]:
+        handler = self._handler()
+        if not handler:
+            return set()
+        raw = handler.read_key(_INI_SECTION, _INI_KEY, "")
+        ids: set[int] = set()
         if raw.strip():
             for part in raw.split(","):
                 part = part.strip()
                 if part.isdigit():
-                    self._model_ids.add(int(part))
+                    ids.add(int(part))
+        return ids
 
-    def _save(self):
-        value = ",".join(str(m) for m in sorted(self._model_ids))
-        self._ini.write_key(_INI_SECTION, _INI_KEY, value)
+    def _write(self, ids: set[int]):
+        handler = self._handler()
+        if not handler:
+            return
+        value = ",".join(str(m) for m in sorted(ids))
+        handler.write_key(_INI_SECTION, _INI_KEY, value)
+        handler.save(handler.config)
 
     # ------------------------------------------------------------------
     # Public API
@@ -55,15 +70,17 @@ class EnemyBlacklist:
 
     def add(self, model_id: int):
         if model_id > 0:
-            self._model_ids.add(model_id)
-            self._save()
+            ids = self._read()
+            ids.add(model_id)
+            self._write(ids)
 
     def remove(self, model_id: int):
-        self._model_ids.discard(model_id)
-        self._save()
+        ids = self._read()
+        ids.discard(model_id)
+        self._write(ids)
 
     def contains(self, model_id: int) -> bool:
-        return model_id in self._model_ids
+        return model_id in self._read()
 
     def get_all(self) -> list[int]:
-        return sorted(self._model_ids)
+        return sorted(self._read())
