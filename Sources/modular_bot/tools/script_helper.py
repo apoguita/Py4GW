@@ -11,14 +11,21 @@ Displays:
 
 import PyImGui
 import PyAgent
+import json
 
 from Py4GWCoreLib import Agent, Botting, ConsoleLog, Item, Map, Player
 from Sources.modular_bot.recipes import mission_run
+from Sources.modular_bot.recipes.modular_actions import register_step
 
 
 _TEST_MISSION_NAME = "script_helper"
 _test_bot = Botting("ScriptHelperTestRunner")
 _test_running = False
+_single_step_bot = Botting("ScriptHelperSingleStepRunner")
+_single_step_running = False
+_single_step_status = ""
+_single_step_input = '{"type": "auto_path", "name": "move it", "points": []},'
+_single_step_payload = None
 
 
 def _run_test_mission(bot: Botting) -> None:
@@ -26,6 +33,25 @@ def _run_test_mission(bot: Botting) -> None:
 
 
 _test_bot.SetMainRoutine(_run_test_mission)
+
+
+def _run_single_step(bot: Botting) -> None:
+    global _single_step_payload
+    # Always add at least one state so Botting.Start() never fails with empty FSM.
+    bot.States.AddCustomState(lambda: None, "Single Step Runner Guard")
+
+    if _single_step_payload is None:
+        return
+
+    try:
+        register_step(bot, _single_step_payload, 0, "ScriptHelperSingleStep")
+    except Exception as exc:
+        ConsoleLog("Script Helper", f"Single step registration failed: {exc}")
+    finally:
+        _single_step_payload = None
+
+
+_single_step_bot.SetMainRoutine(_run_single_step)
 
 
 def _fmt_xy(x: float, y: float) -> str:
@@ -67,7 +93,7 @@ def _fmt_item_enum_entry(agent_id: int) -> str:
 
 
 def main():
-    global _test_running
+    global _test_running, _single_step_input, _single_step_running, _single_step_payload, _single_step_status
 
     if PyImGui.begin("Script Helper"):
         player_x, player_y = Player.GetXY()
@@ -97,7 +123,6 @@ def main():
                     "Script Helper",
                     f"Mission file not found: Sources/modular_bot/missions/{_TEST_MISSION_NAME}.json",
                 )
-
         if target_id and Agent.IsValid(target_id):
             target_x, target_y = Agent.GetXY(target_id)
             target_coords = _fmt_xy(target_x, target_y)
@@ -117,9 +142,52 @@ def main():
             PyImGui.text("Target coordinates: []")
             PyImGui.text("Target name: <none>")
 
+        PyImGui.separator()
+        PyImGui.text("Run Single Step")
+        _single_step_input = PyImGui.input_text("Step JSON", _single_step_input, 0)
+        if PyImGui.button("Execute Step"):
+            raw = str(_single_step_input or "").strip()
+            if raw.endswith(","):
+                raw = raw[:-1].strip()
+            try:
+                parsed = json.loads(raw)
+                if not isinstance(parsed, dict):
+                    raise ValueError("Step JSON must be an object.")
+                if not str(parsed.get("type", "")).strip():
+                    raise ValueError("Step must include a non-empty 'type'.")
+            except Exception as exc:
+                _single_step_running = False
+                _single_step_status = f"Invalid step JSON: {exc}"
+                ConsoleLog("Script Helper", _single_step_status)
+                parsed = None
+
+            if parsed is not None:
+                try:
+                    _single_step_bot.Stop()
+                    _single_step_bot.config.initialized = False
+                    _single_step_bot.config.FSM.reset()
+                    _single_step_payload = parsed
+                    _single_step_bot.Start()
+                    _single_step_running = True
+                    _single_step_status = f"Executing: {parsed.get('type')}"
+                    ConsoleLog("Script Helper", f"Executing single step: {parsed}")
+                except Exception as exc:
+                    _single_step_running = False
+                    _single_step_status = f"Failed to execute step: {exc}"
+                    ConsoleLog("Script Helper", _single_step_status)
+        if PyImGui.button("Copy Step JSON"):
+            PyImGui.set_clipboard_text(str(_single_step_input or ""))
+        if _single_step_status:
+            PyImGui.text_wrapped(_single_step_status)
+
     PyImGui.end()
     _test_bot.Update()
     if _test_running and _test_bot.config.FSM.is_finished():
         _test_bot.Stop()
         _test_running = False
+    _single_step_bot.Update()
+    if _single_step_running and _single_step_bot.config.FSM.is_finished():
+        _single_step_bot.Stop()
+        _single_step_running = False
+        _single_step_status = "Step execution finished."
 

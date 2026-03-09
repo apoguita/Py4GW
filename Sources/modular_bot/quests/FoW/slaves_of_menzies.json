@@ -3,12 +3,12 @@
   "steps": [
     {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
     {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
-    {"type": "auto_path", "name": "To the Overlords", "points": [[12000, 6600], [21700, 12600], [22868, 14914], [20960, 15895]]},
+    {"type": "auto_path", "name": "To the Overlords", "points": [[13090, 7580],  [14800, 8500],  [16500, 9100],  [19000, 8400],  [20800, 8500],  [21700, 12600],  [23000, 13100],  [22880, 15000],  [22200, 15800],  [20900, 15900],  [21240, 14530],  [21700, 12600]]},
     {"type": "auto_path", "name": "Wolf spot", "points": [[19240, 12803]]},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "auto_path", "name": "to Miko", "points": [[13611, 9281], [12157, 6555]]},
+    {"type": "auto_path", "name": "to Miko", "points": [[13611, 9281], [12122, 8326], [12157, 6555]]},
     {"type": "dialog", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07"},
     {"type": "auto_path", "name": "to Forge", "points": [[10830, 10524], [8682, 12324]]}
     ]

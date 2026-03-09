@@ -1,5 +1,5 @@
-"""
-ModularBot — Orchestrator that wires Phases into a Botting FSM.
+﻿"""
+ModularBot â€” Orchestrator that wires Phases into a Botting FSM.
 
 Handles all the boilerplate every bot repeats:
 - Template application
@@ -39,9 +39,9 @@ from Py4GWCoreLib import Botting, Routines, ConsoleLog, Agent, Player
 from .phase import Phase
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Template name → method name mapping
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Template name â†’ method name mapping
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 _TEMPLATE_MAP: Dict[str, str] = {
     "aggressive":            "Aggressive",
@@ -58,9 +58,9 @@ def _sanitize_bot_name(name: str) -> str:
     return safe or "Bot"
 
 
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Helpers
-# ──────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def _apply_template(bot: Botting, template_name: str) -> None:
     """Apply a named template to the bot."""
@@ -90,9 +90,25 @@ def _is_header_name(value: str) -> bool:
     return value.startswith("[H]")
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# ModularBot
-# ──────────────────────────────────────────────────────────────────────────────
+def _ensure_cb_loot_wait_enabled() -> None:
+    """
+    Force-enable CB loot wait utility for this runtime.
+    """
+    try:
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
+    except Exception:
+        return
+
+    skill_name = "WaitIfPartyMemberNeedsToLootUtility"
+    manager = BottingManager()
+    changed = False
+    for skills in (manager.aggressive_skills, manager.automover_skills):
+        for skill in skills:
+            if skill.name == skill_name and not skill.enabled:
+                skill.enabled = True
+                changed = True
+    if changed:
+        ConsoleLog("ModularBot", f"Enabled {skill_name} for custom behaviors runtime.")
 
 class ModularBot:
     """
@@ -110,7 +126,7 @@ class ModularBot:
                                 last phase completes.
         loop_to:                Phase name to loop to (default: first phase).
 
-        template:               Initial template — ``"aggressive"``,
+        template:               Initial template â€” ``"aggressive"``,
                                 ``"pacifist"``, or ``"multibox_aggressive"``.
 
         use_custom_behaviors:   If ``True``, call
@@ -122,13 +138,13 @@ class ModularBot:
         cb_on_party_death:      Handler for CustomBehaviors
                                 ``PARTY_DEATH`` event.
 
-        on_party_wipe:          Recovery target — phase name (``str``) to
+        on_party_wipe:          Recovery target â€” phase name (``str``) to
                                 jump to on party wipe, *or* a callable
                                 ``(bot: Botting) -> None`` for custom
                                 recovery logic.
         on_death:               Same, for player death.
 
-        background:             ``{name: coroutine_factory}`` — managed
+        background:             ``{name: coroutine_factory}`` â€” managed
                                 coroutines that run alongside the FSM.
 
         settings_ui:            Callable rendered in the Settings tab.
@@ -163,7 +179,7 @@ class ModularBot:
         botting_kwargs.pop("main_child_dimensions", None)
         # Defensive: icon path is for UI draw_window, not Botting constructor.
         legacy_icon_path = str(botting_kwargs.pop("icon_path", "") or "")
-        # ── Store config ──────────────────────────────────────────────
+        # â”€â”€ Store config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self._name = name
         self._phases = phases
         self._loop = loop
@@ -182,25 +198,25 @@ class ModularBot:
         self._settings_ui = settings_ui
         self._help_ui = help_ui
 
-        # ── Phase header name tracking ────────────────────────────────
+        # â”€â”€ Phase header name tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self._phase_headers: Dict[str, str] = {}
         self._header_to_phase: Dict[str, str] = {}
         self._runtime_anchor_header: Optional[str] = None
 
-        # ── Create Botting instance ───────────────────────────────────
+        # â”€â”€ Create Botting instance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self._bot = Botting(_sanitize_bot_name(name), **botting_kwargs)
         setattr(self._bot, "_modular_owner", self)
         self._bot.SetMainRoutine(lambda bot: self._build_routine(bot))
 
-        # ── Apply GUI overrides ───────────────────────────────────────
+        # â”€â”€ Apply GUI overrides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if self._settings_ui is not None:
             self._bot.UI.override_draw_config(self._settings_ui)
         if self._help_ui is not None:
             self._bot.UI.override_draw_help(self._help_ui)
 
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Public API
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     @property
     def bot(self) -> Botting:
@@ -257,19 +273,22 @@ class ModularBot:
         self._set_runtime_anchor(header, phase_name)
         return True
 
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Routine builder (called once by Botting.Update on first frame)
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _build_routine(self, bot: Botting) -> None:
         """
         Wires everything together.  Called automatically by
         ``Botting.Update()`` on the first frame.
         """
-        # ── 1. Template ───────────────────────────────────────────────
+        if self._use_cb:
+            _ensure_cb_loot_wait_enabled()
+
+        # â”€â”€ 1. Template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         _apply_template(bot, self._template)
 
-        # ── 2. CustomBehaviors ────────────────────────────────────────
+        # â”€â”€ 2. CustomBehaviors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if self._use_cb:
             bot.Templates.Routines.UseCustomBehaviors(
                 on_player_critical_death=self._cb_on_death,
@@ -287,7 +306,7 @@ class ModularBot:
                 lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
             )
 
-        # ── 3. Event callbacks ────────────────────────────────────────
+        # â”€â”€ 3. Event callbacks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if self._on_party_wipe is not None:
             bot.Events.OnPartyWipeCallback(
                 lambda: self._handle_recovery(bot, self._on_party_wipe, "Party wipe")
@@ -297,12 +316,12 @@ class ModularBot:
                 lambda: self._handle_recovery(bot, self._on_death, "Player death")
             )
 
-        # ── 4. Register phases ────────────────────────────────────────
+        # â”€â”€ 4. Register phases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         total_phases = len(self._phases)
         for phase_index, phase in enumerate(self._phases):
             self._register_phase(bot, phase, phase_index, total_phases)
 
-        # ── 5. Loop ───────────────────────────────────────────────────
+        # â”€â”€ 5. Loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if self._loop and self._phases:
             target_name = self._loop_to or self._phases[0].name
             target_header = self._phase_headers.get(target_name)
@@ -315,13 +334,13 @@ class ModularBot:
                     f"Available: {list(self._phase_headers.keys())}",
                 )
 
-        # ── 6. Background coroutines ──────────────────────────────────
+        # â”€â”€ 6. Background coroutines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         for coroutine_name, coroutine_factory in self._background.items():
             bot.States.AddManagedCoroutine(coroutine_name, coroutine_factory)
 
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Phase registration
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _register_phase(self, bot: Botting, phase: Phase, phase_index: int, total_phases: int) -> None:
         """
@@ -393,9 +412,9 @@ class ModularBot:
         self._runtime_anchor_header = header_name
         ConsoleLog("ModularBot", f"Anchor set: {phase_name} ({header_name})")
 
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Recovery handling
-    # ──────────────────────────────────────────────────────────────────
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _handle_recovery(
         self,
@@ -406,7 +425,7 @@ class ModularBot:
         """
         Handle a recovery event (wipe / death).
 
-        If *target* is a string, it is treated as a phase name — the FSM
+        If *target* is a string, it is treated as a phase name â€” the FSM
         is paused, a managed coroutine waits for the player to revive,
         then jumps to that phase's header.
 
@@ -414,11 +433,11 @@ class ModularBot:
         handle FSM pause/resume itself).
         """
         if callable(target) and not isinstance(target, str):
-            # Custom handler — user manages FSM lifecycle
+            # Custom handler â€” user manages FSM lifecycle
             target()
             return
 
-        # String target → auto-recovery to named phase
+        # String target â†’ auto-recovery to named phase
         header, target_label = self._resolve_recovery_target(target)
         if header is None:
             ConsoleLog(
@@ -432,7 +451,7 @@ class ModularBot:
         fsm.pause()
 
         def _recovery_coroutine():
-            ConsoleLog("ModularBot", f"[{reason}] Recovery started — target: {target_label}")
+            ConsoleLog("ModularBot", f"[{reason}] Recovery started â€” target: {target_label}")
 
             # Wait for player to be alive (or map to change to outpost)
             while True:
@@ -445,13 +464,13 @@ class ModularBot:
 
                 # If we got kicked back to outpost, just restart
                 if not Routines.Checks.Map.MapValid():
-                    ConsoleLog("ModularBot", f"[{reason}] Returned to outpost — restarting")
+                    ConsoleLog("ModularBot", f"[{reason}] Returned to outpost â€” restarting")
                     yield from Routines.Yield.wait(3000)
                     break
 
                 yield from Routines.Yield.wait(1000)
 
-            ConsoleLog("ModularBot", f"[{reason}] Recovered — jumping to {target_label}")
+            ConsoleLog("ModularBot", f"[{reason}] Recovered â€” jumping to {target_label}")
             yield from Routines.Yield.wait(1000)
 
             try:
