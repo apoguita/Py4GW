@@ -24,8 +24,8 @@ class _Restock:
         legionnaire_full = yield from self._restock_item(legionnaire_model, quantity)
         legionnaire_after = GLOBAL_CACHE.Inventory.GetModelCount(legionnaire_model)
 
-        # Legionnaire has priority: stop if either fully restocked or partially increased.
-        if legionnaire_full or legionnaire_after > legionnaire_before:
+        # Legionnaire has priority: stop if we have any legionnaire stones at all.
+        if legionnaire_after > 0:
             return
 
         summon_models = [
