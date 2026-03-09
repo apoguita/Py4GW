@@ -30,6 +30,11 @@ from Sources.oazix.CustomBehaviors.skills.mesmer.shatter_enchantment_utility imp
 from Sources.oazix.CustomBehaviors.skills.mesmer.shatter_hex_utility import ShatterHexUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.signet_under_keystone_utility import SignetUnderKeystoneUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.unnatural_signet_utility import UnnaturalSignetUtility
+from Sources.oazix.CustomBehaviors.skills.monk.castigation_signet_utility import CastigationSignetUtility
+from Sources.oazix.CustomBehaviors.skills.monk.holy_veil_utility import HolyVeilUtility
+from Sources.oazix.CustomBehaviors.skills.monk.mending_utility import MendingUtility
+from Sources.oazix.CustomBehaviors.skills.monk.smite_hex_utility import SmiteHexUtility
+from Sources.oazix.CustomBehaviors.skills.monk.strength_of_honor_utility import StrengthOfHonorUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
 
@@ -71,6 +76,47 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
                 or
                 (Agent.IsCasting(agent_id) and Agent.IsHexed(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkillID(agent_id)) >= 0.200))
             )
+        self.bane_signet_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
+            event_bus=self.event_bus,
+            skill=CustomSkill("Bane_Signet"),
+            current_build=in_game_build,
+            score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 76 if enemy_qte >= 2 else 41 if enemy_qte <= 2 else 0),
+            condition=lambda agent_id: Agent.IsAttacking(agent_id),
+        )
+        self.blessed_signet_utility: CustomSkillUtilityBase = AutoCombatUtility(
+            event_bus=self.event_bus,
+            skill=CustomSkill("Blessed_Signet"),
+            current_build=in_game_build,
+            score_definition=ScoreStaticDefinition(73),
+        )
+        self.castigation_signet_utility: CustomSkillUtilityBase = CastigationSignetUtility(
+            event_bus=self.event_bus,
+            current_build=in_game_build,
+            score_definition=ScoreStaticDefinition(72),
+        )
+
+        # Upkeepers
+        self.mending_utility: CustomSkillUtilityBase = MendingUtility(
+            event_bus=self.event_bus,
+            current_build=in_game_build,
+            score_definition=ScoreStaticDefinition(70),
+        )
+        self.strength_of_honor_utility: CustomSkillUtilityBase = StrengthOfHonorUtility(
+            event_bus=self.event_bus,
+            current_build=in_game_build,
+            score_definition=ScoreStaticDefinition(69),
+        )
+        self.holy_veil_utility: CustomSkillUtilityBase = HolyVeilUtility(
+            event_bus=self.event_bus,
+            current_build=in_game_build,
+            score_definition=ScoreStaticDefinition(68),
+        )
+
+        # Support
+        self.smite_hex_utility: CustomSkillUtilityBase = SmiteHexUtility(
+            event_bus=self.event_bus,
+            current_build=in_game_build,
+        )
 
         # aoe
         self.wastrels_demise_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Wastrels_Demise"), current_build=in_game_build, mana_required_to_cast=10)
@@ -100,6 +146,13 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.signet_of_clumsiness_utility,
             self.unnatural_signet_utility,
             self.signet_of_disruption_utility,
+            self.bane_signet_utility,
+            self.blessed_signet_utility,
+            self.castigation_signet_utility,
+            self.mending_utility,
+            self.strength_of_honor_utility,
+            self.holy_veil_utility,
+            self.smite_hex_utility,
 
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
