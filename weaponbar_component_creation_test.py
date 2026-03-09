@@ -4,6 +4,7 @@ import Py4GW
 import PyImGui
 
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "WeaponBar Component Creation Test"
@@ -144,7 +145,7 @@ def _create_extra_weapon_slot() -> None:
     def _invoke() -> None:
         global CREATED_FRAME_ID
         CREATED_FRAME_ID = int(
-            UIManager.CreateUIComponentRawByFrameId(
+            GWUI.CreateUIComponentRawByFrameId(
                 root,
                 0,
                 LAST_CHILD_OFFSET,

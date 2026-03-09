@@ -1,4 +1,5 @@
 from Py4GWCoreLib import GWContext, PyImGui, UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Clone DevText Window"
@@ -70,7 +71,7 @@ def _create_window() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -104,7 +105,7 @@ def _close_window() -> None:
         LAST_STATUS = "no cloned window"
         _log(LAST_STATUS)
         return
-    result = bool(UIManager.HideWindowByLabel(FRAME_LABEL))
+    result = bool(GWUI.HideWindowByLabel(FRAME_LABEL))
     LAST_STATUS = f"closed frame_id={frame_id} result={result}"
     _log(LAST_STATUS)
 

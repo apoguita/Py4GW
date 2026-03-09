@@ -2,6 +2,7 @@ import PyInventory
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
 from Py4GWCoreLib import ConsoleLog
 from Py4GWCoreLib.UIManager import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 from Py4GWCoreLib import Bags
 from Py4GWCoreLib import ModelID
 from Py4GWCoreLib import Item 

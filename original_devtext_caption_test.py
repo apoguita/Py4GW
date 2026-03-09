@@ -3,6 +3,7 @@ import time
 import PyImGui
 
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 SCRIPT_NAME = "Original DevText Caption Test"
@@ -36,7 +37,7 @@ def _frame_summary(frame_id: int) -> str:
 
 
 def _current_devtext_frame_id() -> int:
-    return int(UIManager.GetDevTextFrameID() or 0)
+    return int(GWUI.GetDevTextFrameID() or 0)
 
 
 def _report_state(prefix: str) -> None:
@@ -66,7 +67,7 @@ def _maybe_run_scheduled_report() -> None:
 
 
 def _open_original_devtext() -> None:
-    frame_id = UIManager.OpenDevTextWindow()
+    frame_id = GWUI.OpenDevTextWindow()
     _log(f"open original requested immediate_frame_id={int(frame_id or 0)}")
     _schedule_report("state after open original")
 
@@ -77,7 +78,7 @@ def _set_original_title() -> None:
         _log("set title skipped because DevText root is not available")
         return
     _report_state("state before set title")
-    result = bool(UIManager.SetFrameTitleByFrameId(frame_id, TARGET_TITLE))
+    result = bool(GWUI.SetFrameTitleByFrameId(frame_id, TARGET_TITLE))
     _log(f"set title root={frame_id} title='{TARGET_TITLE}' result={result}")
     _schedule_report("state after set title")
 

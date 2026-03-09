@@ -5,6 +5,7 @@ import Py4GW
 import PyImGui
 
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "DevText Clone Text Component Test"
@@ -185,7 +186,7 @@ def _create_raw_clone() -> None:
     CREATED_FRAME_ID = 0
 
     def _invoke() -> None:
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             0.0,
             0.0,
             180.0,
@@ -219,11 +220,11 @@ def _create_component_clone() -> None:
         host = _current_clone_host()
         CREATED_FRAME_ID = int(UIManager.GetChildFrameByFrameId(host, 0) or 0) if host > 0 else 0
         if CREATED_FRAME_ID > 0:
-            UIManager.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
-        UIManager.TriggerFrameRedrawByFrameId(view_root)
+            GWUI.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
+        GWUI.TriggerFrameRedrawByFrameId(view_root)
         clone_root = _current_clone_root()
         if clone_root > 0:
-            UIManager.TriggerFrameRedrawByFrameId(clone_root)
+            GWUI.TriggerFrameRedrawByFrameId(clone_root)
 
     Py4GW.Game.enqueue(_invoke)
     _log(
@@ -243,13 +244,13 @@ def _update_current_element_text() -> None:
 
     def _invoke() -> None:
         UIManager.SendFrameUIMessage(target, 0x62, ctypes.addressof(UPDATED_TEXT), 0)
-        UIManager.TriggerFrameRedrawByFrameId(target)
+        GWUI.TriggerFrameRedrawByFrameId(target)
         host = _current_clone_host()
         if host > 0:
-            UIManager.TriggerFrameRedrawByFrameId(host)
+            GWUI.TriggerFrameRedrawByFrameId(host)
         clone_root = _current_clone_root()
         if clone_root > 0:
-            UIManager.TriggerFrameRedrawByFrameId(clone_root)
+            GWUI.TriggerFrameRedrawByFrameId(clone_root)
 
     Py4GW.Game.enqueue(_invoke)
     _log(

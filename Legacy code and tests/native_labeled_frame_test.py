@@ -6,6 +6,7 @@ import PyImGui
 import PyUIManager
 from Py4GWCoreLib import GWContext, Key, UIManager
 from Py4GWCoreLib.Scanner import Scanner
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Native Labeled Frame Test"
@@ -222,7 +223,7 @@ def _dispatch_clone() -> None:
         f"callback=0x{dialog_proc:X} label='{CLONE_LABEL}'"
     )
 
-    created = UIManager.CreateLabeledFrameByFrameId(
+    created = GWUI.CreateLabeledFrameByFrameId(
         CLONE_PARENT_ID,
         0,
         child_slot,

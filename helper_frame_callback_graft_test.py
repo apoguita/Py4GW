@@ -5,6 +5,7 @@ import PyImGui
 
 from Py4GWCoreLib import GWContext, UIManager
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Helper Frame Callback Graft Test"
@@ -141,7 +142,7 @@ def _open_inventory() -> None:
 
 def _ensure_devtext() -> None:
     def _invoke() -> None:
-        frame_id = int(UIManager.OpenDevTextWindow() or 0)
+        frame_id = int(GWUI.OpenDevTextWindow() or 0)
         _log(f"ensure devtext invoke result frame_id={frame_id}")
 
     Py4GW.Game.enqueue(_invoke)
@@ -165,7 +166,7 @@ def _create_empty_clone() -> None:
     def _invoke() -> None:
         engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
         frame_id = int(
-            UIManager.CreateEmptyWindow(
+            GWUI.CreateEmptyWindow(
                 TARGET_X,
                 engine_y,
                 TARGET_WIDTH,
@@ -197,7 +198,7 @@ def _inventory_root() -> int:
 
 
 def _devtext_root() -> int:
-    return int(UIManager.GetDevTextFrameID() or 0)
+    return int(GWUI.GetDevTextFrameID() or 0)
 
 
 def _clone_root() -> int:
@@ -223,7 +224,7 @@ def _resolved_child_offset(parent_id: int) -> int:
     if parent_id <= 0:
         return 0
     if USE_FREE_CHILD_SLOT:
-        return int(UIManager.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
+        return int(GWUI.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
     return int(TARGET_CHILD_OFFSET)
 
 
@@ -263,7 +264,7 @@ def _create_helper_frame_on_clone() -> None:
 
         if HELPER_TYPE_INDEX == 0:
             CREATED_FRAME_ID = int(
-                UIManager.CreateButtonFrameByFrameId(
+                GWUI.CreateButtonFrameByFrameId(
                     parent_id,
                     0,
                     child_offset,
@@ -274,7 +275,7 @@ def _create_helper_frame_on_clone() -> None:
             )
         elif HELPER_TYPE_INDEX == 1:
             CREATED_FRAME_ID = int(
-                UIManager.CreateCheckboxFrameByFrameId(
+                GWUI.CreateCheckboxFrameByFrameId(
                     parent_id,
                     0,
                     child_offset,
@@ -285,7 +286,7 @@ def _create_helper_frame_on_clone() -> None:
             )
         elif HELPER_TYPE_INDEX == 2:
             CREATED_FRAME_ID = int(
-                UIManager.CreateTextLabelFrameByFrameId(
+                GWUI.CreateTextLabelFrameByFrameId(
                     parent_id,
                     0,
                     child_offset,
@@ -296,7 +297,7 @@ def _create_helper_frame_on_clone() -> None:
             )
         else:
             CREATED_FRAME_ID = int(
-                UIManager.CreateScrollableFrameByFrameId(
+                GWUI.CreateScrollableFrameByFrameId(
                     parent_id,
                     0,
                     child_offset,
@@ -311,7 +312,7 @@ def _create_helper_frame_on_clone() -> None:
             f"parent={parent_id} child_offset=0x{child_offset:X}"
         )
         if CREATED_FRAME_ID > 0 and donor_frame_id > 0:
-            callbacks = UIManager.GetFrameInteractionCallbacksByFrameId(donor_frame_id)
+            callbacks = GWUI.GetFrameInteractionCallbacksByFrameId(donor_frame_id)
             added = UIManager.AddFrameUIInteractionCallbacksByFrameId(
                 CREATED_FRAME_ID,
                 callbacks,
@@ -322,8 +323,8 @@ def _create_helper_frame_on_clone() -> None:
                 f"callback_count={len(callbacks)} added={added}"
             )
         if CREATED_FRAME_ID > 0:
-            UIManager.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
-            UIManager.TriggerFrameRedrawByFrameId(parent_id)
+            GWUI.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
+            GWUI.TriggerFrameRedrawByFrameId(parent_id)
 
     Py4GW.Game.enqueue(_invoke)
     LAST_STATUS = (

@@ -4,6 +4,7 @@ import Py4GW
 import PyImGui
 
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Empty Window Text Label Test"
@@ -55,7 +56,7 @@ def _read_decoded(frame_id: int) -> str:
     if frame_id <= 0:
         return ""
     try:
-        return str(UIManager.GetTextLabelDecodedByFrameId(frame_id) or "")
+        return str(GWUI.GetTextLabelDecodedByFrameId(frame_id) or "")
     except Exception as exc:
         return f"<decoded_error:{exc}>"
 
@@ -103,7 +104,7 @@ def _create_empty_window() -> None:
         global EMPTY_WINDOW_ID
         global TEXT_LABEL_ID
         EMPTY_WINDOW_ID = int(
-            UIManager.CreateEmptyWindow(
+            GWUI.CreateEmptyWindow(
                 120.0,
                 120.0,
                 320.0,
@@ -132,7 +133,7 @@ def _insert_text_label() -> None:
         if parent <= 0:
             _log("insert text label invoke aborted: empty window unavailable")
             return
-        child_offset = int(UIManager.FindAvailableChildSlot(parent, 0x20, 0xFE) or 0)
+        child_offset = int(GWUI.FindAvailableChildSlot(parent, 0x20, 0xFE) or 0)
         _log(
             f"insert text label invoke begin parent={parent} child_offset=0x{child_offset:X}"
         )
@@ -140,7 +141,7 @@ def _insert_text_label() -> None:
             _log("insert text label invoke aborted: no child slot available")
             return
         TEXT_LABEL_ID = int(
-            UIManager.CreateTextLabelFrameWithPlainTextByFrameId(
+            GWUI.CreateTextLabelFrameWithPlainTextByFrameId(
                 parent,
                 0x300,
                 child_offset,

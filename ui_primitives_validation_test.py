@@ -4,6 +4,7 @@ import Py4GW
 import PyImGui
 
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "UI Primitives Validation Test"
@@ -78,7 +79,7 @@ def _current_clone_id() -> int:
 
 def _current_root_id() -> int:
     if TARGET_MODE == "original":
-        return int(UIManager.GetDevTextFrameID() or 0)
+        return int(GWUI.GetDevTextFrameID() or 0)
     return _current_clone_id()
 
 
@@ -107,7 +108,7 @@ def _label_for_frame(frame_id: int) -> str:
     if frame_id <= 0:
         return ""
     try:
-        return UIManager.GetFrameLabelByFrameId(frame_id)
+        return GWUI.GetFrameLabelByFrameId(frame_id)
     except Exception:
         return ""
 
@@ -170,7 +171,7 @@ def _dump_state(prefix: str) -> None:
 def _create_clone() -> None:
     global TARGET_MODE
     def _invoke() -> None:
-        UIManager.CreateEmptyWindow(
+        GWUI.CreateEmptyWindow(
             0.0,
             0.0,
             180.0,
@@ -188,7 +189,7 @@ def _open_original_devtext() -> None:
     global TARGET_MODE
 
     def _invoke() -> None:
-        UIManager.OpenDevTextWindow()
+        GWUI.OpenDevTextWindow()
 
     Py4GW.Game.enqueue(_invoke)
     TARGET_MODE = "original"
@@ -204,7 +205,7 @@ def _create_button() -> None:
 
     def _invoke() -> None:
         CREATED_IDS["button"] = int(
-            UIManager.CreateButtonFrameByFrameId(
+            GWUI.CreateButtonFrameByFrameId(
                 parent_id,
                 component_flags=0,
                 child_index=BUTTON_SLOT,
@@ -227,7 +228,7 @@ def _create_checkbox() -> None:
 
     def _invoke() -> None:
         CREATED_IDS["checkbox"] = int(
-            UIManager.CreateCheckboxFrameByFrameId(
+            GWUI.CreateCheckboxFrameByFrameId(
                 parent_id,
                 component_flags=0,
                 child_index=CHECKBOX_SLOT,
@@ -250,7 +251,7 @@ def _create_scrollable() -> None:
 
     def _invoke() -> None:
         CREATED_IDS["scrollable"] = int(
-            UIManager.CreateScrollableFrameByFrameId(
+            GWUI.CreateScrollableFrameByFrameId(
                 parent_id,
                 component_flags=0,
                 child_index=SCROLLABLE_SLOT,
@@ -273,7 +274,7 @@ def _create_text_label() -> None:
 
     def _invoke() -> None:
         CREATED_IDS["text_label"] = int(
-            UIManager.CreateTextLabelFrameByFrameId(
+            GWUI.CreateTextLabelFrameByFrameId(
                 parent_id,
                 component_flags=0,
                 child_index=TEXT_LABEL_SLOT,
@@ -308,7 +309,7 @@ def _apply_margins_to_created_controls() -> None:
         if frame_id <= 0:
             continue
         x, y, width, height = rect
-        flags = UIManager.ChooseAnchorFlagsForDesiredRect(
+        flags = GWUI.ChooseAnchorFlagsForDesiredRect(
             x,
             y,
             width,
@@ -321,7 +322,7 @@ def _apply_margins_to_created_controls() -> None:
 
     def _invoke() -> None:
         for _, frame_id, x, y, width, height, flags in plan:
-            UIManager.SetFrameMarginsByFrameId(frame_id, flags, x, y, width, height)
+            GWUI.SetFrameMarginsByFrameId(frame_id, flags, x, y, width, height)
 
     Py4GW.Game.enqueue(_invoke)
     _log(f"apply margins enqueued targets={[f'{key}:{frame_id}:0x{flags:X}' for key, frame_id, _, _, _, _, flags in plan]}")
@@ -336,14 +337,14 @@ def _apply_labels() -> None:
 
     def _invoke() -> None:
         if button_id > 0:
-            UIManager.SetLabelByFrameId(button_id, "PyButton Updated")
+            GWUI.SetLabelByFrameId(button_id, "PyButton Updated")
         if checkbox_id > 0:
-            UIManager.SetLabelByFrameId(checkbox_id, "PyCheckbox Updated")
+            GWUI.SetLabelByFrameId(checkbox_id, "PyCheckbox Updated")
         if text_label_id > 0:
-            UIManager.SetLabelByFrameId(text_label_id, TEXT_LABEL_TEXT)
-            UIManager.SetMultilineLabelByFrameId(text_label_id, MULTILINE_TEXT)
+            GWUI.SetLabelByFrameId(text_label_id, TEXT_LABEL_TEXT)
+            GWUI.SetMultilineLabelByFrameId(text_label_id, MULTILINE_TEXT)
         if scrollable_id > 0:
-            UIManager.SetLabelByFrameId(scrollable_id, "PyScrollable Updated")
+            GWUI.SetLabelByFrameId(scrollable_id, "PyScrollable Updated")
 
     Py4GW.Game.enqueue(_invoke)
     _log(
@@ -359,7 +360,7 @@ def _try_set_clone_title() -> None:
         _log("set title skipped because target root is unavailable")
         return
     def _invoke() -> None:
-        UIManager.SetFrameTitleByFrameId(root_id, TITLE_TEXT)
+        GWUI.SetFrameTitleByFrameId(root_id, TITLE_TEXT)
 
     Py4GW.Game.enqueue(_invoke)
     _log(f"set title enqueued target={TARGET_MODE} root={root_id} title='{TITLE_TEXT}'")
@@ -372,7 +373,7 @@ def _set_clone_visible(is_visible: bool) -> None:
         _log(f"set visible skipped because target root is unavailable target={is_visible}")
         return
     def _invoke() -> None:
-        UIManager.SetFrameVisibleByFrameId(root_id, is_visible)
+        GWUI.SetFrameVisibleByFrameId(root_id, is_visible)
 
     Py4GW.Game.enqueue(_invoke)
     _log(f"set visible enqueued target={TARGET_MODE} root={root_id} is_visible={is_visible}")
@@ -385,7 +386,7 @@ def _set_clone_disabled(is_disabled: bool) -> None:
         _log(f"set disabled skipped because target root is unavailable target={is_disabled}")
         return
     def _invoke() -> None:
-        UIManager.SetFrameDisabledByFrameId(root_id, is_disabled)
+        GWUI.SetFrameDisabledByFrameId(root_id, is_disabled)
 
     Py4GW.Game.enqueue(_invoke)
     _log(f"set disabled enqueued target={TARGET_MODE} root={root_id} is_disabled={is_disabled}")
@@ -398,7 +399,7 @@ def _test_read_only(is_read_only: bool) -> None:
         _log("set read-only skipped because manual target frame id is 0")
         return
     def _invoke() -> None:
-        UIManager.SetReadOnlyByFrameId(target, is_read_only)
+        GWUI.SetReadOnlyByFrameId(target, is_read_only)
 
     Py4GW.Game.enqueue(_invoke)
     _log(f"set read-only enqueued target={target} is_read_only={is_read_only}")
@@ -409,7 +410,7 @@ def _query_read_only() -> None:
     if target <= 0:
         _log("query read-only skipped because manual target frame id is 0")
         return
-    current = UIManager.IsReadOnlyByFrameId(target)
+    current = GWUI.IsReadOnlyByFrameId(target)
     _log(f"query read-only target={target} current={current}")
 
 

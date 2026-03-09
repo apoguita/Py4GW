@@ -7,6 +7,7 @@ import PyImGui
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib.native_src.internals.native_function import NativeFunction, ScannerSection
 from Py4GWCoreLib.native_src.internals.prototypes import NativeFunctionPrototype
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "DevText Insert Text Frame Test"
@@ -102,7 +103,7 @@ def _resolve_init_single_text_host_proc() -> int:
 
 
 def _current_devtext_root() -> int:
-    return int(UIManager.GetDevTextFrameID() or 0)
+    return int(GWUI.GetDevTextFrameID() or 0)
 
 
 def _current_devtext_host() -> int:
@@ -120,7 +121,7 @@ def _current_inserted_root() -> int:
 
 
 def _find_free_child_slot(parent_id: int, start_index: int = 0x20, end_index: int = 0xFE) -> int:
-    return int(UIManager.FindAvailableChildSlot(parent_id, start_index, end_index) or 0)
+    return int(GWUI.FindAvailableChildSlot(parent_id, start_index, end_index) or 0)
 
 
 def _dump_state(prefix: str) -> None:
@@ -143,7 +144,7 @@ def _dump_state(prefix: str) -> None:
 
 def _open_original_devtext() -> None:
     def _invoke() -> None:
-        UIManager.OpenDevTextWindow()
+        GWUI.OpenDevTextWindow()
 
     Py4GW.Game.enqueue(_invoke)
     _log("open original DevText enqueued")
@@ -169,7 +170,7 @@ def _insert_text_host_frame() -> None:
     def _invoke() -> None:
         global INSERTED_FRAME_ID
         INSERTED_FRAME_ID = int(
-            UIManager.CreateLabeledFrameByFrameId(
+            GWUI.CreateLabeledFrameByFrameId(
                 parent_id,
                 0,
                 child_slot,
@@ -199,8 +200,8 @@ def _apply_text_to_inserted() -> None:
         return
 
     def _invoke() -> None:
-        UIManager.SetMultilineLabelByFrameId(target, "Py4GW inserted text host\nSecond line")
-        UIManager.SetLabelByFrameId(target, "Py4GW inserted text host")
+        GWUI.SetMultilineLabelByFrameId(target, "Py4GW inserted text host\nSecond line")
+        GWUI.SetLabelByFrameId(target, "Py4GW inserted text host")
 
     Py4GW.Game.enqueue(_invoke)
     _log(f"apply text enqueued target={target}")

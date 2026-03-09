@@ -1,6 +1,7 @@
 import time
 
 from Py4GWCoreLib import GWContext, PyImGui, UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "DevText Trim Test"
@@ -149,7 +150,7 @@ def _dump_trim_state(prefix: str) -> None:
     child0_0 = _safe_child(child0, 0)
     child0_0_0 = _safe_child(child0_0, 0)
     child0_3 = _safe_child(child0, 3)
-    host_id = int(UIManager.ResolveObservedContentHostByFrameId(root_id) or 0)
+    host_id = int(GWUI.ResolveObservedContentHostByFrameId(root_id) or 0)
     host_0 = _safe_child(host_id, 0)
     host_1 = _safe_child(host_id, 1)
     host_2 = _safe_child(host_id, 2)
@@ -197,7 +198,7 @@ def _create_raw_window() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -228,7 +229,7 @@ def _clear_by_root() -> None:
         LAST_STATUS = "window missing"
         _log(LAST_STATUS)
         return
-    result = bool(UIManager.ClearWindowContentsByFrameId(root_id))
+    result = bool(GWUI.ClearWindowContentsByFrameId(root_id))
     LAST_STATUS = f"clear by root result={result}"
     _log(f"clear by root root={root_id} result={result}")
     _schedule_report("state after clear by root")
@@ -240,7 +241,7 @@ def _clear_target(frame_id: int, target_name: str) -> None:
         LAST_STATUS = f"{target_name} missing"
         _log(LAST_STATUS)
         return
-    result = bool(UIManager.ClearFrameChildrenRecursiveByFrameId(frame_id))
+    result = bool(GWUI.ClearFrameChildrenRecursiveByFrameId(frame_id))
     LAST_STATUS = f"clear {target_name} result={result}"
     _log(f"clear {target_name} frame={frame_id} result={result}")
     _schedule_report(f"state after clear {target_name}")
@@ -255,13 +256,13 @@ def _clear_by_parent_of_host() -> None:
 
 def _clear_by_host() -> None:
     root_id = _find_window()
-    host_id = int(UIManager.ResolveObservedContentHostByFrameId(root_id) or 0)
+    host_id = int(GWUI.ResolveObservedContentHostByFrameId(root_id) or 0)
     _clear_target(host_id, "host")
 
 
 def _clear_by_host_child0() -> None:
     root_id = _find_window()
-    host_id = int(UIManager.ResolveObservedContentHostByFrameId(root_id) or 0)
+    host_id = int(GWUI.ResolveObservedContentHostByFrameId(root_id) or 0)
     _clear_target(_safe_child(host_id, 0), "host[0]")
 
 

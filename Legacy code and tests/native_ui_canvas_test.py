@@ -835,7 +835,7 @@ def _add_callback_target() -> None:
         _log(LAST_STATUS)
         return
 
-    result = UIManager.AddFrameUIInteractionCallbackByFrameId(parent_id, callback_ptr, 0)
+    result = GWUI.AddFrameUIInteractionCallbackByFrameId(parent_id, callback_ptr, 0)
     LAST_STATUS = (
         f"AddCallback frame={parent_id} callback=0x{callback_ptr:X} result={result}"
     )
@@ -856,7 +856,7 @@ def _add_callback_last_created() -> None:
         _log(LAST_STATUS)
         return
 
-    result = UIManager.AddFrameUIInteractionCallbackByFrameId(
+    result = GWUI.AddFrameUIInteractionCallbackByFrameId(
         LAST_CREATED_FRAME_ID, callback_ptr, 0
     )
     LAST_STATUS = (

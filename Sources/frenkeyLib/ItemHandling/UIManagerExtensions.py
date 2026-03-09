@@ -1,6 +1,7 @@
 import Py4GW
 import PyUIManager
 
+from Py4GWCoreLib.GWUI import GWUI
 from Py4GWCoreLib.UIManager import UIManager
 from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
 

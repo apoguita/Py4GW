@@ -89,6 +89,7 @@ from .Botting import BottingClass as Botting
 from .Context import GWContext
 from .CombatEvents import CombatEvents
 from .IniManager import IniManager
+from .GWUI import GWUI
 
 from .py4gwcorelib_src.Profiling import ProfilingRegistry, SimpleProfiler
 from .py4gwcorelib_src.WidgetManager import WidgetHandler, Widget
@@ -131,7 +132,7 @@ ProfilingRegistry = ProfilingRegistry
 SimpleProfiler = SimpleProfiler
 WidgetHandler = WidgetHandler
 Widget = Widget
-
+GWUI = GWUI
 
 
 #redirect print output to Py4GW Console

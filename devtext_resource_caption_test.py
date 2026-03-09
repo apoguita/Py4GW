@@ -5,6 +5,7 @@ import Py4GW
 import PyImGui
 
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 from Py4GWCoreLib.native_src.internals.native_function import NativeFunction, ScannerSection
 from Py4GWCoreLib.native_src.internals.prototypes import NativeFunctionPrototype, Prototypes
 
@@ -228,8 +229,8 @@ def _log_function_status() -> None:
 def _create_clone() -> None:
     existing_id = _current_clone_frame_id()
     if existing_id > 0:
-        UIManager.DestroyUIComponentByFrameId(existing_id)
-    frame_id = UIManager.CreateWindow(
+        GWUI.DestroyUIComponentByFrameId(existing_id)
+    frame_id = GWUI.CreateWindow(
         0.0,
         0.0,
         180.0,

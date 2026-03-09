@@ -1,5 +1,6 @@
 import Py4GW
 from Py4GWCoreLib import PyImGui, UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Native UI Test"
@@ -298,7 +299,7 @@ def _create_window() -> None:
         ACTIVE_HEIGHT,
     )
     frame_id = int(
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -368,7 +369,7 @@ def _apply_rect() -> None:
         ACTIVE_HEIGHT,
     )
     _log_window_snapshot("window apply rect before", frame_id, TARGET_X, TARGET_Y, TARGET_WIDTH, TARGET_HEIGHT)
-    applied = bool(UIManager.ApplyRect(frame_id, TARGET_X, engine_y, TARGET_WIDTH, TARGET_HEIGHT, flags=TARGET_FLAGS))
+    applied = bool(GWUI.ApplyRect(frame_id, TARGET_X, engine_y, TARGET_WIDTH, TARGET_HEIGHT, flags=TARGET_FLAGS))
     if applied:
         ACTIVE_X = TARGET_X
         ACTIVE_Y = TARGET_Y
@@ -421,7 +422,7 @@ def _move_rect() -> None:
         ACTIVE_HEIGHT,
     )
     _log_window_snapshot("window move rect before", frame_id, TARGET_X, TARGET_Y, ACTIVE_WIDTH, ACTIVE_HEIGHT)
-    moved = bool(UIManager.MoveRect(frame_id, TARGET_X, engine_y, ACTIVE_WIDTH, ACTIVE_HEIGHT, flags=TARGET_FLAGS))
+    moved = bool(GWUI.MoveRect(frame_id, TARGET_X, engine_y, ACTIVE_WIDTH, ACTIVE_HEIGHT, flags=TARGET_FLAGS))
     if moved:
         ACTIVE_X = TARGET_X
         ACTIVE_Y = TARGET_Y
@@ -472,7 +473,7 @@ def _resize_rect() -> None:
         ACTIVE_HEIGHT,
     )
     _log_window_snapshot("window resize rect before", frame_id, requested_width=TARGET_WIDTH, requested_height=TARGET_HEIGHT)
-    resized = bool(UIManager.ResizeRect(frame_id, TARGET_WIDTH, TARGET_HEIGHT, ACTIVE_X, engine_y, flags=TARGET_FLAGS))
+    resized = bool(GWUI.ResizeRect(frame_id, TARGET_WIDTH, TARGET_HEIGHT, ACTIVE_X, engine_y, flags=TARGET_FLAGS))
     if resized:
         ACTIVE_WIDTH = TARGET_WIDTH
         ACTIVE_HEIGHT = TARGET_HEIGHT
@@ -498,7 +499,7 @@ def _resize_rect() -> None:
 
 def _close_window() -> None:
     global CREATED_FRAME_ID, CREATED_FRAME_VISIBLE, LAST_TEST_STATUS
-    hidden = bool(UIManager.HideWindowByLabel(WINDOW_TITLE))
+    hidden = bool(GWUI.HideWindowByLabel(WINDOW_TITLE))
     if hidden:
         CREATED_FRAME_ID = 0
         CREATED_FRAME_VISIBLE = False

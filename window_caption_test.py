@@ -5,6 +5,7 @@ import Py4GW
 from Py4GWCoreLib import GWContext, PyImGui, UIManager
 from Py4GWCoreLib.native_src.internals.native_function import NativeFunction, ScannerSection
 from Py4GWCoreLib.native_src.internals.prototypes import NativeFunctionPrototype, Prototypes
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Window Caption Test"
@@ -131,7 +132,7 @@ def _direct_child_count(frame_id: int) -> int:
 
 def _report_state(prefix: str) -> None:
     root_id = _find_window()
-    host_id = int(UIManager.ResolveObservedContentHostByFrameId(root_id) or 0)
+    host_id = int(GWUI.ResolveObservedContentHostByFrameId(root_id) or 0)
     _log(
         f"{prefix} "
         f"root=({_frame_summary(root_id)}) "
@@ -208,10 +209,10 @@ def _log_caption_function_status() -> None:
 def _log_hook_status() -> None:
     _log(
         "hook status "
-        f"installed={UIManager.IsWindowTitleHookInstalled()} "
-        f"has_pending={UIManager.HasNextCreatedWindowTitle()} "
-        f"last_frame={UIManager.GetLastAppliedWindowTitleFrameId()} "
-        f"last_title='{UIManager.GetLastAppliedWindowTitle()}'"
+        f"installed={GWUI.IsWindowTitleHookInstalled()} "
+        f"has_pending={GWUI.HasNextCreatedWindowTitle()} "
+        f"last_frame={GWUI.GetLastAppliedWindowTitleFrameId()} "
+        f"last_title='{GWUI.GetLastAppliedWindowTitle()}'"
     )
 
 
@@ -229,7 +230,7 @@ def _create_empty_window() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateEmptyWindow(
+        GWUI.CreateEmptyWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -268,7 +269,7 @@ def _create_raw_window() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -310,7 +311,7 @@ def _spawn_raw_window_with_hook_title() -> None:
         return
 
     title_text = TITLE_TEXT
-    if not UIManager.SetNextCreatedWindowTitle(title_text):
+    if not GWUI.SetNextCreatedWindowTitle(title_text):
         LAST_STATUS = "failed to arm next-created title"
         _log(LAST_STATUS)
         _log_hook_status()
@@ -318,7 +319,7 @@ def _spawn_raw_window_with_hook_title() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -357,7 +358,7 @@ def _spawn_empty_window_with_hook_title() -> None:
         return
 
     title_text = TITLE_TEXT
-    if not UIManager.SetNextCreatedWindowTitle(title_text):
+    if not GWUI.SetNextCreatedWindowTitle(title_text):
         LAST_STATUS = "failed to arm next-created title"
         _log(LAST_STATUS)
         _log_hook_status()
@@ -365,7 +366,7 @@ def _spawn_empty_window_with_hook_title() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateEmptyWindow(
+        GWUI.CreateEmptyWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -413,7 +414,7 @@ def _enqueue_literal_caption() -> None:
             print(f"[{MODULE_NAME}] literal caption create failed text='{title_text}'")
             return
         SET_FRAME_TEXT_FN.directCall(root_id, encoded_text_ptr)
-        UIManager.TriggerFrameRedrawByFrameId(root_id)
+        GWUI.TriggerFrameRedrawByFrameId(root_id)
         print(
             f"[{MODULE_NAME}] literal caption applied root={root_id} "
             f"text='{title_text}' encoded=0x{encoded_text_ptr:X}"
@@ -445,7 +446,7 @@ def _spawn_raw_window_then_string_id_caption() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -476,7 +477,7 @@ def _spawn_raw_window_then_string_id_caption() -> None:
             print(f"[{MODULE_NAME}] raw-create string-id caption create failed string_id=0x{string_id:X}")
             return
         SET_FRAME_TEXT_FN.directCall(frame_id, encoded_text_ptr)
-        UIManager.TriggerFrameRedrawByFrameId(frame_id)
+        GWUI.TriggerFrameRedrawByFrameId(frame_id)
         print(
             f"[{MODULE_NAME}] raw-create string-id caption applied root={frame_id} "
             f"string_id=0x{string_id:X} encoded=0x{encoded_text_ptr:X}"
@@ -511,7 +512,7 @@ def _spawn_empty_window_then_string_id_caption() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateEmptyWindow(
+        GWUI.CreateEmptyWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -542,7 +543,7 @@ def _spawn_empty_window_then_string_id_caption() -> None:
             print(f"[{MODULE_NAME}] empty-create string-id caption create failed string_id=0x{string_id:X}")
             return
         SET_FRAME_TEXT_FN.directCall(frame_id, encoded_text_ptr)
-        UIManager.TriggerFrameRedrawByFrameId(frame_id)
+        GWUI.TriggerFrameRedrawByFrameId(frame_id)
         print(
             f"[{MODULE_NAME}] empty-create string-id caption applied root={frame_id} "
             f"string_id=0x{string_id:X} encoded=0x{encoded_text_ptr:X}"
@@ -577,7 +578,7 @@ def _spawn_raw_window_with_literal_caption() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateWindow(
+        GWUI.CreateWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -608,7 +609,7 @@ def _spawn_raw_window_with_literal_caption() -> None:
             print(f"[{MODULE_NAME}] raw-create caption create failed text='{title_text}'")
             return
         SET_FRAME_TEXT_FN.directCall(frame_id, encoded_text_ptr)
-        UIManager.TriggerFrameRedrawByFrameId(frame_id)
+        GWUI.TriggerFrameRedrawByFrameId(frame_id)
         print(
             f"[{MODULE_NAME}] raw-create caption applied root={frame_id} "
             f"text='{title_text}' encoded=0x{encoded_text_ptr:X}"
@@ -643,7 +644,7 @@ def _spawn_empty_window_with_literal_caption() -> None:
 
     engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
     frame_id = int(
-        UIManager.CreateEmptyWindow(
+        GWUI.CreateEmptyWindow(
             TARGET_X,
             engine_y,
             TARGET_WIDTH,
@@ -674,7 +675,7 @@ def _spawn_empty_window_with_literal_caption() -> None:
             print(f"[{MODULE_NAME}] empty-create caption create failed text='{title_text}'")
             return
         SET_FRAME_TEXT_FN.directCall(frame_id, encoded_text_ptr)
-        UIManager.TriggerFrameRedrawByFrameId(frame_id)
+        GWUI.TriggerFrameRedrawByFrameId(frame_id)
         print(
             f"[{MODULE_NAME}] empty-create caption applied root={frame_id} "
             f"text='{title_text}' encoded=0x{encoded_text_ptr:X}"
@@ -712,7 +713,7 @@ def _enqueue_string_id_caption() -> None:
             print(f"[{MODULE_NAME}] string-id caption create failed string_id=0x{string_id:X}")
             return
         SET_FRAME_TEXT_FN.directCall(root_id, encoded_text_ptr)
-        UIManager.TriggerFrameRedrawByFrameId(root_id)
+        GWUI.TriggerFrameRedrawByFrameId(root_id)
         print(
             f"[{MODULE_NAME}] string-id caption applied root={root_id} "
             f"string_id=0x{string_id:X} encoded=0x{encoded_text_ptr:X}"
@@ -778,8 +779,8 @@ def main() -> None:
         PyImGui.text("3. Check the visible title and delayed hook status")
         PyImGui.text(f"Current: {_frame_summary(_find_window())}")
         PyImGui.text(f"Last Encoded Text Ptr: 0x{LAST_ENCODED_TEXT_PTR:X}")
-        PyImGui.text(f"Hook Last Frame: {UIManager.GetLastAppliedWindowTitleFrameId()}")
-        PyImGui.text(f"Hook Last Title: {UIManager.GetLastAppliedWindowTitle()}")
+        PyImGui.text(f"Hook Last Frame: {GWUI.GetLastAppliedWindowTitleFrameId()}")
+        PyImGui.text(f"Hook Last Title: {GWUI.GetLastAppliedWindowTitle()}")
         PyImGui.text(f"Status: {LAST_STATUS}")
     PyImGui.end()
 

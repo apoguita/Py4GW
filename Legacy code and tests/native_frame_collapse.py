@@ -2,6 +2,7 @@ import ctypes
 
 import Py4GW
 import PyImGui
+from Py4GWCoreLib.GWUI import GWUI
 from Py4GWCoreLib import GWContext, UIManager
 from Py4GWCoreLib.Scanner import Scanner
 from Py4GWCoreLib.native_src.internals.native_function import NativeFunction
@@ -429,7 +430,7 @@ def _dispatch_clone_test() -> None:
 
     def _action() -> None:
         try:
-            created = UIManager.CreateUIComponentByFrameId(
+            created = GWUI.CreateUIComponentByFrameId(
                 CLONE_PARENT_ID,
                 0,
                 child_slot,

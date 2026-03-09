@@ -4,6 +4,7 @@ import Py4GW
 import PyImGui
 
 from Py4GWCoreLib import UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Text Label On DevText Test"
@@ -99,7 +100,7 @@ def _read_encoded(frame_id: int) -> str:
     if frame_id <= 0:
         return ""
     try:
-        return str(UIManager.GetTextLabelEncodedByFrameId(frame_id) or "")
+        return str(GWUI.GetTextLabelEncodedByFrameId(frame_id) or "")
     except Exception as exc:
         return f"<encoded_error:{exc}>"
 
@@ -108,7 +109,7 @@ def _read_decoded(frame_id: int) -> str:
     if frame_id <= 0:
         return ""
     try:
-        return str(UIManager.GetTextLabelDecodedByFrameId(frame_id) or "")
+        return str(GWUI.GetTextLabelDecodedByFrameId(frame_id) or "")
     except Exception as exc:
         return f"<decoded_error:{exc}>"
 
@@ -117,7 +118,7 @@ def _read_encoded_bytes_hex(frame_id: int) -> str:
     if frame_id <= 0:
         return ""
     try:
-        raw = bytes(UIManager.GetTextLabelEncodedBytesByFrameId(frame_id) or b"")
+        raw = bytes(GWUI.GetTextLabelEncodedBytesByFrameId(frame_id) or b"")
         if not raw:
             return ""
         return " ".join(f"{b:02X}" for b in raw)
@@ -126,14 +127,14 @@ def _read_encoded_bytes_hex(frame_id: int) -> str:
 
 
 def _resolve_devtext_root() -> int:
-    return int(UIManager.GetDevTextFrameID() or 0)
+    return int(GWUI.GetDevTextFrameID() or 0)
 
 
 def _resolve_devtext_host() -> int:
     root = _resolve_devtext_root()
     if root <= 0:
         return 0
-    return int(UIManager.ResolveObservedContentHostByFrameId(root) or 0)
+    return int(GWUI.ResolveObservedContentHostByFrameId(root) or 0)
 
 
 def _resolve_existing_text_label() -> int:
@@ -205,7 +206,7 @@ def _ensure_devtext() -> None:
     global LAST_STATUS
 
     def _invoke() -> None:
-        _ = int(UIManager.OpenDevTextWindow() or 0)
+        _ = int(GWUI.OpenDevTextWindow() or 0)
         _update_cached_state()
         _log(f"ensure devtext invoke result frame_id={LAST_DEVTEXT_ROOT}")
 
@@ -276,20 +277,20 @@ def _create_literal_label() -> None:
             if parent <= 0:
                 _log("create literal label invoke aborted: host unavailable")
                 return
-            child_offset = int(UIManager.FindAvailableChildSlot(parent, 0x20, 0xFE) or 0)
+            child_offset = int(GWUI.FindAvailableChildSlot(parent, 0x20, 0xFE) or 0)
             _log(
                 f"create literal label invoke slot parent={parent} child_offset=0x{child_offset:X}"
             )
             if child_offset <= 0:
                 _log("create literal label invoke aborted: no child slot available")
                 return
-            diag = UIManager.GetTextLabelLiteralCreatePayloadDiagnostics(
+            diag = GWUI.GetTextLabelLiteralCreatePayloadDiagnostics(
                 CREATE_TEXT,
             )
             LAST_CREATE_DIAGNOSTICS = _format_create_diagnostics(diag)
             _log(f"create literal label invoke diagnostics {LAST_CREATE_DIAGNOSTICS}")
             CREATED_FRAME_ID = int(
-                UIManager.CreateTextLabelFrameWithPlainTextByFrameId(
+                GWUI.CreateTextLabelFrameWithPlainTextByFrameId(
                     parent,
                     0x300,
                     child_offset,

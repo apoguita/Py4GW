@@ -5,6 +5,7 @@ import PyImGui
 
 from Py4GWCoreLib import GWContext, UIManager
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Inventory Into Empty DevText Clone Test"
@@ -128,7 +129,7 @@ def _open_inventory() -> None:
 
 def _ensure_devtext() -> None:
     def _invoke() -> None:
-        frame_id = int(UIManager.OpenDevTextWindow() or 0)
+        frame_id = int(GWUI.OpenDevTextWindow() or 0)
         _log(f"ensure devtext invoke result frame_id={frame_id}")
 
     Py4GW.Game.enqueue(_invoke)
@@ -152,7 +153,7 @@ def _create_empty_clone() -> None:
     def _invoke() -> None:
         engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
         frame_id = int(
-            UIManager.CreateEmptyWindow(
+            GWUI.CreateEmptyWindow(
                 TARGET_X,
                 engine_y,
                 TARGET_WIDTH,
@@ -202,7 +203,7 @@ def _clone_host() -> int:
     root = _clone_root()
     if root <= 0:
         return 0
-    host = int(UIManager.ResolveObservedContentHostByFrameId(root) or 0)
+    host = int(GWUI.ResolveObservedContentHostByFrameId(root) or 0)
     if host > 0:
         return host
     return _safe_child(_clone_root0_0(), 0)
@@ -233,7 +234,7 @@ def _resolved_child_offset(parent_id: int) -> int:
     if parent_id <= 0:
         return 0
     if USE_FREE_CHILD_SLOT:
-        return int(UIManager.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
+        return int(GWUI.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
     return int(TARGET_CHILD_OFFSET)
 
 
@@ -262,7 +263,7 @@ def _create_inventory_into_empty_clone() -> None:
             return
 
         CREATED_FRAME_ID = int(
-            UIManager.CreateUIComponentFromSourceFrameByFrameId(
+            GWUI.CreateUIComponentFromSourceFrameByFrameId(
                 parent_id,
                 source_frame_id,
                 0x20,
@@ -278,8 +279,8 @@ def _create_inventory_into_empty_clone() -> None:
             f"parent={parent_id} child_offset=0x{child_offset:X} mode='{parent_mode_name}'"
         )
         if CREATED_FRAME_ID > 0:
-            UIManager.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
-            UIManager.TriggerFrameRedrawByFrameId(parent_id)
+            GWUI.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
+            GWUI.TriggerFrameRedrawByFrameId(parent_id)
 
     Py4GW.Game.enqueue(_invoke)
     LAST_STATUS = f"create inventory into empty devtext clone enqueued mode='{parent_mode_name}'"

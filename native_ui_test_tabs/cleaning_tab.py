@@ -1,5 +1,6 @@
 import Py4GW
 from Py4GWCoreLib import PyImGui, UIManager
+from Py4GWCoreLib.GWUI import GWUI
 
 from native_ui_test_tabs import rect_tab
 
@@ -110,7 +111,7 @@ def _destroy_direct_children() -> None:
     failed: list[int] = []
     for child_id in children:
         try:
-            if UIManager.DestroyUIComponentByFrameId(child_id):
+            if GWUI.DestroyUIComponentByFrameId(child_id):
                 destroyed.append(child_id)
             else:
                 failed.append(child_id)
@@ -140,7 +141,7 @@ def _destroy_descendants() -> None:
     failed: list[int] = []
     for child_id in descendants:
         try:
-            if UIManager.DestroyUIComponentByFrameId(child_id):
+            if GWUI.DestroyUIComponentByFrameId(child_id):
                 destroyed.append(child_id)
             else:
                 failed.append(child_id)
@@ -174,7 +175,7 @@ def _clear_direct_child_host() -> None:
         LAST_STATUS = "no direct child host"
         _log(f"cleaning clear direct child host aborted: target={target_frame_id} has no direct child host")
         return
-    cleared = bool(UIManager.ClearFrameChildrenRecursiveByFrameId(host_frame_id))
+    cleared = bool(GWUI.ClearFrameChildrenRecursiveByFrameId(host_frame_id))
     LAST_STATUS = f"clear direct child host target={host_frame_id} result={cleared}"
     _log(
         "cleaning clear direct child host "
@@ -199,7 +200,7 @@ def _clear_nested_content_host() -> None:
             f"target={target_frame_id} host={host_frame_id} nested_host={nested_host_id}"
         )
         return
-    cleared = bool(UIManager.ClearFrameChildrenRecursiveByFrameId(nested_host_id))
+    cleared = bool(GWUI.ClearFrameChildrenRecursiveByFrameId(nested_host_id))
     LAST_STATUS = f"clear nested content host target={nested_host_id} result={cleared}"
     _log(
         "cleaning clear nested content host "

@@ -5,6 +5,7 @@ import PyImGui
 
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Inventory Component Clone Test"
@@ -225,7 +226,7 @@ def _create_inventory_style_component() -> None:
     def _invoke() -> None:
         global CREATED_FRAME_ID
         CREATED_FRAME_ID = int(
-            UIManager.CreateUIComponentRawByFrameId(
+            GWUI.CreateUIComponentRawByFrameId(
                 parent_id,
                 0x20,
                 TARGET_CHILD_OFFSET,
@@ -241,12 +242,12 @@ def _create_inventory_style_component() -> None:
         )
         if CREATED_FRAME_ID > 0:
             for callback_addr, callback_h0008 in callbacks[1:]:
-                UIManager.AddFrameUIInteractionCallbackByFrameId(
+                GWUI.AddFrameUIInteractionCallbackByFrameId(
                     CREATED_FRAME_ID,
                     callback_addr,
                     callback_h0008,
                 )
-            UIManager.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
+            GWUI.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
 
     Py4GW.Game.enqueue(_invoke)
     _log(

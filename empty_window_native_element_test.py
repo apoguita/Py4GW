@@ -5,6 +5,7 @@ import PyImGui
 
 from Py4GWCoreLib import GWContext, UIManager
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
+from Py4GWCoreLib.GWUI import GWUI
 
 
 MODULE_NAME = "Empty Window Native Element Test"
@@ -148,7 +149,7 @@ def _window_clear_boundary() -> int:
     root = _find_window()
     if root <= 0:
         return 0
-    return int(UIManager.ResolveEmptyWindowClearBoundaryByFrameId(root) or 0)
+    return int(GWUI.ResolveEmptyWindowClearBoundaryByFrameId(root) or 0)
 
 
 def _safe_child(frame_id: int, child_offset: int) -> int:
@@ -182,7 +183,7 @@ def _window_host() -> int:
     root = _find_window()
     if root <= 0:
         return 0
-    host = int(UIManager.ResolveObservedContentHostByFrameId(root) or 0)
+    host = int(GWUI.ResolveObservedContentHostByFrameId(root) or 0)
     if host > 0:
         return host
     return _safe_child(_safe_child(_window_root_child0(), 0), 0)
@@ -217,7 +218,7 @@ def _resolved_child_offset(parent_id: int) -> int:
     if parent_id <= 0:
         return 0
     if USE_FREE_CHILD_SLOT:
-        return int(UIManager.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
+        return int(GWUI.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
     return int(TARGET_CHILD_OFFSET)
 
 
@@ -246,7 +247,7 @@ def _create_empty_window() -> None:
     def _invoke() -> None:
         engine_y = _to_engine_y_from_top(TARGET_Y, TARGET_HEIGHT)
         frame_id = int(
-            UIManager.CreateEmptyWindow(
+            GWUI.CreateEmptyWindow(
                 TARGET_X,
                 engine_y,
                 TARGET_WIDTH,
@@ -284,13 +285,13 @@ def _destroy_created_component() -> None:
         return
 
     def _invoke() -> None:
-        UIManager.DestroyUIComponentByFrameId(frame_id)
+        GWUI.DestroyUIComponentByFrameId(frame_id)
         parent_id = _target_parent()
         if parent_id > 0:
-            UIManager.TriggerFrameRedrawByFrameId(parent_id)
+            GWUI.TriggerFrameRedrawByFrameId(parent_id)
         root = _find_window()
         if root > 0:
-            UIManager.TriggerFrameRedrawByFrameId(root)
+            GWUI.TriggerFrameRedrawByFrameId(root)
 
     Py4GW.Game.enqueue(_invoke)
     CREATED_FRAME_ID = 0
@@ -323,7 +324,7 @@ def _create_inventory_contract_component() -> None:
             CREATED_FRAME_ID = 0
             return
         CREATED_FRAME_ID = int(
-            UIManager.CreateUIComponentFromSourceFrameByFrameId(
+            GWUI.CreateUIComponentFromSourceFrameByFrameId(
                 parent_id,
                 source_frame_id,
                 0x20,
@@ -342,14 +343,14 @@ def _create_inventory_contract_component() -> None:
             created7 = int(UIManager.GetChildFrameByFrameId(CREATED_FRAME_ID, 7) or 0)
             created9 = int(UIManager.GetChildFrameByFrameId(CREATED_FRAME_ID, 9) or 0)
             if created7 > 0:
-                UIManager.TriggerFrameRedrawByFrameId(created7)
+                GWUI.TriggerFrameRedrawByFrameId(created7)
             if created9 > 0:
-                UIManager.TriggerFrameRedrawByFrameId(created9)
-            UIManager.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
-        UIManager.TriggerFrameRedrawByFrameId(parent_id)
+                GWUI.TriggerFrameRedrawByFrameId(created9)
+            GWUI.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
+        GWUI.TriggerFrameRedrawByFrameId(parent_id)
         root = _find_window()
         if root > 0:
-            UIManager.TriggerFrameRedrawByFrameId(root)
+            GWUI.TriggerFrameRedrawByFrameId(root)
 
     Py4GW.Game.enqueue(_invoke)
     LAST_STATUS = f"create component enqueued parent_mode='{parent_mode_name}'"
@@ -376,14 +377,14 @@ def _create_stuffed_inventory_clone() -> None:
             CREATED_FRAME_ID = 0
             return
         if USE_FREE_STUFFED_CHILD_SLOT:
-            child_offset = int(UIManager.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
+            child_offset = int(GWUI.FindAvailableChildSlot(parent_id, 0x20, 0xFE) or 0)
         if child_offset <= 0:
             _log(f"stuff invoke aborted: no child slot available for parent={parent_id}")
             CREATED_FRAME_ID = 0
             return
 
         CREATED_FRAME_ID = int(
-            UIManager.CreateUIComponentFromSourceFrameByFrameId(
+            GWUI.CreateUIComponentFromSourceFrameByFrameId(
                 parent_id,
                 source_frame_id,
                 0x20,
@@ -399,8 +400,8 @@ def _create_stuffed_inventory_clone() -> None:
             f"parent={parent_id} source={source_frame_id} child_offset=0x{child_offset:X}"
         )
         if CREATED_FRAME_ID > 0:
-            UIManager.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
-            UIManager.TriggerFrameRedrawByFrameId(parent_id)
+            GWUI.TriggerFrameRedrawByFrameId(CREATED_FRAME_ID)
+            GWUI.TriggerFrameRedrawByFrameId(parent_id)
 
     Py4GW.Game.enqueue(_invoke)
     LAST_STATUS = "stuff inventory clone create enqueued"
@@ -446,11 +447,11 @@ def _fit_created_clone_to_empty_window() -> None:
         created7 = int(UIManager.GetChildFrameByFrameId(created_id, 7) or 0)
         created9 = int(UIManager.GetChildFrameByFrameId(created_id, 9) or 0)
         if created7 > 0:
-            UIManager.TriggerFrameRedrawByFrameId(created7)
+            GWUI.TriggerFrameRedrawByFrameId(created7)
         if created9 > 0:
-            UIManager.TriggerFrameRedrawByFrameId(created9)
-        UIManager.TriggerFrameRedrawByFrameId(created_id)
-        UIManager.TriggerFrameRedrawByFrameId(shell_root)
+            GWUI.TriggerFrameRedrawByFrameId(created9)
+        GWUI.TriggerFrameRedrawByFrameId(created_id)
+        GWUI.TriggerFrameRedrawByFrameId(shell_root)
 
     Py4GW.Game.enqueue(_invoke)
     LAST_STATUS = "fit created clone to empty window enqueued"

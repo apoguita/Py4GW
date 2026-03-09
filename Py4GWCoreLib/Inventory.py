@@ -375,6 +375,7 @@ class Inventory:
         Returns:
             bool: True if click was performed, False otherwise.
         """
+        from .GWUI import GWUI
         from .UIManager import UIManager
 
         parent_hash = 140452905

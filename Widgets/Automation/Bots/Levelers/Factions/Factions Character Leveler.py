@@ -4,7 +4,7 @@ import os
 import PyImGui
 from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
-                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, HeroType, Skill, AgentArray)
+                          AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, GWUI, HeroType, Skill, AgentArray)
 from Py4GWCoreLib.Builds import KeiranThackerayEOTN
 from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
 from Py4GWCoreLib.ImGui_src.types import Alignment
