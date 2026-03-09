@@ -40,10 +40,8 @@ class SignetOfAggressionUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        has_buff = self._HasShoutBuff(agent_id=Player.GetAgentID())
-        is_moving = Agent.IsMoving(Player.GetAgentID())
-        
-        if has_buff and not is_moving: return self.score_definition.get_score()
+        has_buff =  self._HasShoutBuff(agent_id=Player.GetAgentID())
+        if has_buff: return self.score_definition.get_score()
         return None
 
     @override

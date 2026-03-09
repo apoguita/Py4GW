@@ -20,6 +20,7 @@ class PersistenceLocator:
         self._common = PersistenceLocator.CommonSettings()
         self._botting = PersistenceLocator.BottingSettings()
         self._flagging = PersistenceLocator.FlaggingSettings()
+        self._following = PersistenceLocator.FollowingSettings()
 
     @property
     def skills(self) -> "PersistenceLocator.SkillSettings":
@@ -36,6 +37,10 @@ class PersistenceLocator:
     @property
     def flagging(self) -> "PersistenceLocator.FlaggingSettings":
         return self._flagging
+
+    @property
+    def following(self) -> "PersistenceLocator.FollowingSettings":
+        return self._following
 
     class SkillSettings:
 
@@ -497,3 +502,130 @@ class PersistenceLocator:
             if node:
                 node.ini_handler.delete_key(self.SECTION_FOLLOW_FLAG, "threshold")
                 node.ini_handler.delete_key(self.SECTION_FOLLOW_FLAG, "required_threshold")
+
+    class FollowingSettings:
+        """Nested class for following force settings with its own INI file (following.ini).
+
+        Persists per-account force activation settings (allies repulsion, leader attraction, enemies repulsion).
+        Uses global storage (shared across all accounts).
+        """
+
+        SECTION = "ForceActivations"
+
+        def __init__(self):
+            self._ini_filename = "following.ini"
+            self._key: str = ""
+
+        def _ensure_key(self) -> str:
+            """Ensure the global INI key is created and return it."""
+            if not self._key:
+                self._key = IniManager().ensure_global_key(PersistenceLocator.INI_PATH, self._ini_filename)
+            return self._key
+
+        def read_force_settings(self, account_email: str) -> tuple[bool, bool, bool] | None:
+            """Read force activation settings for an account.
+
+            Args:
+                account_email: The account email
+
+            Returns:
+                Tuple of (allies_repulsion, leader_attraction, enemies_repulsion) if found, None otherwise.
+            """
+            key = self._ensure_key()
+            if not key:
+                return None
+
+            node = IniManager()._handlers.get(key)
+            if not node:
+                return None
+
+            # Read the three force settings
+            allies_str = node.ini_handler.read_key(self.SECTION, f"{account_email}_allies_repulsion", "")
+            leader_str = node.ini_handler.read_key(self.SECTION, f"{account_email}_leader_attraction", "")
+            enemies_str = node.ini_handler.read_key(self.SECTION, f"{account_email}_enemies_repulsion", "")
+
+            # If any setting is missing, return None
+            if not allies_str or not leader_str or not enemies_str:
+                return None
+
+            # Convert to booleans
+            try:
+                allies = allies_str.lower() == "true"
+                leader = leader_str.lower() == "true"
+                enemies = enemies_str.lower() == "true"
+                return (allies, leader, enemies)
+            except:
+                return None
+
+        def write_force_settings(self, account_email: str, allies_repulsion: bool, leader_attraction: bool, enemies_repulsion: bool) -> None:
+            """Write force activation settings for an account.
+
+            Args:
+                account_email: The account email
+                allies_repulsion: Whether allies repulsion is active
+                leader_attraction: Whether leader attraction is active
+                enemies_repulsion: Whether enemies repulsion is active
+            """
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.write_key(self.SECTION, f"{account_email}_allies_repulsion", str(allies_repulsion))
+                node.ini_handler.write_key(self.SECTION, f"{account_email}_leader_attraction", str(leader_attraction))
+                node.ini_handler.write_key(self.SECTION, f"{account_email}_enemies_repulsion", str(enemies_repulsion))
+
+        def read_all_force_settings(self) -> dict[str, tuple[bool, bool, bool]]:
+            """Read all force settings.
+
+            Returns:
+                Dictionary mapping account_email to (allies_repulsion, leader_attraction, enemies_repulsion).
+            """
+            key = self._ensure_key()
+            if not key:
+                return {}
+
+            node = IniManager()._handlers.get(key)
+            if not node:
+                return {}
+
+            settings: dict[str, tuple[bool, bool, bool]] = {}
+            keys_dict = node.ini_handler.list_keys(self.SECTION)
+
+            # Group keys by email
+            emails_data: dict[str, dict[str, bool]] = {}
+            for key_name, value in keys_dict.items():
+                # Parse key format: "email_setting_type"
+                if "_allies_repulsion" in key_name:
+                    email = key_name.replace("_allies_repulsion", "")
+                    if email not in emails_data:
+                        emails_data[email] = {}
+                    emails_data[email]["allies"] = value.lower() == "true"
+                elif "_leader_attraction" in key_name:
+                    email = key_name.replace("_leader_attraction", "")
+                    if email not in emails_data:
+                        emails_data[email] = {}
+                    emails_data[email]["leader"] = value.lower() == "true"
+                elif "_enemies_repulsion" in key_name:
+                    email = key_name.replace("_enemies_repulsion", "")
+                    if email not in emails_data:
+                        emails_data[email] = {}
+                    emails_data[email]["enemies"] = value.lower() == "true"
+
+            # Convert to final format (only include complete entries)
+            for email, data in emails_data.items():
+                if "allies" in data and "leader" in data and "enemies" in data:
+                    settings[email] = (data["allies"], data["leader"], data["enemies"])
+
+            return settings
+
+        def clear_all_force_settings(self) -> None:
+            """Clear all force settings."""
+            key = self._ensure_key()
+            if not key:
+                return
+
+            node = IniManager()._handlers.get(key)
+            if node:
+                node.ini_handler.delete_section(self.SECTION)

@@ -9,25 +9,27 @@ from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums import SharedCommandType
 from Py4GWCoreLib.enums_src.GameData_enums import ProfessionShort, ProfessionShort_Names
+from Sources.Nikon_Scripts import Enemies
 from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
+from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_panel import FlagPanel
+from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_custom_grid_placement import FlagCustomGridPlacement
+from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_backward_grid_placement import FlagBackwardGridPlacement
+from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_stacked_placement import FlagStackedPlacement
+from Sources.oazix.CustomBehaviors.gui.following_panel.following_panel import FollowingPanel
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.primitives.following_behavior_priority import FollowingBehaviorPriority
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers, custom_behavior_helpers_party
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-
 from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
-from Sources.oazix.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 from Sources.oazix.CustomBehaviors.primitives.parties.party_flagging_manager import PartyFlaggingManager
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
-from Sources.oazix.CustomBehaviors.gui.flags import FlagsUI
-from Sources.oazix.CustomBehaviors.gui.expandable_section import ExpandableSection
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 # Create expandable sections for different UI panels
-inventory_expandable = ExpandableSection(initially_expanded=False)
-flag_expandable = ExpandableSection(initially_expanded=False)
-following_expandable = ExpandableSection(initially_expanded=False)
 project_root = PathLocator.get_custom_behaviors_root_directory()
+icon_size = 35
 
 def draw_party_target_vertical_line() -> None:
     """Draw a vertical indicator for the Party Custom Target only:
@@ -73,13 +75,12 @@ def draw_party_target_vertical_line() -> None:
 
 @staticmethod
 def render():
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
     PyImGui.text(f"[COMMON] Toggle party capabilities :")
 
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
     # Table layout for top controls
     flag_manager = PartyFlaggingManager()
-    if PyImGui.begin_table("party_top_controls", 12, PyImGui.TableFlags.NoSavedSettings | PyImGui.TableFlags.SizingStretchProp):
+    if PyImGui.begin_table("party_top_controls", 9, PyImGui.TableFlags.NoSavedSettings | PyImGui.TableFlags.SizingStretchProp):
         PyImGui.table_setup_column("All",          PyImGui.TableColumnFlags.WidthFixed,   46.0)
         PyImGui.table_setup_column("SepAfterAll",  PyImGui.TableColumnFlags.WidthFixed,   12.0)
         PyImGui.table_setup_column("Combat",       PyImGui.TableColumnFlags.WidthFixed,   46.0)
@@ -88,15 +89,11 @@ def render():
         PyImGui.table_setup_column("Chesting",     PyImGui.TableColumnFlags.WidthFixed,   46.0)
         PyImGui.table_setup_column("Blessing",     PyImGui.TableColumnFlags.WidthFixed,   46.0)
         PyImGui.table_setup_column("Inventory",    PyImGui.TableColumnFlags.WidthFixed,   46.0)
-        PyImGui.table_setup_column("|",            PyImGui.TableColumnFlags.WidthFixed,   12.0)
-        PyImGui.table_setup_column("FlagSet",      PyImGui.TableColumnFlags.WidthFixed,   46.0)
-        PyImGui.table_setup_column("FlagSet2",     PyImGui.TableColumnFlags.WidthFixed,   46.0)
 
         PyImGui.table_setup_column("FlagClear",    PyImGui.TableColumnFlags.WidthFixed,   46.0)
 
         PyImGui.table_next_row(PyImGui.TableRowFlags.NoFlag, 42.0)
 
-        icon_size = 35
 
         # All
         PyImGui.table_next_column()
@@ -121,8 +118,6 @@ def render():
         mid_x = sep_x + 6.0
         PyImGui.draw_list_add_line(mid_x, sep_y, mid_x, sep_y + 42.0, Utils.RGBToColor(200, 200, 200, 255), 2.0)
         PyImGui.dummy(12, 42)
-
-
 
         # Combat
         PyImGui.table_next_column()
@@ -157,8 +152,6 @@ def render():
             ImGui.show_tooltip("enable following")
         PyImGui.pop_style_var(1)
         PyImGui.pop_style_color(1)
-        # Use the generic ExpandableSection for following
-        following_expandable.render_expand_toggle("", "expand_following_top")
 
         # Looting
         PyImGui.table_next_column()
@@ -227,60 +220,6 @@ def render():
             ImGui.show_tooltip("enable inventory management")
         PyImGui.pop_style_var(1)
         PyImGui.pop_style_color(1)
-        # Use the generic ExpandableSection for inventory
-        inventory_expandable.render_expand_toggle("", "expand_inventory_top")
-
-        # Separator
-        PyImGui.table_next_column()
-        sep_x, sep_y = PyImGui.get_cursor_screen_pos()
-        mid_x = sep_x + 6.0
-        PyImGui.draw_list_add_line(mid_x, sep_y, mid_x, sep_y + 42.0, Utils.RGBToColor(200, 200, 200, 255), 2.0)
-        PyImGui.dummy(12, 42)
-
-        # Set Flags at Leader Position (Preset 1: Grid)
-        PyImGui.table_next_column()
-        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.FLAG_COLOR)
-        clicked_p1 = ImGui.ImageButton(f"Set Flags at Leader Position", project_root + f"\\gui\\textures\\flag.png", icon_size, icon_size)
-        PyImGui.pop_style_var(1)
-        PyImGui.pop_style_color(1)
-        if PyImGui.is_item_hovered():
-            PyImGui.set_tooltip("Apply grid assignments to flag positions based on leader's position and facing")
-
-        if clicked_p1:
-            FlagsUI.apply_grid_to_flag_manager()
-
-        # Toggle expand/collapse using the generic ExpandableSection
-        flag_expandable.render_expand_toggle("", "expand_flagging_top")
-
-        # Preset 2: Stacked flags at leader position (separate column)
-        PyImGui.table_next_column()
-        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.FLAG_COLOR)
-        clicked_p2 = ImGui.ImageButton(f"Set Flags (Stacked)##preset2", project_root + f"\\gui\\textures\\flag2.png", icon_size, icon_size)
-        PyImGui.pop_style_var(1)
-        PyImGui.pop_style_color(1)
-        if PyImGui.is_item_hovered():
-            PyImGui.set_tooltip("Preset 2 (Stacked): Stack all assigned flags at the leader's position; auto-assign if none")
-        if clicked_p2:
-            flag_manager.auto_assign_emails_if_none_assigned()
-            leader_x, leader_y = Player.GetXY()
-            leader_agent_id = Player.GetAgentID()
-            leader_angle = Agent.GetRotationAngle(leader_agent_id)
-            flag_manager.update_formation_positions(leader_x, leader_y, leader_angle, "preset_2")
-
-        # Clear Flag Positions
-        PyImGui.table_next_column()
-        if flag_manager.are_flags_defined():
-            PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(200, 30, 0, 255)))
-            if ImGui.ImageButton(f"Clear Flag Positions", project_root + f"\\gui\\textures\\unflag.png", icon_size, icon_size):
-                flag_manager.clear_all_flag_positions()
-            PyImGui.pop_style_var(1)
-            PyImGui.pop_style_color(1)
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Remove flags from map (keeps dropdown assignments)")
-
         PyImGui.end_table()
 
 
@@ -420,56 +359,6 @@ def render():
             
     PyImGui.separator()
 
-    if Map.IsExplorable() and False:
-
-        if PyImGui.tree_node_ex("[EXPLORABLE] Following & Spreading settings :", 0):
-
-            # Get the singleton manager
-            manager = PartyFollowingManager()
-
-            # Set narrower width for sliders to make labels more readable
-            PyImGui.push_item_width(200.0)
-
-            # Debug overlay toggle
-            new_overlay_value = PyImGui.checkbox("Enable Debug Overlay", manager.enable_debug_overlay)
-            if new_overlay_value != manager.enable_debug_overlay:
-                manager.enable_debug_overlay = new_overlay_value
-
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Show visual overlay with formation circles, distances, and movement vectors")
-
-            # Force overlay rendering when enabled - this ensures overlays are always drawn
-            if manager.enable_debug_overlay:
-                    # Get the behavior instance and call overlay renderers
-                    behavior = CustomBehaviorLoader().custom_combat_behavior
-                    if behavior is not None:
-                        skills_list = behavior.get_skills_final_list()
-                        current_state = behavior.get_final_state()
-
-                        # Import the utilities
-                        from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_only_utility import FollowPartyLeaderOnlyUtility
-                        from Sources.oazix.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
-
-                        # Render overlays for both utilities if they exist
-                        for skill_utility in skills_list:
-                            if isinstance(skill_utility, FollowPartyLeaderOnlyUtility):
-                                skill_utility.draw_overlay(current_state)
-                            elif isinstance(skill_utility, SpreadDuringCombatUtility):
-                                skill_utility.draw_overlay(current_state)
-
-            PyImGui.separator()
-
-            # Configuration is now handled by individual utilities
-            PyImGui.text_colored("Following & Spreading Configuration:", (0.0, 1.0, 1.0, 1.0))
-            PyImGui.text_colored("Note: Configuration is managed by individual utilities", (0.7, 0.7, 0.7, 1.0))
-            PyImGui.bullet_text("Follow Party Leader: Configured in follow_party_leader_only_utility")
-            PyImGui.bullet_text("Spread During Combat: Configured in spread_during_combat_utility")
-            PyImGui.text_colored("Enable debug overlay above to see detailed configuration panels", (0.7, 0.7, 0.7, 1.0))
-
-            PyImGui.tree_pop()
-    
     if True:
         if PyImGui.tree_node_ex("[MANAGE] Enforce the main state machine for all party members :", 0):
 
@@ -478,50 +367,77 @@ def render():
             ImGui.pop_font()
 
             green_color = Utils.ColorToTuple(Utils.RGBToColor(41, 144, 69, 255))
+            light_blue_color = Utils.ColorToTuple(Utils.RGBToColor(100, 150, 255, 150))
 
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IN_AGGRO:
+            # Get forced state and current actual state
+            forced_state = CustomBehaviorParty().get_party_forced_state()
+            current_state = None
+            if forced_state is None and CustomBehaviorLoader().custom_combat_behavior is not None:
+                current_state = CustomBehaviorLoader().custom_combat_behavior.get_state()
+
+            # IN_AGGRO button
+            should_highlight = (forced_state == BehaviorState.IN_AGGRO) or (forced_state is None and current_state == BehaviorState.IN_AGGRO)
+            if forced_state == BehaviorState.IN_AGGRO:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+            elif forced_state is None and current_state == BehaviorState.IN_AGGRO:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
             if PyImGui.button(f"{IconsFontAwesome5.ICON_FIST_RAISED} IN_AGGRO"):
                 CustomBehaviorParty().set_party_forced_state(BehaviorState.IN_AGGRO)
             ImGui.show_tooltip("IN_AGGRO : enemy is combat range")
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IN_AGGRO:
+            if should_highlight:
                 PyImGui.pop_style_color(2)
 
-
             PyImGui.same_line(0,5)
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.CLOSE_TO_AGGRO:
+
+            # CLOSE_TO_AGGRO button
+            should_highlight = (forced_state == BehaviorState.CLOSE_TO_AGGRO) or (forced_state is None and current_state == BehaviorState.CLOSE_TO_AGGRO)
+            if forced_state == BehaviorState.CLOSE_TO_AGGRO:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+            elif forced_state is None and current_state == BehaviorState.CLOSE_TO_AGGRO:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
             if PyImGui.button(f"{IconsFontAwesome5.ICON_HAMSA} CLOSE_TO_AGGRO"):
                 CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO)
             ImGui.show_tooltip("CLOSE_TO_AGGRO : enemy close to combat range")
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.CLOSE_TO_AGGRO:
+            if should_highlight:
                 PyImGui.pop_style_color(2)
 
-
             PyImGui.same_line(0,5)
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.FAR_FROM_AGGRO:
+
+            # FAR_FROM_AGGRO button
+            should_highlight = (forced_state == BehaviorState.FAR_FROM_AGGRO) or (forced_state is None and current_state == BehaviorState.FAR_FROM_AGGRO)
+            if forced_state == BehaviorState.FAR_FROM_AGGRO:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+            elif forced_state is None and current_state == BehaviorState.FAR_FROM_AGGRO:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
             if PyImGui.button(f"{IconsFontAwesome5.ICON_HIKING} FAR_FROM_AGGRO"):
                 CustomBehaviorParty().set_party_forced_state(BehaviorState.FAR_FROM_AGGRO)
             ImGui.show_tooltip("CLOSE_TO_AGGRO : nothing close to fight")
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.FAR_FROM_AGGRO:
+            if should_highlight:
                 PyImGui.pop_style_color(2)
 
-
             PyImGui.same_line(0,5)
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IDLE:
+
+            # IDLE button
+            should_highlight = (forced_state == BehaviorState.IDLE) or (forced_state is None and current_state == BehaviorState.IDLE)
+            if forced_state == BehaviorState.IDLE:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Button, green_color)
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, green_color)
+            elif forced_state is None and current_state == BehaviorState.IDLE:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
             if PyImGui.button(f"{IconsFontAwesome5.ICON_HOURGLASS} IDLE"):
                 CustomBehaviorParty().set_party_forced_state(BehaviorState.IDLE)
             ImGui.show_tooltip("IDLE : town, dead, loading, ect...")
-            if CustomBehaviorParty().get_party_forced_state() == BehaviorState.IDLE:
+            if should_highlight:
                 PyImGui.pop_style_color(2)
 
-            if CustomBehaviorParty().get_party_forced_state() is not None:
+            if forced_state is not None:
                 PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Utils.ColorToTuple(Utils.RGBToColor(200, 30, 30, 255)))
                 PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Utils.ColorToTuple(Utils.RGBToColor(240, 10, 0, 255)))
                 if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}"):
@@ -532,25 +448,166 @@ def render():
                 PyImGui.same_line(0,5)
                 PyImGui.text(f"Party forced state is ")
                 PyImGui.same_line(0,0)
-                PyImGui.text(f"{CustomBehaviorParty().get_party_forced_state()}")
+                PyImGui.text(f"{forced_state}")
 
             PyImGui.tree_pop()
 
     PyImGui.separator()
 
+    if PyImGui.tree_node_ex("[FOLLOWING - IN_AGGRO] Define how followers should follow the leader :", PyImGui.TreeNodeFlags.DefaultOpen):
+
+        ImGui.push_font("Italic", 12)
+        PyImGui.text(f"customize how followers should follow the leader when IN_AGGRO")
+        PyImGui.same_line(0,5)
+
+        # Help button with tooltip
+        if PyImGui.small_button("[?]"):
+            pass
+        if PyImGui.is_item_hovered():
+            PyImGui.begin_tooltip()
+            PyImGui.text(f"those button are presets. but you can further customize the forces activation per account in the following panel below.")
+            PyImGui.text(f"3 forces are in play : attraction to leader, repulsion from allies, repulsion from enemies")
+            PyImGui.text(f"flagging is always prioritized over any other movement")
+            PyImGui.text(f"NONE was the existing default behavior.")
+            PyImGui.end_tooltip()
+
+        ImGui.pop_font()
+
+        current_behavior = CustomBehaviorParty().get_party_following_behavior()
+        light_blue_color = Utils.ColorToTuple(Utils.RGBToColor(100, 150, 255, 150))
+
+        # DONT_SPREAD button
+        if current_behavior == FollowingBehaviorPriority.HIGH_PRIORITY:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_ANGLE_DOUBLE_UP} HIGH_PRIORITY"):
+            CustomBehaviorParty().set_party_following_behavior_priority(FollowingBehaviorPriority.HIGH_PRIORITY)
+        if current_behavior == FollowingBehaviorPriority.HIGH_PRIORITY:
+            PyImGui.pop_style_color(2)
+        if PyImGui.is_item_hovered():
+            PyImGui.set_tooltip("When IN_AGGRO, followers will prioritize movement at all cost.")
+
+            
+        PyImGui.same_line(0,5)
+
+        if current_behavior == FollowingBehaviorPriority.HIGH_PRIORITY_WITH_THROTTLE:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_ANGLE_DOUBLE_UP} HIGH_PRIORITY_THROTTLE"):
+            CustomBehaviorParty().set_party_following_behavior_priority(FollowingBehaviorPriority.HIGH_PRIORITY_WITH_THROTTLE)
+        if current_behavior == FollowingBehaviorPriority.HIGH_PRIORITY_WITH_THROTTLE:
+            PyImGui.pop_style_color(2)
+        if PyImGui.is_item_hovered():
+            PyImGui.begin_tooltip()
+            PyImGui.set_tooltip("When IN_AGGRO, followers will prioritize movement at all cost - but with a few seconds throttle between each movements.")
+            PyImGui.end_tooltip()
+
+        PyImGui.same_line(0,5)
+
+
+        if current_behavior == FollowingBehaviorPriority.LOW_PRIORITY:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_ANGLE_UP} LOW_PRIORITY"):
+            CustomBehaviorParty().set_party_following_behavior_priority(FollowingBehaviorPriority.LOW_PRIORITY)
+        if current_behavior == FollowingBehaviorPriority.LOW_PRIORITY:
+            PyImGui.pop_style_color(2)
+        if PyImGui.is_item_hovered():
+            PyImGui.begin_tooltip()
+            PyImGui.set_tooltip("When IN_AGGRO, followers will only move if nothing else to do.")
+            PyImGui.end_tooltip()
+
+        PyImGui.same_line(0,5)
+
+        PyImGui.same_line(0,5)
+
+        if current_behavior == FollowingBehaviorPriority.NONE:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, light_blue_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, light_blue_color)
+        if PyImGui.button(f"{IconsFontAwesome5.ICON_ANCHOR} NONE"):
+            CustomBehaviorParty().set_party_following_behavior_priority(FollowingBehaviorPriority.NONE)
+        if current_behavior == FollowingBehaviorPriority.NONE:
+            PyImGui.pop_style_color(2)
+        if PyImGui.is_item_hovered():
+            PyImGui.begin_tooltip()
+            PyImGui.set_tooltip("When IN_AGGRO, movement is only initiated but your character's skills.")
+            PyImGui.end_tooltip()
+
+        FollowingPanel.render_configuration()
+
+        PyImGui.tree_pop()
+
+    PyImGui.separator()
+
+    if PyImGui.tree_node_ex("[FLAGGING] Define party flags :", PyImGui.TreeNodeFlags.DefaultOpen):
+
+        # Set Flags at Leader Position (Preset 0: Grid)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.FLAG_COLOR)
+        clicked_p0 = ImGui.ImageButton(f"Set Flags at Leader Position##preset0", project_root + f"\\gui\\textures\\flag.png", icon_size, icon_size)
+        PyImGui.pop_style_var(1)
+        PyImGui.pop_style_color(1)
+        if PyImGui.is_item_hovered():
+            PyImGui.set_tooltip("PRESET 0 (Custom Grid): Apply custom grid assignments to flag positions based on grid configuration (manual-assign)")
+
+        if clicked_p0:
+            FlagCustomGridPlacement.apply_grid_to_flag_manager()
+
+        PyImGui.same_line(0,5)
+
+        # Set Flags at Leader Position (Preset 1: GridBackWard Leader)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.FLAG_COLOR)
+        clicked_p1 = ImGui.ImageButton(f"Set Flags at Leader Position##preset1", project_root + f"\\gui\\textures\\flag.png", icon_size, icon_size)
+        PyImGui.pop_style_var(1)
+        PyImGui.pop_style_color(1)
+        if PyImGui.is_item_hovered():
+            PyImGui.set_tooltip("PRESET 1 (AutoGrid BackWard Leader): Apply auto-grid assignments based on leader's position and facing (auto-assign)")
+        if clicked_p1:
+            FlagBackwardGridPlacement.apply_backward_grid_to_flag_manager()
+
+        PyImGui.same_line(0,5)
+
+        # Preset 2: Stacked flags at leader position (separate column)
+        PyImGui.push_style_var(ImGui.ImGuiStyleVar.FrameBorderSize, 3)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, UtilitySkillTypologyColor.FLAG_COLOR)
+        clicked_p2 = ImGui.ImageButton(f"Set Flags (Stacked)##preset2", project_root + f"\\gui\\textures\\flag.png", icon_size, icon_size)
+        PyImGui.pop_style_var(1)
+        PyImGui.pop_style_color(1)
+        if PyImGui.is_item_hovered():
+            PyImGui.set_tooltip("PRESET 2 (Stacked): Stack all flags at the leader's position (auto-assign)")
+        if clicked_p2:
+            FlagStackedPlacement.apply_stacked_to_flag_manager()
+
+        # Clear Flag Positions
+        if flag_manager.are_flags_defined():
+            PyImGui.same_line(0,5)
+
+            drop_btn_color = (0.8, 0.0, 0.0, 1.0)  # Red color
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, drop_btn_color)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (min(1.0, drop_btn_color[0] + 0.15), min(1.0, drop_btn_color[1] + 0.15), min(1.0, drop_btn_color[2] + 0.15), drop_btn_color[3]))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (max(0.0, drop_btn_color[0] - 0.1), max(0.0, drop_btn_color[1] - 0.1), max(0.0, drop_btn_color[2] - 0.1), drop_btn_color[3]))
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##drop_all_flags", 30, 30):
+                flag_manager.clear_all_flag_positions()
+            PyImGui.pop_style_color(3)
+            if PyImGui.is_item_hovered():
+                PyImGui.set_tooltip("Remove all flags from map")
+
+        FlagPanel.render_configuration()
+        PyImGui.tree_pop()
+
+    PyImGui.separator()
+
     if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
-        if PyImGui.tree_node_ex("[TEAM UI] HeroAI UI :", 0):
+        
+        if PyImGui.tree_node_ex("[TEAM] Management :", 0):
 
             from Sources.oazix.CustomBehaviors.primitives.hero_ai_wrapping.hero_ai_wrapping import HeroAiWrapping
             hero_ai = HeroAiWrapping()
             heroai_ui_visible = hero_ai.is_heroai_ui_visible()
-            new_state = PyImGui.checkbox("Show All Hero Panels", heroai_ui_visible)
+            new_state = PyImGui.checkbox("Show HeroUI Panels", heroai_ui_visible)
             if new_state != heroai_ui_visible:
                 hero_ai.change_heroai_ui_visibility(is_visible=new_state)
-            PyImGui.tree_pop()
-
-    if True or custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
-        if PyImGui.tree_node_ex("[TEAM] Manager :", 0):
 
             PyImGui.text(f"Default PartyLeader is {GLOBAL_CACHE.Party.GetPartyLeaderID()}")
             PyImGui.text(f"Overriden PartyLeader is {custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()}")
@@ -625,77 +682,10 @@ def render():
     for entry in CustomBehaviorParty().get_shared_lock_manager().get_current_locks():
         PyImGui.text(f"entry={entry.key}-{entry.acquired_at_seconds}-{entry.expires_at_seconds}")
 
-    # Render expandable following panel
-    if following_expandable.is_expanded():
-        if PyImGui.begin_child("following_panel", size=(0, 400), border=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.text("[FOLLOWING] Following & Spreading Configuration")
-            PyImGui.separator()
-
-            # Get the singleton manager
-            manager = PartyFollowingManager()
-
-            # Set narrower width for sliders to make labels more readable
-            PyImGui.push_item_width(200.0)
-
-            # Debug overlay toggle
-            new_overlay_value = PyImGui.checkbox("Enable Debug Overlay", manager.enable_debug_overlay)
-            if new_overlay_value != manager.enable_debug_overlay:
-                manager.enable_debug_overlay = new_overlay_value
-
-            PyImGui.same_line(0.0, -1.0)
-            PyImGui.text_colored("(?)", (0.5, 0.5, 0.5, 1.0))
-            if PyImGui.is_item_hovered():
-                PyImGui.set_tooltip("Show visual overlay with formation circles, distances, and movement vectors")
-
-            # Force overlay rendering when enabled
-            if manager.enable_debug_overlay:
-                # Get the behavior instance and call overlay renderers
-                behavior = CustomBehaviorLoader().custom_combat_behavior
-                if behavior is not None:
-                    skills_list = behavior.get_skills_final_list()
-                    current_state = behavior.get_final_state()
-
-                    # Import the utilities
-                    from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_only_utility import FollowPartyLeaderOnlyUtility
-                    from Sources.oazix.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
-
-                    # Render overlays for both utilities if they exist
-                    for skill_utility in skills_list:
-                        if isinstance(skill_utility, FollowPartyLeaderOnlyUtility):
-                            skill_utility.draw_overlay(current_state)
-                        elif isinstance(skill_utility, SpreadDuringCombatUtility):
-                            skill_utility.draw_overlay(current_state)
-
-            PyImGui.separator()
-
-            # Configuration info
-            PyImGui.text_colored("Following & Spreading Configuration:", (0.0, 1.0, 1.0, 1.0))
-            PyImGui.text_colored("Note: Configuration is managed by individual utilities", (0.7, 0.7, 0.7, 1.0))
-            PyImGui.bullet_text("Follow Party Leader: Configured in follow_party_leader_only_utility")
-            PyImGui.bullet_text("Spread During Combat: Configured in spread_during_combat_utility")
-            PyImGui.text_colored("Enable debug overlay above to see detailed configuration panels", (0.7, 0.7, 0.7, 1.0))
-
-            PyImGui.pop_item_width()
-            PyImGui.end_child()
-
-    # Render expandable inventory panel
-    if inventory_expandable.is_expanded():
-        if PyImGui.begin_child("inventory_panel", size=(0, 300), border=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.text("[INVENTORY] Inventory Management Configuration")
-            PyImGui.separator()
-            PyImGui.text("Add your inventory management UI here...")
-            # TODO: Add inventory management configuration UI
-            PyImGui.end_child()
-
-    # Render expandable flags panel
-    if flag_expandable.is_expanded():
-        if PyImGui.begin_child("flags_panel", size=(0, 500), border=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
-            FlagsUI.render_configuration()
-            PyImGui.end_child()
-
     # Always draw a vertical indicator for the (custom or current) target
     draw_party_target_vertical_line()
 
     # Draw the flagging overlay last so it appears on top
-    FlagsUI.render_overlay()
+    FlagPanel.render_overlay()
+    FollowingPanel.render_overlay()
 

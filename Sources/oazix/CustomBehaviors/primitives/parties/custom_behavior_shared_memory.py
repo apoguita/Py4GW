@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Generator
 
 
+from Sources.oazix.CustomBehaviors.primitives.following_behavior_priority import FollowingBehaviorPriority
 from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import (
     SharedLockEntry,
     SharedLockEntryStruct,
@@ -49,6 +50,16 @@ class PartyFollowingConfigStruct(Structure):
         # Movement parameters (spread_during_combat_utility)
         ("MinMoveThreshold", c_float),  # Minimum vector magnitude to trigger movement
         ("MaxMoveDistance", c_float),  # Maximum distance to move in one step
+
+        # Following behavior mode (BehaviorStateFollowing enum value)
+        ("PartyFollowingBehavior", c_uint),  # 0 = not set, 1 = DONT_SPREAD, 2 = SPREAD_IF_NOTHING_ELSE_TO_DO, 3 = FORCE_SPREADING
+
+        # Per-account force activation flags (indexed by account email)
+        # Each account can have different force settings
+        ("AccountEmails", (c_wchar * MAX_EMAIL_LEN) * MAX_FLAG_POSITIONS),  # Account emails for force settings
+        ("IsRepulsionAlliesActive", c_bool * MAX_FLAG_POSITIONS),  # Per-account allies repulsion activation
+        ("IsAttractionLeaderActive", c_bool * MAX_FLAG_POSITIONS),  # Per-account leader attraction activation
+        ("IsRepulsionEnemiesActive", c_bool * MAX_FLAG_POSITIONS),  # Per-account enemies repulsion activation
 
         # Debug
         ("EnableDebugOverlay", c_bool),
@@ -190,6 +201,18 @@ class CustomBehaviorWidgetMemoryManager:
         mem.FollowingConfig.AlliesRepulsionWeight = 180.0
         mem.FollowingConfig.MinMoveThreshold = 0.5
         mem.FollowingConfig.MaxMoveDistance = 300.0
+
+        # Initialize following behavior mode
+        mem.FollowingConfig.PartyFollowingBehavior = FollowingBehaviorPriority.NONE.value
+
+        # Initialize per-account force activation flags
+        for i in range(MAX_FLAG_POSITIONS):
+            # Clear email by setting first character to null terminator
+            mem.FollowingConfig.AccountEmails[i][0] = '\0'
+            # Default values (will be set properly when account initializes)
+            mem.FollowingConfig.IsRepulsionAlliesActive[i] = False
+            mem.FollowingConfig.IsAttractionLeaderActive[i] = True
+            mem.FollowingConfig.IsRepulsionEnemiesActive[i] = False
 
         # Initialize flagging config with defaults
         for i in range(MAX_FLAG_POSITIONS):

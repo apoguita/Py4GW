@@ -1,6 +1,6 @@
 from typing import Any, Generator, override
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player, Agent
+from Py4GWCoreLib import GLOBAL_CACHE, CombatEvents, Routines, Range, Player, Agent
 from Py4GWCoreLib.Effect import Effects
 from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState

@@ -8,9 +8,6 @@ from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.UIManager import UIManager
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.fps_monitor import FPSMonitor
-from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
 
 # Iterate through all modules in sys.modules (already imported modules)
@@ -26,21 +23,6 @@ for module_name in list(sys.modules.keys()):
         except Exception as e:
             Py4GW.Console.Log("CustomBehaviors", f"Error reloading module {module_name}: {e}")
 
-from Sources.oazix.CustomBehaviors.daemon import daemon
-from Sources.oazix.CustomBehaviors.primitives import constants
-from Sources.oazix.CustomBehaviors.primitives.fps_monitor import FPSMonitor
-from Sources.oazix.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
-from Sources.oazix.CustomBehaviors.gui.current_build import render as current_build_render
-from Sources.oazix.CustomBehaviors.gui.party import render as party
-from Sources.oazix.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
-from Sources.oazix.CustomBehaviors.gui.debug_execution import render as debug_execution
-from Sources.oazix.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
-from Sources.oazix.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
-from Sources.oazix.CustomBehaviors.gui.debug_eval_profiler import render as debug_eval_profiler
-from Sources.oazix.CustomBehaviors.gui.auto_mover import render as auto_mover
-from Sources.oazix.CustomBehaviors.gui.teambuild import render as teambuild
-from Sources.oazix.CustomBehaviors.gui.botting import render as botting
-
 party_forced_state_combo = 0
 current_path = pathlib.Path.cwd()
 monitor = FPSMonitor(history=300)
@@ -55,6 +37,19 @@ MODULE_ICON = "Textures/Module_Icons/Custom Behaviors.png"
 def gui():
     # PyImGui.set_next_window_size(260, 650)
     # PyImGui.set_next_window_size(460, 800)
+    from Sources.oazix.CustomBehaviors.primitives import constants
+    from Sources.oazix.CustomBehaviors.primitives.fps_monitor import FPSMonitor
+    from Sources.oazix.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
+    from Sources.oazix.CustomBehaviors.gui.current_build import render as current_build_render
+    from Sources.oazix.CustomBehaviors.gui.party import render as party
+    from Sources.oazix.CustomBehaviors.gui.debug_skillbars import render as debug_skilbars
+    from Sources.oazix.CustomBehaviors.gui.debug_execution import render as debug_execution
+    from Sources.oazix.CustomBehaviors.gui.debug_sharedlocks import render as debug_sharedlocks
+    from Sources.oazix.CustomBehaviors.gui.debug_eventbus import render as debug_eventbus
+    from Sources.oazix.CustomBehaviors.gui.debug_eval_profiler import render as debug_eval_profiler
+    from Sources.oazix.CustomBehaviors.gui.auto_mover import render as auto_mover
+    from Sources.oazix.CustomBehaviors.gui.teambuild import render as teambuild
+    from Sources.oazix.CustomBehaviors.gui.botting import render as botting
 
     global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
@@ -124,6 +119,12 @@ previous_map_status = False
 map_change_throttler = ThrottledTimer(1_500)
 
 def main():
+    from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
+    from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+    from Sources.oazix.CustomBehaviors.daemon import daemon
+
     global previous_map_status, monitor, widget_window_size, widget_window_pos
 
     monitor.tick()

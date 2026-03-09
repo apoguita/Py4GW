@@ -41,19 +41,19 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
         else:
             self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
 
+        self.should_target_ebon_vanguard_assassin = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "should_target_ebon_vanguard_assassin", "0") == "1")
+        self.ebon_vanguard_assassin_model_id = 5903
+
         self.prefer_model_target: bool = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "prefer_model_target", "1") == "1")
         self.model_id_filter: int = int(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "model_id_filter", "5903"))
         self.strict_model_targeting: bool = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "strict_model_targeting", "0") == "1")
 
     def _get_target(self) -> int | None:
 
-        if self.prefer_model_target and self.model_id_filter > 0:
-            npc_agent_id = Routines.Agents.GetNearestAliveAgentByModelID(self.model_id_filter, Range.Spellcast.value)
-            if npc_agent_id and npc_agent_id != Player.GetAgentID() and not Agent.IsWeaponSpelled(npc_agent_id):
+        if self.should_target_ebon_vanguard_assassin:
+            npc_agent_id : int = Routines.Agents.GetNearestAliveAgentByModelID(self.model_id_filter, Range.Spellcast.value)
+            if npc_agent_id != None and npc_agent_id != 0 and not Agent.IsWeaponSpelled(npc_agent_id):
                 return npc_agent_id
-
-        if self.strict_model_targeting:
-            return None
         
         # Check if we have a valid target
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
@@ -70,14 +70,12 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-
         target = self._get_target()
         if target is None: return None
         return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-
         target = self._get_target()
         if target is None: return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target)
@@ -89,14 +87,8 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
     
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text("prefer_model_target :")
-        self.prefer_model_target = PyImGui.checkbox("##gdw_prefer_model_target", self.prefer_model_target)
-        PyImGui.bullet_text("model_id_filter :")
-        self.model_id_filter = PyImGui.input_int("##gdw_model_id_filter", self.model_id_filter)
-        if self.model_id_filter < 0:
-            self.model_id_filter = 0
-        PyImGui.bullet_text("strict_model_targeting :")
-        self.strict_model_targeting = PyImGui.checkbox("##gdw_strict_model_targeting", self.strict_model_targeting)
+        PyImGui.bullet_text("should_target_ebon_vanguard_assassin :")
+        self.should_target_ebon_vanguard_assassin = PyImGui.checkbox("##gdw_prefer_model_target", self.should_target_ebon_vanguard_assassin)
 
     @override
     def has_persistence(self) -> bool:
@@ -105,23 +97,17 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
     @override
     def persist_configuration_for_account(self):
         PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "prefer_model_target", "1" if self.prefer_model_target else "0")
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "model_id_filter", str(self.model_id_filter))
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "strict_model_targeting", "1" if self.strict_model_targeting else "0")
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "should_target_ebon_vanguard_assassin", "1" if self.should_target_ebon_vanguard_assassin else "0")
         print("configuration saved for account")
 
     @override
     def persist_configuration_as_global(self):
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "prefer_model_target", "1" if self.prefer_model_target else "0")
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "model_id_filter", str(self.model_id_filter))
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "strict_model_targeting", "1" if self.strict_model_targeting else "0")
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "should_target_ebon_vanguard_assassin", "1" if self.should_target_ebon_vanguard_assassin else "0")
         print("configuration saved as global")
 
     @override
     def delete_persisted_configuration(self):
         PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "prefer_model_target")
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "model_id_filter")
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "strict_model_targeting")
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "should_target_ebon_vanguard_assassin")
         print("configuration deleted")

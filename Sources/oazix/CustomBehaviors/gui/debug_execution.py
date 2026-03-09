@@ -4,11 +4,10 @@ from datetime import datetime
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader, MatchResult
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
-
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 @staticmethod
 def render():
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
     shared_data = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
 
     PyImGui.text(f"History (newest on top) : ")

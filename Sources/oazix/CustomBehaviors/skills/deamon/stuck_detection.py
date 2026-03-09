@@ -4,6 +4,7 @@ from typing import Any, Generator, override
 import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Range, Player
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Utils
 
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -29,7 +30,7 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
             skill=CustomSkill("stuck_detection"),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(CommonScore.DEAMON.value),
-            allowed_states=[BehaviorState.IDLE, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
+            allowed_states=[BehaviorState.IDLE, BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO], # IDLE is important when we are stuck in town (when botting)
             utility_skill_typology=UtilitySkillTypology.DAEMON)
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(CommonScore.DEAMON.value)
@@ -68,7 +69,6 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
-        # if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
         return True
 
@@ -89,8 +89,15 @@ class StuckDetectionUtility(CustomSkillUtilityBase):
 
         if not throttle_timer.IsExpired():
             return None
-
+        
+                
         current_player_pos = Player.GetXY()
+
+        # let's be more restrictive, stuck is only possible when leader is a bit far away
+        party_leader_id = custom_behavior_helpers.CustomBehaviorHelperParty.get_party_leader_id()
+        if Player.GetAgentID() != party_leader_id:
+            if Utils.Distance(current_player_pos, Agent.GetXY(party_leader_id)) < 400: return None
+        
         distance_moved = Utils.Distance(self.__previous_player_position, current_player_pos)
 
         if distance_moved < self.movement_threshold:  # likely stuck

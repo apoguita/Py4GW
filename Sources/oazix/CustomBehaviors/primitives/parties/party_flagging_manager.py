@@ -4,10 +4,9 @@ Stores all parameters in shared RAM memory for cross-process access.
 Manages flag positions for up to 12 party members.
 """
 
-import math
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib import Map, Agent, Player
-from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
+from Py4GWCoreLib import Player
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 class PartyFlaggingManager:
     """
@@ -30,7 +29,6 @@ class PartyFlaggingManager:
 
     def __init__(self):
         # Only initialize once
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
         if self._initialized:
             return
@@ -66,69 +64,9 @@ class PartyFlaggingManager:
 
     def _initialize_default_positions(self):
         """Initialize default flag positions on startup if not already set"""
-
-        # Check if we're in game and can get player position
-        try:
-            # Only initialize if we're the party leader and in an explorable area
-            if not Map.IsExplorable():
-                return
-
-            if not custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
-                return
-
-            # Check if flags are already assigned (any flag has an email)
-            config = self._memory_manager.GetFlaggingConfig()
-            has_assignments = False
-            for i in range(12):
-                email = self._get_c_wchar_array_as_str(config.FlagAccountEmails[i])
-                if email:
-                    has_assignments = True
-                    break
-
-            # If already has assignments, don't override
-            if has_assignments:
-                return
-
-            # Get leader position and angle
-            leader_x, leader_y = Player.GetXY()
-            leader_agent_id = Player.GetAgentID()
-            leader_angle = Agent.GetRotationAngle(leader_agent_id)
-
-            # Get all party members (excluding leader)
-            account_email = Player.GetAccountEmail()
-            all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-
-            # Filter to same map and party, excluding leader
-            party_members = []
-            my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
-            if my_account is not None:
-                for account in all_accounts:
-                    if account.AccountEmail == account_email:
-                        continue  # Skip leader
-                    # Check if in same map
-                    is_in_map = (my_account.AgentData.Map.MapID == account.AgentData.Map.MapID and
-                               my_account.AgentData.Map.Region == account.AgentData.Map.Region and
-                               my_account.AgentData.Map.District == account.AgentData.Map.District)
-                    if is_in_map:
-                        party_members.append(account.AccountEmail)
-
-            # If no party members, nothing to initialize
-            if not party_members:
-                return
-
-            # Assign flags (flag 1 to first member, flag 2 to second, etc.)
-            flag_assignments = {}
-            for i, email in enumerate(party_members):
-                if i >= 12:  # Max 12 flags
-                    break
-                flag_assignments[i + 1] = email  # Flag numbers are 1-based
-
-            # Apply formation at current position
-            self.assign_formation_preset_1(leader_x, leader_y, leader_angle, flag_assignments)
-
-        except Exception as e:
-            # Silently fail if we can't initialize (e.g., not in game yet)
-            pass
+        # This method is deprecated - flag positions should be set explicitly via UI
+        # Keeping it as a no-op for backward compatibility
+        pass
 
     # --- Flag Position Access (0-11) ---
     def get_flag_account_email(self, flag_index: int) -> str:
@@ -239,12 +177,12 @@ class PartyFlaggingManager:
                     return True
         return False
 
-
     def auto_assign_emails_if_none_assigned(self) -> bool:
         """
         Auto-assign party members' emails to grid flags (1..12) if none are assigned yet.
         Returns True if an assignment was performed, False otherwise.
         """
+        
         config = self._memory_manager.GetFlaggingConfig()
         # If any email is already assigned, do nothing
         for i in range(12):
@@ -277,7 +215,6 @@ class PartyFlaggingManager:
 
         self._memory_manager.SetFlaggingConfig(config)
         return assigned > 0
-
 
     def is_flag_defined(self, my_account_email: str) -> bool:
         """
@@ -320,227 +257,3 @@ class PartyFlaggingManager:
             config.FlagPositionsX[i] = 0.0
             config.FlagPositionsY[i] = 0.0
         self._memory_manager.SetFlaggingConfig(config)
-
-    # --- Formation Assignment Methods ---
-    def assign_formation_preset_1(self, leader_x: float, leader_y: float, leader_angle: float, flag_assignments: dict[int, str]) -> None:
-        """
-        Assign flags in preset formation 1 based on leader position and angle.
-
-        Formation pattern (relative to leader facing direction):
-            Perfect 3x4 grid behind leader:
-            1  2  3   (closest row)
-            4  5  6
-            7  8  9
-            10 11 12  (furthest row)
-
-        Args:
-            leader_x: Leader's X position
-            leader_y: Leader's Y position
-            leader_angle: Leader's facing angle in radians
-            flag_assignments: Dict mapping flag number (1-12) to account email
-                             Example: {1: "player1@email.com", 2: "player2@email.com", ...}
-        """
-        # Get spacing from configuration
-        spacing = self.spacing_radius
-
-        # Safety check: if spacing is 0, use default value
-        if spacing == 0.0:
-            spacing = 100.0
-            # Also update the config to fix it permanently
-            self.spacing_radius = 100.0
-
-        # Formation offsets relative to leader (in leader's local coordinate system)
-        # Format: (forward_offset, right_offset) where forward is leader's facing direction
-        # Positive forward = in front of leader, negative = behind
-        # Positive right = to leader's right, negative = to leader's left
-        # Index corresponds to flag number - 1 (flag 1 = index 0, flag 2 = index 1, etc.)
-        formation_offsets = [
-            # Flag 1: Row 2, left position
-            (-spacing, -spacing),      # behind-left
-            # Flag 2: Row 2, center position
-            (-spacing, 0),             # behind-center
-            # Flag 3: Row 2, right position
-            (-spacing, spacing),       # behind-right
-            # Flag 4: Row 3, left position
-            (-spacing * 2, -spacing),  # further behind-left
-            # Flag 5: Row 3, center position
-            (-spacing * 2, 0),         # further behind-center
-            # Flag 6: Row 3, right position
-            (-spacing * 2, spacing),   # further behind-right
-            # Flag 7: Row 4, left position
-            (-spacing * 3, -spacing),  # even further behind-left
-            # Flag 8: Row 4, center position
-            (-spacing * 3, 0),         # even further behind-center
-            # Flag 9: Row 4, right position
-            (-spacing * 3, spacing),   # even further behind-right
-            # Flag 10: Row 4, left position
-            (-spacing * 4, -spacing),  # furthest behind-left
-            # Flag 11: Row 4, center position
-            (-spacing * 4, 0),         # furthest behind-center
-            # Flag 12: Row 4, right position
-            (-spacing * 4, spacing),   # furthest behind-right
-        ]
-
-        # Convert leader angle to direction vector
-        # In Guild Wars, angle 0 typically points right, increases counter-clockwise
-        cos_angle = math.cos(leader_angle)
-        sin_angle = math.sin(leader_angle)
-
-        # Assign flags
-        config = self._memory_manager.GetFlaggingConfig()
-
-        # Clear all flags first
-        for i in range(12):
-            self._set_c_wchar_array(config.FlagAccountEmails[i], "")
-            config.FlagPositionsX[i] = 0.0
-            config.FlagPositionsY[i] = 0.0
-
-        # Assign specified flags
-        for flag_number, email in flag_assignments.items():
-            if flag_number < 1 or flag_number > 12:
-                raise ValueError(f"Flag number must be 1-12, got {flag_number}")
-
-            flag_index = flag_number - 1  # Convert to 0-based index
-
-            # Get formation offset
-            forward_offset, right_offset = formation_offsets[flag_index]
-
-            # Transform from local (forward/right) to world coordinates
-            # Forward direction: (cos_angle, sin_angle)
-            # Right direction: (sin_angle, -cos_angle) [perpendicular to forward, 90° clockwise]
-            # Formula: world_pos = leader_pos + forward_offset * forward_vec + right_offset * right_vec
-            world_x = leader_x + (forward_offset * cos_angle + right_offset * sin_angle)
-            world_y = leader_y + (forward_offset * sin_angle - right_offset * cos_angle)
-
-            # Assign to flag index
-            self._set_c_wchar_array(config.FlagAccountEmails[flag_index], email)
-            config.FlagPositionsX[flag_index] = world_x
-            config.FlagPositionsY[flag_index] = world_y
-
-        self._memory_manager.SetFlaggingConfig(config)
-
-    def update_formation_positions(self, leader_x: float, leader_y: float, leader_angle: float, formation_type: str = "preset_1") -> None:
-        """
-        Update flag positions while keeping current email assignments.
-        Useful for moving the formation without reassigning players.
-
-        Args:
-            leader_x: Leader's X position
-            leader_y: Leader's Y position
-            leader_angle: Leader's facing angle in radians
-            formation_type: Type of formation ("preset_1" or custom offsets can be added)
-        """
-        if formation_type == "preset_2":
-            config = self._memory_manager.GetFlaggingConfig()
-            for i in range(12):
-                email = self._get_c_wchar_array_as_str(config.FlagAccountEmails[i])
-                if email:
-                    config.FlagPositionsX[i] = leader_x
-                    config.FlagPositionsY[i] = leader_y
-            self._memory_manager.SetFlaggingConfig(config)
-            return
-        elif formation_type != "preset_1":
-            raise ValueError(f"Unknown formation type: {formation_type}")
-
-        # Get spacing from configuration
-        spacing = self.spacing_radius
-
-        # Safety check: if spacing is 0, use default value
-        if spacing == 0.0:
-            spacing = 100.0
-            # Also update the config to fix it permanently
-            self.spacing_radius = 100.0
-
-        # Formation offsets relative to leader (forward, right)
-        formation_offsets = [
-            (-spacing, -spacing),      # Flag 1: behind-left
-            (-spacing, 0),             # Flag 2: behind-center
-            (-spacing, spacing),       # Flag 3: behind-right
-            (-spacing * 2, -spacing),  # Flag 4: further behind-left
-            (-spacing * 2, 0),         # Flag 5: further behind-center
-            (-spacing * 2, spacing),   # Flag 6: further behind-right
-            (-spacing * 3, -spacing),  # Flag 7: even further behind-left
-            (-spacing * 3, 0),         # Flag 8: even further behind-center
-            (-spacing * 3, spacing),   # Flag 9: even further behind-right
-            (-spacing * 4, -spacing),  # Flag 10: furthest behind-left
-            (-spacing * 4, 0),         # Flag 11: furthest behind-center
-            (-spacing * 4, spacing),   # Flag 12: furthest behind-right
-        ]
-
-        # Calculate rotation
-        cos_angle = math.cos(leader_angle)
-        sin_angle = math.sin(leader_angle)
-
-        config = self._memory_manager.GetFlaggingConfig()
-
-        # Update positions for all assigned flags (without clearing emails)
-        for i in range(12):
-            email = self._get_c_wchar_array_as_str(config.FlagAccountEmails[i])
-            if email:  # Only update if flag is assigned
-                # Get formation offset
-                forward_offset, right_offset = formation_offsets[i]
-
-                # Transform from local (forward/right) to world coordinates
-                world_x = leader_x + (forward_offset * cos_angle + right_offset * sin_angle)
-                world_y = leader_y + (forward_offset * sin_angle - right_offset * cos_angle)
-
-                # Update position only
-                config.FlagPositionsX[i] = world_x
-                config.FlagPositionsY[i] = world_y
-
-        self._memory_manager.SetFlaggingConfig(config)
-
-    def assign_formation_for_current_party(self, formation_type: str = "preset_1") -> tuple[bool, str]:
-        """
-        Assign formation flags for all party members based on current leader position.
-        This is a convenience method for UI usage.
-
-        Args:
-            formation_type: Type of formation to use (default: "preset_1")
-
-        Returns:
-            tuple[bool, str]: (success, message)
-                - success: True if assignment succeeded, False otherwise
-                - message: Error message if failed, empty string if succeeded
-        """
-        # Check if current player is party leader
-        if True == False:
-            return False, "You must be party leader to set flags"
-
-        # Get leader position and angle
-        leader_x, leader_y = Player.GetXY()
-        leader_agent_id = Player.GetAgentID()
-        leader_angle = Agent.GetRotationAngle(leader_agent_id)
-
-        # Get all party members (excluding leader)
-        account_email = Player.GetAccountEmail()
-        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-
-        # Filter to same map and party, excluding leader
-        party_members = []
-        for account in all_accounts:
-            if account.AccountEmail == account_email:
-                continue  # Skip leader
-            # Check if in same map
-            my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
-            if my_account is not None:
-                is_in_map = (my_account.AgentData.Map.MapID == account.AgentData.Map.MapID and
-                           my_account.AgentData.Map.Region == account.AgentData.Map.Region and
-                           my_account.AgentData.Map.District == account.AgentData.Map.District)
-                if is_in_map:
-                    party_members.append(account.AccountEmail)
-
-        # Assign flags (flag 1 to first member, flag 2 to second, etc.)
-        flag_assignments = {}
-        for i, email in enumerate(party_members):
-            if i >= 12:  # Max 12 flags
-                break
-            flag_assignments[i + 1] = email  # Flag numbers are 1-based
-
-        # Apply formation
-        if formation_type == "preset_1":
-            self.assign_formation_preset_1(leader_x, leader_y, leader_angle, flag_assignments)
-        else:
-            return False, f"Unknown formation type: {formation_type}"
-
-        return True, ""

@@ -51,6 +51,24 @@ class BottingManager:
         self._setup_default_skills()
         self._load_from_persistence()
 
+    def configure_aggressive_skill(self, skill_name: str, enabled: bool):
+        for skill in self._aggressive_skills:
+            if skill.name == skill_name:
+                skill.enabled = enabled
+                return
+
+    def configure_automover_skill(self, skill_name: str, enabled: bool):
+        for skill in self._automover_skills:
+            if skill.name == skill_name:
+                skill.enabled = enabled
+                return
+            
+    def configure_pacifist_skill(self, skill_name: str, enabled: bool):
+        for skill in self._pacifist_skills:
+            if skill.name == skill_name:
+                skill.enabled = enabled
+                return
+
     def _setup_default_skills(self):
         """Setup the default skill configurations."""
         # Lazy imports to avoid circular dependencies
@@ -67,50 +85,32 @@ class BottingManager:
 
         # Pacifist skills (minimal set)
         self._pacifist_skills = [
-            UtilitySkillEntry("WaitIfPartyMemberTooFarUtility", "Wait If Party Member Too Far", True, 
-                              lambda eb, build: WaitIfPartyMemberTooFarUtility(eb, build)),
+            UtilitySkillEntry(WaitIfPartyMemberTooFarUtility.Name, "Wait If Party Member Too Far", True, lambda eb, build: WaitIfPartyMemberTooFarUtility(eb, build)),
         ]
 
         # Aggressive skills (full set)
         self._aggressive_skills = [
-            UtilitySkillEntry("MoveToPartyMemberIfInAggroUtility", "Move To Party Member If In Aggro", True,
-                              lambda eb, build: MoveToPartyMemberIfInAggroUtility(eb, build)),
-            UtilitySkillEntry("MoveToEnemyIfCloseEnoughUtility", "Move To Enemy If Close Enough", True,
-                              lambda eb, build: MoveToEnemyIfCloseEnoughUtility(eb, build)),
-            UtilitySkillEntry("MoveToPartyMemberIfDeadUtility", "Move To Party Member If Dead", True,
-                              lambda eb, build: MoveToPartyMemberIfDeadUtility(eb, build)),
-            UtilitySkillEntry("WaitIfPartyMemberManaTooLowUtility", "Wait If Party Member Mana Too Low", True,
-                              lambda eb, build: WaitIfPartyMemberManaTooLowUtility(eb, build)),
-            UtilitySkillEntry("WaitIfPartyMemberTooFarUtility", "Wait If Party Member Too Far", True,
-                              lambda eb, build: WaitIfPartyMemberTooFarUtility(eb, build)),
-            UtilitySkillEntry("WaitIfPartyMemberNeedsToLootUtility", "Wait If Party Member Needs To Loot", True,
-                              lambda eb, build: WaitIfPartyMemberNeedsToLootUtility(eb, build)),
-            UtilitySkillEntry("WaitIfInAggroUtility", "Wait If In Aggro", True,
-                              lambda eb, build: WaitIfInAggroUtility(eb, build)),
-            UtilitySkillEntry("WaitIfLockTakenUtility", "Wait If Lock Taken", True,
-                              lambda eb, build: WaitIfLockTakenUtility(eb, build)),
-            UtilitySkillEntry("MoveToDistantChestIfPathExistsUtility", "Move To Distant Chest If Path Exists", False,
-                              lambda eb, build: MoveToDistantChestIfPathExistsUtility(eb, build)),
+            UtilitySkillEntry(MoveToPartyMemberIfInAggroUtility.Name, "Move To Party Member If In Aggro", True, lambda eb, build: MoveToPartyMemberIfInAggroUtility(eb, build)),
+            UtilitySkillEntry(MoveToEnemyIfCloseEnoughUtility.Name, "Move To Enemy If Close Enough", True, lambda eb, build: MoveToEnemyIfCloseEnoughUtility(eb, build)),
+            UtilitySkillEntry(MoveToPartyMemberIfDeadUtility.Name, "Move To Party Member If Dead", True, lambda eb, build: MoveToPartyMemberIfDeadUtility(eb, build)),
+            UtilitySkillEntry(WaitIfPartyMemberManaTooLowUtility.Name, "Wait If Party Member Mana Too Low", True, lambda eb, build: WaitIfPartyMemberManaTooLowUtility(eb, build)),
+            UtilitySkillEntry(WaitIfPartyMemberTooFarUtility.Name, "Wait If Party Member Too Far", True, lambda eb, build: WaitIfPartyMemberTooFarUtility(eb, build)),
+            UtilitySkillEntry(WaitIfPartyMemberNeedsToLootUtility.Name, "Wait If Party Member Needs To Loot", True, lambda eb, build: WaitIfPartyMemberNeedsToLootUtility(eb, build)),
+            UtilitySkillEntry(WaitIfInAggroUtility.Name, "Wait If In Aggro", True, lambda eb, build: WaitIfInAggroUtility(eb, build)),
+            UtilitySkillEntry(WaitIfLockTakenUtility.Name, "Wait If Lock Taken", True, lambda eb, build: WaitIfLockTakenUtility(eb, build)),
+            UtilitySkillEntry(MoveToDistantChestIfPathExistsUtility.Name, "Move To Distant Chest If Path Exists", False, lambda eb, build: MoveToDistantChestIfPathExistsUtility(eb, build)),
         ]
 
         # Automover skills (same as aggressive but can be configured separately)
         self._automover_skills = [
-            UtilitySkillEntry("MoveToPartyMemberIfInAggroUtility", "Move To Party Member If In Aggro", True,
-                              lambda eb, build: MoveToPartyMemberIfInAggroUtility(eb, build)),
-            UtilitySkillEntry("MoveToEnemyIfCloseEnoughUtility", "Move To Enemy If Close Enough", True,
-                              lambda eb, build: MoveToEnemyIfCloseEnoughUtility(eb, build)),
-            UtilitySkillEntry("MoveToPartyMemberIfDeadUtility", "Move To Party Member If Dead", True,
-                              lambda eb, build: MoveToPartyMemberIfDeadUtility(eb, build)),
-            UtilitySkillEntry("WaitIfPartyMemberManaTooLowUtility", "Wait If Party Member Mana Too Low", True,
-                              lambda eb, build: WaitIfPartyMemberManaTooLowUtility(eb, build)),
-            UtilitySkillEntry("WaitIfPartyMemberTooFarUtility", "Wait If Party Member Too Far", True,
-                              lambda eb, build: WaitIfPartyMemberTooFarUtility(eb, build)),
-            UtilitySkillEntry("WaitIfPartyMemberNeedsToLootUtility", "Wait If Party Member Needs To Loot", True,
-                              lambda eb, build: WaitIfPartyMemberNeedsToLootUtility(eb, build)),
-            UtilitySkillEntry("WaitIfInAggroUtility", "Wait If In Aggro", True,
-                              lambda eb, build: WaitIfInAggroUtility(eb, build)),
-            UtilitySkillEntry("WaitIfLockTakenUtility", "Wait If Lock Taken", True,
-                              lambda eb, build: WaitIfLockTakenUtility(eb, build)),
+            UtilitySkillEntry(MoveToPartyMemberIfInAggroUtility.Name, "Move To Party Member If In Aggro", True, lambda eb, build: MoveToPartyMemberIfInAggroUtility(eb, build)),
+            UtilitySkillEntry(MoveToEnemyIfCloseEnoughUtility.Name, "Move To Enemy If Close Enough", True, lambda eb, build: MoveToEnemyIfCloseEnoughUtility(eb, build)),
+            UtilitySkillEntry(MoveToPartyMemberIfDeadUtility.Name, "Move To Party Member If Dead", True, lambda eb, build: MoveToPartyMemberIfDeadUtility(eb, build)),
+            UtilitySkillEntry(WaitIfPartyMemberManaTooLowUtility.Name, "Wait If Party Member Mana Too Low", True, lambda eb, build: WaitIfPartyMemberManaTooLowUtility(eb, build)),
+            UtilitySkillEntry(WaitIfPartyMemberTooFarUtility.Name, "Wait If Party Member Too Far", True, lambda eb, build: WaitIfPartyMemberTooFarUtility(eb, build)),
+            UtilitySkillEntry(WaitIfPartyMemberNeedsToLootUtility.Name, "Wait If Party Member Needs To Loot", True, lambda eb, build: WaitIfPartyMemberNeedsToLootUtility(eb, build)),
+            UtilitySkillEntry(WaitIfInAggroUtility.Name, "Wait If In Aggro", True, lambda eb, build: WaitIfInAggroUtility(eb, build)),
+            UtilitySkillEntry(WaitIfLockTakenUtility.Name, "Wait If Lock Taken", True, lambda eb, build: WaitIfLockTakenUtility(eb, build)),
         ]
 
     # Properties to access skill lists

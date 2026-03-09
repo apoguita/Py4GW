@@ -15,6 +15,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.following_behavior_priority import FollowingBehaviorPriority
 from Sources.oazix.CustomBehaviors.primitives import constants
 
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -26,6 +27,7 @@ from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import
 from Sources.oazix.CustomBehaviors.primitives.parties.party_teambuild_manager import PartyTeamBuildManager
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
 
 @dataclass
 class PartyData:
@@ -43,7 +45,6 @@ class CustomBehaviorParty:
 
     def __init__(self):
         if not self._initialized:
-            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
             self._initialized = True
             self._generator_handle = self._handle()
             
@@ -151,12 +152,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_is_enabled(self) -> bool:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_enabled
 
     def set_party_is_enabled(self, is_enabled: bool):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=is_enabled,
@@ -173,12 +172,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_is_combat_enabled(self) -> bool:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_combat_enabled
 
     def set_party_is_combat_enabled(self, is_combat_enabled: bool):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -195,12 +192,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_is_looting_enabled(self) -> bool:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_looting_enabled
 
     def set_party_is_looting_enabled(self, is_looting_enabled: bool):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -217,12 +212,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_is_chesting_enabled(self) -> bool:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_chesting_enabled
 
     def set_party_is_chesting_enabled(self, is_chesting_enabled: bool):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -239,12 +232,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_is_following_enabled(self) -> bool:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_following_enabled
 
     def set_party_is_following_enabled(self, is_following_enabled: bool):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -261,12 +252,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_is_blessing_enabled(self) -> bool:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_blessing_enabled
 
     def set_party_is_blessing_enabled(self, is_blessing_enabled: bool):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -283,12 +272,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_is_inventory_enabled(self) -> bool:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.is_inventory_enabled
 
     def set_party_is_inventory_enabled(self, is_inventory_enabled: bool):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -305,13 +292,11 @@ class CustomBehaviorParty:
     #---
 
     def get_party_forced_state(self) -> BehaviorState|None:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         result = BehaviorState(shared_data.party_forced_state) if shared_data.party_forced_state is not None else None
         return result
 
     def set_party_forced_state(self, state: BehaviorState | None):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -328,12 +313,10 @@ class CustomBehaviorParty:
     #---
 
     def get_party_custom_target(self) -> int | None:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.party_target_id
 
     def set_party_custom_target(self, target: int | None):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -351,12 +334,10 @@ class CustomBehaviorParty:
 
     @staticmethod
     def get_party_leader_email() -> str | None:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         return shared_data.party_leader_email
 
     def set_party_leader_email(self, leader_email: str | None):
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
         shared_data:CustomBehaviorWidgetData = CustomBehaviorWidgetMemoryManager().GetCustomBehaviorWidgetData()
         CustomBehaviorWidgetMemoryManager().SetCustomBehaviorWidgetData(
             is_enabled=shared_data.is_enabled,
@@ -369,3 +350,17 @@ class CustomBehaviorParty:
             party_target_id=shared_data.party_target_id,
             party_leader_email=leader_email,
             party_forced_state=shared_data.party_forced_state)
+
+    #---
+
+    def get_party_following_behavior(self) -> FollowingBehaviorPriority | None:
+        return self.party_following_manager.party_following_behavior
+
+    def set_party_following_behavior_priority(self, behavior: FollowingBehaviorPriority | None):
+        """Set the party following behavior and apply the preset configuration to all accounts"""
+        if behavior is None:
+            # If None, just set the enum without applying preset
+            self.party_following_manager.party_following_behavior = behavior
+        else:
+            # Apply the preset configuration to all accounts
+            self.party_following_manager.set_party_following_behavior_state(behavior)

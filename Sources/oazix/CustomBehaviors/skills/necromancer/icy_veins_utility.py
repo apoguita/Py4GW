@@ -12,27 +12,29 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
 
-class IcyVeins_NearDeathUtility(CustomSkillUtilityBase):
+class IcyVeinsUtility(CustomSkillUtilityBase):
 
     def __init__(
         self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
-        skill: CustomSkill = CustomSkill("Icy_Veins"),
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(40),
         mana_required_to_cast: int = 15,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO],
     ) -> None:
         super().__init__(
             event_bus=event_bus,
-            skill=skill,
+            skill=CustomSkill("Icy_Veins"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states,
         )
 
-        self.score_definition = score_definition
+        # TODO A BETTER IMPLEMENTATION SHOULD BE DONE WITH A DEDICATED TRACKER/HELPER ; SAME FOR AS ASSASSINS_PROMISE
+        # we need that to have an effect on the targeting system. that's a deep task.
+
+        self.score_definition: ScoreStaticDefinition = score_definition
 
     def _get_candidates(self) -> tuple[int, ...]:
         """

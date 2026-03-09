@@ -1,84 +1,117 @@
-from enum import Enum
-from typing import Any, Callable, Dict, Generator, List
+"""
+Blessing Helper - Uses encoded names to find NPCs and UIManager for dialog management.
+THAT STUFF IS AN WORK-IN-PROGRESS ATTEMPT AND WILL BE MOVED TO THE CORE LIBRARY.
 
-from Sources.aC_Scripts.aC_api import Blessing_dialog_helper, Verify_Blessing
+LATEST TESTS are showing encoded names are not so unique, it might not be the correct way to deal with NPC identification.
+"""
+from enum import Enum
+from typing import Any, Callable, Dict, Generator
+
+import PyAgent
+from Py4GWCoreLib.UIManager import UIManager
+from Sources.aC_Scripts.aC_api import Verify_Blessing
 from Py4GWCoreLib import AgentArray, Player
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.enums import Allegiance, Range
 from Py4GWCoreLib.Agent import Agent
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
-class BlessingNpc(Enum):
-    Sunspear_Scout              = (4778, 4776)
-    Wandering_Priest            = (5384, 5383)
-    Vabbian_Scout               = (5632,)
-    Ghostly_Scout               = (5547, 5548)
-    Ghostly_Priest              = (5615,)
-    Whispers_Informants         = (5218, 5683)
-    Forgotten_Warden            = (5002,)
-    Kurzick_Priest              = (593, 912, 3426)
-    Luxon_Priest                = (1947, 3641)
-    Beacons_of_Droknar          = (5865,)
-    Ascalonian_Refugees         = (1986, 1987, 6044, 6045, 6043)
-    Asuran_Krewe                = (6755, 6756, 6775, 6779) # some can cause issue as shared with many other azura npc...
-    Norn_Hunters                = (6374, 6380)
 
-    def __init__(self, *mids: int):
-        self.model_ids = mids
+class BlessingNpcV2(Enum):
+    """
+    Blessing NPC definitions using encoded names.
+    Each entry contains a list of encoded name byte sequences that identify the NPC.
+    Fill in the correct encoded name codes for each NPC type.
+    """
+    # TODO: Fill in encoded names - use enc name tester.py to find the correct codes
+    # Format: ([enc_name_bytes_1, enc_name_bytes_2, ...], "display_name")
+    Sunspear_Scout              = ([[1, 129, 216, 71, 88, 179, 225, 255, 119, 64, 0, 0], [1, 129, 192, 71, 144, 187, 17, 211, 164, 104, 0, 0]], "Sunspear Scout")     
+    Wandering_Priest            = ([[1, 129, 30, 82, 119, 217, 105, 203, 18, 88, 0, 0]], "Wandering Priest")
+    Vabbian_Scout               = ([], "Vabbian Scout")
+    Ghostly_Scout               = ([], "Ghostly Scout")
+    Ghostly_Priest              = ([], "Ghostly Priest")
+    Whispers_Informants         = ([], "Whispers Informants")
+    Forgotten_Warden            = ([], "Forgotten Warden")
+    Kurzick_Priest              = ([], "Kurzick Priest")
+    Luxon_Priest                = ([], "Luxon Priest")
+    Beacons_of_Droknar          = ([[2, 129, 189, 34, 175, 164, 87, 198, 207, 23, 0, 0]], "Beacons of Droknar")
+    Ascalonian_Refugees         = ([], "Ascalonian Refugees")
+    Asuran_Krewe                = ([], "Asuran Krewe")
+    Norn_Hunters                = ([], "Norn Hunters")
 
-# Precomputed at module level (once at import, not per call)
-_BLESSING_MODEL_IDS: set[int] = set()
-_MODEL_ID_TO_NPC: dict[int, 'BlessingNpc'] = {}
-for _npc in BlessingNpc:
-    for _mid in _npc.model_ids:
-        _BLESSING_MODEL_IDS.add(_mid)
-        _MODEL_ID_TO_NPC[_mid] = _npc
+    def __init__(self, encoded_names: list[list[int]], display_name: str):
+        self.encoded_names = encoded_names
+        self.display_name = display_name
 
-def find_first_blessing_npc(within_range:float)  -> tuple[BlessingNpc,int] | None:
+
+def _match_encoded_name(agent_id: int, npc: BlessingNpcV2) -> bool:
+    """Check if an agent's encoded name matches any of the NPC's known encoded names."""
+    if not npc.encoded_names:
+        return False
+    agent_enc_name = PyAgent.PyAgent.GetAgentEncName(agent_id)
+    for enc_name in npc.encoded_names:
+        if agent_enc_name == enc_name:
+            return True
+    return False
+
+
+def find_first_blessing_npc(within_range: float) -> tuple[BlessingNpcV2, int] | None:
+    """
+    Find the first blessing NPC within range using encoded names.
+    Returns tuple of (BlessingNpcV2, agent_id) or None if not found.
+    """
     player_pos = Player.GetXY()
 
-    # Use ally + neutral arrays (~20 agents) instead of all agents (300+)
-    agent_ids: list[int] = AgentArray.GetAllyArray() + AgentArray.GetNeutralArray()
+    agent_ids: list[int] = AgentArray.GetNPCMinipetArray()
+    agent_ids = AgentArray.Filter.ByCondition(agent_ids, lambda agent_id: Agent.IsValid(agent_id))
     agent_ids = AgentArray.Filter.ByDistance(agent_ids, player_pos, within_range)
+    agent_ids = AgentArray.Sort.ByDistance(agent_ids, player_pos)
 
-    # Single pass with O(1) set lookup instead of nested 13×N loop
     for agent_id in agent_ids:
-        model_id = Agent.GetModelID(agent_id)
-        if model_id in _BLESSING_MODEL_IDS:
-            return (_MODEL_ID_TO_NPC[model_id], agent_id)
+        for npc in BlessingNpcV2:
+            if _match_encoded_name(agent_id, npc):
+                return (npc, agent_id)
 
     return None
 
-def wait_npc_dialog_visible(timeout_ms:int) -> Generator[Any, None, bool]:
+
+def wait_npc_dialog_visible(timeout_ms: int) -> Generator[Any, None, bool]:
+    """Wait until NPC dialog is visible or timeout."""
     throttle_timer = ThrottledTimer(timeout_ms)
     while not throttle_timer.IsExpired():
-        is_npc_dialog_visible = Blessing_dialog_helper.is_npc_dialog_visible()
-        if is_npc_dialog_visible == True: return True
+        if UIManager.IsNPCDialogVisible():
+            return True
         yield from custom_behavior_helpers.Helpers.wait_for(100)
     return False
 
-def __generic_dialog_sequence(npc_result:tuple[BlessingNpc,int], timeout_ms:int) -> Generator[Any, None, bool]:
+
+def _generic_dialog_sequence(npc_result: tuple[BlessingNpcV2, int], timeout_ms: int) -> Generator[Any, None, bool]:
+    """Generic dialog sequence: just click button 1."""
     throttle_timer = ThrottledTimer(timeout_ms)
     sequence_choices = [1]
     for sequence_choice in sequence_choices:
         while not throttle_timer.IsExpired():
-            click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=sequence_choice, debug=constants.DEBUG)
-            if click_dialog_button_result == False: 
-                if constants.DEBUG: print(f"impossible to click_dialog_button {sequence_choice}.")
-                return False 
+            click_result = UIManager.ClickDialogButton(choice=sequence_choice, debug=constants.DEBUG)
+            if not click_result:
+                if constants.DEBUG:
+                    print(f"impossible to click_dialog_button {sequence_choice}.")
+                return False
             yield from custom_behavior_helpers.Helpers.wait_for(500)
     return True
 
-def __norn_sequence(npc_result:tuple[BlessingNpc,int], timeout_ms:int) -> Generator[Any, None, bool]:
-    if constants.DEBUG:print(f"start __norn_sequence")
+
+def _norn_sequence(npc_result: tuple[BlessingNpcV2, int], timeout_ms: int) -> Generator[Any, None, bool]:
+    """Norn blessing sequence - may require fighting."""
+    if constants.DEBUG:
+        print(f"start _norn_sequence")
 
     # Stage 1: wait for challenge dialog
-    click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=1, debug=constants.DEBUG)
-    if click_dialog_button_result == False: 
-        if constants.DEBUG:print(f"impossible to click_dialog_button 1.")
-        return False 
+    click_result = UIManager.ClickDialogButton(choice=1, debug=constants.DEBUG)
+    if not click_result:
+        if constants.DEBUG:
+            print(f"impossible to click_dialog_button 1.")
+        return False
 
     # Stage 2: either already blessed or wait for hostility
     yield from custom_behavior_helpers.Helpers.wait_for(1000)
@@ -86,103 +119,125 @@ def __norn_sequence(npc_result:tuple[BlessingNpc,int], timeout_ms:int) -> Genera
         return True
 
     # Stage 3: wait until friendly again
-    wait_until_friendly_again_result = yield from __wait_until_friendly_again(npc_result, timeout_ms)
-    if wait_until_friendly_again_result == False: 
-        if constants.DEBUG: print(f"impossible to wait_until_friendly_again_result 1.")
-        return False 
+    wait_result = yield from _wait_until_friendly_again(npc_result, timeout_ms)
+    if not wait_result:
+        if constants.DEBUG:
+            print(f"impossible to wait_until_friendly_again 1.")
+        return False
 
     # Stage 4: final interact & blessing
-    click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=1, debug=constants.DEBUG)
-    if click_dialog_button_result == False: 
-        if constants.DEBUG: print(f"impossible to click_dialog_button 1.")
-        return False 
-    
+    click_result = UIManager.ClickDialogButton(choice=1, debug=constants.DEBUG)
+    if not click_result:
+        if constants.DEBUG:
+            print(f"impossible to click_dialog_button 1.")
+        return False
+
     return True
 
-def __wait_until_friendly_again(npc_result:tuple[BlessingNpc,int], timeout_ms:int):
+
+def _wait_until_friendly_again(npc_result: tuple[BlessingNpcV2, int], timeout_ms: int) -> Generator[Any, None, bool]:
+    """Wait until the NPC is no longer hostile."""
     throttle_timer = ThrottledTimer(timeout_ms)
     while not throttle_timer.IsExpired():
-        if Agent.GetAllegiance(npc_result[1]) != Allegiance.Enemy: 
+        if Agent.GetAllegiance(npc_result[1]) != Allegiance.Enemy:
             return True
         yield from custom_behavior_helpers.Helpers.wait_for(500)
-    return False 
+    return False
 
-def __kurzick_luxon_sequence(npc_result:tuple[BlessingNpc,int], timeout_ms:int) -> Generator[Any, None, bool]:
 
-    # Stage 0: (possible) pre-interact delay → approach & interact
-        # non-leader: hold off for 2 seconds
-        # now either leader, or 2 s have passed → actually move + interact
-
+def _kurzick_luxon_sequence(npc_result: tuple[BlessingNpcV2, int], timeout_ms: int) -> Generator[Any, None, bool]:
+    """Kurzick/Luxon blessing sequence with donation handling."""
     # Stage 1: initial request → click 1
-    click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=1, debug=constants.DEBUG)
-    if click_dialog_button_result == False: 
-        if constants.DEBUG: print(f"impossible to click_dialog_button 1.")
-        return False 
+    click_result = UIManager.ClickDialogButton(choice=1, debug=constants.DEBUG)
+    if not click_result:
+        if constants.DEBUG:
+            print(f"impossible to click_dialog_button 1.")
+        return False
     yield from custom_behavior_helpers.Helpers.wait_for(500)
 
     # Stage 2: donation menu appears → decide bribe vs no-bribe
-    count = Blessing_dialog_helper.get_dialog_button_count(True)
-    if constants.DEBUG: print(f"get_dialog_button_count = {count}")
+    count = UIManager.GetDialogButtonCount(constants.DEBUG)
+    if constants.DEBUG:
+        print(f"get_dialog_button_count = {count}")
 
     if count == 3:
         # bribe path
-        if constants.DEBUG: print(f"{npc_result[0].name}: click 2 (high donation)")
-        click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=2, debug=constants.DEBUG)
-        if click_dialog_button_result == False: 
-            if constants.DEBUG: print(f"impossible to click_dialog_button 2.")
+        if constants.DEBUG:
+            print(f"{npc_result[0].display_name}: click 2 (high donation)")
+        click_result = UIManager.ClickDialogButton(choice=2, debug=constants.DEBUG)
+        if not click_result:
+            if constants.DEBUG:
+                print(f"impossible to click_dialog_button 2.")
             return False
         yield from custom_behavior_helpers.Helpers.wait_for(500)
     else:
         # no-bribe path: just close
-        if constants.DEBUG: print(f"{npc_result[0].name}: click 1 (no bribe)")
-        click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=1, debug=constants.DEBUG)
-        if click_dialog_button_result == False: 
-            if constants.DEBUG: print(f"impossible to click_dialog_button 1.")
+        if constants.DEBUG:
+            print(f"{npc_result[0].display_name}: click 1 (no bribe)")
+        click_result = UIManager.ClickDialogButton(choice=1, debug=constants.DEBUG)
+        if not click_result:
+            if constants.DEBUG:
+                print(f"impossible to click_dialog_button 1.")
             return False
         return True
-    
-    # Stage 3: confirm large donation → click “1”
-    if constants.DEBUG: print(f"{npc_result[0].name}: click 1 (confirm large donation)")
-    click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=1, debug=constants.DEBUG)
-    if click_dialog_button_result == False: 
-        if constants.DEBUG: print(f"impossible to click_dialog_button 1.")
+
+    # Stage 3: confirm large donation → click "1"
+    if constants.DEBUG:
+        print(f"{npc_result[0].display_name}: click 1 (confirm large donation)")
+    click_result = UIManager.ClickDialogButton(choice=1, debug=constants.DEBUG)
+    if not click_result:
+        if constants.DEBUG:
+            print(f"impossible to click_dialog_button 1.")
         return False
     yield from custom_behavior_helpers.Helpers.wait_for(500)
 
-    # Stage 4: final close → click “1” or immediate verify
-    if constants.DEBUG: print(f"{npc_result[0].name}: click 1 (final close)")
-    click_dialog_button_result = Blessing_dialog_helper.click_dialog_button(choice=1, debug=constants.DEBUG)
-    if click_dialog_button_result == False: 
-        if constants.DEBUG: print(f"impossible to click_dialog_button 1.")
+    # Stage 4: final close → click "1" or immediate verify
+    if constants.DEBUG:
+        print(f"{npc_result[0].display_name}: click 1 (final close)")
+    click_result = UIManager.ClickDialogButton(choice=1, debug=constants.DEBUG)
+    if not click_result:
+        if constants.DEBUG:
+            print(f"impossible to click_dialog_button 1.")
         return False
     yield from custom_behavior_helpers.Helpers.wait_for(500)
 
     if Verify_Blessing.has_any_blessing(Player.GetAgentID()):
-        if constants.DEBUG: print("has_any_blessing=True")
+        if constants.DEBUG:
+            print("has_any_blessing=True")
         return True
     else:
-        if constants.DEBUG: print("has_any_blessing=False")
-        return False    
+        if constants.DEBUG:
+            print("has_any_blessing=False")
+        return False
 
-DIALOG_SEQUENCES_NEW: Dict[BlessingNpc, Callable[[tuple[BlessingNpc,int], int], Generator[Any, None, bool]]] = {
-    BlessingNpc.Sunspear_Scout: __generic_dialog_sequence,
-    BlessingNpc.Wandering_Priest: __generic_dialog_sequence,
-    BlessingNpc.Ghostly_Scout: __generic_dialog_sequence,
-    BlessingNpc.Kurzick_Priest: __kurzick_luxon_sequence,
-    BlessingNpc.Luxon_Priest: __kurzick_luxon_sequence,
-    BlessingNpc.Norn_Hunters: __norn_sequence,
+
+# Dialog sequence mapping
+DIALOG_SEQUENCES: Dict[BlessingNpcV2, Callable[[tuple[BlessingNpcV2, int], int], Generator[Any, None, bool]]] = {
+    BlessingNpcV2.Sunspear_Scout: _generic_dialog_sequence,
+    BlessingNpcV2.Wandering_Priest: _generic_dialog_sequence,
+    BlessingNpcV2.Ghostly_Scout: _generic_dialog_sequence,
+    BlessingNpcV2.Kurzick_Priest: _kurzick_luxon_sequence,
+    BlessingNpcV2.Luxon_Priest: _kurzick_luxon_sequence,
+    BlessingNpcV2.Norn_Hunters: _norn_sequence,
 }
 
-def run_dialog_sequences(timeout_ms:int) -> Generator[Any, None, bool]:
-    npc_result:tuple[BlessingNpc,int] | None = find_first_blessing_npc(Range.Earshot.value)
-    if npc_result is None: return False
-    if constants.DEBUG:print(f"npc_result:{npc_result}")
-    npc:BlessingNpc = npc_result[0]
 
-    sequence_execution = DIALOG_SEQUENCES_NEW.get(npc, None)
-    if sequence_execution is None: sequence_execution = __generic_dialog_sequence
-    if constants.DEBUG:print(f"sequence_execution:{sequence_execution}")
+def run_dialog_sequences(timeout_ms: int) -> Generator[Any, None, bool]:
+    """Run the appropriate dialog sequence for the nearby blessing NPC."""
+    npc_result: tuple[BlessingNpcV2, int] | None = find_first_blessing_npc(Range.Earshot.value)
+    if npc_result is None:
+        return False
+    if constants.DEBUG:
+        print(f"npc_result:{npc_result}")
+    npc: BlessingNpcV2 = npc_result[0]
+
+    sequence_execution = DIALOG_SEQUENCES.get(npc, None)
+    if sequence_execution is None:
+        sequence_execution = _generic_dialog_sequence
+    if constants.DEBUG:
+        print(f"sequence_execution:{sequence_execution}")
 
     generator = sequence_execution(npc_result, timeout_ms)
     result = yield from generator
     return result
+

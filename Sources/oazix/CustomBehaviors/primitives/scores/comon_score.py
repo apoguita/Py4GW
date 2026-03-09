@@ -9,6 +9,7 @@ class CommonScore(Enum):
     AUTO_ATTACK                     = 09.900
     GENERIC_SKILL_HERO_AI           = 09.910
     LOWER_COMBAT                    = 10.000 # combat_skill cannot be lower than 10
-    FOLLOW_FLAG_REQUIRED            = 99.001
+    FOLLOW_VECTOR_FIELD             = 99.001
+    FOLLOW_FLAG_REQUIRED            = 99.002
     BOTTING                         = 99.500
     DEAMON                          = 99.600

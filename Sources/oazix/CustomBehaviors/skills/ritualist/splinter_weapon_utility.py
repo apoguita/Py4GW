@@ -47,7 +47,7 @@ class SplinterWeaponUtility(CustomSkillUtilityBase):
                 within_range=Range.Spellcast.value * 1.2,
                 condition=lambda agent_id: 
                     agent_id != Player.GetAgentID() and 
-                    self.buff_configuration.get_agent_id_predicate()(agent_id),
+                    self.buff_configuration.get_agent_id_predicate()(agent_id) and not Agent.IsWeaponSpelled(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)

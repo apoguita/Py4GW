@@ -1,7 +1,6 @@
 from typing import Any, Generator, Callable, override
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Range, Routines, Player
-from Sources.Nikon_Scripts.BotUtilities import GameAreas
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -32,30 +31,27 @@ class LightOfDeldrimorUtility(CustomSkillUtilityBase):
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
         self.last_agent_quantity: int = 0
 
+    def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
+
+        targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
+                    within_range=Range.Spellcast,
+                    condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsConditioned(agent_id),
+                    sort_key=(TargetingOrder.AGENT_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_ASC),
+                    range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
+        return targets
+
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        """This evaluated the number of enemies in the blast radius and uses ScorePerAgentQuantityDefinition to escalate the want to use this skill"""
-        # if self.nature_has_been_attempted_last(previously_attempted_skills): return None
+        targets = self._get_targets()
+        if len(targets) == 0: return None
 
-        player_pos = Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], GameAreas.Area)
+        target = targets[0]
+        return self.score_definition.get_score(target.agent_quantity_within_range)
 
-        agent_quantity = len(enemy_array)
-        score = self.score_definition.get_score(agent_quantity)
-
-        if constants.DEBUG:
-            if self.last_agent_quantity != agent_quantity:
-                print(f"You have {agent_quantity} enemies to blast score={score}")
-                self.last_agent_quantity = agent_quantity
-
-        return score
-        
     @override
-    def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
-
-        action: Callable[[], Generator[Any, Any, BehaviorResult]] = lambda: (yield from custom_behavior_helpers.Actions.cast_skill(
-            skill=self.custom_skill
-        ))
-
-        result: BehaviorResult = yield from custom_behavior_helpers.Helpers.wait_for_or_until_completion(750, action)
+    def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
+        enemies = self._get_targets()
+        if len(enemies) == 0: return BehaviorResult.ACTION_SKIPPED
+        target = enemies[0]
+        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target.agent_id)
         return result

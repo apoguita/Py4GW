@@ -20,7 +20,9 @@ from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology impo
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 
-class FollowFlagUtilityNew(CustomSkillUtilityBase):
+class FollowFlagUtility(CustomSkillUtilityBase):
+    Name = "follow_flag"
+
     """
     Utility that follows assigned flag positions from shared memory.
 
@@ -39,7 +41,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("follow_flag_new"),
+            skill=CustomSkill("follow_flag"),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(CommonScore.FOLLOW_FLAG.value),
             allowed_states=allowed_states,
@@ -51,10 +53,12 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
         # Use singleton manager for all configuration
         self.manager =  CustomBehaviorParty().party_flagging_manager
 
-        # Load thresholds from persistence or use defaults
+        # Load movement threshold from persistence or use default
         persistence = PersistenceLocator().flagging
-        self.follow_flag_threshold: float = persistence.read_follow_flag_threshold() or 260.0
-        self.follow_flag_required_threshold: float = persistence.read_follow_flag_required_threshold() or 400.0
+        saved_movement_threshold = persistence.read_follow_flag_threshold() or 50.0
+
+        # Apply loaded value to shared memory
+        self.manager.movement_threshold = saved_movement_threshold
 
         self.event_bus.subscribe(EventType.MAP_CHANGED, self.area_changed, subscriber_name=self.custom_skill.skill_name)
         
@@ -92,7 +96,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
             return (x, y)
         except Exception as e:
-            print(f"FollowFlagUtilityNew._get_my_assigned_flag_position error: {e}")
+            print(f"FollowFlagUtility._get_my_assigned_flag_position error: {e}")
             return None
 
     @override
@@ -113,16 +117,15 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
         # Calculate distance from assigned flag
         distance_from_flag = Utils.Distance(flag_pos, my_pos)
 
+        # Use movement_threshold from FlaggingManager for both normal and required
+        movement_threshold = self.manager.movement_threshold
+
         # If very close to flag, don't move
         if distance_from_flag < 10:
             return None
 
-        # If far from flag, high priority (use required threshold)
-        if distance_from_flag > self.follow_flag_required_threshold:
-            return CommonScore.FOLLOW_FLAG_REQUIRED.value
-
-        # If outside threshold, normal priority (use normal threshold)
-        if distance_from_flag > self.follow_flag_threshold:
+        # If outside movement threshold, move to flag
+        if distance_from_flag > movement_threshold:
             return CommonScore.FOLLOW_FLAG.value
 
         return None
@@ -162,11 +165,11 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
         yield from custom_behavior_helpers.Helpers.wait_for(1500)
         return BehaviorResult.ACTION_PERFORMED
     
-    def save_thresholds_to_flagging(self) -> None:
-        """Save threshold values to flagging persistence (global only)."""
+    def save_movement_threshold_to_flagging(self) -> None:
+        """Save movement threshold to flagging persistence (global only)."""
         persistence = PersistenceLocator().flagging
-        persistence.write_follow_flag_threshold(self.follow_flag_threshold)
-        persistence.write_follow_flag_required_threshold(self.follow_flag_required_threshold)
+        # Save the current value from shared memory
+        persistence.write_follow_flag_threshold(self.manager.movement_threshold)
 
     @override
     def has_persistence(self) -> bool:
@@ -174,24 +177,23 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
     @override
     def persist_configuration_for_account(self):
-        """Save thresholds to flagging.ini (global storage)."""
-        self.save_thresholds_to_flagging()
-        print("Follow flag thresholds saved to global storage")
+        """Save movement threshold to flagging.ini (global storage)."""
+        self.save_movement_threshold_to_flagging()
+        print(f"Follow flag movement threshold saved to global storage: {self.manager.movement_threshold}")
 
     @override
     def persist_configuration_as_global(self):
-        """Save thresholds to flagging.ini (global storage)."""
-        self.save_thresholds_to_flagging()
-        print("Follow flag thresholds saved to global storage")
+        """Save movement threshold to flagging.ini (global storage)."""
+        self.save_movement_threshold_to_flagging()
+        print(f"Follow flag movement threshold saved to global storage: {self.manager.movement_threshold}")
 
     @override
     def delete_persisted_configuration(self):
         """Delete persisted threshold values and reset to defaults."""
         persistence = PersistenceLocator().flagging
         persistence.delete_follow_flag_thresholds()
-        self.follow_flag_threshold = 260.0
-        self.follow_flag_required_threshold = 400.0
-        print("Follow flag thresholds deleted and reset to defaults (260.0 / 400.0)")
+        self.manager.movement_threshold = 50.0
+        print("Follow flag movement threshold deleted and reset to default (50.0)")
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
@@ -206,29 +208,19 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
             PyImGui.bullet_text(f"flag index : None")
 
         PyImGui.separator()
-        PyImGui.text("Thresholds:")
+        PyImGui.text("Movement Threshold:")
 
-        # Normal threshold slider
+        # Movement threshold slider (reads/writes to shared memory)
+        current_threshold = self.manager.movement_threshold
         new_value = PyImGui.slider_float(
-            "Normal Threshold##follow_flag_threshold",
-            self.follow_flag_threshold,
+            "Movement Threshold##follow_flag_movement_threshold",
+            current_threshold,
             10.0,
-            1000.0
+            450.0
         )
-        if new_value != self.follow_flag_threshold:
-            self.follow_flag_threshold = new_value
-            self.save_thresholds_to_flagging()
-
-        # Required threshold slider
-        new_value = PyImGui.slider_float(
-            "Required Threshold##follow_flag_required_threshold",
-            self.follow_flag_required_threshold,
-            10.0,
-            1000.0
-        )
-        if new_value != self.follow_flag_required_threshold:
-            self.follow_flag_required_threshold = new_value
-            self.save_thresholds_to_flagging()
+        if new_value != current_threshold:
+            self.manager.movement_threshold = new_value
+            self.save_movement_threshold_to_flagging()
 
         # Show current distance if flag is assigned
         if flag_index is not None:
@@ -275,6 +267,10 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
                 if not account_email or (flag_x == 0.0 and flag_y == 0.0):
                     continue
 
+                # Skip flags that are not in camera's field of view
+                if not GLOBAL_CACHE.Camera.IsPointInFOV(flag_x, flag_y):
+                    continue
+
                 # Determine color based on whether this is my flag
                 if account_email == my_email:
                     # My flag - bright green
@@ -305,7 +301,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
                 # If this is my flag, draw a line from me to it
                 if account_email == my_email:
                     Overlay().DrawLine3D(my_pos[0], my_pos[1], my_z,
-                                        flag_x, flag_y, my_z,
+                                        flag_x, flag_y, flag_z,
                                         Utils.RGBToColor(0, 255, 0, 150), thickness=2.0)
 
                     # Draw distance to my flag
@@ -321,7 +317,7 @@ class FollowFlagUtilityNew(CustomSkillUtilityBase):
 
         except Exception as e:
             # Silently fail on debug UI errors
-            print(f"FollowFlagUtilityNew.draw_overlay error: {e}")
+            print(f"FollowFlagUtility.draw_overlay error: {e}")
             raise e
         finally:
             Overlay().EndDraw()

@@ -13,6 +13,7 @@ from Py4GWCoreLib import Utils, Player
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.parties.pawned2.Pawned2TeamBuild import Pawned2TeamBuild
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
 
 class SkillbarParsed:
     primary_profession_id: int
@@ -53,7 +54,6 @@ class PartyTeamBuildManager:
 
     def __init__(self):
         # Only initialize once
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetMemoryManager
         if self._initialized:
             return
 

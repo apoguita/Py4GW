@@ -17,6 +17,8 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
 class WaitIfLockTakenUtility(CustomSkillUtilityBase):
+    Name = "wait_if_lock_taken"
+
     def __init__(
             self,
             event_bus: EventBus,
@@ -26,7 +28,7 @@ class WaitIfLockTakenUtility(CustomSkillUtilityBase):
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("wait_if_lock_taken"),
+            skill=CustomSkill(WaitIfLockTakenUtility.Name),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(0.00001),
             allowed_states= [BehaviorState.IDLE, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO], # no need during aggro
