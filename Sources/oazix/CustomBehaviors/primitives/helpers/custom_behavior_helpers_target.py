@@ -173,11 +173,11 @@ class CustomTargeting:
                 seen_ids.add(agent.agent_id)
                 unique_agents.append(agent)
 
-        # Filter out enemies whose model ID is on the blacklist
+        # Filter out enemies whose model ID or name is on the blacklist
         from HeroAI.enemy_blacklist import EnemyBlacklist
         _bl = EnemyBlacklist()
-        if _bl.get_all():
-            unique_agents = [a for a in unique_agents if not _bl.contains(Agent.GetModelID(a.agent_id))]
+        if not _bl.is_empty():
+            unique_agents = [a for a in unique_agents if not _bl.is_blacklisted(a.agent_id)]
 
         # Filter alive if requested
         if is_alive:

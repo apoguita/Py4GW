@@ -74,6 +74,7 @@ skill_cache: dict[int, CachedSkillInfo] = {}
 message_cache : dict[str, dict[SharedCommandType, dict[int, tuple]]] = {}
 template_popup_open: bool = False
 _blacklist_input: str = ""
+_blacklist_name_input: str = ""
 template_account: str = ""
 template_code = ""
 configure_consumables_window_open: bool = False
@@ -2647,8 +2648,8 @@ def draw_party_search_overlay(cached_data: CacheData):
 
 
 def draw_blacklist_ui():
-    """Render the enemy model ID blacklist UI. Usable from any widget."""
-    global _blacklist_input
+    """Render the enemy blacklist UI (model ID and name). Usable from any widget."""
+    global _blacklist_input, _blacklist_name_input
     from HeroAI.enemy_blacklist import EnemyBlacklist
 
     blacklist = EnemyBlacklist()
@@ -2657,7 +2658,10 @@ def draw_blacklist_ui():
     PyImGui.text("system: no targeting, no aggro detection.")
     PyImGui.spacing()
 
-    # --- Add by model ID ---
+    # ----------------------------------------------------------------
+    # Section: Model ID
+    # ----------------------------------------------------------------
+    PyImGui.text("By Model ID")
     PyImGui.set_next_item_width(120)
     _blacklist_input = PyImGui.input_text("##bl_input", _blacklist_input, 16)
     ImGui.show_tooltip("Enter a numeric model ID and press Add.")
@@ -2677,14 +2681,12 @@ def draw_blacklist_ui():
     ImGui.show_tooltip("Add the Model ID of the currently selected target to the blacklist.")
 
     PyImGui.spacing()
-
-    # --- Table of blacklisted IDs ---
     entries = blacklist.get_all()
     if len(entries) == 0:
-        PyImGui.text("(empty - all enemies are considered)")
+        PyImGui.text("(empty)")
     else:
         table_flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.ScrollY
-        if PyImGui.begin_table("##bl_table", 3, table_flags, 0, 200):
+        if PyImGui.begin_table("##bl_table", 3, table_flags, 0, 150):
             PyImGui.table_setup_column("Model ID", PyImGui.TableColumnFlags.WidthFixed, 80)
             PyImGui.table_setup_column("Name", PyImGui.TableColumnFlags.WidthStretch)
             PyImGui.table_setup_column("##bl_remove_col", PyImGui.TableColumnFlags.WidthFixed, 65)
@@ -2708,6 +2710,54 @@ def draw_blacklist_ui():
 
             if to_remove is not None:
                 blacklist.remove(to_remove)
+
+    PyImGui.spacing()
+
+    # ----------------------------------------------------------------
+    # Section: Name (enc string / display name)
+    # ----------------------------------------------------------------
+    PyImGui.text("By Name")
+    PyImGui.set_next_item_width(200)
+    _blacklist_name_input = PyImGui.input_text("##bl_name_input", _blacklist_name_input, 64)
+    ImGui.show_tooltip("Enter the display name of an enemy (case-insensitive) and press Add.")
+    PyImGui.same_line(0.0, 5.0)
+    if PyImGui.button("Add##bl_name_add"):
+        val = _blacklist_name_input.strip()
+        if val:
+            blacklist.add_name(val)
+            _blacklist_name_input = ""
+    PyImGui.same_line(0.0, 5.0)
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_CROSSHAIRS} Add Target##bl_name_target"):
+        target_id = Player.GetTargetID()
+        if target_id and target_id > 0:
+            name = Agent.GetNameByID(target_id)
+            if name:
+                blacklist.add_name(name)
+    ImGui.show_tooltip("Add the display name of the currently selected target to the blacklist.")
+
+    PyImGui.spacing()
+    name_entries = blacklist.get_all_names()
+    if len(name_entries) == 0:
+        PyImGui.text("(empty)")
+    else:
+        table_flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.RowBg | PyImGui.TableFlags.ScrollY
+        if PyImGui.begin_table("##bl_name_table", 2, table_flags, 0, 150):
+            PyImGui.table_setup_column("Name", PyImGui.TableColumnFlags.WidthStretch)
+            PyImGui.table_setup_column("##bl_nremove_col", PyImGui.TableColumnFlags.WidthFixed, 65)
+            PyImGui.table_headers_row()
+
+            to_remove_name = None
+            for entry_name in name_entries:
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text(entry_name)
+                PyImGui.table_set_column_index(1)
+                if PyImGui.button(f"Remove##n_{entry_name}"):
+                    to_remove_name = entry_name
+            PyImGui.end_table()
+
+            if to_remove_name is not None:
+                blacklist.remove_name(to_remove_name)
 
 
 def draw_configure_window(module_name : str, configure_window : WindowModule):

@@ -8,14 +8,14 @@ from .constants import (
 
 
 def _filter_blacklisted(agent_id: int) -> int:
-    """Return 0 if agent_id belongs to a blacklisted model, otherwise return agent_id unchanged."""
+    """Return 0 if the agent is blacklisted (by model ID or name), otherwise return agent_id unchanged."""
     if agent_id == 0:
         return 0
     from HeroAI.enemy_blacklist import EnemyBlacklist
     bl = EnemyBlacklist()
-    if not bl.get_all():
+    if bl.is_empty():
         return agent_id
-    return 0 if bl.contains(Agent.GetModelID(agent_id)) else agent_id
+    return 0 if bl.is_blacklisted(agent_id) else agent_id
 
 def GetAllAlliesArray(distance=Range.SafeCompass.value):
     #Pets are added here

@@ -355,14 +355,14 @@ class CombatClass:
         """Like Routines.Agents.GetNearestEnemy but skips blacklisted model IDs."""
         from HeroAI.enemy_blacklist import EnemyBlacklist
         bl = EnemyBlacklist()
-        if not bl.get_all():
+        if bl.is_empty():
             return Routines.Agents.GetNearestEnemy(distance)
         player_pos = Player.GetXY()
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, distance)
         enemy_array = AgentArray.Filter.ByCondition(
             enemy_array,
-            lambda a: Agent.IsAlive(a) and not bl.contains(Agent.GetModelID(a))
+            lambda a: Agent.IsAlive(a) and not bl.is_blacklisted(a)
         )
         if not enemy_array:
             return 0

@@ -81,8 +81,8 @@ def render():
 
 
 def _render_enemy_blacklist():
-    """Render the enemy model ID blacklist section."""
-    if not PyImGui.collapsing_header("Enemy Model ID Blacklist"):
+    """Render the enemy blacklist section (model ID and name)."""
+    if not PyImGui.collapsing_header("Enemy Blacklist"):
         return
     from HeroAI.ui import draw_blacklist_ui
     draw_blacklist_ui()

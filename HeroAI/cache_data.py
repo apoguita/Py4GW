@@ -186,13 +186,13 @@ class CacheData:
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
         from HeroAI.enemy_blacklist import EnemyBlacklist
         bl = EnemyBlacklist()
-        if not bl.get_all():
+        if bl.is_empty():
             return Routines.Checks.Agents.InAggro(aggro_range)
         # Blacklist active: filter enemy array manually so blacklisted enemies
         # never trigger the in-aggro state.
         player_pos = Player.GetXY()
         filtered = AgentArray.Filter.ByDistance(enemy_array, player_pos, aggro_range)
-        filtered = [e for e in filtered if Agent.IsAlive(e) and not bl.contains(Agent.GetModelID(e))]
+        filtered = [e for e in filtered if Agent.IsAlive(e) and not bl.is_blacklisted(e)]
         return len(filtered) > 0
         
     def UpdateCombat(self):
