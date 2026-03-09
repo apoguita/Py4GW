@@ -9,6 +9,7 @@ from Py4GWCoreLib import (
     Agent,
     Botting,
     ConsoleLog,
+    Effects,
     GLOBAL_CACHE,
     Map,
     Player,
@@ -169,6 +170,9 @@ SoO_lvl3 = 583
 Great_Temple_of_Balthazar = 248
 EyeOfTheNorth = 642
 
+# Quest IDs
+LOST_SOULS_QUEST_ID = 0x324  # Lost Souls - abandon when in Vloxs Fall
+
 # Dialog IDs
 DWARVEN_BLESSING_DIALOG = 0x84
 SHANDRA_TAKE_DIALOGS = 0x832401
@@ -189,6 +193,16 @@ bot = Botting(
 # ==================== UTILITY FUNCTIONS ====================
 
 from typing import Dict, List, Tuple, Optional, Any, Callable, Generator
+
+
+def _abandon_lost_souls_if_in_vloxs_fall() -> None:
+    """Only when in Vloxs Fall: if Lost Souls (0x324) is in quest log, abandon it."""
+    if int(Map.GetMapID()) != Vloxs_Fall:
+        return
+    log_ids = bot.Quest.GetQuestLogIds() or []
+    if LOST_SOULS_QUEST_ID in log_ids:
+        bot.Quest.AbandonQuest(LOST_SOULS_QUEST_ID)
+        ConsoleLog(BOT_NAME, "Abandoned quest: Lost Souls (0x324)")
 
 # ==================== AUTO SHRINE + STEP REGISTRY ====================
 
@@ -291,6 +305,14 @@ BDS_L2_PART2 = [
     (-3717, -4254),
     (-8251, -3240),
     (-8278, -1670),
+]
+BDS_L2_CLEANING = [
+    (-7506.89, -12236.26),
+    (-7435.12, -10649.25),
+    (-9013.61, -9772.06),
+    (-10324.58, -10434.43),
+    (-10371.20, -12510.16),
+    (-8836.63, -11471.01),
 ]
 BDS_L3 = [
     (15692, 17111),
@@ -500,34 +522,148 @@ def nearest_from_array(arr: List[int], max_dist: float) -> int:
     return int(arr[0]) if len(arr) > 0 else 0
 
 
-BRAZIER_INTERACT_ATTEMPTS = 4  # number of interact attempts per brazier
+BRAZIER_INTERACT_ATTEMPTS = 4
+TORCH_BUFF_ID = 2545
+BRAZIER_MAX_RETRIES = 3
+BRAZIER_ARRIVE_DIST = 200.0
+BRAZIER_MOVE_POLL_MS = 150
+BRAZIER_MOVE_TIMEOUT_S = 30.0
 
-def interact_nearest_gadget_with_retry(max_dist: float = 220.0, attempts: int = BRAZIER_INTERACT_ATTEMPTS) -> Generator:
-    """Interact with nearest brazier, retrying multiple times to ensure it lights."""
+def _interact_brazier(label: str, result: list, max_dist: float = 220.0, attempts: int = BRAZIER_INTERACT_ATTEMPTS) -> Generator:
+    """Find the nearest gadget and interact with it. Logs once with the label and gadget id.
+    Sets result[0] = True if a gadget was found and interacted with."""
+    result[0] = False
+    logged = False
     for attempt in range(attempts):
         gadgets = AgentArray.GetGadgetArray()
         gad_id = nearest_from_array(gadgets, max_dist)
         if not gad_id:
-            ConsoleLog(BOT_NAME, f"❌ No gadget within {max_dist} (attempt {attempt + 1})")
             yield from Routines.Yield.wait(300)
             continue
 
-        ConsoleLog(BOT_NAME, f"🔥 Interacting with brazier {gad_id} (attempt {attempt + 1}/{attempts})")
+        if not logged:
+            ConsoleLog(BOT_NAME, f"[BRAZIER] {label} (gadget id: {gad_id})")
+            logged = True
+            result[0] = True
+
         Player.ChangeTarget(gad_id)
         yield from Routines.Yield.wait(150)
         Player.Interact(gad_id, False)
         yield from Routines.Yield.wait(400)
 
+    if not logged:
+        ConsoleLog(BOT_NAME, f"[BRAZIER] {label} - no gadget found within {max_dist}")
     yield
 
 
-def run_brazier_sequence(points: list[tuple[float,float]], interact_dist: float = 200.0) -> None:
-    for idx, (x, y) in enumerate(points, 1):
-        bot.Move.XY(x, y)
-        bot.Wait.UntilOutOfCombat()
-        bot.Wait.ForTime(250)
-        bot.States.AddCustomState(lambda d=interact_dist: interact_nearest_gadget_with_retry(d), f"Interact nearest ({idx})")
-        bot.Wait.ForTime(350)
+def _move_to_xy_gen(
+    x: float,
+    y: float,
+    result: Optional[list] = None,
+    check_abort: Optional[Callable[[], bool]] = None,
+) -> Generator:
+    """Move to (x, y), yielding until arrival, timeout, or check_abort() returns True.
+    If result is provided, sets result[0] to 'arrived', 'timeout', or 'aborted'."""
+    if result is not None:
+        result[0] = "arrived"
+    deadline = time.time() + BRAZIER_MOVE_TIMEOUT_S
+    while True:
+        if check_abort is not None and check_abort():
+            if result is not None:
+                result[0] = "aborted"
+            break
+        px, py = Player.GetXY()
+        if _dist(px, py, x, y) <= BRAZIER_ARRIVE_DIST:
+            break
+        if time.time() > deadline:
+            if result is not None:
+                result[0] = "timeout"
+            ConsoleLog(BOT_NAME, f"[BRAZIER] Move timeout")
+            break
+        Player.Move(x, y)
+        yield from Routines.Yield.wait(BRAZIER_MOVE_POLL_MS)
+
+
+def _brazier_sequence_gen(points: list[tuple[float, float]], interact_dist: float = 200.0) -> Generator:
+    """Walk through brazier waypoints, checking the torch buff (2545) after each one.
+    If the buff has expired before the next brazier can be lit, go back to the
+    previous brazier, re-interact to refresh the torch, then retry."""
+    total = len(points)
+    idx = 0
+    interact_ok = [False]
+    move_result = ["arrived"]
+    while idx < total:
+        x, y = points[idx]
+        label = f"Brazier {idx + 1}/{total}"
+        need_buff_check = idx > 0
+
+        def _buff_expired():
+            return not Effects.HasEffect(Player.GetAgentID(), TORCH_BUFF_ID)
+
+        for retry in range(BRAZIER_MAX_RETRIES):
+            if retry:
+                ConsoleLog(BOT_NAME, f"[BRAZIER] Retry {retry} for {label}")
+
+            move_result[0] = "arrived"
+            check_abort = _buff_expired if need_buff_check else None
+            yield from _move_to_xy_gen(x, y, move_result, check_abort)
+
+            if move_result[0] == "aborted":
+                ConsoleLog(BOT_NAME, f"[BRAZIER] Buff expired during move, returning to previous brazier ({idx}/{total})")
+                prev_x, prev_y = points[idx - 1]
+                yield from _move_to_xy_gen(prev_x, prev_y)
+                yield from Routines.Yield.wait(250)
+                yield from _interact_brazier(f"Re-lighting brazier {idx}/{total}", interact_ok, interact_dist)
+                yield from Routines.Yield.wait(500)
+                continue
+
+            yield from Routines.Yield.wait(250)
+            yield from _interact_brazier(label, interact_ok, interact_dist)
+            yield from Routines.Yield.wait(500)
+
+            if not interact_ok[0]:
+                ConsoleLog(BOT_NAME, f"[BRAZIER] {label} - could not interact")
+                if idx > 0:
+                    prev_x, prev_y = points[idx - 1]
+                    ConsoleLog(BOT_NAME, f"[BRAZIER] Returning to previous brazier ({idx}/{total}) to re-light torch")
+                    yield from _move_to_xy_gen(prev_x, prev_y)
+                    yield from Routines.Yield.wait(250)
+                    yield from _interact_brazier(f"Re-lighting brazier {idx}/{total}", interact_ok, interact_dist)
+                    yield from Routines.Yield.wait(500)
+                continue
+            if idx == 0:
+                ConsoleLog(BOT_NAME, f"[BRAZIER] {label} lit (start)")
+                break
+            my_id = Player.GetAgentID()
+            if Effects.HasEffect(my_id, TORCH_BUFF_ID):
+                ConsoleLog(BOT_NAME, f"[BRAZIER] {label} lit")
+                break
+            prev_x, prev_y = points[idx - 1]
+            ConsoleLog(BOT_NAME, f"[BRAZIER] Buff expired, returning to previous brazier ({idx}/{total}) to re-light torch")
+            yield from _move_to_xy_gen(prev_x, prev_y)
+            yield from Routines.Yield.wait(250)
+            yield from _interact_brazier(f"Re-lighting brazier {idx}/{total}", interact_ok, interact_dist)
+            yield from Routines.Yield.wait(500)
+        else:
+            ConsoleLog(BOT_NAME, f"[BRAZIER] {label} failed after {BRAZIER_MAX_RETRIES} retries")
+
+        idx += 1
+
+    ConsoleLog(BOT_NAME, f"[BRAZIER] Sequence complete ({total} braziers)")
+    yield
+
+
+def _log_cleaning_room() -> Generator:
+    """Log message when L2 - Cleaning header state is reached."""
+    ConsoleLog(BOT_NAME, "Making sure no enemys are left")
+    yield
+
+
+def run_brazier_sequence(points: list[tuple[float, float]], interact_dist: float = 200.0) -> None:
+    bot.States.AddCustomState(
+        lambda p=points, d=interact_dist: _brazier_sequence_gen(p, d),
+        "Brazier sequence"
+    )
 
 
 FENDI_GADGET_ID = 8934
@@ -861,6 +997,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(apply_widget_policy_step, "Apply widget policy")
     bot.Templates.Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=Vloxs_Fall)
+    bot.States.AddCustomState(_abandon_lost_souls_if_in_vloxs_fall, "Abandon - Lost Souls (when in Vloxs Fall)")
     bot.Multibox.RestockAllPcons()
     bot.Multibox.RestockConset()
     bot.Multibox.RestockResurrectionScroll(250)
@@ -1092,9 +1229,9 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddHeader("L2 - Brazier sequence 1")
     run_brazier_sequence([(float(x), float(y)) for x, y in BDS_L2_PART1])
     bot.States.AddHeader("L2 - Cleaning")
+    bot.States.AddCustomState(_log_cleaning_room, "Making sure no enemys are left")
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
-    bot.Move.XY(-8996, -11987)
-    bot.Move.XY(-8699, -10752)
+    bot.Move.FollowAutoPath(BDS_L2_CLEANING)
     bot.States.AddCustomState(pickup_torch, "Pickup Torch")
 
     bot.States.AddHeader("Move to next room")
@@ -1310,6 +1447,8 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Move.XY(-15800.98,16901.23)
     bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")
     bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
+    bot.Wait.ForTime(6000)
+    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts) - attempt 2")
     bot.Wait.ForMapToChange(target_map_id=485)
     #bot.States.AddCustomState(lambda:_wait_end_dungeon(), "Wait for end of dungeon and teleport")
 
