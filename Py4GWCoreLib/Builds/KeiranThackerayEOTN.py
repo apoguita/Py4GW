@@ -288,6 +288,7 @@ class KeiranThackerayEOTN(BuildMgr):
             self._clear_pause("miku_dead")
 
         # If Miku fell through the world, back track to start.
+        '''
         if miku_reset:
             if self.miku_reset_at == 0.0:
                 self.miku_reset_at = now                        # start the 5-second window
@@ -308,6 +309,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 self.miku_reset_at = 0.0                        # reset after handling
         else:
             self.miku_reset_at = 0.0                            # Miku back — clear timer
+        '''
         # ── Spirit avoidance ──────────────────────────────────────────────────
         spirit_id = 0
         sp_x = sp_y = 0.0
