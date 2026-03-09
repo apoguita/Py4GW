@@ -3,6 +3,7 @@ import PyImGui
 import os
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib.EnemyBlacklist import draw_blacklist_ui
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
@@ -84,7 +85,6 @@ def _render_enemy_blacklist():
     """Render the enemy blacklist section (model ID and name)."""
     if not PyImGui.collapsing_header("Enemy Blacklist"):
         return
-    from HeroAI.ui import draw_blacklist_ui
     draw_blacklist_ui()
     PyImGui.separator()
 

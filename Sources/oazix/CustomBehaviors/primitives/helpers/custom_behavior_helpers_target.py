@@ -1,5 +1,6 @@
 from typing import cast
 from Py4GWCoreLib import AgentArray, Agent, Player, Range, Utils
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from Sources.oazix.CustomBehaviors.primitives.helpers.sortable_agent_data import SortableAgentData
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
@@ -174,7 +175,6 @@ class CustomTargeting:
                 unique_agents.append(agent)
 
         # Filter out enemies whose model ID or name is on the blacklist
-        from HeroAI.enemy_blacklist import EnemyBlacklist
         _bl = EnemyBlacklist()
         if not _bl.is_empty():
             unique_agents = [a for a in unique_agents if not _bl.is_blacklisted(a.agent_id)]

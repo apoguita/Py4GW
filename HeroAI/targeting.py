@@ -1,4 +1,5 @@
 from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines, Agent, Player
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from .constants import (
     Range,
     BLOOD_IS_POWER,
@@ -11,7 +12,6 @@ def _filter_blacklisted(agent_id: int) -> int:
     """Return 0 if the agent is blacklisted (by model ID or name), otherwise return agent_id unchanged."""
     if agent_id == 0:
         return 0
-    from HeroAI.enemy_blacklist import EnemyBlacklist
     bl = EnemyBlacklist()
     if bl.is_empty():
         return agent_id

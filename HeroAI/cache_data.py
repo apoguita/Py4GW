@@ -10,6 +10,7 @@ from Py4GWCoreLib import Timer, ThrottledTimer
 from Py4GWCoreLib import Range, Agent, ConsoleLog, Player
 from Py4GWCoreLib import AgentArray, Weapon, Routines
 from Py4GWCoreLib.IniManager import IniManager
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 
 INI_DIR = "HeroAI"
 MAIN_WINDOW_INI = "main_window.ini"
@@ -184,7 +185,6 @@ class CacheData:
         self.data.reset()   
         
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
-        from HeroAI.enemy_blacklist import EnemyBlacklist
         bl = EnemyBlacklist()
         if bl.is_empty():
             return Routines.Checks.Agents.InAggro(aggro_range)

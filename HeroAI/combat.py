@@ -8,6 +8,7 @@ from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell,
 from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
 from .types import SkillNature, Skilltarget, SkillType
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from .constants import MAX_NUM_PLAYERS
 from typing import Optional
 
@@ -353,7 +354,6 @@ class CombatClass:
 
     def _get_nearest_enemy(self, distance: float) -> int:
         """Like Routines.Agents.GetNearestEnemy but skips blacklisted model IDs."""
-        from HeroAI.enemy_blacklist import EnemyBlacklist
         bl = EnemyBlacklist()
         if bl.is_empty():
             return Routines.Agents.GetNearestEnemy(distance)
