@@ -58,6 +58,7 @@ try:
     BLOCKED_ACTION_RETENTION_MS = 45000
     BLOCKED_ACTION_MAX_UI_ROWS = 4
     EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT = True
+    EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT = False
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
@@ -1803,6 +1804,11 @@ try:
                 "experimental_team_flag_sync",
                 bool(EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT),
             )
+            self.experimental_mainloop_refresh_queue = ini_handler.read_bool(
+                INI_SECTION,
+                "experimental_mainloop_refresh_queue",
+                bool(EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT),
+            )
 
             self._dirty = bool(getattr(self, "_mbdp_targets_migrated", False))
             self._save_timer = Timer()
@@ -1885,6 +1891,7 @@ try:
             ini_handler.write_key(INI_SECTION, "settings_ui_presets_open", str(bool(self.settings_ui_presets_open)))
             ini_handler.write_key(INI_SECTION, "settings_ui_restock_open", str(bool(self.settings_ui_restock_open)))
             ini_handler.write_key(INI_SECTION, "experimental_team_flag_sync", str(bool(self.experimental_team_flag_sync)))
+            ini_handler.write_key(INI_SECTION, "experimental_mainloop_refresh_queue", str(bool(self.experimental_mainloop_refresh_queue)))
 
             for k, v in self.alcohol_selected.items():
                 ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
@@ -2002,6 +2009,7 @@ try:
     _inv_counts_by_model = {}
     _inv_ready_cached = True
     _inv_ready_ts = 0
+    _pending_refresh_due_ms = []
     _first_main_call = True
     _vault_deposit_dest_cooldown_until = {}
     _vault_last_confirmed_storage_bag_id = 0
@@ -2449,6 +2457,17 @@ try:
     # Inventory caching + stock counts
     # -------------------------
     def _schedule_refresh(delay_ms: int):
+        if bool(getattr(cfg, "experimental_mainloop_refresh_queue", EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT)):
+            try:
+                due_ms = int(_now_ms()) + max(0, int(delay_ms))
+            except Exception:
+                due_ms = int(_now_ms())
+            # Keep this bounded in pathological loops.
+            if len(_pending_refresh_due_ms) > 64:
+                del _pending_refresh_due_ms[0:len(_pending_refresh_due_ms) - 64]
+            _pending_refresh_due_ms.append(int(due_ms))
+            return
+
         try:
             t = threading.Timer(delay_ms / 1000.0, lambda: _refresh_inventory_cache(force=True))
             t.daemon = True
@@ -2458,6 +2477,28 @@ try:
                 _debug(f"Failed to schedule inventory refresh: {e}", Console.MessageType.Debug)
             except Exception:
                 pass
+
+    def _drain_scheduled_refresh_queue():
+        if not bool(getattr(cfg, "experimental_mainloop_refresh_queue", EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT)):
+            return
+        if not _pending_refresh_due_ms:
+            return
+
+        now = int(_now_ms())
+        due_count = 0
+        for due in _pending_refresh_due_ms:
+            try:
+                if int(due) <= int(now):
+                    due_count += 1
+            except Exception:
+                due_count += 1
+
+        if due_count <= 0:
+            return
+
+        # Coalesce multiple due entries into one forced refresh this frame.
+        del _pending_refresh_due_ms[0:due_count]
+        _refresh_inventory_cache(force=True)
 
     def _refresh_inventory_cache(force: bool = False) -> bool:
         global _inv_cache_items, _inv_cache_ts, _inv_counts_by_model
@@ -5727,6 +5768,8 @@ try:
         if _local_team_flags_refresh_timer.IsStopped() or _local_team_flags_refresh_timer.HasElapsed(1000):
             _local_team_flags_refresh_timer.Start()
             _refresh_local_team_flags_from_ini()
+
+        _drain_scheduled_refresh_queue()
 
         _draw_main_window()
         _draw_settings_window()
