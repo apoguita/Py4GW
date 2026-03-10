@@ -1,6 +1,7 @@
 import ctypes
 import math
 import time
+from typing import Callable, Optional
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Player, Routines, BuildMgr, Range, Py4GW, ConsoleLog,
                           Map, ActionQueueManager, AgentArray, AutoPathing)
@@ -64,12 +65,13 @@ _WEAPON_RANGE           = Range.Longbow
 def _dist(x1: float, y1: float, x2: float, y2: float) -> float:
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, dist: float, rotation: int = 0):
+def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, dist: float, rotation: int = 0, debug_fn=None):
     """Return a point 'dist' away from threat, in the direction away from it.
 
     Tries navmesh-aware pathfinding; falls back to a straight-line escape if
     the navmesh is not yet loaded.
     """
+    _dbg = debug_fn if debug_fn is not None else (lambda: False)
     navmesh = AutoPathing().get_navmesh()  # read the module-level cache; None until _init_navmesh() succeeds
 
     dx = me_x - threat_x
@@ -86,36 +88,36 @@ def _escape_point(me_x: float, me_y: float, threat_x: float, threat_y: float, di
     escape_pos = (escape_x, escape_y)
 
     if navmesh:
-        #Py4GW.Console.Log("KeiranThackerayEOTN", f"Navmesh fucking loaded", Py4GW.Console.MessageType.Warning)
-        base_deg = math.degrees(escape_radians) % 360 - 180 
+        if _dbg(): Py4GW.Console.Log("KeiranThackerayEOTN", f"Navmesh fucking loaded", Py4GW.Console.MessageType.Warning)
+        base_deg = math.degrees(escape_radians) % 360 - 180
         found = False
 
-        #ConsoleLog("Navmesh", f"Initinal Degree of Escape - {base_deg}", Py4GW.Console.MessageType.Warning)
+        if _dbg(): ConsoleLog("Navmesh", f"Initinal Degree of Escape - {base_deg}", Py4GW.Console.MessageType.Warning)
         # Check the direct escape direction first before rotating
         if navmesh.find_trapezoid_id_by_coord((escape_x_far, escape_y_far)) is not None:
             if navmesh.has_line_of_sight((me_x, me_y), (escape_x_far, escape_y_far)):
-                #ConsoleLog("Navmesh", f"Initial Escape Route is Good!", Py4GW.Console.MessageType.Warning)
+                if _dbg(): ConsoleLog("Navmesh", f"Initial Escape Route is Good!", Py4GW.Console.MessageType.Warning)
                 found = True
         if found != True:
             for step in range(1, 19):       # 12 steps × 15° = 180° sweep each direction
                 for sign in (1, -1):
-                    #ConsoleLog("Navmesh", f"Attempting Step: {sign * step}", Py4GW.Console.MessageType.Warning)
-                    candidate_deg  = (base_deg + sign * step * 10) % 360 - 180        
+                    if _dbg(): ConsoleLog("Navmesh", f"Attempting Step: {sign * step}", Py4GW.Console.MessageType.Warning)
+                    candidate_deg  = (base_deg + sign * step * 10) % 360 - 180
                     candidate_rads = math.radians(candidate_deg)
-                    #ConsoleLog("Navmesh", f"Testing Degree - {candidate_deg}", Py4GW.Console.MessageType.Warning)
+                    if _dbg(): ConsoleLog("Navmesh", f"Testing Degree - {candidate_deg}", Py4GW.Console.MessageType.Warning)
                     escape_x_far   = me_x + 1000.0 * math.cos(candidate_rads)
                     escape_y_far   = me_y + 1000.0 * math.sin(candidate_rads)
                     goal_trap      = navmesh.find_trapezoid_id_by_coord((escape_x_far, escape_y_far))
                     if goal_trap:
                         if navmesh.has_line_of_sight((me_x, me_y), (escape_x_far, escape_y_far)):
-                            #ConsoleLog("Navmesh", f"New Escape Route is Good!", Py4GW.Console.MessageType.Warning)
+                            if _dbg(): ConsoleLog("Navmesh", f"New Escape Route is Good!", Py4GW.Console.MessageType.Warning)
                             escape_radians   = candidate_rads
                             escape_x   = me_x + dist * math.cos(escape_radians)
                             escape_y   = me_y + dist * math.sin(escape_radians)
                             escape_pos = (escape_x, escape_y)
                             found = True
                             break
-                    #ConsoleLog("Navmesh", f"Step: {step} Failed", Py4GW.Console.MessageType.Warning)
+                    if _dbg(): ConsoleLog("Navmesh", f"Step: {step} Failed", Py4GW.Console.MessageType.Warning)
                 if found:
                     break
 
@@ -160,8 +162,9 @@ def _farthest_from(array, origin_x: float, origin_y: float, max_dist: float = 0)
 # ── Build class ───────────────────────────────────────────────────────────────
 
 class KeiranThackerayEOTN(BuildMgr):
-    def __init__(self, fsm=None, bot=None):
+    def __init__(self, fsm=None, bot=None, debug_fn: Optional[Callable[[], bool]] = None):
         super().__init__(name="AutoCombat Build")
+        self.debug_fn: Callable[[], bool] = debug_fn if debug_fn is not None else (lambda: False)
         self.auto_combat_handler: BuildMgr = AutoCombat()
 
         self.natures_blessing   = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
@@ -209,6 +212,14 @@ class KeiranThackerayEOTN(BuildMgr):
         """Inject the bot instance so the build can access bot.Properties etc."""
         self.bot = bot
 
+    def set_debug_fn(self, fn: Callable[[], bool]) -> None:
+        """Inject a callable that returns the current debug flag."""
+        self.debug_fn = fn
+
+    @property
+    def debug(self) -> bool:
+        return self.debug_fn()
+
     def _set_pause(self, reason: str) -> None:
         self.pause_reasons.add(reason)
         if self.fsm is not None and not self.fsm.is_paused():
@@ -249,7 +260,7 @@ class KeiranThackerayEOTN(BuildMgr):
         # ── Miku tracking ─────────────────────────────────────────────────────
         miku_id   = Routines.Agents.GetAgentIDByModelID(_MIKU_MODEL_ID)
         miku_dead = miku_id != 0 and Agent.IsDead(miku_id)
-        miku_reset = miku_id == 0
+        miku_reset = miku_id == 0 and Map.GetMapID() == 849
 
         if miku_id != 0 and not miku_dead:
             self.miku_idle = False
@@ -266,7 +277,7 @@ class KeiranThackerayEOTN(BuildMgr):
             nearest_enemy = _nearest_from(enemy_array, me_x, me_y, Range.Earshot.value)
             ne_x, ne_y    = Agent.GetXY(nearest_enemy)
             me_x, me_y  = Agent.GetXY(me_id)
-            ex_x, ex_y    = _escape_point(me_x, me_y, ne_x, ne_y, 1500)
+            ex_x, ex_y    = _escape_point(me_x, me_y, ne_x, ne_y, 1500, debug_fn=self.debug_fn)
             ActionQueueManager().ResetAllQueues()
             Player.Move(ex_x, ex_y)
             yield from Routines.Yield.wait(500)
@@ -277,19 +288,19 @@ class KeiranThackerayEOTN(BuildMgr):
             self._clear_pause("miku_dead")
 
         # If Miku fell through the world, back track to start.
+        '''
         if miku_reset:
             if self.miku_reset_at == 0.0:
                 self.miku_reset_at = now                        # start the 5-second window
             elif now - self.miku_reset_at >= 5.0:
                 self._set_pause("miku_reset")
 
-                # find the path index closest to current location
+                # Find the path index closest to current location
                 nearest_idx = min(range(len(_MIKU_PATH)), key=lambda i: _dist(me_x, me_y, *_MIKU_PATH[i]))
-                # step one point back if possible so we start "behind" the player
+                # Step one point back if possible so we start "behind" the player
                 start_idx = nearest_idx - 1 if nearest_idx > 0 else 0
 
-                # walk the selected portion in reverse, giving the client a moment to
-                # actually move between each location so we don't instantly teleport.
+                # Retrace path back to beginning
                 for (x, y) in reversed(_MIKU_PATH[: start_idx + 1]):
                     Player.Move(x, y)
                 # Wait until Miku catches up with player.
@@ -298,6 +309,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 self.miku_reset_at = 0.0                        # reset after handling
         else:
             self.miku_reset_at = 0.0                            # Miku back — clear timer
+        '''
         # ── Spirit avoidance ──────────────────────────────────────────────────
         spirit_id = 0
         sp_x = sp_y = 0.0
@@ -334,40 +346,43 @@ class KeiranThackerayEOTN(BuildMgr):
             elif not self.me_combat:
                 self.combat_approach_at = 0.0
 
-            # Flee spirits while other enemies are alive, or player is low
+            # Flee spirits while other enemies are alive or player is low health
             if (spirit_id != 0 and (len(enemies_far) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
-                #Py4GW.Console.Log("Avoidance", f"Spirit Trigger - {len(enemies_far)} Enemies", Py4GW.Console.MessageType.Warning)
-                ex_x, ex_y = _escape_point(me_x, me_y, sp_x, sp_y, 500)
+                if self.debug:
+                    Py4GW.Console.Log("Avoidance", f"Spirit Trigger - {len(enemies_far)} Enemies", Py4GW.Console.MessageType.Warning)
+                ex_x, ex_y = _escape_point(me_x, me_y, sp_x, sp_y, 500, debug_fn=self.debug_fn)
                 ActionQueueManager().ResetAllQueues()
                 self.last_movement_run = now
                 Player.Move(ex_x, ex_y)
                 yield from Routines.Yield.wait(500)
                 return
 
-            # Kite if overwhelmed or low health (no spirit present)
-            if (spirit_id == 0 and enemies_agro and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
-                #Py4GW.Console.Log("Avoidance", f"Overwhelmed Trigger", Py4GW.Console.MessageType.Warning)
+            # Basic avoidance when spirits are not present
+            if (spirit_id == 0 and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
+                if self.debug:
+                    Py4GW.Console.Log("Avoidance", f"Overwhelmed Trigger", Py4GW.Console.MessageType.Warning)
                 avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)
                 avg_y = sum(Agent.GetXY(eid)[1] for eid in enemies_agro) / len(enemies_agro)
-                ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 300)
+                ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 300, debug_fn=self.debug_fn)
                 ActionQueueManager().ResetAllQueues()
                 self.last_movement_run = now
                 Player.Move(ex_x, ex_y)
                 yield from Routines.Yield.wait(500)
                 return
 
-            # Nudge player away from enemies to force Miku into combat
+            # Try to engage Miku by pulling enemies towards her - if 1 enemy remains move towards enemy instead
             if self.me_combat and self.miku_idle:
                 if self.miku_lazy_at == 0.0:
                     self.miku_lazy_at = now                         # start the 3-second delay
                 elif now - self.miku_lazy_at >= 3.0 and now - self.last_movement_run >= 1.0:
-                    #Py4GW.Console.Log("Avoidance", f"Miku Lazy Trigger", Py4GW.Console.MessageType.Warning)
+                    if self.debug:
+                        Py4GW.Console.Log("Avoidance", f"Miku Lazy Trigger", Py4GW.Console.MessageType.Warning)
                     nearest_enemy      = _nearest_from(enemy_array, me_x, me_y, 1500)
                     ne_x, ne_y         = Agent.GetXY(nearest_enemy)
                     if len(enemies_far) > 1 :
-                        ex_x, ex_y         = _escape_point(me_x, me_y, ne_x, ne_y, 300)
+                        ex_x, ex_y         = _escape_point(me_x, me_y, ne_x, ne_y, 300, debug_fn=self.debug_fn)
                     else:
-                        ex_x, ex_y         = _escape_point(me_x, me_y, ne_x, ne_y, 300, rotation=180)
+                        ex_x, ex_y         = _escape_point(me_x, me_y, ne_x, ne_y, 300, rotation=180, debug_fn=self.debug_fn)
                     ActionQueueManager().ResetAllQueues()
                     self.last_movement_run = now
                     self.miku_lazy_at      = 0.0                    # reset for next 3-second window
@@ -380,10 +395,11 @@ class KeiranThackerayEOTN(BuildMgr):
 
             # Kite if two or more enemies are within melee range
             if len(enemies_close) > 1 and now - self.last_movement_run >= 1.0:
-                #Py4GW.Console.Log("Avoidance", f"Melee Swarm Trigger", Py4GW.Console.MessageType.Warning)
+                if self.debug:
+                    Py4GW.Console.Log("Avoidance", f"Melee Swarm Trigger", Py4GW.Console.MessageType.Warning)
                 avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)
                 avg_y = sum(Agent.GetXY(eid)[1] for eid in enemies_agro) / len(enemies_agro)
-                ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 300)
+                ex_x, ex_y = _escape_point(me_x, me_y, avg_x, avg_y, 300, debug_fn=self.debug_fn)
                 ActionQueueManager().ResetAllQueues()
                 self.last_movement_run = now
                 Player.Move(ex_x, ex_y)
@@ -413,7 +429,8 @@ class KeiranThackerayEOTN(BuildMgr):
                         # attack the melee units and thin the group.
                         other_enemies = [e for e in enemies_agro if e != target_id]
                         if now - self.los_fail_since >= 8.0 and len(other_enemies) > 0:
-                            #Py4GW.Console.Log("Avoidance", "LOS Suspension — dropping lock to attack reachable enemies", Py4GW.Console.MessageType.Warning)
+                            if self.debug:
+                                Py4GW.Console.Log("Avoidance", "LOS Suspension — dropping lock to attack reachable enemies", Py4GW.Console.MessageType.Warning)
                             self.locked_target_id      = 0
                             self.locked_priority       = len(_PRIORITY_TARGET_MODELS)
                             self.target_acquired_at    = 0.0
@@ -421,9 +438,10 @@ class KeiranThackerayEOTN(BuildMgr):
                             self.lock_suspended_until  = now + 5.0   # hold off re-locking for 5 s
                             self.combat_approach_at    = 0.0
                         else:
-                            #Py4GW.Console.Log("Avoidance", "LOS Recovery Trigger", Py4GW.Console.MessageType.Warning)
+                            if self.debug:
+                                Py4GW.Console.Log("Avoidance", "LOS Recovery Trigger", Py4GW.Console.MessageType.Warning)
                             ne_x, ne_y = Agent.GetXY(target_id)
-                            ep_x, ep_y = _escape_point(me_x, me_y, ne_x, ne_y, 300, rotation=180)
+                            ep_x, ep_y = _escape_point(me_x, me_y, ne_x, ne_y, 300, rotation=180, debug_fn=self.debug_fn)
                             ActionQueueManager().ResetAllQueues()
                             self.last_movement_run  = now
                             self.combat_approach_at = 0.0
@@ -434,7 +452,7 @@ class KeiranThackerayEOTN(BuildMgr):
             if self.aoe_caster_id != 0 and now >= self.aoe_sidestep_at:
                 if Agent.IsValid(self.aoe_caster_id) and not Agent.IsDead(self.aoe_caster_id):
                     tx, ty = Agent.GetXY(self.aoe_caster_id)
-                    sx, sy = _escape_point(me_x, me_y, tx, ty, _AOE_SIDESTEP_DIST, rotation=90)
+                    sx, sy = _escape_point(me_x, me_y, tx, ty, _AOE_SIDESTEP_DIST, rotation=90, debug_fn=self.debug_fn)
                     ActionQueueManager().ResetAllQueues()
                     Player.Move(sx, sy)
                     yield from Routines.Yield.wait(500)
@@ -538,10 +556,6 @@ class KeiranThackerayEOTN(BuildMgr):
 
         # ── Skill ladder (only when the AI is in weapon range) ──────────────────────
         in_danger = Routines.Checks.Agents.InDanger(aggro_area=_WEAPON_RANGE)
-        #if in_danger:
-            #self._set_pause("danger")
-        #elif Routines.Yield.Skills.IsSkillIDUsable(self.natures_blessing) or player_health > .90:
-            #self._clear_pause("danger")
         if in_danger:
 
             # Keiran's Sniper Shot — finish a hexed enemy
