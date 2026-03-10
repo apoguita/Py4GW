@@ -177,6 +177,7 @@ class Agents:
     def GetNearestEnemy(max_distance=4500.0, aggressive_only=False):
         from ..AgentArray import AgentArray
         from ..Py4GWcorelib import Utils
+        from ..GlobalCache import GLOBAL_CACHE
         from ..EnemyBlacklist import EnemyBlacklist
 
         bl = EnemyBlacklist()
