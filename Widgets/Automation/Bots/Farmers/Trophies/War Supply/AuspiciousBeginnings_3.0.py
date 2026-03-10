@@ -9,6 +9,8 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, Mode
                           TitleID, TITLE_TIERS)
 from Py4GWCoreLib import *
 
+MODULE_NAME = "Auspicious Beginnings (War Supplies)" 
+MODULE_ICON = "Textures\\Module_Icons\\Keiran Farm.png"
 
 class BotSettings:
     # Map/Outpost IDs
@@ -50,7 +52,7 @@ class BotSettings:
     DEBUG: bool = False
 
 
-_keiran_build = KeiranThackerayEOTN()
+_keiran_build = KeiranThackerayEOTN(debug_fn=lambda: BotSettings.DEBUG)
 bot = Botting("Auspicious Beginnings", custom_build=_keiran_build)
 _keiran_build.set_fsm(bot.config.FSM)
 bot.config.reset_pause_on_danger_fn(aggro_area=Range.Longbow)
@@ -100,7 +102,7 @@ def on_death(bot: "Botting"):
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
 
 def _EnableCombat(bot: Botting) -> None:
-    bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM))
+    bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM, debug_fn=lambda: BotSettings.DEBUG))
     bot.Templates.Aggressive(enable_imp=False)
  
 def _DisableCombat(bot: Botting) -> None:
@@ -381,20 +383,6 @@ def RunQuest(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _handle_war_supplies(bot, False), "DisableWarSupplies")
 
     bot.Move.XY(10165.07, -6181.43, step_name="First Spawn")
-
-    #bot.Move.XY(8660.40, -8289.95)
-    #bot.Move.XY(5314.61, -7081.49)
-    #bot.Move.XY(3258.03, -7818.52)
-    #bot.Move.XY(2626.34, -10105.07)
-    #bot.Move.XY(-1015.23, -11944.23)
-    #bot.Move.XY(-2292.38, -9034.12)
-    #bot.Move.XY(-4261.36, -8975.99)
-    #bot.Move.XY(-4000.69, -10906.09)
-    #bot.Move.XY(-5762.23, -10164.04)
-    #bot.Move.XY(-10148.25, -7884.56)
-    #bot.Move.XY(-13609.29, -8113.12)
-    #bot.Move.XY(-15180.71, -8974.05)
-
     bot.Move.XY(8270,-9010)
     bot.Move.XY(4245,-7412)
     bot.Move.XY(2025,-10726)

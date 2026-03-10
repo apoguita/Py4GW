@@ -6,7 +6,6 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Py4GWCoreLib import Range
 from Sources.oazix.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Sources.oazix.CustomBehaviors.skills.common.ebon_battle_standard_of_honor_utility import EbonBattleStandardOfHonorUtility
 from Sources.oazix.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
@@ -74,7 +73,6 @@ class WarriorSevenWeaponsAxe_UtilitySkillBar(CustomBehaviorBaseUtility):
             current_build=in_game_build,
             score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 69 if enemy_qte >= 3 else 63 if enemy_qte == 2 else 0),
             mana_required_to_cast=0,
-            within_range=Range.Earshot,
         )
         self.cyclone_axe_utility: CustomSkillUtilityBase = RawAoeAttackUtility(
             event_bus=self.event_bus,
@@ -82,7 +80,6 @@ class WarriorSevenWeaponsAxe_UtilitySkillBar(CustomBehaviorBaseUtility):
             current_build=in_game_build,
             score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 68 if enemy_qte >= 3 else 62 if enemy_qte == 2 else 0),
             mana_required_to_cast=0,
-            within_range=Range.Earshot,
         )
         self.comfort_animal_utility: CustomSkillUtilityBase = ComfortAnimalUtility(
             event_bus=self.event_bus,

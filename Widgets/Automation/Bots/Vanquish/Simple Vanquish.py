@@ -1,0 +1,217 @@
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player
+from Py4GWCoreLib import *
+import Py4GW
+import os
+import PyImGui
+import importlib.util
+projects_base_path = Py4GW.Console.get_projects_path()
+ac_folder_path = os.path.join(projects_base_path, "Sources", "aC_Scripts")
+from Sources.aC_Scripts.aC_api import *
+MAPS_DIR = os.path.join(ac_folder_path,"PyQuishAI_maps")
+
+class BotSettings:
+    BOT_NAME = "Simple Vanquish"
+    OUTPOST_TO_TRAVEL = 0
+    EXPLORABLE_TO_TRAVEL = 0
+    TRANSIT_EXPLORABLE = 0
+    COORD_TO_EXIT_MAP = []
+    VANQUISH_PATH = []
+    TRANSIT_PATH = [(0,0)]
+
+bot = Botting(BotSettings.BOT_NAME,
+              upkeep_armor_of_salvation_restock=3,
+              upkeep_essence_of_celerity_restock=3,
+              upkeep_grail_of_might_restock=3,
+              upkeep_war_supplies_restock=3,
+              upkeep_honeycomb_restock=20,
+              upkeep_auto_loot_active=True,
+              upkeep_armor_of_salvation_active=True,
+              upkeep_essence_of_celerity_active=True,
+              upkeep_grail_of_might_active=True,
+              upkeep_war_supplies_active=True,
+              upkeep_honeycomb_active=True,
+              config_draw_path=True)
+
+def bot_routine(bot: Botting) -> None:
+    #events
+    condition = lambda: OnPartyWipe(bot)
+    bot.Events.OnPartyWipeCallback(condition)
+    #end events
+
+    # Combat preparations
+    bot.States.AddHeader(BotSettings.BOT_NAME) #2
+    bot.Templates.Multibox_Aggressive()
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=BotSettings.OUTPOST_TO_TRAVEL)    
+    bot.Party.SetHardMode(True)
+    PrepareForBattle(bot)
+
+    # Travel
+    bot.States.AddHeader("Travelling to Explorable") #3
+    if BotSettings.TRANSIT_EXPLORABLE:
+            bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP[-1], target_map_id=BotSettings.TRANSIT_EXPLORABLE)
+            bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
+            bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
+    else:
+        bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP[-1], target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
+  
+    # Combat
+    bot.States.AddHeader("Start Combat") #4
+    if "bless" in BotSettings.VANQUISH_PATH[0]:
+        for i, entry in enumerate(BotSettings.VANQUISH_PATH):
+            for key, value in entry.items():
+                if key == "bless":
+                    bot.Move.XYAndInteractNPC(*value)
+                    bot.Multibox.SendDialogToTarget(0x84)
+                    bot.Multibox.SendDialogToTarget(0x85)
+                elif key == "path":
+                    bot.Move.FollowAutoPath(value)
+    else:
+        bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
+       
+    bot.States.AddHeader("Reverse Kill Route") #5
+
+    if "bless" in BotSettings.VANQUISH_PATH[-1]:
+        BotSettings.VANQUISH_PATH = [point for entry in BotSettings.VANQUISH_PATH for point in entry["path"]] 
+        BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
+        bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
+    else:
+        BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
+        bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
+
+def PrepareForBattle(bot: Botting):                  
+    bot.Items.Restock.ArmorOfSalvation()
+    bot.Items.Restock.EssenceOfCelerity()
+    bot.Items.Restock.GrailOfMight()
+    bot.Items.Restock.WarSupplies()
+    bot.Items.Restock.Honeycomb()
+
+region_index = 0
+map_index = 0
+_farm_configured = [False]
+
+def _draw_settings():
+    global region_index
+    global map_index
+
+    #Region combo
+    PyImGui.text("Region & Map Selection")
+    PyImGui.separator()
+    regions = sorted([d for d in os.listdir(MAPS_DIR) if os.path.isdir(os.path.join(MAPS_DIR, d))])
+    region_index = PyImGui.combo("##Region", region_index, regions)
+    REGION_DIR = os.path.join(MAPS_DIR, regions[region_index])
+  
+    #Map combo
+    maps = sorted([
+        f[:-3] for f in os.listdir(REGION_DIR)
+        if f.endswith(".py")
+    ])
+    map_index = PyImGui.combo("##Map", map_index, maps)
+    if map_index >= len(maps):
+        map_index = 0
+    map_file = os.path.join(REGION_DIR, maps[map_index])+".py"
+    map_selected = maps[map_index]
+
+    spec = importlib.util.spec_from_file_location(map_selected, map_file)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    BotSettings.VANQUISH_PATH = getattr(mod, map_selected, [])   
+    ids = getattr(mod, f"{map_selected}_ids", {})
+    BotSettings.OUTPOST_TO_TRAVEL = ids.get("outpost_id")
+    BotSettings.EXPLORABLE_TO_TRAVEL = ids.get("map_id")
+    BotSettings.COORD_TO_EXIT_MAP = getattr(mod, f"{map_selected}_outpost_path", [])
+    BotSettings.TRANSIT_EXPLORABLE = ids.get("transit_id")
+    if getattr(mod, f"{map_selected}_transit_path", []):
+        BotSettings.TRANSIT_PATH = getattr(mod, f"{map_selected}_transit_path", [])
+
+    if not _farm_configured[0]:
+        if PyImGui.button("Select Map to Vanquish", 250, 30):
+            _farm_configured[0] = True
+
+    if _farm_configured[0]:
+        if PyImGui.button("Reload widget to change Map Settings", 250, 30):
+            #_farm_configured[0] = False
+            bot.Stop()
+            #bot.config.FSM.reset()
+            #bot.config.initialized = False
+    
+    if PyImGui.button("Travel to Embark Beach", 250, 30):
+        Map.Travel(857)
+
+    _draw_settings_consumables()
+    #_draw_settings_debug()
+
+def _draw_settings_consumables():
+    PyImGui.separator()
+    PyImGui.text("Consumables Selection")
+    PyImGui.separator()
+
+    # Conset controls
+    use_conset = bot.Properties.Get("armor_of_salvation", "active")
+    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
+    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
+    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
+    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+
+    # War Supplies controls
+    use_war_supplies = bot.Properties.Get("war_supplies", "active")
+    use_war_supplies = PyImGui.checkbox("Restock & use War Supplies", use_war_supplies)
+    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
+                         
+    # Honeycomb controls
+    use_honeycomb = bot.Properties.Get("honeycomb", "active")
+    use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
+    bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
+    hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
+    hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
+    bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
+
+def _draw_settings_debug():
+    PyImGui.separator()
+    PyImGui.text("DEBUG DATA")
+    PyImGui.separator()
+    PyImGui.text(f"_farm_configured: {_farm_configured[0]}")
+    PyImGui.text(f"BotSettings.OUTPOST_TO_TRAVEL: {BotSettings.OUTPOST_TO_TRAVEL}")
+    PyImGui.text(f"BotSettings.EXPLORABLE_TO_TRAVEL: {BotSettings.EXPLORABLE_TO_TRAVEL}")
+    PyImGui.text(f"BotSettings.COORD_TO_EXIT_MAP: {BotSettings.COORD_TO_EXIT_MAP[-1]}")
+    PyImGui.text(f"BotSettings.VANQUISH_PATH: {BotSettings.VANQUISH_PATH[-1]}")
+    PyImGui.text(f"BotSettings.TRANSIT_EXPLORABLE: {BotSettings.TRANSIT_EXPLORABLE}")
+    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}")
+    
+
+def _draw_help():
+    PyImGui.text("Developed by: Aura")
+             
+def _on_party_wipe(bot: "Botting"):
+    while Agent.IsDead(Player.GetAgentID()):
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            # Map invalid → release FSM and exit
+            bot.config.FSM.resume()
+            return
+
+    # Player revived on same map → jump to recovery step
+    bot.States.JumpToStepName("[H]Start Combat_4")
+    bot.config.FSM.resume()
+    
+def OnPartyWipe(bot: "Botting"):
+    ConsoleLog("on_party_wipe", "event triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+
+bot.SetMainRoutine(bot_routine)
+
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "ApoSource", "textures", "VQ_Helmet.png")
+#Override UI window
+bot.UI.override_draw_config(lambda: _draw_settings())
+bot.UI.override_draw_help(lambda: _draw_help())
+
+def main():
+    bot.UI.draw_window(icon_path=TEXTURE)
+
+    if  _farm_configured[0]:
+        bot.Update()
+
+if __name__ == "__main__":
+    main()

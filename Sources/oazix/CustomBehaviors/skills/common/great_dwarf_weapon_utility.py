@@ -44,14 +44,10 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
         self.should_target_ebon_vanguard_assassin = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "should_target_ebon_vanguard_assassin", "0") == "1")
         self.ebon_vanguard_assassin_model_id = 5903
 
-        self.prefer_model_target: bool = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "prefer_model_target", "1") == "1")
-        self.model_id_filter: int = int(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "model_id_filter", "5903"))
-        self.strict_model_targeting: bool = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "strict_model_targeting", "0") == "1")
-
     def _get_target(self) -> int | None:
 
         if self.should_target_ebon_vanguard_assassin:
-            npc_agent_id : int = Routines.Agents.GetNearestAliveAgentByModelID(self.model_id_filter, Range.Spellcast.value)
+            npc_agent_id : int = Routines.Agents.GetNearestAliveAgentByModelID(self.ebon_vanguard_assassin_model_id, Range.Spellcast.value)
             if npc_agent_id != None and npc_agent_id != 0 and not Agent.IsWeaponSpelled(npc_agent_id):
                 return npc_agent_id
         

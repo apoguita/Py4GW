@@ -50,14 +50,33 @@ class DarkAuraUtility(CustomSkillUtilityBase):
         self.soul_taker_skill = CustomSkill("Soul_Taker")
         self.masochism_skill = CustomSkill("Masochism")
 
+        # Load persisted configuration or use defaults
+        self.require_soul_taker_or_masochism: bool = PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "require_soul_taker_or_masochism", str(0)) == "1"
+
     def _get_target(self) -> int | None:
 
-        has_soul_taker_or_masochism = lambda agent_id: custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.soul_taker_skill.skill_id) or custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.masochism_skill.skill_id)
+        has_soul_taker_or_masochism = lambda agent_id: (
+            custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.soul_taker_skill.skill_id) or
+            custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.masochism_skill.skill_id)
+        )
         has_not_dark_aura = lambda agent_id: not custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.custom_skill.skill_id)
+
+        # Build the condition based on configuration
+        def condition(agent_id: int) -> bool:
+            if Player.GetAgentID() == agent_id:
+                return False
+            if not self.buff_configuration.get_agent_id_predicate()(agent_id):
+                return False
+            if not has_not_dark_aura(agent_id):
+                return False
+            # Optionally require Soul Taker or Masochism
+            if self.require_soul_taker_or_masochism and not has_soul_taker_or_masochism(agent_id):
+                return False
+            return True
 
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
                 within_range=Range.Spellcast.value * 1.5,
-                condition=lambda agent_id: self.buff_configuration.get_agent_id_predicate()(agent_id) and has_soul_taker_or_masochism(agent_id) and has_not_dark_aura(agent_id) and Player.GetAgentID() != agent_id,
+                condition=condition,
                 sort_key=(TargetingOrder.DISTANCE_ASC,),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)
@@ -85,6 +104,9 @@ class DarkAuraUtility(CustomSkillUtilityBase):
     
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
+        PyImGui.bullet_text(f"require_soul_taker_or_masochism :")
+        self.require_soul_taker_or_masochism = PyImGui.checkbox("##require_soul_taker_or_masochism", self.require_soul_taker_or_masochism)
+
         target = self._get_target()
         if target is not None:
             PyImGui.bullet_text(f"target : {target}")
@@ -98,14 +120,17 @@ class DarkAuraUtility(CustomSkillUtilityBase):
     @override
     def persist_configuration_for_account(self):
         PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "require_soul_taker_or_masochism", "1" if self.require_soul_taker_or_masochism else "0")
         print("configuration saved for account")
 
     @override
     def persist_configuration_as_global(self):
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
+        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "require_soul_taker_or_masochism", "1" if self.require_soul_taker_or_masochism else "0")
         print("configuration saved as global")
 
     @override
     def delete_persisted_configuration(self):
         PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "require_soul_taker_or_masochism")
         print("configuration deleted")

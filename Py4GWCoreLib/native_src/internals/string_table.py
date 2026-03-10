@@ -27,50 +27,11 @@ import ctypes
 import ctypes.wintypes
 import re
 import struct
-from typing import NamedTuple, Optional
+from typing import Optional
 
 from Py4GWCoreLib.native_src.context.TextContext import TextParser
 from Py4GWCoreLib.native_src.internals.helpers import read_wstr
 from Py4GWCoreLib.native_src.methods.DatFileMethods import read_dat_file_by_hash
-
-
-class ItemNameParts(NamedTuple):
-    markdown: Optional[str]
-    prefix: Optional[str]
-    item_name: Optional[str]
-    suffix: Optional[str]
-    num: Optional[int]
-    singular_form: Optional[str] = None
-    plural_form: Optional[str] = None
-
-    @property
-    def singular(self) -> Optional[str]:
-        return self.singular_form if self.singular_form is not None else self.item_name
-
-    @property
-    def plural(self) -> Optional[str]:
-        if self.plural_form is not None:
-            return self.plural_form
-        return self.item_name
-    
-
-
-class ItemNamePartsEncoded(NamedTuple):
-    markdown: Optional[bytes]
-    prefix: Optional[bytes]
-    item_name: Optional[bytes]
-    suffix: Optional[bytes]
-    num: Optional[int]
-    singular_form: Optional[bytes] = None
-    plural_form: Optional[bytes] = None
-
-    @property
-    def singular(self) -> Optional[bytes]:
-        return self.singular_form if self.singular_form is not None else self.item_name
-
-    @property
-    def plural(self) -> Optional[bytes]:
-        return self.plural_form if self.plural_form is not None else self.item_name
 
 
 # ─── Codepoint parsing (base-0x7F00 encoding) ────────────────────────────
@@ -270,8 +231,6 @@ def _postprocess_basic(text: str) -> str:
     for old, new in _BRACKET_SUBS.items():
         if old in text:
             text = text.replace(old, new)
-    if "%%" in text:
-        text = text.replace("%%", "%")
     return text
 
 
@@ -379,7 +338,6 @@ def _parse_number_codepoints(codepoints: tuple[int, ...], start: int) -> tuple[i
             break
         i += 1
 
-    # If no numeric digit was parsed, treat as 0 and let caller continue at same index.
     if not parsed_any:
         return 0, i
 
@@ -408,6 +366,79 @@ def _apply_plural_tags(text: str, num_value: Optional[int]) -> str:
     return text
 
 
+def _best_arg_text(node: dict) -> str:
+    """Pick the best resolved text from a node, descending through wrappers."""
+    txt = (node.get("rendered") or "").strip()
+    if txt and not re.search(r"%str\d+%", txt):
+        return txt
+    for k in sorted((node.get("args") or {}).keys()):
+        child_txt = _best_arg_text(node["args"][k])
+        if child_txt:
+            return child_txt
+    return ""
+
+
+def _consume_encoded_ref(codepoints: tuple[int, ...], start: int) -> int:
+    """Consume one encoded string reference (index + optional key) and return end pos."""
+    n = len(codepoints)
+    i = start
+    if i >= n:
+        return i
+    if codepoints[i] in (0, 1, 2):
+        return i
+
+    parsed_any = False
+    while i < n:
+        cp = codepoints[i]
+        if cp in (0, 1, 2):
+            break
+        digit = (cp & 0x7FFF) - _BASE
+        if digit < 0:
+            break
+        parsed_any = True
+        i += 1
+        if not (cp & _MORE):
+            break
+
+    if not parsed_any:
+        return start
+
+    # Optional key stream starts only when next codepoint has MORE set.
+    if i < n and codepoints[i] not in (0, 1, 2) and (codepoints[i] & _MORE):
+        while i < n:
+            cp = codepoints[i]
+            if cp in (0, 1, 2):
+                break
+            digit = (cp & 0x7FFF) - _BASE
+            if digit < 0:
+                break
+            i += 1
+            if not (cp & _MORE):
+                break
+
+    return i
+
+
+def _parse_arg_blocks(codepoints: tuple[int, ...], i: int) -> tuple[dict[int, dict], dict[int, int], int]:
+    """Parse 0x0101..0x011F arg blocks starting at i."""
+    n = len(codepoints)
+    args: dict[int, dict] = {}
+    num_args: dict[int, int] = {}
+
+    while i < n and _is_arg_tag(codepoints[i]):
+        tag = codepoints[i]
+        if _is_num_tag(tag):
+            slot = tag - 0x0100
+            value, i = _parse_number_codepoints(codepoints, i + 1)
+            num_args[slot] = value
+        else:
+            slot = tag - 0x0109
+            arg_node, i = _decode_formatted_tree(codepoints, i + 1)
+            args[slot] = arg_node
+
+    return args, num_args, i
+
+
 def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple[dict, int]:
     """Decode one formatted expression and return ({template, rendered, args}, next_pos)."""
     n = len(codepoints)
@@ -428,22 +459,38 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
 
     # Parse arg blocks: 0x0101 => num1, 0x010A => str1, ...
     if i < n and _is_arg_tag(codepoints[i]):
-        while i < n and _is_arg_tag(codepoints[i]):
-            tag = codepoints[i]
-            if _is_num_tag(tag):
-                slot = tag - 0x0100
-                value, i = _parse_number_codepoints(codepoints, i + 1)
-                num_args[slot] = value
-            else:
-                slot = tag - 0x0109
-                arg_node, i = _decode_formatted_tree(codepoints, i + 1)
-                args[slot] = arg_node
+        args, num_args, i = _parse_arg_blocks(codepoints, i)
+
+        # Ambiguous case: first token looked like num-tag but was actually a
+        # string-ref digit (e.g. 0x0108), leaving unresolved tail data.
+        if (
+            not template
+            and not args
+            and bool(num_args)
+            and _is_num_tag(codepoints[start])
+            and i < n
+            and codepoints[i] not in (0, 1, 2)
+            and not _is_arg_tag(codepoints[i])
+        ):
+            alt_end = _consume_encoded_ref(codepoints, start)
+            if alt_end > start:
+                alt_template = _decode_codepoints_segment(codepoints[start:alt_end])
+                if alt_template:
+                    template = alt_template
+                    rendered = template
+                    args, num_args, i = _parse_arg_blocks(codepoints, alt_end)
 
         for slot, arg_node in args.items():
             arg_text = arg_node.get("rendered", "")
+            if arg_text and rendered:
+                rendered = rendered.replace(f"%str{slot}%", arg_text)
+        # Second pass: if wrappers left unresolved "%strN%", use deepest resolved child text.
+        for slot, arg_node in args.items():
             marker = f"%str{slot}%"
-            if arg_text and rendered and marker in rendered:
-                rendered = rendered.replace(marker, arg_text)
+            if marker in rendered:
+                arg_text = _best_arg_text(arg_node)
+                if arg_text:
+                    rendered = rendered.replace(marker, arg_text)
         has_plural_markers = _has_plural_markers(rendered)
         for slot, value in num_args.items():
             if slot == 1 and value == 1 and has_plural_markers:
@@ -454,25 +501,16 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
         rendered = re.sub(r'\s{2,}', ' ', rendered).strip()
 
         # Some payloads are wrapper nodes with only control tags and nested args.
-        # Forward first non-empty descendant so outer %strN% can still resolve.
+        # Forward first non-empty child so outer %strN% can still resolve.
         if not rendered and args:
-            def _first_nonempty_desc(node: dict) -> str:
-                txt = node.get("rendered", "")
-                if txt:
-                    return txt
-                for k in sorted((node.get("args") or {}).keys()):
-                    out = _first_nonempty_desc(node["args"][k])
-                    if out:
-                        return out
-                return ""
-
             child = args.get(1)
-            if child is None:
+            if child is None or not child.get("rendered", ""):
                 for k in sorted(args.keys()):
-                    child = args[k]
-                    break
+                    if args[k].get("rendered", ""):
+                        child = args[k]
+                        break
             if child is not None:
-                rendered = _first_nonempty_desc(child)
+                rendered = child.get("rendered", "")
 
     # Consume expression terminator (0x0001) if present.
     if i < n and codepoints[i] == 1:
@@ -489,11 +527,11 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
 
 
 def _decode_formatted_stream(codepoints: tuple[int, ...]) -> tuple[str, Optional[dict]]:
-    """Decode a full formatted stream with multiple expressions/separators."""
-    n = len(codepoints)
-    i = 0
+    """Decode full formatted stream with 0x0002 segment separators."""
     out: list[str] = []
     first_tree: Optional[dict] = None
+    i = 0
+    n = len(codepoints)
 
     while i < n:
         cp = codepoints[i]
@@ -503,7 +541,6 @@ def _decode_formatted_stream(codepoints: tuple[int, ...]) -> tuple[str, Optional
             i += 1
             continue
         if cp == 2:
-            # Stream separator between formatted segments.
             i += 1
             continue
 
@@ -511,302 +548,32 @@ def _decode_formatted_stream(codepoints: tuple[int, ...]) -> tuple[str, Optional
         if ni <= i:
             i += 1
             continue
-        txt = tree.get("rendered", "")
+        txt = tree.get("rendered", "").strip()
         if txt:
             out.append(txt)
             if first_tree is None:
                 first_tree = tree
         i = ni
 
-    # Fill unresolved %strN% placeholders from immediate following plain line.
+    # Compact unresolved "%strN%" wrapper lines by consuming the next plain line.
     compact: list[str] = []
     i = 0
     while i < len(out):
-        cur = out[i].strip()
-        if not cur:
-            i += 1
-            continue
+        cur = out[i]
         if re.search(r'%str\d+%', cur) and (i + 1) < len(out):
-            nxt = out[i + 1].strip()
-            if nxt and not re.search(r'%str\d+%|%num\d+%', nxt) and not nxt.startswith("<c=@"):
+            nxt = out[i + 1]
+            if nxt and not nxt.startswith("<c=@"):
                 cur = re.sub(r'%str\d+%', nxt, cur)
-                i += 1  # consume next line
+                i += 1
         compact.append(cur)
         i += 1
 
-    text = '\n'.join(compact).strip()
-    return text, first_tree
+    return ('\n'.join(compact).strip(), first_tree)
 
 
 def _decode_formatted_codepoints(codepoints: tuple[int, ...], start: int = 0) -> tuple[str, int]:
     node, i = _decode_formatted_tree(codepoints, start)
     return node.get("rendered", ""), i
-
-
-def _find_num_arg(tree: dict, slot: int = 1) -> Optional[int]:
-    nums = tree.get("num_args") or {}
-    if slot in nums:
-        return nums[slot]
-    for child in (tree.get("args") or {}).values():
-        v = _find_num_arg(child, slot)
-        if v is not None:
-            return v
-    return None
-
-
-def _render_item_node(node: dict, num_override: Optional[int] = None, include_num: bool = False) -> str:
-    text = node.get("template") or node.get("rendered") or ""
-    if not text:
-        return ""
-
-    for slot, child in (node.get("args") or {}).items():
-        child_text = child.get("rendered", "")
-        if child_text:
-            text = text.replace(f"%str{slot}%", child_text)
-
-    nums = node.get("num_args") or {}
-    num1 = num_override if num_override is not None else nums.get(1)
-    has_plural_markers = _has_plural_markers(text)
-    if "%num1%" in text:
-        if include_num and num1 is not None and not (num1 == 1 and has_plural_markers):
-            text = text.replace("%num1%", str(num1))
-        else:
-            text = text.replace("%num1%", "")
-
-    for slot, value in nums.items():
-        if slot == 1:
-            continue
-        text = text.replace(f"%num{slot}%", str(value))
-
-    text = _apply_plural_tags(text, num1)
-    return re.sub(r'\s{2,}', ' ', text).strip()
-
-
-def _select_item_name_node(tree: dict) -> Optional[dict]:
-    args = tree.get("args") or {}
-    str1 = args.get(1)
-    if not str1:
-        return None
-    tpl = str1.get("template") or ""
-    if "%num" in tpl or _has_plural_markers(tpl):
-        return str1
-    str1_args = str1.get("args") or {}
-    if 1 in str1_args:
-        return str1_args[1]
-    return str1
-
-
-def _extract_item_name_forms_from_tree(tree: dict) -> tuple[Optional[str], Optional[str]]:
-    node = _select_item_name_node(tree)
-    if node is None:
-        base = tree.get("rendered") or None
-        return (base, base)
-    singular = _render_item_node(node, num_override=1, include_num=False) or None
-    plural = _render_item_node(node, num_override=2, include_num=False) or singular
-    return (singular, plural)
-
-
-def _codepoints_to_raw(codepoints: tuple[int, ...]) -> Optional[bytes]:
-    if not codepoints:
-        return None
-    return struct.pack(f'<{len(codepoints)}H', *codepoints)
-
-
-def _assign_prefix_suffix_by_language(
-    before_item: list[tuple[object, int]],
-    after_item: list[tuple[object, int]],
-    unknown: list[object],
-) -> tuple[Optional[object], Optional[object]]:
-    """Assign prefix/suffix from candidates using client-language order."""
-    lang = _loaded_language if _string_table_loaded else _get_client_language()
-    order = ItemName._PART_ORDER_BY_LANG.get(lang, ("prefix", "item", "suffix"))
-    p_idx = order.index("prefix")
-    s_idx = order.index("suffix")
-
-    p_side = "before" if p_idx < order.index("item") else "after"
-    s_side = "before" if s_idx < order.index("item") else "after"
-
-    before_item = sorted(before_item, key=lambda x: x[1])  # left -> right
-    after_item = sorted(after_item, key=lambda x: x[1])    # left -> right
-
-    prefix: Optional[object] = None
-    suffix: Optional[object] = None
-
-    def _pick_from_side(side: str) -> list[tuple[object, int]]:
-        return before_item if side == "before" else after_item
-
-    p_candidates = _pick_from_side(p_side)
-    s_candidates = _pick_from_side(s_side)
-
-    if p_side == s_side:
-        side_candidates = list(p_candidates)
-        if len(side_candidates) == 1:
-            # Ambiguous single extra part: map by language order proximity to item.
-            if p_idx < s_idx:
-                prefix = side_candidates[0][0]
-            else:
-                suffix = side_candidates[0][0]
-        elif len(side_candidates) >= 2:
-            first = side_candidates[0][0]
-            second = side_candidates[1][0]
-            if p_idx < s_idx:
-                prefix, suffix = first, second
-            else:
-                suffix, prefix = first, second
-    else:
-        if p_candidates:
-            prefix = p_candidates[0][0]
-        if s_candidates:
-            suffix = s_candidates[0][0]
-
-    for u in unknown:
-        if prefix is None:
-            prefix = u
-        elif suffix is None:
-            suffix = u
-
-    return prefix, suffix
-
-
-def _extract_parts_from_tree(tree: dict) -> ItemNameParts:
-    """Return (markdown, prefix, item_name, suffix, num)."""
-    markdown = tree.get("template") or None
-    prefix: Optional[str] = None
-    item_name: Optional[str] = None
-    suffix: Optional[str] = None
-    num = _find_num_arg(tree, 1)
-
-    args = tree.get("args") or {}
-    str1 = args.get(1)
-
-    if str1:
-        str1_args = str1.get("args") or {}
-        if str1_args:
-            item_node = _select_item_name_node(tree)
-            if item_node is not None:
-                item_name = _render_item_node(item_node, num_override=num, include_num=False) or None
-            else:
-                item_name = str1_args.get(1, {}).get("rendered") or None
-            tpl = str1.get("template") or ""
-            item_pos = tpl.find("%str1%") if tpl else -1
-
-            def _slot_info(slot: int, raw: str) -> tuple[str, bool, int, str, str]:
-                if not tpl:
-                    return raw, False, -1, "", ""
-                marker = f"%str{slot}%"
-                pos = tpl.find(marker)
-                if pos < 0:
-                    return raw, False, -1, "", ""
-
-                # Language-agnostic: placeholders after %str1% are suffix-side;
-                # keep localized literal context around this slot.
-                is_suffix = item_pos >= 0 and pos > item_pos
-                left = tpl[:pos]
-                m = list(re.finditer(r'%str\d+%', left))
-                context = left[m[-1].end():] if m else left
-                right = tpl[pos + len(marker):]
-                m2 = re.search(r'%str\d+%', right)
-                right_ctx = right[:m2.start()] if m2 else right
-                # Keep trailing punctuation/spaces (e.g. ')' in '(%str3%)').
-                tail = right_ctx if (m2 is None and not any(ch.isalnum() for ch in right_ctx)) else ""
-                text = (context + raw + tail).strip() if (context or tail) else raw
-                return text, is_suffix, pos, context, tail
-
-            after_item: list[tuple[object, int]] = []
-            before_item: list[tuple[object, int]] = []
-            unknown: list[object] = []
-            for slot in sorted(k for k in str1_args.keys() if k != 1):
-                raw = str1_args.get(slot, {}).get("rendered") or None
-                if not raw:
-                    continue
-                text, is_suffix, pos, context, tail = _slot_info(slot, raw)
-                if pos >= 0 and item_pos >= 0:
-                    if pos > item_pos:
-                        after_item.append((text, pos))
-                    else:
-                        before_item.append((text, pos))
-                else:
-                    unknown.append(text)
-
-            p, s = _assign_prefix_suffix_by_language(before_item, after_item, unknown)
-            if prefix is None:
-                prefix = p  # type: ignore[assignment]
-            if suffix is None:
-                suffix = s  # type: ignore[assignment]
-            if not item_name:
-                item_name = str1.get("rendered") or None
-        else:
-            item_name = str1.get("rendered") or None
-    else:
-        item_name = tree.get("rendered") or None
-        # If there is no wrapper args, "template" is just plain text.
-        markdown = None
-
-    if markdown and "%str" not in markdown and "<c=" not in markdown:
-        markdown = None
-
-    singular, plural = _extract_item_name_forms_from_tree(tree)
-    return ItemNameParts(markdown, prefix, item_name, suffix, num, singular, plural)
-
-
-def _extract_parts_encoded_from_tree(tree: dict) -> ItemNamePartsEncoded:
-    """Return encoded (markdown, prefix, item_name, suffix, num)."""
-    markdown = _codepoints_to_raw(tree.get("head_cp") or ())
-    prefix: Optional[bytes] = None
-    item_name: Optional[bytes] = None
-    suffix: Optional[bytes] = None
-    num = _find_num_arg(tree, 1)
-    singular_form: Optional[bytes] = None
-    plural_form: Optional[bytes] = None
-
-    args = tree.get("args") or {}
-    str1 = args.get(1)
-
-    if str1:
-        item_node = _select_item_name_node(tree)
-        if item_node is not None:
-            item_name = _codepoints_to_raw(item_node.get("expr_cp") or ())
-            singular_form = item_name
-            plural_form = item_name
-        else:
-            item_name = _codepoints_to_raw(str1.get("expr_cp") or ())
-            singular_form = item_name
-            plural_form = item_name
-
-        str1_args = str1.get("args") or {}
-        tpl = str1.get("template") or ""
-        item_pos = tpl.find("%str1%") if tpl else -1
-        after_item: list[tuple[object, int]] = []
-        before_item: list[tuple[object, int]] = []
-        unknown: list[object] = []
-        for slot in sorted(k for k in str1_args.keys() if k != 1):
-            node = str1_args.get(slot)
-            if not node:
-                continue
-            enc = _codepoints_to_raw(node.get("expr_cp") or ())
-            if not enc:
-                continue
-            marker_pos = tpl.find(f"%str{slot}%") if tpl else -1
-            if marker_pos >= 0 and item_pos >= 0:
-                if marker_pos > item_pos:
-                    after_item.append((enc, marker_pos))
-                else:
-                    before_item.append((enc, marker_pos))
-            else:
-                unknown.append(enc)
-        p, s = _assign_prefix_suffix_by_language(before_item, after_item, unknown)
-        if prefix is None:
-            prefix = p  # type: ignore[assignment]
-        if suffix is None:
-            suffix = s  # type: ignore[assignment]
-    else:
-        item_name = _codepoints_to_raw(tree.get("expr_cp") or ())
-        singular_form = item_name
-        plural_form = item_name
-        # If there is no wrapper args, this is plain text; no markdown wrapper.
-        markdown = None
-
-    return ItemNamePartsEncoded(markdown, prefix, item_name, suffix, num, singular_form, plural_form)
 
 
 # ─── Loading ─────────────────────────────────────────────────────────────
@@ -896,8 +663,6 @@ def _get_client_language() -> int:
 def switch_language(language: int) -> None:
     global _string_table, _decode_cache, _string_table_loaded, _load_enqueued, _loaded_language
     _decode_cache.clear()
-    ItemName._parts_cache.clear()
-    ItemName._parts_encoded_cache.clear()
     _string_table_loaded = False
     _load_enqueued = False
     _loaded_language = language
@@ -986,28 +751,30 @@ def _decode_and_cache(raw: bytes) -> None:
                 if t:
                     legacy_text = _postprocess(t)
 
-        # 2) Use formatted-tree decoding only when payload looks formatted
-        #    or legacy output still contains unresolved placeholders.
+        # 2) Formatted handling:
+        #    - names/placeholders: single expression
+        #    - descriptions: 0x0002-separated stream
         has_arg_tags = any(_is_arg_tag(v) for v in cp)
         has_term = any(v == 1 for v in cp)
-        looks_formatted = has_arg_tags and has_term
+        has_sep = any(v == 2 for v in cp)
+        looks_formatted = has_arg_tags and (has_term or has_sep)
         unresolved = bool(re.search(r'%str\d+%|%num\d+%|\[pl:"', legacy_text))
 
         if looks_formatted or unresolved:
-            text, first_tree = _decode_formatted_stream(cp)
-            if text:
-                text = _postprocess(text)
-                _decode_cache[raw] = text
-                if first_tree is None:
-                    first_tree, _ = _decode_formatted_tree(cp, 0)
-                ItemName._parts_cache[raw] = _extract_parts_from_tree(first_tree)
-                ItemName._parts_encoded_cache[raw] = _extract_parts_encoded_from_tree(first_tree)
-                return
+            if has_sep:
+                text, _ = _decode_formatted_stream(cp)
+                if text:
+                    _decode_cache[raw] = _postprocess(text)
+                    return
+            else:
+                tree, _ = _decode_formatted_tree(cp, 0)
+                text = tree.get("rendered", "")
+                if text:
+                    _decode_cache[raw] = _postprocess(text)
+                    return
 
         if legacy_text:
             _decode_cache[raw] = legacy_text
-            ItemName._parts_cache[raw] = ItemNameParts(None, None, legacy_text, None, None, legacy_text, legacy_text)
-            ItemName._parts_encoded_cache[raw] = ItemNamePartsEncoded(None, None, raw, None, None, raw, raw)
     finally:
         _pending.discard(raw)
 
@@ -1053,84 +820,3 @@ def decode(raw: bytes) -> str:
     _pending.add(raw)
     _decode_pool.submit(_decode_and_cache, raw)
     return ""
-
-class ItemName:
-    """Structured facade for item/encoded name decoding helpers."""
-    _parts_cache: dict[bytes, ItemNameParts] = {}
-    _parts_encoded_cache: dict[bytes, ItemNamePartsEncoded] = {}
-    _PART_ORDER_BY_LANG: dict[int, tuple[str, str, str]] = {
-        0: ("prefix", "item", "suffix"),   # English
-        1: ("prefix", "item", "suffix"),   # Korean
-        2: ("item", "prefix", "suffix"),   # French
-        3: ("prefix", "item", "suffix"),   # German
-        4: ("item", "suffix", "prefix"),   # Italian
-        5: ("item", "prefix", "suffix"),   # Spanish
-        6: ("suffix", "prefix", "item"),   # Traditional Chinese
-        8: ("prefix", "item", "suffix"),   # Japanese
-        9: ("item", "prefix", "suffix"),   # Polish
-        10: ("prefix", "item", "suffix"),  # Russian
-        17: ("prefix", "item", "suffix"),  # BorkBorkBork
-    }
-
-    decode = staticmethod(decode)
-    
-    @staticmethod
-    def decode_parts(raw: bytes) -> ItemNameParts:
-        """Decode to (markdown, prefix, item_name, suffix, num)."""
-        if len(raw) < 2:
-            return ItemNameParts(None, None, None, None, None)
-
-        # Player names: plain ASCII inline data.
-        if raw[0:2] == _PLAYER_PREFIX:
-            chars: list[int] = []
-            for i in range(4, len(raw) - 1, 2):
-                lo = raw[i]
-                hi = raw[i + 1]
-                if lo <= 1 and hi == 0:
-                    break
-                chars.append(lo)
-            name = bytes(chars).decode('ascii', 'ignore') or None
-            return ItemNameParts(None, None, name, None, None, name, name)
-
-        cached = ItemName._parts_cache.get(raw)
-        if cached is not None:
-            return cached
-
-        # Back-compat: if full text is already cached but parts are not.
-        cached_text = _decode_cache.get(raw)
-        if cached_text is not None:
-            return ItemNameParts(None, None, cached_text or None, None, None)
-
-        if not _string_table_loaded and not _load_enqueued:
-            load_string_table(_get_client_language())
-
-        if not _string_table or raw in _pending:
-            return ItemNameParts(None, None, None, None, None)
-
-        _pending.add(raw)
-        _decode_pool.submit(_decode_and_cache, raw)
-        return ItemNameParts(None, None, None, None, None)
-
-    @staticmethod
-    def encoded_parts(raw: bytes) -> ItemNamePartsEncoded:
-        """Decode to encoded parts: (markdown, prefix, item_name, suffix, num)."""
-        if len(raw) < 2:
-            return ItemNamePartsEncoded(None, None, None, None, None)
-
-        # Player names are inline plain data; keep item part as original bytes.
-        if raw[0:2] == _PLAYER_PREFIX:
-            return ItemNamePartsEncoded(None, None, raw, None, None, raw, raw)
-
-        cached = ItemName._parts_encoded_cache.get(raw)
-        if cached is not None:
-            return cached
-
-        if not _string_table_loaded and not _load_enqueued:
-            load_string_table(_get_client_language())
-
-        if not _string_table or raw in _pending:
-            return ItemNamePartsEncoded(None, None, None, None, None)
-
-        _pending.add(raw)
-        _decode_pool.submit(_decode_and_cache, raw)
-        return ItemNamePartsEncoded(None, None, None, None, None)
