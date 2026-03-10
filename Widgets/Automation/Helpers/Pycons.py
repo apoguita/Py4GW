@@ -16,6 +16,7 @@ MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 try:
     from typing import Any, cast
     import os
+    import shutil
     import re
     import unicodedata
     import PyImGui
@@ -56,6 +57,7 @@ try:
     DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE = MAX_RESTOCK_MOVE_CAP_PER_CYCLE
     BLOCKED_ACTION_RETENTION_MS = 45000
     BLOCKED_ACTION_MAX_UI_ROWS = 4
+    EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT = True
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
@@ -976,7 +978,7 @@ try:
                 continue
             seen.add(email)
             email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
-            ini = IniHandler(f"Widgets/Config/Pycons_{email_hash}.ini")
+            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
             ini.write_key(INI_SECTION, "team_consume_opt_in", value)
             updated += 1
             nm = _acc_name(acc)
@@ -1034,6 +1036,17 @@ try:
             ini = _get_ini_handler()
             new_broadcast = bool(ini.read_bool(INI_SECTION, "team_broadcast", bool(cfg.team_broadcast)))
             new_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", bool(cfg.team_consume_opt_in)))
+
+            # Default (legacy) behavior: always mirror local flags from INI.
+            if not bool(getattr(cfg, "experimental_team_flag_sync", EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT)):
+                cfg.team_broadcast = new_broadcast
+                cfg.team_consume_opt_in = new_optin
+                return
+
+            # Experimental behavior: avoid clobbering local unsaved edits.
+            if bool(getattr(cfg, "_dirty", False)):
+                return
+
             cfg.team_broadcast = new_broadcast
             cfg.team_consume_opt_in = new_optin
         except Exception:
@@ -1524,13 +1537,80 @@ try:
     _ini_path_cache = None
     _ini_generic_fallback_logged = False
     _ini_generic_cached_with_email_logged = False
-    _GENERIC_INI_PATH = "Widgets/Config/Pycons.ini"
+    _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
+    _LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
+    _GENERIC_INI_PATH = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
+    _LEGACY_GENERIC_INI_PATH = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+
+    def _norm_path_lower(path: str) -> str:
+        try:
+            return os.path.normpath(str(path or "")).replace("\\", "/").lower()
+        except Exception:
+            return str(path or "").replace("\\", "/").lower()
 
     def _is_generic_ini_path(path: str) -> bool:
         try:
-            return str(path or "").replace("\\", "/").lower().endswith("widgets/config/pycons.ini")
+            p = _norm_path_lower(path)
+            return p == _norm_path_lower(_GENERIC_INI_PATH) or p == _norm_path_lower(_LEGACY_GENERIC_INI_PATH)
         except Exception:
             return False
+
+    def _ensure_pycons_config_dir() -> bool:
+        try:
+            os.makedirs(_PYCONS_CONFIG_DIR, exist_ok=True)
+            return True
+        except Exception:
+            return False
+
+    def _resolve_account_ini_path(email_hash: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
+        h = str(email_hash or "").strip()
+        if not h:
+            return _GENERIC_INI_PATH
+
+        canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{h}.ini"))
+        legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{h}.ini"))
+
+        if os.path.exists(canonical):
+            return canonical
+
+        if bool(migrate_legacy) and os.path.exists(legacy):
+            try:
+                _ensure_pycons_config_dir()
+                if not os.path.exists(canonical):
+                    shutil.copy2(legacy, canonical)
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Migrated config file: {legacy} -> {canonical}", Console.MessageType.Info)
+                return canonical
+            except Exception as e:
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Config migration failed ({legacy} -> {canonical}): {e}", Console.MessageType.Warning)
+                return legacy
+
+        _ensure_pycons_config_dir()
+        return canonical
+
+    def _resolve_generic_ini_path(migrate_legacy: bool = True, log_migration: bool = False) -> str:
+        canonical = str(_GENERIC_INI_PATH)
+        legacy = str(_LEGACY_GENERIC_INI_PATH)
+
+        if os.path.exists(canonical):
+            return canonical
+
+        if bool(migrate_legacy) and os.path.exists(legacy):
+            try:
+                _ensure_pycons_config_dir()
+                if not os.path.exists(canonical):
+                    shutil.copy2(legacy, canonical)
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Migrated config file: {legacy} -> {canonical}", Console.MessageType.Info)
+                return canonical
+            except Exception as e:
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Config migration failed ({legacy} -> {canonical}): {e}", Console.MessageType.Warning)
+                return legacy
+
+        _ensure_pycons_config_dir()
+        return canonical
     
     def _get_ini_handler():
         global _ini_handler_cache, _ini_path_cache, _ini_generic_fallback_logged, _ini_generic_cached_with_email_logged
@@ -1554,7 +1634,7 @@ try:
             account_email = Player.GetAccountEmail()
             if not account_email:
                 # Fallback to generic file if not logged in yet
-                _ini_path_cache = _GENERIC_INI_PATH
+                _ini_path_cache = _resolve_generic_ini_path(migrate_legacy=True, log_migration=True)
                 if not _ini_generic_fallback_logged:
                     ConsoleLog(
                         BOT_NAME,
@@ -1565,7 +1645,13 @@ try:
                     _ini_generic_fallback_logged = True
             else:
                 email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-                _ini_path_cache = f"Widgets/Config/Pycons_{email_hash}.ini"
+                _ini_path_cache = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+            try:
+                parent_dir = os.path.dirname(str(_ini_path_cache or ""))
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+            except Exception:
+                pass
             _ini_handler_cache = IniHandler(_ini_path_cache)
             ConsoleLog(BOT_NAME, f"Using config file: {_ini_path_cache} (account: {account_email})", Console.MessageType.Info)
         return _ini_handler_cache
@@ -1712,6 +1798,11 @@ try:
             # Team / multibox settings
             self.team_broadcast = ini_handler.read_bool(INI_SECTION, "team_broadcast", False)
             self.team_consume_opt_in = ini_handler.read_bool(INI_SECTION, "team_consume_opt_in", False)
+            self.experimental_team_flag_sync = ini_handler.read_bool(
+                INI_SECTION,
+                "experimental_team_flag_sync",
+                bool(EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT),
+            )
 
             self._dirty = bool(getattr(self, "_mbdp_targets_migrated", False))
             self._save_timer = Timer()
@@ -1793,6 +1884,7 @@ try:
             ini_handler.write_key(INI_SECTION, "settings_ui_mbdp_open", str(bool(self.settings_ui_mbdp_open)))
             ini_handler.write_key(INI_SECTION, "settings_ui_presets_open", str(bool(self.settings_ui_presets_open)))
             ini_handler.write_key(INI_SECTION, "settings_ui_restock_open", str(bool(self.settings_ui_restock_open)))
+            ini_handler.write_key(INI_SECTION, "experimental_team_flag_sync", str(bool(self.experimental_team_flag_sync)))
 
             for k, v in self.alcohol_selected.items():
                 ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
@@ -1810,8 +1902,11 @@ try:
             # Team / multibox settings
             # team_broadcast: When enabled, broadcasts item usage to other accounts
             # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
-            # Note: team_consume_opt_in is saved separately (below in settings window) to avoid conflicts
+            # Legacy behavior keeps team_consume_opt_in saved by immediate settings writes.
+            # Experimental team-flag sync writes both flags here to reduce refresh races.
             ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
+            if bool(getattr(self, "experimental_team_flag_sync", EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT)):
+                ini_handler.write_key(INI_SECTION, "team_consume_opt_in", str(bool(self.team_consume_opt_in)))
 
             for k, v in self.selected.items():
                 ini_handler.write_key(INI_SECTION, f"selected_{k}", str(bool(v)))
@@ -3686,7 +3781,7 @@ try:
         try:
             import hashlib
             email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-            ini = IniHandler(f"Widgets/Config/Pycons_{email_hash}.ini")
+            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
             is_broadcaster = bool(ini.read_bool(INI_SECTION, "team_broadcast", False))
             is_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", False))
         except Exception:
