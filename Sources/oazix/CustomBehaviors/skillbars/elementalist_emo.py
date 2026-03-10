@@ -18,7 +18,6 @@ from Sources.oazix.CustomBehaviors.skills.monk.infuse_health_utility import Infu
 from Sources.oazix.CustomBehaviors.skills.monk.life_attunement_utility import LifeAttunementUtility
 from Sources.oazix.CustomBehaviors.skills.monk.protective_bond_utility import ProtectiveBondUtility
 from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import ProtectiveSpiritUtility
-from Sources.oazix.CustomBehaviors.skills.monk.reversal_of_fortune_utility import Reversal_of_Fortune_SpiritBondUtility
 from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.spirit_bond_utility import SpiritBondUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
@@ -42,7 +41,6 @@ class ElementalistEmo_UtilitySkillBar(CustomBehaviorBaseUtility):
         #healing
         self.protective_spirit_utility: CustomSkillUtilityBase = ProtectiveSpiritUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
         self.spirit_bond_utility: CustomSkillUtilityBase = SpiritBondUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
-        self.reversal_of_fortune_utility: CustomSkillUtilityBase = Reversal_of_Fortune_SpiritBondUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(6))
         self.infuse_health_utility: CustomSkillUtilityBase = InfuseHealthUtility(event_bus=self.event_bus, score_definition=ScorePerHealthGravityDefinition(1), current_build=in_game_build)
 
         
@@ -86,7 +84,6 @@ class ElementalistEmo_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.elemental_lord_kurzick_utility,
             self.elemental_lord_luxon_utility,
             self.spirit_bond_utility,
-            self.reversal_of_fortune_utility,
             self.vital_blessing_utility,
             self.ether_renewal_utility,
             self.life_attunement_utility,
