@@ -48,7 +48,7 @@ def bot_routine(bot: Botting) -> None:
     # Travel
     bot.States.AddHeader("Travelling to Explorable") #3
     if BotSettings.TRANSIT_EXPLORABLE:
-            bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
+            bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLE)
             bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
             bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
     else:
