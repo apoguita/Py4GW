@@ -174,13 +174,16 @@ class Agents:
         return enemy_array
                     
     @staticmethod
-    def GetNearestEnemy(max_distance=4500.0, aggressive_only = False):
+    def GetNearestEnemy(max_distance=4500.0, aggressive_only=False):
         from ..AgentArray import AgentArray
         from ..Py4GWcorelib import Utils
-        from ..GlobalCache import GLOBAL_CACHE
+        from ..EnemyBlacklist import EnemyBlacklist
 
+        bl = EnemyBlacklist()
         player_pos = Player.GetXY()
         enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
+        if not bl.is_empty():
+            enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: not bl.is_blacklisted(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
     
@@ -233,21 +236,6 @@ class Agents:
         player_pos = Player.GetXY()
         enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsRanged(agent_id))
-        enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
-        return Utils.GetFirstFromArray(enemy_array)
-
-    @staticmethod
-    def GetNearestNonBlacklistedEnemy(max_distance=4500.0, aggressive_only=False):
-        from ..AgentArray import AgentArray
-        from ..Py4GWcorelib import Utils
-        from ..EnemyBlacklist import EnemyBlacklist
-
-        bl = EnemyBlacklist()
-        if bl.is_empty():
-            return Agents.GetNearestEnemy(max_distance, aggressive_only)
-        player_pos = Player.GetXY()
-        enemy_array = Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], max_distance, aggressive_only)
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: not bl.is_blacklisted(agent_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
 

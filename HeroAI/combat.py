@@ -367,7 +367,7 @@ class CombatClass:
         def get_nearest_enemy():
             nonlocal _nearest_enemy
             if _nearest_enemy is None:
-                _nearest_enemy = Routines.Agents.GetNearestNonBlacklistedEnemy(self.get_combat_distance())
+                _nearest_enemy = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
             return _nearest_enemy
 
         _lowest_ally = None
@@ -1140,7 +1140,7 @@ class CombatClass:
             self.SafeInteract(called_target)
             return True
             
-        nearest = Routines.Agents.GetNearestNonBlacklistedEnemy(self.get_combat_distance())
+        nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
         if nearest != 0:
             self.SafeInteract(nearest)
             return True
