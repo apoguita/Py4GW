@@ -1664,6 +1664,16 @@ try:
             _get_ini_handler()  # Initialize if needed
         return _ini_path_cache
 
+    def _ini_key_exists(ini_handler, section: str, key: str) -> bool:
+        try:
+            val = ini_handler.read_key(section, key, None)
+            if val is None:
+                return False
+            txt = str(val)
+            return txt != ""
+        except Exception:
+            return False
+
     class Config:
         def __init__(self):
             ini_handler = _get_ini_handler()
@@ -1816,7 +1826,19 @@ try:
                 bool(EXPERIMENTAL_MBDP_ENGINE_V2_DEFAULT),
             )
 
+            # Backfill newly introduced experimental flags into existing INIs so
+            # users/admins can see explicit values without manual edits.
+            _experimental_defaults_backfilled = False
+            if not _ini_key_exists(ini_handler, INI_SECTION, "experimental_team_flag_sync"):
+                _experimental_defaults_backfilled = True
+            if not _ini_key_exists(ini_handler, INI_SECTION, "experimental_mainloop_refresh_queue"):
+                _experimental_defaults_backfilled = True
+            if not _ini_key_exists(ini_handler, INI_SECTION, "experimental_mbdp_engine_v2"):
+                _experimental_defaults_backfilled = True
+
             self._dirty = bool(getattr(self, "_mbdp_targets_migrated", False))
+            if bool(_experimental_defaults_backfilled):
+                self._dirty = True
             self._save_timer = Timer()
             self._save_timer.Start()
             self._save_timer.Stop()
@@ -3815,6 +3837,9 @@ try:
 
     def _acc_player_morale(acc) -> int:
         try:
+            agent_data = getattr(acc, "AgentData", None)
+            if agent_data is not None and hasattr(agent_data, "Morale"):
+                return int(getattr(agent_data, "Morale", 0) or 0)
             return int(getattr(acc, "PlayerMorale", 0) or 0)
         except Exception:
             return 0
@@ -3850,6 +3875,9 @@ try:
             return {"raw": raw, "effective": -dp, "morale_boost": 0, "dp": dp, "format": "dp_only"}
         eff = max(-60, min(10, raw - 100))
         return {"raw": raw, "effective": eff, "morale_boost": max(0, eff), "dp": max(0, -eff), "format": "effective"}
+
+    def _morale_states_for_targeting(states: list[dict]) -> list[dict]:
+        return [s for s in states if str(s.get("format", "")) != "unknown"]
 
     def _get_party_player_rows():
         rows = []
@@ -4016,7 +4044,13 @@ try:
             else:
                 if str(row.get("member_type", "")) not in ("hero", "mercenary", "henchman"):
                     continue
+            # API compatibility: some builds key Party.GetPartyMorale() by agent_id,
+            # others by login_number (player_id). Try both.
             raw = morale_by_agent.get(int(row["agent_id"]), None)
+            if raw is None:
+                login_number = int(row.get("login_number", 0) or 0)
+                if login_number > 0:
+                    raw = morale_by_agent.get(login_number, None)
             if raw is None:
                 acc = accounts_by_name.get(row["name_norm"])
                 if acc:
@@ -4210,12 +4244,13 @@ try:
         light_cnt = sum(1 for s in states if int(s["dp"]) >= party_light_dp_threshold)
         heavy_cnt = sum(1 for s in states if int(s["dp"]) >= party_heavy_dp_threshold)
         emergency_cnt = sum(1 for s in states if int(s["dp"]) >= party_emergency_dp_threshold)
+        target_states = _morale_states_for_targeting(states)
         target_eff = int(cfg.mbdp_party_target_effective)
-        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in states)
-        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in states)
+        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in target_states)
+        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in target_states)
         strict_target = int(cfg.mbdp_party_target_effective)
-        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in states)
-        strict_target_members = sum(1 for s in states if int(s["effective"]) < strict_target)
+        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in target_states)
+        strict_target_members = sum(1 for s in target_states if int(s["effective"]) < strict_target)
 
         return {
             "same_party_accounts": same_party_accounts,
@@ -4507,12 +4542,13 @@ try:
         light_cnt = sum(1 for s in states if int(s["dp"]) >= party_light_dp_threshold)
         heavy_cnt = sum(1 for s in states if int(s["dp"]) >= party_heavy_dp_threshold)
         emergency_cnt = sum(1 for s in states if int(s["dp"]) >= party_emergency_dp_threshold)
+        target_states = _morale_states_for_targeting(states)
         target_eff = int(cfg.mbdp_party_target_effective)
-        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in states)
-        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in states)
+        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in target_states)
+        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in target_states)
         strict_target = int(cfg.mbdp_party_target_effective)
-        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in states)
-        strict_target_members = sum(1 for s in states if int(s["effective"]) < strict_target)
+        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in target_states)
+        strict_target_members = sum(1 for s in target_states if int(s["effective"]) < strict_target)
 
         # Decision order: emergency -> deterministic DP -> smoothing DP -> morale.
         candidate_choices = []
