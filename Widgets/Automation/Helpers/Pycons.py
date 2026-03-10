@@ -59,6 +59,7 @@ try:
     BLOCKED_ACTION_MAX_UI_ROWS = 4
     EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT = True
     EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT = True
+    EXPERIMENTAL_MBDP_ENGINE_V2_DEFAULT = False
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
@@ -1809,6 +1810,11 @@ try:
                 "experimental_mainloop_refresh_queue",
                 bool(EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT),
             )
+            self.experimental_mbdp_engine_v2 = ini_handler.read_bool(
+                INI_SECTION,
+                "experimental_mbdp_engine_v2",
+                bool(EXPERIMENTAL_MBDP_ENGINE_V2_DEFAULT),
+            )
 
             self._dirty = bool(getattr(self, "_mbdp_targets_migrated", False))
             self._save_timer = Timer()
@@ -1892,6 +1898,7 @@ try:
             ini_handler.write_key(INI_SECTION, "settings_ui_restock_open", str(bool(self.settings_ui_restock_open)))
             ini_handler.write_key(INI_SECTION, "experimental_team_flag_sync", str(bool(self.experimental_team_flag_sync)))
             ini_handler.write_key(INI_SECTION, "experimental_mainloop_refresh_queue", str(bool(self.experimental_mainloop_refresh_queue)))
+            ini_handler.write_key(INI_SECTION, "experimental_mbdp_engine_v2", str(bool(self.experimental_mbdp_engine_v2)))
 
             for k, v in self.alcohol_selected.items():
                 ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
@@ -4042,7 +4049,306 @@ try:
         leader_email = _acc_email(broadcasters[0])
         return bool(self_email and leader_email and self_email == leader_email)
 
+    def _mbdp_tick_precheck() -> bool:
+        if not bool(cfg.mbdp_enabled):
+            return False
+        if not Routines.Checks.Map.MapValid():
+            return False
+        if _should_block_consumption():
+            return False
+        if not bool(_in_explorable()):
+            return False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False
+        return True
+
+    def _mbdp_run_self_phase() -> bool:
+        self_state = _morale_state(int(Player.GetMorale() or 0))
+        self_dp = int(self_state["dp"])
+        self_eff = int(self_state["effective"])
+        st = _warn_timer_for("mbdp_self_state")
+        if st.IsStopped() or st.HasElapsed(2500):
+            st.Start()
+            _debug(f"MB/DP SELF state: raw={self_state['raw']} effective={_fmt_effective(self_eff)} dp={self_dp}")
+
+        # Self DP upkeep: remove-all first if high DP.
+        self_major_dp_threshold = max(0, -int(cfg.mbdp_self_dp_major_threshold))
+        self_minor_dp_threshold = max(0, -int(cfg.mbdp_self_dp_minor_threshold))
+
+        if self_dp >= self_major_dp_threshold:
+            spec, item_id = _find_item_enabled_and_available("peppermint_candy_cane")
+            if spec and item_id > 0:
+                _debug(
+                    f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} "
+                    f"dp={self_dp} trigger={_fmt_effective(cfg.mbdp_self_dp_major_threshold)} (~{self_major_dp_threshold}% DP)"
+                )
+                if _use_item_id(item_id, spec["key"]):
+                    aftercast_timer.Start()
+                    _last_used_ms[spec["key"]] = _now_ms()
+                    return True
+
+        if self_dp >= self_minor_dp_threshold:
+            for key in ("refined_jelly", "wintergreen_candy_cane"):
+                spec, item_id = _find_item_enabled_and_available(key)
+                if spec and item_id > 0:
+                    _debug(
+                        f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} "
+                        f"dp={self_dp} trigger={_fmt_effective(cfg.mbdp_self_dp_minor_threshold)} (~{self_minor_dp_threshold}% DP)"
+                    )
+                    if _use_item_id(item_id, spec["key"]):
+                        aftercast_timer.Start()
+                        _last_used_ms[spec["key"]] = _now_ms()
+                        return True
+                    break
+
+        # Self morale upkeep: only fire if gain would not be mostly wasted.
+        gain_if_10 = max(0, min(10, 10 - self_eff))
+        if self_eff < int(cfg.mbdp_self_morale_target_effective) and gain_if_10 >= int(cfg.mbdp_self_min_morale_gain):
+            order = ("seal_of_the_dragon_empire", "pumpkin_cookie") if bool(cfg.mbdp_prefer_seal_for_recharge) else ("pumpkin_cookie", "seal_of_the_dragon_empire")
+            for key in order:
+                spec, item_id = _find_item_enabled_and_available(key)
+                if spec and item_id > 0:
+                    _debug(
+                        f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} dp={self_dp} "
+                        f"target={_fmt_effective(cfg.mbdp_self_morale_target_effective)} gain10={gain_if_10}"
+                    )
+                    if _use_item_id(item_id, spec["key"]):
+                        aftercast_timer.Start()
+                        _last_used_ms[spec["key"]] = _now_ms()
+                        return True
+                    break
+        return False
+
+    def _mbdp_prepare_party_context():
+        if not bool(cfg.team_broadcast):
+            return None
+        same_party_accounts = _get_same_party_accounts()
+        if not same_party_accounts:
+            return None
+        if not _coordinator_gate(same_party_accounts):
+            return None
+
+        party_rows, party_counts = _get_party_member_rows()
+        if not party_rows:
+            return None
+        party_human_name_norms = {r["name_norm"] for r in party_rows if bool(r.get("is_human", False)) and r.get("name_norm")}
+        self_email = str(Player.GetAccountEmail() or "")
+        self_name_norm = _normalize_name(Player.GetName())
+        if not self_name_norm:
+            for acc in same_party_accounts:
+                if _acc_email(acc) == self_email:
+                    self_name_norm = _normalize_name(_acc_name(acc))
+                    break
+        other_human_name_norms = set(party_human_name_norms)
+        if self_name_norm in other_human_name_norms:
+            other_human_name_norms.remove(self_name_norm)
+        else:
+            # If local name could not be resolved, avoid false "other human" positives in solo+NPC parties.
+            other_human_name_norms = set()
+        npc_member_count = int(party_counts["heroes"]) + int(party_counts["mercenaries"]) + int(party_counts["henchmen"])
+        _debug(
+            f"MB/DP PARTY roster: total={len(party_rows)} humans={party_counts['humans']} heroes={party_counts['heroes']} "
+            f"mercs={party_counts['mercenaries']} hench={party_counts['henchmen']}"
+        )
+
+        broadcasters = set()
+        optins = set()
+        recipients_emails = []
+        for acc in same_party_accounts:
+            email = _acc_email(acc)
+            name_norm = _normalize_name(_acc_name(acc))
+            if not email or not name_norm:
+                continue
+            b, o = _load_team_flags_for_email(email)
+            if b:
+                broadcasters.add(name_norm)
+            if o:
+                optins.add(name_norm)
+                if name_norm in party_human_name_norms and email != self_email:
+                    recipients_emails.append(email)
+
+        eligible_humans = party_human_name_norms.intersection(broadcasters.union(optins))
+        eligible_total = len(eligible_humans) + npc_member_count
+        if eligible_total < int(cfg.mbdp_party_min_members):
+            _debug(
+                f"MB/DP PARTY skip: eligible_total={eligible_total} (humans={len(eligible_humans)}, npc={npc_member_count}) "
+                f"< min_members={cfg.mbdp_party_min_members}"
+            )
+            return None
+        if other_human_name_norms and len(recipients_emails) < 1:
+            _debug(
+                f"MB/DP PARTY skip: no opted-in recipients among other humans in current party "
+                f"(other_humans={len(other_human_name_norms)})."
+            )
+            return None
+
+        if (not bool(cfg.mbdp_allow_partywide_in_human_parties)) and len(party_human_name_norms.difference(eligible_humans)) > 0:
+            _debug(
+                f"MB/DP PARTY skip: found non-eligible human party members ({len(party_human_name_norms.difference(eligible_humans))}); "
+                "enable 'allow party-wide in human parties' to override."
+            )
+            return None
+
+        now = _now_ms()
+        if _last_mbdp_party_ms > 0 and (now - int(_last_mbdp_party_ms)) < int(cfg.mbdp_party_min_interval_ms):
+            return None
+
+        states = _compute_party_morale_states(eligible_humans, party_rows, same_party_accounts)
+        if len(states) < int(cfg.mbdp_party_min_members):
+            _debug(
+                f"MB/DP PARTY skip: sampled_members={len(states)} < min_members={cfg.mbdp_party_min_members} "
+                f"(humans={party_counts['humans']} heroes={party_counts['heroes']} mercs={party_counts['mercenaries']} hench={party_counts['henchmen']})"
+            )
+            return None
+        if states:
+            _debug(f"MB/DP PARTY sample: {states[0]['name']} raw={states[0]['raw']} effective={_fmt_effective(states[0]['effective'])} dp={states[0]['dp']}")
+
+        total_dp = sum(int(s["dp"]) for s in states)
+        party_light_dp_threshold = max(0, -int(cfg.mbdp_party_light_dp_threshold))
+        party_heavy_dp_threshold = max(0, -int(cfg.mbdp_party_heavy_dp_threshold))
+        party_emergency_dp_threshold = max(0, -int(cfg.mbdp_powerstone_dp_threshold))
+        light_cnt = sum(1 for s in states if int(s["dp"]) >= party_light_dp_threshold)
+        heavy_cnt = sum(1 for s in states if int(s["dp"]) >= party_heavy_dp_threshold)
+        emergency_cnt = sum(1 for s in states if int(s["dp"]) >= party_emergency_dp_threshold)
+        target_eff = int(cfg.mbdp_party_target_effective)
+        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in states)
+        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in states)
+        strict_target = int(cfg.mbdp_party_target_effective)
+        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in states)
+        strict_target_members = sum(1 for s in states if int(s["effective"]) < strict_target)
+
+        return {
+            "same_party_accounts": same_party_accounts,
+            "party_rows": party_rows,
+            "party_counts": party_counts,
+            "states": states,
+            "total_dp": int(total_dp),
+            "light_cnt": int(light_cnt),
+            "heavy_cnt": int(heavy_cnt),
+            "emergency_cnt": int(emergency_cnt),
+            "party_light_dp_threshold": int(party_light_dp_threshold),
+            "party_heavy_dp_threshold": int(party_heavy_dp_threshold),
+            "party_emergency_dp_threshold": int(party_emergency_dp_threshold),
+            "gain_5": int(gain_5),
+            "gain_10": int(gain_10),
+            "strict_target": int(strict_target),
+            "strict_target_missing": int(strict_target_missing),
+            "strict_target_members": int(strict_target_members),
+            "recipients_emails": list(recipients_emails),
+            "now": int(now),
+        }
+
+    def _mbdp_build_party_candidates(ctx: dict) -> list[tuple[str, str]]:
+        candidate_choices = []
+        if int(ctx["emergency_cnt"]) >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("powerstone_of_courage", f"emergency_cnt={ctx['emergency_cnt']} trigger={_fmt_effective(cfg.mbdp_powerstone_dp_threshold)} (~{ctx['party_emergency_dp_threshold']}% DP)")
+            )
+        if int(ctx["heavy_cnt"]) >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("oath_of_purity", f"heavy_cnt={ctx['heavy_cnt']} trigger={_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)} (~{ctx['party_heavy_dp_threshold']}% DP)")
+            )
+        if int(ctx["light_cnt"]) >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("four_leaf_clover", f"light_cnt={ctx['light_cnt']} trigger={_fmt_effective(cfg.mbdp_party_light_dp_threshold)} (~{ctx['party_light_dp_threshold']}% DP)")
+            )
+
+        leader_force_active = bool(cfg.mbdp_strict_party_plus10)
+        if leader_force_active:
+            # In leader force mode, morale spending is strictly target-driven.
+            # Only add morale candidates if party members are below the configured target.
+            if int(ctx["strict_target_missing"]) > 0:
+                strict_reason = (
+                    f"strict_target={_fmt_effective(int(ctx['strict_target']))} "
+                    f"members_below_target={ctx['strict_target_members']} total_missing={ctx['strict_target_missing']}"
+                )
+                candidate_choices.append(("elixir_of_valor", strict_reason))
+                if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                    candidate_choices.append(("rainbow_candy_cane", strict_reason + " fallback+5"))
+                candidate_choices.append(("honeycomb", strict_reason + " fallback+5"))
+        else:
+            if int(ctx["gain_10"]) >= int(cfg.mbdp_party_min_total_gain_10):
+                candidate_choices.append(("elixir_of_valor", f"gain10={ctx['gain_10']} min={cfg.mbdp_party_min_total_gain_10}"))
+            elif int(ctx["gain_5"]) >= int(cfg.mbdp_party_min_total_gain_5):
+                gain5_reason = f"gain5={ctx['gain_5']} min={cfg.mbdp_party_min_total_gain_5}"
+                if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                    candidate_choices.append(("rainbow_candy_cane", gain5_reason))
+                candidate_choices.append(("honeycomb", gain5_reason))
+        return candidate_choices
+
+    def _mbdp_select_candidate_item(candidate_choices: list[tuple[str, str]]):
+        chosen_key = None
+        chosen_reason = ""
+        spec = None
+        item_id = 0
+        tried_unavailable = []
+        tried_seen = set()
+        for key, key_reason in candidate_choices:
+            if key in tried_seen:
+                continue
+            tried_seen.add(key)
+            c_spec, c_item_id = _find_item_enabled_and_available(key)
+            if c_spec and c_item_id > 0:
+                chosen_key = key
+                chosen_reason = key_reason
+                spec = c_spec
+                item_id = c_item_id
+                break
+            tried_unavailable.append(key)
+        return chosen_key, chosen_reason, spec, int(item_id), tried_unavailable
+
+    def _mbdp_execute_party_phase(ctx: dict, candidate_choices: list[tuple[str, str]]) -> bool:
+        global _last_mbdp_party_ms
+        if not candidate_choices:
+            _debug(
+                f"MB/DP PARTY skip: members={len(ctx['states'])} total_dp={ctx['total_dp']} light={ctx['light_cnt']} heavy={ctx['heavy_cnt']} "
+                f"gain5={ctx['gain_5']} gain10={ctx['gain_10']}"
+            )
+            return False
+
+        _debug("MB/DP PARTY states: " + ", ".join([f"{s['name']} raw={s['raw']} eff={_fmt_effective(s['effective'])} dp={s['dp']}" for s in ctx["states"]]))
+        chosen_key, chosen_reason, spec, item_id, tried_unavailable = _mbdp_select_candidate_item(candidate_choices)
+        if not spec or item_id <= 0:
+            _debug(
+                "MB/DP PARTY skip: no available candidate item after fallback chain; "
+                f"tried={','.join(tried_unavailable)}"
+            )
+            return False
+        if tried_unavailable:
+            _debug(
+                f"MB/DP PARTY fallback: unavailable={','.join(tried_unavailable)} -> using {chosen_key}."
+            )
+
+        _debug(
+            f"MB/DP PARTY fire {spec['label']}: {chosen_reason}; members={len(ctx['states'])} total_dp={ctx['total_dp']} "
+            f"gain5={ctx['gain_5']} gain10={ctx['gain_10']} recipients={len(ctx['recipients_emails'])}"
+        )
+        if _use_item_id(item_id, spec["key"]):
+            _last_mbdp_party_ms = int(ctx["now"])
+            _last_used_ms[spec["key"]] = int(ctx["now"])
+            aftercast_timer.Start()
+            try:
+                _broadcast_use(int(spec.get("model_id", 0)), 1, 0, recipients=ctx["recipients_emails"])
+            except Exception:
+                pass
+            return True
+        return False
+
+    def _tick_morale_dp_v2() -> bool:
+        if not _mbdp_tick_precheck():
+            return False
+        if _mbdp_run_self_phase():
+            return True
+        ctx = _mbdp_prepare_party_context()
+        if not ctx:
+            return False
+        candidate_choices = _mbdp_build_party_candidates(ctx)
+        return _mbdp_execute_party_phase(ctx, candidate_choices)
+
     def _tick_morale_dp() -> bool:
+        if bool(getattr(cfg, "experimental_mbdp_engine_v2", EXPERIMENTAL_MBDP_ENGINE_V2_DEFAULT)):
+            return _tick_morale_dp_v2()
+
         global _last_mbdp_party_ms
         if not bool(cfg.mbdp_enabled):
             return False
