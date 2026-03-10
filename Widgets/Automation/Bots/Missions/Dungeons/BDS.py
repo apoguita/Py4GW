@@ -286,6 +286,7 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
             )
             ConsoleLog(BOT_NAME, "[Merchant] Selling materials at trader (leader)")
             yield from Routines.Yield.Merchant.SellMaterialsAtTrader(tmx, tmy)
+            yield from Routines.Yield.wait(2000)  # give alts time to start processing sell_materials
         else:
             ConsoleLog(BOT_NAME, "[Merchant] No Material Trader NPC found")
 
@@ -400,10 +401,13 @@ def _gh_merchant_setup_if_inventory_full() -> Generator:
         return
     ConsoleLog(BOT_NAME, f"[Merchant] Inventory nearly full ({free_slots} free slot) — resigning to outpost then triggering GH merchant run")
 
-    # Resign all accounts so they return to outpost (can't travel to GH from explorable while in group)
+    # Resign all accounts (except leader) so they return to outpost
     _my_email = Player.GetAccountEmail()
     for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        GLOBAL_CACHE.ShMem.SendMessage(_my_email, acc.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0), ("", "", "", ""))
+        if acc.AccountEmail != _my_email:
+            GLOBAL_CACHE.ShMem.SendMessage(_my_email, acc.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0), ("", "", "", ""))
+    # Leader resigns itself directly
+    Player.SendChatCommand("resign")
     yield from Routines.Yield.wait(500)
 
     # Wait until leader is back in an outpost

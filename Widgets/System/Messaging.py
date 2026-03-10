@@ -715,10 +715,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
             ConsoleLog(MODULE_NAME, f"MerchantMaterials buy_ectoplasm metrics: {ecto_metrics}", Console.MessageType.Info, False)
 
         elif mode == "sell_merchant_leftovers":
-            yield from Routines.Yield.Movement.FollowPath([(x, y)])
-            yield from Routines.Yield.wait(100)
-            yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-            yield from Routines.Yield.wait(1200)
+            # Check inventory first — skip NPC interaction if nothing to sell
             bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
             item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
             leftover_ids = []
@@ -731,9 +728,15 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                 if 0 < qty < 10:
                     leftover_ids.append(int(item_id))
             if leftover_ids:
+                yield from Routines.Yield.Movement.FollowPath([(x, y)])
+                yield from Routines.Yield.wait(100)
+                yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+                yield from Routines.Yield.wait(1200)
                 yield from Routines.Yield.Merchant.SellItems(leftover_ids)
                 yield from Routines.Yield.wait(300)
                 ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_merchant_leftovers: sold {len(leftover_ids)} stacks", Console.MessageType.Info, False)
+            else:
+                ConsoleLog(MODULE_NAME, "MerchantMaterials sell_merchant_leftovers: no leftover stacks, skipping", Console.MessageType.Info, False)
 
         elif mode == "sell_rare_mats":
             # Parse comma-separated model IDs from extra1
@@ -781,24 +784,24 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                     except ValueError:
                         pass
             if scroll_model_ids:
-                yield from Routines.Yield.Movement.FollowPath([(x, y)])
-                yield from Routines.Yield.wait(100)
-                yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-                yield from Routines.Yield.wait(1200)
+                # Check inventory first — skip NPC interaction if nothing to sell
                 bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
                 item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
                 sell_ids = [int(item_id) for item_id in item_array
                             if int(GLOBAL_CACHE.Item.GetModelID(item_id)) in scroll_model_ids]
                 if sell_ids:
+                    yield from Routines.Yield.Movement.FollowPath([(x, y)])
+                    yield from Routines.Yield.wait(100)
+                    yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+                    yield from Routines.Yield.wait(1200)
                     yield from Routines.Yield.Merchant.SellItems(sell_ids)
                     yield from Routines.Yield.wait(300)
                     ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_scrolls: sold {len(sell_ids)} scroll(s)", Console.MessageType.Info, False)
+                else:
+                    ConsoleLog(MODULE_NAME, "MerchantMaterials sell_scrolls: no scrolls in inventory, skipping", Console.MessageType.Info, False)
 
         elif mode == "sell_nonsalvageable_golds":
-            yield from Routines.Yield.Movement.FollowPath([(x, y)])
-            yield from Routines.Yield.wait(100)
-            yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-            yield from Routines.Yield.wait(1200)
+            # Check inventory first — skip NPC interaction if nothing to sell
             bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
             item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
             sell_ids = []
@@ -812,9 +815,15 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                     continue
                 sell_ids.append(int(item_id))
             if sell_ids:
+                yield from Routines.Yield.Movement.FollowPath([(x, y)])
+                yield from Routines.Yield.wait(100)
+                yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+                yield from Routines.Yield.wait(1200)
                 yield from Routines.Yield.Merchant.SellItems(sell_ids)
                 yield from Routines.Yield.wait(300)
                 ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_nonsalvageable_golds: sold {len(sell_ids)} item(s)", Console.MessageType.Info, False)
+            else:
+                ConsoleLog(MODULE_NAME, "MerchantMaterials sell_nonsalvageable_golds: no items in inventory, skipping", Console.MessageType.Info, False)
         else:
             ConsoleLog(
                 MODULE_NAME,
