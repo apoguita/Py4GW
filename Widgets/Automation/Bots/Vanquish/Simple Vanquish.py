@@ -48,32 +48,62 @@ def bot_routine(bot: Botting) -> None:
     # Travel
     bot.States.AddHeader("Travelling to Explorable") #3
     if BotSettings.TRANSIT_EXPLORABLE:
-            bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP[-1], target_map_id=BotSettings.TRANSIT_EXPLORABLE)
+            bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
             bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
             bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
     else:
-        bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP[-1], target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
-  
+        bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
+
     # Combat
     bot.States.AddHeader("Start Combat") #4
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         for i, entry in enumerate(BotSettings.VANQUISH_PATH):
             for key, value in entry.items():
                 if key == "bless":
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractNPC(*value)
-                    bot.Multibox.SendDialogToTarget(0x84)
-                    bot.Multibox.SendDialogToTarget(0x85)
+                    bot.Multibox.SendDialogToTarget(0x84) # eotn blessings
+                    bot.Multibox.SendDialogToTarget(0x85) # NF blessings
+                elif key == "junundu":
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractGadget(*value)
                 elif key == "path":
                     bot.Move.FollowAutoPath(value)
     else:
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
-       
-    bot.States.AddHeader("Reverse Kill Route") #5
 
-    if "bless" in BotSettings.VANQUISH_PATH[-1]:
-        BotSettings.VANQUISH_PATH = [point for entry in BotSettings.VANQUISH_PATH for point in entry["path"]] 
-        BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
-        bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
+    #Reverse Route
+    bot.States.AddHeader("Reverse Kill Route") #5
+    if "bless" in BotSettings.VANQUISH_PATH[0]:
+        reversed_list = []
+        for entry in reversed(BotSettings.VANQUISH_PATH):
+            reversed_keys = list(entry.keys())[::-1]
+            reversed_entry = {}
+            for key in reversed_keys:
+                value = entry[key]
+                if isinstance(value, list):
+                    reversed_entry[key] = value[::-1]
+                else:
+                        reversed_entry[key] = value
+            reversed_list.append(reversed_entry)
+        BotSettings.VANQUISH_PATH = reversed_list
+
+        for i, entry in enumerate(BotSettings.VANQUISH_PATH):
+            for key, value in entry.items():
+                if key == "bless":
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractNPC(*value)
+                    bot.Multibox.SendDialogToTarget(0x84) # eotn blessings
+                    bot.Multibox.SendDialogToTarget(0x85) # NF blessings
+                elif key == "junundu":
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractGadget(*value)
+                elif key == "path":
+                    bot.Move.FollowAutoPath(value)
     else:
         BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
