@@ -1426,6 +1426,43 @@ try:
         changed = bool(current) != bool(state_now)
         return bool(current), bool(changed), False
 
+    def _draw_static_consumable_icon(
+        key: str,
+        label: str,
+        id_prefix: str,
+        icon_size: float = 18.0,
+        highlight_box: bool = False,
+    ) -> bool:
+        tooltip_text = _consumable_tooltip_with_label(key, label)
+        icon_path = _resolve_consumable_icon_path(key, label)
+        if not icon_path:
+            return False
+        pushed_colors = 0
+        try:
+            try:
+                if bool(highlight_box):
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.10, 0.28, 0.12, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.14, 0.38, 0.16, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.18, 0.46, 0.20, 1.00))
+                else:
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.02, 0.02, 0.02, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.08, 0.08, 0.08, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.00, 0.00, 0.00, 1.00))
+                pushed_colors = 3
+            except Exception:
+                pushed_colors = 0
+            ImGui.ImageButton(f"##{id_prefix}_icon_{key}", icon_path, float(icon_size), float(icon_size))
+        except Exception:
+            return False
+        finally:
+            if pushed_colors > 0:
+                try:
+                    PyImGui.pop_style_color(pushed_colors)
+                except Exception:
+                    pass
+        _tooltip_if_hovered(tooltip_text)
+        return True
+
     def _alcohol_display_label(spec: dict) -> str:
         base = str(spec.get("label", "") or "")
         pts = int(spec.get("drunk_add", 0) or 0)
@@ -1443,14 +1480,47 @@ try:
     import hashlib
     _ini_handler_cache = None
     _ini_path_cache = None
+    _ini_generic_fallback_logged = False
+    _ini_generic_cached_with_email_logged = False
+    _GENERIC_INI_PATH = "Widgets/Config/Pycons.ini"
+
+    def _is_generic_ini_path(path: str) -> bool:
+        try:
+            return str(path or "").replace("\\", "/").lower().endswith("widgets/config/pycons.ini")
+        except Exception:
+            return False
     
     def _get_ini_handler():
-        global _ini_handler_cache, _ini_path_cache
+        global _ini_handler_cache, _ini_path_cache, _ini_generic_fallback_logged, _ini_generic_cached_with_email_logged
+        if _ini_handler_cache is not None:
+            if _is_generic_ini_path(_ini_path_cache):
+                try:
+                    account_email_live = str(Player.GetAccountEmail() or "")
+                except Exception:
+                    account_email_live = ""
+                if account_email_live and not _ini_generic_cached_with_email_logged:
+                    ConsoleLog(
+                        BOT_NAME,
+                        "Config handler is still bound to generic INI "
+                        f"({_ini_path_cache}) even though account email is now available "
+                        f"({account_email_live}). Restart/reload is required to rebind.",
+                        Console.MessageType.Warning,
+                    )
+                    _ini_generic_cached_with_email_logged = True
+            return _ini_handler_cache
         if _ini_handler_cache is None:
             account_email = Player.GetAccountEmail()
             if not account_email:
                 # Fallback to generic file if not logged in yet
-                _ini_path_cache = "Widgets/Config/Pycons.ini"
+                _ini_path_cache = _GENERIC_INI_PATH
+                if not _ini_generic_fallback_logged:
+                    ConsoleLog(
+                        BOT_NAME,
+                        "Account email unavailable at config init; using generic INI "
+                        f"({_ini_path_cache}) for this session.",
+                        Console.MessageType.Warning,
+                    )
+                    _ini_generic_fallback_logged = True
             else:
                 email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
                 _ini_path_cache = f"Widgets/Config/Pycons_{email_hash}.ini"
@@ -4905,6 +4975,8 @@ try:
                 PyImGui.text_disabled("No selected items. Select consumables first.")
             else:
                 selected_specs = sorted(selected_specs, key=lambda pair: str(pair[1].get("label", "")).lower())
+                selected_conset_specs = [pair for pair in selected_specs if str(pair[0]) in CONSET_KEYS]
+                selected_non_conset_specs = [pair for pair in selected_specs if str(pair[0]) not in CONSET_KEYS]
                 _refresh_inventory_cache(False)
 
                 if PyImGui.begin_table("pycons_restock_targets_table", 3):
@@ -4912,7 +4984,7 @@ try:
                     PyImGui.table_setup_column("In Inventory", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
 
-                    for key, spec in selected_specs:
+                    def _draw_restock_target_item_row(key: str, spec: dict):
                         model_id = int(spec.get("model_id", 0) or 0)
                         known, cnt = _stock_status_for_model_id(model_id)
                         label = str(spec.get("label", key) or key)
@@ -4920,6 +4992,15 @@ try:
 
                         PyImGui.table_next_row()
                         PyImGui.table_next_column()
+                        drew_icon = _draw_static_consumable_icon(
+                            key,
+                            label,
+                            "pycons_restock_target",
+                            icon_size=18.0,
+                            highlight_box=True,
+                        )
+                        if drew_icon:
+                            _same_line(10)
                         PyImGui.text(label)
                         _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
 
@@ -4931,6 +5012,30 @@ try:
                         if changed_target:
                             cfg.restock_targets[key] = max(0, min(2500, int(new_target)))
                             cfg.mark_dirty()
+
+                    if selected_conset_specs:
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        PyImGui.text("Conset:")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+
+                        for key, spec in selected_conset_specs:
+                            _draw_restock_target_item_row(key, spec)
+
+                        if selected_non_conset_specs:
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+
+                    for key, spec in selected_non_conset_specs:
+                        _draw_restock_target_item_row(key, spec)
 
                     PyImGui.end_table()
 
