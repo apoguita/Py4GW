@@ -1,7 +1,7 @@
+from collections.abc import Generator
 import os
 import time
-from typing import Optional
-
+from typing import Any, Optional
 import Py4GW
 from Py4GWCoreLib import (
     Agent,
@@ -10,15 +10,19 @@ from Py4GWCoreLib import (
     GLOBAL_CACHE,
     Map,
     Player,
+    Quest,
     Routines,
-    SharedCommandType,
-)
+    SharedCommandType)
+from Py4GWCoreLib.py4gwcorelib_src import Utils
+from Py4GWCoreLib.routines_src.Agents import Agents
+from Py4GWCoreLib.routines_src.Yield import Yield
 from Py4GW_widget_manager import get_widget_handler
-
+from Py4GWCoreLib.botting_src.helpers import BottingHelpers
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Py4GWCoreLib.routines_src.Yield import Utils
 # ==================== CONFIGURATION ====================
 BOT_NAME = "Froggy Farm rezone"
-MODULE_NAME = "Bogroot Growths (Froggy Farm)" 
-MODULE_ICON = "Textures\\Module_Icons\\Bogroot Growths.png"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "textures", "froggy.png")
 
 # Map IDs
@@ -36,11 +40,297 @@ TEKKS_QUEST_REWARD_DIALOG = 0x833907
 CHEST_POSITION = (14982.66, -19122.0)
 TEKKS_POSITION = (14067.01, -17253.24)
 DUNGEON_PORTAL_POSITION = (13097.0, 26393.0)
+TEKKS_QUEST_ID = 0x339
+
+TEKKS_REWARD_PENDING = False
+
+def _verify_reward_taken_from_quest_log() -> Generator:
+    global TEKKS_REWARD_PENDING
+
+    quest_ids = Quest.GetQuestLogIds()
+
+    if TEKKS_QUEST_ID not in quest_ids:
+        TEKKS_REWARD_PENDING = True
+        ConsoleLog(BOT_NAME, "[FLAG] Reward confirmed: quest no longer in quest log", log=True)
+    else:
+        TEKKS_REWARD_PENDING = False
+        ConsoleLog(BOT_NAME, "[FLAG] Reward NOT confirmed: quest still present in quest log", log=True)
+
+    yield
 
 # ==================== GLOBAL VARIABLES ====================
-bot = Botting(BOT_NAME)
+bot = Botting(
+    bot_name=BOT_NAME,
+    upkeep_auto_combat_active=True,
+    upkeep_auto_loot_active=True,
+    upkeep_morale_active=False,
+    upkeep_four_leaf_clover_active=True,
+    upkeep_honeycomb_active=True,
+)
+
+TEKKS_POS = (14067.01, -17253.24)
+
+def _mark_reward_not_taken():
+    global TEKKS_REWARD_PENDING
+    TEKKS_REWARD_PENDING = False
+    yield
+
+def _mark_reward_taken():
+    global TEKKS_REWARD_PENDING
+    TEKKS_REWARD_PENDING = True
+    yield
+
+def _on_party_wipe(bot: "Botting"):
+    # Wait until we are alive again
+    while Agent.IsDead(Player.GetAgentID()):
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            bot.config.FSM.resume()
+            return
+
+    ConsoleLog("Res Check", "We ressed retrying!")
+    yield from bot.Wait._coro_for_time(3000)
+
+    # Map-safe anchors (YOU said you replaced jumps by headers)
+    # These should be the JUMPABLE step names (anchors), not just visual headers.
+    SHRINES_BY_MAP = {
+        MAP_BOGROOT_L1: [
+            ("Secure return - L1", 19045.95, 7877.0),
+            ("Secure return 2 - L1", 5083.0, 2155.0),
+            ("Secure return 3 - L1", -1547.0, -8696.0)
+        ],
+        MAP_BOGROOT_L2: [
+            ("Secure return - L2", -14076.0, -19457.0),
+            ("Secure return 2 - L2", -955.0, 10984.0),
+            ("Secure return 3 - L2", 216.0, 11534.0),
+            ("Secure return - Boss", 19619.0, -11498.0)
+        ]
+    }
+
+    def pick_nearest_anchor(map_id: int, px: float, py: float) -> str:
+        candidates = SHRINES_BY_MAP.get(map_id)
+        if not candidates:
+            return "Reset farm"  # generic fallback anchor
+
+        best_name = candidates[0][0]
+        best_d2 = float("inf")
+        for name, sx, sy in candidates:
+            d2 = (px - sx) ** 2 + (py - sy) ** 2
+            if d2 < best_d2:
+                best_d2 = d2
+                best_name = name
+        return best_name
+
+    player_x, player_y = Player.GetXY()
+    map_id = int(Map.GetMapID())
+
+    bot.config.FSM.pause()
+
+    # Not in dungeon maps -> resign and go to generic secure return
+    if map_id not in ("Bogroot Growths (level 1)", "Bogroot Growths (level 2)"):
+        bot.Multibox.ResignParty()
+        yield from bot.Wait._coro_for_time(10000)
+        bot.config.FSM.jump_to_state_by_name("Reset farm")
+        bot.config.FSM.resume()
+        return
+
+    # Full party defeated -> let widget handle return
+    if GLOBAL_CACHE.Party.IsPartyDefeated():
+        yield from bot.Wait._coro_for_time(10000)
+        bot.config.FSM.jump_to_state_by_name("Reset farm")
+        bot.config.FSM.resume()
+        return
+
+    chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))
+
+    ConsoleLog("Res Check", f"↩ wipe-route -> {chosen} (map={map_id}, pos=({player_x:.0f},{player_y:.0f}))")
+    bot.config.FSM.jump_to_state_by_name(chosen)
+
+    bot.config.FSM.resume()
+    return
+
+from typing import Generator, Any
+
+def TargetAndMoveToTekks(bot: Botting) -> Generator[Any, Any, None]:
+    npc_name = "Tekks"
+
+    ConsoleLog(BOT_NAME, "[TEST] TargetAndMoveToTekks -> start", log=True)
+
+    while True:
+        agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+
+        if not agent_id:
+            ConsoleLog(BOT_NAME, "[TEST] Tekks not found, retrying...", log=True)
+            yield from Routines.Yield.wait(500)
+            continue
+
+        ConsoleLog(BOT_NAME, f"[TEST] Tekks found (agent_id={agent_id})", log=True)
+
+        # Cibler Tekks
+        Player.ChangeTarget(agent_id)
+        yield from Routines.Yield.wait(500)
+
+        # Récupérer ses coordonnées
+        x, y = Agent.GetXY(agent_id)
+        ConsoleLog(BOT_NAME, f"[TEST] Moving to Tekks at ({x}, {y})", log=True)
+
+        # Se déplacer vers Tekks
+        bot.Move.XYAndDialog(x, y, TEKKS_QUEST_TAKE_DIALOG)
+        yield from Routines.Yield.wait(1000)
+
+        # Cibler Tekks
+        Player.ChangeTarget(agent_id)
+        yield from Routines.Yield.wait(500)
+        
+
+        ConsoleLog(BOT_NAME, "[TEST] Target + move command sent", log=True)
+        return
+
+def _step_anchor() -> Generator:
+    yield
+
+def OnPartyWipe(bot: "Botting"):
+    ConsoleLog("on_party_wipe", "event triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 
 # ==================== UTILITY FUNCTIONS ====================
+
+
+
+def _move_to(x: float, y: float, tolerance: float = 180.0, max_tries: int = 60):
+    Player.Move(x, y)
+
+    for _ in range(max_tries):
+        px, py = Player.GetXY()
+        dist = Utils.Distance((px, py), (x, y))
+
+        if dist <= tolerance:
+            return True
+
+        yield from Routines.Yield.wait(100)
+
+    return False
+
+
+def _wait_for_map(map_name: str, max_tries: int = 120):
+    for _ in range(max_tries):
+        if Map.GetMapName() == map_name:
+            return True
+        yield from Routines.Yield.wait(500)
+    return False
+
+def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0):
+    npc_name = "Tekks"
+
+    agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+    if not agent_id:
+        ConsoleLog(BOT_NAME, f"[Tekks] {npc_name} introuvable", log=True)
+        return False
+
+    x, y = Agent.GetXY(agent_id)
+    ConsoleLog(BOT_NAME, f"[Tekks] Found {npc_name} at ({x}, {y})", log=True)
+    
+    ok = yield from _move_to(x, y, tolerance=tolerance)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[Tekks] Impossible d'approcher Tekks", log=True)
+        return False
+        
+
+    Player.Interact(agent_id)
+    yield from Routines.Yield.wait(800)
+    bot.Multibox.SendDialogToTarget(dialog_id)
+    yield from Routines.Yield.wait(1500)
+    return True
+
+
+def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
+    global TEKKS_REWARD_PENDING
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> start", log=True)
+
+    # 1) Reward Tekks in Sparkfly
+    if Map.GetMapName() != "Sparkfly Swamp":
+        ConsoleLog(BOT_NAME, f"[RECOVERY] Mauvaise map pour reward: {Map.GetMapName()}", log=True)
+        yield
+        return
+
+    ok = yield from _interact_with_tekks(bot, TEKKS_QUEST_REWARD_DIALOG)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Reward Tekks failed", log=True)
+        yield
+        return
+
+    # 2) Go to dungeon entrance
+    for x, y in [
+        (11676.01, 22685.0),
+        (11562.77, 24059.0)]:
+        ok = yield from _move_to(x, y)
+        if not ok:
+            ConsoleLog(BOT_NAME, f"[RECOVERY] Failed move to ({x}, {y})", log=True)
+            yield
+            return
+
+    # Ici, si nécessaire, interaction explicite avec le portail
+    # à adapter selon ton framework / la vraie coord du portail
+    Player.Move(13097.0, 26393.0)
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Bogroot Growths (level 1)")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible d'entrer en Bogroot Growths (level 1)", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Entered Bogroot Growths (level 1)", log=True)
+
+    # 3) Exit dungeon
+    ok = yield from _move_to(14600.0, 470.0)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Failed move to dungeon exit", log=True)
+        yield
+        return
+
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Sparkfly Swamp")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible de revenir à Sparkfly Swamp", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Back to Sparkfly Swamp", log=True)
+
+    # 4) Retake quest from Tekks
+    ok = yield from _interact_with_tekks(bot, TEKKS_QUEST_REWARD_DIALOG)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Retake quest failed", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> done", log=True)
+
+
+
+    bot.States.JumpToStepName("LOOP_RESTART_POINT")
+    yield
+
+
+def _post_return_flow(bot: Botting) -> Generator:
+    global TEKKS_REWARD_PENDING
+
+    ConsoleLog(BOT_NAME, f"[POST-RETURN] Flag value = {TEKKS_REWARD_PENDING}", log=True)
+
+    if not TEKKS_REWARD_PENDING:
+        ConsoleLog(BOT_NAME, "[POST-RETURN] Reward NOT taken -> recovery flow", log=True)
+        yield from _recover_reward_and_retake_quest(bot)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[POST-RETURN] Reward taken -> continue", log=True)
+    yield
+
 
 def command_type_routine_in_message_is_active(account_email, shared_command_type):
     """Checks if a multibox command is active for an account"""
@@ -64,6 +354,12 @@ def open_bogroot_chest():
     sender_email = Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     
+    
+    # --- LEADER: interact first ---
+    Player.Interact(target, False)
+    yield from Routines.Yield.wait(100)
+
+
     # Wait for the leader to finish
     while command_type_routine_in_message_is_active(sender_email, SharedCommandType.InteractWithTarget):
         yield from Routines.Yield.wait(250)
@@ -87,91 +383,128 @@ def open_bogroot_chest():
     yield
 
 
-def wait_for_map_change(target_map_id, timeout_seconds=60):
-    """Wait for map change with timeout"""
-    ConsoleLog(BOT_NAME, f"Waiting for map change to {target_map_id}...")
-    timeout = time.time() + timeout_seconds
-    while True:
-        current_map = Map.GetMapID()
-        if current_map == target_map_id:
-            ConsoleLog(BOT_NAME, f"Map change detected! Now in map {target_map_id}")
+def UseSummons():
+    """
+    Uses only ONE summon with priority:
+    1. Summons (30209)
+    2. Legionnary Crystal (37810)
+    """
+
+    summons = [
+        ("Tengu", 30209),
+        ("Legionnary Crystal", 37810),
+    ]
+
+    for name, model_id in summons:
+        ConsoleLog("UseSummons", f"Searching for {name}...", log=True)
+
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+
+        if item_id:
+            ConsoleLog("UseSummons", f"{name} found (item_id: {item_id}), using...", log=True)
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            yield from Routines.Yield.wait(1000)
+            ConsoleLog("UseSummons", f"{name} used!", log=True)
+
             yield
-            return
-        if time.time() > timeout:
-            ConsoleLog(BOT_NAME, f"Timeout waiting for map {target_map_id}")
-            yield
-            return
-        yield from Routines.Yield.wait(500)
+            return  # STOP ici → on ne teste pas le second
 
+        else:
+            ConsoleLog("UseSummons", f"{name} not found in inventory", log=True)
 
-def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(Player.GetAgentID()):
-        yield from bot.Wait._coro_for_time(1000)
-        if not Routines.Checks.Map.MapValid():
-            bot.config.FSM.resume()
-            return
-    # When the player is resurrected, resume combat
-    bot.States.JumpToStepName("[H]Combat_3")
-    bot.config.FSM.resume()
-
-
-def OnPartyWipe(bot: "Botting"):
-    ConsoleLog("on_party_wipe", "party wipe detected")
-    fsm = bot.config.FSM
-    fsm.pause()
-    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
-    
-    
-def UseTengu():
-    """Uses Tengu (item ID 30209)"""
-    ConsoleLog("UseTengu", "Searching for Tengu...", log=True)
-    
-    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(30209)
-    
-    if item_id:
-        ConsoleLog("UseTengu", f"Tengu found (item_id: {item_id}), using...", log=True)
-        GLOBAL_CACHE.Inventory.UseItem(item_id)
-        yield from Routines.Yield.wait(1000)
-        ConsoleLog("UseTengu", "Tengu used!", log=True)
-    else:
-        ConsoleLog("UseTengu", "Tengu not found in inventory", log=True)
-    
-    yield    
-
+    ConsoleLog("UseSummons", "No summon found", log=True)
+    yield
 
 def loop_marker():
     """Empty marker for loop restart point"""
     ConsoleLog(BOT_NAME, "Starting new dungeon run...")
     yield
 
+def Search_and_talk_with_Tekks(bot: Botting):
+    npc_name = "Tekks"
+
+    ConsoleLog(BOT_NAME, "[Tekks] Start quest take", log=True)
+
+    for attempt in range(1, 21):
+        ConsoleLog(BOT_NAME, f"[Tekks] Search {npc_name} attempt {attempt}/20", log=True)
+
+        agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+
+        if agent_id:
+            ConsoleLog(BOT_NAME, f"[Tekks] Found {npc_name} agent_id={agent_id}", log=True)
+
+            x, y = Agent.GetXY(agent_id)
+            ConsoleLog(BOT_NAME, f"[Tekks] Move to ({x}, {y})", log=True)
+
+            for i in range(150):
+                if i % 10 == 0:
+                    Player.Move(x, y)
+
+                px, py = Player.GetXY()
+                dist = Utils.Distance((px, py), (x, y))
+
+                if dist < 150:
+                    ConsoleLog(BOT_NAME, "[Tekks] Arrived near Tekks", log=True)
+                    break
+
+                yield from Routines.Yield.wait(100)
+            else:
+                ConsoleLog(BOT_NAME, "[Tekks] Could not reach Tekks", log=True)
+                yield
+                return
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            current_target = Player.GetTargetID()
+            ConsoleLog(BOT_NAME, f"[Tekks] Current target = {current_target}", log=True)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            ConsoleLog(BOT_NAME, "[Tekks] Quest/Reward taken", log=True)
+            yield
+            return
+
+        yield from Routines.Yield.wait(500)
 
 # ==================== MAIN ROUTINE ====================
 
 def farm_froggy_routine(bot: Botting) -> None:
     # ===== INITIAL CONFIGURATION =====
+    bot.Templates.Routines.UseCustomBehaviors(
+        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
+        on_party_death=BottingHelpers.botting_unrecoverable_issue,
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
+    #CustomBehaviorParty().set_party_is_enabled(True)
     widget_handler = get_widget_handler()
-    widget_handler.enable_widget('HeroAI')
     widget_handler.enable_widget('Return to outpost on defeat')
     
     # Register wipe callback
-    condition = lambda: OnPartyWipe(bot)
-    bot.Events.OnPartyWipeCallback(condition)
+    bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     
     # Enable properties
     bot.Properties.Enable('auto_combat')
-    bot.Properties.Enable('hero_ai')
-    
+    bot.States.AddCustomState(_step_anchor, "Reset farm")  # anchor for secure return on wipe    
     # ===== START OF BOT =====
     bot.States.AddHeader(BOT_NAME)
-    bot.Templates.Multibox_Aggressive()
+    bot.Templates.Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=MAP_GADDS_ENCAMPMENT)
     
     # ===== START OF LOOP =====
     bot.States.AddHeader(f"{BOT_NAME}_LOOP")
     bot.Party.SetHardMode(True)
-    
+    bot.Properties.Enable('auto_combat')
+    bot.Quest.AbandonQuest(TEKKS_QUEST_ID)
     # ===== GO TO DUNGEON =====
     bot.States.AddHeader("Go to Dungeon")
+    bot.Templates.Aggressive()
     bot.Move.XYAndExitMap(-9451.37, -19766.40, target_map_id=MAP_SPARKFLY)
     bot.Wait.UntilOnExplorable()
     bot.Wait.ForTime(2000)
@@ -181,7 +514,7 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
     
-    #bot.States.AddCustomState(UseTengu, "Use Tengu") test
+    bot.States.AddCustomState(UseSummons, "UseSummons")
     
     # Path to Tekks
     bot.Move.XY(-8933.0, -18909.0)
@@ -212,29 +545,34 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(12503.0, 22721.0)
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(3000)
-    
-    # Second blessing
-    bot.Move.XYAndInteractNPC(12503.0, 22721.0)
-    bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
-    bot.Wait.ForTime(4000)
-    
-    # ===== LOOP RESTART POINT =====
+
+
+
+        # ===== LOOP RESTART POINT =====
     bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
-    
+
+
     # Take Tekks' quest
-    bot.Move.XYAndInteractNPC((12461.80, 22661.57)[0], (12461.80, 22661.57)[1])
+    bot.States.AddCustomState(lambda: Search_and_talk_with_Tekks(bot), "Find Tekks and talk")
+    bot.Wait.ForTime(5000)
     bot.Multibox.SendDialogToTarget(TEKKS_QUEST_TAKE_DIALOG)
     bot.Wait.ForTime(4000)
     
+
+
     # Enter the dungeon
     bot.Move.XY(11676.01, 22685.0)
     bot.Move.XY(11562.77, 24059.0)
     bot.Move.XY(13097.0, 26393.0)
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(2000)
+
+
     
     # ===== LEVEL 1 =====
     bot.States.AddHeader("Level 1")
+    bot.Templates.Aggressive()
+    bot.Templates.Aggressive()
     bot.Move.XY(18092.0, 4315.0)
     bot.Move.XY(19045.95, 7877.0)
     bot.Wait.UntilOutOfCombat()
@@ -245,10 +583,13 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
     
+    bot.States.AddHeader("Secure return - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return - L1")
+
     # Use consumables
     bot.Multibox.UseAllConsumables()
     bot.Wait.ForTime(3000)
-    #bot.States.AddCustomState(UseTengu, "Use Tengu")
+    bot.States.AddCustomState(UseSummons, "UseSummons")
     
     # Full path Level 1
     bot.Move.XY(16541.48, 8558.94)
@@ -258,6 +599,10 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(9752.17, 8241.79) #freez xy33
     bot.Move.XY(8238.36, 7434.97) # test antifreeze
     bot.Move.XY(6491.41, 5310.56)
+
+    bot.States.AddHeader("Secure return 2 - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return 2 - L1")
+
     bot.Move.XY(5097.64, 2204.33)
     bot.Move.XY(1228.15, 54.49)
     bot.Wait.ForTime(8000)
@@ -265,6 +610,10 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Wait.ForTime(3000)
     bot.Move.XY(1228.15, 54.49)
     bot.Move.XY(141.23, -1965.14)
+    bot.States.AddHeader("Secure return 3 - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return 3 - L1")  # anchor for secure return on wipe
+
+
     bot.Move.XY(-1540.98, -5820.18)
     bot.Move.XY(-269.32, -8533.17)
     bot.Move.XY(-1230.10, -8608.68)
@@ -282,11 +631,11 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Wait.UntilOutOfCombat()
     
     # Wait for change to Level 2
-    bot.States.AddCustomState(lambda: wait_for_map_change(MAP_BOGROOT_L2, 60), "Wait for Level 2")
-    bot.Wait.ForTime(2000)
+    bot.Wait.ForMapToChange(target_map_name="Bogroot Growths (level 2)")
     
     # ===== LEVEL 2 =====
     bot.States.AddHeader("Level 2")
+    bot.Templates.Aggressive()
     
     # Refresh consumables
     bot.Multibox.UseAllConsumables()
@@ -300,6 +649,9 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC(-11055.0, -5551.0)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
+
+    bot.States.AddHeader("Secure return - L2")
+    bot.States.AddCustomState(_step_anchor, "Secure return - L2")
     
     # Path to second blessing
     bot.Move.XY(-11522.0, -3486.0)
@@ -311,7 +663,7 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(-10535.0, -191.0)
     bot.Move.XY(-10262.0, -1167.0)
     bot.Wait.ForTime(8000)
-    bot.States.AddCustomState(UseTengu, "Use Tengu")
+    bot.States.AddCustomState(UseSummons, "UseSummons")
     bot.Move.XY(-9390.0, -393.0)
     bot.Move.XY(-8427.0, 1043.0)
     bot.Move.XY(-7297.0, 2371.0)
@@ -333,7 +685,10 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC(-955.0, 10984.0)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
-    
+
+    bot.States.AddHeader("Secure return 2 - L2")
+    bot.States.AddCustomState(_step_anchor, "Secure return 2 - L2")
+
     # Path to Patriarch's blessing
     bot.Move.XY(216.0, 11534.0)
     bot.Move.XY(1485.0, 12022.0)
@@ -357,6 +712,9 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
     
+    bot.States.AddHeader("Secure return 3 - L2")
+    bot.States.AddCustomState(_step_anchor, "Secure return 3 - L2")
+
     # Path to boss door
     bot.Move.XY(8372.0, 3448.0)
     bot.Move.XY(8714.0, 2151.0)
@@ -368,18 +726,12 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(11016.0, -5384.0)
     bot.Move.XY(12943.0, -6511.0)
     bot.Move.XY(15127.0, -6231.0)
-    bot.Wait.ForTime(8000)
     bot.Move.XY(16461.0, -6041.0)#here boss and key
     bot.Move.XY(16389.50, -4090.36)
-    bot.Wait.ForTime(3000)
     bot.Move.XY(15309.36, -2904.08)
-    bot.Wait.ForTime(3000)
     bot.Move.XY(14357.81, -5818.01)
-    bot.Wait.ForTime(3000)
     bot.Move.XY(16461.0, -6041.0)#here boss and key
-    bot.Wait.ForTime(9000)
     bot.Move.XY(17565.0, -6227.0)
-    bot.Wait.ForTime(3000)
     bot.Wait.UntilOutOfCombat()
     
     # Open boss door
@@ -400,62 +752,42 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(18761.0, -12747.0)
     bot.Move.XY(19619.0, -11498.0)
     bot.Wait.UntilOutOfCombat()
-    bot.Wait.ForTime(3000)
     
     # Final blessing
+    bot.Templates.Aggressive()
     bot.Move.XYAndInteractNPC(19619.0, -11498.0)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
-    
+    bot.States.AddHeader("Secure return - Boss")
+    bot.States.AddCustomState(_step_anchor, "Secure return - Boss")
+
+
     # ===== BOSS FIGHT =====
     bot.States.AddHeader("Boss Fight")
+    bot.Templates.Aggressive()
     bot.Move.XY(17582.52, -14231.0)
     bot.Move.XY(14794.47, -14929.0)
-    bot.Wait.ForTime(8000)
     bot.Move.XY(13609.12, -17286.0)
-    bot.Wait.ForTime(5000)
     bot.Move.XY(14079.80, -17776.0)
     bot.Move.XY(15116.40, -18733.0)
     bot.Move.XY(15914.68, -19145.53)
     bot.Wait.UntilOutOfCombat()
     
-    # ===== OPEN FINAL CHEST =====
+    bot.States.AddHeader("End / Reward")
+    bot.States.AddCustomState(lambda: Search_and_talk_with_Tekks(bot), "Find Tekks and talk")
     bot.Wait.ForTime(5000)
-    bot.Interact.WithGadgetAtXY(CHEST_POSITION[0], CHEST_POSITION[1])
-    bot.States.AddCustomState(open_bogroot_chest, "Open Chest (All Accounts)")
-    bot.Wait.ForTime(5000)
-    
-    # ===== WAIT FOR TELEPORTATION =====
-    bot.States.AddCustomState(lambda: wait_for_map_change(MAP_SPARKFLY, 180), "Wait Dungeon End")
-    bot.Wait.ForMapLoad(MAP_SPARKFLY)
-    
-    # ===== TURN IN QUEST =====
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(12638.55, 22499.37)
-    bot.Move.XY(12397.78, 22595.02)
-    bot.Move.XY(12459.26, 22668.62)
-    bot.Move.XYAndInteractNPC(12503.0, 22721.0)
     bot.Multibox.SendDialogToTarget(TEKKS_QUEST_REWARD_DIALOG)
-    bot.Wait.ForTime(7000)
-    
-    # ===== RESET DUNGEON =====
-    bot.States.AddHeader("Reset Dungeon")
-    ConsoleLog(BOT_NAME, "Resetting dungeon...")
-    
-    # Go back to dungeon portal
-    bot.Move.XY(11676.01, 22685.0)
-    bot.Move.XY(11562.77, 24059.0)
-    bot.Move.XY(13097.0, 26393.0)
-    bot.Wait.ForMapLoad(MAP_BOGROOT_L1)
-    
-    # Exit dungeon portal
-    bot.Move.XY(14600.0, 470.0)
-    bot.Wait.ForMapLoad(MAP_SPARKFLY)
-    bot.Move.XY(11562.77, 24059.0)
-    bot.Move.XY(11161.13, 23562.64)
-    bot.Move.XY(12120.30, 22588.55)
-    
-    ConsoleLog(BOT_NAME, "Dungeon reset complete - Restarting...")
+    bot.Wait.ForTime(4000)
+    bot.States.AddCustomState(_verify_reward_taken_from_quest_log, "Verify reward from quest log")
+
+
+    # ===== CHEST =====
+    bot.Move.XY(15030.00, -19168.00)
+    bot.States.AddCustomState(open_bogroot_chest, "Open chest with all accounts")
+
+    # ===== NEXT RUN =====
+    bot.Wait.ForMapToChange(target_map_name="Sparkfly Swamp")
+    bot.States.AddCustomState(lambda: _post_return_flow(bot), "Post-return quest handling")
     
     # ===== LOOP =====
     bot.States.JumpToStepName("LOOP_RESTART_POINT")
