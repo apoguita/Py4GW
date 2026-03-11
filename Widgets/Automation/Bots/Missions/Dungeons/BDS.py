@@ -65,11 +65,12 @@ _merchant_sell_materials: bool = False
 _merchant_sell_rare_mats: bool = False
 _merchant_buy_ectos: bool = False
 _merchant_ecto_threshold: int = 800_000
+_merchant_alt_wait_ms: int = 90_000
 _merchant_loaded: bool = False
 
 
 def _load_merchant_settings() -> None:
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_loaded
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms, _merchant_loaded
     if _merchant_loaded:
         return
     _merchant_enabled = _bds_ini.read_bool(_MERCHANT_SECTION, "enabled", False)
@@ -79,6 +80,7 @@ def _load_merchant_settings() -> None:
     _merchant_sell_rare_mats = _bds_ini.read_bool(_MERCHANT_SECTION, "sell_rare_mats", False)
     _merchant_buy_ectos = _bds_ini.read_bool(_MERCHANT_SECTION, "buy_ectos", False)
     _merchant_ecto_threshold = _bds_ini.read_int(_MERCHANT_SECTION, "ecto_threshold", 800_000)
+    _merchant_alt_wait_ms = _bds_ini.read_int(_MERCHANT_SECTION, "alt_wait_ms", 90_000)
     _merchant_loaded = True
 
 
@@ -90,6 +92,7 @@ def _save_merchant_settings() -> None:
     _bds_ini.write_key(_MERCHANT_SECTION, "sell_rare_mats", str(_merchant_sell_rare_mats))
     _bds_ini.write_key(_MERCHANT_SECTION, "buy_ectos", str(_merchant_buy_ectos))
     _bds_ini.write_key(_MERCHANT_SECTION, "ecto_threshold", str(_merchant_ecto_threshold))
+    _bds_ini.write_key(_MERCHANT_SECTION, "alt_wait_ms", str(_merchant_alt_wait_ms))
 
 
 def _find_npc_xy_by_name(name_fragment: str, max_dist: float = 5000.0):
@@ -206,6 +209,48 @@ def _coro_sell_nonsalvageable_golds(mx: float, my: float) -> Generator:
     yield from Routines.Yield.wait(300)
 
 
+_MERCHANT_MANAGED_WIDGETS = ("InventoryPlus", "CustomBehaviors")
+
+
+def _disable_merchant_widgets() -> Generator:
+    """Disable InventoryPlus and CustomBehaviors on leader + all alts during GH merchant ops."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    ConsoleLog(BOT_NAME, "[Merchant] Disabling managed widgets on all accounts")
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.disable_widget(name)
+    _my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != _my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    _my_email, acc.AccountEmail,
+                    SharedCommandType.DisableWidget, (0, 0, 0, 0), (name, "", "", ""),
+                )
+    ConsoleLog(BOT_NAME, f"[Merchant] Disabled {_MERCHANT_MANAGED_WIDGETS} on all accounts")
+    yield
+
+
+def _reenable_merchant_widgets() -> Generator:
+    """Re-enable InventoryPlus and CustomBehaviors on leader + all alts after GH merchant ops.
+    Called once all accounts are back in Vlox's Falls, ready to enter the dungeon."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    ConsoleLog(BOT_NAME, "[Merchant] Re-enabling managed widgets on all accounts")
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.enable_widget(name)
+    _my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != _my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    _my_email, acc.AccountEmail,
+                    SharedCommandType.EnableWidget, (0, 0, 0, 0), (name, "", "", ""),
+                )
+    ConsoleLog(BOT_NAME, f"[Merchant] Re-enabled {_MERCHANT_MANAGED_WIDGETS} on all accounts")
+    yield
+
+
 def _gh_merchant_setup(leave_party: bool = True) -> Generator:
     """Travel to Guild Hall (all accounts via SharedMemory), restock kits, sell materials,
     sell leftover stacks and optionally buy ectos. Mirrors the FoW modular bot pattern."""
@@ -257,6 +302,9 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
         return
 
     yield from Routines.Yield.wait(3000)  # wait for NPCs to finish loading
+
+    # ── Disable CustomBehavior and InventoryPlus on all accounts during merchant ops ──
+    yield from _disable_merchant_widgets()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     _my_email = Player.GetAccountEmail()
@@ -383,8 +431,8 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
             ConsoleLog(BOT_NAME, "[Merchant] Ecto buy skipped (storage below threshold or no Rare Trader)")
 
     # ── Step 8: Wait for alts to finish their queued actions ─────────────────
-    ConsoleLog(BOT_NAME, "[Merchant] Waiting for alts to complete merchant actions")
-    yield from Routines.Yield.wait(30000)
+    ConsoleLog(BOT_NAME, f"[Merchant] Waiting {_merchant_alt_wait_ms // 1000}s for alts to complete merchant actions")
+    yield from Routines.Yield.wait(_merchant_alt_wait_ms)
 
     # ── Step 9: Return to Vlox's Fall ────────────────────────────────────────
     ConsoleLog(BOT_NAME, "[Merchant] Returning to Vlox's Fall")
@@ -414,6 +462,7 @@ def _gh_merchant_setup_if_inventory_full() -> Generator:
     yield from bot.Wait._coro_until_on_outpost()
 
     yield from _gh_merchant_setup(leave_party=False)
+    yield from _reenable_merchant_widgets()
 
 
 def _snapshot_bds_before_chest() -> Generator:
@@ -1265,7 +1314,7 @@ def _draw_difficulty_setting() -> None:
 
 def _draw_merchant_settings() -> None:
     import PyImGui
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
 
     _load_merchant_settings()
 
@@ -1312,6 +1361,15 @@ def _draw_merchant_settings() -> None:
                 _merchant_ecto_threshold = max(0, new_thresh)
                 _save_merchant_settings()
 
+        PyImGui.push_item_width(100)
+        new_wait = PyImGui.input_int("Alt wait time (ms)##bds_alt_wait", _merchant_alt_wait_ms)
+        if new_wait != _merchant_alt_wait_ms:
+            _merchant_alt_wait_ms = max(10_000, new_wait)
+            _save_merchant_settings()
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, 6)
+        PyImGui.text("(time given to alts to reach NPCs and finish)")
+
 
 def _draw_bds_settings() -> None:
     import PyImGui
@@ -1343,6 +1401,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Multibox.AbandonQuest(LOST_SOULS_QUEST_ID)
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=Vloxs_Fall)
+    bot.States.AddCustomState(_reenable_merchant_widgets, "Re-enable widgets (all in Vlox's Falls)")
     bot.Multibox.AbandonQuest(LOST_SOULS_QUEST_ID)
     bot.Multibox.RestockAllPcons()
     bot.Multibox.RestockConset()

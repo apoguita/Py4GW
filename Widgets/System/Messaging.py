@@ -39,6 +39,12 @@ ARMOR_OF_UNFEELING = "Armor_of_Unfeeling"
 
 width, height = 0, 0
 
+# Merchant serialization lock: prevents concurrent merchant coroutines from
+# issuing conflicting movement/interaction packets that crash the GW client.
+# ProcessMessages() dispatches a new coroutine every frame, so without this
+# lock, rapid ShMem dispatches create multiple simultaneous coroutines.
+_merchant_busy: bool = False
+
 
 class HeroAIoptions:
     def __init__(self):
@@ -582,8 +588,16 @@ def GetBlessing(index: int, message: SharedMessageStruct):
 # endregion
 # region MerchantItems
 def MerchantItems(index: int, message: SharedMessageStruct):
+    global _merchant_busy
     ConsoleLog(MODULE_NAME, f"Processing MerchantItems message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    # Serialize with MerchantMaterials to prevent concurrent NPC interaction conflicts
+    wait_ms = 0
+    while _merchant_busy and wait_ms < 120000:
+        yield from Routines.Yield.wait(250)
+        wait_ms += 250
+    _merchant_busy = True
 
     try:
         x = float(message.Params[0])
@@ -600,12 +614,18 @@ def MerchantItems(index: int, message: SharedMessageStruct):
         salvage_kits_target = 0
 
     SnapshotHeroAIOptions(message.ReceiverEmail)
+    _inv_widget_mi = get_widget_handler().get_widget_info("Inventory Plus")
+    if _inv_widget_mi:
+        _inv_widget_mi.pause()
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
-        yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+        ok = yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+        if not ok:
+            ConsoleLog(MODULE_NAME, "MerchantItems: merchant NPC not found, skipping kit buy", Console.MessageType.Warning, False)
+            return
         yield from Routines.Yield.wait(1200)
 
         id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit.value))
@@ -618,14 +638,25 @@ def MerchantItems(index: int, message: SharedMessageStruct):
         yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
         yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
     finally:
+        _merchant_busy = False
+        if _inv_widget_mi:
+            _inv_widget_mi.resume()
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
 # region MerchantMaterials
 def MerchantMaterials(index: int, message: SharedMessageStruct):
+    global _merchant_busy
     ConsoleLog(MODULE_NAME, f"Processing MerchantMaterials message: {message}", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    # Serialize: wait for any concurrent merchant coroutine to finish first
+    wait_ms = 0
+    while _merchant_busy and wait_ms < 120000:
+        yield from Routines.Yield.wait(250)
+        wait_ms += 250
+    _merchant_busy = True
 
     def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
         values: list[str] = []
@@ -673,6 +704,9 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         return
 
     SnapshotHeroAIOptions(message.ReceiverEmail)
+    _inv_widget = get_widget_handler().get_widget_info("Inventory Plus")
+    if _inv_widget:
+        _inv_widget.pause()
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
@@ -730,11 +764,14 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
             if leftover_ids:
                 yield from Routines.Yield.Movement.FollowPath([(x, y)])
                 yield from Routines.Yield.wait(100)
-                yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-                yield from Routines.Yield.wait(1200)
-                yield from Routines.Yield.Merchant.SellItems(leftover_ids)
-                yield from Routines.Yield.wait(300)
-                ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_merchant_leftovers: sold {len(leftover_ids)} stacks", Console.MessageType.Info, False)
+                ok = yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+                if not ok:
+                    ConsoleLog(MODULE_NAME, "MerchantMaterials sell_merchant_leftovers: merchant NPC not found, skipping sell", Console.MessageType.Warning, False)
+                else:
+                    yield from Routines.Yield.wait(1200)
+                    yield from Routines.Yield.Merchant.SellItems(leftover_ids)
+                    yield from Routines.Yield.wait(300)
+                    ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_merchant_leftovers: sold {len(leftover_ids)} stacks", Console.MessageType.Info, False)
             else:
                 ConsoleLog(MODULE_NAME, "MerchantMaterials sell_merchant_leftovers: no leftover stacks, skipping", Console.MessageType.Info, False)
 
@@ -792,11 +829,14 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                 if sell_ids:
                     yield from Routines.Yield.Movement.FollowPath([(x, y)])
                     yield from Routines.Yield.wait(100)
-                    yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-                    yield from Routines.Yield.wait(1200)
-                    yield from Routines.Yield.Merchant.SellItems(sell_ids)
-                    yield from Routines.Yield.wait(300)
-                    ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_scrolls: sold {len(sell_ids)} scroll(s)", Console.MessageType.Info, False)
+                    ok = yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+                    if not ok:
+                        ConsoleLog(MODULE_NAME, "MerchantMaterials sell_scrolls: merchant NPC not found, skipping sell", Console.MessageType.Warning, False)
+                    else:
+                        yield from Routines.Yield.wait(1200)
+                        yield from Routines.Yield.Merchant.SellItems(sell_ids)
+                        yield from Routines.Yield.wait(300)
+                        ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_scrolls: sold {len(sell_ids)} scroll(s)", Console.MessageType.Info, False)
                 else:
                     ConsoleLog(MODULE_NAME, "MerchantMaterials sell_scrolls: no scrolls in inventory, skipping", Console.MessageType.Info, False)
 
@@ -817,11 +857,14 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
             if sell_ids:
                 yield from Routines.Yield.Movement.FollowPath([(x, y)])
                 yield from Routines.Yield.wait(100)
-                yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-                yield from Routines.Yield.wait(1200)
-                yield from Routines.Yield.Merchant.SellItems(sell_ids)
-                yield from Routines.Yield.wait(300)
-                ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_nonsalvageable_golds: sold {len(sell_ids)} item(s)", Console.MessageType.Info, False)
+                ok = yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+                if not ok:
+                    ConsoleLog(MODULE_NAME, "MerchantMaterials sell_nonsalvageable_golds: merchant NPC not found, skipping sell", Console.MessageType.Warning, False)
+                else:
+                    yield from Routines.Yield.wait(1200)
+                    yield from Routines.Yield.Merchant.SellItems(sell_ids)
+                    yield from Routines.Yield.wait(300)
+                    ConsoleLog(MODULE_NAME, f"MerchantMaterials sell_nonsalvageable_golds: sold {len(sell_ids)} item(s)", Console.MessageType.Info, False)
             else:
                 ConsoleLog(MODULE_NAME, "MerchantMaterials sell_nonsalvageable_golds: no items in inventory, skipping", Console.MessageType.Info, False)
         else:
@@ -832,6 +875,9 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                 False,
             )
     finally:
+        _merchant_busy = False
+        if _inv_widget:
+            _inv_widget.resume()
         RestoreHeroAISnapshot(message.ReceiverEmail)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
