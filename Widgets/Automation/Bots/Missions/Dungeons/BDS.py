@@ -27,7 +27,7 @@ from Py4GWCoreLib.routines_src.Yield import Yield
 
 
 # ==================== CONFIGURATION ====================
-BOT_NAME = "BDS Farm rezone"
+BOT_NAME = "BDS Farm"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets","Automation","Bots","Missions","Dungeons","bds.png")
 
 # Map IDs
