@@ -1,7 +1,6 @@
 from collections.abc import Generator
 import os
-import time
-from typing import Any, Optional
+from typing import Any
 import Py4GW
 from Py4GWCoreLib import (
     Agent,
@@ -14,12 +13,10 @@ from Py4GWCoreLib import (
     Routines,
     SharedCommandType)
 from Py4GWCoreLib.py4gwcorelib_src import Utils
-from Py4GWCoreLib.routines_src.Agents import Agents
 from Py4GWCoreLib.routines_src.Yield import Yield
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib.botting_src.helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Py4GWCoreLib.routines_src.Yield import Utils
 # ==================== CONFIGURATION ====================
 BOT_NAME = "Froggy Farm rezone"
@@ -773,6 +770,12 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(15914.68, -19145.53)
     bot.Wait.UntilOutOfCombat()
     
+    # ===== CHEST =====
+    bot.Move.XY(15030.00, -19168.00)
+    bot.States.AddCustomState(open_bogroot_chest, "Open chest with all accounts")
+
+
+    # ===== REWARD =====
     bot.States.AddHeader("End / Reward")
     bot.States.AddCustomState(lambda: Search_and_talk_with_Tekks(bot), "Find Tekks and talk")
     bot.Wait.ForTime(5000)
@@ -780,10 +783,6 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Wait.ForTime(4000)
     bot.States.AddCustomState(_verify_reward_taken_from_quest_log, "Verify reward from quest log")
 
-
-    # ===== CHEST =====
-    bot.Move.XY(15030.00, -19168.00)
-    bot.States.AddCustomState(open_bogroot_chest, "Open chest with all accounts")
 
     # ===== NEXT RUN =====
     bot.Wait.ForMapToChange(target_map_name="Sparkfly Swamp")
