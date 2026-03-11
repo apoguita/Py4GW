@@ -19,8 +19,8 @@ from Py4GWCoreLib.botting_src.helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Py4GWCoreLib.routines_src.Yield import Utils
 # ==================== CONFIGURATION ====================
-BOT_NAME = "Froggy Farm"
-TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets","Automation","Bots","Missions","Dungeons","froggy.png")
+BOT_NAME = "Froggy Farm rezone"
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "textures", "froggy.png")
 
 # Map IDs
 MAP_GADDS_ENCAMPMENT = 638
@@ -235,8 +235,11 @@ def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0)
         return False
         
 
+    Player.ChangeTarget(agent_id)
+    yield from Routines.Yield.wait(800)
     Player.Interact(agent_id)
     yield from Routines.Yield.wait(800)
+    Player.SendDialog(dialog_id)
     bot.Multibox.SendDialogToTarget(dialog_id)
     yield from Routines.Yield.wait(1500)
     return True
@@ -253,6 +256,7 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
         yield
         return
 
+    
     ok = yield from _interact_with_tekks(bot, TEKKS_QUEST_REWARD_DIALOG)
     if not ok:
         ConsoleLog(BOT_NAME, "[RECOVERY] Reward Tekks failed", log=True)
@@ -298,6 +302,11 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
         return
 
     ConsoleLog(BOT_NAME, "[RECOVERY] Back to Sparkfly Swamp", log=True)
+
+
+
+    Player.Move(11193.21, 22787.21)
+    yield from Routines.Yield.wait(8000)
 
     # 4) Retake quest from Tekks
     ok = yield from _interact_with_tekks(bot, TEKKS_QUEST_REWARD_DIALOG)
