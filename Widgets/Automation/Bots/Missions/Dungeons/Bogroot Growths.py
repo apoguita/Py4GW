@@ -19,7 +19,7 @@ from Py4GWCoreLib.botting_src.helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Py4GWCoreLib.routines_src.Yield import Utils
 # ==================== CONFIGURATION ====================
-BOT_NAME = "Froggy Farm rezone"
+BOT_NAME = "Froggy Farm"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets","Automation","Bots","Missions","Dungeons","froggy.png")
 
 # Map IDs
